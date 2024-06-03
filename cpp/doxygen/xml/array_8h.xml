@@ -1,0 +1,1381 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="array_8h" kind="file" language="C++">
+    <compoundname>array.h</compoundname>
+    <includes refid="resource__handle_8h" local="no">cugraph_c/resource_handle.h</includes>
+    <includedby refid="array_8hpp" local="no">array.hpp</includedby>
+    <includedby refid="centrality__algorithms_8h" local="no">centrality_algorithms.h</includedby>
+    <includedby refid="core__algorithms_8h" local="no">core_algorithms.h</includedby>
+    <includedby refid="graph_8h" local="no">graph.h</includedby>
+    <includedby refid="graph__functions_8h" local="no">graph_functions.h</includedby>
+    <includedby refid="graph__generators_8h" local="no">graph_generators.h</includedby>
+    <includedby refid="similarity__algorithms_8h" local="no">similarity_algorithms.h</includedby>
+    <incdepgraph>
+      <node id="1">
+        <label>array.h</label>
+        <link refid="array_8h"/>
+        <childnode refid="2" relation="include">
+        </childnode>
+      </node>
+      <node id="3">
+        <label>cugraph_c/error.h</label>
+        <link refid="error_8h_source"/>
+        <childnode refid="4" relation="include">
+        </childnode>
+      </node>
+      <node id="2">
+        <label>cugraph_c/resource_handle.h</label>
+        <link refid="resource__handle_8h_source"/>
+        <childnode refid="3" relation="include">
+        </childnode>
+        <childnode refid="5" relation="include">
+        </childnode>
+        <childnode refid="4" relation="include">
+        </childnode>
+      </node>
+      <node id="5">
+        <label>stddef.h</label>
+      </node>
+      <node id="4">
+        <label>stdint.h</label>
+      </node>
+    </incdepgraph>
+    <invincdepgraph>
+      <node id="14">
+        <label>algorithms.h</label>
+        <link refid="algorithms_8h_source"/>
+        <childnode refid="9" relation="include">
+        </childnode>
+      </node>
+      <node id="1">
+        <label>array.h</label>
+        <link refid="array_8h"/>
+        <childnode refid="2" relation="include">
+        </childnode>
+        <childnode refid="13" relation="include">
+        </childnode>
+        <childnode refid="15" relation="include">
+        </childnode>
+        <childnode refid="16" relation="include">
+        </childnode>
+        <childnode refid="18" relation="include">
+        </childnode>
+        <childnode refid="20" relation="include">
+        </childnode>
+        <childnode refid="19" relation="include">
+        </childnode>
+      </node>
+      <node id="13">
+        <label>centrality_algorithms.h</label>
+        <link refid="centrality__algorithms_8h_source"/>
+        <childnode refid="14" relation="include">
+        </childnode>
+      </node>
+      <node id="17">
+        <label>community_algorithms.h</label>
+        <link refid="community__algorithms_8h_source"/>
+        <childnode refid="14" relation="include">
+        </childnode>
+      </node>
+      <node id="15">
+        <label>core_algorithms.h</label>
+        <link refid="core__algorithms_8h_source"/>
+        <childnode refid="14" relation="include">
+        </childnode>
+      </node>
+      <node id="16">
+        <label>graph.h</label>
+        <link refid="graph_8h_source"/>
+        <childnode refid="14" relation="include">
+        </childnode>
+        <childnode refid="13" relation="include">
+        </childnode>
+        <childnode refid="17" relation="include">
+        </childnode>
+        <childnode refid="15" relation="include">
+        </childnode>
+        <childnode refid="6" relation="include">
+        </childnode>
+        <childnode refid="18" relation="include">
+        </childnode>
+        <childnode refid="20" relation="include">
+        </childnode>
+        <childnode refid="21" relation="include">
+        </childnode>
+        <childnode refid="22" relation="include">
+        </childnode>
+        <childnode refid="19" relation="include">
+        </childnode>
+        <childnode refid="23" relation="include">
+        </childnode>
+      </node>
+      <node id="18">
+        <label>graph_functions.h</label>
+        <link refid="graph__functions_8h_source"/>
+        <childnode refid="17" relation="include">
+        </childnode>
+        <childnode refid="19" relation="include">
+        </childnode>
+      </node>
+      <node id="20">
+        <label>graph_generators.h</label>
+        <link refid="graph__generators_8h_source"/>
+      </node>
+      <node id="21">
+        <label>labeling_algorithms.h</label>
+        <link refid="labeling__algorithms_8h_source"/>
+        <childnode refid="14" relation="include">
+        </childnode>
+      </node>
+      <node id="22">
+        <label>sampling_algorithms.h</label>
+        <link refid="sampling__algorithms_8h_source"/>
+        <childnode refid="14" relation="include">
+        </childnode>
+      </node>
+      <node id="19">
+        <label>similarity_algorithms.h</label>
+        <link refid="similarity__algorithms_8h_source"/>
+        <childnode refid="14" relation="include">
+        </childnode>
+      </node>
+      <node id="23">
+        <label>traversal_algorithms.h</label>
+        <link refid="traversal__algorithms_8h_source"/>
+        <childnode refid="14" relation="include">
+        </childnode>
+      </node>
+      <node id="2">
+        <label>array.hpp</label>
+        <link refid="array_8hpp_source"/>
+        <childnode refid="3" relation="include">
+        </childnode>
+        <childnode refid="4" relation="include">
+        </childnode>
+        <childnode refid="5" relation="include">
+        </childnode>
+        <childnode refid="6" relation="include">
+        </childnode>
+        <childnode refid="8" relation="include">
+        </childnode>
+        <childnode refid="9" relation="include">
+        </childnode>
+        <childnode refid="10" relation="include">
+        </childnode>
+        <childnode refid="11" relation="include">
+        </childnode>
+        <childnode refid="12" relation="include">
+        </childnode>
+      </node>
+      <node id="3">
+        <label>centrality_result.hpp</label>
+        <link refid="centrality__result_8hpp_source"/>
+      </node>
+      <node id="4">
+        <label>core_result.hpp</label>
+        <link refid="core__result_8hpp_source"/>
+      </node>
+      <node id="5">
+        <label>degrees_result.hpp</label>
+        <link refid="degrees__result_8hpp_source"/>
+      </node>
+      <node id="6">
+        <label>graph.hpp</label>
+        <link refid="src_2c__api_2graph_8hpp_source"/>
+        <childnode refid="7" relation="include">
+        </childnode>
+      </node>
+      <node id="8">
+        <label>graph_functions.hpp</label>
+        <link refid="src_2c__api_2graph__functions_8hpp_source"/>
+      </node>
+      <node id="9">
+        <label>hierarchical_clustering_result.hpp</label>
+        <link refid="hierarchical__clustering__result_8hpp_source"/>
+      </node>
+      <node id="10">
+        <label>induced_subgraph_result.hpp</label>
+        <link refid="induced__subgraph__result_8hpp_source"/>
+      </node>
+      <node id="11">
+        <label>labeling_result.hpp</label>
+        <link refid="labeling__result_8hpp_source"/>
+      </node>
+      <node id="12">
+        <label>paths_result.hpp</label>
+        <link refid="paths__result_8hpp_source"/>
+      </node>
+      <node id="7">
+        <label>utils.hpp</label>
+        <link refid="c__api_2utils_8hpp_source"/>
+      </node>
+    </invincdepgraph>
+    <innerclass refid="structcugraph__type__erased__device__array__t" prot="public">cugraph_type_erased_device_array_t</innerclass>
+    <innerclass refid="structcugraph__type__erased__device__array__view__t" prot="public">cugraph_type_erased_device_array_view_t</innerclass>
+    <innerclass refid="structcugraph__type__erased__host__array__t" prot="public">cugraph_type_erased_host_array_t</innerclass>
+    <innerclass refid="structcugraph__type__erased__host__array__view__t" prot="public">cugraph_type_erased_host_array_view_t</innerclass>
+    <sectiondef kind="func">
+      <memberdef kind="function" id="array_8h_1a8d82679bbc2e39a671d890d8cca3af6b" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>cugraph_error_code_t</type>
+        <definition>cugraph_error_code_t cugraph_type_erased_device_array_create</definition>
+        <argsstring>(const cugraph_resource_handle_t *handle, size_t n_elems, cugraph_data_type_id_t dtype, cugraph_type_erased_device_array_t **array, cugraph_error_t **error)</argsstring>
+        <name>cugraph_type_erased_device_array_create</name>
+        <param>
+          <type>const <ref refid="structcugraph__resource__handle__" kindref="compound">cugraph_resource_handle_t</ref> *</type>
+          <declname>handle</declname>
+        </param>
+        <param>
+          <type>size_t</type>
+          <declname>n_elems</declname>
+        </param>
+        <param>
+          <type>cugraph_data_type_id_t</type>
+          <declname>dtype</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__type__erased__device__array__t" kindref="compound">cugraph_type_erased_device_array_t</ref> **</type>
+          <declname>array</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__error__" kindref="compound">cugraph_error_t</ref> **</type>
+          <declname>error</declname>
+        </param>
+        <briefdescription>
+<para>Create a type erased device array. </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">handle</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Handle for accessing resources </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">n_elems</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>The number of elements in the array </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">dtype</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>The type of array to create </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="out">array</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Pointer to the location to store the pointer to the device array </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="out">error</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Pointer to an error object storing details of any error. Will be populated if error code is not CUGRAPH_SUCCESS </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>error code </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/array.h" line="52" column="22" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/array.cpp" bodystart="69" bodyend="99" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/array.h" declline="52" declcolumn="22"/>
+      </memberdef>
+      <memberdef kind="function" id="array_8h_1a4ffb503121464b8eae850ffd18c9af38" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>cugraph_error_code_t</type>
+        <definition>cugraph_error_code_t cugraph_type_erased_device_array_create_from_view</definition>
+        <argsstring>(const cugraph_resource_handle_t *handle, const cugraph_type_erased_device_array_view_t *view, cugraph_type_erased_device_array_t **array, cugraph_error_t **error)</argsstring>
+        <name>cugraph_type_erased_device_array_create_from_view</name>
+        <param>
+          <type>const <ref refid="structcugraph__resource__handle__" kindref="compound">cugraph_resource_handle_t</ref> *</type>
+          <declname>handle</declname>
+        </param>
+        <param>
+          <type>const <ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref> *</type>
+          <declname>view</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__type__erased__device__array__t" kindref="compound">cugraph_type_erased_device_array_t</ref> **</type>
+          <declname>array</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__error__" kindref="compound">cugraph_error_t</ref> **</type>
+          <declname>error</declname>
+        </param>
+        <briefdescription>
+<para>Create a type erased device array from a view. </para>
+        </briefdescription>
+        <detaileddescription>
+<para>Copies the data from the view into the new device array</para>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">handle</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Handle for accessing resources </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">view</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Type erased device array view to copy from </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="out">array</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Pointer to the location to store the pointer to the device array </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="out">error</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Pointer to an error object storing details of any error. Will be populated if error code is not CUGRAPH_SUCCESS </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>error code </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/array.h" line="71" column="22" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/array.cpp" bodystart="30" bodyend="67" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/array.h" declline="71" declcolumn="22"/>
+      </memberdef>
+      <memberdef kind="function" id="array_8h_1ab08c6a1cd71f3e374436b4c976403e34" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>void</type>
+        <definition>void cugraph_type_erased_device_array_free</definition>
+        <argsstring>(cugraph_type_erased_device_array_t *p)</argsstring>
+        <name>cugraph_type_erased_device_array_free</name>
+        <param>
+          <type><ref refid="structcugraph__type__erased__device__array__t" kindref="compound">cugraph_type_erased_device_array_t</ref> *</type>
+          <declname>p</declname>
+        </param>
+        <briefdescription>
+<para>Destroy a type erased device array. </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">p</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Pointer to the type erased device array </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/array.h" line="82" column="6" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/array.cpp" bodystart="101" bodyend="105" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/array.h" declline="82" declcolumn="6"/>
+      </memberdef>
+      <memberdef kind="function" id="array_8h_1ae29b20c682f323b908101ffe6ecc1b23" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref> *</type>
+        <definition>cugraph_type_erased_device_array_view_t * cugraph_type_erased_device_array_view</definition>
+        <argsstring>(cugraph_type_erased_device_array_t *array)</argsstring>
+        <name>cugraph_type_erased_device_array_view</name>
+        <param>
+          <type><ref refid="structcugraph__type__erased__device__array__t" kindref="compound">cugraph_type_erased_device_array_t</ref> *</type>
+          <declname>array</declname>
+        </param>
+        <briefdescription>
+<para>Create a type erased device array view from a type erased device array. </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">array</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Pointer to the type erased device array </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>Pointer to the view of the host array </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/array.h" line="105" column="41" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/array.cpp" bodystart="120" bodyend="126" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/array.h" declline="105" declcolumn="41"/>
+      </memberdef>
+      <memberdef kind="function" id="array_8h_1a1df5672c2aac386817d24bdf8ee55460" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>cugraph_error_code_t</type>
+        <definition>cugraph_error_code_t cugraph_type_erased_device_array_view_as_type</definition>
+        <argsstring>(cugraph_type_erased_device_array_t *array, cugraph_data_type_id_t dtype, cugraph_type_erased_device_array_view_t **result_view, cugraph_error_t **error)</argsstring>
+        <name>cugraph_type_erased_device_array_view_as_type</name>
+        <param>
+          <type><ref refid="structcugraph__type__erased__device__array__t" kindref="compound">cugraph_type_erased_device_array_t</ref> *</type>
+          <declname>array</declname>
+        </param>
+        <param>
+          <type>cugraph_data_type_id_t</type>
+          <declname>dtype</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref> **</type>
+          <declname>result_view</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__error__" kindref="compound">cugraph_error_t</ref> **</type>
+          <declname>error</declname>
+        </param>
+        <briefdescription>
+<para>Create a type erased device array view with a different type. </para>
+        </briefdescription>
+        <detaileddescription>
+<para>Create a type erased device array view from a type erased device array treating the underlying pointer as a different type.</para>
+<para>Note: This is only viable when the underlying types are the same size. That is, you can switch between INT32 and FLOAT32, or between INT64 and FLOAT64. But if the types are different sizes this will be an error.</para>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">array</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Pointer to the type erased device array </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">dtype</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>The type to cast the pointer to </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="out">result_view</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Address where to put the allocated device view </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="out">error</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Pointer to an error object storing details of any error. Will be populated if error code is not CUGRAPH_SUCCESS </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>error code </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/array.h" line="126" column="22" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/array.cpp" bodystart="409" bodyend="433" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/array.h" declline="126" declcolumn="22"/>
+      </memberdef>
+      <memberdef kind="function" id="array_8h_1ad1e3b8c22777351b2314c96c0623b611" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref> *</type>
+        <definition>cugraph_type_erased_device_array_view_t * cugraph_type_erased_device_array_view_create</definition>
+        <argsstring>(void *pointer, size_t n_elems, cugraph_data_type_id_t dtype)</argsstring>
+        <name>cugraph_type_erased_device_array_view_create</name>
+        <param>
+          <type>void *</type>
+          <declname>pointer</declname>
+        </param>
+        <param>
+          <type>size_t</type>
+          <declname>n_elems</declname>
+        </param>
+        <param>
+          <type>cugraph_data_type_id_t</type>
+          <declname>dtype</declname>
+        </param>
+        <briefdescription>
+<para>Create a type erased device array view from a raw device pointer. </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">pointer</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Raw device pointer </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">n_elems</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>The number of elements in the array </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">dtype</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>The type of array to create </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>Pointer to the view of the host array </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/array.h" line="141" column="41" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/array.cpp" bodystart="128" bodyend="134" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/array.h" declline="141" declcolumn="41"/>
+      </memberdef>
+      <memberdef kind="function" id="array_8h_1ad12dc4c8d1cb636b88830a82b1b92f12" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>void</type>
+        <definition>void cugraph_type_erased_device_array_view_free</definition>
+        <argsstring>(cugraph_type_erased_device_array_view_t *p)</argsstring>
+        <name>cugraph_type_erased_device_array_view_free</name>
+        <param>
+          <type><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref> *</type>
+          <declname>p</declname>
+        </param>
+        <briefdescription>
+<para>Destroy a type erased device array view. </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">p</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Pointer to the type erased device array view </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/array.h" line="149" column="6" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/array.cpp" bodystart="136" bodyend="142" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/array.h" declline="149" declcolumn="6"/>
+      </memberdef>
+      <memberdef kind="function" id="array_8h_1acf3ab82b8735e02834554000b9705006" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>size_t</type>
+        <definition>size_t cugraph_type_erased_device_array_view_size</definition>
+        <argsstring>(const cugraph_type_erased_device_array_view_t *p)</argsstring>
+        <name>cugraph_type_erased_device_array_view_size</name>
+        <param>
+          <type>const <ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref> *</type>
+          <declname>p</declname>
+        </param>
+        <briefdescription>
+<para>Get the size of a type erased device array view. </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">p</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Pointer to the type erased device array view </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>The number of elements in the array </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/array.h" line="157" column="8" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/array.cpp" bodystart="144" bodyend="150" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/array.h" declline="157" declcolumn="8"/>
+      </memberdef>
+      <memberdef kind="function" id="array_8h_1a71aaafa8779457df84dfa2765205b2f8" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>cugraph_data_type_id_t</type>
+        <definition>cugraph_data_type_id_t cugraph_type_erased_device_array_view_type</definition>
+        <argsstring>(const cugraph_type_erased_device_array_view_t *p)</argsstring>
+        <name>cugraph_type_erased_device_array_view_type</name>
+        <param>
+          <type>const <ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref> *</type>
+          <declname>p</declname>
+        </param>
+        <briefdescription>
+<para>Get the type of a type erased device array view. </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">p</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Pointer to the type erased device array view </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>The type of the elements in the array </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/array.h" line="165" column="24" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/array.cpp" bodystart="152" bodyend="158" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/array.h" declline="165" declcolumn="24"/>
+      </memberdef>
+      <memberdef kind="function" id="array_8h_1adc18ffd7318c1a402291e5fbf49c2830" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>const void *</type>
+        <definition>const void * cugraph_type_erased_device_array_view_pointer</definition>
+        <argsstring>(const cugraph_type_erased_device_array_view_t *p)</argsstring>
+        <name>cugraph_type_erased_device_array_view_pointer</name>
+        <param>
+          <type>const <ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref> *</type>
+          <declname>p</declname>
+        </param>
+        <briefdescription>
+<para>Get the raw pointer of the type erased device array view. </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">p</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Pointer to the type erased device array view </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>Pointer (device memory) for the data in the array </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/array.h" line="174" column="12" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/array.cpp" bodystart="160" bodyend="166" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/array.h" declline="174" declcolumn="12"/>
+      </memberdef>
+      <memberdef kind="function" id="array_8h_1a9dfe3f3609264c3f1c53ae5ad7cf4cc4" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>cugraph_error_code_t</type>
+        <definition>cugraph_error_code_t cugraph_type_erased_host_array_create</definition>
+        <argsstring>(const cugraph_resource_handle_t *handle, size_t n_elems, cugraph_data_type_id_t dtype, cugraph_type_erased_host_array_t **array, cugraph_error_t **error)</argsstring>
+        <name>cugraph_type_erased_host_array_create</name>
+        <param>
+          <type>const <ref refid="structcugraph__resource__handle__" kindref="compound">cugraph_resource_handle_t</ref> *</type>
+          <declname>handle</declname>
+        </param>
+        <param>
+          <type>size_t</type>
+          <declname>n_elems</declname>
+        </param>
+        <param>
+          <type>cugraph_data_type_id_t</type>
+          <declname>dtype</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__type__erased__host__array__t" kindref="compound">cugraph_type_erased_host_array_t</ref> **</type>
+          <declname>array</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__error__" kindref="compound">cugraph_error_t</ref> **</type>
+          <declname>error</declname>
+        </param>
+        <briefdescription>
+<para>Create a type erased host array. </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">handle</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Handle for accessing resources </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">n_elems</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>The number of elements in the array </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">dtype</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>The type of array to create </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="out">array</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Pointer to the location to store the pointer to the host array </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="out">error</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Pointer to an error object storing details of any error. Will be populated if error code is not CUGRAPH_SUCCESS </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>error code </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/array.h" line="188" column="22" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/array.cpp" bodystart="168" bodyend="198" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/array.h" declline="188" declcolumn="22"/>
+      </memberdef>
+      <memberdef kind="function" id="array_8h_1a0910c57efa39035a23142b2bd93b07fc" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>void</type>
+        <definition>void cugraph_type_erased_host_array_free</definition>
+        <argsstring>(cugraph_type_erased_host_array_t *p)</argsstring>
+        <name>cugraph_type_erased_host_array_free</name>
+        <param>
+          <type><ref refid="structcugraph__type__erased__host__array__t" kindref="compound">cugraph_type_erased_host_array_t</ref> *</type>
+          <declname>p</declname>
+        </param>
+        <briefdescription>
+<para>Destroy a type erased host array. </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">p</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Pointer to the type erased host array </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/array.h" line="199" column="6" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/array.cpp" bodystart="200" bodyend="204" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/array.h" declline="199" declcolumn="6"/>
+      </memberdef>
+      <memberdef kind="function" id="array_8h_1adaed469c282d657e0edb4b85c14f1b76" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type><ref refid="structcugraph__type__erased__host__array__view__t" kindref="compound">cugraph_type_erased_host_array_view_t</ref> *</type>
+        <definition>cugraph_type_erased_host_array_view_t * cugraph_type_erased_host_array_view</definition>
+        <argsstring>(cugraph_type_erased_host_array_t *array)</argsstring>
+        <name>cugraph_type_erased_host_array_view</name>
+        <param>
+          <type><ref refid="structcugraph__type__erased__host__array__t" kindref="compound">cugraph_type_erased_host_array_t</ref> *</type>
+          <declname>array</declname>
+        </param>
+        <briefdescription>
+<para>Create a type erased host array view from a type erased host array. </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">array</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Pointer to the type erased host array </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>Pointer to the view of the host array </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/array.h" line="222" column="39" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/array.cpp" bodystart="215" bodyend="221" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/array.h" declline="222" declcolumn="39"/>
+      </memberdef>
+      <memberdef kind="function" id="array_8h_1a493013b20e5690318b094bbc49a6ca80" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type><ref refid="structcugraph__type__erased__host__array__view__t" kindref="compound">cugraph_type_erased_host_array_view_t</ref> *</type>
+        <definition>cugraph_type_erased_host_array_view_t * cugraph_type_erased_host_array_view_create</definition>
+        <argsstring>(void *pointer, size_t n_elems, cugraph_data_type_id_t dtype)</argsstring>
+        <name>cugraph_type_erased_host_array_view_create</name>
+        <param>
+          <type>void *</type>
+          <declname>pointer</declname>
+        </param>
+        <param>
+          <type>size_t</type>
+          <declname>n_elems</declname>
+        </param>
+        <param>
+          <type>cugraph_data_type_id_t</type>
+          <declname>dtype</declname>
+        </param>
+        <briefdescription>
+<para>Create a type erased host array view from a raw host pointer. </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">pointer</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Raw host pointer </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">n_elems</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>The number of elements in the array </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">dtype</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>The type of array to create </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>pointer to the view of the host array </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/array.h" line="234" column="39" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/array.cpp" bodystart="223" bodyend="232" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/array.h" declline="234" declcolumn="39"/>
+      </memberdef>
+      <memberdef kind="function" id="array_8h_1a5d7f63539ada5d7a0e186c52c3d5f4b8" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>void</type>
+        <definition>void cugraph_type_erased_host_array_view_free</definition>
+        <argsstring>(cugraph_type_erased_host_array_view_t *p)</argsstring>
+        <name>cugraph_type_erased_host_array_view_free</name>
+        <param>
+          <type><ref refid="structcugraph__type__erased__host__array__view__t" kindref="compound">cugraph_type_erased_host_array_view_t</ref> *</type>
+          <declname>p</declname>
+        </param>
+        <briefdescription>
+<para>Destroy a type erased host array view. </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">p</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Pointer to the type erased host array view </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/array.h" line="242" column="6" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/array.cpp" bodystart="234" bodyend="239" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/array.h" declline="242" declcolumn="6"/>
+      </memberdef>
+      <memberdef kind="function" id="array_8h_1a8565c4b074ad9d8a13f9d1ebc42f6155" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>size_t</type>
+        <definition>size_t cugraph_type_erased_host_array_size</definition>
+        <argsstring>(const cugraph_type_erased_host_array_view_t *p)</argsstring>
+        <name>cugraph_type_erased_host_array_size</name>
+        <param>
+          <type>const <ref refid="structcugraph__type__erased__host__array__view__t" kindref="compound">cugraph_type_erased_host_array_view_t</ref> *</type>
+          <declname>p</declname>
+        </param>
+        <briefdescription>
+<para>Get the size of a type erased host array view. </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">p</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Pointer to the type erased host array view </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>The number of elements in the array </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/array.h" line="250" column="8" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/array.cpp" bodystart="241" bodyend="247" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/array.h" declline="250" declcolumn="8"/>
+      </memberdef>
+      <memberdef kind="function" id="array_8h_1a867e3eee8d289f0f1f25cbe0f57b7bfd" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>cugraph_data_type_id_t</type>
+        <definition>cugraph_data_type_id_t cugraph_type_erased_host_array_type</definition>
+        <argsstring>(const cugraph_type_erased_host_array_view_t *p)</argsstring>
+        <name>cugraph_type_erased_host_array_type</name>
+        <param>
+          <type>const <ref refid="structcugraph__type__erased__host__array__view__t" kindref="compound">cugraph_type_erased_host_array_view_t</ref> *</type>
+          <declname>p</declname>
+        </param>
+        <briefdescription>
+<para>Get the type of a type erased host array view. </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">p</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Pointer to the type erased host array view </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>The type of the elements in the array </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/array.h" line="258" column="24" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/array.h" declline="258" declcolumn="24"/>
+      </memberdef>
+      <memberdef kind="function" id="array_8h_1a54f46987e01238cfa4d136abf89daa68" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>void *</type>
+        <definition>void * cugraph_type_erased_host_array_pointer</definition>
+        <argsstring>(const cugraph_type_erased_host_array_view_t *p)</argsstring>
+        <name>cugraph_type_erased_host_array_pointer</name>
+        <param>
+          <type>const <ref refid="structcugraph__type__erased__host__array__view__t" kindref="compound">cugraph_type_erased_host_array_view_t</ref> *</type>
+          <declname>p</declname>
+        </param>
+        <briefdescription>
+<para>Get the raw pointer of the type erased host array view. </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">p</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Pointer to the type erased host array view </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>Pointer (host memory) for the data in the array </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/array.h" line="267" column="6" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/array.cpp" bodystart="257" bodyend="263" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/array.h" declline="267" declcolumn="6"/>
+      </memberdef>
+      <memberdef kind="function" id="array_8h_1a4dd0cface8e4fc364aee469fcbaae82c" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>cugraph_error_code_t</type>
+        <definition>cugraph_error_code_t cugraph_type_erased_host_array_view_copy</definition>
+        <argsstring>(const cugraph_resource_handle_t *handle, cugraph_type_erased_host_array_view_t *dst, const cugraph_type_erased_host_array_view_t *src, cugraph_error_t **error)</argsstring>
+        <name>cugraph_type_erased_host_array_view_copy</name>
+        <param>
+          <type>const <ref refid="structcugraph__resource__handle__" kindref="compound">cugraph_resource_handle_t</ref> *</type>
+          <declname>handle</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__type__erased__host__array__view__t" kindref="compound">cugraph_type_erased_host_array_view_t</ref> *</type>
+          <declname>dst</declname>
+        </param>
+        <param>
+          <type>const <ref refid="structcugraph__type__erased__host__array__view__t" kindref="compound">cugraph_type_erased_host_array_view_t</ref> *</type>
+          <declname>src</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__error__" kindref="compound">cugraph_error_t</ref> **</type>
+          <declname>error</declname>
+        </param>
+        <briefdescription>
+<para>Copy data between two type erased device array views. </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">handle</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Handle for accessing resources </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="out">dst</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Pointer to type erased host array view destination </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">src</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Pointer to type erased host array view source </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="out">error</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Pointer to an error object storing details of any error. Will be populated if error code is not CUGRAPH_SUCCESS </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>error code </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/array.h" line="279" column="22" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/array.cpp" bodystart="265" bodyend="303" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/array.h" declline="279" declcolumn="22"/>
+      </memberdef>
+      <memberdef kind="function" id="array_8h_1a5b24c0c5cb188fffdbb9efdb3f3b7346" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>cugraph_error_code_t</type>
+        <definition>cugraph_error_code_t cugraph_type_erased_device_array_view_copy_from_host</definition>
+        <argsstring>(const cugraph_resource_handle_t *handle, cugraph_type_erased_device_array_view_t *dst, const byte_t *h_src, cugraph_error_t **error)</argsstring>
+        <name>cugraph_type_erased_device_array_view_copy_from_host</name>
+        <param>
+          <type>const <ref refid="structcugraph__resource__handle__" kindref="compound">cugraph_resource_handle_t</ref> *</type>
+          <declname>handle</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref> *</type>
+          <declname>dst</declname>
+        </param>
+        <param>
+          <type>const byte_t *</type>
+          <declname>h_src</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__error__" kindref="compound">cugraph_error_t</ref> **</type>
+          <declname>error</declname>
+        </param>
+        <briefdescription>
+<para>Copy data from host to a type erased device array view. </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">handle</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Handle for accessing resources </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="out">dst</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Pointer to the type erased device array view </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">h_src</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Pointer to host array to copy into device memory </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="out">error</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Pointer to an error object storing details of any error. Will be populated if error code is not CUGRAPH_SUCCESS </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>error code </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/array.h" line="295" column="22" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/array.cpp" bodystart="305" bodyend="335" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/array.h" declline="295" declcolumn="22"/>
+      </memberdef>
+      <memberdef kind="function" id="array_8h_1ae04aa28df11317a629f07621423ceef4" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>cugraph_error_code_t</type>
+        <definition>cugraph_error_code_t cugraph_type_erased_device_array_view_copy_to_host</definition>
+        <argsstring>(const cugraph_resource_handle_t *handle, byte_t *h_dst, const cugraph_type_erased_device_array_view_t *src, cugraph_error_t **error)</argsstring>
+        <name>cugraph_type_erased_device_array_view_copy_to_host</name>
+        <param>
+          <type>const <ref refid="structcugraph__resource__handle__" kindref="compound">cugraph_resource_handle_t</ref> *</type>
+          <declname>handle</declname>
+        </param>
+        <param>
+          <type>byte_t *</type>
+          <declname>h_dst</declname>
+        </param>
+        <param>
+          <type>const <ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref> *</type>
+          <declname>src</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__error__" kindref="compound">cugraph_error_t</ref> **</type>
+          <declname>error</declname>
+        </param>
+        <briefdescription>
+<para>Copy data from device to a type erased host array. </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">handle</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Handle for accessing resources </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="out">h_dst</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Pointer to host array </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">src</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Pointer to the type erased device array view source </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="out">error</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Pointer to an error object storing details of any error. Will be populated if error code is not CUGRAPH_SUCCESS </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>error code </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/array.h" line="311" column="22" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/array.cpp" bodystart="337" bodyend="368" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/array.h" declline="311" declcolumn="22"/>
+      </memberdef>
+      <memberdef kind="function" id="array_8h_1ab7b316883d5d746993f0633c8b54bbcc" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>cugraph_error_code_t</type>
+        <definition>cugraph_error_code_t cugraph_type_erased_device_array_view_copy</definition>
+        <argsstring>(const cugraph_resource_handle_t *handle, cugraph_type_erased_device_array_view_t *dst, const cugraph_type_erased_device_array_view_t *src, cugraph_error_t **error)</argsstring>
+        <name>cugraph_type_erased_device_array_view_copy</name>
+        <param>
+          <type>const <ref refid="structcugraph__resource__handle__" kindref="compound">cugraph_resource_handle_t</ref> *</type>
+          <declname>handle</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref> *</type>
+          <declname>dst</declname>
+        </param>
+        <param>
+          <type>const <ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref> *</type>
+          <declname>src</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__error__" kindref="compound">cugraph_error_t</ref> **</type>
+          <declname>error</declname>
+        </param>
+        <briefdescription>
+<para>Copy data between two type erased device array views. </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">handle</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Handle for accessing resources </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="out">dst</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Pointer to type erased device array view destination </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">src</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Pointer to type erased device array view source </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="out">error</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Pointer to an error object storing details of any error. Will be populated if error code is not CUGRAPH_SUCCESS </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>error code </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/array.h" line="327" column="22" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/array.cpp" bodystart="369" bodyend="407" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/array.h" declline="327" declcolumn="22"/>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <programlisting>
+<codeline lineno="1"><highlight class="comment">/*</highlight></codeline>
+<codeline lineno="2"><highlight class="comment"><sp/>*<sp/>Copyright<sp/>(c)<sp/>2021-2023,<sp/>NVIDIA<sp/>CORPORATION.</highlight></codeline>
+<codeline lineno="3"><highlight class="comment"><sp/>*</highlight></codeline>
+<codeline lineno="4"><highlight class="comment"><sp/>*<sp/>Licensed<sp/>under<sp/>the<sp/>Apache<sp/>License,<sp/>Version<sp/>2.0<sp/>(the<sp/>&quot;License&quot;);</highlight></codeline>
+<codeline lineno="5"><highlight class="comment"><sp/>*<sp/>you<sp/>may<sp/>not<sp/>use<sp/>this<sp/>file<sp/>except<sp/>in<sp/>compliance<sp/>with<sp/>the<sp/>License.</highlight></codeline>
+<codeline lineno="6"><highlight class="comment"><sp/>*<sp/>You<sp/>may<sp/>obtain<sp/>a<sp/>copy<sp/>of<sp/>the<sp/>License<sp/>at</highlight></codeline>
+<codeline lineno="7"><highlight class="comment"><sp/>*</highlight></codeline>
+<codeline lineno="8"><highlight class="comment"><sp/>*<sp/><sp/><sp/><sp/><sp/>http://www.apache.org/licenses/LICENSE-2.0</highlight></codeline>
+<codeline lineno="9"><highlight class="comment"><sp/>*</highlight></codeline>
+<codeline lineno="10"><highlight class="comment"><sp/>*<sp/>Unless<sp/>required<sp/>by<sp/>applicable<sp/>law<sp/>or<sp/>agreed<sp/>to<sp/>in<sp/>writing,<sp/>software</highlight></codeline>
+<codeline lineno="11"><highlight class="comment"><sp/>*<sp/>distributed<sp/>under<sp/>the<sp/>License<sp/>is<sp/>distributed<sp/>on<sp/>an<sp/>&quot;AS<sp/>IS&quot;<sp/>BASIS,</highlight></codeline>
+<codeline lineno="12"><highlight class="comment"><sp/>*<sp/>WITHOUT<sp/>WARRANTIES<sp/>OR<sp/>CONDITIONS<sp/>OF<sp/>ANY<sp/>KIND,<sp/>either<sp/>express<sp/>or<sp/>implied.</highlight></codeline>
+<codeline lineno="13"><highlight class="comment"><sp/>*<sp/>See<sp/>the<sp/>License<sp/>for<sp/>the<sp/>specific<sp/>language<sp/>governing<sp/>permissions<sp/>and</highlight></codeline>
+<codeline lineno="14"><highlight class="comment"><sp/>*<sp/>limitations<sp/>under<sp/>the<sp/>License.</highlight></codeline>
+<codeline lineno="15"><highlight class="comment"><sp/>*/</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="16"><highlight class="normal"></highlight></codeline>
+<codeline lineno="17"><highlight class="normal"></highlight><highlight class="preprocessor">#pragma<sp/>once</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="18"><highlight class="normal"></highlight></codeline>
+<codeline lineno="19"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&lt;cugraph_c/resource_handle.h&gt;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="20"><highlight class="normal"></highlight></codeline>
+<codeline lineno="21"><highlight class="normal"></highlight><highlight class="preprocessor">#ifdef<sp/>__cplusplus</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="22"><highlight class="normal"></highlight><highlight class="keyword">extern</highlight><highlight class="normal"><sp/></highlight><highlight class="stringliteral">&quot;C&quot;</highlight><highlight class="normal"><sp/>{</highlight></codeline>
+<codeline lineno="23"><highlight class="normal"></highlight><highlight class="preprocessor">#endif</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="24"><highlight class="normal"></highlight></codeline>
+<codeline lineno="25" refid="structcugraph__type__erased__device__array__t" refkind="compound"><highlight class="normal"></highlight><highlight class="keyword">typedef</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">struct<sp/></highlight><highlight class="normal">{</highlight></codeline>
+<codeline lineno="26"><highlight class="normal"><sp/><sp/>int32_t<sp/>align_;</highlight></codeline>
+<codeline lineno="27"><highlight class="normal">}<sp/><ref refid="structcugraph__type__erased__device__array__t" kindref="compound">cugraph_type_erased_device_array_t</ref>;</highlight></codeline>
+<codeline lineno="28"><highlight class="normal"></highlight></codeline>
+<codeline lineno="29" refid="structcugraph__type__erased__device__array__view__t" refkind="compound"><highlight class="normal"></highlight><highlight class="keyword">typedef</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">struct<sp/></highlight><highlight class="normal">{</highlight></codeline>
+<codeline lineno="30"><highlight class="normal"><sp/><sp/>int32_t<sp/>align_;</highlight></codeline>
+<codeline lineno="31"><highlight class="normal">}<sp/><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>;</highlight></codeline>
+<codeline lineno="32"><highlight class="normal"></highlight></codeline>
+<codeline lineno="33" refid="structcugraph__type__erased__host__array__t" refkind="compound"><highlight class="normal"></highlight><highlight class="keyword">typedef</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">struct<sp/></highlight><highlight class="normal">{</highlight></codeline>
+<codeline lineno="34"><highlight class="normal"><sp/><sp/>int32_t<sp/>align_;</highlight></codeline>
+<codeline lineno="35"><highlight class="normal">}<sp/><ref refid="structcugraph__type__erased__host__array__t" kindref="compound">cugraph_type_erased_host_array_t</ref>;</highlight></codeline>
+<codeline lineno="36"><highlight class="normal"></highlight></codeline>
+<codeline lineno="37" refid="structcugraph__type__erased__host__array__view__t" refkind="compound"><highlight class="normal"></highlight><highlight class="keyword">typedef</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">struct<sp/></highlight><highlight class="normal">{</highlight></codeline>
+<codeline lineno="38"><highlight class="normal"><sp/><sp/>int32_t<sp/>align_;</highlight></codeline>
+<codeline lineno="39"><highlight class="normal">}<sp/><ref refid="structcugraph__type__erased__host__array__view__t" kindref="compound">cugraph_type_erased_host_array_view_t</ref>;</highlight></codeline>
+<codeline lineno="40"><highlight class="normal"></highlight></codeline>
+<codeline lineno="52"><highlight class="normal">cugraph_error_code_t<sp/>cugraph_type_erased_device_array_create(</highlight></codeline>
+<codeline lineno="53"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__resource__handle__" kindref="compound">cugraph_resource_handle_t</ref>*<sp/>handle,</highlight></codeline>
+<codeline lineno="54"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordtype">size_t</highlight><highlight class="normal"><sp/>n_elems,</highlight></codeline>
+<codeline lineno="55"><highlight class="normal"><sp/><sp/>cugraph_data_type_id_t<sp/>dtype,</highlight></codeline>
+<codeline lineno="56"><highlight class="normal"><sp/><sp/><ref refid="structcugraph__type__erased__device__array__t" kindref="compound">cugraph_type_erased_device_array_t</ref>**<sp/>array,</highlight></codeline>
+<codeline lineno="57"><highlight class="normal"><sp/><sp/><ref refid="structcugraph__error__" kindref="compound">cugraph_error_t</ref>**<sp/>error);</highlight></codeline>
+<codeline lineno="58"><highlight class="normal"></highlight></codeline>
+<codeline lineno="71"><highlight class="normal">cugraph_error_code_t<sp/>cugraph_type_erased_device_array_create_from_view(</highlight></codeline>
+<codeline lineno="72"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__resource__handle__" kindref="compound">cugraph_resource_handle_t</ref>*<sp/>handle,</highlight></codeline>
+<codeline lineno="73"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/>view,</highlight></codeline>
+<codeline lineno="74"><highlight class="normal"><sp/><sp/><ref refid="structcugraph__type__erased__device__array__t" kindref="compound">cugraph_type_erased_device_array_t</ref>**<sp/>array,</highlight></codeline>
+<codeline lineno="75"><highlight class="normal"><sp/><sp/><ref refid="structcugraph__error__" kindref="compound">cugraph_error_t</ref>**<sp/>error);</highlight></codeline>
+<codeline lineno="76"><highlight class="normal"></highlight></codeline>
+<codeline lineno="82"><highlight class="normal"></highlight><highlight class="keywordtype">void</highlight><highlight class="normal"><sp/>cugraph_type_erased_device_array_free(<ref refid="structcugraph__type__erased__device__array__t" kindref="compound">cugraph_type_erased_device_array_t</ref>*<sp/>p);</highlight></codeline>
+<codeline lineno="83"><highlight class="normal"></highlight></codeline>
+<codeline lineno="84"><highlight class="normal"></highlight><highlight class="preprocessor">#if<sp/>0</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="85"><highlight class="normal"></highlight><highlight class="comment">//<sp/>FIXME:<sp/>Not<sp/>implemented,<sp/>need<sp/>to<sp/>discuss<sp/>if<sp/>this<sp/>can<sp/>work.<sp/><sp/>We<sp/>will<sp/>either<sp/>implement</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="86"><highlight class="normal"></highlight><highlight class="comment">//<sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>this<sp/>later<sp/>or<sp/>delete<sp/>it<sp/>from<sp/>the<sp/>interface<sp/>once<sp/>we<sp/>resolve<sp/>how<sp/>to<sp/>handle<sp/>this</highlight></codeline>
+<codeline lineno="95"><highlight class="keywordtype">void</highlight><highlight class="normal">*<sp/>cugraph_type_erased_device_array_release(<ref refid="structcugraph__type__erased__device__array__t" kindref="compound">cugraph_type_erased_device_array_t</ref>*<sp/>p);</highlight></codeline>
+<codeline lineno="96"><highlight class="normal"></highlight><highlight class="preprocessor">#endif</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="97"><highlight class="normal"></highlight></codeline>
+<codeline lineno="105"><highlight class="normal"><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/>cugraph_type_erased_device_array_view(</highlight></codeline>
+<codeline lineno="106"><highlight class="normal"><sp/><sp/><ref refid="structcugraph__type__erased__device__array__t" kindref="compound">cugraph_type_erased_device_array_t</ref>*<sp/>array);</highlight></codeline>
+<codeline lineno="107"><highlight class="normal"></highlight></codeline>
+<codeline lineno="126"><highlight class="normal">cugraph_error_code_t<sp/>cugraph_type_erased_device_array_view_as_type(</highlight></codeline>
+<codeline lineno="127"><highlight class="normal"><sp/><sp/><ref refid="structcugraph__type__erased__device__array__t" kindref="compound">cugraph_type_erased_device_array_t</ref>*<sp/>array,</highlight></codeline>
+<codeline lineno="128"><highlight class="normal"><sp/><sp/>cugraph_data_type_id_t<sp/>dtype,</highlight></codeline>
+<codeline lineno="129"><highlight class="normal"><sp/><sp/><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>**<sp/>result_view,</highlight></codeline>
+<codeline lineno="130"><highlight class="normal"><sp/><sp/><ref refid="structcugraph__error__" kindref="compound">cugraph_error_t</ref>**<sp/>error);</highlight></codeline>
+<codeline lineno="131"><highlight class="normal"></highlight></codeline>
+<codeline lineno="141"><highlight class="normal"><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/>cugraph_type_erased_device_array_view_create(</highlight></codeline>
+<codeline lineno="142"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordtype">void</highlight><highlight class="normal">*<sp/>pointer,<sp/></highlight><highlight class="keywordtype">size_t</highlight><highlight class="normal"><sp/>n_elems,<sp/>cugraph_data_type_id_t<sp/>dtype);</highlight></codeline>
+<codeline lineno="143"><highlight class="normal"></highlight></codeline>
+<codeline lineno="149"><highlight class="normal"></highlight><highlight class="keywordtype">void</highlight><highlight class="normal"><sp/>cugraph_type_erased_device_array_view_free(<ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/>p);</highlight></codeline>
+<codeline lineno="150"><highlight class="normal"></highlight></codeline>
+<codeline lineno="157"><highlight class="normal"></highlight><highlight class="keywordtype">size_t</highlight><highlight class="normal"><sp/>cugraph_type_erased_device_array_view_size(</highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/>p);</highlight></codeline>
+<codeline lineno="158"><highlight class="normal"></highlight></codeline>
+<codeline lineno="165"><highlight class="normal">cugraph_data_type_id_t<sp/>cugraph_type_erased_device_array_view_type(</highlight></codeline>
+<codeline lineno="166"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/>p);</highlight></codeline>
+<codeline lineno="167"><highlight class="normal"></highlight></codeline>
+<codeline lineno="174"><highlight class="normal"></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/></highlight><highlight class="keywordtype">void</highlight><highlight class="normal">*<sp/>cugraph_type_erased_device_array_view_pointer(</highlight></codeline>
+<codeline lineno="175"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/>p);</highlight></codeline>
+<codeline lineno="176"><highlight class="normal"></highlight></codeline>
+<codeline lineno="188"><highlight class="normal">cugraph_error_code_t<sp/>cugraph_type_erased_host_array_create(</highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__resource__handle__" kindref="compound">cugraph_resource_handle_t</ref>*<sp/>handle,</highlight></codeline>
+<codeline lineno="189"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordtype">size_t</highlight><highlight class="normal"><sp/>n_elems,</highlight></codeline>
+<codeline lineno="190"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>cugraph_data_type_id_t<sp/>dtype,</highlight></codeline>
+<codeline lineno="191"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><ref refid="structcugraph__type__erased__host__array__t" kindref="compound">cugraph_type_erased_host_array_t</ref>**<sp/>array,</highlight></codeline>
+<codeline lineno="192"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><ref refid="structcugraph__error__" kindref="compound">cugraph_error_t</ref>**<sp/>error);</highlight></codeline>
+<codeline lineno="193"><highlight class="normal"></highlight></codeline>
+<codeline lineno="199"><highlight class="normal"></highlight><highlight class="keywordtype">void</highlight><highlight class="normal"><sp/>cugraph_type_erased_host_array_free(<ref refid="structcugraph__type__erased__host__array__t" kindref="compound">cugraph_type_erased_host_array_t</ref>*<sp/>p);</highlight></codeline>
+<codeline lineno="200"><highlight class="normal"></highlight></codeline>
+<codeline lineno="201"><highlight class="normal"></highlight><highlight class="preprocessor">#if<sp/>0</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="202"><highlight class="normal"></highlight><highlight class="comment">//<sp/>FIXME:<sp/>Not<sp/>implemented,<sp/>need<sp/>to<sp/>discuss<sp/>if<sp/>this<sp/>can<sp/>work.<sp/><sp/>We<sp/>will<sp/>either<sp/>implement</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="203"><highlight class="normal"></highlight><highlight class="comment">//<sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>this<sp/>later<sp/>or<sp/>delete<sp/>it<sp/>from<sp/>the<sp/>interface<sp/>once<sp/>we<sp/>resolve<sp/>how<sp/>to<sp/>handle<sp/>this</highlight></codeline>
+<codeline lineno="212"><highlight class="keywordtype">void</highlight><highlight class="normal">*<sp/>cugraph_type_erased_host_array_release(<ref refid="structcugraph__type__erased__host__array__t" kindref="compound">cugraph_type_erased_host_array_t</ref>*<sp/>p);</highlight></codeline>
+<codeline lineno="213"><highlight class="normal"></highlight><highlight class="preprocessor">#endif</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="214"><highlight class="normal"></highlight></codeline>
+<codeline lineno="222"><highlight class="normal"><ref refid="structcugraph__type__erased__host__array__view__t" kindref="compound">cugraph_type_erased_host_array_view_t</ref>*<sp/>cugraph_type_erased_host_array_view(</highlight></codeline>
+<codeline lineno="223"><highlight class="normal"><sp/><sp/><ref refid="structcugraph__type__erased__host__array__t" kindref="compound">cugraph_type_erased_host_array_t</ref>*<sp/>array);</highlight></codeline>
+<codeline lineno="224"><highlight class="normal"></highlight></codeline>
+<codeline lineno="234"><highlight class="normal"><ref refid="structcugraph__type__erased__host__array__view__t" kindref="compound">cugraph_type_erased_host_array_view_t</ref>*<sp/>cugraph_type_erased_host_array_view_create(</highlight></codeline>
+<codeline lineno="235"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordtype">void</highlight><highlight class="normal">*<sp/>pointer,<sp/></highlight><highlight class="keywordtype">size_t</highlight><highlight class="normal"><sp/>n_elems,<sp/>cugraph_data_type_id_t<sp/>dtype);</highlight></codeline>
+<codeline lineno="236"><highlight class="normal"></highlight></codeline>
+<codeline lineno="242"><highlight class="normal"></highlight><highlight class="keywordtype">void</highlight><highlight class="normal"><sp/>cugraph_type_erased_host_array_view_free(<ref refid="structcugraph__type__erased__host__array__view__t" kindref="compound">cugraph_type_erased_host_array_view_t</ref>*<sp/>p);</highlight></codeline>
+<codeline lineno="243"><highlight class="normal"></highlight></codeline>
+<codeline lineno="250"><highlight class="normal"></highlight><highlight class="keywordtype">size_t</highlight><highlight class="normal"><sp/>cugraph_type_erased_host_array_size(</highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__type__erased__host__array__view__t" kindref="compound">cugraph_type_erased_host_array_view_t</ref>*<sp/>p);</highlight></codeline>
+<codeline lineno="251"><highlight class="normal"></highlight></codeline>
+<codeline lineno="258"><highlight class="normal">cugraph_data_type_id_t<sp/>cugraph_type_erased_host_array_type(</highlight></codeline>
+<codeline lineno="259"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__type__erased__host__array__view__t" kindref="compound">cugraph_type_erased_host_array_view_t</ref>*<sp/>p);</highlight></codeline>
+<codeline lineno="260"><highlight class="normal"></highlight></codeline>
+<codeline lineno="267"><highlight class="normal"></highlight><highlight class="keywordtype">void</highlight><highlight class="normal">*<sp/>cugraph_type_erased_host_array_pointer(</highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__type__erased__host__array__view__t" kindref="compound">cugraph_type_erased_host_array_view_t</ref>*<sp/>p);</highlight></codeline>
+<codeline lineno="268"><highlight class="normal"></highlight></codeline>
+<codeline lineno="279"><highlight class="normal">cugraph_error_code_t<sp/>cugraph_type_erased_host_array_view_copy(</highlight></codeline>
+<codeline lineno="280"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__resource__handle__" kindref="compound">cugraph_resource_handle_t</ref>*<sp/>handle,</highlight></codeline>
+<codeline lineno="281"><highlight class="normal"><sp/><sp/><ref refid="structcugraph__type__erased__host__array__view__t" kindref="compound">cugraph_type_erased_host_array_view_t</ref>*<sp/>dst,</highlight></codeline>
+<codeline lineno="282"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__type__erased__host__array__view__t" kindref="compound">cugraph_type_erased_host_array_view_t</ref>*<sp/>src,</highlight></codeline>
+<codeline lineno="283"><highlight class="normal"><sp/><sp/><ref refid="structcugraph__error__" kindref="compound">cugraph_error_t</ref>**<sp/>error);</highlight></codeline>
+<codeline lineno="284"><highlight class="normal"></highlight></codeline>
+<codeline lineno="295"><highlight class="normal">cugraph_error_code_t<sp/>cugraph_type_erased_device_array_view_copy_from_host(</highlight></codeline>
+<codeline lineno="296"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__resource__handle__" kindref="compound">cugraph_resource_handle_t</ref>*<sp/>handle,</highlight></codeline>
+<codeline lineno="297"><highlight class="normal"><sp/><sp/><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/>dst,</highlight></codeline>
+<codeline lineno="298"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/>byte_t*<sp/>h_src,</highlight></codeline>
+<codeline lineno="299"><highlight class="normal"><sp/><sp/><ref refid="structcugraph__error__" kindref="compound">cugraph_error_t</ref>**<sp/>error);</highlight></codeline>
+<codeline lineno="300"><highlight class="normal"></highlight></codeline>
+<codeline lineno="311"><highlight class="normal">cugraph_error_code_t<sp/>cugraph_type_erased_device_array_view_copy_to_host(</highlight></codeline>
+<codeline lineno="312"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__resource__handle__" kindref="compound">cugraph_resource_handle_t</ref>*<sp/>handle,</highlight></codeline>
+<codeline lineno="313"><highlight class="normal"><sp/><sp/>byte_t*<sp/>h_dst,</highlight></codeline>
+<codeline lineno="314"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/>src,</highlight></codeline>
+<codeline lineno="315"><highlight class="normal"><sp/><sp/><ref refid="structcugraph__error__" kindref="compound">cugraph_error_t</ref>**<sp/>error);</highlight></codeline>
+<codeline lineno="316"><highlight class="normal"></highlight></codeline>
+<codeline lineno="327"><highlight class="normal">cugraph_error_code_t<sp/>cugraph_type_erased_device_array_view_copy(</highlight></codeline>
+<codeline lineno="328"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__resource__handle__" kindref="compound">cugraph_resource_handle_t</ref>*<sp/>handle,</highlight></codeline>
+<codeline lineno="329"><highlight class="normal"><sp/><sp/><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/>dst,</highlight></codeline>
+<codeline lineno="330"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/>src,</highlight></codeline>
+<codeline lineno="331"><highlight class="normal"><sp/><sp/><ref refid="structcugraph__error__" kindref="compound">cugraph_error_t</ref>**<sp/>error);</highlight></codeline>
+<codeline lineno="332"><highlight class="normal"></highlight></codeline>
+<codeline lineno="333"><highlight class="normal"></highlight><highlight class="preprocessor">#ifdef<sp/>__cplusplus</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="334"><highlight class="normal">}</highlight></codeline>
+<codeline lineno="335"><highlight class="normal"></highlight><highlight class="preprocessor">#endif</highlight></codeline>
+    </programlisting>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/array.h"/>
+  </compounddef>
+</doxygen>

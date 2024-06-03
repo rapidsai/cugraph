@@ -1,0 +1,109 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="core__result_8hpp" kind="file" language="C++">
+    <compoundname>core_result.hpp</compoundname>
+    <includes refid="array_8hpp" local="yes">c_api/array.hpp</includes>
+    <includedby refid="core__number_8cpp" local="yes">core_number.cpp</includedby>
+    <includedby refid="core__result_8cpp" local="yes">core_result.cpp</includedby>
+    <includedby refid="k__core_8cpp" local="yes">k_core.cpp</includedby>
+    <incdepgraph>
+      <node id="3">
+        <label>cugraph_c/array.h</label>
+        <link refid="array_8h_source"/>
+        <childnode refid="4" relation="include">
+        </childnode>
+      </node>
+      <node id="5">
+        <label>cugraph_c/error.h</label>
+        <link refid="error_8h_source"/>
+        <childnode refid="6" relation="include">
+        </childnode>
+      </node>
+      <node id="4">
+        <label>cugraph_c/resource_handle.h</label>
+        <link refid="resource__handle_8h_source"/>
+        <childnode refid="5" relation="include">
+        </childnode>
+        <childnode refid="7" relation="include">
+        </childnode>
+        <childnode refid="6" relation="include">
+        </childnode>
+      </node>
+      <node id="2">
+        <label>c_api/array.hpp</label>
+        <link refid="array_8hpp_source"/>
+        <childnode refid="3" relation="include">
+        </childnode>
+        <childnode refid="8" relation="include">
+        </childnode>
+        <childnode refid="9" relation="include">
+        </childnode>
+      </node>
+      <node id="1">
+        <label>core_result.hpp</label>
+        <link refid="core__result_8hpp"/>
+        <childnode refid="2" relation="include">
+        </childnode>
+      </node>
+      <node id="8">
+        <label>rmm/device_buffer.hpp</label>
+      </node>
+      <node id="9">
+        <label>rmm/device_uvector.hpp</label>
+      </node>
+      <node id="7">
+        <label>stddef.h</label>
+      </node>
+      <node id="6">
+        <label>stdint.h</label>
+      </node>
+    </incdepgraph>
+    <innerclass refid="structcugraph_1_1c__api_1_1cugraph__core__result__t" prot="public">cugraph::c_api::cugraph_core_result_t</innerclass>
+    <innerclass refid="structcugraph_1_1c__api_1_1cugraph__k__core__result__t" prot="public">cugraph::c_api::cugraph_k_core_result_t</innerclass>
+    <innernamespace refid="namespacecugraph">cugraph</innernamespace>
+    <innernamespace refid="namespacecugraph_1_1c__api">cugraph::c_api</innernamespace>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <programlisting>
+<codeline lineno="1"><highlight class="comment">/*</highlight></codeline>
+<codeline lineno="2"><highlight class="comment"><sp/>*<sp/>Copyright<sp/>(c)<sp/>2022-2024,<sp/>NVIDIA<sp/>CORPORATION.</highlight></codeline>
+<codeline lineno="3"><highlight class="comment"><sp/>*</highlight></codeline>
+<codeline lineno="4"><highlight class="comment"><sp/>*<sp/>Licensed<sp/>under<sp/>the<sp/>Apache<sp/>License,<sp/>Version<sp/>2.0<sp/>(the<sp/>&quot;License&quot;);</highlight></codeline>
+<codeline lineno="5"><highlight class="comment"><sp/>*<sp/>you<sp/>may<sp/>not<sp/>use<sp/>this<sp/>file<sp/>except<sp/>in<sp/>compliance<sp/>with<sp/>the<sp/>License.</highlight></codeline>
+<codeline lineno="6"><highlight class="comment"><sp/>*<sp/>You<sp/>may<sp/>obtain<sp/>a<sp/>copy<sp/>of<sp/>the<sp/>License<sp/>at</highlight></codeline>
+<codeline lineno="7"><highlight class="comment"><sp/>*</highlight></codeline>
+<codeline lineno="8"><highlight class="comment"><sp/>*<sp/><sp/><sp/><sp/><sp/>http://www.apache.org/licenses/LICENSE-2.0</highlight></codeline>
+<codeline lineno="9"><highlight class="comment"><sp/>*</highlight></codeline>
+<codeline lineno="10"><highlight class="comment"><sp/>*<sp/>Unless<sp/>required<sp/>by<sp/>applicable<sp/>law<sp/>or<sp/>agreed<sp/>to<sp/>in<sp/>writing,<sp/>software</highlight></codeline>
+<codeline lineno="11"><highlight class="comment"><sp/>*<sp/>distributed<sp/>under<sp/>the<sp/>License<sp/>is<sp/>distributed<sp/>on<sp/>an<sp/>&quot;AS<sp/>IS&quot;<sp/>BASIS,</highlight></codeline>
+<codeline lineno="12"><highlight class="comment"><sp/>*<sp/>WITHOUT<sp/>WARRANTIES<sp/>OR<sp/>CONDITIONS<sp/>OF<sp/>ANY<sp/>KIND,<sp/>either<sp/>express<sp/>or<sp/>implied.</highlight></codeline>
+<codeline lineno="13"><highlight class="comment"><sp/>*<sp/>See<sp/>the<sp/>License<sp/>for<sp/>the<sp/>specific<sp/>language<sp/>governing<sp/>permissions<sp/>and</highlight></codeline>
+<codeline lineno="14"><highlight class="comment"><sp/>*<sp/>limitations<sp/>under<sp/>the<sp/>License.</highlight></codeline>
+<codeline lineno="15"><highlight class="comment"><sp/>*/</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="16"><highlight class="normal"></highlight></codeline>
+<codeline lineno="17"><highlight class="normal"></highlight><highlight class="preprocessor">#pragma<sp/>once</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="18"><highlight class="normal"></highlight></codeline>
+<codeline lineno="19"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&quot;c_api/array.hpp&quot;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="20"><highlight class="normal"></highlight></codeline>
+<codeline lineno="21"><highlight class="normal"></highlight><highlight class="keyword">namespace<sp/></highlight><highlight class="normal">cugraph<sp/>{</highlight></codeline>
+<codeline lineno="22"><highlight class="normal"></highlight><highlight class="keyword">namespace<sp/></highlight><highlight class="normal">c_api<sp/>{</highlight></codeline>
+<codeline lineno="23"><highlight class="normal"></highlight></codeline>
+<codeline lineno="24" refid="structcugraph_1_1c__api_1_1cugraph__core__result__t" refkind="compound"><highlight class="normal"></highlight><highlight class="keyword">struct<sp/></highlight><highlight class="normal"><ref refid="structcugraph_1_1c__api_1_1cugraph__core__result__t" kindref="compound">cugraph_core_result_t</ref><sp/>{</highlight></codeline>
+<codeline lineno="25"><highlight class="normal"><sp/><sp/><ref refid="structcugraph_1_1c__api_1_1cugraph__type__erased__device__array__t" kindref="compound">cugraph_type_erased_device_array_t</ref>*<sp/>vertex_ids_{};</highlight></codeline>
+<codeline lineno="26"><highlight class="normal"><sp/><sp/><ref refid="structcugraph_1_1c__api_1_1cugraph__type__erased__device__array__t" kindref="compound">cugraph_type_erased_device_array_t</ref>*<sp/>core_numbers_{};</highlight></codeline>
+<codeline lineno="27"><highlight class="normal">};</highlight></codeline>
+<codeline lineno="28"><highlight class="normal"></highlight></codeline>
+<codeline lineno="29" refid="structcugraph_1_1c__api_1_1cugraph__k__core__result__t" refkind="compound"><highlight class="normal"></highlight><highlight class="keyword">struct<sp/></highlight><highlight class="normal"><ref refid="structcugraph_1_1c__api_1_1cugraph__k__core__result__t" kindref="compound">cugraph_k_core_result_t</ref><sp/>{</highlight></codeline>
+<codeline lineno="30"><highlight class="normal"><sp/><sp/><ref refid="structcugraph_1_1c__api_1_1cugraph__type__erased__device__array__t" kindref="compound">cugraph_type_erased_device_array_t</ref>*<sp/>src_vertices_{};</highlight></codeline>
+<codeline lineno="31"><highlight class="normal"><sp/><sp/><ref refid="structcugraph_1_1c__api_1_1cugraph__type__erased__device__array__t" kindref="compound">cugraph_type_erased_device_array_t</ref>*<sp/>dst_vertices_{};</highlight></codeline>
+<codeline lineno="32"><highlight class="normal"><sp/><sp/><ref refid="structcugraph_1_1c__api_1_1cugraph__type__erased__device__array__t" kindref="compound">cugraph_type_erased_device_array_t</ref>*<sp/>weights_{};</highlight></codeline>
+<codeline lineno="33"><highlight class="normal">};</highlight></codeline>
+<codeline lineno="34"><highlight class="normal"></highlight></codeline>
+<codeline lineno="35"><highlight class="normal">}<sp/><sp/></highlight><highlight class="comment">//<sp/>namespace<sp/>c_api</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="36"><highlight class="normal">}<sp/><sp/></highlight><highlight class="comment">//<sp/>namespace<sp/>cugraph</highlight><highlight class="normal"></highlight></codeline>
+    </programlisting>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/src/c_api/core_result.hpp"/>
+  </compounddef>
+</doxygen>

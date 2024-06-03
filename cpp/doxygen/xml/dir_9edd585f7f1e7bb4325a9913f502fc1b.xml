@@ -1,0 +1,15 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="dir_9edd585f7f1e7bb4325a9913f502fc1b" kind="dir">
+    <compoundname>detail</compoundname>
+    <innerfile refid="collect__comm__wrapper_8hpp">collect_comm_wrapper.hpp</innerfile>
+    <innerfile refid="decompress__edge__partition_8cuh">decompress_edge_partition.cuh</innerfile>
+    <innerfile refid="shuffle__wrappers_8hpp">shuffle_wrappers.hpp</innerfile>
+    <innerfile refid="utility__wrappers_8hpp">utility_wrappers.hpp</innerfile>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/detail/"/>
+  </compounddef>
+</doxygen>

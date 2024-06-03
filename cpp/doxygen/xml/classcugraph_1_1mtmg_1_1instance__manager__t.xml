@@ -1,0 +1,219 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="classcugraph_1_1mtmg_1_1instance__manager__t" kind="class" language="C++" prot="public">
+    <compoundname>cugraph::mtmg::instance_manager_t</compoundname>
+    <includes refid="instance__manager_8hpp" local="no">instance_manager.hpp</includes>
+    <sectiondef kind="private-attrib">
+      <memberdef kind="variable" id="classcugraph_1_1mtmg_1_1instance__manager__t_1adf311608850abba75784a96509c2fce1" prot="private" static="no" mutable="no">
+        <type>std::vector&lt; std::unique_ptr&lt; raft::handle_t &gt; &gt;</type>
+        <definition>std::vector&lt;std::unique_ptr&lt;raft::handle_t&gt; &gt; cugraph::mtmg::instance_manager_t::raft_handle_</definition>
+        <argsstring></argsstring>
+        <name>raft_handle_</name>
+        <qualifiedname>cugraph::mtmg::instance_manager_t::raft_handle_</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/instance_manager.hpp" line="109" column="15" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/instance_manager.hpp" bodystart="109" bodyend="109"/>
+      </memberdef>
+      <memberdef kind="variable" id="classcugraph_1_1mtmg_1_1instance__manager__t_1a701b3446149cc214553ebdf400559bf1" prot="private" static="no" mutable="no">
+        <type>std::vector&lt; std::unique_ptr&lt; ncclComm_t &gt; &gt;</type>
+        <definition>std::vector&lt;std::unique_ptr&lt;ncclComm_t&gt; &gt; cugraph::mtmg::instance_manager_t::nccl_comms_</definition>
+        <argsstring></argsstring>
+        <name>nccl_comms_</name>
+        <qualifiedname>cugraph::mtmg::instance_manager_t::nccl_comms_</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/instance_manager.hpp" line="113" column="15" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/instance_manager.hpp" bodystart="113" bodyend="113"/>
+      </memberdef>
+      <memberdef kind="variable" id="classcugraph_1_1mtmg_1_1instance__manager__t_1a96ee72b6c9e344ba4a1039c433f80d54" prot="private" static="no" mutable="no">
+        <type>std::vector&lt; rmm::cuda_device_id &gt;</type>
+        <definition>std::vector&lt;rmm::cuda_device_id&gt; cugraph::mtmg::instance_manager_t::device_ids_</definition>
+        <argsstring></argsstring>
+        <name>device_ids_</name>
+        <qualifiedname>cugraph::mtmg::instance_manager_t::device_ids_</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/instance_manager.hpp" line="114" column="15" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/instance_manager.hpp" bodystart="114" bodyend="114"/>
+      </memberdef>
+      <memberdef kind="variable" id="classcugraph_1_1mtmg_1_1instance__manager__t_1a705dd592a5c3bb057feacc760ec2861f" prot="private" static="no" mutable="no">
+        <type>std::atomic&lt; int &gt;</type>
+        <definition>std::atomic&lt;int&gt; cugraph::mtmg::instance_manager_t::thread_counter_</definition>
+        <argsstring></argsstring>
+        <name>thread_counter_</name>
+        <qualifiedname>cugraph::mtmg::instance_manager_t::thread_counter_</qualifiedname>
+        <initializer>{0}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/instance_manager.hpp" line="116" column="15" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/instance_manager.hpp" bodystart="116" bodyend="116"/>
+      </memberdef>
+    </sectiondef>
+    <sectiondef kind="public-func">
+      <memberdef kind="function" id="classcugraph_1_1mtmg_1_1instance__manager__t_1a29425914a7584f4dddbdb11e0cfc55ae" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type></type>
+        <definition>cugraph::mtmg::instance_manager_t::instance_manager_t</definition>
+        <argsstring>(std::vector&lt; std::unique_ptr&lt; raft::handle_t &gt; &gt; &amp;&amp;handles, std::vector&lt; std::unique_ptr&lt; ncclComm_t &gt; &gt; &amp;&amp;nccl_comms, std::vector&lt; rmm::cuda_device_id &gt; &amp;&amp;device_ids)</argsstring>
+        <name>instance_manager_t</name>
+        <qualifiedname>cugraph::mtmg::instance_manager_t::instance_manager_t</qualifiedname>
+        <param>
+          <type>std::vector&lt; std::unique_ptr&lt; raft::handle_t &gt; &gt; &amp;&amp;</type>
+          <declname>handles</declname>
+        </param>
+        <param>
+          <type>std::vector&lt; std::unique_ptr&lt; ncclComm_t &gt; &gt; &amp;&amp;</type>
+          <declname>nccl_comms</declname>
+        </param>
+        <param>
+          <type>std::vector&lt; rmm::cuda_device_id &gt; &amp;&amp;</type>
+          <declname>device_ids</declname>
+        </param>
+        <briefdescription>
+<para>Constructor. </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername>handles</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Vector of RAFT handles, one for each device on this node </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/instance_manager.hpp" line="38" column="3" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/instance_manager.hpp" bodystart="38" bodyend="46"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1mtmg_1_1instance__manager__t_1a1e74f0be542b6fc8b0efe0f42b038da7" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type></type>
+        <definition>cugraph::mtmg::instance_manager_t::~instance_manager_t</definition>
+        <argsstring>()</argsstring>
+        <name>~instance_manager_t</name>
+        <qualifiedname>cugraph::mtmg::instance_manager_t::~instance_manager_t</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/instance_manager.hpp" line="48" column="3" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/instance_manager.hpp" bodystart="48" bodyend="54"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1mtmg_1_1instance__manager__t_1a36d3f7a729613c0ca8115ddf55d4cd7e" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type><ref refid="classcugraph_1_1mtmg_1_1handle__t" kindref="compound">handle_t</ref></type>
+        <definition>handle_t cugraph::mtmg::instance_manager_t::get_handle</definition>
+        <argsstring>()</argsstring>
+        <name>get_handle</name>
+        <qualifiedname>cugraph::mtmg::instance_manager_t::get_handle</qualifiedname>
+        <briefdescription>
+<para>Get handle. </para>
+        </briefdescription>
+        <detaileddescription>
+<para>The instance manager will construct a handle appropriate for the thread making the request. Threads will be assigned to GPUs in a round-robin fashion to spread requesting threads around the GPU resources.</para>
+<para>This function is CPU thread-safe.</para>
+<para><simplesect kind="return"><para>a handle for this thread. </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/instance_manager.hpp" line="67" column="12" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/instance_manager.hpp" bodystart="67" bodyend="74"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1mtmg_1_1instance__manager__t_1a3d0a695da1ceded53df41738f1ba670f" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type><ref refid="classcugraph_1_1mtmg_1_1handle__t" kindref="compound">handle_t</ref></type>
+        <definition>handle_t cugraph::mtmg::instance_manager_t::get_handle</definition>
+        <argsstring>(int gpu_id, int thread_id=0)</argsstring>
+        <name>get_handle</name>
+        <qualifiedname>cugraph::mtmg::instance_manager_t::get_handle</qualifiedname>
+        <param>
+          <type>int</type>
+          <declname>gpu_id</declname>
+        </param>
+        <param>
+          <type>int</type>
+          <declname>thread_id</declname>
+          <defval>0</defval>
+        </param>
+        <briefdescription>
+<para>Get handle for particular GPU. </para>
+        </briefdescription>
+        <detaileddescription>
+<para>Return a handle for a particular GPU. In a context-free environment this lets the caller reconstitute the handle for the right host thread. It does assume that the caller will not allow multiple threads to concurrently use a gpu_id/thread_id pair.</para>
+<para><simplesect kind="return"><para>a handle for this thread. </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/instance_manager.hpp" line="86" column="12" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/instance_manager.hpp" bodystart="86" bodyend="89"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1mtmg_1_1instance__manager__t_1a3dfe5130deb4d54306d02e3eeadf4bee" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type>void</type>
+        <definition>void cugraph::mtmg::instance_manager_t::reset_threads</definition>
+        <argsstring>()</argsstring>
+        <name>reset_threads</name>
+        <qualifiedname>cugraph::mtmg::instance_manager_t::reset_threads</qualifiedname>
+        <briefdescription>
+<para>Reset the thread counter. </para>
+        </briefdescription>
+        <detaileddescription>
+<para>After a parallel activity is completed, we need to reset the thread counter so that future threads will round robin around the GPUs properly. </para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/instance_manager.hpp" line="97" column="8" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/instance_manager.hpp" bodystart="97" bodyend="97"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1mtmg_1_1instance__manager__t_1a738fcbcfa70c783a3887da15234f5292" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type>int</type>
+        <definition>int cugraph::mtmg::instance_manager_t::get_local_gpu_count</definition>
+        <argsstring>()</argsstring>
+        <name>get_local_gpu_count</name>
+        <qualifiedname>cugraph::mtmg::instance_manager_t::get_local_gpu_count</qualifiedname>
+        <briefdescription>
+<para>Number of local GPUs in the instance. </para>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/instance_manager.hpp" line="102" column="7" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/instance_manager.hpp" bodystart="102" bodyend="102"/>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+<para>Manages a subset of the cluster for a set of graph computations. </para>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/instance_manager.hpp" line="31" column="1" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/instance_manager.hpp" bodystart="31" bodyend="117"/>
+    <listofallmembers>
+      <member refid="classcugraph_1_1mtmg_1_1instance__manager__t_1a96ee72b6c9e344ba4a1039c433f80d54" prot="private" virt="non-virtual"><scope>cugraph::mtmg::instance_manager_t</scope><name>device_ids_</name></member>
+      <member refid="classcugraph_1_1mtmg_1_1instance__manager__t_1a36d3f7a729613c0ca8115ddf55d4cd7e" prot="public" virt="non-virtual"><scope>cugraph::mtmg::instance_manager_t</scope><name>get_handle</name></member>
+      <member refid="classcugraph_1_1mtmg_1_1instance__manager__t_1a3d0a695da1ceded53df41738f1ba670f" prot="public" virt="non-virtual"><scope>cugraph::mtmg::instance_manager_t</scope><name>get_handle</name></member>
+      <member refid="classcugraph_1_1mtmg_1_1instance__manager__t_1a738fcbcfa70c783a3887da15234f5292" prot="public" virt="non-virtual"><scope>cugraph::mtmg::instance_manager_t</scope><name>get_local_gpu_count</name></member>
+      <member refid="classcugraph_1_1mtmg_1_1instance__manager__t_1a29425914a7584f4dddbdb11e0cfc55ae" prot="public" virt="non-virtual"><scope>cugraph::mtmg::instance_manager_t</scope><name>instance_manager_t</name></member>
+      <member refid="classcugraph_1_1mtmg_1_1instance__manager__t_1a701b3446149cc214553ebdf400559bf1" prot="private" virt="non-virtual"><scope>cugraph::mtmg::instance_manager_t</scope><name>nccl_comms_</name></member>
+      <member refid="classcugraph_1_1mtmg_1_1instance__manager__t_1adf311608850abba75784a96509c2fce1" prot="private" virt="non-virtual"><scope>cugraph::mtmg::instance_manager_t</scope><name>raft_handle_</name></member>
+      <member refid="classcugraph_1_1mtmg_1_1instance__manager__t_1a3dfe5130deb4d54306d02e3eeadf4bee" prot="public" virt="non-virtual"><scope>cugraph::mtmg::instance_manager_t</scope><name>reset_threads</name></member>
+      <member refid="classcugraph_1_1mtmg_1_1instance__manager__t_1a705dd592a5c3bb057feacc760ec2861f" prot="private" virt="non-virtual"><scope>cugraph::mtmg::instance_manager_t</scope><name>thread_counter_</name></member>
+      <member refid="classcugraph_1_1mtmg_1_1instance__manager__t_1a1e74f0be542b6fc8b0efe0f42b038da7" prot="public" virt="non-virtual"><scope>cugraph::mtmg::instance_manager_t</scope><name>~instance_manager_t</name></member>
+    </listofallmembers>
+  </compounddef>
+</doxygen>

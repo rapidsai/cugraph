@@ -1,0 +1,25 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="dir_92b2a968487729c8d501e5fe93b5c16a" kind="dir">
+    <compoundname>utilities</compoundname>
+    <innerfile refid="atomic__ops_8cuh">atomic_ops.cuh</innerfile>
+    <innerfile refid="dataframe__buffer_8hpp">dataframe_buffer.hpp</innerfile>
+    <innerfile refid="device__comm_8hpp">device_comm.hpp</innerfile>
+    <innerfile refid="device__functors_8cuh">device_functors.cuh</innerfile>
+    <innerfile refid="include_2cugraph_2utilities_2error_8hpp">include/cugraph/utilities/error.hpp</innerfile>
+    <innerfile refid="graph__traits_8hpp">graph_traits.hpp</innerfile>
+    <innerfile refid="high__res__timer_8hpp">high_res_timer.hpp</innerfile>
+    <innerfile refid="host__scalar__comm_8hpp">host_scalar_comm.hpp</innerfile>
+    <innerfile refid="mask__utils_8cuh">mask_utils.cuh</innerfile>
+    <innerfile refid="misc__utils_8cuh">misc_utils.cuh</innerfile>
+    <innerfile refid="packed__bool__utils_8hpp">packed_bool_utils.hpp</innerfile>
+    <innerfile refid="path__retrieval_8hpp">path_retrieval.hpp</innerfile>
+    <innerfile refid="shuffle__comm_8cuh">shuffle_comm.cuh</innerfile>
+    <innerfile refid="thrust__tuple__utils_8hpp">thrust_tuple_utils.hpp</innerfile>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/utilities/"/>
+  </compounddef>
+</doxygen>

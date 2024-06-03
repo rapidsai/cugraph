@@ -1,0 +1,43 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="structcugraph_1_1is__candidate__legacy" kind="struct" language="C++" prot="public">
+    <compoundname>cugraph::is_candidate_legacy</compoundname>
+    <templateparamlist>
+      <param>
+        <type>typename vertex_t</type>
+      </param>
+      <param>
+        <type>typename edge_t</type>
+      </param>
+      <param>
+        <type>typename weight_t</type>
+      </param>
+    </templateparamlist>
+    <sectiondef kind="public-static-attrib">
+      <memberdef kind="variable" id="structcugraph_1_1is__candidate__legacy_1af0ce3e1ed4706ff986317355c6c36694" prot="public" static="yes" constexpr="yes" mutable="no">
+        <type>constexpr bool</type>
+        <definition>constexpr bool cugraph::is_candidate_legacy&lt; vertex_t, edge_t, weight_t &gt;::value</definition>
+        <argsstring></argsstring>
+        <name>value</name>
+        <qualifiedname>cugraph::is_candidate_legacy::value</qualifiedname>
+        <initializer>= <ref refid="structcugraph_1_1is__vertex__edge__combo__legacy" kindref="compound">is_vertex_edge_combo_legacy</ref>&lt;vertex_t, edge_t&gt;::value &amp;&amp;
+                                <ref refid="structcugraph_1_1is__one__of" kindref="compound">is_one_of</ref>&lt;weight_t, float, double&gt;::value</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/utilities/graph_traits.hpp" line="75" column="25" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/utilities/graph_traits.hpp" bodystart="75" bodyend="-1"/>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/utilities/graph_traits.hpp" line="74" column="1" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/utilities/graph_traits.hpp" bodystart="74" bodyend="77"/>
+    <listofallmembers>
+      <member refid="structcugraph_1_1is__candidate__legacy_1af0ce3e1ed4706ff986317355c6c36694" prot="public" virt="non-virtual"><scope>cugraph::is_candidate_legacy</scope><name>value</name></member>
+    </listofallmembers>
+  </compounddef>
+</doxygen>

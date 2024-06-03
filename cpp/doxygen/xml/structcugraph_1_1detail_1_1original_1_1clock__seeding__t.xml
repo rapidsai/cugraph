@@ -1,0 +1,56 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="structcugraph_1_1detail_1_1original_1_1clock__seeding__t" kind="struct" language="C++" prot="public">
+    <compoundname>cugraph::detail::original::clock_seeding_t</compoundname>
+    <templateparamlist>
+      <param>
+        <type>typename seed_t</type>
+      </param>
+    </templateparamlist>
+    <sectiondef kind="public-func">
+      <memberdef kind="function" id="structcugraph_1_1detail_1_1original_1_1clock__seeding__t_1aae926b3a27118e17a985e747f7b9e1b9" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type></type>
+        <definition>cugraph::detail::original::clock_seeding_t&lt; seed_t &gt;::clock_seeding_t</definition>
+        <argsstring>(void)=default</argsstring>
+        <name>clock_seeding_t</name>
+        <qualifiedname>cugraph::detail::original::clock_seeding_t::clock_seeding_t</qualifiedname>
+        <param>
+          <type>void</type>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/sampling/rw_traversals.hpp" line="112" column="3"/>
+      </memberdef>
+      <memberdef kind="function" id="structcugraph_1_1detail_1_1original_1_1clock__seeding__t_1a85366f33059468679b7078cf0b234717" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type>seed_t</type>
+        <definition>seed_t cugraph::detail::original::clock_seeding_t&lt; seed_t &gt;::operator()</definition>
+        <argsstring>(void)</argsstring>
+        <name>operator()</name>
+        <qualifiedname>cugraph::detail::original::clock_seeding_t::operator()</qualifiedname>
+        <param>
+          <type>void</type>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/sampling/rw_traversals.hpp" line="114" column="10" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/sampling/rw_traversals.hpp" bodystart="114" bodyend="114"/>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/src/sampling/rw_traversals.hpp" line="111" column="1" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/sampling/rw_traversals.hpp" bodystart="111" bodyend="115"/>
+    <listofallmembers>
+      <member refid="structcugraph_1_1detail_1_1original_1_1clock__seeding__t_1aae926b3a27118e17a985e747f7b9e1b9" prot="public" virt="non-virtual"><scope>cugraph::detail::original::clock_seeding_t</scope><name>clock_seeding_t</name></member>
+      <member refid="structcugraph_1_1detail_1_1original_1_1clock__seeding__t_1a85366f33059468679b7078cf0b234717" prot="public" virt="non-virtual"><scope>cugraph::detail::original::clock_seeding_t</scope><name>operator()</name></member>
+    </listofallmembers>
+  </compounddef>
+</doxygen>

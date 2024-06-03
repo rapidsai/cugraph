@@ -1,0 +1,77 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="structcugraph_1_1c__api_1_1cugraph__hierarchical__clustering__result__t" kind="struct" language="C++" prot="public">
+    <compoundname>cugraph::c_api::cugraph_hierarchical_clustering_result_t</compoundname>
+    <sectiondef kind="public-attrib">
+      <memberdef kind="variable" id="structcugraph_1_1c__api_1_1cugraph__hierarchical__clustering__result__t_1aef07e3a5c90e131fde78ab49975e128a" prot="public" static="no" mutable="no">
+        <type>double</type>
+        <definition>double cugraph::c_api::cugraph_hierarchical_clustering_result_t::modularity</definition>
+        <argsstring></argsstring>
+        <name>modularity</name>
+        <qualifiedname>cugraph::c_api::cugraph_hierarchical_clustering_result_t::modularity</qualifiedname>
+        <initializer>{0}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/c_api/hierarchical_clustering_result.hpp" line="26" column="10" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/hierarchical_clustering_result.hpp" bodystart="26" bodyend="26"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph_1_1c__api_1_1cugraph__hierarchical__clustering__result__t_1a131d938484c05c4450ee0b00b0bd2845" prot="public" static="no" mutable="no">
+        <type><ref refid="structcugraph_1_1c__api_1_1cugraph__type__erased__device__array__t" kindref="compound">cugraph_type_erased_device_array_t</ref> *</type>
+        <definition>cugraph_type_erased_device_array_t* cugraph::c_api::cugraph_hierarchical_clustering_result_t::vertices_</definition>
+        <argsstring></argsstring>
+        <name>vertices_</name>
+        <qualifiedname>cugraph::c_api::cugraph_hierarchical_clustering_result_t::vertices_</qualifiedname>
+        <initializer>{nullptr}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/c_api/hierarchical_clustering_result.hpp" line="27" column="38" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/hierarchical_clustering_result.hpp" bodystart="27" bodyend="27"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph_1_1c__api_1_1cugraph__hierarchical__clustering__result__t_1a9a6238384c6fd1c9bb436fce569d9db2" prot="public" static="no" mutable="no">
+        <type><ref refid="structcugraph_1_1c__api_1_1cugraph__type__erased__device__array__t" kindref="compound">cugraph_type_erased_device_array_t</ref> *</type>
+        <definition>cugraph_type_erased_device_array_t* cugraph::c_api::cugraph_hierarchical_clustering_result_t::clusters_</definition>
+        <argsstring></argsstring>
+        <name>clusters_</name>
+        <qualifiedname>cugraph::c_api::cugraph_hierarchical_clustering_result_t::clusters_</qualifiedname>
+        <initializer>{nullptr}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/c_api/hierarchical_clustering_result.hpp" line="28" column="38" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/hierarchical_clustering_result.hpp" bodystart="28" bodyend="28"/>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <collaborationgraph>
+      <node id="1">
+        <label>cugraph::c_api::cugraph_hierarchical_clustering_result_t</label>
+        <link refid="structcugraph_1_1c__api_1_1cugraph__hierarchical__clustering__result__t"/>
+        <childnode refid="2" relation="usage">
+          <edgelabel>clusters_</edgelabel>
+          <edgelabel>vertices_</edgelabel>
+        </childnode>
+      </node>
+      <node id="2">
+        <label>cugraph::c_api::cugraph_type_erased_device_array_t</label>
+        <link refid="structcugraph_1_1c__api_1_1cugraph__type__erased__device__array__t"/>
+      </node>
+    </collaborationgraph>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/src/c_api/hierarchical_clustering_result.hpp" line="25" column="1" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/hierarchical_clustering_result.hpp" bodystart="25" bodyend="29"/>
+    <listofallmembers>
+      <member refid="structcugraph_1_1c__api_1_1cugraph__hierarchical__clustering__result__t_1a9a6238384c6fd1c9bb436fce569d9db2" prot="public" virt="non-virtual"><scope>cugraph::c_api::cugraph_hierarchical_clustering_result_t</scope><name>clusters_</name></member>
+      <member refid="structcugraph_1_1c__api_1_1cugraph__hierarchical__clustering__result__t_1aef07e3a5c90e131fde78ab49975e128a" prot="public" virt="non-virtual"><scope>cugraph::c_api::cugraph_hierarchical_clustering_result_t</scope><name>modularity</name></member>
+      <member refid="structcugraph_1_1c__api_1_1cugraph__hierarchical__clustering__result__t_1a131d938484c05c4450ee0b00b0bd2845" prot="public" virt="non-virtual"><scope>cugraph::c_api::cugraph_hierarchical_clustering_result_t</scope><name>vertices_</name></member>
+    </listofallmembers>
+  </compounddef>
+</doxygen>

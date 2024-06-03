@@ -1,0 +1,92 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="classcugraph_1_1detail_1_1vertex__partition__view__base__t" kind="class" language="C++" prot="public">
+    <compoundname>cugraph::detail::vertex_partition_view_base_t</compoundname>
+    <derivedcompoundref refid="classcugraph_1_1vertex__partition__view__t_3_01vertex__t_00_01multi__gpu_00_01std_1_1enable__if__t_3_01multi__gpu_01_4_01_4" prot="public" virt="non-virtual">cugraph::vertex_partition_view_t&lt; vertex_t, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;</derivedcompoundref>
+    <derivedcompoundref refid="classcugraph_1_1vertex__partition__view__t_3_01vertex__t_00_01multi__gpu_00_01std_1_1enable__if__t_3_9multi__gpu_01_4_01_4" prot="public" virt="non-virtual">cugraph::vertex_partition_view_t&lt; vertex_t, multi_gpu, std::enable_if_t&lt;!multi_gpu &gt; &gt;</derivedcompoundref>
+    <templateparamlist>
+      <param>
+        <type>typename vertex_t</type>
+      </param>
+    </templateparamlist>
+    <sectiondef kind="private-attrib">
+      <memberdef kind="variable" id="classcugraph_1_1detail_1_1vertex__partition__view__base__t_1ae5f4ad394172d8abd1cf5425e111a410" prot="private" static="no" mutable="no">
+        <type>vertex_t</type>
+        <definition>vertex_t cugraph::detail::vertex_partition_view_base_t&lt; vertex_t &gt;::number_of_vertices_</definition>
+        <argsstring></argsstring>
+        <name>number_of_vertices_</name>
+        <qualifiedname>cugraph::detail::vertex_partition_view_base_t::number_of_vertices_</qualifiedname>
+        <initializer>{0}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/vertex_partition_view.hpp" line="35" column="12" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/vertex_partition_view.hpp" bodystart="35" bodyend="35"/>
+      </memberdef>
+    </sectiondef>
+    <sectiondef kind="public-func">
+      <memberdef kind="function" id="classcugraph_1_1detail_1_1vertex__partition__view__base__t_1a8665b69c427575ca336521536788efc2" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type></type>
+        <definition>cugraph::detail::vertex_partition_view_base_t&lt; vertex_t &gt;::vertex_partition_view_base_t</definition>
+        <argsstring>(vertex_t number_of_vertices)</argsstring>
+        <name>vertex_partition_view_base_t</name>
+        <qualifiedname>cugraph::detail::vertex_partition_view_base_t::vertex_partition_view_base_t</qualifiedname>
+        <param>
+          <type>vertex_t</type>
+          <declname>number_of_vertices</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/vertex_partition_view.hpp" line="27" column="3" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/vertex_partition_view.hpp" bodystart="27" bodyend="30"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1detail_1_1vertex__partition__view__base__t_1a24a9cbeddf6c1ee0c3cacdf63c92ba01" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>vertex_t</type>
+        <definition>vertex_t cugraph::detail::vertex_partition_view_base_t&lt; vertex_t &gt;::number_of_vertices</definition>
+        <argsstring>() const</argsstring>
+        <name>number_of_vertices</name>
+        <qualifiedname>cugraph::detail::vertex_partition_view_base_t::number_of_vertices</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/vertex_partition_view.hpp" line="32" column="12" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/vertex_partition_view.hpp" bodystart="32" bodyend="32"/>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <inheritancegraph>
+      <node id="1">
+        <label>cugraph::detail::vertex_partition_view_base_t&lt; vertex_t &gt;</label>
+        <link refid="classcugraph_1_1detail_1_1vertex__partition__view__base__t"/>
+      </node>
+      <node id="2">
+        <label>cugraph::vertex_partition_view_t&lt; vertex_t, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;</label>
+        <link refid="classcugraph_1_1vertex__partition__view__t_3_01vertex__t_00_01multi__gpu_00_01std_1_1enable__if__t_3_01multi__gpu_01_4_01_4"/>
+        <childnode refid="1" relation="public-inheritance">
+        </childnode>
+      </node>
+      <node id="3">
+        <label>cugraph::vertex_partition_view_t&lt; vertex_t, multi_gpu, std::enable_if_t&lt;!multi_gpu &gt; &gt;</label>
+        <link refid="classcugraph_1_1vertex__partition__view__t_3_01vertex__t_00_01multi__gpu_00_01std_1_1enable__if__t_3_9multi__gpu_01_4_01_4"/>
+        <childnode refid="1" relation="public-inheritance">
+        </childnode>
+      </node>
+    </inheritancegraph>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/vertex_partition_view.hpp" line="25" column="1" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/vertex_partition_view.hpp" bodystart="25" bodyend="36"/>
+    <listofallmembers>
+      <member refid="classcugraph_1_1detail_1_1vertex__partition__view__base__t_1a24a9cbeddf6c1ee0c3cacdf63c92ba01" prot="public" virt="non-virtual"><scope>cugraph::detail::vertex_partition_view_base_t</scope><name>number_of_vertices</name></member>
+      <member refid="classcugraph_1_1detail_1_1vertex__partition__view__base__t_1ae5f4ad394172d8abd1cf5425e111a410" prot="private" virt="non-virtual"><scope>cugraph::detail::vertex_partition_view_base_t</scope><name>number_of_vertices_</name></member>
+      <member refid="classcugraph_1_1detail_1_1vertex__partition__view__base__t_1a8665b69c427575ca336521536788efc2" prot="public" virt="non-virtual"><scope>cugraph::detail::vertex_partition_view_base_t</scope><name>vertex_partition_view_base_t</name></member>
+    </listofallmembers>
+  </compounddef>
+</doxygen>

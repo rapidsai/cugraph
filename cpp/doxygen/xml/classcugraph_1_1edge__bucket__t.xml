@@ -1,0 +1,787 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="classcugraph_1_1edge__bucket__t" kind="class" language="C++" prot="public">
+    <compoundname>cugraph::edge_bucket_t</compoundname>
+    <templateparamlist>
+      <param>
+        <type>typename vertex_t</type>
+      </param>
+      <param>
+        <type>typename tag_t</type>
+        <defval>void</defval>
+      </param>
+      <param>
+        <type>bool</type>
+        <declname>src_major</declname>
+        <defname>src_major</defname>
+        <defval>false</defval>
+      </param>
+      <param>
+        <type>bool</type>
+        <declname>multi_gpu</declname>
+        <defname>multi_gpu</defname>
+        <defval>false</defval>
+      </param>
+      <param>
+        <type>bool</type>
+        <declname>sorted_unique</declname>
+        <defname>sorted_unique</defname>
+        <defval>false</defval>
+      </param>
+    </templateparamlist>
+    <sectiondef kind="public-type">
+      <memberdef kind="typedef" id="classcugraph_1_1edge__bucket__t_1ac552dc9ff63830115df2310d74345def" prot="public" static="no">
+        <type>std::conditional_t&lt; std::is_same_v&lt; tag_t, void &gt;, thrust::tuple&lt; vertex_t, vertex_t &gt;, thrust::tuple&lt; vertex_t, vertex_t, tag_t &gt; &gt;</type>
+        <definition>using cugraph::edge_bucket_t&lt; vertex_t, tag_t, src_major, multi_gpu, sorted_unique &gt;::key_type =  std::conditional_t&lt;std::is_same_v&lt;tag_t, void&gt;,
+                                      thrust::tuple&lt;vertex_t, vertex_t&gt;,
+                                      thrust::tuple&lt;vertex_t, vertex_t, tag_t&gt;&gt;</definition>
+        <argsstring></argsstring>
+        <name>key_type</name>
+        <qualifiedname>cugraph::edge_bucket_t::key_type</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/edge_bucket.cuh" line="65" column="3" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/edge_bucket.cuh" bodystart="65" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="typedef" id="classcugraph_1_1edge__bucket__t_1a5099ba8a3c546e8959e0ce6e389cc536" prot="public" static="no">
+        <type>std:: conditional_t&lt; std::is_same_v&lt; tag_t, void &gt;, std::byte, rmm::device_uvector&lt; tag_t &gt; &gt;</type>
+        <definition>using cugraph::edge_bucket_t&lt; vertex_t, tag_t, src_major, multi_gpu, sorted_unique &gt;::optional_buffer_type =  std::
+    conditional_t&lt;std::is_same_v&lt;tag_t, void&gt;, std::byte , rmm::device_uvector&lt;tag_t&gt;&gt;</definition>
+        <argsstring></argsstring>
+        <name>optional_buffer_type</name>
+        <qualifiedname>cugraph::edge_bucket_t::optional_buffer_type</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/edge_bucket.cuh" line="74" column="3" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/edge_bucket.cuh" bodystart="74" bodyend="-1"/>
+      </memberdef>
+    </sectiondef>
+    <sectiondef kind="public-static-attrib">
+      <memberdef kind="variable" id="classcugraph_1_1edge__bucket__t_1a5843c58e585217565eade33fc3e137a8" prot="public" static="yes" constexpr="yes" mutable="no">
+        <type>bool constexpr</type>
+        <definition>bool constexpr cugraph::edge_bucket_t&lt; vertex_t, tag_t, src_major, multi_gpu, sorted_unique &gt;::is_src_major</definition>
+        <argsstring></argsstring>
+        <name>is_src_major</name>
+        <qualifiedname>cugraph::edge_bucket_t::is_src_major</qualifiedname>
+        <initializer>= src_major</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/edge_bucket.cuh" line="69" column="25" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/edge_bucket.cuh" bodystart="69" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="variable" id="classcugraph_1_1edge__bucket__t_1a3cb976b8cb91b71e3135938edc74689b" prot="public" static="yes" constexpr="yes" mutable="no">
+        <type>bool constexpr</type>
+        <definition>bool constexpr cugraph::edge_bucket_t&lt; vertex_t, tag_t, src_major, multi_gpu, sorted_unique &gt;::is_sorted_unique</definition>
+        <argsstring></argsstring>
+        <name>is_sorted_unique</name>
+        <qualifiedname>cugraph::edge_bucket_t::is_sorted_unique</qualifiedname>
+        <initializer>= sorted_unique</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/edge_bucket.cuh" line="70" column="25" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/edge_bucket.cuh" bodystart="70" bodyend="-1"/>
+      </memberdef>
+    </sectiondef>
+    <sectiondef kind="private-attrib">
+      <memberdef kind="variable" id="classcugraph_1_1edge__bucket__t_1ab8036f5ad70919e6406675653d4d22df" prot="private" static="no" mutable="no">
+        <type>raft::handle_t const  *</type>
+        <definition>raft::handle_t const* cugraph::edge_bucket_t&lt; vertex_t, tag_t, src_major, multi_gpu, sorted_unique &gt;::handle_ptr_</definition>
+        <argsstring></argsstring>
+        <name>handle_ptr_</name>
+        <qualifiedname>cugraph::edge_bucket_t::handle_ptr_</qualifiedname>
+        <initializer>{nullptr}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/edge_bucket.cuh" line="371" column="24" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/edge_bucket.cuh" bodystart="371" bodyend="371"/>
+      </memberdef>
+      <memberdef kind="variable" id="classcugraph_1_1edge__bucket__t_1a6525a3e77d0ced5f23733f793eb5362f" prot="private" static="no" mutable="no">
+        <type>rmm::device_uvector&lt; vertex_t &gt;</type>
+        <definition>rmm::device_uvector&lt;vertex_t&gt; cugraph::edge_bucket_t&lt; vertex_t, tag_t, src_major, multi_gpu, sorted_unique &gt;::majors_</definition>
+        <argsstring></argsstring>
+        <name>majors_</name>
+        <qualifiedname>cugraph::edge_bucket_t::majors_</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/edge_bucket.cuh" line="372" column="23" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/edge_bucket.cuh" bodystart="372" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="variable" id="classcugraph_1_1edge__bucket__t_1a869884a4efab67f197a8e45ca4320b8c" prot="private" static="no" mutable="no">
+        <type>rmm::device_uvector&lt; vertex_t &gt;</type>
+        <definition>rmm::device_uvector&lt;vertex_t&gt; cugraph::edge_bucket_t&lt; vertex_t, tag_t, src_major, multi_gpu, sorted_unique &gt;::minors_</definition>
+        <argsstring></argsstring>
+        <name>minors_</name>
+        <qualifiedname>cugraph::edge_bucket_t::minors_</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/edge_bucket.cuh" line="373" column="23" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/edge_bucket.cuh" bodystart="373" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="variable" id="classcugraph_1_1edge__bucket__t_1ac9728270cb32321df0e51a2bc3550725" prot="private" static="no" mutable="no">
+        <type>optional_buffer_type</type>
+        <definition>optional_buffer_type cugraph::edge_bucket_t&lt; vertex_t, tag_t, src_major, multi_gpu, sorted_unique &gt;::tags_</definition>
+        <argsstring></argsstring>
+        <name>tags_</name>
+        <qualifiedname>cugraph::edge_bucket_t::tags_</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/edge_bucket.cuh" line="374" column="24" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/edge_bucket.cuh" bodystart="374" bodyend="-1"/>
+      </memberdef>
+    </sectiondef>
+    <sectiondef kind="public-func">
+      <memberdef kind="function" id="classcugraph_1_1edge__bucket__t_1a2a7bc65360e821878fc4df25f376c18a" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <templateparamlist>
+          <param>
+            <type>typename tag_type</type>
+            <defval>tag_t</defval>
+          </param>
+          <param>
+            <type>std::enable_if_t&lt; std::is_same_v&lt; tag_type, void &gt; &gt; *</type>
+            <defval>nullptr</defval>
+          </param>
+        </templateparamlist>
+        <type></type>
+        <definition>cugraph::edge_bucket_t&lt; vertex_t, tag_t, src_major, multi_gpu, sorted_unique &gt;::edge_bucket_t</definition>
+        <argsstring>(raft::handle_t const &amp;handle)</argsstring>
+        <name>edge_bucket_t</name>
+        <qualifiedname>cugraph::edge_bucket_t::edge_bucket_t</qualifiedname>
+        <param>
+          <type>raft::handle_t const &amp;</type>
+          <declname>handle</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/edge_bucket.cuh" line="78" column="3" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/edge_bucket.cuh" bodystart="78" bodyend="84"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1edge__bucket__t_1a2a7bc65360e821878fc4df25f376c18a" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <templateparamlist>
+          <param>
+            <type>typename tag_type</type>
+            <defval>tag_t</defval>
+          </param>
+          <param>
+            <type>std::enable_if_t&lt;!std::is_same_v&lt; tag_type, void &gt; &gt; *</type>
+            <defval>nullptr</defval>
+          </param>
+        </templateparamlist>
+        <type></type>
+        <definition>cugraph::edge_bucket_t&lt; vertex_t, tag_t, src_major, multi_gpu, sorted_unique &gt;::edge_bucket_t</definition>
+        <argsstring>(raft::handle_t const &amp;handle)</argsstring>
+        <name>edge_bucket_t</name>
+        <qualifiedname>cugraph::edge_bucket_t::edge_bucket_t</qualifiedname>
+        <param>
+          <type>raft::handle_t const &amp;</type>
+          <declname>handle</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/edge_bucket.cuh" line="87" column="3" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/edge_bucket.cuh" bodystart="87" bodyend="93"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1edge__bucket__t_1a7eb6cf457c6e0353f2e5ab055bc681fb" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <templateparamlist>
+          <param>
+            <type>typename tag_type</type>
+            <defval>tag_t</defval>
+          </param>
+          <param>
+            <type>std::enable_if_t&lt; std::is_same_v&lt; tag_type, void &gt; &gt; *</type>
+            <defval>nullptr</defval>
+          </param>
+        </templateparamlist>
+        <type>void</type>
+        <definition>void cugraph::edge_bucket_t&lt; vertex_t, tag_t, src_major, multi_gpu, sorted_unique &gt;::insert</definition>
+        <argsstring>(vertex_t src, vertex_t dst)</argsstring>
+        <name>insert</name>
+        <qualifiedname>cugraph::edge_bucket_t::insert</qualifiedname>
+        <param>
+          <type>vertex_t</type>
+          <declname>src</declname>
+        </param>
+        <param>
+          <type>vertex_t</type>
+          <declname>dst</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+<para>@ brief insert an edge to the bucket</para>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername>src</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>edge source vertex. </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>dst</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>edge destination vertex. </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/edge_bucket.cuh" line="102" column="8" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/edge_bucket.cuh" bodystart="102" bodyend="122"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1edge__bucket__t_1a4bf625cbe86020d6cf13b3941f47a650" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <templateparamlist>
+          <param>
+            <type>typename tag_type</type>
+            <defval>tag_t</defval>
+          </param>
+          <param>
+            <type>std::enable_if_t&lt;!std::is_same_v&lt; tag_type, void &gt; &gt; *</type>
+            <defval>nullptr</defval>
+          </param>
+        </templateparamlist>
+        <type>void</type>
+        <definition>void cugraph::edge_bucket_t&lt; vertex_t, tag_t, src_major, multi_gpu, sorted_unique &gt;::insert</definition>
+        <argsstring>(vertex_t src, vertex_t dst, tag_type tag)</argsstring>
+        <name>insert</name>
+        <qualifiedname>cugraph::edge_bucket_t::insert</qualifiedname>
+        <param>
+          <type>vertex_t</type>
+          <declname>src</declname>
+        </param>
+        <param>
+          <type>vertex_t</type>
+          <declname>dst</declname>
+        </param>
+        <param>
+          <type>tag_type</type>
+          <declname>tag</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+<para>@ brief insert a tagged-edge to the bucket</para>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername>src</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>edge source vertex. </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>dst</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>edge destination vertex. </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>tag</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>edge tag. </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/edge_bucket.cuh" line="132" column="8" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/edge_bucket.cuh" bodystart="132" bodyend="154"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1edge__bucket__t_1a0078ae5c45ee142dd5f2df0b66348571" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <templateparamlist>
+          <param>
+            <type>typename VertexIterator</type>
+          </param>
+          <param>
+            <type>typename tag_type</type>
+            <defval>tag_t</defval>
+          </param>
+          <param>
+            <type>std::enable_if_t&lt; std::is_same_v&lt; tag_type, void &gt; &gt; *</type>
+            <defval>nullptr</defval>
+          </param>
+        </templateparamlist>
+        <type>void</type>
+        <definition>void cugraph::edge_bucket_t&lt; vertex_t, tag_t, src_major, multi_gpu, sorted_unique &gt;::insert</definition>
+        <argsstring>(VertexIterator src_first, VertexIterator src_last, VertexIterator dst_first)</argsstring>
+        <name>insert</name>
+        <qualifiedname>cugraph::edge_bucket_t::insert</qualifiedname>
+        <param>
+          <type>VertexIterator</type>
+          <declname>src_first</declname>
+        </param>
+        <param>
+          <type>VertexIterator</type>
+          <declname>src_last</declname>
+        </param>
+        <param>
+          <type>VertexIterator</type>
+          <declname>dst_first</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+<para>@ brief insert a list of edges to the bucket</para>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername>src_first</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Iterator pointing to the first (inclusive) element of the edge source vertices in device memory. </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>src_last</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Iterator pointing to the last (exclusive) element of the edge source vertices stored in device memory. </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>dst_first</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Iterator pointing to the first (inclusive) element of the edge destination vertices in device memory. </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/edge_bucket.cuh" line="169" column="8" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/edge_bucket.cuh" bodystart="169" bodyend="226"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1edge__bucket__t_1af7afee3f6d8571afb98e273b785e6220" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <templateparamlist>
+          <param>
+            <type>typename VertexIterator</type>
+          </param>
+          <param>
+            <type>typename TagIterator</type>
+          </param>
+          <param>
+            <type>typename tag_type</type>
+            <defval>tag_t</defval>
+          </param>
+          <param>
+            <type>std::enable_if_t&lt;!std::is_same_v&lt; tag_type, void &gt; &gt; *</type>
+            <defval>nullptr</defval>
+          </param>
+        </templateparamlist>
+        <type>void</type>
+        <definition>void cugraph::edge_bucket_t&lt; vertex_t, tag_t, src_major, multi_gpu, sorted_unique &gt;::insert</definition>
+        <argsstring>(VertexIterator src_first, VertexIterator src_last, VertexIterator dst_first, TagIterator tag_first)</argsstring>
+        <name>insert</name>
+        <qualifiedname>cugraph::edge_bucket_t::insert</qualifiedname>
+        <param>
+          <type>VertexIterator</type>
+          <declname>src_first</declname>
+        </param>
+        <param>
+          <type>VertexIterator</type>
+          <declname>src_last</declname>
+        </param>
+        <param>
+          <type>VertexIterator</type>
+          <declname>dst_first</declname>
+        </param>
+        <param>
+          <type>TagIterator</type>
+          <declname>tag_first</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+<para>@ brief insert a list of tagged-edges to the bucket</para>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername>src_first</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Iterator pointing to the first (inclusive) element of the edge source vertices in device memory. </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>src_last</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Iterator pointing to the last (exclusive) element of the edge source vertices stored in device memory. </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>dst_first</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Iterator pointing to the first (inclusive) element of the edge destination vertices in device memory. </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>tag_first</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Iterator pointing to the first (inclusive) element of the edge tags in device memory. </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/edge_bucket.cuh" line="244" column="8" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/edge_bucket.cuh" bodystart="244" bodyend="313"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1edge__bucket__t_1abbde5edbf8a98bcc56ae56a19935ffc1" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>size_t</type>
+        <definition>size_t cugraph::edge_bucket_t&lt; vertex_t, tag_t, src_major, multi_gpu, sorted_unique &gt;::size</definition>
+        <argsstring>() const</argsstring>
+        <name>size</name>
+        <qualifiedname>cugraph::edge_bucket_t::size</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/edge_bucket.cuh" line="315" column="10" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/edge_bucket.cuh" bodystart="315" bodyend="315"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1edge__bucket__t_1a6f28eaf96c315bfb627a5172a1953827" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <templateparamlist>
+          <param>
+            <type>bool</type>
+            <declname>do_aggregate</declname>
+            <defname>do_aggregate</defname>
+            <defval>multi_gpu</defval>
+          </param>
+        </templateparamlist>
+        <type>std::enable_if_t&lt; do_aggregate, size_t &gt;</type>
+        <definition>std::enable_if_t&lt; do_aggregate, size_t &gt; cugraph::edge_bucket_t&lt; vertex_t, tag_t, src_major, multi_gpu, sorted_unique &gt;::aggregate_size</definition>
+        <argsstring>() const</argsstring>
+        <name>aggregate_size</name>
+        <qualifiedname>cugraph::edge_bucket_t::aggregate_size</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/edge_bucket.cuh" line="318" column="20" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/edge_bucket.cuh" bodystart="318" bodyend="322"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1edge__bucket__t_1a6743c7db7525e5e4df28e1e7cbbcb9e4" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <templateparamlist>
+          <param>
+            <type>bool</type>
+            <declname>do_aggregate</declname>
+            <defname>do_aggregate</defname>
+            <defval>multi_gpu</defval>
+          </param>
+        </templateparamlist>
+        <type>std::enable_if_t&lt;!do_aggregate, size_t &gt;</type>
+        <definition>std::enable_if_t&lt;!do_aggregate, size_t &gt; cugraph::edge_bucket_t&lt; vertex_t, tag_t, src_major, multi_gpu, sorted_unique &gt;::aggregate_size</definition>
+        <argsstring>() const</argsstring>
+        <name>aggregate_size</name>
+        <qualifiedname>cugraph::edge_bucket_t::aggregate_size</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/edge_bucket.cuh" line="325" column="20" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/edge_bucket.cuh" bodystart="325" bodyend="328"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1edge__bucket__t_1aefb9aa2ac2d60bd7ffc5d0b209b7bf07" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type>void</type>
+        <definition>void cugraph::edge_bucket_t&lt; vertex_t, tag_t, src_major, multi_gpu, sorted_unique &gt;::resize</definition>
+        <argsstring>(size_t size)</argsstring>
+        <name>resize</name>
+        <qualifiedname>cugraph::edge_bucket_t::resize</qualifiedname>
+        <param>
+          <type>size_t</type>
+          <declname>size</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/edge_bucket.cuh" line="330" column="8" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/edge_bucket.cuh" bodystart="330" bodyend="335"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1edge__bucket__t_1a076bf02a904915ece41abf158a4257a3" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type>void</type>
+        <definition>void cugraph::edge_bucket_t&lt; vertex_t, tag_t, src_major, multi_gpu, sorted_unique &gt;::clear</definition>
+        <argsstring>()</argsstring>
+        <name>clear</name>
+        <qualifiedname>cugraph::edge_bucket_t::clear</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/edge_bucket.cuh" line="337" column="8" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/edge_bucket.cuh" bodystart="337" bodyend="337"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1edge__bucket__t_1a43d690ea62bd749ed188ef3a7e2d9716" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type>void</type>
+        <definition>void cugraph::edge_bucket_t&lt; vertex_t, tag_t, src_major, multi_gpu, sorted_unique &gt;::shrink_to_fit</definition>
+        <argsstring>()</argsstring>
+        <name>shrink_to_fit</name>
+        <qualifiedname>cugraph::edge_bucket_t::shrink_to_fit</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/edge_bucket.cuh" line="339" column="8" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/edge_bucket.cuh" bodystart="339" bodyend="344"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1edge__bucket__t_1a1c74b4f1dd90c5a8f185bdd80ee4414e" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>auto const</type>
+        <definition>auto const cugraph::edge_bucket_t&lt; vertex_t, tag_t, src_major, multi_gpu, sorted_unique &gt;::src_begin</definition>
+        <argsstring>() const</argsstring>
+        <name>src_begin</name>
+        <qualifiedname>cugraph::edge_bucket_t::src_begin</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/edge_bucket.cuh" line="346" column="14" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/edge_bucket.cuh" bodystart="346" bodyend="346"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1edge__bucket__t_1af92d9ee0c69f70ec1a268f1074dfca61" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type>auto</type>
+        <definition>auto cugraph::edge_bucket_t&lt; vertex_t, tag_t, src_major, multi_gpu, sorted_unique &gt;::src_begin</definition>
+        <argsstring>()</argsstring>
+        <name>src_begin</name>
+        <qualifiedname>cugraph::edge_bucket_t::src_begin</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/edge_bucket.cuh" line="348" column="8" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/edge_bucket.cuh" bodystart="348" bodyend="348"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1edge__bucket__t_1a4eada2bc9dc51dddd9a9a8deca356d73" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>auto const</type>
+        <definition>auto const cugraph::edge_bucket_t&lt; vertex_t, tag_t, src_major, multi_gpu, sorted_unique &gt;::src_end</definition>
+        <argsstring>() const</argsstring>
+        <name>src_end</name>
+        <qualifiedname>cugraph::edge_bucket_t::src_end</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/edge_bucket.cuh" line="350" column="14" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/edge_bucket.cuh" bodystart="350" bodyend="350"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1edge__bucket__t_1a4bf118ea379efbca63335207e350eea6" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type>auto</type>
+        <definition>auto cugraph::edge_bucket_t&lt; vertex_t, tag_t, src_major, multi_gpu, sorted_unique &gt;::src_end</definition>
+        <argsstring>()</argsstring>
+        <name>src_end</name>
+        <qualifiedname>cugraph::edge_bucket_t::src_end</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/edge_bucket.cuh" line="352" column="8" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/edge_bucket.cuh" bodystart="352" bodyend="352"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1edge__bucket__t_1a3c6c92b299f393f7cca7535e2c116ac6" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>auto const</type>
+        <definition>auto const cugraph::edge_bucket_t&lt; vertex_t, tag_t, src_major, multi_gpu, sorted_unique &gt;::dst_begin</definition>
+        <argsstring>() const</argsstring>
+        <name>dst_begin</name>
+        <qualifiedname>cugraph::edge_bucket_t::dst_begin</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/edge_bucket.cuh" line="354" column="14" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/edge_bucket.cuh" bodystart="354" bodyend="354"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1edge__bucket__t_1ad23f1917505c16d2254f8a6b874ccf6a" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type>auto</type>
+        <definition>auto cugraph::edge_bucket_t&lt; vertex_t, tag_t, src_major, multi_gpu, sorted_unique &gt;::dst_begin</definition>
+        <argsstring>()</argsstring>
+        <name>dst_begin</name>
+        <qualifiedname>cugraph::edge_bucket_t::dst_begin</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/edge_bucket.cuh" line="356" column="8" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/edge_bucket.cuh" bodystart="356" bodyend="356"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1edge__bucket__t_1a5f9ab048b192f315fbbc65f615649910" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>auto const</type>
+        <definition>auto const cugraph::edge_bucket_t&lt; vertex_t, tag_t, src_major, multi_gpu, sorted_unique &gt;::dst_end</definition>
+        <argsstring>() const</argsstring>
+        <name>dst_end</name>
+        <qualifiedname>cugraph::edge_bucket_t::dst_end</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/edge_bucket.cuh" line="358" column="14" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/edge_bucket.cuh" bodystart="358" bodyend="358"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1edge__bucket__t_1abdf25242398e354d76c3859e66bbcc37" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type>auto</type>
+        <definition>auto cugraph::edge_bucket_t&lt; vertex_t, tag_t, src_major, multi_gpu, sorted_unique &gt;::dst_end</definition>
+        <argsstring>()</argsstring>
+        <name>dst_end</name>
+        <qualifiedname>cugraph::edge_bucket_t::dst_end</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/edge_bucket.cuh" line="360" column="8" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/edge_bucket.cuh" bodystart="360" bodyend="360"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1edge__bucket__t_1aac0553bd3326df304acde93069d32c34" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>auto const</type>
+        <definition>auto const cugraph::edge_bucket_t&lt; vertex_t, tag_t, src_major, multi_gpu, sorted_unique &gt;::tag_begin</definition>
+        <argsstring>() const</argsstring>
+        <name>tag_begin</name>
+        <qualifiedname>cugraph::edge_bucket_t::tag_begin</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/edge_bucket.cuh" line="362" column="14" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/edge_bucket.cuh" bodystart="362" bodyend="362"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1edge__bucket__t_1adbb1895b86986a6a0ae53d1ea23ce682" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type>auto</type>
+        <definition>auto cugraph::edge_bucket_t&lt; vertex_t, tag_t, src_major, multi_gpu, sorted_unique &gt;::tag_begin</definition>
+        <argsstring>()</argsstring>
+        <name>tag_begin</name>
+        <qualifiedname>cugraph::edge_bucket_t::tag_begin</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/edge_bucket.cuh" line="364" column="8" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/edge_bucket.cuh" bodystart="364" bodyend="364"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1edge__bucket__t_1ac1ffd17e73ec4722e56b048f01d4a28d" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>auto const</type>
+        <definition>auto const cugraph::edge_bucket_t&lt; vertex_t, tag_t, src_major, multi_gpu, sorted_unique &gt;::tag_end</definition>
+        <argsstring>() const</argsstring>
+        <name>tag_end</name>
+        <qualifiedname>cugraph::edge_bucket_t::tag_end</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/edge_bucket.cuh" line="366" column="14" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/edge_bucket.cuh" bodystart="366" bodyend="366"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1edge__bucket__t_1a052152e28cc30b4886c8c41c696f0464" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type>auto</type>
+        <definition>auto cugraph::edge_bucket_t&lt; vertex_t, tag_t, src_major, multi_gpu, sorted_unique &gt;::tag_end</definition>
+        <argsstring>()</argsstring>
+        <name>tag_end</name>
+        <qualifiedname>cugraph::edge_bucket_t::tag_end</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/edge_bucket.cuh" line="368" column="8" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/edge_bucket.cuh" bodystart="368" bodyend="368"/>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/edge_bucket.cuh" line="63" column="1" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/edge_bucket.cuh" bodystart="63" bodyend="375"/>
+    <listofallmembers>
+      <member refid="classcugraph_1_1edge__bucket__t_1a6f28eaf96c315bfb627a5172a1953827" prot="public" virt="non-virtual"><scope>cugraph::edge_bucket_t</scope><name>aggregate_size</name></member>
+      <member refid="classcugraph_1_1edge__bucket__t_1a6743c7db7525e5e4df28e1e7cbbcb9e4" prot="public" virt="non-virtual"><scope>cugraph::edge_bucket_t</scope><name>aggregate_size</name></member>
+      <member refid="classcugraph_1_1edge__bucket__t_1a076bf02a904915ece41abf158a4257a3" prot="public" virt="non-virtual"><scope>cugraph::edge_bucket_t</scope><name>clear</name></member>
+      <member refid="classcugraph_1_1edge__bucket__t_1a3c6c92b299f393f7cca7535e2c116ac6" prot="public" virt="non-virtual"><scope>cugraph::edge_bucket_t</scope><name>dst_begin</name></member>
+      <member refid="classcugraph_1_1edge__bucket__t_1ad23f1917505c16d2254f8a6b874ccf6a" prot="public" virt="non-virtual"><scope>cugraph::edge_bucket_t</scope><name>dst_begin</name></member>
+      <member refid="classcugraph_1_1edge__bucket__t_1a5f9ab048b192f315fbbc65f615649910" prot="public" virt="non-virtual"><scope>cugraph::edge_bucket_t</scope><name>dst_end</name></member>
+      <member refid="classcugraph_1_1edge__bucket__t_1abdf25242398e354d76c3859e66bbcc37" prot="public" virt="non-virtual"><scope>cugraph::edge_bucket_t</scope><name>dst_end</name></member>
+      <member refid="classcugraph_1_1edge__bucket__t_1a2a7bc65360e821878fc4df25f376c18a" prot="public" virt="non-virtual"><scope>cugraph::edge_bucket_t</scope><name>edge_bucket_t</name></member>
+      <member refid="classcugraph_1_1edge__bucket__t_1a2a7bc65360e821878fc4df25f376c18a" prot="public" virt="non-virtual"><scope>cugraph::edge_bucket_t</scope><name>edge_bucket_t</name></member>
+      <member refid="classcugraph_1_1edge__bucket__t_1ab8036f5ad70919e6406675653d4d22df" prot="private" virt="non-virtual"><scope>cugraph::edge_bucket_t</scope><name>handle_ptr_</name></member>
+      <member refid="classcugraph_1_1edge__bucket__t_1a7eb6cf457c6e0353f2e5ab055bc681fb" prot="public" virt="non-virtual"><scope>cugraph::edge_bucket_t</scope><name>insert</name></member>
+      <member refid="classcugraph_1_1edge__bucket__t_1a4bf625cbe86020d6cf13b3941f47a650" prot="public" virt="non-virtual"><scope>cugraph::edge_bucket_t</scope><name>insert</name></member>
+      <member refid="classcugraph_1_1edge__bucket__t_1a0078ae5c45ee142dd5f2df0b66348571" prot="public" virt="non-virtual"><scope>cugraph::edge_bucket_t</scope><name>insert</name></member>
+      <member refid="classcugraph_1_1edge__bucket__t_1af7afee3f6d8571afb98e273b785e6220" prot="public" virt="non-virtual"><scope>cugraph::edge_bucket_t</scope><name>insert</name></member>
+      <member refid="classcugraph_1_1edge__bucket__t_1a3cb976b8cb91b71e3135938edc74689b" prot="public" virt="non-virtual"><scope>cugraph::edge_bucket_t</scope><name>is_sorted_unique</name></member>
+      <member refid="classcugraph_1_1edge__bucket__t_1a5843c58e585217565eade33fc3e137a8" prot="public" virt="non-virtual"><scope>cugraph::edge_bucket_t</scope><name>is_src_major</name></member>
+      <member refid="classcugraph_1_1edge__bucket__t_1ac552dc9ff63830115df2310d74345def" prot="public" virt="non-virtual"><scope>cugraph::edge_bucket_t</scope><name>key_type</name></member>
+      <member refid="classcugraph_1_1edge__bucket__t_1a6525a3e77d0ced5f23733f793eb5362f" prot="private" virt="non-virtual"><scope>cugraph::edge_bucket_t</scope><name>majors_</name></member>
+      <member refid="classcugraph_1_1edge__bucket__t_1a869884a4efab67f197a8e45ca4320b8c" prot="private" virt="non-virtual"><scope>cugraph::edge_bucket_t</scope><name>minors_</name></member>
+      <member refid="classcugraph_1_1edge__bucket__t_1a5099ba8a3c546e8959e0ce6e389cc536" prot="public" virt="non-virtual"><scope>cugraph::edge_bucket_t</scope><name>optional_buffer_type</name></member>
+      <member refid="classcugraph_1_1edge__bucket__t_1aefb9aa2ac2d60bd7ffc5d0b209b7bf07" prot="public" virt="non-virtual"><scope>cugraph::edge_bucket_t</scope><name>resize</name></member>
+      <member refid="classcugraph_1_1edge__bucket__t_1a43d690ea62bd749ed188ef3a7e2d9716" prot="public" virt="non-virtual"><scope>cugraph::edge_bucket_t</scope><name>shrink_to_fit</name></member>
+      <member refid="classcugraph_1_1edge__bucket__t_1abbde5edbf8a98bcc56ae56a19935ffc1" prot="public" virt="non-virtual"><scope>cugraph::edge_bucket_t</scope><name>size</name></member>
+      <member refid="classcugraph_1_1edge__bucket__t_1a1c74b4f1dd90c5a8f185bdd80ee4414e" prot="public" virt="non-virtual"><scope>cugraph::edge_bucket_t</scope><name>src_begin</name></member>
+      <member refid="classcugraph_1_1edge__bucket__t_1af92d9ee0c69f70ec1a268f1074dfca61" prot="public" virt="non-virtual"><scope>cugraph::edge_bucket_t</scope><name>src_begin</name></member>
+      <member refid="classcugraph_1_1edge__bucket__t_1a4eada2bc9dc51dddd9a9a8deca356d73" prot="public" virt="non-virtual"><scope>cugraph::edge_bucket_t</scope><name>src_end</name></member>
+      <member refid="classcugraph_1_1edge__bucket__t_1a4bf118ea379efbca63335207e350eea6" prot="public" virt="non-virtual"><scope>cugraph::edge_bucket_t</scope><name>src_end</name></member>
+      <member refid="classcugraph_1_1edge__bucket__t_1aac0553bd3326df304acde93069d32c34" prot="public" virt="non-virtual"><scope>cugraph::edge_bucket_t</scope><name>tag_begin</name></member>
+      <member refid="classcugraph_1_1edge__bucket__t_1adbb1895b86986a6a0ae53d1ea23ce682" prot="public" virt="non-virtual"><scope>cugraph::edge_bucket_t</scope><name>tag_begin</name></member>
+      <member refid="classcugraph_1_1edge__bucket__t_1ac1ffd17e73ec4722e56b048f01d4a28d" prot="public" virt="non-virtual"><scope>cugraph::edge_bucket_t</scope><name>tag_end</name></member>
+      <member refid="classcugraph_1_1edge__bucket__t_1a052152e28cc30b4886c8c41c696f0464" prot="public" virt="non-virtual"><scope>cugraph::edge_bucket_t</scope><name>tag_end</name></member>
+      <member refid="classcugraph_1_1edge__bucket__t_1ac9728270cb32321df0e51a2bc3550725" prot="private" virt="non-virtual"><scope>cugraph::edge_bucket_t</scope><name>tags_</name></member>
+    </listofallmembers>
+  </compounddef>
+</doxygen>

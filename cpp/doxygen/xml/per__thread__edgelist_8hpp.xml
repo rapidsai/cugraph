@@ -1,0 +1,237 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="per__thread__edgelist_8hpp" kind="file" language="C++">
+    <compoundname>per_thread_edgelist.hpp</compoundname>
+    <includes refid="device__shared__wrapper_8hpp" local="no">cugraph/mtmg/detail/device_shared_wrapper.hpp</includes>
+    <includes refid="per__device__edgelist_8hpp" local="no">cugraph/mtmg/detail/per_device_edgelist.hpp</includes>
+    <incdepgraph>
+      <node id="11">
+        <label>cugraph/detail/shuffle_wrappers.hpp</label>
+        <link refid="shuffle__wrappers_8hpp_source"/>
+        <childnode refid="4" relation="include">
+        </childnode>
+        <childnode refid="12" relation="include">
+        </childnode>
+        <childnode refid="13" relation="include">
+        </childnode>
+        <childnode refid="14" relation="include">
+        </childnode>
+      </node>
+      <node id="2">
+        <label>cugraph/mtmg/detail/device_shared_wrapper.hpp</label>
+        <link refid="device__shared__wrapper_8hpp_source"/>
+        <childnode refid="3" relation="include">
+        </childnode>
+        <childnode refid="6" relation="include">
+        </childnode>
+        <childnode refid="8" relation="include">
+        </childnode>
+        <childnode refid="9" relation="include">
+        </childnode>
+      </node>
+      <node id="10">
+        <label>cugraph/mtmg/detail/per_device_edgelist.hpp</label>
+        <link refid="per__device__edgelist_8hpp_source"/>
+        <childnode refid="11" relation="include">
+        </childnode>
+        <childnode refid="3" relation="include">
+        </childnode>
+        <childnode refid="15" relation="include">
+        </childnode>
+        <childnode refid="13" relation="include">
+        </childnode>
+      </node>
+      <node id="3">
+        <label>cugraph/mtmg/handle.hpp</label>
+        <link refid="handle_8hpp_source"/>
+        <childnode refid="4" relation="include">
+        </childnode>
+        <childnode refid="5" relation="include">
+        </childnode>
+      </node>
+      <node id="1">
+        <label>per_thread_edgelist.hpp</label>
+        <link refid="per__thread__edgelist_8hpp"/>
+        <childnode refid="2" relation="include">
+        </childnode>
+        <childnode refid="10" relation="include">
+        </childnode>
+      </node>
+      <node id="6">
+        <label>cugraph/utilities/error.hpp</label>
+        <link refid="include_2cugraph_2utilities_2error_8hpp_source"/>
+        <childnode refid="7" relation="include">
+        </childnode>
+      </node>
+      <node id="8">
+        <label>map</label>
+      </node>
+      <node id="9">
+        <label>mutex</label>
+      </node>
+      <node id="14">
+        <label>optional</label>
+      </node>
+      <node id="7">
+        <label>raft/core/error.hpp</label>
+      </node>
+      <node id="4">
+        <label>raft/core/handle.hpp</label>
+      </node>
+      <node id="15">
+        <label>raft/core/host_span.hpp</label>
+      </node>
+      <node id="12">
+        <label>raft/random/rng_state.hpp</label>
+      </node>
+      <node id="13">
+        <label>rmm/device_uvector.hpp</label>
+      </node>
+      <node id="5">
+        <label>rmm/exec_policy.hpp</label>
+      </node>
+    </incdepgraph>
+    <innerclass refid="classcugraph_1_1mtmg_1_1per__thread__edgelist__t" prot="public">cugraph::mtmg::per_thread_edgelist_t</innerclass>
+    <innernamespace refid="namespacecugraph">cugraph</innernamespace>
+    <innernamespace refid="namespacecugraph_1_1mtmg">cugraph::mtmg</innernamespace>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <programlisting>
+<codeline lineno="1"><highlight class="comment">/*</highlight></codeline>
+<codeline lineno="2"><highlight class="comment"><sp/>*<sp/>Copyright<sp/>(c)<sp/>2023-2024,<sp/>NVIDIA<sp/>CORPORATION.</highlight></codeline>
+<codeline lineno="3"><highlight class="comment"><sp/>*</highlight></codeline>
+<codeline lineno="4"><highlight class="comment"><sp/>*<sp/>Licensed<sp/>under<sp/>the<sp/>Apache<sp/>License,<sp/>Version<sp/>2.0<sp/>(the<sp/>&quot;License&quot;);</highlight></codeline>
+<codeline lineno="5"><highlight class="comment"><sp/>*<sp/>you<sp/>may<sp/>not<sp/>use<sp/>this<sp/>file<sp/>except<sp/>in<sp/>compliance<sp/>with<sp/>the<sp/>License.</highlight></codeline>
+<codeline lineno="6"><highlight class="comment"><sp/>*<sp/>You<sp/>may<sp/>obtain<sp/>a<sp/>copy<sp/>of<sp/>the<sp/>License<sp/>at</highlight></codeline>
+<codeline lineno="7"><highlight class="comment"><sp/>*</highlight></codeline>
+<codeline lineno="8"><highlight class="comment"><sp/>*<sp/><sp/><sp/><sp/><sp/>http://www.apache.org/licenses/LICENSE-2.0</highlight></codeline>
+<codeline lineno="9"><highlight class="comment"><sp/>*</highlight></codeline>
+<codeline lineno="10"><highlight class="comment"><sp/>*<sp/>Unless<sp/>required<sp/>by<sp/>applicable<sp/>law<sp/>or<sp/>agreed<sp/>to<sp/>in<sp/>writing,<sp/>software</highlight></codeline>
+<codeline lineno="11"><highlight class="comment"><sp/>*<sp/>distributed<sp/>under<sp/>the<sp/>License<sp/>is<sp/>distributed<sp/>on<sp/>an<sp/>&quot;AS<sp/>IS&quot;<sp/>BASIS,</highlight></codeline>
+<codeline lineno="12"><highlight class="comment"><sp/>*<sp/>WITHOUT<sp/>WARRANTIES<sp/>OR<sp/>CONDITIONS<sp/>OF<sp/>ANY<sp/>KIND,<sp/>either<sp/>express<sp/>or<sp/>implied.</highlight></codeline>
+<codeline lineno="13"><highlight class="comment"><sp/>*<sp/>See<sp/>the<sp/>License<sp/>for<sp/>the<sp/>specific<sp/>language<sp/>governing<sp/>permissions<sp/>and</highlight></codeline>
+<codeline lineno="14"><highlight class="comment"><sp/>*<sp/>limitations<sp/>under<sp/>the<sp/>License.</highlight></codeline>
+<codeline lineno="15"><highlight class="comment"><sp/>*/</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="16"><highlight class="normal"></highlight></codeline>
+<codeline lineno="17"><highlight class="normal"></highlight><highlight class="preprocessor">#pragma<sp/>once</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="18"><highlight class="normal"></highlight></codeline>
+<codeline lineno="19"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&lt;cugraph/mtmg/detail/device_shared_wrapper.hpp&gt;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="20"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&lt;cugraph/mtmg/detail/per_device_edgelist.hpp&gt;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="21"><highlight class="normal"></highlight></codeline>
+<codeline lineno="22"><highlight class="normal"></highlight><highlight class="keyword">namespace<sp/></highlight><highlight class="normal">cugraph<sp/>{</highlight></codeline>
+<codeline lineno="23"><highlight class="normal"></highlight><highlight class="keyword">namespace<sp/></highlight><highlight class="normal">mtmg<sp/>{</highlight></codeline>
+<codeline lineno="24"><highlight class="normal"></highlight></codeline>
+<codeline lineno="37"><highlight class="normal"></highlight><highlight class="keyword">template</highlight><highlight class="normal"><sp/>&lt;</highlight><highlight class="keyword">typename</highlight><highlight class="normal"><sp/>vertex_t,<sp/></highlight><highlight class="keyword">typename</highlight><highlight class="normal"><sp/>weight_t,<sp/></highlight><highlight class="keyword">typename</highlight><highlight class="normal"><sp/>edge_t,<sp/></highlight><highlight class="keyword">typename</highlight><highlight class="normal"><sp/>edge_type_t&gt;</highlight></codeline>
+<codeline lineno="38" refid="classcugraph_1_1mtmg_1_1per__thread__edgelist__t" refkind="compound"><highlight class="normal"></highlight><highlight class="keyword">class<sp/></highlight><highlight class="normal"><ref refid="classcugraph_1_1mtmg_1_1per__thread__edgelist__t" kindref="compound">per_thread_edgelist_t</ref><sp/>{</highlight></codeline>
+<codeline lineno="39"><highlight class="normal"><sp/></highlight><highlight class="keyword">public</highlight><highlight class="normal">:</highlight></codeline>
+<codeline lineno="40"><highlight class="normal"><sp/><sp/><ref refid="classcugraph_1_1mtmg_1_1per__thread__edgelist__t" kindref="compound">per_thread_edgelist_t</ref>()<sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>=<sp/></highlight><highlight class="keyword">delete</highlight><highlight class="normal">;</highlight></codeline>
+<codeline lineno="41"><highlight class="normal"><sp/><sp/><ref refid="classcugraph_1_1mtmg_1_1per__thread__edgelist__t" kindref="compound">per_thread_edgelist_t</ref>(<ref refid="classcugraph_1_1mtmg_1_1per__thread__edgelist__t" kindref="compound">per_thread_edgelist_t</ref><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal">&amp;)<sp/>=<sp/></highlight><highlight class="keyword">delete</highlight><highlight class="normal">;</highlight></codeline>
+<codeline lineno="42"><highlight class="normal"></highlight></codeline>
+<codeline lineno="49" refid="classcugraph_1_1mtmg_1_1per__thread__edgelist__t_1aee66a2035aac70a7c810b2aed54e031b" refkind="member"><highlight class="normal"><sp/><sp/><ref refid="classcugraph_1_1mtmg_1_1per__thread__edgelist__t_1aee66a2035aac70a7c810b2aed54e031b" kindref="member">per_thread_edgelist_t</ref>(</highlight></codeline>
+<codeline lineno="50"><highlight class="normal"><sp/><sp/><sp/><sp/><ref refid="classcugraph_1_1mtmg_1_1detail_1_1per__device__edgelist__t" kindref="compound">detail::per_device_edgelist_t&lt;vertex_t, weight_t, edge_t, edge_type_t&gt;</ref>&amp;<sp/>edgelist,</highlight></codeline>
+<codeline lineno="51"><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="keywordtype">size_t</highlight><highlight class="normal"><sp/>thread_buffer_size)</highlight></codeline>
+<codeline lineno="52"><highlight class="normal"><sp/><sp/><sp/><sp/>:<sp/>edgelist_{edgelist},</highlight></codeline>
+<codeline lineno="53"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/>current_pos_{0},</highlight></codeline>
+<codeline lineno="54"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/>src_(thread_buffer_size),</highlight></codeline>
+<codeline lineno="55"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/>dst_(thread_buffer_size),</highlight></codeline>
+<codeline lineno="56"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/>wgt_{std::nullopt},</highlight></codeline>
+<codeline lineno="57"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/>edge_id_{std::nullopt},</highlight></codeline>
+<codeline lineno="58"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/>edge_type_{std::nullopt}</highlight></codeline>
+<codeline lineno="59"><highlight class="normal"><sp/><sp/>{</highlight></codeline>
+<codeline lineno="60"><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="keywordflow">if</highlight><highlight class="normal"><sp/>(edgelist.use_weight())<sp/>wgt_<sp/>=<sp/>std::make_optional(std::vector&lt;weight_t&gt;(thread_buffer_size));</highlight></codeline>
+<codeline lineno="61"><highlight class="normal"></highlight></codeline>
+<codeline lineno="62"><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="keywordflow">if</highlight><highlight class="normal"><sp/>(edgelist.use_edge_id())</highlight></codeline>
+<codeline lineno="63"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/>edge_id_<sp/>=<sp/>std::make_optional(std::vector&lt;edge_t&gt;(thread_buffer_size));</highlight></codeline>
+<codeline lineno="64"><highlight class="normal"></highlight></codeline>
+<codeline lineno="65"><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="keywordflow">if</highlight><highlight class="normal"><sp/>(edgelist.use_edge_type())</highlight></codeline>
+<codeline lineno="66"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/>edge_type_<sp/>=<sp/>std::make_optional(std::vector&lt;edge_type_t&gt;(thread_buffer_size));</highlight></codeline>
+<codeline lineno="67"><highlight class="normal"><sp/><sp/>}</highlight></codeline>
+<codeline lineno="68"><highlight class="normal"></highlight></codeline>
+<codeline lineno="79" refid="classcugraph_1_1mtmg_1_1per__thread__edgelist__t_1acef36ae65fd2c3dc971d939fdcb75755" refkind="member"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordtype">void</highlight><highlight class="normal"><sp/><ref refid="classcugraph_1_1mtmg_1_1per__thread__edgelist__t_1acef36ae65fd2c3dc971d939fdcb75755" kindref="member">append</ref>(vertex_t<sp/>src,</highlight></codeline>
+<codeline lineno="80"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>vertex_t<sp/>dst,</highlight></codeline>
+<codeline lineno="81"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>std::optional&lt;weight_t&gt;<sp/>wgt,</highlight></codeline>
+<codeline lineno="82"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>std::optional&lt;edge_t&gt;<sp/>edge_id,</highlight></codeline>
+<codeline lineno="83"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>std::optional&lt;edge_type_t&gt;<sp/>edge_type,</highlight></codeline>
+<codeline lineno="84"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>rmm::cuda_stream_view<sp/>stream_view)</highlight></codeline>
+<codeline lineno="85"><highlight class="normal"><sp/><sp/>{</highlight></codeline>
+<codeline lineno="86"><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="keywordflow">if</highlight><highlight class="normal"><sp/>(current_pos_<sp/>==<sp/>src_.size())<sp/>{<sp/><ref refid="classcugraph_1_1mtmg_1_1per__thread__edgelist__t_1a4d452970b0f8b02a9d7e71cec8325aad" kindref="member">flush</ref>(stream_view);<sp/>}</highlight></codeline>
+<codeline lineno="87"><highlight class="normal"></highlight></codeline>
+<codeline lineno="88"><highlight class="normal"><sp/><sp/><sp/><sp/>src_[current_pos_]<sp/>=<sp/>src;</highlight></codeline>
+<codeline lineno="89"><highlight class="normal"><sp/><sp/><sp/><sp/>dst_[current_pos_]<sp/>=<sp/>dst;</highlight></codeline>
+<codeline lineno="90"><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="keywordflow">if</highlight><highlight class="normal"><sp/>(wgt)<sp/>(*wgt_)[current_pos_]<sp/>=<sp/>*wgt;</highlight></codeline>
+<codeline lineno="91"><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="keywordflow">if</highlight><highlight class="normal"><sp/>(edge_id)<sp/>(*edge_id_)[current_pos_]<sp/>=<sp/>*edge_id;</highlight></codeline>
+<codeline lineno="92"><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="keywordflow">if</highlight><highlight class="normal"><sp/>(edge_type)<sp/>(*edge_type_)[current_pos_]<sp/>=<sp/>*edge_type;</highlight></codeline>
+<codeline lineno="93"><highlight class="normal"></highlight></codeline>
+<codeline lineno="94"><highlight class="normal"><sp/><sp/><sp/><sp/>++current_pos_;</highlight></codeline>
+<codeline lineno="95"><highlight class="normal"><sp/><sp/>}</highlight></codeline>
+<codeline lineno="96"><highlight class="normal"></highlight></codeline>
+<codeline lineno="107" refid="classcugraph_1_1mtmg_1_1per__thread__edgelist__t_1aa1cbb0bcde6ca580b1af2f8786cca540" refkind="member"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordtype">void</highlight><highlight class="normal"><sp/><ref refid="classcugraph_1_1mtmg_1_1per__thread__edgelist__t_1aa1cbb0bcde6ca580b1af2f8786cca540" kindref="member">append</ref>(raft::host_span&lt;vertex_t<sp/>const&gt;<sp/>src,</highlight></codeline>
+<codeline lineno="108"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>raft::host_span&lt;vertex_t<sp/>const&gt;<sp/>dst,</highlight></codeline>
+<codeline lineno="109"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>std::optional&lt;raft::host_span&lt;weight_t<sp/>const&gt;&gt;<sp/>wgt,</highlight></codeline>
+<codeline lineno="110"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>std::optional&lt;raft::host_span&lt;edge_t<sp/>const&gt;&gt;<sp/>edge_id,</highlight></codeline>
+<codeline lineno="111"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>std::optional&lt;raft::host_span&lt;edge_type_t<sp/>const&gt;&gt;<sp/>edge_type,</highlight></codeline>
+<codeline lineno="112"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>rmm::cuda_stream_view<sp/>stream_view)</highlight></codeline>
+<codeline lineno="113"><highlight class="normal"><sp/><sp/>{</highlight></codeline>
+<codeline lineno="114"><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="keywordtype">size_t</highlight><highlight class="normal"><sp/>count<sp/>=<sp/>src.size();</highlight></codeline>
+<codeline lineno="115"><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="keywordtype">size_t</highlight><highlight class="normal"><sp/>pos<sp/><sp/><sp/>=<sp/>0;</highlight></codeline>
+<codeline lineno="116"><highlight class="normal"></highlight></codeline>
+<codeline lineno="117"><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="keywordflow">while</highlight><highlight class="normal"><sp/>(count<sp/>&gt;<sp/>0)<sp/>{</highlight></codeline>
+<codeline lineno="118"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordtype">size_t</highlight><highlight class="normal"><sp/>copy_count<sp/>=<sp/>std::min(count,<sp/>(src_.size()<sp/>-<sp/>current_pos_));</highlight></codeline>
+<codeline lineno="119"><highlight class="normal"></highlight></codeline>
+<codeline lineno="120"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/>std::copy(src.begin()<sp/>+<sp/>pos,<sp/>src.begin()<sp/>+<sp/>pos<sp/>+<sp/>copy_count,<sp/>src_.begin()<sp/>+<sp/>current_pos_);</highlight></codeline>
+<codeline lineno="121"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/>std::copy(dst.begin()<sp/>+<sp/>pos,<sp/>dst.begin()<sp/>+<sp/>pos<sp/>+<sp/>copy_count,<sp/>dst_.begin()<sp/>+<sp/>current_pos_);</highlight></codeline>
+<codeline lineno="122"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordflow">if</highlight><highlight class="normal"><sp/>(wgt)</highlight></codeline>
+<codeline lineno="123"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>std::copy(wgt.begin()<sp/>+<sp/>pos,<sp/>wgt.begin()<sp/>+<sp/>pos<sp/>+<sp/>copy_count,<sp/>wgt_-&gt;begin()<sp/>+<sp/>current_pos_);</highlight></codeline>
+<codeline lineno="124"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordflow">if</highlight><highlight class="normal"><sp/>(edge_id)</highlight></codeline>
+<codeline lineno="125"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>std::copy(edge_id.begin()<sp/>+<sp/>pos,</highlight></codeline>
+<codeline lineno="126"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>edge_id.begin()<sp/>+<sp/>pos<sp/>+<sp/>copy_count,</highlight></codeline>
+<codeline lineno="127"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>edge_id_-&gt;begin()<sp/>+<sp/>current_pos_);</highlight></codeline>
+<codeline lineno="128"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordflow">if</highlight><highlight class="normal"><sp/>(edge_type)</highlight></codeline>
+<codeline lineno="129"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>std::copy(edge_type.begin()<sp/>+<sp/>pos,</highlight></codeline>
+<codeline lineno="130"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>edge_type.begin()<sp/>+<sp/>pos<sp/>+<sp/>copy_count,</highlight></codeline>
+<codeline lineno="131"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>edge_type_-&gt;begin()<sp/>+<sp/>current_pos_);</highlight></codeline>
+<codeline lineno="132"><highlight class="normal"></highlight></codeline>
+<codeline lineno="133"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordflow">if</highlight><highlight class="normal"><sp/>(current_pos_<sp/>==<sp/>src_.size())<sp/>{<sp/><ref refid="classcugraph_1_1mtmg_1_1per__thread__edgelist__t_1a4d452970b0f8b02a9d7e71cec8325aad" kindref="member">flush</ref>(stream_view);<sp/>}</highlight></codeline>
+<codeline lineno="134"><highlight class="normal"></highlight></codeline>
+<codeline lineno="135"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/>count<sp/>-=<sp/>copy_count;</highlight></codeline>
+<codeline lineno="136"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/>pos<sp/>+=<sp/>copy_count;</highlight></codeline>
+<codeline lineno="137"><highlight class="normal"><sp/><sp/><sp/><sp/>}</highlight></codeline>
+<codeline lineno="138"><highlight class="normal"><sp/><sp/>}</highlight></codeline>
+<codeline lineno="139"><highlight class="normal"></highlight></codeline>
+<codeline lineno="147" refid="classcugraph_1_1mtmg_1_1per__thread__edgelist__t_1a4d452970b0f8b02a9d7e71cec8325aad" refkind="member"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordtype">void</highlight><highlight class="normal"><sp/><ref refid="classcugraph_1_1mtmg_1_1per__thread__edgelist__t_1a4d452970b0f8b02a9d7e71cec8325aad" kindref="member">flush</ref>(rmm::cuda_stream_view<sp/>stream_view,<sp/></highlight><highlight class="keywordtype">bool</highlight><highlight class="normal"><sp/>sync<sp/>=<sp/></highlight><highlight class="keyword">false</highlight><highlight class="normal">)</highlight></codeline>
+<codeline lineno="148"><highlight class="normal"><sp/><sp/>{</highlight></codeline>
+<codeline lineno="149"><highlight class="normal"><sp/><sp/><sp/><sp/>edgelist_.append(</highlight></codeline>
+<codeline lineno="150"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/>raft::host_span&lt;vertex_t<sp/>const&gt;{src_.data(),<sp/>current_pos_},</highlight></codeline>
+<codeline lineno="151"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/>raft::host_span&lt;vertex_t<sp/>const&gt;{dst_.data(),<sp/>current_pos_},</highlight></codeline>
+<codeline lineno="152"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/>wgt_<sp/>?<sp/>std::make_optional(raft::host_span&lt;weight_t<sp/>const&gt;{wgt_-&gt;data(),<sp/>current_pos_})</highlight></codeline>
+<codeline lineno="153"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>:<sp/>std::nullopt,</highlight></codeline>
+<codeline lineno="154"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/>edge_id_<sp/>?<sp/>std::make_optional(raft::host_span&lt;edge_t<sp/>const&gt;{edge_id_-&gt;data(),<sp/>current_pos_})</highlight></codeline>
+<codeline lineno="155"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>:<sp/>std::nullopt,</highlight></codeline>
+<codeline lineno="156"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/>edge_type_</highlight></codeline>
+<codeline lineno="157"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>?<sp/>std::make_optional(raft::host_span&lt;edge_type_t<sp/>const&gt;{edge_type_-&gt;data(),<sp/>current_pos_})</highlight></codeline>
+<codeline lineno="158"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>:<sp/>std::nullopt,</highlight></codeline>
+<codeline lineno="159"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/>stream_view);</highlight></codeline>
+<codeline lineno="160"><highlight class="normal"></highlight></codeline>
+<codeline lineno="161"><highlight class="normal"><sp/><sp/><sp/><sp/>current_pos_<sp/>=<sp/>0;</highlight></codeline>
+<codeline lineno="162"><highlight class="normal"></highlight></codeline>
+<codeline lineno="163"><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="keywordflow">if</highlight><highlight class="normal"><sp/>(sync)<sp/>stream_view.synchronize();</highlight></codeline>
+<codeline lineno="164"><highlight class="normal"><sp/><sp/>}</highlight></codeline>
+<codeline lineno="165"><highlight class="normal"></highlight></codeline>
+<codeline lineno="166"><highlight class="normal"><sp/></highlight><highlight class="keyword">private</highlight><highlight class="normal">:</highlight></codeline>
+<codeline lineno="167"><highlight class="normal"><sp/><sp/><ref refid="classcugraph_1_1mtmg_1_1detail_1_1per__device__edgelist__t" kindref="compound">detail::per_device_edgelist_t&lt;vertex_t, weight_t, edge_t, edge_type_t&gt;</ref>&amp;<sp/>edgelist_;</highlight></codeline>
+<codeline lineno="168"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordtype">size_t</highlight><highlight class="normal"><sp/>current_pos_{0};</highlight></codeline>
+<codeline lineno="169"><highlight class="normal"><sp/><sp/>std::vector&lt;vertex_t&gt;<sp/>src_{};</highlight></codeline>
+<codeline lineno="170"><highlight class="normal"><sp/><sp/>std::vector&lt;vertex_t&gt;<sp/>dst_{};</highlight></codeline>
+<codeline lineno="171"><highlight class="normal"><sp/><sp/>std::optional&lt;std::vector&lt;weight_t&gt;&gt;<sp/>wgt_{};</highlight></codeline>
+<codeline lineno="172"><highlight class="normal"><sp/><sp/>std::optional&lt;std::vector&lt;edge_t&gt;&gt;<sp/>edge_id_{};</highlight></codeline>
+<codeline lineno="173"><highlight class="normal"><sp/><sp/>std::optional&lt;std::vector&lt;edge_type_t&gt;&gt;<sp/>edge_type_{};</highlight></codeline>
+<codeline lineno="174"><highlight class="normal">};</highlight></codeline>
+<codeline lineno="175"><highlight class="normal"></highlight></codeline>
+<codeline lineno="176"><highlight class="normal">}<sp/><sp/></highlight><highlight class="comment">//<sp/>namespace<sp/>mtmg</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="177"><highlight class="normal">}<sp/><sp/></highlight><highlight class="comment">//<sp/>namespace<sp/>cugraph</highlight><highlight class="normal"></highlight></codeline>
+    </programlisting>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/per_thread_edgelist.hpp"/>
+  </compounddef>
+</doxygen>

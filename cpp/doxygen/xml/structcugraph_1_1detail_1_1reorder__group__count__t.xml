@@ -1,0 +1,84 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="structcugraph_1_1detail_1_1reorder__group__count__t" kind="struct" language="C++" prot="public">
+    <compoundname>cugraph::detail::reorder_group_count_t</compoundname>
+    <sectiondef kind="public-attrib">
+      <memberdef kind="variable" id="structcugraph_1_1detail_1_1reorder__group__count__t_1a6a249042ec74d6684144ee3aa71f71bf" prot="public" static="no" mutable="no">
+        <type>int</type>
+        <definition>int cugraph::detail::reorder_group_count_t::major_comm_size</definition>
+        <argsstring></argsstring>
+        <name>major_comm_size</name>
+        <qualifiedname>cugraph::detail::reorder_group_count_t::major_comm_size</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/detail/nbr_intersection.cuh" line="91" column="7" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/detail/nbr_intersection.cuh" bodystart="91" bodyend="91"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph_1_1detail_1_1reorder__group__count__t_1ac804d2e1e1dfb3667b8cdd3936c9544d" prot="public" static="no" mutable="no">
+        <type>int</type>
+        <definition>int cugraph::detail::reorder_group_count_t::minor_comm_size</definition>
+        <argsstring></argsstring>
+        <name>minor_comm_size</name>
+        <qualifiedname>cugraph::detail::reorder_group_count_t::minor_comm_size</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/detail/nbr_intersection.cuh" line="92" column="7" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/detail/nbr_intersection.cuh" bodystart="92" bodyend="92"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph_1_1detail_1_1reorder__group__count__t_1adda167aad2b87da4f365e4df92eca5a3" prot="public" static="no" mutable="no">
+        <type>raft::device_span&lt; size_t const  &gt;</type>
+        <definition>raft::device_span&lt;size_t const&gt; cugraph::detail::reorder_group_count_t::group_counts</definition>
+        <argsstring></argsstring>
+        <name>group_counts</name>
+        <qualifiedname>cugraph::detail::reorder_group_count_t::group_counts</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/detail/nbr_intersection.cuh" line="93" column="21" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/detail/nbr_intersection.cuh" bodystart="93" bodyend="93"/>
+      </memberdef>
+    </sectiondef>
+    <sectiondef kind="public-func">
+      <memberdef kind="function" id="structcugraph_1_1detail_1_1reorder__group__count__t_1a88de08b08e19d4a2b02e0d7c498ba738" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>__device__ size_t</type>
+        <definition>__device__ size_t cugraph::detail::reorder_group_count_t::operator()</definition>
+        <argsstring>(size_t i) const</argsstring>
+        <name>operator()</name>
+        <qualifiedname>cugraph::detail::reorder_group_count_t::operator()</qualifiedname>
+        <param>
+          <type>size_t</type>
+          <declname>i</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/detail/nbr_intersection.cuh" line="95" column="21" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/detail/nbr_intersection.cuh" bodystart="95" bodyend="100"/>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/detail/nbr_intersection.cuh" line="90" column="1" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/detail/nbr_intersection.cuh" bodystart="90" bodyend="101"/>
+    <listofallmembers>
+      <member refid="structcugraph_1_1detail_1_1reorder__group__count__t_1adda167aad2b87da4f365e4df92eca5a3" prot="public" virt="non-virtual"><scope>cugraph::detail::reorder_group_count_t</scope><name>group_counts</name></member>
+      <member refid="structcugraph_1_1detail_1_1reorder__group__count__t_1a6a249042ec74d6684144ee3aa71f71bf" prot="public" virt="non-virtual"><scope>cugraph::detail::reorder_group_count_t</scope><name>major_comm_size</name></member>
+      <member refid="structcugraph_1_1detail_1_1reorder__group__count__t_1ac804d2e1e1dfb3667b8cdd3936c9544d" prot="public" virt="non-virtual"><scope>cugraph::detail::reorder_group_count_t</scope><name>minor_comm_size</name></member>
+      <member refid="structcugraph_1_1detail_1_1reorder__group__count__t_1a88de08b08e19d4a2b02e0d7c498ba738" prot="public" virt="non-virtual"><scope>cugraph::detail::reorder_group_count_t</scope><name>operator()</name></member>
+    </listofallmembers>
+  </compounddef>
+</doxygen>

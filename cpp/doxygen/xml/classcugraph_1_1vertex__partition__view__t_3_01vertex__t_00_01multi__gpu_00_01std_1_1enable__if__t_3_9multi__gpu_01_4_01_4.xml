@@ -1,0 +1,101 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="classcugraph_1_1vertex__partition__view__t_3_01vertex__t_00_01multi__gpu_00_01std_1_1enable__if__t_3_9multi__gpu_01_4_01_4" kind="class" language="C++" prot="public">
+    <compoundname>cugraph::vertex_partition_view_t&lt; vertex_t, multi_gpu, std::enable_if_t&lt;!multi_gpu &gt; &gt;</compoundname>
+    <basecompoundref refid="classcugraph_1_1detail_1_1vertex__partition__view__base__t" prot="public" virt="non-virtual">cugraph::detail::vertex_partition_view_base_t&lt; vertex_t &gt;</basecompoundref>
+    <templateparamlist>
+      <param>
+        <type>typename vertex_t</type>
+      </param>
+      <param>
+        <type>bool</type>
+        <declname>multi_gpu</declname>
+        <defname>multi_gpu</defname>
+      </param>
+    </templateparamlist>
+    <sectiondef kind="public-func">
+      <memberdef kind="function" id="classcugraph_1_1vertex__partition__view__t_3_01vertex__t_00_01multi__gpu_00_01std_1_1enable__if__t_3_9multi__gpu_01_4_01_4_1afb8bc9dc71cb085ab3247843750be2f9" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type></type>
+        <definition>cugraph::vertex_partition_view_t&lt; vertex_t, multi_gpu, std::enable_if_t&lt;!multi_gpu &gt; &gt;::vertex_partition_view_t</definition>
+        <argsstring>(vertex_t number_of_vertices)</argsstring>
+        <name>vertex_partition_view_t</name>
+        <qualifiedname>cugraph::vertex_partition_view_t&lt; vertex_t, multi_gpu, std::enable_if_t&lt;!multi_gpu &gt; &gt;::vertex_partition_view_t</qualifiedname>
+        <param>
+          <type>vertex_t</type>
+          <declname>number_of_vertices</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/vertex_partition_view.hpp" line="73" column="3" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/vertex_partition_view.hpp" bodystart="73" bodyend="76"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1vertex__partition__view__t_3_01vertex__t_00_01multi__gpu_00_01std_1_1enable__if__t_3_9multi__gpu_01_4_01_4_1a47c9cba7ae6edfbc9ebd3bc269b27202" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>vertex_t</type>
+        <definition>vertex_t cugraph::vertex_partition_view_t&lt; vertex_t, multi_gpu, std::enable_if_t&lt;!multi_gpu &gt; &gt;::local_vertex_partition_range_first</definition>
+        <argsstring>() const</argsstring>
+        <name>local_vertex_partition_range_first</name>
+        <qualifiedname>cugraph::vertex_partition_view_t&lt; vertex_t, multi_gpu, std::enable_if_t&lt;!multi_gpu &gt; &gt;::local_vertex_partition_range_first</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/vertex_partition_view.hpp" line="78" column="12" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/vertex_partition_view.hpp" bodystart="78" bodyend="78"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1vertex__partition__view__t_3_01vertex__t_00_01multi__gpu_00_01std_1_1enable__if__t_3_9multi__gpu_01_4_01_4_1a3e0dd4429cd7d9b3154c884114d669cc" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>vertex_t</type>
+        <definition>vertex_t cugraph::vertex_partition_view_t&lt; vertex_t, multi_gpu, std::enable_if_t&lt;!multi_gpu &gt; &gt;::local_vertex_partition_range_last</definition>
+        <argsstring>() const</argsstring>
+        <name>local_vertex_partition_range_last</name>
+        <qualifiedname>cugraph::vertex_partition_view_t&lt; vertex_t, multi_gpu, std::enable_if_t&lt;!multi_gpu &gt; &gt;::local_vertex_partition_range_last</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/vertex_partition_view.hpp" line="79" column="12" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/vertex_partition_view.hpp" bodystart="79" bodyend="79"/>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <inheritancegraph>
+      <node id="2">
+        <label>cugraph::detail::vertex_partition_view_base_t&lt; vertex_t &gt;</label>
+        <link refid="classcugraph_1_1detail_1_1vertex__partition__view__base__t"/>
+      </node>
+      <node id="1">
+        <label>cugraph::vertex_partition_view_t&lt; vertex_t, multi_gpu, std::enable_if_t&lt;!multi_gpu &gt; &gt;</label>
+        <link refid="classcugraph_1_1vertex__partition__view__t_3_01vertex__t_00_01multi__gpu_00_01std_1_1enable__if__t_3_9multi__gpu_01_4_01_4"/>
+        <childnode refid="2" relation="public-inheritance">
+        </childnode>
+      </node>
+    </inheritancegraph>
+    <collaborationgraph>
+      <node id="2">
+        <label>cugraph::detail::vertex_partition_view_base_t&lt; vertex_t &gt;</label>
+        <link refid="classcugraph_1_1detail_1_1vertex__partition__view__base__t"/>
+      </node>
+      <node id="1">
+        <label>cugraph::vertex_partition_view_t&lt; vertex_t, multi_gpu, std::enable_if_t&lt;!multi_gpu &gt; &gt;</label>
+        <link refid="classcugraph_1_1vertex__partition__view__t_3_01vertex__t_00_01multi__gpu_00_01std_1_1enable__if__t_3_9multi__gpu_01_4_01_4"/>
+        <childnode refid="2" relation="public-inheritance">
+        </childnode>
+      </node>
+    </collaborationgraph>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/vertex_partition_view.hpp" line="70" column="1" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/vertex_partition_view.hpp" bodystart="71" bodyend="80"/>
+    <listofallmembers>
+      <member refid="classcugraph_1_1vertex__partition__view__t_3_01vertex__t_00_01multi__gpu_00_01std_1_1enable__if__t_3_9multi__gpu_01_4_01_4_1a47c9cba7ae6edfbc9ebd3bc269b27202" prot="public" virt="non-virtual"><scope>cugraph::vertex_partition_view_t&lt; vertex_t, multi_gpu, std::enable_if_t&lt;!multi_gpu &gt; &gt;</scope><name>local_vertex_partition_range_first</name></member>
+      <member refid="classcugraph_1_1vertex__partition__view__t_3_01vertex__t_00_01multi__gpu_00_01std_1_1enable__if__t_3_9multi__gpu_01_4_01_4_1a3e0dd4429cd7d9b3154c884114d669cc" prot="public" virt="non-virtual"><scope>cugraph::vertex_partition_view_t&lt; vertex_t, multi_gpu, std::enable_if_t&lt;!multi_gpu &gt; &gt;</scope><name>local_vertex_partition_range_last</name></member>
+      <member refid="classcugraph_1_1detail_1_1vertex__partition__view__base__t_1a24a9cbeddf6c1ee0c3cacdf63c92ba01" prot="public" virt="non-virtual"><scope>cugraph::vertex_partition_view_t&lt; vertex_t, multi_gpu, std::enable_if_t&lt;!multi_gpu &gt; &gt;</scope><name>number_of_vertices</name></member>
+      <member refid="classcugraph_1_1detail_1_1vertex__partition__view__base__t_1a8665b69c427575ca336521536788efc2" prot="public" virt="non-virtual"><scope>cugraph::vertex_partition_view_t&lt; vertex_t, multi_gpu, std::enable_if_t&lt;!multi_gpu &gt; &gt;</scope><name>vertex_partition_view_base_t</name></member>
+      <member refid="classcugraph_1_1vertex__partition__view__t_3_01vertex__t_00_01multi__gpu_00_01std_1_1enable__if__t_3_9multi__gpu_01_4_01_4_1afb8bc9dc71cb085ab3247843750be2f9" prot="public" virt="non-virtual"><scope>cugraph::vertex_partition_view_t&lt; vertex_t, multi_gpu, std::enable_if_t&lt;!multi_gpu &gt; &gt;</scope><name>vertex_partition_view_t</name></member>
+    </listofallmembers>
+  </compounddef>
+</doxygen>

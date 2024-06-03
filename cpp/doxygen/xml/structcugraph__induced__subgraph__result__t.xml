@@ -1,0 +1,32 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="structcugraph__induced__subgraph__result__t" kind="struct" language="C++" prot="public">
+    <compoundname>cugraph_induced_subgraph_result_t</compoundname>
+    <includes refid="graph__functions_8h" local="no">graph_functions.h</includes>
+    <sectiondef kind="public-attrib">
+      <memberdef kind="variable" id="structcugraph__induced__subgraph__result__t_1a4278160a2edec191c5747759b78b235b" prot="public" static="no" mutable="no">
+        <type>int32_t</type>
+        <definition>int32_t cugraph_induced_subgraph_result_t::align_</definition>
+        <argsstring></argsstring>
+        <name>align_</name>
+        <qualifiedname>cugraph_induced_subgraph_result_t::align_</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/graph_functions.h" line="109" column="11" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/graph_functions.h" bodystart="109" bodyend="-1"/>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+<para>Opaque induced subgraph type. </para>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/graph_functions.h" line="108" column="1" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/graph_functions.h" bodystart="108" bodyend="110"/>
+    <listofallmembers>
+      <member refid="structcugraph__induced__subgraph__result__t_1a4278160a2edec191c5747759b78b235b" prot="public" virt="non-virtual"><scope>cugraph_induced_subgraph_result_t</scope><name>align_</name></member>
+    </listofallmembers>
+  </compounddef>
+</doxygen>

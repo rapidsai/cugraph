@@ -1,0 +1,656 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="classcugraph_1_1legacy_1_1Louvain" kind="class" language="C++" prot="public">
+    <compoundname>cugraph::legacy::Louvain</compoundname>
+    <templateparamlist>
+      <param>
+        <type><ref refid="classcugraph_1_1legacy_1_1GraphCSRView" kindref="compound">typename</ref> <ref refid="classcugraph_1_1legacy_1_1GraphCSRView" kindref="compound">graph_type</ref></type>
+      </param>
+    </templateparamlist>
+    <sectiondef kind="public-type">
+      <memberdef kind="typedef" id="classcugraph_1_1legacy_1_1Louvain_1a1e5b8a4b0fe092003b569fa057e1ed54" prot="public" static="no">
+        <type><ref refid="classcugraph_1_1legacy_1_1GraphCSRView" kindref="compound">graph_type</ref></type>
+        <definition>using cugraph::legacy::Louvain&lt; graph_type &gt;::graph_t =  graph_type</definition>
+        <argsstring></argsstring>
+        <name>graph_t</name>
+        <qualifiedname>cugraph::legacy::Louvain::graph_t</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/community/legacy/louvain.cuh" line="56" column="3" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/community/legacy/louvain.cuh" bodystart="56" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="typedef" id="classcugraph_1_1legacy_1_1Louvain_1a281779af6721439637ed3bc118688084" prot="public" static="no">
+        <type><ref refid="classcugraph_1_1legacy_1_1GraphCSRView" kindref="compound">typename</ref> graph_type::vertex_type</type>
+        <definition>using cugraph::legacy::Louvain&lt; graph_type &gt;::vertex_t =  typename graph_type::vertex_type</definition>
+        <argsstring></argsstring>
+        <name>vertex_t</name>
+        <qualifiedname>cugraph::legacy::Louvain::vertex_t</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/community/legacy/louvain.cuh" line="57" column="3" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/community/legacy/louvain.cuh" bodystart="57" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="typedef" id="classcugraph_1_1legacy_1_1Louvain_1a0373669a4c4d5c9dccffb8f843109643" prot="public" static="no">
+        <type><ref refid="classcugraph_1_1legacy_1_1GraphCSRView" kindref="compound">typename</ref> graph_type::edge_type</type>
+        <definition>using cugraph::legacy::Louvain&lt; graph_type &gt;::edge_t =  typename graph_type::edge_type</definition>
+        <argsstring></argsstring>
+        <name>edge_t</name>
+        <qualifiedname>cugraph::legacy::Louvain::edge_t</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/community/legacy/louvain.cuh" line="58" column="3" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/community/legacy/louvain.cuh" bodystart="58" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="typedef" id="classcugraph_1_1legacy_1_1Louvain_1a53c76b93ef5579b04cdb9a4b9f8bb56e" prot="public" static="no">
+        <type><ref refid="classcugraph_1_1legacy_1_1GraphCSRView" kindref="compound">typename</ref> graph_type::weight_type</type>
+        <definition>using cugraph::legacy::Louvain&lt; graph_type &gt;::weight_t =  typename graph_type::weight_type</definition>
+        <argsstring></argsstring>
+        <name>weight_t</name>
+        <qualifiedname>cugraph::legacy::Louvain::weight_t</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/community/legacy/louvain.cuh" line="59" column="3" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/community/legacy/louvain.cuh" bodystart="59" bodyend="-1"/>
+      </memberdef>
+    </sectiondef>
+    <sectiondef kind="protected-attrib">
+      <memberdef kind="variable" id="classcugraph_1_1legacy_1_1Louvain_1a3f28d0a048d459c689e86575f9e062ef" prot="protected" static="no" mutable="no">
+        <type>raft::handle_t <ref refid="classcugraph_1_1legacy_1_1GraphCSRView" kindref="compound">const</ref>  &amp;</type>
+        <definition>raft::handle_t const&amp; cugraph::legacy::Louvain&lt; graph_type &gt;::handle_</definition>
+        <argsstring></argsstring>
+        <name>handle_</name>
+        <qualifiedname>cugraph::legacy::Louvain::handle_</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/community/legacy/louvain.cuh" line="633" column="24" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/community/legacy/louvain.cuh" bodystart="633" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="variable" id="classcugraph_1_1legacy_1_1Louvain_1abd2a41f9c6095dd69cd21f5b2075bff6" prot="protected" static="no" mutable="no">
+        <type>vertex_t</type>
+        <definition>vertex_t cugraph::legacy::Louvain&lt; graph_type &gt;::number_of_vertices_</definition>
+        <argsstring></argsstring>
+        <name>number_of_vertices_</name>
+        <qualifiedname>cugraph::legacy::Louvain::number_of_vertices_</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/community/legacy/louvain.cuh" line="634" column="12" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/community/legacy/louvain.cuh" bodystart="634" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="variable" id="classcugraph_1_1legacy_1_1Louvain_1a13e98eb74d6859fcfbe8082b59f62874" prot="protected" static="no" mutable="no">
+        <type>edge_t</type>
+        <definition>edge_t cugraph::legacy::Louvain&lt; graph_type &gt;::number_of_edges_</definition>
+        <argsstring></argsstring>
+        <name>number_of_edges_</name>
+        <qualifiedname>cugraph::legacy::Louvain::number_of_edges_</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/community/legacy/louvain.cuh" line="635" column="10" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/community/legacy/louvain.cuh" bodystart="635" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="variable" id="classcugraph_1_1legacy_1_1Louvain_1ac61768d161eb314884b106338864f8a0" prot="protected" static="no" mutable="no">
+        <type>std::unique_ptr&lt; <ref refid="classcugraph_1_1Dendrogram" kindref="compound">Dendrogram</ref>&lt; vertex_t &gt; &gt;</type>
+        <definition>std::unique_ptr&lt;Dendrogram&lt;vertex_t&gt; &gt; cugraph::legacy::Louvain&lt; graph_type &gt;::dendrogram_</definition>
+        <argsstring></argsstring>
+        <name>dendrogram_</name>
+        <qualifiedname>cugraph::legacy::Louvain::dendrogram_</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/community/legacy/louvain.cuh" line="637" column="19" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/community/legacy/louvain.cuh" bodystart="637" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="variable" id="classcugraph_1_1legacy_1_1Louvain_1a26645a80bc00fad8bd42138c24873cfe" prot="protected" static="no" mutable="no">
+        <type>rmm::device_uvector&lt; edge_t &gt;</type>
+        <definition>rmm::device_uvector&lt;edge_t&gt; cugraph::legacy::Louvain&lt; graph_type &gt;::offsets_v_</definition>
+        <argsstring></argsstring>
+        <name>offsets_v_</name>
+        <qualifiedname>cugraph::legacy::Louvain::offsets_v_</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/community/legacy/louvain.cuh" line="642" column="23" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/community/legacy/louvain.cuh" bodystart="642" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="variable" id="classcugraph_1_1legacy_1_1Louvain_1aadaf773e13c8f54d0285e769e44448ca" prot="protected" static="no" mutable="no">
+        <type>rmm::device_uvector&lt; vertex_t &gt;</type>
+        <definition>rmm::device_uvector&lt;vertex_t&gt; cugraph::legacy::Louvain&lt; graph_type &gt;::indices_v_</definition>
+        <argsstring></argsstring>
+        <name>indices_v_</name>
+        <qualifiedname>cugraph::legacy::Louvain::indices_v_</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/community/legacy/louvain.cuh" line="643" column="23" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/community/legacy/louvain.cuh" bodystart="643" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="variable" id="classcugraph_1_1legacy_1_1Louvain_1ab88b11e209cbef3d5e55b38cbcdbe0ef" prot="protected" static="no" mutable="no">
+        <type>rmm::device_uvector&lt; weight_t &gt;</type>
+        <definition>rmm::device_uvector&lt;weight_t&gt; cugraph::legacy::Louvain&lt; graph_type &gt;::weights_v_</definition>
+        <argsstring></argsstring>
+        <name>weights_v_</name>
+        <qualifiedname>cugraph::legacy::Louvain::weights_v_</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/community/legacy/louvain.cuh" line="644" column="23" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/community/legacy/louvain.cuh" bodystart="644" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="variable" id="classcugraph_1_1legacy_1_1Louvain_1a6e4072b231949300f27dcfa5c88ed404" prot="protected" static="no" mutable="no">
+        <type>rmm::device_uvector&lt; vertex_t &gt;</type>
+        <definition>rmm::device_uvector&lt;vertex_t&gt; cugraph::legacy::Louvain&lt; graph_type &gt;::src_indices_v_</definition>
+        <argsstring></argsstring>
+        <name>src_indices_v_</name>
+        <qualifiedname>cugraph::legacy::Louvain::src_indices_v_</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/community/legacy/louvain.cuh" line="645" column="23" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/community/legacy/louvain.cuh" bodystart="645" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="variable" id="classcugraph_1_1legacy_1_1Louvain_1a8a1587550db2be5a69b9d2ab1c38c2ab" prot="protected" static="no" mutable="no">
+        <type>rmm::device_uvector&lt; weight_t &gt;</type>
+        <definition>rmm::device_uvector&lt;weight_t&gt; cugraph::legacy::Louvain&lt; graph_type &gt;::vertex_weights_v_</definition>
+        <argsstring></argsstring>
+        <name>vertex_weights_v_</name>
+        <qualifiedname>cugraph::legacy::Louvain::vertex_weights_v_</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/community/legacy/louvain.cuh" line="650" column="23" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/community/legacy/louvain.cuh" bodystart="650" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="variable" id="classcugraph_1_1legacy_1_1Louvain_1a1074e71600f12e7c0fd4141550b2c829" prot="protected" static="no" mutable="no">
+        <type>rmm::device_uvector&lt; weight_t &gt;</type>
+        <definition>rmm::device_uvector&lt;weight_t&gt; cugraph::legacy::Louvain&lt; graph_type &gt;::cluster_weights_v_</definition>
+        <argsstring></argsstring>
+        <name>cluster_weights_v_</name>
+        <qualifiedname>cugraph::legacy::Louvain::cluster_weights_v_</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/community/legacy/louvain.cuh" line="651" column="23" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/community/legacy/louvain.cuh" bodystart="651" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="variable" id="classcugraph_1_1legacy_1_1Louvain_1ab352008ca73ce6b3885c1735c0890ffd" prot="protected" static="no" mutable="no">
+        <type>rmm::device_uvector&lt; vertex_t &gt;</type>
+        <definition>rmm::device_uvector&lt;vertex_t&gt; cugraph::legacy::Louvain&lt; graph_type &gt;::tmp_arr_v_</definition>
+        <argsstring></argsstring>
+        <name>tmp_arr_v_</name>
+        <qualifiedname>cugraph::legacy::Louvain::tmp_arr_v_</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/community/legacy/louvain.cuh" line="657" column="23" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/community/legacy/louvain.cuh" bodystart="657" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="variable" id="classcugraph_1_1legacy_1_1Louvain_1a0ef97b482842088b5b25fa7e772e4342" prot="protected" static="no" mutable="no">
+        <type>rmm::device_uvector&lt; vertex_t &gt;</type>
+        <definition>rmm::device_uvector&lt;vertex_t&gt; cugraph::legacy::Louvain&lt; graph_type &gt;::cluster_inverse_v_</definition>
+        <argsstring></argsstring>
+        <name>cluster_inverse_v_</name>
+        <qualifiedname>cugraph::legacy::Louvain::cluster_inverse_v_</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/community/legacy/louvain.cuh" line="658" column="23" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/community/legacy/louvain.cuh" bodystart="658" bodyend="-1"/>
+      </memberdef>
+    </sectiondef>
+    <sectiondef kind="public-func">
+      <memberdef kind="function" id="classcugraph_1_1legacy_1_1Louvain_1a4eb9ac04f5d998c62dcd9b93215093ae" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type></type>
+        <definition>cugraph::legacy::Louvain&lt; graph_type &gt;::Louvain</definition>
+        <argsstring>(raft::handle_t const &amp;handle, graph_type const &amp;graph)</argsstring>
+        <name>Louvain</name>
+        <qualifiedname>cugraph::legacy::Louvain::Louvain</qualifiedname>
+        <param>
+          <type>raft::handle_t <ref refid="classcugraph_1_1legacy_1_1GraphCSRView" kindref="compound">const</ref> &amp;</type>
+          <declname>handle</declname>
+        </param>
+        <param>
+          <type><ref refid="classcugraph_1_1legacy_1_1GraphCSRView" kindref="compound">graph_type</ref> <ref refid="classcugraph_1_1legacy_1_1GraphCSRView" kindref="compound">const</ref> &amp;</type>
+          <declname>graph</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/community/legacy/louvain.cuh" line="61" column="3" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/community/legacy/louvain.cuh" bodystart="61" bodyend="98"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1legacy_1_1Louvain_1a484185498a652b6a4b91bd3395c498e9" prot="public" static="no" const="no" explicit="no" inline="yes" virt="virtual">
+        <type></type>
+        <definition>virtual cugraph::legacy::Louvain&lt; graph_type &gt;::~Louvain</definition>
+        <argsstring>()</argsstring>
+        <name>~Louvain</name>
+        <qualifiedname>cugraph::legacy::Louvain::~Louvain</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/community/legacy/louvain.cuh" line="100" column="11" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/community/legacy/louvain.cuh" bodystart="100" bodyend="100"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1legacy_1_1Louvain_1af5034a81846e4cc8e727d6ef0b5dccf5" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type>weight_t</type>
+        <definition>weight_t cugraph::legacy::Louvain&lt; graph_type &gt;::modularity</definition>
+        <argsstring>(weight_t total_edge_weight, weight_t resolution, graph_t const &amp;graph, vertex_t const *d_cluster)</argsstring>
+        <name>modularity</name>
+        <qualifiedname>cugraph::legacy::Louvain::modularity</qualifiedname>
+        <param>
+          <type>weight_t</type>
+          <declname>total_edge_weight</declname>
+        </param>
+        <param>
+          <type>weight_t</type>
+          <declname>resolution</declname>
+        </param>
+        <param>
+          <type><ref refid="classcugraph_1_1legacy_1_1GraphCSRView" kindref="compound">graph_t</ref> <ref refid="classcugraph_1_1legacy_1_1GraphCSRView" kindref="compound">const</ref> &amp;</type>
+          <declname>graph</declname>
+        </param>
+        <param>
+          <type>vertex_t <ref refid="classcugraph_1_1legacy_1_1GraphCSRView" kindref="compound">const</ref> *</type>
+          <declname>d_cluster</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/community/legacy/louvain.cuh" line="102" column="12" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/community/legacy/louvain.cuh" bodystart="102" bodyend="157"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1legacy_1_1Louvain_1a16c045a8138499c0d72ad08a7c72fbf9" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type><ref refid="classcugraph_1_1Dendrogram" kindref="compound">Dendrogram</ref>&lt; vertex_t &gt; <ref refid="classcugraph_1_1legacy_1_1GraphCSRView" kindref="compound">const</ref> &amp;</type>
+        <definition>Dendrogram&lt; vertex_t &gt; const  &amp; cugraph::legacy::Louvain&lt; graph_type &gt;::get_dendrogram</definition>
+        <argsstring>() const</argsstring>
+        <name>get_dendrogram</name>
+        <qualifiedname>cugraph::legacy::Louvain::get_dendrogram</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/community/legacy/louvain.cuh" line="159" column="20" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/community/legacy/louvain.cuh" bodystart="159" bodyend="159"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1legacy_1_1Louvain_1a526fd54d2496cc522159cd9f4af579d9" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type><ref refid="classcugraph_1_1Dendrogram" kindref="compound">Dendrogram</ref>&lt; vertex_t &gt; &amp;</type>
+        <definition>Dendrogram&lt; vertex_t &gt; &amp; cugraph::legacy::Louvain&lt; graph_type &gt;::get_dendrogram</definition>
+        <argsstring>()</argsstring>
+        <name>get_dendrogram</name>
+        <qualifiedname>cugraph::legacy::Louvain::get_dendrogram</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/community/legacy/louvain.cuh" line="161" column="14" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/community/legacy/louvain.cuh" bodystart="161" bodyend="161"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1legacy_1_1Louvain_1a70d8611e7fda4edec91d73db4bb0f640" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type>std::unique_ptr&lt; <ref refid="classcugraph_1_1Dendrogram" kindref="compound">Dendrogram</ref>&lt; vertex_t &gt; &gt;</type>
+        <definition>std::unique_ptr&lt; Dendrogram&lt; vertex_t &gt; &gt; cugraph::legacy::Louvain&lt; graph_type &gt;::move_dendrogram</definition>
+        <argsstring>()</argsstring>
+        <name>move_dendrogram</name>
+        <qualifiedname>cugraph::legacy::Louvain::move_dendrogram</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/community/legacy/louvain.cuh" line="163" column="19" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/community/legacy/louvain.cuh" bodystart="163" bodyend="163"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1legacy_1_1Louvain_1a8885432191d3b3822aade61939142c90" prot="public" static="no" const="no" explicit="no" inline="yes" virt="virtual">
+        <type>weight_t</type>
+        <definition>virtual weight_t cugraph::legacy::Louvain&lt; graph_type &gt;::operator()</definition>
+        <argsstring>(size_t max_level, weight_t resolution)</argsstring>
+        <name>operator()</name>
+        <qualifiedname>cugraph::legacy::Louvain::operator()</qualifiedname>
+        <param>
+          <type><ref refid="classcugraph_1_1legacy_1_1GraphCSRView" kindref="compound">size_t</ref></type>
+          <declname>max_level</declname>
+        </param>
+        <param>
+          <type>weight_t</type>
+          <declname>resolution</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/community/legacy/louvain.cuh" line="165" column="20" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/community/legacy/louvain.cuh" bodystart="165" bodyend="204"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1legacy_1_1Louvain_1af3b883e19cef0fb2999941cf11047e5b" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type><ref refid="classcugraph_1_1legacy_1_1GraphCSRView" kindref="compound">void</ref></type>
+        <definition>void cugraph::legacy::Louvain&lt; graph_type &gt;::compute_vertex_and_cluster_weights</definition>
+        <argsstring>(graph_type const &amp;graph)</argsstring>
+        <name>compute_vertex_and_cluster_weights</name>
+        <qualifiedname>cugraph::legacy::Louvain::compute_vertex_and_cluster_weights</qualifiedname>
+        <param>
+          <type><ref refid="classcugraph_1_1legacy_1_1GraphCSRView" kindref="compound">graph_type</ref> <ref refid="classcugraph_1_1legacy_1_1GraphCSRView" kindref="compound">const</ref> &amp;</type>
+          <declname>graph</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/community/legacy/louvain.cuh" line="239" column="8" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/community/legacy/louvain.cuh" bodystart="239" bodyend="266"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1legacy_1_1Louvain_1a49910331ab1eca973a507e14ff63afa6" prot="public" static="no" const="no" explicit="no" inline="yes" virt="virtual">
+        <type>weight_t</type>
+        <definition>virtual weight_t cugraph::legacy::Louvain&lt; graph_type &gt;::update_clustering</definition>
+        <argsstring>(weight_t total_edge_weight, weight_t resolution, graph_type const &amp;graph)</argsstring>
+        <name>update_clustering</name>
+        <qualifiedname>cugraph::legacy::Louvain::update_clustering</qualifiedname>
+        <param>
+          <type>weight_t</type>
+          <declname>total_edge_weight</declname>
+        </param>
+        <param>
+          <type>weight_t</type>
+          <declname>resolution</declname>
+        </param>
+        <param>
+          <type><ref refid="classcugraph_1_1legacy_1_1GraphCSRView" kindref="compound">graph_type</ref> <ref refid="classcugraph_1_1legacy_1_1GraphCSRView" kindref="compound">const</ref> &amp;</type>
+          <declname>graph</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/community/legacy/louvain.cuh" line="268" column="20" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/community/legacy/louvain.cuh" bodystart="268" bodyend="322"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1legacy_1_1Louvain_1a6939556011c5925bef7e8bbf3b7be1d0" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type><ref refid="classcugraph_1_1legacy_1_1GraphCSRView" kindref="compound">void</ref></type>
+        <definition>void cugraph::legacy::Louvain&lt; graph_type &gt;::compute_delta_modularity</definition>
+        <argsstring>(weight_t total_edge_weight, weight_t resolution, graph_type const &amp;graph, rmm::device_uvector&lt; vertex_t &gt; &amp;cluster_hash_v, rmm::device_uvector&lt; weight_t &gt; &amp;old_cluster_sum_v, rmm::device_uvector&lt; weight_t &gt; &amp;delta_Q_v)</argsstring>
+        <name>compute_delta_modularity</name>
+        <qualifiedname>cugraph::legacy::Louvain::compute_delta_modularity</qualifiedname>
+        <param>
+          <type>weight_t</type>
+          <declname>total_edge_weight</declname>
+        </param>
+        <param>
+          <type>weight_t</type>
+          <declname>resolution</declname>
+        </param>
+        <param>
+          <type><ref refid="classcugraph_1_1legacy_1_1GraphCSRView" kindref="compound">graph_type</ref> <ref refid="classcugraph_1_1legacy_1_1GraphCSRView" kindref="compound">const</ref> &amp;</type>
+          <declname>graph</declname>
+        </param>
+        <param>
+          <type>rmm::device_uvector&lt; vertex_t &gt; &amp;</type>
+          <declname>cluster_hash_v</declname>
+        </param>
+        <param>
+          <type>rmm::device_uvector&lt; weight_t &gt; &amp;</type>
+          <declname>old_cluster_sum_v</declname>
+        </param>
+        <param>
+          <type>rmm::device_uvector&lt; weight_t &gt; &amp;</type>
+          <declname>delta_Q_v</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/community/legacy/louvain.cuh" line="324" column="8" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/community/legacy/louvain.cuh" bodystart="324" bodyend="420"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1legacy_1_1Louvain_1a8b68c5918af526b9574699a7a6afc6d5" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type><ref refid="classcugraph_1_1legacy_1_1GraphCSRView" kindref="compound">void</ref></type>
+        <definition>void cugraph::legacy::Louvain&lt; graph_type &gt;::assign_nodes</definition>
+        <argsstring>(graph_type const &amp;graph, rmm::device_uvector&lt; vertex_t &gt; &amp;cluster_hash_v, rmm::device_uvector&lt; vertex_t &gt; &amp;next_cluster_v, rmm::device_uvector&lt; weight_t &gt; &amp;delta_Q_v, bool up_down)</argsstring>
+        <name>assign_nodes</name>
+        <qualifiedname>cugraph::legacy::Louvain::assign_nodes</qualifiedname>
+        <param>
+          <type><ref refid="classcugraph_1_1legacy_1_1GraphCSRView" kindref="compound">graph_type</ref> <ref refid="classcugraph_1_1legacy_1_1GraphCSRView" kindref="compound">const</ref> &amp;</type>
+          <declname>graph</declname>
+        </param>
+        <param>
+          <type>rmm::device_uvector&lt; vertex_t &gt; &amp;</type>
+          <declname>cluster_hash_v</declname>
+        </param>
+        <param>
+          <type>rmm::device_uvector&lt; vertex_t &gt; &amp;</type>
+          <declname>next_cluster_v</declname>
+        </param>
+        <param>
+          <type>rmm::device_uvector&lt; weight_t &gt; &amp;</type>
+          <declname>delta_Q_v</declname>
+        </param>
+        <param>
+          <type><ref refid="classcugraph_1_1legacy_1_1GraphCSRView" kindref="compound">bool</ref></type>
+          <declname>up_down</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/community/legacy/louvain.cuh" line="422" column="8" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/community/legacy/louvain.cuh" bodystart="422" bodyend="487"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1legacy_1_1Louvain_1acbfff6d05446c99a25add24e242411a3" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type><ref refid="classcugraph_1_1legacy_1_1GraphCSRView" kindref="compound">void</ref></type>
+        <definition>void cugraph::legacy::Louvain&lt; graph_type &gt;::shrink_graph</definition>
+        <argsstring>(graph_t &amp;graph)</argsstring>
+        <name>shrink_graph</name>
+        <qualifiedname>cugraph::legacy::Louvain::shrink_graph</qualifiedname>
+        <param>
+          <type><ref refid="classcugraph_1_1legacy_1_1GraphCSRView" kindref="compound">graph_t</ref> &amp;</type>
+          <declname>graph</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/community/legacy/louvain.cuh" line="489" column="8" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/community/legacy/louvain.cuh" bodystart="489" bodyend="501"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1legacy_1_1Louvain_1a7dbd3737da5b9cbbd2ee7652225040a2" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type>vertex_t</type>
+        <definition>vertex_t cugraph::legacy::Louvain&lt; graph_type &gt;::renumber_clusters</definition>
+        <argsstring>()</argsstring>
+        <name>renumber_clusters</name>
+        <qualifiedname>cugraph::legacy::Louvain::renumber_clusters</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/community/legacy/louvain.cuh" line="503" column="12" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/community/legacy/louvain.cuh" bodystart="503" bodyend="564"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1legacy_1_1Louvain_1adbf2b5e76c6d33f070a4469abccd3c77" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type><ref refid="classcugraph_1_1legacy_1_1GraphCSRView" kindref="compound">void</ref></type>
+        <definition>void cugraph::legacy::Louvain&lt; graph_type &gt;::generate_superverticies_graph</definition>
+        <argsstring>(graph_t &amp;graph, vertex_t num_clusters)</argsstring>
+        <name>generate_superverticies_graph</name>
+        <qualifiedname>cugraph::legacy::Louvain::generate_superverticies_graph</qualifiedname>
+        <param>
+          <type><ref refid="classcugraph_1_1legacy_1_1GraphCSRView" kindref="compound">graph_t</ref> &amp;</type>
+          <declname>graph</declname>
+        </param>
+        <param>
+          <type>vertex_t</type>
+          <declname>num_clusters</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/community/legacy/louvain.cuh" line="566" column="8" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/community/legacy/louvain.cuh" bodystart="566" bodyend="630"/>
+      </memberdef>
+    </sectiondef>
+    <sectiondef kind="protected-func">
+      <memberdef kind="function" id="classcugraph_1_1legacy_1_1Louvain_1a4d951ab6aa52c9d5a5ec11b674e97141" prot="protected" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type><ref refid="classcugraph_1_1legacy_1_1GraphCSRView" kindref="compound">void</ref></type>
+        <definition>void cugraph::legacy::Louvain&lt; graph_type &gt;::timer_start</definition>
+        <argsstring>(std::string const &amp;region)</argsstring>
+        <name>timer_start</name>
+        <qualifiedname>cugraph::legacy::Louvain::timer_start</qualifiedname>
+        <param>
+          <type>std::string <ref refid="classcugraph_1_1legacy_1_1GraphCSRView" kindref="compound">const</ref> &amp;</type>
+          <declname>region</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/community/legacy/louvain.cuh" line="207" column="8" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/community/legacy/louvain.cuh" bodystart="207" bodyend="212"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1legacy_1_1Louvain_1afce904afccf26692a3086e48ea6e288d" prot="protected" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type><ref refid="classcugraph_1_1legacy_1_1GraphCSRView" kindref="compound">void</ref></type>
+        <definition>void cugraph::legacy::Louvain&lt; graph_type &gt;::timer_stop</definition>
+        <argsstring>(rmm::cuda_stream_view stream_view)</argsstring>
+        <name>timer_stop</name>
+        <qualifiedname>cugraph::legacy::Louvain::timer_stop</qualifiedname>
+        <param>
+          <type>rmm::cuda_stream_view</type>
+          <declname>stream_view</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/community/legacy/louvain.cuh" line="214" column="8" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/community/legacy/louvain.cuh" bodystart="214" bodyend="220"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1legacy_1_1Louvain_1af3c3b34be40cb142187b3b970eeae73a" prot="protected" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type><ref refid="classcugraph_1_1legacy_1_1GraphCSRView" kindref="compound">void</ref></type>
+        <definition>void cugraph::legacy::Louvain&lt; graph_type &gt;::timer_display_and_clear</definition>
+        <argsstring>(std::ostream &amp;os)</argsstring>
+        <name>timer_display_and_clear</name>
+        <qualifiedname>cugraph::legacy::Louvain::timer_display_and_clear</qualifiedname>
+        <param>
+          <type>std::ostream &amp;</type>
+          <declname>os</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/community/legacy/louvain.cuh" line="222" column="8" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/community/legacy/louvain.cuh" bodystart="222" bodyend="227"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1legacy_1_1Louvain_1ad6786ed8b1e37fa93c6e122683661d89" prot="protected" static="no" const="no" explicit="no" inline="yes" virt="virtual">
+        <type><ref refid="classcugraph_1_1legacy_1_1GraphCSRView" kindref="compound">void</ref></type>
+        <definition>virtual void cugraph::legacy::Louvain&lt; graph_type &gt;::initialize_dendrogram_level</definition>
+        <argsstring>(vertex_t num_vertices)</argsstring>
+        <name>initialize_dendrogram_level</name>
+        <qualifiedname>cugraph::legacy::Louvain::initialize_dendrogram_level</qualifiedname>
+        <param>
+          <type>vertex_t</type>
+          <declname>num_vertices</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/community/legacy/louvain.cuh" line="229" column="16" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/community/legacy/louvain.cuh" bodystart="229" bodyend="236"/>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/src/community/legacy/louvain.cuh" line="54" column="1" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/community/legacy/louvain.cuh" bodystart="54" bodyend="663"/>
+    <listofallmembers>
+      <member refid="classcugraph_1_1legacy_1_1Louvain_1a8b68c5918af526b9574699a7a6afc6d5" prot="public" virt="non-virtual"><scope>cugraph::legacy::Louvain</scope><name>assign_nodes</name></member>
+      <member refid="classcugraph_1_1legacy_1_1Louvain_1a0ef97b482842088b5b25fa7e772e4342" prot="protected" virt="non-virtual"><scope>cugraph::legacy::Louvain</scope><name>cluster_inverse_v_</name></member>
+      <member refid="classcugraph_1_1legacy_1_1Louvain_1a1074e71600f12e7c0fd4141550b2c829" prot="protected" virt="non-virtual"><scope>cugraph::legacy::Louvain</scope><name>cluster_weights_v_</name></member>
+      <member refid="classcugraph_1_1legacy_1_1Louvain_1a6939556011c5925bef7e8bbf3b7be1d0" prot="public" virt="non-virtual"><scope>cugraph::legacy::Louvain</scope><name>compute_delta_modularity</name></member>
+      <member refid="classcugraph_1_1legacy_1_1Louvain_1af3b883e19cef0fb2999941cf11047e5b" prot="public" virt="non-virtual"><scope>cugraph::legacy::Louvain</scope><name>compute_vertex_and_cluster_weights</name></member>
+      <member refid="classcugraph_1_1legacy_1_1Louvain_1ac61768d161eb314884b106338864f8a0" prot="protected" virt="non-virtual"><scope>cugraph::legacy::Louvain</scope><name>dendrogram_</name></member>
+      <member refid="classcugraph_1_1legacy_1_1Louvain_1a0373669a4c4d5c9dccffb8f843109643" prot="public" virt="non-virtual"><scope>cugraph::legacy::Louvain</scope><name>edge_t</name></member>
+      <member refid="classcugraph_1_1legacy_1_1Louvain_1adbf2b5e76c6d33f070a4469abccd3c77" prot="public" virt="non-virtual"><scope>cugraph::legacy::Louvain</scope><name>generate_superverticies_graph</name></member>
+      <member refid="classcugraph_1_1legacy_1_1Louvain_1a16c045a8138499c0d72ad08a7c72fbf9" prot="public" virt="non-virtual"><scope>cugraph::legacy::Louvain</scope><name>get_dendrogram</name></member>
+      <member refid="classcugraph_1_1legacy_1_1Louvain_1a526fd54d2496cc522159cd9f4af579d9" prot="public" virt="non-virtual"><scope>cugraph::legacy::Louvain</scope><name>get_dendrogram</name></member>
+      <member refid="classcugraph_1_1legacy_1_1Louvain_1a1e5b8a4b0fe092003b569fa057e1ed54" prot="public" virt="non-virtual"><scope>cugraph::legacy::Louvain</scope><name>graph_t</name></member>
+      <member refid="classcugraph_1_1legacy_1_1Louvain_1a3f28d0a048d459c689e86575f9e062ef" prot="protected" virt="non-virtual"><scope>cugraph::legacy::Louvain</scope><name>handle_</name></member>
+      <member refid="classcugraph_1_1legacy_1_1Louvain_1aadaf773e13c8f54d0285e769e44448ca" prot="protected" virt="non-virtual"><scope>cugraph::legacy::Louvain</scope><name>indices_v_</name></member>
+      <member refid="classcugraph_1_1legacy_1_1Louvain_1ad6786ed8b1e37fa93c6e122683661d89" prot="protected" virt="virtual"><scope>cugraph::legacy::Louvain</scope><name>initialize_dendrogram_level</name></member>
+      <member refid="classcugraph_1_1legacy_1_1Louvain_1a4eb9ac04f5d998c62dcd9b93215093ae" prot="public" virt="non-virtual"><scope>cugraph::legacy::Louvain</scope><name>Louvain</name></member>
+      <member refid="classcugraph_1_1legacy_1_1Louvain_1af5034a81846e4cc8e727d6ef0b5dccf5" prot="public" virt="non-virtual"><scope>cugraph::legacy::Louvain</scope><name>modularity</name></member>
+      <member refid="classcugraph_1_1legacy_1_1Louvain_1a70d8611e7fda4edec91d73db4bb0f640" prot="public" virt="non-virtual"><scope>cugraph::legacy::Louvain</scope><name>move_dendrogram</name></member>
+      <member refid="classcugraph_1_1legacy_1_1Louvain_1a13e98eb74d6859fcfbe8082b59f62874" prot="protected" virt="non-virtual"><scope>cugraph::legacy::Louvain</scope><name>number_of_edges_</name></member>
+      <member refid="classcugraph_1_1legacy_1_1Louvain_1abd2a41f9c6095dd69cd21f5b2075bff6" prot="protected" virt="non-virtual"><scope>cugraph::legacy::Louvain</scope><name>number_of_vertices_</name></member>
+      <member refid="classcugraph_1_1legacy_1_1Louvain_1a26645a80bc00fad8bd42138c24873cfe" prot="protected" virt="non-virtual"><scope>cugraph::legacy::Louvain</scope><name>offsets_v_</name></member>
+      <member refid="classcugraph_1_1legacy_1_1Louvain_1a8885432191d3b3822aade61939142c90" prot="public" virt="virtual"><scope>cugraph::legacy::Louvain</scope><name>operator()</name></member>
+      <member refid="classcugraph_1_1legacy_1_1Louvain_1a7dbd3737da5b9cbbd2ee7652225040a2" prot="public" virt="non-virtual"><scope>cugraph::legacy::Louvain</scope><name>renumber_clusters</name></member>
+      <member refid="classcugraph_1_1legacy_1_1Louvain_1acbfff6d05446c99a25add24e242411a3" prot="public" virt="non-virtual"><scope>cugraph::legacy::Louvain</scope><name>shrink_graph</name></member>
+      <member refid="classcugraph_1_1legacy_1_1Louvain_1a6e4072b231949300f27dcfa5c88ed404" prot="protected" virt="non-virtual"><scope>cugraph::legacy::Louvain</scope><name>src_indices_v_</name></member>
+      <member refid="classcugraph_1_1legacy_1_1Louvain_1af3c3b34be40cb142187b3b970eeae73a" prot="protected" virt="non-virtual"><scope>cugraph::legacy::Louvain</scope><name>timer_display_and_clear</name></member>
+      <member refid="classcugraph_1_1legacy_1_1Louvain_1a4d951ab6aa52c9d5a5ec11b674e97141" prot="protected" virt="non-virtual"><scope>cugraph::legacy::Louvain</scope><name>timer_start</name></member>
+      <member refid="classcugraph_1_1legacy_1_1Louvain_1afce904afccf26692a3086e48ea6e288d" prot="protected" virt="non-virtual"><scope>cugraph::legacy::Louvain</scope><name>timer_stop</name></member>
+      <member refid="classcugraph_1_1legacy_1_1Louvain_1ab352008ca73ce6b3885c1735c0890ffd" prot="protected" virt="non-virtual"><scope>cugraph::legacy::Louvain</scope><name>tmp_arr_v_</name></member>
+      <member refid="classcugraph_1_1legacy_1_1Louvain_1a49910331ab1eca973a507e14ff63afa6" prot="public" virt="virtual"><scope>cugraph::legacy::Louvain</scope><name>update_clustering</name></member>
+      <member refid="classcugraph_1_1legacy_1_1Louvain_1a281779af6721439637ed3bc118688084" prot="public" virt="non-virtual"><scope>cugraph::legacy::Louvain</scope><name>vertex_t</name></member>
+      <member refid="classcugraph_1_1legacy_1_1Louvain_1a8a1587550db2be5a69b9d2ab1c38c2ab" prot="protected" virt="non-virtual"><scope>cugraph::legacy::Louvain</scope><name>vertex_weights_v_</name></member>
+      <member refid="classcugraph_1_1legacy_1_1Louvain_1a53c76b93ef5579b04cdb9a4b9f8bb56e" prot="public" virt="non-virtual"><scope>cugraph::legacy::Louvain</scope><name>weight_t</name></member>
+      <member refid="classcugraph_1_1legacy_1_1Louvain_1ab88b11e209cbef3d5e55b38cbcdbe0ef" prot="protected" virt="non-virtual"><scope>cugraph::legacy::Louvain</scope><name>weights_v_</name></member>
+      <member refid="classcugraph_1_1legacy_1_1Louvain_1a484185498a652b6a4b91bd3395c498e9" prot="public" virt="virtual"><scope>cugraph::legacy::Louvain</scope><name>~Louvain</name></member>
+    </listofallmembers>
+  </compounddef>
+</doxygen>

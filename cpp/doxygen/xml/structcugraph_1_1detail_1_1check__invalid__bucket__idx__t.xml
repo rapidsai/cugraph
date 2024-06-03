@@ -1,0 +1,39 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="structcugraph_1_1detail_1_1check__invalid__bucket__idx__t" kind="struct" language="C++" prot="public">
+    <compoundname>cugraph::detail::check_invalid_bucket_idx_t</compoundname>
+    <templateparamlist>
+      <param>
+        <type>typename key_t</type>
+      </param>
+    </templateparamlist>
+    <sectiondef kind="public-func">
+      <memberdef kind="function" id="structcugraph_1_1detail_1_1check__invalid__bucket__idx__t_1aa2a7d155cf5b45803f4461e8d625077a" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type>__device__ bool</type>
+        <definition>__device__ bool cugraph::detail::check_invalid_bucket_idx_t&lt; key_t &gt;::operator()</definition>
+        <argsstring>(thrust::tuple&lt; uint8_t, key_t &gt; pair)</argsstring>
+        <name>operator()</name>
+        <qualifiedname>cugraph::detail::check_invalid_bucket_idx_t::operator()</qualifiedname>
+        <param>
+          <type>thrust::tuple&lt; uint8_t, key_t &gt;</type>
+          <declname>pair</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/update_v_frontier.cuh" line="117" column="19" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/update_v_frontier.cuh" bodystart="117" bodyend="120"/>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/update_v_frontier.cuh" line="116" column="1" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/update_v_frontier.cuh" bodystart="116" bodyend="121"/>
+    <listofallmembers>
+      <member refid="structcugraph_1_1detail_1_1check__invalid__bucket__idx__t_1aa2a7d155cf5b45803f4461e8d625077a" prot="public" virt="non-virtual"><scope>cugraph::detail::check_invalid_bucket_idx_t</scope><name>operator()</name></member>
+    </listofallmembers>
+  </compounddef>
+</doxygen>

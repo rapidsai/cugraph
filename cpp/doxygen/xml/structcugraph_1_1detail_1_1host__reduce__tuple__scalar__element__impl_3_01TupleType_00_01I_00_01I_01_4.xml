@@ -1,0 +1,60 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="structcugraph_1_1detail_1_1host__reduce__tuple__scalar__element__impl_3_01TupleType_00_01I_00_01I_01_4" kind="struct" language="C++" prot="public">
+    <compoundname>cugraph::detail::host_reduce_tuple_scalar_element_impl&lt; TupleType, I, I &gt;</compoundname>
+    <templateparamlist>
+      <param>
+        <type>typename TupleType</type>
+      </param>
+      <param>
+        <type>size_t</type>
+        <declname>I</declname>
+        <defname>I</defname>
+      </param>
+    </templateparamlist>
+    <sectiondef kind="public-func">
+      <memberdef kind="function" id="structcugraph_1_1detail_1_1host__reduce__tuple__scalar__element__impl_3_01TupleType_00_01I_00_01I_01_4_1ade4e65e9f30f08dc6af72f02867c9b0a" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>void</type>
+        <definition>void cugraph::detail::host_reduce_tuple_scalar_element_impl&lt; TupleType, I, I &gt;::run</definition>
+        <argsstring>(raft::comms::comms_t const &amp;comm, rmm::device_uvector&lt; int64_t &gt; &amp;tuple_scalar_elements, raft::comms::op_t op, int root, cudaStream_t stream) const</argsstring>
+        <name>run</name>
+        <qualifiedname>cugraph::detail::host_reduce_tuple_scalar_element_impl&lt; TupleType, I, I &gt;::run</qualifiedname>
+        <param>
+          <type>raft::comms::comms_t const &amp;</type>
+          <declname>comm</declname>
+        </param>
+        <param>
+          <type>rmm::device_uvector&lt; int64_t &gt; &amp;</type>
+          <declname>tuple_scalar_elements</declname>
+        </param>
+        <param>
+          <type>raft::comms::op_t</type>
+          <declname>op</declname>
+        </param>
+        <param>
+          <type>int</type>
+          <declname>root</declname>
+        </param>
+        <param>
+          <type>cudaStream_t</type>
+          <declname>stream</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/utilities/host_scalar_comm.hpp" line="115" column="8" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/utilities/host_scalar_comm.hpp" bodystart="115" bodyend="121"/>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/utilities/host_scalar_comm.hpp" line="114" column="1" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/utilities/host_scalar_comm.hpp" bodystart="114" bodyend="122"/>
+    <listofallmembers>
+      <member refid="structcugraph_1_1detail_1_1host__reduce__tuple__scalar__element__impl_3_01TupleType_00_01I_00_01I_01_4_1ade4e65e9f30f08dc6af72f02867c9b0a" prot="public" virt="non-virtual"><scope>cugraph::detail::host_reduce_tuple_scalar_element_impl&lt; TupleType, I, I &gt;</scope><name>run</name></member>
+    </listofallmembers>
+  </compounddef>
+</doxygen>

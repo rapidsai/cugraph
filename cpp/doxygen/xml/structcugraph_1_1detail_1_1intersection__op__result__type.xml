@@ -1,0 +1,31 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="structcugraph_1_1detail_1_1intersection__op__result__type" kind="struct" language="C++" prot="public">
+    <compoundname>cugraph::detail::intersection_op_result_type</compoundname>
+    <templateparamlist>
+      <param>
+        <type>typename vertex_t</type>
+      </param>
+      <param>
+        <type>typename src_value_t</type>
+      </param>
+      <param>
+        <type>typename dst_value_t</type>
+      </param>
+      <param>
+        <type>typename IntersectionOp</type>
+      </param>
+      <param>
+        <type>typename Enable</type>
+        <defval>void</defval>
+      </param>
+    </templateparamlist>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/property_op_utils.cuh" line="74" column="1" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/property_op_utils.cuh" bodystart="74" bodyend="-1"/>
+    <listofallmembers>
+    </listofallmembers>
+  </compounddef>
+</doxygen>

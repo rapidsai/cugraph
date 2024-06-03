@@ -1,0 +1,121 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="group__Copy" kind="group">
+    <compoundname>Copy</compoundname>
+    <title>Copy methods</title>
+    <sectiondef kind="func">
+      <memberdef kind="function" id="group__Copy_1ga18a265a5eb16da13a51f486fe5e3acb7" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <templateparamlist>
+          <param>
+            <type>typename Type</type>
+          </param>
+        </templateparamlist>
+        <type>void</type>
+        <definition>void MLCommon::updateDevice</definition>
+        <argsstring>(Type *dPtr, const Type *hPtr, size_t len, cudaStream_t stream)</argsstring>
+        <name>updateDevice</name>
+        <qualifiedname>MLCommon::updateDevice</qualifiedname>
+        <param>
+          <type>Type *</type>
+          <declname>dPtr</declname>
+        </param>
+        <param>
+          <type>const Type *</type>
+          <declname>hPtr</declname>
+        </param>
+        <param>
+          <type>size_t</type>
+          <declname>len</declname>
+        </param>
+        <param>
+          <type>cudaStream_t</type>
+          <declname>stream</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+<para>performs a host to device copy </para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/components/legacy/utils.h" line="108" column="6" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/components/legacy/utils.h" bodystart="108" bodyend="111"/>
+      </memberdef>
+      <memberdef kind="function" id="group__Copy_1ga9c1498ebc5825f9e63a9de94ced042d5" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <templateparamlist>
+          <param>
+            <type>typename Type</type>
+          </param>
+        </templateparamlist>
+        <type>void</type>
+        <definition>void MLCommon::updateHost</definition>
+        <argsstring>(Type *hPtr, const Type *dPtr, size_t len, cudaStream_t stream)</argsstring>
+        <name>updateHost</name>
+        <qualifiedname>MLCommon::updateHost</qualifiedname>
+        <param>
+          <type>Type *</type>
+          <declname>hPtr</declname>
+        </param>
+        <param>
+          <type>const Type *</type>
+          <declname>dPtr</declname>
+        </param>
+        <param>
+          <type>size_t</type>
+          <declname>len</declname>
+        </param>
+        <param>
+          <type>cudaStream_t</type>
+          <declname>stream</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+<para>performs a device to host copy </para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/components/legacy/utils.h" line="115" column="6" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/components/legacy/utils.h" bodystart="115" bodyend="118"/>
+      </memberdef>
+      <memberdef kind="function" id="group__Copy_1gaa01ba24b3370f4d1d62f0641a3245d80" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <templateparamlist>
+          <param>
+            <type>typename Type</type>
+          </param>
+        </templateparamlist>
+        <type>void</type>
+        <definition>void MLCommon::copyAsync</definition>
+        <argsstring>(Type *dPtr1, const Type *dPtr2, size_t len, cudaStream_t stream)</argsstring>
+        <name>copyAsync</name>
+        <qualifiedname>MLCommon::copyAsync</qualifiedname>
+        <param>
+          <type>Type *</type>
+          <declname>dPtr1</declname>
+        </param>
+        <param>
+          <type>const Type *</type>
+          <declname>dPtr2</declname>
+        </param>
+        <param>
+          <type>size_t</type>
+          <declname>len</declname>
+        </param>
+        <param>
+          <type>cudaStream_t</type>
+          <declname>stream</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/components/legacy/utils.h" line="121" column="6" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/components/legacy/utils.h" bodystart="121" bodyend="125"/>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+<para>These are here along with the generic &apos;copy&apos; method in order to improve code readability using explicitly specified function names </para>
+    </detaileddescription>
+  </compounddef>
+</doxygen>

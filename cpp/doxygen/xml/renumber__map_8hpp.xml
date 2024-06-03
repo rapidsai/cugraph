@@ -1,0 +1,172 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="renumber__map_8hpp" kind="file" language="C++">
+    <compoundname>renumber_map.hpp</compoundname>
+    <includes refid="device__shared__device__vector_8hpp" local="no">cugraph/mtmg/detail/device_shared_device_vector.hpp</includes>
+    <includes refid="renumber__map__view_8hpp" local="no">cugraph/mtmg/renumber_map_view.hpp</includes>
+    <includedby refid="include_2cugraph_2mtmg_2graph_8hpp" local="no">graph.hpp</includedby>
+    <includedby refid="vertex__pair__result__view_8hpp" local="no">vertex_pair_result_view.hpp</includedby>
+    <includedby refid="vertex__result__view_8hpp" local="no">vertex_result_view.hpp</includedby>
+    <incdepgraph>
+      <node id="3">
+        <label>cugraph/mtmg/detail/device_shared_device_span.hpp</label>
+        <link refid="device__shared__device__span_8hpp_source"/>
+        <childnode refid="4" relation="include">
+        </childnode>
+        <childnode refid="12" relation="include">
+        </childnode>
+      </node>
+      <node id="2">
+        <label>cugraph/mtmg/detail/device_shared_device_vector.hpp</label>
+        <link refid="device__shared__device__vector_8hpp_source"/>
+        <childnode refid="3" relation="include">
+        </childnode>
+        <childnode refid="13" relation="include">
+        </childnode>
+      </node>
+      <node id="4">
+        <label>cugraph/mtmg/detail/device_shared_wrapper.hpp</label>
+        <link refid="device__shared__wrapper_8hpp_source"/>
+        <childnode refid="5" relation="include">
+        </childnode>
+        <childnode refid="8" relation="include">
+        </childnode>
+        <childnode refid="10" relation="include">
+        </childnode>
+        <childnode refid="11" relation="include">
+        </childnode>
+      </node>
+      <node id="5">
+        <label>cugraph/mtmg/handle.hpp</label>
+        <link refid="handle_8hpp_source"/>
+        <childnode refid="6" relation="include">
+        </childnode>
+        <childnode refid="7" relation="include">
+        </childnode>
+      </node>
+      <node id="1">
+        <label>renumber_map.hpp</label>
+        <link refid="renumber__map_8hpp"/>
+        <childnode refid="2" relation="include">
+        </childnode>
+        <childnode refid="14" relation="include">
+        </childnode>
+      </node>
+      <node id="14">
+        <label>cugraph/mtmg/renumber_map_view.hpp</label>
+        <link refid="renumber__map__view_8hpp_source"/>
+        <childnode refid="3" relation="include">
+        </childnode>
+        <childnode refid="5" relation="include">
+        </childnode>
+      </node>
+      <node id="8">
+        <label>cugraph/utilities/error.hpp</label>
+        <link refid="include_2cugraph_2utilities_2error_8hpp_source"/>
+        <childnode refid="9" relation="include">
+        </childnode>
+      </node>
+      <node id="10">
+        <label>map</label>
+      </node>
+      <node id="11">
+        <label>mutex</label>
+      </node>
+      <node id="12">
+        <label>raft/core/device_span.hpp</label>
+      </node>
+      <node id="9">
+        <label>raft/core/error.hpp</label>
+      </node>
+      <node id="6">
+        <label>raft/core/handle.hpp</label>
+      </node>
+      <node id="13">
+        <label>rmm/device_uvector.hpp</label>
+      </node>
+      <node id="7">
+        <label>rmm/exec_policy.hpp</label>
+      </node>
+    </incdepgraph>
+    <invincdepgraph>
+      <node id="2">
+        <label>graph.hpp</label>
+        <link refid="include_2cugraph_2mtmg_2graph_8hpp_source"/>
+      </node>
+      <node id="1">
+        <label>renumber_map.hpp</label>
+        <link refid="renumber__map_8hpp"/>
+        <childnode refid="2" relation="include">
+        </childnode>
+        <childnode refid="3" relation="include">
+        </childnode>
+        <childnode refid="5" relation="include">
+        </childnode>
+      </node>
+      <node id="4">
+        <label>vertex_pair_result.hpp</label>
+        <link refid="vertex__pair__result_8hpp_source"/>
+      </node>
+      <node id="3">
+        <label>vertex_pair_result_view.hpp</label>
+        <link refid="vertex__pair__result__view_8hpp_source"/>
+        <childnode refid="4" relation="include">
+        </childnode>
+      </node>
+      <node id="6">
+        <label>vertex_result.hpp</label>
+        <link refid="vertex__result_8hpp_source"/>
+      </node>
+      <node id="5">
+        <label>vertex_result_view.hpp</label>
+        <link refid="vertex__result__view_8hpp_source"/>
+        <childnode refid="6" relation="include">
+        </childnode>
+      </node>
+    </invincdepgraph>
+    <innerclass refid="classcugraph_1_1mtmg_1_1renumber__map__t" prot="public">cugraph::mtmg::renumber_map_t</innerclass>
+    <innernamespace refid="namespacecugraph">cugraph</innernamespace>
+    <innernamespace refid="namespacecugraph_1_1mtmg">cugraph::mtmg</innernamespace>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <programlisting>
+<codeline lineno="1"><highlight class="comment">/*</highlight></codeline>
+<codeline lineno="2"><highlight class="comment"><sp/>*<sp/>Copyright<sp/>(c)<sp/>2023,<sp/>NVIDIA<sp/>CORPORATION.</highlight></codeline>
+<codeline lineno="3"><highlight class="comment"><sp/>*</highlight></codeline>
+<codeline lineno="4"><highlight class="comment"><sp/>*<sp/>Licensed<sp/>under<sp/>the<sp/>Apache<sp/>License,<sp/>Version<sp/>2.0<sp/>(the<sp/>&quot;License&quot;);</highlight></codeline>
+<codeline lineno="5"><highlight class="comment"><sp/>*<sp/>you<sp/>may<sp/>not<sp/>use<sp/>this<sp/>file<sp/>except<sp/>in<sp/>compliance<sp/>with<sp/>the<sp/>License.</highlight></codeline>
+<codeline lineno="6"><highlight class="comment"><sp/>*<sp/>You<sp/>may<sp/>obtain<sp/>a<sp/>copy<sp/>of<sp/>the<sp/>License<sp/>at</highlight></codeline>
+<codeline lineno="7"><highlight class="comment"><sp/>*</highlight></codeline>
+<codeline lineno="8"><highlight class="comment"><sp/>*<sp/><sp/><sp/><sp/><sp/>http://www.apache.org/licenses/LICENSE-2.0</highlight></codeline>
+<codeline lineno="9"><highlight class="comment"><sp/>*</highlight></codeline>
+<codeline lineno="10"><highlight class="comment"><sp/>*<sp/>Unless<sp/>required<sp/>by<sp/>applicable<sp/>law<sp/>or<sp/>agreed<sp/>to<sp/>in<sp/>writing,<sp/>software</highlight></codeline>
+<codeline lineno="11"><highlight class="comment"><sp/>*<sp/>distributed<sp/>under<sp/>the<sp/>License<sp/>is<sp/>distributed<sp/>on<sp/>an<sp/>&quot;AS<sp/>IS&quot;<sp/>BASIS,</highlight></codeline>
+<codeline lineno="12"><highlight class="comment"><sp/>*<sp/>WITHOUT<sp/>WARRANTIES<sp/>OR<sp/>CONDITIONS<sp/>OF<sp/>ANY<sp/>KIND,<sp/>either<sp/>express<sp/>or<sp/>implied.</highlight></codeline>
+<codeline lineno="13"><highlight class="comment"><sp/>*<sp/>See<sp/>the<sp/>License<sp/>for<sp/>the<sp/>specific<sp/>language<sp/>governing<sp/>permissions<sp/>and</highlight></codeline>
+<codeline lineno="14"><highlight class="comment"><sp/>*<sp/>limitations<sp/>under<sp/>the<sp/>License.</highlight></codeline>
+<codeline lineno="15"><highlight class="comment"><sp/>*/</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="16"><highlight class="normal"></highlight></codeline>
+<codeline lineno="17"><highlight class="normal"></highlight><highlight class="preprocessor">#pragma<sp/>once</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="18"><highlight class="normal"></highlight></codeline>
+<codeline lineno="19"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&lt;cugraph/mtmg/detail/device_shared_device_vector.hpp&gt;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="20"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&lt;cugraph/mtmg/renumber_map_view.hpp&gt;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="21"><highlight class="normal"></highlight></codeline>
+<codeline lineno="22"><highlight class="normal"></highlight><highlight class="keyword">namespace<sp/></highlight><highlight class="normal">cugraph<sp/>{</highlight></codeline>
+<codeline lineno="23"><highlight class="normal"></highlight><highlight class="keyword">namespace<sp/></highlight><highlight class="normal">mtmg<sp/>{</highlight></codeline>
+<codeline lineno="24"><highlight class="normal"></highlight></codeline>
+<codeline lineno="28"><highlight class="normal"></highlight><highlight class="keyword">template</highlight><highlight class="normal"><sp/>&lt;</highlight><highlight class="keyword">typename</highlight><highlight class="normal"><sp/>vertex_t&gt;</highlight></codeline>
+<codeline lineno="29" refid="classcugraph_1_1mtmg_1_1renumber__map__t" refkind="compound"><highlight class="normal"></highlight><highlight class="keyword">class<sp/></highlight><highlight class="normal"><ref refid="classcugraph_1_1mtmg_1_1renumber__map__t" kindref="compound">renumber_map_t</ref><sp/>:<sp/></highlight><highlight class="keyword">public</highlight><highlight class="normal"><sp/><ref refid="classcugraph_1_1mtmg_1_1detail_1_1device__shared__device__vector__t" kindref="compound">detail::device_shared_device_vector_t</ref>&lt;vertex_t&gt;<sp/>{</highlight></codeline>
+<codeline lineno="30"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">using<sp/></highlight><highlight class="normal"><ref refid="classcugraph_1_1mtmg_1_1detail_1_1device__shared__device__vector__t" kindref="compound">parent_t</ref><sp/>=<sp/><ref refid="classcugraph_1_1mtmg_1_1detail_1_1device__shared__device__vector__t" kindref="compound">detail::device_shared_device_vector_t&lt;vertex_t&gt;</ref>;</highlight></codeline>
+<codeline lineno="31"><highlight class="normal"></highlight></codeline>
+<codeline lineno="32"><highlight class="normal"><sp/></highlight><highlight class="keyword">public</highlight><highlight class="normal">:</highlight></codeline>
+<codeline lineno="36" refid="classcugraph_1_1mtmg_1_1renumber__map__t_1a5ce3fe28eba794027dc2265cf253b0e9" refkind="member"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">auto</highlight><highlight class="normal"><sp/><ref refid="classcugraph_1_1mtmg_1_1renumber__map__t_1a5ce3fe28eba794027dc2265cf253b0e9" kindref="member">view</ref>()<sp/>{<sp/></highlight><highlight class="keywordflow">return</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">static_cast&lt;</highlight><highlight class="normal"><ref refid="classcugraph_1_1mtmg_1_1detail_1_1device__shared__wrapper__t" kindref="compound">renumber_map_view_t&lt;vertex_t&gt;</ref></highlight><highlight class="keyword">&gt;</highlight><highlight class="normal">(this-&gt;<ref refid="classcugraph_1_1mtmg_1_1detail_1_1device__shared__device__vector__t_1aae32ad9bb9769756cf6cef9a319c08b8" kindref="member">parent_t::view</ref>());<sp/>}</highlight></codeline>
+<codeline lineno="37"><highlight class="normal">};</highlight></codeline>
+<codeline lineno="38"><highlight class="normal"></highlight></codeline>
+<codeline lineno="39"><highlight class="normal">}<sp/><sp/></highlight><highlight class="comment">//<sp/>namespace<sp/>mtmg</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="40"><highlight class="normal">}<sp/><sp/></highlight><highlight class="comment">//<sp/>namespace<sp/>cugraph</highlight><highlight class="normal"></highlight></codeline>
+    </programlisting>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/renumber_map.hpp"/>
+  </compounddef>
+</doxygen>

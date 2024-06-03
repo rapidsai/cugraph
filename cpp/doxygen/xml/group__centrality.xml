@@ -1,0 +1,487 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="group__centrality" kind="group">
+    <compoundname>centrality</compoundname>
+    <title>Centrality algorithms</title>
+    <sectiondef kind="func">
+      <memberdef kind="function" id="group__centrality_1ga19bcf9a286457a4896c644b23e2102d7" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref> *</type>
+        <definition>cugraph_type_erased_device_array_view_t * cugraph_centrality_result_get_vertices</definition>
+        <argsstring>(cugraph_centrality_result_t *result)</argsstring>
+        <name>cugraph_centrality_result_get_vertices</name>
+        <param>
+          <type><ref refid="structcugraph__centrality__result__t" kindref="compound">cugraph_centrality_result_t</ref> *</type>
+          <declname>result</declname>
+        </param>
+        <briefdescription>
+<para>Get the vertex ids from the centrality result. </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">result</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>The result from a centrality algorithm </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>type erased array of vertex ids </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/centrality_algorithms.h" line="46" column="41" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/centrality_result.cpp" bodystart="21" bodyend="27" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/centrality_algorithms.h" declline="46" declcolumn="41"/>
+      </memberdef>
+      <memberdef kind="function" id="group__centrality_1gad15f8beada5a4032955c6ec76d7367d6" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref> *</type>
+        <definition>cugraph_type_erased_device_array_view_t * cugraph_centrality_result_get_values</definition>
+        <argsstring>(cugraph_centrality_result_t *result)</argsstring>
+        <name>cugraph_centrality_result_get_values</name>
+        <param>
+          <type><ref refid="structcugraph__centrality__result__t" kindref="compound">cugraph_centrality_result_t</ref> *</type>
+          <declname>result</declname>
+        </param>
+        <briefdescription>
+<para>Get the centrality values from a centrality algorithm result. </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">result</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>The result from a centrality algorithm </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>type erased array view of centrality values </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/centrality_algorithms.h" line="56" column="41" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/centrality_result.cpp" bodystart="29" bodyend="35" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/centrality_algorithms.h" declline="56" declcolumn="41"/>
+      </memberdef>
+      <memberdef kind="function" id="group__centrality_1ga21f03438b5a6c7df96afa9a752f17521" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>size_t</type>
+        <definition>size_t cugraph_centrality_result_get_num_iterations</definition>
+        <argsstring>(cugraph_centrality_result_t *result)</argsstring>
+        <name>cugraph_centrality_result_get_num_iterations</name>
+        <param>
+          <type><ref refid="structcugraph__centrality__result__t" kindref="compound">cugraph_centrality_result_t</ref> *</type>
+          <declname>result</declname>
+        </param>
+        <briefdescription>
+<para>Get the number of iterations executed from the algorithm metadata. </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">result</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>The result from a centrality algorithm </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>the number of iterations </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/centrality_algorithms.h" line="66" column="8" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/centrality_result.cpp" bodystart="37" bodyend="41" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/centrality_algorithms.h" declline="66" declcolumn="8"/>
+      </memberdef>
+      <memberdef kind="function" id="group__centrality_1gae18a032cf0fe0b4674a0dec747852475" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>bool_t</type>
+        <definition>bool_t cugraph_centrality_result_converged</definition>
+        <argsstring>(cugraph_centrality_result_t *result)</argsstring>
+        <name>cugraph_centrality_result_converged</name>
+        <param>
+          <type><ref refid="structcugraph__centrality__result__t" kindref="compound">cugraph_centrality_result_t</ref> *</type>
+          <declname>result</declname>
+        </param>
+        <briefdescription>
+<para>Returns true if the centrality algorithm converged. </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">result</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>The result from a centrality algorithm </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>True if the centrality algorithm converged, false otherwise </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/centrality_algorithms.h" line="75" column="8" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/centrality_result.cpp" bodystart="43" bodyend="47" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/centrality_algorithms.h" declline="75" declcolumn="8"/>
+      </memberdef>
+      <memberdef kind="function" id="group__centrality_1ga3671f0ffa0a9018acc50f60467d26de1" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>void</type>
+        <definition>void cugraph_centrality_result_free</definition>
+        <argsstring>(cugraph_centrality_result_t *result)</argsstring>
+        <name>cugraph_centrality_result_free</name>
+        <param>
+          <type><ref refid="structcugraph__centrality__result__t" kindref="compound">cugraph_centrality_result_t</ref> *</type>
+          <declname>result</declname>
+        </param>
+        <briefdescription>
+<para>Free centrality result. </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">result</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>The result from a centrality algorithm </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/centrality_algorithms.h" line="83" column="6" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/centrality_result.cpp" bodystart="49" bodyend="55" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/centrality_algorithms.h" declline="83" declcolumn="6"/>
+      </memberdef>
+      <memberdef kind="function" id="group__centrality_1ga3b24ab80308bbf896b8c12261645382e" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref> *</type>
+        <definition>cugraph_type_erased_device_array_view_t * cugraph_edge_centrality_result_get_src_vertices</definition>
+        <argsstring>(cugraph_edge_centrality_result_t *result)</argsstring>
+        <name>cugraph_edge_centrality_result_get_src_vertices</name>
+        <param>
+          <type><ref refid="structcugraph__edge__centrality__result__t" kindref="compound">cugraph_edge_centrality_result_t</ref> *</type>
+          <declname>result</declname>
+        </param>
+        <briefdescription>
+<para>Get the src vertex ids from an edge centrality result. </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">result</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>The result from an edge centrality algorithm </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>type erased array of src vertex ids </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/centrality_algorithms.h" line="421" column="41" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/centrality_result.cpp" bodystart="57" bodyend="64" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/centrality_algorithms.h" declline="421" declcolumn="41"/>
+      </memberdef>
+      <memberdef kind="function" id="group__centrality_1ga40fd0ad1d7fb1dde3383c1c6552a01c6" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref> *</type>
+        <definition>cugraph_type_erased_device_array_view_t * cugraph_edge_centrality_result_get_dst_vertices</definition>
+        <argsstring>(cugraph_edge_centrality_result_t *result)</argsstring>
+        <name>cugraph_edge_centrality_result_get_dst_vertices</name>
+        <param>
+          <type><ref refid="structcugraph__edge__centrality__result__t" kindref="compound">cugraph_edge_centrality_result_t</ref> *</type>
+          <declname>result</declname>
+        </param>
+        <briefdescription>
+<para>Get the dst vertex ids from an edge centrality result. </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">result</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>The result from an edge centrality algorithm </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>type erased array of dst vertex ids </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/centrality_algorithms.h" line="431" column="41" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/centrality_result.cpp" bodystart="66" bodyend="73" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/centrality_algorithms.h" declline="431" declcolumn="41"/>
+      </memberdef>
+      <memberdef kind="function" id="group__centrality_1ga578060fffb6c3188346dbbd09622bdb0" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref> *</type>
+        <definition>cugraph_type_erased_device_array_view_t * cugraph_edge_centrality_result_get_edge_ids</definition>
+        <argsstring>(cugraph_edge_centrality_result_t *result)</argsstring>
+        <name>cugraph_edge_centrality_result_get_edge_ids</name>
+        <param>
+          <type><ref refid="structcugraph__edge__centrality__result__t" kindref="compound">cugraph_edge_centrality_result_t</ref> *</type>
+          <declname>result</declname>
+        </param>
+        <briefdescription>
+<para>Get the edge ids from an edge centrality result. </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">result</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>The result from an edge centrality algorithm </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>type erased array of edge ids </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/centrality_algorithms.h" line="441" column="41" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/centrality_result.cpp" bodystart="84" bodyend="91" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/centrality_algorithms.h" declline="441" declcolumn="41"/>
+      </memberdef>
+      <memberdef kind="function" id="group__centrality_1ga26f6ee905429ca70251caa970497c4c1" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref> *</type>
+        <definition>cugraph_type_erased_device_array_view_t * cugraph_edge_centrality_result_get_values</definition>
+        <argsstring>(cugraph_edge_centrality_result_t *result)</argsstring>
+        <name>cugraph_edge_centrality_result_get_values</name>
+        <param>
+          <type><ref refid="structcugraph__edge__centrality__result__t" kindref="compound">cugraph_edge_centrality_result_t</ref> *</type>
+          <declname>result</declname>
+        </param>
+        <briefdescription>
+<para>Get the centrality values from an edge centrality algorithm result. </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">result</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>The result from an edge centrality algorithm </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>type erased array view of centrality values </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/centrality_algorithms.h" line="451" column="41" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/centrality_result.cpp" bodystart="75" bodyend="82" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/centrality_algorithms.h" declline="451" declcolumn="41"/>
+      </memberdef>
+      <memberdef kind="function" id="group__centrality_1ga8692339201a3756d1dbc78984ed55b93" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>void</type>
+        <definition>void cugraph_edge_centrality_result_free</definition>
+        <argsstring>(cugraph_edge_centrality_result_t *result)</argsstring>
+        <name>cugraph_edge_centrality_result_free</name>
+        <param>
+          <type><ref refid="structcugraph__edge__centrality__result__t" kindref="compound">cugraph_edge_centrality_result_t</ref> *</type>
+          <declname>result</declname>
+        </param>
+        <briefdescription>
+<para>Free centrality result. </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">result</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>The result from a centrality algorithm </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/centrality_algorithms.h" line="460" column="6" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/centrality_result.cpp" bodystart="93" bodyend="102" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/centrality_algorithms.h" declline="460" declcolumn="6"/>
+      </memberdef>
+      <memberdef kind="function" id="group__centrality_1ga3d8414b2525c37116bbc02e0ffc1fc84" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref> *</type>
+        <definition>cugraph_type_erased_device_array_view_t * cugraph_hits_result_get_vertices</definition>
+        <argsstring>(cugraph_hits_result_t *result)</argsstring>
+        <name>cugraph_hits_result_get_vertices</name>
+        <param>
+          <type><ref refid="structcugraph__hits__result__t" kindref="compound">cugraph_hits_result_t</ref> *</type>
+          <declname>result</declname>
+        </param>
+        <briefdescription>
+<para>Get the vertex ids from the hits result. </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">result</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>The result from hits </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>type erased array of vertex ids </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/centrality_algorithms.h" line="508" column="41" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/hits.cpp" bodystart="171" bodyend="177" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/centrality_algorithms.h" declline="508" declcolumn="41"/>
+      </memberdef>
+      <memberdef kind="function" id="group__centrality_1gad1b685aea09a6e5d17b1faf97d77f3c2" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref> *</type>
+        <definition>cugraph_type_erased_device_array_view_t * cugraph_hits_result_get_hubs</definition>
+        <argsstring>(cugraph_hits_result_t *result)</argsstring>
+        <name>cugraph_hits_result_get_hubs</name>
+        <param>
+          <type><ref refid="structcugraph__hits__result__t" kindref="compound">cugraph_hits_result_t</ref> *</type>
+          <declname>result</declname>
+        </param>
+        <briefdescription>
+<para>Get the hubs values from the hits result. </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">result</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>The result from hits </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>type erased array of hubs values </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/centrality_algorithms.h" line="518" column="41" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/hits.cpp" bodystart="179" bodyend="185" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/centrality_algorithms.h" declline="518" declcolumn="41"/>
+      </memberdef>
+      <memberdef kind="function" id="group__centrality_1gac4351d4c149467954d1420ce78dca040" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref> *</type>
+        <definition>cugraph_type_erased_device_array_view_t * cugraph_hits_result_get_authorities</definition>
+        <argsstring>(cugraph_hits_result_t *result)</argsstring>
+        <name>cugraph_hits_result_get_authorities</name>
+        <param>
+          <type><ref refid="structcugraph__hits__result__t" kindref="compound">cugraph_hits_result_t</ref> *</type>
+          <declname>result</declname>
+        </param>
+        <briefdescription>
+<para>Get the authorities values from the hits result. </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">result</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>The result from hits </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>type erased array of authorities values </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/centrality_algorithms.h" line="528" column="41" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/hits.cpp" bodystart="187" bodyend="193" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/centrality_algorithms.h" declline="528" declcolumn="41"/>
+      </memberdef>
+      <memberdef kind="function" id="group__centrality_1gab4f724ca86996a258744958d7066dd85" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>double</type>
+        <definition>double cugraph_hits_result_get_hub_score_differences</definition>
+        <argsstring>(cugraph_hits_result_t *result)</argsstring>
+        <name>cugraph_hits_result_get_hub_score_differences</name>
+        <param>
+          <type><ref refid="structcugraph__hits__result__t" kindref="compound">cugraph_hits_result_t</ref> *</type>
+          <declname>result</declname>
+        </param>
+        <briefdescription>
+<para>Get the score differences between the last two iterations. </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">result</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>The result from hits </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>score differences </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/centrality_algorithms.h" line="538" column="8" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/hits.cpp" bodystart="195" bodyend="199" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/centrality_algorithms.h" declline="538" declcolumn="8"/>
+      </memberdef>
+      <memberdef kind="function" id="group__centrality_1gac40c66bffcb71b3ccab54acc38beb6be" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>size_t</type>
+        <definition>size_t cugraph_hits_result_get_number_of_iterations</definition>
+        <argsstring>(cugraph_hits_result_t *result)</argsstring>
+        <name>cugraph_hits_result_get_number_of_iterations</name>
+        <param>
+          <type><ref refid="structcugraph__hits__result__t" kindref="compound">cugraph_hits_result_t</ref> *</type>
+          <declname>result</declname>
+        </param>
+        <briefdescription>
+<para>Get the actual number of iterations. </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">result</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>The result from hits </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>actual number of iterations </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/centrality_algorithms.h" line="547" column="8" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/hits.cpp" bodystart="201" bodyend="205" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/centrality_algorithms.h" declline="547" declcolumn="8"/>
+      </memberdef>
+      <memberdef kind="function" id="group__centrality_1gac8b2d3d4d7dc25bc4f90b79ed4be7b2c" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>void</type>
+        <definition>void cugraph_hits_result_free</definition>
+        <argsstring>(cugraph_hits_result_t *result)</argsstring>
+        <name>cugraph_hits_result_free</name>
+        <param>
+          <type><ref refid="structcugraph__hits__result__t" kindref="compound">cugraph_hits_result_t</ref> *</type>
+          <declname>result</declname>
+        </param>
+        <briefdescription>
+<para>Free hits result. </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">result</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>The result from hits </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/centrality_algorithms.h" line="555" column="6" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/hits.cpp" bodystart="207" bodyend="214" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/centrality_algorithms.h" declline="555" declcolumn="6"/>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+  </compounddef>
+</doxygen>

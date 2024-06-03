@@ -1,0 +1,71 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="structcugraph_1_1detail_1_1update__paths" kind="struct" language="C++" prot="public">
+    <compoundname>cugraph::detail::update_paths</compoundname>
+    <templateparamlist>
+      <param>
+        <type>typename vertex_t</type>
+      </param>
+    </templateparamlist>
+    <sectiondef kind="public-attrib">
+      <memberdef kind="variable" id="structcugraph_1_1detail_1_1update__paths_1acace51295159f5d9f4ba1097e990d808" prot="public" static="no" mutable="no">
+        <type>vertex_t *</type>
+        <definition>vertex_t* cugraph::detail::update_paths&lt; vertex_t &gt;::paths_</definition>
+        <argsstring></argsstring>
+        <name>paths_</name>
+        <qualifiedname>cugraph::detail::update_paths::paths_</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/traversal/extract_bfs_paths_impl.cuh" line="92" column="12" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/traversal/extract_bfs_paths_impl.cuh" bodystart="92" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph_1_1detail_1_1update__paths_1aa7eaa04b7d59a28815c1ad0102dd61cd" prot="public" static="no" mutable="no">
+        <type>vertex_t</type>
+        <definition>vertex_t cugraph::detail::update_paths&lt; vertex_t &gt;::invalid_vertex_</definition>
+        <argsstring></argsstring>
+        <name>invalid_vertex_</name>
+        <qualifiedname>cugraph::detail::update_paths::invalid_vertex_</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/traversal/extract_bfs_paths_impl.cuh" line="93" column="12" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/traversal/extract_bfs_paths_impl.cuh" bodystart="93" bodyend="-1"/>
+      </memberdef>
+    </sectiondef>
+    <sectiondef kind="public-func">
+      <memberdef kind="function" id="structcugraph_1_1detail_1_1update__paths_1af1b3d20474df9d5b1cc9f752824f74bd" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type>void __device__</type>
+        <definition>void __device__ cugraph::detail::update_paths&lt; vertex_t &gt;::operator()</definition>
+        <argsstring>(thrust::tuple&lt; vertex_t, size_t &gt; tuple)</argsstring>
+        <name>operator()</name>
+        <qualifiedname>cugraph::detail::update_paths::operator()</qualifiedname>
+        <param>
+          <type>thrust::tuple&lt; vertex_t, size_t &gt;</type>
+          <declname>tuple</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/traversal/extract_bfs_paths_impl.cuh" line="95" column="19" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/traversal/extract_bfs_paths_impl.cuh" bodystart="95" bodyend="101"/>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/src/traversal/extract_bfs_paths_impl.cuh" line="91" column="1" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/traversal/extract_bfs_paths_impl.cuh" bodystart="91" bodyend="102"/>
+    <listofallmembers>
+      <member refid="structcugraph_1_1detail_1_1update__paths_1aa7eaa04b7d59a28815c1ad0102dd61cd" prot="public" virt="non-virtual"><scope>cugraph::detail::update_paths</scope><name>invalid_vertex_</name></member>
+      <member refid="structcugraph_1_1detail_1_1update__paths_1af1b3d20474df9d5b1cc9f752824f74bd" prot="public" virt="non-virtual"><scope>cugraph::detail::update_paths</scope><name>operator()</name></member>
+      <member refid="structcugraph_1_1detail_1_1update__paths_1acace51295159f5d9f4ba1097e990d808" prot="public" virt="non-virtual"><scope>cugraph::detail::update_paths</scope><name>paths_</name></member>
+    </listofallmembers>
+  </compounddef>
+</doxygen>

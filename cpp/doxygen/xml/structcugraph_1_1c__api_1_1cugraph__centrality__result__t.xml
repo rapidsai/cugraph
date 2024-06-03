@@ -1,0 +1,93 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="structcugraph_1_1c__api_1_1cugraph__centrality__result__t" kind="struct" language="C++" prot="public">
+    <compoundname>cugraph::c_api::cugraph_centrality_result_t</compoundname>
+    <sectiondef kind="public-attrib">
+      <memberdef kind="variable" id="structcugraph_1_1c__api_1_1cugraph__centrality__result__t_1acec83c2d962adf59c638df758660f355" prot="public" static="no" mutable="no">
+        <type><ref refid="structcugraph_1_1c__api_1_1cugraph__type__erased__device__array__t" kindref="compound">cugraph_type_erased_device_array_t</ref> *</type>
+        <definition>cugraph_type_erased_device_array_t* cugraph::c_api::cugraph_centrality_result_t::vertex_ids_</definition>
+        <argsstring></argsstring>
+        <name>vertex_ids_</name>
+        <qualifiedname>cugraph::c_api::cugraph_centrality_result_t::vertex_ids_</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/c_api/centrality_result.hpp" line="25" column="38" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/centrality_result.hpp" bodystart="25" bodyend="25"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph_1_1c__api_1_1cugraph__centrality__result__t_1ae8a4feece90dba20cb170e75dc97205e" prot="public" static="no" mutable="no">
+        <type><ref refid="structcugraph_1_1c__api_1_1cugraph__type__erased__device__array__t" kindref="compound">cugraph_type_erased_device_array_t</ref> *</type>
+        <definition>cugraph_type_erased_device_array_t* cugraph::c_api::cugraph_centrality_result_t::values_</definition>
+        <argsstring></argsstring>
+        <name>values_</name>
+        <qualifiedname>cugraph::c_api::cugraph_centrality_result_t::values_</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/c_api/centrality_result.hpp" line="26" column="38" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/centrality_result.hpp" bodystart="26" bodyend="26"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph_1_1c__api_1_1cugraph__centrality__result__t_1ae86d01a02b31296086e3c45ab8eb2d8f" prot="public" static="no" mutable="no">
+        <type>size_t</type>
+        <definition>size_t cugraph::c_api::cugraph_centrality_result_t::num_iterations_</definition>
+        <argsstring></argsstring>
+        <name>num_iterations_</name>
+        <qualifiedname>cugraph::c_api::cugraph_centrality_result_t::num_iterations_</qualifiedname>
+        <initializer>{0}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/c_api/centrality_result.hpp" line="27" column="10" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/centrality_result.hpp" bodystart="27" bodyend="27"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph_1_1c__api_1_1cugraph__centrality__result__t_1a14add2f57228c7f40bf00a1cb965a79e" prot="public" static="no" mutable="no">
+        <type>bool</type>
+        <definition>bool cugraph::c_api::cugraph_centrality_result_t::converged_</definition>
+        <argsstring></argsstring>
+        <name>converged_</name>
+        <qualifiedname>cugraph::c_api::cugraph_centrality_result_t::converged_</qualifiedname>
+        <initializer>{false}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/c_api/centrality_result.hpp" line="28" column="8" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/centrality_result.hpp" bodystart="28" bodyend="28"/>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <collaborationgraph>
+      <node id="1">
+        <label>cugraph::c_api::cugraph_centrality_result_t</label>
+        <link refid="structcugraph_1_1c__api_1_1cugraph__centrality__result__t"/>
+        <childnode refid="2" relation="usage">
+          <edgelabel>values_</edgelabel>
+          <edgelabel>vertex_ids_</edgelabel>
+        </childnode>
+      </node>
+      <node id="2">
+        <label>cugraph::c_api::cugraph_type_erased_device_array_t</label>
+        <link refid="structcugraph_1_1c__api_1_1cugraph__type__erased__device__array__t"/>
+      </node>
+    </collaborationgraph>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/src/c_api/centrality_result.hpp" line="24" column="1" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/centrality_result.hpp" bodystart="24" bodyend="29"/>
+    <listofallmembers>
+      <member refid="structcugraph_1_1c__api_1_1cugraph__centrality__result__t_1a14add2f57228c7f40bf00a1cb965a79e" prot="public" virt="non-virtual"><scope>cugraph::c_api::cugraph_centrality_result_t</scope><name>converged_</name></member>
+      <member refid="structcugraph_1_1c__api_1_1cugraph__centrality__result__t_1ae86d01a02b31296086e3c45ab8eb2d8f" prot="public" virt="non-virtual"><scope>cugraph::c_api::cugraph_centrality_result_t</scope><name>num_iterations_</name></member>
+      <member refid="structcugraph_1_1c__api_1_1cugraph__centrality__result__t_1ae8a4feece90dba20cb170e75dc97205e" prot="public" virt="non-virtual"><scope>cugraph::c_api::cugraph_centrality_result_t</scope><name>values_</name></member>
+      <member refid="structcugraph_1_1c__api_1_1cugraph__centrality__result__t_1acec83c2d962adf59c638df758660f355" prot="public" virt="non-virtual"><scope>cugraph::c_api::cugraph_centrality_result_t</scope><name>vertex_ids_</name></member>
+    </listofallmembers>
+  </compounddef>
+</doxygen>

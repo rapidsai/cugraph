@@ -1,0 +1,129 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="structcugraph_1_1c__api_1_1cugraph__induced__subgraph__result__t" kind="struct" language="C++" prot="public">
+    <compoundname>cugraph::c_api::cugraph_induced_subgraph_result_t</compoundname>
+    <sectiondef kind="public-attrib">
+      <memberdef kind="variable" id="structcugraph_1_1c__api_1_1cugraph__induced__subgraph__result__t_1a96e6e43d68850a044d5d2b9a81874a25" prot="public" static="no" mutable="no">
+        <type><ref refid="structcugraph_1_1c__api_1_1cugraph__type__erased__device__array__t" kindref="compound">cugraph_type_erased_device_array_t</ref> *</type>
+        <definition>cugraph_type_erased_device_array_t* cugraph::c_api::cugraph_induced_subgraph_result_t::src_</definition>
+        <argsstring></argsstring>
+        <name>src_</name>
+        <qualifiedname>cugraph::c_api::cugraph_induced_subgraph_result_t::src_</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/c_api/induced_subgraph_result.hpp" line="25" column="38" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/induced_subgraph_result.hpp" bodystart="25" bodyend="25"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph_1_1c__api_1_1cugraph__induced__subgraph__result__t_1aebea3e0d978d8ad7eaca512a1bd892d1" prot="public" static="no" mutable="no">
+        <type><ref refid="structcugraph_1_1c__api_1_1cugraph__type__erased__device__array__t" kindref="compound">cugraph_type_erased_device_array_t</ref> *</type>
+        <definition>cugraph_type_erased_device_array_t* cugraph::c_api::cugraph_induced_subgraph_result_t::dst_</definition>
+        <argsstring></argsstring>
+        <name>dst_</name>
+        <qualifiedname>cugraph::c_api::cugraph_induced_subgraph_result_t::dst_</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/c_api/induced_subgraph_result.hpp" line="26" column="38" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/induced_subgraph_result.hpp" bodystart="26" bodyend="26"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph_1_1c__api_1_1cugraph__induced__subgraph__result__t_1a737dd9eda000f2a587196cc9e94e21bb" prot="public" static="no" mutable="no">
+        <type><ref refid="structcugraph_1_1c__api_1_1cugraph__type__erased__device__array__t" kindref="compound">cugraph_type_erased_device_array_t</ref> *</type>
+        <definition>cugraph_type_erased_device_array_t* cugraph::c_api::cugraph_induced_subgraph_result_t::wgt_</definition>
+        <argsstring></argsstring>
+        <name>wgt_</name>
+        <qualifiedname>cugraph::c_api::cugraph_induced_subgraph_result_t::wgt_</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/c_api/induced_subgraph_result.hpp" line="27" column="38" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/induced_subgraph_result.hpp" bodystart="27" bodyend="27"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph_1_1c__api_1_1cugraph__induced__subgraph__result__t_1ae60aec7d052bcfd645670fe595151733" prot="public" static="no" mutable="no">
+        <type><ref refid="structcugraph_1_1c__api_1_1cugraph__type__erased__device__array__t" kindref="compound">cugraph_type_erased_device_array_t</ref> *</type>
+        <definition>cugraph_type_erased_device_array_t* cugraph::c_api::cugraph_induced_subgraph_result_t::edge_ids_</definition>
+        <argsstring></argsstring>
+        <name>edge_ids_</name>
+        <qualifiedname>cugraph::c_api::cugraph_induced_subgraph_result_t::edge_ids_</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/c_api/induced_subgraph_result.hpp" line="28" column="38" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/induced_subgraph_result.hpp" bodystart="28" bodyend="28"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph_1_1c__api_1_1cugraph__induced__subgraph__result__t_1a07c229be4c45c94c3f1755709ef527bf" prot="public" static="no" mutable="no">
+        <type><ref refid="structcugraph_1_1c__api_1_1cugraph__type__erased__device__array__t" kindref="compound">cugraph_type_erased_device_array_t</ref> *</type>
+        <definition>cugraph_type_erased_device_array_t* cugraph::c_api::cugraph_induced_subgraph_result_t::edge_type_ids_</definition>
+        <argsstring></argsstring>
+        <name>edge_type_ids_</name>
+        <qualifiedname>cugraph::c_api::cugraph_induced_subgraph_result_t::edge_type_ids_</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/c_api/induced_subgraph_result.hpp" line="29" column="38" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/induced_subgraph_result.hpp" bodystart="29" bodyend="29"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph_1_1c__api_1_1cugraph__induced__subgraph__result__t_1a654be791708ab62737714bf7e853be3c" prot="public" static="no" mutable="no">
+        <type><ref refid="structcugraph_1_1c__api_1_1cugraph__type__erased__device__array__t" kindref="compound">cugraph_type_erased_device_array_t</ref> *</type>
+        <definition>cugraph_type_erased_device_array_t* cugraph::c_api::cugraph_induced_subgraph_result_t::subgraph_offsets_</definition>
+        <argsstring></argsstring>
+        <name>subgraph_offsets_</name>
+        <qualifiedname>cugraph::c_api::cugraph_induced_subgraph_result_t::subgraph_offsets_</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/c_api/induced_subgraph_result.hpp" line="30" column="38" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/induced_subgraph_result.hpp" bodystart="30" bodyend="30"/>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <collaborationgraph>
+      <node id="1">
+        <label>cugraph::c_api::cugraph_induced_subgraph_result_t</label>
+        <link refid="structcugraph_1_1c__api_1_1cugraph__induced__subgraph__result__t"/>
+        <childnode refid="2" relation="usage">
+          <edgelabel>dst_</edgelabel>
+          <edgelabel>edge_ids_</edgelabel>
+          <edgelabel>edge_type_ids_</edgelabel>
+          <edgelabel>src_</edgelabel>
+          <edgelabel>subgraph_offsets_</edgelabel>
+          <edgelabel>wgt_</edgelabel>
+        </childnode>
+      </node>
+      <node id="2">
+        <label>cugraph::c_api::cugraph_type_erased_device_array_t</label>
+        <link refid="structcugraph_1_1c__api_1_1cugraph__type__erased__device__array__t"/>
+      </node>
+    </collaborationgraph>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/src/c_api/induced_subgraph_result.hpp" line="24" column="1" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/induced_subgraph_result.hpp" bodystart="24" bodyend="31"/>
+    <listofallmembers>
+      <member refid="structcugraph_1_1c__api_1_1cugraph__induced__subgraph__result__t_1aebea3e0d978d8ad7eaca512a1bd892d1" prot="public" virt="non-virtual"><scope>cugraph::c_api::cugraph_induced_subgraph_result_t</scope><name>dst_</name></member>
+      <member refid="structcugraph_1_1c__api_1_1cugraph__induced__subgraph__result__t_1ae60aec7d052bcfd645670fe595151733" prot="public" virt="non-virtual"><scope>cugraph::c_api::cugraph_induced_subgraph_result_t</scope><name>edge_ids_</name></member>
+      <member refid="structcugraph_1_1c__api_1_1cugraph__induced__subgraph__result__t_1a07c229be4c45c94c3f1755709ef527bf" prot="public" virt="non-virtual"><scope>cugraph::c_api::cugraph_induced_subgraph_result_t</scope><name>edge_type_ids_</name></member>
+      <member refid="structcugraph_1_1c__api_1_1cugraph__induced__subgraph__result__t_1a96e6e43d68850a044d5d2b9a81874a25" prot="public" virt="non-virtual"><scope>cugraph::c_api::cugraph_induced_subgraph_result_t</scope><name>src_</name></member>
+      <member refid="structcugraph_1_1c__api_1_1cugraph__induced__subgraph__result__t_1a654be791708ab62737714bf7e853be3c" prot="public" virt="non-virtual"><scope>cugraph::c_api::cugraph_induced_subgraph_result_t</scope><name>subgraph_offsets_</name></member>
+      <member refid="structcugraph_1_1c__api_1_1cugraph__induced__subgraph__result__t_1a737dd9eda000f2a587196cc9e94e21bb" prot="public" virt="non-virtual"><scope>cugraph::c_api::cugraph_induced_subgraph_result_t</scope><name>wgt_</name></member>
+    </listofallmembers>
+  </compounddef>
+</doxygen>

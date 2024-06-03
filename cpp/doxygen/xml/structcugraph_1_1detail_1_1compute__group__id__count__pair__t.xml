@@ -1,0 +1,73 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="structcugraph_1_1detail_1_1compute__group__id__count__pair__t" kind="struct" language="C++" prot="public">
+    <compoundname>cugraph::detail::compute_group_id_count_pair_t</compoundname>
+    <templateparamlist>
+      <param>
+        <type>typename GroupIdIterator</type>
+      </param>
+    </templateparamlist>
+    <sectiondef kind="public-attrib">
+      <memberdef kind="variable" id="structcugraph_1_1detail_1_1compute__group__id__count__pair__t_1a17f72551dc7361698c2dbc816080da39" prot="public" static="no" mutable="no">
+        <type>GroupIdIterator</type>
+        <definition>GroupIdIterator cugraph::detail::compute_group_id_count_pair_t&lt; GroupIdIterator &gt;::group_id_first</definition>
+        <argsstring></argsstring>
+        <name>group_id_first</name>
+        <qualifiedname>cugraph::detail::compute_group_id_count_pair_t::group_id_first</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/utilities/shuffle_comm.cuh" line="55" column="19" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/utilities/shuffle_comm.cuh" bodystart="55" bodyend="55"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph_1_1detail_1_1compute__group__id__count__pair__t_1a6825e929d1ee14ce7dbb93feb1c08048" prot="public" static="no" mutable="no">
+        <type>GroupIdIterator</type>
+        <definition>GroupIdIterator cugraph::detail::compute_group_id_count_pair_t&lt; GroupIdIterator &gt;::group_id_last</definition>
+        <argsstring></argsstring>
+        <name>group_id_last</name>
+        <qualifiedname>cugraph::detail::compute_group_id_count_pair_t::group_id_last</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/utilities/shuffle_comm.cuh" line="56" column="19" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/utilities/shuffle_comm.cuh" bodystart="56" bodyend="56"/>
+      </memberdef>
+    </sectiondef>
+    <sectiondef kind="public-func">
+      <memberdef kind="function" id="structcugraph_1_1detail_1_1compute__group__id__count__pair__t_1a5b088879c048662eac788264e3c5359f" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>__device__ thrust::tuple&lt; int, size_t &gt;</type>
+        <definition>__device__ thrust::tuple&lt; int, size_t &gt; cugraph::detail::compute_group_id_count_pair_t&lt; GroupIdIterator &gt;::operator()</definition>
+        <argsstring>(size_t i) const</argsstring>
+        <name>operator()</name>
+        <qualifiedname>cugraph::detail::compute_group_id_count_pair_t::operator()</qualifiedname>
+        <param>
+          <type>size_t</type>
+          <declname>i</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/utilities/shuffle_comm.cuh" line="58" column="28" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/utilities/shuffle_comm.cuh" bodystart="58" bodyend="67"/>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/utilities/shuffle_comm.cuh" line="54" column="1" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/utilities/shuffle_comm.cuh" bodystart="54" bodyend="68"/>
+    <listofallmembers>
+      <member refid="structcugraph_1_1detail_1_1compute__group__id__count__pair__t_1a17f72551dc7361698c2dbc816080da39" prot="public" virt="non-virtual"><scope>cugraph::detail::compute_group_id_count_pair_t</scope><name>group_id_first</name></member>
+      <member refid="structcugraph_1_1detail_1_1compute__group__id__count__pair__t_1a6825e929d1ee14ce7dbb93feb1c08048" prot="public" virt="non-virtual"><scope>cugraph::detail::compute_group_id_count_pair_t</scope><name>group_id_last</name></member>
+      <member refid="structcugraph_1_1detail_1_1compute__group__id__count__pair__t_1a5b088879c048662eac788264e3c5359f" prot="public" virt="non-virtual"><scope>cugraph::detail::compute_group_id_count_pair_t</scope><name>operator()</name></member>
+    </listofallmembers>
+  </compounddef>
+</doxygen>

@@ -1,0 +1,127 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="classcugraph_1_1detail_1_1vertex__partition__device__view__base__t" kind="class" language="C++" prot="public">
+    <compoundname>cugraph::detail::vertex_partition_device_view_base_t</compoundname>
+    <derivedcompoundref refid="classcugraph_1_1vertex__partition__device__view__t_3_01vertex__t_00_01multi__gpu_00_01std_1_1ena852dd6e9071ecf96345ff549a9b20238" prot="public" virt="non-virtual">cugraph::vertex_partition_device_view_t&lt; vertex_t, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;</derivedcompoundref>
+    <derivedcompoundref refid="classcugraph_1_1vertex__partition__device__view__t_3_01vertex__t_00_01multi__gpu_00_01std_1_1enaafe258083c73f09613bba6173b275a13" prot="public" virt="non-virtual">cugraph::vertex_partition_device_view_t&lt; vertex_t, multi_gpu, std::enable_if_t&lt;!multi_gpu &gt; &gt;</derivedcompoundref>
+    <templateparamlist>
+      <param>
+        <type>typename vertex_t</type>
+      </param>
+    </templateparamlist>
+    <sectiondef kind="private-attrib">
+      <memberdef kind="variable" id="classcugraph_1_1detail_1_1vertex__partition__device__view__base__t_1a3405fef3ac4226d2cd501038bed1f01c" prot="private" static="no" mutable="no">
+        <type>vertex_t</type>
+        <definition>vertex_t cugraph::detail::vertex_partition_device_view_base_t&lt; vertex_t &gt;::number_of_vertices_</definition>
+        <argsstring></argsstring>
+        <name>number_of_vertices_</name>
+        <qualifiedname>cugraph::detail::vertex_partition_device_view_base_t::number_of_vertices_</qualifiedname>
+        <initializer>{0}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/vertex_partition_device_view.cuh" line="51" column="12" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/vertex_partition_device_view.cuh" bodystart="51" bodyend="51"/>
+      </memberdef>
+    </sectiondef>
+    <sectiondef kind="public-func">
+      <memberdef kind="function" id="classcugraph_1_1detail_1_1vertex__partition__device__view__base__t_1a22bbc2679e0bb5c7909ab06e1db9f65c" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type></type>
+        <definition>cugraph::detail::vertex_partition_device_view_base_t&lt; vertex_t &gt;::vertex_partition_device_view_base_t</definition>
+        <argsstring>(vertex_t number_of_vertices)</argsstring>
+        <name>vertex_partition_device_view_base_t</name>
+        <qualifiedname>cugraph::detail::vertex_partition_device_view_base_t::vertex_partition_device_view_base_t</qualifiedname>
+        <param>
+          <type>vertex_t</type>
+          <declname>number_of_vertices</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/vertex_partition_device_view.cuh" line="30" column="3" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/vertex_partition_device_view.cuh" bodystart="30" bodyend="33"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1detail_1_1vertex__partition__device__view__base__t_1a939b8cc2eadd6464b45a125d7bec5e39" prot="public" static="no" const="yes" explicit="no" inline="yes" noexcept="yes" virt="non-virtual">
+        <templateparamlist>
+          <param>
+            <type>typename vertex_type</type>
+            <defval>vertex_t</defval>
+          </param>
+        </templateparamlist>
+        <type>__host__ __device__ std::enable_if_t&lt; std::is_signed&lt; vertex_type &gt;::value, bool &gt;</type>
+        <definition>__host__ __device__ std::enable_if_t&lt; std::is_signed&lt; vertex_type &gt;::value, bool &gt; cugraph::detail::vertex_partition_device_view_base_t&lt; vertex_t &gt;::is_valid_vertex</definition>
+        <argsstring>(vertex_type v) const noexcept</argsstring>
+        <name>is_valid_vertex</name>
+        <qualifiedname>cugraph::detail::vertex_partition_device_view_base_t::is_valid_vertex</qualifiedname>
+        <param>
+          <type>vertex_type</type>
+          <declname>v</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/vertex_partition_device_view.cuh" line="36" column="41" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/vertex_partition_device_view.cuh" bodystart="36" bodyend="40"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1detail_1_1vertex__partition__device__view__base__t_1abe9b716dccb48569320679f441a63d14" prot="public" static="no" const="yes" explicit="no" inline="yes" noexcept="yes" virt="non-virtual">
+        <templateparamlist>
+          <param>
+            <type>typename vertex_type</type>
+            <defval>vertex_t</defval>
+          </param>
+        </templateparamlist>
+        <type>__host__ __device__ std::enable_if_t&lt; std::is_unsigned&lt; vertex_type &gt;::value, bool &gt;</type>
+        <definition>__host__ __device__ std::enable_if_t&lt; std::is_unsigned&lt; vertex_type &gt;::value, bool &gt; cugraph::detail::vertex_partition_device_view_base_t&lt; vertex_t &gt;::is_valid_vertex</definition>
+        <argsstring>(vertex_type v) const noexcept</argsstring>
+        <name>is_valid_vertex</name>
+        <qualifiedname>cugraph::detail::vertex_partition_device_view_base_t::is_valid_vertex</qualifiedname>
+        <param>
+          <type>vertex_type</type>
+          <declname>v</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/vertex_partition_device_view.cuh" line="43" column="41" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/vertex_partition_device_view.cuh" bodystart="43" bodyend="47"/>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <inheritancegraph>
+      <node id="1">
+        <label>cugraph::detail::vertex_partition_device_view_base_t&lt; vertex_t &gt;</label>
+        <link refid="classcugraph_1_1detail_1_1vertex__partition__device__view__base__t"/>
+      </node>
+      <node id="2">
+        <label>cugraph::vertex_partition_device_view_t&lt; vertex_t, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;</label>
+        <link refid="classcugraph_1_1vertex__partition__device__view__t_3_01vertex__t_00_01multi__gpu_00_01std_1_1ena852dd6e9071ecf96345ff549a9b20238"/>
+        <childnode refid="1" relation="public-inheritance">
+        </childnode>
+      </node>
+      <node id="3">
+        <label>cugraph::vertex_partition_device_view_t&lt; vertex_t, multi_gpu, std::enable_if_t&lt;!multi_gpu &gt; &gt;</label>
+        <link refid="classcugraph_1_1vertex__partition__device__view__t_3_01vertex__t_00_01multi__gpu_00_01std_1_1enaafe258083c73f09613bba6173b275a13"/>
+        <childnode refid="1" relation="public-inheritance">
+        </childnode>
+      </node>
+    </inheritancegraph>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/vertex_partition_device_view.cuh" line="28" column="1" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/vertex_partition_device_view.cuh" bodystart="28" bodyend="52"/>
+    <listofallmembers>
+      <member refid="classcugraph_1_1detail_1_1vertex__partition__device__view__base__t_1a939b8cc2eadd6464b45a125d7bec5e39" prot="public" virt="non-virtual"><scope>cugraph::detail::vertex_partition_device_view_base_t</scope><name>is_valid_vertex</name></member>
+      <member refid="classcugraph_1_1detail_1_1vertex__partition__device__view__base__t_1abe9b716dccb48569320679f441a63d14" prot="public" virt="non-virtual"><scope>cugraph::detail::vertex_partition_device_view_base_t</scope><name>is_valid_vertex</name></member>
+      <member refid="classcugraph_1_1detail_1_1vertex__partition__device__view__base__t_1a3405fef3ac4226d2cd501038bed1f01c" prot="private" virt="non-virtual"><scope>cugraph::detail::vertex_partition_device_view_base_t</scope><name>number_of_vertices_</name></member>
+      <member refid="classcugraph_1_1detail_1_1vertex__partition__device__view__base__t_1a22bbc2679e0bb5c7909ab06e1db9f65c" prot="public" virt="non-virtual"><scope>cugraph::detail::vertex_partition_device_view_base_t</scope><name>vertex_partition_device_view_base_t</name></member>
+    </listofallmembers>
+  </compounddef>
+</doxygen>

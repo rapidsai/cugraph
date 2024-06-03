@@ -1,0 +1,45 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="structcugraph_1_1detail_1_1is__thrust__tuple__of__arithemetic__impl" kind="struct" language="C++" prot="public">
+    <compoundname>cugraph::detail::is_thrust_tuple_of_arithemetic_impl</compoundname>
+    <templateparamlist>
+      <param>
+        <type>typename TupleType</type>
+      </param>
+      <param>
+        <type>size_t</type>
+        <declname>I</declname>
+        <defname>I</defname>
+      </param>
+      <param>
+        <type>size_t</type>
+        <declname>N</declname>
+        <defname>N</defname>
+      </param>
+    </templateparamlist>
+    <sectiondef kind="public-func">
+      <memberdef kind="function" id="structcugraph_1_1detail_1_1is__thrust__tuple__of__arithemetic__impl_1a15591147a7d06a89f23fb23ed85ebbe4" prot="public" static="no" constexpr="yes" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>constexpr bool</type>
+        <definition>constexpr bool cugraph::detail::is_thrust_tuple_of_arithemetic_impl&lt; TupleType, I, N &gt;::evaluate</definition>
+        <argsstring>() const</argsstring>
+        <name>evaluate</name>
+        <qualifiedname>cugraph::detail::is_thrust_tuple_of_arithemetic_impl::evaluate</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/utilities/thrust_tuple_utils.hpp" line="32" column="18" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/utilities/thrust_tuple_utils.hpp" bodystart="32" bodyend="39"/>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/utilities/thrust_tuple_utils.hpp" line="31" column="1" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/utilities/thrust_tuple_utils.hpp" bodystart="31" bodyend="40"/>
+    <listofallmembers>
+      <member refid="structcugraph_1_1detail_1_1is__thrust__tuple__of__arithemetic__impl_1a15591147a7d06a89f23fb23ed85ebbe4" prot="public" virt="non-virtual"><scope>cugraph::detail::is_thrust_tuple_of_arithemetic_impl</scope><name>evaluate</name></member>
+    </listofallmembers>
+  </compounddef>
+</doxygen>

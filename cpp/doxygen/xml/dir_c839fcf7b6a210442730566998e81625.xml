@@ -1,0 +1,37 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="dir_c839fcf7b6a210442730566998e81625" kind="dir">
+    <compoundname>prims</compoundname>
+    <innerdir refid="dir_11ff5d24f884097dbaa11079708b2135">detail</innerdir>
+    <innerfile refid="count__if__e_8cuh">count_if_e.cuh</innerfile>
+    <innerfile refid="count__if__v_8cuh">count_if_v.cuh</innerfile>
+    <innerfile refid="edge__bucket_8cuh">edge_bucket.cuh</innerfile>
+    <innerfile refid="extract__transform__e_8cuh">extract_transform_e.cuh</innerfile>
+    <innerfile refid="extract__transform__v__frontier__outgoing__e_8cuh">extract_transform_v_frontier_outgoing_e.cuh</innerfile>
+    <innerfile refid="fill__edge__property_8cuh">fill_edge_property.cuh</innerfile>
+    <innerfile refid="fill__edge__src__dst__property_8cuh">fill_edge_src_dst_property.cuh</innerfile>
+    <innerfile refid="key__store_8cuh">key_store.cuh</innerfile>
+    <innerfile refid="kv__store_8cuh">kv_store.cuh</innerfile>
+    <innerfile refid="per__v__pair__transform__dst__nbr__intersection_8cuh">per_v_pair_transform_dst_nbr_intersection.cuh</innerfile>
+    <innerfile refid="per__v__random__select__transform__outgoing__e_8cuh">per_v_random_select_transform_outgoing_e.cuh</innerfile>
+    <innerfile refid="per__v__transform__reduce__dst__key__aggregated__outgoing__e_8cuh">per_v_transform_reduce_dst_key_aggregated_outgoing_e.cuh</innerfile>
+    <innerfile refid="per__v__transform__reduce__incoming__outgoing__e_8cuh">per_v_transform_reduce_incoming_outgoing_e.cuh</innerfile>
+    <innerfile refid="property__op__utils_8cuh">property_op_utils.cuh</innerfile>
+    <innerfile refid="reduce__op_8cuh">reduce_op.cuh</innerfile>
+    <innerfile refid="reduce__v_8cuh">reduce_v.cuh</innerfile>
+    <innerfile refid="transform__e_8cuh">transform_e.cuh</innerfile>
+    <innerfile refid="transform__reduce__dst__nbr__intersection__of__e__endpoints__by__v_8cuh">transform_reduce_dst_nbr_intersection_of_e_endpoints_by_v.cuh</innerfile>
+    <innerfile refid="transform__reduce__e_8cuh">transform_reduce_e.cuh</innerfile>
+    <innerfile refid="transform__reduce__e__by__src__dst__key_8cuh">transform_reduce_e_by_src_dst_key.cuh</innerfile>
+    <innerfile refid="transform__reduce__v_8cuh">transform_reduce_v.cuh</innerfile>
+    <innerfile refid="transform__reduce__v__frontier__outgoing__e__by__dst_8cuh">transform_reduce_v_frontier_outgoing_e_by_dst.cuh</innerfile>
+    <innerfile refid="update__edge__src__dst__property_8cuh">update_edge_src_dst_property.cuh</innerfile>
+    <innerfile refid="update__v__frontier_8cuh">update_v_frontier.cuh</innerfile>
+    <innerfile refid="vertex__frontier_8cuh">vertex_frontier.cuh</innerfile>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/"/>
+  </compounddef>
+</doxygen>

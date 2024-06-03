@@ -1,0 +1,108 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="structcugraph_1_1detail_1_1key__cuco__store__insert__device__view__t" kind="struct" language="C++" prot="public">
+    <compoundname>cugraph::detail::key_cuco_store_insert_device_view_t</compoundname>
+    <templateparamlist>
+      <param>
+        <type>typename ViewType</type>
+      </param>
+    </templateparamlist>
+    <sectiondef kind="public-type">
+      <memberdef kind="typedef" id="structcugraph_1_1detail_1_1key__cuco__store__insert__device__view__t_1a14e1d8ab55afa07d226b6baa41da65c8" prot="public" static="no">
+        <type>typename ViewType::key_type</type>
+        <definition>using cugraph::detail::key_cuco_store_insert_device_view_t&lt; ViewType &gt;::key_type =  typename ViewType::key_type</definition>
+        <argsstring></argsstring>
+        <name>key_type</name>
+        <qualifiedname>cugraph::detail::key_cuco_store_insert_device_view_t::key_type</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/key_store.cuh" line="93" column="3" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/key_store.cuh" bodystart="93" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="typedef" id="structcugraph_1_1detail_1_1key__cuco__store__insert__device__view__t_1a1dc33a7fd1ceea677540b7d7b8fb691e" prot="public" static="no">
+        <type>typename ViewType::cuco_set_type::ref_type&lt; cuco::insert_tag &gt;</type>
+        <definition>using cugraph::detail::key_cuco_store_insert_device_view_t&lt; ViewType &gt;::cuco_store_device_ref_type =  typename ViewType::cuco_set_type::ref_type&lt;cuco::insert_tag&gt;</definition>
+        <argsstring></argsstring>
+        <name>cuco_store_device_ref_type</name>
+        <qualifiedname>cugraph::detail::key_cuco_store_insert_device_view_t::cuco_store_device_ref_type</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/key_store.cuh" line="94" column="3" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/key_store.cuh" bodystart="94" bodyend="-1"/>
+      </memberdef>
+    </sectiondef>
+    <sectiondef kind="public-attrib">
+      <memberdef kind="variable" id="structcugraph_1_1detail_1_1key__cuco__store__insert__device__view__t_1ad3dbcceffad0ad258d0cecacc1fcb3ef" prot="public" static="no" mutable="no">
+        <type>cuco_store_device_ref_type</type>
+        <definition>cuco_store_device_ref_type cugraph::detail::key_cuco_store_insert_device_view_t&lt; ViewType &gt;::cuco_store_device_ref</definition>
+        <argsstring></argsstring>
+        <name>cuco_store_device_ref</name>
+        <qualifiedname>cugraph::detail::key_cuco_store_insert_device_view_t::cuco_store_device_ref</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/key_store.cuh" line="105" column="30" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/key_store.cuh" bodystart="105" bodyend="105"/>
+      </memberdef>
+    </sectiondef>
+    <sectiondef kind="public-func">
+      <memberdef kind="function" id="structcugraph_1_1detail_1_1key__cuco__store__insert__device__view__t_1a5cc1cbb5fd4c953158eb401ce5daba34" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type>__host__</type>
+        <definition>__host__ cugraph::detail::key_cuco_store_insert_device_view_t&lt; ViewType &gt;::key_cuco_store_insert_device_view_t</definition>
+        <argsstring>(ViewType view)</argsstring>
+        <name>key_cuco_store_insert_device_view_t</name>
+        <qualifiedname>cugraph::detail::key_cuco_store_insert_device_view_t::key_cuco_store_insert_device_view_t</qualifiedname>
+        <param>
+          <type>ViewType</type>
+          <declname>view</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/key_store.cuh" line="98" column="12" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/key_store.cuh" bodystart="98" bodyend="101"/>
+      </memberdef>
+      <memberdef kind="function" id="structcugraph_1_1detail_1_1key__cuco__store__insert__device__view__t_1a1debae1ca50dff44770297e093384ac7" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type>__device__ void</type>
+        <definition>__device__ void cugraph::detail::key_cuco_store_insert_device_view_t&lt; ViewType &gt;::insert</definition>
+        <argsstring>(key_type key)</argsstring>
+        <name>insert</name>
+        <qualifiedname>cugraph::detail::key_cuco_store_insert_device_view_t::insert</qualifiedname>
+        <param>
+          <type>key_type</type>
+          <declname>key</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/key_store.cuh" line="103" column="19" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/key_store.cuh" bodystart="103" bodyend="103"/>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/key_store.cuh" line="92" column="1" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/key_store.cuh" bodystart="92" bodyend="106"/>
+    <listofallmembers>
+      <member refid="structcugraph_1_1detail_1_1key__cuco__store__insert__device__view__t_1ad3dbcceffad0ad258d0cecacc1fcb3ef" prot="public" virt="non-virtual"><scope>cugraph::detail::key_cuco_store_insert_device_view_t</scope><name>cuco_store_device_ref</name></member>
+      <member refid="structcugraph_1_1detail_1_1key__cuco__store__insert__device__view__t_1a1dc33a7fd1ceea677540b7d7b8fb691e" prot="public" virt="non-virtual"><scope>cugraph::detail::key_cuco_store_insert_device_view_t</scope><name>cuco_store_device_ref_type</name></member>
+      <member refid="structcugraph_1_1detail_1_1key__cuco__store__insert__device__view__t_1a1debae1ca50dff44770297e093384ac7" prot="public" virt="non-virtual"><scope>cugraph::detail::key_cuco_store_insert_device_view_t</scope><name>insert</name></member>
+      <member refid="structcugraph_1_1detail_1_1key__cuco__store__insert__device__view__t_1a5cc1cbb5fd4c953158eb401ce5daba34" prot="public" virt="non-virtual"><scope>cugraph::detail::key_cuco_store_insert_device_view_t</scope><name>key_cuco_store_insert_device_view_t</name></member>
+      <member refid="structcugraph_1_1detail_1_1key__cuco__store__insert__device__view__t_1a14e1d8ab55afa07d226b6baa41da65c8" prot="public" virt="non-virtual"><scope>cugraph::detail::key_cuco_store_insert_device_view_t</scope><name>key_type</name></member>
+    </listofallmembers>
+  </compounddef>
+</doxygen>

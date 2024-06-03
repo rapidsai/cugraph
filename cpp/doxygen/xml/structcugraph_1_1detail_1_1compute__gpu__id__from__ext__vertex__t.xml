@@ -1,0 +1,89 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="structcugraph_1_1detail_1_1compute__gpu__id__from__ext__vertex__t" kind="struct" language="C++" prot="public">
+    <compoundname>cugraph::detail::compute_gpu_id_from_ext_vertex_t</compoundname>
+    <templateparamlist>
+      <param>
+        <type>typename vertex_t</type>
+      </param>
+    </templateparamlist>
+    <sectiondef kind="public-attrib">
+      <memberdef kind="variable" id="structcugraph_1_1detail_1_1compute__gpu__id__from__ext__vertex__t_1a848e09a01d69304e378b1969b6205c96" prot="public" static="no" mutable="no">
+        <type>int</type>
+        <definition>int cugraph::detail::compute_gpu_id_from_ext_vertex_t&lt; vertex_t &gt;::comm_size</definition>
+        <argsstring></argsstring>
+        <name>comm_size</name>
+        <qualifiedname>cugraph::detail::compute_gpu_id_from_ext_vertex_t::comm_size</qualifiedname>
+        <initializer>{0}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/detail/graph_partition_utils.cuh" line="40" column="7" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/detail/graph_partition_utils.cuh" bodystart="40" bodyend="40"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph_1_1detail_1_1compute__gpu__id__from__ext__vertex__t_1aa1cbaa741d4bfb3e27a3a4cf19ffb5ac" prot="public" static="no" mutable="no">
+        <type>int</type>
+        <definition>int cugraph::detail::compute_gpu_id_from_ext_vertex_t&lt; vertex_t &gt;::major_comm_size</definition>
+        <argsstring></argsstring>
+        <name>major_comm_size</name>
+        <qualifiedname>cugraph::detail::compute_gpu_id_from_ext_vertex_t::major_comm_size</qualifiedname>
+        <initializer>{0}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/detail/graph_partition_utils.cuh" line="41" column="7" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/detail/graph_partition_utils.cuh" bodystart="41" bodyend="41"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph_1_1detail_1_1compute__gpu__id__from__ext__vertex__t_1a720d2cee689281a3e721cd6c8b9d14a3" prot="public" static="no" mutable="no">
+        <type>int</type>
+        <definition>int cugraph::detail::compute_gpu_id_from_ext_vertex_t&lt; vertex_t &gt;::minor_comm_size</definition>
+        <argsstring></argsstring>
+        <name>minor_comm_size</name>
+        <qualifiedname>cugraph::detail::compute_gpu_id_from_ext_vertex_t::minor_comm_size</qualifiedname>
+        <initializer>{0}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/detail/graph_partition_utils.cuh" line="42" column="7" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/detail/graph_partition_utils.cuh" bodystart="42" bodyend="42"/>
+      </memberdef>
+    </sectiondef>
+    <sectiondef kind="public-func">
+      <memberdef kind="function" id="structcugraph_1_1detail_1_1compute__gpu__id__from__ext__vertex__t_1a42eb73c24f361cd16f4b7d40a68a69a6" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>__host__ __device__ int</type>
+        <definition>__host__ __device__ int cugraph::detail::compute_gpu_id_from_ext_vertex_t&lt; vertex_t &gt;::operator()</definition>
+        <argsstring>(vertex_t v) const</argsstring>
+        <name>operator()</name>
+        <qualifiedname>cugraph::detail::compute_gpu_id_from_ext_vertex_t::operator()</qualifiedname>
+        <param>
+          <type>vertex_t</type>
+          <declname>v</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/detail/graph_partition_utils.cuh" line="44" column="27" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/detail/graph_partition_utils.cuh" bodystart="44" bodyend="50"/>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/src/detail/graph_partition_utils.cuh" line="39" column="1" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/detail/graph_partition_utils.cuh" bodystart="39" bodyend="51"/>
+    <listofallmembers>
+      <member refid="structcugraph_1_1detail_1_1compute__gpu__id__from__ext__vertex__t_1a848e09a01d69304e378b1969b6205c96" prot="public" virt="non-virtual"><scope>cugraph::detail::compute_gpu_id_from_ext_vertex_t</scope><name>comm_size</name></member>
+      <member refid="structcugraph_1_1detail_1_1compute__gpu__id__from__ext__vertex__t_1aa1cbaa741d4bfb3e27a3a4cf19ffb5ac" prot="public" virt="non-virtual"><scope>cugraph::detail::compute_gpu_id_from_ext_vertex_t</scope><name>major_comm_size</name></member>
+      <member refid="structcugraph_1_1detail_1_1compute__gpu__id__from__ext__vertex__t_1a720d2cee689281a3e721cd6c8b9d14a3" prot="public" virt="non-virtual"><scope>cugraph::detail::compute_gpu_id_from_ext_vertex_t</scope><name>minor_comm_size</name></member>
+      <member refid="structcugraph_1_1detail_1_1compute__gpu__id__from__ext__vertex__t_1a42eb73c24f361cd16f4b7d40a68a69a6" prot="public" virt="non-virtual"><scope>cugraph::detail::compute_gpu_id_from_ext_vertex_t</scope><name>operator()</name></member>
+    </listofallmembers>
+  </compounddef>
+</doxygen>

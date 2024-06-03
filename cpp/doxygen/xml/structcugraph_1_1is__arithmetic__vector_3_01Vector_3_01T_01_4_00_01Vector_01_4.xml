@@ -1,0 +1,46 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="structcugraph_1_1is__arithmetic__vector_3_01Vector_3_01T_01_4_00_01Vector_01_4" kind="struct" language="C++" prot="public">
+    <compoundname>cugraph::is_arithmetic_vector&lt; Vector&lt; T &gt;, Vector &gt;</compoundname>
+    <basecompoundref prot="public" virt="non-virtual">std::integral_constant&lt; bool, std::is_arithmetic_v&lt; T &gt; &gt;</basecompoundref>
+    <templateparamlist>
+      <param>
+        <type>template&lt; typename &gt; typename</type>
+        <declname>Vector</declname>
+        <defname>Vector</defname>
+      </param>
+      <param>
+        <type>typename T</type>
+      </param>
+    </templateparamlist>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <inheritancegraph>
+      <node id="1">
+        <label>cugraph::is_arithmetic_vector&lt; Vector&lt; T &gt;, Vector &gt;</label>
+        <link refid="structcugraph_1_1is__arithmetic__vector_3_01Vector_3_01T_01_4_00_01Vector_01_4"/>
+        <childnode refid="2" relation="public-inheritance">
+        </childnode>
+      </node>
+      <node id="2">
+        <label>std::integral_constant&lt; bool, std::is_arithmetic_v&lt; T &gt; &gt;</label>
+      </node>
+    </inheritancegraph>
+    <collaborationgraph>
+      <node id="1">
+        <label>cugraph::is_arithmetic_vector&lt; Vector&lt; T &gt;, Vector &gt;</label>
+        <link refid="structcugraph_1_1is__arithmetic__vector_3_01Vector_3_01T_01_4_00_01Vector_01_4"/>
+        <childnode refid="2" relation="public-inheritance">
+        </childnode>
+      </node>
+      <node id="2">
+        <label>std::integral_constant&lt; bool, std::is_arithmetic_v&lt; T &gt; &gt;</label>
+      </node>
+    </collaborationgraph>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/utilities/thrust_tuple_utils.hpp" line="126" column="1" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/utilities/thrust_tuple_utils.hpp" bodystart="127" bodyend="127"/>
+    <listofallmembers>
+    </listofallmembers>
+  </compounddef>
+</doxygen>

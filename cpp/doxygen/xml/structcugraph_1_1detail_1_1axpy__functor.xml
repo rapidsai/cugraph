@@ -1,0 +1,102 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="structcugraph_1_1detail_1_1axpy__functor" kind="struct" language="C++" prot="public">
+    <compoundname>cugraph::detail::axpy_functor</compoundname>
+    <basecompoundref prot="public" virt="non-virtual">thrust::binary_function&lt; T, T, T &gt;</basecompoundref>
+    <templateparamlist>
+      <param>
+        <type>typename T</type>
+      </param>
+    </templateparamlist>
+    <sectiondef kind="public-attrib">
+      <memberdef kind="variable" id="structcugraph_1_1detail_1_1axpy__functor_1a7762ad0d340e825cb3dc2681fa0fdaa5" prot="public" static="no" mutable="no">
+        <type>const T</type>
+        <definition>const T cugraph::detail::axpy_functor&lt; T &gt;::a</definition>
+        <argsstring></argsstring>
+        <name>a</name>
+        <qualifiedname>cugraph::detail::axpy_functor::a</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/utilities/graph_utils.cuh" line="99" column="11" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/utilities/graph_utils.cuh" bodystart="99" bodyend="-1"/>
+      </memberdef>
+    </sectiondef>
+    <sectiondef kind="public-func">
+      <memberdef kind="function" id="structcugraph_1_1detail_1_1axpy__functor_1ad0594c7790312d58d5f4f128719d0263" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type></type>
+        <definition>cugraph::detail::axpy_functor&lt; T &gt;::axpy_functor</definition>
+        <argsstring>(T _a)</argsstring>
+        <name>axpy_functor</name>
+        <qualifiedname>cugraph::detail::axpy_functor::axpy_functor</qualifiedname>
+        <param>
+          <type>T</type>
+          <declname>_a</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/utilities/graph_utils.cuh" line="100" column="3" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/utilities/graph_utils.cuh" bodystart="100" bodyend="100"/>
+      </memberdef>
+      <memberdef kind="function" id="structcugraph_1_1detail_1_1axpy__functor_1af08acae62fdedb727ba6bd853eb5af95" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>__host__ __device__ T</type>
+        <definition>__host__ __device__ T cugraph::detail::axpy_functor&lt; T &gt;::operator()</definition>
+        <argsstring>(const T &amp;x, const T &amp;y) const</argsstring>
+        <name>operator()</name>
+        <qualifiedname>cugraph::detail::axpy_functor::operator()</qualifiedname>
+        <param>
+          <type>const T &amp;</type>
+          <declname>x</declname>
+        </param>
+        <param>
+          <type>const T &amp;</type>
+          <declname>y</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/utilities/graph_utils.cuh" line="101" column="25" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/utilities/graph_utils.cuh" bodystart="101" bodyend="101"/>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <inheritancegraph>
+      <node id="1">
+        <label>cugraph::detail::axpy_functor&lt; T &gt;</label>
+        <link refid="structcugraph_1_1detail_1_1axpy__functor"/>
+        <childnode refid="2" relation="public-inheritance">
+        </childnode>
+      </node>
+      <node id="2">
+        <label>thrust::binary_function&lt; T, T, T &gt;</label>
+      </node>
+    </inheritancegraph>
+    <collaborationgraph>
+      <node id="1">
+        <label>cugraph::detail::axpy_functor&lt; T &gt;</label>
+        <link refid="structcugraph_1_1detail_1_1axpy__functor"/>
+        <childnode refid="2" relation="public-inheritance">
+        </childnode>
+      </node>
+      <node id="2">
+        <label>thrust::binary_function&lt; T, T, T &gt;</label>
+      </node>
+    </collaborationgraph>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/src/utilities/graph_utils.cuh" line="98" column="1" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/utilities/graph_utils.cuh" bodystart="98" bodyend="102"/>
+    <listofallmembers>
+      <member refid="structcugraph_1_1detail_1_1axpy__functor_1a7762ad0d340e825cb3dc2681fa0fdaa5" prot="public" virt="non-virtual"><scope>cugraph::detail::axpy_functor</scope><name>a</name></member>
+      <member refid="structcugraph_1_1detail_1_1axpy__functor_1ad0594c7790312d58d5f4f128719d0263" prot="public" virt="non-virtual"><scope>cugraph::detail::axpy_functor</scope><name>axpy_functor</name></member>
+      <member refid="structcugraph_1_1detail_1_1axpy__functor_1af08acae62fdedb727ba6bd853eb5af95" prot="public" virt="non-virtual"><scope>cugraph::detail::axpy_functor</scope><name>operator()</name></member>
+    </listofallmembers>
+  </compounddef>
+</doxygen>

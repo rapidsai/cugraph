@@ -1,0 +1,52 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="structcugraph_1_1c__api_1_1cugraph__error__t" kind="struct" language="C++" prot="public">
+    <compoundname>cugraph::c_api::cugraph_error_t</compoundname>
+    <sectiondef kind="public-attrib">
+      <memberdef kind="variable" id="structcugraph_1_1c__api_1_1cugraph__error__t_1a6194f5c86b0fdb24e28301306768caf2" prot="public" static="no" mutable="no">
+        <type>std::string</type>
+        <definition>std::string cugraph::c_api::cugraph_error_t::error_message_</definition>
+        <argsstring></argsstring>
+        <name>error_message_</name>
+        <qualifiedname>cugraph::c_api::cugraph_error_t::error_message_</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/c_api/error.hpp" line="35" column="15" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/error.hpp" bodystart="35" bodyend="35"/>
+      </memberdef>
+    </sectiondef>
+    <sectiondef kind="public-func">
+      <memberdef kind="function" id="structcugraph_1_1c__api_1_1cugraph__error__t_1a446f465af728f6a7aabf76c25c1ede67" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type></type>
+        <definition>cugraph::c_api::cugraph_error_t::cugraph_error_t</definition>
+        <argsstring>(const char *what)</argsstring>
+        <name>cugraph_error_t</name>
+        <qualifiedname>cugraph::c_api::cugraph_error_t::cugraph_error_t</qualifiedname>
+        <param>
+          <type>const char *</type>
+          <declname>what</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/c_api/error.hpp" line="37" column="3" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/error.hpp" bodystart="37" bodyend="37"/>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/src/c_api/error.hpp" line="34" column="1" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/error.hpp" bodystart="34" bodyend="38"/>
+    <listofallmembers>
+      <member refid="structcugraph_1_1c__api_1_1cugraph__error__t_1a446f465af728f6a7aabf76c25c1ede67" prot="public" virt="non-virtual"><scope>cugraph::c_api::cugraph_error_t</scope><name>cugraph_error_t</name></member>
+      <member refid="structcugraph_1_1c__api_1_1cugraph__error__t_1a6194f5c86b0fdb24e28301306768caf2" prot="public" virt="non-virtual"><scope>cugraph::c_api::cugraph_error_t</scope><name>error_message_</name></member>
+    </listofallmembers>
+  </compounddef>
+</doxygen>

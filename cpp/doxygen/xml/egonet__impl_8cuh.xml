@@ -1,0 +1,981 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="egonet__impl_8cuh" kind="file" language="C++">
+    <compoundname>egonet_impl.cuh</compoundname>
+    <includes refid="graph__utils_8cuh" local="yes">utilities/graph_utils.cuh</includes>
+    <includes refid="algorithms_8hpp" local="no">cugraph/algorithms.hpp</includes>
+    <includes refid="include_2cugraph_2graph_8hpp" local="no">cugraph/graph.hpp</includes>
+    <includes refid="include_2cugraph_2graph__functions_8hpp" local="no">cugraph/graph_functions.hpp</includes>
+    <includes refid="graph__view_8hpp" local="no">cugraph/graph_view.hpp</includes>
+    <includes refid="include_2cugraph_2utilities_2error_8hpp" local="no">cugraph/utilities/error.hpp</includes>
+    <includes refid="host__scalar__comm_8hpp" local="no">cugraph/utilities/host_scalar_comm.hpp</includes>
+    <includes local="no">rmm/cuda_stream_view.hpp</includes>
+    <includes local="no">rmm/device_vector.hpp</includes>
+    <includes local="no">rmm/exec_policy.hpp</includes>
+    <includes local="no">thrust/copy.h</includes>
+    <includes local="no">thrust/distance.h</includes>
+    <includes local="no">thrust/fill.h</includes>
+    <includes local="no">thrust/iterator/counting_iterator.h</includes>
+    <includes local="no">thrust/remove.h</includes>
+    <includes local="no">thrust/transform.h</includes>
+    <includes local="no">cstddef</includes>
+    <includes local="no">ctime</includes>
+    <includes local="no">memory</includes>
+    <includes local="no">numeric</includes>
+    <includes local="no">tuple</includes>
+    <includes local="no">utility</includes>
+    <includedby refid="egonet__mg_8cu" local="yes">egonet_mg.cu</includedby>
+    <includedby refid="egonet__sg_8cu" local="yes">egonet_sg.cu</includedby>
+    <incdepgraph>
+      <node id="27">
+        <label>cugraph/algorithms.hpp</label>
+        <link refid="algorithms_8hpp_source"/>
+        <childnode refid="28" relation="include">
+        </childnode>
+        <childnode refid="29" relation="include">
+        </childnode>
+        <childnode refid="33" relation="include">
+        </childnode>
+        <childnode refid="46" relation="include">
+        </childnode>
+        <childnode refid="47" relation="include">
+        </childnode>
+        <childnode refid="77" relation="include">
+        </childnode>
+        <childnode refid="83" relation="include">
+        </childnode>
+        <childnode refid="30" relation="include">
+        </childnode>
+        <childnode refid="84" relation="include">
+        </childnode>
+        <childnode refid="49" relation="include">
+        </childnode>
+        <childnode refid="40" relation="include">
+        </childnode>
+        <childnode refid="85" relation="include">
+        </childnode>
+        <childnode refid="45" relation="include">
+        </childnode>
+        <childnode refid="75" relation="include">
+        </childnode>
+      </node>
+      <node id="28">
+        <label>cugraph/api_helpers.hpp</label>
+        <link refid="api__helpers_8hpp_source"/>
+      </node>
+      <node id="29">
+        <label>cugraph/dendrogram.hpp</label>
+        <link refid="dendrogram_8hpp_source"/>
+        <childnode refid="7" relation="include">
+        </childnode>
+        <childnode refid="30" relation="include">
+        </childnode>
+        <childnode refid="31" relation="include">
+        </childnode>
+        <childnode refid="32" relation="include">
+        </childnode>
+      </node>
+      <node id="48">
+        <label>cugraph/edge_partition_view.hpp</label>
+        <link refid="edge__partition__view_8hpp_source"/>
+        <childnode refid="49" relation="include">
+        </childnode>
+        <childnode refid="45" relation="include">
+        </childnode>
+        <childnode refid="39" relation="include">
+        </childnode>
+      </node>
+      <node id="33">
+        <label>cugraph/edge_property.hpp</label>
+        <link refid="edge__property_8hpp_source"/>
+        <childnode refid="34" relation="include">
+        </childnode>
+        <childnode refid="42" relation="include">
+        </childnode>
+        <childnode refid="35" relation="include">
+        </childnode>
+        <childnode refid="40" relation="include">
+        </childnode>
+        <childnode refid="36" relation="include">
+        </childnode>
+        <childnode refid="44" relation="include">
+        </childnode>
+        <childnode refid="45" relation="include">
+        </childnode>
+        <childnode refid="39" relation="include">
+        </childnode>
+      </node>
+      <node id="76">
+        <label>eidecl_graph.hpp</label>
+        <link refid="eidecl__graph_8hpp_source"/>
+      </node>
+      <node id="46">
+        <label>cugraph/graph.hpp</label>
+        <link refid="include_2cugraph_2graph_8hpp_source"/>
+        <childnode refid="47" relation="include">
+        </childnode>
+        <childnode refid="3" relation="include">
+        </childnode>
+        <childnode refid="49" relation="include">
+        </childnode>
+        <childnode refid="40" relation="include">
+        </childnode>
+        <childnode refid="7" relation="include">
+        </childnode>
+        <childnode refid="74" relation="include">
+        </childnode>
+        <childnode refid="45" relation="include">
+        </childnode>
+        <childnode refid="70" relation="include">
+        </childnode>
+        <childnode refid="39" relation="include">
+        </childnode>
+        <childnode refid="32" relation="include">
+        </childnode>
+        <childnode refid="76" relation="include">
+        </childnode>
+      </node>
+      <node id="86">
+        <label>cugraph/graph_functions.hpp</label>
+        <link refid="include_2cugraph_2graph__functions_8hpp_source"/>
+        <childnode refid="33" relation="include">
+        </childnode>
+        <childnode refid="46" relation="include">
+        </childnode>
+        <childnode refid="47" relation="include">
+        </childnode>
+        <childnode refid="49" relation="include">
+        </childnode>
+        <childnode refid="40" relation="include">
+        </childnode>
+        <childnode refid="85" relation="include">
+        </childnode>
+        <childnode refid="7" relation="include">
+        </childnode>
+        <childnode refid="31" relation="include">
+        </childnode>
+        <childnode refid="45" relation="include">
+        </childnode>
+        <childnode refid="75" relation="include">
+        </childnode>
+        <childnode refid="32" relation="include">
+        </childnode>
+      </node>
+      <node id="47">
+        <label>cugraph/graph_view.hpp</label>
+        <link refid="graph__view_8hpp_source"/>
+        <childnode refid="48" relation="include">
+        </childnode>
+        <childnode refid="33" relation="include">
+        </childnode>
+        <childnode refid="50" relation="include">
+        </childnode>
+        <childnode refid="3" relation="include">
+        </childnode>
+        <childnode refid="71" relation="include">
+        </childnode>
+        <childnode refid="49" relation="include">
+        </childnode>
+        <childnode refid="40" relation="include">
+        </childnode>
+        <childnode refid="72" relation="include">
+        </childnode>
+        <childnode refid="7" relation="include">
+        </childnode>
+        <childnode refid="68" relation="include">
+        </childnode>
+        <childnode refid="73" relation="include">
+        </childnode>
+        <childnode refid="74" relation="include">
+        </childnode>
+        <childnode refid="70" relation="include">
+        </childnode>
+        <childnode refid="75" relation="include">
+        </childnode>
+        <childnode refid="39" relation="include">
+        </childnode>
+        <childnode refid="32" relation="include">
+        </childnode>
+      </node>
+      <node id="82">
+        <label>eidecl_graph.hpp</label>
+        <link refid="legacy_2eidecl__graph_8hpp_source"/>
+      </node>
+      <node id="77">
+        <label>cugraph/legacy/graph.hpp</label>
+        <link refid="include_2cugraph_2legacy_2graph_8hpp_source"/>
+        <childnode refid="40" relation="include">
+        </childnode>
+        <childnode refid="78" relation="include">
+        </childnode>
+        <childnode refid="30" relation="include">
+        </childnode>
+        <childnode refid="79" relation="include">
+        </childnode>
+        <childnode refid="74" relation="include">
+        </childnode>
+        <childnode refid="80" relation="include">
+        </childnode>
+        <childnode refid="81" relation="include">
+        </childnode>
+        <childnode refid="31" relation="include">
+        </childnode>
+        <childnode refid="82" relation="include">
+        </childnode>
+      </node>
+      <node id="83">
+        <label>cugraph/legacy/internals.hpp</label>
+        <link refid="internals_8hpp_source"/>
+        <childnode refid="39" relation="include">
+        </childnode>
+      </node>
+      <node id="50">
+        <label>cugraph/partition_manager.hpp</label>
+        <link refid="partition__manager_8hpp_source"/>
+        <childnode refid="51" relation="include">
+        </childnode>
+        <childnode refid="53" relation="include">
+        </childnode>
+        <childnode refid="69" relation="include">
+        </childnode>
+        <childnode refid="40" relation="include">
+        </childnode>
+        <childnode refid="70" relation="include">
+        </childnode>
+      </node>
+      <node id="34">
+        <label>cugraph/utilities/dataframe_buffer.hpp</label>
+        <link refid="dataframe__buffer_8hpp_source"/>
+        <childnode refid="35" relation="include">
+        </childnode>
+        <childnode refid="40" relation="include">
+        </childnode>
+        <childnode refid="41" relation="include">
+        </childnode>
+        <childnode refid="7" relation="include">
+        </childnode>
+        <childnode refid="17" relation="include">
+        </childnode>
+        <childnode refid="37" relation="include">
+        </childnode>
+        <childnode refid="39" relation="include">
+        </childnode>
+      </node>
+      <node id="54">
+        <label>cugraph/utilities/device_comm.hpp</label>
+        <link refid="device__comm_8hpp_source"/>
+        <childnode refid="35" relation="include">
+        </childnode>
+        <childnode refid="40" relation="include">
+        </childnode>
+        <childnode refid="41" relation="include">
+        </childnode>
+        <childnode refid="7" relation="include">
+        </childnode>
+        <childnode refid="55" relation="include">
+        </childnode>
+        <childnode refid="10" relation="include">
+        </childnode>
+        <childnode refid="56" relation="include">
+        </childnode>
+        <childnode refid="57" relation="include">
+        </childnode>
+        <childnode refid="36" relation="include">
+        </childnode>
+        <childnode refid="58" relation="include">
+        </childnode>
+        <childnode refid="37" relation="include">
+        </childnode>
+        <childnode refid="39" relation="include">
+        </childnode>
+      </node>
+      <node id="3">
+        <label>cugraph/utilities/error.hpp</label>
+        <link refid="include_2cugraph_2utilities_2error_8hpp_source"/>
+        <childnode refid="4" relation="include">
+        </childnode>
+      </node>
+      <node id="51">
+        <label>cugraph/utilities/host_scalar_comm.hpp</label>
+        <link refid="host__scalar__comm_8hpp_source"/>
+        <childnode refid="3" relation="include">
+        </childnode>
+        <childnode refid="35" relation="include">
+        </childnode>
+        <childnode refid="40" relation="include">
+        </childnode>
+        <childnode refid="7" relation="include">
+        </childnode>
+        <childnode refid="37" relation="include">
+        </childnode>
+        <childnode refid="52" relation="include">
+        </childnode>
+        <childnode refid="39" relation="include">
+        </childnode>
+      </node>
+      <node id="42">
+        <label>cugraph/utilities/packed_bool_utils.hpp</label>
+        <link refid="packed__bool__utils_8hpp_source"/>
+        <childnode refid="35" relation="include">
+        </childnode>
+        <childnode refid="36" relation="include">
+        </childnode>
+        <childnode refid="37" relation="include">
+        </childnode>
+        <childnode refid="39" relation="include">
+        </childnode>
+        <childnode refid="43" relation="include">
+        </childnode>
+      </node>
+      <node id="53">
+        <label>cugraph/utilities/shuffle_comm.cuh</label>
+        <link refid="shuffle__comm_8cuh_source"/>
+        <childnode refid="34" relation="include">
+        </childnode>
+        <childnode refid="54" relation="include">
+        </childnode>
+        <childnode refid="40" relation="include">
+        </childnode>
+        <childnode refid="7" relation="include">
+        </childnode>
+        <childnode refid="8" relation="include">
+        </childnode>
+        <childnode refid="59" relation="include">
+        </childnode>
+        <childnode refid="60" relation="include">
+        </childnode>
+        <childnode refid="61" relation="include">
+        </childnode>
+        <childnode refid="9" relation="include">
+        </childnode>
+        <childnode refid="62" relation="include">
+        </childnode>
+        <childnode refid="63" relation="include">
+        </childnode>
+        <childnode refid="11" relation="include">
+        </childnode>
+        <childnode refid="13" relation="include">
+        </childnode>
+        <childnode refid="36" relation="include">
+        </childnode>
+        <childnode refid="64" relation="include">
+        </childnode>
+        <childnode refid="17" relation="include">
+        </childnode>
+        <childnode refid="65" relation="include">
+        </childnode>
+        <childnode refid="18" relation="include">
+        </childnode>
+        <childnode refid="66" relation="include">
+        </childnode>
+        <childnode refid="19" relation="include">
+        </childnode>
+        <childnode refid="21" relation="include">
+        </childnode>
+        <childnode refid="67" relation="include">
+        </childnode>
+        <childnode refid="37" relation="include">
+        </childnode>
+        <childnode refid="68" relation="include">
+        </childnode>
+        <childnode refid="52" relation="include">
+        </childnode>
+        <childnode refid="32" relation="include">
+        </childnode>
+      </node>
+      <node id="35">
+        <label>cugraph/utilities/thrust_tuple_utils.hpp</label>
+        <link refid="thrust__tuple__utils_8hpp_source"/>
+        <childnode refid="7" relation="include">
+        </childnode>
+        <childnode refid="36" relation="include">
+        </childnode>
+        <childnode refid="37" relation="include">
+        </childnode>
+        <childnode refid="38" relation="include">
+        </childnode>
+        <childnode refid="39" relation="include">
+        </childnode>
+      </node>
+      <node id="71">
+        <label>cugraph/vertex_partition_view.hpp</label>
+        <link refid="vertex__partition__view_8hpp_source"/>
+        <childnode refid="39" relation="include">
+        </childnode>
+      </node>
+      <node id="1">
+        <label>egonet_impl.cuh</label>
+        <link refid="egonet__impl_8cuh"/>
+        <childnode refid="2" relation="include">
+        </childnode>
+        <childnode refid="27" relation="include">
+        </childnode>
+        <childnode refid="46" relation="include">
+        </childnode>
+        <childnode refid="86" relation="include">
+        </childnode>
+        <childnode refid="47" relation="include">
+        </childnode>
+        <childnode refid="3" relation="include">
+        </childnode>
+        <childnode refid="51" relation="include">
+        </childnode>
+        <childnode refid="41" relation="include">
+        </childnode>
+        <childnode refid="87" relation="include">
+        </childnode>
+        <childnode refid="8" relation="include">
+        </childnode>
+        <childnode refid="9" relation="include">
+        </childnode>
+        <childnode refid="63" relation="include">
+        </childnode>
+        <childnode refid="13" relation="include">
+        </childnode>
+        <childnode refid="88" relation="include">
+        </childnode>
+        <childnode refid="66" relation="include">
+        </childnode>
+        <childnode refid="22" relation="include">
+        </childnode>
+        <childnode refid="74" relation="include">
+        </childnode>
+        <childnode refid="89" relation="include">
+        </childnode>
+        <childnode refid="31" relation="include">
+        </childnode>
+        <childnode refid="52" relation="include">
+        </childnode>
+        <childnode refid="75" relation="include">
+        </childnode>
+        <childnode refid="43" relation="include">
+        </childnode>
+      </node>
+      <node id="26">
+        <label>eidecl_graph_utils.hpp</label>
+        <link refid="eidecl__graph__utils_8hpp_source"/>
+      </node>
+      <node id="2">
+        <label>utilities/graph_utils.cuh</label>
+        <link refid="graph__utils_8cuh_source"/>
+        <childnode refid="3" relation="include">
+        </childnode>
+        <childnode refid="5" relation="include">
+        </childnode>
+        <childnode refid="6" relation="include">
+        </childnode>
+        <childnode refid="7" relation="include">
+        </childnode>
+        <childnode refid="8" relation="include">
+        </childnode>
+        <childnode refid="9" relation="include">
+        </childnode>
+        <childnode refid="10" relation="include">
+        </childnode>
+        <childnode refid="11" relation="include">
+        </childnode>
+        <childnode refid="12" relation="include">
+        </childnode>
+        <childnode refid="13" relation="include">
+        </childnode>
+        <childnode refid="14" relation="include">
+        </childnode>
+        <childnode refid="15" relation="include">
+        </childnode>
+        <childnode refid="16" relation="include">
+        </childnode>
+        <childnode refid="17" relation="include">
+        </childnode>
+        <childnode refid="18" relation="include">
+        </childnode>
+        <childnode refid="19" relation="include">
+        </childnode>
+        <childnode refid="20" relation="include">
+        </childnode>
+        <childnode refid="21" relation="include">
+        </childnode>
+        <childnode refid="22" relation="include">
+        </childnode>
+        <childnode refid="23" relation="include">
+        </childnode>
+        <childnode refid="24" relation="include">
+        </childnode>
+        <childnode refid="25" relation="include">
+        </childnode>
+        <childnode refid="26" relation="include">
+        </childnode>
+      </node>
+      <node id="68">
+        <label>algorithm</label>
+      </node>
+      <node id="38">
+        <label>array</label>
+      </node>
+      <node id="73">
+        <label>cassert</label>
+      </node>
+      <node id="74">
+        <label>cstddef</label>
+      </node>
+      <node id="80">
+        <label>cstdint</label>
+      </node>
+      <node id="89">
+        <label>ctime</label>
+      </node>
+      <node id="24">
+        <label>cuda.h</label>
+      </node>
+      <node id="59">
+        <label>cuda/atomic</label>
+      </node>
+      <node id="60">
+        <label>cuda/functional</label>
+      </node>
+      <node id="25">
+        <label>cuda_runtime.h</label>
+      </node>
+      <node id="84">
+        <label>cugraph-ops/graph/sampling.hpp</label>
+      </node>
+      <node id="81">
+        <label>iostream</label>
+      </node>
+      <node id="31">
+        <label>memory</label>
+      </node>
+      <node id="52">
+        <label>numeric</label>
+      </node>
+      <node id="45">
+        <label>optional</label>
+      </node>
+      <node id="69">
+        <label>raft/core/comms.hpp</label>
+      </node>
+      <node id="49">
+        <label>raft/core/device_span.hpp</label>
+      </node>
+      <node id="4">
+        <label>raft/core/error.hpp</label>
+      </node>
+      <node id="40">
+        <label>raft/core/handle.hpp</label>
+      </node>
+      <node id="72">
+        <label>raft/core/host_span.hpp</label>
+      </node>
+      <node id="85">
+        <label>raft/random/rng_state.hpp</label>
+      </node>
+      <node id="5">
+        <label>raft/util/cudart_utils.hpp</label>
+      </node>
+      <node id="6">
+        <label>raft/util/device_atomics.cuh</label>
+      </node>
+      <node id="41">
+        <label>rmm/cuda_stream_view.hpp</label>
+      </node>
+      <node id="78">
+        <label>rmm/device_buffer.hpp</label>
+      </node>
+      <node id="7">
+        <label>rmm/device_uvector.hpp</label>
+      </node>
+      <node id="87">
+        <label>rmm/device_vector.hpp</label>
+      </node>
+      <node id="8">
+        <label>rmm/exec_policy.hpp</label>
+      </node>
+      <node id="30">
+        <label>rmm/resource_ref.hpp</label>
+      </node>
+      <node id="70">
+        <label>string</label>
+      </node>
+      <node id="61">
+        <label>thrust/binary_search.h</label>
+      </node>
+      <node id="9">
+        <label>thrust/copy.h</label>
+      </node>
+      <node id="62">
+        <label>thrust/count.h</label>
+      </node>
+      <node id="55">
+        <label>thrust/detail/type_traits/iterator/is_discard_iterator.h</label>
+      </node>
+      <node id="10">
+        <label>thrust/device_ptr.h</label>
+      </node>
+      <node id="63">
+        <label>thrust/distance.h</label>
+      </node>
+      <node id="11">
+        <label>thrust/execution_policy.h</label>
+      </node>
+      <node id="12">
+        <label>thrust/extrema.h</label>
+      </node>
+      <node id="13">
+        <label>thrust/fill.h</label>
+      </node>
+      <node id="14">
+        <label>thrust/functional.h</label>
+      </node>
+      <node id="15">
+        <label>thrust/inner_product.h</label>
+      </node>
+      <node id="16">
+        <label>thrust/iterator/constant_iterator.h</label>
+      </node>
+      <node id="88">
+        <label>thrust/iterator/counting_iterator.h</label>
+      </node>
+      <node id="56">
+        <label>thrust/iterator/detail/any_assign.h</label>
+      </node>
+      <node id="57">
+        <label>thrust/iterator/detail/normal_iterator.h</label>
+      </node>
+      <node id="36">
+        <label>thrust/iterator/iterator_traits.h</label>
+      </node>
+      <node id="64">
+        <label>thrust/iterator/transform_iterator.h</label>
+      </node>
+      <node id="17">
+        <label>thrust/iterator/zip_iterator.h</label>
+      </node>
+      <node id="58">
+        <label>thrust/memory.h</label>
+      </node>
+      <node id="44">
+        <label>thrust/optional.h</label>
+      </node>
+      <node id="65">
+        <label>thrust/partition.h</label>
+      </node>
+      <node id="18">
+        <label>thrust/reduce.h</label>
+      </node>
+      <node id="66">
+        <label>thrust/remove.h</label>
+      </node>
+      <node id="19">
+        <label>thrust/scatter.h</label>
+      </node>
+      <node id="20">
+        <label>thrust/sequence.h</label>
+      </node>
+      <node id="21">
+        <label>thrust/sort.h</label>
+      </node>
+      <node id="67">
+        <label>thrust/tabulate.h</label>
+      </node>
+      <node id="22">
+        <label>thrust/transform.h</label>
+      </node>
+      <node id="23">
+        <label>thrust/transform_reduce.h</label>
+      </node>
+      <node id="37">
+        <label>thrust/tuple.h</label>
+      </node>
+      <node id="75">
+        <label>tuple</label>
+      </node>
+      <node id="39">
+        <label>type_traits</label>
+      </node>
+      <node id="79">
+        <label>unistd.h</label>
+      </node>
+      <node id="43">
+        <label>utility</label>
+      </node>
+      <node id="32">
+        <label>vector</label>
+      </node>
+    </incdepgraph>
+    <innernamespace refid="namespacecugraph">cugraph</innernamespace>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <programlisting>
+<codeline lineno="1"><highlight class="comment">/*</highlight></codeline>
+<codeline lineno="2"><highlight class="comment"><sp/>*<sp/>Copyright<sp/>(c)<sp/>2021-2024,<sp/>NVIDIA<sp/>CORPORATION.</highlight></codeline>
+<codeline lineno="3"><highlight class="comment"><sp/>*</highlight></codeline>
+<codeline lineno="4"><highlight class="comment"><sp/>*<sp/>Licensed<sp/>under<sp/>the<sp/>Apache<sp/>License,<sp/>Version<sp/>2.0<sp/>(the<sp/>&quot;License&quot;);</highlight></codeline>
+<codeline lineno="5"><highlight class="comment"><sp/>*<sp/>you<sp/>may<sp/>not<sp/>use<sp/>this<sp/>file<sp/>except<sp/>in<sp/>compliance<sp/>with<sp/>the<sp/>License.</highlight></codeline>
+<codeline lineno="6"><highlight class="comment"><sp/>*<sp/>You<sp/>may<sp/>obtain<sp/>a<sp/>copy<sp/>of<sp/>the<sp/>License<sp/>at</highlight></codeline>
+<codeline lineno="7"><highlight class="comment"><sp/>*</highlight></codeline>
+<codeline lineno="8"><highlight class="comment"><sp/>*<sp/><sp/><sp/><sp/><sp/>http://www.apache.org/licenses/LICENSE-2.0</highlight></codeline>
+<codeline lineno="9"><highlight class="comment"><sp/>*</highlight></codeline>
+<codeline lineno="10"><highlight class="comment"><sp/>*<sp/>Unless<sp/>required<sp/>by<sp/>applicable<sp/>law<sp/>or<sp/>agreed<sp/>to<sp/>in<sp/>writing,<sp/>software</highlight></codeline>
+<codeline lineno="11"><highlight class="comment"><sp/>*<sp/>distributed<sp/>under<sp/>the<sp/>License<sp/>is<sp/>distributed<sp/>on<sp/>an<sp/>&quot;AS<sp/>IS&quot;<sp/>BASIS,</highlight></codeline>
+<codeline lineno="12"><highlight class="comment"><sp/>*<sp/>WITHOUT<sp/>WARRANTIES<sp/>OR<sp/>CONDITIONS<sp/>OF<sp/>ANY<sp/>KIND,<sp/>either<sp/>express<sp/>or<sp/>implied.</highlight></codeline>
+<codeline lineno="13"><highlight class="comment"><sp/>*<sp/>See<sp/>the<sp/>License<sp/>for<sp/>the<sp/>specific<sp/>language<sp/>governing<sp/>permissions<sp/>and</highlight></codeline>
+<codeline lineno="14"><highlight class="comment"><sp/>*<sp/>limitations<sp/>under<sp/>the<sp/>License.</highlight></codeline>
+<codeline lineno="15"><highlight class="comment"><sp/>*/</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="16"><highlight class="normal"></highlight><highlight class="preprocessor">#pragma<sp/>once</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="17"><highlight class="normal"></highlight></codeline>
+<codeline lineno="18"><highlight class="normal"></highlight><highlight class="comment">//<sp/>#define<sp/>TIMING</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="19"><highlight class="normal"></highlight></codeline>
+<codeline lineno="20"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&quot;utilities/graph_utils.cuh&quot;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="21"><highlight class="normal"></highlight></codeline>
+<codeline lineno="22"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&lt;cugraph/algorithms.hpp&gt;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="23"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&lt;cugraph/graph.hpp&gt;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="24"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&lt;cugraph/graph_functions.hpp&gt;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="25"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&lt;cugraph/graph_view.hpp&gt;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="26"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&lt;cugraph/utilities/error.hpp&gt;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="27"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&lt;cugraph/utilities/host_scalar_comm.hpp&gt;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="28"><highlight class="normal"></highlight><highlight class="preprocessor">#ifdef<sp/>TIMING</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="29"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&lt;cugraph/utilities/high_res_timer.hpp&gt;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="30"><highlight class="normal"></highlight><highlight class="preprocessor">#endif</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="31"><highlight class="normal"></highlight></codeline>
+<codeline lineno="32"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&lt;rmm/cuda_stream_view.hpp&gt;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="33"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&lt;rmm/device_vector.hpp&gt;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="34"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&lt;rmm/exec_policy.hpp&gt;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="35"><highlight class="normal"></highlight></codeline>
+<codeline lineno="36"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&lt;thrust/copy.h&gt;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="37"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&lt;thrust/distance.h&gt;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="38"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&lt;thrust/fill.h&gt;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="39"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&lt;thrust/iterator/counting_iterator.h&gt;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="40"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&lt;thrust/remove.h&gt;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="41"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&lt;thrust/transform.h&gt;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="42"><highlight class="normal"></highlight></codeline>
+<codeline lineno="43"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&lt;cstddef&gt;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="44"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&lt;ctime&gt;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="45"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&lt;memory&gt;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="46"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&lt;numeric&gt;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="47"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&lt;tuple&gt;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="48"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&lt;utility&gt;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="49"><highlight class="normal"></highlight></codeline>
+<codeline lineno="50"><highlight class="normal"></highlight><highlight class="keyword">namespace<sp/></highlight><highlight class="normal">{</highlight></codeline>
+<codeline lineno="51"><highlight class="normal"></highlight></codeline>
+<codeline lineno="52"><highlight class="normal"></highlight><highlight class="comment">/*</highlight></codeline>
+<codeline lineno="53"><highlight class="comment">Description</highlight></codeline>
+<codeline lineno="54"><highlight class="comment">Let<sp/>the<sp/>egonet<sp/>graph<sp/>of<sp/>a<sp/>node<sp/>x<sp/>be<sp/>the<sp/>subgraph<sp/>that<sp/>includes<sp/>node<sp/>x,<sp/>the<sp/>neighborhood<sp/>of<sp/>x,<sp/>and</highlight></codeline>
+<codeline lineno="55"><highlight class="comment">all<sp/>edges<sp/>between<sp/>them.<sp/>Naive<sp/>algorithm</highlight></codeline>
+<codeline lineno="56"><highlight class="comment">-<sp/>Add<sp/>center<sp/>node<sp/>x<sp/>to<sp/>the<sp/>graph.</highlight></codeline>
+<codeline lineno="57"><highlight class="comment">-<sp/>Go<sp/>through<sp/>all<sp/>the<sp/>neighbors<sp/>y<sp/>of<sp/>this<sp/>center<sp/>node<sp/>x,<sp/>add<sp/>edge<sp/>(x,<sp/>y)<sp/>to<sp/>the<sp/>graph.</highlight></codeline>
+<codeline lineno="58"><highlight class="comment">-<sp/>For<sp/>each<sp/>neighbor<sp/>y<sp/>of<sp/>center<sp/>node<sp/>x,<sp/>go<sp/>through<sp/>all<sp/>the<sp/>neighbors<sp/>z<sp/>of<sp/>center<sp/>node<sp/>x,<sp/>if<sp/>there<sp/>is</highlight></codeline>
+<codeline lineno="59"><highlight class="comment">an<sp/>edge<sp/>between<sp/>y<sp/>and<sp/>z<sp/>in<sp/>original<sp/>graph,<sp/>add<sp/>edge<sp/>(y,<sp/>z)<sp/>to<sp/>our<sp/>new<sp/>graph.</highlight></codeline>
+<codeline lineno="60"><highlight class="comment"></highlight></codeline>
+<codeline lineno="61"><highlight class="comment">Rather<sp/>than<sp/>doing<sp/>custom<sp/>one/two<sp/>hops<sp/>features,<sp/>we<sp/>propose<sp/>a<sp/>generic<sp/>k-hops<sp/>solution<sp/>leveraging<sp/>BFS</highlight></codeline>
+<codeline lineno="62"><highlight class="comment">cutoff<sp/>and<sp/>subgraph<sp/>extraction</highlight></codeline>
+<codeline lineno="63"><highlight class="comment">*/</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="64"><highlight class="normal"></highlight></codeline>
+<codeline lineno="65"><highlight class="normal"></highlight><highlight class="keyword">template</highlight><highlight class="normal"><sp/>&lt;</highlight><highlight class="keyword">typename</highlight><highlight class="normal"><sp/>vertex_t,<sp/></highlight><highlight class="keyword">typename</highlight><highlight class="normal"><sp/>edge_t,<sp/></highlight><highlight class="keyword">typename</highlight><highlight class="normal"><sp/>weight_t,<sp/></highlight><highlight class="keywordtype">bool</highlight><highlight class="normal"><sp/>multi_gpu&gt;</highlight></codeline>
+<codeline lineno="66"><highlight class="normal">std::tuple&lt;rmm::device_uvector&lt;vertex_t&gt;,</highlight></codeline>
+<codeline lineno="67"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>rmm::device_uvector&lt;vertex_t&gt;,</highlight></codeline>
+<codeline lineno="68"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>std::optional&lt;rmm::device_uvector&lt;weight_t&gt;&gt;,</highlight></codeline>
+<codeline lineno="69"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>rmm::device_uvector&lt;size_t&gt;&gt;</highlight></codeline>
+<codeline lineno="70"><highlight class="normal">extract(raft::handle_t<sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal">&amp;<sp/>handle,</highlight></codeline>
+<codeline lineno="71"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><ref refid="classcugraph_1_1graph__view__t" kindref="compound">cugraph::graph_view_t&lt;vertex_t, edge_t, false, multi_gpu&gt;</ref><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal">&amp;<sp/>graph_view,</highlight></codeline>
+<codeline lineno="72"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>std::optional&lt;<ref refid="classcugraph_1_1edge__property__view__t" kindref="compound">cugraph::edge_property_view_t&lt;edge_t, weight_t const*&gt;</ref>&gt;<sp/>edge_weight_view,</highlight></codeline>
+<codeline lineno="73"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>raft::device_span&lt;vertex_t<sp/>const&gt;<sp/>source_vertex,</highlight></codeline>
+<codeline lineno="74"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>vertex_t<sp/>radius,</highlight></codeline>
+<codeline lineno="75"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordtype">bool</highlight><highlight class="normal"><sp/>do_expensive_check)</highlight></codeline>
+<codeline lineno="76"><highlight class="normal">{</highlight></codeline>
+<codeline lineno="77"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">auto</highlight><highlight class="normal"><sp/>user_stream_view<sp/>=<sp/>handle.get_stream();</highlight></codeline>
+<codeline lineno="78"><highlight class="normal"></highlight></codeline>
+<codeline lineno="79"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordtype">size_t</highlight><highlight class="normal"><sp/>num_sources<sp/>=<sp/>source_vertex.size();</highlight></codeline>
+<codeline lineno="80"><highlight class="normal"><sp/><sp/>[[maybe_unused]]<sp/>std::vector&lt;size_t&gt;<sp/>source_start{{0}};</highlight></codeline>
+<codeline lineno="81"><highlight class="normal"></highlight></codeline>
+<codeline lineno="82"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordflow">if</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">constexpr</highlight><highlight class="normal"><sp/>(multi_gpu)<sp/>{</highlight></codeline>
+<codeline lineno="83"><highlight class="normal"><sp/><sp/><sp/><sp/>source_start<sp/>=</highlight></codeline>
+<codeline lineno="84"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/>cugraph::host_scalar_allgather(handle.get_comms(),<sp/>num_sources,<sp/>handle.get_stream());</highlight></codeline>
+<codeline lineno="85"><highlight class="normal"><sp/><sp/><sp/><sp/>num_sources<sp/>=<sp/>std::reduce(source_start.begin(),<sp/>source_start.end());</highlight></codeline>
+<codeline lineno="86"><highlight class="normal"><sp/><sp/><sp/><sp/>std::exclusive_scan(source_start.begin(),<sp/>source_start.end(),<sp/>source_start.begin(),<sp/></highlight><highlight class="keywordtype">size_t</highlight><highlight class="normal">{0});</highlight></codeline>
+<codeline lineno="87"><highlight class="normal"><sp/><sp/>}</highlight></codeline>
+<codeline lineno="88"><highlight class="normal"></highlight></codeline>
+<codeline lineno="89"><highlight class="normal"><sp/><sp/>rmm::device_uvector&lt;size_t&gt;<sp/>neighbors_offsets(num_sources<sp/>+<sp/>1,<sp/>user_stream_view);</highlight></codeline>
+<codeline lineno="90"><highlight class="normal"><sp/><sp/>rmm::device_uvector&lt;vertex_t&gt;<sp/>neighbors(0,<sp/>user_stream_view);</highlight></codeline>
+<codeline lineno="91"><highlight class="normal"></highlight></codeline>
+<codeline lineno="92"><highlight class="normal"><sp/><sp/>std::vector&lt;size_t&gt;<sp/>h_neighbors_offsets(num_sources<sp/>+<sp/>1);</highlight></codeline>
+<codeline lineno="93"><highlight class="normal"></highlight></codeline>
+<codeline lineno="94"><highlight class="normal"><sp/><sp/></highlight><highlight class="comment">//<sp/>Streams<sp/>will<sp/>allocate<sp/>concurrently<sp/>later</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="95"><highlight class="normal"><sp/><sp/>std::vector&lt;rmm::device_uvector&lt;vertex_t&gt;&gt;<sp/>reached{};</highlight></codeline>
+<codeline lineno="96"><highlight class="normal"><sp/><sp/>reached.reserve(num_sources);</highlight></codeline>
+<codeline lineno="97"><highlight class="normal"></highlight></codeline>
+<codeline lineno="98"><highlight class="normal"><sp/><sp/>user_stream_view.synchronize();</highlight></codeline>
+<codeline lineno="99"><highlight class="normal"></highlight><highlight class="preprocessor">#ifdef<sp/>TIMING</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="100"><highlight class="normal"><sp/><sp/><ref refid="classHighResTimer" kindref="compound">HighResTimer</ref><sp/>hr_timer;</highlight></codeline>
+<codeline lineno="101"><highlight class="normal"><sp/><sp/>hr_timer.start(</highlight><highlight class="stringliteral">&quot;ego_neighbors&quot;</highlight><highlight class="normal">);</highlight></codeline>
+<codeline lineno="102"><highlight class="normal"></highlight><highlight class="preprocessor">#endif</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="103"><highlight class="normal"></highlight></codeline>
+<codeline lineno="104"><highlight class="normal"><sp/><sp/></highlight><highlight class="comment">//<sp/>FIXME:<sp/>Explore<sp/>the<sp/>performance<sp/>here.<sp/><sp/>Single-seed<sp/>BFS</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="105"><highlight class="normal"><sp/><sp/></highlight><highlight class="comment">//<sp/>has<sp/>a<sp/>slow<sp/>parallelism<sp/>ramp<sp/>up,<sp/>would<sp/>we<sp/>be<sp/>better<sp/>off</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="106"><highlight class="normal"><sp/><sp/></highlight><highlight class="comment">//<sp/>using<sp/>the<sp/>technique<sp/>in<sp/>induced<sp/>subgraph<sp/>where<sp/>we<sp/>tag</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="107"><highlight class="normal"><sp/><sp/></highlight><highlight class="comment">//<sp/>the<sp/>vertices<sp/>and<sp/>search<sp/>for<sp/>matches<sp/>until<sp/>the<sp/>frontiers</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="108"><highlight class="normal"><sp/><sp/></highlight><highlight class="comment">//<sp/>are<sp/>large<sp/>enough<sp/>to<sp/>use<sp/>this<sp/>approach?</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="109"><highlight class="normal"></highlight></codeline>
+<codeline lineno="110"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordflow">for</highlight><highlight class="normal"><sp/>(</highlight><highlight class="keywordtype">size_t</highlight><highlight class="normal"><sp/>i<sp/>=<sp/>0;<sp/>i<sp/>&lt;<sp/>num_sources;<sp/>i++)<sp/>{</highlight></codeline>
+<codeline lineno="111"><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="comment">//<sp/>get<sp/>light<sp/>handle<sp/>from<sp/>worker<sp/>pool</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="112"><highlight class="normal"><sp/><sp/><sp/><sp/>raft::handle_t<sp/>light_handle(handle.get_next_usable_stream(i));</highlight></codeline>
+<codeline lineno="113"><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="keyword">auto</highlight><highlight class="normal"><sp/>worker_stream_view<sp/>=<sp/>multi_gpu<sp/>?<sp/>handle.get_stream()<sp/>:<sp/>light_handle.get_stream();</highlight></codeline>
+<codeline lineno="114"><highlight class="normal"></highlight></codeline>
+<codeline lineno="115"><highlight class="normal"><sp/><sp/><sp/><sp/>rmm::device_uvector&lt;vertex_t&gt;<sp/>local_reach(graph_view.local_vertex_partition_range_size(),</highlight></codeline>
+<codeline lineno="116"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>worker_stream_view);</highlight></codeline>
+<codeline lineno="117"><highlight class="normal"><sp/><sp/><sp/><sp/>reached.push_back(std::move(local_reach));</highlight></codeline>
+<codeline lineno="118"><highlight class="normal"></highlight></codeline>
+<codeline lineno="119"><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="comment">//<sp/>BFS<sp/>with<sp/>cutoff</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="120"><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="comment">//<sp/>consider<sp/>adding<sp/>a<sp/>device<sp/>API<sp/>to<sp/>BFS<sp/>(ie.<sp/>accept<sp/>source<sp/>on<sp/>the<sp/>device)</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="121"><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="keywordtype">bool</highlight><highlight class="normal"><sp/>direction_optimizing<sp/>=<sp/></highlight><highlight class="keyword">false</highlight><highlight class="normal">;</highlight></codeline>
+<codeline lineno="122"><highlight class="normal"><sp/><sp/><sp/><sp/>thrust::fill(rmm::exec_policy(worker_stream_view),</highlight></codeline>
+<codeline lineno="123"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>reached[i].begin(),</highlight></codeline>
+<codeline lineno="124"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>reached[i].end(),</highlight></codeline>
+<codeline lineno="125"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>std::numeric_limits&lt;vertex_t&gt;::max());</highlight></codeline>
+<codeline lineno="126"><highlight class="normal"></highlight></codeline>
+<codeline lineno="127"><highlight class="normal"><sp/><sp/><sp/><sp/>raft::device_span&lt;vertex_t<sp/>const&gt;<sp/>source{source_vertex.data()<sp/>+<sp/>i,<sp/>1};</highlight></codeline>
+<codeline lineno="128"><highlight class="normal"></highlight></codeline>
+<codeline lineno="129"><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="keywordflow">if</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">constexpr</highlight><highlight class="normal"><sp/>(multi_gpu)<sp/>{</highlight></codeline>
+<codeline lineno="130"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keyword">auto</highlight><highlight class="normal"><sp/>it<sp/><sp/>=<sp/>std::upper_bound(source_start.begin(),<sp/>source_start.end(),<sp/>i);</highlight></codeline>
+<codeline lineno="131"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keyword">auto</highlight><highlight class="normal"><sp/>gpu<sp/>=<sp/>thrust::distance(source_start.begin(),<sp/>it)<sp/>-<sp/>1;</highlight></codeline>
+<codeline lineno="132"><highlight class="normal"></highlight></codeline>
+<codeline lineno="133"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordflow">if</highlight><highlight class="normal"><sp/>(gpu<sp/>==<sp/>handle.get_comms().get_rank())</highlight></codeline>
+<codeline lineno="134"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>source<sp/>=<sp/>raft::device_span&lt;vertex_t<sp/>const&gt;{source_vertex.data()<sp/>+<sp/>i<sp/>-<sp/>source_start[gpu],<sp/>1};</highlight></codeline>
+<codeline lineno="135"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordflow">else</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="136"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>source<sp/>=<sp/>raft::device_span&lt;vertex_t<sp/>const&gt;{source_vertex.data(),<sp/></highlight><highlight class="keywordtype">size_t</highlight><highlight class="normal">{0}};</highlight></codeline>
+<codeline lineno="137"><highlight class="normal"><sp/><sp/><sp/><sp/>}</highlight></codeline>
+<codeline lineno="138"><highlight class="normal"></highlight></codeline>
+<codeline lineno="139"><highlight class="normal"><sp/><sp/><sp/><sp/>cugraph::bfs&lt;vertex_t,<sp/>edge_t,<sp/>multi_gpu&gt;(multi_gpu<sp/>?<sp/>handle<sp/>:<sp/>light_handle,</highlight></codeline>
+<codeline lineno="140"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>graph_view,</highlight></codeline>
+<codeline lineno="141"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>reached[i].data(),</highlight></codeline>
+<codeline lineno="142"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>nullptr,</highlight></codeline>
+<codeline lineno="143"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>source.data(),</highlight></codeline>
+<codeline lineno="144"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>source.size(),</highlight></codeline>
+<codeline lineno="145"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>direction_optimizing,</highlight></codeline>
+<codeline lineno="146"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>radius,</highlight></codeline>
+<codeline lineno="147"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>do_expensive_check);</highlight></codeline>
+<codeline lineno="148"><highlight class="normal"></highlight></codeline>
+<codeline lineno="149"><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="comment">//<sp/>identify<sp/>reached<sp/>vertex<sp/>ids<sp/>from<sp/>distance<sp/>array</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="150"><highlight class="normal"><sp/><sp/><sp/><sp/>thrust::transform(</highlight></codeline>
+<codeline lineno="151"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/>rmm::exec_policy(worker_stream_view),</highlight></codeline>
+<codeline lineno="152"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/>thrust::make_counting_iterator(graph_view.local_vertex_partition_range_first()),</highlight></codeline>
+<codeline lineno="153"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/>thrust::make_counting_iterator(graph_view.local_vertex_partition_range_last()),</highlight></codeline>
+<codeline lineno="154"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/>reached[i].begin(),</highlight></codeline>
+<codeline lineno="155"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/>reached[i].begin(),</highlight></codeline>
+<codeline lineno="156"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/>[sentinel<sp/>=<sp/>std::numeric_limits&lt;vertex_t&gt;::max()]<sp/>__device__(</highlight><highlight class="keyword">auto</highlight><highlight class="normal"><sp/></highlight><highlight class="keywordtype">id</highlight><highlight class="normal">,<sp/></highlight><highlight class="keyword">auto</highlight><highlight class="normal"><sp/>val)<sp/>{</highlight></codeline>
+<codeline lineno="157"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordflow">return</highlight><highlight class="normal"><sp/>val<sp/>&lt;<sp/>sentinel<sp/>?<sp/>id<sp/>:<sp/>sentinel;</highlight></codeline>
+<codeline lineno="158"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/>});</highlight></codeline>
+<codeline lineno="159"><highlight class="normal"></highlight></codeline>
+<codeline lineno="160"><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="comment">//<sp/>removes<sp/>unreached<sp/>data</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="161"><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="keyword">auto</highlight><highlight class="normal"><sp/>reached_end<sp/>=<sp/>thrust::remove(rmm::exec_policy(worker_stream_view),</highlight></codeline>
+<codeline lineno="162"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>reached[i].begin(),</highlight></codeline>
+<codeline lineno="163"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>reached[i].end(),</highlight></codeline>
+<codeline lineno="164"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>std::numeric_limits&lt;vertex_t&gt;::max());</highlight></codeline>
+<codeline lineno="165"><highlight class="normal"></highlight></codeline>
+<codeline lineno="166"><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="comment">//<sp/>release<sp/>temp<sp/>storage</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="167"><highlight class="normal"><sp/><sp/><sp/><sp/>reached[i].resize(thrust::distance(reached[i].begin(),<sp/>reached_end),<sp/>worker_stream_view);</highlight></codeline>
+<codeline lineno="168"><highlight class="normal"><sp/><sp/><sp/><sp/>reached[i].shrink_to_fit(worker_stream_view);</highlight></codeline>
+<codeline lineno="169"><highlight class="normal"><sp/><sp/>}</highlight></codeline>
+<codeline lineno="170"><highlight class="normal"></highlight></codeline>
+<codeline lineno="171"><highlight class="normal"><sp/><sp/></highlight><highlight class="comment">//<sp/>wait<sp/>on<sp/>every<sp/>one<sp/>to<sp/>identify<sp/>their<sp/>neighbors<sp/>before<sp/>proceeding<sp/>to<sp/>concatenation</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="172"><highlight class="normal"><sp/><sp/>handle.sync_stream_pool();</highlight></codeline>
+<codeline lineno="173"><highlight class="normal"></highlight></codeline>
+<codeline lineno="174"><highlight class="normal"><sp/><sp/></highlight><highlight class="comment">//<sp/>Construct<sp/>neighbors<sp/>offsets<sp/>(just<sp/>a<sp/>scan<sp/>on<sp/>neighborhod<sp/>vector<sp/>sizes)</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="175"><highlight class="normal"><sp/><sp/>h_neighbors_offsets[0]<sp/>=<sp/>0;</highlight></codeline>
+<codeline lineno="176"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordflow">for</highlight><highlight class="normal"><sp/>(</highlight><highlight class="keywordtype">size_t</highlight><highlight class="normal"><sp/>i<sp/>=<sp/>0;<sp/>i<sp/>&lt;<sp/>num_sources;<sp/>i++)<sp/>{</highlight></codeline>
+<codeline lineno="177"><highlight class="normal"><sp/><sp/><sp/><sp/>h_neighbors_offsets[i<sp/>+<sp/>1]<sp/>=<sp/>h_neighbors_offsets[i]<sp/>+<sp/>reached[i].size();</highlight></codeline>
+<codeline lineno="178"><highlight class="normal"><sp/><sp/>}</highlight></codeline>
+<codeline lineno="179"><highlight class="normal"><sp/><sp/>raft::update_device(</highlight></codeline>
+<codeline lineno="180"><highlight class="normal"><sp/><sp/><sp/><sp/>neighbors_offsets.data(),<sp/>&amp;h_neighbors_offsets[0],<sp/>num_sources<sp/>+<sp/>1,<sp/>user_stream_view.value());</highlight></codeline>
+<codeline lineno="181"><highlight class="normal"><sp/><sp/>neighbors.resize(h_neighbors_offsets[num_sources],<sp/>user_stream_view.value());</highlight></codeline>
+<codeline lineno="182"><highlight class="normal"><sp/><sp/>user_stream_view.synchronize();</highlight></codeline>
+<codeline lineno="183"><highlight class="normal"></highlight></codeline>
+<codeline lineno="184"><highlight class="normal"><sp/><sp/></highlight><highlight class="comment">//<sp/>Construct<sp/>the<sp/>neighbors<sp/>list<sp/>concurrently</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="185"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordflow">for</highlight><highlight class="normal"><sp/>(</highlight><highlight class="keywordtype">size_t</highlight><highlight class="normal"><sp/>i<sp/>=<sp/>0;<sp/>i<sp/>&lt;<sp/>num_sources;<sp/>i++)<sp/>{</highlight></codeline>
+<codeline lineno="186"><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="keyword">auto</highlight><highlight class="normal"><sp/>worker_stream_view<sp/>=<sp/>handle.get_next_usable_stream(i);</highlight></codeline>
+<codeline lineno="187"><highlight class="normal"><sp/><sp/><sp/><sp/>thrust::copy(rmm::exec_policy(worker_stream_view),</highlight></codeline>
+<codeline lineno="188"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>reached[i].begin(),</highlight></codeline>
+<codeline lineno="189"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>reached[i].end(),</highlight></codeline>
+<codeline lineno="190"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>neighbors.begin()<sp/>+<sp/>h_neighbors_offsets[i]);</highlight></codeline>
+<codeline lineno="191"><highlight class="normal"></highlight></codeline>
+<codeline lineno="192"><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="comment">//<sp/>reached<sp/>info<sp/>is<sp/>not<sp/>needed<sp/>anymore</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="193"><highlight class="normal"><sp/><sp/><sp/><sp/>reached[i].resize(0,<sp/>worker_stream_view);</highlight></codeline>
+<codeline lineno="194"><highlight class="normal"><sp/><sp/><sp/><sp/>reached[i].shrink_to_fit(worker_stream_view);</highlight></codeline>
+<codeline lineno="195"><highlight class="normal"><sp/><sp/>}</highlight></codeline>
+<codeline lineno="196"><highlight class="normal"></highlight></codeline>
+<codeline lineno="197"><highlight class="normal"><sp/><sp/></highlight><highlight class="comment">//<sp/>wait<sp/>on<sp/>every<sp/>one<sp/>before<sp/>proceeding<sp/>to<sp/>grouped<sp/>extraction</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="198"><highlight class="normal"><sp/><sp/>handle.sync_stream_pool();</highlight></codeline>
+<codeline lineno="199"><highlight class="normal"></highlight></codeline>
+<codeline lineno="200"><highlight class="normal"></highlight><highlight class="preprocessor">#ifdef<sp/>TIMING</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="201"><highlight class="normal"><sp/><sp/>hr_timer.stop();</highlight></codeline>
+<codeline lineno="202"><highlight class="normal"><sp/><sp/>hr_timer.display_and_clear(std::cout);</highlight></codeline>
+<codeline lineno="203"><highlight class="normal"></highlight><highlight class="preprocessor">#endif</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="204"><highlight class="normal"></highlight></codeline>
+<codeline lineno="205"><highlight class="normal"><sp/><sp/></highlight><highlight class="comment">//<sp/>extract</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="206"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordflow">return</highlight><highlight class="normal"><sp/>cugraph::extract_induced_subgraphs(</highlight></codeline>
+<codeline lineno="207"><highlight class="normal"><sp/><sp/><sp/><sp/>handle,</highlight></codeline>
+<codeline lineno="208"><highlight class="normal"><sp/><sp/><sp/><sp/>graph_view,</highlight></codeline>
+<codeline lineno="209"><highlight class="normal"><sp/><sp/><sp/><sp/>edge_weight_view,</highlight></codeline>
+<codeline lineno="210"><highlight class="normal"><sp/><sp/><sp/><sp/>raft::device_span&lt;size_t<sp/>const&gt;(neighbors_offsets.data(),<sp/>neighbors_offsets.size()),</highlight></codeline>
+<codeline lineno="211"><highlight class="normal"><sp/><sp/><sp/><sp/>raft::device_span&lt;vertex_t<sp/>const&gt;(neighbors.data(),<sp/>neighbors.size()),</highlight></codeline>
+<codeline lineno="212"><highlight class="normal"><sp/><sp/><sp/><sp/>do_expensive_check);</highlight></codeline>
+<codeline lineno="213"><highlight class="normal">}</highlight></codeline>
+<codeline lineno="214"><highlight class="normal"></highlight></codeline>
+<codeline lineno="215"><highlight class="normal">}<sp/><sp/></highlight><highlight class="comment">//<sp/>namespace</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="216"><highlight class="normal"></highlight></codeline>
+<codeline lineno="217"><highlight class="normal"></highlight><highlight class="keyword">namespace<sp/></highlight><highlight class="normal">cugraph<sp/>{</highlight></codeline>
+<codeline lineno="218"><highlight class="normal"></highlight></codeline>
+<codeline lineno="219"><highlight class="normal"></highlight><highlight class="keyword">template</highlight><highlight class="normal"><sp/>&lt;</highlight><highlight class="keyword">typename</highlight><highlight class="normal"><sp/>vertex_t,<sp/></highlight><highlight class="keyword">typename</highlight><highlight class="normal"><sp/>edge_t,<sp/></highlight><highlight class="keyword">typename</highlight><highlight class="normal"><sp/>weight_t,<sp/></highlight><highlight class="keywordtype">bool</highlight><highlight class="normal"><sp/>multi_gpu&gt;</highlight></codeline>
+<codeline lineno="220"><highlight class="normal">std::tuple&lt;rmm::device_uvector&lt;vertex_t&gt;,</highlight></codeline>
+<codeline lineno="221"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>rmm::device_uvector&lt;vertex_t&gt;,</highlight></codeline>
+<codeline lineno="222"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>std::optional&lt;rmm::device_uvector&lt;weight_t&gt;&gt;,</highlight></codeline>
+<codeline lineno="223"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>rmm::device_uvector&lt;size_t&gt;&gt;</highlight></codeline>
+<codeline lineno="224"><highlight class="normal">extract_ego(raft::handle_t<sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal">&amp;<sp/>handle,</highlight></codeline>
+<codeline lineno="225"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>graph_view_t&lt;vertex_t,<sp/>edge_t,<sp/>false,<sp/>multi_gpu&gt;<sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal">&amp;<sp/>graph_view,</highlight></codeline>
+<codeline lineno="226"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>std::optional&lt;edge_property_view_t&lt;edge_t,<sp/>weight_t<sp/>const*&gt;&gt;<sp/>edge_weight_view,</highlight></codeline>
+<codeline lineno="227"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>vertex_t*<sp/>source_vertex,</highlight></codeline>
+<codeline lineno="228"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>vertex_t<sp/>n_subgraphs,</highlight></codeline>
+<codeline lineno="229"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>vertex_t<sp/>radius)</highlight></codeline>
+<codeline lineno="230"><highlight class="normal">{</highlight></codeline>
+<codeline lineno="231"><highlight class="normal"><sp/><sp/>CUGRAPH_EXPECTS(!graph_view.has_edge_mask(),<sp/></highlight><highlight class="stringliteral">&quot;unimplemented.&quot;</highlight><highlight class="normal">);</highlight></codeline>
+<codeline lineno="232"><highlight class="normal"></highlight></codeline>
+<codeline lineno="233"><highlight class="normal"><sp/><sp/>CUGRAPH_EXPECTS(n_subgraphs<sp/>&gt;<sp/>0,<sp/></highlight><highlight class="stringliteral">&quot;Need<sp/>at<sp/>least<sp/>one<sp/>source<sp/>to<sp/>extract<sp/>the<sp/>egonet<sp/>from&quot;</highlight><highlight class="normal">);</highlight></codeline>
+<codeline lineno="234"><highlight class="normal"><sp/><sp/>CUGRAPH_EXPECTS(n_subgraphs<sp/>&lt;<sp/>graph_view.number_of_vertices(),</highlight></codeline>
+<codeline lineno="235"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="stringliteral">&quot;Can&apos;t<sp/>have<sp/>more<sp/>sources<sp/>to<sp/>extract<sp/>from<sp/>than<sp/>vertices<sp/>in<sp/>the<sp/>graph&quot;</highlight><highlight class="normal">);</highlight></codeline>
+<codeline lineno="236"><highlight class="normal"><sp/><sp/>CUGRAPH_EXPECTS(radius<sp/>&gt;<sp/>0,<sp/></highlight><highlight class="stringliteral">&quot;Radius<sp/>should<sp/>be<sp/>at<sp/>least<sp/>1&quot;</highlight><highlight class="normal">);</highlight></codeline>
+<codeline lineno="237"><highlight class="normal"><sp/><sp/>CUGRAPH_EXPECTS(radius<sp/>&lt;<sp/>graph_view.number_of_vertices(),<sp/></highlight><highlight class="stringliteral">&quot;radius<sp/>is<sp/>too<sp/>large&quot;</highlight><highlight class="normal">);</highlight></codeline>
+<codeline lineno="238"><highlight class="normal"><sp/><sp/></highlight><highlight class="comment">//<sp/>source_vertex<sp/>range<sp/>is<sp/>checked<sp/>in<sp/>bfs.</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="239"><highlight class="normal"></highlight></codeline>
+<codeline lineno="240"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordflow">return</highlight><highlight class="normal"><sp/>extract(handle,</highlight></codeline>
+<codeline lineno="241"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>graph_view,</highlight></codeline>
+<codeline lineno="242"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>edge_weight_view,</highlight></codeline>
+<codeline lineno="243"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>raft::device_span&lt;vertex_t<sp/>const&gt;{source_vertex,<sp/></highlight><highlight class="keyword">static_cast&lt;</highlight><highlight class="keywordtype">size_t</highlight><highlight class="keyword">&gt;</highlight><highlight class="normal">(n_subgraphs)},</highlight></codeline>
+<codeline lineno="244"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>radius,</highlight></codeline>
+<codeline lineno="245"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keyword">false</highlight><highlight class="normal">);</highlight></codeline>
+<codeline lineno="246"><highlight class="normal">}</highlight></codeline>
+<codeline lineno="247"><highlight class="normal"></highlight></codeline>
+<codeline lineno="248"><highlight class="normal"></highlight><highlight class="keyword">template</highlight><highlight class="normal"><sp/>&lt;</highlight><highlight class="keyword">typename</highlight><highlight class="normal"><sp/>vertex_t,<sp/></highlight><highlight class="keyword">typename</highlight><highlight class="normal"><sp/>edge_t,<sp/></highlight><highlight class="keyword">typename</highlight><highlight class="normal"><sp/>weight_t,<sp/></highlight><highlight class="keywordtype">bool</highlight><highlight class="normal"><sp/>multi_gpu&gt;</highlight></codeline>
+<codeline lineno="249"><highlight class="normal">std::tuple&lt;rmm::device_uvector&lt;vertex_t&gt;,</highlight></codeline>
+<codeline lineno="250"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>rmm::device_uvector&lt;vertex_t&gt;,</highlight></codeline>
+<codeline lineno="251"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>std::optional&lt;rmm::device_uvector&lt;weight_t&gt;&gt;,</highlight></codeline>
+<codeline lineno="252"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>rmm::device_uvector&lt;size_t&gt;&gt;</highlight></codeline>
+<codeline lineno="253"><highlight class="normal">extract_ego(raft::handle_t<sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal">&amp;<sp/>handle,</highlight></codeline>
+<codeline lineno="254"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>graph_view_t&lt;vertex_t,<sp/>edge_t,<sp/>false,<sp/>multi_gpu&gt;<sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal">&amp;<sp/>graph_view,</highlight></codeline>
+<codeline lineno="255"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>std::optional&lt;edge_property_view_t&lt;edge_t,<sp/>weight_t<sp/>const*&gt;&gt;<sp/>edge_weight_view,</highlight></codeline>
+<codeline lineno="256"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>raft::device_span&lt;vertex_t<sp/>const&gt;<sp/>source_vertex,</highlight></codeline>
+<codeline lineno="257"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>vertex_t<sp/>radius,</highlight></codeline>
+<codeline lineno="258"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordtype">bool</highlight><highlight class="normal"><sp/>do_expensive_check)</highlight></codeline>
+<codeline lineno="259"><highlight class="normal">{</highlight></codeline>
+<codeline lineno="260"><highlight class="normal"><sp/><sp/>CUGRAPH_EXPECTS(!graph_view.has_edge_mask(),<sp/></highlight><highlight class="stringliteral">&quot;unimplemented.&quot;</highlight><highlight class="normal">);</highlight></codeline>
+<codeline lineno="261"><highlight class="normal"></highlight></codeline>
+<codeline lineno="262"><highlight class="normal"><sp/><sp/>CUGRAPH_EXPECTS(radius<sp/>&gt;<sp/>0,<sp/></highlight><highlight class="stringliteral">&quot;Radius<sp/>should<sp/>be<sp/>at<sp/>least<sp/>1&quot;</highlight><highlight class="normal">);</highlight></codeline>
+<codeline lineno="263"><highlight class="normal"><sp/><sp/>CUGRAPH_EXPECTS(radius<sp/>&lt;<sp/>graph_view.number_of_vertices(),<sp/></highlight><highlight class="stringliteral">&quot;radius<sp/>is<sp/>too<sp/>large&quot;</highlight><highlight class="normal">);</highlight></codeline>
+<codeline lineno="264"><highlight class="normal"></highlight></codeline>
+<codeline lineno="265"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordflow">return</highlight><highlight class="normal"><sp/>extract(handle,<sp/>graph_view,<sp/>edge_weight_view,<sp/>source_vertex,<sp/>radius,<sp/>do_expensive_check);</highlight></codeline>
+<codeline lineno="266"><highlight class="normal">}</highlight></codeline>
+<codeline lineno="267"><highlight class="normal"></highlight></codeline>
+<codeline lineno="268"><highlight class="normal">}<sp/><sp/></highlight><highlight class="comment">//<sp/>namespace<sp/>cugraph</highlight><highlight class="normal"></highlight></codeline>
+    </programlisting>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/src/community/egonet_impl.cuh"/>
+  </compounddef>
+</doxygen>

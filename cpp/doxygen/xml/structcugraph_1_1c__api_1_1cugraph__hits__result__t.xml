@@ -1,0 +1,105 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="structcugraph_1_1c__api_1_1cugraph__hits__result__t" kind="struct" language="C++" prot="public">
+    <compoundname>cugraph::c_api::cugraph_hits_result_t</compoundname>
+    <sectiondef kind="public-attrib">
+      <memberdef kind="variable" id="structcugraph_1_1c__api_1_1cugraph__hits__result__t_1a468920bc8394dd649791c94adee8df72" prot="public" static="no" mutable="no">
+        <type><ref refid="structcugraph_1_1c__api_1_1cugraph__type__erased__device__array__t" kindref="compound">cugraph_type_erased_device_array_t</ref> *</type>
+        <definition>cugraph_type_erased_device_array_t* cugraph::c_api::cugraph_hits_result_t::vertex_ids_</definition>
+        <argsstring></argsstring>
+        <name>vertex_ids_</name>
+        <qualifiedname>cugraph::c_api::cugraph_hits_result_t::vertex_ids_</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/c_api/hits.cpp" line="35" column="38" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/hits.cpp" bodystart="35" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph_1_1c__api_1_1cugraph__hits__result__t_1a92c7b014b2b16487e83aa4d2deb299aa" prot="public" static="no" mutable="no">
+        <type><ref refid="structcugraph_1_1c__api_1_1cugraph__type__erased__device__array__t" kindref="compound">cugraph_type_erased_device_array_t</ref> *</type>
+        <definition>cugraph_type_erased_device_array_t* cugraph::c_api::cugraph_hits_result_t::hubs_</definition>
+        <argsstring></argsstring>
+        <name>hubs_</name>
+        <qualifiedname>cugraph::c_api::cugraph_hits_result_t::hubs_</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/c_api/hits.cpp" line="36" column="38" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/hits.cpp" bodystart="36" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph_1_1c__api_1_1cugraph__hits__result__t_1af8ed0d58203c0e68617fe474ed8ae01d" prot="public" static="no" mutable="no">
+        <type><ref refid="structcugraph_1_1c__api_1_1cugraph__type__erased__device__array__t" kindref="compound">cugraph_type_erased_device_array_t</ref> *</type>
+        <definition>cugraph_type_erased_device_array_t* cugraph::c_api::cugraph_hits_result_t::authorities_</definition>
+        <argsstring></argsstring>
+        <name>authorities_</name>
+        <qualifiedname>cugraph::c_api::cugraph_hits_result_t::authorities_</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/c_api/hits.cpp" line="37" column="38" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/hits.cpp" bodystart="37" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph_1_1c__api_1_1cugraph__hits__result__t_1ad88000d0afbcf171273841498ca5fc76" prot="public" static="no" mutable="no">
+        <type>double</type>
+        <definition>double cugraph::c_api::cugraph_hits_result_t::hub_score_differences_</definition>
+        <argsstring></argsstring>
+        <name>hub_score_differences_</name>
+        <qualifiedname>cugraph::c_api::cugraph_hits_result_t::hub_score_differences_</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/c_api/hits.cpp" line="38" column="10" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/hits.cpp" bodystart="38" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph_1_1c__api_1_1cugraph__hits__result__t_1aed557fde4f8b0c2f4c5a15d27c9b91f3" prot="public" static="no" mutable="no">
+        <type>size_t</type>
+        <definition>size_t cugraph::c_api::cugraph_hits_result_t::number_of_iterations_</definition>
+        <argsstring></argsstring>
+        <name>number_of_iterations_</name>
+        <qualifiedname>cugraph::c_api::cugraph_hits_result_t::number_of_iterations_</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/c_api/hits.cpp" line="39" column="10" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/hits.cpp" bodystart="39" bodyend="-1"/>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <collaborationgraph>
+      <node id="1">
+        <label>cugraph::c_api::cugraph_hits_result_t</label>
+        <link refid="structcugraph_1_1c__api_1_1cugraph__hits__result__t"/>
+        <childnode refid="2" relation="usage">
+          <edgelabel>authorities_</edgelabel>
+          <edgelabel>hubs_</edgelabel>
+          <edgelabel>vertex_ids_</edgelabel>
+        </childnode>
+      </node>
+      <node id="2">
+        <label>cugraph::c_api::cugraph_type_erased_device_array_t</label>
+        <link refid="structcugraph_1_1c__api_1_1cugraph__type__erased__device__array__t"/>
+      </node>
+    </collaborationgraph>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/src/c_api/hits.cpp" line="34" column="1" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/hits.cpp" bodystart="34" bodyend="40"/>
+    <listofallmembers>
+      <member refid="structcugraph_1_1c__api_1_1cugraph__hits__result__t_1af8ed0d58203c0e68617fe474ed8ae01d" prot="public" virt="non-virtual"><scope>cugraph::c_api::cugraph_hits_result_t</scope><name>authorities_</name></member>
+      <member refid="structcugraph_1_1c__api_1_1cugraph__hits__result__t_1ad88000d0afbcf171273841498ca5fc76" prot="public" virt="non-virtual"><scope>cugraph::c_api::cugraph_hits_result_t</scope><name>hub_score_differences_</name></member>
+      <member refid="structcugraph_1_1c__api_1_1cugraph__hits__result__t_1a92c7b014b2b16487e83aa4d2deb299aa" prot="public" virt="non-virtual"><scope>cugraph::c_api::cugraph_hits_result_t</scope><name>hubs_</name></member>
+      <member refid="structcugraph_1_1c__api_1_1cugraph__hits__result__t_1aed557fde4f8b0c2f4c5a15d27c9b91f3" prot="public" virt="non-virtual"><scope>cugraph::c_api::cugraph_hits_result_t</scope><name>number_of_iterations_</name></member>
+      <member refid="structcugraph_1_1c__api_1_1cugraph__hits__result__t_1a468920bc8394dd649791c94adee8df72" prot="public" virt="non-virtual"><scope>cugraph::c_api::cugraph_hits_result_t</scope><name>vertex_ids_</name></member>
+    </listofallmembers>
+  </compounddef>
+</doxygen>

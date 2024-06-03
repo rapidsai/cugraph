@@ -1,0 +1,32 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="structcugraph__coo__list__t" kind="struct" language="C++" prot="public">
+    <compoundname>cugraph_coo_list_t</compoundname>
+    <includes refid="graph__generators_8h" local="no">graph_generators.h</includes>
+    <sectiondef kind="public-attrib">
+      <memberdef kind="variable" id="structcugraph__coo__list__t_1afe1cdb455046dbc9cba5db24dfd87364" prot="public" static="no" mutable="no">
+        <type>int32_t</type>
+        <definition>int32_t cugraph_coo_list_t::align_</definition>
+        <argsstring></argsstring>
+        <name>align_</name>
+        <qualifiedname>cugraph_coo_list_t::align_</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/graph_generators.h" line="41" column="11" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/graph_generators.h" bodystart="41" bodyend="-1"/>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+<para>Opaque COO list definition. </para>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/graph_generators.h" line="40" column="1" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/graph_generators.h" bodystart="40" bodyend="42"/>
+    <listofallmembers>
+      <member refid="structcugraph__coo__list__t_1afe1cdb455046dbc9cba5db24dfd87364" prot="public" virt="non-virtual"><scope>cugraph_coo_list_t</scope><name>align_</name></member>
+    </listofallmembers>
+  </compounddef>
+</doxygen>

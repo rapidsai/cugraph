@@ -1,0 +1,92 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="structcugraph_1_1detail_1_1search__and__increment__degree__t" kind="struct" language="C++" prot="public">
+    <compoundname>cugraph::detail::search_and_increment_degree_t</compoundname>
+    <templateparamlist>
+      <param>
+        <type>typename vertex_t</type>
+      </param>
+      <param>
+        <type>typename edge_t</type>
+      </param>
+    </templateparamlist>
+    <sectiondef kind="public-attrib">
+      <memberdef kind="variable" id="structcugraph_1_1detail_1_1search__and__increment__degree__t_1aec44b3626cae8bff82bd95320b6fdbe1" prot="public" static="no" mutable="no">
+        <type>vertex_t const  *</type>
+        <definition>vertex_t const* cugraph::detail::search_and_increment_degree_t&lt; vertex_t, edge_t &gt;::sorted_vertices</definition>
+        <argsstring></argsstring>
+        <name>sorted_vertices</name>
+        <qualifiedname>cugraph::detail::search_and_increment_degree_t::sorted_vertices</qualifiedname>
+        <initializer>{nullptr}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/structure/renumber_edgelist_impl.cuh" line="103" column="18" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/structure/renumber_edgelist_impl.cuh" bodystart="103" bodyend="103"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph_1_1detail_1_1search__and__increment__degree__t_1a2cc0c3a75ccf20b1f49568f4cfe1d946" prot="public" static="no" mutable="no">
+        <type>vertex_t</type>
+        <definition>vertex_t cugraph::detail::search_and_increment_degree_t&lt; vertex_t, edge_t &gt;::num_vertices</definition>
+        <argsstring></argsstring>
+        <name>num_vertices</name>
+        <qualifiedname>cugraph::detail::search_and_increment_degree_t::num_vertices</qualifiedname>
+        <initializer>{0}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/structure/renumber_edgelist_impl.cuh" line="104" column="12" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/structure/renumber_edgelist_impl.cuh" bodystart="104" bodyend="104"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph_1_1detail_1_1search__and__increment__degree__t_1af4fbabfff800ae5918c7b2fa1a3d9ed8" prot="public" static="no" mutable="no">
+        <type>edge_t *</type>
+        <definition>edge_t* cugraph::detail::search_and_increment_degree_t&lt; vertex_t, edge_t &gt;::degrees</definition>
+        <argsstring></argsstring>
+        <name>degrees</name>
+        <qualifiedname>cugraph::detail::search_and_increment_degree_t::degrees</qualifiedname>
+        <initializer>{nullptr}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/structure/renumber_edgelist_impl.cuh" line="105" column="10" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/structure/renumber_edgelist_impl.cuh" bodystart="105" bodyend="105"/>
+      </memberdef>
+    </sectiondef>
+    <sectiondef kind="public-func">
+      <memberdef kind="function" id="structcugraph_1_1detail_1_1search__and__increment__degree__t_1a43f2634c5d72184f20bbc9d6e21c7e27" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>__device__ void</type>
+        <definition>__device__ void cugraph::detail::search_and_increment_degree_t&lt; vertex_t, edge_t &gt;::operator()</definition>
+        <argsstring>(thrust::tuple&lt; vertex_t, edge_t &gt; vertex_degree_pair) const</argsstring>
+        <name>operator()</name>
+        <qualifiedname>cugraph::detail::search_and_increment_degree_t::operator()</qualifiedname>
+        <param>
+          <type>thrust::tuple&lt; vertex_t, edge_t &gt;</type>
+          <declname>vertex_degree_pair</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/structure/renumber_edgelist_impl.cuh" line="107" column="19" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/structure/renumber_edgelist_impl.cuh" bodystart="107" bodyend="114"/>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/src/structure/renumber_edgelist_impl.cuh" line="102" column="1" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/structure/renumber_edgelist_impl.cuh" bodystart="102" bodyend="115"/>
+    <listofallmembers>
+      <member refid="structcugraph_1_1detail_1_1search__and__increment__degree__t_1af4fbabfff800ae5918c7b2fa1a3d9ed8" prot="public" virt="non-virtual"><scope>cugraph::detail::search_and_increment_degree_t</scope><name>degrees</name></member>
+      <member refid="structcugraph_1_1detail_1_1search__and__increment__degree__t_1a2cc0c3a75ccf20b1f49568f4cfe1d946" prot="public" virt="non-virtual"><scope>cugraph::detail::search_and_increment_degree_t</scope><name>num_vertices</name></member>
+      <member refid="structcugraph_1_1detail_1_1search__and__increment__degree__t_1a43f2634c5d72184f20bbc9d6e21c7e27" prot="public" virt="non-virtual"><scope>cugraph::detail::search_and_increment_degree_t</scope><name>operator()</name></member>
+      <member refid="structcugraph_1_1detail_1_1search__and__increment__degree__t_1aec44b3626cae8bff82bd95320b6fdbe1" prot="public" virt="non-virtual"><scope>cugraph::detail::search_and_increment_degree_t</scope><name>sorted_vertices</name></member>
+    </listofallmembers>
+  </compounddef>
+</doxygen>

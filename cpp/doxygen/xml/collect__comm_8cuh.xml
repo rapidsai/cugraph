@@ -1,0 +1,1064 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="collect__comm_8cuh" kind="file" language="C++">
+    <compoundname>collect_comm.cuh</compoundname>
+    <includes refid="graph__partition__utils_8cuh" local="yes">detail/graph_partition_utils.cuh</includes>
+    <includes refid="kv__store_8cuh" local="yes">prims/kv_store.cuh</includes>
+    <includes refid="include_2cugraph_2graph_8hpp" local="no">cugraph/graph.hpp</includes>
+    <includes refid="dataframe__buffer_8hpp" local="no">cugraph/utilities/dataframe_buffer.hpp</includes>
+    <includes refid="host__scalar__comm_8hpp" local="no">cugraph/utilities/host_scalar_comm.hpp</includes>
+    <includes refid="shuffle__comm_8cuh" local="no">cugraph/utilities/shuffle_comm.cuh</includes>
+    <includes local="no">raft/core/handle.hpp</includes>
+    <includes local="no">rmm/device_uvector.hpp</includes>
+    <includes local="no">rmm/exec_policy.hpp</includes>
+    <includes local="no">rmm/mr/device/per_device_resource.hpp</includes>
+    <includes local="no">rmm/mr/device/polymorphic_allocator.hpp</includes>
+    <includes local="no">thrust/adjacent_difference.h</includes>
+    <includes local="no">thrust/binary_search.h</includes>
+    <includes local="no">thrust/copy.h</includes>
+    <includes local="no">thrust/distance.h</includes>
+    <includes local="no">thrust/execution_policy.h</includes>
+    <includes local="no">thrust/find.h</includes>
+    <includes local="no">thrust/functional.h</includes>
+    <includes local="no">thrust/iterator/iterator_traits.h</includes>
+    <includes local="no">thrust/iterator/zip_iterator.h</includes>
+    <includes local="no">thrust/sort.h</includes>
+    <includes local="no">thrust/transform.h</includes>
+    <includes local="no">thrust/tuple.h</includes>
+    <includes local="no">thrust/unique.h</includes>
+    <includes local="no">iterator</includes>
+    <includes local="no">memory</includes>
+    <includes local="no">vector</includes>
+    <includedby refid="approx__weighted__matching__impl_8cuh" local="yes">approx_weighted_matching_impl.cuh</includedby>
+    <includedby refid="collect__comm__wrapper_8cu" local="yes">collect_comm_wrapper.cu</includedby>
+    <includedby refid="common__methods_8cuh" local="yes">common_methods.cuh</includedby>
+    <includedby refid="extract__bfs__paths__impl_8cuh" local="yes">extract_bfs_paths_impl.cuh</includedby>
+    <includedby refid="induced__subgraph__impl_8cuh" local="yes">induced_subgraph_impl.cuh</includedby>
+    <includedby refid="per__v__pair__transform__dst__nbr__intersection_8cuh" local="yes">per_v_pair_transform_dst_nbr_intersection.cuh</includedby>
+    <includedby refid="per__v__transform__reduce__dst__key__aggregated__outgoing__e_8cuh" local="yes">per_v_transform_reduce_dst_key_aggregated_outgoing_e.cuh</includedby>
+    <includedby refid="refine__impl_8cuh" local="yes">refine_impl.cuh</includedby>
+    <includedby refid="renumber__utils__impl_8cuh" local="yes">renumber_utils_impl.cuh</includedby>
+    <incdepgraph>
+      <node id="52">
+        <label>cugraph/edge_partition_view.hpp</label>
+        <link refid="edge__partition__view_8hpp_source"/>
+        <childnode refid="45" relation="include">
+        </childnode>
+        <childnode refid="53" relation="include">
+        </childnode>
+        <childnode refid="12" relation="include">
+        </childnode>
+      </node>
+      <node id="54">
+        <label>cugraph/edge_property.hpp</label>
+        <link refid="edge__property_8hpp_source"/>
+        <childnode refid="16" relation="include">
+        </childnode>
+        <childnode refid="55" relation="include">
+        </childnode>
+        <childnode refid="7" relation="include">
+        </childnode>
+        <childnode refid="13" relation="include">
+        </childnode>
+        <childnode refid="9" relation="include">
+        </childnode>
+        <childnode refid="57" relation="include">
+        </childnode>
+        <childnode refid="53" relation="include">
+        </childnode>
+        <childnode refid="12" relation="include">
+        </childnode>
+      </node>
+      <node id="63">
+        <label>eidecl_graph.hpp</label>
+        <link refid="eidecl__graph_8hpp_source"/>
+      </node>
+      <node id="50">
+        <label>cugraph/graph.hpp</label>
+        <link refid="include_2cugraph_2graph_8hpp_source"/>
+        <childnode refid="51" relation="include">
+        </childnode>
+        <childnode refid="5" relation="include">
+        </childnode>
+        <childnode refid="45" relation="include">
+        </childnode>
+        <childnode refid="13" relation="include">
+        </childnode>
+        <childnode refid="8" relation="include">
+        </childnode>
+        <childnode refid="61" relation="include">
+        </childnode>
+        <childnode refid="53" relation="include">
+        </childnode>
+        <childnode refid="44" relation="include">
+        </childnode>
+        <childnode refid="12" relation="include">
+        </childnode>
+        <childnode refid="42" relation="include">
+        </childnode>
+        <childnode refid="63" relation="include">
+        </childnode>
+      </node>
+      <node id="51">
+        <label>cugraph/graph_view.hpp</label>
+        <link refid="graph__view_8hpp_source"/>
+        <childnode refid="52" relation="include">
+        </childnode>
+        <childnode refid="54" relation="include">
+        </childnode>
+        <childnode refid="3" relation="include">
+        </childnode>
+        <childnode refid="5" relation="include">
+        </childnode>
+        <childnode refid="58" relation="include">
+        </childnode>
+        <childnode refid="45" relation="include">
+        </childnode>
+        <childnode refid="13" relation="include">
+        </childnode>
+        <childnode refid="59" relation="include">
+        </childnode>
+        <childnode refid="8" relation="include">
+        </childnode>
+        <childnode refid="41" relation="include">
+        </childnode>
+        <childnode refid="60" relation="include">
+        </childnode>
+        <childnode refid="61" relation="include">
+        </childnode>
+        <childnode refid="44" relation="include">
+        </childnode>
+        <childnode refid="62" relation="include">
+        </childnode>
+        <childnode refid="12" relation="include">
+        </childnode>
+        <childnode refid="42" relation="include">
+        </childnode>
+      </node>
+      <node id="3">
+        <label>cugraph/partition_manager.hpp</label>
+        <link refid="partition__manager_8hpp_source"/>
+        <childnode refid="4" relation="include">
+        </childnode>
+        <childnode refid="15" relation="include">
+        </childnode>
+        <childnode refid="43" relation="include">
+        </childnode>
+        <childnode refid="13" relation="include">
+        </childnode>
+        <childnode refid="44" relation="include">
+        </childnode>
+      </node>
+      <node id="16">
+        <label>cugraph/utilities/dataframe_buffer.hpp</label>
+        <link refid="dataframe__buffer_8hpp_source"/>
+        <childnode refid="7" relation="include">
+        </childnode>
+        <childnode refid="13" relation="include">
+        </childnode>
+        <childnode refid="17" relation="include">
+        </childnode>
+        <childnode refid="8" relation="include">
+        </childnode>
+        <childnode refid="18" relation="include">
+        </childnode>
+        <childnode refid="10" relation="include">
+        </childnode>
+        <childnode refid="12" relation="include">
+        </childnode>
+      </node>
+      <node id="19">
+        <label>cugraph/utilities/device_comm.hpp</label>
+        <link refid="device__comm_8hpp_source"/>
+        <childnode refid="7" relation="include">
+        </childnode>
+        <childnode refid="13" relation="include">
+        </childnode>
+        <childnode refid="17" relation="include">
+        </childnode>
+        <childnode refid="8" relation="include">
+        </childnode>
+        <childnode refid="20" relation="include">
+        </childnode>
+        <childnode refid="21" relation="include">
+        </childnode>
+        <childnode refid="22" relation="include">
+        </childnode>
+        <childnode refid="23" relation="include">
+        </childnode>
+        <childnode refid="9" relation="include">
+        </childnode>
+        <childnode refid="24" relation="include">
+        </childnode>
+        <childnode refid="10" relation="include">
+        </childnode>
+        <childnode refid="12" relation="include">
+        </childnode>
+      </node>
+      <node id="64">
+        <label>cugraph/utilities/device_functors.cuh</label>
+        <link refid="device__functors_8cuh_source"/>
+        <childnode refid="55" relation="include">
+        </childnode>
+        <childnode refid="9" relation="include">
+        </childnode>
+        <childnode refid="61" relation="include">
+        </childnode>
+      </node>
+      <node id="5">
+        <label>cugraph/utilities/error.hpp</label>
+        <link refid="include_2cugraph_2utilities_2error_8hpp_source"/>
+        <childnode refid="6" relation="include">
+        </childnode>
+      </node>
+      <node id="4">
+        <label>cugraph/utilities/host_scalar_comm.hpp</label>
+        <link refid="host__scalar__comm_8hpp_source"/>
+        <childnode refid="5" relation="include">
+        </childnode>
+        <childnode refid="7" relation="include">
+        </childnode>
+        <childnode refid="13" relation="include">
+        </childnode>
+        <childnode refid="8" relation="include">
+        </childnode>
+        <childnode refid="10" relation="include">
+        </childnode>
+        <childnode refid="14" relation="include">
+        </childnode>
+        <childnode refid="12" relation="include">
+        </childnode>
+      </node>
+      <node id="55">
+        <label>cugraph/utilities/packed_bool_utils.hpp</label>
+        <link refid="packed__bool__utils_8hpp_source"/>
+        <childnode refid="7" relation="include">
+        </childnode>
+        <childnode refid="9" relation="include">
+        </childnode>
+        <childnode refid="10" relation="include">
+        </childnode>
+        <childnode refid="12" relation="include">
+        </childnode>
+        <childnode refid="56" relation="include">
+        </childnode>
+      </node>
+      <node id="15">
+        <label>cugraph/utilities/shuffle_comm.cuh</label>
+        <link refid="shuffle__comm_8cuh_source"/>
+        <childnode refid="16" relation="include">
+        </childnode>
+        <childnode refid="19" relation="include">
+        </childnode>
+        <childnode refid="13" relation="include">
+        </childnode>
+        <childnode refid="8" relation="include">
+        </childnode>
+        <childnode refid="25" relation="include">
+        </childnode>
+        <childnode refid="26" relation="include">
+        </childnode>
+        <childnode refid="27" relation="include">
+        </childnode>
+        <childnode refid="28" relation="include">
+        </childnode>
+        <childnode refid="29" relation="include">
+        </childnode>
+        <childnode refid="30" relation="include">
+        </childnode>
+        <childnode refid="31" relation="include">
+        </childnode>
+        <childnode refid="32" relation="include">
+        </childnode>
+        <childnode refid="33" relation="include">
+        </childnode>
+        <childnode refid="9" relation="include">
+        </childnode>
+        <childnode refid="34" relation="include">
+        </childnode>
+        <childnode refid="18" relation="include">
+        </childnode>
+        <childnode refid="35" relation="include">
+        </childnode>
+        <childnode refid="36" relation="include">
+        </childnode>
+        <childnode refid="37" relation="include">
+        </childnode>
+        <childnode refid="38" relation="include">
+        </childnode>
+        <childnode refid="39" relation="include">
+        </childnode>
+        <childnode refid="40" relation="include">
+        </childnode>
+        <childnode refid="10" relation="include">
+        </childnode>
+        <childnode refid="41" relation="include">
+        </childnode>
+        <childnode refid="14" relation="include">
+        </childnode>
+        <childnode refid="42" relation="include">
+        </childnode>
+      </node>
+      <node id="7">
+        <label>cugraph/utilities/thrust_tuple_utils.hpp</label>
+        <link refid="thrust__tuple__utils_8hpp_source"/>
+        <childnode refid="8" relation="include">
+        </childnode>
+        <childnode refid="9" relation="include">
+        </childnode>
+        <childnode refid="10" relation="include">
+        </childnode>
+        <childnode refid="11" relation="include">
+        </childnode>
+        <childnode refid="12" relation="include">
+        </childnode>
+      </node>
+      <node id="58">
+        <label>cugraph/vertex_partition_view.hpp</label>
+        <link refid="vertex__partition__view_8hpp_source"/>
+        <childnode refid="12" relation="include">
+        </childnode>
+      </node>
+      <node id="2">
+        <label>detail/graph_partition_utils.cuh</label>
+        <link refid="graph__partition__utils_8cuh_source"/>
+        <childnode refid="3" relation="include">
+        </childnode>
+        <childnode refid="45" relation="include">
+        </childnode>
+        <childnode refid="28" relation="include">
+        </childnode>
+        <childnode refid="31" relation="include">
+        </childnode>
+        <childnode refid="32" relation="include">
+        </childnode>
+        <childnode refid="39" relation="include">
+        </childnode>
+        <childnode refid="40" relation="include">
+        </childnode>
+        <childnode refid="46" relation="include">
+        </childnode>
+        <childnode refid="47" relation="include">
+        </childnode>
+        <childnode refid="41" relation="include">
+        </childnode>
+        <childnode refid="14" relation="include">
+        </childnode>
+        <childnode refid="42" relation="include">
+        </childnode>
+      </node>
+      <node id="49">
+        <label>prims/detail/optional_dataframe_buffer.hpp</label>
+        <link refid="optional__dataframe__buffer_8hpp_source"/>
+        <childnode refid="16" relation="include">
+        </childnode>
+        <childnode refid="12" relation="include">
+        </childnode>
+      </node>
+      <node id="48">
+        <label>prims/kv_store.cuh</label>
+        <link refid="kv__store_8cuh_source"/>
+        <childnode refid="49" relation="include">
+        </childnode>
+        <childnode refid="50" relation="include">
+        </childnode>
+        <childnode refid="16" relation="include">
+        </childnode>
+        <childnode refid="64" relation="include">
+        </childnode>
+        <childnode refid="65" relation="include">
+        </childnode>
+        <childnode refid="8" relation="include">
+        </childnode>
+        <childnode refid="66" relation="include">
+        </childnode>
+        <childnode refid="28" relation="include">
+        </childnode>
+        <childnode refid="29" relation="include">
+        </childnode>
+        <childnode refid="31" relation="include">
+        </childnode>
+        <childnode refid="67" relation="include">
+        </childnode>
+        <childnode refid="68" relation="include">
+        </childnode>
+        <childnode refid="69" relation="include">
+        </childnode>
+        <childnode refid="9" relation="include">
+        </childnode>
+        <childnode refid="18" relation="include">
+        </childnode>
+        <childnode refid="37" relation="include">
+        </childnode>
+        <childnode refid="39" relation="include">
+        </childnode>
+        <childnode refid="70" relation="include">
+        </childnode>
+        <childnode refid="71" relation="include">
+        </childnode>
+        <childnode refid="41" relation="include">
+        </childnode>
+        <childnode refid="72" relation="include">
+        </childnode>
+        <childnode refid="53" relation="include">
+        </childnode>
+        <childnode refid="12" relation="include">
+        </childnode>
+      </node>
+      <node id="1">
+        <label>collect_comm.cuh</label>
+        <link refid="collect__comm_8cuh"/>
+        <childnode refid="2" relation="include">
+        </childnode>
+        <childnode refid="48" relation="include">
+        </childnode>
+        <childnode refid="50" relation="include">
+        </childnode>
+        <childnode refid="16" relation="include">
+        </childnode>
+        <childnode refid="4" relation="include">
+        </childnode>
+        <childnode refid="15" relation="include">
+        </childnode>
+        <childnode refid="13" relation="include">
+        </childnode>
+        <childnode refid="8" relation="include">
+        </childnode>
+        <childnode refid="25" relation="include">
+        </childnode>
+        <childnode refid="73" relation="include">
+        </childnode>
+        <childnode refid="66" relation="include">
+        </childnode>
+        <childnode refid="74" relation="include">
+        </childnode>
+        <childnode refid="28" relation="include">
+        </childnode>
+        <childnode refid="29" relation="include">
+        </childnode>
+        <childnode refid="31" relation="include">
+        </childnode>
+        <childnode refid="32" relation="include">
+        </childnode>
+        <childnode refid="75" relation="include">
+        </childnode>
+        <childnode refid="67" relation="include">
+        </childnode>
+        <childnode refid="9" relation="include">
+        </childnode>
+        <childnode refid="18" relation="include">
+        </childnode>
+        <childnode refid="39" relation="include">
+        </childnode>
+        <childnode refid="46" relation="include">
+        </childnode>
+        <childnode refid="10" relation="include">
+        </childnode>
+        <childnode refid="70" relation="include">
+        </childnode>
+        <childnode refid="76" relation="include">
+        </childnode>
+        <childnode refid="72" relation="include">
+        </childnode>
+        <childnode refid="42" relation="include">
+        </childnode>
+      </node>
+      <node id="41">
+        <label>algorithm</label>
+      </node>
+      <node id="11">
+        <label>array</label>
+      </node>
+      <node id="60">
+        <label>cassert</label>
+      </node>
+      <node id="61">
+        <label>cstddef</label>
+      </node>
+      <node id="47">
+        <label>cuco/hash_functions.cuh</label>
+      </node>
+      <node id="71">
+        <label>cuco/static_map.cuh</label>
+      </node>
+      <node id="26">
+        <label>cuda/atomic</label>
+      </node>
+      <node id="27">
+        <label>cuda/functional</label>
+      </node>
+      <node id="76">
+        <label>iterator</label>
+      </node>
+      <node id="72">
+        <label>memory</label>
+      </node>
+      <node id="14">
+        <label>numeric</label>
+      </node>
+      <node id="53">
+        <label>optional</label>
+      </node>
+      <node id="43">
+        <label>raft/core/comms.hpp</label>
+      </node>
+      <node id="45">
+        <label>raft/core/device_span.hpp</label>
+      </node>
+      <node id="6">
+        <label>raft/core/error.hpp</label>
+      </node>
+      <node id="13">
+        <label>raft/core/handle.hpp</label>
+      </node>
+      <node id="59">
+        <label>raft/core/host_span.hpp</label>
+      </node>
+      <node id="17">
+        <label>rmm/cuda_stream_view.hpp</label>
+      </node>
+      <node id="65">
+        <label>rmm/device_scalar.hpp</label>
+      </node>
+      <node id="8">
+        <label>rmm/device_uvector.hpp</label>
+      </node>
+      <node id="25">
+        <label>rmm/exec_policy.hpp</label>
+      </node>
+      <node id="73">
+        <label>rmm/mr/device/per_device_resource.hpp</label>
+      </node>
+      <node id="66">
+        <label>rmm/mr/device/polymorphic_allocator.hpp</label>
+      </node>
+      <node id="44">
+        <label>string</label>
+      </node>
+      <node id="74">
+        <label>thrust/adjacent_difference.h</label>
+      </node>
+      <node id="28">
+        <label>thrust/binary_search.h</label>
+      </node>
+      <node id="29">
+        <label>thrust/copy.h</label>
+      </node>
+      <node id="30">
+        <label>thrust/count.h</label>
+      </node>
+      <node id="20">
+        <label>thrust/detail/type_traits/iterator/is_discard_iterator.h</label>
+      </node>
+      <node id="21">
+        <label>thrust/device_ptr.h</label>
+      </node>
+      <node id="31">
+        <label>thrust/distance.h</label>
+      </node>
+      <node id="32">
+        <label>thrust/execution_policy.h</label>
+      </node>
+      <node id="33">
+        <label>thrust/fill.h</label>
+      </node>
+      <node id="75">
+        <label>thrust/find.h</label>
+      </node>
+      <node id="67">
+        <label>thrust/functional.h</label>
+      </node>
+      <node id="68">
+        <label>thrust/gather.h</label>
+      </node>
+      <node id="69">
+        <label>thrust/iterator/counting_iterator.h</label>
+      </node>
+      <node id="22">
+        <label>thrust/iterator/detail/any_assign.h</label>
+      </node>
+      <node id="23">
+        <label>thrust/iterator/detail/normal_iterator.h</label>
+      </node>
+      <node id="9">
+        <label>thrust/iterator/iterator_traits.h</label>
+      </node>
+      <node id="34">
+        <label>thrust/iterator/transform_iterator.h</label>
+      </node>
+      <node id="18">
+        <label>thrust/iterator/zip_iterator.h</label>
+      </node>
+      <node id="24">
+        <label>thrust/memory.h</label>
+      </node>
+      <node id="57">
+        <label>thrust/optional.h</label>
+      </node>
+      <node id="35">
+        <label>thrust/partition.h</label>
+      </node>
+      <node id="36">
+        <label>thrust/reduce.h</label>
+      </node>
+      <node id="37">
+        <label>thrust/remove.h</label>
+      </node>
+      <node id="38">
+        <label>thrust/scatter.h</label>
+      </node>
+      <node id="39">
+        <label>thrust/sort.h</label>
+      </node>
+      <node id="40">
+        <label>thrust/tabulate.h</label>
+      </node>
+      <node id="46">
+        <label>thrust/transform.h</label>
+      </node>
+      <node id="10">
+        <label>thrust/tuple.h</label>
+      </node>
+      <node id="70">
+        <label>thrust/unique.h</label>
+      </node>
+      <node id="62">
+        <label>tuple</label>
+      </node>
+      <node id="12">
+        <label>type_traits</label>
+      </node>
+      <node id="56">
+        <label>utility</label>
+      </node>
+      <node id="42">
+        <label>vector</label>
+      </node>
+    </incdepgraph>
+    <invincdepgraph>
+      <node id="2">
+        <label>approx_weighted_matching_impl.cuh</label>
+        <link refid="approx__weighted__matching__impl_8cuh_source"/>
+      </node>
+      <node id="3">
+        <label>common_methods.cuh</label>
+        <link refid="common__methods_8cuh_source"/>
+      </node>
+      <node id="12">
+        <label>refine_impl.cuh</label>
+        <link refid="refine__impl_8cuh_source"/>
+      </node>
+      <node id="8">
+        <label>jaccard_impl.cuh</label>
+        <link refid="jaccard__impl_8cuh_source"/>
+      </node>
+      <node id="9">
+        <label>overlap_impl.cuh</label>
+        <link refid="overlap__impl_8cuh_source"/>
+      </node>
+      <node id="7">
+        <label>similarity_impl.cuh</label>
+        <link refid="similarity__impl_8cuh_source"/>
+        <childnode refid="8" relation="include">
+        </childnode>
+        <childnode refid="9" relation="include">
+        </childnode>
+        <childnode refid="10" relation="include">
+        </childnode>
+      </node>
+      <node id="10">
+        <label>sorensen_impl.cuh</label>
+        <link refid="sorensen__impl_8cuh_source"/>
+      </node>
+      <node id="6">
+        <label>per_v_pair_transform_dst_nbr_intersection.cuh</label>
+        <link refid="per__v__pair__transform__dst__nbr__intersection_8cuh_source"/>
+        <childnode refid="7" relation="include">
+        </childnode>
+      </node>
+      <node id="11">
+        <label>per_v_transform_reduce_dst_key_aggregated_outgoing_e.cuh</label>
+        <link refid="per__v__transform__reduce__dst__key__aggregated__outgoing__e_8cuh_source"/>
+        <childnode refid="3" relation="include">
+        </childnode>
+        <childnode refid="12" relation="include">
+        </childnode>
+      </node>
+      <node id="5">
+        <label>induced_subgraph_impl.cuh</label>
+        <link refid="induced__subgraph__impl_8cuh_source"/>
+      </node>
+      <node id="13">
+        <label>renumber_utils_impl.cuh</label>
+        <link refid="renumber__utils__impl_8cuh_source"/>
+      </node>
+      <node id="4">
+        <label>extract_bfs_paths_impl.cuh</label>
+        <link refid="extract__bfs__paths__impl_8cuh_source"/>
+      </node>
+      <node id="1">
+        <label>collect_comm.cuh</label>
+        <link refid="collect__comm_8cuh"/>
+        <childnode refid="2" relation="include">
+        </childnode>
+        <childnode refid="3" relation="include">
+        </childnode>
+        <childnode refid="4" relation="include">
+        </childnode>
+        <childnode refid="5" relation="include">
+        </childnode>
+        <childnode refid="6" relation="include">
+        </childnode>
+        <childnode refid="11" relation="include">
+        </childnode>
+        <childnode refid="12" relation="include">
+        </childnode>
+        <childnode refid="13" relation="include">
+        </childnode>
+      </node>
+    </invincdepgraph>
+    <innernamespace refid="namespacecugraph">cugraph</innernamespace>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <programlisting>
+<codeline lineno="1"><highlight class="comment">/*</highlight></codeline>
+<codeline lineno="2"><highlight class="comment"><sp/>*<sp/>Copyright<sp/>(c)<sp/>2021-2024,<sp/>NVIDIA<sp/>CORPORATION.</highlight></codeline>
+<codeline lineno="3"><highlight class="comment"><sp/>*</highlight></codeline>
+<codeline lineno="4"><highlight class="comment"><sp/>*<sp/>Licensed<sp/>under<sp/>the<sp/>Apache<sp/>License,<sp/>Version<sp/>2.0<sp/>(the<sp/>&quot;License&quot;);</highlight></codeline>
+<codeline lineno="5"><highlight class="comment"><sp/>*<sp/>you<sp/>may<sp/>not<sp/>use<sp/>this<sp/>file<sp/>except<sp/>in<sp/>compliance<sp/>with<sp/>the<sp/>License.</highlight></codeline>
+<codeline lineno="6"><highlight class="comment"><sp/>*<sp/>You<sp/>may<sp/>obtain<sp/>a<sp/>copy<sp/>of<sp/>the<sp/>License<sp/>at</highlight></codeline>
+<codeline lineno="7"><highlight class="comment"><sp/>*</highlight></codeline>
+<codeline lineno="8"><highlight class="comment"><sp/>*<sp/><sp/><sp/><sp/><sp/>http://www.apache.org/licenses/LICENSE-2.0</highlight></codeline>
+<codeline lineno="9"><highlight class="comment"><sp/>*</highlight></codeline>
+<codeline lineno="10"><highlight class="comment"><sp/>*<sp/>Unless<sp/>required<sp/>by<sp/>applicable<sp/>law<sp/>or<sp/>agreed<sp/>to<sp/>in<sp/>writing,<sp/>software</highlight></codeline>
+<codeline lineno="11"><highlight class="comment"><sp/>*<sp/>distributed<sp/>under<sp/>the<sp/>License<sp/>is<sp/>distributed<sp/>on<sp/>an<sp/>&quot;AS<sp/>IS&quot;<sp/>BASIS,</highlight></codeline>
+<codeline lineno="12"><highlight class="comment"><sp/>*<sp/>WITHOUT<sp/>WARRANTIES<sp/>OR<sp/>CONDITIONS<sp/>OF<sp/>ANY<sp/>KIND,<sp/>either<sp/>express<sp/>or<sp/>implied.</highlight></codeline>
+<codeline lineno="13"><highlight class="comment"><sp/>*<sp/>See<sp/>the<sp/>License<sp/>for<sp/>the<sp/>specific<sp/>language<sp/>governing<sp/>permissions<sp/>and</highlight></codeline>
+<codeline lineno="14"><highlight class="comment"><sp/>*<sp/>limitations<sp/>under<sp/>the<sp/>License.</highlight></codeline>
+<codeline lineno="15"><highlight class="comment"><sp/>*/</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="16"><highlight class="normal"></highlight><highlight class="preprocessor">#pragma<sp/>once</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="17"><highlight class="normal"></highlight></codeline>
+<codeline lineno="18"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&quot;detail/graph_partition_utils.cuh&quot;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="19"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&quot;prims/kv_store.cuh&quot;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="20"><highlight class="normal"></highlight></codeline>
+<codeline lineno="21"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&lt;cugraph/graph.hpp&gt;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="22"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&lt;cugraph/utilities/dataframe_buffer.hpp&gt;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="23"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&lt;cugraph/utilities/host_scalar_comm.hpp&gt;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="24"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&lt;cugraph/utilities/shuffle_comm.cuh&gt;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="25"><highlight class="normal"></highlight></codeline>
+<codeline lineno="26"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&lt;raft/core/handle.hpp&gt;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="27"><highlight class="normal"></highlight></codeline>
+<codeline lineno="28"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&lt;rmm/device_uvector.hpp&gt;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="29"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&lt;rmm/exec_policy.hpp&gt;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="30"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&lt;rmm/mr/device/per_device_resource.hpp&gt;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="31"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&lt;rmm/mr/device/polymorphic_allocator.hpp&gt;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="32"><highlight class="normal"></highlight></codeline>
+<codeline lineno="33"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&lt;thrust/adjacent_difference.h&gt;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="34"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&lt;thrust/binary_search.h&gt;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="35"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&lt;thrust/copy.h&gt;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="36"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&lt;thrust/distance.h&gt;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="37"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&lt;thrust/execution_policy.h&gt;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="38"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&lt;thrust/find.h&gt;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="39"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&lt;thrust/functional.h&gt;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="40"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&lt;thrust/iterator/iterator_traits.h&gt;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="41"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&lt;thrust/iterator/zip_iterator.h&gt;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="42"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&lt;thrust/sort.h&gt;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="43"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&lt;thrust/transform.h&gt;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="44"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&lt;thrust/tuple.h&gt;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="45"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&lt;thrust/unique.h&gt;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="46"><highlight class="normal"></highlight></codeline>
+<codeline lineno="47"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&lt;iterator&gt;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="48"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&lt;memory&gt;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="49"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&lt;vector&gt;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="50"><highlight class="normal"></highlight></codeline>
+<codeline lineno="51"><highlight class="normal"></highlight><highlight class="keyword">namespace<sp/></highlight><highlight class="normal">cugraph<sp/>{</highlight></codeline>
+<codeline lineno="52"><highlight class="normal"></highlight></codeline>
+<codeline lineno="53"><highlight class="normal"></highlight><highlight class="comment">//<sp/>for<sp/>the<sp/>keys<sp/>in<sp/>kv_store_view,<sp/>key_to_gpu_id_op(key)<sp/>should<sp/>coincide<sp/>with<sp/>comm.get_rank()</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="54"><highlight class="normal"></highlight><highlight class="keyword">template</highlight><highlight class="normal"><sp/>&lt;</highlight><highlight class="keyword">typename</highlight><highlight class="normal"><sp/>KVStoreViewType,<sp/></highlight><highlight class="keyword">typename</highlight><highlight class="normal"><sp/>KeyIterator,<sp/></highlight><highlight class="keyword">typename</highlight><highlight class="normal"><sp/>KeyToGPUIdOp&gt;</highlight></codeline>
+<codeline lineno="55"><highlight class="normal"></highlight><highlight class="keyword">decltype</highlight><highlight class="normal">(allocate_dataframe_buffer&lt;typename<sp/>KVStoreViewType::value_type&gt;(0,</highlight></codeline>
+<codeline lineno="56"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>rmm::cuda_stream_view{}))</highlight></codeline>
+<codeline lineno="57"><highlight class="normal">collect_values_for_keys(raft::handle_t<sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal">&amp;<sp/>handle,</highlight></codeline>
+<codeline lineno="58"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>KVStoreViewType<sp/>kv_store_view,</highlight></codeline>
+<codeline lineno="59"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>KeyIterator<sp/>collect_key_first,</highlight></codeline>
+<codeline lineno="60"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>KeyIterator<sp/>collect_key_last,</highlight></codeline>
+<codeline lineno="61"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>KeyToGPUIdOp<sp/>key_to_gpu_id_op)</highlight></codeline>
+<codeline lineno="62"><highlight class="normal">{</highlight></codeline>
+<codeline lineno="63"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">using<sp/></highlight><highlight class="normal">key_t<sp/>=<sp/></highlight><highlight class="keyword">typename</highlight><highlight class="normal"><sp/>KVStoreViewType::key_type;</highlight></codeline>
+<codeline lineno="64"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">static_assert</highlight><highlight class="normal">(std::is_same_v&lt;typename<sp/>thrust::iterator_traits&lt;KeyIterator&gt;::value_type,<sp/>key_t&gt;);</highlight></codeline>
+<codeline lineno="65"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">using<sp/></highlight><highlight class="normal">value_t<sp/>=<sp/></highlight><highlight class="keyword">typename</highlight><highlight class="normal"><sp/>KVStoreViewType::value_type;</highlight></codeline>
+<codeline lineno="66"><highlight class="normal"></highlight></codeline>
+<codeline lineno="67"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">auto</highlight><highlight class="normal">&amp;<sp/>comm<sp/>=<sp/>handle.get_comms();</highlight></codeline>
+<codeline lineno="68"><highlight class="normal"></highlight></codeline>
+<codeline lineno="69"><highlight class="normal"><sp/><sp/></highlight><highlight class="comment">//<sp/>1.<sp/>collect<sp/>values<sp/>for<sp/>the<sp/>unique<sp/>keys<sp/>in<sp/>[collect_key_first,<sp/>collect_key_last)</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="70"><highlight class="normal"></highlight></codeline>
+<codeline lineno="71"><highlight class="normal"><sp/><sp/>rmm::device_uvector&lt;key_t&gt;<sp/>unique_keys(thrust::distance(collect_key_first,<sp/>collect_key_last),</highlight></codeline>
+<codeline lineno="72"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>handle.get_stream());</highlight></codeline>
+<codeline lineno="73"><highlight class="normal"><sp/><sp/>thrust::copy(</highlight></codeline>
+<codeline lineno="74"><highlight class="normal"><sp/><sp/><sp/><sp/>handle.get_thrust_policy(),<sp/>collect_key_first,<sp/>collect_key_last,<sp/>unique_keys.begin());</highlight></codeline>
+<codeline lineno="75"><highlight class="normal"><sp/><sp/>thrust::sort(handle.get_thrust_policy(),<sp/>unique_keys.begin(),<sp/>unique_keys.end());</highlight></codeline>
+<codeline lineno="76"><highlight class="normal"><sp/><sp/>unique_keys.resize(</highlight></codeline>
+<codeline lineno="77"><highlight class="normal"><sp/><sp/><sp/><sp/>thrust::distance(</highlight></codeline>
+<codeline lineno="78"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/>unique_keys.begin(),</highlight></codeline>
+<codeline lineno="79"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/>thrust::unique(handle.get_thrust_policy(),<sp/>unique_keys.begin(),<sp/>unique_keys.end())),</highlight></codeline>
+<codeline lineno="80"><highlight class="normal"><sp/><sp/><sp/><sp/>handle.get_stream());</highlight></codeline>
+<codeline lineno="81"><highlight class="normal"></highlight></codeline>
+<codeline lineno="82"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">auto</highlight><highlight class="normal"><sp/>values_for_unique_keys<sp/>=<sp/>allocate_dataframe_buffer&lt;value_t&gt;(0,<sp/>handle.get_stream());</highlight></codeline>
+<codeline lineno="83"><highlight class="normal"><sp/><sp/>{</highlight></codeline>
+<codeline lineno="84"><highlight class="normal"><sp/><sp/><sp/><sp/>rmm::device_uvector&lt;key_t&gt;<sp/>rx_unique_keys(0,<sp/>handle.get_stream());</highlight></codeline>
+<codeline lineno="85"><highlight class="normal"><sp/><sp/><sp/><sp/>std::vector&lt;size_t&gt;<sp/>rx_value_counts{};</highlight></codeline>
+<codeline lineno="86"><highlight class="normal"><sp/><sp/><sp/><sp/>std::tie(rx_unique_keys,<sp/>rx_value_counts)<sp/>=<sp/>groupby_gpu_id_and_shuffle_values(</highlight></codeline>
+<codeline lineno="87"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/>comm,</highlight></codeline>
+<codeline lineno="88"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/>unique_keys.begin(),</highlight></codeline>
+<codeline lineno="89"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/>unique_keys.end(),</highlight></codeline>
+<codeline lineno="90"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/>[key_to_gpu_id_op]<sp/>__device__(</highlight><highlight class="keyword">auto</highlight><highlight class="normal"><sp/>val)<sp/>{<sp/></highlight><highlight class="keywordflow">return</highlight><highlight class="normal"><sp/>key_to_gpu_id_op(val);<sp/>},</highlight></codeline>
+<codeline lineno="91"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/>handle.get_stream());</highlight></codeline>
+<codeline lineno="92"><highlight class="normal"></highlight></codeline>
+<codeline lineno="93"><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="keyword">auto</highlight><highlight class="normal"><sp/>values_for_rx_unique_keys<sp/>=</highlight></codeline>
+<codeline lineno="94"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/>allocate_dataframe_buffer&lt;value_t&gt;(rx_unique_keys.size(),<sp/>handle.get_stream());</highlight></codeline>
+<codeline lineno="95"><highlight class="normal"></highlight></codeline>
+<codeline lineno="96"><highlight class="normal"><sp/><sp/><sp/><sp/>kv_store_view.find(rx_unique_keys.begin(),</highlight></codeline>
+<codeline lineno="97"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>rx_unique_keys.end(),</highlight></codeline>
+<codeline lineno="98"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>get_dataframe_buffer_begin(values_for_rx_unique_keys),</highlight></codeline>
+<codeline lineno="99"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>handle.get_stream());</highlight></codeline>
+<codeline lineno="100"><highlight class="normal"></highlight></codeline>
+<codeline lineno="101"><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="keyword">auto</highlight><highlight class="normal"><sp/>rx_values_for_unique_keys<sp/>=<sp/>allocate_dataframe_buffer&lt;value_t&gt;(0,<sp/>handle.get_stream());</highlight></codeline>
+<codeline lineno="102"><highlight class="normal"><sp/><sp/><sp/><sp/>std::tie(rx_values_for_unique_keys,<sp/>std::ignore)<sp/>=</highlight></codeline>
+<codeline lineno="103"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/>shuffle_values(comm,</highlight></codeline>
+<codeline lineno="104"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>get_dataframe_buffer_begin(values_for_rx_unique_keys),</highlight></codeline>
+<codeline lineno="105"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>rx_value_counts,</highlight></codeline>
+<codeline lineno="106"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>handle.get_stream());</highlight></codeline>
+<codeline lineno="107"><highlight class="normal"></highlight></codeline>
+<codeline lineno="108"><highlight class="normal"><sp/><sp/><sp/><sp/>values_for_unique_keys<sp/>=<sp/>std::move(rx_values_for_unique_keys);</highlight></codeline>
+<codeline lineno="109"><highlight class="normal"><sp/><sp/>}</highlight></codeline>
+<codeline lineno="110"><highlight class="normal"></highlight></codeline>
+<codeline lineno="111"><highlight class="normal"><sp/><sp/></highlight><highlight class="comment">//<sp/>2.<sp/>build<sp/>a<sp/>kv_store_t<sp/>object<sp/>for<sp/>the<sp/>k,<sp/>v<sp/>pairs<sp/>in<sp/>unique_keys,<sp/>values_for_unique_keys.</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="112"><highlight class="normal"></highlight></codeline>
+<codeline lineno="113"><highlight class="normal"><sp/><sp/>kv_store_t&lt;key_t,<sp/>value_t,<sp/>KVStoreViewType::binary_search&gt;<sp/>unique_key_value_store(</highlight></codeline>
+<codeline lineno="114"><highlight class="normal"><sp/><sp/><sp/><sp/>handle.get_stream());</highlight></codeline>
+<codeline lineno="115"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordflow">if</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">constexpr</highlight><highlight class="normal"><sp/>(KVStoreViewType::binary_search)<sp/>{</highlight></codeline>
+<codeline lineno="116"><highlight class="normal"><sp/><sp/><sp/><sp/>unique_key_value_store<sp/>=<sp/>kv_store_t&lt;key_t,<sp/>value_t,<sp/>true&gt;(std::move(unique_keys),</highlight></codeline>
+<codeline lineno="117"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>std::move(values_for_unique_keys),</highlight></codeline>
+<codeline lineno="118"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>kv_store_view.invalid_value(),</highlight></codeline>
+<codeline lineno="119"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keyword">false</highlight><highlight class="normal">,</highlight></codeline>
+<codeline lineno="120"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>handle.get_stream());</highlight></codeline>
+<codeline lineno="121"><highlight class="normal"><sp/><sp/>}<sp/></highlight><highlight class="keywordflow">else</highlight><highlight class="normal"><sp/>{</highlight></codeline>
+<codeline lineno="122"><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="keyword">auto</highlight><highlight class="normal"><sp/>kv_pair_first<sp/>=<sp/>thrust::make_zip_iterator(</highlight></codeline>
+<codeline lineno="123"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/>thrust::make_tuple(unique_keys.begin(),<sp/>get_dataframe_buffer_begin(values_for_unique_keys)));</highlight></codeline>
+<codeline lineno="124"><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="keyword">auto</highlight><highlight class="normal"><sp/>valid_kv_pair_last<sp/>=</highlight></codeline>
+<codeline lineno="125"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/>thrust::remove_if(handle.get_thrust_policy(),</highlight></codeline>
+<codeline lineno="126"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>kv_pair_first,</highlight></codeline>
+<codeline lineno="127"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>kv_pair_first<sp/>+<sp/>unique_keys.size(),</highlight></codeline>
+<codeline lineno="128"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>[invalid_value<sp/>=<sp/>kv_store_view.invalid_value()]<sp/>__device__(</highlight><highlight class="keyword">auto</highlight><highlight class="normal"><sp/>pair)<sp/>{</highlight></codeline>
+<codeline lineno="129"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordflow">return</highlight><highlight class="normal"><sp/>thrust::get&lt;1&gt;(pair)<sp/>==<sp/>invalid_value;</highlight></codeline>
+<codeline lineno="130"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>});<sp/><sp/></highlight><highlight class="comment">//<sp/>remove<sp/>(k,v)<sp/>pairs<sp/>with<sp/>unmatched<sp/>keys<sp/>(it<sp/>is<sp/>invalid<sp/>to<sp/>insert<sp/>a</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="131"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="comment">//<sp/>(k,v)<sp/>pair<sp/>with<sp/>v<sp/>=<sp/>empty_key_sentinel)</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="132"><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="keyword">auto</highlight><highlight class="normal"><sp/>num_valid_pairs<sp/>=<sp/></highlight><highlight class="keyword">static_cast&lt;</highlight><highlight class="keywordtype">size_t</highlight><highlight class="keyword">&gt;</highlight><highlight class="normal">(thrust::distance(kv_pair_first,<sp/>valid_kv_pair_last));</highlight></codeline>
+<codeline lineno="133"><highlight class="normal"><sp/><sp/><sp/><sp/>unique_key_value_store<sp/>=</highlight></codeline>
+<codeline lineno="134"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/>kv_store_t&lt;key_t,<sp/>value_t,<sp/>false&gt;(unique_keys.begin(),</highlight></codeline>
+<codeline lineno="135"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>unique_keys.begin()<sp/>+<sp/>num_valid_pairs,</highlight></codeline>
+<codeline lineno="136"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>get_dataframe_buffer_begin(values_for_unique_keys),</highlight></codeline>
+<codeline lineno="137"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>kv_store_view.invalid_key(),</highlight></codeline>
+<codeline lineno="138"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>kv_store_view.invalid_value(),</highlight></codeline>
+<codeline lineno="139"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>handle.get_stream());</highlight></codeline>
+<codeline lineno="140"><highlight class="normal"></highlight></codeline>
+<codeline lineno="141"><highlight class="normal"><sp/><sp/><sp/><sp/>unique_keys.resize(0,<sp/>handle.get_stream());</highlight></codeline>
+<codeline lineno="142"><highlight class="normal"><sp/><sp/><sp/><sp/>resize_dataframe_buffer(values_for_unique_keys,<sp/>0,<sp/>handle.get_stream());</highlight></codeline>
+<codeline lineno="143"><highlight class="normal"><sp/><sp/><sp/><sp/>unique_keys.shrink_to_fit(handle.get_stream());</highlight></codeline>
+<codeline lineno="144"><highlight class="normal"><sp/><sp/><sp/><sp/>shrink_to_fit_dataframe_buffer(values_for_unique_keys,<sp/>handle.get_stream());</highlight></codeline>
+<codeline lineno="145"><highlight class="normal"><sp/><sp/>}</highlight></codeline>
+<codeline lineno="146"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">auto</highlight><highlight class="normal"><sp/>unique_key_value_store_view<sp/>=<sp/>unique_key_value_store.view();</highlight></codeline>
+<codeline lineno="147"><highlight class="normal"></highlight></codeline>
+<codeline lineno="148"><highlight class="normal"><sp/><sp/></highlight><highlight class="comment">//<sp/>3.<sp/>find<sp/>values<sp/>for<sp/>[collect_key_first,<sp/>collect_key_last)</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="149"><highlight class="normal"></highlight></codeline>
+<codeline lineno="150"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">auto</highlight><highlight class="normal"><sp/>value_buffer<sp/>=<sp/>allocate_dataframe_buffer&lt;value_t&gt;(</highlight></codeline>
+<codeline lineno="151"><highlight class="normal"><sp/><sp/><sp/><sp/>thrust::distance(collect_key_first,<sp/>collect_key_last),<sp/>handle.get_stream());</highlight></codeline>
+<codeline lineno="152"><highlight class="normal"><sp/><sp/>unique_key_value_store_view.find(collect_key_first,</highlight></codeline>
+<codeline lineno="153"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>collect_key_last,</highlight></codeline>
+<codeline lineno="154"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>get_dataframe_buffer_begin(value_buffer),</highlight></codeline>
+<codeline lineno="155"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>handle.get_stream());</highlight></codeline>
+<codeline lineno="156"><highlight class="normal"></highlight></codeline>
+<codeline lineno="157"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordflow">return</highlight><highlight class="normal"><sp/>value_buffer;</highlight></codeline>
+<codeline lineno="158"><highlight class="normal">}</highlight></codeline>
+<codeline lineno="159"><highlight class="normal"></highlight></codeline>
+<codeline lineno="160"><highlight class="normal"></highlight><highlight class="comment">//<sp/>for<sp/>the<sp/>keys<sp/>in<sp/>kv_store_view,<sp/>key_to_gpu_id_op(key)<sp/>should<sp/>coincide<sp/>with<sp/>comm.get_rank()</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="161"><highlight class="normal"></highlight><highlight class="keyword">template</highlight><highlight class="normal"><sp/>&lt;</highlight><highlight class="keyword">typename</highlight><highlight class="normal"><sp/>KVStoreViewType,<sp/></highlight><highlight class="keyword">typename</highlight><highlight class="normal"><sp/>KeyToGPUIdOp&gt;</highlight></codeline>
+<codeline lineno="162"><highlight class="normal">std::tuple&lt;rmm::device_uvector&lt;typename<sp/>KVStoreViewType::key_type&gt;,</highlight></codeline>
+<codeline lineno="163"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keyword">decltype</highlight><highlight class="normal">(allocate_dataframe_buffer&lt;typename<sp/>KVStoreViewType::value_type&gt;(</highlight></codeline>
+<codeline lineno="164"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>0,<sp/>cudaStream_t{</highlight><highlight class="keyword">nullptr</highlight><highlight class="normal">}))&gt;</highlight></codeline>
+<codeline lineno="165"><highlight class="normal">collect_values_for_unique_keys(</highlight></codeline>
+<codeline lineno="166"><highlight class="normal"><sp/><sp/>raft::handle_t<sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal">&amp;<sp/>handle,</highlight></codeline>
+<codeline lineno="167"><highlight class="normal"><sp/><sp/>KVStoreViewType<sp/>kv_store_view,</highlight></codeline>
+<codeline lineno="168"><highlight class="normal"><sp/><sp/>rmm::device_uvector&lt;typename<sp/>KVStoreViewType::key_type&gt;&amp;&amp;<sp/>collect_unique_keys,</highlight></codeline>
+<codeline lineno="169"><highlight class="normal"><sp/><sp/>KeyToGPUIdOp<sp/>key_to_gpu_id_op)</highlight></codeline>
+<codeline lineno="170"><highlight class="normal">{</highlight></codeline>
+<codeline lineno="171"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">using<sp/></highlight><highlight class="normal">key_t<sp/><sp/><sp/>=<sp/></highlight><highlight class="keyword">typename</highlight><highlight class="normal"><sp/>KVStoreViewType::key_type;</highlight></codeline>
+<codeline lineno="172"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">using<sp/></highlight><highlight class="normal">value_t<sp/>=<sp/></highlight><highlight class="keyword">typename</highlight><highlight class="normal"><sp/>KVStoreViewType::value_type;</highlight></codeline>
+<codeline lineno="173"><highlight class="normal"></highlight></codeline>
+<codeline lineno="174"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">auto</highlight><highlight class="normal">&amp;<sp/>comm<sp/>=<sp/>handle.get_comms();</highlight></codeline>
+<codeline lineno="175"><highlight class="normal"></highlight></codeline>
+<codeline lineno="176"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">auto</highlight><highlight class="normal"><sp/>values_for_collect_unique_keys<sp/>=<sp/>allocate_dataframe_buffer&lt;value_t&gt;(0,<sp/>handle.get_stream());</highlight></codeline>
+<codeline lineno="177"><highlight class="normal"><sp/><sp/>{</highlight></codeline>
+<codeline lineno="178"><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="keyword">auto</highlight><highlight class="normal"><sp/>[rx_unique_keys,<sp/>rx_value_counts]<sp/>=<sp/>groupby_gpu_id_and_shuffle_values(</highlight></codeline>
+<codeline lineno="179"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/>comm,</highlight></codeline>
+<codeline lineno="180"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/>collect_unique_keys.begin(),</highlight></codeline>
+<codeline lineno="181"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/>collect_unique_keys.end(),</highlight></codeline>
+<codeline lineno="182"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/>[key_to_gpu_id_op]<sp/>__device__(</highlight><highlight class="keyword">auto</highlight><highlight class="normal"><sp/>val)<sp/>{<sp/></highlight><highlight class="keywordflow">return</highlight><highlight class="normal"><sp/>key_to_gpu_id_op(val);<sp/>},</highlight></codeline>
+<codeline lineno="183"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/>handle.get_stream());</highlight></codeline>
+<codeline lineno="184"><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="keyword">auto</highlight><highlight class="normal"><sp/>values_for_rx_unique_keys<sp/>=</highlight></codeline>
+<codeline lineno="185"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/>allocate_dataframe_buffer&lt;value_t&gt;(rx_unique_keys.size(),<sp/>handle.get_stream());</highlight></codeline>
+<codeline lineno="186"><highlight class="normal"><sp/><sp/><sp/><sp/>kv_store_view.find(rx_unique_keys.begin(),</highlight></codeline>
+<codeline lineno="187"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>rx_unique_keys.end(),</highlight></codeline>
+<codeline lineno="188"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>get_dataframe_buffer_begin(values_for_rx_unique_keys),</highlight></codeline>
+<codeline lineno="189"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>handle.get_stream());</highlight></codeline>
+<codeline lineno="190"><highlight class="normal"></highlight></codeline>
+<codeline lineno="191"><highlight class="normal"><sp/><sp/><sp/><sp/>std::tie(values_for_collect_unique_keys,<sp/>std::ignore)<sp/>=</highlight></codeline>
+<codeline lineno="192"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/>shuffle_values(comm,</highlight></codeline>
+<codeline lineno="193"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>get_dataframe_buffer_begin(values_for_rx_unique_keys),</highlight></codeline>
+<codeline lineno="194"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>rx_value_counts,</highlight></codeline>
+<codeline lineno="195"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>handle.get_stream());</highlight></codeline>
+<codeline lineno="196"><highlight class="normal"><sp/><sp/>}</highlight></codeline>
+<codeline lineno="197"><highlight class="normal"></highlight></codeline>
+<codeline lineno="198"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordflow">return</highlight><highlight class="normal"><sp/>std::make_tuple(std::move(collect_unique_keys),<sp/>std::move(values_for_collect_unique_keys));</highlight></codeline>
+<codeline lineno="199"><highlight class="normal">}</highlight></codeline>
+<codeline lineno="200"><highlight class="normal"></highlight></codeline>
+<codeline lineno="201"><highlight class="normal"></highlight><highlight class="keyword">template</highlight><highlight class="normal"><sp/>&lt;</highlight><highlight class="keyword">typename</highlight><highlight class="normal"><sp/>vertex_t,<sp/></highlight><highlight class="keyword">typename</highlight><highlight class="normal"><sp/>ValueIterator&gt;</highlight></codeline>
+<codeline lineno="202"><highlight class="normal">std::tuple&lt;</highlight></codeline>
+<codeline lineno="203"><highlight class="normal"><sp/><sp/>rmm::device_uvector&lt;vertex_t&gt;,</highlight></codeline>
+<codeline lineno="204"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">decltype</highlight><highlight class="normal">(allocate_dataframe_buffer&lt;typename<sp/>thrust::iterator_traits&lt;ValueIterator&gt;::value_type&gt;(</highlight></codeline>
+<codeline lineno="205"><highlight class="normal"><sp/><sp/><sp/><sp/>0,<sp/>cudaStream_t{</highlight><highlight class="keyword">nullptr</highlight><highlight class="normal">}))&gt;</highlight></codeline>
+<codeline lineno="206"><highlight class="normal">collect_values_for_unique_int_vertices(raft::handle_t<sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal">&amp;<sp/>handle,</highlight></codeline>
+<codeline lineno="207"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>rmm::device_uvector&lt;vertex_t&gt;&amp;&amp;<sp/>collect_unique_int_vertices,</highlight></codeline>
+<codeline lineno="208"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>ValueIterator<sp/>local_value_first,</highlight></codeline>
+<codeline lineno="209"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>std::vector&lt;vertex_t&gt;<sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal">&amp;<sp/>vertex_partition_range_lasts)</highlight></codeline>
+<codeline lineno="210"><highlight class="normal">{</highlight></codeline>
+<codeline lineno="211"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">using<sp/></highlight><highlight class="normal">value_t<sp/>=<sp/></highlight><highlight class="keyword">typename</highlight><highlight class="normal"><sp/>thrust::iterator_traits&lt;ValueIterator&gt;::value_type;</highlight></codeline>
+<codeline lineno="212"><highlight class="normal"></highlight></codeline>
+<codeline lineno="213"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">auto</highlight><highlight class="normal">&amp;<sp/>comm<sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>=<sp/>handle.get_comms();</highlight></codeline>
+<codeline lineno="214"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">auto</highlight><highlight class="normal">&amp;<sp/>major_comm<sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>=<sp/>handle.get_subcomm(cugraph::partition_manager::major_comm_name());</highlight></codeline>
+<codeline lineno="215"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">auto</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/>major_comm_size<sp/>=<sp/>major_comm.get_size();</highlight></codeline>
+<codeline lineno="216"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">auto</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/>major_comm_rank<sp/>=<sp/>major_comm.get_rank();</highlight></codeline>
+<codeline lineno="217"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">auto</highlight><highlight class="normal">&amp;<sp/>minor_comm<sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>=<sp/>handle.get_subcomm(cugraph::partition_manager::minor_comm_name());</highlight></codeline>
+<codeline lineno="218"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">auto</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/>minor_comm_size<sp/>=<sp/>minor_comm.get_size();</highlight></codeline>
+<codeline lineno="219"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">auto</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/>minor_comm_rank<sp/>=<sp/>minor_comm.get_rank();</highlight></codeline>
+<codeline lineno="220"><highlight class="normal"></highlight></codeline>
+<codeline lineno="221"><highlight class="normal"><sp/><sp/></highlight><highlight class="comment">//<sp/>1.<sp/>groupby<sp/>and<sp/>shuffle<sp/>internal<sp/>vertices</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="222"><highlight class="normal"></highlight></codeline>
+<codeline lineno="223"><highlight class="normal"><sp/><sp/>rmm::device_uvector&lt;vertex_t&gt;<sp/>d_vertex_partition_range_lasts(vertex_partition_range_lasts.size(),</highlight></codeline>
+<codeline lineno="224"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>handle.get_stream());</highlight></codeline>
+<codeline lineno="225"><highlight class="normal"><sp/><sp/>raft::update_device(d_vertex_partition_range_lasts.data(),</highlight></codeline>
+<codeline lineno="226"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>vertex_partition_range_lasts.data(),</highlight></codeline>
+<codeline lineno="227"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>vertex_partition_range_lasts.size(),</highlight></codeline>
+<codeline lineno="228"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>handle.get_stream());</highlight></codeline>
+<codeline lineno="229"><highlight class="normal"></highlight></codeline>
+<codeline lineno="230"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">auto</highlight><highlight class="normal"><sp/>[rx_int_vertices,<sp/>rx_int_vertex_counts]<sp/>=<sp/>groupby_gpu_id_and_shuffle_values(</highlight></codeline>
+<codeline lineno="231"><highlight class="normal"><sp/><sp/><sp/><sp/>comm,</highlight></codeline>
+<codeline lineno="232"><highlight class="normal"><sp/><sp/><sp/><sp/>collect_unique_int_vertices.begin(),</highlight></codeline>
+<codeline lineno="233"><highlight class="normal"><sp/><sp/><sp/><sp/>collect_unique_int_vertices.end(),</highlight></codeline>
+<codeline lineno="234"><highlight class="normal"><sp/><sp/><sp/><sp/>detail::compute_gpu_id_from_int_vertex_t&lt;vertex_t&gt;{</highlight></codeline>
+<codeline lineno="235"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/>raft::device_span&lt;vertex_t<sp/>const&gt;(d_vertex_partition_range_lasts.data(),</highlight></codeline>
+<codeline lineno="236"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>d_vertex_partition_range_lasts.size()),</highlight></codeline>
+<codeline lineno="237"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/>major_comm_size,</highlight></codeline>
+<codeline lineno="238"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/>minor_comm_size},</highlight></codeline>
+<codeline lineno="239"><highlight class="normal"><sp/><sp/><sp/><sp/>handle.get_stream());</highlight></codeline>
+<codeline lineno="240"><highlight class="normal"></highlight></codeline>
+<codeline lineno="241"><highlight class="normal"><sp/><sp/></highlight><highlight class="comment">//<sp/>2:<sp/>Lookup<sp/>return<sp/>values</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="242"><highlight class="normal"></highlight></codeline>
+<codeline lineno="243"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">auto</highlight><highlight class="normal"><sp/>vertex_partition_id<sp/>=</highlight></codeline>
+<codeline lineno="244"><highlight class="normal"><sp/><sp/><sp/><sp/>partition_manager::compute_vertex_partition_id_from_graph_subcomm_ranks(</highlight></codeline>
+<codeline lineno="245"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/>major_comm_size,<sp/>minor_comm_size,<sp/>major_comm_rank,<sp/>minor_comm_rank);</highlight></codeline>
+<codeline lineno="246"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">auto</highlight><highlight class="normal"><sp/>local_int_vertex_first<sp/>=</highlight></codeline>
+<codeline lineno="247"><highlight class="normal"><sp/><sp/><sp/><sp/>vertex_partition_id<sp/>==<sp/>0<sp/>?<sp/>vertex_t{0}<sp/>:<sp/>vertex_partition_range_lasts[vertex_partition_id<sp/>-<sp/>1];</highlight></codeline>
+<codeline lineno="248"><highlight class="normal"></highlight></codeline>
+<codeline lineno="249"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">auto</highlight><highlight class="normal"><sp/>value_buffer<sp/>=</highlight></codeline>
+<codeline lineno="250"><highlight class="normal"><sp/><sp/><sp/><sp/>allocate_dataframe_buffer&lt;value_t&gt;(rx_int_vertices.size(),<sp/>handle.get_stream());</highlight></codeline>
+<codeline lineno="251"><highlight class="normal"><sp/><sp/>thrust::transform(handle.get_thrust_policy(),</highlight></codeline>
+<codeline lineno="252"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>rx_int_vertices.begin(),</highlight></codeline>
+<codeline lineno="253"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>rx_int_vertices.end(),</highlight></codeline>
+<codeline lineno="254"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>get_dataframe_buffer_begin(value_buffer),</highlight></codeline>
+<codeline lineno="255"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>[local_value_first,<sp/>local_int_vertex_first]<sp/>__device__(</highlight><highlight class="keyword">auto</highlight><highlight class="normal"><sp/>v)<sp/>{</highlight></codeline>
+<codeline lineno="256"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordflow">return</highlight><highlight class="normal"><sp/>local_value_first[v<sp/>-<sp/>local_int_vertex_first];</highlight></codeline>
+<codeline lineno="257"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>});</highlight></codeline>
+<codeline lineno="258"><highlight class="normal"></highlight></codeline>
+<codeline lineno="259"><highlight class="normal"><sp/><sp/></highlight><highlight class="comment">//<sp/>3:<sp/>Shuffle<sp/>results<sp/>back<sp/>to<sp/>original<sp/>GPU</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="260"><highlight class="normal"></highlight></codeline>
+<codeline lineno="261"><highlight class="normal"><sp/><sp/>std::tie(value_buffer,<sp/>std::ignore)<sp/>=<sp/>shuffle_values(</highlight></codeline>
+<codeline lineno="262"><highlight class="normal"><sp/><sp/><sp/><sp/>comm,<sp/>get_dataframe_buffer_begin(value_buffer),<sp/>rx_int_vertex_counts,<sp/>handle.get_stream());</highlight></codeline>
+<codeline lineno="263"><highlight class="normal"></highlight></codeline>
+<codeline lineno="264"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordflow">return</highlight><highlight class="normal"><sp/>std::make_tuple(std::move(collect_unique_int_vertices),<sp/>std::move(value_buffer));</highlight></codeline>
+<codeline lineno="265"><highlight class="normal">}</highlight></codeline>
+<codeline lineno="266"><highlight class="normal"></highlight></codeline>
+<codeline lineno="267"><highlight class="normal"></highlight><highlight class="keyword">template</highlight><highlight class="normal"><sp/>&lt;</highlight><highlight class="keyword">typename</highlight><highlight class="normal"><sp/>VertexIterator,<sp/></highlight><highlight class="keyword">typename</highlight><highlight class="normal"><sp/>ValueIterator&gt;</highlight></codeline>
+<codeline lineno="268"><highlight class="normal"></highlight><highlight class="keyword">decltype</highlight><highlight class="normal">(allocate_dataframe_buffer&lt;typename<sp/>thrust::iterator_traits&lt;ValueIterator&gt;::value_type&gt;(</highlight></codeline>
+<codeline lineno="269"><highlight class="normal"><sp/><sp/>0,<sp/>cudaStream_t{</highlight><highlight class="keyword">nullptr</highlight><highlight class="normal">}))</highlight></codeline>
+<codeline lineno="270"><highlight class="normal">collect_values_for_int_vertices(</highlight></codeline>
+<codeline lineno="271"><highlight class="normal"><sp/><sp/>raft::handle_t<sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal">&amp;<sp/>handle,</highlight></codeline>
+<codeline lineno="272"><highlight class="normal"><sp/><sp/>VertexIterator<sp/>collect_vertex_first,</highlight></codeline>
+<codeline lineno="273"><highlight class="normal"><sp/><sp/>VertexIterator<sp/>collect_vertex_last,</highlight></codeline>
+<codeline lineno="274"><highlight class="normal"><sp/><sp/>ValueIterator<sp/>local_value_first,</highlight></codeline>
+<codeline lineno="275"><highlight class="normal"><sp/><sp/>std::vector&lt;</highlight><highlight class="keyword">typename</highlight><highlight class="normal"><sp/>thrust::iterator_traits&lt;VertexIterator&gt;::value_type&gt;<sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal">&amp;</highlight></codeline>
+<codeline lineno="276"><highlight class="normal"><sp/><sp/><sp/><sp/>vertex_partition_range_lasts)</highlight></codeline>
+<codeline lineno="277"><highlight class="normal">{</highlight></codeline>
+<codeline lineno="278"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">using<sp/></highlight><highlight class="normal">vertex_t<sp/>=<sp/></highlight><highlight class="keyword">typename</highlight><highlight class="normal"><sp/>thrust::iterator_traits&lt;VertexIterator&gt;::value_type;</highlight></codeline>
+<codeline lineno="279"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">using<sp/></highlight><highlight class="normal">value_t<sp/><sp/>=<sp/></highlight><highlight class="keyword">typename</highlight><highlight class="normal"><sp/>thrust::iterator_traits&lt;ValueIterator&gt;::value_type;</highlight></codeline>
+<codeline lineno="280"><highlight class="normal"></highlight></codeline>
+<codeline lineno="281"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordtype">size_t</highlight><highlight class="normal"><sp/>input_size<sp/>=<sp/>thrust::distance(collect_vertex_first,<sp/>collect_vertex_last);</highlight></codeline>
+<codeline lineno="282"><highlight class="normal"></highlight></codeline>
+<codeline lineno="283"><highlight class="normal"><sp/><sp/>rmm::device_uvector&lt;vertex_t&gt;<sp/>sorted_unique_int_vertices(input_size,<sp/>handle.get_stream());</highlight></codeline>
+<codeline lineno="284"><highlight class="normal"></highlight></codeline>
+<codeline lineno="285"><highlight class="normal"><sp/><sp/>raft::copy(</highlight></codeline>
+<codeline lineno="286"><highlight class="normal"><sp/><sp/><sp/><sp/>sorted_unique_int_vertices.data(),<sp/>collect_vertex_first,<sp/>input_size,<sp/>handle.get_stream());</highlight></codeline>
+<codeline lineno="287"><highlight class="normal"></highlight></codeline>
+<codeline lineno="288"><highlight class="normal"><sp/><sp/>thrust::sort(handle.get_thrust_policy(),</highlight></codeline>
+<codeline lineno="289"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>sorted_unique_int_vertices.begin(),</highlight></codeline>
+<codeline lineno="290"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>sorted_unique_int_vertices.end());</highlight></codeline>
+<codeline lineno="291"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">auto</highlight><highlight class="normal"><sp/>last<sp/>=<sp/>thrust::unique(handle.get_thrust_policy(),</highlight></codeline>
+<codeline lineno="292"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>sorted_unique_int_vertices.begin(),</highlight></codeline>
+<codeline lineno="293"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>sorted_unique_int_vertices.end());</highlight></codeline>
+<codeline lineno="294"><highlight class="normal"><sp/><sp/>sorted_unique_int_vertices.resize(thrust::distance(sorted_unique_int_vertices.begin(),<sp/>last),</highlight></codeline>
+<codeline lineno="295"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>handle.get_stream());</highlight></codeline>
+<codeline lineno="296"><highlight class="normal"></highlight></codeline>
+<codeline lineno="297"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">auto</highlight><highlight class="normal"><sp/>[unique_int_vertices,<sp/>tmp_value_buffer]<sp/>=<sp/>collect_values_for_unique_int_vertices(</highlight></codeline>
+<codeline lineno="298"><highlight class="normal"><sp/><sp/><sp/><sp/>handle,<sp/>std::move(sorted_unique_int_vertices),<sp/>local_value_first,<sp/>vertex_partition_range_lasts);</highlight></codeline>
+<codeline lineno="299"><highlight class="normal"></highlight></codeline>
+<codeline lineno="300"><highlight class="normal"><sp/><sp/>kv_store_t&lt;vertex_t,<sp/>value_t,<sp/>true&gt;<sp/>kv_map(std::move(unique_int_vertices),</highlight></codeline>
+<codeline lineno="301"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>std::move(tmp_value_buffer),</highlight></codeline>
+<codeline lineno="302"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>invalid_vertex_id&lt;vertex_t&gt;::value,</highlight></codeline>
+<codeline lineno="303"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keyword">false</highlight><highlight class="normal">,</highlight></codeline>
+<codeline lineno="304"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>handle.get_stream());</highlight></codeline>
+<codeline lineno="305"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">auto</highlight><highlight class="normal"><sp/>device_view<sp/>=<sp/>detail::kv_binary_search_store_device_view_t(kv_map.view());</highlight></codeline>
+<codeline lineno="306"><highlight class="normal"></highlight></codeline>
+<codeline lineno="307"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">auto</highlight><highlight class="normal"><sp/>value_buffer<sp/>=<sp/>allocate_dataframe_buffer&lt;value_t&gt;(input_size,<sp/>handle.get_stream());</highlight></codeline>
+<codeline lineno="308"><highlight class="normal"><sp/><sp/>thrust::transform(handle.get_thrust_policy(),</highlight></codeline>
+<codeline lineno="309"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>collect_vertex_first,</highlight></codeline>
+<codeline lineno="310"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>collect_vertex_last,</highlight></codeline>
+<codeline lineno="311"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>get_dataframe_buffer_begin(value_buffer),</highlight></codeline>
+<codeline lineno="312"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>[device_view]<sp/>__device__(</highlight><highlight class="keyword">auto</highlight><highlight class="normal"><sp/>v)<sp/>{<sp/></highlight><highlight class="keywordflow">return</highlight><highlight class="normal"><sp/>device_view.find(v);<sp/>});</highlight></codeline>
+<codeline lineno="313"><highlight class="normal"></highlight></codeline>
+<codeline lineno="314"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordflow">return</highlight><highlight class="normal"><sp/>value_buffer;</highlight></codeline>
+<codeline lineno="315"><highlight class="normal">}</highlight></codeline>
+<codeline lineno="316"><highlight class="normal"></highlight></codeline>
+<codeline lineno="317"><highlight class="normal"></highlight><highlight class="keyword">template</highlight><highlight class="normal"><sp/>&lt;</highlight><highlight class="keyword">typename</highlight><highlight class="normal"><sp/>T&gt;</highlight></codeline>
+<codeline lineno="318"><highlight class="normal">rmm::device_uvector&lt;T&gt;<sp/>device_allgatherv(raft::handle_t<sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal">&amp;<sp/>handle,</highlight></codeline>
+<codeline lineno="319"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>raft::comms::comms_t<sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal">&amp;<sp/>comms,</highlight></codeline>
+<codeline lineno="320"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>raft::device_span&lt;T<sp/>const&gt;<sp/>d_input)</highlight></codeline>
+<codeline lineno="321"><highlight class="normal">{</highlight></codeline>
+<codeline lineno="322"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">auto</highlight><highlight class="normal"><sp/>rx_sizes<sp/>=<sp/>cugraph::host_scalar_allgather(comms,<sp/>d_input.size(),<sp/>handle.get_stream());</highlight></codeline>
+<codeline lineno="323"><highlight class="normal"><sp/><sp/>std::vector&lt;size_t&gt;<sp/>rx_displs(</highlight><highlight class="keyword">static_cast&lt;</highlight><highlight class="keywordtype">size_t</highlight><highlight class="keyword">&gt;</highlight><highlight class="normal">(comms.get_size()));</highlight></codeline>
+<codeline lineno="324"><highlight class="normal"><sp/><sp/>std::partial_sum(rx_sizes.begin(),<sp/>rx_sizes.end()<sp/>-<sp/>1,<sp/>rx_displs.begin()<sp/>+<sp/>1);</highlight></codeline>
+<codeline lineno="325"><highlight class="normal"></highlight></codeline>
+<codeline lineno="326"><highlight class="normal"><sp/><sp/>rmm::device_uvector&lt;T&gt;<sp/>gathered_v(std::reduce(rx_sizes.begin(),<sp/>rx_sizes.end()),</highlight></codeline>
+<codeline lineno="327"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>handle.get_stream());</highlight></codeline>
+<codeline lineno="328"><highlight class="normal"></highlight></codeline>
+<codeline lineno="329"><highlight class="normal"><sp/><sp/>cugraph::device_allgatherv(</highlight></codeline>
+<codeline lineno="330"><highlight class="normal"><sp/><sp/><sp/><sp/>comms,<sp/>d_input.data(),<sp/>gathered_v.data(),<sp/>rx_sizes,<sp/>rx_displs,<sp/>handle.get_stream());</highlight></codeline>
+<codeline lineno="331"><highlight class="normal"></highlight></codeline>
+<codeline lineno="332"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordflow">return</highlight><highlight class="normal"><sp/>gathered_v;</highlight></codeline>
+<codeline lineno="333"><highlight class="normal">}</highlight></codeline>
+<codeline lineno="334"><highlight class="normal"></highlight></codeline>
+<codeline lineno="335"><highlight class="normal">}<sp/><sp/></highlight><highlight class="comment">//<sp/>namespace<sp/>cugraph</highlight><highlight class="normal"></highlight></codeline>
+    </programlisting>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/src/utilities/collect_comm.cuh"/>
+  </compounddef>
+</doxygen>

@@ -1,0 +1,73 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="structcugraph_1_1detail_1_1multiply__and__add__t" kind="struct" language="C++" prot="public">
+    <compoundname>cugraph::detail::multiply_and_add_t</compoundname>
+    <templateparamlist>
+      <param>
+        <type>typename T</type>
+      </param>
+    </templateparamlist>
+    <sectiondef kind="public-attrib">
+      <memberdef kind="variable" id="structcugraph_1_1detail_1_1multiply__and__add__t_1a006ced1ee4330e6ecd8818046021b8e1" prot="public" static="no" mutable="no">
+        <type>T</type>
+        <definition>T cugraph::detail::multiply_and_add_t&lt; T &gt;::multiplier</definition>
+        <argsstring></argsstring>
+        <name>multiplier</name>
+        <qualifiedname>cugraph::detail::multiply_and_add_t::multiplier</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/utilities/device_functors.cuh" line="171" column="5" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/utilities/device_functors.cuh" bodystart="171" bodyend="171"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph_1_1detail_1_1multiply__and__add__t_1ac145fcc07c13136a0ff796a337d9941f" prot="public" static="no" mutable="no">
+        <type>T</type>
+        <definition>T cugraph::detail::multiply_and_add_t&lt; T &gt;::adder</definition>
+        <argsstring></argsstring>
+        <name>adder</name>
+        <qualifiedname>cugraph::detail::multiply_and_add_t::adder</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/utilities/device_functors.cuh" line="172" column="5" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/utilities/device_functors.cuh" bodystart="172" bodyend="172"/>
+      </memberdef>
+    </sectiondef>
+    <sectiondef kind="public-func">
+      <memberdef kind="function" id="structcugraph_1_1detail_1_1multiply__and__add__t_1ae3ff046ae4c64ef4b13069b6d779d212" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>__device__ T</type>
+        <definition>__device__ T cugraph::detail::multiply_and_add_t&lt; T &gt;::operator()</definition>
+        <argsstring>(T input) const</argsstring>
+        <name>operator()</name>
+        <qualifiedname>cugraph::detail::multiply_and_add_t::operator()</qualifiedname>
+        <param>
+          <type>T</type>
+          <declname>input</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/utilities/device_functors.cuh" line="174" column="16" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/utilities/device_functors.cuh" bodystart="174" bodyend="174"/>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/utilities/device_functors.cuh" line="170" column="1" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/utilities/device_functors.cuh" bodystart="170" bodyend="175"/>
+    <listofallmembers>
+      <member refid="structcugraph_1_1detail_1_1multiply__and__add__t_1ac145fcc07c13136a0ff796a337d9941f" prot="public" virt="non-virtual"><scope>cugraph::detail::multiply_and_add_t</scope><name>adder</name></member>
+      <member refid="structcugraph_1_1detail_1_1multiply__and__add__t_1a006ced1ee4330e6ecd8818046021b8e1" prot="public" virt="non-virtual"><scope>cugraph::detail::multiply_and_add_t</scope><name>multiplier</name></member>
+      <member refid="structcugraph_1_1detail_1_1multiply__and__add__t_1ae3ff046ae4c64ef4b13069b6d779d212" prot="public" virt="non-virtual"><scope>cugraph::detail::multiply_and_add_t</scope><name>operator()</name></member>
+    </listofallmembers>
+  </compounddef>
+</doxygen>

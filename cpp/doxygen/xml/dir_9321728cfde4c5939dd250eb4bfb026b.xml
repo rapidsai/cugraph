@@ -1,0 +1,15 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="dir_9321728cfde4c5939dd250eb4bfb026b" kind="dir">
+    <compoundname>legacy</compoundname>
+    <innerfile refid="connectivity_8cu">connectivity.cu</innerfile>
+    <innerfile refid="scc__matrix_8cuh">scc_matrix.cuh</innerfile>
+    <innerfile refid="utils_8h">utils.h</innerfile>
+    <innerfile refid="weak__cc_8cuh">weak_cc.cuh</innerfile>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/src/components/legacy/"/>
+  </compounddef>
+</doxygen>

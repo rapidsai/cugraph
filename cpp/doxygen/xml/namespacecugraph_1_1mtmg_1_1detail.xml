@@ -1,0 +1,60 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="namespacecugraph_1_1mtmg_1_1detail" kind="namespace" language="C++">
+    <compoundname>cugraph::mtmg::detail</compoundname>
+    <innerclass refid="classcugraph_1_1mtmg_1_1detail_1_1device__shared__device__vector__t" prot="public">cugraph::mtmg::detail::device_shared_device_vector_t</innerclass>
+    <innerclass refid="classcugraph_1_1mtmg_1_1detail_1_1device__shared__device__vector__tuple__t" prot="public">cugraph::mtmg::detail::device_shared_device_vector_tuple_t</innerclass>
+    <innerclass refid="classcugraph_1_1mtmg_1_1detail_1_1device__shared__wrapper__t" prot="public">cugraph::mtmg::detail::device_shared_wrapper_t</innerclass>
+    <innerclass refid="classcugraph_1_1mtmg_1_1detail_1_1per__device__edgelist__t" prot="public">cugraph::mtmg::detail::per_device_edgelist_t</innerclass>
+    <sectiondef kind="typedef">
+      <memberdef kind="typedef" id="device__shared__device__span_8hpp_1a8dc5fb9839e6c0c5cf8f1aa733ad4fb8" prot="public" static="no">
+        <templateparamlist>
+          <param>
+            <type>typename T</type>
+          </param>
+        </templateparamlist>
+        <type><ref refid="classcugraph_1_1mtmg_1_1detail_1_1device__shared__wrapper__t" kindref="compound">device_shared_wrapper_t</ref>&lt; raft::device_span&lt; T &gt; &gt;</type>
+        <definition>using cugraph::mtmg::detail::device_shared_device_span_t =  device_shared_wrapper_t&lt;raft::device_span&lt;T&gt;&gt;</definition>
+        <argsstring></argsstring>
+        <name>device_shared_device_span_t</name>
+        <qualifiedname>cugraph::mtmg::detail::device_shared_device_span_t</qualifiedname>
+        <briefdescription>
+<para>Manage device spans on each GPU. </para>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/detail/device_shared_device_span.hpp" line="31" column="1" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/detail/device_shared_device_span.hpp" bodystart="31" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="typedef" id="device__shared__device__span__tuple_8hpp_1ac61fff923227a7d7ba64cdec3a01b910" prot="public" static="no">
+        <templateparamlist>
+          <param>
+            <type>typename...</type>
+            <declname>Ts</declname>
+            <defname>Ts</defname>
+          </param>
+        </templateparamlist>
+        <type><ref refid="classcugraph_1_1mtmg_1_1detail_1_1device__shared__wrapper__t" kindref="compound">device_shared_wrapper_t</ref>&lt; std::tuple&lt; raft::device_span&lt; Ts &gt;... &gt; &gt;</type>
+        <definition>using cugraph::mtmg::detail::device_shared_device_span_tuple_t = 
+  device_shared_wrapper_t&lt;std::tuple&lt;raft::device_span&lt;Ts&gt;...&gt;&gt;</definition>
+        <argsstring></argsstring>
+        <name>device_shared_device_span_tuple_t</name>
+        <qualifiedname>cugraph::mtmg::detail::device_shared_device_span_tuple_t</qualifiedname>
+        <briefdescription>
+<para>Manage a tuple of device spans on each GPU. </para>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/detail/device_shared_device_span_tuple.hpp" line="31" column="1" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/detail/device_shared_device_span_tuple.hpp" bodystart="31" bodyend="-1"/>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/detail/device_shared_device_span.hpp" line="25" column="1"/>
+  </compounddef>
+</doxygen>

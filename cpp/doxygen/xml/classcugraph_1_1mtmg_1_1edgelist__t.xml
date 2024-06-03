@@ -1,0 +1,146 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="classcugraph_1_1mtmg_1_1edgelist__t" kind="class" language="C++" prot="public">
+    <compoundname>cugraph::mtmg::edgelist_t</compoundname>
+    <basecompoundref refid="classcugraph_1_1mtmg_1_1detail_1_1device__shared__wrapper__t" prot="public" virt="non-virtual">cugraph::mtmg::detail::device_shared_wrapper_t&lt; detail::per_device_edgelist_t&lt; vertex_t, weight_t, edge_t, edge_type_t &gt; &gt;</basecompoundref>
+    <includes refid="edgelist_8hpp" local="no">edgelist.hpp</includes>
+    <templateparamlist>
+      <param>
+        <type>typename vertex_t</type>
+      </param>
+      <param>
+        <type>typename weight_t</type>
+      </param>
+      <param>
+        <type>typename edge_t</type>
+      </param>
+      <param>
+        <type>typename edge_type_t</type>
+      </param>
+    </templateparamlist>
+    <sectiondef kind="public-func">
+      <memberdef kind="function" id="classcugraph_1_1mtmg_1_1edgelist__t_1a6acff713566051342ccbffbd45ba014c" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type>void</type>
+        <definition>void cugraph::mtmg::edgelist_t&lt; vertex_t, weight_t, edge_t, edge_type_t &gt;::set</definition>
+        <argsstring>(handle_t const &amp;handle, size_t device_buffer_size, bool use_weight, bool use_edge_id, bool use_edge_type)</argsstring>
+        <name>set</name>
+        <qualifiedname>cugraph::mtmg::edgelist_t::set</qualifiedname>
+        <param>
+          <type><ref refid="classcugraph_1_1mtmg_1_1handle__t" kindref="compound">handle_t</ref> const &amp;</type>
+          <declname>handle</declname>
+        </param>
+        <param>
+          <type>size_t</type>
+          <declname>device_buffer_size</declname>
+        </param>
+        <param>
+          <type>bool</type>
+          <declname>use_weight</declname>
+        </param>
+        <param>
+          <type>bool</type>
+          <declname>use_edge_id</declname>
+        </param>
+        <param>
+          <type>bool</type>
+          <declname>use_edge_type</declname>
+        </param>
+        <briefdescription>
+<para>Create a per_device_edgelist for this GPU. </para>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/edgelist.hpp" line="35" column="8" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/edgelist.hpp" bodystart="35" bodyend="47"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1mtmg_1_1edgelist__t_1a46ba2e522a31b1c0dde0376a9b554226" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type>void</type>
+        <definition>void cugraph::mtmg::edgelist_t&lt; vertex_t, weight_t, edge_t, edge_type_t &gt;::finalize_buffer</definition>
+        <argsstring>(handle_t const &amp;handle)</argsstring>
+        <name>finalize_buffer</name>
+        <qualifiedname>cugraph::mtmg::edgelist_t::finalize_buffer</qualifiedname>
+        <param>
+          <type><ref refid="classcugraph_1_1mtmg_1_1handle__t" kindref="compound">handle_t</ref> const &amp;</type>
+          <declname>handle</declname>
+        </param>
+        <briefdescription>
+<para>Stop inserting edges into this edgelist so we can use the edges. </para>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/edgelist.hpp" line="52" column="8" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/edgelist.hpp" bodystart="52" bodyend="56"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1mtmg_1_1edgelist__t_1aa66a293580757a7650d7ce42365138b8" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type>void</type>
+        <definition>void cugraph::mtmg::edgelist_t&lt; vertex_t, weight_t, edge_t, edge_type_t &gt;::consolidate_and_shuffle</definition>
+        <argsstring>(cugraph::mtmg::handle_t const &amp;handle, bool store_transposed)</argsstring>
+        <name>consolidate_and_shuffle</name>
+        <qualifiedname>cugraph::mtmg::edgelist_t::consolidate_and_shuffle</qualifiedname>
+        <param>
+          <type><ref refid="classcugraph_1_1mtmg_1_1handle__t" kindref="compound">cugraph::mtmg::handle_t</ref> const &amp;</type>
+          <declname>handle</declname>
+        </param>
+        <param>
+          <type>bool</type>
+          <declname>store_transposed</declname>
+        </param>
+        <briefdescription>
+<para>Consolidate for the edgelist edges into a single edgelist and then shuffle across GPUs. </para>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/edgelist.hpp" line="62" column="8" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/edgelist.hpp" bodystart="62" bodyend="65"/>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+<para>Edgelist object for each GPU. </para>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <inheritancegraph>
+      <node id="1">
+        <label>cugraph::mtmg::edgelist_t&lt; vertex_t, weight_t, edge_t, edge_type_t &gt;</label>
+        <link refid="classcugraph_1_1mtmg_1_1edgelist__t"/>
+        <childnode refid="2" relation="public-inheritance">
+        </childnode>
+      </node>
+      <node id="2">
+        <label>cugraph::mtmg::detail::device_shared_wrapper_t&lt; detail::per_device_edgelist_t&lt; vertex_t, weight_t, edge_t, edge_type_t &gt; &gt;</label>
+        <link refid="classcugraph_1_1mtmg_1_1detail_1_1device__shared__wrapper__t"/>
+      </node>
+    </inheritancegraph>
+    <collaborationgraph>
+      <node id="1">
+        <label>cugraph::mtmg::edgelist_t&lt; vertex_t, weight_t, edge_t, edge_type_t &gt;</label>
+        <link refid="classcugraph_1_1mtmg_1_1edgelist__t"/>
+        <childnode refid="2" relation="public-inheritance">
+        </childnode>
+      </node>
+      <node id="2">
+        <label>cugraph::mtmg::detail::device_shared_wrapper_t&lt; detail::per_device_edgelist_t&lt; vertex_t, weight_t, edge_t, edge_type_t &gt; &gt;</label>
+        <link refid="classcugraph_1_1mtmg_1_1detail_1_1device__shared__wrapper__t"/>
+      </node>
+    </collaborationgraph>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/edgelist.hpp" line="29" column="1" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/edgelist.hpp" bodystart="30" bodyend="66"/>
+    <listofallmembers>
+      <member refid="classcugraph_1_1mtmg_1_1edgelist__t_1aa66a293580757a7650d7ce42365138b8" prot="public" virt="non-virtual"><scope>cugraph::mtmg::edgelist_t</scope><name>consolidate_and_shuffle</name></member>
+      <member refid="classcugraph_1_1mtmg_1_1detail_1_1device__shared__wrapper__t_1a0491c39b28031d6de9aca1e41b2a8d38" prot="public" virt="non-virtual"><scope>cugraph::mtmg::edgelist_t</scope><name>device_shared_wrapper_t</name></member>
+      <member refid="classcugraph_1_1mtmg_1_1detail_1_1device__shared__wrapper__t_1aa31ffdd3545f839d700c6e27df205a11" prot="public" virt="non-virtual"><scope>cugraph::mtmg::edgelist_t</scope><name>device_shared_wrapper_t</name></member>
+      <member refid="classcugraph_1_1mtmg_1_1edgelist__t_1a46ba2e522a31b1c0dde0376a9b554226" prot="public" virt="non-virtual"><scope>cugraph::mtmg::edgelist_t</scope><name>finalize_buffer</name></member>
+      <member refid="classcugraph_1_1mtmg_1_1detail_1_1device__shared__wrapper__t_1a5cde570f7a097a9f0895d3495928a772" prot="public" virt="non-virtual"><scope>cugraph::mtmg::edgelist_t</scope><name>get</name></member>
+      <member refid="classcugraph_1_1mtmg_1_1detail_1_1device__shared__wrapper__t_1a7f1de177bc117b5eb6683cfb164ef78d" prot="public" virt="non-virtual"><scope>cugraph::mtmg::edgelist_t</scope><name>get</name></member>
+      <member refid="classcugraph_1_1mtmg_1_1detail_1_1device__shared__wrapper__t_1ad69299ff247d4a35fdb86f794fb93198" prot="protected" virt="non-virtual"><scope>cugraph::mtmg::edgelist_t</scope><name>lock_</name></member>
+      <member refid="classcugraph_1_1mtmg_1_1detail_1_1device__shared__wrapper__t_1ade0e677b55a50d0067f8fb68a19eb708" prot="protected" virt="non-virtual"><scope>cugraph::mtmg::edgelist_t</scope><name>objects_</name></member>
+      <member refid="classcugraph_1_1mtmg_1_1detail_1_1device__shared__wrapper__t_1a38871d86d47b39c719cc4a4e5afda7a3" prot="public" virt="non-virtual"><scope>cugraph::mtmg::edgelist_t</scope><name>operator=</name></member>
+      <member refid="classcugraph_1_1mtmg_1_1edgelist__t_1a6acff713566051342ccbffbd45ba014c" prot="public" virt="non-virtual"><scope>cugraph::mtmg::edgelist_t</scope><name>set</name></member>
+      <member refid="classcugraph_1_1mtmg_1_1detail_1_1device__shared__wrapper__t_1a14553fe2a2facc4a8cb356a736cdb66e" prot="public" virt="non-virtual" ambiguityscope="device_shared_wrapper_t&lt; detail::per_device_edgelist_t&lt; vertex_t, weight_t, edge_t, edge_type_t &gt; &gt;::"><scope>cugraph::mtmg::edgelist_t</scope><name>set</name></member>
+      <member refid="classcugraph_1_1mtmg_1_1detail_1_1device__shared__wrapper__t_1a5a2bbc47f49d261e51a3b52543b4f193" prot="public" virt="non-virtual" ambiguityscope="device_shared_wrapper_t&lt; detail::per_device_edgelist_t&lt; vertex_t, weight_t, edge_t, edge_type_t &gt; &gt;::"><scope>cugraph::mtmg::edgelist_t</scope><name>set</name></member>
+      <member refid="classcugraph_1_1mtmg_1_1detail_1_1device__shared__wrapper__t_1a845fdc2d2154a3132b96e4c7e7d2568b" prot="public" virt="non-virtual"><scope>cugraph::mtmg::edgelist_t</scope><name>wrapped_t</name></member>
+    </listofallmembers>
+  </compounddef>
+</doxygen>

@@ -1,0 +1,67 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="structcugraph_1_1detail_1_1device__irecv__tuple__iterator__element__impl_3_01InputIterator_00_01a091a261612361c386b6a3a3ce90d85f" kind="struct" language="C++" prot="public">
+    <compoundname>cugraph::detail::device_irecv_tuple_iterator_element_impl&lt; InputIterator, OutputIterator, I, I &gt;</compoundname>
+    <templateparamlist>
+      <param>
+        <type>typename InputIterator</type>
+      </param>
+      <param>
+        <type>typename OutputIterator</type>
+      </param>
+      <param>
+        <type>size_t</type>
+        <declname>I</declname>
+        <defname>I</defname>
+      </param>
+    </templateparamlist>
+    <sectiondef kind="public-func">
+      <memberdef kind="function" id="structcugraph_1_1detail_1_1device__irecv__tuple__iterator__element__impl_3_01InputIterator_00_01a091a261612361c386b6a3a3ce90d85f_1a7fa26ba69652cb7ffa9ee41721772f3f" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>void</type>
+        <definition>void cugraph::detail::device_irecv_tuple_iterator_element_impl&lt; InputIterator, OutputIterator, I, I &gt;::run</definition>
+        <argsstring>(raft::comms::comms_t const &amp;comm, OutputIterator output_first, size_t count, int src, int base_tag, raft::comms::request_t *requests) const</argsstring>
+        <name>run</name>
+        <qualifiedname>cugraph::detail::device_irecv_tuple_iterator_element_impl&lt; InputIterator, OutputIterator, I, I &gt;::run</qualifiedname>
+        <param>
+          <type>raft::comms::comms_t const &amp;</type>
+          <declname>comm</declname>
+        </param>
+        <param>
+          <type>OutputIterator</type>
+          <declname>output_first</declname>
+        </param>
+        <param>
+          <type>size_t</type>
+          <declname>count</declname>
+        </param>
+        <param>
+          <type>int</type>
+          <declname>src</declname>
+        </param>
+        <param>
+          <type>int</type>
+          <declname>base_tag</declname>
+        </param>
+        <param>
+          <type>raft::comms::request_t *</type>
+          <declname>requests</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/utilities/device_comm.hpp" line="164" column="8" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/utilities/device_comm.hpp" bodystart="164" bodyend="171"/>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/utilities/device_comm.hpp" line="163" column="1" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/utilities/device_comm.hpp" bodystart="163" bodyend="172"/>
+    <listofallmembers>
+      <member refid="structcugraph_1_1detail_1_1device__irecv__tuple__iterator__element__impl_3_01InputIterator_00_01a091a261612361c386b6a3a3ce90d85f_1a7fa26ba69652cb7ffa9ee41721772f3f" prot="public" virt="non-virtual"><scope>cugraph::detail::device_irecv_tuple_iterator_element_impl&lt; InputIterator, OutputIterator, I, I &gt;</scope><name>run</name></member>
+    </listofallmembers>
+  </compounddef>
+</doxygen>

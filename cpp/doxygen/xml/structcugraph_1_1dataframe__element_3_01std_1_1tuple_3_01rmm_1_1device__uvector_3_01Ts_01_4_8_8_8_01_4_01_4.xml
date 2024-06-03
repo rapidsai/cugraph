@@ -1,0 +1,37 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="structcugraph_1_1dataframe__element_3_01std_1_1tuple_3_01rmm_1_1device__uvector_3_01Ts_01_4_8_8_8_01_4_01_4" kind="struct" language="C++" prot="public">
+    <compoundname>cugraph::dataframe_element&lt; std::tuple&lt; rmm::device_uvector&lt; Ts &gt;... &gt; &gt;</compoundname>
+    <templateparamlist>
+      <param>
+        <type>typename...</type>
+        <declname>Ts</declname>
+        <defname>Ts</defname>
+      </param>
+    </templateparamlist>
+    <sectiondef kind="public-type">
+      <memberdef kind="typedef" id="structcugraph_1_1dataframe__element_3_01std_1_1tuple_3_01rmm_1_1device__uvector_3_01Ts_01_4_8_8_8_01_4_01_4_1aa7a75d067bd484d393793a446594a52e" prot="public" static="no">
+        <type>thrust::tuple&lt; Ts... &gt;</type>
+        <definition>using cugraph::dataframe_element&lt; std::tuple&lt; rmm::device_uvector&lt; Ts &gt;... &gt; &gt;::type =  thrust::tuple&lt;Ts...&gt;</definition>
+        <argsstring></argsstring>
+        <name>type</name>
+        <qualifiedname>cugraph::dataframe_element&lt; std::tuple&lt; rmm::device_uvector&lt; Ts &gt;... &gt; &gt;::type</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/utilities/dataframe_buffer.hpp" line="78" column="3" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/utilities/dataframe_buffer.hpp" bodystart="78" bodyend="-1"/>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/utilities/dataframe_buffer.hpp" line="77" column="1" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/utilities/dataframe_buffer.hpp" bodystart="77" bodyend="79"/>
+    <listofallmembers>
+      <member refid="structcugraph_1_1dataframe__element_3_01std_1_1tuple_3_01rmm_1_1device__uvector_3_01Ts_01_4_8_8_8_01_4_01_4_1aa7a75d067bd484d393793a446594a52e" prot="public" virt="non-virtual"><scope>cugraph::dataframe_element&lt; std::tuple&lt; rmm::device_uvector&lt; Ts &gt;... &gt; &gt;</scope><name>type</name></member>
+    </listofallmembers>
+  </compounddef>
+</doxygen>

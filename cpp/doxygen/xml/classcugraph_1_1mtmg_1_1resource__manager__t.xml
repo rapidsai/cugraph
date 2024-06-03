@@ -1,0 +1,254 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="classcugraph_1_1mtmg_1_1resource__manager__t" kind="class" language="C++" prot="public">
+    <compoundname>cugraph::mtmg::resource_manager_t</compoundname>
+    <includes refid="resource__manager_8hpp" local="no">resource_manager.hpp</includes>
+    <sectiondef kind="private-attrib">
+      <memberdef kind="variable" id="classcugraph_1_1mtmg_1_1resource__manager__t_1aebcf89bca2b3e650ca108d17dd75c6be" prot="private" static="no" mutable="yes">
+        <type>std::mutex</type>
+        <definition>std::mutex cugraph::mtmg::resource_manager_t::lock_</definition>
+        <argsstring></argsstring>
+        <name>lock_</name>
+        <qualifiedname>cugraph::mtmg::resource_manager_t::lock_</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/resource_manager.hpp" line="252" column="22" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/resource_manager.hpp" bodystart="252" bodyend="252"/>
+      </memberdef>
+      <memberdef kind="variable" id="classcugraph_1_1mtmg_1_1resource__manager__t_1aadf33999cd62f461c2d07e46a8bf35f7" prot="private" static="no" mutable="no">
+        <type>std::map&lt; int, rmm::cuda_device_id &gt;</type>
+        <definition>std::map&lt;int, rmm::cuda_device_id&gt; cugraph::mtmg::resource_manager_t::local_rank_map_</definition>
+        <argsstring></argsstring>
+        <name>local_rank_map_</name>
+        <qualifiedname>cugraph::mtmg::resource_manager_t::local_rank_map_</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/resource_manager.hpp" line="253" column="12" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/resource_manager.hpp" bodystart="253" bodyend="253"/>
+      </memberdef>
+      <memberdef kind="variable" id="classcugraph_1_1mtmg_1_1resource__manager__t_1ae1ba6cc66381e66dcce544be5f313baa" prot="private" static="no" mutable="no">
+        <type>std::set&lt; int &gt;</type>
+        <definition>std::set&lt;int&gt; cugraph::mtmg::resource_manager_t::remote_rank_set_</definition>
+        <argsstring></argsstring>
+        <name>remote_rank_set_</name>
+        <qualifiedname>cugraph::mtmg::resource_manager_t::remote_rank_set_</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/resource_manager.hpp" line="254" column="12" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/resource_manager.hpp" bodystart="254" bodyend="254"/>
+      </memberdef>
+      <memberdef kind="variable" id="classcugraph_1_1mtmg_1_1resource__manager__t_1ab34f00ed7409b216a5c933b5188e94a9" prot="private" static="no" mutable="no">
+        <type>std::map&lt; int, std::shared_ptr&lt; rmm::mr::device_memory_resource &gt; &gt;</type>
+        <definition>std::map&lt;int, std::shared_ptr&lt;rmm::mr::device_memory_resource&gt; &gt; cugraph::mtmg::resource_manager_t::per_device_rmm_resources_</definition>
+        <argsstring></argsstring>
+        <name>per_device_rmm_resources_</name>
+        <qualifiedname>cugraph::mtmg::resource_manager_t::per_device_rmm_resources_</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/resource_manager.hpp" line="255" column="12" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/resource_manager.hpp" bodystart="255" bodyend="255"/>
+      </memberdef>
+    </sectiondef>
+    <sectiondef kind="public-func">
+      <memberdef kind="function" id="classcugraph_1_1mtmg_1_1resource__manager__t_1afa0b2f8bb7b748fb967c9207a906f44d" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type></type>
+        <definition>cugraph::mtmg::resource_manager_t::resource_manager_t</definition>
+        <argsstring>()</argsstring>
+        <name>resource_manager_t</name>
+        <qualifiedname>cugraph::mtmg::resource_manager_t::resource_manager_t</qualifiedname>
+        <briefdescription>
+<para>Default constructor. </para>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/resource_manager.hpp" line="66" column="3" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/resource_manager.hpp" bodystart="66" bodyend="66"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1mtmg_1_1resource__manager__t_1a20e93cf2262e79122bde5b0a7eb694d8" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type>void</type>
+        <definition>void cugraph::mtmg::resource_manager_t::register_local_gpu</definition>
+        <argsstring>(int global_rank, rmm::cuda_device_id local_device_id)</argsstring>
+        <name>register_local_gpu</name>
+        <qualifiedname>cugraph::mtmg::resource_manager_t::register_local_gpu</qualifiedname>
+        <param>
+          <type>int</type>
+          <declname>global_rank</declname>
+        </param>
+        <param>
+          <type>rmm::cuda_device_id</type>
+          <declname>local_device_id</declname>
+        </param>
+        <briefdescription>
+<para>add a local GPU to the resource manager. </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername>global_rank</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>The global rank to assign to the local GPU </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>local_device_id</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>The local device_id corresponding to this rank </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/resource_manager.hpp" line="74" column="8" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/resource_manager.hpp" bodystart="74" bodyend="120"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1mtmg_1_1resource__manager__t_1a42fef2ef33c04d3d38dc39ca5953a07f" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type>void</type>
+        <definition>void cugraph::mtmg::resource_manager_t::register_remote_gpu</definition>
+        <argsstring>(int global_rank)</argsstring>
+        <name>register_remote_gpu</name>
+        <qualifiedname>cugraph::mtmg::resource_manager_t::register_remote_gpu</qualifiedname>
+        <param>
+          <type>int</type>
+          <declname>global_rank</declname>
+        </param>
+        <briefdescription>
+<para>add a remote GPU to the resource manager. </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername>global_rank</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>The global rank to assign to the remote GPU </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/resource_manager.hpp" line="127" column="8" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/resource_manager.hpp" bodystart="127" bodyend="137"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1mtmg_1_1resource__manager__t_1afd340fffd67e880ea6a1e057a06797e0" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>std::unique_ptr&lt; <ref refid="classcugraph_1_1mtmg_1_1instance__manager__t" kindref="compound">instance_manager_t</ref> &gt;</type>
+        <definition>std::unique_ptr&lt; instance_manager_t &gt; cugraph::mtmg::resource_manager_t::create_instance_manager</definition>
+        <argsstring>(std::vector&lt; int &gt; ranks_to_include, ncclUniqueId instance_manager_id, size_t n_streams=16) const</argsstring>
+        <name>create_instance_manager</name>
+        <qualifiedname>cugraph::mtmg::resource_manager_t::create_instance_manager</qualifiedname>
+        <param>
+          <type>std::vector&lt; int &gt;</type>
+          <declname>ranks_to_include</declname>
+        </param>
+        <param>
+          <type>ncclUniqueId</type>
+          <declname>instance_manager_id</declname>
+        </param>
+        <param>
+          <type>size_t</type>
+          <declname>n_streams</declname>
+          <defval>16</defval>
+        </param>
+        <briefdescription>
+<para>Create an instance using a subset of the registered resources. </para>
+        </briefdescription>
+        <detaileddescription>
+<para>The selected set of resources will be configured as an instance manager. If @ranks_to_include is a proper subset of the registered resources, ranks will be renumbered into the range [0, <computeroutput>ranks_to_use.size()</computeroutput>), making it a proper configuration.</para>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername>ranks_to_use</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>a vector containing the ranks to include in the instance. Must be a subset of the entire set of available ranks. </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>instance_manager_id</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>a ncclUniqueId that is shared by all processes participating in this instance. All processes must use the same ID in this call, it is up to the calling code to share this ID properly before the call. </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>n_streams</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>The number of streams to create in a stream pool for each GPU. Defaults to 16.</para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>unique pointer to instance manager </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/resource_manager.hpp" line="157" column="19" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/resource_manager.hpp" bodystart="157" bodyend="226"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1mtmg_1_1resource__manager__t_1af8af592c2e6a7f6db3fc0bd96f226d13" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>std::vector&lt; int &gt;</type>
+        <definition>std::vector&lt; int &gt; cugraph::mtmg::resource_manager_t::registered_ranks</definition>
+        <argsstring>() const</argsstring>
+        <name>registered_ranks</name>
+        <qualifiedname>cugraph::mtmg::resource_manager_t::registered_ranks</qualifiedname>
+        <briefdescription>
+<para>Get a list of all of the currently registered ranks. </para>
+        </briefdescription>
+        <detaileddescription>
+<para><simplesect kind="return"><para>A copy of the list of ranks. </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/resource_manager.hpp" line="233" column="15" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/resource_manager.hpp" bodystart="233" bodyend="249"/>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+<para>Class for managing local and remote GPU resources for use in multi-threaded multi-GPU interface. </para>
+    </briefdescription>
+    <detaileddescription>
+<para>Each process in a multi-GPU configuration should have an instance of this class. The resource manager object should be configured by calling register_local_gpu (or register_remote_gpu once we support a multi-node configuration) to allocate resources that can be used in the mtmg space.</para>
+<para>Each GPU in the cluster should be given a unique global rank, an integer that will be used to reference the GPU within the resource manager. It is recommended that the GPUs be numbered sequentially from 0, although this is not required.</para>
+<para>When we want to execute some graph computations, we need to create an instance for execution. Based on how big a subset of the desired compute resources is desired, we can allocate some number of GPUs to the problem (up to the total set of managed resources).</para>
+<para>The returned instance can be used to create a graph, execute one or more algorithms, etc. Once we are done the caller can delete the instance.</para>
+<para>The caller is assumed to be responsible for scheduling use of the resources.</para>
+<para>For our first release, we will only consider a single node multi-GPU configuration, so the remote GPU methods are currently disabled via ifdef. </para>
+    </detaileddescription>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/resource_manager.hpp" line="61" column="1" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/resource_manager.hpp" bodystart="61" bodyend="256"/>
+    <listofallmembers>
+      <member refid="classcugraph_1_1mtmg_1_1resource__manager__t_1afd340fffd67e880ea6a1e057a06797e0" prot="public" virt="non-virtual"><scope>cugraph::mtmg::resource_manager_t</scope><name>create_instance_manager</name></member>
+      <member refid="classcugraph_1_1mtmg_1_1resource__manager__t_1aadf33999cd62f461c2d07e46a8bf35f7" prot="private" virt="non-virtual"><scope>cugraph::mtmg::resource_manager_t</scope><name>local_rank_map_</name></member>
+      <member refid="classcugraph_1_1mtmg_1_1resource__manager__t_1aebcf89bca2b3e650ca108d17dd75c6be" prot="private" virt="non-virtual"><scope>cugraph::mtmg::resource_manager_t</scope><name>lock_</name></member>
+      <member refid="classcugraph_1_1mtmg_1_1resource__manager__t_1ab34f00ed7409b216a5c933b5188e94a9" prot="private" virt="non-virtual"><scope>cugraph::mtmg::resource_manager_t</scope><name>per_device_rmm_resources_</name></member>
+      <member refid="classcugraph_1_1mtmg_1_1resource__manager__t_1a20e93cf2262e79122bde5b0a7eb694d8" prot="public" virt="non-virtual"><scope>cugraph::mtmg::resource_manager_t</scope><name>register_local_gpu</name></member>
+      <member refid="classcugraph_1_1mtmg_1_1resource__manager__t_1a42fef2ef33c04d3d38dc39ca5953a07f" prot="public" virt="non-virtual"><scope>cugraph::mtmg::resource_manager_t</scope><name>register_remote_gpu</name></member>
+      <member refid="classcugraph_1_1mtmg_1_1resource__manager__t_1af8af592c2e6a7f6db3fc0bd96f226d13" prot="public" virt="non-virtual"><scope>cugraph::mtmg::resource_manager_t</scope><name>registered_ranks</name></member>
+      <member refid="classcugraph_1_1mtmg_1_1resource__manager__t_1ae1ba6cc66381e66dcce544be5f313baa" prot="private" virt="non-virtual"><scope>cugraph::mtmg::resource_manager_t</scope><name>remote_rank_set_</name></member>
+      <member refid="classcugraph_1_1mtmg_1_1resource__manager__t_1afa0b2f8bb7b748fb967c9207a906f44d" prot="public" virt="non-virtual"><scope>cugraph::mtmg::resource_manager_t</scope><name>resource_manager_t</name></member>
+    </listofallmembers>
+  </compounddef>
+</doxygen>

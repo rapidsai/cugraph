@@ -1,0 +1,380 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="namespacecugraph_1_1c__api_1_1detail" kind="namespace" language="C++">
+    <compoundname>cugraph::c_api::detail</compoundname>
+    <sectiondef kind="func">
+      <memberdef kind="function" id="capi__helper_8cu_1ab49b610a36928b13e94337933f6ec6e2" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <templateparamlist>
+          <param>
+            <type>typename vertex_t</type>
+          </param>
+        </templateparamlist>
+        <type>std::tuple&lt; rmm::device_uvector&lt; vertex_t &gt;, rmm::device_uvector&lt; size_t &gt; &gt;</type>
+        <definition>std::tuple&lt; rmm::device_uvector&lt; vertex_t &gt;, rmm::device_uvector&lt; size_t &gt; &gt; cugraph::c_api::detail::shuffle_vertex_ids_and_offsets</definition>
+        <argsstring>(raft::handle_t const &amp;handle, rmm::device_uvector&lt; vertex_t &gt; &amp;&amp;vertices, raft::device_span&lt; size_t const &gt; offsets)</argsstring>
+        <name>shuffle_vertex_ids_and_offsets</name>
+        <qualifiedname>cugraph::c_api::detail::shuffle_vertex_ids_and_offsets</qualifiedname>
+        <param>
+          <type>raft::handle_t const &amp;</type>
+          <declname>handle</declname>
+        </param>
+        <param>
+          <type>rmm::device_uvector&lt; vertex_t &gt; &amp;&amp;</type>
+          <declname>vertices</declname>
+        </param>
+        <param>
+          <type>raft::device_span&lt; size_t const &gt;</type>
+          <declname>offsets</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/c_api/capi_helper.cu" line="32" column="1" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/capi_helper.cu" bodystart="32" bodyend="50" declfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/capi_helper.hpp" declline="31" declcolumn="1"/>
+      </memberdef>
+      <memberdef kind="function" id="capi__helper_8cu_1a40c7dd18d68aabe438dcb21afb8a0b8c" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>template std::tuple&lt; rmm::device_uvector&lt; int32_t &gt;, rmm::device_uvector&lt; size_t &gt; &gt;</type>
+        <definition>template std::tuple&lt; rmm::device_uvector&lt; int32_t &gt;, rmm::device_uvector&lt; size_t &gt; &gt; cugraph::c_api::detail::shuffle_vertex_ids_and_offsets</definition>
+        <argsstring>(raft::handle_t const &amp;handle, rmm::device_uvector&lt; int32_t &gt; &amp;&amp;vertices, raft::device_span&lt; size_t const &gt; offsets)</argsstring>
+        <name>shuffle_vertex_ids_and_offsets</name>
+        <qualifiedname>cugraph::c_api::detail::shuffle_vertex_ids_and_offsets</qualifiedname>
+        <param>
+          <type>raft::handle_t const &amp;</type>
+          <declname>handle</declname>
+        </param>
+        <param>
+          <type>rmm::device_uvector&lt; int32_t &gt; &amp;&amp;</type>
+          <declname>vertices</declname>
+        </param>
+        <param>
+          <type>raft::device_span&lt; size_t const &gt;</type>
+          <declname>offsets</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/c_api/capi_helper.cu" line="53" column="1" declfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/capi_helper.cu" declline="53" declcolumn="1"/>
+      </memberdef>
+      <memberdef kind="function" id="capi__helper_8cu_1a50d3bb200fd83760e32d5702c4bc7692" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>template std::tuple&lt; rmm::device_uvector&lt; int64_t &gt;, rmm::device_uvector&lt; size_t &gt; &gt;</type>
+        <definition>template std::tuple&lt; rmm::device_uvector&lt; int64_t &gt;, rmm::device_uvector&lt; size_t &gt; &gt; cugraph::c_api::detail::shuffle_vertex_ids_and_offsets</definition>
+        <argsstring>(raft::handle_t const &amp;handle, rmm::device_uvector&lt; int64_t &gt; &amp;&amp;vertices, raft::device_span&lt; size_t const &gt; offsets)</argsstring>
+        <name>shuffle_vertex_ids_and_offsets</name>
+        <qualifiedname>cugraph::c_api::detail::shuffle_vertex_ids_and_offsets</qualifiedname>
+        <param>
+          <type>raft::handle_t const &amp;</type>
+          <declname>handle</declname>
+        </param>
+        <param>
+          <type>rmm::device_uvector&lt; int64_t &gt; &amp;&amp;</type>
+          <declname>vertices</declname>
+        </param>
+        <param>
+          <type>raft::device_span&lt; size_t const &gt;</type>
+          <declname>offsets</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/c_api/capi_helper.cu" line="58" column="1" declfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/capi_helper.cu" declline="58" declcolumn="1"/>
+      </memberdef>
+      <memberdef kind="function" id="capi__helper_8cu_1a0f0cdcf25e41d2f6a89fd65109fe0053" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <templateparamlist>
+          <param>
+            <type>typename key_t</type>
+          </param>
+          <param>
+            <type>typename value_t</type>
+          </param>
+        </templateparamlist>
+        <type>void</type>
+        <definition>void cugraph::c_api::detail::sort_by_key</definition>
+        <argsstring>(raft::handle_t const &amp;handle, raft::device_span&lt; key_t &gt; keys, raft::device_span&lt; value_t &gt; values)</argsstring>
+        <name>sort_by_key</name>
+        <qualifiedname>cugraph::c_api::detail::sort_by_key</qualifiedname>
+        <param>
+          <type>raft::handle_t const &amp;</type>
+          <declname>handle</declname>
+        </param>
+        <param>
+          <type>raft::device_span&lt; key_t &gt;</type>
+          <declname>keys</declname>
+        </param>
+        <param>
+          <type>raft::device_span&lt; value_t &gt;</type>
+          <declname>values</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/c_api/capi_helper.cu" line="63" column="6" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/capi_helper.cu" bodystart="63" bodyend="68" declfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/capi_helper.hpp" declline="36" declcolumn="6"/>
+      </memberdef>
+      <memberdef kind="function" id="capi__helper_8cu_1a2e8d466e55e9621ea10c37a6a69d79cd" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>template void</type>
+        <definition>template void cugraph::c_api::detail::sort_by_key</definition>
+        <argsstring>(raft::handle_t const &amp;handle, raft::device_span&lt; int32_t &gt; keys, raft::device_span&lt; int32_t &gt; values)</argsstring>
+        <name>sort_by_key</name>
+        <qualifiedname>cugraph::c_api::detail::sort_by_key</qualifiedname>
+        <param>
+          <type>raft::handle_t const &amp;</type>
+          <declname>handle</declname>
+        </param>
+        <param>
+          <type>raft::device_span&lt; int32_t &gt;</type>
+          <declname>keys</declname>
+        </param>
+        <param>
+          <type>raft::device_span&lt; int32_t &gt;</type>
+          <declname>values</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/c_api/capi_helper.cu" line="70" column="15" declfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/capi_helper.cu" declline="70" declcolumn="15"/>
+      </memberdef>
+      <memberdef kind="function" id="capi__helper_8cu_1a8316fbc3d29be019e8901819e7279c68" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>template void</type>
+        <definition>template void cugraph::c_api::detail::sort_by_key</definition>
+        <argsstring>(raft::handle_t const &amp;handle, raft::device_span&lt; int64_t &gt; keys, raft::device_span&lt; int64_t &gt; values)</argsstring>
+        <name>sort_by_key</name>
+        <qualifiedname>cugraph::c_api::detail::sort_by_key</qualifiedname>
+        <param>
+          <type>raft::handle_t const &amp;</type>
+          <declname>handle</declname>
+        </param>
+        <param>
+          <type>raft::device_span&lt; int64_t &gt;</type>
+          <declname>keys</declname>
+        </param>
+        <param>
+          <type>raft::device_span&lt; int64_t &gt;</type>
+          <declname>values</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/c_api/capi_helper.cu" line="73" column="15" declfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/capi_helper.cu" declline="73" declcolumn="15"/>
+      </memberdef>
+      <memberdef kind="function" id="capi__helper_8cu_1a846477a2da19f0d5f00f637bf1a40d47" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <templateparamlist>
+          <param>
+            <type>typename vertex_t</type>
+          </param>
+          <param>
+            <type>typename weight_t</type>
+          </param>
+        </templateparamlist>
+        <type>std::tuple&lt; rmm::device_uvector&lt; size_t &gt;, rmm::device_uvector&lt; vertex_t &gt;, rmm::device_uvector&lt; vertex_t &gt;, std::optional&lt; rmm::device_uvector&lt; weight_t &gt; &gt; &gt;</type>
+        <definition>std::tuple&lt; rmm::device_uvector&lt; size_t &gt;, rmm::device_uvector&lt; vertex_t &gt;, rmm::device_uvector&lt; vertex_t &gt;, std::optional&lt; rmm::device_uvector&lt; weight_t &gt; &gt; &gt; cugraph::c_api::detail::reorder_extracted_egonets</definition>
+        <argsstring>(raft::handle_t const &amp;handle, rmm::device_uvector&lt; size_t &gt; &amp;&amp;source_indices, rmm::device_uvector&lt; size_t &gt; &amp;&amp;offsets, rmm::device_uvector&lt; vertex_t &gt; &amp;&amp;edge_srcs, rmm::device_uvector&lt; vertex_t &gt; &amp;&amp;edge_dsts, std::optional&lt; rmm::device_uvector&lt; weight_t &gt; &gt; &amp;&amp;edge_weights)</argsstring>
+        <name>reorder_extracted_egonets</name>
+        <qualifiedname>cugraph::c_api::detail::reorder_extracted_egonets</qualifiedname>
+        <param>
+          <type>raft::handle_t const &amp;</type>
+          <declname>handle</declname>
+        </param>
+        <param>
+          <type>rmm::device_uvector&lt; size_t &gt; &amp;&amp;</type>
+          <declname>source_indices</declname>
+        </param>
+        <param>
+          <type>rmm::device_uvector&lt; size_t &gt; &amp;&amp;</type>
+          <declname>offsets</declname>
+        </param>
+        <param>
+          <type>rmm::device_uvector&lt; vertex_t &gt; &amp;&amp;</type>
+          <declname>edge_srcs</declname>
+        </param>
+        <param>
+          <type>rmm::device_uvector&lt; vertex_t &gt; &amp;&amp;</type>
+          <declname>edge_dsts</declname>
+        </param>
+        <param>
+          <type>std::optional&lt; rmm::device_uvector&lt; weight_t &gt; &gt; &amp;&amp;</type>
+          <declname>edge_weights</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/c_api/capi_helper.cu" line="82" column="1" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/capi_helper.cu" bodystart="82" bodyend="129" declfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/capi_helper.hpp" declline="45" declcolumn="1"/>
+      </memberdef>
+      <memberdef kind="function" id="capi__helper_8cu_1a2a984f42f2bc7ea4d5fd9a75f43c9ea5" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>template std::tuple&lt; rmm::device_uvector&lt; size_t &gt;, rmm::device_uvector&lt; int32_t &gt;, rmm::device_uvector&lt; int32_t &gt;, std::optional&lt; rmm::device_uvector&lt; float &gt; &gt; &gt;</type>
+        <definition>template std::tuple&lt; rmm::device_uvector&lt; size_t &gt;, rmm::device_uvector&lt; int32_t &gt;, rmm::device_uvector&lt; int32_t &gt;, std::optional&lt; rmm::device_uvector&lt; float &gt; &gt; &gt; cugraph::c_api::detail::reorder_extracted_egonets</definition>
+        <argsstring>(raft::handle_t const &amp;handle, rmm::device_uvector&lt; size_t &gt; &amp;&amp;source_indices, rmm::device_uvector&lt; size_t &gt; &amp;&amp;offsets, rmm::device_uvector&lt; int32_t &gt; &amp;&amp;edge_srcs, rmm::device_uvector&lt; int32_t &gt; &amp;&amp;edge_dsts, std::optional&lt; rmm::device_uvector&lt; float &gt; &gt; &amp;&amp;edge_weights)</argsstring>
+        <name>reorder_extracted_egonets</name>
+        <qualifiedname>cugraph::c_api::detail::reorder_extracted_egonets</qualifiedname>
+        <param>
+          <type>raft::handle_t const &amp;</type>
+          <declname>handle</declname>
+        </param>
+        <param>
+          <type>rmm::device_uvector&lt; size_t &gt; &amp;&amp;</type>
+          <declname>source_indices</declname>
+        </param>
+        <param>
+          <type>rmm::device_uvector&lt; size_t &gt; &amp;&amp;</type>
+          <declname>offsets</declname>
+        </param>
+        <param>
+          <type>rmm::device_uvector&lt; int32_t &gt; &amp;&amp;</type>
+          <declname>edge_srcs</declname>
+        </param>
+        <param>
+          <type>rmm::device_uvector&lt; int32_t &gt; &amp;&amp;</type>
+          <declname>edge_dsts</declname>
+        </param>
+        <param>
+          <type>std::optional&lt; rmm::device_uvector&lt; float &gt; &gt; &amp;&amp;</type>
+          <declname>edge_weights</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/c_api/capi_helper.cu" line="135" column="1" declfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/capi_helper.cu" declline="135" declcolumn="1"/>
+      </memberdef>
+      <memberdef kind="function" id="capi__helper_8cu_1af9c6f8a7816c44682432d3fd3935e008" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>template std::tuple&lt; rmm::device_uvector&lt; size_t &gt;, rmm::device_uvector&lt; int32_t &gt;, rmm::device_uvector&lt; int32_t &gt;, std::optional&lt; rmm::device_uvector&lt; double &gt; &gt; &gt;</type>
+        <definition>template std::tuple&lt; rmm::device_uvector&lt; size_t &gt;, rmm::device_uvector&lt; int32_t &gt;, rmm::device_uvector&lt; int32_t &gt;, std::optional&lt; rmm::device_uvector&lt; double &gt; &gt; &gt; cugraph::c_api::detail::reorder_extracted_egonets</definition>
+        <argsstring>(raft::handle_t const &amp;handle, rmm::device_uvector&lt; size_t &gt; &amp;&amp;source_indices, rmm::device_uvector&lt; size_t &gt; &amp;&amp;offsets, rmm::device_uvector&lt; int32_t &gt; &amp;&amp;edge_srcs, rmm::device_uvector&lt; int32_t &gt; &amp;&amp;edge_dsts, std::optional&lt; rmm::device_uvector&lt; double &gt; &gt; &amp;&amp;edge_weights)</argsstring>
+        <name>reorder_extracted_egonets</name>
+        <qualifiedname>cugraph::c_api::detail::reorder_extracted_egonets</qualifiedname>
+        <param>
+          <type>raft::handle_t const &amp;</type>
+          <declname>handle</declname>
+        </param>
+        <param>
+          <type>rmm::device_uvector&lt; size_t &gt; &amp;&amp;</type>
+          <declname>source_indices</declname>
+        </param>
+        <param>
+          <type>rmm::device_uvector&lt; size_t &gt; &amp;&amp;</type>
+          <declname>offsets</declname>
+        </param>
+        <param>
+          <type>rmm::device_uvector&lt; int32_t &gt; &amp;&amp;</type>
+          <declname>edge_srcs</declname>
+        </param>
+        <param>
+          <type>rmm::device_uvector&lt; int32_t &gt; &amp;&amp;</type>
+          <declname>edge_dsts</declname>
+        </param>
+        <param>
+          <type>std::optional&lt; rmm::device_uvector&lt; double &gt; &gt; &amp;&amp;</type>
+          <declname>edge_weights</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/c_api/capi_helper.cu" line="146" column="1" declfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/capi_helper.cu" declline="146" declcolumn="1"/>
+      </memberdef>
+      <memberdef kind="function" id="capi__helper_8cu_1ad15546ad1128fe217bd988ff9cc593da" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>template std::tuple&lt; rmm::device_uvector&lt; size_t &gt;, rmm::device_uvector&lt; int64_t &gt;, rmm::device_uvector&lt; int64_t &gt;, std::optional&lt; rmm::device_uvector&lt; float &gt; &gt; &gt;</type>
+        <definition>template std::tuple&lt; rmm::device_uvector&lt; size_t &gt;, rmm::device_uvector&lt; int64_t &gt;, rmm::device_uvector&lt; int64_t &gt;, std::optional&lt; rmm::device_uvector&lt; float &gt; &gt; &gt; cugraph::c_api::detail::reorder_extracted_egonets</definition>
+        <argsstring>(raft::handle_t const &amp;handle, rmm::device_uvector&lt; size_t &gt; &amp;&amp;source_indices, rmm::device_uvector&lt; size_t &gt; &amp;&amp;offsets, rmm::device_uvector&lt; int64_t &gt; &amp;&amp;edge_srcs, rmm::device_uvector&lt; int64_t &gt; &amp;&amp;edge_dsts, std::optional&lt; rmm::device_uvector&lt; float &gt; &gt; &amp;&amp;edge_weights)</argsstring>
+        <name>reorder_extracted_egonets</name>
+        <qualifiedname>cugraph::c_api::detail::reorder_extracted_egonets</qualifiedname>
+        <param>
+          <type>raft::handle_t const &amp;</type>
+          <declname>handle</declname>
+        </param>
+        <param>
+          <type>rmm::device_uvector&lt; size_t &gt; &amp;&amp;</type>
+          <declname>source_indices</declname>
+        </param>
+        <param>
+          <type>rmm::device_uvector&lt; size_t &gt; &amp;&amp;</type>
+          <declname>offsets</declname>
+        </param>
+        <param>
+          <type>rmm::device_uvector&lt; int64_t &gt; &amp;&amp;</type>
+          <declname>edge_srcs</declname>
+        </param>
+        <param>
+          <type>rmm::device_uvector&lt; int64_t &gt; &amp;&amp;</type>
+          <declname>edge_dsts</declname>
+        </param>
+        <param>
+          <type>std::optional&lt; rmm::device_uvector&lt; float &gt; &gt; &amp;&amp;</type>
+          <declname>edge_weights</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/c_api/capi_helper.cu" line="157" column="1" declfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/capi_helper.cu" declline="157" declcolumn="1"/>
+      </memberdef>
+      <memberdef kind="function" id="capi__helper_8cu_1a89521b0c5482032b140de3305252fee0" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>template std::tuple&lt; rmm::device_uvector&lt; size_t &gt;, rmm::device_uvector&lt; int64_t &gt;, rmm::device_uvector&lt; int64_t &gt;, std::optional&lt; rmm::device_uvector&lt; double &gt; &gt; &gt;</type>
+        <definition>template std::tuple&lt; rmm::device_uvector&lt; size_t &gt;, rmm::device_uvector&lt; int64_t &gt;, rmm::device_uvector&lt; int64_t &gt;, std::optional&lt; rmm::device_uvector&lt; double &gt; &gt; &gt; cugraph::c_api::detail::reorder_extracted_egonets</definition>
+        <argsstring>(raft::handle_t const &amp;handle, rmm::device_uvector&lt; size_t &gt; &amp;&amp;source_indices, rmm::device_uvector&lt; size_t &gt; &amp;&amp;offsets, rmm::device_uvector&lt; int64_t &gt; &amp;&amp;edge_srcs, rmm::device_uvector&lt; int64_t &gt; &amp;&amp;edge_dsts, std::optional&lt; rmm::device_uvector&lt; double &gt; &gt; &amp;&amp;edge_weights)</argsstring>
+        <name>reorder_extracted_egonets</name>
+        <qualifiedname>cugraph::c_api::detail::reorder_extracted_egonets</qualifiedname>
+        <param>
+          <type>raft::handle_t const &amp;</type>
+          <declname>handle</declname>
+        </param>
+        <param>
+          <type>rmm::device_uvector&lt; size_t &gt; &amp;&amp;</type>
+          <declname>source_indices</declname>
+        </param>
+        <param>
+          <type>rmm::device_uvector&lt; size_t &gt; &amp;&amp;</type>
+          <declname>offsets</declname>
+        </param>
+        <param>
+          <type>rmm::device_uvector&lt; int64_t &gt; &amp;&amp;</type>
+          <declname>edge_srcs</declname>
+        </param>
+        <param>
+          <type>rmm::device_uvector&lt; int64_t &gt; &amp;&amp;</type>
+          <declname>edge_dsts</declname>
+        </param>
+        <param>
+          <type>std::optional&lt; rmm::device_uvector&lt; double &gt; &gt; &amp;&amp;</type>
+          <declname>edge_weights</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/c_api/capi_helper.cu" line="168" column="1" declfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/capi_helper.cu" declline="168" declcolumn="1"/>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/src/c_api/capi_helper.cu" line="28" column="1"/>
+  </compounddef>
+</doxygen>

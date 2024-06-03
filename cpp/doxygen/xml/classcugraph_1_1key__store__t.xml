@@ -1,0 +1,426 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="classcugraph_1_1key__store__t" kind="class" language="C++" prot="public">
+    <compoundname>cugraph::key_store_t</compoundname>
+    <templateparamlist>
+      <param>
+        <type>typename key_t</type>
+      </param>
+      <param>
+        <type>bool</type>
+        <declname>use_binary_search</declname>
+        <defname>use_binary_search</defname>
+        <defval>true</defval>
+      </param>
+    </templateparamlist>
+    <sectiondef kind="public-type">
+      <memberdef kind="typedef" id="classcugraph_1_1key__store__t_1ad854dbd62d74dc3be081045aeb9d1f13" prot="public" static="no">
+        <type>key_t</type>
+        <definition>using cugraph::key_store_t&lt; key_t, use_binary_search &gt;::key_type =  key_t</definition>
+        <argsstring></argsstring>
+        <name>key_type</name>
+        <qualifiedname>cugraph::key_store_t::key_type</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/key_store.cuh" line="353" column="3" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/key_store.cuh" bodystart="353" bodyend="-1"/>
+      </memberdef>
+    </sectiondef>
+    <sectiondef kind="private-attrib">
+      <memberdef kind="variable" id="classcugraph_1_1key__store__t_1a3bd2b029d1f55e1a62fe427ac9e665dd" prot="private" static="no" mutable="no">
+        <type>std::conditional_t&lt; use_binary_search, <ref refid="classcugraph_1_1detail_1_1key__binary__search__store__t" kindref="compound">detail::key_binary_search_store_t</ref>&lt; key_t &gt;, <ref refid="classcugraph_1_1detail_1_1key__cuco__store__t" kindref="compound">detail::key_cuco_store_t</ref>&lt; key_t &gt; &gt;</type>
+        <definition>std::conditional_t&lt;use_binary_search, detail::key_binary_search_store_t&lt;key_t&gt;, detail::key_cuco_store_t&lt;key_t&gt; &gt; cugraph::key_store_t&lt; key_t, use_binary_search &gt;::store_</definition>
+        <argsstring></argsstring>
+        <name>store_</name>
+        <qualifiedname>cugraph::key_store_t::store_</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/key_store.cuh" line="459" column="5" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/key_store.cuh" bodystart="459" bodyend="-1"/>
+      </memberdef>
+    </sectiondef>
+    <sectiondef kind="public-func">
+      <memberdef kind="function" id="classcugraph_1_1key__store__t_1a8309795362c5c76990bf1ff0435cc5c5" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type></type>
+        <definition>cugraph::key_store_t&lt; key_t, use_binary_search &gt;::key_store_t</definition>
+        <argsstring>(rmm::cuda_stream_view stream)</argsstring>
+        <name>key_store_t</name>
+        <qualifiedname>cugraph::key_store_t::key_store_t</qualifiedname>
+        <param>
+          <type>rmm::cuda_stream_view</type>
+          <declname>stream</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/key_store.cuh" line="357" column="3" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/key_store.cuh" bodystart="357" bodyend="357"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1key__store__t_1a3526ba443540b7790b24df6c4699f878" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <templateparamlist>
+          <param>
+            <type>bool</type>
+            <declname>binary_search</declname>
+            <defname>binary_search</defname>
+            <defval>use_binary_search</defval>
+          </param>
+        </templateparamlist>
+        <type></type>
+        <definition>cugraph::key_store_t&lt; key_t, use_binary_search &gt;::key_store_t</definition>
+        <argsstring>(size_t capacity, key_t invalid_key, rmm::cuda_stream_view stream, std::enable_if_t&lt;!binary_search, int32_t &gt;=0)</argsstring>
+        <name>key_store_t</name>
+        <qualifiedname>cugraph::key_store_t::key_store_t</qualifiedname>
+        <param>
+          <type>size_t</type>
+          <declname>capacity</declname>
+        </param>
+        <param>
+          <type>key_t</type>
+          <declname>invalid_key</declname>
+        </param>
+        <param>
+          <type>rmm::cuda_stream_view</type>
+          <declname>stream</declname>
+        </param>
+        <param>
+          <type>std::enable_if_t&lt;!binary_search, int32_t &gt;</type>
+          <defval>0</defval>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/key_store.cuh" line="361" column="3" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/key_store.cuh" bodystart="361" bodyend="370"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1key__store__t_1a7be85ab0d4af3a3364ae8fb26f0b9253" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <templateparamlist>
+          <param>
+            <type>typename KeyIterator</type>
+          </param>
+          <param>
+            <type>bool</type>
+            <declname>binary_search</declname>
+            <defname>binary_search</defname>
+            <defval>use_binary_search</defval>
+          </param>
+        </templateparamlist>
+        <type></type>
+        <definition>cugraph::key_store_t&lt; key_t, use_binary_search &gt;::key_store_t</definition>
+        <argsstring>(KeyIterator key_first, KeyIterator key_last, bool key_sorted, rmm::cuda_stream_view stream, std::enable_if_t&lt; binary_search, int32_t &gt;=0)</argsstring>
+        <name>key_store_t</name>
+        <qualifiedname>cugraph::key_store_t::key_store_t</qualifiedname>
+        <param>
+          <type>KeyIterator</type>
+          <declname>key_first</declname>
+        </param>
+        <param>
+          <type>KeyIterator</type>
+          <declname>key_last</declname>
+        </param>
+        <param>
+          <type>bool</type>
+          <declname>key_sorted</declname>
+        </param>
+        <param>
+          <type>rmm::cuda_stream_view</type>
+          <declname>stream</declname>
+        </param>
+        <param>
+          <type>std::enable_if_t&lt; binary_search, int32_t &gt;</type>
+          <defval>0</defval>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/key_store.cuh" line="374" column="3" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/key_store.cuh" bodystart="374" bodyend="383"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1key__store__t_1afd82e4d04081f166ae7f240f1d25d5be" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <templateparamlist>
+          <param>
+            <type>typename KeyIterator</type>
+          </param>
+          <param>
+            <type>bool</type>
+            <declname>binary_search</declname>
+            <defname>binary_search</defname>
+            <defval>use_binary_search</defval>
+          </param>
+        </templateparamlist>
+        <type></type>
+        <definition>cugraph::key_store_t&lt; key_t, use_binary_search &gt;::key_store_t</definition>
+        <argsstring>(KeyIterator key_first, KeyIterator key_last, key_t invalid_key, rmm::cuda_stream_view stream, std::enable_if_t&lt;!binary_search, int32_t &gt;=0)</argsstring>
+        <name>key_store_t</name>
+        <qualifiedname>cugraph::key_store_t::key_store_t</qualifiedname>
+        <param>
+          <type>KeyIterator</type>
+          <declname>key_first</declname>
+        </param>
+        <param>
+          <type>KeyIterator</type>
+          <declname>key_last</declname>
+        </param>
+        <param>
+          <type>key_t</type>
+          <declname>invalid_key</declname>
+        </param>
+        <param>
+          <type>rmm::cuda_stream_view</type>
+          <declname>stream</declname>
+        </param>
+        <param>
+          <type>std::enable_if_t&lt;!binary_search, int32_t &gt;</type>
+          <defval>0</defval>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/key_store.cuh" line="387" column="3" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/key_store.cuh" bodystart="387" bodyend="395"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1key__store__t_1a2bb105fd0ca1d9eb7e3126db66e9a993" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <templateparamlist>
+          <param>
+            <type>bool</type>
+            <declname>binary_search</declname>
+            <defname>binary_search</defname>
+            <defval>use_binary_search</defval>
+          </param>
+        </templateparamlist>
+        <type></type>
+        <definition>cugraph::key_store_t&lt; key_t, use_binary_search &gt;::key_store_t</definition>
+        <argsstring>(rmm::device_uvector&lt; key_t &gt; &amp;&amp;keys, bool key_sorted, rmm::cuda_stream_view stream, std::enable_if_t&lt; binary_search, int32_t &gt;=0)</argsstring>
+        <name>key_store_t</name>
+        <qualifiedname>cugraph::key_store_t::key_store_t</qualifiedname>
+        <param>
+          <type>rmm::device_uvector&lt; key_t &gt; &amp;&amp;</type>
+          <declname>keys</declname>
+        </param>
+        <param>
+          <type>bool</type>
+          <declname>key_sorted</declname>
+        </param>
+        <param>
+          <type>rmm::cuda_stream_view</type>
+          <declname>stream</declname>
+        </param>
+        <param>
+          <type>std::enable_if_t&lt; binary_search, int32_t &gt;</type>
+          <defval>0</defval>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/key_store.cuh" line="399" column="3" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/key_store.cuh" bodystart="399" bodyend="407"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1key__store__t_1ab1220b96f433cd08e12601fc8fd3ea40" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <templateparamlist>
+          <param>
+            <type>typename KeyIterator</type>
+          </param>
+          <param>
+            <type>bool</type>
+            <declname>binary_search</declname>
+            <defname>binary_search</defname>
+            <defval>use_binary_search</defval>
+          </param>
+        </templateparamlist>
+        <type>std::enable_if_t&lt;!binary_search, void &gt;</type>
+        <definition>std::enable_if_t&lt;!binary_search, void &gt; cugraph::key_store_t&lt; key_t, use_binary_search &gt;::insert</definition>
+        <argsstring>(KeyIterator key_first, KeyIterator key_last, rmm::cuda_stream_view stream)</argsstring>
+        <name>insert</name>
+        <qualifiedname>cugraph::key_store_t::insert</qualifiedname>
+        <param>
+          <type>KeyIterator</type>
+          <declname>key_first</declname>
+        </param>
+        <param>
+          <type>KeyIterator</type>
+          <declname>key_last</declname>
+        </param>
+        <param>
+          <type>rmm::cuda_stream_view</type>
+          <declname>stream</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/key_store.cuh" line="411" column="20" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/key_store.cuh" bodystart="411" bodyend="416"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1key__store__t_1ac061b9da6cccc8b42f5fd55d24de2a28" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <templateparamlist>
+          <param>
+            <type>typename KeyIterator</type>
+          </param>
+          <param>
+            <type>typename StencilIterator</type>
+          </param>
+          <param>
+            <type>typename PredOp</type>
+          </param>
+          <param>
+            <type>bool</type>
+            <declname>binary_search</declname>
+            <defname>binary_search</defname>
+            <defval>use_binary_search</defval>
+          </param>
+        </templateparamlist>
+        <type>std::enable_if_t&lt;!binary_search, void &gt;</type>
+        <definition>std::enable_if_t&lt;!binary_search, void &gt; cugraph::key_store_t&lt; key_t, use_binary_search &gt;::insert_if</definition>
+        <argsstring>(KeyIterator key_first, KeyIterator key_last, StencilIterator stencil_first, PredOp pred_op, rmm::cuda_stream_view stream)</argsstring>
+        <name>insert_if</name>
+        <qualifiedname>cugraph::key_store_t::insert_if</qualifiedname>
+        <param>
+          <type>KeyIterator</type>
+          <declname>key_first</declname>
+        </param>
+        <param>
+          <type>KeyIterator</type>
+          <declname>key_last</declname>
+        </param>
+        <param>
+          <type>StencilIterator</type>
+          <declname>stencil_first</declname>
+        </param>
+        <param>
+          <type>PredOp</type>
+          <declname>pred_op</declname>
+        </param>
+        <param>
+          <type>rmm::cuda_stream_view</type>
+          <declname>stream</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/key_store.cuh" line="423" column="20" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/key_store.cuh" bodystart="423" bodyend="430"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1key__store__t_1a20247f484d8a5c07c5e8bf6835567127" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type>auto</type>
+        <definition>auto cugraph::key_store_t&lt; key_t, use_binary_search &gt;::release</definition>
+        <argsstring>(rmm::cuda_stream_view stream)</argsstring>
+        <name>release</name>
+        <qualifiedname>cugraph::key_store_t::release</qualifiedname>
+        <param>
+          <type>rmm::cuda_stream_view</type>
+          <declname>stream</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/key_store.cuh" line="433" column="8" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/key_store.cuh" bodystart="433" bodyend="433"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1key__store__t_1a00edd230a60f46af5f56536e332a5d0b" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>auto</type>
+        <definition>auto cugraph::key_store_t&lt; key_t, use_binary_search &gt;::view</definition>
+        <argsstring>() const</argsstring>
+        <name>view</name>
+        <qualifiedname>cugraph::key_store_t::view</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/key_store.cuh" line="435" column="8" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/key_store.cuh" bodystart="435" bodyend="443"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1key__store__t_1ae5b58a75d0be0653ab6682e8fee421e0" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <templateparamlist>
+          <param>
+            <type>bool</type>
+            <declname>binary_search</declname>
+            <defname>binary_search</defname>
+            <defval>use_binary_search</defval>
+          </param>
+        </templateparamlist>
+        <type>std::enable_if_t&lt;!binary_search, key_t &gt;</type>
+        <definition>std::enable_if_t&lt;!binary_search, key_t &gt; cugraph::key_store_t&lt; key_t, use_binary_search &gt;::invalid_key</definition>
+        <argsstring>() const</argsstring>
+        <name>invalid_key</name>
+        <qualifiedname>cugraph::key_store_t::invalid_key</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/key_store.cuh" line="446" column="20" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/key_store.cuh" bodystart="446" bodyend="449"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1key__store__t_1a9a0656be93bd8e00b9c63158c3adbd08" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>size_t</type>
+        <definition>size_t cugraph::key_store_t&lt; key_t, use_binary_search &gt;::size</definition>
+        <argsstring>() const</argsstring>
+        <name>size</name>
+        <qualifiedname>cugraph::key_store_t::size</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/key_store.cuh" line="451" column="10" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/key_store.cuh" bodystart="451" bodyend="451"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1key__store__t_1a212fb8dafdd8a464bd216dd074983e80" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>size_t</type>
+        <definition>size_t cugraph::key_store_t&lt; key_t, use_binary_search &gt;::capacity</definition>
+        <argsstring>() const</argsstring>
+        <name>capacity</name>
+        <qualifiedname>cugraph::key_store_t::capacity</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/key_store.cuh" line="453" column="10" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/key_store.cuh" bodystart="453" bodyend="453"/>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/key_store.cuh" line="351" column="1" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/key_store.cuh" bodystart="351" bodyend="460"/>
+    <listofallmembers>
+      <member refid="classcugraph_1_1key__store__t_1a212fb8dafdd8a464bd216dd074983e80" prot="public" virt="non-virtual"><scope>cugraph::key_store_t</scope><name>capacity</name></member>
+      <member refid="classcugraph_1_1key__store__t_1ab1220b96f433cd08e12601fc8fd3ea40" prot="public" virt="non-virtual"><scope>cugraph::key_store_t</scope><name>insert</name></member>
+      <member refid="classcugraph_1_1key__store__t_1ac061b9da6cccc8b42f5fd55d24de2a28" prot="public" virt="non-virtual"><scope>cugraph::key_store_t</scope><name>insert_if</name></member>
+      <member refid="classcugraph_1_1key__store__t_1ae5b58a75d0be0653ab6682e8fee421e0" prot="public" virt="non-virtual"><scope>cugraph::key_store_t</scope><name>invalid_key</name></member>
+      <member refid="classcugraph_1_1key__store__t_1a8309795362c5c76990bf1ff0435cc5c5" prot="public" virt="non-virtual"><scope>cugraph::key_store_t</scope><name>key_store_t</name></member>
+      <member refid="classcugraph_1_1key__store__t_1a3526ba443540b7790b24df6c4699f878" prot="public" virt="non-virtual"><scope>cugraph::key_store_t</scope><name>key_store_t</name></member>
+      <member refid="classcugraph_1_1key__store__t_1a7be85ab0d4af3a3364ae8fb26f0b9253" prot="public" virt="non-virtual"><scope>cugraph::key_store_t</scope><name>key_store_t</name></member>
+      <member refid="classcugraph_1_1key__store__t_1afd82e4d04081f166ae7f240f1d25d5be" prot="public" virt="non-virtual"><scope>cugraph::key_store_t</scope><name>key_store_t</name></member>
+      <member refid="classcugraph_1_1key__store__t_1a2bb105fd0ca1d9eb7e3126db66e9a993" prot="public" virt="non-virtual"><scope>cugraph::key_store_t</scope><name>key_store_t</name></member>
+      <member refid="classcugraph_1_1key__store__t_1ad854dbd62d74dc3be081045aeb9d1f13" prot="public" virt="non-virtual"><scope>cugraph::key_store_t</scope><name>key_type</name></member>
+      <member refid="classcugraph_1_1key__store__t_1a20247f484d8a5c07c5e8bf6835567127" prot="public" virt="non-virtual"><scope>cugraph::key_store_t</scope><name>release</name></member>
+      <member refid="classcugraph_1_1key__store__t_1a9a0656be93bd8e00b9c63158c3adbd08" prot="public" virt="non-virtual"><scope>cugraph::key_store_t</scope><name>size</name></member>
+      <member refid="classcugraph_1_1key__store__t_1a3bd2b029d1f55e1a62fe427ac9e665dd" prot="private" virt="non-virtual"><scope>cugraph::key_store_t</scope><name>store_</name></member>
+      <member refid="classcugraph_1_1key__store__t_1a00edd230a60f46af5f56536e332a5d0b" prot="public" virt="non-virtual"><scope>cugraph::key_store_t</scope><name>view</name></member>
+    </listofallmembers>
+  </compounddef>
+</doxygen>

@@ -1,0 +1,863 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="similarity__algorithms_8h" kind="file" language="C++">
+    <compoundname>similarity_algorithms.h</compoundname>
+    <includes refid="array_8h" local="no">cugraph_c/array.h</includes>
+    <includes refid="error_8h" local="no">cugraph_c/error.h</includes>
+    <includes refid="graph_8h" local="no">cugraph_c/graph.h</includes>
+    <includes refid="graph__functions_8h" local="no">cugraph_c/graph_functions.h</includes>
+    <includes refid="resource__handle_8h" local="no">cugraph_c/resource_handle.h</includes>
+    <includedby refid="algorithms_8h" local="no">algorithms.h</includedby>
+    <incdepgraph>
+      <node id="2">
+        <label>cugraph_c/array.h</label>
+        <link refid="array_8h_source"/>
+        <childnode refid="3" relation="include">
+        </childnode>
+      </node>
+      <node id="4">
+        <label>cugraph_c/error.h</label>
+        <link refid="error_8h_source"/>
+        <childnode refid="5" relation="include">
+        </childnode>
+      </node>
+      <node id="7">
+        <label>cugraph_c/graph.h</label>
+        <link refid="graph_8h_source"/>
+        <childnode refid="2" relation="include">
+        </childnode>
+      </node>
+      <node id="8">
+        <label>cugraph_c/graph_functions.h</label>
+        <link refid="graph__functions_8h_source"/>
+        <childnode refid="2" relation="include">
+        </childnode>
+        <childnode refid="7" relation="include">
+        </childnode>
+        <childnode refid="3" relation="include">
+        </childnode>
+      </node>
+      <node id="3">
+        <label>cugraph_c/resource_handle.h</label>
+        <link refid="resource__handle_8h_source"/>
+        <childnode refid="4" relation="include">
+        </childnode>
+        <childnode refid="6" relation="include">
+        </childnode>
+        <childnode refid="5" relation="include">
+        </childnode>
+      </node>
+      <node id="1">
+        <label>similarity_algorithms.h</label>
+        <link refid="similarity__algorithms_8h"/>
+        <childnode refid="2" relation="include">
+        </childnode>
+        <childnode refid="4" relation="include">
+        </childnode>
+        <childnode refid="7" relation="include">
+        </childnode>
+        <childnode refid="8" relation="include">
+        </childnode>
+        <childnode refid="3" relation="include">
+        </childnode>
+      </node>
+      <node id="6">
+        <label>stddef.h</label>
+      </node>
+      <node id="5">
+        <label>stdint.h</label>
+      </node>
+    </incdepgraph>
+    <invincdepgraph>
+      <node id="2">
+        <label>algorithms.h</label>
+        <link refid="algorithms_8h_source"/>
+        <childnode refid="3" relation="include">
+        </childnode>
+      </node>
+      <node id="1">
+        <label>similarity_algorithms.h</label>
+        <link refid="similarity__algorithms_8h"/>
+        <childnode refid="2" relation="include">
+        </childnode>
+      </node>
+      <node id="3">
+        <label>hierarchical_clustering_result.hpp</label>
+        <link refid="hierarchical__clustering__result_8hpp_source"/>
+      </node>
+    </invincdepgraph>
+    <innerclass refid="structcugraph__similarity__result__t" prot="public">cugraph_similarity_result_t</innerclass>
+    <sectiondef kind="func">
+      <member refid="group__similarity_1ga84d9c7acb9863a208ee6719d7294dc5b" kind="function"><name>cugraph_similarity_result_get_vertex_pairs</name></member>
+      <member refid="group__similarity_1ga1651d100617e06d1fb6b1feec0581c69" kind="function"><name>cugraph_similarity_result_get_similarity</name></member>
+      <member refid="group__similarity_1ga8e80c18c77bda321590e6d285343ad81" kind="function"><name>cugraph_similarity_result_free</name></member>
+      <memberdef kind="function" id="similarity__algorithms_8h_1aa4f355a26c6fa94f45beeed4b6d4597b" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>cugraph_error_code_t</type>
+        <definition>cugraph_error_code_t cugraph_jaccard_coefficients</definition>
+        <argsstring>(const cugraph_resource_handle_t *handle, cugraph_graph_t *graph, const cugraph_vertex_pairs_t *vertex_pairs, bool_t use_weight, bool_t do_expensive_check, cugraph_similarity_result_t **result, cugraph_error_t **error)</argsstring>
+        <name>cugraph_jaccard_coefficients</name>
+        <param>
+          <type>const <ref refid="structcugraph__resource__handle__" kindref="compound">cugraph_resource_handle_t</ref> *</type>
+          <declname>handle</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__graph__t" kindref="compound">cugraph_graph_t</ref> *</type>
+          <declname>graph</declname>
+        </param>
+        <param>
+          <type>const <ref refid="structcugraph__vertex__pairs__t" kindref="compound">cugraph_vertex_pairs_t</ref> *</type>
+          <declname>vertex_pairs</declname>
+        </param>
+        <param>
+          <type>bool_t</type>
+          <declname>use_weight</declname>
+        </param>
+        <param>
+          <type>bool_t</type>
+          <declname>do_expensive_check</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__similarity__result__t" kindref="compound">cugraph_similarity_result_t</ref> **</type>
+          <declname>result</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__error__" kindref="compound">cugraph_error_t</ref> **</type>
+          <declname>error</declname>
+        </param>
+        <briefdescription>
+<para>Perform Jaccard similarity computation. </para>
+        </briefdescription>
+        <detaileddescription>
+<para>Compute the similarity for the specified vertex_pairs</para>
+<para>Note that Jaccard similarity must run on a symmetric graph.</para>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">handle</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Handle for accessing resources </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">graph</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Pointer to graph </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">vertex_pairs</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Vertex pair for input </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">use_weight</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>If true consider the edge weight in the graph, if false use an edge weight of 1 </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">do_expensive_check</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>A flag to run expensive checks for input arguments (if set to <computeroutput>true</computeroutput>). </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="out">result</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Opaque pointer to similarity results </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="out">error</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Pointer to an error object storing details of any error. Will be populated if error code is not CUGRAPH_SUCCESS </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>error code </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/similarity_algorithms.h" line="86" column="22" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/similarity.cpp" bodystart="328" bodyend="348" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/similarity_algorithms.h" declline="86" declcolumn="22"/>
+      </memberdef>
+      <memberdef kind="function" id="similarity__algorithms_8h_1a9d1e22d25a55f0542576af86cdae6d23" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>cugraph_error_code_t</type>
+        <definition>cugraph_error_code_t cugraph_sorensen_coefficients</definition>
+        <argsstring>(const cugraph_resource_handle_t *handle, cugraph_graph_t *graph, const cugraph_vertex_pairs_t *vertex_pairs, bool_t use_weight, bool_t do_expensive_check, cugraph_similarity_result_t **result, cugraph_error_t **error)</argsstring>
+        <name>cugraph_sorensen_coefficients</name>
+        <param>
+          <type>const <ref refid="structcugraph__resource__handle__" kindref="compound">cugraph_resource_handle_t</ref> *</type>
+          <declname>handle</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__graph__t" kindref="compound">cugraph_graph_t</ref> *</type>
+          <declname>graph</declname>
+        </param>
+        <param>
+          <type>const <ref refid="structcugraph__vertex__pairs__t" kindref="compound">cugraph_vertex_pairs_t</ref> *</type>
+          <declname>vertex_pairs</declname>
+        </param>
+        <param>
+          <type>bool_t</type>
+          <declname>use_weight</declname>
+        </param>
+        <param>
+          <type>bool_t</type>
+          <declname>do_expensive_check</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__similarity__result__t" kindref="compound">cugraph_similarity_result_t</ref> **</type>
+          <declname>result</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__error__" kindref="compound">cugraph_error_t</ref> **</type>
+          <declname>error</declname>
+        </param>
+        <briefdescription>
+<para>Perform Sorensen similarity computation. </para>
+        </briefdescription>
+        <detaileddescription>
+<para>Compute the similarity for the specified vertex_pairs</para>
+<para>Note that Sorensen similarity must run on a symmetric graph.</para>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">handle</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Handle for accessing resources </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">graph</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Pointer to graph </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">vertex_pairs</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Vertex pair for input </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">use_weight</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>If true consider the edge weight in the graph, if false use an edge weight of 1 </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">do_expensive_check</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>A flag to run expensive checks for input arguments (if set to <computeroutput>true</computeroutput>). </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="out">result</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Opaque pointer to similarity results </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="out">error</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Pointer to an error object storing details of any error. Will be populated if error code is not CUGRAPH_SUCCESS </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>error code </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/similarity_algorithms.h" line="113" column="22" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/similarity.cpp" bodystart="350" bodyend="370" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/similarity_algorithms.h" declline="113" declcolumn="22"/>
+      </memberdef>
+      <memberdef kind="function" id="similarity__algorithms_8h_1a4489f91f2b2c4f9b8a4865329f88cdef" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>cugraph_error_code_t</type>
+        <definition>cugraph_error_code_t cugraph_overlap_coefficients</definition>
+        <argsstring>(const cugraph_resource_handle_t *handle, cugraph_graph_t *graph, const cugraph_vertex_pairs_t *vertex_pairs, bool_t use_weight, bool_t do_expensive_check, cugraph_similarity_result_t **result, cugraph_error_t **error)</argsstring>
+        <name>cugraph_overlap_coefficients</name>
+        <param>
+          <type>const <ref refid="structcugraph__resource__handle__" kindref="compound">cugraph_resource_handle_t</ref> *</type>
+          <declname>handle</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__graph__t" kindref="compound">cugraph_graph_t</ref> *</type>
+          <declname>graph</declname>
+        </param>
+        <param>
+          <type>const <ref refid="structcugraph__vertex__pairs__t" kindref="compound">cugraph_vertex_pairs_t</ref> *</type>
+          <declname>vertex_pairs</declname>
+        </param>
+        <param>
+          <type>bool_t</type>
+          <declname>use_weight</declname>
+        </param>
+        <param>
+          <type>bool_t</type>
+          <declname>do_expensive_check</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__similarity__result__t" kindref="compound">cugraph_similarity_result_t</ref> **</type>
+          <declname>result</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__error__" kindref="compound">cugraph_error_t</ref> **</type>
+          <declname>error</declname>
+        </param>
+        <briefdescription>
+<para>Perform overlap similarity computation. </para>
+        </briefdescription>
+        <detaileddescription>
+<para>Compute the similarity for the specified vertex_pairs</para>
+<para>Note that overlap similarity must run on a symmetric graph.</para>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">handle</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Handle for accessing resources </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">graph</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Pointer to graph </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">vertex_pairs</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Vertex pair for input </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">use_weight</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>If true consider the edge weight in the graph, if false use an edge weight of 1 </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">do_expensive_check</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>A flag to run expensive checks for input arguments (if set to <computeroutput>true</computeroutput>). </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="out">result</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Opaque pointer to similarity results </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="out">error</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Pointer to an error object storing details of any error. Will be populated if error code is not CUGRAPH_SUCCESS </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>error code </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/similarity_algorithms.h" line="140" column="22" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/similarity.cpp" bodystart="372" bodyend="392" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/similarity_algorithms.h" declline="140" declcolumn="22"/>
+      </memberdef>
+      <memberdef kind="function" id="similarity__algorithms_8h_1ac41842395e85b01ef5b340d2d43ea4a4" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>cugraph_error_code_t</type>
+        <definition>cugraph_error_code_t cugraph_all_pairs_jaccard_coefficients</definition>
+        <argsstring>(const cugraph_resource_handle_t *handle, cugraph_graph_t *graph, const cugraph_type_erased_device_array_view_t *vertices, bool_t use_weight, size_t topk, bool_t do_expensive_check, cugraph_similarity_result_t **result, cugraph_error_t **error)</argsstring>
+        <name>cugraph_all_pairs_jaccard_coefficients</name>
+        <param>
+          <type>const <ref refid="structcugraph__resource__handle__" kindref="compound">cugraph_resource_handle_t</ref> *</type>
+          <declname>handle</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__graph__t" kindref="compound">cugraph_graph_t</ref> *</type>
+          <declname>graph</declname>
+        </param>
+        <param>
+          <type>const <ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref> *</type>
+          <declname>vertices</declname>
+        </param>
+        <param>
+          <type>bool_t</type>
+          <declname>use_weight</declname>
+        </param>
+        <param>
+          <type>size_t</type>
+          <declname>topk</declname>
+        </param>
+        <param>
+          <type>bool_t</type>
+          <declname>do_expensive_check</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__similarity__result__t" kindref="compound">cugraph_similarity_result_t</ref> **</type>
+          <declname>result</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__error__" kindref="compound">cugraph_error_t</ref> **</type>
+          <declname>error</declname>
+        </param>
+        <briefdescription>
+<para>Perform All-Pairs Jaccard similarity computation. </para>
+        </briefdescription>
+        <detaileddescription>
+<para>Compute the similarity for all vertex pairs derived from the two-hop neighbors of an optional specified vertex list. This function will identify the two-hop neighbors of the specified vertices (all vertices in the graph if not specified) and compute similarity for those vertices.</para>
+<para>If the topk parameter is specified then the result will only contain the top k highest scoring results.</para>
+<para>Note that Jaccard similarity must run on a symmetric graph.</para>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">handle</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Handle for accessing resources </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">graph</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Pointer to graph </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">vertices</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Vertex list for input. If null then compute based on all vertices in the graph. </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">use_weight</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>If true consider the edge weight in the graph, if false use an edge weight of 1 </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">topk</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Specify how many answers to return. Specifying SIZE_MAX will return all values. </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">do_expensive_check</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>A flag to run expensive checks for input arguments (if set to <computeroutput>true</computeroutput>). </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="out">result</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Opaque pointer to similarity results </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="out">error</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Pointer to an error object storing details of any error. Will be populated if error code is not CUGRAPH_SUCCESS </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>error code </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/similarity_algorithms.h" line="176" column="22" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/similarity.cpp" bodystart="394" bodyend="415" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/similarity_algorithms.h" declline="176" declcolumn="22"/>
+      </memberdef>
+      <memberdef kind="function" id="similarity__algorithms_8h_1a24976da0b4898938de7f3a0aa79b194f" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>cugraph_error_code_t</type>
+        <definition>cugraph_error_code_t cugraph_all_pairs_sorensen_coefficients</definition>
+        <argsstring>(const cugraph_resource_handle_t *handle, cugraph_graph_t *graph, const cugraph_type_erased_device_array_view_t *vertices, bool_t use_weight, size_t topk, bool_t do_expensive_check, cugraph_similarity_result_t **result, cugraph_error_t **error)</argsstring>
+        <name>cugraph_all_pairs_sorensen_coefficients</name>
+        <param>
+          <type>const <ref refid="structcugraph__resource__handle__" kindref="compound">cugraph_resource_handle_t</ref> *</type>
+          <declname>handle</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__graph__t" kindref="compound">cugraph_graph_t</ref> *</type>
+          <declname>graph</declname>
+        </param>
+        <param>
+          <type>const <ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref> *</type>
+          <declname>vertices</declname>
+        </param>
+        <param>
+          <type>bool_t</type>
+          <declname>use_weight</declname>
+        </param>
+        <param>
+          <type>size_t</type>
+          <declname>topk</declname>
+        </param>
+        <param>
+          <type>bool_t</type>
+          <declname>do_expensive_check</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__similarity__result__t" kindref="compound">cugraph_similarity_result_t</ref> **</type>
+          <declname>result</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__error__" kindref="compound">cugraph_error_t</ref> **</type>
+          <declname>error</declname>
+        </param>
+        <briefdescription>
+<para>Perform All Pairs Sorensen similarity computation. </para>
+        </briefdescription>
+        <detaileddescription>
+<para>Compute the similarity for all vertex pairs derived from the two-hop neighbors of an optional specified vertex list. This function will identify the two-hop neighbors of the specified vertices (all vertices in the graph if not specified) and compute similarity for those vertices.</para>
+<para>If the topk parameter is specified then the result will only contain the top k highest scoring results.</para>
+<para>Note that Sorensen similarity must run on a symmetric graph.</para>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">handle</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Handle for accessing resources </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">graph</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Pointer to graph </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">vertices</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Vertex list for input. If null then compute based on all vertices in the graph. </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">use_weight</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>If true consider the edge weight in the graph, if false use an edge weight of 1 </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">topk</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Specify how many answers to return. Specifying SIZE_MAX will return all values. </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">do_expensive_check</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>A flag to run expensive checks for input arguments (if set to <computeroutput>true</computeroutput>). </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="out">result</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Opaque pointer to similarity results </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="out">error</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Pointer to an error object storing details of any error. Will be populated if error code is not CUGRAPH_SUCCESS </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>error code </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/similarity_algorithms.h" line="214" column="22" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/similarity.cpp" bodystart="417" bodyend="438" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/similarity_algorithms.h" declline="214" declcolumn="22"/>
+      </memberdef>
+      <memberdef kind="function" id="similarity__algorithms_8h_1ac30b8b67ec6b8d8592e297c53408be5f" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>cugraph_error_code_t</type>
+        <definition>cugraph_error_code_t cugraph_all_pairs_overlap_coefficients</definition>
+        <argsstring>(const cugraph_resource_handle_t *handle, cugraph_graph_t *graph, const cugraph_type_erased_device_array_view_t *vertices, bool_t use_weight, size_t topk, bool_t do_expensive_check, cugraph_similarity_result_t **result, cugraph_error_t **error)</argsstring>
+        <name>cugraph_all_pairs_overlap_coefficients</name>
+        <param>
+          <type>const <ref refid="structcugraph__resource__handle__" kindref="compound">cugraph_resource_handle_t</ref> *</type>
+          <declname>handle</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__graph__t" kindref="compound">cugraph_graph_t</ref> *</type>
+          <declname>graph</declname>
+        </param>
+        <param>
+          <type>const <ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref> *</type>
+          <declname>vertices</declname>
+        </param>
+        <param>
+          <type>bool_t</type>
+          <declname>use_weight</declname>
+        </param>
+        <param>
+          <type>size_t</type>
+          <declname>topk</declname>
+        </param>
+        <param>
+          <type>bool_t</type>
+          <declname>do_expensive_check</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__similarity__result__t" kindref="compound">cugraph_similarity_result_t</ref> **</type>
+          <declname>result</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__error__" kindref="compound">cugraph_error_t</ref> **</type>
+          <declname>error</declname>
+        </param>
+        <briefdescription>
+<para>Perform All Pairs overlap similarity computation. </para>
+        </briefdescription>
+        <detaileddescription>
+<para>Compute the similarity for all vertex pairs derived from the two-hop neighbors of an optional specified vertex list. This function will identify the two-hop neighbors of the specified vertices (all vertices in the graph if not specified) and compute similarity for those vertices.</para>
+<para>If the topk parameter is specified then the result will only contain the top k highest scoring results.</para>
+<para>Note that overlap similarity must run on a symmetric graph.</para>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">handle</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Handle for accessing resources </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">graph</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Pointer to graph </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">vertices</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Vertex list for input. If null then compute based on all vertices in the graph. </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">use_weight</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>If true consider the edge weight in the graph, if false use an edge weight of 1 </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">topk</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Specify how many answers to return. Specifying SIZE_MAX will return all values. </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">do_expensive_check</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>A flag to run expensive checks for input arguments (if set to <computeroutput>true</computeroutput>). </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="out">result</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Opaque pointer to similarity results </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="out">error</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Pointer to an error object storing details of any error. Will be populated if error code is not CUGRAPH_SUCCESS </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>error code </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/similarity_algorithms.h" line="252" column="22" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/similarity.cpp" bodystart="440" bodyend="461" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/similarity_algorithms.h" declline="252" declcolumn="22"/>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <programlisting>
+<codeline lineno="1"><highlight class="comment">/*</highlight></codeline>
+<codeline lineno="2"><highlight class="comment"><sp/>*<sp/>Copyright<sp/>(c)<sp/>2022-2024,<sp/>NVIDIA<sp/>CORPORATION.</highlight></codeline>
+<codeline lineno="3"><highlight class="comment"><sp/>*</highlight></codeline>
+<codeline lineno="4"><highlight class="comment"><sp/>*<sp/>Licensed<sp/>under<sp/>the<sp/>Apache<sp/>License,<sp/>Version<sp/>2.0<sp/>(the<sp/>&quot;License&quot;);</highlight></codeline>
+<codeline lineno="5"><highlight class="comment"><sp/>*<sp/>you<sp/>may<sp/>not<sp/>use<sp/>this<sp/>file<sp/>except<sp/>in<sp/>compliance<sp/>with<sp/>the<sp/>License.</highlight></codeline>
+<codeline lineno="6"><highlight class="comment"><sp/>*<sp/>You<sp/>may<sp/>obtain<sp/>a<sp/>copy<sp/>of<sp/>the<sp/>License<sp/>at</highlight></codeline>
+<codeline lineno="7"><highlight class="comment"><sp/>*</highlight></codeline>
+<codeline lineno="8"><highlight class="comment"><sp/>*<sp/><sp/><sp/><sp/><sp/>http://www.apache.org/licenses/LICENSE-2.0</highlight></codeline>
+<codeline lineno="9"><highlight class="comment"><sp/>*</highlight></codeline>
+<codeline lineno="10"><highlight class="comment"><sp/>*<sp/>Unless<sp/>required<sp/>by<sp/>applicable<sp/>law<sp/>or<sp/>agreed<sp/>to<sp/>in<sp/>writing,<sp/>software</highlight></codeline>
+<codeline lineno="11"><highlight class="comment"><sp/>*<sp/>distributed<sp/>under<sp/>the<sp/>License<sp/>is<sp/>distributed<sp/>on<sp/>an<sp/>&quot;AS<sp/>IS&quot;<sp/>BASIS,</highlight></codeline>
+<codeline lineno="12"><highlight class="comment"><sp/>*<sp/>WITHOUT<sp/>WARRANTIES<sp/>OR<sp/>CONDITIONS<sp/>OF<sp/>ANY<sp/>KIND,<sp/>either<sp/>express<sp/>or<sp/>implied.</highlight></codeline>
+<codeline lineno="13"><highlight class="comment"><sp/>*<sp/>See<sp/>the<sp/>License<sp/>for<sp/>the<sp/>specific<sp/>language<sp/>governing<sp/>permissions<sp/>and</highlight></codeline>
+<codeline lineno="14"><highlight class="comment"><sp/>*<sp/>limitations<sp/>under<sp/>the<sp/>License.</highlight></codeline>
+<codeline lineno="15"><highlight class="comment"><sp/>*/</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="16"><highlight class="normal"></highlight></codeline>
+<codeline lineno="17"><highlight class="normal"></highlight><highlight class="preprocessor">#pragma<sp/>once</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="18"><highlight class="normal"></highlight></codeline>
+<codeline lineno="19"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&lt;cugraph_c/array.h&gt;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="20"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&lt;cugraph_c/error.h&gt;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="21"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&lt;cugraph_c/graph.h&gt;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="22"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&lt;cugraph_c/graph_functions.h&gt;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="23"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&lt;cugraph_c/resource_handle.h&gt;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="24"><highlight class="normal"></highlight></codeline>
+<codeline lineno="28"><highlight class="normal"></highlight><highlight class="preprocessor">#ifdef<sp/>__cplusplus</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="29"><highlight class="normal"></highlight><highlight class="keyword">extern</highlight><highlight class="normal"><sp/></highlight><highlight class="stringliteral">&quot;C&quot;</highlight><highlight class="normal"><sp/>{</highlight></codeline>
+<codeline lineno="30"><highlight class="normal"></highlight><highlight class="preprocessor">#endif</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="31"><highlight class="normal"></highlight></codeline>
+<codeline lineno="35" refid="structcugraph__similarity__result__t" refkind="compound"><highlight class="normal"></highlight><highlight class="keyword">typedef</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">struct<sp/></highlight><highlight class="normal">{</highlight></codeline>
+<codeline lineno="36"><highlight class="normal"><sp/><sp/>int32_t<sp/>align_;</highlight></codeline>
+<codeline lineno="37"><highlight class="normal">}<sp/><ref refid="structcugraph__similarity__result__t" kindref="compound">cugraph_similarity_result_t</ref>;</highlight></codeline>
+<codeline lineno="38"><highlight class="normal"></highlight></codeline>
+<codeline lineno="46"><highlight class="normal"><ref refid="structcugraph__vertex__pairs__t" kindref="compound">cugraph_vertex_pairs_t</ref>*<sp/><ref refid="group__similarity_1ga84d9c7acb9863a208ee6719d7294dc5b" kindref="member">cugraph_similarity_result_get_vertex_pairs</ref>(</highlight></codeline>
+<codeline lineno="47"><highlight class="normal"><sp/><sp/><ref refid="structcugraph__similarity__result__t" kindref="compound">cugraph_similarity_result_t</ref>*<sp/>result);</highlight></codeline>
+<codeline lineno="48"><highlight class="normal"></highlight></codeline>
+<codeline lineno="56"><highlight class="normal"><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/><ref refid="group__similarity_1ga1651d100617e06d1fb6b1feec0581c69" kindref="member">cugraph_similarity_result_get_similarity</ref>(</highlight></codeline>
+<codeline lineno="57"><highlight class="normal"><sp/><sp/><ref refid="structcugraph__similarity__result__t" kindref="compound">cugraph_similarity_result_t</ref>*<sp/>result);</highlight></codeline>
+<codeline lineno="58"><highlight class="normal"></highlight></codeline>
+<codeline lineno="65"><highlight class="normal"></highlight><highlight class="keywordtype">void</highlight><highlight class="normal"><sp/><ref refid="group__similarity_1ga8e80c18c77bda321590e6d285343ad81" kindref="member">cugraph_similarity_result_free</ref>(<ref refid="structcugraph__similarity__result__t" kindref="compound">cugraph_similarity_result_t</ref>*<sp/>result);</highlight></codeline>
+<codeline lineno="66"><highlight class="normal"></highlight></codeline>
+<codeline lineno="86"><highlight class="normal">cugraph_error_code_t<sp/>cugraph_jaccard_coefficients(</highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__resource__handle__" kindref="compound">cugraph_resource_handle_t</ref>*<sp/>handle,</highlight></codeline>
+<codeline lineno="87"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><ref refid="structcugraph__graph__t" kindref="compound">cugraph_graph_t</ref>*<sp/>graph,</highlight></codeline>
+<codeline lineno="88"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__vertex__pairs__t" kindref="compound">cugraph_vertex_pairs_t</ref>*<sp/>vertex_pairs,</highlight></codeline>
+<codeline lineno="89"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>bool_t<sp/>use_weight,</highlight></codeline>
+<codeline lineno="90"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>bool_t<sp/>do_expensive_check,</highlight></codeline>
+<codeline lineno="91"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><ref refid="structcugraph__similarity__result__t" kindref="compound">cugraph_similarity_result_t</ref>**<sp/>result,</highlight></codeline>
+<codeline lineno="92"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><ref refid="structcugraph__error__" kindref="compound">cugraph_error_t</ref>**<sp/>error);</highlight></codeline>
+<codeline lineno="93"><highlight class="normal"></highlight></codeline>
+<codeline lineno="113"><highlight class="normal">cugraph_error_code_t<sp/>cugraph_sorensen_coefficients(</highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__resource__handle__" kindref="compound">cugraph_resource_handle_t</ref>*<sp/>handle,</highlight></codeline>
+<codeline lineno="114"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><ref refid="structcugraph__graph__t" kindref="compound">cugraph_graph_t</ref>*<sp/>graph,</highlight></codeline>
+<codeline lineno="115"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__vertex__pairs__t" kindref="compound">cugraph_vertex_pairs_t</ref>*<sp/>vertex_pairs,</highlight></codeline>
+<codeline lineno="116"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>bool_t<sp/>use_weight,</highlight></codeline>
+<codeline lineno="117"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>bool_t<sp/>do_expensive_check,</highlight></codeline>
+<codeline lineno="118"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><ref refid="structcugraph__similarity__result__t" kindref="compound">cugraph_similarity_result_t</ref>**<sp/>result,</highlight></codeline>
+<codeline lineno="119"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><ref refid="structcugraph__error__" kindref="compound">cugraph_error_t</ref>**<sp/>error);</highlight></codeline>
+<codeline lineno="120"><highlight class="normal"></highlight></codeline>
+<codeline lineno="140"><highlight class="normal">cugraph_error_code_t<sp/>cugraph_overlap_coefficients(</highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__resource__handle__" kindref="compound">cugraph_resource_handle_t</ref>*<sp/>handle,</highlight></codeline>
+<codeline lineno="141"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><ref refid="structcugraph__graph__t" kindref="compound">cugraph_graph_t</ref>*<sp/>graph,</highlight></codeline>
+<codeline lineno="142"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__vertex__pairs__t" kindref="compound">cugraph_vertex_pairs_t</ref>*<sp/>vertex_pairs,</highlight></codeline>
+<codeline lineno="143"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>bool_t<sp/>use_weight,</highlight></codeline>
+<codeline lineno="144"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>bool_t<sp/>do_expensive_check,</highlight></codeline>
+<codeline lineno="145"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><ref refid="structcugraph__similarity__result__t" kindref="compound">cugraph_similarity_result_t</ref>**<sp/>result,</highlight></codeline>
+<codeline lineno="146"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><ref refid="structcugraph__error__" kindref="compound">cugraph_error_t</ref>**<sp/>error);</highlight></codeline>
+<codeline lineno="147"><highlight class="normal"></highlight></codeline>
+<codeline lineno="176"><highlight class="normal">cugraph_error_code_t<sp/>cugraph_all_pairs_jaccard_coefficients(</highlight></codeline>
+<codeline lineno="177"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__resource__handle__" kindref="compound">cugraph_resource_handle_t</ref>*<sp/>handle,</highlight></codeline>
+<codeline lineno="178"><highlight class="normal"><sp/><sp/><ref refid="structcugraph__graph__t" kindref="compound">cugraph_graph_t</ref>*<sp/>graph,</highlight></codeline>
+<codeline lineno="179"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/>vertices,</highlight></codeline>
+<codeline lineno="180"><highlight class="normal"><sp/><sp/>bool_t<sp/>use_weight,</highlight></codeline>
+<codeline lineno="181"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordtype">size_t</highlight><highlight class="normal"><sp/>topk,</highlight></codeline>
+<codeline lineno="182"><highlight class="normal"><sp/><sp/>bool_t<sp/>do_expensive_check,</highlight></codeline>
+<codeline lineno="183"><highlight class="normal"><sp/><sp/><ref refid="structcugraph__similarity__result__t" kindref="compound">cugraph_similarity_result_t</ref>**<sp/>result,</highlight></codeline>
+<codeline lineno="184"><highlight class="normal"><sp/><sp/><ref refid="structcugraph__error__" kindref="compound">cugraph_error_t</ref>**<sp/>error);</highlight></codeline>
+<codeline lineno="185"><highlight class="normal"></highlight></codeline>
+<codeline lineno="214"><highlight class="normal">cugraph_error_code_t<sp/>cugraph_all_pairs_sorensen_coefficients(</highlight></codeline>
+<codeline lineno="215"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__resource__handle__" kindref="compound">cugraph_resource_handle_t</ref>*<sp/>handle,</highlight></codeline>
+<codeline lineno="216"><highlight class="normal"><sp/><sp/><ref refid="structcugraph__graph__t" kindref="compound">cugraph_graph_t</ref>*<sp/>graph,</highlight></codeline>
+<codeline lineno="217"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/>vertices,</highlight></codeline>
+<codeline lineno="218"><highlight class="normal"><sp/><sp/>bool_t<sp/>use_weight,</highlight></codeline>
+<codeline lineno="219"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordtype">size_t</highlight><highlight class="normal"><sp/>topk,</highlight></codeline>
+<codeline lineno="220"><highlight class="normal"><sp/><sp/>bool_t<sp/>do_expensive_check,</highlight></codeline>
+<codeline lineno="221"><highlight class="normal"><sp/><sp/><ref refid="structcugraph__similarity__result__t" kindref="compound">cugraph_similarity_result_t</ref>**<sp/>result,</highlight></codeline>
+<codeline lineno="222"><highlight class="normal"><sp/><sp/><ref refid="structcugraph__error__" kindref="compound">cugraph_error_t</ref>**<sp/>error);</highlight></codeline>
+<codeline lineno="223"><highlight class="normal"></highlight></codeline>
+<codeline lineno="252"><highlight class="normal">cugraph_error_code_t<sp/>cugraph_all_pairs_overlap_coefficients(</highlight></codeline>
+<codeline lineno="253"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__resource__handle__" kindref="compound">cugraph_resource_handle_t</ref>*<sp/>handle,</highlight></codeline>
+<codeline lineno="254"><highlight class="normal"><sp/><sp/><ref refid="structcugraph__graph__t" kindref="compound">cugraph_graph_t</ref>*<sp/>graph,</highlight></codeline>
+<codeline lineno="255"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/>vertices,</highlight></codeline>
+<codeline lineno="256"><highlight class="normal"><sp/><sp/>bool_t<sp/>use_weight,</highlight></codeline>
+<codeline lineno="257"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordtype">size_t</highlight><highlight class="normal"><sp/>topk,</highlight></codeline>
+<codeline lineno="258"><highlight class="normal"><sp/><sp/>bool_t<sp/>do_expensive_check,</highlight></codeline>
+<codeline lineno="259"><highlight class="normal"><sp/><sp/><ref refid="structcugraph__similarity__result__t" kindref="compound">cugraph_similarity_result_t</ref>**<sp/>result,</highlight></codeline>
+<codeline lineno="260"><highlight class="normal"><sp/><sp/><ref refid="structcugraph__error__" kindref="compound">cugraph_error_t</ref>**<sp/>error);</highlight></codeline>
+<codeline lineno="261"><highlight class="normal"></highlight></codeline>
+<codeline lineno="262"><highlight class="normal"></highlight><highlight class="preprocessor">#ifdef<sp/>__cplusplus</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="263"><highlight class="normal">}</highlight></codeline>
+<codeline lineno="264"><highlight class="normal"></highlight><highlight class="preprocessor">#endif</highlight></codeline>
+    </programlisting>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/similarity_algorithms.h"/>
+  </compounddef>
+</doxygen>

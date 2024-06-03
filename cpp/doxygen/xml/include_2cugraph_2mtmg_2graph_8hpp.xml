@@ -1,0 +1,603 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="include_2cugraph_2mtmg_2graph_8hpp" kind="file" language="C++">
+    <compoundname>include/cugraph/mtmg/graph.hpp</compoundname>
+    <includes refid="device__shared__wrapper_8hpp" local="no">cugraph/mtmg/detail/device_shared_wrapper.hpp</includes>
+    <includes refid="mtmg_2edge__property_8hpp" local="no">cugraph/mtmg/edge_property.hpp</includes>
+    <includes refid="mtmg_2graph__view_8hpp" local="no">cugraph/mtmg/graph_view.hpp</includes>
+    <includes refid="handle_8hpp" local="no">cugraph/mtmg/handle.hpp</includes>
+    <includes refid="renumber__map_8hpp" local="no">cugraph/mtmg/renumber_map.hpp</includes>
+    <incdepgraph>
+      <node id="14">
+        <label>cugraph/edge_partition_view.hpp</label>
+        <link refid="edge__partition__view_8hpp_source"/>
+        <childnode refid="15" relation="include">
+        </childnode>
+        <childnode refid="16" relation="include">
+        </childnode>
+        <childnode refid="17" relation="include">
+        </childnode>
+      </node>
+      <node id="18">
+        <label>cugraph/edge_property.hpp</label>
+        <link refid="edge__property_8hpp_source"/>
+        <childnode refid="19" relation="include">
+        </childnode>
+        <childnode refid="27" relation="include">
+        </childnode>
+        <childnode refid="20" relation="include">
+        </childnode>
+        <childnode refid="4" relation="include">
+        </childnode>
+        <childnode refid="22" relation="include">
+        </childnode>
+        <childnode refid="29" relation="include">
+        </childnode>
+        <childnode refid="16" relation="include">
+        </childnode>
+        <childnode refid="17" relation="include">
+        </childnode>
+      </node>
+      <node id="13">
+        <label>cugraph/graph_view.hpp</label>
+        <link refid="graph__view_8hpp_source"/>
+        <childnode refid="14" relation="include">
+        </childnode>
+        <childnode refid="18" relation="include">
+        </childnode>
+        <childnode refid="30" relation="include">
+        </childnode>
+        <childnode refid="6" relation="include">
+        </childnode>
+        <childnode refid="59" relation="include">
+        </childnode>
+        <childnode refid="15" relation="include">
+        </childnode>
+        <childnode refid="4" relation="include">
+        </childnode>
+        <childnode refid="60" relation="include">
+        </childnode>
+        <childnode refid="21" relation="include">
+        </childnode>
+        <childnode refid="55" relation="include">
+        </childnode>
+        <childnode refid="61" relation="include">
+        </childnode>
+        <childnode refid="62" relation="include">
+        </childnode>
+        <childnode refid="58" relation="include">
+        </childnode>
+        <childnode refid="63" relation="include">
+        </childnode>
+        <childnode refid="17" relation="include">
+        </childnode>
+        <childnode refid="56" relation="include">
+        </childnode>
+      </node>
+      <node id="66">
+        <label>cugraph/mtmg/detail/device_shared_device_span.hpp</label>
+        <link refid="device__shared__device__span_8hpp_source"/>
+        <childnode refid="2" relation="include">
+        </childnode>
+        <childnode refid="15" relation="include">
+        </childnode>
+      </node>
+      <node id="65">
+        <label>cugraph/mtmg/detail/device_shared_device_vector.hpp</label>
+        <link refid="device__shared__device__vector_8hpp_source"/>
+        <childnode refid="66" relation="include">
+        </childnode>
+        <childnode refid="21" relation="include">
+        </childnode>
+      </node>
+      <node id="2">
+        <label>cugraph/mtmg/detail/device_shared_wrapper.hpp</label>
+        <link refid="device__shared__wrapper_8hpp_source"/>
+        <childnode refid="3" relation="include">
+        </childnode>
+        <childnode refid="6" relation="include">
+        </childnode>
+        <childnode refid="8" relation="include">
+        </childnode>
+        <childnode refid="9" relation="include">
+        </childnode>
+      </node>
+      <node id="10">
+        <label>cugraph/mtmg/edge_property.hpp</label>
+        <link refid="mtmg_2edge__property_8hpp_source"/>
+        <childnode refid="2" relation="include">
+        </childnode>
+        <childnode refid="11" relation="include">
+        </childnode>
+      </node>
+      <node id="11">
+        <label>cugraph/mtmg/edge_property_view.hpp</label>
+        <link refid="edge__property__view_8hpp_source"/>
+        <childnode refid="2" relation="include">
+        </childnode>
+      </node>
+      <node id="1">
+        <label>graph.hpp</label>
+        <link refid="include_2cugraph_2mtmg_2graph_8hpp"/>
+        <childnode refid="2" relation="include">
+        </childnode>
+        <childnode refid="10" relation="include">
+        </childnode>
+        <childnode refid="12" relation="include">
+        </childnode>
+        <childnode refid="3" relation="include">
+        </childnode>
+        <childnode refid="64" relation="include">
+        </childnode>
+      </node>
+      <node id="12">
+        <label>cugraph/mtmg/graph_view.hpp</label>
+        <link refid="mtmg_2graph__view_8hpp_source"/>
+        <childnode refid="13" relation="include">
+        </childnode>
+        <childnode refid="2" relation="include">
+        </childnode>
+        <childnode refid="3" relation="include">
+        </childnode>
+      </node>
+      <node id="3">
+        <label>cugraph/mtmg/handle.hpp</label>
+        <link refid="handle_8hpp_source"/>
+        <childnode refid="4" relation="include">
+        </childnode>
+        <childnode refid="5" relation="include">
+        </childnode>
+      </node>
+      <node id="64">
+        <label>cugraph/mtmg/renumber_map.hpp</label>
+        <link refid="renumber__map_8hpp_source"/>
+        <childnode refid="65" relation="include">
+        </childnode>
+        <childnode refid="67" relation="include">
+        </childnode>
+      </node>
+      <node id="67">
+        <label>cugraph/mtmg/renumber_map_view.hpp</label>
+        <link refid="renumber__map__view_8hpp_source"/>
+        <childnode refid="66" relation="include">
+        </childnode>
+        <childnode refid="3" relation="include">
+        </childnode>
+      </node>
+      <node id="30">
+        <label>cugraph/partition_manager.hpp</label>
+        <link refid="partition__manager_8hpp_source"/>
+        <childnode refid="31" relation="include">
+        </childnode>
+        <childnode refid="33" relation="include">
+        </childnode>
+        <childnode refid="57" relation="include">
+        </childnode>
+        <childnode refid="4" relation="include">
+        </childnode>
+        <childnode refid="58" relation="include">
+        </childnode>
+      </node>
+      <node id="19">
+        <label>cugraph/utilities/dataframe_buffer.hpp</label>
+        <link refid="dataframe__buffer_8hpp_source"/>
+        <childnode refid="20" relation="include">
+        </childnode>
+        <childnode refid="4" relation="include">
+        </childnode>
+        <childnode refid="25" relation="include">
+        </childnode>
+        <childnode refid="21" relation="include">
+        </childnode>
+        <childnode refid="26" relation="include">
+        </childnode>
+        <childnode refid="23" relation="include">
+        </childnode>
+        <childnode refid="17" relation="include">
+        </childnode>
+      </node>
+      <node id="34">
+        <label>cugraph/utilities/device_comm.hpp</label>
+        <link refid="device__comm_8hpp_source"/>
+        <childnode refid="20" relation="include">
+        </childnode>
+        <childnode refid="4" relation="include">
+        </childnode>
+        <childnode refid="25" relation="include">
+        </childnode>
+        <childnode refid="21" relation="include">
+        </childnode>
+        <childnode refid="35" relation="include">
+        </childnode>
+        <childnode refid="36" relation="include">
+        </childnode>
+        <childnode refid="37" relation="include">
+        </childnode>
+        <childnode refid="38" relation="include">
+        </childnode>
+        <childnode refid="22" relation="include">
+        </childnode>
+        <childnode refid="39" relation="include">
+        </childnode>
+        <childnode refid="23" relation="include">
+        </childnode>
+        <childnode refid="17" relation="include">
+        </childnode>
+      </node>
+      <node id="6">
+        <label>cugraph/utilities/error.hpp</label>
+        <link refid="include_2cugraph_2utilities_2error_8hpp_source"/>
+        <childnode refid="7" relation="include">
+        </childnode>
+      </node>
+      <node id="31">
+        <label>cugraph/utilities/host_scalar_comm.hpp</label>
+        <link refid="host__scalar__comm_8hpp_source"/>
+        <childnode refid="6" relation="include">
+        </childnode>
+        <childnode refid="20" relation="include">
+        </childnode>
+        <childnode refid="4" relation="include">
+        </childnode>
+        <childnode refid="21" relation="include">
+        </childnode>
+        <childnode refid="23" relation="include">
+        </childnode>
+        <childnode refid="32" relation="include">
+        </childnode>
+        <childnode refid="17" relation="include">
+        </childnode>
+      </node>
+      <node id="27">
+        <label>cugraph/utilities/packed_bool_utils.hpp</label>
+        <link refid="packed__bool__utils_8hpp_source"/>
+        <childnode refid="20" relation="include">
+        </childnode>
+        <childnode refid="22" relation="include">
+        </childnode>
+        <childnode refid="23" relation="include">
+        </childnode>
+        <childnode refid="17" relation="include">
+        </childnode>
+        <childnode refid="28" relation="include">
+        </childnode>
+      </node>
+      <node id="33">
+        <label>cugraph/utilities/shuffle_comm.cuh</label>
+        <link refid="shuffle__comm_8cuh_source"/>
+        <childnode refid="19" relation="include">
+        </childnode>
+        <childnode refid="34" relation="include">
+        </childnode>
+        <childnode refid="4" relation="include">
+        </childnode>
+        <childnode refid="21" relation="include">
+        </childnode>
+        <childnode refid="5" relation="include">
+        </childnode>
+        <childnode refid="40" relation="include">
+        </childnode>
+        <childnode refid="41" relation="include">
+        </childnode>
+        <childnode refid="42" relation="include">
+        </childnode>
+        <childnode refid="43" relation="include">
+        </childnode>
+        <childnode refid="44" relation="include">
+        </childnode>
+        <childnode refid="45" relation="include">
+        </childnode>
+        <childnode refid="46" relation="include">
+        </childnode>
+        <childnode refid="47" relation="include">
+        </childnode>
+        <childnode refid="22" relation="include">
+        </childnode>
+        <childnode refid="48" relation="include">
+        </childnode>
+        <childnode refid="26" relation="include">
+        </childnode>
+        <childnode refid="49" relation="include">
+        </childnode>
+        <childnode refid="50" relation="include">
+        </childnode>
+        <childnode refid="51" relation="include">
+        </childnode>
+        <childnode refid="52" relation="include">
+        </childnode>
+        <childnode refid="53" relation="include">
+        </childnode>
+        <childnode refid="54" relation="include">
+        </childnode>
+        <childnode refid="23" relation="include">
+        </childnode>
+        <childnode refid="55" relation="include">
+        </childnode>
+        <childnode refid="32" relation="include">
+        </childnode>
+        <childnode refid="56" relation="include">
+        </childnode>
+      </node>
+      <node id="20">
+        <label>cugraph/utilities/thrust_tuple_utils.hpp</label>
+        <link refid="thrust__tuple__utils_8hpp_source"/>
+        <childnode refid="21" relation="include">
+        </childnode>
+        <childnode refid="22" relation="include">
+        </childnode>
+        <childnode refid="23" relation="include">
+        </childnode>
+        <childnode refid="24" relation="include">
+        </childnode>
+        <childnode refid="17" relation="include">
+        </childnode>
+      </node>
+      <node id="59">
+        <label>cugraph/vertex_partition_view.hpp</label>
+        <link refid="vertex__partition__view_8hpp_source"/>
+        <childnode refid="17" relation="include">
+        </childnode>
+      </node>
+      <node id="55">
+        <label>algorithm</label>
+      </node>
+      <node id="24">
+        <label>array</label>
+      </node>
+      <node id="61">
+        <label>cassert</label>
+      </node>
+      <node id="62">
+        <label>cstddef</label>
+      </node>
+      <node id="40">
+        <label>cuda/atomic</label>
+      </node>
+      <node id="41">
+        <label>cuda/functional</label>
+      </node>
+      <node id="8">
+        <label>map</label>
+      </node>
+      <node id="9">
+        <label>mutex</label>
+      </node>
+      <node id="32">
+        <label>numeric</label>
+      </node>
+      <node id="16">
+        <label>optional</label>
+      </node>
+      <node id="57">
+        <label>raft/core/comms.hpp</label>
+      </node>
+      <node id="15">
+        <label>raft/core/device_span.hpp</label>
+      </node>
+      <node id="7">
+        <label>raft/core/error.hpp</label>
+      </node>
+      <node id="4">
+        <label>raft/core/handle.hpp</label>
+      </node>
+      <node id="60">
+        <label>raft/core/host_span.hpp</label>
+      </node>
+      <node id="25">
+        <label>rmm/cuda_stream_view.hpp</label>
+      </node>
+      <node id="21">
+        <label>rmm/device_uvector.hpp</label>
+      </node>
+      <node id="5">
+        <label>rmm/exec_policy.hpp</label>
+      </node>
+      <node id="58">
+        <label>string</label>
+      </node>
+      <node id="42">
+        <label>thrust/binary_search.h</label>
+      </node>
+      <node id="43">
+        <label>thrust/copy.h</label>
+      </node>
+      <node id="44">
+        <label>thrust/count.h</label>
+      </node>
+      <node id="35">
+        <label>thrust/detail/type_traits/iterator/is_discard_iterator.h</label>
+      </node>
+      <node id="36">
+        <label>thrust/device_ptr.h</label>
+      </node>
+      <node id="45">
+        <label>thrust/distance.h</label>
+      </node>
+      <node id="46">
+        <label>thrust/execution_policy.h</label>
+      </node>
+      <node id="47">
+        <label>thrust/fill.h</label>
+      </node>
+      <node id="37">
+        <label>thrust/iterator/detail/any_assign.h</label>
+      </node>
+      <node id="38">
+        <label>thrust/iterator/detail/normal_iterator.h</label>
+      </node>
+      <node id="22">
+        <label>thrust/iterator/iterator_traits.h</label>
+      </node>
+      <node id="48">
+        <label>thrust/iterator/transform_iterator.h</label>
+      </node>
+      <node id="26">
+        <label>thrust/iterator/zip_iterator.h</label>
+      </node>
+      <node id="39">
+        <label>thrust/memory.h</label>
+      </node>
+      <node id="29">
+        <label>thrust/optional.h</label>
+      </node>
+      <node id="49">
+        <label>thrust/partition.h</label>
+      </node>
+      <node id="50">
+        <label>thrust/reduce.h</label>
+      </node>
+      <node id="51">
+        <label>thrust/remove.h</label>
+      </node>
+      <node id="52">
+        <label>thrust/scatter.h</label>
+      </node>
+      <node id="53">
+        <label>thrust/sort.h</label>
+      </node>
+      <node id="54">
+        <label>thrust/tabulate.h</label>
+      </node>
+      <node id="23">
+        <label>thrust/tuple.h</label>
+      </node>
+      <node id="63">
+        <label>tuple</label>
+      </node>
+      <node id="17">
+        <label>type_traits</label>
+      </node>
+      <node id="28">
+        <label>utility</label>
+      </node>
+      <node id="56">
+        <label>vector</label>
+      </node>
+    </incdepgraph>
+    <innerclass refid="classcugraph_1_1mtmg_1_1graph__t" prot="public">cugraph::mtmg::graph_t</innerclass>
+    <innernamespace refid="namespacecugraph">cugraph</innernamespace>
+    <innernamespace refid="namespacecugraph_1_1mtmg">cugraph::mtmg</innernamespace>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <programlisting>
+<codeline lineno="1"><highlight class="comment">/*</highlight></codeline>
+<codeline lineno="2"><highlight class="comment"><sp/>*<sp/>Copyright<sp/>(c)<sp/>2023,<sp/>NVIDIA<sp/>CORPORATION.</highlight></codeline>
+<codeline lineno="3"><highlight class="comment"><sp/>*</highlight></codeline>
+<codeline lineno="4"><highlight class="comment"><sp/>*<sp/>Licensed<sp/>under<sp/>the<sp/>Apache<sp/>License,<sp/>Version<sp/>2.0<sp/>(the<sp/>&quot;License&quot;);</highlight></codeline>
+<codeline lineno="5"><highlight class="comment"><sp/>*<sp/>you<sp/>may<sp/>not<sp/>use<sp/>this<sp/>file<sp/>except<sp/>in<sp/>compliance<sp/>with<sp/>the<sp/>License.</highlight></codeline>
+<codeline lineno="6"><highlight class="comment"><sp/>*<sp/>You<sp/>may<sp/>obtain<sp/>a<sp/>copy<sp/>of<sp/>the<sp/>License<sp/>at</highlight></codeline>
+<codeline lineno="7"><highlight class="comment"><sp/>*</highlight></codeline>
+<codeline lineno="8"><highlight class="comment"><sp/>*<sp/><sp/><sp/><sp/><sp/>http://www.apache.org/licenses/LICENSE-2.0</highlight></codeline>
+<codeline lineno="9"><highlight class="comment"><sp/>*</highlight></codeline>
+<codeline lineno="10"><highlight class="comment"><sp/>*<sp/>Unless<sp/>required<sp/>by<sp/>applicable<sp/>law<sp/>or<sp/>agreed<sp/>to<sp/>in<sp/>writing,<sp/>software</highlight></codeline>
+<codeline lineno="11"><highlight class="comment"><sp/>*<sp/>distributed<sp/>under<sp/>the<sp/>License<sp/>is<sp/>distributed<sp/>on<sp/>an<sp/>&quot;AS<sp/>IS&quot;<sp/>BASIS,</highlight></codeline>
+<codeline lineno="12"><highlight class="comment"><sp/>*<sp/>WITHOUT<sp/>WARRANTIES<sp/>OR<sp/>CONDITIONS<sp/>OF<sp/>ANY<sp/>KIND,<sp/>either<sp/>express<sp/>or<sp/>implied.</highlight></codeline>
+<codeline lineno="13"><highlight class="comment"><sp/>*<sp/>See<sp/>the<sp/>License<sp/>for<sp/>the<sp/>specific<sp/>language<sp/>governing<sp/>permissions<sp/>and</highlight></codeline>
+<codeline lineno="14"><highlight class="comment"><sp/>*<sp/>limitations<sp/>under<sp/>the<sp/>License.</highlight></codeline>
+<codeline lineno="15"><highlight class="comment"><sp/>*/</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="16"><highlight class="normal"></highlight></codeline>
+<codeline lineno="17"><highlight class="normal"></highlight><highlight class="preprocessor">#pragma<sp/>once</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="18"><highlight class="normal"></highlight></codeline>
+<codeline lineno="19"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&lt;cugraph/mtmg/detail/device_shared_wrapper.hpp&gt;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="20"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&lt;cugraph/mtmg/edge_property.hpp&gt;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="21"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&lt;cugraph/mtmg/graph_view.hpp&gt;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="22"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&lt;cugraph/mtmg/handle.hpp&gt;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="23"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&lt;cugraph/mtmg/renumber_map.hpp&gt;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="24"><highlight class="normal"></highlight></codeline>
+<codeline lineno="25"><highlight class="normal"></highlight><highlight class="keyword">namespace<sp/></highlight><highlight class="normal">cugraph<sp/>{</highlight></codeline>
+<codeline lineno="26"><highlight class="normal"></highlight><highlight class="keyword">namespace<sp/></highlight><highlight class="normal">mtmg<sp/>{</highlight></codeline>
+<codeline lineno="27"><highlight class="normal"></highlight></codeline>
+<codeline lineno="31"><highlight class="normal"></highlight><highlight class="keyword">template</highlight><highlight class="normal"><sp/>&lt;</highlight><highlight class="keyword">typename</highlight><highlight class="normal"><sp/>vertex_t,<sp/></highlight><highlight class="keyword">typename</highlight><highlight class="normal"><sp/>edge_t,<sp/></highlight><highlight class="keywordtype">bool</highlight><highlight class="normal"><sp/>store_transposed,<sp/></highlight><highlight class="keywordtype">bool</highlight><highlight class="normal"><sp/>multi_gpu&gt;</highlight></codeline>
+<codeline lineno="32" refid="classcugraph_1_1mtmg_1_1graph__t" refkind="compound"><highlight class="normal"></highlight><highlight class="keyword">class<sp/></highlight><highlight class="normal"><ref refid="classcugraph_1_1mtmg_1_1graph__t" kindref="compound">graph_t</ref><sp/>:<sp/></highlight><highlight class="keyword">public</highlight><highlight class="normal"><sp/><ref refid="classcugraph_1_1mtmg_1_1detail_1_1device__shared__wrapper__t" kindref="compound">detail::device_shared_wrapper_t</ref>&lt;</highlight></codeline>
+<codeline lineno="33"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>cugraph::graph_t&lt;vertex_t,<sp/>edge_t,<sp/>store_transposed,<sp/>multi_gpu&gt;&gt;<sp/>{</highlight></codeline>
+<codeline lineno="34"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">using<sp/></highlight><highlight class="normal"><ref refid="classcugraph_1_1mtmg_1_1detail_1_1device__shared__wrapper__t" kindref="compound">parent_t</ref><sp/>=<sp/><ref refid="classcugraph_1_1mtmg_1_1detail_1_1device__shared__wrapper__t" kindref="compound">detail::device_shared_wrapper_t</ref>&lt;</highlight></codeline>
+<codeline lineno="35"><highlight class="normal"><sp/><sp/><sp/><sp/><ref refid="classcugraph_1_1graph__t" kindref="compound">cugraph::graph_t&lt;vertex_t, edge_t, store_transposed, multi_gpu&gt;</ref>&gt;;</highlight></codeline>
+<codeline lineno="36"><highlight class="normal"></highlight></codeline>
+<codeline lineno="37"><highlight class="normal"><sp/></highlight><highlight class="keyword">public</highlight><highlight class="normal">:</highlight></codeline>
+<codeline lineno="41" refid="classcugraph_1_1mtmg_1_1graph__t_1abc11e5c2777323dac0870f7a33fa6930" refkind="member"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">auto</highlight><highlight class="normal"><sp/><ref refid="classcugraph_1_1mtmg_1_1graph__t_1abc11e5c2777323dac0870f7a33fa6930" kindref="member">view</ref>()</highlight></codeline>
+<codeline lineno="42"><highlight class="normal"><sp/><sp/>{</highlight></codeline>
+<codeline lineno="43"><highlight class="normal"><sp/><sp/><sp/><sp/>std::lock_guard&lt;std::mutex&gt;<sp/>lock(parent_t::lock_);</highlight></codeline>
+<codeline lineno="44"><highlight class="normal"></highlight></codeline>
+<codeline lineno="45"><highlight class="normal"><sp/><sp/><sp/><sp/><ref refid="classcugraph_1_1mtmg_1_1graph__view__t" kindref="compound">cugraph::mtmg::graph_view_t&lt;vertex_t, edge_t, store_transposed, multi_gpu&gt;</ref><sp/>result;</highlight></codeline>
+<codeline lineno="46"><highlight class="normal"></highlight></codeline>
+<codeline lineno="47"><highlight class="normal"><sp/><sp/><sp/><sp/>std::for_each(parent_t::objects_.begin(),<sp/>parent_t::objects_.end(),<sp/>[&amp;result](</highlight><highlight class="keyword">auto</highlight><highlight class="normal">&amp;<sp/>p)<sp/>{</highlight></codeline>
+<codeline lineno="48"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/>result.<ref refid="classcugraph_1_1mtmg_1_1detail_1_1device__shared__wrapper__t_1a14553fe2a2facc4a8cb356a736cdb66e" kindref="member">set</ref>(p.first,<sp/>std::move(p.second.view()));</highlight></codeline>
+<codeline lineno="49"><highlight class="normal"><sp/><sp/><sp/><sp/>});</highlight></codeline>
+<codeline lineno="50"><highlight class="normal"></highlight></codeline>
+<codeline lineno="51"><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="keywordflow">return</highlight><highlight class="normal"><sp/>result;</highlight></codeline>
+<codeline lineno="52"><highlight class="normal"><sp/><sp/>}</highlight></codeline>
+<codeline lineno="53"><highlight class="normal">};</highlight></codeline>
+<codeline lineno="54"><highlight class="normal"></highlight></codeline>
+<codeline lineno="70"><highlight class="normal"></highlight><highlight class="keyword">template</highlight><highlight class="normal"><sp/>&lt;</highlight><highlight class="keyword">typename</highlight><highlight class="normal"><sp/>vertex_t,</highlight></codeline>
+<codeline lineno="71"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keyword">typename</highlight><highlight class="normal"><sp/>edge_t,</highlight></codeline>
+<codeline lineno="72"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keyword">typename</highlight><highlight class="normal"><sp/>weight_t,</highlight></codeline>
+<codeline lineno="73"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keyword">typename</highlight><highlight class="normal"><sp/>edge_id_t,</highlight></codeline>
+<codeline lineno="74"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keyword">typename</highlight><highlight class="normal"><sp/>edge_type_t,</highlight></codeline>
+<codeline lineno="75"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordtype">bool</highlight><highlight class="normal"><sp/>store_transposed,</highlight></codeline>
+<codeline lineno="76"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordtype">bool</highlight><highlight class="normal"><sp/>multi_gpu&gt;</highlight></codeline>
+<codeline lineno="77"><highlight class="normal"></highlight><highlight class="keywordtype">void</highlight><highlight class="normal"><sp/>create_graph_from_edgelist(</highlight></codeline>
+<codeline lineno="78"><highlight class="normal"><sp/><sp/>handle_t<sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal">&amp;<sp/>handle,</highlight></codeline>
+<codeline lineno="79"><highlight class="normal"><sp/><sp/><ref refid="classcugraph_1_1mtmg_1_1edgelist__t" kindref="compound">cugraph::mtmg::edgelist_t&lt;vertex_t, weight_t, edge_id_t, edge_type_t&gt;</ref>&amp;<sp/>edgelist,</highlight></codeline>
+<codeline lineno="80"><highlight class="normal"><sp/><sp/><ref refid="structcugraph_1_1graph__properties__t" kindref="compound">graph_properties_t</ref><sp/>graph_properties,</highlight></codeline>
+<codeline lineno="81"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordtype">bool</highlight><highlight class="normal"><sp/>renumber,</highlight></codeline>
+<codeline lineno="82"><highlight class="normal"><sp/><sp/><ref refid="classcugraph_1_1mtmg_1_1graph__t" kindref="compound">cugraph::mtmg::graph_t&lt;vertex_t, edge_t, store_transposed, multi_gpu&gt;</ref>&amp;<sp/>graph,</highlight></codeline>
+<codeline lineno="83"><highlight class="normal"><sp/><sp/>std::optional&lt;<ref refid="classcugraph_1_1mtmg_1_1edge__property__t" kindref="compound">cugraph::mtmg::edge_property_t</ref>&lt;</highlight></codeline>
+<codeline lineno="84"><highlight class="normal"><sp/><sp/><sp/><sp/><ref refid="classcugraph_1_1mtmg_1_1graph__view__t" kindref="compound">cugraph::mtmg::graph_view_t&lt;vertex_t, edge_t, store_transposed, multi_gpu&gt;</ref>,</highlight></codeline>
+<codeline lineno="85"><highlight class="normal"><sp/><sp/><sp/><sp/>weight_t&gt;&gt;&amp;<sp/>edge_weights,</highlight></codeline>
+<codeline lineno="86"><highlight class="normal"><sp/><sp/>std::optional&lt;<ref refid="classcugraph_1_1mtmg_1_1edge__property__t" kindref="compound">cugraph::mtmg::edge_property_t</ref>&lt;</highlight></codeline>
+<codeline lineno="87"><highlight class="normal"><sp/><sp/><sp/><sp/><ref refid="classcugraph_1_1mtmg_1_1graph__view__t" kindref="compound">cugraph::mtmg::graph_view_t&lt;vertex_t, edge_t, store_transposed, multi_gpu&gt;</ref>,</highlight></codeline>
+<codeline lineno="88"><highlight class="normal"><sp/><sp/><sp/><sp/>edge_id_t&gt;&gt;&amp;<sp/>edge_ids,</highlight></codeline>
+<codeline lineno="89"><highlight class="normal"><sp/><sp/>std::optional&lt;<ref refid="classcugraph_1_1mtmg_1_1edge__property__t" kindref="compound">cugraph::mtmg::edge_property_t</ref>&lt;</highlight></codeline>
+<codeline lineno="90"><highlight class="normal"><sp/><sp/><sp/><sp/><ref refid="classcugraph_1_1mtmg_1_1graph__view__t" kindref="compound">cugraph::mtmg::graph_view_t&lt;vertex_t, edge_t, store_transposed, multi_gpu&gt;</ref>,</highlight></codeline>
+<codeline lineno="91"><highlight class="normal"><sp/><sp/><sp/><sp/>edge_type_t&gt;&gt;&amp;<sp/>edge_types,</highlight></codeline>
+<codeline lineno="92"><highlight class="normal"><sp/><sp/>std::optional&lt;<ref refid="classcugraph_1_1mtmg_1_1renumber__map__t" kindref="compound">cugraph::mtmg::renumber_map_t&lt;vertex_t&gt;</ref>&gt;&amp;<sp/>renumber_map,</highlight></codeline>
+<codeline lineno="93"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordtype">bool</highlight><highlight class="normal"><sp/>do_expensive_check<sp/>=<sp/></highlight><highlight class="keyword">false</highlight><highlight class="normal">)</highlight></codeline>
+<codeline lineno="94"><highlight class="normal">{</highlight></codeline>
+<codeline lineno="95"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordflow">if</highlight><highlight class="normal"><sp/>(handle.get_thread_rank()<sp/>&gt;<sp/>0)<sp/></highlight><highlight class="keywordflow">return</highlight><highlight class="normal">;</highlight></codeline>
+<codeline lineno="96"><highlight class="normal"></highlight></codeline>
+<codeline lineno="97"><highlight class="normal"><sp/><sp/>CUGRAPH_EXPECTS(renumber_map.has_value()<sp/>==<sp/>renumber,</highlight></codeline>
+<codeline lineno="98"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="stringliteral">&quot;Renumbering<sp/>set<sp/>to<sp/>true,<sp/>but<sp/>no<sp/>space<sp/>for<sp/>renumber<sp/>map&quot;</highlight><highlight class="normal">);</highlight></codeline>
+<codeline lineno="99"><highlight class="normal"></highlight></codeline>
+<codeline lineno="100"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">auto</highlight><highlight class="normal">&amp;<sp/>my_edgelist<sp/>=<sp/>edgelist.<ref refid="classcugraph_1_1mtmg_1_1detail_1_1device__shared__wrapper__t_1a5cde570f7a097a9f0895d3495928a772" kindref="member">get</ref>(handle);</highlight></codeline>
+<codeline lineno="101"><highlight class="normal"></highlight></codeline>
+<codeline lineno="102"><highlight class="normal"><sp/><sp/>CUGRAPH_EXPECTS(my_edgelist.get_src().size()<sp/>&gt;<sp/>0,<sp/></highlight><highlight class="stringliteral">&quot;Cannot<sp/>create<sp/>graph<sp/>without<sp/>an<sp/>edge<sp/>list&quot;</highlight><highlight class="normal">);</highlight></codeline>
+<codeline lineno="103"><highlight class="normal"><sp/><sp/>CUGRAPH_EXPECTS(my_edgelist.get_src().size()<sp/>==<sp/>1,</highlight></codeline>
+<codeline lineno="104"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="stringliteral">&quot;Must<sp/>consolidate<sp/>edges<sp/>into<sp/>a<sp/>single<sp/>list<sp/>before<sp/>creating<sp/>graph&quot;</highlight><highlight class="normal">);</highlight></codeline>
+<codeline lineno="105"><highlight class="normal"></highlight></codeline>
+<codeline lineno="106"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">auto</highlight><highlight class="normal"><sp/>[local_graph,<sp/>local_edge_weights,<sp/>local_edge_ids,<sp/>local_edge_types,<sp/>local_renumber_map]<sp/>=</highlight></codeline>
+<codeline lineno="107"><highlight class="normal"><sp/><sp/><sp/><sp/>cugraph::create_graph_from_edgelist&lt;vertex_t,</highlight></codeline>
+<codeline lineno="108"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>edge_t,</highlight></codeline>
+<codeline lineno="109"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>weight_t,</highlight></codeline>
+<codeline lineno="110"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>edge_id_t,</highlight></codeline>
+<codeline lineno="111"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>edge_type_t,</highlight></codeline>
+<codeline lineno="112"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>store_transposed,</highlight></codeline>
+<codeline lineno="113"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>multi_gpu&gt;(</highlight></codeline>
+<codeline lineno="114"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/>handle.raft_handle(),</highlight></codeline>
+<codeline lineno="115"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/>std::nullopt,</highlight></codeline>
+<codeline lineno="116"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/>std::move(my_edgelist.get_src()[0]),</highlight></codeline>
+<codeline lineno="117"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/>std::move(my_edgelist.get_dst()[0]),</highlight></codeline>
+<codeline lineno="118"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/>my_edgelist.get_wgt()<sp/>?<sp/>std::make_optional(std::move((*my_edgelist.get_wgt())[0]))</highlight></codeline>
+<codeline lineno="119"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>:<sp/>std::nullopt,</highlight></codeline>
+<codeline lineno="120"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/>my_edgelist.get_edge_id()<sp/>?<sp/>std::make_optional(std::move((*my_edgelist.get_edge_id())[0]))</highlight></codeline>
+<codeline lineno="121"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>:<sp/>std::nullopt,</highlight></codeline>
+<codeline lineno="122"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/>my_edgelist.get_edge_type()<sp/>?<sp/>std::make_optional(std::move((*my_edgelist.get_edge_type())[0]))</highlight></codeline>
+<codeline lineno="123"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>:<sp/>std::nullopt,</highlight></codeline>
+<codeline lineno="124"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/>graph_properties,</highlight></codeline>
+<codeline lineno="125"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/>renumber,</highlight></codeline>
+<codeline lineno="126"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/>do_expensive_check);</highlight></codeline>
+<codeline lineno="127"><highlight class="normal"></highlight></codeline>
+<codeline lineno="128"><highlight class="normal"><sp/><sp/>graph.<ref refid="classcugraph_1_1mtmg_1_1detail_1_1device__shared__wrapper__t_1a14553fe2a2facc4a8cb356a736cdb66e" kindref="member">set</ref>(handle,<sp/>std::move(local_graph));</highlight></codeline>
+<codeline lineno="129"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordflow">if</highlight><highlight class="normal"><sp/>(edge_weights)<sp/>edge_weights-&gt;set(handle,<sp/>std::move(*local_edge_weights));</highlight></codeline>
+<codeline lineno="130"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordflow">if</highlight><highlight class="normal"><sp/>(edge_ids)<sp/>edge_ids-&gt;set(handle,<sp/>std::move(*local_edge_ids));</highlight></codeline>
+<codeline lineno="131"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordflow">if</highlight><highlight class="normal"><sp/>(edge_types)<sp/>edge_types-&gt;set(handle,<sp/>std::move(*local_edge_types));</highlight></codeline>
+<codeline lineno="132"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordflow">if</highlight><highlight class="normal"><sp/>(renumber)<sp/>renumber_map-&gt;set(handle,<sp/>std::move(*local_renumber_map));</highlight></codeline>
+<codeline lineno="133"><highlight class="normal">}</highlight></codeline>
+<codeline lineno="134"><highlight class="normal"></highlight></codeline>
+<codeline lineno="135"><highlight class="normal">}<sp/><sp/></highlight><highlight class="comment">//<sp/>namespace<sp/>mtmg</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="136"><highlight class="normal">}<sp/><sp/></highlight><highlight class="comment">//<sp/>namespace<sp/>cugraph</highlight><highlight class="normal"></highlight></codeline>
+    </programlisting>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/graph.hpp"/>
+  </compounddef>
+</doxygen>

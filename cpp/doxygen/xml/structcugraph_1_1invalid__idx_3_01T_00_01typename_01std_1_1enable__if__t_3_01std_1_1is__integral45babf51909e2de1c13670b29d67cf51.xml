@@ -1,0 +1,41 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="structcugraph_1_1invalid__idx_3_01T_00_01typename_01std_1_1enable__if__t_3_01std_1_1is__integral45babf51909e2de1c13670b29d67cf51" kind="struct" language="C++" prot="public">
+    <compoundname>cugraph::invalid_idx&lt; T, typename std::enable_if_t&lt; std::is_integral&lt; T &gt;::value &amp;&amp;std::is_unsigned&lt; T &gt;::value &gt; &gt;</compoundname>
+    <basecompoundref prot="public" virt="non-virtual">std::integral_constant&lt; T, std::numeric_limits&lt; T &gt;::max()&gt;</basecompoundref>
+    <templateparamlist>
+      <param>
+        <type>typename T</type>
+      </param>
+    </templateparamlist>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <inheritancegraph>
+      <node id="1">
+        <label>cugraph::invalid_idx&lt; T, typename std::enable_if_t&lt; std::is_integral&lt; T &gt;::value &amp;&amp;std::is_unsigned&lt; T &gt;::value &gt; &gt;</label>
+        <link refid="structcugraph_1_1invalid__idx_3_01T_00_01typename_01std_1_1enable__if__t_3_01std_1_1is__integral45babf51909e2de1c13670b29d67cf51"/>
+        <childnode refid="2" relation="public-inheritance">
+        </childnode>
+      </node>
+      <node id="2">
+        <label>std::integral_constant&lt; T, std::numeric_limits&lt; T &gt;::max()&gt;</label>
+      </node>
+    </inheritancegraph>
+    <collaborationgraph>
+      <node id="1">
+        <label>cugraph::invalid_idx&lt; T, typename std::enable_if_t&lt; std::is_integral&lt; T &gt;::value &amp;&amp;std::is_unsigned&lt; T &gt;::value &gt; &gt;</label>
+        <link refid="structcugraph_1_1invalid__idx_3_01T_00_01typename_01std_1_1enable__if__t_3_01std_1_1is__integral45babf51909e2de1c13670b29d67cf51"/>
+        <childnode refid="2" relation="public-inheritance">
+        </childnode>
+      </node>
+      <node id="2">
+        <label>std::integral_constant&lt; T, std::numeric_limits&lt; T &gt;::max()&gt;</label>
+      </node>
+    </collaborationgraph>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph.hpp" line="314" column="1" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph.hpp" bodystart="317" bodyend="317"/>
+    <listofallmembers>
+    </listofallmembers>
+  </compounddef>
+</doxygen>

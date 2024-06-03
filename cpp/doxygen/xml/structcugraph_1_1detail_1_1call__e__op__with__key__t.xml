@@ -1,0 +1,153 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="structcugraph_1_1detail_1_1call__e__op__with__key__t" kind="struct" language="C++" prot="public">
+    <compoundname>cugraph::detail::call_e_op_with_key_t</compoundname>
+    <templateparamlist>
+      <param>
+        <type>typename GraphViewType</type>
+      </param>
+      <param>
+        <type>typename key_t</type>
+      </param>
+      <param>
+        <type>typename EdgePartitionSrcValueInputWrapper</type>
+      </param>
+      <param>
+        <type>typename EdgePartitionDstValueInputWrapper</type>
+      </param>
+      <param>
+        <type>typename EdgePartitionEdgeValueInputWrapper</type>
+      </param>
+      <param>
+        <type>typename EdgeOp</type>
+      </param>
+    </templateparamlist>
+    <sectiondef kind="public-attrib">
+      <memberdef kind="variable" id="structcugraph_1_1detail_1_1call__e__op__with__key__t_1a311f08f53fd5323c25531c3d18d73799" prot="public" static="no" mutable="no">
+        <type><ref refid="classcugraph_1_1edge__partition__device__view__t" kindref="compound">edge_partition_device_view_t</ref>&lt; typename GraphViewType::vertex_type, typename GraphViewType::edge_type, GraphViewType::is_multi_gpu &gt; const  &amp;</type>
+        <definition>edge_partition_device_view_t&lt;typename GraphViewType::vertex_type, typename GraphViewType::edge_type, GraphViewType::is_multi_gpu&gt; const&amp; cugraph::detail::call_e_op_with_key_t&lt; GraphViewType, key_t, EdgePartitionSrcValueInputWrapper, EdgePartitionDstValueInputWrapper, EdgePartitionEdgeValueInputWrapper, EdgeOp &gt;::edge_partition</definition>
+        <argsstring></argsstring>
+        <name>edge_partition</name>
+        <qualifiedname>cugraph::detail::call_e_op_with_key_t::edge_partition</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/detail/prim_functors.cuh" line="83" column="8" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/detail/prim_functors.cuh" bodystart="83" bodyend="83"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph_1_1detail_1_1call__e__op__with__key__t_1a9b52ddc6b9e547f9b37e21dee7a4fd2c" prot="public" static="no" mutable="no">
+        <type>EdgePartitionSrcValueInputWrapper const  &amp;</type>
+        <definition>EdgePartitionSrcValueInputWrapper const&amp; cugraph::detail::call_e_op_with_key_t&lt; GraphViewType, key_t, EdgePartitionSrcValueInputWrapper, EdgePartitionDstValueInputWrapper, EdgePartitionEdgeValueInputWrapper, EdgeOp &gt;::edge_partition_src_value_input</definition>
+        <argsstring></argsstring>
+        <name>edge_partition_src_value_input</name>
+        <qualifiedname>cugraph::detail::call_e_op_with_key_t::edge_partition_src_value_input</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/detail/prim_functors.cuh" line="84" column="43" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/detail/prim_functors.cuh" bodystart="84" bodyend="84"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph_1_1detail_1_1call__e__op__with__key__t_1a6a27c08a40ebdd63f0e625d1a5d7b357" prot="public" static="no" mutable="no">
+        <type>EdgePartitionDstValueInputWrapper const  &amp;</type>
+        <definition>EdgePartitionDstValueInputWrapper const&amp; cugraph::detail::call_e_op_with_key_t&lt; GraphViewType, key_t, EdgePartitionSrcValueInputWrapper, EdgePartitionDstValueInputWrapper, EdgePartitionEdgeValueInputWrapper, EdgeOp &gt;::edge_partition_dst_value_input</definition>
+        <argsstring></argsstring>
+        <name>edge_partition_dst_value_input</name>
+        <qualifiedname>cugraph::detail::call_e_op_with_key_t::edge_partition_dst_value_input</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/detail/prim_functors.cuh" line="85" column="43" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/detail/prim_functors.cuh" bodystart="85" bodyend="85"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph_1_1detail_1_1call__e__op__with__key__t_1a16306149a3dec05e5a27ccec5262a6f9" prot="public" static="no" mutable="no">
+        <type>EdgePartitionEdgeValueInputWrapper const  &amp;</type>
+        <definition>EdgePartitionEdgeValueInputWrapper const&amp; cugraph::detail::call_e_op_with_key_t&lt; GraphViewType, key_t, EdgePartitionSrcValueInputWrapper, EdgePartitionDstValueInputWrapper, EdgePartitionEdgeValueInputWrapper, EdgeOp &gt;::edge_partition_e_value_input</definition>
+        <argsstring></argsstring>
+        <name>edge_partition_e_value_input</name>
+        <qualifiedname>cugraph::detail::call_e_op_with_key_t::edge_partition_e_value_input</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/detail/prim_functors.cuh" line="86" column="44" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/detail/prim_functors.cuh" bodystart="86" bodyend="86"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph_1_1detail_1_1call__e__op__with__key__t_1ad8f821ba9fea0bf4e5a56f381fd342d8" prot="public" static="no" mutable="no">
+        <type>EdgeOp const  &amp;</type>
+        <definition>EdgeOp const&amp; cugraph::detail::call_e_op_with_key_t&lt; GraphViewType, key_t, EdgePartitionSrcValueInputWrapper, EdgePartitionDstValueInputWrapper, EdgePartitionEdgeValueInputWrapper, EdgeOp &gt;::e_op</definition>
+        <argsstring></argsstring>
+        <name>e_op</name>
+        <qualifiedname>cugraph::detail::call_e_op_with_key_t::e_op</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/detail/prim_functors.cuh" line="87" column="16" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/detail/prim_functors.cuh" bodystart="87" bodyend="87"/>
+      </memberdef>
+    </sectiondef>
+    <sectiondef kind="public-func">
+      <memberdef kind="function" id="structcugraph_1_1detail_1_1call__e__op__with__key__t_1a8c52f51528d5e5909b1dcc746af37408" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>__device__ auto</type>
+        <definition>__device__ auto cugraph::detail::call_e_op_with_key_t&lt; GraphViewType, key_t, EdgePartitionSrcValueInputWrapper, EdgePartitionDstValueInputWrapper, EdgePartitionEdgeValueInputWrapper, EdgeOp &gt;::operator()</definition>
+        <argsstring>(key_t key, typename GraphViewType::edge_type i) const</argsstring>
+        <name>operator()</name>
+        <qualifiedname>cugraph::detail::call_e_op_with_key_t::operator()</qualifiedname>
+        <param>
+          <type>key_t</type>
+          <declname>key</declname>
+        </param>
+        <param>
+          <type>typename GraphViewType::edge_type</type>
+          <declname>i</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/detail/prim_functors.cuh" line="89" column="19" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/detail/prim_functors.cuh" bodystart="89" bodyend="118"/>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <collaborationgraph>
+      <node id="1">
+        <label>cugraph::detail::call_e_op_with_key_t&lt; GraphViewType, key_t, EdgePartitionSrcValueInputWrapper, EdgePartitionDstValueInputWrapper, EdgePartitionEdgeValueInputWrapper, EdgeOp &gt;</label>
+        <link refid="structcugraph_1_1detail_1_1call__e__op__with__key__t"/>
+        <childnode refid="2" relation="usage">
+          <edgelabel>edge_partition</edgelabel>
+        </childnode>
+      </node>
+      <node id="2">
+        <label>cugraph::edge_partition_device_view_t&lt; typename GraphViewType::vertex_type, typename GraphViewType::edge_type, GraphViewType::is_multi_gpu &gt;</label>
+        <link refid="classcugraph_1_1edge__partition__device__view__t"/>
+      </node>
+    </collaborationgraph>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/detail/prim_functors.cuh" line="80" column="1" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/detail/prim_functors.cuh" bodystart="80" bodyend="119"/>
+    <listofallmembers>
+      <member refid="structcugraph_1_1detail_1_1call__e__op__with__key__t_1ad8f821ba9fea0bf4e5a56f381fd342d8" prot="public" virt="non-virtual"><scope>cugraph::detail::call_e_op_with_key_t</scope><name>e_op</name></member>
+      <member refid="structcugraph_1_1detail_1_1call__e__op__with__key__t_1a311f08f53fd5323c25531c3d18d73799" prot="public" virt="non-virtual"><scope>cugraph::detail::call_e_op_with_key_t</scope><name>edge_partition</name></member>
+      <member refid="structcugraph_1_1detail_1_1call__e__op__with__key__t_1a6a27c08a40ebdd63f0e625d1a5d7b357" prot="public" virt="non-virtual"><scope>cugraph::detail::call_e_op_with_key_t</scope><name>edge_partition_dst_value_input</name></member>
+      <member refid="structcugraph_1_1detail_1_1call__e__op__with__key__t_1a16306149a3dec05e5a27ccec5262a6f9" prot="public" virt="non-virtual"><scope>cugraph::detail::call_e_op_with_key_t</scope><name>edge_partition_e_value_input</name></member>
+      <member refid="structcugraph_1_1detail_1_1call__e__op__with__key__t_1a9b52ddc6b9e547f9b37e21dee7a4fd2c" prot="public" virt="non-virtual"><scope>cugraph::detail::call_e_op_with_key_t</scope><name>edge_partition_src_value_input</name></member>
+      <member refid="structcugraph_1_1detail_1_1call__e__op__with__key__t_1a8c52f51528d5e5909b1dcc746af37408" prot="public" virt="non-virtual"><scope>cugraph::detail::call_e_op_with_key_t</scope><name>operator()</name></member>
+    </listofallmembers>
+  </compounddef>
+</doxygen>

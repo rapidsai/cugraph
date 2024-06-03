@@ -1,0 +1,173 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="structcugraph_1_1detail_1_1call__key__aggregated__e__op__t" kind="struct" language="C++" prot="public">
+    <compoundname>cugraph::detail::call_key_aggregated_e_op_t</compoundname>
+    <templateparamlist>
+      <param>
+        <type>typename vertex_t</type>
+      </param>
+      <param>
+        <type>typename edge_value_t</type>
+      </param>
+      <param>
+        <type>typename e_op_result_t</type>
+      </param>
+      <param>
+        <type>typename EdgePartitionDeviceView</type>
+      </param>
+      <param>
+        <type>typename EdgeMajorValueMap</type>
+      </param>
+      <param>
+        <type>typename EdgePartitionMajorValueInputWrapper</type>
+      </param>
+      <param>
+        <type>typename EdgeMinorKeyValueMap</type>
+      </param>
+      <param>
+        <type>typename KeyAggregatedEdgeOp</type>
+      </param>
+    </templateparamlist>
+    <sectiondef kind="public-attrib">
+      <memberdef kind="variable" id="structcugraph_1_1detail_1_1call__key__aggregated__e__op__t_1adfdaffa051233fdab6587af1fad6bc5f" prot="public" static="no" mutable="no">
+        <type>EdgePartitionDeviceView</type>
+        <definition>EdgePartitionDeviceView cugraph::detail::call_key_aggregated_e_op_t&lt; vertex_t, edge_value_t, e_op_result_t, EdgePartitionDeviceView, EdgeMajorValueMap, EdgePartitionMajorValueInputWrapper, EdgeMinorKeyValueMap, KeyAggregatedEdgeOp &gt;::edge_partition</definition>
+        <argsstring></argsstring>
+        <name>edge_partition</name>
+        <qualifiedname>cugraph::detail::call_key_aggregated_e_op_t::edge_partition</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/per_v_transform_reduce_dst_key_aggregated_outgoing_e.cuh" line="125" column="27" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/per_v_transform_reduce_dst_key_aggregated_outgoing_e.cuh" bodystart="125" bodyend="125"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph_1_1detail_1_1call__key__aggregated__e__op__t_1a47894a06acdf827586eb72e1d20188a6" prot="public" static="no" mutable="no">
+        <type>thrust::optional&lt; EdgeMajorValueMap &gt;</type>
+        <definition>thrust::optional&lt;EdgeMajorValueMap&gt; cugraph::detail::call_key_aggregated_e_op_t&lt; vertex_t, edge_value_t, e_op_result_t, EdgePartitionDeviceView, EdgeMajorValueMap, EdgePartitionMajorValueInputWrapper, EdgeMinorKeyValueMap, KeyAggregatedEdgeOp &gt;::edge_major_value_map</definition>
+        <argsstring></argsstring>
+        <name>edge_major_value_map</name>
+        <qualifiedname>cugraph::detail::call_key_aggregated_e_op_t::edge_major_value_map</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/per_v_transform_reduce_dst_key_aggregated_outgoing_e.cuh" line="126" column="20" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/per_v_transform_reduce_dst_key_aggregated_outgoing_e.cuh" bodystart="126" bodyend="126"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph_1_1detail_1_1call__key__aggregated__e__op__t_1abd632ad5832a56d690fc21af66c6097d" prot="public" static="no" mutable="no">
+        <type>EdgePartitionMajorValueInputWrapper</type>
+        <definition>EdgePartitionMajorValueInputWrapper cugraph::detail::call_key_aggregated_e_op_t&lt; vertex_t, edge_value_t, e_op_result_t, EdgePartitionDeviceView, EdgeMajorValueMap, EdgePartitionMajorValueInputWrapper, EdgeMinorKeyValueMap, KeyAggregatedEdgeOp &gt;::edge_partition_major_value_input</definition>
+        <argsstring></argsstring>
+        <name>edge_partition_major_value_input</name>
+        <qualifiedname>cugraph::detail::call_key_aggregated_e_op_t::edge_partition_major_value_input</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/per_v_transform_reduce_dst_key_aggregated_outgoing_e.cuh" line="127" column="39" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/per_v_transform_reduce_dst_key_aggregated_outgoing_e.cuh" bodystart="127" bodyend="127"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph_1_1detail_1_1call__key__aggregated__e__op__t_1a43f658759b92ae0867b100980a271f00" prot="public" static="no" mutable="no">
+        <type>EdgeMinorKeyValueMap</type>
+        <definition>EdgeMinorKeyValueMap cugraph::detail::call_key_aggregated_e_op_t&lt; vertex_t, edge_value_t, e_op_result_t, EdgePartitionDeviceView, EdgeMajorValueMap, EdgePartitionMajorValueInputWrapper, EdgeMinorKeyValueMap, KeyAggregatedEdgeOp &gt;::edge_minor_key_value_map</definition>
+        <argsstring></argsstring>
+        <name>edge_minor_key_value_map</name>
+        <qualifiedname>cugraph::detail::call_key_aggregated_e_op_t::edge_minor_key_value_map</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/per_v_transform_reduce_dst_key_aggregated_outgoing_e.cuh" line="128" column="24" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/per_v_transform_reduce_dst_key_aggregated_outgoing_e.cuh" bodystart="128" bodyend="128"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph_1_1detail_1_1call__key__aggregated__e__op__t_1acca18a49ae99339b15a3021b30cede3d" prot="public" static="no" mutable="no">
+        <type>KeyAggregatedEdgeOp</type>
+        <definition>KeyAggregatedEdgeOp cugraph::detail::call_key_aggregated_e_op_t&lt; vertex_t, edge_value_t, e_op_result_t, EdgePartitionDeviceView, EdgeMajorValueMap, EdgePartitionMajorValueInputWrapper, EdgeMinorKeyValueMap, KeyAggregatedEdgeOp &gt;::key_aggregated_e_op</definition>
+        <argsstring></argsstring>
+        <name>key_aggregated_e_op</name>
+        <qualifiedname>cugraph::detail::call_key_aggregated_e_op_t::key_aggregated_e_op</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/per_v_transform_reduce_dst_key_aggregated_outgoing_e.cuh" line="129" column="23" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/per_v_transform_reduce_dst_key_aggregated_outgoing_e.cuh" bodystart="129" bodyend="129"/>
+      </memberdef>
+    </sectiondef>
+    <sectiondef kind="public-func">
+      <memberdef kind="function" id="structcugraph_1_1detail_1_1call__key__aggregated__e__op__t_1a8e6f59636799ee69a75b9f1a504ae9b9" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <templateparamlist>
+          <param>
+            <type>typename edge_value_type</type>
+            <defval>edge_value_t</defval>
+          </param>
+        </templateparamlist>
+        <type>__device__ std::enable_if_t&lt;!std::is_same_v&lt; edge_value_type, thrust::nullopt_t &gt;, e_op_result_t &gt;</type>
+        <definition>__device__ std::enable_if_t&lt;!std::is_same_v&lt; edge_value_type, thrust::nullopt_t &gt;, e_op_result_t &gt; cugraph::detail::call_key_aggregated_e_op_t&lt; vertex_t, edge_value_t, e_op_result_t, EdgePartitionDeviceView, EdgeMajorValueMap, EdgePartitionMajorValueInputWrapper, EdgeMinorKeyValueMap, KeyAggregatedEdgeOp &gt;::operator()</definition>
+        <argsstring>(thrust::tuple&lt; vertex_t, vertex_t, edge_value_t &gt; val) const</argsstring>
+        <name>operator()</name>
+        <qualifiedname>cugraph::detail::call_key_aggregated_e_op_t::operator()</qualifiedname>
+        <param>
+          <type>thrust::tuple&lt; vertex_t, vertex_t, edge_value_t &gt;</type>
+          <declname>val</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/per_v_transform_reduce_dst_key_aggregated_outgoing_e.cuh" line="133" column="3" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/per_v_transform_reduce_dst_key_aggregated_outgoing_e.cuh" bodystart="133" bodyend="145"/>
+      </memberdef>
+      <memberdef kind="function" id="structcugraph_1_1detail_1_1call__key__aggregated__e__op__t_1a251f1872c72ed30405f1ebd700dd2efc" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <templateparamlist>
+          <param>
+            <type>typename edge_value_type</type>
+            <defval>edge_value_t</defval>
+          </param>
+        </templateparamlist>
+        <type>__device__ std::enable_if_t&lt; std::is_same_v&lt; edge_value_type, thrust::nullopt_t &gt;, e_op_result_t &gt;</type>
+        <definition>__device__ std::enable_if_t&lt; std::is_same_v&lt; edge_value_type, thrust::nullopt_t &gt;, e_op_result_t &gt; cugraph::detail::call_key_aggregated_e_op_t&lt; vertex_t, edge_value_t, e_op_result_t, EdgePartitionDeviceView, EdgeMajorValueMap, EdgePartitionMajorValueInputWrapper, EdgeMinorKeyValueMap, KeyAggregatedEdgeOp &gt;::operator()</definition>
+        <argsstring>(thrust::tuple&lt; vertex_t, vertex_t &gt; val) const</argsstring>
+        <name>operator()</name>
+        <qualifiedname>cugraph::detail::call_key_aggregated_e_op_t::operator()</qualifiedname>
+        <param>
+          <type>thrust::tuple&lt; vertex_t, vertex_t &gt;</type>
+          <declname>val</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/per_v_transform_reduce_dst_key_aggregated_outgoing_e.cuh" line="149" column="3" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/per_v_transform_reduce_dst_key_aggregated_outgoing_e.cuh" bodystart="149" bodyend="159"/>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/per_v_transform_reduce_dst_key_aggregated_outgoing_e.cuh" line="124" column="1" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/per_v_transform_reduce_dst_key_aggregated_outgoing_e.cuh" bodystart="124" bodyend="160"/>
+    <listofallmembers>
+      <member refid="structcugraph_1_1detail_1_1call__key__aggregated__e__op__t_1a47894a06acdf827586eb72e1d20188a6" prot="public" virt="non-virtual"><scope>cugraph::detail::call_key_aggregated_e_op_t</scope><name>edge_major_value_map</name></member>
+      <member refid="structcugraph_1_1detail_1_1call__key__aggregated__e__op__t_1a43f658759b92ae0867b100980a271f00" prot="public" virt="non-virtual"><scope>cugraph::detail::call_key_aggregated_e_op_t</scope><name>edge_minor_key_value_map</name></member>
+      <member refid="structcugraph_1_1detail_1_1call__key__aggregated__e__op__t_1adfdaffa051233fdab6587af1fad6bc5f" prot="public" virt="non-virtual"><scope>cugraph::detail::call_key_aggregated_e_op_t</scope><name>edge_partition</name></member>
+      <member refid="structcugraph_1_1detail_1_1call__key__aggregated__e__op__t_1abd632ad5832a56d690fc21af66c6097d" prot="public" virt="non-virtual"><scope>cugraph::detail::call_key_aggregated_e_op_t</scope><name>edge_partition_major_value_input</name></member>
+      <member refid="structcugraph_1_1detail_1_1call__key__aggregated__e__op__t_1acca18a49ae99339b15a3021b30cede3d" prot="public" virt="non-virtual"><scope>cugraph::detail::call_key_aggregated_e_op_t</scope><name>key_aggregated_e_op</name></member>
+      <member refid="structcugraph_1_1detail_1_1call__key__aggregated__e__op__t_1a8e6f59636799ee69a75b9f1a504ae9b9" prot="public" virt="non-virtual"><scope>cugraph::detail::call_key_aggregated_e_op_t</scope><name>operator()</name></member>
+      <member refid="structcugraph_1_1detail_1_1call__key__aggregated__e__op__t_1a251f1872c72ed30405f1ebd700dd2efc" prot="public" virt="non-virtual"><scope>cugraph::detail::call_key_aggregated_e_op_t</scope><name>operator()</name></member>
+    </listofallmembers>
+  </compounddef>
+</doxygen>

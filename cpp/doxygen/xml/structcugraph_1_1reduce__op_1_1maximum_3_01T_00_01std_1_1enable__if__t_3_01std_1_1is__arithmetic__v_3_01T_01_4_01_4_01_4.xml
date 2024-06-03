@@ -1,0 +1,110 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="structcugraph_1_1reduce__op_1_1maximum_3_01T_00_01std_1_1enable__if__t_3_01std_1_1is__arithmetic__v_3_01T_01_4_01_4_01_4" kind="struct" language="C++" prot="public">
+    <compoundname>cugraph::reduce_op::maximum&lt; T, std::enable_if_t&lt; std::is_arithmetic_v&lt; T &gt; &gt; &gt;</compoundname>
+    <templateparamlist>
+      <param>
+        <type>typename T</type>
+      </param>
+    </templateparamlist>
+    <sectiondef kind="public-type">
+      <memberdef kind="typedef" id="structcugraph_1_1reduce__op_1_1maximum_3_01T_00_01std_1_1enable__if__t_3_01std_1_1is__arithmetic__v_3_01T_01_4_01_4_01_4_1acef281980c2c8eb54d6932152e7085ba" prot="public" static="no">
+        <type>T</type>
+        <definition>using cugraph::reduce_op::maximum&lt; T, std::enable_if_t&lt; std::is_arithmetic_v&lt; T &gt; &gt; &gt;::value_type =  T</definition>
+        <argsstring></argsstring>
+        <name>value_type</name>
+        <qualifiedname>cugraph::reduce_op::maximum&lt; T, std::enable_if_t&lt; std::is_arithmetic_v&lt; T &gt; &gt; &gt;::value_type</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/reduce_op.cuh" line="158" column="3" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/reduce_op.cuh" bodystart="158" bodyend="-1"/>
+      </memberdef>
+    </sectiondef>
+    <sectiondef kind="public-static-attrib">
+      <memberdef kind="variable" id="structcugraph_1_1reduce__op_1_1maximum_3_01T_00_01std_1_1enable__if__t_3_01std_1_1is__arithmetic__v_3_01T_01_4_01_4_01_4_1ac0f5a3d6fa85b0ce32b4f89dbaadef62" prot="public" static="yes" constexpr="yes" mutable="no">
+        <type>constexpr bool</type>
+        <definition>constexpr bool cugraph::reduce_op::maximum&lt; T, std::enable_if_t&lt; std::is_arithmetic_v&lt; T &gt; &gt; &gt;::pure_function</definition>
+        <argsstring></argsstring>
+        <name>pure_function</name>
+        <qualifiedname>cugraph::reduce_op::maximum&lt; T, std::enable_if_t&lt; std::is_arithmetic_v&lt; T &gt; &gt; &gt;::pure_function</qualifiedname>
+        <initializer>= true</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/reduce_op.cuh" line="159" column="25" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/reduce_op.cuh" bodystart="159" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph_1_1reduce__op_1_1maximum_3_01T_00_01std_1_1enable__if__t_3_01std_1_1is__arithmetic__v_3_01T_01_4_01_4_01_4_1a7d5999166316f93d2ad945f27aeedd56" prot="public" static="yes" constexpr="yes" mutable="no">
+        <type>constexpr raft::comms::op_t</type>
+        <definition>constexpr raft::comms::op_t cugraph::reduce_op::maximum&lt; T, std::enable_if_t&lt; std::is_arithmetic_v&lt; T &gt; &gt; &gt;::compatible_raft_comms_op</definition>
+        <argsstring></argsstring>
+        <name>compatible_raft_comms_op</name>
+        <qualifiedname>cugraph::reduce_op::maximum&lt; T, std::enable_if_t&lt; std::is_arithmetic_v&lt; T &gt; &gt; &gt;::compatible_raft_comms_op</qualifiedname>
+        <initializer>= raft::comms::op_t::MAX</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/reduce_op.cuh" line="160" column="38" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/reduce_op.cuh" bodystart="160" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph_1_1reduce__op_1_1maximum_3_01T_00_01std_1_1enable__if__t_3_01std_1_1is__arithmetic__v_3_01T_01_4_01_4_01_4_1a678674caca6c4f719b99bf2bc2cc17eb" prot="public" static="yes" mutable="no">
+        <type>T const</type>
+        <definition>T const cugraph::reduce_op::maximum&lt; T, std::enable_if_t&lt; std::is_arithmetic_v&lt; T &gt; &gt; &gt;::identity_element</definition>
+        <argsstring></argsstring>
+        <name>identity_element</name>
+        <qualifiedname>cugraph::reduce_op::maximum&lt; T, std::enable_if_t&lt; std::is_arithmetic_v&lt; T &gt; &gt; &gt;::identity_element</qualifiedname>
+        <initializer>= min_identity_element&lt;T&gt;()</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/reduce_op.cuh" line="161" column="25" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/reduce_op.cuh" bodystart="161" bodyend="-1"/>
+      </memberdef>
+    </sectiondef>
+    <sectiondef kind="public-func">
+      <memberdef kind="function" id="structcugraph_1_1reduce__op_1_1maximum_3_01T_00_01std_1_1enable__if__t_3_01std_1_1is__arithmetic__v_3_01T_01_4_01_4_01_4_1af8f8583efad3bdcfe7ae5b10d8a0360f" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>__host__ __device__ T</type>
+        <definition>__host__ __device__ T cugraph::reduce_op::maximum&lt; T, std::enable_if_t&lt; std::is_arithmetic_v&lt; T &gt; &gt; &gt;::operator()</definition>
+        <argsstring>(T const &amp;lhs, T const &amp;rhs) const</argsstring>
+        <name>operator()</name>
+        <qualifiedname>cugraph::reduce_op::maximum&lt; T, std::enable_if_t&lt; std::is_arithmetic_v&lt; T &gt; &gt; &gt;::operator()</qualifiedname>
+        <param>
+          <type>T const &amp;</type>
+          <declname>lhs</declname>
+        </param>
+        <param>
+          <type>T const &amp;</type>
+          <declname>rhs</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/reduce_op.cuh" line="163" column="25" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/reduce_op.cuh" bodystart="163" bodyend="166"/>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/reduce_op.cuh" line="157" column="1" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/reduce_op.cuh" bodystart="157" bodyend="167"/>
+    <listofallmembers>
+      <member refid="structcugraph_1_1reduce__op_1_1maximum_3_01T_00_01std_1_1enable__if__t_3_01std_1_1is__arithmetic__v_3_01T_01_4_01_4_01_4_1a7d5999166316f93d2ad945f27aeedd56" prot="public" virt="non-virtual"><scope>cugraph::reduce_op::maximum&lt; T, std::enable_if_t&lt; std::is_arithmetic_v&lt; T &gt; &gt; &gt;</scope><name>compatible_raft_comms_op</name></member>
+      <member refid="structcugraph_1_1reduce__op_1_1maximum_3_01T_00_01std_1_1enable__if__t_3_01std_1_1is__arithmetic__v_3_01T_01_4_01_4_01_4_1a678674caca6c4f719b99bf2bc2cc17eb" prot="public" virt="non-virtual"><scope>cugraph::reduce_op::maximum&lt; T, std::enable_if_t&lt; std::is_arithmetic_v&lt; T &gt; &gt; &gt;</scope><name>identity_element</name></member>
+      <member refid="structcugraph_1_1reduce__op_1_1maximum_3_01T_00_01std_1_1enable__if__t_3_01std_1_1is__arithmetic__v_3_01T_01_4_01_4_01_4_1af8f8583efad3bdcfe7ae5b10d8a0360f" prot="public" virt="non-virtual"><scope>cugraph::reduce_op::maximum&lt; T, std::enable_if_t&lt; std::is_arithmetic_v&lt; T &gt; &gt; &gt;</scope><name>operator()</name></member>
+      <member refid="structcugraph_1_1reduce__op_1_1maximum_3_01T_00_01std_1_1enable__if__t_3_01std_1_1is__arithmetic__v_3_01T_01_4_01_4_01_4_1ac0f5a3d6fa85b0ce32b4f89dbaadef62" prot="public" virt="non-virtual"><scope>cugraph::reduce_op::maximum&lt; T, std::enable_if_t&lt; std::is_arithmetic_v&lt; T &gt; &gt; &gt;</scope><name>pure_function</name></member>
+      <member refid="structcugraph_1_1reduce__op_1_1maximum_3_01T_00_01std_1_1enable__if__t_3_01std_1_1is__arithmetic__v_3_01T_01_4_01_4_01_4_1acef281980c2c8eb54d6932152e7085ba" prot="public" virt="non-virtual"><scope>cugraph::reduce_op::maximum&lt; T, std::enable_if_t&lt; std::is_arithmetic_v&lt; T &gt; &gt; &gt;</scope><name>value_type</name></member>
+    </listofallmembers>
+  </compounddef>
+</doxygen>

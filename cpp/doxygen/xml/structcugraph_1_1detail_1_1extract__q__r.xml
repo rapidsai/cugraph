@@ -1,0 +1,110 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="structcugraph_1_1detail_1_1extract__q__r" kind="struct" language="C++" prot="public">
+    <compoundname>cugraph::detail::extract_q_r</compoundname>
+    <templateparamlist>
+      <param>
+        <type>typename vertex_t</type>
+      </param>
+      <param>
+        <type>typename edge_t</type>
+      </param>
+      <param>
+        <type>typename EdgeIterator</type>
+      </param>
+    </templateparamlist>
+    <sectiondef kind="public-attrib">
+      <memberdef kind="variable" id="structcugraph_1_1detail_1_1extract__q__r_1a43da14c5e20d609052949794dfba7e9d" prot="public" static="no" mutable="no">
+        <type>size_t</type>
+        <definition>size_t cugraph::detail::extract_q_r&lt; vertex_t, edge_t, EdgeIterator &gt;::chunk_start</definition>
+        <argsstring></argsstring>
+        <name>chunk_start</name>
+        <qualifiedname>cugraph::detail::extract_q_r::chunk_start</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/community/edge_triangle_count_impl.cuh" line="107" column="10" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/community/edge_triangle_count_impl.cuh" bodystart="107" bodyend="107"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph_1_1detail_1_1extract__q__r_1a825d085f2b3f52fc27334fe589391c2d" prot="public" static="no" mutable="no">
+        <type>raft::device_span&lt; size_t const  &gt;</type>
+        <definition>raft::device_span&lt;size_t const&gt; cugraph::detail::extract_q_r&lt; vertex_t, edge_t, EdgeIterator &gt;::intersection_offsets</definition>
+        <argsstring></argsstring>
+        <name>intersection_offsets</name>
+        <qualifiedname>cugraph::detail::extract_q_r::intersection_offsets</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/community/edge_triangle_count_impl.cuh" line="108" column="21" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/community/edge_triangle_count_impl.cuh" bodystart="108" bodyend="108"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph_1_1detail_1_1extract__q__r_1ac1b77fa2c04f31e0e3e8c9ec933f8265" prot="public" static="no" mutable="no">
+        <type>raft::device_span&lt; vertex_t const  &gt;</type>
+        <definition>raft::device_span&lt;vertex_t const&gt; cugraph::detail::extract_q_r&lt; vertex_t, edge_t, EdgeIterator &gt;::intersection_indices</definition>
+        <argsstring></argsstring>
+        <name>intersection_indices</name>
+        <qualifiedname>cugraph::detail::extract_q_r::intersection_indices</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/community/edge_triangle_count_impl.cuh" line="109" column="21" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/community/edge_triangle_count_impl.cuh" bodystart="109" bodyend="109"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph_1_1detail_1_1extract__q__r_1a7d4be60fd4a5790d70a6f86b5aafed2b" prot="public" static="no" mutable="no">
+        <type>EdgeIterator</type>
+        <definition>EdgeIterator cugraph::detail::extract_q_r&lt; vertex_t, edge_t, EdgeIterator &gt;::edge_first</definition>
+        <argsstring></argsstring>
+        <name>edge_first</name>
+        <qualifiedname>cugraph::detail::extract_q_r::edge_first</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/community/edge_triangle_count_impl.cuh" line="110" column="16" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/community/edge_triangle_count_impl.cuh" bodystart="110" bodyend="-1"/>
+      </memberdef>
+    </sectiondef>
+    <sectiondef kind="public-func">
+      <memberdef kind="function" id="structcugraph_1_1detail_1_1extract__q__r_1ae02088d688874de14a1814d3e384e6f5" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>__device__ thrust::tuple&lt; vertex_t, vertex_t &gt;</type>
+        <definition>__device__ thrust::tuple&lt; vertex_t, vertex_t &gt; cugraph::detail::extract_q_r&lt; vertex_t, edge_t, EdgeIterator &gt;::operator()</definition>
+        <argsstring>(edge_t i) const</argsstring>
+        <name>operator()</name>
+        <qualifiedname>cugraph::detail::extract_q_r::operator()</qualifiedname>
+        <param>
+          <type>edge_t</type>
+          <declname>i</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/community/edge_triangle_count_impl.cuh" line="112" column="28" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/community/edge_triangle_count_impl.cuh" bodystart="112" bodyend="121"/>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/src/community/edge_triangle_count_impl.cuh" line="106" column="1" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/community/edge_triangle_count_impl.cuh" bodystart="106" bodyend="122"/>
+    <listofallmembers>
+      <member refid="structcugraph_1_1detail_1_1extract__q__r_1a43da14c5e20d609052949794dfba7e9d" prot="public" virt="non-virtual"><scope>cugraph::detail::extract_q_r</scope><name>chunk_start</name></member>
+      <member refid="structcugraph_1_1detail_1_1extract__q__r_1a7d4be60fd4a5790d70a6f86b5aafed2b" prot="public" virt="non-virtual"><scope>cugraph::detail::extract_q_r</scope><name>edge_first</name></member>
+      <member refid="structcugraph_1_1detail_1_1extract__q__r_1ac1b77fa2c04f31e0e3e8c9ec933f8265" prot="public" virt="non-virtual"><scope>cugraph::detail::extract_q_r</scope><name>intersection_indices</name></member>
+      <member refid="structcugraph_1_1detail_1_1extract__q__r_1a825d085f2b3f52fc27334fe589391c2d" prot="public" virt="non-virtual"><scope>cugraph::detail::extract_q_r</scope><name>intersection_offsets</name></member>
+      <member refid="structcugraph_1_1detail_1_1extract__q__r_1ae02088d688874de14a1814d3e384e6f5" prot="public" virt="non-virtual"><scope>cugraph::detail::extract_q_r</scope><name>operator()</name></member>
+    </listofallmembers>
+  </compounddef>
+</doxygen>

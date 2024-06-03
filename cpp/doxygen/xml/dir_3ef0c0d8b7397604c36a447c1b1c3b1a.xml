@@ -1,0 +1,27 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="dir_3ef0c0d8b7397604c36a447c1b1c3b1a" kind="dir">
+    <compoundname>mtmg</compoundname>
+    <innerdir refid="dir_1d1fa5b9099d2535a72b3ea2a0f296e1">detail</innerdir>
+    <innerfile refid="mtmg_2edge__property_8hpp">mtmg/edge_property.hpp</innerfile>
+    <innerfile refid="edge__property__view_8hpp">edge_property_view.hpp</innerfile>
+    <innerfile refid="edgelist_8hpp">edgelist.hpp</innerfile>
+    <innerfile refid="include_2cugraph_2mtmg_2graph_8hpp">include/cugraph/mtmg/graph.hpp</innerfile>
+    <innerfile refid="mtmg_2graph__view_8hpp">mtmg/graph_view.hpp</innerfile>
+    <innerfile refid="handle_8hpp">handle.hpp</innerfile>
+    <innerfile refid="instance__manager_8hpp">instance_manager.hpp</innerfile>
+    <innerfile refid="per__thread__edgelist_8hpp">per_thread_edgelist.hpp</innerfile>
+    <innerfile refid="renumber__map_8hpp">renumber_map.hpp</innerfile>
+    <innerfile refid="renumber__map__view_8hpp">renumber_map_view.hpp</innerfile>
+    <innerfile refid="resource__manager_8hpp">resource_manager.hpp</innerfile>
+    <innerfile refid="vertex__pair__result_8hpp">vertex_pair_result.hpp</innerfile>
+    <innerfile refid="vertex__pair__result__view_8hpp">vertex_pair_result_view.hpp</innerfile>
+    <innerfile refid="vertex__result_8hpp">vertex_result.hpp</innerfile>
+    <innerfile refid="vertex__result__view_8hpp">vertex_result_view.hpp</innerfile>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/"/>
+  </compounddef>
+</doxygen>

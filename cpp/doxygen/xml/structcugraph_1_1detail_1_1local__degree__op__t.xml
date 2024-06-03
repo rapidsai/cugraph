@@ -1,0 +1,121 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="structcugraph_1_1detail_1_1local__degree__op__t" kind="struct" language="C++" prot="public">
+    <compoundname>cugraph::detail::local_degree_op_t</compoundname>
+    <templateparamlist>
+      <param>
+        <type>typename vertex_t</type>
+      </param>
+      <param>
+        <type>typename edge_t</type>
+      </param>
+      <param>
+        <type>typename return_type_t</type>
+      </param>
+      <param>
+        <type>bool</type>
+        <declname>multi_gpu</declname>
+        <defname>multi_gpu</defname>
+      </param>
+      <param>
+        <type>bool</type>
+        <declname>use_dcs</declname>
+        <defname>use_dcs</defname>
+      </param>
+    </templateparamlist>
+    <sectiondef kind="public-attrib">
+      <memberdef kind="variable" id="structcugraph_1_1detail_1_1local__degree__op__t_1a3c3280787d9e65ef506c76a40dbcb983" prot="public" static="no" mutable="no">
+        <type>raft::device_span&lt; edge_t const  &gt;</type>
+        <definition>raft::device_span&lt;edge_t const&gt; cugraph::detail::local_degree_op_t&lt; vertex_t, edge_t, return_type_t, multi_gpu, use_dcs &gt;::offsets</definition>
+        <argsstring></argsstring>
+        <name>offsets</name>
+        <qualifiedname>cugraph::detail::local_degree_op_t::offsets</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_device_view.cuh" line="62" column="21" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_device_view.cuh" bodystart="62" bodyend="62"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph_1_1detail_1_1local__degree__op__t_1aec4bf4d195a5b0aab2761db725eb25ab" prot="public" static="no" mutable="no">
+        <type>std::conditional_t&lt; multi_gpu, vertex_t, std::byte &gt;</type>
+        <definition>std::conditional_t&lt;multi_gpu, vertex_t, std::byte &gt; cugraph::detail::local_degree_op_t&lt; vertex_t, edge_t, return_type_t, multi_gpu, use_dcs &gt;::major_range_first</definition>
+        <argsstring></argsstring>
+        <name>major_range_first</name>
+        <qualifiedname>cugraph::detail::local_degree_op_t::major_range_first</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_device_view.cuh" line="63" column="22" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_device_view.cuh" bodystart="63" bodyend="63"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph_1_1detail_1_1local__degree__op__t_1aa7e196de1e57680e427b0129d77e08a6" prot="public" static="no" mutable="no">
+        <type>std::conditional_t&lt; use_dcs, raft::device_span&lt; vertex_t const  &gt;, std::byte &gt;</type>
+        <definition>std::conditional_t&lt;use_dcs, raft::device_span&lt;vertex_t const&gt;, std::byte &gt; cugraph::detail::local_degree_op_t&lt; vertex_t, edge_t, return_type_t, multi_gpu, use_dcs &gt;::dcs_nzd_vertices</definition>
+        <argsstring></argsstring>
+        <name>dcs_nzd_vertices</name>
+        <qualifiedname>cugraph::detail::local_degree_op_t::dcs_nzd_vertices</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_device_view.cuh" line="66" column="5" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_device_view.cuh" bodystart="66" bodyend="66"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph_1_1detail_1_1local__degree__op__t_1a25483cfa762412d978375d7180235a93" prot="public" static="no" mutable="no">
+        <type>std::conditional_t&lt; use_dcs, vertex_t, std::byte &gt;</type>
+        <definition>std::conditional_t&lt;use_dcs, vertex_t, std::byte &gt; cugraph::detail::local_degree_op_t&lt; vertex_t, edge_t, return_type_t, multi_gpu, use_dcs &gt;::major_hypersparse_first</definition>
+        <argsstring></argsstring>
+        <name>major_hypersparse_first</name>
+        <qualifiedname>cugraph::detail::local_degree_op_t::major_hypersparse_first</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_device_view.cuh" line="67" column="22" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_device_view.cuh" bodystart="67" bodyend="67"/>
+      </memberdef>
+    </sectiondef>
+    <sectiondef kind="public-func">
+      <memberdef kind="function" id="structcugraph_1_1detail_1_1local__degree__op__t_1aeeb79298ed9c7a421beb9e5b36d40c78" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>__device__ return_type_t</type>
+        <definition>__device__ return_type_t cugraph::detail::local_degree_op_t&lt; vertex_t, edge_t, return_type_t, multi_gpu, use_dcs &gt;::operator()</definition>
+        <argsstring>(vertex_t major) const</argsstring>
+        <name>operator()</name>
+        <qualifiedname>cugraph::detail::local_degree_op_t::operator()</qualifiedname>
+        <param>
+          <type>vertex_t</type>
+          <declname>major</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_device_view.cuh" line="69" column="28" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_device_view.cuh" bodystart="69" bodyend="94"/>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_device_view.cuh" line="61" column="1" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_device_view.cuh" bodystart="61" bodyend="95"/>
+    <listofallmembers>
+      <member refid="structcugraph_1_1detail_1_1local__degree__op__t_1aa7e196de1e57680e427b0129d77e08a6" prot="public" virt="non-virtual"><scope>cugraph::detail::local_degree_op_t</scope><name>dcs_nzd_vertices</name></member>
+      <member refid="structcugraph_1_1detail_1_1local__degree__op__t_1a25483cfa762412d978375d7180235a93" prot="public" virt="non-virtual"><scope>cugraph::detail::local_degree_op_t</scope><name>major_hypersparse_first</name></member>
+      <member refid="structcugraph_1_1detail_1_1local__degree__op__t_1aec4bf4d195a5b0aab2761db725eb25ab" prot="public" virt="non-virtual"><scope>cugraph::detail::local_degree_op_t</scope><name>major_range_first</name></member>
+      <member refid="structcugraph_1_1detail_1_1local__degree__op__t_1a3c3280787d9e65ef506c76a40dbcb983" prot="public" virt="non-virtual"><scope>cugraph::detail::local_degree_op_t</scope><name>offsets</name></member>
+      <member refid="structcugraph_1_1detail_1_1local__degree__op__t_1aeeb79298ed9c7a421beb9e5b36d40c78" prot="public" virt="non-virtual"><scope>cugraph::detail::local_degree_op_t</scope><name>operator()</name></member>
+    </listofallmembers>
+  </compounddef>
+</doxygen>

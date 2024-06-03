@@ -1,0 +1,143 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="classcugraph_1_1detail_1_1edge__partition__edge__dummy__property__device__view__t" kind="class" language="C++" prot="public">
+    <compoundname>cugraph::detail::edge_partition_edge_dummy_property_device_view_t</compoundname>
+    <templateparamlist>
+      <param>
+        <type>typename edge_t</type>
+      </param>
+    </templateparamlist>
+    <sectiondef kind="public-type">
+      <memberdef kind="typedef" id="classcugraph_1_1detail_1_1edge__partition__edge__dummy__property__device__view__t_1aaf153d27c21e2f8f6232cf90e3fc6b85" prot="public" static="no">
+        <type>edge_t</type>
+        <definition>using cugraph::detail::edge_partition_edge_dummy_property_device_view_t&lt; edge_t &gt;::edge_type =  edge_t</definition>
+        <argsstring></argsstring>
+        <name>edge_type</name>
+        <qualifiedname>cugraph::detail::edge_partition_edge_dummy_property_device_view_t::edge_type</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_edge_property_device_view.cuh" line="177" column="3" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_edge_property_device_view.cuh" bodystart="177" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="typedef" id="classcugraph_1_1detail_1_1edge__partition__edge__dummy__property__device__view__t_1a41472685d2d7ae2414c724d649f152d9" prot="public" static="no">
+        <type>thrust::nullopt_t</type>
+        <definition>using cugraph::detail::edge_partition_edge_dummy_property_device_view_t&lt; edge_t &gt;::value_type =  thrust::nullopt_t</definition>
+        <argsstring></argsstring>
+        <name>value_type</name>
+        <qualifiedname>cugraph::detail::edge_partition_edge_dummy_property_device_view_t::value_type</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_edge_property_device_view.cuh" line="178" column="3" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_edge_property_device_view.cuh" bodystart="178" bodyend="-1"/>
+      </memberdef>
+    </sectiondef>
+    <sectiondef kind="public-static-attrib">
+      <memberdef kind="variable" id="classcugraph_1_1detail_1_1edge__partition__edge__dummy__property__device__view__t_1adf1c35d004281a307cb423c77447ab35" prot="public" static="yes" constexpr="yes" mutable="no">
+        <type>constexpr bool</type>
+        <definition>constexpr bool cugraph::detail::edge_partition_edge_dummy_property_device_view_t&lt; edge_t &gt;::is_packed_bool</definition>
+        <argsstring></argsstring>
+        <name>is_packed_bool</name>
+        <qualifiedname>cugraph::detail::edge_partition_edge_dummy_property_device_view_t::is_packed_bool</qualifiedname>
+        <initializer>= false</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_edge_property_device_view.cuh" line="180" column="25" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_edge_property_device_view.cuh" bodystart="180" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="variable" id="classcugraph_1_1detail_1_1edge__partition__edge__dummy__property__device__view__t_1a2383754ef3d2362c60b12e65be7fe1c2" prot="public" static="yes" constexpr="yes" mutable="no">
+        <type>constexpr bool</type>
+        <definition>constexpr bool cugraph::detail::edge_partition_edge_dummy_property_device_view_t&lt; edge_t &gt;::has_packed_bool_element</definition>
+        <argsstring></argsstring>
+        <name>has_packed_bool_element</name>
+        <qualifiedname>cugraph::detail::edge_partition_edge_dummy_property_device_view_t::has_packed_bool_element</qualifiedname>
+        <initializer>= false</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_edge_property_device_view.cuh" line="181" column="25" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_edge_property_device_view.cuh" bodystart="181" bodyend="-1"/>
+      </memberdef>
+    </sectiondef>
+    <sectiondef kind="public-func">
+      <memberdef kind="function" id="classcugraph_1_1detail_1_1edge__partition__edge__dummy__property__device__view__t_1ac3781b1826899bdde37d48495cdfd158" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type></type>
+        <definition>cugraph::detail::edge_partition_edge_dummy_property_device_view_t&lt; edge_t &gt;::edge_partition_edge_dummy_property_device_view_t</definition>
+        <argsstring>()=default</argsstring>
+        <name>edge_partition_edge_dummy_property_device_view_t</name>
+        <qualifiedname>cugraph::detail::edge_partition_edge_dummy_property_device_view_t::edge_partition_edge_dummy_property_device_view_t</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_edge_property_device_view.cuh" line="183" column="3"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1detail_1_1edge__partition__edge__dummy__property__device__view__t_1ab1e9a9cb4f10a39026bcb971214e5970" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type></type>
+        <definition>cugraph::detail::edge_partition_edge_dummy_property_device_view_t&lt; edge_t &gt;::edge_partition_edge_dummy_property_device_view_t</definition>
+        <argsstring>(edge_dummy_property_view_t const &amp;view, size_t partition_idx)</argsstring>
+        <name>edge_partition_edge_dummy_property_device_view_t</name>
+        <qualifiedname>cugraph::detail::edge_partition_edge_dummy_property_device_view_t::edge_partition_edge_dummy_property_device_view_t</qualifiedname>
+        <param>
+          <type><ref refid="classcugraph_1_1edge__dummy__property__view__t" kindref="compound">edge_dummy_property_view_t</ref> const &amp;</type>
+          <declname>view</declname>
+        </param>
+        <param>
+          <type>size_t</type>
+          <declname>partition_idx</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_edge_property_device_view.cuh" line="185" column="3" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_edge_property_device_view.cuh" bodystart="185" bodyend="188"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1detail_1_1edge__partition__edge__dummy__property__device__view__t_1a55838b5b577d143ddb9516b015278050" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>__device__ auto</type>
+        <definition>__device__ auto cugraph::detail::edge_partition_edge_dummy_property_device_view_t&lt; edge_t &gt;::get</definition>
+        <argsstring>(edge_t offset) const</argsstring>
+        <name>get</name>
+        <qualifiedname>cugraph::detail::edge_partition_edge_dummy_property_device_view_t::get</qualifiedname>
+        <param>
+          <type>edge_t</type>
+          <declname>offset</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_edge_property_device_view.cuh" line="190" column="19" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_edge_property_device_view.cuh" bodystart="190" bodyend="190"/>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_edge_property_device_view.cuh" line="175" column="1" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_edge_property_device_view.cuh" bodystart="175" bodyend="191"/>
+    <listofallmembers>
+      <member refid="classcugraph_1_1detail_1_1edge__partition__edge__dummy__property__device__view__t_1ac3781b1826899bdde37d48495cdfd158" prot="public" virt="non-virtual"><scope>cugraph::detail::edge_partition_edge_dummy_property_device_view_t</scope><name>edge_partition_edge_dummy_property_device_view_t</name></member>
+      <member refid="classcugraph_1_1detail_1_1edge__partition__edge__dummy__property__device__view__t_1ab1e9a9cb4f10a39026bcb971214e5970" prot="public" virt="non-virtual"><scope>cugraph::detail::edge_partition_edge_dummy_property_device_view_t</scope><name>edge_partition_edge_dummy_property_device_view_t</name></member>
+      <member refid="classcugraph_1_1detail_1_1edge__partition__edge__dummy__property__device__view__t_1aaf153d27c21e2f8f6232cf90e3fc6b85" prot="public" virt="non-virtual"><scope>cugraph::detail::edge_partition_edge_dummy_property_device_view_t</scope><name>edge_type</name></member>
+      <member refid="classcugraph_1_1detail_1_1edge__partition__edge__dummy__property__device__view__t_1a55838b5b577d143ddb9516b015278050" prot="public" virt="non-virtual"><scope>cugraph::detail::edge_partition_edge_dummy_property_device_view_t</scope><name>get</name></member>
+      <member refid="classcugraph_1_1detail_1_1edge__partition__edge__dummy__property__device__view__t_1a2383754ef3d2362c60b12e65be7fe1c2" prot="public" virt="non-virtual"><scope>cugraph::detail::edge_partition_edge_dummy_property_device_view_t</scope><name>has_packed_bool_element</name></member>
+      <member refid="classcugraph_1_1detail_1_1edge__partition__edge__dummy__property__device__view__t_1adf1c35d004281a307cb423c77447ab35" prot="public" virt="non-virtual"><scope>cugraph::detail::edge_partition_edge_dummy_property_device_view_t</scope><name>is_packed_bool</name></member>
+      <member refid="classcugraph_1_1detail_1_1edge__partition__edge__dummy__property__device__view__t_1a41472685d2d7ae2414c724d649f152d9" prot="public" virt="non-virtual"><scope>cugraph::detail::edge_partition_edge_dummy_property_device_view_t</scope><name>value_type</name></member>
+    </listofallmembers>
+  </compounddef>
+</doxygen>

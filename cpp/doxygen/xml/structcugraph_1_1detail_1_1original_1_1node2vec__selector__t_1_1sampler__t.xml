@@ -1,0 +1,234 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="structcugraph_1_1detail_1_1original_1_1node2vec__selector__t_1_1sampler__t" kind="struct" language="C++" prot="public">
+    <compoundname>cugraph::detail::original::node2vec_selector_t::sampler_t</compoundname>
+    <sectiondef kind="private-attrib">
+      <memberdef kind="variable" id="structcugraph_1_1detail_1_1original_1_1node2vec__selector__t_1_1sampler__t_1a81b6541d30fed0fc626be465e6f9dc37" prot="private" static="no" mutable="no">
+        <type>edge_t const  *</type>
+        <definition>edge_t const* cugraph::detail::original::node2vec_selector_t&lt; vertex_t, edge_t, weight_t, real_t &gt;::sampler_t::row_offsets_</definition>
+        <argsstring></argsstring>
+        <name>row_offsets_</name>
+        <qualifiedname>cugraph::detail::original::node2vec_selector_t::sampler_t::row_offsets_</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/sampling/rw_traversals.hpp" line="449" column="18" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/sampling/rw_traversals.hpp" bodystart="449" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph_1_1detail_1_1original_1_1node2vec__selector__t_1_1sampler__t_1a738a367c46443f8e8701d993c67876d9" prot="private" static="no" mutable="no">
+        <type>vertex_t const  *</type>
+        <definition>vertex_t const* cugraph::detail::original::node2vec_selector_t&lt; vertex_t, edge_t, weight_t, real_t &gt;::sampler_t::col_indices_</definition>
+        <argsstring></argsstring>
+        <name>col_indices_</name>
+        <qualifiedname>cugraph::detail::original::node2vec_selector_t::sampler_t::col_indices_</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/sampling/rw_traversals.hpp" line="450" column="20" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/sampling/rw_traversals.hpp" bodystart="450" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph_1_1detail_1_1original_1_1node2vec__selector__t_1_1sampler__t_1a9edb1b1448501e98e57bcb606edb7cb8" prot="private" static="no" mutable="no">
+        <type>weight_t const  *</type>
+        <definition>weight_t const* cugraph::detail::original::node2vec_selector_t&lt; vertex_t, edge_t, weight_t, real_t &gt;::sampler_t::values_</definition>
+        <argsstring></argsstring>
+        <name>values_</name>
+        <qualifiedname>cugraph::detail::original::node2vec_selector_t::sampler_t::values_</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/sampling/rw_traversals.hpp" line="451" column="20" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/sampling/rw_traversals.hpp" bodystart="451" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph_1_1detail_1_1original_1_1node2vec__selector__t_1_1sampler__t_1a15768fa5a6174c18c02d3e3ebcd340dd" prot="private" static="no" mutable="no">
+        <type>weight_t const</type>
+        <definition>weight_t const cugraph::detail::original::node2vec_selector_t&lt; vertex_t, edge_t, weight_t, real_t &gt;::sampler_t::p_</definition>
+        <argsstring></argsstring>
+        <name>p_</name>
+        <qualifiedname>cugraph::detail::original::node2vec_selector_t::sampler_t::p_</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/sampling/rw_traversals.hpp" line="453" column="20" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/sampling/rw_traversals.hpp" bodystart="453" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph_1_1detail_1_1original_1_1node2vec__selector__t_1_1sampler__t_1aeffd6b0e2ae3eb5fc1ed3ddac6dce0e6" prot="private" static="no" mutable="no">
+        <type>weight_t const</type>
+        <definition>weight_t const cugraph::detail::original::node2vec_selector_t&lt; vertex_t, edge_t, weight_t, real_t &gt;::sampler_t::q_</definition>
+        <argsstring></argsstring>
+        <name>q_</name>
+        <qualifiedname>cugraph::detail::original::node2vec_selector_t::sampler_t::q_</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/sampling/rw_traversals.hpp" line="454" column="20" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/sampling/rw_traversals.hpp" bodystart="454" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph_1_1detail_1_1original_1_1node2vec__selector__t_1_1sampler__t_1ae813b54b24134bebdcce117e63b2026c" prot="private" static="no" mutable="yes">
+        <type>thrust::optional&lt; thrust::tuple&lt; vertex_t, edge_t, weight_t * &gt; &gt;</type>
+        <definition>thrust::optional&lt;thrust::tuple&lt;vertex_t, edge_t, weight_t*&gt; &gt; cugraph::detail::original::node2vec_selector_t&lt; vertex_t, edge_t, weight_t, real_t &gt;::sampler_t::coalesced_alpha_</definition>
+        <argsstring></argsstring>
+        <name>coalesced_alpha_</name>
+        <qualifiedname>cugraph::detail::original::node2vec_selector_t::sampler_t::coalesced_alpha_</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/sampling/rw_traversals.hpp" line="465" column="7" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/sampling/rw_traversals.hpp" bodystart="465" bodyend="-1"/>
+      </memberdef>
+    </sectiondef>
+    <sectiondef kind="public-func">
+      <memberdef kind="function" id="structcugraph_1_1detail_1_1original_1_1node2vec__selector__t_1_1sampler__t_1a957ee608106859e9251250fe2c0ba52e" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type></type>
+        <definition>cugraph::detail::original::node2vec_selector_t&lt; vertex_t, edge_t, weight_t, real_t &gt;::sampler_t::sampler_t</definition>
+        <argsstring>(edge_t const *ro, vertex_t const *ci, weight_t const *w, weight_t p, weight_t q, vertex_t max_degree, edge_t num_paths, weight_t *ptr_alpha)</argsstring>
+        <name>sampler_t</name>
+        <qualifiedname>cugraph::detail::original::node2vec_selector_t::sampler_t::sampler_t</qualifiedname>
+        <param>
+          <type>edge_t const *</type>
+          <declname>ro</declname>
+        </param>
+        <param>
+          <type>vertex_t const *</type>
+          <declname>ci</declname>
+        </param>
+        <param>
+          <type>weight_t const *</type>
+          <declname>w</declname>
+        </param>
+        <param>
+          <type>weight_t</type>
+          <declname>p</declname>
+        </param>
+        <param>
+          <type>weight_t</type>
+          <declname>q</declname>
+        </param>
+        <param>
+          <type>vertex_t</type>
+          <declname>max_degree</declname>
+        </param>
+        <param>
+          <type>edge_t</type>
+          <declname>num_paths</declname>
+        </param>
+        <param>
+          <type>weight_t *</type>
+          <declname>ptr_alpha</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/sampling/rw_traversals.hpp" line="283" column="5" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/sampling/rw_traversals.hpp" bodystart="283" bodyend="302"/>
+      </memberdef>
+      <memberdef kind="function" id="structcugraph_1_1detail_1_1original_1_1node2vec__selector__t_1_1sampler__t_1abd0a8b03cc36f925891ab138e882ca51" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>__device__ weight_t</type>
+        <definition>__device__ weight_t cugraph::detail::original::node2vec_selector_t&lt; vertex_t, edge_t, weight_t, real_t &gt;::sampler_t::get_alpha</definition>
+        <argsstring>(vertex_t prev_v, vertex_t src_v, vertex_t next_v) const</argsstring>
+        <name>get_alpha</name>
+        <qualifiedname>cugraph::detail::original::node2vec_selector_t::sampler_t::get_alpha</qualifiedname>
+        <param>
+          <type>vertex_t</type>
+          <declname>prev_v</declname>
+        </param>
+        <param>
+          <type>vertex_t</type>
+          <declname>src_v</declname>
+        </param>
+        <param>
+          <type>vertex_t</type>
+          <declname>next_v</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/sampling/rw_traversals.hpp" line="308" column="25" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/sampling/rw_traversals.hpp" bodystart="308" bodyend="327"/>
+      </memberdef>
+      <memberdef kind="function" id="structcugraph_1_1detail_1_1original_1_1node2vec__selector__t_1_1sampler__t_1aac63d97a0304da3dbdb9aec6144aab25" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>__device__ thrust::optional&lt; thrust::tuple&lt; vertex_t, weight_t &gt; &gt;</type>
+        <definition>__device__ thrust::optional&lt; thrust::tuple&lt; vertex_t, weight_t &gt; &gt; cugraph::detail::original::node2vec_selector_t&lt; vertex_t, edge_t, weight_t, real_t &gt;::sampler_t::operator()</definition>
+        <argsstring>(vertex_t src_v, real_t rnd_val, vertex_t prev_v, edge_t path_index, bool start_path) const</argsstring>
+        <name>operator()</name>
+        <qualifiedname>cugraph::detail::original::node2vec_selector_t::sampler_t::operator()</qualifiedname>
+        <param>
+          <type>vertex_t</type>
+          <declname>src_v</declname>
+        </param>
+        <param>
+          <type>real_t</type>
+          <declname>rnd_val</declname>
+        </param>
+        <param>
+          <type>vertex_t</type>
+          <declname>prev_v</declname>
+        </param>
+        <param>
+          <type>edge_t</type>
+          <declname>path_index</declname>
+        </param>
+        <param>
+          <type>bool</type>
+          <declname>start_path</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/sampling/rw_traversals.hpp" line="329" column="33" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/sampling/rw_traversals.hpp" bodystart="329" bodyend="444"/>
+      </memberdef>
+      <memberdef kind="function" id="structcugraph_1_1detail_1_1original_1_1node2vec__selector__t_1_1sampler__t_1a22a6da84f99e316ed499f4b7a3e3c355" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>decltype(auto)</type>
+        <definition>decltype(auto) cugraph::detail::original::node2vec_selector_t&lt; vertex_t, edge_t, weight_t, real_t &gt;::sampler_t::get_alpha_buffer</definition>
+        <argsstring>(void) const</argsstring>
+        <name>get_alpha_buffer</name>
+        <qualifiedname>cugraph::detail::original::node2vec_selector_t::sampler_t::get_alpha_buffer</qualifiedname>
+        <param>
+          <type>void</type>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/sampling/rw_traversals.hpp" line="446" column="14" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/sampling/rw_traversals.hpp" bodystart="446" bodyend="446"/>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/src/sampling/rw_traversals.hpp" line="282" column="3" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/sampling/rw_traversals.hpp" bodystart="282" bodyend="467"/>
+    <listofallmembers>
+      <member refid="structcugraph_1_1detail_1_1original_1_1node2vec__selector__t_1_1sampler__t_1ae813b54b24134bebdcce117e63b2026c" prot="private" virt="non-virtual"><scope>cugraph::detail::original::node2vec_selector_t::sampler_t</scope><name>coalesced_alpha_</name></member>
+      <member refid="structcugraph_1_1detail_1_1original_1_1node2vec__selector__t_1_1sampler__t_1a738a367c46443f8e8701d993c67876d9" prot="private" virt="non-virtual"><scope>cugraph::detail::original::node2vec_selector_t::sampler_t</scope><name>col_indices_</name></member>
+      <member refid="structcugraph_1_1detail_1_1original_1_1node2vec__selector__t_1_1sampler__t_1abd0a8b03cc36f925891ab138e882ca51" prot="public" virt="non-virtual"><scope>cugraph::detail::original::node2vec_selector_t::sampler_t</scope><name>get_alpha</name></member>
+      <member refid="structcugraph_1_1detail_1_1original_1_1node2vec__selector__t_1_1sampler__t_1a22a6da84f99e316ed499f4b7a3e3c355" prot="public" virt="non-virtual"><scope>cugraph::detail::original::node2vec_selector_t::sampler_t</scope><name>get_alpha_buffer</name></member>
+      <member refid="structcugraph_1_1detail_1_1original_1_1node2vec__selector__t_1_1sampler__t_1aac63d97a0304da3dbdb9aec6144aab25" prot="public" virt="non-virtual"><scope>cugraph::detail::original::node2vec_selector_t::sampler_t</scope><name>operator()</name></member>
+      <member refid="structcugraph_1_1detail_1_1original_1_1node2vec__selector__t_1_1sampler__t_1a15768fa5a6174c18c02d3e3ebcd340dd" prot="private" virt="non-virtual"><scope>cugraph::detail::original::node2vec_selector_t::sampler_t</scope><name>p_</name></member>
+      <member refid="structcugraph_1_1detail_1_1original_1_1node2vec__selector__t_1_1sampler__t_1aeffd6b0e2ae3eb5fc1ed3ddac6dce0e6" prot="private" virt="non-virtual"><scope>cugraph::detail::original::node2vec_selector_t::sampler_t</scope><name>q_</name></member>
+      <member refid="structcugraph_1_1detail_1_1original_1_1node2vec__selector__t_1_1sampler__t_1a81b6541d30fed0fc626be465e6f9dc37" prot="private" virt="non-virtual"><scope>cugraph::detail::original::node2vec_selector_t::sampler_t</scope><name>row_offsets_</name></member>
+      <member refid="structcugraph_1_1detail_1_1original_1_1node2vec__selector__t_1_1sampler__t_1a957ee608106859e9251250fe2c0ba52e" prot="public" virt="non-virtual"><scope>cugraph::detail::original::node2vec_selector_t::sampler_t</scope><name>sampler_t</name></member>
+      <member refid="structcugraph_1_1detail_1_1original_1_1node2vec__selector__t_1_1sampler__t_1a9edb1b1448501e98e57bcb606edb7cb8" prot="private" virt="non-virtual"><scope>cugraph::detail::original::node2vec_selector_t::sampler_t</scope><name>values_</name></member>
+    </listofallmembers>
+  </compounddef>
+</doxygen>

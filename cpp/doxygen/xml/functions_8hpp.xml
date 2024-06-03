@@ -1,0 +1,152 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="functions_8hpp" kind="file" language="C++">
+    <compoundname>functions.hpp</compoundname>
+    <includes refid="include_2cugraph_2legacy_2graph_8hpp" local="no">cugraph/legacy/graph.hpp</includes>
+    <includes local="no">raft/core/handle.hpp</includes>
+    <includes local="no">rmm/device_buffer.hpp</includes>
+    <includes local="no">rmm/resource_ref.hpp</includes>
+    <includedby refid="COOtoCSR_8cuh" local="no">COOtoCSR.cuh</includedby>
+    <incdepgraph>
+      <node id="11">
+        <label>eidecl_graph.hpp</label>
+        <link refid="legacy_2eidecl__graph_8hpp_source"/>
+      </node>
+      <node id="1">
+        <label>functions.hpp</label>
+        <link refid="functions_8hpp"/>
+        <childnode refid="2" relation="include">
+        </childnode>
+        <childnode refid="3" relation="include">
+        </childnode>
+        <childnode refid="4" relation="include">
+        </childnode>
+        <childnode refid="5" relation="include">
+        </childnode>
+      </node>
+      <node id="2">
+        <label>cugraph/legacy/graph.hpp</label>
+        <link refid="include_2cugraph_2legacy_2graph_8hpp_source"/>
+        <childnode refid="3" relation="include">
+        </childnode>
+        <childnode refid="4" relation="include">
+        </childnode>
+        <childnode refid="5" relation="include">
+        </childnode>
+        <childnode refid="6" relation="include">
+        </childnode>
+        <childnode refid="7" relation="include">
+        </childnode>
+        <childnode refid="8" relation="include">
+        </childnode>
+        <childnode refid="9" relation="include">
+        </childnode>
+        <childnode refid="10" relation="include">
+        </childnode>
+        <childnode refid="11" relation="include">
+        </childnode>
+      </node>
+      <node id="7">
+        <label>cstddef</label>
+      </node>
+      <node id="8">
+        <label>cstdint</label>
+      </node>
+      <node id="9">
+        <label>iostream</label>
+      </node>
+      <node id="10">
+        <label>memory</label>
+      </node>
+      <node id="3">
+        <label>raft/core/handle.hpp</label>
+      </node>
+      <node id="4">
+        <label>rmm/device_buffer.hpp</label>
+      </node>
+      <node id="5">
+        <label>rmm/resource_ref.hpp</label>
+      </node>
+      <node id="6">
+        <label>unistd.h</label>
+      </node>
+    </incdepgraph>
+    <invincdepgraph>
+      <node id="1">
+        <label>functions.hpp</label>
+        <link refid="functions_8hpp"/>
+        <childnode refid="2" relation="include">
+        </childnode>
+      </node>
+      <node id="5">
+        <label>louvain.cuh</label>
+        <link refid="louvain_8cuh_source"/>
+      </node>
+      <node id="2">
+        <label>COOtoCSR.cuh</label>
+        <link refid="COOtoCSR_8cuh_source"/>
+        <childnode refid="3" relation="include">
+        </childnode>
+        <childnode refid="4" relation="include">
+        </childnode>
+        <childnode refid="5" relation="include">
+        </childnode>
+      </node>
+      <node id="3">
+        <label>barnes_hut.cuh</label>
+        <link refid="barnes__hut_8cuh_source"/>
+      </node>
+      <node id="4">
+        <label>exact_fa2.cuh</label>
+        <link refid="exact__fa2_8cuh_source"/>
+      </node>
+    </invincdepgraph>
+    <innernamespace refid="namespacecugraph">cugraph</innernamespace>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <programlisting>
+<codeline lineno="1"><highlight class="comment">/*</highlight></codeline>
+<codeline lineno="2"><highlight class="comment"><sp/>*<sp/>Copyright<sp/>(c)<sp/>2020-2024,<sp/>NVIDIA<sp/>CORPORATION.</highlight></codeline>
+<codeline lineno="3"><highlight class="comment"><sp/>*</highlight></codeline>
+<codeline lineno="4"><highlight class="comment"><sp/>*<sp/>Licensed<sp/>under<sp/>the<sp/>Apache<sp/>License,<sp/>Version<sp/>2.0<sp/>(the<sp/>&quot;License&quot;);</highlight></codeline>
+<codeline lineno="5"><highlight class="comment"><sp/>*<sp/>you<sp/>may<sp/>not<sp/>use<sp/>this<sp/>file<sp/>except<sp/>in<sp/>compliance<sp/>with<sp/>the<sp/>License.</highlight></codeline>
+<codeline lineno="6"><highlight class="comment"><sp/>*<sp/>You<sp/>may<sp/>obtain<sp/>a<sp/>copy<sp/>of<sp/>the<sp/>License<sp/>at</highlight></codeline>
+<codeline lineno="7"><highlight class="comment"><sp/>*</highlight></codeline>
+<codeline lineno="8"><highlight class="comment"><sp/>*<sp/><sp/><sp/><sp/><sp/>http://www.apache.org/licenses/LICENSE-2.0</highlight></codeline>
+<codeline lineno="9"><highlight class="comment"><sp/>*</highlight></codeline>
+<codeline lineno="10"><highlight class="comment"><sp/>*<sp/>Unless<sp/>required<sp/>by<sp/>applicable<sp/>law<sp/>or<sp/>agreed<sp/>to<sp/>in<sp/>writing,<sp/>software</highlight></codeline>
+<codeline lineno="11"><highlight class="comment"><sp/>*<sp/>distributed<sp/>under<sp/>the<sp/>License<sp/>is<sp/>distributed<sp/>on<sp/>an<sp/>&quot;AS<sp/>IS&quot;<sp/>BASIS,</highlight></codeline>
+<codeline lineno="12"><highlight class="comment"><sp/>*<sp/>WITHOUT<sp/>WARRANTIES<sp/>OR<sp/>CONDITIONS<sp/>OF<sp/>ANY<sp/>KIND,<sp/>either<sp/>express<sp/>or<sp/>implied.</highlight></codeline>
+<codeline lineno="13"><highlight class="comment"><sp/>*<sp/>See<sp/>the<sp/>License<sp/>for<sp/>the<sp/>specific<sp/>language<sp/>governing<sp/>permissions<sp/>and</highlight></codeline>
+<codeline lineno="14"><highlight class="comment"><sp/>*<sp/>limitations<sp/>under<sp/>the<sp/>License.</highlight></codeline>
+<codeline lineno="15"><highlight class="comment"><sp/>*/</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="16"><highlight class="normal"></highlight><highlight class="preprocessor">#pragma<sp/>once</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="17"><highlight class="normal"></highlight></codeline>
+<codeline lineno="18"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&lt;cugraph/legacy/graph.hpp&gt;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="19"><highlight class="normal"></highlight></codeline>
+<codeline lineno="20"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&lt;raft/core/handle.hpp&gt;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="21"><highlight class="normal"></highlight></codeline>
+<codeline lineno="22"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&lt;rmm/device_buffer.hpp&gt;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="23"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&lt;rmm/resource_ref.hpp&gt;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="24"><highlight class="normal"></highlight></codeline>
+<codeline lineno="25"><highlight class="normal"></highlight><highlight class="keyword">namespace<sp/></highlight><highlight class="normal">cugraph<sp/>{</highlight></codeline>
+<codeline lineno="26"><highlight class="normal"></highlight></codeline>
+<codeline lineno="44"><highlight class="normal"></highlight><highlight class="keyword">template</highlight><highlight class="normal"><sp/>&lt;</highlight><highlight class="keyword">typename</highlight><highlight class="normal"><sp/>VT,<sp/></highlight><highlight class="keyword">typename</highlight><highlight class="normal"><sp/>ET,<sp/></highlight><highlight class="keyword">typename</highlight><highlight class="normal"><sp/>WT&gt;</highlight></codeline>
+<codeline lineno="45"><highlight class="normal">std::unique_ptr&lt;legacy::GraphCSR&lt;VT,<sp/>ET,<sp/>WT&gt;&gt;<sp/>coo_to_csr(</highlight></codeline>
+<codeline lineno="46"><highlight class="normal"><sp/><sp/>legacy::GraphCOOView&lt;VT,<sp/>ET,<sp/>WT&gt;<sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal">&amp;<sp/>graph,</highlight></codeline>
+<codeline lineno="47"><highlight class="normal"><sp/><sp/>rmm::device_async_resource_ref<sp/>mr<sp/>=<sp/>rmm::mr::get_current_device_resource());</highlight></codeline>
+<codeline lineno="48"><highlight class="normal"></highlight></codeline>
+<codeline lineno="63"><highlight class="normal"></highlight><highlight class="comment">//<sp/>FIXME:<sp/>It<sp/>would<sp/>be<sp/>better<sp/>to<sp/>expose<sp/>it<sp/>in<sp/>RAFT</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="64"><highlight class="normal"></highlight><highlight class="keyword">template</highlight><highlight class="normal"><sp/>&lt;</highlight><highlight class="keyword">typename</highlight><highlight class="normal"><sp/>value_t&gt;</highlight></codeline>
+<codeline lineno="65"><highlight class="normal"></highlight><highlight class="keywordtype">void</highlight><highlight class="normal"><sp/>comms_bcast(</highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/>raft::handle_t&amp;<sp/>handle,<sp/>value_t*<sp/>value,<sp/></highlight><highlight class="keywordtype">size_t</highlight><highlight class="normal"><sp/>count)</highlight></codeline>
+<codeline lineno="66"><highlight class="normal">{</highlight></codeline>
+<codeline lineno="67"><highlight class="normal"><sp/><sp/>handle.get_comms().bcast(value,<sp/>count,<sp/>0,<sp/>handle.get_stream());</highlight></codeline>
+<codeline lineno="68"><highlight class="normal">}</highlight></codeline>
+<codeline lineno="69"><highlight class="normal"></highlight></codeline>
+<codeline lineno="70"><highlight class="normal">}<sp/><sp/></highlight><highlight class="comment">//<sp/>namespace<sp/>cugraph</highlight><highlight class="normal"></highlight></codeline>
+    </programlisting>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/legacy/functions.hpp"/>
+  </compounddef>
+</doxygen>

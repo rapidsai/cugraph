@@ -1,0 +1,221 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="classcugraph_1_1detail_1_1edge__partition__device__view__base__t" kind="class" language="C++" prot="public">
+    <compoundname>cugraph::detail::edge_partition_device_view_base_t</compoundname>
+    <derivedcompoundref refid="classcugraph_1_1edge__partition__device__view__t_3_01vertex__t_00_01edge__t_00_01multi__gpu_00_0450e55100a673b8636dc6f89e458ac60" prot="public" virt="non-virtual">cugraph::edge_partition_device_view_t&lt; vertex_t, edge_t, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;</derivedcompoundref>
+    <derivedcompoundref refid="classcugraph_1_1edge__partition__device__view__t_3_01vertex__t_00_01edge__t_00_01multi__gpu_00_0cfa43e09a0397045baa42dbf7b50054c" prot="public" virt="non-virtual">cugraph::edge_partition_device_view_t&lt; vertex_t, edge_t, multi_gpu, std::enable_if_t&lt;!multi_gpu &gt; &gt;</derivedcompoundref>
+    <templateparamlist>
+      <param>
+        <type>typename vertex_t</type>
+      </param>
+      <param>
+        <type>typename edge_t</type>
+      </param>
+    </templateparamlist>
+    <sectiondef kind="protected-attrib">
+      <memberdef kind="variable" id="classcugraph_1_1detail_1_1edge__partition__device__view__base__t_1a3a00b638dbaf3ec4ce3093c130c0419b" prot="protected" static="no" mutable="no">
+        <type>raft::device_span&lt; edge_t const  &gt;</type>
+        <definition>raft::device_span&lt;edge_t const&gt; cugraph::detail::edge_partition_device_view_base_t&lt; vertex_t, edge_t &gt;::offsets_</definition>
+        <argsstring></argsstring>
+        <name>offsets_</name>
+        <qualifiedname>cugraph::detail::edge_partition_device_view_base_t::offsets_</qualifiedname>
+        <initializer>{nullptr}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_device_view.cuh" line="190" column="21" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_device_view.cuh" bodystart="190" bodyend="190"/>
+      </memberdef>
+      <memberdef kind="variable" id="classcugraph_1_1detail_1_1edge__partition__device__view__base__t_1a37dd2007c7dd4df9f0188bc764b5f22d" prot="protected" static="no" mutable="no">
+        <type>raft::device_span&lt; vertex_t const  &gt;</type>
+        <definition>raft::device_span&lt;vertex_t const&gt; cugraph::detail::edge_partition_device_view_base_t&lt; vertex_t, edge_t &gt;::indices_</definition>
+        <argsstring></argsstring>
+        <name>indices_</name>
+        <qualifiedname>cugraph::detail::edge_partition_device_view_base_t::indices_</qualifiedname>
+        <initializer>{nullptr}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_device_view.cuh" line="191" column="21" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_device_view.cuh" bodystart="191" bodyend="191"/>
+      </memberdef>
+    </sectiondef>
+    <sectiondef kind="public-func">
+      <memberdef kind="function" id="classcugraph_1_1detail_1_1edge__partition__device__view__base__t_1aed792068ea26496f199c0300cddab252" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type></type>
+        <definition>cugraph::detail::edge_partition_device_view_base_t&lt; vertex_t, edge_t &gt;::edge_partition_device_view_base_t</definition>
+        <argsstring>(raft::device_span&lt; edge_t const &gt; offsets, raft::device_span&lt; vertex_t const &gt; indices)</argsstring>
+        <name>edge_partition_device_view_base_t</name>
+        <qualifiedname>cugraph::detail::edge_partition_device_view_base_t::edge_partition_device_view_base_t</qualifiedname>
+        <param>
+          <type>raft::device_span&lt; edge_t const &gt;</type>
+          <declname>offsets</declname>
+        </param>
+        <param>
+          <type>raft::device_span&lt; vertex_t const &gt;</type>
+          <declname>indices</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_device_view.cuh" line="148" column="3" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_device_view.cuh" bodystart="148" bodyend="152"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1detail_1_1edge__partition__device__view__base__t_1a9c5ab3a2b2bced220d44caff286a3352" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>__host__ __device__ edge_t</type>
+        <definition>__host__ __device__ edge_t cugraph::detail::edge_partition_device_view_base_t&lt; vertex_t, edge_t &gt;::number_of_edges</definition>
+        <argsstring>() const</argsstring>
+        <name>number_of_edges</name>
+        <qualifiedname>cugraph::detail::edge_partition_device_view_base_t::number_of_edges</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_device_view.cuh" line="154" column="30" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_device_view.cuh" bodystart="154" bodyend="157"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1detail_1_1edge__partition__device__view__base__t_1a07f028b679e7771ee23b61d8bb76529d" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>__host__ __device__ edge_t const *</type>
+        <definition>__host__ __device__ edge_t const  * cugraph::detail::edge_partition_device_view_base_t&lt; vertex_t, edge_t &gt;::offsets</definition>
+        <argsstring>() const</argsstring>
+        <name>offsets</name>
+        <qualifiedname>cugraph::detail::edge_partition_device_view_base_t::offsets</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_device_view.cuh" line="159" column="36" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_device_view.cuh" bodystart="159" bodyend="159"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1detail_1_1edge__partition__device__view__base__t_1aca42f73392de0efb175613497f612c75" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>__host__ __device__ vertex_t const *</type>
+        <definition>__host__ __device__ vertex_t const  * cugraph::detail::edge_partition_device_view_base_t&lt; vertex_t, edge_t &gt;::indices</definition>
+        <argsstring>() const</argsstring>
+        <name>indices</name>
+        <qualifiedname>cugraph::detail::edge_partition_device_view_base_t::indices</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_device_view.cuh" line="160" column="38" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_device_view.cuh" bodystart="160" bodyend="160"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1detail_1_1edge__partition__device__view__base__t_1a476885bf0ac68765cbafa86454172971" prot="public" static="no" const="yes" explicit="no" inline="yes" noexcept="yes" virt="non-virtual">
+        <type>__device__ vertex_t</type>
+        <definition>__device__ vertex_t cugraph::detail::edge_partition_device_view_base_t&lt; vertex_t, edge_t &gt;::major_idx_from_local_edge_idx_nocheck</definition>
+        <argsstring>(edge_t local_edge_idx) const noexcept</argsstring>
+        <name>major_idx_from_local_edge_idx_nocheck</name>
+        <qualifiedname>cugraph::detail::edge_partition_device_view_base_t::major_idx_from_local_edge_idx_nocheck</qualifiedname>
+        <param>
+          <type>edge_t</type>
+          <declname>local_edge_idx</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_device_view.cuh" line="162" column="23" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_device_view.cuh" bodystart="162" bodyend="167"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1detail_1_1edge__partition__device__view__base__t_1ae70030848b7b47684db65e0d5f0a4e0b" prot="public" static="no" const="yes" explicit="no" inline="yes" noexcept="yes" virt="non-virtual">
+        <type>__device__ thrust::tuple&lt; vertex_t const *, edge_t, edge_t &gt;</type>
+        <definition>__device__ thrust::tuple&lt; vertex_t const  *, edge_t, edge_t &gt; cugraph::detail::edge_partition_device_view_base_t&lt; vertex_t, edge_t &gt;::local_edges</definition>
+        <argsstring>(vertex_t major_idx) const noexcept</argsstring>
+        <name>local_edges</name>
+        <qualifiedname>cugraph::detail::edge_partition_device_view_base_t::local_edges</qualifiedname>
+        <param>
+          <type>vertex_t</type>
+          <declname>major_idx</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_device_view.cuh" line="170" column="28" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_device_view.cuh" bodystart="170" bodyend="177"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1detail_1_1edge__partition__device__view__base__t_1afb2e9d853766e3d4ab0452c0880e45e3" prot="public" static="no" const="yes" explicit="no" inline="yes" noexcept="yes" virt="non-virtual">
+        <type>__device__ edge_t</type>
+        <definition>__device__ edge_t cugraph::detail::edge_partition_device_view_base_t&lt; vertex_t, edge_t &gt;::local_degree</definition>
+        <argsstring>(vertex_t major_idx) const noexcept</argsstring>
+        <name>local_degree</name>
+        <qualifiedname>cugraph::detail::edge_partition_device_view_base_t::local_degree</qualifiedname>
+        <param>
+          <type>vertex_t</type>
+          <declname>major_idx</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_device_view.cuh" line="180" column="21" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_device_view.cuh" bodystart="180" bodyend="183"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1detail_1_1edge__partition__device__view__base__t_1acbeb6fce38abab4fec8bffea382e194a" prot="public" static="no" const="yes" explicit="no" inline="yes" noexcept="yes" virt="non-virtual">
+        <type>__device__ edge_t</type>
+        <definition>__device__ edge_t cugraph::detail::edge_partition_device_view_base_t&lt; vertex_t, edge_t &gt;::local_offset</definition>
+        <argsstring>(vertex_t major_idx) const noexcept</argsstring>
+        <name>local_offset</name>
+        <qualifiedname>cugraph::detail::edge_partition_device_view_base_t::local_offset</qualifiedname>
+        <param>
+          <type>vertex_t</type>
+          <declname>major_idx</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_device_view.cuh" line="186" column="21" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_device_view.cuh" bodystart="186" bodyend="186"/>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <inheritancegraph>
+      <node id="1">
+        <label>cugraph::detail::edge_partition_device_view_base_t&lt; vertex_t, edge_t &gt;</label>
+        <link refid="classcugraph_1_1detail_1_1edge__partition__device__view__base__t"/>
+      </node>
+      <node id="2">
+        <label>cugraph::edge_partition_device_view_t&lt; vertex_t, edge_t, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;</label>
+        <link refid="classcugraph_1_1edge__partition__device__view__t_3_01vertex__t_00_01edge__t_00_01multi__gpu_00_0450e55100a673b8636dc6f89e458ac60"/>
+        <childnode refid="1" relation="public-inheritance">
+        </childnode>
+      </node>
+      <node id="3">
+        <label>cugraph::edge_partition_device_view_t&lt; vertex_t, edge_t, multi_gpu, std::enable_if_t&lt;!multi_gpu &gt; &gt;</label>
+        <link refid="classcugraph_1_1edge__partition__device__view__t_3_01vertex__t_00_01edge__t_00_01multi__gpu_00_0cfa43e09a0397045baa42dbf7b50054c"/>
+        <childnode refid="1" relation="public-inheritance">
+        </childnode>
+      </node>
+    </inheritancegraph>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_device_view.cuh" line="146" column="1" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_device_view.cuh" bodystart="146" bodyend="192"/>
+    <listofallmembers>
+      <member refid="classcugraph_1_1detail_1_1edge__partition__device__view__base__t_1aed792068ea26496f199c0300cddab252" prot="public" virt="non-virtual"><scope>cugraph::detail::edge_partition_device_view_base_t</scope><name>edge_partition_device_view_base_t</name></member>
+      <member refid="classcugraph_1_1detail_1_1edge__partition__device__view__base__t_1aca42f73392de0efb175613497f612c75" prot="public" virt="non-virtual"><scope>cugraph::detail::edge_partition_device_view_base_t</scope><name>indices</name></member>
+      <member refid="classcugraph_1_1detail_1_1edge__partition__device__view__base__t_1a37dd2007c7dd4df9f0188bc764b5f22d" prot="protected" virt="non-virtual"><scope>cugraph::detail::edge_partition_device_view_base_t</scope><name>indices_</name></member>
+      <member refid="classcugraph_1_1detail_1_1edge__partition__device__view__base__t_1afb2e9d853766e3d4ab0452c0880e45e3" prot="public" virt="non-virtual"><scope>cugraph::detail::edge_partition_device_view_base_t</scope><name>local_degree</name></member>
+      <member refid="classcugraph_1_1detail_1_1edge__partition__device__view__base__t_1ae70030848b7b47684db65e0d5f0a4e0b" prot="public" virt="non-virtual"><scope>cugraph::detail::edge_partition_device_view_base_t</scope><name>local_edges</name></member>
+      <member refid="classcugraph_1_1detail_1_1edge__partition__device__view__base__t_1acbeb6fce38abab4fec8bffea382e194a" prot="public" virt="non-virtual"><scope>cugraph::detail::edge_partition_device_view_base_t</scope><name>local_offset</name></member>
+      <member refid="classcugraph_1_1detail_1_1edge__partition__device__view__base__t_1a476885bf0ac68765cbafa86454172971" prot="public" virt="non-virtual"><scope>cugraph::detail::edge_partition_device_view_base_t</scope><name>major_idx_from_local_edge_idx_nocheck</name></member>
+      <member refid="classcugraph_1_1detail_1_1edge__partition__device__view__base__t_1a9c5ab3a2b2bced220d44caff286a3352" prot="public" virt="non-virtual"><scope>cugraph::detail::edge_partition_device_view_base_t</scope><name>number_of_edges</name></member>
+      <member refid="classcugraph_1_1detail_1_1edge__partition__device__view__base__t_1a07f028b679e7771ee23b61d8bb76529d" prot="public" virt="non-virtual"><scope>cugraph::detail::edge_partition_device_view_base_t</scope><name>offsets</name></member>
+      <member refid="classcugraph_1_1detail_1_1edge__partition__device__view__base__t_1a3a00b638dbaf3ec4ce3093c130c0419b" prot="protected" virt="non-virtual"><scope>cugraph::detail::edge_partition_device_view_base_t</scope><name>offsets_</name></member>
+    </listofallmembers>
+  </compounddef>
+</doxygen>

@@ -1,0 +1,61 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="structcugraph_1_1c__api_1_1cugraph__clustering__result__t" kind="struct" language="C++" prot="public">
+    <compoundname>cugraph::c_api::cugraph_clustering_result_t</compoundname>
+    <sectiondef kind="public-attrib">
+      <memberdef kind="variable" id="structcugraph_1_1c__api_1_1cugraph__clustering__result__t_1aaec956fd7684a62cd7d598834c7a837e" prot="public" static="no" mutable="no">
+        <type><ref refid="structcugraph_1_1c__api_1_1cugraph__type__erased__device__array__t" kindref="compound">cugraph_type_erased_device_array_t</ref> *</type>
+        <definition>cugraph_type_erased_device_array_t* cugraph::c_api::cugraph_clustering_result_t::vertices_</definition>
+        <argsstring></argsstring>
+        <name>vertices_</name>
+        <qualifiedname>cugraph::c_api::cugraph_clustering_result_t::vertices_</qualifiedname>
+        <initializer>{nullptr}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/c_api/legacy_spectral.cpp" line="35" column="38" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/legacy_spectral.cpp" bodystart="35" bodyend="35"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph_1_1c__api_1_1cugraph__clustering__result__t_1a6faab90167c2d11a4f383eafd26e817d" prot="public" static="no" mutable="no">
+        <type><ref refid="structcugraph_1_1c__api_1_1cugraph__type__erased__device__array__t" kindref="compound">cugraph_type_erased_device_array_t</ref> *</type>
+        <definition>cugraph_type_erased_device_array_t* cugraph::c_api::cugraph_clustering_result_t::clusters_</definition>
+        <argsstring></argsstring>
+        <name>clusters_</name>
+        <qualifiedname>cugraph::c_api::cugraph_clustering_result_t::clusters_</qualifiedname>
+        <initializer>{nullptr}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/c_api/legacy_spectral.cpp" line="36" column="38" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/legacy_spectral.cpp" bodystart="36" bodyend="36"/>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <collaborationgraph>
+      <node id="1">
+        <label>cugraph::c_api::cugraph_clustering_result_t</label>
+        <link refid="structcugraph_1_1c__api_1_1cugraph__clustering__result__t"/>
+        <childnode refid="2" relation="usage">
+          <edgelabel>clusters_</edgelabel>
+          <edgelabel>vertices_</edgelabel>
+        </childnode>
+      </node>
+      <node id="2">
+        <label>cugraph::c_api::cugraph_type_erased_device_array_t</label>
+        <link refid="structcugraph_1_1c__api_1_1cugraph__type__erased__device__array__t"/>
+      </node>
+    </collaborationgraph>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/src/c_api/legacy_spectral.cpp" line="34" column="1" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/legacy_spectral.cpp" bodystart="34" bodyend="37"/>
+    <listofallmembers>
+      <member refid="structcugraph_1_1c__api_1_1cugraph__clustering__result__t_1a6faab90167c2d11a4f383eafd26e817d" prot="public" virt="non-virtual"><scope>cugraph::c_api::cugraph_clustering_result_t</scope><name>clusters_</name></member>
+      <member refid="structcugraph_1_1c__api_1_1cugraph__clustering__result__t_1aaec956fd7684a62cd7d598834c7a837e" prot="public" virt="non-virtual"><scope>cugraph::c_api::cugraph_clustering_result_t</scope><name>vertices_</name></member>
+    </listofallmembers>
+  </compounddef>
+</doxygen>

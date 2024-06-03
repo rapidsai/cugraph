@@ -1,0 +1,21 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="dir_0df0d40acb40fc8d5e8d39d3669a4a1e" kind="dir">
+    <compoundname>link_prediction</compoundname>
+    <innerfile refid="jaccard__impl_8cuh">jaccard_impl.cuh</innerfile>
+    <innerfile refid="jaccard__mg_8cu">jaccard_mg.cu</innerfile>
+    <innerfile refid="jaccard__sg_8cu">jaccard_sg.cu</innerfile>
+    <innerfile refid="overlap__impl_8cuh">overlap_impl.cuh</innerfile>
+    <innerfile refid="overlap__mg_8cu">overlap_mg.cu</innerfile>
+    <innerfile refid="overlap__sg_8cu">overlap_sg.cu</innerfile>
+    <innerfile refid="similarity__impl_8cuh">similarity_impl.cuh</innerfile>
+    <innerfile refid="sorensen__impl_8cuh">sorensen_impl.cuh</innerfile>
+    <innerfile refid="sorensen__mg_8cu">sorensen_mg.cu</innerfile>
+    <innerfile refid="sorensen__sg_8cu">sorensen_sg.cu</innerfile>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/src/link_prediction/"/>
+  </compounddef>
+</doxygen>

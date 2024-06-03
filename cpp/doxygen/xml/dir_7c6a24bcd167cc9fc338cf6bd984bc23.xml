@@ -1,0 +1,12 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="dir_7c6a24bcd167cc9fc338cf6bd984bc23" kind="dir">
+    <compoundname>legacy</compoundname>
+    <innerfile refid="graph_8cu">graph.cu</innerfile>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/src/structure/legacy/"/>
+  </compounddef>
+</doxygen>

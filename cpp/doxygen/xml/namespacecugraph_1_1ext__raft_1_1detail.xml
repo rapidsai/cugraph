@@ -1,0 +1,229 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="namespacecugraph_1_1ext__raft_1_1detail" kind="namespace" language="C++">
+    <compoundname>cugraph::ext_raft::detail</compoundname>
+    <sectiondef kind="func">
+      <memberdef kind="function" id="spectral__clustering_8cu_1a9447f57ea71c65c0fc730181872870bc" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <templateparamlist>
+          <param>
+            <type>typename vertex_t</type>
+          </param>
+          <param>
+            <type>typename edge_t</type>
+          </param>
+          <param>
+            <type>typename weight_t</type>
+          </param>
+        </templateparamlist>
+        <type>void</type>
+        <definition>void cugraph::ext_raft::detail::balancedCutClustering_impl</definition>
+        <argsstring>(legacy::GraphCSRView&lt; vertex_t, edge_t, weight_t &gt; const &amp;graph, vertex_t n_clusters, vertex_t n_eig_vects, weight_t evs_tolerance, int evs_max_iter, weight_t kmean_tolerance, int kmean_max_iter, vertex_t *clustering, weight_t *eig_vals, weight_t *eig_vects)</argsstring>
+        <name>balancedCutClustering_impl</name>
+        <qualifiedname>cugraph::ext_raft::detail::balancedCutClustering_impl</qualifiedname>
+        <param>
+          <type><ref refid="classcugraph_1_1legacy_1_1GraphCSRView" kindref="compound">legacy::GraphCSRView</ref>&lt; vertex_t, edge_t, weight_t &gt; const &amp;</type>
+          <declname>graph</declname>
+        </param>
+        <param>
+          <type>vertex_t</type>
+          <declname>n_clusters</declname>
+        </param>
+        <param>
+          <type>vertex_t</type>
+          <declname>n_eig_vects</declname>
+        </param>
+        <param>
+          <type>weight_t</type>
+          <declname>evs_tolerance</declname>
+        </param>
+        <param>
+          <type>int</type>
+          <declname>evs_max_iter</declname>
+        </param>
+        <param>
+          <type>weight_t</type>
+          <declname>kmean_tolerance</declname>
+        </param>
+        <param>
+          <type>int</type>
+          <declname>kmean_max_iter</declname>
+        </param>
+        <param>
+          <type>vertex_t *</type>
+          <declname>clustering</declname>
+        </param>
+        <param>
+          <type>weight_t *</type>
+          <declname>eig_vals</declname>
+        </param>
+        <param>
+          <type>weight_t *</type>
+          <declname>eig_vects</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/community/legacy/spectral_clustering.cu" line="38" column="6" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/community/legacy/spectral_clustering.cu" bodystart="38" bodyend="104"/>
+      </memberdef>
+      <memberdef kind="function" id="spectral__clustering_8cu_1aecb2c59b3a99fe4002df980d29728da3" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <templateparamlist>
+          <param>
+            <type>typename vertex_t</type>
+          </param>
+          <param>
+            <type>typename edge_t</type>
+          </param>
+          <param>
+            <type>typename weight_t</type>
+          </param>
+        </templateparamlist>
+        <type>void</type>
+        <definition>void cugraph::ext_raft::detail::spectralModularityMaximization_impl</definition>
+        <argsstring>(legacy::GraphCSRView&lt; vertex_t, edge_t, weight_t &gt; const &amp;graph, vertex_t n_clusters, vertex_t n_eig_vects, weight_t evs_tolerance, int evs_max_iter, weight_t kmean_tolerance, int kmean_max_iter, vertex_t *clustering, weight_t *eig_vals, weight_t *eig_vects)</argsstring>
+        <name>spectralModularityMaximization_impl</name>
+        <qualifiedname>cugraph::ext_raft::detail::spectralModularityMaximization_impl</qualifiedname>
+        <param>
+          <type><ref refid="classcugraph_1_1legacy_1_1GraphCSRView" kindref="compound">legacy::GraphCSRView</ref>&lt; vertex_t, edge_t, weight_t &gt; const &amp;</type>
+          <declname>graph</declname>
+        </param>
+        <param>
+          <type>vertex_t</type>
+          <declname>n_clusters</declname>
+        </param>
+        <param>
+          <type>vertex_t</type>
+          <declname>n_eig_vects</declname>
+        </param>
+        <param>
+          <type>weight_t</type>
+          <declname>evs_tolerance</declname>
+        </param>
+        <param>
+          <type>int</type>
+          <declname>evs_max_iter</declname>
+        </param>
+        <param>
+          <type>weight_t</type>
+          <declname>kmean_tolerance</declname>
+        </param>
+        <param>
+          <type>int</type>
+          <declname>kmean_max_iter</declname>
+        </param>
+        <param>
+          <type>vertex_t *</type>
+          <declname>clustering</declname>
+        </param>
+        <param>
+          <type>weight_t *</type>
+          <declname>eig_vals</declname>
+        </param>
+        <param>
+          <type>weight_t *</type>
+          <declname>eig_vects</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/community/legacy/spectral_clustering.cu" line="107" column="6" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/community/legacy/spectral_clustering.cu" bodystart="107" bodyend="181"/>
+      </memberdef>
+      <memberdef kind="function" id="spectral__clustering_8cu_1a0b96e921b6a29deaa4f8d6f7020c77b3" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <templateparamlist>
+          <param>
+            <type>typename vertex_t</type>
+          </param>
+          <param>
+            <type>typename edge_t</type>
+          </param>
+          <param>
+            <type>typename weight_t</type>
+          </param>
+        </templateparamlist>
+        <type>void</type>
+        <definition>void cugraph::ext_raft::detail::analyzeModularityClustering_impl</definition>
+        <argsstring>(legacy::GraphCSRView&lt; vertex_t, edge_t, weight_t &gt; const &amp;graph, int n_clusters, vertex_t const *clustering, weight_t *modularity)</argsstring>
+        <name>analyzeModularityClustering_impl</name>
+        <qualifiedname>cugraph::ext_raft::detail::analyzeModularityClustering_impl</qualifiedname>
+        <param>
+          <type><ref refid="classcugraph_1_1legacy_1_1GraphCSRView" kindref="compound">legacy::GraphCSRView</ref>&lt; vertex_t, edge_t, weight_t &gt; const &amp;</type>
+          <declname>graph</declname>
+        </param>
+        <param>
+          <type>int</type>
+          <declname>n_clusters</declname>
+        </param>
+        <param>
+          <type>vertex_t const *</type>
+          <declname>clustering</declname>
+        </param>
+        <param>
+          <type>weight_t *</type>
+          <declname>modularity</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/community/legacy/spectral_clustering.cu" line="184" column="6" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/community/legacy/spectral_clustering.cu" bodystart="184" bodyend="199"/>
+      </memberdef>
+      <memberdef kind="function" id="spectral__clustering_8cu_1a59721aa7eefbe1f6cba81fcd8026eec8" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <templateparamlist>
+          <param>
+            <type>typename vertex_t</type>
+          </param>
+          <param>
+            <type>typename edge_t</type>
+          </param>
+          <param>
+            <type>typename weight_t</type>
+          </param>
+        </templateparamlist>
+        <type>void</type>
+        <definition>void cugraph::ext_raft::detail::analyzeBalancedCut_impl</definition>
+        <argsstring>(legacy::GraphCSRView&lt; vertex_t, edge_t, weight_t &gt; const &amp;graph, vertex_t n_clusters, vertex_t const *clustering, weight_t *edgeCut, weight_t *ratioCut)</argsstring>
+        <name>analyzeBalancedCut_impl</name>
+        <qualifiedname>cugraph::ext_raft::detail::analyzeBalancedCut_impl</qualifiedname>
+        <param>
+          <type><ref refid="classcugraph_1_1legacy_1_1GraphCSRView" kindref="compound">legacy::GraphCSRView</ref>&lt; vertex_t, edge_t, weight_t &gt; const &amp;</type>
+          <declname>graph</declname>
+        </param>
+        <param>
+          <type>vertex_t</type>
+          <declname>n_clusters</declname>
+        </param>
+        <param>
+          <type>vertex_t const *</type>
+          <declname>clustering</declname>
+        </param>
+        <param>
+          <type>weight_t *</type>
+          <declname>edgeCut</declname>
+        </param>
+        <param>
+          <type>weight_t *</type>
+          <declname>ratioCut</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/community/legacy/spectral_clustering.cu" line="202" column="6" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/community/legacy/spectral_clustering.cu" bodystart="202" bodyend="226"/>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/src/community/legacy/spectral_clustering.cu" line="35" column="1"/>
+  </compounddef>
+</doxygen>

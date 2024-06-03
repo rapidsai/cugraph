@@ -1,0 +1,119 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="structcugraph_1_1detail_1_1compute__max__distance" kind="struct" language="C++" prot="public">
+    <compoundname>cugraph::detail::compute_max_distance</compoundname>
+    <templateparamlist>
+      <param>
+        <type>typename vertex_t</type>
+      </param>
+      <param>
+        <type>bool</type>
+        <declname>is_multi_gpu</declname>
+        <defname>is_multi_gpu</defname>
+      </param>
+    </templateparamlist>
+    <sectiondef kind="public-attrib">
+      <memberdef kind="variable" id="structcugraph_1_1detail_1_1compute__max__distance_1a31637b10d19ebee883f891c7b522de60" prot="public" static="no" mutable="no">
+        <type><ref refid="classcugraph_1_1vertex__partition__device__view__t" kindref="compound">vertex_partition_device_view_t</ref>&lt; vertex_t, is_multi_gpu &gt;</type>
+        <definition>vertex_partition_device_view_t&lt;vertex_t, is_multi_gpu&gt; cugraph::detail::compute_max_distance&lt; vertex_t, is_multi_gpu &gt;::vertex_partition_</definition>
+        <argsstring></argsstring>
+        <name>vertex_partition_</name>
+        <qualifiedname>cugraph::detail::compute_max_distance::vertex_partition_</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/traversal/extract_bfs_paths_impl.cuh" line="62" column="34" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/traversal/extract_bfs_paths_impl.cuh" bodystart="62" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph_1_1detail_1_1compute__max__distance_1aa32672a7f01d784919173fc1385fa9e3" prot="public" static="no" mutable="no">
+        <type>vertex_t</type>
+        <definition>vertex_t cugraph::detail::compute_max_distance&lt; vertex_t, is_multi_gpu &gt;::invalid_vertex_</definition>
+        <argsstring></argsstring>
+        <name>invalid_vertex_</name>
+        <qualifiedname>cugraph::detail::compute_max_distance::invalid_vertex_</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/traversal/extract_bfs_paths_impl.cuh" line="63" column="12" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/traversal/extract_bfs_paths_impl.cuh" bodystart="63" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph_1_1detail_1_1compute__max__distance_1a6ae38f52685071636a97a04c9d42160f" prot="public" static="no" mutable="no">
+        <type>vertex_t const  *</type>
+        <definition>vertex_t const* cugraph::detail::compute_max_distance&lt; vertex_t, is_multi_gpu &gt;::predecessors_</definition>
+        <argsstring></argsstring>
+        <name>predecessors_</name>
+        <qualifiedname>cugraph::detail::compute_max_distance::predecessors_</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/traversal/extract_bfs_paths_impl.cuh" line="64" column="18" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/traversal/extract_bfs_paths_impl.cuh" bodystart="64" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph_1_1detail_1_1compute__max__distance_1ac79e8b44d60760475a785f73fbdb7acd" prot="public" static="no" mutable="no">
+        <type>vertex_t const  *</type>
+        <definition>vertex_t const* cugraph::detail::compute_max_distance&lt; vertex_t, is_multi_gpu &gt;::distances_</definition>
+        <argsstring></argsstring>
+        <name>distances_</name>
+        <qualifiedname>cugraph::detail::compute_max_distance::distances_</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/traversal/extract_bfs_paths_impl.cuh" line="65" column="18" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/traversal/extract_bfs_paths_impl.cuh" bodystart="65" bodyend="-1"/>
+      </memberdef>
+    </sectiondef>
+    <sectiondef kind="public-func">
+      <memberdef kind="function" id="structcugraph_1_1detail_1_1compute__max__distance_1a8f113fb2bf4b9572bf52cac637b65f99" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type>vertex_t __device__</type>
+        <definition>vertex_t __device__ cugraph::detail::compute_max_distance&lt; vertex_t, is_multi_gpu &gt;::operator()</definition>
+        <argsstring>(vertex_t v)</argsstring>
+        <name>operator()</name>
+        <qualifiedname>cugraph::detail::compute_max_distance::operator()</qualifiedname>
+        <param>
+          <type>vertex_t</type>
+          <declname>v</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/traversal/extract_bfs_paths_impl.cuh" line="67" column="23" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/traversal/extract_bfs_paths_impl.cuh" bodystart="67" bodyend="72"/>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <collaborationgraph>
+      <node id="1">
+        <label>cugraph::detail::compute_max_distance&lt; vertex_t, is_multi_gpu &gt;</label>
+        <link refid="structcugraph_1_1detail_1_1compute__max__distance"/>
+        <childnode refid="2" relation="usage">
+          <edgelabel>vertex_partition_</edgelabel>
+        </childnode>
+      </node>
+      <node id="2">
+        <label>cugraph::vertex_partition_device_view_t&lt; vertex_t, is_multi_gpu &gt;</label>
+        <link refid="classcugraph_1_1vertex__partition__device__view__t"/>
+      </node>
+    </collaborationgraph>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/src/traversal/extract_bfs_paths_impl.cuh" line="61" column="1" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/traversal/extract_bfs_paths_impl.cuh" bodystart="61" bodyend="73"/>
+    <listofallmembers>
+      <member refid="structcugraph_1_1detail_1_1compute__max__distance_1ac79e8b44d60760475a785f73fbdb7acd" prot="public" virt="non-virtual"><scope>cugraph::detail::compute_max_distance</scope><name>distances_</name></member>
+      <member refid="structcugraph_1_1detail_1_1compute__max__distance_1aa32672a7f01d784919173fc1385fa9e3" prot="public" virt="non-virtual"><scope>cugraph::detail::compute_max_distance</scope><name>invalid_vertex_</name></member>
+      <member refid="structcugraph_1_1detail_1_1compute__max__distance_1a8f113fb2bf4b9572bf52cac637b65f99" prot="public" virt="non-virtual"><scope>cugraph::detail::compute_max_distance</scope><name>operator()</name></member>
+      <member refid="structcugraph_1_1detail_1_1compute__max__distance_1a6ae38f52685071636a97a04c9d42160f" prot="public" virt="non-virtual"><scope>cugraph::detail::compute_max_distance</scope><name>predecessors_</name></member>
+      <member refid="structcugraph_1_1detail_1_1compute__max__distance_1a31637b10d19ebee883f891c7b522de60" prot="public" virt="non-virtual"><scope>cugraph::detail::compute_max_distance</scope><name>vertex_partition_</name></member>
+    </listofallmembers>
+  </compounddef>
+</doxygen>

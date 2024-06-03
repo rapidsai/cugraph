@@ -1,0 +1,689 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="namespaceMLCommon_1_1Sparse" kind="namespace" language="C++">
+    <compoundname>MLCommon::Sparse</compoundname>
+    <innerclass refid="classMLCommon_1_1Sparse_1_1WeakCCState" prot="public">MLCommon::Sparse::WeakCCState</innerclass>
+    <sectiondef kind="func">
+      <memberdef kind="function" id="weak__cc_8cuh_1add505e162272c2914fee07ede59b952d" prot="public" static="yes" const="no" explicit="no" inline="no" virt="non-virtual">
+        <templateparamlist>
+          <param>
+            <type>typename vertex_t</type>
+          </param>
+          <param>
+            <type>typename edge_t</type>
+          </param>
+          <param>
+            <type>int</type>
+            <declname>TPB_X</declname>
+            <defname>TPB_X</defname>
+            <defval>32</defval>
+          </param>
+        </templateparamlist>
+        <type>__global__ void</type>
+        <definition>static __global__ void MLCommon::Sparse::weak_cc_label_device</definition>
+        <argsstring>(vertex_t *labels, edge_t const *offsets, vertex_t const *indices, edge_t nnz, bool *fa, bool *xa, bool *m, vertex_t startVertexId, vertex_t batchSize)</argsstring>
+        <name>weak_cc_label_device</name>
+        <qualifiedname>MLCommon::Sparse::weak_cc_label_device</qualifiedname>
+        <param>
+          <type>vertex_t *</type>
+          <declname>labels</declname>
+        </param>
+        <param>
+          <type>edge_t const *</type>
+          <declname>offsets</declname>
+        </param>
+        <param>
+          <type>vertex_t const *</type>
+          <declname>indices</declname>
+        </param>
+        <param>
+          <type>edge_t</type>
+          <declname>nnz</declname>
+        </param>
+        <param>
+          <type>bool *</type>
+          <declname>fa</declname>
+        </param>
+        <param>
+          <type>bool *</type>
+          <declname>xa</declname>
+        </param>
+        <param>
+          <type>bool *</type>
+          <declname>m</declname>
+        </param>
+        <param>
+          <type>vertex_t</type>
+          <declname>startVertexId</declname>
+        </param>
+        <param>
+          <type>vertex_t</type>
+          <declname>batchSize</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/components/legacy/weak_cc.cuh" line="62" column="24" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/components/legacy/weak_cc.cuh" bodystart="62" bodyend="118"/>
+      </memberdef>
+      <memberdef kind="function" id="weak__cc_8cuh_1a56b196b33aa864993f81a3bec2db5eca" prot="public" static="yes" const="no" explicit="no" inline="no" virt="non-virtual">
+        <templateparamlist>
+          <param>
+            <type>typename vertex_t</type>
+          </param>
+          <param>
+            <type>int</type>
+            <declname>TPB_X</declname>
+            <defname>TPB_X</defname>
+            <defval>32</defval>
+          </param>
+          <param>
+            <type>typename Lambda</type>
+          </param>
+        </templateparamlist>
+        <type>__global__ void</type>
+        <definition>static __global__ void MLCommon::Sparse::weak_cc_init_label_kernel</definition>
+        <argsstring>(vertex_t *labels, vertex_t startVertexId, vertex_t batchSize, vertex_t MAX_LABEL, Lambda filter_op)</argsstring>
+        <name>weak_cc_init_label_kernel</name>
+        <qualifiedname>MLCommon::Sparse::weak_cc_init_label_kernel</qualifiedname>
+        <param>
+          <type>vertex_t *</type>
+          <declname>labels</declname>
+        </param>
+        <param>
+          <type>vertex_t</type>
+          <declname>startVertexId</declname>
+        </param>
+        <param>
+          <type>vertex_t</type>
+          <declname>batchSize</declname>
+        </param>
+        <param>
+          <type>vertex_t</type>
+          <declname>MAX_LABEL</declname>
+        </param>
+        <param>
+          <type>Lambda</type>
+          <declname>filter_op</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+<para>F1 and F2 in the paper correspond to fa and xa</para>
+<para>Cd in paper corresponds to db_cluster</para>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/components/legacy/weak_cc.cuh" line="121" column="24" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/components/legacy/weak_cc.cuh" bodystart="121" bodyend="134"/>
+      </memberdef>
+      <memberdef kind="function" id="weak__cc_8cuh_1a2d45229a1efbdf586a434cd16f486422" prot="public" static="yes" const="no" explicit="no" inline="no" virt="non-virtual">
+        <templateparamlist>
+          <param>
+            <type>typename vertex_t</type>
+          </param>
+          <param>
+            <type>int</type>
+            <declname>TPB_X</declname>
+            <defname>TPB_X</defname>
+            <defval>32</defval>
+          </param>
+        </templateparamlist>
+        <type>__global__ void</type>
+        <definition>static __global__ void MLCommon::Sparse::weak_cc_init_all_kernel</definition>
+        <argsstring>(vertex_t *labels, bool *fa, bool *xa, vertex_t N, vertex_t MAX_LABEL)</argsstring>
+        <name>weak_cc_init_all_kernel</name>
+        <qualifiedname>MLCommon::Sparse::weak_cc_init_all_kernel</qualifiedname>
+        <param>
+          <type>vertex_t *</type>
+          <declname>labels</declname>
+        </param>
+        <param>
+          <type>bool *</type>
+          <declname>fa</declname>
+        </param>
+        <param>
+          <type>bool *</type>
+          <declname>xa</declname>
+        </param>
+        <param>
+          <type>vertex_t</type>
+          <declname>N</declname>
+        </param>
+        <param>
+          <type>vertex_t</type>
+          <declname>MAX_LABEL</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/components/legacy/weak_cc.cuh" line="137" column="24" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/components/legacy/weak_cc.cuh" bodystart="137" bodyend="146"/>
+      </memberdef>
+      <memberdef kind="function" id="weak__cc_8cuh_1a72ef66587f06ec78a28c81df05c2c740" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <templateparamlist>
+          <param>
+            <type>typename vertex_t</type>
+          </param>
+          <param>
+            <type>typename edge_t</type>
+          </param>
+          <param>
+            <type>int</type>
+            <declname>TPB_X</declname>
+            <defname>TPB_X</defname>
+            <defval>32</defval>
+          </param>
+          <param>
+            <type>typename Lambda</type>
+          </param>
+        </templateparamlist>
+        <type>void</type>
+        <definition>void MLCommon::Sparse::weak_cc_label_batched</definition>
+        <argsstring>(vertex_t *labels, edge_t const *offsets, vertex_t const *indices, edge_t nnz, vertex_t N, WeakCCState &amp;state, vertex_t startVertexId, vertex_t batchSize, cudaStream_t stream, Lambda filter_op)</argsstring>
+        <name>weak_cc_label_batched</name>
+        <qualifiedname>MLCommon::Sparse::weak_cc_label_batched</qualifiedname>
+        <param>
+          <type>vertex_t *</type>
+          <declname>labels</declname>
+        </param>
+        <param>
+          <type>edge_t const *</type>
+          <declname>offsets</declname>
+        </param>
+        <param>
+          <type>vertex_t const *</type>
+          <declname>indices</declname>
+        </param>
+        <param>
+          <type>edge_t</type>
+          <declname>nnz</declname>
+        </param>
+        <param>
+          <type>vertex_t</type>
+          <declname>N</declname>
+        </param>
+        <param>
+          <type><ref refid="classMLCommon_1_1Sparse_1_1WeakCCState" kindref="compound">WeakCCState</ref> &amp;</type>
+          <declname>state</declname>
+        </param>
+        <param>
+          <type>vertex_t</type>
+          <declname>startVertexId</declname>
+        </param>
+        <param>
+          <type>vertex_t</type>
+          <declname>batchSize</declname>
+        </param>
+        <param>
+          <type>cudaStream_t</type>
+          <declname>stream</declname>
+        </param>
+        <param>
+          <type>Lambda</type>
+          <declname>filter_op</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/components/legacy/weak_cc.cuh" line="149" column="6" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/components/legacy/weak_cc.cuh" bodystart="149" bodyend="190"/>
+      </memberdef>
+      <memberdef kind="function" id="weak__cc_8cuh_1a8b51c2f3337bbcf517d3b8cd7346bad0" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <templateparamlist>
+          <param>
+            <type>typename vertex_t</type>
+          </param>
+          <param>
+            <type>typename edge_t</type>
+          </param>
+          <param>
+            <type>int</type>
+            <declname>TPB_X</declname>
+            <defname>TPB_X</defname>
+            <defval>32</defval>
+          </param>
+        </templateparamlist>
+        <type>bool void</type>
+        <definition>bool void MLCommon::Sparse::weak_cc_batched</definition>
+        <argsstring>(vertex_t *labels, edge_t const *offsets, vertex_t const *indices, edge_t nnz, vertex_t N, vertex_t startVertexId, vertex_t batchSize, WeakCCState &amp;state, cudaStream_t stream, Lambda filter_op)</argsstring>
+        <name>weak_cc_batched</name>
+        <qualifiedname>MLCommon::Sparse::weak_cc_batched</qualifiedname>
+        <param>
+          <type>vertex_t *</type>
+          <declname>labels</declname>
+        </param>
+        <param>
+          <type>edge_t const *</type>
+          <declname>offsets</declname>
+        </param>
+        <param>
+          <type>vertex_t const *</type>
+          <declname>indices</declname>
+        </param>
+        <param>
+          <type>edge_t</type>
+          <declname>nnz</declname>
+        </param>
+        <param>
+          <type>vertex_t</type>
+          <declname>N</declname>
+        </param>
+        <param>
+          <type>vertex_t</type>
+          <declname>startVertexId</declname>
+        </param>
+        <param>
+          <type>vertex_t</type>
+          <declname>batchSize</declname>
+        </param>
+        <param>
+          <type><ref refid="classMLCommon_1_1Sparse_1_1WeakCCState" kindref="compound">WeakCCState</ref> &amp;</type>
+          <declname>state</declname>
+        </param>
+        <param>
+          <type>cudaStream_t</type>
+          <declname>stream</declname>
+        </param>
+        <param>
+          <type>Lambda</type>
+          <declname>filter_op</declname>
+        </param>
+        <briefdescription>
+<para>Compute weakly connected components. </para>
+        </briefdescription>
+        <detaileddescription>
+<para>Note that the resulting labels may not be taken from a monotonically increasing set (eg. numbers may be skipped). The MLCommon::Array package contains a primitive <computeroutput>make_monotonic</computeroutput>, which will make a monotonically increasing set of labels.</para>
+<para>This implementation comes from [1] and solves component labeling problem in parallel on CSR-indexes based upon the vertex degree and adjacency graph.</para>
+<para>[1] Hawick, K.A et al, 2010. &quot;Parallel graph component labelling with GPUs and CUDA&quot;</para>
+<para><parameterlist kind="templateparam"><parameteritem>
+<parameternamelist>
+<parametername>vertex_t</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>The type of a vertex id </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>edge_t</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>The type of an edge id </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>TPB_X</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Number of threads to use per block when configuring the kernel </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>Lambda</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>the type of an optional filter function (int)-&gt;bool</para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername>labels</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Array for the output labels </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>offsets</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>CSR offsets array </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>indices</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>CSR indices array </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>nnz</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Number of edges </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>N</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Number of vertices </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>stream</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Cuda stream to use </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>filter_op</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Optional filtering function to determine which points should get considered for labeling. </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/components/legacy/weak_cc.cuh" line="223" column="6" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/components/legacy/weak_cc.cuh" bodystart="223" bodyend="246"/>
+      </memberdef>
+      <memberdef kind="function" id="weak__cc_8cuh_1acc4c199708afc34b814b07ca41fa31fe" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <templateparamlist>
+          <param>
+            <type>typename vertex_t</type>
+          </param>
+          <param>
+            <type>typename edge_t</type>
+          </param>
+          <param>
+            <type>int</type>
+            <declname>TPB_X</declname>
+            <defname>TPB_X</defname>
+            <defval>32</defval>
+          </param>
+        </templateparamlist>
+        <type>bool void</type>
+        <definition>bool void MLCommon::Sparse::weak_cc</definition>
+        <argsstring>(vertex_t *labels, edge_t const *offsets, vertex_t const *indices, edge_t nnz, vertex_t N, cudaStream_t stream, Lambda filter_op)</argsstring>
+        <name>weak_cc</name>
+        <qualifiedname>MLCommon::Sparse::weak_cc</qualifiedname>
+        <param>
+          <type>vertex_t *</type>
+          <declname>labels</declname>
+        </param>
+        <param>
+          <type>edge_t const *</type>
+          <declname>offsets</declname>
+        </param>
+        <param>
+          <type>vertex_t const *</type>
+          <declname>indices</declname>
+        </param>
+        <param>
+          <type>edge_t</type>
+          <declname>nnz</declname>
+        </param>
+        <param>
+          <type>vertex_t</type>
+          <declname>N</declname>
+        </param>
+        <param>
+          <type>cudaStream_t</type>
+          <declname>stream</declname>
+        </param>
+        <param>
+          <type>Lambda</type>
+          <declname>filter_op</declname>
+        </param>
+        <briefdescription>
+<para>Compute weakly connected components. </para>
+        </briefdescription>
+        <detaileddescription>
+<para>Note that the resulting labels may not be taken from a monotonically increasing set (eg. numbers may be skipped). The MLCommon::Array package contains a primitive <computeroutput>make_monotonic</computeroutput>, which will make a monotonically increasing set of labels.</para>
+<para>This implementation comes from [1] and solves component labeling problem in parallel on CSR-indexes based upon the vertex degree and adjacency graph.</para>
+<para>[1] Hawick, K.A et al, 2010. &quot;Parallel graph component labelling with GPUs and CUDA&quot;</para>
+<para><parameterlist kind="templateparam"><parameteritem>
+<parameternamelist>
+<parametername>vertex_t</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>The type of a vertex id </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>edge_t</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>The type of an edge id </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>TPB_X</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Number of threads to use per block when configuring the kernel </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>Lambda</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>the type of an optional filter function (int)-&gt;bool</para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername>labels</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Array for the output labels </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>offsets</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>CSR offsets array </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>indices</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>CSR indices array </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>nnz</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Number of edges </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>N</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Number of vertices </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>stream</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Cuda stream to use </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>filter_op</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Optional filtering function to determine which points should get considered for labeling. </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/components/legacy/weak_cc.cuh" line="279" column="6" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/components/legacy/weak_cc.cuh" bodystart="279" bodyend="294"/>
+      </memberdef>
+      <memberdef kind="function" id="weak__cc_8cuh_1ab9e1e1c9d11e50775fa54ee86fd43c08" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <templateparamlist>
+          <param>
+            <type>typename vertex_t</type>
+          </param>
+          <param>
+            <type>typename edge_t</type>
+          </param>
+          <param>
+            <type>int</type>
+            <declname>TPB_X</declname>
+            <defname>TPB_X</defname>
+            <defval>32</defval>
+          </param>
+        </templateparamlist>
+        <type>void</type>
+        <definition>void MLCommon::Sparse::weak_cc_entry</definition>
+        <argsstring>(vertex_t *labels, edge_t const *offsets, vertex_t const *indices, edge_t nnz, vertex_t N, cudaStream_t stream)</argsstring>
+        <name>weak_cc_entry</name>
+        <qualifiedname>MLCommon::Sparse::weak_cc_entry</qualifiedname>
+        <param>
+          <type>vertex_t *</type>
+          <declname>labels</declname>
+        </param>
+        <param>
+          <type>edge_t const *</type>
+          <declname>offsets</declname>
+        </param>
+        <param>
+          <type>vertex_t const *</type>
+          <declname>indices</declname>
+        </param>
+        <param>
+          <type>edge_t</type>
+          <declname>nnz</declname>
+        </param>
+        <param>
+          <type>vertex_t</type>
+          <declname>N</declname>
+        </param>
+        <param>
+          <type>cudaStream_t</type>
+          <declname>stream</declname>
+        </param>
+        <briefdescription>
+<para>Compute weakly connected components. </para>
+        </briefdescription>
+        <detaileddescription>
+<para>Note that the resulting labels may not be taken from a monotonically increasing set (eg. numbers may be skipped). The MLCommon::Array package contains a primitive <computeroutput>make_monotonic</computeroutput>, which will make a monotonically increasing set of labels.</para>
+<para>This implementation comes from [1] and solves component labeling problem in parallel on CSR-indexes based upon the vertex degree and adjacency graph.</para>
+<para>[1] Hawick, K.A et al, 2010. &quot;Parallel graph component labelling with GPUs and CUDA&quot;</para>
+<para><parameterlist kind="templateparam"><parameteritem>
+<parameternamelist>
+<parametername>vertex_t</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>The type of a vertex id </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>edge_t</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>The type of an edge id </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>TPB_X</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Number of threads to use per block when configuring the kernel</para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername>labels</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Array for the output labels </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>offsets</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>CSR offsets array </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>indices</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>CSR indices array </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>nnz</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Number of edges </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>N</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Number of vertices </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>stream</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Cuda stream to use </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/components/legacy/weak_cc.cuh" line="321" column="6" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/components/legacy/weak_cc.cuh" bodystart="321" bodyend="329"/>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/src/components/legacy/weak_cc.cuh" line="49" column="1"/>
+  </compounddef>
+</doxygen>

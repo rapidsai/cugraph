@@ -1,0 +1,144 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="classHighResTimer" kind="class" language="C++" prot="public">
+    <compoundname>HighResTimer</compoundname>
+    <sectiondef kind="private-attrib">
+      <memberdef kind="variable" id="classHighResTimer_1a6e46ea9034c6f4150ae33ec8903a24d6" prot="private" static="no" mutable="no">
+        <type>std::map&lt; std::string, std::tuple&lt; size_t, double &gt; &gt;</type>
+        <definition>std::map&lt;std::string, std::tuple&lt;size_t, double&gt; &gt; HighResTimer::labeled_timers</definition>
+        <argsstring></argsstring>
+        <name>labeled_timers</name>
+        <qualifiedname>HighResTimer::labeled_timers</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/utilities/high_res_timer.hpp" line="82" column="5" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/utilities/high_res_timer.hpp" bodystart="82" bodyend="82"/>
+      </memberdef>
+      <memberdef kind="variable" id="classHighResTimer_1abf1a1e890db2829d6f357b25271e9ce1" prot="private" static="no" mutable="no">
+        <type>std::stack&lt; std::tuple&lt; std::string, std::chrono::time_point&lt; std::chrono::steady_clock &gt; &gt; &gt;</type>
+        <definition>std::stack&lt;std::tuple&lt;std::string, std::chrono::time_point&lt;std::chrono::steady_clock&gt; &gt; &gt; HighResTimer::start_stack</definition>
+        <argsstring></argsstring>
+        <name>start_stack</name>
+        <qualifiedname>HighResTimer::start_stack</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/utilities/high_res_timer.hpp" line="84" column="5" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/utilities/high_res_timer.hpp" bodystart="84" bodyend="84"/>
+      </memberdef>
+    </sectiondef>
+    <sectiondef kind="public-func">
+      <memberdef kind="function" id="classHighResTimer_1a625bb224767afc9a905e868f033e0833" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type>void</type>
+        <definition>void HighResTimer::start</definition>
+        <argsstring>(std::string label)</argsstring>
+        <name>start</name>
+        <qualifiedname>HighResTimer::start</qualifiedname>
+        <param>
+          <type>std::string</type>
+          <declname>label</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/utilities/high_res_timer.hpp" line="30" column="8" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/utilities/high_res_timer.hpp" bodystart="30" bodyend="33"/>
+      </memberdef>
+      <memberdef kind="function" id="classHighResTimer_1a7d0ae3918bdce607e0a1f42d749afaf3" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type>double</type>
+        <definition>double HighResTimer::stop</definition>
+        <argsstring>()</argsstring>
+        <name>stop</name>
+        <qualifiedname>HighResTimer::stop</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/utilities/high_res_timer.hpp" line="35" column="10" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/utilities/high_res_timer.hpp" bodystart="35" bodyend="54"/>
+      </memberdef>
+      <memberdef kind="function" id="classHighResTimer_1a0e2b7c6104aae1ec2c248969180c02aa" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type>void</type>
+        <definition>void HighResTimer::display</definition>
+        <argsstring>(std::ostream &amp;os)</argsstring>
+        <name>display</name>
+        <qualifiedname>HighResTimer::display</qualifiedname>
+        <param>
+          <type>std::ostream &amp;</type>
+          <declname>os</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/utilities/high_res_timer.hpp" line="56" column="8" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/utilities/high_res_timer.hpp" bodystart="56" bodyend="63"/>
+      </memberdef>
+      <memberdef kind="function" id="classHighResTimer_1a3a6cf6c03d9fe6f4e97f23d03b41fbf8" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type>void</type>
+        <definition>void HighResTimer::display</definition>
+        <argsstring>(std::ostream &amp;os, std::string label)</argsstring>
+        <name>display</name>
+        <qualifiedname>HighResTimer::display</qualifiedname>
+        <param>
+          <type>std::ostream &amp;</type>
+          <declname>os</declname>
+        </param>
+        <param>
+          <type>std::string</type>
+          <declname>label</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/utilities/high_res_timer.hpp" line="65" column="8" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/utilities/high_res_timer.hpp" bodystart="65" bodyend="72"/>
+      </memberdef>
+      <memberdef kind="function" id="classHighResTimer_1a5e1ff24657cc2ef933dbea837471b74d" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type>void</type>
+        <definition>void HighResTimer::display_and_clear</definition>
+        <argsstring>(std::ostream &amp;os)</argsstring>
+        <name>display_and_clear</name>
+        <qualifiedname>HighResTimer::display_and_clear</qualifiedname>
+        <param>
+          <type>std::ostream &amp;</type>
+          <declname>os</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/utilities/high_res_timer.hpp" line="74" column="8" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/utilities/high_res_timer.hpp" bodystart="74" bodyend="78"/>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/utilities/high_res_timer.hpp" line="28" column="1" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/utilities/high_res_timer.hpp" bodystart="28" bodyend="85"/>
+    <listofallmembers>
+      <member refid="classHighResTimer_1a0e2b7c6104aae1ec2c248969180c02aa" prot="public" virt="non-virtual"><scope>HighResTimer</scope><name>display</name></member>
+      <member refid="classHighResTimer_1a3a6cf6c03d9fe6f4e97f23d03b41fbf8" prot="public" virt="non-virtual"><scope>HighResTimer</scope><name>display</name></member>
+      <member refid="classHighResTimer_1a5e1ff24657cc2ef933dbea837471b74d" prot="public" virt="non-virtual"><scope>HighResTimer</scope><name>display_and_clear</name></member>
+      <member refid="classHighResTimer_1a6e46ea9034c6f4150ae33ec8903a24d6" prot="private" virt="non-virtual"><scope>HighResTimer</scope><name>labeled_timers</name></member>
+      <member refid="classHighResTimer_1a625bb224767afc9a905e868f033e0833" prot="public" virt="non-virtual"><scope>HighResTimer</scope><name>start</name></member>
+      <member refid="classHighResTimer_1abf1a1e890db2829d6f357b25271e9ce1" prot="private" virt="non-virtual"><scope>HighResTimer</scope><name>start_stack</name></member>
+      <member refid="classHighResTimer_1a7d0ae3918bdce607e0a1f42d749afaf3" prot="public" virt="non-virtual"><scope>HighResTimer</scope><name>stop</name></member>
+    </listofallmembers>
+  </compounddef>
+</doxygen>

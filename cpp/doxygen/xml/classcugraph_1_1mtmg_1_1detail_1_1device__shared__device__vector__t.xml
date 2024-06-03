@@ -1,0 +1,91 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="classcugraph_1_1mtmg_1_1detail_1_1device__shared__device__vector__t" kind="class" language="C++" prot="public">
+    <compoundname>cugraph::mtmg::detail::device_shared_device_vector_t</compoundname>
+    <basecompoundref refid="classcugraph_1_1mtmg_1_1detail_1_1device__shared__wrapper__t" prot="public" virt="non-virtual">cugraph::mtmg::detail::device_shared_wrapper_t&lt; rmm::device_uvector&lt; T &gt; &gt;</basecompoundref>
+    <includes refid="device__shared__device__vector_8hpp" local="no">device_shared_device_vector.hpp</includes>
+    <templateparamlist>
+      <param>
+        <type>typename T</type>
+      </param>
+    </templateparamlist>
+    <sectiondef kind="private-type">
+      <memberdef kind="typedef" id="classcugraph_1_1mtmg_1_1detail_1_1device__shared__device__vector__t_1ac406b8bcd1a02eedb66bc760e83bec91" prot="private" static="no">
+        <type><ref refid="classcugraph_1_1mtmg_1_1detail_1_1device__shared__wrapper__t" kindref="compound">detail::device_shared_wrapper_t</ref>&lt; rmm::device_uvector&lt; T &gt; &gt;</type>
+        <definition>using cugraph::mtmg::detail::device_shared_device_vector_t&lt; T &gt;::parent_t =  detail::device_shared_wrapper_t&lt;rmm::device_uvector&lt;T&gt;&gt;</definition>
+        <argsstring></argsstring>
+        <name>parent_t</name>
+        <qualifiedname>cugraph::mtmg::detail::device_shared_device_vector_t::parent_t</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/detail/device_shared_device_vector.hpp" line="35" column="3" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/detail/device_shared_device_vector.hpp" bodystart="35" bodyend="-1"/>
+      </memberdef>
+    </sectiondef>
+    <sectiondef kind="public-func">
+      <memberdef kind="function" id="classcugraph_1_1mtmg_1_1detail_1_1device__shared__device__vector__t_1aae32ad9bb9769756cf6cef9a319c08b8" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type>auto</type>
+        <definition>auto cugraph::mtmg::detail::device_shared_device_vector_t&lt; T &gt;::view</definition>
+        <argsstring>()</argsstring>
+        <name>view</name>
+        <qualifiedname>cugraph::mtmg::detail::device_shared_device_vector_t::view</qualifiedname>
+        <briefdescription>
+<para>Create a device_shared_device_span (read only view) </para>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/detail/device_shared_device_vector.hpp" line="41" column="8" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/detail/device_shared_device_vector.hpp" bodystart="41" bodyend="52"/>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+<para>Manage a device vector on each GPU. </para>
+    </briefdescription>
+    <detaileddescription>
+<para>Uses the device_shared_wrapper to manage an rmm::device_uvector&lt;T&gt; on each GPU. </para>
+    </detaileddescription>
+    <inheritancegraph>
+      <node id="1">
+        <label>cugraph::mtmg::detail::device_shared_device_vector_t&lt; T &gt;</label>
+        <link refid="classcugraph_1_1mtmg_1_1detail_1_1device__shared__device__vector__t"/>
+        <childnode refid="2" relation="public-inheritance">
+        </childnode>
+      </node>
+      <node id="2">
+        <label>cugraph::mtmg::detail::device_shared_wrapper_t&lt; rmm::device_uvector&lt; T &gt; &gt;</label>
+        <link refid="classcugraph_1_1mtmg_1_1detail_1_1device__shared__wrapper__t"/>
+      </node>
+    </inheritancegraph>
+    <collaborationgraph>
+      <node id="1">
+        <label>cugraph::mtmg::detail::device_shared_device_vector_t&lt; T &gt;</label>
+        <link refid="classcugraph_1_1mtmg_1_1detail_1_1device__shared__device__vector__t"/>
+        <childnode refid="2" relation="public-inheritance">
+        </childnode>
+      </node>
+      <node id="2">
+        <label>cugraph::mtmg::detail::device_shared_wrapper_t&lt; rmm::device_uvector&lt; T &gt; &gt;</label>
+        <link refid="classcugraph_1_1mtmg_1_1detail_1_1device__shared__wrapper__t"/>
+      </node>
+    </collaborationgraph>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/detail/device_shared_device_vector.hpp" line="34" column="1" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/detail/device_shared_device_vector.hpp" bodystart="34" bodyend="53"/>
+    <listofallmembers>
+      <member refid="classcugraph_1_1mtmg_1_1detail_1_1device__shared__wrapper__t_1a0491c39b28031d6de9aca1e41b2a8d38" prot="public" virt="non-virtual"><scope>cugraph::mtmg::detail::device_shared_device_vector_t</scope><name>device_shared_wrapper_t</name></member>
+      <member refid="classcugraph_1_1mtmg_1_1detail_1_1device__shared__wrapper__t_1aa31ffdd3545f839d700c6e27df205a11" prot="public" virt="non-virtual"><scope>cugraph::mtmg::detail::device_shared_device_vector_t</scope><name>device_shared_wrapper_t</name></member>
+      <member refid="classcugraph_1_1mtmg_1_1detail_1_1device__shared__wrapper__t_1a5cde570f7a097a9f0895d3495928a772" prot="public" virt="non-virtual"><scope>cugraph::mtmg::detail::device_shared_device_vector_t</scope><name>get</name></member>
+      <member refid="classcugraph_1_1mtmg_1_1detail_1_1device__shared__wrapper__t_1a7f1de177bc117b5eb6683cfb164ef78d" prot="public" virt="non-virtual"><scope>cugraph::mtmg::detail::device_shared_device_vector_t</scope><name>get</name></member>
+      <member refid="classcugraph_1_1mtmg_1_1detail_1_1device__shared__wrapper__t_1ad69299ff247d4a35fdb86f794fb93198" prot="protected" virt="non-virtual"><scope>cugraph::mtmg::detail::device_shared_device_vector_t</scope><name>lock_</name></member>
+      <member refid="classcugraph_1_1mtmg_1_1detail_1_1device__shared__wrapper__t_1ade0e677b55a50d0067f8fb68a19eb708" prot="protected" virt="non-virtual"><scope>cugraph::mtmg::detail::device_shared_device_vector_t</scope><name>objects_</name></member>
+      <member refid="classcugraph_1_1mtmg_1_1detail_1_1device__shared__wrapper__t_1a38871d86d47b39c719cc4a4e5afda7a3" prot="public" virt="non-virtual"><scope>cugraph::mtmg::detail::device_shared_device_vector_t</scope><name>operator=</name></member>
+      <member refid="classcugraph_1_1mtmg_1_1detail_1_1device__shared__device__vector__t_1ac406b8bcd1a02eedb66bc760e83bec91" prot="private" virt="non-virtual"><scope>cugraph::mtmg::detail::device_shared_device_vector_t</scope><name>parent_t</name></member>
+      <member refid="classcugraph_1_1mtmg_1_1detail_1_1device__shared__wrapper__t_1a14553fe2a2facc4a8cb356a736cdb66e" prot="public" virt="non-virtual"><scope>cugraph::mtmg::detail::device_shared_device_vector_t</scope><name>set</name></member>
+      <member refid="classcugraph_1_1mtmg_1_1detail_1_1device__shared__wrapper__t_1a5a2bbc47f49d261e51a3b52543b4f193" prot="public" virt="non-virtual"><scope>cugraph::mtmg::detail::device_shared_device_vector_t</scope><name>set</name></member>
+      <member refid="classcugraph_1_1mtmg_1_1detail_1_1device__shared__device__vector__t_1aae32ad9bb9769756cf6cef9a319c08b8" prot="public" virt="non-virtual"><scope>cugraph::mtmg::detail::device_shared_device_vector_t</scope><name>view</name></member>
+      <member refid="classcugraph_1_1mtmg_1_1detail_1_1device__shared__wrapper__t_1a845fdc2d2154a3132b96e4c7e7d2568b" prot="public" virt="non-virtual"><scope>cugraph::mtmg::detail::device_shared_device_vector_t</scope><name>wrapped_t</name></member>
+    </listofallmembers>
+  </compounddef>
+</doxygen>

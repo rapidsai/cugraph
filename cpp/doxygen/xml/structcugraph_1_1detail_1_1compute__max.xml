@@ -1,0 +1,43 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="structcugraph_1_1detail_1_1compute__max" kind="struct" language="C++" prot="public">
+    <compoundname>cugraph::detail::compute_max</compoundname>
+    <templateparamlist>
+      <param>
+        <type>typename vertex_t</type>
+      </param>
+    </templateparamlist>
+    <sectiondef kind="public-func">
+      <memberdef kind="function" id="structcugraph_1_1detail_1_1compute__max_1a2608f8b71dde52d2c21951ae60b493ae" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type>vertex_t __device__</type>
+        <definition>vertex_t __device__ cugraph::detail::compute_max&lt; vertex_t &gt;::operator()</definition>
+        <argsstring>(vertex_t lhs, vertex_t rhs)</argsstring>
+        <name>operator()</name>
+        <qualifiedname>cugraph::detail::compute_max::operator()</qualifiedname>
+        <param>
+          <type>vertex_t</type>
+          <declname>lhs</declname>
+        </param>
+        <param>
+          <type>vertex_t</type>
+          <declname>rhs</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/traversal/extract_bfs_paths_impl.cuh" line="54" column="23" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/traversal/extract_bfs_paths_impl.cuh" bodystart="54" bodyend="57"/>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/src/traversal/extract_bfs_paths_impl.cuh" line="53" column="1" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/traversal/extract_bfs_paths_impl.cuh" bodystart="53" bodyend="58"/>
+    <listofallmembers>
+      <member refid="structcugraph_1_1detail_1_1compute__max_1a2608f8b71dde52d2c21951ae60b493ae" prot="public" virt="non-virtual"><scope>cugraph::detail::compute_max</scope><name>operator()</name></member>
+    </listofallmembers>
+  </compounddef>
+</doxygen>

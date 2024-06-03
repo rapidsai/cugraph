@@ -1,0 +1,18 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="dir_6412265de7d225ac7aa202e07b8a3215" kind="dir">
+    <compoundname>legacy</compoundname>
+    <innerfile refid="barnes__hut_8cuh">barnes_hut.cuh</innerfile>
+    <innerfile refid="bh__kernels_8cuh">bh_kernels.cuh</innerfile>
+    <innerfile refid="exact__fa2_8cuh">exact_fa2.cuh</innerfile>
+    <innerfile refid="exact__repulsion_8cuh">exact_repulsion.cuh</innerfile>
+    <innerfile refid="fa2__kernels_8cuh">fa2_kernels.cuh</innerfile>
+    <innerfile refid="force__atlas2_8cu">force_atlas2.cu</innerfile>
+    <innerfile refid="layout_2legacy_2utils_8hpp">layout/legacy/utils.hpp</innerfile>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/src/layout/legacy/"/>
+  </compounddef>
+</doxygen>

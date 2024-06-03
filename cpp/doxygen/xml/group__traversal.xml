@@ -1,0 +1,189 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="group__traversal" kind="group">
+    <compoundname>traversal</compoundname>
+    <title>Traversal Algorithms</title>
+    <sectiondef kind="func">
+      <memberdef kind="function" id="group__traversal_1gaf7f11f5a8e66242f90ce3d5b1e212e05" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref> *</type>
+        <definition>cugraph_type_erased_device_array_view_t * cugraph_paths_result_get_vertices</definition>
+        <argsstring>(cugraph_paths_result_t *result)</argsstring>
+        <name>cugraph_paths_result_get_vertices</name>
+        <param>
+          <type><ref refid="structcugraph__paths__result__t" kindref="compound">cugraph_paths_result_t</ref> *</type>
+          <declname>result</declname>
+        </param>
+        <briefdescription>
+<para>Get the vertex ids from the paths result. </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">result</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>The result from bfs or sssp </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>type erased array of vertex ids </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/traversal_algorithms.h" line="48" column="41" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/bfs.cpp" bodystart="169" bodyend="175" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/traversal_algorithms.h" declline="48" declcolumn="41"/>
+      </memberdef>
+      <memberdef kind="function" id="group__traversal_1ga0081d0f3ebfcb8812f49b8d015cb60df" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref> *</type>
+        <definition>cugraph_type_erased_device_array_view_t * cugraph_paths_result_get_distances</definition>
+        <argsstring>(cugraph_paths_result_t *result)</argsstring>
+        <name>cugraph_paths_result_get_distances</name>
+        <param>
+          <type><ref refid="structcugraph__paths__result__t" kindref="compound">cugraph_paths_result_t</ref> *</type>
+          <declname>result</declname>
+        </param>
+        <briefdescription>
+<para>Get the distances from the paths result. </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">result</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>The result from bfs or sssp </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>type erased array of distances </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/traversal_algorithms.h" line="58" column="41" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/bfs.cpp" bodystart="177" bodyend="183" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/traversal_algorithms.h" declline="58" declcolumn="41"/>
+      </memberdef>
+      <memberdef kind="function" id="group__traversal_1ga8639a397de77e4b944e61b6e8e8dee32" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref> *</type>
+        <definition>cugraph_type_erased_device_array_view_t * cugraph_paths_result_get_predecessors</definition>
+        <argsstring>(cugraph_paths_result_t *result)</argsstring>
+        <name>cugraph_paths_result_get_predecessors</name>
+        <param>
+          <type><ref refid="structcugraph__paths__result__t" kindref="compound">cugraph_paths_result_t</ref> *</type>
+          <declname>result</declname>
+        </param>
+        <briefdescription>
+<para>Get the predecessors from the paths result. </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">result</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>The result from bfs or sssp </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>type erased array of predecessors. Value will be NULL if compute_predecessors was FALSE in the call to bfs or sssp that produced this result. </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/traversal_algorithms.h" line="70" column="41" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/bfs.cpp" bodystart="185" bodyend="191" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/traversal_algorithms.h" declline="70" declcolumn="41"/>
+      </memberdef>
+      <memberdef kind="function" id="group__traversal_1ga9e70a5a4a14328cd33b92fb305a58ca5" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>void</type>
+        <definition>void cugraph_paths_result_free</definition>
+        <argsstring>(cugraph_paths_result_t *result)</argsstring>
+        <name>cugraph_paths_result_free</name>
+        <param>
+          <type><ref refid="structcugraph__paths__result__t" kindref="compound">cugraph_paths_result_t</ref> *</type>
+          <declname>result</declname>
+        </param>
+        <briefdescription>
+<para>Free paths result. </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">result</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>The result from bfs or sssp </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/traversal_algorithms.h" line="79" column="6" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/bfs.cpp" bodystart="193" bodyend="200" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/traversal_algorithms.h" declline="79" declcolumn="6"/>
+      </memberdef>
+      <memberdef kind="function" id="group__traversal_1gab81deb559b640377ae3bb3b5dd0cbd59" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref> *</type>
+        <definition>cugraph_type_erased_device_array_view_t * cugraph_extract_paths_result_get_paths</definition>
+        <argsstring>(cugraph_extract_paths_result_t *result)</argsstring>
+        <name>cugraph_extract_paths_result_get_paths</name>
+        <param>
+          <type><ref refid="structcugraph__extract__paths__result__t" kindref="compound">cugraph_extract_paths_result_t</ref> *</type>
+          <declname>result</declname>
+        </param>
+        <briefdescription>
+<para>Get the matrix (row major order) of paths. </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">result</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>The result from extract_paths </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>type erased array pointing to the matrix in device memory </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/traversal_algorithms.h" line="200" column="41" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/extract_paths.cpp" bodystart="156" bodyend="162" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/traversal_algorithms.h" declline="200" declcolumn="41"/>
+      </memberdef>
+      <memberdef kind="function" id="group__traversal_1ga384dc0032a00e2101197c9901fa734be" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>void</type>
+        <definition>void cugraph_extract_paths_result_free</definition>
+        <argsstring>(cugraph_extract_paths_result_t *result)</argsstring>
+        <name>cugraph_extract_paths_result_free</name>
+        <param>
+          <type><ref refid="structcugraph__extract__paths__result__t" kindref="compound">cugraph_extract_paths_result_t</ref> *</type>
+          <declname>result</declname>
+        </param>
+        <briefdescription>
+<para>Free extract_paths result. </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">result</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>The result from extract_paths </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/traversal_algorithms.h" line="209" column="6" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/extract_paths.cpp" bodystart="164" bodyend="169" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/traversal_algorithms.h" declline="209" declcolumn="6"/>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+  </compounddef>
+</doxygen>

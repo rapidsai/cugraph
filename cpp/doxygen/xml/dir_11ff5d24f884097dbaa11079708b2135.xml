@@ -1,0 +1,18 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="dir_11ff5d24f884097dbaa11079708b2135" kind="dir">
+    <compoundname>detail</compoundname>
+    <innerfile refid="extract__transform__v__frontier__e_8cuh">extract_transform_v_frontier_e.cuh</innerfile>
+    <innerfile refid="nbr__intersection_8cuh">nbr_intersection.cuh</innerfile>
+    <innerfile refid="optional__dataframe__buffer_8hpp">optional_dataframe_buffer.hpp</innerfile>
+    <innerfile refid="partition__v__frontier_8cuh">partition_v_frontier.cuh</innerfile>
+    <innerfile refid="prim__functors_8cuh">prim_functors.cuh</innerfile>
+    <innerfile refid="sample__and__compute__local__nbr__indices_8cuh">sample_and_compute_local_nbr_indices.cuh</innerfile>
+    <innerfile refid="transform__v__frontier__e_8cuh">transform_v_frontier_e.cuh</innerfile>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/detail/"/>
+  </compounddef>
+</doxygen>

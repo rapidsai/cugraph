@@ -1,0 +1,89 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="structcugraph_1_1detail_1_1strided__sum__t" kind="struct" language="C++" prot="public">
+    <compoundname>cugraph::detail::strided_sum_t</compoundname>
+    <templateparamlist>
+      <param>
+        <type>typename T</type>
+      </param>
+    </templateparamlist>
+    <sectiondef kind="public-attrib">
+      <memberdef kind="variable" id="structcugraph_1_1detail_1_1strided__sum__t_1a2a3cd04e8b32e239e9e2b7986b85d682" prot="public" static="no" mutable="no">
+        <type>T const  *</type>
+        <definition>T const* cugraph::detail::strided_sum_t&lt; T &gt;::values</definition>
+        <argsstring></argsstring>
+        <name>values</name>
+        <qualifiedname>cugraph::detail::strided_sum_t::values</qualifiedname>
+        <initializer>{nullptr}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/utilities/device_functors.cuh" line="134" column="11" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/utilities/device_functors.cuh" bodystart="134" bodyend="134"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph_1_1detail_1_1strided__sum__t_1a9acdebc847f48b5d23fb464c8734a64b" prot="public" static="no" mutable="no">
+        <type>size_t</type>
+        <definition>size_t cugraph::detail::strided_sum_t&lt; T &gt;::stride</definition>
+        <argsstring></argsstring>
+        <name>stride</name>
+        <qualifiedname>cugraph::detail::strided_sum_t::stride</qualifiedname>
+        <initializer>{0}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/utilities/device_functors.cuh" line="135" column="10" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/utilities/device_functors.cuh" bodystart="135" bodyend="135"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph_1_1detail_1_1strided__sum__t_1ad6d9503760865aafc8fb8e0b6f93ff50" prot="public" static="no" mutable="no">
+        <type>size_t</type>
+        <definition>size_t cugraph::detail::strided_sum_t&lt; T &gt;::count</definition>
+        <argsstring></argsstring>
+        <name>count</name>
+        <qualifiedname>cugraph::detail::strided_sum_t::count</qualifiedname>
+        <initializer>{0}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/utilities/device_functors.cuh" line="136" column="10" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/utilities/device_functors.cuh" bodystart="136" bodyend="136"/>
+      </memberdef>
+    </sectiondef>
+    <sectiondef kind="public-func">
+      <memberdef kind="function" id="structcugraph_1_1detail_1_1strided__sum__t_1a34caace74e6fd2d78c7487edbf955b1b" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>__device__ T</type>
+        <definition>__device__ T cugraph::detail::strided_sum_t&lt; T &gt;::operator()</definition>
+        <argsstring>(size_t start_offset) const</argsstring>
+        <name>operator()</name>
+        <qualifiedname>cugraph::detail::strided_sum_t::operator()</qualifiedname>
+        <param>
+          <type>size_t</type>
+          <declname>start_offset</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/utilities/device_functors.cuh" line="138" column="16" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/utilities/device_functors.cuh" bodystart="138" bodyend="145"/>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/utilities/device_functors.cuh" line="133" column="1" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/utilities/device_functors.cuh" bodystart="133" bodyend="146"/>
+    <listofallmembers>
+      <member refid="structcugraph_1_1detail_1_1strided__sum__t_1ad6d9503760865aafc8fb8e0b6f93ff50" prot="public" virt="non-virtual"><scope>cugraph::detail::strided_sum_t</scope><name>count</name></member>
+      <member refid="structcugraph_1_1detail_1_1strided__sum__t_1a34caace74e6fd2d78c7487edbf955b1b" prot="public" virt="non-virtual"><scope>cugraph::detail::strided_sum_t</scope><name>operator()</name></member>
+      <member refid="structcugraph_1_1detail_1_1strided__sum__t_1a9acdebc847f48b5d23fb464c8734a64b" prot="public" virt="non-virtual"><scope>cugraph::detail::strided_sum_t</scope><name>stride</name></member>
+      <member refid="structcugraph_1_1detail_1_1strided__sum__t_1a2a3cd04e8b32e239e9e2b7986b85d682" prot="public" virt="non-virtual"><scope>cugraph::detail::strided_sum_t</scope><name>values</name></member>
+    </listofallmembers>
+  </compounddef>
+</doxygen>

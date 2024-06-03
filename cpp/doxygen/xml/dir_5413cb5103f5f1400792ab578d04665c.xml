@@ -1,0 +1,20 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="dir_5413cb5103f5f1400792ab578d04665c" kind="dir">
+    <compoundname>centrality</compoundname>
+    <innerfile refid="betweenness__centrality__impl_8cuh">betweenness_centrality_impl.cuh</innerfile>
+    <innerfile refid="betweenness__centrality__mg_8cu">betweenness_centrality_mg.cu</innerfile>
+    <innerfile refid="betweenness__centrality__sg_8cu">betweenness_centrality_sg.cu</innerfile>
+    <innerfile refid="eigenvector__centrality__impl_8cuh">eigenvector_centrality_impl.cuh</innerfile>
+    <innerfile refid="eigenvector__centrality__mg_8cu">eigenvector_centrality_mg.cu</innerfile>
+    <innerfile refid="eigenvector__centrality__sg_8cu">eigenvector_centrality_sg.cu</innerfile>
+    <innerfile refid="katz__centrality__impl_8cuh">katz_centrality_impl.cuh</innerfile>
+    <innerfile refid="katz__centrality__mg_8cu">katz_centrality_mg.cu</innerfile>
+    <innerfile refid="katz__centrality__sg_8cu">katz_centrality_sg.cu</innerfile>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/src/centrality/"/>
+  </compounddef>
+</doxygen>

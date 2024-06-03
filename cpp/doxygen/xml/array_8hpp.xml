@@ -1,0 +1,282 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="array_8hpp" kind="file" language="C++">
+    <compoundname>array.hpp</compoundname>
+    <includes refid="array_8h" local="no">cugraph_c/array.h</includes>
+    <includes local="no">rmm/device_buffer.hpp</includes>
+    <includes local="no">rmm/device_uvector.hpp</includes>
+    <includedby refid="array_8cpp" local="yes">array.cpp</includedby>
+    <includedby refid="centrality__result_8hpp" local="yes">centrality_result.hpp</includedby>
+    <includedby refid="core__result_8hpp" local="yes">core_result.hpp</includedby>
+    <includedby refid="degrees__result_8hpp" local="yes">degrees_result.hpp</includedby>
+    <includedby refid="src_2c__api_2graph_8hpp" local="yes">graph.hpp</includedby>
+    <includedby refid="src_2c__api_2graph__functions_8hpp" local="yes">graph_functions.hpp</includedby>
+    <includedby refid="graph__generators_8cpp" local="yes">graph_generators.cpp</includedby>
+    <includedby refid="graph__mg_8cpp" local="yes">graph_mg.cpp</includedby>
+    <includedby refid="graph__sg_8cpp" local="yes">graph_sg.cpp</includedby>
+    <includedby refid="hierarchical__clustering__result_8hpp" local="yes">hierarchical_clustering_result.hpp</includedby>
+    <includedby refid="induced__subgraph__result_8hpp" local="yes">induced_subgraph_result.hpp</includedby>
+    <includedby refid="labeling__result_8hpp" local="yes">labeling_result.hpp</includedby>
+    <includedby refid="paths__result_8hpp" local="yes">paths_result.hpp</includedby>
+    <incdepgraph>
+      <node id="2">
+        <label>cugraph_c/array.h</label>
+        <link refid="array_8h_source"/>
+        <childnode refid="3" relation="include">
+        </childnode>
+      </node>
+      <node id="4">
+        <label>cugraph_c/error.h</label>
+        <link refid="error_8h_source"/>
+        <childnode refid="5" relation="include">
+        </childnode>
+      </node>
+      <node id="3">
+        <label>cugraph_c/resource_handle.h</label>
+        <link refid="resource__handle_8h_source"/>
+        <childnode refid="4" relation="include">
+        </childnode>
+        <childnode refid="6" relation="include">
+        </childnode>
+        <childnode refid="5" relation="include">
+        </childnode>
+      </node>
+      <node id="1">
+        <label>array.hpp</label>
+        <link refid="array_8hpp"/>
+        <childnode refid="2" relation="include">
+        </childnode>
+        <childnode refid="7" relation="include">
+        </childnode>
+        <childnode refid="8" relation="include">
+        </childnode>
+      </node>
+      <node id="7">
+        <label>rmm/device_buffer.hpp</label>
+      </node>
+      <node id="8">
+        <label>rmm/device_uvector.hpp</label>
+      </node>
+      <node id="6">
+        <label>stddef.h</label>
+      </node>
+      <node id="5">
+        <label>stdint.h</label>
+      </node>
+    </incdepgraph>
+    <invincdepgraph>
+      <node id="1">
+        <label>array.hpp</label>
+        <link refid="array_8hpp"/>
+        <childnode refid="2" relation="include">
+        </childnode>
+        <childnode refid="3" relation="include">
+        </childnode>
+        <childnode refid="4" relation="include">
+        </childnode>
+        <childnode refid="5" relation="include">
+        </childnode>
+        <childnode refid="7" relation="include">
+        </childnode>
+        <childnode refid="8" relation="include">
+        </childnode>
+        <childnode refid="9" relation="include">
+        </childnode>
+        <childnode refid="10" relation="include">
+        </childnode>
+        <childnode refid="11" relation="include">
+        </childnode>
+      </node>
+      <node id="2">
+        <label>centrality_result.hpp</label>
+        <link refid="centrality__result_8hpp_source"/>
+      </node>
+      <node id="3">
+        <label>core_result.hpp</label>
+        <link refid="core__result_8hpp_source"/>
+      </node>
+      <node id="4">
+        <label>degrees_result.hpp</label>
+        <link refid="degrees__result_8hpp_source"/>
+      </node>
+      <node id="5">
+        <label>graph.hpp</label>
+        <link refid="src_2c__api_2graph_8hpp_source"/>
+        <childnode refid="6" relation="include">
+        </childnode>
+      </node>
+      <node id="7">
+        <label>graph_functions.hpp</label>
+        <link refid="src_2c__api_2graph__functions_8hpp_source"/>
+      </node>
+      <node id="8">
+        <label>hierarchical_clustering_result.hpp</label>
+        <link refid="hierarchical__clustering__result_8hpp_source"/>
+      </node>
+      <node id="9">
+        <label>induced_subgraph_result.hpp</label>
+        <link refid="induced__subgraph__result_8hpp_source"/>
+      </node>
+      <node id="10">
+        <label>labeling_result.hpp</label>
+        <link refid="labeling__result_8hpp_source"/>
+      </node>
+      <node id="11">
+        <label>paths_result.hpp</label>
+        <link refid="paths__result_8hpp_source"/>
+      </node>
+      <node id="6">
+        <label>utils.hpp</label>
+        <link refid="c__api_2utils_8hpp_source"/>
+      </node>
+    </invincdepgraph>
+    <innerclass refid="structcugraph_1_1c__api_1_1cugraph__type__erased__device__array__view__t" prot="public">cugraph::c_api::cugraph_type_erased_device_array_view_t</innerclass>
+    <innerclass refid="structcugraph_1_1c__api_1_1cugraph__type__erased__device__array__t" prot="public">cugraph::c_api::cugraph_type_erased_device_array_t</innerclass>
+    <innerclass refid="structcugraph_1_1c__api_1_1cugraph__type__erased__host__array__view__t" prot="public">cugraph::c_api::cugraph_type_erased_host_array_view_t</innerclass>
+    <innerclass refid="structcugraph_1_1c__api_1_1cugraph__type__erased__host__array__t" prot="public">cugraph::c_api::cugraph_type_erased_host_array_t</innerclass>
+    <innernamespace refid="namespacecugraph">cugraph</innernamespace>
+    <innernamespace refid="namespacecugraph_1_1c__api">cugraph::c_api</innernamespace>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <programlisting>
+<codeline lineno="1"><highlight class="comment">/*</highlight></codeline>
+<codeline lineno="2"><highlight class="comment"><sp/>*<sp/>Copyright<sp/>(c)<sp/>2021-2023,<sp/>NVIDIA<sp/>CORPORATION.</highlight></codeline>
+<codeline lineno="3"><highlight class="comment"><sp/>*</highlight></codeline>
+<codeline lineno="4"><highlight class="comment"><sp/>*<sp/>Licensed<sp/>under<sp/>the<sp/>Apache<sp/>License,<sp/>Version<sp/>2.0<sp/>(the<sp/>&quot;License&quot;);</highlight></codeline>
+<codeline lineno="5"><highlight class="comment"><sp/>*<sp/>you<sp/>may<sp/>not<sp/>use<sp/>this<sp/>file<sp/>except<sp/>in<sp/>compliance<sp/>with<sp/>the<sp/>License.</highlight></codeline>
+<codeline lineno="6"><highlight class="comment"><sp/>*<sp/>You<sp/>may<sp/>obtain<sp/>a<sp/>copy<sp/>of<sp/>the<sp/>License<sp/>at</highlight></codeline>
+<codeline lineno="7"><highlight class="comment"><sp/>*</highlight></codeline>
+<codeline lineno="8"><highlight class="comment"><sp/>*<sp/><sp/><sp/><sp/><sp/>http://www.apache.org/licenses/LICENSE-2.0</highlight></codeline>
+<codeline lineno="9"><highlight class="comment"><sp/>*</highlight></codeline>
+<codeline lineno="10"><highlight class="comment"><sp/>*<sp/>Unless<sp/>required<sp/>by<sp/>applicable<sp/>law<sp/>or<sp/>agreed<sp/>to<sp/>in<sp/>writing,<sp/>software</highlight></codeline>
+<codeline lineno="11"><highlight class="comment"><sp/>*<sp/>distributed<sp/>under<sp/>the<sp/>License<sp/>is<sp/>distributed<sp/>on<sp/>an<sp/>&quot;AS<sp/>IS&quot;<sp/>BASIS,</highlight></codeline>
+<codeline lineno="12"><highlight class="comment"><sp/>*<sp/>WITHOUT<sp/>WARRANTIES<sp/>OR<sp/>CONDITIONS<sp/>OF<sp/>ANY<sp/>KIND,<sp/>either<sp/>express<sp/>or<sp/>implied.</highlight></codeline>
+<codeline lineno="13"><highlight class="comment"><sp/>*<sp/>See<sp/>the<sp/>License<sp/>for<sp/>the<sp/>specific<sp/>language<sp/>governing<sp/>permissions<sp/>and</highlight></codeline>
+<codeline lineno="14"><highlight class="comment"><sp/>*<sp/>limitations<sp/>under<sp/>the<sp/>License.</highlight></codeline>
+<codeline lineno="15"><highlight class="comment"><sp/>*/</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="16"><highlight class="normal"></highlight><highlight class="preprocessor">#pragma<sp/>once</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="17"><highlight class="normal"></highlight></codeline>
+<codeline lineno="18"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&lt;cugraph_c/array.h&gt;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="19"><highlight class="normal"></highlight></codeline>
+<codeline lineno="20"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&lt;rmm/device_buffer.hpp&gt;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="21"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&lt;rmm/device_uvector.hpp&gt;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="22"><highlight class="normal"></highlight></codeline>
+<codeline lineno="23"><highlight class="normal"></highlight><highlight class="keyword">namespace<sp/></highlight><highlight class="normal">cugraph<sp/>{</highlight></codeline>
+<codeline lineno="24"><highlight class="normal"></highlight><highlight class="keyword">namespace<sp/></highlight><highlight class="normal">c_api<sp/>{</highlight></codeline>
+<codeline lineno="25"><highlight class="normal"></highlight></codeline>
+<codeline lineno="26" refid="structcugraph_1_1c__api_1_1cugraph__type__erased__device__array__view__t" refkind="compound"><highlight class="normal"></highlight><highlight class="keyword">struct<sp/></highlight><highlight class="normal"><ref refid="structcugraph_1_1c__api_1_1cugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref><sp/>{</highlight></codeline>
+<codeline lineno="27"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordtype">void</highlight><highlight class="normal">*<sp/>data_;</highlight></codeline>
+<codeline lineno="28"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordtype">size_t</highlight><highlight class="normal"><sp/>size_;</highlight></codeline>
+<codeline lineno="29"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordtype">size_t</highlight><highlight class="normal"><sp/>num_bytes_;</highlight></codeline>
+<codeline lineno="30"><highlight class="normal"><sp/><sp/>cugraph_data_type_id_t<sp/>type_;</highlight></codeline>
+<codeline lineno="31"><highlight class="normal"></highlight></codeline>
+<codeline lineno="32"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">template</highlight><highlight class="normal"><sp/>&lt;</highlight><highlight class="keyword">typename</highlight><highlight class="normal"><sp/>T&gt;</highlight></codeline>
+<codeline lineno="33"><highlight class="normal"><sp/><sp/>T*<sp/>as_type()</highlight></codeline>
+<codeline lineno="34"><highlight class="normal"><sp/><sp/>{</highlight></codeline>
+<codeline lineno="35"><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="keywordflow">return</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">reinterpret_cast&lt;</highlight><highlight class="normal">T*</highlight><highlight class="keyword">&gt;</highlight><highlight class="normal">(data_);</highlight></codeline>
+<codeline lineno="36"><highlight class="normal"><sp/><sp/>}</highlight></codeline>
+<codeline lineno="37"><highlight class="normal"></highlight></codeline>
+<codeline lineno="38"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">template</highlight><highlight class="normal"><sp/>&lt;</highlight><highlight class="keyword">typename</highlight><highlight class="normal"><sp/>T&gt;</highlight></codeline>
+<codeline lineno="39"><highlight class="normal"><sp/><sp/>T<sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal">*<sp/>as_type()</highlight><highlight class="keyword"><sp/>const</highlight></codeline>
+<codeline lineno="40"><highlight class="keyword"><sp/><sp/></highlight><highlight class="normal">{</highlight></codeline>
+<codeline lineno="41"><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="keywordflow">return</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">reinterpret_cast&lt;</highlight><highlight class="normal">T<sp/>const*</highlight><highlight class="keyword">&gt;</highlight><highlight class="normal">(data_);</highlight></codeline>
+<codeline lineno="42"><highlight class="normal"><sp/><sp/>}</highlight></codeline>
+<codeline lineno="43"><highlight class="normal"></highlight></codeline>
+<codeline lineno="44"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordtype">size_t</highlight><highlight class="normal"><sp/>num_bytes()</highlight><highlight class="keyword"><sp/>const<sp/></highlight><highlight class="normal">{<sp/></highlight><highlight class="keywordflow">return</highlight><highlight class="normal"><sp/>num_bytes_;<sp/>}</highlight></codeline>
+<codeline lineno="45"><highlight class="normal">};</highlight></codeline>
+<codeline lineno="46"><highlight class="normal"></highlight></codeline>
+<codeline lineno="47" refid="structcugraph_1_1c__api_1_1cugraph__type__erased__device__array__t" refkind="compound"><highlight class="normal"></highlight><highlight class="keyword">struct<sp/></highlight><highlight class="normal"><ref refid="structcugraph_1_1c__api_1_1cugraph__type__erased__device__array__t" kindref="compound">cugraph_type_erased_device_array_t</ref><sp/>{</highlight></codeline>
+<codeline lineno="48"><highlight class="normal"><sp/><sp/></highlight><highlight class="comment">//<sp/>NOTE:<sp/>size<sp/>must<sp/>be<sp/>first<sp/>here<sp/>because<sp/>the<sp/>device<sp/>buffer<sp/>is<sp/>released</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="49"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordtype">size_t</highlight><highlight class="normal"><sp/>size_;</highlight></codeline>
+<codeline lineno="50"><highlight class="normal"><sp/><sp/>rmm::device_buffer<sp/>data_;</highlight></codeline>
+<codeline lineno="51"><highlight class="normal"><sp/><sp/>cugraph_data_type_id_t<sp/>type_;</highlight></codeline>
+<codeline lineno="52"><highlight class="normal"></highlight></codeline>
+<codeline lineno="53"><highlight class="normal"><sp/><sp/><ref refid="structcugraph_1_1c__api_1_1cugraph__type__erased__device__array__t" kindref="compound">cugraph_type_erased_device_array_t</ref>(</highlight><highlight class="keywordtype">size_t</highlight><highlight class="normal"><sp/>size,</highlight></codeline>
+<codeline lineno="54"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordtype">size_t</highlight><highlight class="normal"><sp/>num_bytes,</highlight></codeline>
+<codeline lineno="55"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>cugraph_data_type_id_t<sp/>type,</highlight></codeline>
+<codeline lineno="56"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>rmm::cuda_stream_view<sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal">&amp;<sp/>stream_view)</highlight></codeline>
+<codeline lineno="57"><highlight class="normal"><sp/><sp/><sp/><sp/>:<sp/>size_(size),<sp/>data_(num_bytes,<sp/>stream_view),<sp/>type_(type)</highlight></codeline>
+<codeline lineno="58"><highlight class="normal"><sp/><sp/>{</highlight></codeline>
+<codeline lineno="59"><highlight class="normal"><sp/><sp/>}</highlight></codeline>
+<codeline lineno="60"><highlight class="normal"></highlight></codeline>
+<codeline lineno="61"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">template</highlight><highlight class="normal"><sp/>&lt;</highlight><highlight class="keyword">typename</highlight><highlight class="normal"><sp/>T&gt;</highlight></codeline>
+<codeline lineno="62"><highlight class="normal"><sp/><sp/><ref refid="structcugraph_1_1c__api_1_1cugraph__type__erased__device__array__t" kindref="compound">cugraph_type_erased_device_array_t</ref>(rmm::device_uvector&lt;T&gt;&amp;<sp/>vec,<sp/>cugraph_data_type_id_t<sp/>type)</highlight></codeline>
+<codeline lineno="63"><highlight class="normal"><sp/><sp/><sp/><sp/>:<sp/>size_(vec.size()),<sp/>data_(vec.release()),<sp/>type_(type)</highlight></codeline>
+<codeline lineno="64"><highlight class="normal"><sp/><sp/>{</highlight></codeline>
+<codeline lineno="65"><highlight class="normal"><sp/><sp/>}</highlight></codeline>
+<codeline lineno="66"><highlight class="normal"></highlight></codeline>
+<codeline lineno="67"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">template</highlight><highlight class="normal"><sp/>&lt;</highlight><highlight class="keyword">typename</highlight><highlight class="normal"><sp/>T&gt;</highlight></codeline>
+<codeline lineno="68"><highlight class="normal"><sp/><sp/>T*<sp/>as_type()</highlight></codeline>
+<codeline lineno="69"><highlight class="normal"><sp/><sp/>{</highlight></codeline>
+<codeline lineno="70"><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="keywordflow">return</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">reinterpret_cast&lt;</highlight><highlight class="normal">T*</highlight><highlight class="keyword">&gt;</highlight><highlight class="normal">(data_.data());</highlight></codeline>
+<codeline lineno="71"><highlight class="normal"><sp/><sp/>}</highlight></codeline>
+<codeline lineno="72"><highlight class="normal"></highlight></codeline>
+<codeline lineno="73"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">template</highlight><highlight class="normal"><sp/>&lt;</highlight><highlight class="keyword">typename</highlight><highlight class="normal"><sp/>T&gt;</highlight></codeline>
+<codeline lineno="74"><highlight class="normal"><sp/><sp/>T<sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal">*<sp/>as_type()</highlight><highlight class="keyword"><sp/>const</highlight></codeline>
+<codeline lineno="75"><highlight class="keyword"><sp/><sp/></highlight><highlight class="normal">{</highlight></codeline>
+<codeline lineno="76"><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="keywordflow">return</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">reinterpret_cast&lt;</highlight><highlight class="normal">T<sp/>const*</highlight><highlight class="keyword">&gt;</highlight><highlight class="normal">(data_.data());</highlight></codeline>
+<codeline lineno="77"><highlight class="normal"><sp/><sp/>}</highlight></codeline>
+<codeline lineno="78"><highlight class="normal"></highlight></codeline>
+<codeline lineno="79"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">auto</highlight><highlight class="normal"><sp/>view()</highlight></codeline>
+<codeline lineno="80"><highlight class="normal"><sp/><sp/>{</highlight></codeline>
+<codeline lineno="81"><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="keywordflow">return</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">new</highlight><highlight class="normal"><sp/><ref refid="structcugraph_1_1c__api_1_1cugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>{data_.data(),<sp/>size_,<sp/>data_.size(),<sp/>type_};</highlight></codeline>
+<codeline lineno="82"><highlight class="normal"><sp/><sp/>}</highlight></codeline>
+<codeline lineno="83"><highlight class="normal">};</highlight></codeline>
+<codeline lineno="84"><highlight class="normal"></highlight></codeline>
+<codeline lineno="85" refid="structcugraph_1_1c__api_1_1cugraph__type__erased__host__array__view__t" refkind="compound"><highlight class="normal"></highlight><highlight class="keyword">struct<sp/></highlight><highlight class="normal"><ref refid="structcugraph_1_1c__api_1_1cugraph__type__erased__host__array__view__t" kindref="compound">cugraph_type_erased_host_array_view_t</ref><sp/>{</highlight></codeline>
+<codeline lineno="86"><highlight class="normal"><sp/><sp/>std::byte*<sp/>data_;</highlight></codeline>
+<codeline lineno="87"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordtype">size_t</highlight><highlight class="normal"><sp/>size_;</highlight></codeline>
+<codeline lineno="88"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordtype">size_t</highlight><highlight class="normal"><sp/>num_bytes_;</highlight></codeline>
+<codeline lineno="89"><highlight class="normal"><sp/><sp/>cugraph_data_type_id_t<sp/>type_;</highlight></codeline>
+<codeline lineno="90"><highlight class="normal"></highlight></codeline>
+<codeline lineno="91"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">template</highlight><highlight class="normal"><sp/>&lt;</highlight><highlight class="keyword">typename</highlight><highlight class="normal"><sp/>T&gt;</highlight></codeline>
+<codeline lineno="92"><highlight class="normal"><sp/><sp/>T*<sp/>as_type()</highlight></codeline>
+<codeline lineno="93"><highlight class="normal"><sp/><sp/>{</highlight></codeline>
+<codeline lineno="94"><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="keywordflow">return</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">reinterpret_cast&lt;</highlight><highlight class="normal">T*</highlight><highlight class="keyword">&gt;</highlight><highlight class="normal">(data_);</highlight></codeline>
+<codeline lineno="95"><highlight class="normal"><sp/><sp/>}</highlight></codeline>
+<codeline lineno="96"><highlight class="normal"></highlight></codeline>
+<codeline lineno="97"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">template</highlight><highlight class="normal"><sp/>&lt;</highlight><highlight class="keyword">typename</highlight><highlight class="normal"><sp/>T&gt;</highlight></codeline>
+<codeline lineno="98"><highlight class="normal"><sp/><sp/>T<sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal">*<sp/>as_type()</highlight><highlight class="keyword"><sp/>const</highlight></codeline>
+<codeline lineno="99"><highlight class="keyword"><sp/><sp/></highlight><highlight class="normal">{</highlight></codeline>
+<codeline lineno="100"><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="keywordflow">return</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">reinterpret_cast&lt;</highlight><highlight class="normal">T<sp/>const*</highlight><highlight class="keyword">&gt;</highlight><highlight class="normal">(data_);</highlight></codeline>
+<codeline lineno="101"><highlight class="normal"><sp/><sp/>}</highlight></codeline>
+<codeline lineno="102"><highlight class="normal"></highlight></codeline>
+<codeline lineno="103"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordtype">size_t</highlight><highlight class="normal"><sp/>num_bytes()</highlight><highlight class="keyword"><sp/>const<sp/></highlight><highlight class="normal">{<sp/></highlight><highlight class="keywordflow">return</highlight><highlight class="normal"><sp/>num_bytes_;<sp/>}</highlight></codeline>
+<codeline lineno="104"><highlight class="normal">};</highlight></codeline>
+<codeline lineno="105"><highlight class="normal"></highlight></codeline>
+<codeline lineno="106" refid="structcugraph_1_1c__api_1_1cugraph__type__erased__host__array__t" refkind="compound"><highlight class="normal"></highlight><highlight class="keyword">struct<sp/></highlight><highlight class="normal"><ref refid="structcugraph_1_1c__api_1_1cugraph__type__erased__host__array__t" kindref="compound">cugraph_type_erased_host_array_t</ref><sp/>{</highlight></codeline>
+<codeline lineno="107"><highlight class="normal"><sp/><sp/>std::unique_ptr&lt;std::byte[]&gt;<sp/>data_{</highlight><highlight class="keyword">nullptr</highlight><highlight class="normal">};</highlight></codeline>
+<codeline lineno="108"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordtype">size_t</highlight><highlight class="normal"><sp/>size_{0};</highlight></codeline>
+<codeline lineno="109"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordtype">size_t</highlight><highlight class="normal"><sp/>num_bytes_{0};</highlight></codeline>
+<codeline lineno="110"><highlight class="normal"><sp/><sp/>cugraph_data_type_id_t<sp/>type_;</highlight></codeline>
+<codeline lineno="111"><highlight class="normal"></highlight></codeline>
+<codeline lineno="112"><highlight class="normal"><sp/><sp/><ref refid="structcugraph_1_1c__api_1_1cugraph__type__erased__host__array__t" kindref="compound">cugraph_type_erased_host_array_t</ref>(</highlight><highlight class="keywordtype">size_t</highlight><highlight class="normal"><sp/>size,<sp/></highlight><highlight class="keywordtype">size_t</highlight><highlight class="normal"><sp/>num_bytes,<sp/>cugraph_data_type_id_t<sp/>type)</highlight></codeline>
+<codeline lineno="113"><highlight class="normal"><sp/><sp/><sp/><sp/>:<sp/>data_(std::make_unique&lt;std::byte[]&gt;(num_bytes)),</highlight></codeline>
+<codeline lineno="114"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/>size_(size),</highlight></codeline>
+<codeline lineno="115"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/>num_bytes_(num_bytes),</highlight></codeline>
+<codeline lineno="116"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/>type_(type)</highlight></codeline>
+<codeline lineno="117"><highlight class="normal"><sp/><sp/>{</highlight></codeline>
+<codeline lineno="118"><highlight class="normal"><sp/><sp/>}</highlight></codeline>
+<codeline lineno="119"><highlight class="normal"></highlight></codeline>
+<codeline lineno="120"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">template</highlight><highlight class="normal"><sp/>&lt;</highlight><highlight class="keyword">typename</highlight><highlight class="normal"><sp/>T&gt;</highlight></codeline>
+<codeline lineno="121"><highlight class="normal"><sp/><sp/><ref refid="structcugraph_1_1c__api_1_1cugraph__type__erased__host__array__t" kindref="compound">cugraph_type_erased_host_array_t</ref>(std::vector&lt;T&gt;&amp;<sp/>vec,<sp/>cugraph_data_type_id_t<sp/>type)</highlight></codeline>
+<codeline lineno="122"><highlight class="normal"><sp/><sp/><sp/><sp/>:<sp/>size_(vec.size()),<sp/>num_bytes_(vec.size()<sp/>*<sp/></highlight><highlight class="keyword">sizeof</highlight><highlight class="normal">(T)),<sp/>type_(type)</highlight></codeline>
+<codeline lineno="123"><highlight class="normal"><sp/><sp/>{</highlight></codeline>
+<codeline lineno="124"><highlight class="normal"><sp/><sp/><sp/><sp/>data_<sp/>=<sp/>std::make_unique&lt;std::byte[]&gt;(num_bytes_);</highlight></codeline>
+<codeline lineno="125"><highlight class="normal"><sp/><sp/><sp/><sp/>std::copy(vec.begin(),<sp/>vec.end(),<sp/></highlight><highlight class="keyword">reinterpret_cast&lt;</highlight><highlight class="normal">T*</highlight><highlight class="keyword">&gt;</highlight><highlight class="normal">(data_.get()));</highlight></codeline>
+<codeline lineno="126"><highlight class="normal"><sp/><sp/>}</highlight></codeline>
+<codeline lineno="127"><highlight class="normal"></highlight></codeline>
+<codeline lineno="128"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">auto</highlight><highlight class="normal"><sp/>view()</highlight></codeline>
+<codeline lineno="129"><highlight class="normal"><sp/><sp/>{</highlight></codeline>
+<codeline lineno="130"><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="keywordflow">return</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">new</highlight><highlight class="normal"><sp/><ref refid="structcugraph_1_1c__api_1_1cugraph__type__erased__host__array__view__t" kindref="compound">cugraph_type_erased_host_array_view_t</ref>{data_.get(),<sp/>size_,<sp/>num_bytes_,<sp/>type_};</highlight></codeline>
+<codeline lineno="131"><highlight class="normal"><sp/><sp/>}</highlight></codeline>
+<codeline lineno="132"><highlight class="normal">};</highlight></codeline>
+<codeline lineno="133"><highlight class="normal"></highlight></codeline>
+<codeline lineno="134"><highlight class="normal">}<sp/><sp/></highlight><highlight class="comment">//<sp/>namespace<sp/>c_api</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="135"><highlight class="normal">}<sp/><sp/></highlight><highlight class="comment">//<sp/>namespace<sp/>cugraph</highlight><highlight class="normal"></highlight></codeline>
+    </programlisting>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/src/c_api/array.hpp"/>
+  </compounddef>
+</doxygen>

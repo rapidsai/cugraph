@@ -1,0 +1,321 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="classcugraph_1_1mtmg_1_1detail_1_1device__shared__wrapper__t" kind="class" language="C++" prot="public">
+    <compoundname>cugraph::mtmg::detail::device_shared_wrapper_t</compoundname>
+    <derivedcompoundref refid="classcugraph_1_1mtmg_1_1detail_1_1device__shared__device__vector__t" prot="public" virt="non-virtual">cugraph::mtmg::detail::device_shared_device_vector_t&lt; vertex_t &gt;</derivedcompoundref>
+    <derivedcompoundref refid="classcugraph_1_1mtmg_1_1detail_1_1device__shared__device__vector__t" prot="public" virt="non-virtual">cugraph::mtmg::detail::device_shared_device_vector_t&lt; result_t &gt;</derivedcompoundref>
+    <derivedcompoundref refid="classcugraph_1_1mtmg_1_1vertex__pair__result__view__t" prot="public" virt="non-virtual">cugraph::mtmg::vertex_pair_result_view_t&lt; vertex_t, result_t &gt;</derivedcompoundref>
+    <derivedcompoundref refid="classcugraph_1_1mtmg_1_1vertex__result__view__t" prot="public" virt="non-virtual">cugraph::mtmg::vertex_result_view_t&lt; result_t &gt;</derivedcompoundref>
+    <includes refid="device__shared__wrapper_8hpp" local="no">device_shared_wrapper.hpp</includes>
+    <templateparamlist>
+      <param>
+        <type>typename T</type>
+      </param>
+    </templateparamlist>
+    <sectiondef kind="public-type">
+      <memberdef kind="typedef" id="classcugraph_1_1mtmg_1_1detail_1_1device__shared__wrapper__t_1a845fdc2d2154a3132b96e4c7e7d2568b" prot="public" static="no">
+        <type>T</type>
+        <definition>using cugraph::mtmg::detail::device_shared_wrapper_t&lt; T &gt;::wrapped_t =  T</definition>
+        <argsstring></argsstring>
+        <name>wrapped_t</name>
+        <qualifiedname>cugraph::mtmg::detail::device_shared_wrapper_t::wrapped_t</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/detail/device_shared_wrapper.hpp" line="40" column="3" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/detail/device_shared_wrapper.hpp" bodystart="40" bodyend="-1"/>
+      </memberdef>
+    </sectiondef>
+    <sectiondef kind="protected-attrib">
+      <memberdef kind="variable" id="classcugraph_1_1mtmg_1_1detail_1_1device__shared__wrapper__t_1ad69299ff247d4a35fdb86f794fb93198" prot="protected" static="no" mutable="yes">
+        <type>std::mutex</type>
+        <definition>std::mutex cugraph::mtmg::detail::device_shared_wrapper_t&lt; T &gt;::lock_</definition>
+        <argsstring></argsstring>
+        <name>lock_</name>
+        <qualifiedname>cugraph::mtmg::detail::device_shared_wrapper_t::lock_</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/detail/device_shared_wrapper.hpp" line="116" column="22" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/detail/device_shared_wrapper.hpp" bodystart="116" bodyend="116"/>
+      </memberdef>
+      <memberdef kind="variable" id="classcugraph_1_1mtmg_1_1detail_1_1device__shared__wrapper__t_1ade0e677b55a50d0067f8fb68a19eb708" prot="protected" static="no" mutable="no">
+        <type>std::map&lt; int, wrapped_t &gt;</type>
+        <definition>std::map&lt;int, wrapped_t&gt; cugraph::mtmg::detail::device_shared_wrapper_t&lt; T &gt;::objects_</definition>
+        <argsstring></argsstring>
+        <name>objects_</name>
+        <qualifiedname>cugraph::mtmg::detail::device_shared_wrapper_t::objects_</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/detail/device_shared_wrapper.hpp" line="117" column="12" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/detail/device_shared_wrapper.hpp" bodystart="117" bodyend="117"/>
+      </memberdef>
+    </sectiondef>
+    <sectiondef kind="public-func">
+      <memberdef kind="function" id="classcugraph_1_1mtmg_1_1detail_1_1device__shared__wrapper__t_1a0491c39b28031d6de9aca1e41b2a8d38" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type></type>
+        <definition>cugraph::mtmg::detail::device_shared_wrapper_t&lt; T &gt;::device_shared_wrapper_t</definition>
+        <argsstring>()=default</argsstring>
+        <name>device_shared_wrapper_t</name>
+        <qualifiedname>cugraph::mtmg::detail::device_shared_wrapper_t::device_shared_wrapper_t</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/detail/device_shared_wrapper.hpp" line="42" column="3"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1mtmg_1_1detail_1_1device__shared__wrapper__t_1aa31ffdd3545f839d700c6e27df205a11" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type></type>
+        <definition>cugraph::mtmg::detail::device_shared_wrapper_t&lt; T &gt;::device_shared_wrapper_t</definition>
+        <argsstring>(device_shared_wrapper_t &amp;&amp;other)</argsstring>
+        <name>device_shared_wrapper_t</name>
+        <qualifiedname>cugraph::mtmg::detail::device_shared_wrapper_t::device_shared_wrapper_t</qualifiedname>
+        <param>
+          <type><ref refid="classcugraph_1_1mtmg_1_1detail_1_1device__shared__wrapper__t" kindref="compound">device_shared_wrapper_t</ref> &amp;&amp;</type>
+          <declname>other</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/detail/device_shared_wrapper.hpp" line="43" column="3" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/detail/device_shared_wrapper.hpp" bodystart="43" bodyend="43"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1mtmg_1_1detail_1_1device__shared__wrapper__t_1a38871d86d47b39c719cc4a4e5afda7a3" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type><ref refid="classcugraph_1_1mtmg_1_1detail_1_1device__shared__wrapper__t" kindref="compound">device_shared_wrapper_t</ref> &amp;</type>
+        <definition>device_shared_wrapper_t &amp; cugraph::mtmg::detail::device_shared_wrapper_t&lt; T &gt;::operator=</definition>
+        <argsstring>(device_shared_wrapper_t &amp;&amp;other)</argsstring>
+        <name>operator=</name>
+        <qualifiedname>cugraph::mtmg::detail::device_shared_wrapper_t::operator=</qualifiedname>
+        <param>
+          <type><ref refid="classcugraph_1_1mtmg_1_1detail_1_1device__shared__wrapper__t" kindref="compound">device_shared_wrapper_t</ref> &amp;&amp;</type>
+          <declname>other</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/detail/device_shared_wrapper.hpp" line="44" column="27" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/detail/device_shared_wrapper.hpp" bodystart="44" bodyend="48"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1mtmg_1_1detail_1_1device__shared__wrapper__t_1a14553fe2a2facc4a8cb356a736cdb66e" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type>void</type>
+        <definition>void cugraph::mtmg::detail::device_shared_wrapper_t&lt; T &gt;::set</definition>
+        <argsstring>(cugraph::mtmg::handle_t const &amp;handle, wrapped_t &amp;&amp;obj)</argsstring>
+        <name>set</name>
+        <qualifiedname>cugraph::mtmg::detail::device_shared_wrapper_t::set</qualifiedname>
+        <param>
+          <type><ref refid="classcugraph_1_1mtmg_1_1handle__t" kindref="compound">cugraph::mtmg::handle_t</ref> const &amp;</type>
+          <declname>handle</declname>
+        </param>
+        <param>
+          <type>wrapped_t &amp;&amp;</type>
+          <declname>obj</declname>
+        </param>
+        <briefdescription>
+<para>Move a wrapped object into the wrapper for this thread. </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername>handle</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Handle is used to identify the GPU we associated this object with </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>obj</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Wrapped object </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/detail/device_shared_wrapper.hpp" line="56" column="8" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/detail/device_shared_wrapper.hpp" bodystart="56" bodyend="64"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1mtmg_1_1detail_1_1device__shared__wrapper__t_1a5a2bbc47f49d261e51a3b52543b4f193" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type>void</type>
+        <definition>void cugraph::mtmg::detail::device_shared_wrapper_t&lt; T &gt;::set</definition>
+        <argsstring>(int local_rank, wrapped_t &amp;&amp;obj)</argsstring>
+        <name>set</name>
+        <qualifiedname>cugraph::mtmg::detail::device_shared_wrapper_t::set</qualifiedname>
+        <param>
+          <type>int</type>
+          <declname>local_rank</declname>
+        </param>
+        <param>
+          <type>wrapped_t &amp;&amp;</type>
+          <declname>obj</declname>
+        </param>
+        <briefdescription>
+<para>Move a wrapped object into the wrapper for this thread. </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername>local_rank</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Identify which GPU to associated this object with </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>obj</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Wrapped object </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/detail/device_shared_wrapper.hpp" line="72" column="8" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/detail/device_shared_wrapper.hpp" bodystart="72" bodyend="80"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1mtmg_1_1detail_1_1device__shared__wrapper__t_1a5cde570f7a097a9f0895d3495928a772" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type>wrapped_t &amp;</type>
+        <definition>wrapped_t &amp; cugraph::mtmg::detail::device_shared_wrapper_t&lt; T &gt;::get</definition>
+        <argsstring>(cugraph::mtmg::handle_t const &amp;handle)</argsstring>
+        <name>get</name>
+        <qualifiedname>cugraph::mtmg::detail::device_shared_wrapper_t::get</qualifiedname>
+        <param>
+          <type><ref refid="classcugraph_1_1mtmg_1_1handle__t" kindref="compound">cugraph::mtmg::handle_t</ref> const &amp;</type>
+          <declname>handle</declname>
+        </param>
+        <briefdescription>
+<para>Get reference to an object for a particular thread. </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername>handle</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Handle is used to identify the GPU we associated this object with </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>Reference to the wrapped object </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/detail/device_shared_wrapper.hpp" line="88" column="13" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/detail/device_shared_wrapper.hpp" bodystart="88" bodyend="96"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1mtmg_1_1detail_1_1device__shared__wrapper__t_1a7f1de177bc117b5eb6683cfb164ef78d" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>wrapped_t const &amp;</type>
+        <definition>wrapped_t const  &amp; cugraph::mtmg::detail::device_shared_wrapper_t&lt; T &gt;::get</definition>
+        <argsstring>(cugraph::mtmg::handle_t const &amp;handle) const</argsstring>
+        <name>get</name>
+        <qualifiedname>cugraph::mtmg::detail::device_shared_wrapper_t::get</qualifiedname>
+        <param>
+          <type><ref refid="classcugraph_1_1mtmg_1_1handle__t" kindref="compound">cugraph::mtmg::handle_t</ref> const &amp;</type>
+          <declname>handle</declname>
+        </param>
+        <briefdescription>
+<para>Get the pointer to an object for a particular thread from this wrapper. </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername>handle</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Handle is used to identify the GPU we associated this object with </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>Shared pointer the wrapped object </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/detail/device_shared_wrapper.hpp" line="104" column="19" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/detail/device_shared_wrapper.hpp" bodystart="104" bodyend="113"/>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+<para>Wrap an object to be available for each GPU. </para>
+    </briefdescription>
+    <detaileddescription>
+<para>In the MTMG environment we need the ability to manage a collection of objects that are associated with a particular GPU, and fetch the objects from an arbitrary GPU thread. This object will wrap any object and allow it to be accessed from different threads. </para>
+    </detaileddescription>
+    <inheritancegraph>
+      <node id="1">
+        <label>cugraph::mtmg::detail::device_shared_wrapper_t&lt; T &gt;</label>
+        <link refid="classcugraph_1_1mtmg_1_1detail_1_1device__shared__wrapper__t"/>
+      </node>
+      <node id="3">
+        <label>cugraph::mtmg::renumber_map_t&lt; vertex_t &gt;</label>
+        <link refid="classcugraph_1_1mtmg_1_1renumber__map__t"/>
+        <childnode refid="2" relation="public-inheritance">
+        </childnode>
+      </node>
+      <node id="6">
+        <label>cugraph::mtmg::vertex_pair_result_view_t&lt; vertex_t, result_t &gt;</label>
+        <link refid="classcugraph_1_1mtmg_1_1vertex__pair__result__view__t"/>
+        <childnode refid="1" relation="public-inheritance">
+        </childnode>
+      </node>
+      <node id="5">
+        <label>cugraph::mtmg::vertex_result_t&lt; result_t &gt;</label>
+        <link refid="classcugraph_1_1mtmg_1_1vertex__result__t"/>
+        <childnode refid="4" relation="public-inheritance">
+        </childnode>
+      </node>
+      <node id="7">
+        <label>cugraph::mtmg::vertex_result_view_t&lt; result_t &gt;</label>
+        <link refid="classcugraph_1_1mtmg_1_1vertex__result__view__t"/>
+        <childnode refid="1" relation="public-inheritance">
+        </childnode>
+      </node>
+      <node id="4">
+        <label>cugraph::mtmg::detail::device_shared_device_vector_t&lt; result_t &gt;</label>
+        <link refid="classcugraph_1_1mtmg_1_1detail_1_1device__shared__device__vector__t"/>
+        <childnode refid="1" relation="public-inheritance">
+        </childnode>
+      </node>
+      <node id="2">
+        <label>cugraph::mtmg::detail::device_shared_device_vector_t&lt; vertex_t &gt;</label>
+        <link refid="classcugraph_1_1mtmg_1_1detail_1_1device__shared__device__vector__t"/>
+        <childnode refid="1" relation="public-inheritance">
+        </childnode>
+      </node>
+    </inheritancegraph>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/detail/device_shared_wrapper.hpp" line="38" column="1" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/detail/device_shared_wrapper.hpp" bodystart="38" bodyend="118"/>
+    <listofallmembers>
+      <member refid="classcugraph_1_1mtmg_1_1detail_1_1device__shared__wrapper__t_1a0491c39b28031d6de9aca1e41b2a8d38" prot="public" virt="non-virtual"><scope>cugraph::mtmg::detail::device_shared_wrapper_t</scope><name>device_shared_wrapper_t</name></member>
+      <member refid="classcugraph_1_1mtmg_1_1detail_1_1device__shared__wrapper__t_1aa31ffdd3545f839d700c6e27df205a11" prot="public" virt="non-virtual"><scope>cugraph::mtmg::detail::device_shared_wrapper_t</scope><name>device_shared_wrapper_t</name></member>
+      <member refid="classcugraph_1_1mtmg_1_1detail_1_1device__shared__wrapper__t_1a5cde570f7a097a9f0895d3495928a772" prot="public" virt="non-virtual"><scope>cugraph::mtmg::detail::device_shared_wrapper_t</scope><name>get</name></member>
+      <member refid="classcugraph_1_1mtmg_1_1detail_1_1device__shared__wrapper__t_1a7f1de177bc117b5eb6683cfb164ef78d" prot="public" virt="non-virtual"><scope>cugraph::mtmg::detail::device_shared_wrapper_t</scope><name>get</name></member>
+      <member refid="classcugraph_1_1mtmg_1_1detail_1_1device__shared__wrapper__t_1ad69299ff247d4a35fdb86f794fb93198" prot="protected" virt="non-virtual"><scope>cugraph::mtmg::detail::device_shared_wrapper_t</scope><name>lock_</name></member>
+      <member refid="classcugraph_1_1mtmg_1_1detail_1_1device__shared__wrapper__t_1ade0e677b55a50d0067f8fb68a19eb708" prot="protected" virt="non-virtual"><scope>cugraph::mtmg::detail::device_shared_wrapper_t</scope><name>objects_</name></member>
+      <member refid="classcugraph_1_1mtmg_1_1detail_1_1device__shared__wrapper__t_1a38871d86d47b39c719cc4a4e5afda7a3" prot="public" virt="non-virtual"><scope>cugraph::mtmg::detail::device_shared_wrapper_t</scope><name>operator=</name></member>
+      <member refid="classcugraph_1_1mtmg_1_1detail_1_1device__shared__wrapper__t_1a14553fe2a2facc4a8cb356a736cdb66e" prot="public" virt="non-virtual"><scope>cugraph::mtmg::detail::device_shared_wrapper_t</scope><name>set</name></member>
+      <member refid="classcugraph_1_1mtmg_1_1detail_1_1device__shared__wrapper__t_1a5a2bbc47f49d261e51a3b52543b4f193" prot="public" virt="non-virtual"><scope>cugraph::mtmg::detail::device_shared_wrapper_t</scope><name>set</name></member>
+      <member refid="classcugraph_1_1mtmg_1_1detail_1_1device__shared__wrapper__t_1a845fdc2d2154a3132b96e4c7e7d2568b" prot="public" virt="non-virtual"><scope>cugraph::mtmg::detail::device_shared_wrapper_t</scope><name>wrapped_t</name></member>
+    </listofallmembers>
+  </compounddef>
+</doxygen>

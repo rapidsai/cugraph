@@ -1,0 +1,24 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="dir_c2ff2cfefa41d411229fe76db1381fa4" kind="dir">
+    <compoundname>detail</compoundname>
+    <innerfile refid="gather__one__hop__edgelist__impl_8cuh">gather_one_hop_edgelist_impl.cuh</innerfile>
+    <innerfile refid="gather__one__hop__edgelist__mg_8cu">gather_one_hop_edgelist_mg.cu</innerfile>
+    <innerfile refid="gather__one__hop__edgelist__sg_8cu">gather_one_hop_edgelist_sg.cu</innerfile>
+    <innerfile refid="prepare__next__frontier__impl_8cuh">prepare_next_frontier_impl.cuh</innerfile>
+    <innerfile refid="prepare__next__frontier__mg_8cu">prepare_next_frontier_mg.cu</innerfile>
+    <innerfile refid="prepare__next__frontier__sg_8cu">prepare_next_frontier_sg.cu</innerfile>
+    <innerfile refid="remove__visited__vertices__from__frontier_8cu">remove_visited_vertices_from_frontier.cu</innerfile>
+    <innerfile refid="sample__edges_8cuh">sample_edges.cuh</innerfile>
+    <innerfile refid="sample__edges__mg_8cu">sample_edges_mg.cu</innerfile>
+    <innerfile refid="sample__edges__sg_8cu">sample_edges_sg.cu</innerfile>
+    <innerfile refid="sampling__utils_8hpp">sampling_utils.hpp</innerfile>
+    <innerfile refid="shuffle__and__organize__output__impl_8cuh">shuffle_and_organize_output_impl.cuh</innerfile>
+    <innerfile refid="shuffle__and__organize__output__mg_8cu">shuffle_and_organize_output_mg.cu</innerfile>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/src/sampling/detail/"/>
+  </compounddef>
+</doxygen>

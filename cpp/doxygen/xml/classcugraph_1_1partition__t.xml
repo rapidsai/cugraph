@@ -1,0 +1,554 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="classcugraph_1_1partition__t" kind="class" language="C++" prot="public">
+    <compoundname>cugraph::partition_t</compoundname>
+    <includes refid="graph__view_8hpp" local="no">graph_view.hpp</includes>
+    <templateparamlist>
+      <param>
+        <type>typename vertex_t</type>
+      </param>
+    </templateparamlist>
+    <sectiondef kind="private-attrib">
+      <memberdef kind="variable" id="classcugraph_1_1partition__t_1ac55b18df1d18459eb43b4443d588c286" prot="private" static="no" mutable="no">
+        <type>std::vector&lt; vertex_t &gt;</type>
+        <definition>std::vector&lt;vertex_t&gt; cugraph::partition_t&lt; vertex_t &gt;::vertex_partition_range_offsets_</definition>
+        <argsstring></argsstring>
+        <name>vertex_partition_range_offsets_</name>
+        <qualifiedname>cugraph::partition_t::vertex_partition_range_offsets_</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" line="223" column="15" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" bodystart="223" bodyend="223"/>
+      </memberdef>
+      <memberdef kind="variable" id="classcugraph_1_1partition__t_1a02f561539ef2a463794e42abc7f3b59e" prot="private" static="no" mutable="no">
+        <type>int</type>
+        <definition>int cugraph::partition_t&lt; vertex_t &gt;::comm_rank_</definition>
+        <argsstring></argsstring>
+        <name>comm_rank_</name>
+        <qualifiedname>cugraph::partition_t::comm_rank_</qualifiedname>
+        <initializer>{0}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" line="225" column="7" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" bodystart="225" bodyend="225"/>
+      </memberdef>
+      <memberdef kind="variable" id="classcugraph_1_1partition__t_1a3b9392798bcf053829495c605d9878c8" prot="private" static="no" mutable="no">
+        <type>int</type>
+        <definition>int cugraph::partition_t&lt; vertex_t &gt;::major_comm_size_</definition>
+        <argsstring></argsstring>
+        <name>major_comm_size_</name>
+        <qualifiedname>cugraph::partition_t::major_comm_size_</qualifiedname>
+        <initializer>{0}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" line="226" column="7" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" bodystart="226" bodyend="226"/>
+      </memberdef>
+      <memberdef kind="variable" id="classcugraph_1_1partition__t_1af44f06e10fda44c928c0010de1c78270" prot="private" static="no" mutable="no">
+        <type>int</type>
+        <definition>int cugraph::partition_t&lt; vertex_t &gt;::minor_comm_size_</definition>
+        <argsstring></argsstring>
+        <name>minor_comm_size_</name>
+        <qualifiedname>cugraph::partition_t::minor_comm_size_</qualifiedname>
+        <initializer>{0}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" line="227" column="7" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" bodystart="227" bodyend="227"/>
+      </memberdef>
+      <memberdef kind="variable" id="classcugraph_1_1partition__t_1a9df61aeb96aabc91c233a51ea2633964" prot="private" static="no" mutable="no">
+        <type>int</type>
+        <definition>int cugraph::partition_t&lt; vertex_t &gt;::major_comm_rank_</definition>
+        <argsstring></argsstring>
+        <name>major_comm_rank_</name>
+        <qualifiedname>cugraph::partition_t::major_comm_rank_</qualifiedname>
+        <initializer>{0}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" line="228" column="7" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" bodystart="228" bodyend="228"/>
+      </memberdef>
+      <memberdef kind="variable" id="classcugraph_1_1partition__t_1a653bb283eba399b4ee525b94fe24670e" prot="private" static="no" mutable="no">
+        <type>int</type>
+        <definition>int cugraph::partition_t&lt; vertex_t &gt;::minor_comm_rank_</definition>
+        <argsstring></argsstring>
+        <name>minor_comm_rank_</name>
+        <qualifiedname>cugraph::partition_t::minor_comm_rank_</qualifiedname>
+        <initializer>{0}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" line="229" column="7" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" bodystart="229" bodyend="229"/>
+      </memberdef>
+      <memberdef kind="variable" id="classcugraph_1_1partition__t_1a976b44a77a0ec43a291c47d15c302f86" prot="private" static="no" mutable="no">
+        <type>int</type>
+        <definition>int cugraph::partition_t&lt; vertex_t &gt;::local_vertex_partition_id_</definition>
+        <argsstring></argsstring>
+        <name>local_vertex_partition_id_</name>
+        <qualifiedname>cugraph::partition_t::local_vertex_partition_id_</qualifiedname>
+        <initializer>{0}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" line="230" column="7" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" bodystart="230" bodyend="230"/>
+      </memberdef>
+      <memberdef kind="variable" id="classcugraph_1_1partition__t_1a01e159e301be5135c70b870b57bfdc9e" prot="private" static="no" mutable="no">
+        <type>std::vector&lt; vertex_t &gt;</type>
+        <definition>std::vector&lt;vertex_t&gt; cugraph::partition_t&lt; vertex_t &gt;::edge_partition_major_value_start_offsets_</definition>
+        <argsstring></argsstring>
+        <name>edge_partition_major_value_start_offsets_</name>
+        <qualifiedname>cugraph::partition_t::edge_partition_major_value_start_offsets_</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" line="233" column="5" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" bodystart="233" bodyend="233"/>
+      </memberdef>
+    </sectiondef>
+    <sectiondef kind="public-func">
+      <memberdef kind="function" id="classcugraph_1_1partition__t_1af1a3d8f7ab266f15b3845ddb9a00946d" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type></type>
+        <definition>cugraph::partition_t&lt; vertex_t &gt;::partition_t</definition>
+        <argsstring>()=default</argsstring>
+        <name>partition_t</name>
+        <qualifiedname>cugraph::partition_t::partition_t</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" line="76" column="3"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1partition__t_1afacf2f18c51ab14676d3610635976ba5" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type></type>
+        <definition>cugraph::partition_t&lt; vertex_t &gt;::partition_t</definition>
+        <argsstring>(std::vector&lt; vertex_t &gt; const &amp;vertex_partition_range_offsets, int major_comm_size, int minor_comm_size, int major_comm_rank, int minor_comm_rank)</argsstring>
+        <name>partition_t</name>
+        <qualifiedname>cugraph::partition_t::partition_t</qualifiedname>
+        <param>
+          <type>std::vector&lt; vertex_t &gt; const &amp;</type>
+          <declname>vertex_partition_range_offsets</declname>
+        </param>
+        <param>
+          <type>int</type>
+          <declname>major_comm_size</declname>
+        </param>
+        <param>
+          <type>int</type>
+          <declname>minor_comm_size</declname>
+        </param>
+        <param>
+          <type>int</type>
+          <declname>major_comm_rank</declname>
+        </param>
+        <param>
+          <type>int</type>
+          <declname>minor_comm_rank</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" line="78" column="3" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" bodystart="78" bodyend="113"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1partition__t_1a635ac2f850d0c45621c40547527d8a2b" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>std::vector&lt; vertex_t &gt; const &amp;</type>
+        <definition>std::vector&lt; vertex_t &gt; const  &amp; cugraph::partition_t&lt; vertex_t &gt;::vertex_partition_range_offsets</definition>
+        <argsstring>() const</argsstring>
+        <name>vertex_partition_range_offsets</name>
+        <qualifiedname>cugraph::partition_t::vertex_partition_range_offsets</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" line="115" column="21" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" bodystart="115" bodyend="118"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1partition__t_1a7648234f2b48d02598f21614f2933922" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>std::vector&lt; vertex_t &gt;</type>
+        <definition>std::vector&lt; vertex_t &gt; cugraph::partition_t&lt; vertex_t &gt;::vertex_partition_range_lasts</definition>
+        <argsstring>() const</argsstring>
+        <name>vertex_partition_range_lasts</name>
+        <qualifiedname>cugraph::partition_t::vertex_partition_range_lasts</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" line="120" column="15" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" bodystart="120" bodyend="124"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1partition__t_1aa66d991117ef00f6bd01efb7f8ceeae8" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>std::tuple&lt; vertex_t, vertex_t &gt;</type>
+        <definition>std::tuple&lt; vertex_t, vertex_t &gt; cugraph::partition_t&lt; vertex_t &gt;::local_vertex_partition_range</definition>
+        <argsstring>() const</argsstring>
+        <name>local_vertex_partition_range</name>
+        <qualifiedname>cugraph::partition_t::local_vertex_partition_range</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" line="126" column="14" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" bodystart="126" bodyend="130"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1partition__t_1a23ededcc626cd0c15cde4383ab77cd26" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>vertex_t</type>
+        <definition>vertex_t cugraph::partition_t&lt; vertex_t &gt;::local_vertex_partition_range_first</definition>
+        <argsstring>() const</argsstring>
+        <name>local_vertex_partition_range_first</name>
+        <qualifiedname>cugraph::partition_t::local_vertex_partition_range_first</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" line="132" column="12" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" bodystart="132" bodyend="135"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1partition__t_1ab28dcc2166475b0ba767c93b89f41035" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>vertex_t</type>
+        <definition>vertex_t cugraph::partition_t&lt; vertex_t &gt;::local_vertex_partition_range_last</definition>
+        <argsstring>() const</argsstring>
+        <name>local_vertex_partition_range_last</name>
+        <qualifiedname>cugraph::partition_t::local_vertex_partition_range_last</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" line="137" column="12" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" bodystart="137" bodyend="140"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1partition__t_1a055861d1dd8a364841658c82614975f7" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>vertex_t</type>
+        <definition>vertex_t cugraph::partition_t&lt; vertex_t &gt;::local_vertex_partition_range_size</definition>
+        <argsstring>() const</argsstring>
+        <name>local_vertex_partition_range_size</name>
+        <qualifiedname>cugraph::partition_t::local_vertex_partition_range_size</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" line="142" column="12" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" bodystart="142" bodyend="145"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1partition__t_1a31a35b9bf2e5c299b05e1aa08bd53a26" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>std::tuple&lt; vertex_t, vertex_t &gt;</type>
+        <definition>std::tuple&lt; vertex_t, vertex_t &gt; cugraph::partition_t&lt; vertex_t &gt;::vertex_partition_range</definition>
+        <argsstring>(size_t partition_idx) const</argsstring>
+        <name>vertex_partition_range</name>
+        <qualifiedname>cugraph::partition_t::vertex_partition_range</qualifiedname>
+        <param>
+          <type>size_t</type>
+          <declname>partition_idx</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" line="147" column="14" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" bodystart="147" bodyend="151"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1partition__t_1ac5dd5933bed99e7aed2c397801c19303" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>vertex_t</type>
+        <definition>vertex_t cugraph::partition_t&lt; vertex_t &gt;::vertex_partition_range_first</definition>
+        <argsstring>(size_t partition_idx) const</argsstring>
+        <name>vertex_partition_range_first</name>
+        <qualifiedname>cugraph::partition_t::vertex_partition_range_first</qualifiedname>
+        <param>
+          <type>size_t</type>
+          <declname>partition_idx</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" line="153" column="12" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" bodystart="153" bodyend="156"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1partition__t_1a83609058a2e44b749ea8b511987fcf5a" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>vertex_t</type>
+        <definition>vertex_t cugraph::partition_t&lt; vertex_t &gt;::vertex_partition_range_last</definition>
+        <argsstring>(size_t partition_idx) const</argsstring>
+        <name>vertex_partition_range_last</name>
+        <qualifiedname>cugraph::partition_t::vertex_partition_range_last</qualifiedname>
+        <param>
+          <type>size_t</type>
+          <declname>partition_idx</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" line="158" column="12" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" bodystart="158" bodyend="161"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1partition__t_1af82e818a48424a7c23fb5deb9211bc30" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>vertex_t</type>
+        <definition>vertex_t cugraph::partition_t&lt; vertex_t &gt;::vertex_partition_range_size</definition>
+        <argsstring>(size_t partition_idx) const</argsstring>
+        <name>vertex_partition_range_size</name>
+        <qualifiedname>cugraph::partition_t::vertex_partition_range_size</qualifiedname>
+        <param>
+          <type>size_t</type>
+          <declname>partition_idx</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" line="163" column="12" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" bodystart="163" bodyend="166"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1partition__t_1a691055b88a6beaa0d528e0fc41e46880" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>size_t</type>
+        <definition>size_t cugraph::partition_t&lt; vertex_t &gt;::number_of_local_edge_partitions</definition>
+        <argsstring>() const</argsstring>
+        <name>number_of_local_edge_partitions</name>
+        <qualifiedname>cugraph::partition_t::number_of_local_edge_partitions</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" line="168" column="10" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" bodystart="168" bodyend="168"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1partition__t_1ad3912617c6bcab9a604ce0f99542e06b" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>std::tuple&lt; vertex_t, vertex_t &gt;</type>
+        <definition>std::tuple&lt; vertex_t, vertex_t &gt; cugraph::partition_t&lt; vertex_t &gt;::local_edge_partition_major_range</definition>
+        <argsstring>(size_t partition_idx) const</argsstring>
+        <name>local_edge_partition_major_range</name>
+        <qualifiedname>cugraph::partition_t::local_edge_partition_major_range</qualifiedname>
+        <param>
+          <type>size_t</type>
+          <declname>partition_idx</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" line="172" column="14" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" bodystart="172" bodyend="176"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1partition__t_1a551e824c8b93e74c7dd51449d141c3a0" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>vertex_t</type>
+        <definition>vertex_t cugraph::partition_t&lt; vertex_t &gt;::local_edge_partition_major_range_first</definition>
+        <argsstring>(size_t partition_idx) const</argsstring>
+        <name>local_edge_partition_major_range_first</name>
+        <qualifiedname>cugraph::partition_t::local_edge_partition_major_range_first</qualifiedname>
+        <param>
+          <type>size_t</type>
+          <declname>partition_idx</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" line="178" column="12" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" bodystart="178" bodyend="181"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1partition__t_1a7af1791c4e942bfb12562448cbb8341a" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>vertex_t</type>
+        <definition>vertex_t cugraph::partition_t&lt; vertex_t &gt;::local_edge_partition_major_range_last</definition>
+        <argsstring>(size_t partition_idx) const</argsstring>
+        <name>local_edge_partition_major_range_last</name>
+        <qualifiedname>cugraph::partition_t::local_edge_partition_major_range_last</qualifiedname>
+        <param>
+          <type>size_t</type>
+          <declname>partition_idx</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" line="183" column="12" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" bodystart="183" bodyend="186"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1partition__t_1aff6e842826576d02ebdf711c6d704883" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>vertex_t</type>
+        <definition>vertex_t cugraph::partition_t&lt; vertex_t &gt;::local_edge_partition_major_range_size</definition>
+        <argsstring>(size_t partition_idx) const</argsstring>
+        <name>local_edge_partition_major_range_size</name>
+        <qualifiedname>cugraph::partition_t::local_edge_partition_major_range_size</qualifiedname>
+        <param>
+          <type>size_t</type>
+          <declname>partition_idx</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" line="188" column="12" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" bodystart="188" bodyend="192"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1partition__t_1a3d1d5caf3d6f484c776825a25b568dca" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>vertex_t</type>
+        <definition>vertex_t cugraph::partition_t&lt; vertex_t &gt;::local_edge_partition_major_value_start_offset</definition>
+        <argsstring>(size_t partition_idx) const</argsstring>
+        <name>local_edge_partition_major_value_start_offset</name>
+        <qualifiedname>cugraph::partition_t::local_edge_partition_major_value_start_offset</qualifiedname>
+        <param>
+          <type>size_t</type>
+          <declname>partition_idx</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" line="194" column="12" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" bodystart="194" bodyend="197"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1partition__t_1af4ee100cc787ff906bb4cf8fd873c31e" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>std::tuple&lt; vertex_t, vertex_t &gt;</type>
+        <definition>std::tuple&lt; vertex_t, vertex_t &gt; cugraph::partition_t&lt; vertex_t &gt;::local_edge_partition_minor_range</definition>
+        <argsstring>() const</argsstring>
+        <name>local_edge_partition_minor_range</name>
+        <qualifiedname>cugraph::partition_t::local_edge_partition_minor_range</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" line="201" column="14" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" bodystart="201" bodyend="205"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1partition__t_1a8ced02baf00bc480c0c22d46782b781e" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>vertex_t</type>
+        <definition>vertex_t cugraph::partition_t&lt; vertex_t &gt;::local_edge_partition_minor_range_first</definition>
+        <argsstring>() const</argsstring>
+        <name>local_edge_partition_minor_range_first</name>
+        <qualifiedname>cugraph::partition_t::local_edge_partition_minor_range_first</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" line="207" column="12" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" bodystart="207" bodyend="210"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1partition__t_1a9f684a7372615bf12287b1cb10ef1028" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>vertex_t</type>
+        <definition>vertex_t cugraph::partition_t&lt; vertex_t &gt;::local_edge_partition_minor_range_last</definition>
+        <argsstring>() const</argsstring>
+        <name>local_edge_partition_minor_range_last</name>
+        <qualifiedname>cugraph::partition_t::local_edge_partition_minor_range_last</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" line="212" column="12" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" bodystart="212" bodyend="215"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1partition__t_1a077efe40d9fd66525b0a18c2e132a814" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>vertex_t</type>
+        <definition>vertex_t cugraph::partition_t&lt; vertex_t &gt;::local_edge_partition_minor_range_size</definition>
+        <argsstring>() const</argsstring>
+        <name>local_edge_partition_minor_range_size</name>
+        <qualifiedname>cugraph::partition_t::local_edge_partition_minor_range_size</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" line="217" column="12" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" bodystart="217" bodyend="220"/>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+<para>store graph vertex/edge partitioning map </para>
+    </briefdescription>
+    <detaileddescription>
+<para>We need to partition 1D vertex array and the 2D edge matrix (major = source if not transposed, destination if transposed).</para>
+<para>Assume we have P GPUs. An 1D vertex array of size V is divided to P linear partitions; each partition has the size close to V / P.</para>
+<para>Say P = major_comm_size * minor_comm_size. And each GPU will have (major_comm_rank, minor_comm_rank). <ref refid="classcugraph_1_1partition__manager" kindref="compound">cugraph::partition_manager</ref> is responsible for mapping (major_comm_rank, minor_comm_rank) to the global rank. The 2D edge matrix is first partitioned along the major axis to P slabs, then each slab will be further partitioned along the minor axis to minor_comm_size rectangles. One GPU will be responsible minor_comm_size rectangular partitions.</para>
+<para>To be more specific, a GPU with (major_comm_rank, minor_comm_rank) will be responsible for minor_comm_size rectangular partitions with [a_i, b_i) by [c, d) (i = [0, minor_comm_size) where a_i = vertex_partition_range_offsets[major_comm_size * i + major_comm_rank], b_i = vertex_partition_range_offsets[major_comm_size * i + major_comm_rank + 1], c = vertex_partition_range_offsets[major_comm_size * minor_comm_rank], and d = vertex_partition_range_offsets[major_comm_size * (minor_comm_rank + 1)],</para>
+<para>Here, vertex_partition_range_offsets (size = P + 1) stores the 1D partitioning of the vertex ID range [0, # vertices). The first P values store the beginning (inclusive) of each GPU partition. The last value marks the end (exclusive) of the last GPU partition (which coincides with # vertices).</para>
+<para>See E. G. Boman et. al., “Scalable matrix computations on large scale-free graphs using 2D graph partitioning”, 2013 for additional detail.</para>
+<para><parameterlist kind="templateparam"><parameteritem>
+<parameternamelist>
+<parametername>vertex_t</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Type of vertex ID </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+</para>
+    </detaileddescription>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" line="74" column="1" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" bodystart="74" bodyend="234"/>
+    <listofallmembers>
+      <member refid="classcugraph_1_1partition__t_1a02f561539ef2a463794e42abc7f3b59e" prot="private" virt="non-virtual"><scope>cugraph::partition_t</scope><name>comm_rank_</name></member>
+      <member refid="classcugraph_1_1partition__t_1a01e159e301be5135c70b870b57bfdc9e" prot="private" virt="non-virtual"><scope>cugraph::partition_t</scope><name>edge_partition_major_value_start_offsets_</name></member>
+      <member refid="classcugraph_1_1partition__t_1ad3912617c6bcab9a604ce0f99542e06b" prot="public" virt="non-virtual"><scope>cugraph::partition_t</scope><name>local_edge_partition_major_range</name></member>
+      <member refid="classcugraph_1_1partition__t_1a551e824c8b93e74c7dd51449d141c3a0" prot="public" virt="non-virtual"><scope>cugraph::partition_t</scope><name>local_edge_partition_major_range_first</name></member>
+      <member refid="classcugraph_1_1partition__t_1a7af1791c4e942bfb12562448cbb8341a" prot="public" virt="non-virtual"><scope>cugraph::partition_t</scope><name>local_edge_partition_major_range_last</name></member>
+      <member refid="classcugraph_1_1partition__t_1aff6e842826576d02ebdf711c6d704883" prot="public" virt="non-virtual"><scope>cugraph::partition_t</scope><name>local_edge_partition_major_range_size</name></member>
+      <member refid="classcugraph_1_1partition__t_1a3d1d5caf3d6f484c776825a25b568dca" prot="public" virt="non-virtual"><scope>cugraph::partition_t</scope><name>local_edge_partition_major_value_start_offset</name></member>
+      <member refid="classcugraph_1_1partition__t_1af4ee100cc787ff906bb4cf8fd873c31e" prot="public" virt="non-virtual"><scope>cugraph::partition_t</scope><name>local_edge_partition_minor_range</name></member>
+      <member refid="classcugraph_1_1partition__t_1a8ced02baf00bc480c0c22d46782b781e" prot="public" virt="non-virtual"><scope>cugraph::partition_t</scope><name>local_edge_partition_minor_range_first</name></member>
+      <member refid="classcugraph_1_1partition__t_1a9f684a7372615bf12287b1cb10ef1028" prot="public" virt="non-virtual"><scope>cugraph::partition_t</scope><name>local_edge_partition_minor_range_last</name></member>
+      <member refid="classcugraph_1_1partition__t_1a077efe40d9fd66525b0a18c2e132a814" prot="public" virt="non-virtual"><scope>cugraph::partition_t</scope><name>local_edge_partition_minor_range_size</name></member>
+      <member refid="classcugraph_1_1partition__t_1a976b44a77a0ec43a291c47d15c302f86" prot="private" virt="non-virtual"><scope>cugraph::partition_t</scope><name>local_vertex_partition_id_</name></member>
+      <member refid="classcugraph_1_1partition__t_1aa66d991117ef00f6bd01efb7f8ceeae8" prot="public" virt="non-virtual"><scope>cugraph::partition_t</scope><name>local_vertex_partition_range</name></member>
+      <member refid="classcugraph_1_1partition__t_1a23ededcc626cd0c15cde4383ab77cd26" prot="public" virt="non-virtual"><scope>cugraph::partition_t</scope><name>local_vertex_partition_range_first</name></member>
+      <member refid="classcugraph_1_1partition__t_1ab28dcc2166475b0ba767c93b89f41035" prot="public" virt="non-virtual"><scope>cugraph::partition_t</scope><name>local_vertex_partition_range_last</name></member>
+      <member refid="classcugraph_1_1partition__t_1a055861d1dd8a364841658c82614975f7" prot="public" virt="non-virtual"><scope>cugraph::partition_t</scope><name>local_vertex_partition_range_size</name></member>
+      <member refid="classcugraph_1_1partition__t_1a9df61aeb96aabc91c233a51ea2633964" prot="private" virt="non-virtual"><scope>cugraph::partition_t</scope><name>major_comm_rank_</name></member>
+      <member refid="classcugraph_1_1partition__t_1a3b9392798bcf053829495c605d9878c8" prot="private" virt="non-virtual"><scope>cugraph::partition_t</scope><name>major_comm_size_</name></member>
+      <member refid="classcugraph_1_1partition__t_1a653bb283eba399b4ee525b94fe24670e" prot="private" virt="non-virtual"><scope>cugraph::partition_t</scope><name>minor_comm_rank_</name></member>
+      <member refid="classcugraph_1_1partition__t_1af44f06e10fda44c928c0010de1c78270" prot="private" virt="non-virtual"><scope>cugraph::partition_t</scope><name>minor_comm_size_</name></member>
+      <member refid="classcugraph_1_1partition__t_1a691055b88a6beaa0d528e0fc41e46880" prot="public" virt="non-virtual"><scope>cugraph::partition_t</scope><name>number_of_local_edge_partitions</name></member>
+      <member refid="classcugraph_1_1partition__t_1af1a3d8f7ab266f15b3845ddb9a00946d" prot="public" virt="non-virtual"><scope>cugraph::partition_t</scope><name>partition_t</name></member>
+      <member refid="classcugraph_1_1partition__t_1afacf2f18c51ab14676d3610635976ba5" prot="public" virt="non-virtual"><scope>cugraph::partition_t</scope><name>partition_t</name></member>
+      <member refid="classcugraph_1_1partition__t_1a31a35b9bf2e5c299b05e1aa08bd53a26" prot="public" virt="non-virtual"><scope>cugraph::partition_t</scope><name>vertex_partition_range</name></member>
+      <member refid="classcugraph_1_1partition__t_1ac5dd5933bed99e7aed2c397801c19303" prot="public" virt="non-virtual"><scope>cugraph::partition_t</scope><name>vertex_partition_range_first</name></member>
+      <member refid="classcugraph_1_1partition__t_1a83609058a2e44b749ea8b511987fcf5a" prot="public" virt="non-virtual"><scope>cugraph::partition_t</scope><name>vertex_partition_range_last</name></member>
+      <member refid="classcugraph_1_1partition__t_1a7648234f2b48d02598f21614f2933922" prot="public" virt="non-virtual"><scope>cugraph::partition_t</scope><name>vertex_partition_range_lasts</name></member>
+      <member refid="classcugraph_1_1partition__t_1a635ac2f850d0c45621c40547527d8a2b" prot="public" virt="non-virtual"><scope>cugraph::partition_t</scope><name>vertex_partition_range_offsets</name></member>
+      <member refid="classcugraph_1_1partition__t_1ac55b18df1d18459eb43b4443d588c286" prot="private" virt="non-virtual"><scope>cugraph::partition_t</scope><name>vertex_partition_range_offsets_</name></member>
+      <member refid="classcugraph_1_1partition__t_1af82e818a48424a7c23fb5deb9211bc30" prot="public" virt="non-virtual"><scope>cugraph::partition_t</scope><name>vertex_partition_range_size</name></member>
+    </listofallmembers>
+  </compounddef>
+</doxygen>

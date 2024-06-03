@@ -1,0 +1,49 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="structcugraph_1_1detail_1_1intersection__op__result__type_3_01vertex__t_00_01src__value__t_00_0157a520760241d19d29bd1b79d5e0ae93" kind="struct" language="C++" prot="public">
+    <compoundname>cugraph::detail::intersection_op_result_type&lt; vertex_t, src_value_t, dst_value_t, IntersectionOp, std::enable_if_t&lt; std::is_invocable_v&lt; IntersectionOp, vertex_t, vertex_t, src_value_t, dst_value_t, raft::device_span&lt; vertex_t const &gt; &gt; &gt; &gt;</compoundname>
+    <templateparamlist>
+      <param>
+        <type>typename vertex_t</type>
+      </param>
+      <param>
+        <type>typename src_value_t</type>
+      </param>
+      <param>
+        <type>typename dst_value_t</type>
+      </param>
+      <param>
+        <type>typename IntersectionOp</type>
+      </param>
+    </templateparamlist>
+    <sectiondef kind="public-type">
+      <memberdef kind="typedef" id="structcugraph_1_1detail_1_1intersection__op__result__type_3_01vertex__t_00_01src__value__t_00_0157a520760241d19d29bd1b79d5e0ae93_1afb3e2cf50cdb57bb02aab2515b4955f3" prot="public" static="no">
+        <type>typename std::invoke_result&lt; IntersectionOp, vertex_t, vertex_t, src_value_t, dst_value_t, raft::device_span&lt; vertex_t const  &gt; &gt;::type</type>
+        <definition>using cugraph::detail::intersection_op_result_type&lt; vertex_t, src_value_t, dst_value_t, IntersectionOp, std::enable_if_t&lt; std::is_invocable_v&lt; IntersectionOp, vertex_t, vertex_t, src_value_t, dst_value_t, raft::device_span&lt; vertex_t const &gt; &gt; &gt; &gt;::type =  typename std::invoke_result&lt;IntersectionOp,
+                                           vertex_t,
+                                           vertex_t,
+                                           src_value_t,
+                                           dst_value_t,
+                                           raft::device_span&lt;vertex_t const&gt;&gt;::type</definition>
+        <argsstring></argsstring>
+        <name>type</name>
+        <qualifiedname>cugraph::detail::intersection_op_result_type&lt; vertex_t, src_value_t, dst_value_t, IntersectionOp, std::enable_if_t&lt; std::is_invocable_v&lt; IntersectionOp, vertex_t, vertex_t, src_value_t, dst_value_t, raft::device_span&lt; vertex_t const &gt; &gt; &gt; &gt;::type</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/property_op_utils.cuh" line="88" column="3" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/property_op_utils.cuh" bodystart="88" bodyend="-1"/>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/property_op_utils.cuh" line="77" column="1" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/property_op_utils.cuh" bodystart="87" bodyend="94"/>
+    <listofallmembers>
+      <member refid="structcugraph_1_1detail_1_1intersection__op__result__type_3_01vertex__t_00_01src__value__t_00_0157a520760241d19d29bd1b79d5e0ae93_1afb3e2cf50cdb57bb02aab2515b4955f3" prot="public" virt="non-virtual"><scope>cugraph::detail::intersection_op_result_type&lt; vertex_t, src_value_t, dst_value_t, IntersectionOp, std::enable_if_t&lt; std::is_invocable_v&lt; IntersectionOp, vertex_t, vertex_t, src_value_t, dst_value_t, raft::device_span&lt; vertex_t const &gt; &gt; &gt; &gt;</scope><name>type</name></member>
+    </listofallmembers>
+  </compounddef>
+</doxygen>

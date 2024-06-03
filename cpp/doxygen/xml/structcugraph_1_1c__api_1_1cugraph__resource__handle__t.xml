@@ -1,0 +1,68 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="structcugraph_1_1c__api_1_1cugraph__resource__handle__t" kind="struct" language="C++" prot="public">
+    <compoundname>cugraph::c_api::cugraph_resource_handle_t</compoundname>
+    <sectiondef kind="public-attrib">
+      <memberdef kind="variable" id="structcugraph_1_1c__api_1_1cugraph__resource__handle__t_1a0d83c3d4740be7376249d860c56de507" prot="public" static="no" mutable="no">
+        <type>raft::handle_t *</type>
+        <definition>raft::handle_t* cugraph::c_api::cugraph_resource_handle_t::handle_</definition>
+        <argsstring></argsstring>
+        <name>handle_</name>
+        <qualifiedname>cugraph::c_api::cugraph_resource_handle_t::handle_</qualifiedname>
+        <initializer>{nullptr}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/c_api/resource_handle.hpp" line="24" column="18" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/resource_handle.hpp" bodystart="24" bodyend="24"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph_1_1c__api_1_1cugraph__resource__handle__t_1a98eb1372d54532ff789bce303cf68509" prot="public" static="no" mutable="no">
+        <type>bool</type>
+        <definition>bool cugraph::c_api::cugraph_resource_handle_t::allocated_</definition>
+        <argsstring></argsstring>
+        <name>allocated_</name>
+        <qualifiedname>cugraph::c_api::cugraph_resource_handle_t::allocated_</qualifiedname>
+        <initializer>{false}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/c_api/resource_handle.hpp" line="25" column="8" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/resource_handle.hpp" bodystart="25" bodyend="25"/>
+      </memberdef>
+    </sectiondef>
+    <sectiondef kind="public-func">
+      <memberdef kind="function" id="structcugraph_1_1c__api_1_1cugraph__resource__handle__t_1a15112476e46fd247597b729ae4d987fc" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type></type>
+        <definition>cugraph::c_api::cugraph_resource_handle_t::cugraph_resource_handle_t</definition>
+        <argsstring>(void *raft_handle)</argsstring>
+        <name>cugraph_resource_handle_t</name>
+        <qualifiedname>cugraph::c_api::cugraph_resource_handle_t::cugraph_resource_handle_t</qualifiedname>
+        <param>
+          <type>void *</type>
+          <declname>raft_handle</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/c_api/resource_handle.hpp" line="27" column="3" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/resource_handle.hpp" bodystart="27" bodyend="35"/>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/src/c_api/resource_handle.hpp" line="23" column="1" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/resource_handle.hpp" bodystart="23" bodyend="36"/>
+    <listofallmembers>
+      <member refid="structcugraph_1_1c__api_1_1cugraph__resource__handle__t_1a98eb1372d54532ff789bce303cf68509" prot="public" virt="non-virtual"><scope>cugraph::c_api::cugraph_resource_handle_t</scope><name>allocated_</name></member>
+      <member refid="structcugraph_1_1c__api_1_1cugraph__resource__handle__t_1a15112476e46fd247597b729ae4d987fc" prot="public" virt="non-virtual"><scope>cugraph::c_api::cugraph_resource_handle_t</scope><name>cugraph_resource_handle_t</name></member>
+      <member refid="structcugraph_1_1c__api_1_1cugraph__resource__handle__t_1a0d83c3d4740be7376249d860c56de507" prot="public" virt="non-virtual"><scope>cugraph::c_api::cugraph_resource_handle_t</scope><name>handle_</name></member>
+    </listofallmembers>
+  </compounddef>
+</doxygen>

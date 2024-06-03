@@ -1,0 +1,117 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="structcugraph_1_1detail_1_1update__v__frontier__call__v__op__t_3_01vertex__t_00_01VertexValueInpc991eb4351f1b215d3bb73296cffaad9" kind="struct" language="C++" prot="public">
+    <compoundname>cugraph::detail::update_v_frontier_call_v_op_t&lt; vertex_t, VertexValueInputIterator, VertexValueOutputIterator, VertexOp, key_t, void &gt;</compoundname>
+    <templateparamlist>
+      <param>
+        <type>typename vertex_t</type>
+      </param>
+      <param>
+        <type>typename VertexValueInputIterator</type>
+      </param>
+      <param>
+        <type>typename VertexValueOutputIterator</type>
+      </param>
+      <param>
+        <type>typename VertexOp</type>
+      </param>
+      <param>
+        <type>typename key_t</type>
+      </param>
+    </templateparamlist>
+    <sectiondef kind="public-attrib">
+      <memberdef kind="variable" id="structcugraph_1_1detail_1_1update__v__frontier__call__v__op__t_3_01vertex__t_00_01VertexValueInpc991eb4351f1b215d3bb73296cffaad9_1ae1c14190a76ed8255e47bdb03f101af0" prot="public" static="no" mutable="no">
+        <type>VertexValueInputIterator</type>
+        <definition>VertexValueInputIterator cugraph::detail::update_v_frontier_call_v_op_t&lt; vertex_t, VertexValueInputIterator, VertexValueOutputIterator, VertexOp, key_t, void &gt;::vertex_value_input_first</definition>
+        <argsstring></argsstring>
+        <name>vertex_value_input_first</name>
+        <qualifiedname>cugraph::detail::update_v_frontier_call_v_op_t&lt; vertex_t, VertexValueInputIterator, VertexValueOutputIterator, VertexOp, key_t, void &gt;::vertex_value_input_first</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/update_v_frontier.cuh" line="90" column="28" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/update_v_frontier.cuh" bodystart="90" bodyend="90"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph_1_1detail_1_1update__v__frontier__call__v__op__t_3_01vertex__t_00_01VertexValueInpc991eb4351f1b215d3bb73296cffaad9_1a2fd21a421d1600c9a7e857699856dc1f" prot="public" static="no" mutable="no">
+        <type>VertexValueOutputIterator</type>
+        <definition>VertexValueOutputIterator cugraph::detail::update_v_frontier_call_v_op_t&lt; vertex_t, VertexValueInputIterator, VertexValueOutputIterator, VertexOp, key_t, void &gt;::vertex_value_output_first</definition>
+        <argsstring></argsstring>
+        <name>vertex_value_output_first</name>
+        <qualifiedname>cugraph::detail::update_v_frontier_call_v_op_t&lt; vertex_t, VertexValueInputIterator, VertexValueOutputIterator, VertexOp, key_t, void &gt;::vertex_value_output_first</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/update_v_frontier.cuh" line="91" column="29" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/update_v_frontier.cuh" bodystart="91" bodyend="91"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph_1_1detail_1_1update__v__frontier__call__v__op__t_3_01vertex__t_00_01VertexValueInpc991eb4351f1b215d3bb73296cffaad9_1aef4a33174200e2ff388ddb5b5a2a8ff0" prot="public" static="no" mutable="no">
+        <type>VertexOp</type>
+        <definition>VertexOp cugraph::detail::update_v_frontier_call_v_op_t&lt; vertex_t, VertexValueInputIterator, VertexValueOutputIterator, VertexOp, key_t, void &gt;::v_op</definition>
+        <argsstring></argsstring>
+        <name>v_op</name>
+        <qualifiedname>cugraph::detail::update_v_frontier_call_v_op_t&lt; vertex_t, VertexValueInputIterator, VertexValueOutputIterator, VertexOp, key_t, void &gt;::v_op</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/update_v_frontier.cuh" line="92" column="12" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/update_v_frontier.cuh" bodystart="92" bodyend="92"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph_1_1detail_1_1update__v__frontier__call__v__op__t_3_01vertex__t_00_01VertexValueInpc991eb4351f1b215d3bb73296cffaad9_1aa807d66d84e5a041eb0bf62a164eee33" prot="public" static="no" mutable="no">
+        <type>vertex_t</type>
+        <definition>vertex_t cugraph::detail::update_v_frontier_call_v_op_t&lt; vertex_t, VertexValueInputIterator, VertexValueOutputIterator, VertexOp, key_t, void &gt;::local_vertex_partition_range_first</definition>
+        <argsstring></argsstring>
+        <name>local_vertex_partition_range_first</name>
+        <qualifiedname>cugraph::detail::update_v_frontier_call_v_op_t&lt; vertex_t, VertexValueInputIterator, VertexValueOutputIterator, VertexOp, key_t, void &gt;::local_vertex_partition_range_first</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/update_v_frontier.cuh" line="93" column="12" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/update_v_frontier.cuh" bodystart="93" bodyend="93"/>
+      </memberdef>
+    </sectiondef>
+    <sectiondef kind="public-func">
+      <memberdef kind="function" id="structcugraph_1_1detail_1_1update__v__frontier__call__v__op__t_3_01vertex__t_00_01VertexValueInpc991eb4351f1b215d3bb73296cffaad9_1a85cdde9adbd4646b9b12e3ce2872a2b8" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>__device__ uint8_t</type>
+        <definition>__device__ uint8_t cugraph::detail::update_v_frontier_call_v_op_t&lt; vertex_t, VertexValueInputIterator, VertexValueOutputIterator, VertexOp, key_t, void &gt;::operator()</definition>
+        <argsstring>(key_t key) const</argsstring>
+        <name>operator()</name>
+        <qualifiedname>cugraph::detail::update_v_frontier_call_v_op_t&lt; vertex_t, VertexValueInputIterator, VertexValueOutputIterator, VertexOp, key_t, void &gt;::operator()</qualifiedname>
+        <param>
+          <type>key_t</type>
+          <declname>key</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/update_v_frontier.cuh" line="95" column="22" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/update_v_frontier.cuh" bodystart="95" bodyend="110"/>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/update_v_frontier.cuh" line="84" column="1" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/update_v_frontier.cuh" bodystart="89" bodyend="111"/>
+    <listofallmembers>
+      <member refid="structcugraph_1_1detail_1_1update__v__frontier__call__v__op__t_3_01vertex__t_00_01VertexValueInpc991eb4351f1b215d3bb73296cffaad9_1aa807d66d84e5a041eb0bf62a164eee33" prot="public" virt="non-virtual"><scope>cugraph::detail::update_v_frontier_call_v_op_t&lt; vertex_t, VertexValueInputIterator, VertexValueOutputIterator, VertexOp, key_t, void &gt;</scope><name>local_vertex_partition_range_first</name></member>
+      <member refid="structcugraph_1_1detail_1_1update__v__frontier__call__v__op__t_3_01vertex__t_00_01VertexValueInpc991eb4351f1b215d3bb73296cffaad9_1a85cdde9adbd4646b9b12e3ce2872a2b8" prot="public" virt="non-virtual"><scope>cugraph::detail::update_v_frontier_call_v_op_t&lt; vertex_t, VertexValueInputIterator, VertexValueOutputIterator, VertexOp, key_t, void &gt;</scope><name>operator()</name></member>
+      <member refid="structcugraph_1_1detail_1_1update__v__frontier__call__v__op__t_3_01vertex__t_00_01VertexValueInpc991eb4351f1b215d3bb73296cffaad9_1aef4a33174200e2ff388ddb5b5a2a8ff0" prot="public" virt="non-virtual"><scope>cugraph::detail::update_v_frontier_call_v_op_t&lt; vertex_t, VertexValueInputIterator, VertexValueOutputIterator, VertexOp, key_t, void &gt;</scope><name>v_op</name></member>
+      <member refid="structcugraph_1_1detail_1_1update__v__frontier__call__v__op__t_3_01vertex__t_00_01VertexValueInpc991eb4351f1b215d3bb73296cffaad9_1ae1c14190a76ed8255e47bdb03f101af0" prot="public" virt="non-virtual"><scope>cugraph::detail::update_v_frontier_call_v_op_t&lt; vertex_t, VertexValueInputIterator, VertexValueOutputIterator, VertexOp, key_t, void &gt;</scope><name>vertex_value_input_first</name></member>
+      <member refid="structcugraph_1_1detail_1_1update__v__frontier__call__v__op__t_3_01vertex__t_00_01VertexValueInpc991eb4351f1b215d3bb73296cffaad9_1a2fd21a421d1600c9a7e857699856dc1f" prot="public" virt="non-virtual"><scope>cugraph::detail::update_v_frontier_call_v_op_t&lt; vertex_t, VertexValueInputIterator, VertexValueOutputIterator, VertexOp, key_t, void &gt;</scope><name>vertex_value_output_first</name></member>
+    </listofallmembers>
+  </compounddef>
+</doxygen>

@@ -1,0 +1,89 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="structcugraph_1_1detail_1_1strided__accumulate__t" kind="struct" language="C++" prot="public">
+    <compoundname>cugraph::detail::strided_accumulate_t</compoundname>
+    <templateparamlist>
+      <param>
+        <type>typename edge_t</type>
+      </param>
+    </templateparamlist>
+    <sectiondef kind="public-attrib">
+      <memberdef kind="variable" id="structcugraph_1_1detail_1_1strided__accumulate__t_1a61c67838409bb7eb81649eb325ccd7f6" prot="public" static="no" mutable="no">
+        <type>raft::device_span&lt; edge_t const  &gt;</type>
+        <definition>raft::device_span&lt;edge_t const&gt; cugraph::detail::strided_accumulate_t&lt; edge_t &gt;::rx_nbr_intersection_sizes</definition>
+        <argsstring></argsstring>
+        <name>rx_nbr_intersection_sizes</name>
+        <qualifiedname>cugraph::detail::strided_accumulate_t::rx_nbr_intersection_sizes</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/detail/nbr_intersection.cuh" line="581" column="21" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/detail/nbr_intersection.cuh" bodystart="581" bodyend="581"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph_1_1detail_1_1strided__accumulate__t_1a6d7e7e104ac92d4b0d37f50fbb9c7704" prot="public" static="no" mutable="no">
+        <type>size_t</type>
+        <definition>size_t cugraph::detail::strided_accumulate_t&lt; edge_t &gt;::edge_partition_input_size</definition>
+        <argsstring></argsstring>
+        <name>edge_partition_input_size</name>
+        <qualifiedname>cugraph::detail::strided_accumulate_t::edge_partition_input_size</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/detail/nbr_intersection.cuh" line="582" column="10" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/detail/nbr_intersection.cuh" bodystart="582" bodyend="582"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph_1_1detail_1_1strided__accumulate__t_1a7f0bdbb8752ef9f1a49866791a42cf70" prot="public" static="no" mutable="no">
+        <type>int</type>
+        <definition>int cugraph::detail::strided_accumulate_t&lt; edge_t &gt;::minor_comm_size</definition>
+        <argsstring></argsstring>
+        <name>minor_comm_size</name>
+        <qualifiedname>cugraph::detail::strided_accumulate_t::minor_comm_size</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/detail/nbr_intersection.cuh" line="583" column="7" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/detail/nbr_intersection.cuh" bodystart="583" bodyend="583"/>
+      </memberdef>
+    </sectiondef>
+    <sectiondef kind="public-func">
+      <memberdef kind="function" id="structcugraph_1_1detail_1_1strided__accumulate__t_1aabd4dd208452b23ab79f9ba8f110b653" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>__device__ edge_t</type>
+        <definition>__device__ edge_t cugraph::detail::strided_accumulate_t&lt; edge_t &gt;::operator()</definition>
+        <argsstring>(size_t i) const</argsstring>
+        <name>operator()</name>
+        <qualifiedname>cugraph::detail::strided_accumulate_t::operator()</qualifiedname>
+        <param>
+          <type>size_t</type>
+          <declname>i</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/detail/nbr_intersection.cuh" line="585" column="21" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/detail/nbr_intersection.cuh" bodystart="585" bodyend="592"/>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/detail/nbr_intersection.cuh" line="580" column="1" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/detail/nbr_intersection.cuh" bodystart="580" bodyend="593"/>
+    <listofallmembers>
+      <member refid="structcugraph_1_1detail_1_1strided__accumulate__t_1a6d7e7e104ac92d4b0d37f50fbb9c7704" prot="public" virt="non-virtual"><scope>cugraph::detail::strided_accumulate_t</scope><name>edge_partition_input_size</name></member>
+      <member refid="structcugraph_1_1detail_1_1strided__accumulate__t_1a7f0bdbb8752ef9f1a49866791a42cf70" prot="public" virt="non-virtual"><scope>cugraph::detail::strided_accumulate_t</scope><name>minor_comm_size</name></member>
+      <member refid="structcugraph_1_1detail_1_1strided__accumulate__t_1aabd4dd208452b23ab79f9ba8f110b653" prot="public" virt="non-virtual"><scope>cugraph::detail::strided_accumulate_t</scope><name>operator()</name></member>
+      <member refid="structcugraph_1_1detail_1_1strided__accumulate__t_1a61c67838409bb7eb81649eb325ccd7f6" prot="public" virt="non-virtual"><scope>cugraph::detail::strided_accumulate_t</scope><name>rx_nbr_intersection_sizes</name></member>
+    </listofallmembers>
+  </compounddef>
+</doxygen>

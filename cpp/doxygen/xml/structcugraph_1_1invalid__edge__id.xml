@@ -1,0 +1,43 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="structcugraph_1_1invalid__edge__id" kind="struct" language="C++" prot="public">
+    <compoundname>cugraph::invalid_edge_id</compoundname>
+    <basecompoundref refid="structcugraph_1_1invalid__idx" prot="public" virt="non-virtual">cugraph::invalid_idx&lt; edge_t &gt;</basecompoundref>
+    <templateparamlist>
+      <param>
+        <type>typename edge_t</type>
+      </param>
+    </templateparamlist>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <inheritancegraph>
+      <node id="1">
+        <label>cugraph::invalid_edge_id&lt; edge_t &gt;</label>
+        <link refid="structcugraph_1_1invalid__edge__id"/>
+        <childnode refid="2" relation="public-inheritance">
+        </childnode>
+      </node>
+      <node id="2">
+        <label>cugraph::invalid_idx&lt; edge_t &gt;</label>
+        <link refid="structcugraph_1_1invalid__idx"/>
+      </node>
+    </inheritancegraph>
+    <collaborationgraph>
+      <node id="1">
+        <label>cugraph::invalid_edge_id&lt; edge_t &gt;</label>
+        <link refid="structcugraph_1_1invalid__edge__id"/>
+        <childnode refid="2" relation="public-inheritance">
+        </childnode>
+      </node>
+      <node id="2">
+        <label>cugraph::invalid_idx&lt; edge_t &gt;</label>
+        <link refid="structcugraph_1_1invalid__idx"/>
+      </node>
+    </collaborationgraph>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph.hpp" line="323" column="1" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph.hpp" bodystart="323" bodyend="323"/>
+    <listofallmembers>
+    </listofallmembers>
+  </compounddef>
+</doxygen>

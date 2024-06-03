@@ -1,0 +1,215 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="classcugraph_1_1detail_1_1key__binary__search__store__t" kind="class" language="C++" prot="public">
+    <compoundname>cugraph::detail::key_binary_search_store_t</compoundname>
+    <templateparamlist>
+      <param>
+        <type>typename key_t</type>
+      </param>
+    </templateparamlist>
+    <sectiondef kind="public-type">
+      <memberdef kind="typedef" id="classcugraph_1_1detail_1_1key__binary__search__store__t_1a1c8a7273e9604543720a59a2f3b1c25e" prot="public" static="no">
+        <type>key_t</type>
+        <definition>using cugraph::detail::key_binary_search_store_t&lt; key_t &gt;::key_type =  key_t</definition>
+        <argsstring></argsstring>
+        <name>key_type</name>
+        <qualifiedname>cugraph::detail::key_binary_search_store_t::key_type</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/key_store.cuh" line="185" column="3" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/key_store.cuh" bodystart="185" bodyend="-1"/>
+      </memberdef>
+    </sectiondef>
+    <sectiondef kind="private-attrib">
+      <memberdef kind="variable" id="classcugraph_1_1detail_1_1key__binary__search__store__t_1abe739ac5cf3c888e395ee965e228c7a9" prot="private" static="no" mutable="no">
+        <type>rmm::device_uvector&lt; key_t &gt;</type>
+        <definition>rmm::device_uvector&lt;key_t&gt; cugraph::detail::key_binary_search_store_t&lt; key_t &gt;::store_keys_</definition>
+        <argsstring></argsstring>
+        <name>store_keys_</name>
+        <qualifiedname>cugraph::detail::key_binary_search_store_t::store_keys_</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/key_store.cuh" line="234" column="23" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/key_store.cuh" bodystart="234" bodyend="-1"/>
+      </memberdef>
+    </sectiondef>
+    <sectiondef kind="public-func">
+      <memberdef kind="function" id="classcugraph_1_1detail_1_1key__binary__search__store__t_1aea16094ab9b5cdac79f6ec068718789e" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type></type>
+        <definition>cugraph::detail::key_binary_search_store_t&lt; key_t &gt;::key_binary_search_store_t</definition>
+        <argsstring>(rmm::cuda_stream_view stream)</argsstring>
+        <name>key_binary_search_store_t</name>
+        <qualifiedname>cugraph::detail::key_binary_search_store_t::key_binary_search_store_t</qualifiedname>
+        <param>
+          <type>rmm::cuda_stream_view</type>
+          <declname>stream</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/key_store.cuh" line="187" column="3" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/key_store.cuh" bodystart="187" bodyend="187"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1detail_1_1key__binary__search__store__t_1ab4992b27d358b8125e67a0116fbf8d98" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <templateparamlist>
+          <param>
+            <type>typename KeyIterator</type>
+          </param>
+        </templateparamlist>
+        <type></type>
+        <definition>cugraph::detail::key_binary_search_store_t&lt; key_t &gt;::key_binary_search_store_t</definition>
+        <argsstring>(KeyIterator key_first, KeyIterator key_last, bool key_sorted, rmm::cuda_stream_view stream)</argsstring>
+        <name>key_binary_search_store_t</name>
+        <qualifiedname>cugraph::detail::key_binary_search_store_t::key_binary_search_store_t</qualifiedname>
+        <param>
+          <type>KeyIterator</type>
+          <declname>key_first</declname>
+        </param>
+        <param>
+          <type>KeyIterator</type>
+          <declname>key_last</declname>
+        </param>
+        <param>
+          <type>bool</type>
+          <declname>key_sorted</declname>
+        </param>
+        <param>
+          <type>rmm::cuda_stream_view</type>
+          <declname>stream</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/key_store.cuh" line="190" column="3" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/key_store.cuh" bodystart="190" bodyend="203"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1detail_1_1key__binary__search__store__t_1a96d22a03161a677776ff599f994fa022" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type></type>
+        <definition>cugraph::detail::key_binary_search_store_t&lt; key_t &gt;::key_binary_search_store_t</definition>
+        <argsstring>(rmm::device_uvector&lt; key_t &gt; &amp;&amp;keys, bool key_sorted, rmm::cuda_stream_view stream)</argsstring>
+        <name>key_binary_search_store_t</name>
+        <qualifiedname>cugraph::detail::key_binary_search_store_t::key_binary_search_store_t</qualifiedname>
+        <param>
+          <type>rmm::device_uvector&lt; key_t &gt; &amp;&amp;</type>
+          <declname>keys</declname>
+        </param>
+        <param>
+          <type>bool</type>
+          <declname>key_sorted</declname>
+        </param>
+        <param>
+          <type>rmm::cuda_stream_view</type>
+          <declname>stream</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/key_store.cuh" line="205" column="3" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/key_store.cuh" bodystart="205" bodyend="216"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1detail_1_1key__binary__search__store__t_1a4943d9f381a21ac69ef3894ad761ccb6" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type>auto</type>
+        <definition>auto cugraph::detail::key_binary_search_store_t&lt; key_t &gt;::release</definition>
+        <argsstring>(rmm::cuda_stream_view stream)</argsstring>
+        <name>release</name>
+        <qualifiedname>cugraph::detail::key_binary_search_store_t::release</qualifiedname>
+        <param>
+          <type>rmm::cuda_stream_view</type>
+          <declname>stream</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/key_store.cuh" line="218" column="8" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/key_store.cuh" bodystart="218" bodyend="223"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1detail_1_1key__binary__search__store__t_1a560ced216a3cc4f92b9754169e788abd" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>key_t const *</type>
+        <definition>key_t const  * cugraph::detail::key_binary_search_store_t&lt; key_t &gt;::store_key_first</definition>
+        <argsstring>() const</argsstring>
+        <name>store_key_first</name>
+        <qualifiedname>cugraph::detail::key_binary_search_store_t::store_key_first</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/key_store.cuh" line="225" column="15" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/key_store.cuh" bodystart="225" bodyend="225"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1detail_1_1key__binary__search__store__t_1a4d99c428c468f3531276d2db7dc4051f" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>key_t const *</type>
+        <definition>key_t const  * cugraph::detail::key_binary_search_store_t&lt; key_t &gt;::store_key_last</definition>
+        <argsstring>() const</argsstring>
+        <name>store_key_last</name>
+        <qualifiedname>cugraph::detail::key_binary_search_store_t::store_key_last</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/key_store.cuh" line="227" column="15" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/key_store.cuh" bodystart="227" bodyend="227"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1detail_1_1key__binary__search__store__t_1ae906dd15ee121147f2a2db4a5a6423fa" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>size_t</type>
+        <definition>size_t cugraph::detail::key_binary_search_store_t&lt; key_t &gt;::size</definition>
+        <argsstring>() const</argsstring>
+        <name>size</name>
+        <qualifiedname>cugraph::detail::key_binary_search_store_t::size</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/key_store.cuh" line="229" column="10" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/key_store.cuh" bodystart="229" bodyend="229"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1detail_1_1key__binary__search__store__t_1a924687a3d494939a3a7c6ca2b901c083" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>size_t</type>
+        <definition>size_t cugraph::detail::key_binary_search_store_t&lt; key_t &gt;::capacity</definition>
+        <argsstring>() const</argsstring>
+        <name>capacity</name>
+        <qualifiedname>cugraph::detail::key_binary_search_store_t::capacity</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/key_store.cuh" line="231" column="10" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/key_store.cuh" bodystart="231" bodyend="231"/>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/key_store.cuh" line="183" column="1" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/key_store.cuh" bodystart="183" bodyend="235"/>
+    <listofallmembers>
+      <member refid="classcugraph_1_1detail_1_1key__binary__search__store__t_1a924687a3d494939a3a7c6ca2b901c083" prot="public" virt="non-virtual"><scope>cugraph::detail::key_binary_search_store_t</scope><name>capacity</name></member>
+      <member refid="classcugraph_1_1detail_1_1key__binary__search__store__t_1aea16094ab9b5cdac79f6ec068718789e" prot="public" virt="non-virtual"><scope>cugraph::detail::key_binary_search_store_t</scope><name>key_binary_search_store_t</name></member>
+      <member refid="classcugraph_1_1detail_1_1key__binary__search__store__t_1ab4992b27d358b8125e67a0116fbf8d98" prot="public" virt="non-virtual"><scope>cugraph::detail::key_binary_search_store_t</scope><name>key_binary_search_store_t</name></member>
+      <member refid="classcugraph_1_1detail_1_1key__binary__search__store__t_1a96d22a03161a677776ff599f994fa022" prot="public" virt="non-virtual"><scope>cugraph::detail::key_binary_search_store_t</scope><name>key_binary_search_store_t</name></member>
+      <member refid="classcugraph_1_1detail_1_1key__binary__search__store__t_1a1c8a7273e9604543720a59a2f3b1c25e" prot="public" virt="non-virtual"><scope>cugraph::detail::key_binary_search_store_t</scope><name>key_type</name></member>
+      <member refid="classcugraph_1_1detail_1_1key__binary__search__store__t_1a4943d9f381a21ac69ef3894ad761ccb6" prot="public" virt="non-virtual"><scope>cugraph::detail::key_binary_search_store_t</scope><name>release</name></member>
+      <member refid="classcugraph_1_1detail_1_1key__binary__search__store__t_1ae906dd15ee121147f2a2db4a5a6423fa" prot="public" virt="non-virtual"><scope>cugraph::detail::key_binary_search_store_t</scope><name>size</name></member>
+      <member refid="classcugraph_1_1detail_1_1key__binary__search__store__t_1a560ced216a3cc4f92b9754169e788abd" prot="public" virt="non-virtual"><scope>cugraph::detail::key_binary_search_store_t</scope><name>store_key_first</name></member>
+      <member refid="classcugraph_1_1detail_1_1key__binary__search__store__t_1a4d99c428c468f3531276d2db7dc4051f" prot="public" virt="non-virtual"><scope>cugraph::detail::key_binary_search_store_t</scope><name>store_key_last</name></member>
+      <member refid="classcugraph_1_1detail_1_1key__binary__search__store__t_1abe739ac5cf3c888e395ee965e228c7a9" prot="private" virt="non-virtual"><scope>cugraph::detail::key_binary_search_store_t</scope><name>store_keys_</name></member>
+    </listofallmembers>
+  </compounddef>
+</doxygen>

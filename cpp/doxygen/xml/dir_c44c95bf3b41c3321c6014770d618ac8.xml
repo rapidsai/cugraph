@@ -1,0 +1,12 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="dir_c44c95bf3b41c3321c6014770d618ac8" kind="dir">
+    <compoundname>tree</compoundname>
+    <innerdir refid="dir_f919145749ed8044089b5f82c0103857">legacy</innerdir>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/src/tree/"/>
+  </compounddef>
+</doxygen>

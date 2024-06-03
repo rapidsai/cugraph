@@ -1,0 +1,278 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="handle_8hpp" kind="file" language="C++">
+    <compoundname>handle.hpp</compoundname>
+    <includes local="no">raft/core/handle.hpp</includes>
+    <includes local="no">rmm/exec_policy.hpp</includes>
+    <includedby refid="device__shared__wrapper_8hpp" local="no">device_shared_wrapper.hpp</includedby>
+    <includedby refid="include_2cugraph_2mtmg_2graph_8hpp" local="no">graph.hpp</includedby>
+    <includedby refid="mtmg_2graph__view_8hpp" local="no">graph_view.hpp</includedby>
+    <includedby refid="instance__manager_8hpp" local="no">instance_manager.hpp</includedby>
+    <includedby refid="per__device__edgelist_8hpp" local="no">per_device_edgelist.hpp</includedby>
+    <includedby refid="renumber__map__view_8hpp" local="no">renumber_map_view.hpp</includedby>
+    <includedby refid="resource__manager_8hpp" local="no">resource_manager.hpp</includedby>
+    <includedby refid="vertex__pair__result__view_8hpp" local="no">vertex_pair_result_view.hpp</includedby>
+    <includedby refid="vertex__result__view_8hpp" local="no">vertex_result_view.hpp</includedby>
+    <incdepgraph>
+      <node id="1">
+        <label>handle.hpp</label>
+        <link refid="handle_8hpp"/>
+        <childnode refid="2" relation="include">
+        </childnode>
+        <childnode refid="3" relation="include">
+        </childnode>
+      </node>
+      <node id="2">
+        <label>raft/core/handle.hpp</label>
+      </node>
+      <node id="3">
+        <label>rmm/exec_policy.hpp</label>
+      </node>
+    </incdepgraph>
+    <invincdepgraph>
+      <node id="3">
+        <label>device_shared_device_span.hpp</label>
+        <link refid="device__shared__device__span_8hpp_source"/>
+        <childnode refid="4" relation="include">
+        </childnode>
+        <childnode refid="11" relation="include">
+        </childnode>
+        <childnode refid="9" relation="include">
+        </childnode>
+      </node>
+      <node id="12">
+        <label>device_shared_device_span_tuple.hpp</label>
+        <link refid="device__shared__device__span__tuple_8hpp_source"/>
+        <childnode refid="13" relation="include">
+        </childnode>
+        <childnode refid="7" relation="include">
+        </childnode>
+      </node>
+      <node id="4">
+        <label>device_shared_device_vector.hpp</label>
+        <link refid="device__shared__device__vector_8hpp_source"/>
+        <childnode refid="5" relation="include">
+        </childnode>
+        <childnode refid="10" relation="include">
+        </childnode>
+      </node>
+      <node id="13">
+        <label>device_shared_device_vector_tuple.hpp</label>
+        <link refid="device__shared__device__vector__tuple_8hpp_source"/>
+        <childnode refid="8" relation="include">
+        </childnode>
+      </node>
+      <node id="2">
+        <label>device_shared_wrapper.hpp</label>
+        <link refid="device__shared__wrapper_8hpp_source"/>
+        <childnode refid="3" relation="include">
+        </childnode>
+        <childnode refid="12" relation="include">
+        </childnode>
+        <childnode refid="14" relation="include">
+        </childnode>
+        <childnode refid="15" relation="include">
+        </childnode>
+        <childnode refid="16" relation="include">
+        </childnode>
+        <childnode refid="6" relation="include">
+        </childnode>
+        <childnode refid="17" relation="include">
+        </childnode>
+        <childnode refid="18" relation="include">
+        </childnode>
+      </node>
+      <node id="21">
+        <label>per_device_edgelist.hpp</label>
+        <link refid="per__device__edgelist_8hpp_source"/>
+        <childnode refid="16" relation="include">
+        </childnode>
+        <childnode refid="18" relation="include">
+        </childnode>
+      </node>
+      <node id="14">
+        <label>edge_property.hpp</label>
+        <link refid="mtmg_2edge__property_8hpp_source"/>
+        <childnode refid="6" relation="include">
+        </childnode>
+      </node>
+      <node id="15">
+        <label>edge_property_view.hpp</label>
+        <link refid="edge__property__view_8hpp_source"/>
+        <childnode refid="14" relation="include">
+        </childnode>
+      </node>
+      <node id="16">
+        <label>edgelist.hpp</label>
+        <link refid="edgelist_8hpp_source"/>
+      </node>
+      <node id="6">
+        <label>graph.hpp</label>
+        <link refid="include_2cugraph_2mtmg_2graph_8hpp_source"/>
+      </node>
+      <node id="17">
+        <label>graph_view.hpp</label>
+        <link refid="mtmg_2graph__view_8hpp_source"/>
+        <childnode refid="6" relation="include">
+        </childnode>
+        <childnode refid="7" relation="include">
+        </childnode>
+        <childnode refid="9" relation="include">
+        </childnode>
+      </node>
+      <node id="1">
+        <label>handle.hpp</label>
+        <link refid="handle_8hpp"/>
+        <childnode refid="2" relation="include">
+        </childnode>
+        <childnode refid="6" relation="include">
+        </childnode>
+        <childnode refid="17" relation="include">
+        </childnode>
+        <childnode refid="19" relation="include">
+        </childnode>
+        <childnode refid="21" relation="include">
+        </childnode>
+        <childnode refid="11" relation="include">
+        </childnode>
+        <childnode refid="20" relation="include">
+        </childnode>
+        <childnode refid="7" relation="include">
+        </childnode>
+        <childnode refid="9" relation="include">
+        </childnode>
+      </node>
+      <node id="19">
+        <label>instance_manager.hpp</label>
+        <link refid="instance__manager_8hpp_source"/>
+        <childnode refid="20" relation="include">
+        </childnode>
+      </node>
+      <node id="18">
+        <label>per_thread_edgelist.hpp</label>
+        <link refid="per__thread__edgelist_8hpp_source"/>
+      </node>
+      <node id="5">
+        <label>renumber_map.hpp</label>
+        <link refid="renumber__map_8hpp_source"/>
+        <childnode refid="6" relation="include">
+        </childnode>
+        <childnode refid="7" relation="include">
+        </childnode>
+        <childnode refid="9" relation="include">
+        </childnode>
+      </node>
+      <node id="11">
+        <label>renumber_map_view.hpp</label>
+        <link refid="renumber__map__view_8hpp_source"/>
+        <childnode refid="5" relation="include">
+        </childnode>
+      </node>
+      <node id="20">
+        <label>resource_manager.hpp</label>
+        <link refid="resource__manager_8hpp_source"/>
+      </node>
+      <node id="8">
+        <label>vertex_pair_result.hpp</label>
+        <link refid="vertex__pair__result_8hpp_source"/>
+      </node>
+      <node id="7">
+        <label>vertex_pair_result_view.hpp</label>
+        <link refid="vertex__pair__result__view_8hpp_source"/>
+        <childnode refid="8" relation="include">
+        </childnode>
+      </node>
+      <node id="10">
+        <label>vertex_result.hpp</label>
+        <link refid="vertex__result_8hpp_source"/>
+      </node>
+      <node id="9">
+        <label>vertex_result_view.hpp</label>
+        <link refid="vertex__result__view_8hpp_source"/>
+        <childnode refid="10" relation="include">
+        </childnode>
+      </node>
+    </invincdepgraph>
+    <innerclass refid="classcugraph_1_1mtmg_1_1handle__t" prot="public">cugraph::mtmg::handle_t</innerclass>
+    <innernamespace refid="namespacecugraph">cugraph</innernamespace>
+    <innernamespace refid="namespacecugraph_1_1mtmg">cugraph::mtmg</innernamespace>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <programlisting>
+<codeline lineno="1"><highlight class="comment">/*</highlight></codeline>
+<codeline lineno="2"><highlight class="comment"><sp/>*<sp/>Copyright<sp/>(c)<sp/>2023-2024,<sp/>NVIDIA<sp/>CORPORATION.</highlight></codeline>
+<codeline lineno="3"><highlight class="comment"><sp/>*</highlight></codeline>
+<codeline lineno="4"><highlight class="comment"><sp/>*<sp/>Licensed<sp/>under<sp/>the<sp/>Apache<sp/>License,<sp/>Version<sp/>2.0<sp/>(the<sp/>&quot;License&quot;);</highlight></codeline>
+<codeline lineno="5"><highlight class="comment"><sp/>*<sp/>you<sp/>may<sp/>not<sp/>use<sp/>this<sp/>file<sp/>except<sp/>in<sp/>compliance<sp/>with<sp/>the<sp/>License.</highlight></codeline>
+<codeline lineno="6"><highlight class="comment"><sp/>*<sp/>You<sp/>may<sp/>obtain<sp/>a<sp/>copy<sp/>of<sp/>the<sp/>License<sp/>at</highlight></codeline>
+<codeline lineno="7"><highlight class="comment"><sp/>*</highlight></codeline>
+<codeline lineno="8"><highlight class="comment"><sp/>*<sp/><sp/><sp/><sp/><sp/>http://www.apache.org/licenses/LICENSE-2.0</highlight></codeline>
+<codeline lineno="9"><highlight class="comment"><sp/>*</highlight></codeline>
+<codeline lineno="10"><highlight class="comment"><sp/>*<sp/>Unless<sp/>required<sp/>by<sp/>applicable<sp/>law<sp/>or<sp/>agreed<sp/>to<sp/>in<sp/>writing,<sp/>software</highlight></codeline>
+<codeline lineno="11"><highlight class="comment"><sp/>*<sp/>distributed<sp/>under<sp/>the<sp/>License<sp/>is<sp/>distributed<sp/>on<sp/>an<sp/>&quot;AS<sp/>IS&quot;<sp/>BASIS,</highlight></codeline>
+<codeline lineno="12"><highlight class="comment"><sp/>*<sp/>WITHOUT<sp/>WARRANTIES<sp/>OR<sp/>CONDITIONS<sp/>OF<sp/>ANY<sp/>KIND,<sp/>either<sp/>express<sp/>or<sp/>implied.</highlight></codeline>
+<codeline lineno="13"><highlight class="comment"><sp/>*<sp/>See<sp/>the<sp/>License<sp/>for<sp/>the<sp/>specific<sp/>language<sp/>governing<sp/>permissions<sp/>and</highlight></codeline>
+<codeline lineno="14"><highlight class="comment"><sp/>*<sp/>limitations<sp/>under<sp/>the<sp/>License.</highlight></codeline>
+<codeline lineno="15"><highlight class="comment"><sp/>*/</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="16"><highlight class="normal"></highlight></codeline>
+<codeline lineno="17"><highlight class="normal"></highlight><highlight class="preprocessor">#pragma<sp/>once</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="18"><highlight class="normal"></highlight></codeline>
+<codeline lineno="19"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&lt;raft/core/handle.hpp&gt;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="20"><highlight class="normal"></highlight></codeline>
+<codeline lineno="21"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&lt;rmm/exec_policy.hpp&gt;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="22"><highlight class="normal"></highlight></codeline>
+<codeline lineno="23"><highlight class="normal"></highlight><highlight class="keyword">namespace<sp/></highlight><highlight class="normal">cugraph<sp/>{</highlight></codeline>
+<codeline lineno="24"><highlight class="normal"></highlight><highlight class="keyword">namespace<sp/></highlight><highlight class="normal">mtmg<sp/>{</highlight></codeline>
+<codeline lineno="25"><highlight class="normal"></highlight></codeline>
+<codeline lineno="34" refid="classcugraph_1_1mtmg_1_1handle__t" refkind="compound"><highlight class="normal"></highlight><highlight class="keyword">class<sp/></highlight><highlight class="normal"><ref refid="classcugraph_1_1mtmg_1_1handle__t" kindref="compound">handle_t</ref><sp/>{</highlight></codeline>
+<codeline lineno="35"><highlight class="normal"><sp/><sp/><ref refid="classcugraph_1_1mtmg_1_1handle__t" kindref="compound">handle_t</ref>(<ref refid="classcugraph_1_1mtmg_1_1handle__t" kindref="compound">handle_t</ref><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal">&amp;)<sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>=<sp/></highlight><highlight class="keyword">delete</highlight><highlight class="normal">;</highlight></codeline>
+<codeline lineno="36"><highlight class="normal"><sp/><sp/><ref refid="classcugraph_1_1mtmg_1_1handle__t" kindref="compound">handle_t</ref><sp/>operator=(<ref refid="classcugraph_1_1mtmg_1_1handle__t" kindref="compound">handle_t</ref><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal">&amp;)<sp/>=<sp/></highlight><highlight class="keyword">delete</highlight><highlight class="normal">;</highlight></codeline>
+<codeline lineno="37"><highlight class="normal"></highlight></codeline>
+<codeline lineno="38"><highlight class="normal"><sp/></highlight><highlight class="keyword">public</highlight><highlight class="normal">:</highlight></codeline>
+<codeline lineno="46" refid="classcugraph_1_1mtmg_1_1handle__t_1a387ff5f23559ea7303e9e1b8f67b21bd" refkind="member"><highlight class="normal"><sp/><sp/><ref refid="classcugraph_1_1mtmg_1_1handle__t_1a387ff5f23559ea7303e9e1b8f67b21bd" kindref="member">handle_t</ref>(raft::handle_t<sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal">&amp;<sp/><ref refid="classcugraph_1_1mtmg_1_1handle__t_1a4c469c974d8c58060d01c64f0f64371a" kindref="member">raft_handle</ref>,<sp/></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/>thread_rank,<sp/>rmm::cuda_device_id<sp/>device_id)</highlight></codeline>
+<codeline lineno="47"><highlight class="normal"><sp/><sp/><sp/><sp/>:<sp/>raft_handle_(<ref refid="classcugraph_1_1mtmg_1_1handle__t_1a4c469c974d8c58060d01c64f0f64371a" kindref="member">raft_handle</ref>),<sp/>thread_rank_(thread_rank),<sp/>device_id_raii_(device_id)</highlight></codeline>
+<codeline lineno="48"><highlight class="normal"><sp/><sp/>{</highlight></codeline>
+<codeline lineno="49"><highlight class="normal"><sp/><sp/>}</highlight></codeline>
+<codeline lineno="50"><highlight class="normal"></highlight></codeline>
+<codeline lineno="56" refid="classcugraph_1_1mtmg_1_1handle__t_1a4c469c974d8c58060d01c64f0f64371a" refkind="member"><highlight class="normal"><sp/><sp/>raft::handle_t<sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal">&amp;<sp/><ref refid="classcugraph_1_1mtmg_1_1handle__t_1a4c469c974d8c58060d01c64f0f64371a" kindref="member">raft_handle</ref>()</highlight><highlight class="keyword"><sp/>const<sp/></highlight><highlight class="normal">{<sp/></highlight><highlight class="keywordflow">return</highlight><highlight class="normal"><sp/>raft_handle_;<sp/>}</highlight></codeline>
+<codeline lineno="57"><highlight class="normal"></highlight></codeline>
+<codeline lineno="63" refid="classcugraph_1_1mtmg_1_1handle__t_1a4a21bd14c9d6fddb4b6ac71496e5d672" refkind="member"><highlight class="normal"><sp/><sp/>rmm::cuda_stream_view<sp/><ref refid="classcugraph_1_1mtmg_1_1handle__t_1a4a21bd14c9d6fddb4b6ac71496e5d672" kindref="member">get_stream</ref>()</highlight><highlight class="keyword"><sp/>const</highlight></codeline>
+<codeline lineno="64"><highlight class="keyword"><sp/><sp/></highlight><highlight class="normal">{</highlight></codeline>
+<codeline lineno="65"><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="keywordflow">return</highlight><highlight class="normal"><sp/>raft_handle_.is_stream_pool_initialized()</highlight></codeline>
+<codeline lineno="66"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>?<sp/>raft_handle_.get_stream_from_stream_pool(thread_rank_)</highlight></codeline>
+<codeline lineno="67"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>:<sp/>raft_handle_.get_stream();</highlight></codeline>
+<codeline lineno="68"><highlight class="normal"><sp/><sp/>}</highlight></codeline>
+<codeline lineno="69"><highlight class="normal"></highlight></codeline>
+<codeline lineno="75" refid="classcugraph_1_1mtmg_1_1handle__t_1a6267075bf6b0b091b1934ff4931ba52f" refkind="member"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordtype">void</highlight><highlight class="normal"><sp/><ref refid="classcugraph_1_1mtmg_1_1handle__t_1a6267075bf6b0b091b1934ff4931ba52f" kindref="member">sync_stream</ref>(rmm::cuda_stream_view<sp/>stream)</highlight><highlight class="keyword"><sp/>const<sp/></highlight><highlight class="normal">{<sp/>raft_handle_.sync_stream(stream);<sp/>}</highlight></codeline>
+<codeline lineno="76"><highlight class="normal"></highlight></codeline>
+<codeline lineno="80" refid="classcugraph_1_1mtmg_1_1handle__t_1adfa2dd2ab5c81286815cc036e613af1b" refkind="member"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordtype">void</highlight><highlight class="normal"><sp/><ref refid="classcugraph_1_1mtmg_1_1handle__t_1adfa2dd2ab5c81286815cc036e613af1b" kindref="member">sync_stream</ref>()</highlight><highlight class="keyword"><sp/>const<sp/></highlight><highlight class="normal">{<sp/><ref refid="classcugraph_1_1mtmg_1_1handle__t_1adfa2dd2ab5c81286815cc036e613af1b" kindref="member">sync_stream</ref>(<ref refid="classcugraph_1_1mtmg_1_1handle__t_1a4a21bd14c9d6fddb4b6ac71496e5d672" kindref="member">get_stream</ref>());<sp/>}</highlight></codeline>
+<codeline lineno="81"><highlight class="normal"></highlight></codeline>
+<codeline lineno="85" refid="classcugraph_1_1mtmg_1_1handle__t_1a7060919d1d6574e98f4edcda46a66383" refkind="member"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordtype">void</highlight><highlight class="normal"><sp/><ref refid="classcugraph_1_1mtmg_1_1handle__t_1a7060919d1d6574e98f4edcda46a66383" kindref="member">sync_stream_pool</ref>()</highlight><highlight class="keyword"><sp/>const<sp/></highlight><highlight class="normal">{<sp/>raft::resource::sync_stream_pool(raft_handle_);<sp/>}</highlight></codeline>
+<codeline lineno="86"><highlight class="normal"></highlight></codeline>
+<codeline lineno="94" refid="classcugraph_1_1mtmg_1_1handle__t_1a9e5990f4bb9cdeea1b25a73ba8d3abec" refkind="member"><highlight class="normal"><sp/><sp/>rmm::exec_policy<sp/><ref refid="classcugraph_1_1mtmg_1_1handle__t_1a9e5990f4bb9cdeea1b25a73ba8d3abec" kindref="member">get_thrust_policy</ref>(rmm::cuda_stream_view<sp/>stream)</highlight><highlight class="keyword"><sp/>const</highlight></codeline>
+<codeline lineno="95"><highlight class="keyword"><sp/><sp/></highlight><highlight class="normal">{</highlight></codeline>
+<codeline lineno="96"><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="keywordflow">return</highlight><highlight class="normal"><sp/>rmm::exec_policy(stream);</highlight></codeline>
+<codeline lineno="97"><highlight class="normal"><sp/><sp/>}</highlight></codeline>
+<codeline lineno="98"><highlight class="normal"></highlight></codeline>
+<codeline lineno="104" refid="classcugraph_1_1mtmg_1_1handle__t_1aa87272a22d0faa1c738e20816b3e8a59" refkind="member"><highlight class="normal"><sp/><sp/>rmm::exec_policy<sp/><ref refid="classcugraph_1_1mtmg_1_1handle__t_1aa87272a22d0faa1c738e20816b3e8a59" kindref="member">get_thrust_policy</ref>()</highlight><highlight class="keyword"><sp/>const<sp/></highlight><highlight class="normal">{<sp/></highlight><highlight class="keywordflow">return</highlight><highlight class="normal"><sp/><ref refid="classcugraph_1_1mtmg_1_1handle__t_1aa87272a22d0faa1c738e20816b3e8a59" kindref="member">get_thrust_policy</ref>(<ref refid="classcugraph_1_1mtmg_1_1handle__t_1a4a21bd14c9d6fddb4b6ac71496e5d672" kindref="member">get_stream</ref>());<sp/>}</highlight></codeline>
+<codeline lineno="105"><highlight class="normal"></highlight></codeline>
+<codeline lineno="111" refid="classcugraph_1_1mtmg_1_1handle__t_1a605ca511f367f06f3fdce86a94291961" refkind="member"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/><ref refid="classcugraph_1_1mtmg_1_1handle__t_1a605ca511f367f06f3fdce86a94291961" kindref="member">get_thread_rank</ref>()</highlight><highlight class="keyword"><sp/>const<sp/></highlight><highlight class="normal">{<sp/></highlight><highlight class="keywordflow">return</highlight><highlight class="normal"><sp/>thread_rank_;<sp/>}</highlight></codeline>
+<codeline lineno="112"><highlight class="normal"></highlight></codeline>
+<codeline lineno="118" refid="classcugraph_1_1mtmg_1_1handle__t_1a054d1af20e7dc6230bccd2ae6e2f6db2" refkind="member"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/><ref refid="classcugraph_1_1mtmg_1_1handle__t_1a054d1af20e7dc6230bccd2ae6e2f6db2" kindref="member">get_size</ref>()</highlight><highlight class="keyword"><sp/>const<sp/></highlight><highlight class="normal">{<sp/></highlight><highlight class="keywordflow">return</highlight><highlight class="normal"><sp/>raft_handle_.get_comms().get_size();<sp/>}</highlight></codeline>
+<codeline lineno="119"><highlight class="normal"></highlight></codeline>
+<codeline lineno="125" refid="classcugraph_1_1mtmg_1_1handle__t_1a4e8a6956305caa5cf7181b11375e3c83" refkind="member"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/><ref refid="classcugraph_1_1mtmg_1_1handle__t_1a4e8a6956305caa5cf7181b11375e3c83" kindref="member">get_rank</ref>()</highlight><highlight class="keyword"><sp/>const<sp/></highlight><highlight class="normal">{<sp/></highlight><highlight class="keywordflow">return</highlight><highlight class="normal"><sp/>raft_handle_.get_comms().get_rank();<sp/>}</highlight></codeline>
+<codeline lineno="126"><highlight class="normal"></highlight></codeline>
+<codeline lineno="127"><highlight class="normal"><sp/></highlight><highlight class="keyword">private</highlight><highlight class="normal">:</highlight></codeline>
+<codeline lineno="128"><highlight class="normal"><sp/><sp/>raft::handle_t<sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal">&amp;<sp/>raft_handle_;</highlight></codeline>
+<codeline lineno="129"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/>thread_rank_;</highlight></codeline>
+<codeline lineno="130"><highlight class="normal"><sp/><sp/>rmm::cuda_set_device_raii<sp/>device_id_raii_;</highlight></codeline>
+<codeline lineno="131"><highlight class="normal">};</highlight></codeline>
+<codeline lineno="132"><highlight class="normal"></highlight></codeline>
+<codeline lineno="133"><highlight class="normal">}<sp/><sp/></highlight><highlight class="comment">//<sp/>namespace<sp/>mtmg</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="134"><highlight class="normal">}<sp/><sp/></highlight><highlight class="comment">//<sp/>namespace<sp/>cugraph</highlight><highlight class="normal"></highlight></codeline>
+    </programlisting>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/handle.hpp"/>
+  </compounddef>
+</doxygen>

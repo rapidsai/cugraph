@@ -1,0 +1,46 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="structcugraph_1_1property__op" kind="struct" language="C++" prot="public">
+    <compoundname>cugraph::property_op</compoundname>
+    <basecompoundref prot="public" virt="non-virtual">Op&lt; T &gt;</basecompoundref>
+    <templateparamlist>
+      <param>
+        <type>typename T</type>
+      </param>
+      <param>
+        <type>template&lt; typename &gt; typename</type>
+        <declname>Op</declname>
+        <defname>Op</defname>
+      </param>
+    </templateparamlist>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <inheritancegraph>
+      <node id="2">
+        <label>Op&lt; T &gt;</label>
+      </node>
+      <node id="1">
+        <label>cugraph::property_op&lt; T, Op &gt;</label>
+        <link refid="structcugraph_1_1property__op"/>
+        <childnode refid="2" relation="public-inheritance">
+        </childnode>
+      </node>
+    </inheritancegraph>
+    <collaborationgraph>
+      <node id="2">
+        <label>Op&lt; T &gt;</label>
+      </node>
+      <node id="1">
+        <label>cugraph::property_op&lt; T, Op &gt;</label>
+        <link refid="structcugraph_1_1property__op"/>
+        <childnode refid="2" relation="public-inheritance">
+        </childnode>
+      </node>
+    </collaborationgraph>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/property_op_utils.cuh" line="128" column="1" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/property_op_utils.cuh" bodystart="128" bodyend="128"/>
+    <listofallmembers>
+    </listofallmembers>
+  </compounddef>
+</doxygen>

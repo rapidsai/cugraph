@@ -1,0 +1,145 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="structcugraph_1_1reduce__op_1_1elementwise__maximum" kind="struct" language="C++" prot="public">
+    <compoundname>cugraph::reduce_op::elementwise_maximum</compoundname>
+    <templateparamlist>
+      <param>
+        <type>typename T</type>
+      </param>
+    </templateparamlist>
+    <sectiondef kind="public-type">
+      <memberdef kind="typedef" id="structcugraph_1_1reduce__op_1_1elementwise__maximum_1a671cd81b61b6b5fed5df7d1b3b29a673" prot="public" static="no">
+        <type>T</type>
+        <definition>using cugraph::reduce_op::elementwise_maximum&lt; T &gt;::value_type =  T</definition>
+        <argsstring></argsstring>
+        <name>value_type</name>
+        <qualifiedname>cugraph::reduce_op::elementwise_maximum::value_type</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/reduce_op.cuh" line="190" column="3" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/reduce_op.cuh" bodystart="190" bodyend="-1"/>
+      </memberdef>
+    </sectiondef>
+    <sectiondef kind="public-static-attrib">
+      <memberdef kind="variable" id="structcugraph_1_1reduce__op_1_1elementwise__maximum_1a465010c9f6ebdefed4ad5ef62848b172" prot="public" static="yes" constexpr="yes" mutable="no">
+        <type>constexpr bool</type>
+        <definition>constexpr bool cugraph::reduce_op::elementwise_maximum&lt; T &gt;::pure_function</definition>
+        <argsstring></argsstring>
+        <name>pure_function</name>
+        <qualifiedname>cugraph::reduce_op::elementwise_maximum::pure_function</qualifiedname>
+        <initializer>= true</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/reduce_op.cuh" line="191" column="25" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/reduce_op.cuh" bodystart="191" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph_1_1reduce__op_1_1elementwise__maximum_1af84431a831562ed48fb114f5f02d26ae" prot="public" static="yes" constexpr="yes" mutable="no">
+        <type>constexpr raft::comms::op_t</type>
+        <definition>constexpr raft::comms::op_t cugraph::reduce_op::elementwise_maximum&lt; T &gt;::compatible_raft_comms_op</definition>
+        <argsstring></argsstring>
+        <name>compatible_raft_comms_op</name>
+        <qualifiedname>cugraph::reduce_op::elementwise_maximum::compatible_raft_comms_op</qualifiedname>
+        <initializer>= raft::comms::op_t::MAX</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/reduce_op.cuh" line="192" column="38" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/reduce_op.cuh" bodystart="192" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph_1_1reduce__op_1_1elementwise__maximum_1a8477aabc29ebd62242adb6225eeb8d52" prot="public" static="yes" mutable="no">
+        <type>T const</type>
+        <definition>T const cugraph::reduce_op::elementwise_maximum&lt; T &gt;::identity_element</definition>
+        <argsstring></argsstring>
+        <name>identity_element</name>
+        <qualifiedname>cugraph::reduce_op::elementwise_maximum::identity_element</qualifiedname>
+        <initializer>= min_identity_element&lt;T&gt;()</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/reduce_op.cuh" line="193" column="25" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/reduce_op.cuh" bodystart="193" bodyend="-1"/>
+      </memberdef>
+    </sectiondef>
+    <sectiondef kind="public-func">
+      <memberdef kind="function" id="structcugraph_1_1reduce__op_1_1elementwise__maximum_1a7570b9711244518ad404edf2fbe9d57e" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <templateparamlist>
+          <param>
+            <type>typename U</type>
+            <defval>T</defval>
+          </param>
+        </templateparamlist>
+        <type>__host__ __device__ std::enable_if_t&lt; std::is_arithmetic_v&lt; U &gt;, T &gt;</type>
+        <definition>__host__ __device__ std::enable_if_t&lt; std::is_arithmetic_v&lt; U &gt;, T &gt; cugraph::reduce_op::elementwise_maximum&lt; T &gt;::operator()</definition>
+        <argsstring>(T const &amp;lhs, T const &amp;rhs) const</argsstring>
+        <name>operator()</name>
+        <qualifiedname>cugraph::reduce_op::elementwise_maximum::operator()</qualifiedname>
+        <param>
+          <type>T const &amp;</type>
+          <declname>lhs</declname>
+        </param>
+        <param>
+          <type>T const &amp;</type>
+          <declname>rhs</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/reduce_op.cuh" line="196" column="40" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/reduce_op.cuh" bodystart="196" bodyend="200"/>
+      </memberdef>
+      <memberdef kind="function" id="structcugraph_1_1reduce__op_1_1elementwise__maximum_1ae47c50c869b02aa5b9f32e533908927b" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <templateparamlist>
+          <param>
+            <type>typename U</type>
+            <defval>T</defval>
+          </param>
+        </templateparamlist>
+        <type>__host__ __device__ std::enable_if_t&lt; <ref refid="structcugraph_1_1is__thrust__tuple__of__arithmetic" kindref="compound">cugraph::is_thrust_tuple_of_arithmetic</ref>&lt; U &gt;::value, T &gt;</type>
+        <definition>__host__ __device__ std::enable_if_t&lt; cugraph::is_thrust_tuple_of_arithmetic&lt; U &gt;::value, T &gt; cugraph::reduce_op::elementwise_maximum&lt; T &gt;::operator()</definition>
+        <argsstring>(T const &amp;lhs, T const &amp;rhs) const</argsstring>
+        <name>operator()</name>
+        <qualifiedname>cugraph::reduce_op::elementwise_maximum::operator()</qualifiedname>
+        <param>
+          <type>T const &amp;</type>
+          <declname>lhs</declname>
+        </param>
+        <param>
+          <type>T const &amp;</type>
+          <declname>rhs</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/reduce_op.cuh" line="204" column="3" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/reduce_op.cuh" bodystart="204" bodyend="208"/>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/reduce_op.cuh" line="187" column="1" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/reduce_op.cuh" bodystart="187" bodyend="209"/>
+    <listofallmembers>
+      <member refid="structcugraph_1_1reduce__op_1_1elementwise__maximum_1af84431a831562ed48fb114f5f02d26ae" prot="public" virt="non-virtual"><scope>cugraph::reduce_op::elementwise_maximum</scope><name>compatible_raft_comms_op</name></member>
+      <member refid="structcugraph_1_1reduce__op_1_1elementwise__maximum_1a8477aabc29ebd62242adb6225eeb8d52" prot="public" virt="non-virtual"><scope>cugraph::reduce_op::elementwise_maximum</scope><name>identity_element</name></member>
+      <member refid="structcugraph_1_1reduce__op_1_1elementwise__maximum_1a7570b9711244518ad404edf2fbe9d57e" prot="public" virt="non-virtual"><scope>cugraph::reduce_op::elementwise_maximum</scope><name>operator()</name></member>
+      <member refid="structcugraph_1_1reduce__op_1_1elementwise__maximum_1ae47c50c869b02aa5b9f32e533908927b" prot="public" virt="non-virtual"><scope>cugraph::reduce_op::elementwise_maximum</scope><name>operator()</name></member>
+      <member refid="structcugraph_1_1reduce__op_1_1elementwise__maximum_1a465010c9f6ebdefed4ad5ef62848b172" prot="public" virt="non-virtual"><scope>cugraph::reduce_op::elementwise_maximum</scope><name>pure_function</name></member>
+      <member refid="structcugraph_1_1reduce__op_1_1elementwise__maximum_1a671cd81b61b6b5fed5df7d1b3b29a673" prot="public" virt="non-virtual"><scope>cugraph::reduce_op::elementwise_maximum</scope><name>value_type</name></member>
+    </listofallmembers>
+  </compounddef>
+</doxygen>

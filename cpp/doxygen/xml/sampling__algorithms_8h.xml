@@ -1,0 +1,1172 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="sampling__algorithms_8h" kind="file" language="C++">
+    <compoundname>sampling_algorithms.h</compoundname>
+    <includes refid="error_8h" local="no">cugraph_c/error.h</includes>
+    <includes refid="graph_8h" local="no">cugraph_c/graph.h</includes>
+    <includes refid="random_8h" local="no">cugraph_c/random.h</includes>
+    <includes refid="resource__handle_8h" local="no">cugraph_c/resource_handle.h</includes>
+    <includedby refid="algorithms_8h" local="no">algorithms.h</includedby>
+    <incdepgraph>
+      <node id="5">
+        <label>cugraph_c/array.h</label>
+        <link refid="array_8h_source"/>
+        <childnode refid="6" relation="include">
+        </childnode>
+      </node>
+      <node id="2">
+        <label>cugraph_c/error.h</label>
+        <link refid="error_8h_source"/>
+        <childnode refid="3" relation="include">
+        </childnode>
+      </node>
+      <node id="4">
+        <label>cugraph_c/graph.h</label>
+        <link refid="graph_8h_source"/>
+        <childnode refid="5" relation="include">
+        </childnode>
+      </node>
+      <node id="8">
+        <label>cugraph_c/random.h</label>
+        <link refid="random_8h_source"/>
+        <childnode refid="6" relation="include">
+        </childnode>
+      </node>
+      <node id="6">
+        <label>cugraph_c/resource_handle.h</label>
+        <link refid="resource__handle_8h_source"/>
+        <childnode refid="2" relation="include">
+        </childnode>
+        <childnode refid="7" relation="include">
+        </childnode>
+        <childnode refid="3" relation="include">
+        </childnode>
+      </node>
+      <node id="1">
+        <label>sampling_algorithms.h</label>
+        <link refid="sampling__algorithms_8h"/>
+        <childnode refid="2" relation="include">
+        </childnode>
+        <childnode refid="4" relation="include">
+        </childnode>
+        <childnode refid="8" relation="include">
+        </childnode>
+        <childnode refid="6" relation="include">
+        </childnode>
+      </node>
+      <node id="7">
+        <label>stddef.h</label>
+      </node>
+      <node id="3">
+        <label>stdint.h</label>
+      </node>
+    </incdepgraph>
+    <invincdepgraph>
+      <node id="2">
+        <label>algorithms.h</label>
+        <link refid="algorithms_8h_source"/>
+        <childnode refid="3" relation="include">
+        </childnode>
+      </node>
+      <node id="1">
+        <label>sampling_algorithms.h</label>
+        <link refid="sampling__algorithms_8h"/>
+        <childnode refid="2" relation="include">
+        </childnode>
+      </node>
+      <node id="3">
+        <label>hierarchical_clustering_result.hpp</label>
+        <link refid="hierarchical__clustering__result_8hpp_source"/>
+      </node>
+    </invincdepgraph>
+    <innerclass refid="structcugraph__random__walk__result__t" prot="public">cugraph_random_walk_result_t</innerclass>
+    <innerclass refid="structcugraph__sample__result__t" prot="public">cugraph_sample_result_t</innerclass>
+    <innerclass refid="structcugraph__sampling__options__t" prot="public">cugraph_sampling_options_t</innerclass>
+    <sectiondef kind="enum">
+      <memberdef kind="enum" id="sampling__algorithms_8h_1ac7f5efb35aa2cef95c5140dc76ef3d07" prot="public" static="no" strong="no">
+        <type></type>
+        <name>cugraph_prior_sources_behavior_t</name>
+        <enumvalue id="sampling__algorithms_8h_1ac7f5efb35aa2cef95c5140dc76ef3d07a88ec7d5086d2469ba843c7fcceade8a6" prot="public">
+          <name>DEFAULT</name>
+          <initializer>= 0</initializer>
+          <briefdescription>
+          </briefdescription>
+          <detaileddescription>
+          </detaileddescription>
+        </enumvalue>
+        <enumvalue id="sampling__algorithms_8h_1ac7f5efb35aa2cef95c5140dc76ef3d07a9bbd7e8e397ab928e2b3171c7704348b" prot="public">
+          <name>CARRY_OVER</name>
+          <briefdescription>
+          </briefdescription>
+          <detaileddescription>
+<para>Construct sources for hop k from destination vertices from hop k-1 </para>
+          </detaileddescription>
+        </enumvalue>
+        <enumvalue id="sampling__algorithms_8h_1ac7f5efb35aa2cef95c5140dc76ef3d07aa149305e05ba8a097b1659e74332a25c" prot="public">
+          <name>EXCLUDE</name>
+          <briefdescription>
+          </briefdescription>
+          <detaileddescription>
+<para>Construct sources for hop k from destination vertices from hop k-1 and sources from hop k-1 Construct sources for hop k from destination vertices form hop k-1, but exclude any vertex that has already been used as a source </para>
+          </detaileddescription>
+        </enumvalue>
+        <briefdescription>
+<para>Enumeration for prior sources behavior. </para>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/sampling_algorithms.h" line="203" column="1" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/sampling_algorithms.h" bodystart="203" bodyend="209"/>
+      </memberdef>
+      <memberdef kind="enum" id="sampling__algorithms_8h_1a5d4970d81deffe32ee472ee8860abba5" prot="public" static="no" strong="no">
+        <type></type>
+        <name>cugraph_compression_type_t</name>
+        <enumvalue id="sampling__algorithms_8h_1a5d4970d81deffe32ee472ee8860abba5ab74d11b0a87d23e13773bb24a981a795" prot="public">
+          <name>COO</name>
+          <initializer>= 0</initializer>
+          <briefdescription>
+          </briefdescription>
+          <detaileddescription>
+          </detaileddescription>
+        </enumvalue>
+        <enumvalue id="sampling__algorithms_8h_1a5d4970d81deffe32ee472ee8860abba5aff6b6fdb215a549d6d32e651c53ca6f4" prot="public">
+          <name>CSR</name>
+          <briefdescription>
+          </briefdescription>
+          <detaileddescription>
+<para>Outputs in COO format. Default. </para>
+          </detaileddescription>
+        </enumvalue>
+        <enumvalue id="sampling__algorithms_8h_1a5d4970d81deffe32ee472ee8860abba5a0b2c840175fc937e3b1510f7af69b170" prot="public">
+          <name>CSC</name>
+          <briefdescription>
+          </briefdescription>
+          <detaileddescription>
+<para>Compresses in CSR format. This means the row (src) column is compressed into a row pointer. </para>
+          </detaileddescription>
+        </enumvalue>
+        <enumvalue id="sampling__algorithms_8h_1a5d4970d81deffe32ee472ee8860abba5a0bb501adcc8326b8952b7a3073aa897d" prot="public">
+          <name>DCSR</name>
+          <briefdescription>
+          </briefdescription>
+          <detaileddescription>
+<para>Compresses in CSC format. This means the col (dst) column is compressed into a column pointer. </para>
+          </detaileddescription>
+        </enumvalue>
+        <enumvalue id="sampling__algorithms_8h_1a5d4970d81deffe32ee472ee8860abba5ab944c4240ab5e86a87ed70f8a506daf5" prot="public">
+          <name>DCSC</name>
+          <briefdescription>
+          </briefdescription>
+          <detaileddescription>
+<para>Compresses in DCSR format. This outputs an additional index that avoids empty entries in the row pointer. Compresses in DCSC format. This outputs an additional index that avoid empty entries in the col pointer. </para>
+          </detaileddescription>
+        </enumvalue>
+        <briefdescription>
+<para>Selects the type of compression to use for the output samples. </para>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/sampling_algorithms.h" line="214" column="1" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/sampling_algorithms.h" bodystart="214" bodyend="224"/>
+      </memberdef>
+    </sectiondef>
+    <sectiondef kind="typedef">
+      <memberdef kind="typedef" id="sampling__algorithms_8h_1a1cedc858732551aec153e2c85e744952" prot="public" static="no">
+        <type>enum cugraph_prior_sources_behavior_t</type>
+        <definition>typedef enum cugraph_prior_sources_behavior_t cugraph_prior_sources_behavior_t</definition>
+        <argsstring></argsstring>
+        <name>cugraph_prior_sources_behavior_t</name>
+        <briefdescription>
+<para>Enumeration for prior sources behavior. </para>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/sampling_algorithms.h" line="209" column="34"/>
+      </memberdef>
+      <memberdef kind="typedef" id="sampling__algorithms_8h_1ae18f7c699f5308775ad1a3ebbe9b0a5f" prot="public" static="no">
+        <type>enum cugraph_compression_type_t</type>
+        <definition>typedef enum cugraph_compression_type_t cugraph_compression_type_t</definition>
+        <argsstring></argsstring>
+        <name>cugraph_compression_type_t</name>
+        <briefdescription>
+<para>Selects the type of compression to use for the output samples. </para>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/sampling_algorithms.h" line="224" column="28"/>
+      </memberdef>
+    </sectiondef>
+    <sectiondef kind="func">
+      <memberdef kind="function" id="sampling__algorithms_8h_1aff99d443b9253efff69735b6e964390a" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>cugraph_error_code_t</type>
+        <definition>cugraph_error_code_t cugraph_uniform_random_walks</definition>
+        <argsstring>(const cugraph_resource_handle_t *handle, cugraph_graph_t *graph, const cugraph_type_erased_device_array_view_t *start_vertices, size_t max_length, cugraph_random_walk_result_t **result, cugraph_error_t **error)</argsstring>
+        <name>cugraph_uniform_random_walks</name>
+        <param>
+          <type>const <ref refid="structcugraph__resource__handle__" kindref="compound">cugraph_resource_handle_t</ref> *</type>
+          <declname>handle</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__graph__t" kindref="compound">cugraph_graph_t</ref> *</type>
+          <declname>graph</declname>
+        </param>
+        <param>
+          <type>const <ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref> *</type>
+          <declname>start_vertices</declname>
+        </param>
+        <param>
+          <type>size_t</type>
+          <declname>max_length</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__random__walk__result__t" kindref="compound">cugraph_random_walk_result_t</ref> **</type>
+          <declname>result</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__error__" kindref="compound">cugraph_error_t</ref> **</type>
+          <declname>error</declname>
+        </param>
+        <briefdescription>
+<para>Compute uniform random walks. </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">handle</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Handle for accessing resources </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">graph</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Pointer to graph. NOTE: Graph might be modified if the storage needs to be transposed </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">start_vertices</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Array of source vertices </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">max_length</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Maximum length of the generated path </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">result</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Output from the node2vec call </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="out">error</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Pointer to an error object storing details of any error. Will be populated if error code is not CUGRAPH_SUCCESS </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>error code </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/sampling_algorithms.h" line="51" column="22" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/random_walks.cpp" bodystart="531" bodyend="550" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/sampling_algorithms.h" declline="51" declcolumn="22"/>
+      </memberdef>
+      <memberdef kind="function" id="sampling__algorithms_8h_1a9124ef7834c386c31d008b45765cc648" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>cugraph_error_code_t</type>
+        <definition>cugraph_error_code_t cugraph_biased_random_walks</definition>
+        <argsstring>(const cugraph_resource_handle_t *handle, cugraph_graph_t *graph, const cugraph_type_erased_device_array_view_t *start_vertices, size_t max_length, cugraph_random_walk_result_t **result, cugraph_error_t **error)</argsstring>
+        <name>cugraph_biased_random_walks</name>
+        <param>
+          <type>const <ref refid="structcugraph__resource__handle__" kindref="compound">cugraph_resource_handle_t</ref> *</type>
+          <declname>handle</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__graph__t" kindref="compound">cugraph_graph_t</ref> *</type>
+          <declname>graph</declname>
+        </param>
+        <param>
+          <type>const <ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref> *</type>
+          <declname>start_vertices</declname>
+        </param>
+        <param>
+          <type>size_t</type>
+          <declname>max_length</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__random__walk__result__t" kindref="compound">cugraph_random_walk_result_t</ref> **</type>
+          <declname>result</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__error__" kindref="compound">cugraph_error_t</ref> **</type>
+          <declname>error</declname>
+        </param>
+        <briefdescription>
+<para>Compute biased random walks. </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">handle</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Handle for accessing resources </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">graph</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Pointer to graph. NOTE: Graph might be modified if the storage needs to be transposed </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">start_vertices</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Array of source vertices </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">max_length</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Maximum length of the generated path </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">result</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Output from the node2vec call </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="out">error</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Pointer to an error object storing details of any error. Will be populated if error code is not CUGRAPH_SUCCESS </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>error code </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/sampling_algorithms.h" line="72" column="22" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/random_walks.cpp" bodystart="552" bodyend="571" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/sampling_algorithms.h" declline="72" declcolumn="22"/>
+      </memberdef>
+      <memberdef kind="function" id="sampling__algorithms_8h_1aecf2224b4741a64b013ad730e0edf19a" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>cugraph_error_code_t</type>
+        <definition>cugraph_error_code_t cugraph_node2vec_random_walks</definition>
+        <argsstring>(const cugraph_resource_handle_t *handle, cugraph_graph_t *graph, const cugraph_type_erased_device_array_view_t *start_vertices, size_t max_length, double p, double q, cugraph_random_walk_result_t **result, cugraph_error_t **error)</argsstring>
+        <name>cugraph_node2vec_random_walks</name>
+        <param>
+          <type>const <ref refid="structcugraph__resource__handle__" kindref="compound">cugraph_resource_handle_t</ref> *</type>
+          <declname>handle</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__graph__t" kindref="compound">cugraph_graph_t</ref> *</type>
+          <declname>graph</declname>
+        </param>
+        <param>
+          <type>const <ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref> *</type>
+          <declname>start_vertices</declname>
+        </param>
+        <param>
+          <type>size_t</type>
+          <declname>max_length</declname>
+        </param>
+        <param>
+          <type>double</type>
+          <declname>p</declname>
+        </param>
+        <param>
+          <type>double</type>
+          <declname>q</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__random__walk__result__t" kindref="compound">cugraph_random_walk_result_t</ref> **</type>
+          <declname>result</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__error__" kindref="compound">cugraph_error_t</ref> **</type>
+          <declname>error</declname>
+        </param>
+        <briefdescription>
+<para>Compute random walks using the node2vec framework. </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">handle</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Handle for accessing resources </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">graph</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Pointer to graph. NOTE: Graph might be modified if the storage needs to be transposed </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">start_vertices</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Array of source vertices </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">max_length</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Maximum length of the generated path </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">compress_result</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>If true, return the paths as a compressed sparse row matrix, otherwise return as a dense matrix </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">p</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>The return parameter </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">q</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>The in/out parameter </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">result</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Output from the node2vec call </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="out">error</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Pointer to an error object storing details of any error. Will be populated if error code is not CUGRAPH_SUCCESS </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>error code </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/sampling_algorithms.h" line="97" column="22" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/random_walks.cpp" bodystart="573" bodyend="594" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/sampling_algorithms.h" declline="97" declcolumn="22"/>
+      </memberdef>
+      <memberdef kind="function" id="sampling__algorithms_8h_1a91ddfc735ad48b1497a1227dcfef2453" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>cugraph_error_code_t</type>
+        <definition>cugraph_error_code_t cugraph_node2vec</definition>
+        <argsstring>(const cugraph_resource_handle_t *handle, cugraph_graph_t *graph, const cugraph_type_erased_device_array_view_t *sources, size_t max_depth, bool_t compress_result, double p, double q, cugraph_random_walk_result_t **result, cugraph_error_t **error)</argsstring>
+        <name>cugraph_node2vec</name>
+        <param>
+          <type>const <ref refid="structcugraph__resource__handle__" kindref="compound">cugraph_resource_handle_t</ref> *</type>
+          <declname>handle</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__graph__t" kindref="compound">cugraph_graph_t</ref> *</type>
+          <declname>graph</declname>
+        </param>
+        <param>
+          <type>const <ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref> *</type>
+          <declname>sources</declname>
+        </param>
+        <param>
+          <type>size_t</type>
+          <declname>max_depth</declname>
+        </param>
+        <param>
+          <type>bool_t</type>
+          <declname>compress_result</declname>
+        </param>
+        <param>
+          <type>double</type>
+          <declname>p</declname>
+        </param>
+        <param>
+          <type>double</type>
+          <declname>q</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__random__walk__result__t" kindref="compound">cugraph_random_walk_result_t</ref> **</type>
+          <declname>result</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__error__" kindref="compound">cugraph_error_t</ref> **</type>
+          <declname>error</declname>
+        </param>
+        <briefdescription>
+<para>Compute random walks using the node2vec framework. </para>
+        </briefdescription>
+        <detaileddescription>
+<para><xrefsect id="deprecated_1_deprecated000015"><xreftitle>Deprecated</xreftitle><xrefdescription><para>This call should be replaced with cugraph_node2vec_random_walks</para>
+</xrefdescription></xrefsect></para>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">handle</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Handle for accessing resources </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">graph</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Pointer to graph. NOTE: Graph might be modified if the storage needs to be transposed </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">sources</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Array of source vertices </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">max_depth</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Maximum length of the generated path </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">compress_result</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>If true, return the paths as a compressed sparse row matrix, otherwise return as a dense matrix </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">p</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>The return parameter </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">q</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>The in/out parameter </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">result</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Output from the node2vec call </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="out">error</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Pointer to an error object storing details of any error. Will be populated if error code is not CUGRAPH_SUCCESS </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>error code </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/sampling_algorithms.h" line="125" column="22" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/random_walks.cpp" bodystart="468" bodyend="490" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/sampling_algorithms.h" declline="125" declcolumn="22"/>
+      </memberdef>
+      <member refid="group__samplingC_1gadf5f79cca0112855b14fc82bb620f405" kind="function"><name>cugraph_random_walk_result_get_max_path_length</name></member>
+      <member refid="group__samplingC_1ga4ed5aef9476d68ab846fd1f5eac8290f" kind="function"><name>cugraph_random_walk_result_get_paths</name></member>
+      <member refid="group__samplingC_1ga4abee8ffa8d15a940e0905e79ae894af" kind="function"><name>cugraph_random_walk_result_get_weights</name></member>
+      <member refid="group__samplingC_1ga4b0f8923adbc6aa2156360d21c480951" kind="function"><name>cugraph_random_walk_result_get_path_sizes</name></member>
+      <member refid="group__samplingC_1gad3ff7003c7ff73b12fd33be97db31d67" kind="function"><name>cugraph_random_walk_result_free</name></member>
+      <member refid="group__samplingC_1gae43633f8ac4add282942c4e599b7e08a" kind="function"><name>cugraph_sampling_options_create</name></member>
+      <member refid="group__samplingC_1ga117b95fed045dc00de61e49f723cb615" kind="function"><name>cugraph_sampling_set_retain_seeds</name></member>
+      <member refid="group__samplingC_1ga2008317b8348a7228a96ade6360bb20f" kind="function"><name>cugraph_sampling_set_renumber_results</name></member>
+      <member refid="group__samplingC_1gaa55f31d8fd2a5b482fcb4d8a111fe4a5" kind="function"><name>cugraph_sampling_set_compress_per_hop</name></member>
+      <member refid="group__samplingC_1gaf9073b0b09e988f6e704ce802f899cff" kind="function"><name>cugraph_sampling_set_with_replacement</name></member>
+      <member refid="group__samplingC_1ga97c7116850a268200cee72ef336216e8" kind="function"><name>cugraph_sampling_set_return_hops</name></member>
+      <member refid="group__samplingC_1ga7d1873abeff902d633ba4aac32502c12" kind="function"><name>cugraph_sampling_set_compression_type</name></member>
+      <member refid="group__samplingC_1gaea65452afe7afd1da419464a53d184f7" kind="function"><name>cugraph_sampling_set_prior_sources_behavior</name></member>
+      <member refid="group__samplingC_1ga79c33f34f41e5fb7bc6d408204f077c2" kind="function"><name>cugraph_sampling_set_dedupe_sources</name></member>
+      <member refid="group__samplingC_1gab7c69ccc1d3958508ea6f66786e525e2" kind="function"><name>cugraph_sampling_options_free</name></member>
+      <memberdef kind="function" id="sampling__algorithms_8h_1a632d1705fc73a5c6b03dffcb406ba179" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>cugraph_error_code_t</type>
+        <definition>cugraph_error_code_t cugraph_uniform_neighbor_sample</definition>
+        <argsstring>(const cugraph_resource_handle_t *handle, cugraph_graph_t *graph, const cugraph_type_erased_device_array_view_t *start_vertices, const cugraph_type_erased_device_array_view_t *start_vertex_labels, const cugraph_type_erased_device_array_view_t *label_list, const cugraph_type_erased_device_array_view_t *label_to_comm_rank, const cugraph_type_erased_device_array_view_t *label_offsets, const cugraph_type_erased_host_array_view_t *fan_out, cugraph_rng_state_t *rng_state, const cugraph_sampling_options_t *options, bool_t do_expensive_check, cugraph_sample_result_t **result, cugraph_error_t **error)</argsstring>
+        <name>cugraph_uniform_neighbor_sample</name>
+        <param>
+          <type>const <ref refid="structcugraph__resource__handle__" kindref="compound">cugraph_resource_handle_t</ref> *</type>
+          <declname>handle</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__graph__t" kindref="compound">cugraph_graph_t</ref> *</type>
+          <declname>graph</declname>
+        </param>
+        <param>
+          <type>const <ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref> *</type>
+          <declname>start_vertices</declname>
+        </param>
+        <param>
+          <type>const <ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref> *</type>
+          <declname>start_vertex_labels</declname>
+        </param>
+        <param>
+          <type>const <ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref> *</type>
+          <declname>label_list</declname>
+        </param>
+        <param>
+          <type>const <ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref> *</type>
+          <declname>label_to_comm_rank</declname>
+        </param>
+        <param>
+          <type>const <ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref> *</type>
+          <declname>label_offsets</declname>
+        </param>
+        <param>
+          <type>const <ref refid="structcugraph__type__erased__host__array__view__t" kindref="compound">cugraph_type_erased_host_array_view_t</ref> *</type>
+          <declname>fan_out</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__rng__state__t" kindref="compound">cugraph_rng_state_t</ref> *</type>
+          <declname>rng_state</declname>
+        </param>
+        <param>
+          <type>const <ref refid="structcugraph__sampling__options__t" kindref="compound">cugraph_sampling_options_t</ref> *</type>
+          <declname>options</declname>
+        </param>
+        <param>
+          <type>bool_t</type>
+          <declname>do_expensive_check</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__sample__result__t" kindref="compound">cugraph_sample_result_t</ref> **</type>
+          <declname>result</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__error__" kindref="compound">cugraph_error_t</ref> **</type>
+          <declname>error</declname>
+        </param>
+        <briefdescription>
+<para>Uniform Neighborhood Sampling. </para>
+        </briefdescription>
+        <detaileddescription>
+<para>Returns a sample of the neighborhood around specified start vertices. Optionally, each start vertex can be associated with a label, allowing the caller to specify multiple batches of sampling requests in the same function call - which should improve GPU utilization.</para>
+<para>If label is NULL then all start vertices will be considered part of the same batch and the return value will not have a label column.</para>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">handle</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Handle for accessing resources </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">graph</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Pointer to graph. NOTE: Graph might be modified if the storage needs to be transposed </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">start_vertices</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Device array of start vertices for the sampling </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">start_vertex_labels</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Device array of start vertex labels for the sampling. The labels associated with each start vertex will be included in the output associated with results that were derived from that start vertex. We only support label of type INT32. If label is NULL, the return data will not be labeled. </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">label_list</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Device array of the labels included in <computeroutput>start_vertex_labels</computeroutput>. If <computeroutput>label_to_comm_rank</computeroutput> is not specified this parameter is ignored. If specified, label_list must be sorted in ascending order. </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">label_to_comm_rank</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Device array identifying which comm rank the output for a particular label should be shuffled in the output. If not specifed the data is not organized in output. If specified then the all data from <computeroutput>label_list</computeroutput>[i] will be shuffled to rank <computeroutput></computeroutput>. This cannot be specified unless <computeroutput>start_vertex_labels</computeroutput> is also specified label_to_comm_rank[i]. If not specified then the output data will not be shuffled between ranks. </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">label_offsets</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Device array of the offsets for each label in the seed list. This parameter is only used with the retain_seeds option. </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">fanout</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Host array defining the fan out at each step in the sampling algorithm. We only support fanout values of type INT32 </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="inout">rng_state</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>State of the random number generator, updated with each call </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">sampling_options</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Opaque pointer defining the sampling options. </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">do_expensive_check</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>A flag to run expensive checks for input arguments (if set to true) </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">result</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Output from the uniform_neighbor_sample call </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="out">error</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Pointer to an error object storing details of any error. Will be populated if error code is not CUGRAPH_SUCCESS </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>error code </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/sampling_algorithms.h" line="361" column="22" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/uniform_neighbor_sampling.cpp" bodystart="889" bodyend="956" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/sampling_algorithms.h" declline="361" declcolumn="22"/>
+      </memberdef>
+      <memberdef kind="function" id="sampling__algorithms_8h_1a9509628b3df1971b4d665d375612deef" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref> *</type>
+        <definition>cugraph_type_erased_device_array_view_t * cugraph_sample_result_get_sources</definition>
+        <argsstring>(const cugraph_sample_result_t *result)</argsstring>
+        <name>cugraph_sample_result_get_sources</name>
+        <param>
+          <type>const <ref refid="structcugraph__sample__result__t" kindref="compound">cugraph_sample_result_t</ref> *</type>
+          <declname>result</declname>
+        </param>
+        <briefdescription>
+<para>Get the source vertices from the sampling algorithm result. </para>
+        </briefdescription>
+        <detaileddescription>
+<para><xrefsect id="deprecated_1_deprecated000017"><xreftitle>Deprecated</xreftitle><xrefdescription><para>This call should be replaced with cugraph_sample_result_get_majors </para>
+</xrefdescription></xrefsect></para>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">result</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>The result from a sampling algorithm </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>type erased array pointing to the source vertices in device memory </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/sampling_algorithms.h" line="383" column="41" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/uniform_neighbor_sampling.cpp" bodystart="498" bodyend="503" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/sampling_algorithms.h" declline="383" declcolumn="41"/>
+      </memberdef>
+      <memberdef kind="function" id="sampling__algorithms_8h_1a52b5ca2b4a75c76ac2b4d7be6a0692a2" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref> *</type>
+        <definition>cugraph_type_erased_device_array_view_t * cugraph_sample_result_get_destinations</definition>
+        <argsstring>(const cugraph_sample_result_t *result)</argsstring>
+        <name>cugraph_sample_result_get_destinations</name>
+        <param>
+          <type>const <ref refid="structcugraph__sample__result__t" kindref="compound">cugraph_sample_result_t</ref> *</type>
+          <declname>result</declname>
+        </param>
+        <briefdescription>
+<para>Get the destination vertices from the sampling algorithm result. </para>
+        </briefdescription>
+        <detaileddescription>
+<para><xrefsect id="deprecated_1_deprecated000018"><xreftitle>Deprecated</xreftitle><xrefdescription><para>This call should be replaced with cugraph_sample_result_get_minors </para>
+</xrefdescription></xrefsect></para>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">result</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>The result from a sampling algorithm </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>type erased array pointing to the destination vertices in device memory </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/sampling_algorithms.h" line="393" column="41" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/uniform_neighbor_sampling.cpp" bodystart="505" bodyend="510" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/sampling_algorithms.h" declline="393" declcolumn="41"/>
+      </memberdef>
+      <member refid="group__samplingC_1ga5bd2697648249b7ab02256764ab1cbd1" kind="function"><name>cugraph_sample_result_get_majors</name></member>
+      <member refid="group__samplingC_1gaff742d4d95bcfc519aeb849cb0c2f60a" kind="function"><name>cugraph_sample_result_get_minors</name></member>
+      <member refid="group__samplingC_1ga6f20c3408f73f8fa62b5db6e0d92fb92" kind="function"><name>cugraph_sample_result_get_major_offsets</name></member>
+      <member refid="group__samplingC_1ga480368296880d40e70dfe795f9a9afdf" kind="function"><name>cugraph_sample_result_get_start_labels</name></member>
+      <member refid="group__samplingC_1gafc1b9b3287b96210e3e97c6dbf529945" kind="function"><name>cugraph_sample_result_get_edge_id</name></member>
+      <member refid="group__samplingC_1ga11d277fbfc7d49ffdcf3eae4b0d286b6" kind="function"><name>cugraph_sample_result_get_edge_type</name></member>
+      <member refid="group__samplingC_1ga72ff963de88ee46a7dd6de846823b1b8" kind="function"><name>cugraph_sample_result_get_edge_weight</name></member>
+      <member refid="group__samplingC_1ga69ca1fadcd96923813e34f3d8c210cec" kind="function"><name>cugraph_sample_result_get_hop</name></member>
+      <member refid="group__samplingC_1ga18d5834ee4685e2fad7920892b30e53c" kind="function"><name>cugraph_sample_result_get_label_hop_offsets</name></member>
+      <member refid="group__samplingC_1ga62f2128b7cab4204030f3298d3f7713e" kind="function"><name>cugraph_sample_result_get_index</name></member>
+      <memberdef kind="function" id="sampling__algorithms_8h_1aa120226cb152451b9e892779523808a0" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref> *</type>
+        <definition>cugraph_type_erased_device_array_view_t * cugraph_sample_result_get_offsets</definition>
+        <argsstring>(const cugraph_sample_result_t *result)</argsstring>
+        <name>cugraph_sample_result_get_offsets</name>
+        <param>
+          <type>const <ref refid="structcugraph__sample__result__t" kindref="compound">cugraph_sample_result_t</ref> *</type>
+          <declname>result</declname>
+        </param>
+        <briefdescription>
+<para>Get the result offsets from the sampling algorithm result. </para>
+        </briefdescription>
+        <detaileddescription>
+<para><xrefsect id="deprecated_1_deprecated000019"><xreftitle>Deprecated</xreftitle><xrefdescription><para>This call should be replaced with cugraph_sample_get_get_label_hop_offsets </para>
+</xrefdescription></xrefsect></para>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">result</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>The result from a sampling algorithm </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>type erased array pointing to the result offsets </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/sampling_algorithms.h" line="503" column="41" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/uniform_neighbor_sampling.cpp" bodystart="610" bodyend="615" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/sampling_algorithms.h" declline="503" declcolumn="41"/>
+      </memberdef>
+      <member refid="group__samplingC_1ga2b710fe11461032348d003dea4851829" kind="function"><name>cugraph_sample_result_get_renumber_map</name></member>
+      <member refid="group__samplingC_1ga281cbae0cfa0a69a54c0a9a68eed493a" kind="function"><name>cugraph_sample_result_get_renumber_map_offsets</name></member>
+      <member refid="group__samplingC_1gaa8dbfaffc0299b2cbba820718fda48d9" kind="function"><name>cugraph_sample_result_free</name></member>
+      <member refid="group__samplingC_1ga29acd1812799edbd44092dcc25e3ef1e" kind="function"><name>cugraph_test_sample_result_create</name></member>
+      <member refid="group__samplingC_1gab5bf25ec8e8afc782d685a1b1e542f42" kind="function"><name>cugraph_test_uniform_neighborhood_sample_result_create</name></member>
+      <member refid="group__samplingC_1ga91ed6aa64c8ad3e8fcfe0be8e8c40bbe" kind="function"><name>cugraph_select_random_vertices</name></member>
+    </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <programlisting>
+<codeline lineno="1"><highlight class="comment">/*</highlight></codeline>
+<codeline lineno="2"><highlight class="comment"><sp/>*<sp/>Copyright<sp/>(c)<sp/>2021-2024,<sp/>NVIDIA<sp/>CORPORATION.</highlight></codeline>
+<codeline lineno="3"><highlight class="comment"><sp/>*</highlight></codeline>
+<codeline lineno="4"><highlight class="comment"><sp/>*<sp/>Licensed<sp/>under<sp/>the<sp/>Apache<sp/>License,<sp/>Version<sp/>2.0<sp/>(the<sp/>&quot;License&quot;);</highlight></codeline>
+<codeline lineno="5"><highlight class="comment"><sp/>*<sp/>you<sp/>may<sp/>not<sp/>use<sp/>this<sp/>file<sp/>except<sp/>in<sp/>compliance<sp/>with<sp/>the<sp/>License.</highlight></codeline>
+<codeline lineno="6"><highlight class="comment"><sp/>*<sp/>You<sp/>may<sp/>obtain<sp/>a<sp/>copy<sp/>of<sp/>the<sp/>License<sp/>at</highlight></codeline>
+<codeline lineno="7"><highlight class="comment"><sp/>*</highlight></codeline>
+<codeline lineno="8"><highlight class="comment"><sp/>*<sp/><sp/><sp/><sp/><sp/>http://www.apache.org/licenses/LICENSE-2.0</highlight></codeline>
+<codeline lineno="9"><highlight class="comment"><sp/>*</highlight></codeline>
+<codeline lineno="10"><highlight class="comment"><sp/>*<sp/>Unless<sp/>required<sp/>by<sp/>applicable<sp/>law<sp/>or<sp/>agreed<sp/>to<sp/>in<sp/>writing,<sp/>software</highlight></codeline>
+<codeline lineno="11"><highlight class="comment"><sp/>*<sp/>distributed<sp/>under<sp/>the<sp/>License<sp/>is<sp/>distributed<sp/>on<sp/>an<sp/>&quot;AS<sp/>IS&quot;<sp/>BASIS,</highlight></codeline>
+<codeline lineno="12"><highlight class="comment"><sp/>*<sp/>WITHOUT<sp/>WARRANTIES<sp/>OR<sp/>CONDITIONS<sp/>OF<sp/>ANY<sp/>KIND,<sp/>either<sp/>express<sp/>or<sp/>implied.</highlight></codeline>
+<codeline lineno="13"><highlight class="comment"><sp/>*<sp/>See<sp/>the<sp/>License<sp/>for<sp/>the<sp/>specific<sp/>language<sp/>governing<sp/>permissions<sp/>and</highlight></codeline>
+<codeline lineno="14"><highlight class="comment"><sp/>*<sp/>limitations<sp/>under<sp/>the<sp/>License.</highlight></codeline>
+<codeline lineno="15"><highlight class="comment"><sp/>*/</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="16"><highlight class="normal"></highlight></codeline>
+<codeline lineno="17"><highlight class="normal"></highlight><highlight class="preprocessor">#pragma<sp/>once</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="18"><highlight class="normal"></highlight></codeline>
+<codeline lineno="19"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&lt;cugraph_c/error.h&gt;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="20"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&lt;cugraph_c/graph.h&gt;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="21"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&lt;cugraph_c/random.h&gt;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="22"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&lt;cugraph_c/resource_handle.h&gt;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="23"><highlight class="normal"></highlight></codeline>
+<codeline lineno="27"><highlight class="normal"></highlight><highlight class="preprocessor">#ifdef<sp/>__cplusplus</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="28"><highlight class="normal"></highlight><highlight class="keyword">extern</highlight><highlight class="normal"><sp/></highlight><highlight class="stringliteral">&quot;C&quot;</highlight><highlight class="normal"><sp/>{</highlight></codeline>
+<codeline lineno="29"><highlight class="normal"></highlight><highlight class="preprocessor">#endif</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="30"><highlight class="normal"></highlight></codeline>
+<codeline lineno="34" refid="structcugraph__random__walk__result__t" refkind="compound"><highlight class="normal"></highlight><highlight class="keyword">typedef</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">struct<sp/></highlight><highlight class="normal">{</highlight></codeline>
+<codeline lineno="35"><highlight class="normal"><sp/><sp/>int32_t<sp/>align_;</highlight></codeline>
+<codeline lineno="36"><highlight class="normal">}<sp/><ref refid="structcugraph__random__walk__result__t" kindref="compound">cugraph_random_walk_result_t</ref>;</highlight></codeline>
+<codeline lineno="37"><highlight class="normal"></highlight></codeline>
+<codeline lineno="51"><highlight class="normal">cugraph_error_code_t<sp/>cugraph_uniform_random_walks(</highlight></codeline>
+<codeline lineno="52"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__resource__handle__" kindref="compound">cugraph_resource_handle_t</ref>*<sp/>handle,</highlight></codeline>
+<codeline lineno="53"><highlight class="normal"><sp/><sp/><ref refid="structcugraph__graph__t" kindref="compound">cugraph_graph_t</ref>*<sp/>graph,</highlight></codeline>
+<codeline lineno="54"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/>start_vertices,</highlight></codeline>
+<codeline lineno="55"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordtype">size_t</highlight><highlight class="normal"><sp/>max_length,</highlight></codeline>
+<codeline lineno="56"><highlight class="normal"><sp/><sp/><ref refid="structcugraph__random__walk__result__t" kindref="compound">cugraph_random_walk_result_t</ref>**<sp/>result,</highlight></codeline>
+<codeline lineno="57"><highlight class="normal"><sp/><sp/><ref refid="structcugraph__error__" kindref="compound">cugraph_error_t</ref>**<sp/>error);</highlight></codeline>
+<codeline lineno="58"><highlight class="normal"></highlight></codeline>
+<codeline lineno="72"><highlight class="normal">cugraph_error_code_t<sp/>cugraph_biased_random_walks(</highlight></codeline>
+<codeline lineno="73"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__resource__handle__" kindref="compound">cugraph_resource_handle_t</ref>*<sp/>handle,</highlight></codeline>
+<codeline lineno="74"><highlight class="normal"><sp/><sp/><ref refid="structcugraph__graph__t" kindref="compound">cugraph_graph_t</ref>*<sp/>graph,</highlight></codeline>
+<codeline lineno="75"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/>start_vertices,</highlight></codeline>
+<codeline lineno="76"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordtype">size_t</highlight><highlight class="normal"><sp/>max_length,</highlight></codeline>
+<codeline lineno="77"><highlight class="normal"><sp/><sp/><ref refid="structcugraph__random__walk__result__t" kindref="compound">cugraph_random_walk_result_t</ref>**<sp/>result,</highlight></codeline>
+<codeline lineno="78"><highlight class="normal"><sp/><sp/><ref refid="structcugraph__error__" kindref="compound">cugraph_error_t</ref>**<sp/>error);</highlight></codeline>
+<codeline lineno="79"><highlight class="normal"></highlight></codeline>
+<codeline lineno="97"><highlight class="normal">cugraph_error_code_t<sp/>cugraph_node2vec_random_walks(</highlight></codeline>
+<codeline lineno="98"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__resource__handle__" kindref="compound">cugraph_resource_handle_t</ref>*<sp/>handle,</highlight></codeline>
+<codeline lineno="99"><highlight class="normal"><sp/><sp/><ref refid="structcugraph__graph__t" kindref="compound">cugraph_graph_t</ref>*<sp/>graph,</highlight></codeline>
+<codeline lineno="100"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/>start_vertices,</highlight></codeline>
+<codeline lineno="101"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordtype">size_t</highlight><highlight class="normal"><sp/>max_length,</highlight></codeline>
+<codeline lineno="102"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordtype">double</highlight><highlight class="normal"><sp/>p,</highlight></codeline>
+<codeline lineno="103"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordtype">double</highlight><highlight class="normal"><sp/>q,</highlight></codeline>
+<codeline lineno="104"><highlight class="normal"><sp/><sp/><ref refid="structcugraph__random__walk__result__t" kindref="compound">cugraph_random_walk_result_t</ref>**<sp/>result,</highlight></codeline>
+<codeline lineno="105"><highlight class="normal"><sp/><sp/><ref refid="structcugraph__error__" kindref="compound">cugraph_error_t</ref>**<sp/>error);</highlight></codeline>
+<codeline lineno="106"><highlight class="normal"></highlight></codeline>
+<codeline lineno="125"><highlight class="normal">cugraph_error_code_t<sp/>cugraph_node2vec(</highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__resource__handle__" kindref="compound">cugraph_resource_handle_t</ref>*<sp/>handle,</highlight></codeline>
+<codeline lineno="126"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><ref refid="structcugraph__graph__t" kindref="compound">cugraph_graph_t</ref>*<sp/>graph,</highlight></codeline>
+<codeline lineno="127"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/>sources,</highlight></codeline>
+<codeline lineno="128"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordtype">size_t</highlight><highlight class="normal"><sp/>max_depth,</highlight></codeline>
+<codeline lineno="129"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>bool_t<sp/>compress_result,</highlight></codeline>
+<codeline lineno="130"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordtype">double</highlight><highlight class="normal"><sp/>p,</highlight></codeline>
+<codeline lineno="131"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordtype">double</highlight><highlight class="normal"><sp/>q,</highlight></codeline>
+<codeline lineno="132"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><ref refid="structcugraph__random__walk__result__t" kindref="compound">cugraph_random_walk_result_t</ref>**<sp/>result,</highlight></codeline>
+<codeline lineno="133"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><ref refid="structcugraph__error__" kindref="compound">cugraph_error_t</ref>**<sp/>error);</highlight></codeline>
+<codeline lineno="134"><highlight class="normal"></highlight></codeline>
+<codeline lineno="142"><highlight class="normal"></highlight><highlight class="keywordtype">size_t</highlight><highlight class="normal"><sp/><ref refid="group__samplingC_1gadf5f79cca0112855b14fc82bb620f405" kindref="member">cugraph_random_walk_result_get_max_path_length</ref>(<ref refid="structcugraph__random__walk__result__t" kindref="compound">cugraph_random_walk_result_t</ref>*<sp/>result);</highlight></codeline>
+<codeline lineno="143"><highlight class="normal"></highlight></codeline>
+<codeline lineno="144"><highlight class="normal"></highlight><highlight class="comment">//<sp/>FIXME:<sp/><sp/>Should<sp/>this<sp/>be<sp/>the<sp/>same<sp/>as<sp/>extract_paths_result_t?<sp/><sp/>The<sp/>only</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="145"><highlight class="normal"></highlight><highlight class="comment">//<sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>difference<sp/>at<sp/>the<sp/>moment<sp/>is<sp/>that<sp/>RW<sp/>results<sp/>contain<sp/>weights</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="146"><highlight class="normal"></highlight><highlight class="comment">//<sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>and<sp/>extract_paths<sp/>results<sp/>don&apos;t.<sp/><sp/>But<sp/>that&apos;s<sp/>probably<sp/>wrong.</highlight></codeline>
+<codeline lineno="154"><highlight class="normal"><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/><ref refid="group__samplingC_1ga4ed5aef9476d68ab846fd1f5eac8290f" kindref="member">cugraph_random_walk_result_get_paths</ref>(</highlight></codeline>
+<codeline lineno="155"><highlight class="normal"><sp/><sp/><ref refid="structcugraph__random__walk__result__t" kindref="compound">cugraph_random_walk_result_t</ref>*<sp/>result);</highlight></codeline>
+<codeline lineno="156"><highlight class="normal"></highlight></codeline>
+<codeline lineno="164"><highlight class="normal"><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/><ref refid="group__samplingC_1ga4abee8ffa8d15a940e0905e79ae894af" kindref="member">cugraph_random_walk_result_get_weights</ref>(</highlight></codeline>
+<codeline lineno="165"><highlight class="normal"><sp/><sp/><ref refid="structcugraph__random__walk__result__t" kindref="compound">cugraph_random_walk_result_t</ref>*<sp/>result);</highlight></codeline>
+<codeline lineno="166"><highlight class="normal"></highlight></codeline>
+<codeline lineno="175"><highlight class="normal"><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/><ref refid="group__samplingC_1ga4b0f8923adbc6aa2156360d21c480951" kindref="member">cugraph_random_walk_result_get_path_sizes</ref>(</highlight></codeline>
+<codeline lineno="176"><highlight class="normal"><sp/><sp/><ref refid="structcugraph__random__walk__result__t" kindref="compound">cugraph_random_walk_result_t</ref>*<sp/>result);</highlight></codeline>
+<codeline lineno="177"><highlight class="normal"></highlight></codeline>
+<codeline lineno="184"><highlight class="normal"></highlight><highlight class="keywordtype">void</highlight><highlight class="normal"><sp/><ref refid="group__samplingC_1gad3ff7003c7ff73b12fd33be97db31d67" kindref="member">cugraph_random_walk_result_free</ref>(<ref refid="structcugraph__random__walk__result__t" kindref="compound">cugraph_random_walk_result_t</ref>*<sp/>result);</highlight></codeline>
+<codeline lineno="185"><highlight class="normal"></highlight></codeline>
+<codeline lineno="189" refid="structcugraph__sample__result__t" refkind="compound"><highlight class="normal"></highlight><highlight class="keyword">typedef</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">struct<sp/></highlight><highlight class="normal">{</highlight></codeline>
+<codeline lineno="190"><highlight class="normal"><sp/><sp/>int32_t<sp/>align_;</highlight></codeline>
+<codeline lineno="191"><highlight class="normal">}<sp/><ref refid="structcugraph__sample__result__t" kindref="compound">cugraph_sample_result_t</ref>;</highlight></codeline>
+<codeline lineno="192"><highlight class="normal"></highlight></codeline>
+<codeline lineno="196" refid="structcugraph__sampling__options__t" refkind="compound"><highlight class="normal"></highlight><highlight class="keyword">typedef</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">struct<sp/></highlight><highlight class="normal">{</highlight></codeline>
+<codeline lineno="197"><highlight class="normal"><sp/><sp/>int32_t<sp/>align_;</highlight></codeline>
+<codeline lineno="198"><highlight class="normal">}<sp/><ref refid="structcugraph__sampling__options__t" kindref="compound">cugraph_sampling_options_t</ref>;</highlight></codeline>
+<codeline lineno="199"><highlight class="normal"></highlight></codeline>
+<codeline lineno="203"><highlight class="normal"></highlight><highlight class="keyword">typedef</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">enum</highlight><highlight class="normal"><sp/>cugraph_prior_sources_behavior_t<sp/>{</highlight></codeline>
+<codeline lineno="204"><highlight class="normal"><sp/><sp/>DEFAULT<sp/>=<sp/>0,<sp/></highlight></codeline>
+<codeline lineno="205"><highlight class="normal"><sp/><sp/>CARRY_OVER,<sp/><sp/></highlight></codeline>
+<codeline lineno="207"><highlight class="normal"><sp/><sp/>EXCLUDE<sp/><sp/><sp/><sp/><sp/><sp/></highlight></codeline>
+<codeline lineno="209"><highlight class="normal">}<sp/>cugraph_prior_sources_behavior_t;</highlight></codeline>
+<codeline lineno="210"><highlight class="normal"></highlight></codeline>
+<codeline lineno="214"><highlight class="normal"></highlight><highlight class="keyword">typedef</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">enum</highlight><highlight class="normal"><sp/>cugraph_compression_type_t<sp/>{</highlight></codeline>
+<codeline lineno="215"><highlight class="normal"><sp/><sp/>COO<sp/>=<sp/>0,<sp/></highlight></codeline>
+<codeline lineno="216"><highlight class="normal"><sp/><sp/>CSR,<sp/><sp/><sp/><sp/><sp/></highlight></codeline>
+<codeline lineno="218"><highlight class="normal"><sp/><sp/>CSC,<sp/><sp/><sp/><sp/><sp/></highlight></codeline>
+<codeline lineno="220"><highlight class="normal"><sp/><sp/>DCSR,<sp/><sp/><sp/><sp/></highlight></codeline>
+<codeline lineno="222"><highlight class="normal"><sp/><sp/>DCSC<sp/><sp/><sp/><sp/><sp/></highlight></codeline>
+<codeline lineno="224"><highlight class="normal">}<sp/>cugraph_compression_type_t;</highlight></codeline>
+<codeline lineno="225"><highlight class="normal"></highlight></codeline>
+<codeline lineno="236"><highlight class="normal">cugraph_error_code_t<sp/><ref refid="group__samplingC_1gae43633f8ac4add282942c4e599b7e08a" kindref="member">cugraph_sampling_options_create</ref>(<ref refid="structcugraph__sampling__options__t" kindref="compound">cugraph_sampling_options_t</ref>**<sp/>options,</highlight></codeline>
+<codeline lineno="237"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><ref refid="structcugraph__error__" kindref="compound">cugraph_error_t</ref>**<sp/>error);</highlight></codeline>
+<codeline lineno="238"><highlight class="normal"></highlight></codeline>
+<codeline lineno="246"><highlight class="normal"></highlight><highlight class="keywordtype">void</highlight><highlight class="normal"><sp/><ref refid="group__samplingC_1ga117b95fed045dc00de61e49f723cb615" kindref="member">cugraph_sampling_set_retain_seeds</ref>(<ref refid="structcugraph__sampling__options__t" kindref="compound">cugraph_sampling_options_t</ref>*<sp/>options,<sp/>bool_t<sp/>value);</highlight></codeline>
+<codeline lineno="247"><highlight class="normal"></highlight></codeline>
+<codeline lineno="255"><highlight class="normal"></highlight><highlight class="keywordtype">void</highlight><highlight class="normal"><sp/><ref refid="group__samplingC_1ga2008317b8348a7228a96ade6360bb20f" kindref="member">cugraph_sampling_set_renumber_results</ref>(<ref refid="structcugraph__sampling__options__t" kindref="compound">cugraph_sampling_options_t</ref>*<sp/>options,<sp/>bool_t<sp/>value);</highlight></codeline>
+<codeline lineno="256"><highlight class="normal"></highlight></codeline>
+<codeline lineno="264"><highlight class="normal"></highlight><highlight class="keywordtype">void</highlight><highlight class="normal"><sp/><ref refid="group__samplingC_1gaa55f31d8fd2a5b482fcb4d8a111fe4a5" kindref="member">cugraph_sampling_set_compress_per_hop</ref>(<ref refid="structcugraph__sampling__options__t" kindref="compound">cugraph_sampling_options_t</ref>*<sp/>options,<sp/>bool_t<sp/>value);</highlight></codeline>
+<codeline lineno="265"><highlight class="normal"></highlight></codeline>
+<codeline lineno="273"><highlight class="normal"></highlight><highlight class="keywordtype">void</highlight><highlight class="normal"><sp/><ref refid="group__samplingC_1gaf9073b0b09e988f6e704ce802f899cff" kindref="member">cugraph_sampling_set_with_replacement</ref>(<ref refid="structcugraph__sampling__options__t" kindref="compound">cugraph_sampling_options_t</ref>*<sp/>options,<sp/>bool_t<sp/>value);</highlight></codeline>
+<codeline lineno="274"><highlight class="normal"></highlight></codeline>
+<codeline lineno="282"><highlight class="normal"></highlight><highlight class="keywordtype">void</highlight><highlight class="normal"><sp/><ref refid="group__samplingC_1ga97c7116850a268200cee72ef336216e8" kindref="member">cugraph_sampling_set_return_hops</ref>(<ref refid="structcugraph__sampling__options__t" kindref="compound">cugraph_sampling_options_t</ref>*<sp/>options,<sp/>bool_t<sp/>value);</highlight></codeline>
+<codeline lineno="283"><highlight class="normal"></highlight></codeline>
+<codeline lineno="291"><highlight class="normal"></highlight><highlight class="keywordtype">void</highlight><highlight class="normal"><sp/><ref refid="group__samplingC_1ga7d1873abeff902d633ba4aac32502c12" kindref="member">cugraph_sampling_set_compression_type</ref>(<ref refid="structcugraph__sampling__options__t" kindref="compound">cugraph_sampling_options_t</ref>*<sp/>options,</highlight></codeline>
+<codeline lineno="292"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>cugraph_compression_type_t<sp/>value);</highlight></codeline>
+<codeline lineno="293"><highlight class="normal"></highlight></codeline>
+<codeline lineno="301"><highlight class="normal"></highlight><highlight class="keywordtype">void</highlight><highlight class="normal"><sp/><ref refid="group__samplingC_1gaea65452afe7afd1da419464a53d184f7" kindref="member">cugraph_sampling_set_prior_sources_behavior</ref>(<ref refid="structcugraph__sampling__options__t" kindref="compound">cugraph_sampling_options_t</ref>*<sp/>options,</highlight></codeline>
+<codeline lineno="302"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>cugraph_prior_sources_behavior_t<sp/>value);</highlight></codeline>
+<codeline lineno="303"><highlight class="normal"></highlight></codeline>
+<codeline lineno="311"><highlight class="normal"></highlight><highlight class="keywordtype">void</highlight><highlight class="normal"><sp/><ref refid="group__samplingC_1ga79c33f34f41e5fb7bc6d408204f077c2" kindref="member">cugraph_sampling_set_dedupe_sources</ref>(<ref refid="structcugraph__sampling__options__t" kindref="compound">cugraph_sampling_options_t</ref>*<sp/>options,<sp/>bool_t<sp/>value);</highlight></codeline>
+<codeline lineno="312"><highlight class="normal"></highlight></codeline>
+<codeline lineno="319"><highlight class="normal"></highlight><highlight class="keywordtype">void</highlight><highlight class="normal"><sp/><ref refid="group__samplingC_1gab7c69ccc1d3958508ea6f66786e525e2" kindref="member">cugraph_sampling_options_free</ref>(<ref refid="structcugraph__sampling__options__t" kindref="compound">cugraph_sampling_options_t</ref>*<sp/>options);</highlight></codeline>
+<codeline lineno="320"><highlight class="normal"></highlight></codeline>
+<codeline lineno="361"><highlight class="normal">cugraph_error_code_t<sp/>cugraph_uniform_neighbor_sample(</highlight></codeline>
+<codeline lineno="362"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__resource__handle__" kindref="compound">cugraph_resource_handle_t</ref>*<sp/>handle,</highlight></codeline>
+<codeline lineno="363"><highlight class="normal"><sp/><sp/><ref refid="structcugraph__graph__t" kindref="compound">cugraph_graph_t</ref>*<sp/>graph,</highlight></codeline>
+<codeline lineno="364"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/>start_vertices,</highlight></codeline>
+<codeline lineno="365"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/>start_vertex_labels,</highlight></codeline>
+<codeline lineno="366"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/>label_list,</highlight></codeline>
+<codeline lineno="367"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/>label_to_comm_rank,</highlight></codeline>
+<codeline lineno="368"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/>label_offsets,</highlight></codeline>
+<codeline lineno="369"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__type__erased__host__array__view__t" kindref="compound">cugraph_type_erased_host_array_view_t</ref>*<sp/>fan_out,</highlight></codeline>
+<codeline lineno="370"><highlight class="normal"><sp/><sp/><ref refid="structcugraph__rng__state__t" kindref="compound">cugraph_rng_state_t</ref>*<sp/>rng_state,</highlight></codeline>
+<codeline lineno="371"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__sampling__options__t" kindref="compound">cugraph_sampling_options_t</ref>*<sp/>options,</highlight></codeline>
+<codeline lineno="372"><highlight class="normal"><sp/><sp/>bool_t<sp/>do_expensive_check,</highlight></codeline>
+<codeline lineno="373"><highlight class="normal"><sp/><sp/><ref refid="structcugraph__sample__result__t" kindref="compound">cugraph_sample_result_t</ref>**<sp/>result,</highlight></codeline>
+<codeline lineno="374"><highlight class="normal"><sp/><sp/><ref refid="structcugraph__error__" kindref="compound">cugraph_error_t</ref>**<sp/>error);</highlight></codeline>
+<codeline lineno="375"><highlight class="normal"></highlight></codeline>
+<codeline lineno="383"><highlight class="normal"><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/>cugraph_sample_result_get_sources(</highlight></codeline>
+<codeline lineno="384"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__sample__result__t" kindref="compound">cugraph_sample_result_t</ref>*<sp/>result);</highlight></codeline>
+<codeline lineno="385"><highlight class="normal"></highlight></codeline>
+<codeline lineno="393"><highlight class="normal"><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/>cugraph_sample_result_get_destinations(</highlight></codeline>
+<codeline lineno="394"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__sample__result__t" kindref="compound">cugraph_sample_result_t</ref>*<sp/>result);</highlight></codeline>
+<codeline lineno="395"><highlight class="normal"></highlight></codeline>
+<codeline lineno="403"><highlight class="normal"><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/><ref refid="group__samplingC_1ga5bd2697648249b7ab02256764ab1cbd1" kindref="member">cugraph_sample_result_get_majors</ref>(</highlight></codeline>
+<codeline lineno="404"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__sample__result__t" kindref="compound">cugraph_sample_result_t</ref>*<sp/>result);</highlight></codeline>
+<codeline lineno="405"><highlight class="normal"></highlight></codeline>
+<codeline lineno="413"><highlight class="normal"><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/><ref refid="group__samplingC_1gaff742d4d95bcfc519aeb849cb0c2f60a" kindref="member">cugraph_sample_result_get_minors</ref>(</highlight></codeline>
+<codeline lineno="414"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__sample__result__t" kindref="compound">cugraph_sample_result_t</ref>*<sp/>result);</highlight></codeline>
+<codeline lineno="415"><highlight class="normal"></highlight></codeline>
+<codeline lineno="423"><highlight class="normal"><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/><ref refid="group__samplingC_1ga6f20c3408f73f8fa62b5db6e0d92fb92" kindref="member">cugraph_sample_result_get_major_offsets</ref>(</highlight></codeline>
+<codeline lineno="424"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__sample__result__t" kindref="compound">cugraph_sample_result_t</ref>*<sp/>result);</highlight></codeline>
+<codeline lineno="425"><highlight class="normal"></highlight></codeline>
+<codeline lineno="433"><highlight class="normal"><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/><ref refid="group__samplingC_1ga480368296880d40e70dfe795f9a9afdf" kindref="member">cugraph_sample_result_get_start_labels</ref>(</highlight></codeline>
+<codeline lineno="434"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__sample__result__t" kindref="compound">cugraph_sample_result_t</ref>*<sp/>result);</highlight></codeline>
+<codeline lineno="435"><highlight class="normal"></highlight></codeline>
+<codeline lineno="443"><highlight class="normal"><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/><ref refid="group__samplingC_1gafc1b9b3287b96210e3e97c6dbf529945" kindref="member">cugraph_sample_result_get_edge_id</ref>(</highlight></codeline>
+<codeline lineno="444"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__sample__result__t" kindref="compound">cugraph_sample_result_t</ref>*<sp/>result);</highlight></codeline>
+<codeline lineno="445"><highlight class="normal"></highlight></codeline>
+<codeline lineno="453"><highlight class="normal"><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/><ref refid="group__samplingC_1ga11d277fbfc7d49ffdcf3eae4b0d286b6" kindref="member">cugraph_sample_result_get_edge_type</ref>(</highlight></codeline>
+<codeline lineno="454"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__sample__result__t" kindref="compound">cugraph_sample_result_t</ref>*<sp/>result);</highlight></codeline>
+<codeline lineno="455"><highlight class="normal"></highlight></codeline>
+<codeline lineno="463"><highlight class="normal"><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/><ref refid="group__samplingC_1ga72ff963de88ee46a7dd6de846823b1b8" kindref="member">cugraph_sample_result_get_edge_weight</ref>(</highlight></codeline>
+<codeline lineno="464"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__sample__result__t" kindref="compound">cugraph_sample_result_t</ref>*<sp/>result);</highlight></codeline>
+<codeline lineno="465"><highlight class="normal"></highlight></codeline>
+<codeline lineno="473"><highlight class="normal"><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/><ref refid="group__samplingC_1ga69ca1fadcd96923813e34f3d8c210cec" kindref="member">cugraph_sample_result_get_hop</ref>(</highlight></codeline>
+<codeline lineno="474"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__sample__result__t" kindref="compound">cugraph_sample_result_t</ref>*<sp/>result);</highlight></codeline>
+<codeline lineno="475"><highlight class="normal"></highlight></codeline>
+<codeline lineno="483"><highlight class="normal"><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/><ref refid="group__samplingC_1ga18d5834ee4685e2fad7920892b30e53c" kindref="member">cugraph_sample_result_get_label_hop_offsets</ref>(</highlight></codeline>
+<codeline lineno="484"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__sample__result__t" kindref="compound">cugraph_sample_result_t</ref>*<sp/>result);</highlight></codeline>
+<codeline lineno="485"><highlight class="normal"></highlight></codeline>
+<codeline lineno="493"><highlight class="normal"><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/><ref refid="group__samplingC_1ga62f2128b7cab4204030f3298d3f7713e" kindref="member">cugraph_sample_result_get_index</ref>(</highlight></codeline>
+<codeline lineno="494"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__sample__result__t" kindref="compound">cugraph_sample_result_t</ref>*<sp/>result);</highlight></codeline>
+<codeline lineno="495"><highlight class="normal"></highlight></codeline>
+<codeline lineno="503"><highlight class="normal"><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/>cugraph_sample_result_get_offsets(</highlight></codeline>
+<codeline lineno="504"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__sample__result__t" kindref="compound">cugraph_sample_result_t</ref>*<sp/>result);</highlight></codeline>
+<codeline lineno="505"><highlight class="normal"></highlight></codeline>
+<codeline lineno="513"><highlight class="normal"><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/><ref refid="group__samplingC_1ga2b710fe11461032348d003dea4851829" kindref="member">cugraph_sample_result_get_renumber_map</ref>(</highlight></codeline>
+<codeline lineno="514"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__sample__result__t" kindref="compound">cugraph_sample_result_t</ref>*<sp/>result);</highlight></codeline>
+<codeline lineno="515"><highlight class="normal"></highlight></codeline>
+<codeline lineno="523"><highlight class="normal"><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/><ref refid="group__samplingC_1ga281cbae0cfa0a69a54c0a9a68eed493a" kindref="member">cugraph_sample_result_get_renumber_map_offsets</ref>(</highlight></codeline>
+<codeline lineno="524"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__sample__result__t" kindref="compound">cugraph_sample_result_t</ref>*<sp/>result);</highlight></codeline>
+<codeline lineno="525"><highlight class="normal"></highlight></codeline>
+<codeline lineno="532"><highlight class="normal"></highlight><highlight class="keywordtype">void</highlight><highlight class="normal"><sp/><ref refid="group__samplingC_1gaa8dbfaffc0299b2cbba820718fda48d9" kindref="member">cugraph_sample_result_free</ref>(<ref refid="structcugraph__sample__result__t" kindref="compound">cugraph_sample_result_t</ref>*<sp/>result);</highlight></codeline>
+<codeline lineno="533"><highlight class="normal"></highlight></codeline>
+<codeline lineno="553"><highlight class="normal">cugraph_error_code_t<sp/><ref refid="group__samplingC_1ga29acd1812799edbd44092dcc25e3ef1e" kindref="member">cugraph_test_sample_result_create</ref>(</highlight></codeline>
+<codeline lineno="554"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__resource__handle__" kindref="compound">cugraph_resource_handle_t</ref>*<sp/>handle,</highlight></codeline>
+<codeline lineno="555"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/>srcs,</highlight></codeline>
+<codeline lineno="556"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/>dsts,</highlight></codeline>
+<codeline lineno="557"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/>edge_id,</highlight></codeline>
+<codeline lineno="558"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/>edge_type,</highlight></codeline>
+<codeline lineno="559"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/>wgt,</highlight></codeline>
+<codeline lineno="560"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/>hop,</highlight></codeline>
+<codeline lineno="561"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/>label,</highlight></codeline>
+<codeline lineno="562"><highlight class="normal"><sp/><sp/><ref refid="structcugraph__sample__result__t" kindref="compound">cugraph_sample_result_t</ref>**<sp/>result,</highlight></codeline>
+<codeline lineno="563"><highlight class="normal"><sp/><sp/><ref refid="structcugraph__error__" kindref="compound">cugraph_error_t</ref>**<sp/>error);</highlight></codeline>
+<codeline lineno="564"><highlight class="normal"></highlight></codeline>
+<codeline lineno="584"><highlight class="normal">cugraph_error_code_t<sp/><ref refid="group__samplingC_1gab5bf25ec8e8afc782d685a1b1e542f42" kindref="member">cugraph_test_uniform_neighborhood_sample_result_create</ref>(</highlight></codeline>
+<codeline lineno="585"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__resource__handle__" kindref="compound">cugraph_resource_handle_t</ref>*<sp/>handle,</highlight></codeline>
+<codeline lineno="586"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/>srcs,</highlight></codeline>
+<codeline lineno="587"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/>dsts,</highlight></codeline>
+<codeline lineno="588"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/>edge_id,</highlight></codeline>
+<codeline lineno="589"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/>edge_type,</highlight></codeline>
+<codeline lineno="590"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/>weight,</highlight></codeline>
+<codeline lineno="591"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/>hop,</highlight></codeline>
+<codeline lineno="592"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/>label,</highlight></codeline>
+<codeline lineno="593"><highlight class="normal"><sp/><sp/><ref refid="structcugraph__sample__result__t" kindref="compound">cugraph_sample_result_t</ref>**<sp/>result,</highlight></codeline>
+<codeline lineno="594"><highlight class="normal"><sp/><sp/><ref refid="structcugraph__error__" kindref="compound">cugraph_error_t</ref>**<sp/>error);</highlight></codeline>
+<codeline lineno="595"><highlight class="normal"></highlight></codeline>
+<codeline lineno="610"><highlight class="normal">cugraph_error_code_t<sp/><ref refid="group__samplingC_1ga91ed6aa64c8ad3e8fcfe0be8e8c40bbe" kindref="member">cugraph_select_random_vertices</ref>(</highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__resource__handle__" kindref="compound">cugraph_resource_handle_t</ref>*<sp/>handle,</highlight></codeline>
+<codeline lineno="611"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__graph__t" kindref="compound">cugraph_graph_t</ref>*<sp/>graph,</highlight></codeline>
+<codeline lineno="612"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><ref refid="structcugraph__rng__state__t" kindref="compound">cugraph_rng_state_t</ref>*<sp/>rng_state,</highlight></codeline>
+<codeline lineno="613"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordtype">size_t</highlight><highlight class="normal"><sp/>num_vertices,</highlight></codeline>
+<codeline lineno="614"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><ref refid="structcugraph__type__erased__device__array__t" kindref="compound">cugraph_type_erased_device_array_t</ref>**<sp/>vertices,</highlight></codeline>
+<codeline lineno="615"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><ref refid="structcugraph__error__" kindref="compound">cugraph_error_t</ref>**<sp/>error);</highlight></codeline>
+<codeline lineno="616"><highlight class="normal"></highlight></codeline>
+<codeline lineno="617"><highlight class="normal"></highlight><highlight class="preprocessor">#ifdef<sp/>__cplusplus</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="618"><highlight class="normal">}</highlight></codeline>
+<codeline lineno="619"><highlight class="normal"></highlight><highlight class="preprocessor">#endif</highlight></codeline>
+    </programlisting>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/sampling_algorithms.h"/>
+  </compounddef>
+</doxygen>

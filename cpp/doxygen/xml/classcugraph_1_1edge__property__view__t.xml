@@ -1,0 +1,176 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="classcugraph_1_1edge__property__view__t" kind="class" language="C++" prot="public">
+    <compoundname>cugraph::edge_property_view_t</compoundname>
+    <templateparamlist>
+      <param>
+        <type>typename edge_t</type>
+      </param>
+      <param>
+        <type>typename ValueIterator</type>
+      </param>
+      <param>
+        <type>typename value_t</type>
+        <defval>typename thrust::iterator_traits&lt;ValueIterator&gt;::value_type</defval>
+      </param>
+    </templateparamlist>
+    <sectiondef kind="public-type">
+      <memberdef kind="typedef" id="classcugraph_1_1edge__property__view__t_1a39e6d36252694ea5bbf9d5741a56d89e" prot="public" static="no">
+        <type>edge_t</type>
+        <definition>using cugraph::edge_property_view_t&lt; edge_t, ValueIterator, value_t &gt;::edge_type =  edge_t</definition>
+        <argsstring></argsstring>
+        <name>edge_type</name>
+        <qualifiedname>cugraph::edge_property_view_t::edge_type</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_property.hpp" line="42" column="3" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_property.hpp" bodystart="42" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="typedef" id="classcugraph_1_1edge__property__view__t_1a6cb9cc2d796c97220cd5b623b84e1727" prot="public" static="no">
+        <type>value_t</type>
+        <definition>using cugraph::edge_property_view_t&lt; edge_t, ValueIterator, value_t &gt;::value_type =  value_t</definition>
+        <argsstring></argsstring>
+        <name>value_type</name>
+        <qualifiedname>cugraph::edge_property_view_t::value_type</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_property.hpp" line="43" column="3" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_property.hpp" bodystart="43" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="typedef" id="classcugraph_1_1edge__property__view__t_1aa1e3526cb5af483f18dbee51d6a62664" prot="public" static="no">
+        <type>ValueIterator</type>
+        <definition>using cugraph::edge_property_view_t&lt; edge_t, ValueIterator, value_t &gt;::value_iterator =  ValueIterator</definition>
+        <argsstring></argsstring>
+        <name>value_iterator</name>
+        <qualifiedname>cugraph::edge_property_view_t::value_iterator</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_property.hpp" line="44" column="3" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_property.hpp" bodystart="44" bodyend="-1"/>
+      </memberdef>
+    </sectiondef>
+    <sectiondef kind="private-attrib">
+      <memberdef kind="variable" id="classcugraph_1_1edge__property__view__t_1aeb7133eb4df4a3f19e10e78332be2564" prot="private" static="no" mutable="no">
+        <type>std::vector&lt; ValueIterator &gt;</type>
+        <definition>std::vector&lt;ValueIterator&gt; cugraph::edge_property_view_t&lt; edge_t, ValueIterator, value_t &gt;::edge_partition_value_firsts_</definition>
+        <argsstring></argsstring>
+        <name>edge_partition_value_firsts_</name>
+        <qualifiedname>cugraph::edge_property_view_t::edge_partition_value_firsts_</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_property.hpp" line="60" column="15" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_property.hpp" bodystart="60" bodyend="60"/>
+      </memberdef>
+      <memberdef kind="variable" id="classcugraph_1_1edge__property__view__t_1af83dca7462529806208e7c5cc73f513e" prot="private" static="no" mutable="no">
+        <type>std::vector&lt; edge_t &gt;</type>
+        <definition>std::vector&lt;edge_t&gt; cugraph::edge_property_view_t&lt; edge_t, ValueIterator, value_t &gt;::edge_partition_edge_counts_</definition>
+        <argsstring></argsstring>
+        <name>edge_partition_edge_counts_</name>
+        <qualifiedname>cugraph::edge_property_view_t::edge_partition_edge_counts_</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_property.hpp" line="61" column="15" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_property.hpp" bodystart="61" bodyend="61"/>
+      </memberdef>
+    </sectiondef>
+    <sectiondef kind="public-func">
+      <memberdef kind="function" id="classcugraph_1_1edge__property__view__t_1a9bf6e2370e3c52547764c6f1002aa8af" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type></type>
+        <definition>cugraph::edge_property_view_t&lt; edge_t, ValueIterator, value_t &gt;::edge_property_view_t</definition>
+        <argsstring>()=default</argsstring>
+        <name>edge_property_view_t</name>
+        <qualifiedname>cugraph::edge_property_view_t::edge_property_view_t</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_property.hpp" line="46" column="3"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1edge__property__view__t_1a4368ab2c2f0f5817706f1b496c4b1dba" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type></type>
+        <definition>cugraph::edge_property_view_t&lt; edge_t, ValueIterator, value_t &gt;::edge_property_view_t</definition>
+        <argsstring>(std::vector&lt; ValueIterator &gt; const &amp;edge_partition_value_firsts, std::vector&lt; edge_t &gt; const &amp;edge_partition_edge_counts)</argsstring>
+        <name>edge_property_view_t</name>
+        <qualifiedname>cugraph::edge_property_view_t::edge_property_view_t</qualifiedname>
+        <param>
+          <type>std::vector&lt; ValueIterator &gt; const &amp;</type>
+          <declname>edge_partition_value_firsts</declname>
+        </param>
+        <param>
+          <type>std::vector&lt; edge_t &gt; const &amp;</type>
+          <declname>edge_partition_edge_counts</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_property.hpp" line="48" column="3" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_property.hpp" bodystart="48" bodyend="53"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1edge__property__view__t_1a52f5e471151f1db1db2e981235d43eab" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>std::vector&lt; ValueIterator &gt; const &amp;</type>
+        <definition>std::vector&lt; ValueIterator &gt; const  &amp; cugraph::edge_property_view_t&lt; edge_t, ValueIterator, value_t &gt;::value_firsts</definition>
+        <argsstring>() const</argsstring>
+        <name>value_firsts</name>
+        <qualifiedname>cugraph::edge_property_view_t::value_firsts</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_property.hpp" line="55" column="21" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_property.hpp" bodystart="55" bodyend="55"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1edge__property__view__t_1a38efc1d81deefa62ad56e974d5fbf4a9" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>std::vector&lt; edge_t &gt; const &amp;</type>
+        <definition>std::vector&lt; edge_t &gt; const  &amp; cugraph::edge_property_view_t&lt; edge_t, ValueIterator, value_t &gt;::edge_counts</definition>
+        <argsstring>() const</argsstring>
+        <name>edge_counts</name>
+        <qualifiedname>cugraph::edge_property_view_t::edge_counts</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_property.hpp" line="57" column="21" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_property.hpp" bodystart="57" bodyend="57"/>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_property.hpp" line="36" column="1" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_property.hpp" bodystart="36" bodyend="62"/>
+    <listofallmembers>
+      <member refid="classcugraph_1_1edge__property__view__t_1a38efc1d81deefa62ad56e974d5fbf4a9" prot="public" virt="non-virtual"><scope>cugraph::edge_property_view_t</scope><name>edge_counts</name></member>
+      <member refid="classcugraph_1_1edge__property__view__t_1af83dca7462529806208e7c5cc73f513e" prot="private" virt="non-virtual"><scope>cugraph::edge_property_view_t</scope><name>edge_partition_edge_counts_</name></member>
+      <member refid="classcugraph_1_1edge__property__view__t_1aeb7133eb4df4a3f19e10e78332be2564" prot="private" virt="non-virtual"><scope>cugraph::edge_property_view_t</scope><name>edge_partition_value_firsts_</name></member>
+      <member refid="classcugraph_1_1edge__property__view__t_1a9bf6e2370e3c52547764c6f1002aa8af" prot="public" virt="non-virtual"><scope>cugraph::edge_property_view_t</scope><name>edge_property_view_t</name></member>
+      <member refid="classcugraph_1_1edge__property__view__t_1a4368ab2c2f0f5817706f1b496c4b1dba" prot="public" virt="non-virtual"><scope>cugraph::edge_property_view_t</scope><name>edge_property_view_t</name></member>
+      <member refid="classcugraph_1_1edge__property__view__t_1a39e6d36252694ea5bbf9d5741a56d89e" prot="public" virt="non-virtual"><scope>cugraph::edge_property_view_t</scope><name>edge_type</name></member>
+      <member refid="classcugraph_1_1edge__property__view__t_1a52f5e471151f1db1db2e981235d43eab" prot="public" virt="non-virtual"><scope>cugraph::edge_property_view_t</scope><name>value_firsts</name></member>
+      <member refid="classcugraph_1_1edge__property__view__t_1aa1e3526cb5af483f18dbee51d6a62664" prot="public" virt="non-virtual"><scope>cugraph::edge_property_view_t</scope><name>value_iterator</name></member>
+      <member refid="classcugraph_1_1edge__property__view__t_1a6cb9cc2d796c97220cd5b623b84e1727" prot="public" virt="non-virtual"><scope>cugraph::edge_property_view_t</scope><name>value_type</name></member>
+    </listofallmembers>
+  </compounddef>
+</doxygen>

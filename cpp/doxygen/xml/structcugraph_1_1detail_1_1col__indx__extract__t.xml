@@ -1,0 +1,268 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="structcugraph_1_1detail_1_1col__indx__extract__t" kind="struct" language="C++" prot="public">
+    <compoundname>cugraph::detail::col_indx_extract_t</compoundname>
+    <templateparamlist>
+      <param>
+        <type>typename vertex_t</type>
+      </param>
+      <param>
+        <type>typename edge_t</type>
+      </param>
+      <param>
+        <type>typename weight_t</type>
+      </param>
+      <param>
+        <type>typename index_t</type>
+      </param>
+    </templateparamlist>
+    <sectiondef kind="private-attrib">
+      <memberdef kind="variable" id="structcugraph_1_1detail_1_1col__indx__extract__t_1a0482a0325512f6359a242ecc29aa39d4" prot="private" static="no" mutable="no">
+        <type>raft::handle_t const  &amp;</type>
+        <definition>raft::handle_t const&amp; cugraph::detail::col_indx_extract_t&lt; vertex_t, edge_t, weight_t, index_t &gt;::handle_</definition>
+        <argsstring></argsstring>
+        <name>handle_</name>
+        <qualifiedname>cugraph::detail::col_indx_extract_t::handle_</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/sampling/random_walks.cuh" line="291" column="24" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/sampling/random_walks.cuh" bodystart="291" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph_1_1detail_1_1col__indx__extract__t_1a5754be734e615127089fd60ff4146128" prot="private" static="no" mutable="no">
+        <type>vertex_t const  *</type>
+        <definition>vertex_t const* cugraph::detail::col_indx_extract_t&lt; vertex_t, edge_t, weight_t, index_t &gt;::col_indices_</definition>
+        <argsstring></argsstring>
+        <name>col_indices_</name>
+        <qualifiedname>cugraph::detail::col_indx_extract_t::col_indices_</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/sampling/random_walks.cuh" line="292" column="18" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/sampling/random_walks.cuh" bodystart="292" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph_1_1detail_1_1col__indx__extract__t_1a98501cd71917c6e9941cd0d5a4425f43" prot="private" static="no" mutable="no">
+        <type>edge_t const  *</type>
+        <definition>edge_t const* cugraph::detail::col_indx_extract_t&lt; vertex_t, edge_t, weight_t, index_t &gt;::row_offsets_</definition>
+        <argsstring></argsstring>
+        <name>row_offsets_</name>
+        <qualifiedname>cugraph::detail::col_indx_extract_t::row_offsets_</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/sampling/random_walks.cuh" line="293" column="16" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/sampling/random_walks.cuh" bodystart="293" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph_1_1detail_1_1col__indx__extract__t_1a040bfa52c6ce8a41de765843b0b99f50" prot="private" static="no" mutable="no">
+        <type>std::optional&lt; weight_t const  * &gt;</type>
+        <definition>std::optional&lt;weight_t const*&gt; cugraph::detail::col_indx_extract_t&lt; vertex_t, edge_t, weight_t, index_t &gt;::values_</definition>
+        <argsstring></argsstring>
+        <name>values_</name>
+        <qualifiedname>cugraph::detail::col_indx_extract_t::values_</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/sampling/random_walks.cuh" line="294" column="17" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/sampling/random_walks.cuh" bodystart="294" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph_1_1detail_1_1col__indx__extract__t_1a2c3c67a4b2260e902bb475b00070c6dc" prot="private" static="no" mutable="no">
+        <type>edge_t *</type>
+        <definition>edge_t* cugraph::detail::col_indx_extract_t&lt; vertex_t, edge_t, weight_t, index_t &gt;::out_degs_</definition>
+        <argsstring></argsstring>
+        <name>out_degs_</name>
+        <qualifiedname>cugraph::detail::col_indx_extract_t::out_degs_</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/sampling/random_walks.cuh" line="296" column="10" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/sampling/random_walks.cuh" bodystart="296" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph_1_1detail_1_1col__indx__extract__t_1aa6e82e51331ec964ddf0e5ac345a50f1" prot="private" static="no" mutable="no">
+        <type>index_t *</type>
+        <definition>index_t* cugraph::detail::col_indx_extract_t&lt; vertex_t, edge_t, weight_t, index_t &gt;::sizes_</definition>
+        <argsstring></argsstring>
+        <name>sizes_</name>
+        <qualifiedname>cugraph::detail::col_indx_extract_t::sizes_</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/sampling/random_walks.cuh" line="297" column="11" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/sampling/random_walks.cuh" bodystart="297" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph_1_1detail_1_1col__indx__extract__t_1ac3d11eef8ffa3dcc1d1cd55b07dbdf7c" prot="private" static="no" mutable="no">
+        <type>index_t</type>
+        <definition>index_t cugraph::detail::col_indx_extract_t&lt; vertex_t, edge_t, weight_t, index_t &gt;::num_paths_</definition>
+        <argsstring></argsstring>
+        <name>num_paths_</name>
+        <qualifiedname>cugraph::detail::col_indx_extract_t::num_paths_</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/sampling/random_walks.cuh" line="298" column="11" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/sampling/random_walks.cuh" bodystart="298" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph_1_1detail_1_1col__indx__extract__t_1aec24af43c1879c58b8cf9cce69cb5fe6" prot="private" static="no" mutable="no">
+        <type>index_t</type>
+        <definition>index_t cugraph::detail::col_indx_extract_t&lt; vertex_t, edge_t, weight_t, index_t &gt;::max_depth_</definition>
+        <argsstring></argsstring>
+        <name>max_depth_</name>
+        <qualifiedname>cugraph::detail::col_indx_extract_t::max_depth_</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/sampling/random_walks.cuh" line="299" column="11" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/sampling/random_walks.cuh" bodystart="299" bodyend="-1"/>
+      </memberdef>
+    </sectiondef>
+    <sectiondef kind="public-func">
+      <memberdef kind="function" id="structcugraph_1_1detail_1_1col__indx__extract__t_1ac068c3d39fd087f36f86a3ecee946137" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type></type>
+        <definition>cugraph::detail::col_indx_extract_t&lt; vertex_t, edge_t, weight_t, index_t &gt;::col_indx_extract_t</definition>
+        <argsstring>(raft::handle_t const &amp;handle, graph_view_t&lt; vertex_t, edge_t, false, false &gt; const &amp;graph_view, std::optional&lt; edge_property_view_t&lt; edge_t, weight_t const * &gt; &gt; edge_weight_view, edge_t *p_d_crt_out_degs, index_t *p_d_sizes, index_t num_paths, index_t max_depth)</argsstring>
+        <name>col_indx_extract_t</name>
+        <qualifiedname>cugraph::detail::col_indx_extract_t::col_indx_extract_t</qualifiedname>
+        <param>
+          <type>raft::handle_t const &amp;</type>
+          <declname>handle</declname>
+        </param>
+        <param>
+          <type><ref refid="classcugraph_1_1graph__view__t" kindref="compound">graph_view_t</ref>&lt; vertex_t, edge_t, false, false &gt; const &amp;</type>
+          <declname>graph_view</declname>
+        </param>
+        <param>
+          <type>std::optional&lt; <ref refid="classcugraph_1_1edge__property__view__t" kindref="compound">edge_property_view_t</ref>&lt; edge_t, weight_t const * &gt; &gt;</type>
+          <declname>edge_weight_view</declname>
+        </param>
+        <param>
+          <type>edge_t *</type>
+          <declname>p_d_crt_out_degs</declname>
+        </param>
+        <param>
+          <type>index_t *</type>
+          <declname>p_d_sizes</declname>
+        </param>
+        <param>
+          <type>index_t</type>
+          <declname>num_paths</declname>
+        </param>
+        <param>
+          <type>index_t</type>
+          <declname>max_depth</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/sampling/random_walks.cuh" line="164" column="3" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/sampling/random_walks.cuh" bodystart="164" bodyend="182"/>
+      </memberdef>
+      <memberdef kind="function" id="structcugraph_1_1detail_1_1col__indx__extract__t_1a076ffb9948b2b6213a35b38167c08d1c" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>void</type>
+        <definition>void cugraph::detail::col_indx_extract_t&lt; vertex_t, edge_t, weight_t, index_t &gt;::operator()</definition>
+        <argsstring>(original::device_vec_t&lt; vertex_t &gt; const &amp;d_coalesced_src_v, original::device_vec_t&lt; vertex_t &gt; const &amp;d_v_col_indx, original::device_vec_t&lt; vertex_t &gt; &amp;d_v_next_vertices, original::device_vec_t&lt; weight_t &gt; &amp;d_v_next_weights) const</argsstring>
+        <name>operator()</name>
+        <qualifiedname>cugraph::detail::col_indx_extract_t::operator()</qualifiedname>
+        <param>
+          <type>original::device_vec_t&lt; vertex_t &gt; const &amp;</type>
+          <declname>d_coalesced_src_v</declname>
+        </param>
+        <param>
+          <type>original::device_vec_t&lt; vertex_t &gt; const &amp;</type>
+          <declname>d_v_col_indx</declname>
+        </param>
+        <param>
+          <type>original::device_vec_t&lt; vertex_t &gt; &amp;</type>
+          <declname>d_v_next_vertices</declname>
+        </param>
+        <param>
+          <type>original::device_vec_t&lt; weight_t &gt; &amp;</type>
+          <declname>d_v_next_weights</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/sampling/random_walks.cuh" line="198" column="8" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/sampling/random_walks.cuh" bodystart="198" bodyend="232"/>
+      </memberdef>
+      <memberdef kind="function" id="structcugraph_1_1detail_1_1col__indx__extract__t_1a1aec5e7228b1e2925976457b8183ca10" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <templateparamlist>
+          <param>
+            <type>typename selector_t</type>
+          </param>
+          <param>
+            <type>typename real_t</type>
+          </param>
+        </templateparamlist>
+        <type>void</type>
+        <definition>void cugraph::detail::col_indx_extract_t&lt; vertex_t, edge_t, weight_t, index_t &gt;::operator()</definition>
+        <argsstring>(selector_t const &amp;selector, original::device_vec_t&lt; real_t &gt; const &amp;d_rnd_val, original::device_vec_t&lt; vertex_t &gt; &amp;d_coalesced_v, original::device_vec_t&lt; weight_t &gt; &amp;d_coalesced_w, real_t tag)</argsstring>
+        <name>operator()</name>
+        <qualifiedname>cugraph::detail::col_indx_extract_t::operator()</qualifiedname>
+        <param>
+          <type>selector_t const &amp;</type>
+          <declname>selector</declname>
+        </param>
+        <param>
+          <type>original::device_vec_t&lt; real_t &gt; const &amp;</type>
+          <declname>d_rnd_val</declname>
+        </param>
+        <param>
+          <type>original::device_vec_t&lt; vertex_t &gt; &amp;</type>
+          <declname>d_coalesced_v</declname>
+        </param>
+        <param>
+          <type>original::device_vec_t&lt; weight_t &gt; &amp;</type>
+          <declname>d_coalesced_w</declname>
+        </param>
+        <param>
+          <type>real_t</type>
+          <declname>tag</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/sampling/random_walks.cuh" line="237" column="8" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/sampling/random_walks.cuh" bodystart="237" bodyend="288"/>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/src/sampling/random_walks.cuh" line="163" column="1" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/sampling/random_walks.cuh" bodystart="163" bodyend="300"/>
+    <listofallmembers>
+      <member refid="structcugraph_1_1detail_1_1col__indx__extract__t_1a5754be734e615127089fd60ff4146128" prot="private" virt="non-virtual"><scope>cugraph::detail::col_indx_extract_t</scope><name>col_indices_</name></member>
+      <member refid="structcugraph_1_1detail_1_1col__indx__extract__t_1ac068c3d39fd087f36f86a3ecee946137" prot="public" virt="non-virtual"><scope>cugraph::detail::col_indx_extract_t</scope><name>col_indx_extract_t</name></member>
+      <member refid="structcugraph_1_1detail_1_1col__indx__extract__t_1a0482a0325512f6359a242ecc29aa39d4" prot="private" virt="non-virtual"><scope>cugraph::detail::col_indx_extract_t</scope><name>handle_</name></member>
+      <member refid="structcugraph_1_1detail_1_1col__indx__extract__t_1aec24af43c1879c58b8cf9cce69cb5fe6" prot="private" virt="non-virtual"><scope>cugraph::detail::col_indx_extract_t</scope><name>max_depth_</name></member>
+      <member refid="structcugraph_1_1detail_1_1col__indx__extract__t_1ac3d11eef8ffa3dcc1d1cd55b07dbdf7c" prot="private" virt="non-virtual"><scope>cugraph::detail::col_indx_extract_t</scope><name>num_paths_</name></member>
+      <member refid="structcugraph_1_1detail_1_1col__indx__extract__t_1a076ffb9948b2b6213a35b38167c08d1c" prot="public" virt="non-virtual"><scope>cugraph::detail::col_indx_extract_t</scope><name>operator()</name></member>
+      <member refid="structcugraph_1_1detail_1_1col__indx__extract__t_1a1aec5e7228b1e2925976457b8183ca10" prot="public" virt="non-virtual"><scope>cugraph::detail::col_indx_extract_t</scope><name>operator()</name></member>
+      <member refid="structcugraph_1_1detail_1_1col__indx__extract__t_1a2c3c67a4b2260e902bb475b00070c6dc" prot="private" virt="non-virtual"><scope>cugraph::detail::col_indx_extract_t</scope><name>out_degs_</name></member>
+      <member refid="structcugraph_1_1detail_1_1col__indx__extract__t_1a98501cd71917c6e9941cd0d5a4425f43" prot="private" virt="non-virtual"><scope>cugraph::detail::col_indx_extract_t</scope><name>row_offsets_</name></member>
+      <member refid="structcugraph_1_1detail_1_1col__indx__extract__t_1aa6e82e51331ec964ddf0e5ac345a50f1" prot="private" virt="non-virtual"><scope>cugraph::detail::col_indx_extract_t</scope><name>sizes_</name></member>
+      <member refid="structcugraph_1_1detail_1_1col__indx__extract__t_1a040bfa52c6ce8a41de765843b0b99f50" prot="private" virt="non-virtual"><scope>cugraph::detail::col_indx_extract_t</scope><name>values_</name></member>
+    </listofallmembers>
+  </compounddef>
+</doxygen>

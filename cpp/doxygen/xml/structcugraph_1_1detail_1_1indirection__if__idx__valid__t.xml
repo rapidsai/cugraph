@@ -1,0 +1,109 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="structcugraph_1_1detail_1_1indirection__if__idx__valid__t" kind="struct" language="C++" prot="public">
+    <compoundname>cugraph::detail::indirection_if_idx_valid_t</compoundname>
+    <templateparamlist>
+      <param>
+        <type>typename index_t</type>
+      </param>
+      <param>
+        <type>typename Iterator</type>
+      </param>
+    </templateparamlist>
+    <sectiondef kind="public-type">
+      <memberdef kind="typedef" id="structcugraph_1_1detail_1_1indirection__if__idx__valid__t_1a44984d0e5e453ab0191f1543b741f159" prot="public" static="no">
+        <type>typename thrust::iterator_traits&lt; Iterator &gt;::value_type</type>
+        <definition>using cugraph::detail::indirection_if_idx_valid_t&lt; index_t, Iterator &gt;::value_type =  typename thrust::iterator_traits&lt;Iterator&gt;::value_type</definition>
+        <argsstring></argsstring>
+        <name>value_type</name>
+        <qualifiedname>cugraph::detail::indirection_if_idx_valid_t::value_type</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/utilities/device_functors.cuh" line="81" column="3" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/utilities/device_functors.cuh" bodystart="81" bodyend="-1"/>
+      </memberdef>
+    </sectiondef>
+    <sectiondef kind="public-attrib">
+      <memberdef kind="variable" id="structcugraph_1_1detail_1_1indirection__if__idx__valid__t_1ada0e5b1673ad47df759150cdea0b4ff6" prot="public" static="no" mutable="no">
+        <type>Iterator</type>
+        <definition>Iterator cugraph::detail::indirection_if_idx_valid_t&lt; index_t, Iterator &gt;::first</definition>
+        <argsstring></argsstring>
+        <name>first</name>
+        <qualifiedname>cugraph::detail::indirection_if_idx_valid_t::first</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/utilities/device_functors.cuh" line="82" column="12" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/utilities/device_functors.cuh" bodystart="82" bodyend="82"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph_1_1detail_1_1indirection__if__idx__valid__t_1a0678ed991ab955be27918dea84c499de" prot="public" static="no" mutable="no">
+        <type>index_t</type>
+        <definition>index_t cugraph::detail::indirection_if_idx_valid_t&lt; index_t, Iterator &gt;::invalid_idx</definition>
+        <argsstring></argsstring>
+        <name>invalid_idx</name>
+        <qualifiedname>cugraph::detail::indirection_if_idx_valid_t::invalid_idx</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/utilities/device_functors.cuh" line="83" column="11" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/utilities/device_functors.cuh" bodystart="83" bodyend="83"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph_1_1detail_1_1indirection__if__idx__valid__t_1a2f542521a5fe780921db7da550377560" prot="public" static="no" mutable="no">
+        <type>value_type</type>
+        <definition>value_type cugraph::detail::indirection_if_idx_valid_t&lt; index_t, Iterator &gt;::invalid_value</definition>
+        <argsstring></argsstring>
+        <name>invalid_value</name>
+        <qualifiedname>cugraph::detail::indirection_if_idx_valid_t::invalid_value</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/utilities/device_functors.cuh" line="84" column="14" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/utilities/device_functors.cuh" bodystart="84" bodyend="84"/>
+      </memberdef>
+    </sectiondef>
+    <sectiondef kind="public-func">
+      <memberdef kind="function" id="structcugraph_1_1detail_1_1indirection__if__idx__valid__t_1ab5194228129a85c0540272ef303d53ef" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>__device__ value_type</type>
+        <definition>__device__ value_type cugraph::detail::indirection_if_idx_valid_t&lt; index_t, Iterator &gt;::operator()</definition>
+        <argsstring>(index_t i) const</argsstring>
+        <name>operator()</name>
+        <qualifiedname>cugraph::detail::indirection_if_idx_valid_t::operator()</qualifiedname>
+        <param>
+          <type>index_t</type>
+          <declname>i</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/utilities/device_functors.cuh" line="86" column="25" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/utilities/device_functors.cuh" bodystart="86" bodyend="89"/>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/utilities/device_functors.cuh" line="80" column="1" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/utilities/device_functors.cuh" bodystart="80" bodyend="90"/>
+    <listofallmembers>
+      <member refid="structcugraph_1_1detail_1_1indirection__if__idx__valid__t_1ada0e5b1673ad47df759150cdea0b4ff6" prot="public" virt="non-virtual"><scope>cugraph::detail::indirection_if_idx_valid_t</scope><name>first</name></member>
+      <member refid="structcugraph_1_1detail_1_1indirection__if__idx__valid__t_1a0678ed991ab955be27918dea84c499de" prot="public" virt="non-virtual"><scope>cugraph::detail::indirection_if_idx_valid_t</scope><name>invalid_idx</name></member>
+      <member refid="structcugraph_1_1detail_1_1indirection__if__idx__valid__t_1a2f542521a5fe780921db7da550377560" prot="public" virt="non-virtual"><scope>cugraph::detail::indirection_if_idx_valid_t</scope><name>invalid_value</name></member>
+      <member refid="structcugraph_1_1detail_1_1indirection__if__idx__valid__t_1ab5194228129a85c0540272ef303d53ef" prot="public" virt="non-virtual"><scope>cugraph::detail::indirection_if_idx_valid_t</scope><name>operator()</name></member>
+      <member refid="structcugraph_1_1detail_1_1indirection__if__idx__valid__t_1a44984d0e5e453ab0191f1543b741f159" prot="public" virt="non-virtual"><scope>cugraph::detail::indirection_if_idx_valid_t</scope><name>value_type</name></member>
+    </listofallmembers>
+  </compounddef>
+</doxygen>

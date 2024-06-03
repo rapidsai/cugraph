@@ -1,0 +1,127 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="structcugraph_1_1detail_1_1accumulate__vertex__property__t" kind="struct" language="C++" prot="public">
+    <compoundname>cugraph::detail::accumulate_vertex_property_t</compoundname>
+    <templateparamlist>
+      <param>
+        <type>typename vertex_t</type>
+      </param>
+      <param>
+        <type>typename VertexValueOutputIterator</type>
+      </param>
+    </templateparamlist>
+    <sectiondef kind="public-type">
+      <memberdef kind="typedef" id="structcugraph_1_1detail_1_1accumulate__vertex__property__t_1adc1af70c5844430fa17f57e059d5e485" prot="public" static="no">
+        <type>typename thrust::iterator_traits&lt; VertexValueOutputIterator &gt;::value_type</type>
+        <definition>using cugraph::detail::accumulate_vertex_property_t&lt; vertex_t, VertexValueOutputIterator &gt;::value_type =  typename thrust::iterator_traits&lt;VertexValueOutputIterator&gt;::value_type</definition>
+        <argsstring></argsstring>
+        <name>value_type</name>
+        <qualifiedname>cugraph::detail::accumulate_vertex_property_t::value_type</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/transform_reduce_dst_nbr_intersection_of_e_endpoints_by_v.cuh" line="166" column="3" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/transform_reduce_dst_nbr_intersection_of_e_endpoints_by_v.cuh" bodystart="166" bodyend="-1"/>
+      </memberdef>
+    </sectiondef>
+    <sectiondef kind="public-attrib">
+      <memberdef kind="variable" id="structcugraph_1_1detail_1_1accumulate__vertex__property__t_1a0836fb41d6c0e54b29d560c3b46049b7" prot="public" static="no" mutable="no">
+        <type>vertex_t</type>
+        <definition>vertex_t cugraph::detail::accumulate_vertex_property_t&lt; vertex_t, VertexValueOutputIterator &gt;::local_vertex_partition_range_first</definition>
+        <argsstring></argsstring>
+        <name>local_vertex_partition_range_first</name>
+        <qualifiedname>cugraph::detail::accumulate_vertex_property_t::local_vertex_partition_range_first</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/transform_reduce_dst_nbr_intersection_of_e_endpoints_by_v.cuh" line="168" column="12" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/transform_reduce_dst_nbr_intersection_of_e_endpoints_by_v.cuh" bodystart="168" bodyend="168"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph_1_1detail_1_1accumulate__vertex__property__t_1a90fb7c5c2410e48c959594f5071c4c31" prot="public" static="no" mutable="no">
+        <type>VertexValueOutputIterator</type>
+        <definition>VertexValueOutputIterator cugraph::detail::accumulate_vertex_property_t&lt; vertex_t, VertexValueOutputIterator &gt;::vertex_value_output_first</definition>
+        <argsstring></argsstring>
+        <name>vertex_value_output_first</name>
+        <qualifiedname>cugraph::detail::accumulate_vertex_property_t::vertex_value_output_first</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/transform_reduce_dst_nbr_intersection_of_e_endpoints_by_v.cuh" line="169" column="29" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/transform_reduce_dst_nbr_intersection_of_e_endpoints_by_v.cuh" bodystart="169" bodyend="169"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph_1_1detail_1_1accumulate__vertex__property__t_1a51c768a8676cd81fc7faa9922a156842" prot="public" static="no" mutable="no">
+        <type><ref refid="structcugraph_1_1property__op" kindref="compound">property_op</ref>&lt; value_type, thrust::plus &gt;</type>
+        <definition>property_op&lt;value_type, thrust::plus&gt; cugraph::detail::accumulate_vertex_property_t&lt; vertex_t, VertexValueOutputIterator &gt;::vertex_property_add</definition>
+        <argsstring></argsstring>
+        <name>vertex_property_add</name>
+        <qualifiedname>cugraph::detail::accumulate_vertex_property_t::vertex_property_add</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/transform_reduce_dst_nbr_intersection_of_e_endpoints_by_v.cuh" line="170" column="15" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/transform_reduce_dst_nbr_intersection_of_e_endpoints_by_v.cuh" bodystart="170" bodyend="170"/>
+      </memberdef>
+    </sectiondef>
+    <sectiondef kind="public-func">
+      <memberdef kind="function" id="structcugraph_1_1detail_1_1accumulate__vertex__property__t_1ac5d6fad2e8716000659a25a2c0c41a9d" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>__device__ void</type>
+        <definition>__device__ void cugraph::detail::accumulate_vertex_property_t&lt; vertex_t, VertexValueOutputIterator &gt;::operator()</definition>
+        <argsstring>(thrust::tuple&lt; vertex_t, value_type &gt; pair) const</argsstring>
+        <name>operator()</name>
+        <qualifiedname>cugraph::detail::accumulate_vertex_property_t::operator()</qualifiedname>
+        <param>
+          <type>thrust::tuple&lt; vertex_t, value_type &gt;</type>
+          <declname>pair</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/transform_reduce_dst_nbr_intersection_of_e_endpoints_by_v.cuh" line="172" column="19" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/transform_reduce_dst_nbr_intersection_of_e_endpoints_by_v.cuh" bodystart="172" bodyend="179"/>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <collaborationgraph>
+      <node id="1">
+        <label>cugraph::detail::accumulate_vertex_property_t&lt; vertex_t, VertexValueOutputIterator &gt;</label>
+        <link refid="structcugraph_1_1detail_1_1accumulate__vertex__property__t"/>
+        <childnode refid="2" relation="usage">
+          <edgelabel>vertex_property_add</edgelabel>
+        </childnode>
+      </node>
+      <node id="2">
+        <label>cugraph::property_op&lt; value_type, thrust::plus &gt;</label>
+        <link refid="structcugraph_1_1property__op"/>
+        <childnode refid="3" relation="public-inheritance">
+        </childnode>
+      </node>
+      <node id="3">
+        <label>thrust::plus &lt; value_type  &gt;</label>
+      </node>
+    </collaborationgraph>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/transform_reduce_dst_nbr_intersection_of_e_endpoints_by_v.cuh" line="165" column="1" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/transform_reduce_dst_nbr_intersection_of_e_endpoints_by_v.cuh" bodystart="165" bodyend="180"/>
+    <listofallmembers>
+      <member refid="structcugraph_1_1detail_1_1accumulate__vertex__property__t_1a0836fb41d6c0e54b29d560c3b46049b7" prot="public" virt="non-virtual"><scope>cugraph::detail::accumulate_vertex_property_t</scope><name>local_vertex_partition_range_first</name></member>
+      <member refid="structcugraph_1_1detail_1_1accumulate__vertex__property__t_1ac5d6fad2e8716000659a25a2c0c41a9d" prot="public" virt="non-virtual"><scope>cugraph::detail::accumulate_vertex_property_t</scope><name>operator()</name></member>
+      <member refid="structcugraph_1_1detail_1_1accumulate__vertex__property__t_1adc1af70c5844430fa17f57e059d5e485" prot="public" virt="non-virtual"><scope>cugraph::detail::accumulate_vertex_property_t</scope><name>value_type</name></member>
+      <member refid="structcugraph_1_1detail_1_1accumulate__vertex__property__t_1a51c768a8676cd81fc7faa9922a156842" prot="public" virt="non-virtual"><scope>cugraph::detail::accumulate_vertex_property_t</scope><name>vertex_property_add</name></member>
+      <member refid="structcugraph_1_1detail_1_1accumulate__vertex__property__t_1a90fb7c5c2410e48c959594f5071c4c31" prot="public" virt="non-virtual"><scope>cugraph::detail::accumulate_vertex_property_t</scope><name>vertex_value_output_first</name></member>
+    </listofallmembers>
+  </compounddef>
+</doxygen>

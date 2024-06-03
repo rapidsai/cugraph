@@ -1,0 +1,210 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="structcugraph_1_1detail_1_1gatherv__indices__t" kind="struct" language="C++" prot="public">
+    <compoundname>cugraph::detail::gatherv_indices_t</compoundname>
+    <templateparamlist>
+      <param>
+        <type>typename vertex_t</type>
+      </param>
+      <param>
+        <type>typename edge_property_value_t</type>
+      </param>
+      <param>
+        <type>typename optional_property_buffer_view_t</type>
+      </param>
+      <param>
+        <type>typename optional_property_buffer_mutable_view_t</type>
+      </param>
+    </templateparamlist>
+    <sectiondef kind="public-attrib">
+      <memberdef kind="variable" id="structcugraph_1_1detail_1_1gatherv__indices__t_1a0e9c1c2c9d98cf7fb7d2a4f85fd66148" prot="public" static="no" mutable="no">
+        <type>size_t</type>
+        <definition>size_t cugraph::detail::gatherv_indices_t&lt; vertex_t, edge_property_value_t, optional_property_buffer_view_t, optional_property_buffer_mutable_view_t &gt;::output_size</definition>
+        <argsstring></argsstring>
+        <name>output_size</name>
+        <qualifiedname>cugraph::detail::gatherv_indices_t::output_size</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/detail/nbr_intersection.cuh" line="600" column="10" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/detail/nbr_intersection.cuh" bodystart="600" bodyend="600"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph_1_1detail_1_1gatherv__indices__t_1a7db7d18638666f8d2bf7ca66033d87a9" prot="public" static="no" mutable="no">
+        <type>int</type>
+        <definition>int cugraph::detail::gatherv_indices_t&lt; vertex_t, edge_property_value_t, optional_property_buffer_view_t, optional_property_buffer_mutable_view_t &gt;::minor_comm_size</definition>
+        <argsstring></argsstring>
+        <name>minor_comm_size</name>
+        <qualifiedname>cugraph::detail::gatherv_indices_t::minor_comm_size</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/detail/nbr_intersection.cuh" line="601" column="7" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/detail/nbr_intersection.cuh" bodystart="601" bodyend="601"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph_1_1detail_1_1gatherv__indices__t_1aaa3b64480504c3f86293f1c0d0bc5614" prot="public" static="no" mutable="no">
+        <type>raft::device_span&lt; size_t const  &gt;</type>
+        <definition>raft::device_span&lt;size_t const&gt; cugraph::detail::gatherv_indices_t&lt; vertex_t, edge_property_value_t, optional_property_buffer_view_t, optional_property_buffer_mutable_view_t &gt;::gathered_intersection_offsets</definition>
+        <argsstring></argsstring>
+        <name>gathered_intersection_offsets</name>
+        <qualifiedname>cugraph::detail::gatherv_indices_t::gathered_intersection_offsets</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/detail/nbr_intersection.cuh" line="603" column="21" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/detail/nbr_intersection.cuh" bodystart="603" bodyend="603"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph_1_1detail_1_1gatherv__indices__t_1a18de2b07d3ce189070e244743d2c0d90" prot="public" static="no" mutable="no">
+        <type>raft::device_span&lt; vertex_t const  &gt;</type>
+        <definition>raft::device_span&lt;vertex_t const&gt; cugraph::detail::gatherv_indices_t&lt; vertex_t, edge_property_value_t, optional_property_buffer_view_t, optional_property_buffer_mutable_view_t &gt;::gathered_intersection_indices</definition>
+        <argsstring></argsstring>
+        <name>gathered_intersection_indices</name>
+        <qualifiedname>cugraph::detail::gatherv_indices_t::gathered_intersection_indices</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/detail/nbr_intersection.cuh" line="604" column="21" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/detail/nbr_intersection.cuh" bodystart="604" bodyend="604"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph_1_1detail_1_1gatherv__indices__t_1a322eaa8d67f7b05bbffc527baf28debb" prot="public" static="no" mutable="no">
+        <type>raft::device_span&lt; size_t const  &gt;</type>
+        <definition>raft::device_span&lt;size_t const&gt; cugraph::detail::gatherv_indices_t&lt; vertex_t, edge_property_value_t, optional_property_buffer_view_t, optional_property_buffer_mutable_view_t &gt;::combined_nbr_intersection_offsets</definition>
+        <argsstring></argsstring>
+        <name>combined_nbr_intersection_offsets</name>
+        <qualifiedname>cugraph::detail::gatherv_indices_t::combined_nbr_intersection_offsets</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/detail/nbr_intersection.cuh" line="605" column="21" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/detail/nbr_intersection.cuh" bodystart="605" bodyend="605"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph_1_1detail_1_1gatherv__indices__t_1a6b42bf599eca32379d822c38216c7618" prot="public" static="no" mutable="no">
+        <type>raft::device_span&lt; vertex_t &gt;</type>
+        <definition>raft::device_span&lt;vertex_t&gt; cugraph::detail::gatherv_indices_t&lt; vertex_t, edge_property_value_t, optional_property_buffer_view_t, optional_property_buffer_mutable_view_t &gt;::combined_nbr_intersection_indices</definition>
+        <argsstring></argsstring>
+        <name>combined_nbr_intersection_indices</name>
+        <qualifiedname>cugraph::detail::gatherv_indices_t::combined_nbr_intersection_indices</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/detail/nbr_intersection.cuh" line="606" column="21" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/detail/nbr_intersection.cuh" bodystart="606" bodyend="606"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph_1_1detail_1_1gatherv__indices__t_1a874aca336b9f58f738107524d7a7c2e0" prot="public" static="no" mutable="no">
+        <type>optional_property_buffer_view_t</type>
+        <definition>optional_property_buffer_view_t cugraph::detail::gatherv_indices_t&lt; vertex_t, edge_property_value_t, optional_property_buffer_view_t, optional_property_buffer_mutable_view_t &gt;::gathered_nbr_intersection_e_property_values0</definition>
+        <argsstring></argsstring>
+        <name>gathered_nbr_intersection_e_property_values0</name>
+        <qualifiedname>cugraph::detail::gatherv_indices_t::gathered_nbr_intersection_e_property_values0</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/detail/nbr_intersection.cuh" line="608" column="35" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/detail/nbr_intersection.cuh" bodystart="608" bodyend="608"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph_1_1detail_1_1gatherv__indices__t_1a4c6b4ce1bb98941dd242ece353c8dcfe" prot="public" static="no" mutable="no">
+        <type>optional_property_buffer_view_t</type>
+        <definition>optional_property_buffer_view_t cugraph::detail::gatherv_indices_t&lt; vertex_t, edge_property_value_t, optional_property_buffer_view_t, optional_property_buffer_mutable_view_t &gt;::gathered_nbr_intersection_e_property_values1</definition>
+        <argsstring></argsstring>
+        <name>gathered_nbr_intersection_e_property_values1</name>
+        <qualifiedname>cugraph::detail::gatherv_indices_t::gathered_nbr_intersection_e_property_values1</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/detail/nbr_intersection.cuh" line="609" column="35" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/detail/nbr_intersection.cuh" bodystart="609" bodyend="609"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph_1_1detail_1_1gatherv__indices__t_1ab4226f3be009f065ff3b5500e96d9b96" prot="public" static="no" mutable="no">
+        <type>optional_property_buffer_mutable_view_t</type>
+        <definition>optional_property_buffer_mutable_view_t cugraph::detail::gatherv_indices_t&lt; vertex_t, edge_property_value_t, optional_property_buffer_view_t, optional_property_buffer_mutable_view_t &gt;::combined_nbr_intersection_e_property_values0</definition>
+        <argsstring></argsstring>
+        <name>combined_nbr_intersection_e_property_values0</name>
+        <qualifiedname>cugraph::detail::gatherv_indices_t::combined_nbr_intersection_e_property_values0</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/detail/nbr_intersection.cuh" line="610" column="43" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/detail/nbr_intersection.cuh" bodystart="610" bodyend="610"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph_1_1detail_1_1gatherv__indices__t_1abb0c5438ff552631d084237ca1ee80b6" prot="public" static="no" mutable="no">
+        <type>optional_property_buffer_mutable_view_t</type>
+        <definition>optional_property_buffer_mutable_view_t cugraph::detail::gatherv_indices_t&lt; vertex_t, edge_property_value_t, optional_property_buffer_view_t, optional_property_buffer_mutable_view_t &gt;::combined_nbr_intersection_e_property_values1</definition>
+        <argsstring></argsstring>
+        <name>combined_nbr_intersection_e_property_values1</name>
+        <qualifiedname>cugraph::detail::gatherv_indices_t::combined_nbr_intersection_e_property_values1</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/detail/nbr_intersection.cuh" line="611" column="43" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/detail/nbr_intersection.cuh" bodystart="611" bodyend="611"/>
+      </memberdef>
+    </sectiondef>
+    <sectiondef kind="public-func">
+      <memberdef kind="function" id="structcugraph_1_1detail_1_1gatherv__indices__t_1aa3692bc19611e79f83aa2c55ac80811e" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>__device__ void</type>
+        <definition>__device__ void cugraph::detail::gatherv_indices_t&lt; vertex_t, edge_property_value_t, optional_property_buffer_view_t, optional_property_buffer_mutable_view_t &gt;::operator()</definition>
+        <argsstring>(size_t i) const</argsstring>
+        <name>operator()</name>
+        <qualifiedname>cugraph::detail::gatherv_indices_t::operator()</qualifiedname>
+        <param>
+          <type>size_t</type>
+          <declname>i</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/detail/nbr_intersection.cuh" line="613" column="19" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/detail/nbr_intersection.cuh" bodystart="613" bodyend="647"/>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/detail/nbr_intersection.cuh" line="599" column="1" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/detail/nbr_intersection.cuh" bodystart="599" bodyend="648"/>
+    <listofallmembers>
+      <member refid="structcugraph_1_1detail_1_1gatherv__indices__t_1ab4226f3be009f065ff3b5500e96d9b96" prot="public" virt="non-virtual"><scope>cugraph::detail::gatherv_indices_t</scope><name>combined_nbr_intersection_e_property_values0</name></member>
+      <member refid="structcugraph_1_1detail_1_1gatherv__indices__t_1abb0c5438ff552631d084237ca1ee80b6" prot="public" virt="non-virtual"><scope>cugraph::detail::gatherv_indices_t</scope><name>combined_nbr_intersection_e_property_values1</name></member>
+      <member refid="structcugraph_1_1detail_1_1gatherv__indices__t_1a6b42bf599eca32379d822c38216c7618" prot="public" virt="non-virtual"><scope>cugraph::detail::gatherv_indices_t</scope><name>combined_nbr_intersection_indices</name></member>
+      <member refid="structcugraph_1_1detail_1_1gatherv__indices__t_1a322eaa8d67f7b05bbffc527baf28debb" prot="public" virt="non-virtual"><scope>cugraph::detail::gatherv_indices_t</scope><name>combined_nbr_intersection_offsets</name></member>
+      <member refid="structcugraph_1_1detail_1_1gatherv__indices__t_1a18de2b07d3ce189070e244743d2c0d90" prot="public" virt="non-virtual"><scope>cugraph::detail::gatherv_indices_t</scope><name>gathered_intersection_indices</name></member>
+      <member refid="structcugraph_1_1detail_1_1gatherv__indices__t_1aaa3b64480504c3f86293f1c0d0bc5614" prot="public" virt="non-virtual"><scope>cugraph::detail::gatherv_indices_t</scope><name>gathered_intersection_offsets</name></member>
+      <member refid="structcugraph_1_1detail_1_1gatherv__indices__t_1a874aca336b9f58f738107524d7a7c2e0" prot="public" virt="non-virtual"><scope>cugraph::detail::gatherv_indices_t</scope><name>gathered_nbr_intersection_e_property_values0</name></member>
+      <member refid="structcugraph_1_1detail_1_1gatherv__indices__t_1a4c6b4ce1bb98941dd242ece353c8dcfe" prot="public" virt="non-virtual"><scope>cugraph::detail::gatherv_indices_t</scope><name>gathered_nbr_intersection_e_property_values1</name></member>
+      <member refid="structcugraph_1_1detail_1_1gatherv__indices__t_1a7db7d18638666f8d2bf7ca66033d87a9" prot="public" virt="non-virtual"><scope>cugraph::detail::gatherv_indices_t</scope><name>minor_comm_size</name></member>
+      <member refid="structcugraph_1_1detail_1_1gatherv__indices__t_1aa3692bc19611e79f83aa2c55ac80811e" prot="public" virt="non-virtual"><scope>cugraph::detail::gatherv_indices_t</scope><name>operator()</name></member>
+      <member refid="structcugraph_1_1detail_1_1gatherv__indices__t_1a0e9c1c2c9d98cf7fb7d2a4f85fd66148" prot="public" virt="non-virtual"><scope>cugraph::detail::gatherv_indices_t</scope><name>output_size</name></member>
+    </listofallmembers>
+  </compounddef>
+</doxygen>

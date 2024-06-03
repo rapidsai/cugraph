@@ -1,0 +1,44 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="structcugraph_1_1thrust__tuple__get" kind="struct" language="C++" prot="public">
+    <compoundname>cugraph::thrust_tuple_get</compoundname>
+    <templateparamlist>
+      <param>
+        <type>typename TupleType</type>
+      </param>
+      <param>
+        <type>size_t</type>
+        <declname>I</declname>
+        <defname>I</defname>
+      </param>
+    </templateparamlist>
+    <sectiondef kind="public-func">
+      <memberdef kind="function" id="structcugraph_1_1thrust__tuple__get_1a31f285ac703163471b99909ea438904f" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>__device__ thrust::tuple_element&lt; I, TupleType &gt;::type</type>
+        <definition>__device__ thrust::tuple_element&lt; I, TupleType &gt;::type cugraph::thrust_tuple_get&lt; TupleType, I &gt;::operator()</definition>
+        <argsstring>(TupleType tup) const</argsstring>
+        <name>operator()</name>
+        <qualifiedname>cugraph::thrust_tuple_get::operator()</qualifiedname>
+        <param>
+          <type>TupleType</type>
+          <declname>tup</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/utilities/thrust_tuple_utils.hpp" line="286" column="52" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/utilities/thrust_tuple_utils.hpp" bodystart="286" bodyend="289"/>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/utilities/thrust_tuple_utils.hpp" line="285" column="1" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/utilities/thrust_tuple_utils.hpp" bodystart="285" bodyend="290"/>
+    <listofallmembers>
+      <member refid="structcugraph_1_1thrust__tuple__get_1a31f285ac703163471b99909ea438904f" prot="public" virt="non-virtual"><scope>cugraph::thrust_tuple_get</scope><name>operator()</name></member>
+    </listofallmembers>
+  </compounddef>
+</doxygen>

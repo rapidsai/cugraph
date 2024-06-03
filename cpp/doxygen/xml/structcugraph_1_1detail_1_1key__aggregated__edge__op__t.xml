@@ -1,0 +1,92 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="structcugraph_1_1detail_1_1key__aggregated__edge__op__t" kind="struct" language="C++" prot="public">
+    <compoundname>cugraph::detail::key_aggregated_edge_op_t</compoundname>
+    <templateparamlist>
+      <param>
+        <type>typename vertex_t</type>
+      </param>
+      <param>
+        <type>typename weight_t</type>
+      </param>
+    </templateparamlist>
+    <sectiondef kind="public-attrib">
+      <memberdef kind="variable" id="structcugraph_1_1detail_1_1key__aggregated__edge__op__t_1a9f57978a5d52d5bc9eeb81afacc2d448" prot="public" static="no" mutable="no">
+        <type>weight_t</type>
+        <definition>weight_t cugraph::detail::key_aggregated_edge_op_t&lt; vertex_t, weight_t &gt;::total_edge_weight</definition>
+        <argsstring></argsstring>
+        <name>total_edge_weight</name>
+        <qualifiedname>cugraph::detail::key_aggregated_edge_op_t::total_edge_weight</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/community/detail/common_methods.cuh" line="58" column="12" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/community/detail/common_methods.cuh" bodystart="58" bodyend="58"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph_1_1detail_1_1key__aggregated__edge__op__t_1a8ec508dfe05170da73d4ad4de5dda496" prot="public" static="no" mutable="no">
+        <type>weight_t</type>
+        <definition>weight_t cugraph::detail::key_aggregated_edge_op_t&lt; vertex_t, weight_t &gt;::resolution</definition>
+        <argsstring></argsstring>
+        <name>resolution</name>
+        <qualifiedname>cugraph::detail::key_aggregated_edge_op_t::resolution</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/community/detail/common_methods.cuh" line="59" column="12" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/community/detail/common_methods.cuh" bodystart="59" bodyend="59"/>
+      </memberdef>
+    </sectiondef>
+    <sectiondef kind="public-func">
+      <memberdef kind="function" id="structcugraph_1_1detail_1_1key__aggregated__edge__op__t_1a7c3679d868a390bd1306d8a17a0c687a" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>__device__ auto</type>
+        <definition>__device__ auto cugraph::detail::key_aggregated_edge_op_t&lt; vertex_t, weight_t &gt;::operator()</definition>
+        <argsstring>(vertex_t src, vertex_t neighbor_cluster, thrust::tuple&lt; weight_t, vertex_t, weight_t, weight_t, weight_t &gt; src_info, weight_t a_new, weight_t new_cluster_sum) const</argsstring>
+        <name>operator()</name>
+        <qualifiedname>cugraph::detail::key_aggregated_edge_op_t::operator()</qualifiedname>
+        <param>
+          <type>vertex_t</type>
+          <declname>src</declname>
+        </param>
+        <param>
+          <type>vertex_t</type>
+          <declname>neighbor_cluster</declname>
+        </param>
+        <param>
+          <type>thrust::tuple&lt; weight_t, vertex_t, weight_t, weight_t, weight_t &gt;</type>
+          <declname>src_info</declname>
+        </param>
+        <param>
+          <type>weight_t</type>
+          <declname>a_new</declname>
+        </param>
+        <param>
+          <type>weight_t</type>
+          <declname>new_cluster_sum</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/community/detail/common_methods.cuh" line="60" column="19" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/community/detail/common_methods.cuh" bodystart="60" bodyend="80"/>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/src/community/detail/common_methods.cuh" line="57" column="1" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/community/detail/common_methods.cuh" bodystart="57" bodyend="81"/>
+    <listofallmembers>
+      <member refid="structcugraph_1_1detail_1_1key__aggregated__edge__op__t_1a7c3679d868a390bd1306d8a17a0c687a" prot="public" virt="non-virtual"><scope>cugraph::detail::key_aggregated_edge_op_t</scope><name>operator()</name></member>
+      <member refid="structcugraph_1_1detail_1_1key__aggregated__edge__op__t_1a8ec508dfe05170da73d4ad4de5dda496" prot="public" virt="non-virtual"><scope>cugraph::detail::key_aggregated_edge_op_t</scope><name>resolution</name></member>
+      <member refid="structcugraph_1_1detail_1_1key__aggregated__edge__op__t_1a9f57978a5d52d5bc9eeb81afacc2d448" prot="public" virt="non-virtual"><scope>cugraph::detail::key_aggregated_edge_op_t</scope><name>total_edge_weight</name></member>
+    </listofallmembers>
+  </compounddef>
+</doxygen>

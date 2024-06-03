@@ -1,0 +1,128 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="structcugraph_1_1legacy_1_1GraphProperties" kind="struct" language="C++" prot="public">
+    <compoundname>cugraph::legacy::GraphProperties</compoundname>
+    <sectiondef kind="public-attrib">
+      <memberdef kind="variable" id="structcugraph_1_1legacy_1_1GraphProperties_1ad5303edc815f5d0b41728b8789b9d515" prot="public" static="no" mutable="no">
+        <type><ref refid="classcugraph_1_1legacy_1_1GraphCSRView" kindref="compound">bool</ref></type>
+        <definition>bool cugraph::legacy::GraphProperties::directed</definition>
+        <argsstring></argsstring>
+        <name>directed</name>
+        <qualifiedname>cugraph::legacy::GraphProperties::directed</qualifiedname>
+        <initializer>{<ref refid="classcugraph_1_1legacy_1_1GraphCSRView" kindref="compound">false</ref>}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/legacy/graph.hpp" line="35" column="8" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/legacy/graph.hpp" bodystart="35" bodyend="35"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph_1_1legacy_1_1GraphProperties_1a99b0c5e4047ecb902c2684281156629b" prot="public" static="no" mutable="no">
+        <type><ref refid="classcugraph_1_1legacy_1_1GraphCSRView" kindref="compound">bool</ref></type>
+        <definition>bool cugraph::legacy::GraphProperties::weighted</definition>
+        <argsstring></argsstring>
+        <name>weighted</name>
+        <qualifiedname>cugraph::legacy::GraphProperties::weighted</qualifiedname>
+        <initializer>{<ref refid="classcugraph_1_1legacy_1_1GraphCSRView" kindref="compound">false</ref>}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/legacy/graph.hpp" line="36" column="8" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/legacy/graph.hpp" bodystart="36" bodyend="36"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph_1_1legacy_1_1GraphProperties_1afe49c9b32abf39731266c3a72ed38071" prot="public" static="no" mutable="no">
+        <type><ref refid="classcugraph_1_1legacy_1_1GraphCSRView" kindref="compound">bool</ref></type>
+        <definition>bool cugraph::legacy::GraphProperties::multigraph</definition>
+        <argsstring></argsstring>
+        <name>multigraph</name>
+        <qualifiedname>cugraph::legacy::GraphProperties::multigraph</qualifiedname>
+        <initializer>{<ref refid="classcugraph_1_1legacy_1_1GraphCSRView" kindref="compound">false</ref>}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/legacy/graph.hpp" line="37" column="8" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/legacy/graph.hpp" bodystart="37" bodyend="37"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph_1_1legacy_1_1GraphProperties_1a1fad35dc01da952c97d1785f41a146ca" prot="public" static="no" mutable="no">
+        <type><ref refid="classcugraph_1_1legacy_1_1GraphCSRView" kindref="compound">bool</ref></type>
+        <definition>bool cugraph::legacy::GraphProperties::bipartite</definition>
+        <argsstring></argsstring>
+        <name>bipartite</name>
+        <qualifiedname>cugraph::legacy::GraphProperties::bipartite</qualifiedname>
+        <initializer>{<ref refid="classcugraph_1_1legacy_1_1GraphCSRView" kindref="compound">false</ref>}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/legacy/graph.hpp" line="38" column="8" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/legacy/graph.hpp" bodystart="38" bodyend="38"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph_1_1legacy_1_1GraphProperties_1a0584ffa75539a81ecdc875c62f39aec9" prot="public" static="no" mutable="no">
+        <type><ref refid="classcugraph_1_1legacy_1_1GraphCSRView" kindref="compound">bool</ref></type>
+        <definition>bool cugraph::legacy::GraphProperties::tree</definition>
+        <argsstring></argsstring>
+        <name>tree</name>
+        <qualifiedname>cugraph::legacy::GraphProperties::tree</qualifiedname>
+        <initializer>{<ref refid="classcugraph_1_1legacy_1_1GraphCSRView" kindref="compound">false</ref>}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/legacy/graph.hpp" line="39" column="8" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/legacy/graph.hpp" bodystart="39" bodyend="39"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph_1_1legacy_1_1GraphProperties_1a4945254fb14f96222b693794fc257cc9" prot="public" static="no" mutable="no">
+        <type>PropType</type>
+        <definition>PropType cugraph::legacy::GraphProperties::has_negative_edges</definition>
+        <argsstring></argsstring>
+        <name>has_negative_edges</name>
+        <qualifiedname>cugraph::legacy::GraphProperties::has_negative_edges</qualifiedname>
+        <initializer>{PropType::PROP_UNDEF}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/legacy/graph.hpp" line="40" column="12" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/legacy/graph.hpp" bodystart="40" bodyend="40"/>
+      </memberdef>
+    </sectiondef>
+    <sectiondef kind="public-func">
+      <memberdef kind="function" id="structcugraph_1_1legacy_1_1GraphProperties_1a9fee2f994b5d15d35782b17af4117ac1" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type></type>
+        <definition>cugraph::legacy::GraphProperties::GraphProperties</definition>
+        <argsstring>()=default</argsstring>
+        <name>GraphProperties</name>
+        <qualifiedname>cugraph::legacy::GraphProperties::GraphProperties</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/legacy/graph.hpp" line="41" column="3"/>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/legacy/graph.hpp" line="34" column="1" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/legacy/graph.hpp" bodystart="34" bodyend="42"/>
+    <listofallmembers>
+      <member refid="structcugraph_1_1legacy_1_1GraphProperties_1a1fad35dc01da952c97d1785f41a146ca" prot="public" virt="non-virtual"><scope>cugraph::legacy::GraphProperties</scope><name>bipartite</name></member>
+      <member refid="structcugraph_1_1legacy_1_1GraphProperties_1ad5303edc815f5d0b41728b8789b9d515" prot="public" virt="non-virtual"><scope>cugraph::legacy::GraphProperties</scope><name>directed</name></member>
+      <member refid="structcugraph_1_1legacy_1_1GraphProperties_1a9fee2f994b5d15d35782b17af4117ac1" prot="public" virt="non-virtual"><scope>cugraph::legacy::GraphProperties</scope><name>GraphProperties</name></member>
+      <member refid="structcugraph_1_1legacy_1_1GraphProperties_1a4945254fb14f96222b693794fc257cc9" prot="public" virt="non-virtual"><scope>cugraph::legacy::GraphProperties</scope><name>has_negative_edges</name></member>
+      <member refid="structcugraph_1_1legacy_1_1GraphProperties_1afe49c9b32abf39731266c3a72ed38071" prot="public" virt="non-virtual"><scope>cugraph::legacy::GraphProperties</scope><name>multigraph</name></member>
+      <member refid="structcugraph_1_1legacy_1_1GraphProperties_1a0584ffa75539a81ecdc875c62f39aec9" prot="public" virt="non-virtual"><scope>cugraph::legacy::GraphProperties</scope><name>tree</name></member>
+      <member refid="structcugraph_1_1legacy_1_1GraphProperties_1a99b0c5e4047ecb902c2684281156629b" prot="public" virt="non-virtual"><scope>cugraph::legacy::GraphProperties</scope><name>weighted</name></member>
+    </listofallmembers>
+  </compounddef>
+</doxygen>

@@ -1,0 +1,319 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="legacy_2eidecl__graph_8hpp" kind="file" language="C++">
+    <compoundname>legacy/eidecl_graph.hpp</compoundname>
+    <includedby refid="include_2cugraph_2legacy_2graph_8hpp" local="yes">graph.hpp</includedby>
+    <invincdepgraph>
+      <node id="7">
+        <label>algorithms.hpp</label>
+        <link refid="algorithms_8hpp_source"/>
+        <childnode refid="8" relation="include">
+        </childnode>
+        <childnode refid="9" relation="include">
+        </childnode>
+        <childnode refid="10" relation="include">
+        </childnode>
+        <childnode refid="11" relation="include">
+        </childnode>
+        <childnode refid="12" relation="include">
+        </childnode>
+        <childnode refid="13" relation="include">
+        </childnode>
+        <childnode refid="14" relation="include">
+        </childnode>
+        <childnode refid="15" relation="include">
+        </childnode>
+        <childnode refid="16" relation="include">
+        </childnode>
+        <childnode refid="17" relation="include">
+        </childnode>
+        <childnode refid="18" relation="include">
+        </childnode>
+        <childnode refid="19" relation="include">
+        </childnode>
+        <childnode refid="20" relation="include">
+        </childnode>
+        <childnode refid="21" relation="include">
+        </childnode>
+        <childnode refid="22" relation="include">
+        </childnode>
+        <childnode refid="23" relation="include">
+        </childnode>
+        <childnode refid="24" relation="include">
+        </childnode>
+        <childnode refid="25" relation="include">
+        </childnode>
+        <childnode refid="26" relation="include">
+        </childnode>
+        <childnode refid="27" relation="include">
+        </childnode>
+        <childnode refid="28" relation="include">
+        </childnode>
+        <childnode refid="29" relation="include">
+        </childnode>
+        <childnode refid="31" relation="include">
+        </childnode>
+        <childnode refid="32" relation="include">
+        </childnode>
+        <childnode refid="33" relation="include">
+        </childnode>
+        <childnode refid="34" relation="include">
+        </childnode>
+        <childnode refid="35" relation="include">
+        </childnode>
+      </node>
+      <node id="1">
+        <label>eidecl_graph.hpp</label>
+        <link refid="legacy_2eidecl__graph_8hpp"/>
+        <childnode refid="2" relation="include">
+        </childnode>
+      </node>
+      <node id="36">
+        <label>functions.hpp</label>
+        <link refid="functions_8hpp_source"/>
+        <childnode refid="3" relation="include">
+        </childnode>
+      </node>
+      <node id="2">
+        <label>graph.hpp</label>
+        <link refid="include_2cugraph_2legacy_2graph_8hpp_source"/>
+        <childnode refid="3" relation="include">
+        </childnode>
+        <childnode refid="7" relation="include">
+        </childnode>
+        <childnode refid="4" relation="include">
+        </childnode>
+        <childnode refid="5" relation="include">
+        </childnode>
+        <childnode refid="36" relation="include">
+        </childnode>
+        <childnode refid="6" relation="include">
+        </childnode>
+      </node>
+      <node id="9">
+        <label>betweenness_centrality_impl.cuh</label>
+        <link refid="betweenness__centrality__impl_8cuh_source"/>
+      </node>
+      <node id="14">
+        <label>eigenvector_centrality_impl.cuh</label>
+        <link refid="eigenvector__centrality__impl_8cuh_source"/>
+      </node>
+      <node id="21">
+        <label>katz_centrality_impl.cuh</label>
+        <link refid="katz__centrality__impl_8cuh_source"/>
+      </node>
+      <node id="8">
+        <label>approx_weighted_matching_impl.cuh</label>
+        <link refid="approx__weighted__matching__impl_8cuh_source"/>
+      </node>
+      <node id="12">
+        <label>ecg_impl.cuh</label>
+        <link refid="ecg__impl_8cuh_source"/>
+      </node>
+      <node id="13">
+        <label>egonet_impl.cuh</label>
+        <link refid="egonet__impl_8cuh_source"/>
+      </node>
+      <node id="20">
+        <label>k_truss_impl.cuh</label>
+        <link refid="k__truss__impl_8cuh_source"/>
+      </node>
+      <node id="6">
+        <label>louvain.cuh</label>
+        <link refid="louvain_8cuh_source"/>
+      </node>
+      <node id="33">
+        <label>triangle_count_impl.cuh</label>
+        <link refid="triangle__count__impl_8cuh_source"/>
+      </node>
+      <node id="22">
+        <label>mis_impl.cuh</label>
+        <link refid="mis__impl_8cuh_source"/>
+      </node>
+      <node id="34">
+        <label>vertex_coloring_impl.cuh</label>
+        <link refid="vertex__coloring__impl_8cuh_source"/>
+      </node>
+      <node id="35">
+        <label>weakly_connected_components_impl.cuh</label>
+        <link refid="weakly__connected__components__impl_8cuh_source"/>
+      </node>
+      <node id="3">
+        <label>COOtoCSR.cuh</label>
+        <link refid="COOtoCSR_8cuh_source"/>
+        <childnode refid="4" relation="include">
+        </childnode>
+        <childnode refid="5" relation="include">
+        </childnode>
+        <childnode refid="6" relation="include">
+        </childnode>
+      </node>
+      <node id="11">
+        <label>core_number_impl.cuh</label>
+        <link refid="core__number__impl_8cuh_source"/>
+      </node>
+      <node id="18">
+        <label>k_core_impl.cuh</label>
+        <link refid="k__core__impl_8cuh_source"/>
+      </node>
+      <node id="4">
+        <label>barnes_hut.cuh</label>
+        <link refid="barnes__hut_8cuh_source"/>
+      </node>
+      <node id="5">
+        <label>exact_fa2.cuh</label>
+        <link refid="exact__fa2_8cuh_source"/>
+      </node>
+      <node id="16">
+        <label>hits_impl.cuh</label>
+        <link refid="hits__impl_8cuh_source"/>
+      </node>
+      <node id="25">
+        <label>pagerank_impl.cuh</label>
+        <link refid="pagerank__impl_8cuh_source"/>
+      </node>
+      <node id="17">
+        <label>jaccard_impl.cuh</label>
+        <link refid="jaccard__impl_8cuh_source"/>
+      </node>
+      <node id="24">
+        <label>overlap_impl.cuh</label>
+        <link refid="overlap__impl_8cuh_source"/>
+      </node>
+      <node id="31">
+        <label>sorensen_impl.cuh</label>
+        <link refid="sorensen__impl_8cuh_source"/>
+      </node>
+      <node id="26">
+        <label>prepare_next_frontier_impl.cuh</label>
+        <link refid="prepare__next__frontier__impl_8cuh_source"/>
+      </node>
+      <node id="29">
+        <label>sampling_utils.hpp</label>
+        <link refid="sampling__utils_8hpp_source"/>
+        <childnode refid="26" relation="include">
+        </childnode>
+        <childnode refid="30" relation="include">
+        </childnode>
+      </node>
+      <node id="27">
+        <label>random_walks.cuh</label>
+        <link refid="random__walks_8cuh_source"/>
+      </node>
+      <node id="28">
+        <label>random_walks_impl.cuh</label>
+        <link refid="random__walks__impl_8cuh_source"/>
+      </node>
+      <node id="30">
+        <label>uniform_neighbor_sampling_impl.hpp</label>
+        <link refid="uniform__neighbor__sampling__impl_8hpp_source"/>
+      </node>
+      <node id="10">
+        <label>bfs_impl.cuh</label>
+        <link refid="bfs__impl_8cuh_source"/>
+      </node>
+      <node id="15">
+        <label>extract_bfs_paths_impl.cuh</label>
+        <link refid="extract__bfs__paths__impl_8cuh_source"/>
+      </node>
+      <node id="19">
+        <label>k_hop_nbrs_impl.cuh</label>
+        <link refid="k__hop__nbrs__impl_8cuh_source"/>
+      </node>
+      <node id="23">
+        <label>od_shortest_distances_impl.cuh</label>
+        <link refid="od__shortest__distances__impl_8cuh_source"/>
+      </node>
+      <node id="32">
+        <label>sssp_impl.cuh</label>
+        <link refid="sssp__impl_8cuh_source"/>
+      </node>
+    </invincdepgraph>
+    <innernamespace refid="namespacecugraph">cugraph</innernamespace>
+    <innernamespace refid="namespacecugraph_1_1legacy">cugraph::legacy</innernamespace>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <programlisting>
+<codeline lineno="1"><highlight class="comment">/*</highlight></codeline>
+<codeline lineno="2"><highlight class="comment"><sp/>*<sp/>Copyright<sp/>(c)<sp/>2020-2022,<sp/>NVIDIA<sp/>CORPORATION.</highlight></codeline>
+<codeline lineno="3"><highlight class="comment"><sp/>*</highlight></codeline>
+<codeline lineno="4"><highlight class="comment"><sp/>*<sp/>Licensed<sp/>under<sp/>the<sp/>Apache<sp/>License,<sp/>Version<sp/>2.0<sp/>(the<sp/>&quot;License&quot;);</highlight></codeline>
+<codeline lineno="5"><highlight class="comment"><sp/>*<sp/>you<sp/>may<sp/>not<sp/>use<sp/>this<sp/>file<sp/>except<sp/>in<sp/>compliance<sp/>with<sp/>the<sp/>License.</highlight></codeline>
+<codeline lineno="6"><highlight class="comment"><sp/>*<sp/>You<sp/>may<sp/>obtain<sp/>a<sp/>copy<sp/>of<sp/>the<sp/>License<sp/>at</highlight></codeline>
+<codeline lineno="7"><highlight class="comment"><sp/>*</highlight></codeline>
+<codeline lineno="8"><highlight class="comment"><sp/>*<sp/><sp/><sp/><sp/><sp/>http://www.apache.org/licenses/LICENSE-2.0</highlight></codeline>
+<codeline lineno="9"><highlight class="comment"><sp/>*</highlight></codeline>
+<codeline lineno="10"><highlight class="comment"><sp/>*<sp/>Unless<sp/>required<sp/>by<sp/>applicable<sp/>law<sp/>or<sp/>agreed<sp/>to<sp/>in<sp/>writing,<sp/>software</highlight></codeline>
+<codeline lineno="11"><highlight class="comment"><sp/>*<sp/>distributed<sp/>under<sp/>the<sp/>License<sp/>is<sp/>distributed<sp/>on<sp/>an<sp/>&quot;AS<sp/>IS&quot;<sp/>BASIS,</highlight></codeline>
+<codeline lineno="12"><highlight class="comment"><sp/>*<sp/>WITHOUT<sp/>WARRANTIES<sp/>OR<sp/>CONDITIONS<sp/>OF<sp/>ANY<sp/>KIND,<sp/>either<sp/>express<sp/>or<sp/>implied.</highlight></codeline>
+<codeline lineno="13"><highlight class="comment"><sp/>*<sp/>See<sp/>the<sp/>License<sp/>for<sp/>the<sp/>specific<sp/>language<sp/>governing<sp/>permissions<sp/>and</highlight></codeline>
+<codeline lineno="14"><highlight class="comment"><sp/>*<sp/>limitations<sp/>under<sp/>the<sp/>License.</highlight></codeline>
+<codeline lineno="15"><highlight class="comment"><sp/>*/</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="16"><highlight class="normal"></highlight><highlight class="preprocessor">#pragma<sp/>once</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="17"><highlight class="normal"></highlight></codeline>
+<codeline lineno="18"><highlight class="normal"></highlight><highlight class="keyword">namespace<sp/></highlight><highlight class="normal">cugraph<sp/>{</highlight></codeline>
+<codeline lineno="19"><highlight class="normal"></highlight><highlight class="keyword">namespace<sp/></highlight><highlight class="normal">legacy<sp/>{</highlight></codeline>
+<codeline lineno="20"><highlight class="normal"></highlight><highlight class="keyword">extern</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">template</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">class<sp/></highlight><highlight class="normal">GraphViewBase&lt;int32_t,<sp/>int32_t,<sp/>float&gt;;</highlight></codeline>
+<codeline lineno="21"><highlight class="normal"></highlight><highlight class="keyword">extern</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">template</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">class<sp/></highlight><highlight class="normal">GraphViewBase&lt;int32_t,<sp/>int32_t,<sp/>double&gt;;</highlight></codeline>
+<codeline lineno="22"><highlight class="normal"></highlight><highlight class="keyword">extern</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">template</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">class<sp/></highlight><highlight class="normal">GraphViewBase&lt;int32_t,<sp/>int64_t,<sp/>float&gt;;</highlight></codeline>
+<codeline lineno="23"><highlight class="normal"></highlight><highlight class="keyword">extern</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">template</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">class<sp/></highlight><highlight class="normal">GraphViewBase&lt;int32_t,<sp/>int64_t,<sp/>double&gt;;</highlight></codeline>
+<codeline lineno="24"><highlight class="normal"></highlight><highlight class="keyword">extern</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">template</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">class<sp/></highlight><highlight class="normal">GraphViewBase&lt;int64_t,<sp/>int32_t,<sp/>float&gt;;</highlight></codeline>
+<codeline lineno="25"><highlight class="normal"></highlight><highlight class="keyword">extern</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">template</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">class<sp/></highlight><highlight class="normal">GraphViewBase&lt;int64_t,<sp/>int32_t,<sp/>double&gt;;</highlight></codeline>
+<codeline lineno="26"><highlight class="normal"></highlight><highlight class="keyword">extern</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">template</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">class<sp/></highlight><highlight class="normal">GraphViewBase&lt;int64_t,<sp/>int64_t,<sp/>float&gt;;</highlight></codeline>
+<codeline lineno="27"><highlight class="normal"></highlight><highlight class="keyword">extern</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">template</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">class<sp/></highlight><highlight class="normal">GraphViewBase&lt;int64_t,<sp/>int64_t,<sp/>double&gt;;</highlight></codeline>
+<codeline lineno="28"><highlight class="normal"></highlight><highlight class="keyword">extern</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">template</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">class<sp/></highlight><highlight class="normal">GraphCompressedSparseBaseView&lt;int32_t,<sp/>int32_t,<sp/>float&gt;;</highlight></codeline>
+<codeline lineno="29"><highlight class="normal"></highlight><highlight class="keyword">extern</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">template</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">class<sp/></highlight><highlight class="normal">GraphCompressedSparseBaseView&lt;int32_t,<sp/>int32_t,<sp/>double&gt;;</highlight></codeline>
+<codeline lineno="30"><highlight class="normal"></highlight><highlight class="keyword">extern</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">template</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">class<sp/></highlight><highlight class="normal">GraphCompressedSparseBaseView&lt;int32_t,<sp/>int64_t,<sp/>float&gt;;</highlight></codeline>
+<codeline lineno="31"><highlight class="normal"></highlight><highlight class="keyword">extern</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">template</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">class<sp/></highlight><highlight class="normal">GraphCompressedSparseBaseView&lt;int32_t,<sp/>int64_t,<sp/>double&gt;;</highlight></codeline>
+<codeline lineno="32"><highlight class="normal"></highlight><highlight class="keyword">extern</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">template</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">class<sp/></highlight><highlight class="normal">GraphCompressedSparseBaseView&lt;int64_t,<sp/>int32_t,<sp/>float&gt;;</highlight></codeline>
+<codeline lineno="33"><highlight class="normal"></highlight><highlight class="keyword">extern</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">template</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">class<sp/></highlight><highlight class="normal">GraphCompressedSparseBaseView&lt;int64_t,<sp/>int32_t,<sp/>double&gt;;</highlight></codeline>
+<codeline lineno="34"><highlight class="normal"></highlight><highlight class="keyword">extern</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">template</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">class<sp/></highlight><highlight class="normal">GraphCompressedSparseBaseView&lt;int64_t,<sp/>int64_t,<sp/>float&gt;;</highlight></codeline>
+<codeline lineno="35"><highlight class="normal"></highlight><highlight class="keyword">extern</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">template</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">class<sp/></highlight><highlight class="normal">GraphCompressedSparseBaseView&lt;int64_t,<sp/>int64_t,<sp/>double&gt;;</highlight></codeline>
+<codeline lineno="36"><highlight class="normal"></highlight><highlight class="keyword">extern</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">template</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">class<sp/></highlight><highlight class="normal">GraphCompressedSparseBase&lt;int32_t,<sp/>int32_t,<sp/>float&gt;;</highlight></codeline>
+<codeline lineno="37"><highlight class="normal"></highlight><highlight class="keyword">extern</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">template</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">class<sp/></highlight><highlight class="normal">GraphCompressedSparseBase&lt;int32_t,<sp/>int32_t,<sp/>double&gt;;</highlight></codeline>
+<codeline lineno="38"><highlight class="normal"></highlight><highlight class="keyword">extern</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">template</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">class<sp/></highlight><highlight class="normal">GraphCompressedSparseBase&lt;int32_t,<sp/>int64_t,<sp/>float&gt;;</highlight></codeline>
+<codeline lineno="39"><highlight class="normal"></highlight><highlight class="keyword">extern</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">template</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">class<sp/></highlight><highlight class="normal">GraphCompressedSparseBase&lt;int32_t,<sp/>int64_t,<sp/>double&gt;;</highlight></codeline>
+<codeline lineno="40"><highlight class="normal"></highlight><highlight class="keyword">extern</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">template</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">class<sp/></highlight><highlight class="normal">GraphCompressedSparseBase&lt;int64_t,<sp/>int32_t,<sp/>float&gt;;</highlight></codeline>
+<codeline lineno="41"><highlight class="normal"></highlight><highlight class="keyword">extern</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">template</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">class<sp/></highlight><highlight class="normal">GraphCompressedSparseBase&lt;int64_t,<sp/>int32_t,<sp/>double&gt;;</highlight></codeline>
+<codeline lineno="42"><highlight class="normal"></highlight><highlight class="keyword">extern</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">template</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">class<sp/></highlight><highlight class="normal">GraphCompressedSparseBase&lt;int64_t,<sp/>int64_t,<sp/>float&gt;;</highlight></codeline>
+<codeline lineno="43"><highlight class="normal"></highlight><highlight class="keyword">extern</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">template</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">class<sp/></highlight><highlight class="normal">GraphCompressedSparseBase&lt;int64_t,<sp/>int64_t,<sp/>double&gt;;</highlight></codeline>
+<codeline lineno="44"><highlight class="normal"></highlight><highlight class="keyword">extern</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">template</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">class<sp/></highlight><highlight class="normal">GraphCOOView&lt;int32_t,<sp/>int32_t,<sp/>float&gt;;</highlight></codeline>
+<codeline lineno="45"><highlight class="normal"></highlight><highlight class="keyword">extern</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">template</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">class<sp/></highlight><highlight class="normal">GraphCOOView&lt;int32_t,<sp/>int32_t,<sp/>double&gt;;</highlight></codeline>
+<codeline lineno="46"><highlight class="normal"></highlight><highlight class="keyword">extern</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">template</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">class<sp/></highlight><highlight class="normal">GraphCOOView&lt;int32_t,<sp/>int64_t,<sp/>float&gt;;</highlight></codeline>
+<codeline lineno="47"><highlight class="normal"></highlight><highlight class="keyword">extern</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">template</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">class<sp/></highlight><highlight class="normal">GraphCOOView&lt;int32_t,<sp/>int64_t,<sp/>double&gt;;</highlight></codeline>
+<codeline lineno="48"><highlight class="normal"></highlight><highlight class="keyword">extern</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">template</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">class<sp/></highlight><highlight class="normal">GraphCOOView&lt;int64_t,<sp/>int32_t,<sp/>float&gt;;</highlight></codeline>
+<codeline lineno="49"><highlight class="normal"></highlight><highlight class="keyword">extern</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">template</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">class<sp/></highlight><highlight class="normal">GraphCOOView&lt;int64_t,<sp/>int32_t,<sp/>double&gt;;</highlight></codeline>
+<codeline lineno="50"><highlight class="normal"></highlight><highlight class="keyword">extern</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">template</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">class<sp/></highlight><highlight class="normal">GraphCOOView&lt;int64_t,<sp/>int64_t,<sp/>float&gt;;</highlight></codeline>
+<codeline lineno="51"><highlight class="normal"></highlight><highlight class="keyword">extern</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">template</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">class<sp/></highlight><highlight class="normal">GraphCOOView&lt;int64_t,<sp/>int64_t,<sp/>double&gt;;</highlight></codeline>
+<codeline lineno="52"><highlight class="normal"></highlight><highlight class="keyword">extern</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">template</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">class<sp/></highlight><highlight class="normal">GraphCSRView&lt;int32_t,<sp/>int32_t,<sp/>float&gt;;</highlight></codeline>
+<codeline lineno="53"><highlight class="normal"></highlight><highlight class="keyword">extern</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">template</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">class<sp/></highlight><highlight class="normal">GraphCSRView&lt;int32_t,<sp/>int32_t,<sp/>double&gt;;</highlight></codeline>
+<codeline lineno="54"><highlight class="normal"></highlight><highlight class="keyword">extern</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">template</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">class<sp/></highlight><highlight class="normal">GraphCSRView&lt;int32_t,<sp/>int64_t,<sp/>float&gt;;</highlight></codeline>
+<codeline lineno="55"><highlight class="normal"></highlight><highlight class="keyword">extern</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">template</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">class<sp/></highlight><highlight class="normal">GraphCSRView&lt;int32_t,<sp/>int64_t,<sp/>double&gt;;</highlight></codeline>
+<codeline lineno="56"><highlight class="normal"></highlight><highlight class="keyword">extern</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">template</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">class<sp/></highlight><highlight class="normal">GraphCSRView&lt;int64_t,<sp/>int32_t,<sp/>float&gt;;</highlight></codeline>
+<codeline lineno="57"><highlight class="normal"></highlight><highlight class="keyword">extern</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">template</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">class<sp/></highlight><highlight class="normal">GraphCSRView&lt;int64_t,<sp/>int32_t,<sp/>double&gt;;</highlight></codeline>
+<codeline lineno="58"><highlight class="normal"></highlight><highlight class="keyword">extern</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">template</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">class<sp/></highlight><highlight class="normal">GraphCSRView&lt;int64_t,<sp/>int64_t,<sp/>float&gt;;</highlight></codeline>
+<codeline lineno="59"><highlight class="normal"></highlight><highlight class="keyword">extern</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">template</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">class<sp/></highlight><highlight class="normal">GraphCSRView&lt;int64_t,<sp/>int64_t,<sp/>double&gt;;</highlight></codeline>
+<codeline lineno="60"><highlight class="normal"></highlight><highlight class="keyword">extern</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">template</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">class<sp/></highlight><highlight class="normal">GraphCOO&lt;int32_t,<sp/>int32_t,<sp/>float&gt;;</highlight></codeline>
+<codeline lineno="61"><highlight class="normal"></highlight><highlight class="keyword">extern</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">template</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">class<sp/></highlight><highlight class="normal">GraphCOO&lt;int32_t,<sp/>int32_t,<sp/>double&gt;;</highlight></codeline>
+<codeline lineno="62"><highlight class="normal"></highlight><highlight class="keyword">extern</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">template</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">class<sp/></highlight><highlight class="normal">GraphCOO&lt;int32_t,<sp/>int64_t,<sp/>float&gt;;</highlight></codeline>
+<codeline lineno="63"><highlight class="normal"></highlight><highlight class="keyword">extern</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">template</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">class<sp/></highlight><highlight class="normal">GraphCOO&lt;int32_t,<sp/>int64_t,<sp/>double&gt;;</highlight></codeline>
+<codeline lineno="64"><highlight class="normal"></highlight><highlight class="keyword">extern</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">template</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">class<sp/></highlight><highlight class="normal">GraphCOO&lt;int64_t,<sp/>int32_t,<sp/>float&gt;;</highlight></codeline>
+<codeline lineno="65"><highlight class="normal"></highlight><highlight class="keyword">extern</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">template</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">class<sp/></highlight><highlight class="normal">GraphCOO&lt;int64_t,<sp/>int32_t,<sp/>double&gt;;</highlight></codeline>
+<codeline lineno="66"><highlight class="normal"></highlight><highlight class="keyword">extern</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">template</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">class<sp/></highlight><highlight class="normal">GraphCOO&lt;int64_t,<sp/>int64_t,<sp/>float&gt;;</highlight></codeline>
+<codeline lineno="67"><highlight class="normal"></highlight><highlight class="keyword">extern</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">template</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">class<sp/></highlight><highlight class="normal">GraphCOO&lt;int64_t,<sp/>int64_t,<sp/>double&gt;;</highlight></codeline>
+<codeline lineno="68"><highlight class="normal"></highlight><highlight class="keyword">extern</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">template</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">class<sp/></highlight><highlight class="normal">GraphCSR&lt;int32_t,<sp/>int32_t,<sp/>float&gt;;</highlight></codeline>
+<codeline lineno="69"><highlight class="normal"></highlight><highlight class="keyword">extern</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">template</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">class<sp/></highlight><highlight class="normal">GraphCSR&lt;int32_t,<sp/>int32_t,<sp/>double&gt;;</highlight></codeline>
+<codeline lineno="70"><highlight class="normal"></highlight><highlight class="keyword">extern</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">template</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">class<sp/></highlight><highlight class="normal">GraphCSR&lt;int32_t,<sp/>int64_t,<sp/>float&gt;;</highlight></codeline>
+<codeline lineno="71"><highlight class="normal"></highlight><highlight class="keyword">extern</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">template</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">class<sp/></highlight><highlight class="normal">GraphCSR&lt;int32_t,<sp/>int64_t,<sp/>double&gt;;</highlight></codeline>
+<codeline lineno="72"><highlight class="normal"></highlight><highlight class="keyword">extern</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">template</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">class<sp/></highlight><highlight class="normal">GraphCSR&lt;int64_t,<sp/>int32_t,<sp/>float&gt;;</highlight></codeline>
+<codeline lineno="73"><highlight class="normal"></highlight><highlight class="keyword">extern</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">template</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">class<sp/></highlight><highlight class="normal">GraphCSR&lt;int64_t,<sp/>int32_t,<sp/>double&gt;;</highlight></codeline>
+<codeline lineno="74"><highlight class="normal"></highlight><highlight class="keyword">extern</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">template</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">class<sp/></highlight><highlight class="normal">GraphCSR&lt;int64_t,<sp/>int64_t,<sp/>float&gt;;</highlight></codeline>
+<codeline lineno="75"><highlight class="normal"></highlight><highlight class="keyword">extern</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">template</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">class<sp/></highlight><highlight class="normal">GraphCSR&lt;int64_t,<sp/>int64_t,<sp/>double&gt;;</highlight></codeline>
+<codeline lineno="76"><highlight class="normal">}<sp/><sp/></highlight><highlight class="comment">//<sp/>namespace<sp/>legacy</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="77"><highlight class="normal">}<sp/><sp/></highlight><highlight class="comment">//<sp/>namespace<sp/>cugraph</highlight><highlight class="normal"></highlight></codeline>
+    </programlisting>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/legacy/eidecl_graph.hpp"/>
+  </compounddef>
+</doxygen>

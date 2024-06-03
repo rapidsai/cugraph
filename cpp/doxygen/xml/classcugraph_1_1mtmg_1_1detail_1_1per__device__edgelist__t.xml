@@ -1,0 +1,669 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="classcugraph_1_1mtmg_1_1detail_1_1per__device__edgelist__t" kind="class" language="C++" prot="public">
+    <compoundname>cugraph::mtmg::detail::per_device_edgelist_t</compoundname>
+    <includes refid="per__device__edgelist_8hpp" local="no">per_device_edgelist.hpp</includes>
+    <templateparamlist>
+      <param>
+        <type>typename vertex_t</type>
+      </param>
+      <param>
+        <type>typename weight_t</type>
+      </param>
+      <param>
+        <type>typename edge_t</type>
+      </param>
+      <param>
+        <type>typename edge_type_t</type>
+      </param>
+    </templateparamlist>
+    <sectiondef kind="private-attrib">
+      <memberdef kind="variable" id="classcugraph_1_1mtmg_1_1detail_1_1per__device__edgelist__t_1a49c4e8fc45a82263163431ea41644536" prot="private" static="no" mutable="yes">
+        <type>std::mutex</type>
+        <definition>std::mutex cugraph::mtmg::detail::per_device_edgelist_t&lt; vertex_t, weight_t, edge_t, edge_type_t &gt;::lock_</definition>
+        <argsstring></argsstring>
+        <name>lock_</name>
+        <qualifiedname>cugraph::mtmg::detail::per_device_edgelist_t::lock_</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/detail/per_device_edgelist.hpp" line="303" column="22" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/detail/per_device_edgelist.hpp" bodystart="303" bodyend="303"/>
+      </memberdef>
+      <memberdef kind="variable" id="classcugraph_1_1mtmg_1_1detail_1_1per__device__edgelist__t_1a676887e473cc32e4d4475ff871454007" prot="private" static="no" mutable="no">
+        <type>size_t</type>
+        <definition>size_t cugraph::mtmg::detail::per_device_edgelist_t&lt; vertex_t, weight_t, edge_t, edge_type_t &gt;::current_pos_</definition>
+        <argsstring></argsstring>
+        <name>current_pos_</name>
+        <qualifiedname>cugraph::mtmg::detail::per_device_edgelist_t::current_pos_</qualifiedname>
+        <initializer>{0}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/detail/per_device_edgelist.hpp" line="305" column="10" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/detail/per_device_edgelist.hpp" bodystart="305" bodyend="305"/>
+      </memberdef>
+      <memberdef kind="variable" id="classcugraph_1_1mtmg_1_1detail_1_1per__device__edgelist__t_1ab8b0df7558d4441469e669f11a95e4c7" prot="private" static="no" mutable="no">
+        <type>size_t</type>
+        <definition>size_t cugraph::mtmg::detail::per_device_edgelist_t&lt; vertex_t, weight_t, edge_t, edge_type_t &gt;::device_buffer_size_</definition>
+        <argsstring></argsstring>
+        <name>device_buffer_size_</name>
+        <qualifiedname>cugraph::mtmg::detail::per_device_edgelist_t::device_buffer_size_</qualifiedname>
+        <initializer>{0}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/detail/per_device_edgelist.hpp" line="306" column="10" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/detail/per_device_edgelist.hpp" bodystart="306" bodyend="306"/>
+      </memberdef>
+      <memberdef kind="variable" id="classcugraph_1_1mtmg_1_1detail_1_1per__device__edgelist__t_1a1b8e5a379ec606df3d11b7c304a1fb81" prot="private" static="no" mutable="no">
+        <type>std::vector&lt; rmm::device_uvector&lt; vertex_t &gt; &gt;</type>
+        <definition>std::vector&lt;rmm::device_uvector&lt;vertex_t&gt; &gt; cugraph::mtmg::detail::per_device_edgelist_t&lt; vertex_t, weight_t, edge_t, edge_type_t &gt;::src_</definition>
+        <argsstring></argsstring>
+        <name>src_</name>
+        <qualifiedname>cugraph::mtmg::detail::per_device_edgelist_t::src_</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/detail/per_device_edgelist.hpp" line="308" column="15" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/detail/per_device_edgelist.hpp" bodystart="308" bodyend="308"/>
+      </memberdef>
+      <memberdef kind="variable" id="classcugraph_1_1mtmg_1_1detail_1_1per__device__edgelist__t_1ad07b2e22517d6e99489ec374e792025d" prot="private" static="no" mutable="no">
+        <type>std::vector&lt; rmm::device_uvector&lt; vertex_t &gt; &gt;</type>
+        <definition>std::vector&lt;rmm::device_uvector&lt;vertex_t&gt; &gt; cugraph::mtmg::detail::per_device_edgelist_t&lt; vertex_t, weight_t, edge_t, edge_type_t &gt;::dst_</definition>
+        <argsstring></argsstring>
+        <name>dst_</name>
+        <qualifiedname>cugraph::mtmg::detail::per_device_edgelist_t::dst_</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/detail/per_device_edgelist.hpp" line="309" column="15" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/detail/per_device_edgelist.hpp" bodystart="309" bodyend="309"/>
+      </memberdef>
+      <memberdef kind="variable" id="classcugraph_1_1mtmg_1_1detail_1_1per__device__edgelist__t_1a4ac1397fc2b8b71d2fd78abbdad041a6" prot="private" static="no" mutable="no">
+        <type>std::optional&lt; std::vector&lt; rmm::device_uvector&lt; weight_t &gt; &gt; &gt;</type>
+        <definition>std::optional&lt;std::vector&lt;rmm::device_uvector&lt;weight_t&gt; &gt; &gt; cugraph::mtmg::detail::per_device_edgelist_t&lt; vertex_t, weight_t, edge_t, edge_type_t &gt;::wgt_</definition>
+        <argsstring></argsstring>
+        <name>wgt_</name>
+        <qualifiedname>cugraph::mtmg::detail::per_device_edgelist_t::wgt_</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/detail/per_device_edgelist.hpp" line="310" column="17" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/detail/per_device_edgelist.hpp" bodystart="310" bodyend="310"/>
+      </memberdef>
+      <memberdef kind="variable" id="classcugraph_1_1mtmg_1_1detail_1_1per__device__edgelist__t_1acf46f41dd4a09be17d2dd26f24807f71" prot="private" static="no" mutable="no">
+        <type>std::optional&lt; std::vector&lt; rmm::device_uvector&lt; edge_t &gt; &gt; &gt;</type>
+        <definition>std::optional&lt;std::vector&lt;rmm::device_uvector&lt;edge_t&gt; &gt; &gt; cugraph::mtmg::detail::per_device_edgelist_t&lt; vertex_t, weight_t, edge_t, edge_type_t &gt;::edge_id_</definition>
+        <argsstring></argsstring>
+        <name>edge_id_</name>
+        <qualifiedname>cugraph::mtmg::detail::per_device_edgelist_t::edge_id_</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/detail/per_device_edgelist.hpp" line="311" column="17" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/detail/per_device_edgelist.hpp" bodystart="311" bodyend="311"/>
+      </memberdef>
+      <memberdef kind="variable" id="classcugraph_1_1mtmg_1_1detail_1_1per__device__edgelist__t_1ad04848b8de84bea2c22d3e9a96e96e15" prot="private" static="no" mutable="no">
+        <type>std::optional&lt; std::vector&lt; rmm::device_uvector&lt; edge_type_t &gt; &gt; &gt;</type>
+        <definition>std::optional&lt;std::vector&lt;rmm::device_uvector&lt;edge_type_t&gt; &gt; &gt; cugraph::mtmg::detail::per_device_edgelist_t&lt; vertex_t, weight_t, edge_t, edge_type_t &gt;::edge_type_</definition>
+        <argsstring></argsstring>
+        <name>edge_type_</name>
+        <qualifiedname>cugraph::mtmg::detail::per_device_edgelist_t::edge_type_</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/detail/per_device_edgelist.hpp" line="312" column="17" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/detail/per_device_edgelist.hpp" bodystart="312" bodyend="312"/>
+      </memberdef>
+    </sectiondef>
+    <sectiondef kind="public-func">
+      <memberdef kind="function" id="classcugraph_1_1mtmg_1_1detail_1_1per__device__edgelist__t_1a6e854c2792cf96024ce30ed85846997b" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type></type>
+        <definition>cugraph::mtmg::detail::per_device_edgelist_t&lt; vertex_t, weight_t, edge_t, edge_type_t &gt;::per_device_edgelist_t</definition>
+        <argsstring>()=delete</argsstring>
+        <name>per_device_edgelist_t</name>
+        <qualifiedname>cugraph::mtmg::detail::per_device_edgelist_t::per_device_edgelist_t</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/detail/per_device_edgelist.hpp" line="57" column="3"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1mtmg_1_1detail_1_1per__device__edgelist__t_1aa4ecf9decea07ea31fbde6c4fbf9ee3f" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type></type>
+        <definition>cugraph::mtmg::detail::per_device_edgelist_t&lt; vertex_t, weight_t, edge_t, edge_type_t &gt;::per_device_edgelist_t</definition>
+        <argsstring>(per_device_edgelist_t const &amp;)=delete</argsstring>
+        <name>per_device_edgelist_t</name>
+        <qualifiedname>cugraph::mtmg::detail::per_device_edgelist_t::per_device_edgelist_t</qualifiedname>
+        <param>
+          <type><ref refid="classcugraph_1_1mtmg_1_1detail_1_1per__device__edgelist__t" kindref="compound">per_device_edgelist_t</ref> const &amp;</type>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/detail/per_device_edgelist.hpp" line="58" column="3"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1mtmg_1_1detail_1_1per__device__edgelist__t_1ae3119a9d25d0840d1a24d4fd2afa6139" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type><ref refid="classcugraph_1_1mtmg_1_1detail_1_1per__device__edgelist__t" kindref="compound">per_device_edgelist_t</ref> &amp;</type>
+        <definition>per_device_edgelist_t &amp; cugraph::mtmg::detail::per_device_edgelist_t&lt; vertex_t, weight_t, edge_t, edge_type_t &gt;::operator=</definition>
+        <argsstring>(per_device_edgelist_t const &amp;)=delete</argsstring>
+        <name>operator=</name>
+        <qualifiedname>cugraph::mtmg::detail::per_device_edgelist_t::operator=</qualifiedname>
+        <param>
+          <type><ref refid="classcugraph_1_1mtmg_1_1detail_1_1per__device__edgelist__t" kindref="compound">per_device_edgelist_t</ref> const &amp;</type>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/detail/per_device_edgelist.hpp" line="59" column="25"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1mtmg_1_1detail_1_1per__device__edgelist__t_1a7b858dbaf271af75a1c65c0f11ec4e5c" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type><ref refid="classcugraph_1_1mtmg_1_1detail_1_1per__device__edgelist__t" kindref="compound">per_device_edgelist_t</ref> &amp;</type>
+        <definition>per_device_edgelist_t &amp; cugraph::mtmg::detail::per_device_edgelist_t&lt; vertex_t, weight_t, edge_t, edge_type_t &gt;::operator=</definition>
+        <argsstring>(per_device_edgelist_t &amp;&amp;)=delete</argsstring>
+        <name>operator=</name>
+        <qualifiedname>cugraph::mtmg::detail::per_device_edgelist_t::operator=</qualifiedname>
+        <param>
+          <type><ref refid="classcugraph_1_1mtmg_1_1detail_1_1per__device__edgelist__t" kindref="compound">per_device_edgelist_t</ref> &amp;&amp;</type>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/detail/per_device_edgelist.hpp" line="60" column="25"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1mtmg_1_1detail_1_1per__device__edgelist__t_1a833b123681780c3b0c2689ea3f6df66b" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type></type>
+        <definition>cugraph::mtmg::detail::per_device_edgelist_t&lt; vertex_t, weight_t, edge_t, edge_type_t &gt;::per_device_edgelist_t</definition>
+        <argsstring>(size_t device_buffer_size, bool use_weight, bool use_edge_id, bool use_edge_type, rmm::cuda_stream_view stream_view)</argsstring>
+        <name>per_device_edgelist_t</name>
+        <qualifiedname>cugraph::mtmg::detail::per_device_edgelist_t::per_device_edgelist_t</qualifiedname>
+        <param>
+          <type>size_t</type>
+          <declname>device_buffer_size</declname>
+        </param>
+        <param>
+          <type>bool</type>
+          <declname>use_weight</declname>
+        </param>
+        <param>
+          <type>bool</type>
+          <declname>use_edge_id</declname>
+        </param>
+        <param>
+          <type>bool</type>
+          <declname>use_edge_type</declname>
+        </param>
+        <param>
+          <type>rmm::cuda_stream_view</type>
+          <declname>stream_view</declname>
+        </param>
+        <briefdescription>
+<para>Construct a new per device edgelist t object. </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername>device_buffer_size</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Number of edges to store in each device buffer </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>use_weight</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Whether or not the edgelist will have weights </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>use_edge_id</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Whether or not the edgelist will have edge ids </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>use_edge_type</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Whether or not the edgelist will have edge types </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>stream_view</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>CUDA stream view </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/detail/per_device_edgelist.hpp" line="71" column="3" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/detail/per_device_edgelist.hpp" bodystart="71" bodyend="93"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1mtmg_1_1detail_1_1per__device__edgelist__t_1a9017c969cd22338b865783effc1593c1" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type></type>
+        <definition>cugraph::mtmg::detail::per_device_edgelist_t&lt; vertex_t, weight_t, edge_t, edge_type_t &gt;::per_device_edgelist_t</definition>
+        <argsstring>(per_device_edgelist_t &amp;&amp;other)</argsstring>
+        <name>per_device_edgelist_t</name>
+        <qualifiedname>cugraph::mtmg::detail::per_device_edgelist_t::per_device_edgelist_t</qualifiedname>
+        <param>
+          <type><ref refid="classcugraph_1_1mtmg_1_1detail_1_1per__device__edgelist__t" kindref="compound">per_device_edgelist_t</ref> &amp;&amp;</type>
+          <declname>other</declname>
+        </param>
+        <briefdescription>
+<para>Move construct a new per device edgelist t object. </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername>other</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Object to move into this instance </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/detail/per_device_edgelist.hpp" line="100" column="3" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/detail/per_device_edgelist.hpp" bodystart="100" bodyend="109"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1mtmg_1_1detail_1_1per__device__edgelist__t_1a980e5bc09611e9c2820fa31eb54edf14" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type>void</type>
+        <definition>void cugraph::mtmg::detail::per_device_edgelist_t&lt; vertex_t, weight_t, edge_t, edge_type_t &gt;::append</definition>
+        <argsstring>(raft::host_span&lt; vertex_t const &gt; src, raft::host_span&lt; vertex_t const &gt; dst, std::optional&lt; raft::host_span&lt; weight_t const &gt; &gt; wgt, std::optional&lt; raft::host_span&lt; edge_t const &gt; &gt; edge_id, std::optional&lt; raft::host_span&lt; edge_type_t const &gt; &gt; edge_type, rmm::cuda_stream_view stream_view)</argsstring>
+        <name>append</name>
+        <qualifiedname>cugraph::mtmg::detail::per_device_edgelist_t::append</qualifiedname>
+        <param>
+          <type>raft::host_span&lt; vertex_t const &gt;</type>
+          <declname>src</declname>
+        </param>
+        <param>
+          <type>raft::host_span&lt; vertex_t const &gt;</type>
+          <declname>dst</declname>
+        </param>
+        <param>
+          <type>std::optional&lt; raft::host_span&lt; weight_t const &gt; &gt;</type>
+          <declname>wgt</declname>
+        </param>
+        <param>
+          <type>std::optional&lt; raft::host_span&lt; edge_t const &gt; &gt;</type>
+          <declname>edge_id</declname>
+        </param>
+        <param>
+          <type>std::optional&lt; raft::host_span&lt; edge_type_t const &gt; &gt;</type>
+          <declname>edge_type</declname>
+        </param>
+        <param>
+          <type>rmm::cuda_stream_view</type>
+          <declname>stream_view</declname>
+        </param>
+        <briefdescription>
+<para>Append a list of edges to the edge list. </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername>src</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Source vertex id </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>dst</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Destination vertex id </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>wgt</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Edge weight </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>edge_id</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Edge id </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>edge_type</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Edge type </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>stream_view</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>CUDA stream view </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/detail/per_device_edgelist.hpp" line="121" column="8" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/detail/per_device_edgelist.hpp" bodystart="121" bodyend="192"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1mtmg_1_1detail_1_1per__device__edgelist__t_1a6528023dd16ef4e483f1dcfac44d47e1" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type>void</type>
+        <definition>void cugraph::mtmg::detail::per_device_edgelist_t&lt; vertex_t, weight_t, edge_t, edge_type_t &gt;::finalize_buffer</definition>
+        <argsstring>(rmm::cuda_stream_view stream_view)</argsstring>
+        <name>finalize_buffer</name>
+        <qualifiedname>cugraph::mtmg::detail::per_device_edgelist_t::finalize_buffer</qualifiedname>
+        <param>
+          <type>rmm::cuda_stream_view</type>
+          <declname>stream_view</declname>
+        </param>
+        <briefdescription>
+<para>Mark the edgelist as ready for reading (all writes are complete) </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername>stream_view</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>CUDA stream view </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/detail/per_device_edgelist.hpp" line="199" column="8" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/detail/per_device_edgelist.hpp" bodystart="199" bodyend="206"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1mtmg_1_1detail_1_1per__device__edgelist__t_1a85809c57ee0afc80438907dd1949ee15" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>bool</type>
+        <definition>bool cugraph::mtmg::detail::per_device_edgelist_t&lt; vertex_t, weight_t, edge_t, edge_type_t &gt;::use_weight</definition>
+        <argsstring>() const</argsstring>
+        <name>use_weight</name>
+        <qualifiedname>cugraph::mtmg::detail::per_device_edgelist_t::use_weight</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/detail/per_device_edgelist.hpp" line="208" column="8" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/detail/per_device_edgelist.hpp" bodystart="208" bodyend="208"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1mtmg_1_1detail_1_1per__device__edgelist__t_1a7250c0db6f47970a6d80c7e49805027a" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>bool</type>
+        <definition>bool cugraph::mtmg::detail::per_device_edgelist_t&lt; vertex_t, weight_t, edge_t, edge_type_t &gt;::use_edge_id</definition>
+        <argsstring>() const</argsstring>
+        <name>use_edge_id</name>
+        <qualifiedname>cugraph::mtmg::detail::per_device_edgelist_t::use_edge_id</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/detail/per_device_edgelist.hpp" line="210" column="8" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/detail/per_device_edgelist.hpp" bodystart="210" bodyend="210"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1mtmg_1_1detail_1_1per__device__edgelist__t_1a93e80f3d59ec5f16d32a3cad4f29470d" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>bool</type>
+        <definition>bool cugraph::mtmg::detail::per_device_edgelist_t&lt; vertex_t, weight_t, edge_t, edge_type_t &gt;::use_edge_type</definition>
+        <argsstring>() const</argsstring>
+        <name>use_edge_type</name>
+        <qualifiedname>cugraph::mtmg::detail::per_device_edgelist_t::use_edge_type</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/detail/per_device_edgelist.hpp" line="212" column="8" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/detail/per_device_edgelist.hpp" bodystart="212" bodyend="212"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1mtmg_1_1detail_1_1per__device__edgelist__t_1a45e1c3b3d56a089025117532cdd1f673" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type>std::vector&lt; rmm::device_uvector&lt; vertex_t &gt; &gt; &amp;</type>
+        <definition>std::vector&lt; rmm::device_uvector&lt; vertex_t &gt; &gt; &amp; cugraph::mtmg::detail::per_device_edgelist_t&lt; vertex_t, weight_t, edge_t, edge_type_t &gt;::get_src</definition>
+        <argsstring>()</argsstring>
+        <name>get_src</name>
+        <qualifiedname>cugraph::mtmg::detail::per_device_edgelist_t::get_src</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/detail/per_device_edgelist.hpp" line="214" column="15" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/detail/per_device_edgelist.hpp" bodystart="214" bodyend="214"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1mtmg_1_1detail_1_1per__device__edgelist__t_1aeabb94f6a8bdb5942b80e59aa2a4d87d" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type>std::vector&lt; rmm::device_uvector&lt; vertex_t &gt; &gt; &amp;</type>
+        <definition>std::vector&lt; rmm::device_uvector&lt; vertex_t &gt; &gt; &amp; cugraph::mtmg::detail::per_device_edgelist_t&lt; vertex_t, weight_t, edge_t, edge_type_t &gt;::get_dst</definition>
+        <argsstring>()</argsstring>
+        <name>get_dst</name>
+        <qualifiedname>cugraph::mtmg::detail::per_device_edgelist_t::get_dst</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/detail/per_device_edgelist.hpp" line="215" column="15" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/detail/per_device_edgelist.hpp" bodystart="215" bodyend="215"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1mtmg_1_1detail_1_1per__device__edgelist__t_1a81db3880a579d60b978ad7134cf3a5f9" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type>std::optional&lt; std::vector&lt; rmm::device_uvector&lt; weight_t &gt; &gt; &gt; &amp;</type>
+        <definition>std::optional&lt; std::vector&lt; rmm::device_uvector&lt; weight_t &gt; &gt; &gt; &amp; cugraph::mtmg::detail::per_device_edgelist_t&lt; vertex_t, weight_t, edge_t, edge_type_t &gt;::get_wgt</definition>
+        <argsstring>()</argsstring>
+        <name>get_wgt</name>
+        <qualifiedname>cugraph::mtmg::detail::per_device_edgelist_t::get_wgt</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/detail/per_device_edgelist.hpp" line="216" column="17" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/detail/per_device_edgelist.hpp" bodystart="216" bodyend="216"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1mtmg_1_1detail_1_1per__device__edgelist__t_1ad7f68a87c1f66b2bb6979355ba6083b8" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type>std::optional&lt; std::vector&lt; rmm::device_uvector&lt; edge_t &gt; &gt; &gt; &amp;</type>
+        <definition>std::optional&lt; std::vector&lt; rmm::device_uvector&lt; edge_t &gt; &gt; &gt; &amp; cugraph::mtmg::detail::per_device_edgelist_t&lt; vertex_t, weight_t, edge_t, edge_type_t &gt;::get_edge_id</definition>
+        <argsstring>()</argsstring>
+        <name>get_edge_id</name>
+        <qualifiedname>cugraph::mtmg::detail::per_device_edgelist_t::get_edge_id</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/detail/per_device_edgelist.hpp" line="217" column="17" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/detail/per_device_edgelist.hpp" bodystart="217" bodyend="217"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1mtmg_1_1detail_1_1per__device__edgelist__t_1a1880a26ef6b6be202f9771d2e1281f4d" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type>std::optional&lt; std::vector&lt; rmm::device_uvector&lt; edge_type_t &gt; &gt; &gt; &amp;</type>
+        <definition>std::optional&lt; std::vector&lt; rmm::device_uvector&lt; edge_type_t &gt; &gt; &gt; &amp; cugraph::mtmg::detail::per_device_edgelist_t&lt; vertex_t, weight_t, edge_t, edge_type_t &gt;::get_edge_type</definition>
+        <argsstring>()</argsstring>
+        <name>get_edge_type</name>
+        <qualifiedname>cugraph::mtmg::detail::per_device_edgelist_t::get_edge_type</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/detail/per_device_edgelist.hpp" line="218" column="17" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/detail/per_device_edgelist.hpp" bodystart="218" bodyend="221"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1mtmg_1_1detail_1_1per__device__edgelist__t_1acbacaae2221390208b428e7ee82a32d6" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type>void</type>
+        <definition>void cugraph::mtmg::detail::per_device_edgelist_t&lt; vertex_t, weight_t, edge_t, edge_type_t &gt;::consolidate_and_shuffle</definition>
+        <argsstring>(cugraph::mtmg::handle_t const &amp;handle, bool store_transposed)</argsstring>
+        <name>consolidate_and_shuffle</name>
+        <qualifiedname>cugraph::mtmg::detail::per_device_edgelist_t::consolidate_and_shuffle</qualifiedname>
+        <param>
+          <type><ref refid="classcugraph_1_1mtmg_1_1handle__t" kindref="compound">cugraph::mtmg::handle_t</ref> const &amp;</type>
+          <declname>handle</declname>
+        </param>
+        <param>
+          <type>bool</type>
+          <declname>store_transposed</declname>
+        </param>
+        <briefdescription>
+<para>Consolidate edgelists (if necessary) and shuffle to the proper GPU. </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername>handle</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>The resource handle </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/detail/per_device_edgelist.hpp" line="228" column="8" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/detail/per_device_edgelist.hpp" bodystart="228" bodyend="266"/>
+      </memberdef>
+    </sectiondef>
+    <sectiondef kind="private-func">
+      <memberdef kind="function" id="classcugraph_1_1mtmg_1_1detail_1_1per__device__edgelist__t_1aa5161f06f6c15eab985460859382d6f4" prot="private" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <templateparamlist>
+          <param>
+            <type>typename T</type>
+          </param>
+        </templateparamlist>
+        <type>void</type>
+        <definition>void cugraph::mtmg::detail::per_device_edgelist_t&lt; vertex_t, weight_t, edge_t, edge_type_t &gt;::resize_and_copy_buffers</definition>
+        <argsstring>(std::vector&lt; rmm::device_uvector&lt; T &gt; &gt; &amp;buffer, size_t total_size, rmm::cuda_stream_view stream)</argsstring>
+        <name>resize_and_copy_buffers</name>
+        <qualifiedname>cugraph::mtmg::detail::per_device_edgelist_t::resize_and_copy_buffers</qualifiedname>
+        <param>
+          <type>std::vector&lt; rmm::device_uvector&lt; T &gt; &gt; &amp;</type>
+          <declname>buffer</declname>
+        </param>
+        <param>
+          <type>size_t</type>
+          <declname>total_size</declname>
+        </param>
+        <param>
+          <type>rmm::cuda_stream_view</type>
+          <declname>stream</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/detail/per_device_edgelist.hpp" line="270" column="8" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/detail/per_device_edgelist.hpp" bodystart="270" bodyend="287"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1mtmg_1_1detail_1_1per__device__edgelist__t_1ad8eba531e2b738ee6b4d1d2c94a0b16d" prot="private" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type>void</type>
+        <definition>void cugraph::mtmg::detail::per_device_edgelist_t&lt; vertex_t, weight_t, edge_t, edge_type_t &gt;::create_new_buffers</definition>
+        <argsstring>(rmm::cuda_stream_view stream_view)</argsstring>
+        <name>create_new_buffers</name>
+        <qualifiedname>cugraph::mtmg::detail::per_device_edgelist_t::create_new_buffers</qualifiedname>
+        <param>
+          <type>rmm::cuda_stream_view</type>
+          <declname>stream_view</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/detail/per_device_edgelist.hpp" line="289" column="8" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/detail/per_device_edgelist.hpp" bodystart="289" bodyend="301"/>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+<para>An edgelist for each GPU. </para>
+    </briefdescription>
+    <detaileddescription>
+<para>Manages an edge list for edges associated with a particular GPU. Multiple threads can call the <ref refid="classcugraph_1_1mtmg_1_1detail_1_1per__device__edgelist__t_1a980e5bc09611e9c2820fa31eb54edf14" kindref="member">append()</ref> method, possibly concurrently. To avoid constantly copying when the buffers fill up, the class will create a device buffer containing a number of elements specified in the constructor. When that device buffer is full we will create a new buffer.</para>
+<para>When we try and use the edgelist we will consolidate the buffers, since at that time we know the entire size required.</para>
+<para>Important note, the expectation is that this object will be used in two phases: 1) The <ref refid="classcugraph_1_1mtmg_1_1detail_1_1per__device__edgelist__t_1a980e5bc09611e9c2820fa31eb54edf14" kindref="member">append()</ref> method will be used to fill buffers with edges 2) The edges will be consumed to create a graph</para>
+<para>These two phases are expected to be disjoint. The calling process is expected to manage some barrier so that all threads are guaranteed to be completed before changing phases. If an <ref refid="classcugraph_1_1mtmg_1_1detail_1_1per__device__edgelist__t_1a980e5bc09611e9c2820fa31eb54edf14" kindref="member">append()</ref> call (part of the filling phase) overlaps with calls to <ref refid="classcugraph_1_1mtmg_1_1detail_1_1per__device__edgelist__t_1a6528023dd16ef4e483f1dcfac44d47e1" kindref="member">finalize_buffer()</ref>, <ref refid="classcugraph_1_1mtmg_1_1detail_1_1per__device__edgelist__t_1acbacaae2221390208b428e7ee82a32d6" kindref="member">consolidate_and_shuffle()</ref>, get_src(), get_dst(), get_wgt(), get_edge_id() and get_edge_type() then the behavior is undefined (data might change in some non-deterministic way). </para>
+    </detaileddescription>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/detail/per_device_edgelist.hpp" line="55" column="1" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/detail/per_device_edgelist.hpp" bodystart="55" bodyend="313"/>
+    <listofallmembers>
+      <member refid="classcugraph_1_1mtmg_1_1detail_1_1per__device__edgelist__t_1a980e5bc09611e9c2820fa31eb54edf14" prot="public" virt="non-virtual"><scope>cugraph::mtmg::detail::per_device_edgelist_t</scope><name>append</name></member>
+      <member refid="classcugraph_1_1mtmg_1_1detail_1_1per__device__edgelist__t_1acbacaae2221390208b428e7ee82a32d6" prot="public" virt="non-virtual"><scope>cugraph::mtmg::detail::per_device_edgelist_t</scope><name>consolidate_and_shuffle</name></member>
+      <member refid="classcugraph_1_1mtmg_1_1detail_1_1per__device__edgelist__t_1ad8eba531e2b738ee6b4d1d2c94a0b16d" prot="private" virt="non-virtual"><scope>cugraph::mtmg::detail::per_device_edgelist_t</scope><name>create_new_buffers</name></member>
+      <member refid="classcugraph_1_1mtmg_1_1detail_1_1per__device__edgelist__t_1a676887e473cc32e4d4475ff871454007" prot="private" virt="non-virtual"><scope>cugraph::mtmg::detail::per_device_edgelist_t</scope><name>current_pos_</name></member>
+      <member refid="classcugraph_1_1mtmg_1_1detail_1_1per__device__edgelist__t_1ab8b0df7558d4441469e669f11a95e4c7" prot="private" virt="non-virtual"><scope>cugraph::mtmg::detail::per_device_edgelist_t</scope><name>device_buffer_size_</name></member>
+      <member refid="classcugraph_1_1mtmg_1_1detail_1_1per__device__edgelist__t_1ad07b2e22517d6e99489ec374e792025d" prot="private" virt="non-virtual"><scope>cugraph::mtmg::detail::per_device_edgelist_t</scope><name>dst_</name></member>
+      <member refid="classcugraph_1_1mtmg_1_1detail_1_1per__device__edgelist__t_1acf46f41dd4a09be17d2dd26f24807f71" prot="private" virt="non-virtual"><scope>cugraph::mtmg::detail::per_device_edgelist_t</scope><name>edge_id_</name></member>
+      <member refid="classcugraph_1_1mtmg_1_1detail_1_1per__device__edgelist__t_1ad04848b8de84bea2c22d3e9a96e96e15" prot="private" virt="non-virtual"><scope>cugraph::mtmg::detail::per_device_edgelist_t</scope><name>edge_type_</name></member>
+      <member refid="classcugraph_1_1mtmg_1_1detail_1_1per__device__edgelist__t_1a6528023dd16ef4e483f1dcfac44d47e1" prot="public" virt="non-virtual"><scope>cugraph::mtmg::detail::per_device_edgelist_t</scope><name>finalize_buffer</name></member>
+      <member refid="classcugraph_1_1mtmg_1_1detail_1_1per__device__edgelist__t_1aeabb94f6a8bdb5942b80e59aa2a4d87d" prot="public" virt="non-virtual"><scope>cugraph::mtmg::detail::per_device_edgelist_t</scope><name>get_dst</name></member>
+      <member refid="classcugraph_1_1mtmg_1_1detail_1_1per__device__edgelist__t_1ad7f68a87c1f66b2bb6979355ba6083b8" prot="public" virt="non-virtual"><scope>cugraph::mtmg::detail::per_device_edgelist_t</scope><name>get_edge_id</name></member>
+      <member refid="classcugraph_1_1mtmg_1_1detail_1_1per__device__edgelist__t_1a1880a26ef6b6be202f9771d2e1281f4d" prot="public" virt="non-virtual"><scope>cugraph::mtmg::detail::per_device_edgelist_t</scope><name>get_edge_type</name></member>
+      <member refid="classcugraph_1_1mtmg_1_1detail_1_1per__device__edgelist__t_1a45e1c3b3d56a089025117532cdd1f673" prot="public" virt="non-virtual"><scope>cugraph::mtmg::detail::per_device_edgelist_t</scope><name>get_src</name></member>
+      <member refid="classcugraph_1_1mtmg_1_1detail_1_1per__device__edgelist__t_1a81db3880a579d60b978ad7134cf3a5f9" prot="public" virt="non-virtual"><scope>cugraph::mtmg::detail::per_device_edgelist_t</scope><name>get_wgt</name></member>
+      <member refid="classcugraph_1_1mtmg_1_1detail_1_1per__device__edgelist__t_1a49c4e8fc45a82263163431ea41644536" prot="private" virt="non-virtual"><scope>cugraph::mtmg::detail::per_device_edgelist_t</scope><name>lock_</name></member>
+      <member refid="classcugraph_1_1mtmg_1_1detail_1_1per__device__edgelist__t_1ae3119a9d25d0840d1a24d4fd2afa6139" prot="public" virt="non-virtual"><scope>cugraph::mtmg::detail::per_device_edgelist_t</scope><name>operator=</name></member>
+      <member refid="classcugraph_1_1mtmg_1_1detail_1_1per__device__edgelist__t_1a7b858dbaf271af75a1c65c0f11ec4e5c" prot="public" virt="non-virtual"><scope>cugraph::mtmg::detail::per_device_edgelist_t</scope><name>operator=</name></member>
+      <member refid="classcugraph_1_1mtmg_1_1detail_1_1per__device__edgelist__t_1a6e854c2792cf96024ce30ed85846997b" prot="public" virt="non-virtual"><scope>cugraph::mtmg::detail::per_device_edgelist_t</scope><name>per_device_edgelist_t</name></member>
+      <member refid="classcugraph_1_1mtmg_1_1detail_1_1per__device__edgelist__t_1aa4ecf9decea07ea31fbde6c4fbf9ee3f" prot="public" virt="non-virtual"><scope>cugraph::mtmg::detail::per_device_edgelist_t</scope><name>per_device_edgelist_t</name></member>
+      <member refid="classcugraph_1_1mtmg_1_1detail_1_1per__device__edgelist__t_1a833b123681780c3b0c2689ea3f6df66b" prot="public" virt="non-virtual"><scope>cugraph::mtmg::detail::per_device_edgelist_t</scope><name>per_device_edgelist_t</name></member>
+      <member refid="classcugraph_1_1mtmg_1_1detail_1_1per__device__edgelist__t_1a9017c969cd22338b865783effc1593c1" prot="public" virt="non-virtual"><scope>cugraph::mtmg::detail::per_device_edgelist_t</scope><name>per_device_edgelist_t</name></member>
+      <member refid="classcugraph_1_1mtmg_1_1detail_1_1per__device__edgelist__t_1aa5161f06f6c15eab985460859382d6f4" prot="private" virt="non-virtual"><scope>cugraph::mtmg::detail::per_device_edgelist_t</scope><name>resize_and_copy_buffers</name></member>
+      <member refid="classcugraph_1_1mtmg_1_1detail_1_1per__device__edgelist__t_1a1b8e5a379ec606df3d11b7c304a1fb81" prot="private" virt="non-virtual"><scope>cugraph::mtmg::detail::per_device_edgelist_t</scope><name>src_</name></member>
+      <member refid="classcugraph_1_1mtmg_1_1detail_1_1per__device__edgelist__t_1a7250c0db6f47970a6d80c7e49805027a" prot="public" virt="non-virtual"><scope>cugraph::mtmg::detail::per_device_edgelist_t</scope><name>use_edge_id</name></member>
+      <member refid="classcugraph_1_1mtmg_1_1detail_1_1per__device__edgelist__t_1a93e80f3d59ec5f16d32a3cad4f29470d" prot="public" virt="non-virtual"><scope>cugraph::mtmg::detail::per_device_edgelist_t</scope><name>use_edge_type</name></member>
+      <member refid="classcugraph_1_1mtmg_1_1detail_1_1per__device__edgelist__t_1a85809c57ee0afc80438907dd1949ee15" prot="public" virt="non-virtual"><scope>cugraph::mtmg::detail::per_device_edgelist_t</scope><name>use_weight</name></member>
+      <member refid="classcugraph_1_1mtmg_1_1detail_1_1per__device__edgelist__t_1a4ac1397fc2b8b71d2fd78abbdad041a6" prot="private" virt="non-virtual"><scope>cugraph::mtmg::detail::per_device_edgelist_t</scope><name>wgt_</name></member>
+    </listofallmembers>
+  </compounddef>
+</doxygen>

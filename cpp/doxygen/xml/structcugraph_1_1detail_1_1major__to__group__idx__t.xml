@@ -1,0 +1,89 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="structcugraph_1_1detail_1_1major__to__group__idx__t" kind="struct" language="C++" prot="public">
+    <compoundname>cugraph::detail::major_to_group_idx_t</compoundname>
+    <templateparamlist>
+      <param>
+        <type>typename vertex_t</type>
+      </param>
+    </templateparamlist>
+    <sectiondef kind="public-attrib">
+      <memberdef kind="variable" id="structcugraph_1_1detail_1_1major__to__group__idx__t_1abf872d1d3557b5ef92c7dc2a81b5789e" prot="public" static="no" mutable="no">
+        <type>raft::device_span&lt; vertex_t const  &gt;</type>
+        <definition>raft::device_span&lt;vertex_t const&gt; cugraph::detail::major_to_group_idx_t&lt; vertex_t &gt;::vertex_partition_range_lasts</definition>
+        <argsstring></argsstring>
+        <name>vertex_partition_range_lasts</name>
+        <qualifiedname>cugraph::detail::major_to_group_idx_t::vertex_partition_range_lasts</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/detail/nbr_intersection.cuh" line="74" column="21" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/detail/nbr_intersection.cuh" bodystart="74" bodyend="74"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph_1_1detail_1_1major__to__group__idx__t_1a47e9457827fe8fd303c53c96791ff7a9" prot="public" static="no" mutable="no">
+        <type>int</type>
+        <definition>int cugraph::detail::major_to_group_idx_t&lt; vertex_t &gt;::major_comm_size</definition>
+        <argsstring></argsstring>
+        <name>major_comm_size</name>
+        <qualifiedname>cugraph::detail::major_to_group_idx_t::major_comm_size</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/detail/nbr_intersection.cuh" line="75" column="7" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/detail/nbr_intersection.cuh" bodystart="75" bodyend="75"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph_1_1detail_1_1major__to__group__idx__t_1a191bfab20883dba9e4c449e499f26207" prot="public" static="no" mutable="no">
+        <type>int</type>
+        <definition>int cugraph::detail::major_to_group_idx_t&lt; vertex_t &gt;::minor_comm_size</definition>
+        <argsstring></argsstring>
+        <name>minor_comm_size</name>
+        <qualifiedname>cugraph::detail::major_to_group_idx_t::minor_comm_size</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/detail/nbr_intersection.cuh" line="76" column="7" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/detail/nbr_intersection.cuh" bodystart="76" bodyend="76"/>
+      </memberdef>
+    </sectiondef>
+    <sectiondef kind="public-func">
+      <memberdef kind="function" id="structcugraph_1_1detail_1_1major__to__group__idx__t_1a639a039218d6c310d7a295e17ad42bf3" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>__device__ int</type>
+        <definition>__device__ int cugraph::detail::major_to_group_idx_t&lt; vertex_t &gt;::operator()</definition>
+        <argsstring>(vertex_t major) const</argsstring>
+        <name>operator()</name>
+        <qualifiedname>cugraph::detail::major_to_group_idx_t::operator()</qualifiedname>
+        <param>
+          <type>vertex_t</type>
+          <declname>major</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/detail/nbr_intersection.cuh" line="78" column="18" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/detail/nbr_intersection.cuh" bodystart="78" bodyend="85"/>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/detail/nbr_intersection.cuh" line="73" column="1" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/detail/nbr_intersection.cuh" bodystart="73" bodyend="86"/>
+    <listofallmembers>
+      <member refid="structcugraph_1_1detail_1_1major__to__group__idx__t_1a47e9457827fe8fd303c53c96791ff7a9" prot="public" virt="non-virtual"><scope>cugraph::detail::major_to_group_idx_t</scope><name>major_comm_size</name></member>
+      <member refid="structcugraph_1_1detail_1_1major__to__group__idx__t_1a191bfab20883dba9e4c449e499f26207" prot="public" virt="non-virtual"><scope>cugraph::detail::major_to_group_idx_t</scope><name>minor_comm_size</name></member>
+      <member refid="structcugraph_1_1detail_1_1major__to__group__idx__t_1a639a039218d6c310d7a295e17ad42bf3" prot="public" virt="non-virtual"><scope>cugraph::detail::major_to_group_idx_t</scope><name>operator()</name></member>
+      <member refid="structcugraph_1_1detail_1_1major__to__group__idx__t_1abf872d1d3557b5ef92c7dc2a81b5789e" prot="public" virt="non-virtual"><scope>cugraph::detail::major_to_group_idx_t</scope><name>vertex_partition_range_lasts</name></member>
+    </listofallmembers>
+  </compounddef>
+</doxygen>

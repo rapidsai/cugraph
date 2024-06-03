@@ -1,0 +1,60 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="structcugraph_1_1detail_1_1check__invalid__t" kind="struct" language="C++" prot="public">
+    <compoundname>cugraph::detail::check_invalid_t</compoundname>
+    <templateparamlist>
+      <param>
+        <type>typename edge_t</type>
+      </param>
+      <param>
+        <type>typename T</type>
+      </param>
+    </templateparamlist>
+    <sectiondef kind="public-attrib">
+      <memberdef kind="variable" id="structcugraph_1_1detail_1_1check__invalid__t_1aa53a5843193cbb209bca75b827d838dd" prot="public" static="no" mutable="no">
+        <type>edge_t</type>
+        <definition>edge_t cugraph::detail::check_invalid_t&lt; edge_t, T &gt;::invalid_idx</definition>
+        <argsstring></argsstring>
+        <name>invalid_idx</name>
+        <qualifiedname>cugraph::detail::check_invalid_t::invalid_idx</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/per_v_random_select_transform_outgoing_e.cuh" line="75" column="10" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/per_v_random_select_transform_outgoing_e.cuh" bodystart="75" bodyend="75"/>
+      </memberdef>
+    </sectiondef>
+    <sectiondef kind="public-func">
+      <memberdef kind="function" id="structcugraph_1_1detail_1_1check__invalid__t_1a842227385f504594ad60f89e7ac523eb" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>__device__ bool</type>
+        <definition>__device__ bool cugraph::detail::check_invalid_t&lt; edge_t, T &gt;::operator()</definition>
+        <argsstring>(thrust::tuple&lt; edge_t, T &gt; pair) const</argsstring>
+        <name>operator()</name>
+        <qualifiedname>cugraph::detail::check_invalid_t::operator()</qualifiedname>
+        <param>
+          <type>thrust::tuple&lt; edge_t, T &gt;</type>
+          <declname>pair</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/per_v_random_select_transform_outgoing_e.cuh" line="77" column="19" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/per_v_random_select_transform_outgoing_e.cuh" bodystart="77" bodyend="80"/>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/per_v_random_select_transform_outgoing_e.cuh" line="74" column="1" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/per_v_random_select_transform_outgoing_e.cuh" bodystart="74" bodyend="81"/>
+    <listofallmembers>
+      <member refid="structcugraph_1_1detail_1_1check__invalid__t_1aa53a5843193cbb209bca75b827d838dd" prot="public" virt="non-virtual"><scope>cugraph::detail::check_invalid_t</scope><name>invalid_idx</name></member>
+      <member refid="structcugraph_1_1detail_1_1check__invalid__t_1a842227385f504594ad60f89e7ac523eb" prot="public" virt="non-virtual"><scope>cugraph::detail::check_invalid_t</scope><name>operator()</name></member>
+    </listofallmembers>
+  </compounddef>
+</doxygen>

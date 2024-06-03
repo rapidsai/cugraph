@@ -1,0 +1,463 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="classcugraph_1_1detail_1_1edge__partition__endpoint__property__device__view__t" kind="class" language="C++" prot="public">
+    <compoundname>cugraph::detail::edge_partition_endpoint_property_device_view_t</compoundname>
+    <templateparamlist>
+      <param>
+        <type>typename vertex_t</type>
+      </param>
+      <param>
+        <type>typename ValueIterator</type>
+      </param>
+      <param>
+        <type>typename value_t</type>
+        <defval>typename thrust::iterator_traits&lt;ValueIterator&gt;::value_type</defval>
+      </param>
+    </templateparamlist>
+    <sectiondef kind="public-type">
+      <memberdef kind="typedef" id="classcugraph_1_1detail_1_1edge__partition__endpoint__property__device__view__t_1afe3ed35a5a9f69f0bc9c82a3c93563b7" prot="public" static="no">
+        <type>vertex_t</type>
+        <definition>using cugraph::detail::edge_partition_endpoint_property_device_view_t&lt; vertex_t, ValueIterator, value_t &gt;::vertex_type =  vertex_t</definition>
+        <argsstring></argsstring>
+        <name>vertex_type</name>
+        <qualifiedname>cugraph::detail::edge_partition_endpoint_property_device_view_t::vertex_type</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_endpoint_property_device_view.cuh" line="42" column="3" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_endpoint_property_device_view.cuh" bodystart="42" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="typedef" id="classcugraph_1_1detail_1_1edge__partition__endpoint__property__device__view__t_1a5d5a97ba1e97a9c17e9dd142847aad01" prot="public" static="no">
+        <type>value_t</type>
+        <definition>using cugraph::detail::edge_partition_endpoint_property_device_view_t&lt; vertex_t, ValueIterator, value_t &gt;::value_type =  value_t</definition>
+        <argsstring></argsstring>
+        <name>value_type</name>
+        <qualifiedname>cugraph::detail::edge_partition_endpoint_property_device_view_t::value_type</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_endpoint_property_device_view.cuh" line="43" column="3" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_endpoint_property_device_view.cuh" bodystart="43" bodyend="-1"/>
+      </memberdef>
+    </sectiondef>
+    <sectiondef kind="public-static-attrib">
+      <memberdef kind="variable" id="classcugraph_1_1detail_1_1edge__partition__endpoint__property__device__view__t_1a4e57b6a4f218c3f18787a6f9b43c48a3" prot="public" static="yes" constexpr="yes" mutable="no">
+        <type>constexpr bool</type>
+        <definition>constexpr bool cugraph::detail::edge_partition_endpoint_property_device_view_t&lt; vertex_t, ValueIterator, value_t &gt;::is_packed_bool</definition>
+        <argsstring></argsstring>
+        <name>is_packed_bool</name>
+        <qualifiedname>cugraph::detail::edge_partition_endpoint_property_device_view_t::is_packed_bool</qualifiedname>
+        <initializer>= cugraph::is_packed_bool&lt;ValueIterator, value_t&gt;()</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_endpoint_property_device_view.cuh" line="44" column="25" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_endpoint_property_device_view.cuh" bodystart="44" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="variable" id="classcugraph_1_1detail_1_1edge__partition__endpoint__property__device__view__t_1afbc9144d5ee80c2476164ee5007d161c" prot="public" static="yes" constexpr="yes" mutable="no">
+        <type>constexpr bool</type>
+        <definition>constexpr bool cugraph::detail::edge_partition_endpoint_property_device_view_t&lt; vertex_t, ValueIterator, value_t &gt;::has_packed_bool_element</definition>
+        <argsstring></argsstring>
+        <name>has_packed_bool_element</name>
+        <qualifiedname>cugraph::detail::edge_partition_endpoint_property_device_view_t::has_packed_bool_element</qualifiedname>
+        <initializer>=
+    cugraph::has_packed_bool_element&lt;ValueIterator, value_t&gt;()</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_endpoint_property_device_view.cuh" line="45" column="25" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_endpoint_property_device_view.cuh" bodystart="45" bodyend="-1"/>
+      </memberdef>
+    </sectiondef>
+    <sectiondef kind="private-attrib">
+      <memberdef kind="variable" id="classcugraph_1_1detail_1_1edge__partition__endpoint__property__device__view__t_1a99ea057f87b382ca8d006961d8370754" prot="private" static="no" mutable="no">
+        <type>thrust::optional&lt; raft::device_span&lt; vertex_t const  &gt; &gt;</type>
+        <definition>thrust::optional&lt;raft::device_span&lt;vertex_t const&gt; &gt; cugraph::detail::edge_partition_endpoint_property_device_view_t&lt; vertex_t, ValueIterator, value_t &gt;::keys_</definition>
+        <argsstring></argsstring>
+        <name>keys_</name>
+        <qualifiedname>cugraph::detail::edge_partition_endpoint_property_device_view_t::keys_</qualifiedname>
+        <initializer>{thrust::nullopt}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_endpoint_property_device_view.cuh" line="180" column="20" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_endpoint_property_device_view.cuh" bodystart="180" bodyend="180"/>
+      </memberdef>
+      <memberdef kind="variable" id="classcugraph_1_1detail_1_1edge__partition__endpoint__property__device__view__t_1a59e18e8643fdada4208a7759e0a2debc" prot="private" static="no" mutable="no">
+        <type>thrust::optional&lt; raft::device_span&lt; vertex_t const  &gt; &gt;</type>
+        <definition>thrust::optional&lt;raft::device_span&lt;vertex_t const&gt; &gt; cugraph::detail::edge_partition_endpoint_property_device_view_t&lt; vertex_t, ValueIterator, value_t &gt;::key_chunk_start_offsets_</definition>
+        <argsstring></argsstring>
+        <name>key_chunk_start_offsets_</name>
+        <qualifiedname>cugraph::detail::edge_partition_endpoint_property_device_view_t::key_chunk_start_offsets_</qualifiedname>
+        <initializer>{thrust::nullopt}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_endpoint_property_device_view.cuh" line="181" column="20" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_endpoint_property_device_view.cuh" bodystart="181" bodyend="181"/>
+      </memberdef>
+      <memberdef kind="variable" id="classcugraph_1_1detail_1_1edge__partition__endpoint__property__device__view__t_1a038b6783b815ec0087575eef6f3b6ea6" prot="private" static="no" mutable="no">
+        <type>thrust::optional&lt; size_t &gt;</type>
+        <definition>thrust::optional&lt;size_t&gt; cugraph::detail::edge_partition_endpoint_property_device_view_t&lt; vertex_t, ValueIterator, value_t &gt;::key_chunk_size_</definition>
+        <argsstring></argsstring>
+        <name>key_chunk_size_</name>
+        <qualifiedname>cugraph::detail::edge_partition_endpoint_property_device_view_t::key_chunk_size_</qualifiedname>
+        <initializer>{thrust::nullopt}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_endpoint_property_device_view.cuh" line="182" column="20" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_endpoint_property_device_view.cuh" bodystart="182" bodyend="182"/>
+      </memberdef>
+      <memberdef kind="variable" id="classcugraph_1_1detail_1_1edge__partition__endpoint__property__device__view__t_1afe4d90948b90d35b2ed763ee52a1813b" prot="private" static="no" mutable="no">
+        <type>ValueIterator</type>
+        <definition>ValueIterator cugraph::detail::edge_partition_endpoint_property_device_view_t&lt; vertex_t, ValueIterator, value_t &gt;::value_first_</definition>
+        <argsstring></argsstring>
+        <name>value_first_</name>
+        <qualifiedname>cugraph::detail::edge_partition_endpoint_property_device_view_t::value_first_</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_endpoint_property_device_view.cuh" line="184" column="17" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_endpoint_property_device_view.cuh" bodystart="184" bodyend="184"/>
+      </memberdef>
+      <memberdef kind="variable" id="classcugraph_1_1detail_1_1edge__partition__endpoint__property__device__view__t_1a8f1a3fb76bb4b2c7fc711d777be772cd" prot="private" static="no" mutable="no">
+        <type>vertex_t</type>
+        <definition>vertex_t cugraph::detail::edge_partition_endpoint_property_device_view_t&lt; vertex_t, ValueIterator, value_t &gt;::range_first_</definition>
+        <argsstring></argsstring>
+        <name>range_first_</name>
+        <qualifiedname>cugraph::detail::edge_partition_endpoint_property_device_view_t::range_first_</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_endpoint_property_device_view.cuh" line="185" column="12" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_endpoint_property_device_view.cuh" bodystart="185" bodyend="185"/>
+      </memberdef>
+    </sectiondef>
+    <sectiondef kind="public-func">
+      <memberdef kind="function" id="classcugraph_1_1detail_1_1edge__partition__endpoint__property__device__view__t_1aa1aee2713eec4b6b19f77c440053bdc0" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type></type>
+        <definition>cugraph::detail::edge_partition_endpoint_property_device_view_t&lt; vertex_t, ValueIterator, value_t &gt;::edge_partition_endpoint_property_device_view_t</definition>
+        <argsstring>()=default</argsstring>
+        <name>edge_partition_endpoint_property_device_view_t</name>
+        <qualifiedname>cugraph::detail::edge_partition_endpoint_property_device_view_t::edge_partition_endpoint_property_device_view_t</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_endpoint_property_device_view.cuh" line="52" column="3"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1detail_1_1edge__partition__endpoint__property__device__view__t_1ad08cadcb51e850eb8182c92e7d32f642" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type></type>
+        <definition>cugraph::detail::edge_partition_endpoint_property_device_view_t&lt; vertex_t, ValueIterator, value_t &gt;::edge_partition_endpoint_property_device_view_t</definition>
+        <argsstring>(edge_major_property_view_t&lt; vertex_t, ValueIterator, value_t &gt; const &amp;view, size_t partition_idx)</argsstring>
+        <name>edge_partition_endpoint_property_device_view_t</name>
+        <qualifiedname>cugraph::detail::edge_partition_endpoint_property_device_view_t::edge_partition_endpoint_property_device_view_t</qualifiedname>
+        <param>
+          <type><ref refid="classcugraph_1_1detail_1_1edge__major__property__view__t" kindref="compound">edge_major_property_view_t</ref>&lt; vertex_t, ValueIterator, value_t &gt; const &amp;</type>
+          <declname>view</declname>
+        </param>
+        <param>
+          <type>size_t</type>
+          <declname>partition_idx</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_endpoint_property_device_view.cuh" line="54" column="3" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_endpoint_property_device_view.cuh" bodystart="54" bodyend="66"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1detail_1_1edge__partition__endpoint__property__device__view__t_1a4cfe08c9e04d862a1e00219faf917a9f" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type></type>
+        <definition>cugraph::detail::edge_partition_endpoint_property_device_view_t&lt; vertex_t, ValueIterator, value_t &gt;::edge_partition_endpoint_property_device_view_t</definition>
+        <argsstring>(edge_minor_property_view_t&lt; vertex_t, ValueIterator, value_t &gt; const &amp;view)</argsstring>
+        <name>edge_partition_endpoint_property_device_view_t</name>
+        <qualifiedname>cugraph::detail::edge_partition_endpoint_property_device_view_t::edge_partition_endpoint_property_device_view_t</qualifiedname>
+        <param>
+          <type><ref refid="classcugraph_1_1detail_1_1edge__minor__property__view__t" kindref="compound">edge_minor_property_view_t</ref>&lt; vertex_t, ValueIterator, value_t &gt; const &amp;</type>
+          <declname>view</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_endpoint_property_device_view.cuh" line="68" column="3" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_endpoint_property_device_view.cuh" bodystart="68" bodyend="78"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1detail_1_1edge__partition__endpoint__property__device__view__t_1aa816ac8bd3ebf6fa68ca09b77b868fce" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>__device__ value_t</type>
+        <definition>__device__ value_t cugraph::detail::edge_partition_endpoint_property_device_view_t&lt; vertex_t, ValueIterator, value_t &gt;::get</definition>
+        <argsstring>(vertex_t offset) const</argsstring>
+        <name>get</name>
+        <qualifiedname>cugraph::detail::edge_partition_endpoint_property_device_view_t::get</qualifiedname>
+        <param>
+          <type>vertex_t</type>
+          <declname>offset</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_endpoint_property_device_view.cuh" line="80" column="22" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_endpoint_property_device_view.cuh" bodystart="80" bodyend="90"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1detail_1_1edge__partition__endpoint__property__device__view__t_1a458a6f9db9f3228114b9f746878e746f" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <templateparamlist>
+          <param>
+            <type>typename Iter</type>
+            <defval>ValueIterator</defval>
+          </param>
+        </templateparamlist>
+        <type>__device__ std::enable_if_t&lt; !std::is_const_v&lt; std::remove_reference_t&lt; typename std::iterator_traits&lt; Iter &gt;::reference &gt; &gt;, value_t &gt;</type>
+        <definition>__device__ std::enable_if_t&lt; !std::is_const_v&lt; std::remove_reference_t&lt; typename std::iterator_traits&lt; Iter &gt;::reference &gt; &gt;, value_t &gt; cugraph::detail::edge_partition_endpoint_property_device_view_t&lt; vertex_t, ValueIterator, value_t &gt;::atomic_and</definition>
+        <argsstring>(vertex_t offset, value_t val) const</argsstring>
+        <name>atomic_and</name>
+        <qualifiedname>cugraph::detail::edge_partition_endpoint_property_device_view_t::atomic_and</qualifiedname>
+        <param>
+          <type>vertex_t</type>
+          <declname>offset</declname>
+        </param>
+        <param>
+          <type>value_t</type>
+          <declname>val</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_endpoint_property_device_view.cuh" line="96" column="3" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_endpoint_property_device_view.cuh" bodystart="96" bodyend="108"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1detail_1_1edge__partition__endpoint__property__device__view__t_1a768115ee807247e8a73a600003f20e74" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <templateparamlist>
+          <param>
+            <type>typename Iter</type>
+            <defval>ValueIterator</defval>
+          </param>
+        </templateparamlist>
+        <type>__device__ std::enable_if_t&lt; !std::is_const_v&lt; std::remove_reference_t&lt; typename std::iterator_traits&lt; Iter &gt;::reference &gt; &gt;, value_t &gt;</type>
+        <definition>__device__ std::enable_if_t&lt; !std::is_const_v&lt; std::remove_reference_t&lt; typename std::iterator_traits&lt; Iter &gt;::reference &gt; &gt;, value_t &gt; cugraph::detail::edge_partition_endpoint_property_device_view_t&lt; vertex_t, ValueIterator, value_t &gt;::atomic_or</definition>
+        <argsstring>(vertex_t offset, value_t val) const</argsstring>
+        <name>atomic_or</name>
+        <qualifiedname>cugraph::detail::edge_partition_endpoint_property_device_view_t::atomic_or</qualifiedname>
+        <param>
+          <type>vertex_t</type>
+          <declname>offset</declname>
+        </param>
+        <param>
+          <type>value_t</type>
+          <declname>val</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_endpoint_property_device_view.cuh" line="114" column="3" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_endpoint_property_device_view.cuh" bodystart="114" bodyend="126"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1detail_1_1edge__partition__endpoint__property__device__view__t_1adc076b2086aef1501238ffd59911b9b6" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <templateparamlist>
+          <param>
+            <type>typename Iter</type>
+            <defval>ValueIterator</defval>
+          </param>
+          <param>
+            <type>typename T</type>
+            <defval>value_t</defval>
+          </param>
+        </templateparamlist>
+        <type>__device__ std::enable_if_t&lt; !std::is_const_v&lt; std::remove_reference_t&lt; typename std::iterator_traits&lt; Iter &gt;::reference &gt; &gt; &amp;&amp;!cugraph::has_packed_bool_element&lt; Iter, T &gt;(), value_t &gt;</type>
+        <definition>__device__ std::enable_if_t&lt; !std::is_const_v&lt; std::remove_reference_t&lt; typename std::iterator_traits&lt; Iter &gt;::reference &gt; &gt; &amp;&amp; !cugraph::has_packed_bool_element&lt; Iter, T &gt;(), value_t &gt; cugraph::detail::edge_partition_endpoint_property_device_view_t&lt; vertex_t, ValueIterator, value_t &gt;::atomic_add</definition>
+        <argsstring>(vertex_t offset, value_t val) const</argsstring>
+        <name>atomic_add</name>
+        <qualifiedname>cugraph::detail::edge_partition_endpoint_property_device_view_t::atomic_add</qualifiedname>
+        <param>
+          <type>vertex_t</type>
+          <declname>offset</declname>
+        </param>
+        <param>
+          <type>value_t</type>
+          <declname>val</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_endpoint_property_device_view.cuh" line="133" column="3" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_endpoint_property_device_view.cuh" bodystart="133" bodyend="137"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1detail_1_1edge__partition__endpoint__property__device__view__t_1a7c9a5ca74d6b4de6bb1e335afcee292b" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <templateparamlist>
+          <param>
+            <type>typename Iter</type>
+            <defval>ValueIterator</defval>
+          </param>
+        </templateparamlist>
+        <type>__device__ std::enable_if_t&lt; !std::is_const_v&lt; std::remove_reference_t&lt; typename std::iterator_traits&lt; Iter &gt;::reference &gt; &gt;, value_t &gt;</type>
+        <definition>__device__ std::enable_if_t&lt; !std::is_const_v&lt; std::remove_reference_t&lt; typename std::iterator_traits&lt; Iter &gt;::reference &gt; &gt;, value_t &gt; cugraph::detail::edge_partition_endpoint_property_device_view_t&lt; vertex_t, ValueIterator, value_t &gt;::elementwise_atomic_cas</definition>
+        <argsstring>(vertex_t offset, value_t compare, value_t val) const</argsstring>
+        <name>elementwise_atomic_cas</name>
+        <qualifiedname>cugraph::detail::edge_partition_endpoint_property_device_view_t::elementwise_atomic_cas</qualifiedname>
+        <param>
+          <type>vertex_t</type>
+          <declname>offset</declname>
+        </param>
+        <param>
+          <type>value_t</type>
+          <declname>compare</declname>
+        </param>
+        <param>
+          <type>value_t</type>
+          <declname>val</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_endpoint_property_device_view.cuh" line="143" column="3" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_endpoint_property_device_view.cuh" bodystart="143" bodyend="155"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1detail_1_1edge__partition__endpoint__property__device__view__t_1a5e442e147ac1935ab1645468408d6163" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <templateparamlist>
+          <param>
+            <type>typename Iter</type>
+            <defval>ValueIterator</defval>
+          </param>
+          <param>
+            <type>typename T</type>
+            <defval>value_t</defval>
+          </param>
+        </templateparamlist>
+        <type>__device__ std::enable_if_t&lt; !std::is_const_v&lt; std::remove_reference_t&lt; typename std::iterator_traits&lt; Iter &gt;::reference &gt; &gt; &amp;&amp;!cugraph::has_packed_bool_element&lt; Iter, T &gt;(), value_t &gt;</type>
+        <definition>__device__ std::enable_if_t&lt; !std::is_const_v&lt; std::remove_reference_t&lt; typename std::iterator_traits&lt; Iter &gt;::reference &gt; &gt; &amp;&amp; !cugraph::has_packed_bool_element&lt; Iter, T &gt;(), value_t &gt; cugraph::detail::edge_partition_endpoint_property_device_view_t&lt; vertex_t, ValueIterator, value_t &gt;::elementwise_atomic_min</definition>
+        <argsstring>(vertex_t offset, value_t val) const</argsstring>
+        <name>elementwise_atomic_min</name>
+        <qualifiedname>cugraph::detail::edge_partition_endpoint_property_device_view_t::elementwise_atomic_min</qualifiedname>
+        <param>
+          <type>vertex_t</type>
+          <declname>offset</declname>
+        </param>
+        <param>
+          <type>value_t</type>
+          <declname>val</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_endpoint_property_device_view.cuh" line="162" column="3" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_endpoint_property_device_view.cuh" bodystart="162" bodyend="166"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1detail_1_1edge__partition__endpoint__property__device__view__t_1accecf7930c8fb9e0e27ac31ef4cb3398" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <templateparamlist>
+          <param>
+            <type>typename Iter</type>
+            <defval>ValueIterator</defval>
+          </param>
+          <param>
+            <type>typename T</type>
+            <defval>value_t</defval>
+          </param>
+        </templateparamlist>
+        <type>__device__ std::enable_if_t&lt; !std::is_const_v&lt; std::remove_reference_t&lt; typename std::iterator_traits&lt; Iter &gt;::reference &gt; &gt; &amp;&amp;!cugraph::has_packed_bool_element&lt; Iter, T &gt;(), value_t &gt;</type>
+        <definition>__device__ std::enable_if_t&lt; !std::is_const_v&lt; std::remove_reference_t&lt; typename std::iterator_traits&lt; Iter &gt;::reference &gt; &gt; &amp;&amp; !cugraph::has_packed_bool_element&lt; Iter, T &gt;(), value_t &gt; cugraph::detail::edge_partition_endpoint_property_device_view_t&lt; vertex_t, ValueIterator, value_t &gt;::elementwise_atomic_max</definition>
+        <argsstring>(vertex_t offset, value_t val) const</argsstring>
+        <name>elementwise_atomic_max</name>
+        <qualifiedname>cugraph::detail::edge_partition_endpoint_property_device_view_t::elementwise_atomic_max</qualifiedname>
+        <param>
+          <type>vertex_t</type>
+          <declname>offset</declname>
+        </param>
+        <param>
+          <type>value_t</type>
+          <declname>val</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_endpoint_property_device_view.cuh" line="173" column="3" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_endpoint_property_device_view.cuh" bodystart="173" bodyend="177"/>
+      </memberdef>
+    </sectiondef>
+    <sectiondef kind="private-func">
+      <memberdef kind="function" id="classcugraph_1_1detail_1_1edge__partition__endpoint__property__device__view__t_1a13ff92d1addaabf3e0f47a61fddd51b5" prot="private" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>__device__ vertex_t</type>
+        <definition>__device__ vertex_t cugraph::detail::edge_partition_endpoint_property_device_view_t&lt; vertex_t, ValueIterator, value_t &gt;::value_offset</definition>
+        <argsstring>(vertex_t offset) const</argsstring>
+        <name>value_offset</name>
+        <qualifiedname>cugraph::detail::edge_partition_endpoint_property_device_view_t::value_offset</qualifiedname>
+        <param>
+          <type>vertex_t</type>
+          <declname>offset</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_endpoint_property_device_view.cuh" line="187" column="23" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_endpoint_property_device_view.cuh" bodystart="187" bodyend="203"/>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_endpoint_property_device_view.cuh" line="40" column="1" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_endpoint_property_device_view.cuh" bodystart="40" bodyend="204"/>
+    <listofallmembers>
+      <member refid="classcugraph_1_1detail_1_1edge__partition__endpoint__property__device__view__t_1adc076b2086aef1501238ffd59911b9b6" prot="public" virt="non-virtual"><scope>cugraph::detail::edge_partition_endpoint_property_device_view_t</scope><name>atomic_add</name></member>
+      <member refid="classcugraph_1_1detail_1_1edge__partition__endpoint__property__device__view__t_1a458a6f9db9f3228114b9f746878e746f" prot="public" virt="non-virtual"><scope>cugraph::detail::edge_partition_endpoint_property_device_view_t</scope><name>atomic_and</name></member>
+      <member refid="classcugraph_1_1detail_1_1edge__partition__endpoint__property__device__view__t_1a768115ee807247e8a73a600003f20e74" prot="public" virt="non-virtual"><scope>cugraph::detail::edge_partition_endpoint_property_device_view_t</scope><name>atomic_or</name></member>
+      <member refid="classcugraph_1_1detail_1_1edge__partition__endpoint__property__device__view__t_1aa1aee2713eec4b6b19f77c440053bdc0" prot="public" virt="non-virtual"><scope>cugraph::detail::edge_partition_endpoint_property_device_view_t</scope><name>edge_partition_endpoint_property_device_view_t</name></member>
+      <member refid="classcugraph_1_1detail_1_1edge__partition__endpoint__property__device__view__t_1ad08cadcb51e850eb8182c92e7d32f642" prot="public" virt="non-virtual"><scope>cugraph::detail::edge_partition_endpoint_property_device_view_t</scope><name>edge_partition_endpoint_property_device_view_t</name></member>
+      <member refid="classcugraph_1_1detail_1_1edge__partition__endpoint__property__device__view__t_1a4cfe08c9e04d862a1e00219faf917a9f" prot="public" virt="non-virtual"><scope>cugraph::detail::edge_partition_endpoint_property_device_view_t</scope><name>edge_partition_endpoint_property_device_view_t</name></member>
+      <member refid="classcugraph_1_1detail_1_1edge__partition__endpoint__property__device__view__t_1a7c9a5ca74d6b4de6bb1e335afcee292b" prot="public" virt="non-virtual"><scope>cugraph::detail::edge_partition_endpoint_property_device_view_t</scope><name>elementwise_atomic_cas</name></member>
+      <member refid="classcugraph_1_1detail_1_1edge__partition__endpoint__property__device__view__t_1accecf7930c8fb9e0e27ac31ef4cb3398" prot="public" virt="non-virtual"><scope>cugraph::detail::edge_partition_endpoint_property_device_view_t</scope><name>elementwise_atomic_max</name></member>
+      <member refid="classcugraph_1_1detail_1_1edge__partition__endpoint__property__device__view__t_1a5e442e147ac1935ab1645468408d6163" prot="public" virt="non-virtual"><scope>cugraph::detail::edge_partition_endpoint_property_device_view_t</scope><name>elementwise_atomic_min</name></member>
+      <member refid="classcugraph_1_1detail_1_1edge__partition__endpoint__property__device__view__t_1aa816ac8bd3ebf6fa68ca09b77b868fce" prot="public" virt="non-virtual"><scope>cugraph::detail::edge_partition_endpoint_property_device_view_t</scope><name>get</name></member>
+      <member refid="classcugraph_1_1detail_1_1edge__partition__endpoint__property__device__view__t_1afbc9144d5ee80c2476164ee5007d161c" prot="public" virt="non-virtual"><scope>cugraph::detail::edge_partition_endpoint_property_device_view_t</scope><name>has_packed_bool_element</name></member>
+      <member refid="classcugraph_1_1detail_1_1edge__partition__endpoint__property__device__view__t_1a4e57b6a4f218c3f18787a6f9b43c48a3" prot="public" virt="non-virtual"><scope>cugraph::detail::edge_partition_endpoint_property_device_view_t</scope><name>is_packed_bool</name></member>
+      <member refid="classcugraph_1_1detail_1_1edge__partition__endpoint__property__device__view__t_1a038b6783b815ec0087575eef6f3b6ea6" prot="private" virt="non-virtual"><scope>cugraph::detail::edge_partition_endpoint_property_device_view_t</scope><name>key_chunk_size_</name></member>
+      <member refid="classcugraph_1_1detail_1_1edge__partition__endpoint__property__device__view__t_1a59e18e8643fdada4208a7759e0a2debc" prot="private" virt="non-virtual"><scope>cugraph::detail::edge_partition_endpoint_property_device_view_t</scope><name>key_chunk_start_offsets_</name></member>
+      <member refid="classcugraph_1_1detail_1_1edge__partition__endpoint__property__device__view__t_1a99ea057f87b382ca8d006961d8370754" prot="private" virt="non-virtual"><scope>cugraph::detail::edge_partition_endpoint_property_device_view_t</scope><name>keys_</name></member>
+      <member refid="classcugraph_1_1detail_1_1edge__partition__endpoint__property__device__view__t_1a8f1a3fb76bb4b2c7fc711d777be772cd" prot="private" virt="non-virtual"><scope>cugraph::detail::edge_partition_endpoint_property_device_view_t</scope><name>range_first_</name></member>
+      <member refid="classcugraph_1_1detail_1_1edge__partition__endpoint__property__device__view__t_1afe4d90948b90d35b2ed763ee52a1813b" prot="private" virt="non-virtual"><scope>cugraph::detail::edge_partition_endpoint_property_device_view_t</scope><name>value_first_</name></member>
+      <member refid="classcugraph_1_1detail_1_1edge__partition__endpoint__property__device__view__t_1a13ff92d1addaabf3e0f47a61fddd51b5" prot="private" virt="non-virtual"><scope>cugraph::detail::edge_partition_endpoint_property_device_view_t</scope><name>value_offset</name></member>
+      <member refid="classcugraph_1_1detail_1_1edge__partition__endpoint__property__device__view__t_1a5d5a97ba1e97a9c17e9dd142847aad01" prot="public" virt="non-virtual"><scope>cugraph::detail::edge_partition_endpoint_property_device_view_t</scope><name>value_type</name></member>
+      <member refid="classcugraph_1_1detail_1_1edge__partition__endpoint__property__device__view__t_1afe3ed35a5a9f69f0bc9c82a3c93563b7" prot="public" virt="non-virtual"><scope>cugraph::detail::edge_partition_endpoint_property_device_view_t</scope><name>vertex_type</name></member>
+    </listofallmembers>
+  </compounddef>
+</doxygen>

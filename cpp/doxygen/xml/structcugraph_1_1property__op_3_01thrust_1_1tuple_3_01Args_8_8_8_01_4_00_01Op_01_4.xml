@@ -1,0 +1,130 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="structcugraph_1_1property__op_3_01thrust_1_1tuple_3_01Args_8_8_8_01_4_00_01Op_01_4" kind="struct" language="C++" prot="public">
+    <compoundname>cugraph::property_op&lt; thrust::tuple&lt; Args... &gt;, Op &gt;</compoundname>
+    <basecompoundref prot="public" virt="non-virtual">thrust:: binary_function&lt; thrust::tuple&lt; Args... &gt;, thrust::tuple&lt; Args... &gt;, thrust::tuple&lt; Args... &gt; &gt;</basecompoundref>
+    <templateparamlist>
+      <param>
+        <type>typename...</type>
+        <declname>Args</declname>
+        <defname>Args</defname>
+      </param>
+      <param>
+        <type>template&lt; typename &gt; typename</type>
+        <declname>Op</declname>
+        <defname>Op</defname>
+      </param>
+    </templateparamlist>
+    <sectiondef kind="public-type">
+      <memberdef kind="typedef" id="structcugraph_1_1property__op_3_01thrust_1_1tuple_3_01Args_8_8_8_01_4_00_01Op_01_4_1a216779ff730725cb76b8c681557f64e7" prot="public" static="no">
+        <type>thrust::tuple&lt; Args... &gt;</type>
+        <definition>using cugraph::property_op&lt; thrust::tuple&lt; Args... &gt;, Op &gt;::Type =  thrust::tuple&lt;Args...&gt;</definition>
+        <argsstring></argsstring>
+        <name>Type</name>
+        <qualifiedname>cugraph::property_op&lt; thrust::tuple&lt; Args... &gt;, Op &gt;::Type</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/property_op_utils.cuh" line="134" column="3" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/property_op_utils.cuh" bodystart="134" bodyend="-1"/>
+      </memberdef>
+    </sectiondef>
+    <sectiondef kind="private-func">
+      <memberdef kind="function" id="structcugraph_1_1property__op_3_01thrust_1_1tuple_3_01Args_8_8_8_01_4_00_01Op_01_4_1a0f2b2df2748fbbf419e3a9007fdc85ce" prot="private" static="no" constexpr="yes" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <templateparamlist>
+          <param>
+            <type>typename T</type>
+          </param>
+          <param>
+            <type>std::size_t...</type>
+            <declname>Is</declname>
+            <defname>Is</defname>
+          </param>
+        </templateparamlist>
+        <type>__host__ __device__ constexpr auto</type>
+        <definition>__host__ __device__ constexpr auto cugraph::property_op&lt; thrust::tuple&lt; Args... &gt;, Op &gt;::binary_op_impl</definition>
+        <argsstring>(T &amp;t1, T &amp;t2, std::index_sequence&lt; Is... &gt;) const</argsstring>
+        <name>binary_op_impl</name>
+        <qualifiedname>cugraph::property_op&lt; thrust::tuple&lt; Args... &gt;, Op &gt;::binary_op_impl</qualifiedname>
+        <param>
+          <type>T &amp;</type>
+          <declname>t1</declname>
+        </param>
+        <param>
+          <type>T &amp;</type>
+          <declname>t2</declname>
+        </param>
+        <param>
+          <type>std::index_sequence&lt; Is... &gt;</type>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/property_op_utils.cuh" line="138" column="38" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/property_op_utils.cuh" bodystart="138" bodyend="142"/>
+      </memberdef>
+    </sectiondef>
+    <sectiondef kind="public-func">
+      <memberdef kind="function" id="structcugraph_1_1property__op_3_01thrust_1_1tuple_3_01Args_8_8_8_01_4_00_01Op_01_4_1a2620c6b74fceda79a1c17efec4004a40" prot="public" static="no" constexpr="yes" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>__host__ __device__ constexpr auto</type>
+        <definition>__host__ __device__ constexpr auto cugraph::property_op&lt; thrust::tuple&lt; Args... &gt;, Op &gt;::operator()</definition>
+        <argsstring>(const Type &amp;t1, const Type &amp;t2) const</argsstring>
+        <name>operator()</name>
+        <qualifiedname>cugraph::property_op&lt; thrust::tuple&lt; Args... &gt;, Op &gt;::operator()</qualifiedname>
+        <param>
+          <type>const Type &amp;</type>
+          <declname>t1</declname>
+        </param>
+        <param>
+          <type>const Type &amp;</type>
+          <declname>t2</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/property_op_utils.cuh" line="145" column="38" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/property_op_utils.cuh" bodystart="145" bodyend="148"/>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <inheritancegraph>
+      <node id="1">
+        <label>cugraph::property_op&lt; thrust::tuple&lt; Args... &gt;, Op &gt;</label>
+        <link refid="structcugraph_1_1property__op_3_01thrust_1_1tuple_3_01Args_8_8_8_01_4_00_01Op_01_4"/>
+        <childnode refid="2" relation="public-inheritance">
+        </childnode>
+      </node>
+      <node id="2">
+        <label>thrust::
+      binary_function&lt; thrust::tuple&lt; Args... &gt;, thrust::tuple&lt; Args... &gt;, thrust::tuple&lt; Args... &gt; &gt;</label>
+      </node>
+    </inheritancegraph>
+    <collaborationgraph>
+      <node id="1">
+        <label>cugraph::property_op&lt; thrust::tuple&lt; Args... &gt;, Op &gt;</label>
+        <link refid="structcugraph_1_1property__op_3_01thrust_1_1tuple_3_01Args_8_8_8_01_4_00_01Op_01_4"/>
+        <childnode refid="2" relation="public-inheritance">
+        </childnode>
+      </node>
+      <node id="2">
+        <label>thrust::
+      binary_function&lt; thrust::tuple&lt; Args... &gt;, thrust::tuple&lt; Args... &gt;, thrust::tuple&lt; Args... &gt; &gt;</label>
+      </node>
+    </collaborationgraph>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/property_op_utils.cuh" line="131" column="1" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/property_op_utils.cuh" bodystart="133" bodyend="149"/>
+    <listofallmembers>
+      <member refid="structcugraph_1_1property__op_3_01thrust_1_1tuple_3_01Args_8_8_8_01_4_00_01Op_01_4_1a0f2b2df2748fbbf419e3a9007fdc85ce" prot="private" virt="non-virtual"><scope>cugraph::property_op&lt; thrust::tuple&lt; Args... &gt;, Op &gt;</scope><name>binary_op_impl</name></member>
+      <member refid="structcugraph_1_1property__op_3_01thrust_1_1tuple_3_01Args_8_8_8_01_4_00_01Op_01_4_1a2620c6b74fceda79a1c17efec4004a40" prot="public" virt="non-virtual"><scope>cugraph::property_op&lt; thrust::tuple&lt; Args... &gt;, Op &gt;</scope><name>operator()</name></member>
+      <member refid="structcugraph_1_1property__op_3_01thrust_1_1tuple_3_01Args_8_8_8_01_4_00_01Op_01_4_1a216779ff730725cb76b8c681557f64e7" prot="public" virt="non-virtual"><scope>cugraph::property_op&lt; thrust::tuple&lt; Args... &gt;, Op &gt;</scope><name>Type</name></member>
+    </listofallmembers>
+  </compounddef>
+</doxygen>

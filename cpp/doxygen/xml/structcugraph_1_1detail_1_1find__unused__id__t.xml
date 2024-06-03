@@ -1,0 +1,121 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="structcugraph_1_1detail_1_1find__unused__id__t" kind="struct" language="C++" prot="public">
+    <compoundname>cugraph::detail::find_unused_id_t</compoundname>
+    <templateparamlist>
+      <param>
+        <type>typename vertex_t</type>
+      </param>
+    </templateparamlist>
+    <sectiondef kind="public-attrib">
+      <memberdef kind="variable" id="structcugraph_1_1detail_1_1find__unused__id__t_1ac642a9418661ef605a125831ff9170e8" prot="public" static="no" mutable="no">
+        <type>raft::device_span&lt; vertex_t const  &gt;</type>
+        <definition>raft::device_span&lt;vertex_t const&gt; cugraph::detail::find_unused_id_t&lt; vertex_t &gt;::sorted_local_vertices</definition>
+        <argsstring></argsstring>
+        <name>sorted_local_vertices</name>
+        <qualifiedname>cugraph::detail::find_unused_id_t::sorted_local_vertices</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/structure/renumber_edgelist_impl.cuh" line="79" column="21" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/structure/renumber_edgelist_impl.cuh" bodystart="79" bodyend="79"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph_1_1detail_1_1find__unused__id__t_1a1128949f2084546a09348a5249b21f69" prot="public" static="no" mutable="no">
+        <type>size_t</type>
+        <definition>size_t cugraph::detail::find_unused_id_t&lt; vertex_t &gt;::num_workers</definition>
+        <argsstring></argsstring>
+        <name>num_workers</name>
+        <qualifiedname>cugraph::detail::find_unused_id_t::num_workers</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/structure/renumber_edgelist_impl.cuh" line="80" column="10" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/structure/renumber_edgelist_impl.cuh" bodystart="80" bodyend="80"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph_1_1detail_1_1find__unused__id__t_1a95c124c98c690b69c8dae4064e40e3a1" prot="public" static="no" mutable="no">
+        <type><ref refid="structcugraph_1_1detail_1_1compute__gpu__id__from__ext__vertex__t" kindref="compound">compute_gpu_id_from_ext_vertex_t</ref>&lt; vertex_t &gt;</type>
+        <definition>compute_gpu_id_from_ext_vertex_t&lt;vertex_t&gt; cugraph::detail::find_unused_id_t&lt; vertex_t &gt;::gpu_id_op</definition>
+        <argsstring></argsstring>
+        <name>gpu_id_op</name>
+        <qualifiedname>cugraph::detail::find_unused_id_t::gpu_id_op</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/structure/renumber_edgelist_impl.cuh" line="81" column="36" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/structure/renumber_edgelist_impl.cuh" bodystart="81" bodyend="81"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph_1_1detail_1_1find__unused__id__t_1a13b7fa053c2725ef2064fb235fa6b6a2" prot="public" static="no" mutable="no">
+        <type>int</type>
+        <definition>int cugraph::detail::find_unused_id_t&lt; vertex_t &gt;::comm_rank</definition>
+        <argsstring></argsstring>
+        <name>comm_rank</name>
+        <qualifiedname>cugraph::detail::find_unused_id_t::comm_rank</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/structure/renumber_edgelist_impl.cuh" line="82" column="7" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/structure/renumber_edgelist_impl.cuh" bodystart="82" bodyend="82"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph_1_1detail_1_1find__unused__id__t_1a8e8fced64915be0e3409d7d3c43a827c" prot="public" static="no" mutable="no">
+        <type>vertex_t</type>
+        <definition>vertex_t cugraph::detail::find_unused_id_t&lt; vertex_t &gt;::invalid_id</definition>
+        <argsstring></argsstring>
+        <name>invalid_id</name>
+        <qualifiedname>cugraph::detail::find_unused_id_t::invalid_id</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/structure/renumber_edgelist_impl.cuh" line="83" column="12" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/structure/renumber_edgelist_impl.cuh" bodystart="83" bodyend="83"/>
+      </memberdef>
+    </sectiondef>
+    <sectiondef kind="public-func">
+      <memberdef kind="function" id="structcugraph_1_1detail_1_1find__unused__id__t_1ad2a4c694e57f0f20ecf3085565dddbc7" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>__device__ vertex_t</type>
+        <definition>__device__ vertex_t cugraph::detail::find_unused_id_t&lt; vertex_t &gt;::operator()</definition>
+        <argsstring>(size_t worker_id) const</argsstring>
+        <name>operator()</name>
+        <qualifiedname>cugraph::detail::find_unused_id_t::operator()</qualifiedname>
+        <param>
+          <type>size_t</type>
+          <declname>worker_id</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/structure/renumber_edgelist_impl.cuh" line="85" column="23" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/structure/renumber_edgelist_impl.cuh" bodystart="85" bodyend="98"/>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/src/structure/renumber_edgelist_impl.cuh" line="78" column="1" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/structure/renumber_edgelist_impl.cuh" bodystart="78" bodyend="99"/>
+    <listofallmembers>
+      <member refid="structcugraph_1_1detail_1_1find__unused__id__t_1a13b7fa053c2725ef2064fb235fa6b6a2" prot="public" virt="non-virtual"><scope>cugraph::detail::find_unused_id_t</scope><name>comm_rank</name></member>
+      <member refid="structcugraph_1_1detail_1_1find__unused__id__t_1a95c124c98c690b69c8dae4064e40e3a1" prot="public" virt="non-virtual"><scope>cugraph::detail::find_unused_id_t</scope><name>gpu_id_op</name></member>
+      <member refid="structcugraph_1_1detail_1_1find__unused__id__t_1a8e8fced64915be0e3409d7d3c43a827c" prot="public" virt="non-virtual"><scope>cugraph::detail::find_unused_id_t</scope><name>invalid_id</name></member>
+      <member refid="structcugraph_1_1detail_1_1find__unused__id__t_1a1128949f2084546a09348a5249b21f69" prot="public" virt="non-virtual"><scope>cugraph::detail::find_unused_id_t</scope><name>num_workers</name></member>
+      <member refid="structcugraph_1_1detail_1_1find__unused__id__t_1ad2a4c694e57f0f20ecf3085565dddbc7" prot="public" virt="non-virtual"><scope>cugraph::detail::find_unused_id_t</scope><name>operator()</name></member>
+      <member refid="structcugraph_1_1detail_1_1find__unused__id__t_1ac642a9418661ef605a125831ff9170e8" prot="public" virt="non-virtual"><scope>cugraph::detail::find_unused_id_t</scope><name>sorted_local_vertices</name></member>
+    </listofallmembers>
+  </compounddef>
+</doxygen>

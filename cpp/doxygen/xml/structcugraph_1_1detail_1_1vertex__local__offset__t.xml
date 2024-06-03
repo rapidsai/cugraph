@@ -1,0 +1,75 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="structcugraph_1_1detail_1_1vertex__local__offset__t" kind="struct" language="C++" prot="public">
+    <compoundname>cugraph::detail::vertex_local_offset_t</compoundname>
+    <templateparamlist>
+      <param>
+        <type>typename vertex_t</type>
+      </param>
+      <param>
+        <type>bool</type>
+        <declname>multi_gpu</declname>
+        <defname>multi_gpu</defname>
+      </param>
+    </templateparamlist>
+    <sectiondef kind="public-attrib">
+      <memberdef kind="variable" id="structcugraph_1_1detail_1_1vertex__local__offset__t_1a3aadf27767962330d0db44bd9c2bb0a1" prot="public" static="no" mutable="no">
+        <type><ref refid="classcugraph_1_1vertex__partition__device__view__t" kindref="compound">vertex_partition_device_view_t</ref>&lt; vertex_t, multi_gpu &gt;</type>
+        <definition>vertex_partition_device_view_t&lt;vertex_t, multi_gpu&gt; cugraph::detail::vertex_local_offset_t&lt; vertex_t, multi_gpu &gt;::vertex_partition</definition>
+        <argsstring></argsstring>
+        <name>vertex_partition</name>
+        <qualifiedname>cugraph::detail::vertex_local_offset_t::vertex_partition</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/per_v_transform_reduce_dst_key_aggregated_outgoing_e.cuh" line="182" column="34" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/per_v_transform_reduce_dst_key_aggregated_outgoing_e.cuh" bodystart="182" bodyend="182"/>
+      </memberdef>
+    </sectiondef>
+    <sectiondef kind="public-func">
+      <memberdef kind="function" id="structcugraph_1_1detail_1_1vertex__local__offset__t_1a0a2a9279beb5f3d9c299eb557f58b1bb" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>__device__ vertex_t</type>
+        <definition>__device__ vertex_t cugraph::detail::vertex_local_offset_t&lt; vertex_t, multi_gpu &gt;::operator()</definition>
+        <argsstring>(vertex_t v) const</argsstring>
+        <name>operator()</name>
+        <qualifiedname>cugraph::detail::vertex_local_offset_t::operator()</qualifiedname>
+        <param>
+          <type>vertex_t</type>
+          <declname>v</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/per_v_transform_reduce_dst_key_aggregated_outgoing_e.cuh" line="183" column="23" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/per_v_transform_reduce_dst_key_aggregated_outgoing_e.cuh" bodystart="183" bodyend="186"/>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <collaborationgraph>
+      <node id="1">
+        <label>cugraph::detail::vertex_local_offset_t&lt; vertex_t, multi_gpu &gt;</label>
+        <link refid="structcugraph_1_1detail_1_1vertex__local__offset__t"/>
+        <childnode refid="2" relation="usage">
+          <edgelabel>vertex_partition</edgelabel>
+        </childnode>
+      </node>
+      <node id="2">
+        <label>cugraph::vertex_partition_device_view_t&lt; vertex_t, multi_gpu &gt;</label>
+        <link refid="classcugraph_1_1vertex__partition__device__view__t"/>
+      </node>
+    </collaborationgraph>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/per_v_transform_reduce_dst_key_aggregated_outgoing_e.cuh" line="181" column="1" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/per_v_transform_reduce_dst_key_aggregated_outgoing_e.cuh" bodystart="181" bodyend="187"/>
+    <listofallmembers>
+      <member refid="structcugraph_1_1detail_1_1vertex__local__offset__t_1a0a2a9279beb5f3d9c299eb557f58b1bb" prot="public" virt="non-virtual"><scope>cugraph::detail::vertex_local_offset_t</scope><name>operator()</name></member>
+      <member refid="structcugraph_1_1detail_1_1vertex__local__offset__t_1a3aadf27767962330d0db44bd9c2bb0a1" prot="public" virt="non-virtual"><scope>cugraph::detail::vertex_local_offset_t</scope><name>vertex_partition</name></member>
+    </listofallmembers>
+  </compounddef>
+</doxygen>

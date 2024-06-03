@@ -1,0 +1,72 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="structcugraph_1_1detail_1_1device__allreduce__tuple__iterator__element__impl" kind="struct" language="C++" prot="public">
+    <compoundname>cugraph::detail::device_allreduce_tuple_iterator_element_impl</compoundname>
+    <templateparamlist>
+      <param>
+        <type>typename InputIterator</type>
+      </param>
+      <param>
+        <type>typename OutputIterator</type>
+      </param>
+      <param>
+        <type>size_t</type>
+        <declname>I</declname>
+        <defname>I</defname>
+      </param>
+      <param>
+        <type>size_t</type>
+        <declname>N</declname>
+        <defname>N</defname>
+      </param>
+    </templateparamlist>
+    <sectiondef kind="public-func">
+      <memberdef kind="function" id="structcugraph_1_1detail_1_1device__allreduce__tuple__iterator__element__impl_1ae47bab5db439b3e4dfdd7dc88e5a8120" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>void</type>
+        <definition>void cugraph::detail::device_allreduce_tuple_iterator_element_impl&lt; InputIterator, OutputIterator, I, N &gt;::run</definition>
+        <argsstring>(raft::comms::comms_t const &amp;comm, InputIterator input_first, OutputIterator output_first, size_t count, raft::comms::op_t op, rmm::cuda_stream_view stream_view) const</argsstring>
+        <name>run</name>
+        <qualifiedname>cugraph::detail::device_allreduce_tuple_iterator_element_impl::run</qualifiedname>
+        <param>
+          <type>raft::comms::comms_t const &amp;</type>
+          <declname>comm</declname>
+        </param>
+        <param>
+          <type>InputIterator</type>
+          <declname>input_first</declname>
+        </param>
+        <param>
+          <type>OutputIterator</type>
+          <declname>output_first</declname>
+        </param>
+        <param>
+          <type>size_t</type>
+          <declname>count</declname>
+        </param>
+        <param>
+          <type>raft::comms::op_t</type>
+          <declname>op</declname>
+        </param>
+        <param>
+          <type>rmm::cuda_stream_view</type>
+          <declname>stream_view</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/utilities/device_comm.hpp" line="451" column="8" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/utilities/device_comm.hpp" bodystart="451" bodyend="466"/>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/utilities/device_comm.hpp" line="450" column="1" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/utilities/device_comm.hpp" bodystart="450" bodyend="467"/>
+    <listofallmembers>
+      <member refid="structcugraph_1_1detail_1_1device__allreduce__tuple__iterator__element__impl_1ae47bab5db439b3e4dfdd7dc88e5a8120" prot="public" virt="non-virtual"><scope>cugraph::detail::device_allreduce_tuple_iterator_element_impl</scope><name>run</name></member>
+    </listofallmembers>
+  </compounddef>
+</doxygen>

@@ -1,0 +1,56 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="structcugraph_1_1detail_1_1hash__src__dst__pair" kind="struct" language="C++" prot="public">
+    <compoundname>cugraph::detail::hash_src_dst_pair</compoundname>
+    <templateparamlist>
+      <param>
+        <type>typename vertex_t</type>
+      </param>
+    </templateparamlist>
+    <sectiondef kind="public-attrib">
+      <memberdef kind="variable" id="structcugraph_1_1detail_1_1hash__src__dst__pair_1a1d70aa6a1327cfa0dd029f4430ca7863" prot="public" static="no" mutable="no">
+        <type>int32_t</type>
+        <definition>int32_t cugraph::detail::hash_src_dst_pair&lt; vertex_t &gt;::num_groups</definition>
+        <argsstring></argsstring>
+        <name>num_groups</name>
+        <qualifiedname>cugraph::detail::hash_src_dst_pair::num_groups</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/structure/remove_multi_edges_impl.cuh" line="49" column="11" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/structure/remove_multi_edges_impl.cuh" bodystart="49" bodyend="-1"/>
+      </memberdef>
+    </sectiondef>
+    <sectiondef kind="public-func">
+      <memberdef kind="function" id="structcugraph_1_1detail_1_1hash__src__dst__pair_1a73e5384f48472012d48bf5c96214cec4" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>int32_t __device__</type>
+        <definition>int32_t __device__ cugraph::detail::hash_src_dst_pair&lt; vertex_t &gt;::operator()</definition>
+        <argsstring>(thrust::tuple&lt; vertex_t, vertex_t &gt; t) const</argsstring>
+        <name>operator()</name>
+        <qualifiedname>cugraph::detail::hash_src_dst_pair::operator()</qualifiedname>
+        <param>
+          <type>thrust::tuple&lt; vertex_t, vertex_t &gt;</type>
+          <declname>t</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/structure/remove_multi_edges_impl.cuh" line="51" column="22" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/structure/remove_multi_edges_impl.cuh" bodystart="51" bodyend="59"/>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/src/structure/remove_multi_edges_impl.cuh" line="48" column="1" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/structure/remove_multi_edges_impl.cuh" bodystart="48" bodyend="60"/>
+    <listofallmembers>
+      <member refid="structcugraph_1_1detail_1_1hash__src__dst__pair_1a1d70aa6a1327cfa0dd029f4430ca7863" prot="public" virt="non-virtual"><scope>cugraph::detail::hash_src_dst_pair</scope><name>num_groups</name></member>
+      <member refid="structcugraph_1_1detail_1_1hash__src__dst__pair_1a73e5384f48472012d48bf5c96214cec4" prot="public" virt="non-virtual"><scope>cugraph::detail::hash_src_dst_pair</scope><name>operator()</name></member>
+    </listofallmembers>
+  </compounddef>
+</doxygen>

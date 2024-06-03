@@ -1,0 +1,252 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="structcugraph_1_1c__api_1_1extract__paths__functor" kind="struct" language="C++" prot="public">
+    <compoundname>cugraph::c_api::extract_paths_functor</compoundname>
+    <basecompoundref refid="structcugraph_1_1c__api_1_1abstract__functor" prot="public" virt="non-virtual">cugraph::c_api::abstract_functor</basecompoundref>
+    <sectiondef kind="public-attrib">
+      <memberdef kind="variable" id="structcugraph_1_1c__api_1_1extract__paths__functor_1a85fbed2df97fcf086a49956a1fe8ffa4" prot="public" static="no" mutable="no">
+        <type>raft::handle_t const  &amp;</type>
+        <definition>raft::handle_t const&amp; cugraph::c_api::extract_paths_functor::handle_</definition>
+        <argsstring></argsstring>
+        <name>handle_</name>
+        <qualifiedname>cugraph::c_api::extract_paths_functor::handle_</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/c_api/extract_paths.cpp" line="38" column="24" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/extract_paths.cpp" bodystart="38" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph_1_1c__api_1_1extract__paths__functor_1a8d9a969a000fe9d51838171d0fd0701d" prot="public" static="no" mutable="no">
+        <type><ref refid="structcugraph_1_1c__api_1_1cugraph__graph__t" kindref="compound">cugraph_graph_t</ref> *</type>
+        <definition>cugraph_graph_t* cugraph::c_api::extract_paths_functor::graph_</definition>
+        <argsstring></argsstring>
+        <name>graph_</name>
+        <qualifiedname>cugraph::c_api::extract_paths_functor::graph_</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/c_api/extract_paths.cpp" line="39" column="19" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/extract_paths.cpp" bodystart="39" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph_1_1c__api_1_1extract__paths__functor_1a593f6b336171161445f318b0c3e05934" prot="public" static="no" mutable="no">
+        <type><ref refid="structcugraph_1_1c__api_1_1cugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref> const  *</type>
+        <definition>cugraph_type_erased_device_array_view_t const* cugraph::c_api::extract_paths_functor::sources_</definition>
+        <argsstring></argsstring>
+        <name>sources_</name>
+        <qualifiedname>cugraph::c_api::extract_paths_functor::sources_</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/c_api/extract_paths.cpp" line="40" column="49" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/extract_paths.cpp" bodystart="40" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph_1_1c__api_1_1extract__paths__functor_1a310bf0039222c877919ef2787bdbf460" prot="public" static="no" mutable="no">
+        <type><ref refid="structcugraph_1_1c__api_1_1cugraph__paths__result__t" kindref="compound">cugraph_paths_result_t</ref> const  *</type>
+        <definition>cugraph_paths_result_t const* cugraph::c_api::extract_paths_functor::paths_result_</definition>
+        <argsstring></argsstring>
+        <name>paths_result_</name>
+        <qualifiedname>cugraph::c_api::extract_paths_functor::paths_result_</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/c_api/extract_paths.cpp" line="41" column="32" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/extract_paths.cpp" bodystart="41" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph_1_1c__api_1_1extract__paths__functor_1a71fbbbfaee51854aa736dfbb893a3e3f" prot="public" static="no" mutable="no">
+        <type><ref refid="structcugraph_1_1c__api_1_1cugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref> const  *</type>
+        <definition>cugraph_type_erased_device_array_view_t const* cugraph::c_api::extract_paths_functor::destinations_</definition>
+        <argsstring></argsstring>
+        <name>destinations_</name>
+        <qualifiedname>cugraph::c_api::extract_paths_functor::destinations_</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/c_api/extract_paths.cpp" line="42" column="49" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/extract_paths.cpp" bodystart="42" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph_1_1c__api_1_1extract__paths__functor_1a0c240177b1ad37a8dedd8bf40bde9e6f" prot="public" static="no" mutable="no">
+        <type><ref refid="structcugraph_1_1c__api_1_1cugraph__extract__paths__result__t" kindref="compound">cugraph_extract_paths_result_t</ref> *</type>
+        <definition>cugraph_extract_paths_result_t* cugraph::c_api::extract_paths_functor::result_</definition>
+        <argsstring></argsstring>
+        <name>result_</name>
+        <qualifiedname>cugraph::c_api::extract_paths_functor::result_</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/c_api/extract_paths.cpp" line="43" column="34" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/extract_paths.cpp" bodystart="43" bodyend="43"/>
+      </memberdef>
+    </sectiondef>
+    <sectiondef kind="public-func">
+      <memberdef kind="function" id="structcugraph_1_1c__api_1_1extract__paths__functor_1a29b609675e529b15c73aa6555e550537" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type></type>
+        <definition>cugraph::c_api::extract_paths_functor::extract_paths_functor</definition>
+        <argsstring>(::cugraph_resource_handle_t const *handle, ::cugraph_graph_t *graph, ::cugraph_type_erased_device_array_view_t const *sources, ::cugraph_paths_result_t const *paths_result, ::cugraph_type_erased_device_array_view_t const *destinations)</argsstring>
+        <name>extract_paths_functor</name>
+        <qualifiedname>cugraph::c_api::extract_paths_functor::extract_paths_functor</qualifiedname>
+        <param>
+          <type><ref refid="structcugraph__resource__handle__" kindref="compound">::cugraph_resource_handle_t</ref> const *</type>
+          <declname>handle</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__graph__t" kindref="compound">::cugraph_graph_t</ref> *</type>
+          <declname>graph</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">::cugraph_type_erased_device_array_view_t</ref> const *</type>
+          <declname>sources</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__paths__result__t" kindref="compound">::cugraph_paths_result_t</ref> const *</type>
+          <declname>paths_result</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">::cugraph_type_erased_device_array_view_t</ref> const *</type>
+          <declname>destinations</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/c_api/extract_paths.cpp" line="45" column="3" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/extract_paths.cpp" bodystart="45" bodyend="60"/>
+      </memberdef>
+      <memberdef kind="function" id="structcugraph_1_1c__api_1_1extract__paths__functor_1a433d8c391c20ccd4968d40808bbd653b" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <templateparamlist>
+          <param>
+            <type>typename vertex_t</type>
+          </param>
+          <param>
+            <type>typename edge_t</type>
+          </param>
+          <param>
+            <type>typename weight_t</type>
+          </param>
+          <param>
+            <type>typename edge_type_type_t</type>
+          </param>
+          <param>
+            <type>bool</type>
+            <declname>store_transposed</declname>
+            <defname>store_transposed</defname>
+          </param>
+          <param>
+            <type>bool</type>
+            <declname>multi_gpu</declname>
+            <defname>multi_gpu</defname>
+          </param>
+        </templateparamlist>
+        <type>void</type>
+        <definition>void cugraph::c_api::extract_paths_functor::operator()</definition>
+        <argsstring>()</argsstring>
+        <name>operator()</name>
+        <qualifiedname>cugraph::c_api::extract_paths_functor::operator()</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/c_api/extract_paths.cpp" line="68" column="8" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/extract_paths.cpp" bodystart="68" bodyend="143"/>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <inheritancegraph>
+      <node id="2">
+        <label>cugraph::c_api::abstract_functor</label>
+        <link refid="structcugraph_1_1c__api_1_1abstract__functor"/>
+      </node>
+      <node id="1">
+        <label>cugraph::c_api::extract_paths_functor</label>
+        <link refid="structcugraph_1_1c__api_1_1extract__paths__functor"/>
+        <childnode refid="2" relation="public-inheritance">
+        </childnode>
+      </node>
+    </inheritancegraph>
+    <collaborationgraph>
+      <node id="2">
+        <label>cugraph::c_api::abstract_functor</label>
+        <link refid="structcugraph_1_1c__api_1_1abstract__functor"/>
+      </node>
+      <node id="7">
+        <label>cugraph::c_api::cugraph_extract_paths_result_t</label>
+        <link refid="structcugraph_1_1c__api_1_1cugraph__extract__paths__result__t"/>
+        <childnode refid="6" relation="usage">
+          <edgelabel>paths_</edgelabel>
+        </childnode>
+      </node>
+      <node id="3">
+        <label>cugraph::c_api::cugraph_graph_t</label>
+        <link refid="structcugraph_1_1c__api_1_1cugraph__graph__t"/>
+      </node>
+      <node id="5">
+        <label>cugraph::c_api::cugraph_paths_result_t</label>
+        <link refid="structcugraph_1_1c__api_1_1cugraph__paths__result__t"/>
+        <childnode refid="6" relation="usage">
+          <edgelabel>distances_</edgelabel>
+          <edgelabel>predecessors_</edgelabel>
+          <edgelabel>vertex_ids_</edgelabel>
+        </childnode>
+      </node>
+      <node id="6">
+        <label>cugraph::c_api::cugraph_type_erased_device_array_t</label>
+        <link refid="structcugraph_1_1c__api_1_1cugraph__type__erased__device__array__t"/>
+      </node>
+      <node id="4">
+        <label>cugraph::c_api::cugraph_type_erased_device_array_view_t</label>
+        <link refid="structcugraph_1_1c__api_1_1cugraph__type__erased__device__array__view__t"/>
+      </node>
+      <node id="1">
+        <label>cugraph::c_api::extract_paths_functor</label>
+        <link refid="structcugraph_1_1c__api_1_1extract__paths__functor"/>
+        <childnode refid="2" relation="public-inheritance">
+        </childnode>
+        <childnode refid="3" relation="usage">
+          <edgelabel>graph_</edgelabel>
+        </childnode>
+        <childnode refid="4" relation="usage">
+          <edgelabel>destinations_</edgelabel>
+          <edgelabel>sources_</edgelabel>
+        </childnode>
+        <childnode refid="5" relation="usage">
+          <edgelabel>paths_result_</edgelabel>
+        </childnode>
+        <childnode refid="7" relation="usage">
+          <edgelabel>result_</edgelabel>
+        </childnode>
+      </node>
+    </collaborationgraph>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/src/c_api/extract_paths.cpp" line="37" column="1" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/extract_paths.cpp" bodystart="37" bodyend="144"/>
+    <listofallmembers>
+      <member refid="structcugraph_1_1c__api_1_1extract__paths__functor_1a71fbbbfaee51854aa736dfbb893a3e3f" prot="public" virt="non-virtual"><scope>cugraph::c_api::extract_paths_functor</scope><name>destinations_</name></member>
+      <member refid="structcugraph_1_1c__api_1_1abstract__functor_1a977967a9959d0d45923a131f6ca7364d" prot="public" virt="non-virtual"><scope>cugraph::c_api::extract_paths_functor</scope><name>error_</name></member>
+      <member refid="structcugraph_1_1c__api_1_1abstract__functor_1ad6130a65a651379d64a279bac2b6fa54" prot="public" virt="non-virtual"><scope>cugraph::c_api::extract_paths_functor</scope><name>error_code_</name></member>
+      <member refid="structcugraph_1_1c__api_1_1extract__paths__functor_1a29b609675e529b15c73aa6555e550537" prot="public" virt="non-virtual"><scope>cugraph::c_api::extract_paths_functor</scope><name>extract_paths_functor</name></member>
+      <member refid="structcugraph_1_1c__api_1_1extract__paths__functor_1a8d9a969a000fe9d51838171d0fd0701d" prot="public" virt="non-virtual"><scope>cugraph::c_api::extract_paths_functor</scope><name>graph_</name></member>
+      <member refid="structcugraph_1_1c__api_1_1extract__paths__functor_1a85fbed2df97fcf086a49956a1fe8ffa4" prot="public" virt="non-virtual"><scope>cugraph::c_api::extract_paths_functor</scope><name>handle_</name></member>
+      <member refid="structcugraph_1_1c__api_1_1abstract__functor_1a3a521485770e8e1b5859e6920f80d8f0" prot="public" virt="non-virtual"><scope>cugraph::c_api::extract_paths_functor</scope><name>mark_error</name></member>
+      <member refid="structcugraph_1_1c__api_1_1extract__paths__functor_1a433d8c391c20ccd4968d40808bbd653b" prot="public" virt="non-virtual"><scope>cugraph::c_api::extract_paths_functor</scope><name>operator()</name></member>
+      <member refid="structcugraph_1_1c__api_1_1extract__paths__functor_1a310bf0039222c877919ef2787bdbf460" prot="public" virt="non-virtual"><scope>cugraph::c_api::extract_paths_functor</scope><name>paths_result_</name></member>
+      <member refid="structcugraph_1_1c__api_1_1extract__paths__functor_1a0c240177b1ad37a8dedd8bf40bde9e6f" prot="public" virt="non-virtual"><scope>cugraph::c_api::extract_paths_functor</scope><name>result_</name></member>
+      <member refid="structcugraph_1_1c__api_1_1extract__paths__functor_1a593f6b336171161445f318b0c3e05934" prot="public" virt="non-virtual"><scope>cugraph::c_api::extract_paths_functor</scope><name>sources_</name></member>
+      <member refid="structcugraph_1_1c__api_1_1abstract__functor_1ae36bd63247405ad7d6f79243ffef19b1" prot="public" virt="non-virtual"><scope>cugraph::c_api::extract_paths_functor</scope><name>unsupported</name></member>
+    </listofallmembers>
+  </compounddef>
+</doxygen>

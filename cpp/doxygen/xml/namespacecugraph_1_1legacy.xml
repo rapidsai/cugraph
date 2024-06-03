@@ -1,0 +1,109 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="namespacecugraph_1_1legacy" kind="namespace" language="C++">
+    <compoundname>cugraph::legacy</compoundname>
+    <innerclass refid="classcugraph_1_1legacy_1_1GraphCompressedSparseBase" prot="public">cugraph::legacy::GraphCompressedSparseBase</innerclass>
+    <innerclass refid="classcugraph_1_1legacy_1_1GraphCompressedSparseBaseView" prot="public">cugraph::legacy::GraphCompressedSparseBaseView</innerclass>
+    <innerclass refid="classcugraph_1_1legacy_1_1GraphCOO" prot="public">cugraph::legacy::GraphCOO</innerclass>
+    <innerclass refid="structcugraph_1_1legacy_1_1GraphCOOContents" prot="public">cugraph::legacy::GraphCOOContents</innerclass>
+    <innerclass refid="classcugraph_1_1legacy_1_1GraphCOOView" prot="public">cugraph::legacy::GraphCOOView</innerclass>
+    <innerclass refid="classcugraph_1_1legacy_1_1GraphCSR" prot="public">cugraph::legacy::GraphCSR</innerclass>
+    <innerclass refid="classcugraph_1_1legacy_1_1GraphCSRView" prot="public">cugraph::legacy::GraphCSRView</innerclass>
+    <innerclass refid="structcugraph_1_1legacy_1_1GraphProperties" prot="public">cugraph::legacy::GraphProperties</innerclass>
+    <innerclass refid="structcugraph_1_1legacy_1_1GraphSparseContents" prot="public">cugraph::legacy::GraphSparseContents</innerclass>
+    <innerclass refid="classcugraph_1_1legacy_1_1GraphViewBase" prot="public">cugraph::legacy::GraphViewBase</innerclass>
+    <innerclass refid="structcugraph_1_1legacy_1_1invalid__edge__id" prot="public">cugraph::legacy::invalid_edge_id</innerclass>
+    <innerclass refid="structcugraph_1_1legacy_1_1invalid__idx" prot="public">cugraph::legacy::invalid_idx</innerclass>
+    <innerclass refid="structcugraph_1_1legacy_1_1invalid__idx_3_01T_00_01typename_01std_1_1enable__if__t_3_01std_1_1is87b53cad92b33af5952fe2b9822008a8" prot="public">cugraph::legacy::invalid_idx&lt; T, typename std::enable_if_t&lt; std::is_integral&lt; T &gt;::value &amp;&amp;std::is_signed&lt; T &gt;::value &gt; &gt;</innerclass>
+    <innerclass refid="structcugraph_1_1legacy_1_1invalid__idx_3_01T_00_01typename_01std_1_1enable__if__t_3_01std_1_1isd4e6b93538f13d4c365b2843bf0319f9" prot="public">cugraph::legacy::invalid_idx&lt; T, typename std::enable_if_t&lt; std::is_integral&lt; T &gt;::value &amp;&amp;std::is_unsigned&lt; T &gt;::value &gt; &gt;</innerclass>
+    <innerclass refid="structcugraph_1_1legacy_1_1invalid__vertex__id" prot="public">cugraph::legacy::invalid_vertex_id</innerclass>
+    <innerclass refid="classcugraph_1_1legacy_1_1Louvain" prot="public">cugraph::legacy::Louvain</innerclass>
+    <sectiondef kind="enum">
+      <memberdef kind="enum" id="include_2cugraph_2legacy_2graph_8hpp_1a772fff799c475595841a3b0e7b154424" prot="public" static="no" strong="yes">
+        <type></type>
+        <name>PropType</name>
+        <qualifiedname>cugraph::legacy::PropType</qualifiedname>
+        <enumvalue id="include_2cugraph_2legacy_2graph_8hpp_1a772fff799c475595841a3b0e7b154424acfba4626cfa94f08d715cf86366711e8" prot="public">
+          <name>PROP_UNDEF</name>
+          <briefdescription>
+          </briefdescription>
+          <detaileddescription>
+          </detaileddescription>
+        </enumvalue>
+        <enumvalue id="include_2cugraph_2legacy_2graph_8hpp_1a772fff799c475595841a3b0e7b154424a5125ae924c2752be1b757b8dad23a6bc" prot="public">
+          <name>PROP_FALSE</name>
+          <briefdescription>
+          </briefdescription>
+          <detaileddescription>
+          </detaileddescription>
+        </enumvalue>
+        <enumvalue id="include_2cugraph_2legacy_2graph_8hpp_1a772fff799c475595841a3b0e7b154424a7809bc5e294cc78138b958bb5f8c8171" prot="public">
+          <name>PROP_TRUE</name>
+          <briefdescription>
+          </briefdescription>
+          <detaileddescription>
+          </detaileddescription>
+        </enumvalue>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/legacy/graph.hpp" line="32" column="1" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/legacy/graph.hpp" bodystart="32" bodyend="32"/>
+      </memberdef>
+      <memberdef kind="enum" id="include_2cugraph_2legacy_2graph_8hpp_1af5a95f5c1b279e6d356e8ad7a990674a" prot="public" static="no" strong="yes">
+        <type></type>
+        <name>DegreeDirection</name>
+        <qualifiedname>cugraph::legacy::DegreeDirection</qualifiedname>
+        <enumvalue id="include_2cugraph_2legacy_2graph_8hpp_1af5a95f5c1b279e6d356e8ad7a990674aaec46a5dea6456494e1ddbc2a89201ce0" prot="public">
+          <name>IN_PLUS_OUT</name>
+          <initializer>= 0</initializer>
+          <briefdescription>
+          </briefdescription>
+          <detaileddescription>
+          </detaileddescription>
+        </enumvalue>
+        <enumvalue id="include_2cugraph_2legacy_2graph_8hpp_1af5a95f5c1b279e6d356e8ad7a990674aac86ee0d9d7ed3e7b4fdbf486fa6c0ebb" prot="public">
+          <name>IN</name>
+          <briefdescription>
+<para><blockquote><para><zwj/>Compute sum of in and out degree </para>
+</blockquote></para>
+          </briefdescription>
+          <detaileddescription>
+          </detaileddescription>
+        </enumvalue>
+        <enumvalue id="include_2cugraph_2legacy_2graph_8hpp_1af5a95f5c1b279e6d356e8ad7a990674aaef373774188a51f80463f37b6bd9e83a" prot="public">
+          <name>OUT</name>
+          <briefdescription>
+<para><blockquote><para><zwj/>Compute in degree </para>
+</blockquote></para>
+          </briefdescription>
+          <detaileddescription>
+          </detaileddescription>
+        </enumvalue>
+        <enumvalue id="include_2cugraph_2legacy_2graph_8hpp_1af5a95f5c1b279e6d356e8ad7a990674aafa48476d9be3504d991897f564b32427" prot="public">
+          <name>DEGREE_DIRECTION_COUNT</name>
+          <briefdescription>
+<para><blockquote><para><zwj/>Compute out degree </para>
+</blockquote></para>
+          </briefdescription>
+          <detaileddescription>
+          </detaileddescription>
+        </enumvalue>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/legacy/graph.hpp" line="44" column="1" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/legacy/graph.hpp" bodystart="44" bodyend="49"/>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/src/community/legacy/louvain.cuh" line="51" column="1"/>
+  </compounddef>
+</doxygen>

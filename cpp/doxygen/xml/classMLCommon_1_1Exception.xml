@@ -1,0 +1,170 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="classMLCommon_1_1Exception" kind="class" language="C++" prot="public">
+    <compoundname>MLCommon::Exception</compoundname>
+    <basecompoundref prot="public" virt="non-virtual">std::exception</basecompoundref>
+    <includes refid="utils_8h" local="no">utils.h</includes>
+    <sectiondef kind="private-attrib">
+      <memberdef kind="variable" id="classMLCommon_1_1Exception_1a8e9bf58a2f334793734a85eca244a8de" prot="private" static="no" mutable="no">
+        <type>std::string</type>
+        <definition>std::string MLCommon::Exception::msg</definition>
+        <argsstring></argsstring>
+        <name>msg</name>
+        <qualifiedname>MLCommon::Exception::msg</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+<para>message associated with this exception </para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/components/legacy/utils.h" line="59" column="15" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/components/legacy/utils.h" bodystart="59" bodyend="-1"/>
+      </memberdef>
+    </sectiondef>
+    <sectiondef kind="public-func">
+      <memberdef kind="function" id="classMLCommon_1_1Exception_1a73085f61eda50c16667293722c5c5e30" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type></type>
+        <definition>MLCommon::Exception::Exception</definition>
+        <argsstring>()</argsstring>
+        <name>Exception</name>
+        <qualifiedname>MLCommon::Exception::Exception</qualifiedname>
+        <exceptions> throw ()</exceptions>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+<para>default ctor </para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/components/legacy/utils.h" line="40" column="3" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/components/legacy/utils.h" bodystart="40" bodyend="40"/>
+      </memberdef>
+      <memberdef kind="function" id="classMLCommon_1_1Exception_1a3b535887e3e45b33bfeefe5dafdae4d8" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type></type>
+        <definition>MLCommon::Exception::Exception</definition>
+        <argsstring>(const Exception &amp;src)</argsstring>
+        <name>Exception</name>
+        <qualifiedname>MLCommon::Exception::Exception</qualifiedname>
+        <param>
+          <type>const <ref refid="classMLCommon_1_1Exception" kindref="compound">Exception</ref> &amp;</type>
+          <declname>src</declname>
+        </param>
+        <exceptions> throw ()</exceptions>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+<para>copy ctor </para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/components/legacy/utils.h" line="43" column="3" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/components/legacy/utils.h" bodystart="43" bodyend="46"/>
+      </memberdef>
+      <memberdef kind="function" id="classMLCommon_1_1Exception_1a058d8d9ac7c0a67ea01ea5814bcf58a2" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type></type>
+        <definition>MLCommon::Exception::Exception</definition>
+        <argsstring>(const std::string &amp;_msg)</argsstring>
+        <name>Exception</name>
+        <qualifiedname>MLCommon::Exception::Exception</qualifiedname>
+        <param>
+          <type>const std::string &amp;</type>
+          <declname>_msg</declname>
+        </param>
+        <exceptions> throw ()</exceptions>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+<para>ctor from an input message </para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/components/legacy/utils.h" line="49" column="3" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/components/legacy/utils.h" bodystart="49" bodyend="49"/>
+      </memberdef>
+      <memberdef kind="function" id="classMLCommon_1_1Exception_1a0ea1770ce8f42395bd046c8ed4f2c187" prot="public" static="no" const="no" explicit="no" inline="yes" virt="virtual">
+        <type></type>
+        <definition>virtual MLCommon::Exception::~Exception</definition>
+        <argsstring>()</argsstring>
+        <name>~Exception</name>
+        <qualifiedname>MLCommon::Exception::~Exception</qualifiedname>
+        <exceptions> throw ()</exceptions>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+<para>dtor </para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/components/legacy/utils.h" line="52" column="11" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/components/legacy/utils.h" bodystart="52" bodyend="52"/>
+      </memberdef>
+      <memberdef kind="function" id="classMLCommon_1_1Exception_1a4ad53887209a7302e91666c8e5750954" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="virtual">
+        <type>const char *</type>
+        <definition>virtual const char * MLCommon::Exception::what</definition>
+        <argsstring>() const</argsstring>
+        <name>what</name>
+        <qualifiedname>MLCommon::Exception::what</qualifiedname>
+        <exceptions> throw ()</exceptions>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+<para>get the message associated with this exception </para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/components/legacy/utils.h" line="55" column="22" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/components/legacy/utils.h" bodystart="55" bodyend="55"/>
+      </memberdef>
+    </sectiondef>
+    <sectiondef kind="private-func">
+      <memberdef kind="function" id="classMLCommon_1_1Exception_1a0e8904a94fa3e8a76124d02d8ce6b0f9" prot="private" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type>void</type>
+        <definition>void MLCommon::Exception::collectCallStack</definition>
+        <argsstring>()</argsstring>
+        <name>collectCallStack</name>
+        <qualifiedname>MLCommon::Exception::collectCallStack</qualifiedname>
+        <exceptions> throw ()</exceptions>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+<para>append call stack info to this exception&apos;s message for ease of debug </para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/components/legacy/utils.h" line="63" column="8" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/components/legacy/utils.h" bodystart="63" bodyend="83"/>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+<para>base exception class for the cuML or ml-prims project </para>
+    </detaileddescription>
+    <inheritancegraph>
+      <node id="1">
+        <label>MLCommon::Exception</label>
+        <link refid="classMLCommon_1_1Exception"/>
+        <childnode refid="2" relation="public-inheritance">
+        </childnode>
+      </node>
+      <node id="2">
+        <label>std::exception</label>
+      </node>
+    </inheritancegraph>
+    <collaborationgraph>
+      <node id="1">
+        <label>MLCommon::Exception</label>
+        <link refid="classMLCommon_1_1Exception"/>
+        <childnode refid="2" relation="public-inheritance">
+        </childnode>
+      </node>
+      <node id="2">
+        <label>std::exception</label>
+      </node>
+    </collaborationgraph>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/src/components/legacy/utils.h" line="37" column="1" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/components/legacy/utils.h" bodystart="37" bodyend="84"/>
+    <listofallmembers>
+      <member refid="classMLCommon_1_1Exception_1a0e8904a94fa3e8a76124d02d8ce6b0f9" prot="private" virt="non-virtual"><scope>MLCommon::Exception</scope><name>collectCallStack</name></member>
+      <member refid="classMLCommon_1_1Exception_1a73085f61eda50c16667293722c5c5e30" prot="public" virt="non-virtual"><scope>MLCommon::Exception</scope><name>Exception</name></member>
+      <member refid="classMLCommon_1_1Exception_1a3b535887e3e45b33bfeefe5dafdae4d8" prot="public" virt="non-virtual"><scope>MLCommon::Exception</scope><name>Exception</name></member>
+      <member refid="classMLCommon_1_1Exception_1a058d8d9ac7c0a67ea01ea5814bcf58a2" prot="public" virt="non-virtual"><scope>MLCommon::Exception</scope><name>Exception</name></member>
+      <member refid="classMLCommon_1_1Exception_1a8e9bf58a2f334793734a85eca244a8de" prot="private" virt="non-virtual"><scope>MLCommon::Exception</scope><name>msg</name></member>
+      <member refid="classMLCommon_1_1Exception_1a4ad53887209a7302e91666c8e5750954" prot="public" virt="virtual"><scope>MLCommon::Exception</scope><name>what</name></member>
+      <member refid="classMLCommon_1_1Exception_1a0ea1770ce8f42395bd046c8ed4f2c187" prot="public" virt="virtual"><scope>MLCommon::Exception</scope><name>~Exception</name></member>
+    </listofallmembers>
+  </compounddef>
+</doxygen>

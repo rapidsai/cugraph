@@ -1,0 +1,1536 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da" kind="class" language="C++" prot="public">
+    <compoundname>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;</compoundname>
+    <basecompoundref refid="classcugraph_1_1detail_1_1graph__base__t" prot="public" virt="non-virtual">cugraph::detail::graph_base_t&lt; vertex_t, edge_t &gt;</basecompoundref>
+    <templateparamlist>
+      <param>
+        <type>typename vertex_t</type>
+      </param>
+      <param>
+        <type>typename edge_t</type>
+      </param>
+      <param>
+        <type>bool</type>
+        <declname>store_transposed</declname>
+        <defname>store_transposed</defname>
+      </param>
+      <param>
+        <type>bool</type>
+        <declname>multi_gpu</declname>
+        <defname>multi_gpu</defname>
+      </param>
+    </templateparamlist>
+    <sectiondef kind="public-type">
+      <memberdef kind="typedef" id="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1a09f8a11e1132c81f19668f6e2eb1b6f0" prot="public" static="no">
+        <type>vertex_t</type>
+        <definition>using cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::vertex_type =  vertex_t</definition>
+        <argsstring></argsstring>
+        <name>vertex_type</name>
+        <qualifiedname>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::vertex_type</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" line="374" column="3" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" bodystart="374" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="typedef" id="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1aea1ff23c68b915b85206abb5d49e3f56" prot="public" static="no">
+        <type>edge_t</type>
+        <definition>using cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::edge_type =  edge_t</definition>
+        <argsstring></argsstring>
+        <name>edge_type</name>
+        <qualifiedname>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::edge_type</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" line="375" column="3" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" bodystart="375" bodyend="-1"/>
+      </memberdef>
+    </sectiondef>
+    <sectiondef kind="public-static-attrib">
+      <memberdef kind="variable" id="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1aa42654656307b729742afec8fbc67681" prot="public" static="yes" constexpr="yes" mutable="no">
+        <type>constexpr bool</type>
+        <definition>constexpr bool cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::is_storage_transposed</definition>
+        <argsstring></argsstring>
+        <name>is_storage_transposed</name>
+        <qualifiedname>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::is_storage_transposed</qualifiedname>
+        <initializer>= store_transposed</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" line="376" column="25" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" bodystart="376" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="variable" id="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1a175e98b3ab720eb107125c6bd1d25f54" prot="public" static="yes" constexpr="yes" mutable="no">
+        <type>constexpr bool</type>
+        <definition>constexpr bool cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::is_multi_gpu</definition>
+        <argsstring></argsstring>
+        <name>is_multi_gpu</name>
+        <qualifiedname>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::is_multi_gpu</qualifiedname>
+        <initializer>= multi_gpu</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" line="377" column="25" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" bodystart="377" bodyend="-1"/>
+      </memberdef>
+    </sectiondef>
+    <sectiondef kind="private-attrib">
+      <memberdef kind="variable" id="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1a8499bcf5b6bd9f8b0950641608774ad5" prot="private" static="no" mutable="no">
+        <type>std::vector&lt; raft::device_span&lt; edge_t const  &gt; &gt;</type>
+        <definition>std::vector&lt;raft::device_span&lt;edge_t const&gt; &gt; cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::edge_partition_offsets_</definition>
+        <argsstring></argsstring>
+        <name>edge_partition_offsets_</name>
+        <qualifiedname>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::edge_partition_offsets_</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" line="753" column="15" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" bodystart="753" bodyend="753"/>
+      </memberdef>
+      <memberdef kind="variable" id="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1a0de6392b5dd85f50096bd68b1baa3058" prot="private" static="no" mutable="no">
+        <type>std::vector&lt; raft::device_span&lt; vertex_t const  &gt; &gt;</type>
+        <definition>std::vector&lt;raft::device_span&lt;vertex_t const&gt; &gt; cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::edge_partition_indices_</definition>
+        <argsstring></argsstring>
+        <name>edge_partition_indices_</name>
+        <qualifiedname>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::edge_partition_indices_</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" line="754" column="15" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" bodystart="754" bodyend="754"/>
+      </memberdef>
+      <memberdef kind="variable" id="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1a4c483fa6f8a8175a72eac9ebf1e13f1b" prot="private" static="no" mutable="no">
+        <type>std::optional&lt; std::vector&lt; raft::device_span&lt; vertex_t const  &gt; &gt; &gt;</type>
+        <definition>std::optional&lt;std::vector&lt;raft::device_span&lt;vertex_t const&gt; &gt; &gt; cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::edge_partition_dcs_nzd_vertices_</definition>
+        <argsstring></argsstring>
+        <name>edge_partition_dcs_nzd_vertices_</name>
+        <qualifiedname>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::edge_partition_dcs_nzd_vertices_</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" line="757" column="17" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" bodystart="757" bodyend="757"/>
+      </memberdef>
+      <memberdef kind="variable" id="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1a10997ae1d2da4393c8d2b95697751582" prot="private" static="no" mutable="no">
+        <type><ref refid="classcugraph_1_1partition__t" kindref="compound">partition_t</ref>&lt; vertex_t &gt;</type>
+        <definition>partition_t&lt;vertex_t&gt; cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::partition_</definition>
+        <argsstring></argsstring>
+        <name>partition_</name>
+        <qualifiedname>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::partition_</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" line="759" column="15" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" bodystart="759" bodyend="759"/>
+      </memberdef>
+      <memberdef kind="variable" id="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1ae9ff0aa293cc7121b01a7e1cd327e91c" prot="private" static="no" mutable="no">
+        <type>std::vector&lt; vertex_t &gt;</type>
+        <definition>std::vector&lt;vertex_t&gt; cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::edge_partition_segment_offsets_</definition>
+        <argsstring></argsstring>
+        <name>edge_partition_segment_offsets_</name>
+        <qualifiedname>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::edge_partition_segment_offsets_</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" line="762" column="15" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" bodystart="762" bodyend="762"/>
+      </memberdef>
+      <memberdef kind="variable" id="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1a25fe04f7d4e9ebc9ad2cf170a1036278" prot="private" static="no" mutable="no">
+        <type>std::conditional_t&lt; store_transposed, std::optional&lt; raft::device_span&lt; vertex_t const  &gt; &gt;, std::optional&lt; std::vector&lt; raft::device_span&lt; vertex_t const  &gt; &gt; &gt; &gt;</type>
+        <definition>std::conditional_t&lt;store_transposed, std::optional&lt;raft::device_span&lt;vertex_t const&gt; &gt;, std::optional&lt;std::vector&lt;raft::device_span&lt;vertex_t const&gt; &gt; &gt; &gt; cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::local_sorted_unique_edge_srcs_</definition>
+        <argsstring></argsstring>
+        <name>local_sorted_unique_edge_srcs_</name>
+        <qualifiedname>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::local_sorted_unique_edge_srcs_</qualifiedname>
+        <initializer>{std::nullopt}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" line="770" column="5" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" bodystart="770" bodyend="770"/>
+      </memberdef>
+      <memberdef kind="variable" id="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1a8b346b2043a00d79c673a452fe872bab" prot="private" static="no" mutable="no">
+        <type>std::conditional_t&lt; store_transposed, std::optional&lt; raft::device_span&lt; vertex_t const  &gt; &gt;, std::optional&lt; std::vector&lt; raft::device_span&lt; vertex_t const  &gt; &gt; &gt; &gt;</type>
+        <definition>std::conditional_t&lt;store_transposed, std::optional&lt;raft::device_span&lt;vertex_t const&gt; &gt;, std::optional&lt;std::vector&lt;raft::device_span&lt;vertex_t const&gt; &gt; &gt; &gt; cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::local_sorted_unique_edge_src_chunk_start_offsets_</definition>
+        <argsstring></argsstring>
+        <name>local_sorted_unique_edge_src_chunk_start_offsets_</name>
+        <qualifiedname>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::local_sorted_unique_edge_src_chunk_start_offsets_</qualifiedname>
+        <initializer>{std::nullopt}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" line="774" column="5" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" bodystart="774" bodyend="774"/>
+      </memberdef>
+      <memberdef kind="variable" id="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1a153cf24a92c9ada5de0ed1267adf20b4" prot="private" static="no" mutable="no">
+        <type>std::optional&lt; vertex_t &gt;</type>
+        <definition>std::optional&lt;vertex_t&gt; cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::local_sorted_unique_edge_src_chunk_size_</definition>
+        <argsstring></argsstring>
+        <name>local_sorted_unique_edge_src_chunk_size_</name>
+        <qualifiedname>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::local_sorted_unique_edge_src_chunk_size_</qualifiedname>
+        <initializer>{std::nullopt}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" line="775" column="17" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" bodystart="775" bodyend="775"/>
+      </memberdef>
+      <memberdef kind="variable" id="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1a1cef5a196bf70b66de3ab0d0194a5a94" prot="private" static="no" mutable="no">
+        <type>std::conditional_t&lt; store_transposed, std::optional&lt; raft::host_span&lt; vertex_t const  &gt; &gt;, std::optional&lt; std::byte &gt; &gt;</type>
+        <definition>std::conditional_t&lt;store_transposed, std::optional&lt;raft::host_span&lt;vertex_t const&gt; &gt;, std::optional&lt;std::byte&gt; &gt; cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::local_sorted_unique_edge_src_vertex_partition_offsets_</definition>
+        <argsstring></argsstring>
+        <name>local_sorted_unique_edge_src_vertex_partition_offsets_</name>
+        <qualifiedname>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::local_sorted_unique_edge_src_vertex_partition_offsets_</qualifiedname>
+        <initializer>{std::nullopt}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" line="779" column="5" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" bodystart="779" bodyend="779"/>
+      </memberdef>
+      <memberdef kind="variable" id="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1ae273dcbacaacae7539658820d9f0c8e2" prot="private" static="no" mutable="no">
+        <type>std::conditional_t&lt; store_transposed, std::optional&lt; std::vector&lt; raft::device_span&lt; vertex_t const  &gt; &gt; &gt;, std::optional&lt; raft::device_span&lt; vertex_t const  &gt; &gt; &gt;</type>
+        <definition>std::conditional_t&lt;store_transposed, std::optional&lt;std::vector&lt;raft::device_span&lt;vertex_t const&gt; &gt; &gt;, std::optional&lt;raft::device_span&lt;vertex_t const&gt; &gt; &gt; cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::local_sorted_unique_edge_dsts_</definition>
+        <argsstring></argsstring>
+        <name>local_sorted_unique_edge_dsts_</name>
+        <qualifiedname>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::local_sorted_unique_edge_dsts_</qualifiedname>
+        <initializer>{std::nullopt}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" line="784" column="5" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" bodystart="784" bodyend="784"/>
+      </memberdef>
+      <memberdef kind="variable" id="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1aa58d37fd4dac979d7f0319c1614558fa" prot="private" static="no" mutable="no">
+        <type>std::conditional_t&lt; store_transposed, std::optional&lt; std::vector&lt; raft::device_span&lt; vertex_t const  &gt; &gt; &gt;, std::optional&lt; raft::device_span&lt; vertex_t const  &gt; &gt; &gt;</type>
+        <definition>std::conditional_t&lt;store_transposed, std::optional&lt;std::vector&lt;raft::device_span&lt;vertex_t const&gt; &gt; &gt;, std::optional&lt;raft::device_span&lt;vertex_t const&gt; &gt; &gt; cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::local_sorted_unique_edge_dst_chunk_start_offsets_</definition>
+        <argsstring></argsstring>
+        <name>local_sorted_unique_edge_dst_chunk_start_offsets_</name>
+        <qualifiedname>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::local_sorted_unique_edge_dst_chunk_start_offsets_</qualifiedname>
+        <initializer>{std::nullopt}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" line="788" column="5" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" bodystart="788" bodyend="788"/>
+      </memberdef>
+      <memberdef kind="variable" id="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1a70d11398d12d32f1736c3a125fda0dbb" prot="private" static="no" mutable="no">
+        <type>std::optional&lt; vertex_t &gt;</type>
+        <definition>std::optional&lt;vertex_t&gt; cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::local_sorted_unique_edge_dst_chunk_size_</definition>
+        <argsstring></argsstring>
+        <name>local_sorted_unique_edge_dst_chunk_size_</name>
+        <qualifiedname>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::local_sorted_unique_edge_dst_chunk_size_</qualifiedname>
+        <initializer>{std::nullopt}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" line="789" column="17" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" bodystart="789" bodyend="789"/>
+      </memberdef>
+      <memberdef kind="variable" id="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1a813fe4248cfca4c4c24ff5d0ad24f49f" prot="private" static="no" mutable="no">
+        <type>std::conditional_t&lt;!store_transposed, std::optional&lt; raft::host_span&lt; vertex_t const  &gt; &gt;, std::optional&lt; std::byte &gt; &gt;</type>
+        <definition>std::conditional_t&lt;!store_transposed, std::optional&lt;raft::host_span&lt;vertex_t const&gt; &gt;, std::optional&lt;std::byte&gt; &gt; cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::local_sorted_unique_edge_dst_vertex_partition_offsets_</definition>
+        <argsstring></argsstring>
+        <name>local_sorted_unique_edge_dst_vertex_partition_offsets_</name>
+        <qualifiedname>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::local_sorted_unique_edge_dst_vertex_partition_offsets_</qualifiedname>
+        <initializer>{std::nullopt}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" line="793" column="5" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" bodystart="793" bodyend="793"/>
+      </memberdef>
+      <memberdef kind="variable" id="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1a72dd8e821627d82caf8310517fd330d0" prot="private" static="no" mutable="no">
+        <type>std::optional&lt; <ref refid="classcugraph_1_1edge__property__view__t" kindref="compound">edge_property_view_t</ref>&lt; edge_t, uint32_t const  *, bool &gt; &gt;</type>
+        <definition>std::optional&lt;edge_property_view_t&lt;edge_t, uint32_t const*, bool&gt; &gt; cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::edge_mask_view_</definition>
+        <argsstring></argsstring>
+        <name>edge_mask_view_</name>
+        <qualifiedname>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::edge_mask_view_</qualifiedname>
+        <initializer>{std::nullopt}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" line="795" column="17" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" bodystart="795" bodyend="795"/>
+      </memberdef>
+    </sectiondef>
+    <sectiondef kind="public-func">
+      <memberdef kind="function" id="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1a7d416fbc766532cdf5b34b2ae34c6ee2" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type></type>
+        <definition>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::graph_view_t</definition>
+        <argsstring>(std::vector&lt; raft::device_span&lt; edge_t const &gt; &gt; const &amp;edge_partition_offsets, std::vector&lt; raft::device_span&lt; vertex_t const &gt; &gt; const &amp;edge_partition_indices, std::optional&lt; std::vector&lt; raft::device_span&lt; vertex_t const &gt; &gt; &gt; const &amp;edge_partition_dcs_nzd_vertices, graph_view_meta_t&lt; vertex_t, edge_t, store_transposed, multi_gpu &gt; meta)</argsstring>
+        <name>graph_view_t</name>
+        <qualifiedname>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::graph_view_t</qualifiedname>
+        <param>
+          <type>std::vector&lt; raft::device_span&lt; edge_t const &gt; &gt; const &amp;</type>
+          <declname>edge_partition_offsets</declname>
+        </param>
+        <param>
+          <type>std::vector&lt; raft::device_span&lt; vertex_t const &gt; &gt; const &amp;</type>
+          <declname>edge_partition_indices</declname>
+        </param>
+        <param>
+          <type>std::optional&lt; std::vector&lt; raft::device_span&lt; vertex_t const &gt; &gt; &gt; const &amp;</type>
+          <declname>edge_partition_dcs_nzd_vertices</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph_1_1graph__view__meta__t" kindref="compound">graph_view_meta_t</ref>&lt; vertex_t, edge_t, store_transposed, multi_gpu &gt;</type>
+          <declname>meta</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" line="379" column="3" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/structure/graph_view_impl.cuh" bodystart="477" bodyend="520"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1a3537726be29461752d17e8b42d4d9724" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>std::vector&lt; vertex_t &gt;</type>
+        <definition>std::vector&lt; vertex_t &gt; cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::vertex_partition_range_offsets</definition>
+        <argsstring>() const</argsstring>
+        <name>vertex_partition_range_offsets</name>
+        <qualifiedname>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::vertex_partition_range_offsets</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" line="385" column="15" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" bodystart="385" bodyend="388"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1a33df84de27decfc18042a61c66f32bf6" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>std::vector&lt; vertex_t &gt;</type>
+        <definition>std::vector&lt; vertex_t &gt; cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::vertex_partition_range_lasts</definition>
+        <argsstring>() const</argsstring>
+        <name>vertex_partition_range_lasts</name>
+        <qualifiedname>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::vertex_partition_range_lasts</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" line="390" column="15" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" bodystart="390" bodyend="393"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1a077526cfebaeaf693c754c02ff5766dd" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>std::tuple&lt; vertex_t, vertex_t &gt;</type>
+        <definition>std::tuple&lt; vertex_t, vertex_t &gt; cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::local_vertex_partition_range</definition>
+        <argsstring>() const</argsstring>
+        <name>local_vertex_partition_range</name>
+        <qualifiedname>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::local_vertex_partition_range</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" line="395" column="14" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" bodystart="395" bodyend="398"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1aa5b396153cdeaa4f97839ff32414145a" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>vertex_t</type>
+        <definition>vertex_t cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::local_vertex_partition_range_size</definition>
+        <argsstring>() const</argsstring>
+        <name>local_vertex_partition_range_size</name>
+        <qualifiedname>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::local_vertex_partition_range_size</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" line="400" column="12" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" bodystart="400" bodyend="403"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1afc1ef97ba2730c6d8ff74e1bf225b191" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>vertex_t</type>
+        <definition>vertex_t cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::local_vertex_partition_range_first</definition>
+        <argsstring>() const</argsstring>
+        <name>local_vertex_partition_range_first</name>
+        <qualifiedname>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::local_vertex_partition_range_first</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" line="405" column="12" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" bodystart="405" bodyend="408"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1ab8cc1d1f86d8f4b17bce344e048dbfe2" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>vertex_t</type>
+        <definition>vertex_t cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::local_vertex_partition_range_last</definition>
+        <argsstring>() const</argsstring>
+        <name>local_vertex_partition_range_last</name>
+        <qualifiedname>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::local_vertex_partition_range_last</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" line="410" column="12" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" bodystart="410" bodyend="413"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1a2378cc75b9318e7bb6912eb3d750295b" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>vertex_t</type>
+        <definition>vertex_t cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::vertex_partition_range_first</definition>
+        <argsstring>(size_t partition_idx) const</argsstring>
+        <name>vertex_partition_range_first</name>
+        <qualifiedname>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::vertex_partition_range_first</qualifiedname>
+        <param>
+          <type>size_t</type>
+          <declname>partition_idx</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" line="415" column="12" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" bodystart="415" bodyend="418"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1a23c12715eac3c4dc7d4a0a5ea4fa660c" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>vertex_t</type>
+        <definition>vertex_t cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::vertex_partition_range_last</definition>
+        <argsstring>(size_t partition_idx) const</argsstring>
+        <name>vertex_partition_range_last</name>
+        <qualifiedname>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::vertex_partition_range_last</qualifiedname>
+        <param>
+          <type>size_t</type>
+          <declname>partition_idx</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" line="420" column="12" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" bodystart="420" bodyend="423"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1a1184c0f2af8fe01861f182d5fc734ccd" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>vertex_t</type>
+        <definition>vertex_t cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::vertex_partition_range_size</definition>
+        <argsstring>(size_t partition_idx) const</argsstring>
+        <name>vertex_partition_range_size</name>
+        <qualifiedname>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::vertex_partition_range_size</qualifiedname>
+        <param>
+          <type>size_t</type>
+          <declname>partition_idx</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" line="425" column="12" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" bodystart="425" bodyend="428"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1aa41c4038018e9ddc3ca6da7177fec316" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>bool</type>
+        <definition>bool cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::in_local_vertex_partition_range_nocheck</definition>
+        <argsstring>(vertex_t v) const</argsstring>
+        <name>in_local_vertex_partition_range_nocheck</name>
+        <qualifiedname>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::in_local_vertex_partition_range_nocheck</qualifiedname>
+        <param>
+          <type>vertex_t</type>
+          <declname>v</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" line="430" column="8" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" bodystart="430" bodyend="433"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1aa69858dff1f175aa7912db82e608b6f2" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>size_t</type>
+        <definition>size_t cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::number_of_local_edge_partitions</definition>
+        <argsstring>() const</argsstring>
+        <name>number_of_local_edge_partitions</name>
+        <qualifiedname>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::number_of_local_edge_partitions</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" line="435" column="10" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" bodystart="435" bodyend="435"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1aca32216841dbfe0a8e57fec6532e3960" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>vertex_t</type>
+        <definition>vertex_t cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::local_edge_partition_src_range_size</definition>
+        <argsstring>() const</argsstring>
+        <name>local_edge_partition_src_range_size</name>
+        <qualifiedname>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::local_edge_partition_src_range_size</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" line="437" column="12" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" bodystart="437" bodyend="448"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1a802f3e9d768079c27a94d5b545dd4a48" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <templateparamlist>
+          <param>
+            <type>bool</type>
+            <declname>transposed</declname>
+            <defname>transposed</defname>
+            <defval>is_storage_transposed</defval>
+          </param>
+        </templateparamlist>
+        <type>std::enable_if_t&lt;!transposed, vertex_t &gt;</type>
+        <definition>std::enable_if_t&lt;!transposed, vertex_t &gt; cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::local_edge_partition_src_range_size</definition>
+        <argsstring>(size_t partition_idx) const</argsstring>
+        <name>local_edge_partition_src_range_size</name>
+        <qualifiedname>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::local_edge_partition_src_range_size</qualifiedname>
+        <param>
+          <type>size_t</type>
+          <declname>partition_idx</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" line="451" column="20" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" bodystart="451" bodyend="456"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1a1f58bbbf1005559efe59fc9bb5d279c2" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <templateparamlist>
+          <param>
+            <type>bool</type>
+            <declname>transposed</declname>
+            <defname>transposed</defname>
+            <defval>is_storage_transposed</defval>
+          </param>
+        </templateparamlist>
+        <type>std::enable_if_t&lt; transposed, vertex_t &gt;</type>
+        <definition>std::enable_if_t&lt; transposed, vertex_t &gt; cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::local_edge_partition_src_range_first</definition>
+        <argsstring>() const</argsstring>
+        <name>local_edge_partition_src_range_first</name>
+        <qualifiedname>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::local_edge_partition_src_range_first</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" line="459" column="20" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" bodystart="459" bodyend="462"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1a572824fd90e1929ac0041eda350b604a" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <templateparamlist>
+          <param>
+            <type>bool</type>
+            <declname>transposed</declname>
+            <defname>transposed</defname>
+            <defval>is_storage_transposed</defval>
+          </param>
+        </templateparamlist>
+        <type>std::enable_if_t&lt;!transposed, vertex_t &gt;</type>
+        <definition>std::enable_if_t&lt;!transposed, vertex_t &gt; cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::local_edge_partition_src_range_first</definition>
+        <argsstring>(size_t partition_idx) const</argsstring>
+        <name>local_edge_partition_src_range_first</name>
+        <qualifiedname>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::local_edge_partition_src_range_first</qualifiedname>
+        <param>
+          <type>size_t</type>
+          <declname>partition_idx</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" line="465" column="20" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" bodystart="465" bodyend="469"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1aad498f79655e442b38f0683a470886c3" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <templateparamlist>
+          <param>
+            <type>bool</type>
+            <declname>transposed</declname>
+            <defname>transposed</defname>
+            <defval>is_storage_transposed</defval>
+          </param>
+        </templateparamlist>
+        <type>std::enable_if_t&lt; transposed, vertex_t &gt;</type>
+        <definition>std::enable_if_t&lt; transposed, vertex_t &gt; cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::local_edge_partition_src_range_last</definition>
+        <argsstring>() const</argsstring>
+        <name>local_edge_partition_src_range_last</name>
+        <qualifiedname>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::local_edge_partition_src_range_last</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" line="472" column="20" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" bodystart="472" bodyend="475"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1ad91c89cffd648216c038501e7e61e601" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <templateparamlist>
+          <param>
+            <type>bool</type>
+            <declname>transposed</declname>
+            <defname>transposed</defname>
+            <defval>is_storage_transposed</defval>
+          </param>
+        </templateparamlist>
+        <type>std::enable_if_t&lt;!transposed, vertex_t &gt;</type>
+        <definition>std::enable_if_t&lt;!transposed, vertex_t &gt; cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::local_edge_partition_src_range_last</definition>
+        <argsstring>(size_t partition_idx) const</argsstring>
+        <name>local_edge_partition_src_range_last</name>
+        <qualifiedname>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::local_edge_partition_src_range_last</qualifiedname>
+        <param>
+          <type>size_t</type>
+          <declname>partition_idx</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" line="478" column="20" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" bodystart="478" bodyend="482"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1a1aec6c3664196ab542f799aa25e80c50" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <templateparamlist>
+          <param>
+            <type>bool</type>
+            <declname>transposed</declname>
+            <defname>transposed</defname>
+            <defval>is_storage_transposed</defval>
+          </param>
+        </templateparamlist>
+        <type>std::enable_if_t&lt;!transposed, vertex_t &gt;</type>
+        <definition>std::enable_if_t&lt;!transposed, vertex_t &gt; cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::local_edge_partition_src_value_start_offset</definition>
+        <argsstring>(size_t partition_idx) const</argsstring>
+        <name>local_edge_partition_src_value_start_offset</name>
+        <qualifiedname>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::local_edge_partition_src_value_start_offset</qualifiedname>
+        <param>
+          <type>size_t</type>
+          <declname>partition_idx</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" line="485" column="20" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" bodystart="485" bodyend="489"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1a9d7ea0726e66742e3e4617b3579a6374" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>vertex_t</type>
+        <definition>vertex_t cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::local_edge_partition_dst_range_size</definition>
+        <argsstring>() const</argsstring>
+        <name>local_edge_partition_dst_range_size</name>
+        <qualifiedname>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::local_edge_partition_dst_range_size</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" line="491" column="12" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" bodystart="491" bodyend="502"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1a73fca38741bd15306150ad9cfc14d85c" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <templateparamlist>
+          <param>
+            <type>bool</type>
+            <declname>transposed</declname>
+            <defname>transposed</defname>
+            <defval>is_storage_transposed</defval>
+          </param>
+        </templateparamlist>
+        <type>std::enable_if_t&lt; transposed, vertex_t &gt;</type>
+        <definition>std::enable_if_t&lt; transposed, vertex_t &gt; cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::local_edge_partition_dst_range_size</definition>
+        <argsstring>(size_t partition_idx) const</argsstring>
+        <name>local_edge_partition_dst_range_size</name>
+        <qualifiedname>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::local_edge_partition_dst_range_size</qualifiedname>
+        <param>
+          <type>size_t</type>
+          <declname>partition_idx</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" line="505" column="20" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" bodystart="505" bodyend="510"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1ac4088f9031a2bb391165ba34d726cde6" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <templateparamlist>
+          <param>
+            <type>bool</type>
+            <declname>transposed</declname>
+            <defname>transposed</defname>
+            <defval>is_storage_transposed</defval>
+          </param>
+        </templateparamlist>
+        <type>std::enable_if_t&lt;!transposed, vertex_t &gt;</type>
+        <definition>std::enable_if_t&lt;!transposed, vertex_t &gt; cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::local_edge_partition_dst_range_first</definition>
+        <argsstring>() const</argsstring>
+        <name>local_edge_partition_dst_range_first</name>
+        <qualifiedname>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::local_edge_partition_dst_range_first</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" line="513" column="20" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" bodystart="513" bodyend="516"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1ae10505116629dd4d532ac6fe696d2699" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <templateparamlist>
+          <param>
+            <type>bool</type>
+            <declname>transposed</declname>
+            <defname>transposed</defname>
+            <defval>is_storage_transposed</defval>
+          </param>
+        </templateparamlist>
+        <type>std::enable_if_t&lt; transposed, vertex_t &gt;</type>
+        <definition>std::enable_if_t&lt; transposed, vertex_t &gt; cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::local_edge_partition_dst_range_first</definition>
+        <argsstring>(size_t partition_idx) const</argsstring>
+        <name>local_edge_partition_dst_range_first</name>
+        <qualifiedname>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::local_edge_partition_dst_range_first</qualifiedname>
+        <param>
+          <type>size_t</type>
+          <declname>partition_idx</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" line="519" column="20" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" bodystart="519" bodyend="523"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1a5a55fac27e0a3844b16de816b07bfca4" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <templateparamlist>
+          <param>
+            <type>bool</type>
+            <declname>transposed</declname>
+            <defname>transposed</defname>
+            <defval>is_storage_transposed</defval>
+          </param>
+        </templateparamlist>
+        <type>std::enable_if_t&lt;!transposed, vertex_t &gt;</type>
+        <definition>std::enable_if_t&lt;!transposed, vertex_t &gt; cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::local_edge_partition_dst_range_last</definition>
+        <argsstring>() const</argsstring>
+        <name>local_edge_partition_dst_range_last</name>
+        <qualifiedname>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::local_edge_partition_dst_range_last</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" line="526" column="20" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" bodystart="526" bodyend="529"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1a06536f1edabfedb47009ccb4a5b85098" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <templateparamlist>
+          <param>
+            <type>bool</type>
+            <declname>transposed</declname>
+            <defname>transposed</defname>
+            <defval>is_storage_transposed</defval>
+          </param>
+        </templateparamlist>
+        <type>std::enable_if_t&lt; transposed, vertex_t &gt;</type>
+        <definition>std::enable_if_t&lt; transposed, vertex_t &gt; cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::local_edge_partition_dst_range_last</definition>
+        <argsstring>(size_t partition_idx) const</argsstring>
+        <name>local_edge_partition_dst_range_last</name>
+        <qualifiedname>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::local_edge_partition_dst_range_last</qualifiedname>
+        <param>
+          <type>size_t</type>
+          <declname>partition_idx</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" line="532" column="20" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" bodystart="532" bodyend="536"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1a7e6318376137eac271b80bdc4fb984a5" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <templateparamlist>
+          <param>
+            <type>bool</type>
+            <declname>transposed</declname>
+            <defname>transposed</defname>
+            <defval>is_storage_transposed</defval>
+          </param>
+        </templateparamlist>
+        <type>std::enable_if_t&lt; transposed, vertex_t &gt;</type>
+        <definition>std::enable_if_t&lt; transposed, vertex_t &gt; cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::local_edge_partition_dst_value_start_offset</definition>
+        <argsstring>(size_t partition_idx) const</argsstring>
+        <name>local_edge_partition_dst_value_start_offset</name>
+        <qualifiedname>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::local_edge_partition_dst_value_start_offset</qualifiedname>
+        <param>
+          <type>size_t</type>
+          <declname>partition_idx</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" line="539" column="20" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" bodystart="539" bodyend="545"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1a29b87bdebb852b0d1df1bc1bd8d870e5" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>bool</type>
+        <definition>bool cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::use_dcs</definition>
+        <argsstring>() const</argsstring>
+        <name>use_dcs</name>
+        <qualifiedname>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::use_dcs</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" line="547" column="8" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" bodystart="547" bodyend="553"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1a6e3ac25310114358d851c162b0aba5f8" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>std::optional&lt; std::vector&lt; vertex_t &gt; &gt;</type>
+        <definition>std::optional&lt; std::vector&lt; vertex_t &gt; &gt; cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::local_edge_partition_segment_offsets</definition>
+        <argsstring>(size_t partition_idx) const</argsstring>
+        <name>local_edge_partition_segment_offsets</name>
+        <qualifiedname>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::local_edge_partition_segment_offsets</qualifiedname>
+        <param>
+          <type>size_t</type>
+          <declname>partition_idx</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" line="555" column="17" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" bodystart="555" bodyend="564"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1a83548ef0a6e8a41a36c185d01c141941" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type><ref refid="classcugraph_1_1vertex__partition__view__t" kindref="compound">vertex_partition_view_t</ref>&lt; vertex_t, true &gt;</type>
+        <definition>vertex_partition_view_t&lt; vertex_t, true &gt; cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::local_vertex_partition_view</definition>
+        <argsstring>() const</argsstring>
+        <name>local_vertex_partition_view</name>
+        <qualifiedname>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::local_vertex_partition_view</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" line="566" column="27" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" bodystart="566" bodyend="571"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1a39adc91e628407d19c6ca17a2d3300f7" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type><ref refid="classcugraph_1_1edge__partition__view__t" kindref="compound">edge_partition_view_t</ref>&lt; vertex_t, edge_t, true &gt;</type>
+        <definition>edge_partition_view_t&lt; vertex_t, edge_t, true &gt; cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::local_edge_partition_view</definition>
+        <argsstring>(size_t partition_idx) const</argsstring>
+        <name>local_edge_partition_view</name>
+        <qualifiedname>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::local_edge_partition_view</qualifiedname>
+        <param>
+          <type>size_t</type>
+          <declname>partition_idx</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" line="573" column="25" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" bodystart="573" bodyend="614"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1a3bd7487680ebb6a47d50246be1861ea5" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>edge_t</type>
+        <definition>edge_t cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::number_of_edges</definition>
+        <argsstring>() const</argsstring>
+        <name>number_of_edges</name>
+        <qualifiedname>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::number_of_edges</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" line="618" column="10" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" bodystart="618" bodyend="622"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1af2ec6833e8c590b7b3aa03f983a1d67c" prot="public" static="no" const="yes" explicit="no" inline="no" virt="non-virtual">
+        <type>edge_t</type>
+        <definition>edge_t cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::compute_number_of_edges</definition>
+        <argsstring>(raft::handle_t const &amp;handle) const</argsstring>
+        <name>compute_number_of_edges</name>
+        <qualifiedname>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::compute_number_of_edges</qualifiedname>
+        <param>
+          <type>raft::handle_t const &amp;</type>
+          <declname>handle</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" line="624" column="10" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/structure/graph_view_impl.cuh" bodystart="550" bodyend="565"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1abfbf1363d4c298081e7b2bc4e4d5e15c" prot="public" static="no" const="yes" explicit="no" inline="no" virt="non-virtual">
+        <type>rmm::device_uvector&lt; edge_t &gt;</type>
+        <definition>rmm::device_uvector&lt; edge_t &gt; cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::compute_in_degrees</definition>
+        <argsstring>(raft::handle_t const &amp;handle) const</argsstring>
+        <name>compute_in_degrees</name>
+        <qualifiedname>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::compute_in_degrees</qualifiedname>
+        <param>
+          <type>raft::handle_t const &amp;</type>
+          <declname>handle</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" line="626" column="23" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/structure/graph_view_impl.cuh" bodystart="585" bodyend="609"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1a112b90497da1c424e43163a4e7bb93ea" prot="public" static="no" const="yes" explicit="no" inline="no" virt="non-virtual">
+        <type>rmm::device_uvector&lt; edge_t &gt;</type>
+        <definition>rmm::device_uvector&lt; edge_t &gt; cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::compute_out_degrees</definition>
+        <argsstring>(raft::handle_t const &amp;handle) const</argsstring>
+        <name>compute_out_degrees</name>
+        <qualifiedname>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::compute_out_degrees</qualifiedname>
+        <param>
+          <type>raft::handle_t const &amp;</type>
+          <declname>handle</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" line="627" column="23" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/structure/graph_view_impl.cuh" bodystart="633" bodyend="657"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1a2e4bfaa9321b966e0b91136e543a7906" prot="public" static="no" const="yes" explicit="no" inline="no" virt="non-virtual">
+        <type>edge_t</type>
+        <definition>edge_t cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::compute_max_in_degree</definition>
+        <argsstring>(raft::handle_t const &amp;handle) const</argsstring>
+        <name>compute_max_in_degree</name>
+        <qualifiedname>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::compute_max_in_degree</qualifiedname>
+        <param>
+          <type>raft::handle_t const &amp;</type>
+          <declname>handle</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" line="629" column="10" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/structure/graph_view_impl.cuh" bodystart="680" bodyend="692"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1ae8aa5e03b06ab3c550356419931ca983" prot="public" static="no" const="yes" explicit="no" inline="no" virt="non-virtual">
+        <type>edge_t</type>
+        <definition>edge_t cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::compute_max_out_degree</definition>
+        <argsstring>(raft::handle_t const &amp;handle) const</argsstring>
+        <name>compute_max_out_degree</name>
+        <qualifiedname>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::compute_max_out_degree</qualifiedname>
+        <param>
+          <type>raft::handle_t const &amp;</type>
+          <declname>handle</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" line="630" column="10" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/structure/graph_view_impl.cuh" bodystart="708" bodyend="720"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1ad893861a2212376055d72f6416c31bd8" prot="public" static="no" const="yes" explicit="no" inline="no" virt="non-virtual">
+        <type>edge_t</type>
+        <definition>edge_t cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::count_self_loops</definition>
+        <argsstring>(raft::handle_t const &amp;handle) const</argsstring>
+        <name>count_self_loops</name>
+        <qualifiedname>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::count_self_loops</qualifiedname>
+        <param>
+          <type>raft::handle_t const &amp;</type>
+          <declname>handle</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" line="632" column="10" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/structure/graph_view_impl.cuh" bodystart="736" bodyend="745"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1ab1c9a1810acd7fea6460f60ace16e506" prot="public" static="no" const="yes" explicit="no" inline="no" virt="non-virtual">
+        <type>edge_t</type>
+        <definition>edge_t cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::count_multi_edges</definition>
+        <argsstring>(raft::handle_t const &amp;handle) const</argsstring>
+        <name>count_multi_edges</name>
+        <qualifiedname>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::count_multi_edges</qualifiedname>
+        <param>
+          <type>raft::handle_t const &amp;</type>
+          <declname>handle</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" line="633" column="10" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/structure/graph_view_impl.cuh" bodystart="762" bodyend="776"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1af7bbcc36498fa368934b39bb07cfcae7" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>rmm::device_uvector&lt; bool &gt;</type>
+        <definition>rmm::device_uvector&lt; bool &gt; cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::has_edge</definition>
+        <argsstring>(raft::handle_t const &amp;handle, raft::device_span&lt; vertex_t const &gt; edge_srcs, raft::device_span&lt; vertex_t const &gt; edge_dsts, bool do_expensive_check=false)</argsstring>
+        <name>has_edge</name>
+        <qualifiedname>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::has_edge</qualifiedname>
+        <param>
+          <type>raft::handle_t const &amp;</type>
+          <declname>handle</declname>
+        </param>
+        <param>
+          <type>raft::device_span&lt; vertex_t const &gt;</type>
+          <declname>edge_srcs</declname>
+        </param>
+        <param>
+          <type>raft::device_span&lt; vertex_t const &gt;</type>
+          <declname>edge_dsts</declname>
+        </param>
+        <param>
+          <type>bool</type>
+          <declname>do_expensive_check</declname>
+          <defval>false</defval>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" line="635" column="23" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/structure/graph_view_impl.cuh" bodystart="792" bodyend="868"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1ad52d992be81a05e5e6d3c0e451375e34" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>rmm::device_uvector&lt; edge_t &gt;</type>
+        <definition>rmm::device_uvector&lt; edge_t &gt; cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::compute_multiplicity</definition>
+        <argsstring>(raft::handle_t const &amp;handle, raft::device_span&lt; vertex_t const &gt; edge_srcs, raft::device_span&lt; vertex_t const &gt; edge_dsts, bool do_expensive_check=false)</argsstring>
+        <name>compute_multiplicity</name>
+        <qualifiedname>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::compute_multiplicity</qualifiedname>
+        <param>
+          <type>raft::handle_t const &amp;</type>
+          <declname>handle</declname>
+        </param>
+        <param>
+          <type>raft::device_span&lt; vertex_t const &gt;</type>
+          <declname>edge_srcs</declname>
+        </param>
+        <param>
+          <type>raft::device_span&lt; vertex_t const &gt;</type>
+          <declname>edge_dsts</declname>
+        </param>
+        <param>
+          <type>bool</type>
+          <declname>do_expensive_check</declname>
+          <defval>false</defval>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" line="641" column="23" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/structure/graph_view_impl.cuh" bodystart="937" bodyend="1012"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1af395601bb9b4e9b14525dde77fd714a8" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <templateparamlist>
+          <param>
+            <type>bool</type>
+            <declname>transposed</declname>
+            <defname>transposed</defname>
+            <defval>is_storage_transposed</defval>
+          </param>
+        </templateparamlist>
+        <type>std::enable_if_t&lt; transposed, std::optional&lt; raft::device_span&lt; vertex_t const &gt; &gt; &gt;</type>
+        <definition>std::enable_if_t&lt; transposed, std::optional&lt; raft::device_span&lt; vertex_t const  &gt; &gt; &gt; cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::local_sorted_unique_edge_srcs</definition>
+        <argsstring>() const</argsstring>
+        <name>local_sorted_unique_edge_srcs</name>
+        <qualifiedname>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::local_sorted_unique_edge_srcs</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" line="650" column="3" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" bodystart="650" bodyend="653"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1a04c042c51a47d33c0a99dd9b1c8f5cc3" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <templateparamlist>
+          <param>
+            <type>bool</type>
+            <declname>transposed</declname>
+            <defname>transposed</defname>
+            <defval>is_storage_transposed</defval>
+          </param>
+        </templateparamlist>
+        <type>std::enable_if_t&lt;!transposed, std::optional&lt; raft::device_span&lt; vertex_t const &gt; &gt; &gt;</type>
+        <definition>std::enable_if_t&lt;!transposed, std::optional&lt; raft::device_span&lt; vertex_t const  &gt; &gt; &gt; cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::local_sorted_unique_edge_srcs</definition>
+        <argsstring>(size_t partition_idx) const</argsstring>
+        <name>local_sorted_unique_edge_srcs</name>
+        <qualifiedname>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::local_sorted_unique_edge_srcs</qualifiedname>
+        <param>
+          <type>size_t</type>
+          <declname>partition_idx</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" line="657" column="3" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" bodystart="657" bodyend="662"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1ac0bc4c18515d56f6fef1713e2fab68ec" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <templateparamlist>
+          <param>
+            <type>bool</type>
+            <declname>transposed</declname>
+            <defname>transposed</defname>
+            <defval>is_storage_transposed</defval>
+          </param>
+        </templateparamlist>
+        <type>std::enable_if_t&lt; transposed, std::optional&lt; raft::device_span&lt; vertex_t const &gt; &gt; &gt;</type>
+        <definition>std::enable_if_t&lt; transposed, std::optional&lt; raft::device_span&lt; vertex_t const  &gt; &gt; &gt; cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::local_sorted_unique_edge_src_chunk_start_offsets</definition>
+        <argsstring>() const</argsstring>
+        <name>local_sorted_unique_edge_src_chunk_start_offsets</name>
+        <qualifiedname>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::local_sorted_unique_edge_src_chunk_start_offsets</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" line="666" column="3" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" bodystart="666" bodyend="669"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1a457492ddc4d6ed521e1d24b23404c693" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <templateparamlist>
+          <param>
+            <type>bool</type>
+            <declname>transposed</declname>
+            <defname>transposed</defname>
+            <defval>is_storage_transposed</defval>
+          </param>
+        </templateparamlist>
+        <type>std::enable_if_t&lt;!transposed, std::optional&lt; raft::device_span&lt; vertex_t const &gt; &gt; &gt;</type>
+        <definition>std::enable_if_t&lt;!transposed, std::optional&lt; raft::device_span&lt; vertex_t const  &gt; &gt; &gt; cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::local_sorted_unique_edge_src_chunk_start_offsets</definition>
+        <argsstring>(size_t partition_idx) const</argsstring>
+        <name>local_sorted_unique_edge_src_chunk_start_offsets</name>
+        <qualifiedname>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::local_sorted_unique_edge_src_chunk_start_offsets</qualifiedname>
+        <param>
+          <type>size_t</type>
+          <declname>partition_idx</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" line="673" column="3" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" bodystart="673" bodyend="679"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1a4bc3dc028d0f49fb19a69c42331ec4fb" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>std::optional&lt; vertex_t &gt;</type>
+        <definition>std::optional&lt; vertex_t &gt; cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::local_sorted_unique_edge_src_chunk_size</definition>
+        <argsstring>() const</argsstring>
+        <name>local_sorted_unique_edge_src_chunk_size</name>
+        <qualifiedname>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::local_sorted_unique_edge_src_chunk_size</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" line="681" column="17" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" bodystart="681" bodyend="684"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1a1c050b5befff586587f8b75efab55c83" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <templateparamlist>
+          <param>
+            <type>bool</type>
+            <declname>transposed</declname>
+            <defname>transposed</defname>
+            <defval>is_storage_transposed</defval>
+          </param>
+        </templateparamlist>
+        <type>std::enable_if_t&lt; transposed, std::optional&lt; raft::host_span&lt; vertex_t const &gt; &gt; &gt;</type>
+        <definition>std::enable_if_t&lt; transposed, std::optional&lt; raft::host_span&lt; vertex_t const  &gt; &gt; &gt; cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::local_sorted_unique_edge_src_vertex_partition_offsets</definition>
+        <argsstring>() const</argsstring>
+        <name>local_sorted_unique_edge_src_vertex_partition_offsets</name>
+        <qualifiedname>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::local_sorted_unique_edge_src_vertex_partition_offsets</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" line="688" column="3" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" bodystart="688" bodyend="691"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1a6c8438e9116f1fa41227d3256af33455" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <templateparamlist>
+          <param>
+            <type>bool</type>
+            <declname>transposed</declname>
+            <defname>transposed</defname>
+            <defval>is_storage_transposed</defval>
+          </param>
+        </templateparamlist>
+        <type>std::enable_if_t&lt;!transposed, std::optional&lt; raft::device_span&lt; vertex_t const &gt; &gt; &gt;</type>
+        <definition>std::enable_if_t&lt;!transposed, std::optional&lt; raft::device_span&lt; vertex_t const  &gt; &gt; &gt; cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::local_sorted_unique_edge_dsts</definition>
+        <argsstring>() const</argsstring>
+        <name>local_sorted_unique_edge_dsts</name>
+        <qualifiedname>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::local_sorted_unique_edge_dsts</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" line="695" column="3" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" bodystart="695" bodyend="698"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1af412c2ce7f4cd52973f9ac9c6a8cb8a9" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <templateparamlist>
+          <param>
+            <type>bool</type>
+            <declname>transposed</declname>
+            <defname>transposed</defname>
+            <defval>is_storage_transposed</defval>
+          </param>
+        </templateparamlist>
+        <type>std::enable_if_t&lt; transposed, std::optional&lt; raft::device_span&lt; vertex_t const &gt; &gt; &gt;</type>
+        <definition>std::enable_if_t&lt; transposed, std::optional&lt; raft::device_span&lt; vertex_t const  &gt; &gt; &gt; cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::local_sorted_unique_edge_dsts</definition>
+        <argsstring>(size_t partition_idx) const</argsstring>
+        <name>local_sorted_unique_edge_dsts</name>
+        <qualifiedname>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::local_sorted_unique_edge_dsts</qualifiedname>
+        <param>
+          <type>size_t</type>
+          <declname>partition_idx</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" line="702" column="3" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" bodystart="702" bodyend="707"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1a675b498628fd3efc874faa3f562b65e9" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <templateparamlist>
+          <param>
+            <type>bool</type>
+            <declname>transposed</declname>
+            <defname>transposed</defname>
+            <defval>is_storage_transposed</defval>
+          </param>
+        </templateparamlist>
+        <type>std::enable_if_t&lt;!transposed, std::optional&lt; raft::device_span&lt; vertex_t const &gt; &gt; &gt;</type>
+        <definition>std::enable_if_t&lt;!transposed, std::optional&lt; raft::device_span&lt; vertex_t const  &gt; &gt; &gt; cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::local_sorted_unique_edge_dst_chunk_start_offsets</definition>
+        <argsstring>() const</argsstring>
+        <name>local_sorted_unique_edge_dst_chunk_start_offsets</name>
+        <qualifiedname>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::local_sorted_unique_edge_dst_chunk_start_offsets</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" line="711" column="3" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" bodystart="711" bodyend="714"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1a0213fd8a63c58dc77cc7966cd9da8912" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <templateparamlist>
+          <param>
+            <type>bool</type>
+            <declname>transposed</declname>
+            <defname>transposed</defname>
+            <defval>is_storage_transposed</defval>
+          </param>
+        </templateparamlist>
+        <type>std::enable_if_t&lt; transposed, std::optional&lt; raft::device_span&lt; vertex_t const &gt; &gt; &gt;</type>
+        <definition>std::enable_if_t&lt; transposed, std::optional&lt; raft::device_span&lt; vertex_t const  &gt; &gt; &gt; cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::local_sorted_unique_edge_dst_chunk_start_offsets</definition>
+        <argsstring>(size_t partition_idx) const</argsstring>
+        <name>local_sorted_unique_edge_dst_chunk_start_offsets</name>
+        <qualifiedname>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::local_sorted_unique_edge_dst_chunk_start_offsets</qualifiedname>
+        <param>
+          <type>size_t</type>
+          <declname>partition_idx</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" line="718" column="3" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" bodystart="718" bodyend="724"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1aab4178374247b131d84aa6becfd0d3ef" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>std::optional&lt; vertex_t &gt;</type>
+        <definition>std::optional&lt; vertex_t &gt; cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::local_sorted_unique_edge_dst_chunk_size</definition>
+        <argsstring>() const</argsstring>
+        <name>local_sorted_unique_edge_dst_chunk_size</name>
+        <qualifiedname>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::local_sorted_unique_edge_dst_chunk_size</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" line="726" column="17" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" bodystart="726" bodyend="729"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1a978b2116a44f3b02b088ecb657160583" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <templateparamlist>
+          <param>
+            <type>bool</type>
+            <declname>transposed</declname>
+            <defname>transposed</defname>
+            <defval>is_storage_transposed</defval>
+          </param>
+        </templateparamlist>
+        <type>std::enable_if_t&lt;!transposed, std::optional&lt; raft::host_span&lt; vertex_t const &gt; &gt; &gt;</type>
+        <definition>std::enable_if_t&lt;!transposed, std::optional&lt; raft::host_span&lt; vertex_t const  &gt; &gt; &gt; cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::local_sorted_unique_edge_dst_vertex_partition_offsets</definition>
+        <argsstring>() const</argsstring>
+        <name>local_sorted_unique_edge_dst_vertex_partition_offsets</name>
+        <qualifiedname>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::local_sorted_unique_edge_dst_vertex_partition_offsets</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" line="733" column="3" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" bodystart="733" bodyend="736"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1aeb408a18861381f4ae541f8cec16127b" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type>void</type>
+        <definition>void cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::attach_edge_mask</definition>
+        <argsstring>(edge_property_view_t&lt; edge_t, uint32_t const *, bool &gt; edge_mask_view)</argsstring>
+        <name>attach_edge_mask</name>
+        <qualifiedname>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::attach_edge_mask</qualifiedname>
+        <param>
+          <type><ref refid="classcugraph_1_1edge__property__view__t" kindref="compound">edge_property_view_t</ref>&lt; edge_t, uint32_t const *, bool &gt;</type>
+          <declname>edge_mask_view</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" line="738" column="8" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" bodystart="738" bodyend="741"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1a1c5e48bacd8a2fd7fb511d8c003ca52e" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type>void</type>
+        <definition>void cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::clear_edge_mask</definition>
+        <argsstring>()</argsstring>
+        <name>clear_edge_mask</name>
+        <qualifiedname>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::clear_edge_mask</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" line="743" column="8" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" bodystart="743" bodyend="743"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1ac9178f6467e52f223835153c7ad9c848" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>bool</type>
+        <definition>bool cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::has_edge_mask</definition>
+        <argsstring>() const</argsstring>
+        <name>has_edge_mask</name>
+        <qualifiedname>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::has_edge_mask</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" line="745" column="8" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" bodystart="745" bodyend="745"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1aab470d183170a12e059b6308516d17ca" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>std::optional&lt; <ref refid="classcugraph_1_1edge__property__view__t" kindref="compound">edge_property_view_t</ref>&lt; edge_t, uint32_t const *, bool &gt; &gt;</type>
+        <definition>std::optional&lt; edge_property_view_t&lt; edge_t, uint32_t const  *, bool &gt; &gt; cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::edge_mask_view</definition>
+        <argsstring>() const</argsstring>
+        <name>edge_mask_view</name>
+        <qualifiedname>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;::edge_mask_view</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" line="747" column="17" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" bodystart="747" bodyend="750"/>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <inheritancegraph>
+      <node id="2">
+        <label>cugraph::detail::graph_base_t&lt; vertex_t, edge_t &gt;</label>
+        <link refid="classcugraph_1_1detail_1_1graph__base__t"/>
+      </node>
+      <node id="1">
+        <label>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;</label>
+        <link refid="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da"/>
+        <childnode refid="2" relation="public-inheritance">
+        </childnode>
+      </node>
+    </inheritancegraph>
+    <collaborationgraph>
+      <node id="2">
+        <label>cugraph::detail::graph_base_t&lt; vertex_t, edge_t &gt;</label>
+        <link refid="classcugraph_1_1detail_1_1graph__base__t"/>
+        <childnode refid="3" relation="usage">
+          <edgelabel>properties_</edgelabel>
+        </childnode>
+      </node>
+      <node id="3">
+        <label>cugraph::graph_properties_t</label>
+        <link refid="structcugraph_1_1graph__properties__t"/>
+      </node>
+      <node id="1">
+        <label>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;</label>
+        <link refid="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da"/>
+        <childnode refid="2" relation="public-inheritance">
+        </childnode>
+      </node>
+    </collaborationgraph>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" line="371" column="1" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph_view.hpp" bodystart="372" bodyend="796"/>
+    <listofallmembers>
+      <member refid="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1aeb408a18861381f4ae541f8cec16127b" prot="public" virt="non-virtual"><scope>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;</scope><name>attach_edge_mask</name></member>
+      <member refid="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1a1c5e48bacd8a2fd7fb511d8c003ca52e" prot="public" virt="non-virtual"><scope>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;</scope><name>clear_edge_mask</name></member>
+      <member refid="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1abfbf1363d4c298081e7b2bc4e4d5e15c" prot="public" virt="non-virtual"><scope>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;</scope><name>compute_in_degrees</name></member>
+      <member refid="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1a2e4bfaa9321b966e0b91136e543a7906" prot="public" virt="non-virtual"><scope>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;</scope><name>compute_max_in_degree</name></member>
+      <member refid="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1ae8aa5e03b06ab3c550356419931ca983" prot="public" virt="non-virtual"><scope>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;</scope><name>compute_max_out_degree</name></member>
+      <member refid="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1ad52d992be81a05e5e6d3c0e451375e34" prot="public" virt="non-virtual"><scope>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;</scope><name>compute_multiplicity</name></member>
+      <member refid="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1af2ec6833e8c590b7b3aa03f983a1d67c" prot="public" virt="non-virtual"><scope>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;</scope><name>compute_number_of_edges</name></member>
+      <member refid="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1a112b90497da1c424e43163a4e7bb93ea" prot="public" virt="non-virtual"><scope>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;</scope><name>compute_out_degrees</name></member>
+      <member refid="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1ab1c9a1810acd7fea6460f60ace16e506" prot="public" virt="non-virtual"><scope>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;</scope><name>count_multi_edges</name></member>
+      <member refid="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1ad893861a2212376055d72f6416c31bd8" prot="public" virt="non-virtual"><scope>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;</scope><name>count_self_loops</name></member>
+      <member refid="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1aab470d183170a12e059b6308516d17ca" prot="public" virt="non-virtual"><scope>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;</scope><name>edge_mask_view</name></member>
+      <member refid="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1a72dd8e821627d82caf8310517fd330d0" prot="private" virt="non-virtual"><scope>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;</scope><name>edge_mask_view_</name></member>
+      <member refid="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1a4c483fa6f8a8175a72eac9ebf1e13f1b" prot="private" virt="non-virtual"><scope>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;</scope><name>edge_partition_dcs_nzd_vertices_</name></member>
+      <member refid="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1a0de6392b5dd85f50096bd68b1baa3058" prot="private" virt="non-virtual"><scope>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;</scope><name>edge_partition_indices_</name></member>
+      <member refid="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1a8499bcf5b6bd9f8b0950641608774ad5" prot="private" virt="non-virtual"><scope>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;</scope><name>edge_partition_offsets_</name></member>
+      <member refid="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1ae9ff0aa293cc7121b01a7e1cd327e91c" prot="private" virt="non-virtual"><scope>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;</scope><name>edge_partition_segment_offsets_</name></member>
+      <member refid="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1aea1ff23c68b915b85206abb5d49e3f56" prot="public" virt="non-virtual"><scope>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;</scope><name>edge_type</name></member>
+      <member refid="classcugraph_1_1detail_1_1graph__base__t_1a7a9df91ee97968b4ac4a8c6e4e76322d" prot="public" virt="non-virtual"><scope>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;</scope><name>graph_base_t</name></member>
+      <member refid="classcugraph_1_1detail_1_1graph__base__t_1a92672d04b55c1567c6caab38ba99f2c8" prot="public" virt="non-virtual"><scope>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;</scope><name>graph_base_t</name></member>
+      <member refid="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1a7d416fbc766532cdf5b34b2ae34c6ee2" prot="public" virt="non-virtual"><scope>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;</scope><name>graph_view_t</name></member>
+      <member refid="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1af7bbcc36498fa368934b39bb07cfcae7" prot="public" virt="non-virtual"><scope>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;</scope><name>has_edge</name></member>
+      <member refid="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1ac9178f6467e52f223835153c7ad9c848" prot="public" virt="non-virtual"><scope>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;</scope><name>has_edge_mask</name></member>
+      <member refid="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1aa41c4038018e9ddc3ca6da7177fec316" prot="public" virt="non-virtual"><scope>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;</scope><name>in_local_vertex_partition_range_nocheck</name></member>
+      <member refid="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1a175e98b3ab720eb107125c6bd1d25f54" prot="public" virt="non-virtual"><scope>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;</scope><name>is_multi_gpu</name></member>
+      <member refid="classcugraph_1_1detail_1_1graph__base__t_1aee46ec7b42f817d38b3a32c1aa6ef156" prot="public" virt="non-virtual"><scope>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;</scope><name>is_multigraph</name></member>
+      <member refid="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1aa42654656307b729742afec8fbc67681" prot="public" virt="non-virtual"><scope>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;</scope><name>is_storage_transposed</name></member>
+      <member refid="classcugraph_1_1detail_1_1graph__base__t_1af13d3ba658cdd243dcf228a101858e02" prot="public" virt="non-virtual"><scope>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;</scope><name>is_symmetric</name></member>
+      <member refid="classcugraph_1_1detail_1_1graph__base__t_1a9b1a0f1fe4e5e884d9c21763780c3113" prot="public" virt="non-virtual"><scope>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;</scope><name>is_valid_vertex</name></member>
+      <member refid="classcugraph_1_1detail_1_1graph__base__t_1a8773c2a6305511e304b94091b3d0e243" prot="public" virt="non-virtual"><scope>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;</scope><name>is_valid_vertex</name></member>
+      <member refid="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1ac4088f9031a2bb391165ba34d726cde6" prot="public" virt="non-virtual"><scope>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;</scope><name>local_edge_partition_dst_range_first</name></member>
+      <member refid="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1ae10505116629dd4d532ac6fe696d2699" prot="public" virt="non-virtual"><scope>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;</scope><name>local_edge_partition_dst_range_first</name></member>
+      <member refid="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1a5a55fac27e0a3844b16de816b07bfca4" prot="public" virt="non-virtual"><scope>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;</scope><name>local_edge_partition_dst_range_last</name></member>
+      <member refid="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1a06536f1edabfedb47009ccb4a5b85098" prot="public" virt="non-virtual"><scope>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;</scope><name>local_edge_partition_dst_range_last</name></member>
+      <member refid="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1a9d7ea0726e66742e3e4617b3579a6374" prot="public" virt="non-virtual"><scope>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;</scope><name>local_edge_partition_dst_range_size</name></member>
+      <member refid="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1a73fca38741bd15306150ad9cfc14d85c" prot="public" virt="non-virtual"><scope>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;</scope><name>local_edge_partition_dst_range_size</name></member>
+      <member refid="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1a7e6318376137eac271b80bdc4fb984a5" prot="public" virt="non-virtual"><scope>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;</scope><name>local_edge_partition_dst_value_start_offset</name></member>
+      <member refid="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1a6e3ac25310114358d851c162b0aba5f8" prot="public" virt="non-virtual"><scope>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;</scope><name>local_edge_partition_segment_offsets</name></member>
+      <member refid="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1a1f58bbbf1005559efe59fc9bb5d279c2" prot="public" virt="non-virtual"><scope>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;</scope><name>local_edge_partition_src_range_first</name></member>
+      <member refid="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1a572824fd90e1929ac0041eda350b604a" prot="public" virt="non-virtual"><scope>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;</scope><name>local_edge_partition_src_range_first</name></member>
+      <member refid="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1aad498f79655e442b38f0683a470886c3" prot="public" virt="non-virtual"><scope>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;</scope><name>local_edge_partition_src_range_last</name></member>
+      <member refid="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1ad91c89cffd648216c038501e7e61e601" prot="public" virt="non-virtual"><scope>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;</scope><name>local_edge_partition_src_range_last</name></member>
+      <member refid="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1aca32216841dbfe0a8e57fec6532e3960" prot="public" virt="non-virtual"><scope>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;</scope><name>local_edge_partition_src_range_size</name></member>
+      <member refid="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1a802f3e9d768079c27a94d5b545dd4a48" prot="public" virt="non-virtual"><scope>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;</scope><name>local_edge_partition_src_range_size</name></member>
+      <member refid="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1a1aec6c3664196ab542f799aa25e80c50" prot="public" virt="non-virtual"><scope>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;</scope><name>local_edge_partition_src_value_start_offset</name></member>
+      <member refid="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1a39adc91e628407d19c6ca17a2d3300f7" prot="public" virt="non-virtual"><scope>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;</scope><name>local_edge_partition_view</name></member>
+      <member refid="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1aab4178374247b131d84aa6becfd0d3ef" prot="public" virt="non-virtual"><scope>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;</scope><name>local_sorted_unique_edge_dst_chunk_size</name></member>
+      <member refid="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1a70d11398d12d32f1736c3a125fda0dbb" prot="private" virt="non-virtual"><scope>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;</scope><name>local_sorted_unique_edge_dst_chunk_size_</name></member>
+      <member refid="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1a675b498628fd3efc874faa3f562b65e9" prot="public" virt="non-virtual"><scope>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;</scope><name>local_sorted_unique_edge_dst_chunk_start_offsets</name></member>
+      <member refid="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1a0213fd8a63c58dc77cc7966cd9da8912" prot="public" virt="non-virtual"><scope>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;</scope><name>local_sorted_unique_edge_dst_chunk_start_offsets</name></member>
+      <member refid="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1aa58d37fd4dac979d7f0319c1614558fa" prot="private" virt="non-virtual"><scope>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;</scope><name>local_sorted_unique_edge_dst_chunk_start_offsets_</name></member>
+      <member refid="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1a978b2116a44f3b02b088ecb657160583" prot="public" virt="non-virtual"><scope>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;</scope><name>local_sorted_unique_edge_dst_vertex_partition_offsets</name></member>
+      <member refid="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1a813fe4248cfca4c4c24ff5d0ad24f49f" prot="private" virt="non-virtual"><scope>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;</scope><name>local_sorted_unique_edge_dst_vertex_partition_offsets_</name></member>
+      <member refid="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1a6c8438e9116f1fa41227d3256af33455" prot="public" virt="non-virtual"><scope>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;</scope><name>local_sorted_unique_edge_dsts</name></member>
+      <member refid="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1af412c2ce7f4cd52973f9ac9c6a8cb8a9" prot="public" virt="non-virtual"><scope>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;</scope><name>local_sorted_unique_edge_dsts</name></member>
+      <member refid="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1ae273dcbacaacae7539658820d9f0c8e2" prot="private" virt="non-virtual"><scope>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;</scope><name>local_sorted_unique_edge_dsts_</name></member>
+      <member refid="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1a4bc3dc028d0f49fb19a69c42331ec4fb" prot="public" virt="non-virtual"><scope>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;</scope><name>local_sorted_unique_edge_src_chunk_size</name></member>
+      <member refid="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1a153cf24a92c9ada5de0ed1267adf20b4" prot="private" virt="non-virtual"><scope>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;</scope><name>local_sorted_unique_edge_src_chunk_size_</name></member>
+      <member refid="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1ac0bc4c18515d56f6fef1713e2fab68ec" prot="public" virt="non-virtual"><scope>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;</scope><name>local_sorted_unique_edge_src_chunk_start_offsets</name></member>
+      <member refid="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1a457492ddc4d6ed521e1d24b23404c693" prot="public" virt="non-virtual"><scope>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;</scope><name>local_sorted_unique_edge_src_chunk_start_offsets</name></member>
+      <member refid="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1a8b346b2043a00d79c673a452fe872bab" prot="private" virt="non-virtual"><scope>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;</scope><name>local_sorted_unique_edge_src_chunk_start_offsets_</name></member>
+      <member refid="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1a1c050b5befff586587f8b75efab55c83" prot="public" virt="non-virtual"><scope>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;</scope><name>local_sorted_unique_edge_src_vertex_partition_offsets</name></member>
+      <member refid="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1a1cef5a196bf70b66de3ab0d0194a5a94" prot="private" virt="non-virtual"><scope>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;</scope><name>local_sorted_unique_edge_src_vertex_partition_offsets_</name></member>
+      <member refid="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1af395601bb9b4e9b14525dde77fd714a8" prot="public" virt="non-virtual"><scope>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;</scope><name>local_sorted_unique_edge_srcs</name></member>
+      <member refid="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1a04c042c51a47d33c0a99dd9b1c8f5cc3" prot="public" virt="non-virtual"><scope>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;</scope><name>local_sorted_unique_edge_srcs</name></member>
+      <member refid="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1a25fe04f7d4e9ebc9ad2cf170a1036278" prot="private" virt="non-virtual"><scope>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;</scope><name>local_sorted_unique_edge_srcs_</name></member>
+      <member refid="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1a077526cfebaeaf693c754c02ff5766dd" prot="public" virt="non-virtual"><scope>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;</scope><name>local_vertex_partition_range</name></member>
+      <member refid="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1afc1ef97ba2730c6d8ff74e1bf225b191" prot="public" virt="non-virtual"><scope>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;</scope><name>local_vertex_partition_range_first</name></member>
+      <member refid="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1ab8cc1d1f86d8f4b17bce344e048dbfe2" prot="public" virt="non-virtual"><scope>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;</scope><name>local_vertex_partition_range_last</name></member>
+      <member refid="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1aa5b396153cdeaa4f97839ff32414145a" prot="public" virt="non-virtual"><scope>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;</scope><name>local_vertex_partition_range_size</name></member>
+      <member refid="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1a83548ef0a6e8a41a36c185d01c141941" prot="public" virt="non-virtual"><scope>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;</scope><name>local_vertex_partition_view</name></member>
+      <member refid="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1a3bd7487680ebb6a47d50246be1861ea5" prot="public" virt="non-virtual"><scope>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;</scope><name>number_of_edges</name></member>
+      <member refid="classcugraph_1_1detail_1_1graph__base__t_1a064e94604dad97e682ac6247f5564c0f" prot="protected" virt="non-virtual"><scope>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;</scope><name>number_of_edges_</name></member>
+      <member refid="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1aa69858dff1f175aa7912db82e608b6f2" prot="public" virt="non-virtual"><scope>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;</scope><name>number_of_local_edge_partitions</name></member>
+      <member refid="classcugraph_1_1detail_1_1graph__base__t_1ae8c1be99c2769729aee7ad7bd240f757" prot="public" virt="non-virtual"><scope>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;</scope><name>number_of_vertices</name></member>
+      <member refid="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1a10997ae1d2da4393c8d2b95697751582" prot="private" virt="non-virtual"><scope>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;</scope><name>partition_</name></member>
+      <member refid="classcugraph_1_1detail_1_1graph__base__t_1a83dfc840fcbc0905e964f97d917045f5" prot="protected" virt="non-virtual"><scope>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;</scope><name>properties_</name></member>
+      <member refid="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1a29b87bdebb852b0d1df1bc1bd8d870e5" prot="public" virt="non-virtual"><scope>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;</scope><name>use_dcs</name></member>
+      <member refid="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1a2378cc75b9318e7bb6912eb3d750295b" prot="public" virt="non-virtual"><scope>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;</scope><name>vertex_partition_range_first</name></member>
+      <member refid="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1a23c12715eac3c4dc7d4a0a5ea4fa660c" prot="public" virt="non-virtual"><scope>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;</scope><name>vertex_partition_range_last</name></member>
+      <member refid="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1a33df84de27decfc18042a61c66f32bf6" prot="public" virt="non-virtual"><scope>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;</scope><name>vertex_partition_range_lasts</name></member>
+      <member refid="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1a3537726be29461752d17e8b42d4d9724" prot="public" virt="non-virtual"><scope>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;</scope><name>vertex_partition_range_offsets</name></member>
+      <member refid="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1a1184c0f2af8fe01861f182d5fc734ccd" prot="public" virt="non-virtual"><scope>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;</scope><name>vertex_partition_range_size</name></member>
+      <member refid="classcugraph_1_1graph__view__t_3_01vertex__t_00_01edge__t_00_01store__transposed_00_01multi__gpubcf51fd386741a72ce55b1eda8d834da_1a09f8a11e1132c81f19668f6e2eb1b6f0" prot="public" virt="non-virtual"><scope>cugraph::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;</scope><name>vertex_type</name></member>
+    </listofallmembers>
+  </compounddef>
+</doxygen>

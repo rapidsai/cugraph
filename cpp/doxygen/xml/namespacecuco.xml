@@ -1,0 +1,12 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="namespacecuco" kind="namespace" language="C++">
+    <compoundname>cuco</compoundname>
+    <innerclass refid="structcuco_1_1is__bitwise__comparable_3_01cuco_1_1pair_3_01int32__t_00_01float_01_4_01_4" prot="public">cuco::is_bitwise_comparable&lt; cuco::pair&lt; int32_t, float &gt; &gt;</innerclass>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/src/community/detail/common_methods.cuh" line="47" column="1"/>
+  </compounddef>
+</doxygen>

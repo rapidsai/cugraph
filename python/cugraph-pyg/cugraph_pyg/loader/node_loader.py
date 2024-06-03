@@ -24,7 +24,10 @@ torch = import_optional("torch")
 
 class NodeLoader:
     """
-    Duck-typed version of torch_geometric.loader.NodeLoader
+    Duck-typed version of torch_geometric.loader.NodeLoader.
+    Loads samples from batches of input nodes using a
+    `~cugraph_pyg.sampler.BaseSampler.sample_from_nodes`
+    function.
     """
 
     def __init__(

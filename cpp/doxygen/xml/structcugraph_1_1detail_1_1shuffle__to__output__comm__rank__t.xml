@@ -1,0 +1,76 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="structcugraph_1_1detail_1_1shuffle__to__output__comm__rank__t" kind="struct" language="C++" prot="public">
+    <compoundname>cugraph::detail::shuffle_to_output_comm_rank_t</compoundname>
+    <templateparamlist>
+      <param>
+        <type>typename label_t</type>
+      </param>
+    </templateparamlist>
+    <sectiondef kind="public-attrib">
+      <memberdef kind="variable" id="structcugraph_1_1detail_1_1shuffle__to__output__comm__rank__t_1abda4bd0369aa773c8cace6ad8b448fb9" prot="public" static="no" mutable="no">
+        <type>raft::device_span&lt; label_t const  &gt;</type>
+        <definition>raft::device_span&lt;label_t const&gt; cugraph::detail::shuffle_to_output_comm_rank_t&lt; label_t &gt;::output_label_</definition>
+        <argsstring></argsstring>
+        <name>output_label_</name>
+        <qualifiedname>cugraph::detail::shuffle_to_output_comm_rank_t::output_label_</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/sampling/detail/shuffle_and_organize_output_impl.cuh" line="44" column="21" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/sampling/detail/shuffle_and_organize_output_impl.cuh" bodystart="44" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph_1_1detail_1_1shuffle__to__output__comm__rank__t_1ae531843be1bd41fc9afbee90ea142dfa" prot="public" static="no" mutable="no">
+        <type>raft::device_span&lt; int32_t const  &gt;</type>
+        <definition>raft::device_span&lt;int32_t const&gt; cugraph::detail::shuffle_to_output_comm_rank_t&lt; label_t &gt;::output_rank_</definition>
+        <argsstring></argsstring>
+        <name>output_rank_</name>
+        <qualifiedname>cugraph::detail::shuffle_to_output_comm_rank_t::output_rank_</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/sampling/detail/shuffle_and_organize_output_impl.cuh" line="45" column="21" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/sampling/detail/shuffle_and_organize_output_impl.cuh" bodystart="45" bodyend="-1"/>
+      </memberdef>
+    </sectiondef>
+    <sectiondef kind="public-func">
+      <memberdef kind="function" id="structcugraph_1_1detail_1_1shuffle__to__output__comm__rank__t_1ad039a04cfe52ea88d6b989acf4db7c34" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <templateparamlist>
+          <param>
+            <type>typename key_t</type>
+          </param>
+        </templateparamlist>
+        <type>__device__ int32_t</type>
+        <definition>__device__ int32_t cugraph::detail::shuffle_to_output_comm_rank_t&lt; label_t &gt;::operator()</definition>
+        <argsstring>(key_t key) const</argsstring>
+        <name>operator()</name>
+        <qualifiedname>cugraph::detail::shuffle_to_output_comm_rank_t::operator()</qualifiedname>
+        <param>
+          <type>key_t</type>
+          <declname>key</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/sampling/detail/shuffle_and_organize_output_impl.cuh" line="48" column="22" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/sampling/detail/shuffle_and_organize_output_impl.cuh" bodystart="48" bodyend="52"/>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/src/sampling/detail/shuffle_and_organize_output_impl.cuh" line="43" column="1" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/sampling/detail/shuffle_and_organize_output_impl.cuh" bodystart="43" bodyend="53"/>
+    <listofallmembers>
+      <member refid="structcugraph_1_1detail_1_1shuffle__to__output__comm__rank__t_1ad039a04cfe52ea88d6b989acf4db7c34" prot="public" virt="non-virtual"><scope>cugraph::detail::shuffle_to_output_comm_rank_t</scope><name>operator()</name></member>
+      <member refid="structcugraph_1_1detail_1_1shuffle__to__output__comm__rank__t_1abda4bd0369aa773c8cace6ad8b448fb9" prot="public" virt="non-virtual"><scope>cugraph::detail::shuffle_to_output_comm_rank_t</scope><name>output_label_</name></member>
+      <member refid="structcugraph_1_1detail_1_1shuffle__to__output__comm__rank__t_1ae531843be1bd41fc9afbee90ea142dfa" prot="public" virt="non-virtual"><scope>cugraph::detail::shuffle_to_output_comm_rank_t</scope><name>output_rank_</name></member>
+    </listofallmembers>
+  </compounddef>
+</doxygen>

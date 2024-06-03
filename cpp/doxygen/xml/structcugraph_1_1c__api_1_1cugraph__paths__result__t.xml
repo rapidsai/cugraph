@@ -1,0 +1,75 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="structcugraph_1_1c__api_1_1cugraph__paths__result__t" kind="struct" language="C++" prot="public">
+    <compoundname>cugraph::c_api::cugraph_paths_result_t</compoundname>
+    <sectiondef kind="public-attrib">
+      <memberdef kind="variable" id="structcugraph_1_1c__api_1_1cugraph__paths__result__t_1af05f4da5edc1c38d3b6fcbf5e08d6191" prot="public" static="no" mutable="no">
+        <type><ref refid="structcugraph_1_1c__api_1_1cugraph__type__erased__device__array__t" kindref="compound">cugraph_type_erased_device_array_t</ref> *</type>
+        <definition>cugraph_type_erased_device_array_t* cugraph::c_api::cugraph_paths_result_t::vertex_ids_</definition>
+        <argsstring></argsstring>
+        <name>vertex_ids_</name>
+        <qualifiedname>cugraph::c_api::cugraph_paths_result_t::vertex_ids_</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/c_api/paths_result.hpp" line="24" column="38" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/paths_result.hpp" bodystart="24" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph_1_1c__api_1_1cugraph__paths__result__t_1a9775f1b4bdfd48466344d64f75fd3d5b" prot="public" static="no" mutable="no">
+        <type><ref refid="structcugraph_1_1c__api_1_1cugraph__type__erased__device__array__t" kindref="compound">cugraph_type_erased_device_array_t</ref> *</type>
+        <definition>cugraph_type_erased_device_array_t* cugraph::c_api::cugraph_paths_result_t::distances_</definition>
+        <argsstring></argsstring>
+        <name>distances_</name>
+        <qualifiedname>cugraph::c_api::cugraph_paths_result_t::distances_</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/c_api/paths_result.hpp" line="25" column="38" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/paths_result.hpp" bodystart="25" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph_1_1c__api_1_1cugraph__paths__result__t_1a12f7924bf0b139f6819ac66ffd622929" prot="public" static="no" mutable="no">
+        <type><ref refid="structcugraph_1_1c__api_1_1cugraph__type__erased__device__array__t" kindref="compound">cugraph_type_erased_device_array_t</ref> *</type>
+        <definition>cugraph_type_erased_device_array_t* cugraph::c_api::cugraph_paths_result_t::predecessors_</definition>
+        <argsstring></argsstring>
+        <name>predecessors_</name>
+        <qualifiedname>cugraph::c_api::cugraph_paths_result_t::predecessors_</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/c_api/paths_result.hpp" line="26" column="38" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/paths_result.hpp" bodystart="26" bodyend="-1"/>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <collaborationgraph>
+      <node id="1">
+        <label>cugraph::c_api::cugraph_paths_result_t</label>
+        <link refid="structcugraph_1_1c__api_1_1cugraph__paths__result__t"/>
+        <childnode refid="2" relation="usage">
+          <edgelabel>distances_</edgelabel>
+          <edgelabel>predecessors_</edgelabel>
+          <edgelabel>vertex_ids_</edgelabel>
+        </childnode>
+      </node>
+      <node id="2">
+        <label>cugraph::c_api::cugraph_type_erased_device_array_t</label>
+        <link refid="structcugraph_1_1c__api_1_1cugraph__type__erased__device__array__t"/>
+      </node>
+    </collaborationgraph>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/src/c_api/paths_result.hpp" line="23" column="1" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/paths_result.hpp" bodystart="23" bodyend="27"/>
+    <listofallmembers>
+      <member refid="structcugraph_1_1c__api_1_1cugraph__paths__result__t_1a9775f1b4bdfd48466344d64f75fd3d5b" prot="public" virt="non-virtual"><scope>cugraph::c_api::cugraph_paths_result_t</scope><name>distances_</name></member>
+      <member refid="structcugraph_1_1c__api_1_1cugraph__paths__result__t_1a12f7924bf0b139f6819ac66ffd622929" prot="public" virt="non-virtual"><scope>cugraph::c_api::cugraph_paths_result_t</scope><name>predecessors_</name></member>
+      <member refid="structcugraph_1_1c__api_1_1cugraph__paths__result__t_1af05f4da5edc1c38d3b6fcbf5e08d6191" prot="public" virt="non-virtual"><scope>cugraph::c_api::cugraph_paths_result_t</scope><name>vertex_ids_</name></member>
+    </listofallmembers>
+  </compounddef>
+</doxygen>

@@ -1,0 +1,209 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="structcugraph_1_1detail_1_1update__rx__major__local__degree__t" kind="struct" language="C++" prot="public">
+    <compoundname>cugraph::detail::update_rx_major_local_degree_t</compoundname>
+    <templateparamlist>
+      <param>
+        <type>typename vertex_t</type>
+      </param>
+      <param>
+        <type>typename edge_t</type>
+      </param>
+      <param>
+        <type>bool</type>
+        <declname>multi_gpu</declname>
+        <defname>multi_gpu</defname>
+      </param>
+    </templateparamlist>
+    <sectiondef kind="public-attrib">
+      <memberdef kind="variable" id="structcugraph_1_1detail_1_1update__rx__major__local__degree__t_1aaa13e6c8c2d22fd9fd6034745e496625" prot="public" static="no" mutable="no">
+        <type>int</type>
+        <definition>int cugraph::detail::update_rx_major_local_degree_t&lt; vertex_t, edge_t, multi_gpu &gt;::major_comm_size</definition>
+        <argsstring></argsstring>
+        <name>major_comm_size</name>
+        <qualifiedname>cugraph::detail::update_rx_major_local_degree_t::major_comm_size</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/detail/nbr_intersection.cuh" line="105" column="7" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/detail/nbr_intersection.cuh" bodystart="105" bodyend="105"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph_1_1detail_1_1update__rx__major__local__degree__t_1a402e5a0c7df0168cb16cfe2c332326a5" prot="public" static="no" mutable="no">
+        <type>int</type>
+        <definition>int cugraph::detail::update_rx_major_local_degree_t&lt; vertex_t, edge_t, multi_gpu &gt;::minor_comm_size</definition>
+        <argsstring></argsstring>
+        <name>minor_comm_size</name>
+        <qualifiedname>cugraph::detail::update_rx_major_local_degree_t::minor_comm_size</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/detail/nbr_intersection.cuh" line="106" column="7" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/detail/nbr_intersection.cuh" bodystart="106" bodyend="106"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph_1_1detail_1_1update__rx__major__local__degree__t_1ace5f930d27b263e9209f08d2b09240a4" prot="public" static="no" mutable="no">
+        <type><ref refid="classcugraph_1_1edge__partition__device__view__t" kindref="compound">edge_partition_device_view_t</ref>&lt; vertex_t, edge_t, multi_gpu &gt;</type>
+        <definition>edge_partition_device_view_t&lt;vertex_t, edge_t, multi_gpu&gt; cugraph::detail::update_rx_major_local_degree_t&lt; vertex_t, edge_t, multi_gpu &gt;::edge_partition</definition>
+        <argsstring></argsstring>
+        <name>edge_partition</name>
+        <qualifiedname>cugraph::detail::update_rx_major_local_degree_t::edge_partition</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/detail/nbr_intersection.cuh" line="108" column="32" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/detail/nbr_intersection.cuh" bodystart="108" bodyend="108"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph_1_1detail_1_1update__rx__major__local__degree__t_1aa0b3f3183d5063834d30c4a8f252a23d" prot="public" static="no" mutable="no">
+        <type>thrust::optional&lt; <ref refid="classcugraph_1_1detail_1_1edge__partition__edge__property__device__view__t" kindref="compound">edge_partition_edge_property_device_view_t</ref>&lt; edge_t, uint32_t const  *, bool &gt; &gt;</type>
+        <definition>thrust::optional&lt;edge_partition_edge_property_device_view_t&lt;edge_t, uint32_t const*, bool&gt; &gt; cugraph::detail::update_rx_major_local_degree_t&lt; vertex_t, edge_t, multi_gpu &gt;::edge_partition_e_mask</definition>
+        <argsstring></argsstring>
+        <name>edge_partition_e_mask</name>
+        <qualifiedname>cugraph::detail::update_rx_major_local_degree_t::edge_partition_e_mask</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/detail/nbr_intersection.cuh" line="110" column="5" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/detail/nbr_intersection.cuh" bodystart="110" bodyend="110"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph_1_1detail_1_1update__rx__major__local__degree__t_1a23a95a86cf314d24f76337fbe9fae57f" prot="public" static="no" mutable="no">
+        <type>size_t</type>
+        <definition>size_t cugraph::detail::update_rx_major_local_degree_t&lt; vertex_t, edge_t, multi_gpu &gt;::reordered_idx_first</definition>
+        <argsstring></argsstring>
+        <name>reordered_idx_first</name>
+        <qualifiedname>cugraph::detail::update_rx_major_local_degree_t::reordered_idx_first</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/detail/nbr_intersection.cuh" line="112" column="10" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/detail/nbr_intersection.cuh" bodystart="112" bodyend="112"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph_1_1detail_1_1update__rx__major__local__degree__t_1aed64c9e990442b623b7f9a1605dcf20d" prot="public" static="no" mutable="no">
+        <type>size_t</type>
+        <definition>size_t cugraph::detail::update_rx_major_local_degree_t&lt; vertex_t, edge_t, multi_gpu &gt;::local_edge_partition_idx</definition>
+        <argsstring></argsstring>
+        <name>local_edge_partition_idx</name>
+        <qualifiedname>cugraph::detail::update_rx_major_local_degree_t::local_edge_partition_idx</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/detail/nbr_intersection.cuh" line="113" column="10" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/detail/nbr_intersection.cuh" bodystart="113" bodyend="113"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph_1_1detail_1_1update__rx__major__local__degree__t_1a23bbd42d0e3210d5b54f5ff8be03a719" prot="public" static="no" mutable="no">
+        <type>raft::device_span&lt; size_t const  &gt;</type>
+        <definition>raft::device_span&lt;size_t const&gt; cugraph::detail::update_rx_major_local_degree_t&lt; vertex_t, edge_t, multi_gpu &gt;::rx_reordered_group_lasts</definition>
+        <argsstring></argsstring>
+        <name>rx_reordered_group_lasts</name>
+        <qualifiedname>cugraph::detail::update_rx_major_local_degree_t::rx_reordered_group_lasts</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/detail/nbr_intersection.cuh" line="115" column="21" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/detail/nbr_intersection.cuh" bodystart="115" bodyend="115"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph_1_1detail_1_1update__rx__major__local__degree__t_1ad07897af2664a52970eda2705cf54dd9" prot="public" static="no" mutable="no">
+        <type>raft::device_span&lt; size_t const  &gt;</type>
+        <definition>raft::device_span&lt;size_t const&gt; cugraph::detail::update_rx_major_local_degree_t&lt; vertex_t, edge_t, multi_gpu &gt;::rx_group_firsts</definition>
+        <argsstring></argsstring>
+        <name>rx_group_firsts</name>
+        <qualifiedname>cugraph::detail::update_rx_major_local_degree_t::rx_group_firsts</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/detail/nbr_intersection.cuh" line="116" column="21" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/detail/nbr_intersection.cuh" bodystart="116" bodyend="116"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph_1_1detail_1_1update__rx__major__local__degree__t_1a79beea0bbc444acc9ac8b9038023159c" prot="public" static="no" mutable="no">
+        <type>raft::device_span&lt; vertex_t const  &gt;</type>
+        <definition>raft::device_span&lt;vertex_t const&gt; cugraph::detail::update_rx_major_local_degree_t&lt; vertex_t, edge_t, multi_gpu &gt;::rx_majors</definition>
+        <argsstring></argsstring>
+        <name>rx_majors</name>
+        <qualifiedname>cugraph::detail::update_rx_major_local_degree_t::rx_majors</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/detail/nbr_intersection.cuh" line="117" column="21" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/detail/nbr_intersection.cuh" bodystart="117" bodyend="117"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph_1_1detail_1_1update__rx__major__local__degree__t_1a391f99a5d58c9ceb651191674d801dfd" prot="public" static="no" mutable="no">
+        <type>raft::device_span&lt; edge_t &gt;</type>
+        <definition>raft::device_span&lt;edge_t&gt; cugraph::detail::update_rx_major_local_degree_t&lt; vertex_t, edge_t, multi_gpu &gt;::local_degrees_for_rx_majors</definition>
+        <argsstring></argsstring>
+        <name>local_degrees_for_rx_majors</name>
+        <qualifiedname>cugraph::detail::update_rx_major_local_degree_t::local_degrees_for_rx_majors</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/detail/nbr_intersection.cuh" line="119" column="21" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/detail/nbr_intersection.cuh" bodystart="119" bodyend="119"/>
+      </memberdef>
+    </sectiondef>
+    <sectiondef kind="public-func">
+      <memberdef kind="function" id="structcugraph_1_1detail_1_1update__rx__major__local__degree__t_1aa365f020203f924a8ff178b9b0e3bb8c" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>__device__ void</type>
+        <definition>__device__ void cugraph::detail::update_rx_major_local_degree_t&lt; vertex_t, edge_t, multi_gpu &gt;::operator()</definition>
+        <argsstring>(size_t idx) const</argsstring>
+        <name>operator()</name>
+        <qualifiedname>cugraph::detail::update_rx_major_local_degree_t::operator()</qualifiedname>
+        <param>
+          <type>size_t</type>
+          <declname>idx</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/detail/nbr_intersection.cuh" line="121" column="19" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/detail/nbr_intersection.cuh" bodystart="121" bodyend="144"/>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/detail/nbr_intersection.cuh" line="104" column="1" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/detail/nbr_intersection.cuh" bodystart="104" bodyend="145"/>
+    <listofallmembers>
+      <member refid="structcugraph_1_1detail_1_1update__rx__major__local__degree__t_1ace5f930d27b263e9209f08d2b09240a4" prot="public" virt="non-virtual"><scope>cugraph::detail::update_rx_major_local_degree_t</scope><name>edge_partition</name></member>
+      <member refid="structcugraph_1_1detail_1_1update__rx__major__local__degree__t_1aa0b3f3183d5063834d30c4a8f252a23d" prot="public" virt="non-virtual"><scope>cugraph::detail::update_rx_major_local_degree_t</scope><name>edge_partition_e_mask</name></member>
+      <member refid="structcugraph_1_1detail_1_1update__rx__major__local__degree__t_1a391f99a5d58c9ceb651191674d801dfd" prot="public" virt="non-virtual"><scope>cugraph::detail::update_rx_major_local_degree_t</scope><name>local_degrees_for_rx_majors</name></member>
+      <member refid="structcugraph_1_1detail_1_1update__rx__major__local__degree__t_1aed64c9e990442b623b7f9a1605dcf20d" prot="public" virt="non-virtual"><scope>cugraph::detail::update_rx_major_local_degree_t</scope><name>local_edge_partition_idx</name></member>
+      <member refid="structcugraph_1_1detail_1_1update__rx__major__local__degree__t_1aaa13e6c8c2d22fd9fd6034745e496625" prot="public" virt="non-virtual"><scope>cugraph::detail::update_rx_major_local_degree_t</scope><name>major_comm_size</name></member>
+      <member refid="structcugraph_1_1detail_1_1update__rx__major__local__degree__t_1a402e5a0c7df0168cb16cfe2c332326a5" prot="public" virt="non-virtual"><scope>cugraph::detail::update_rx_major_local_degree_t</scope><name>minor_comm_size</name></member>
+      <member refid="structcugraph_1_1detail_1_1update__rx__major__local__degree__t_1aa365f020203f924a8ff178b9b0e3bb8c" prot="public" virt="non-virtual"><scope>cugraph::detail::update_rx_major_local_degree_t</scope><name>operator()</name></member>
+      <member refid="structcugraph_1_1detail_1_1update__rx__major__local__degree__t_1a23a95a86cf314d24f76337fbe9fae57f" prot="public" virt="non-virtual"><scope>cugraph::detail::update_rx_major_local_degree_t</scope><name>reordered_idx_first</name></member>
+      <member refid="structcugraph_1_1detail_1_1update__rx__major__local__degree__t_1ad07897af2664a52970eda2705cf54dd9" prot="public" virt="non-virtual"><scope>cugraph::detail::update_rx_major_local_degree_t</scope><name>rx_group_firsts</name></member>
+      <member refid="structcugraph_1_1detail_1_1update__rx__major__local__degree__t_1a79beea0bbc444acc9ac8b9038023159c" prot="public" virt="non-virtual"><scope>cugraph::detail::update_rx_major_local_degree_t</scope><name>rx_majors</name></member>
+      <member refid="structcugraph_1_1detail_1_1update__rx__major__local__degree__t_1a23bbd42d0e3210d5b54f5ff8be03a719" prot="public" virt="non-virtual"><scope>cugraph::detail::update_rx_major_local_degree_t</scope><name>rx_reordered_group_lasts</name></member>
+    </listofallmembers>
+  </compounddef>
+</doxygen>

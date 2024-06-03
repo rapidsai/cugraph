@@ -1,0 +1,83 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="namespacecugraph_1_1reduce__op_1_1detail" kind="namespace" language="C++">
+    <compoundname>cugraph::reduce_op::detail</compoundname>
+    <sectiondef kind="func">
+      <memberdef kind="function" id="reduce__op_8cuh_1a5cdd14cce81818b67ef891f5e64777cc" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <templateparamlist>
+          <param>
+            <type>typename T</type>
+          </param>
+          <param>
+            <type>std::size_t...</type>
+            <declname>Is</declname>
+            <defname>Is</defname>
+          </param>
+        </templateparamlist>
+        <type>__host__ __device__ std::enable_if_t&lt; <ref refid="structcugraph_1_1is__thrust__tuple__of__arithmetic" kindref="compound">cugraph::is_thrust_tuple_of_arithmetic</ref>&lt; T &gt;::value, T &gt;</type>
+        <definition>__host__ __device__ std::enable_if_t&lt; cugraph::is_thrust_tuple_of_arithmetic&lt; T &gt;::value, T &gt; cugraph::reduce_op::detail::elementwise_thrust_min</definition>
+        <argsstring>(T lhs, T rhs, std::index_sequence&lt; Is... &gt;)</argsstring>
+        <name>elementwise_thrust_min</name>
+        <qualifiedname>cugraph::reduce_op::detail::elementwise_thrust_min</qualifiedname>
+        <param>
+          <type>T</type>
+          <declname>lhs</declname>
+        </param>
+        <param>
+          <type>T</type>
+          <declname>rhs</declname>
+        </param>
+        <param>
+          <type>std::index_sequence&lt; Is... &gt;</type>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/reduce_op.cuh" line="38" column="1" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/reduce_op.cuh" bodystart="38" bodyend="42"/>
+      </memberdef>
+      <memberdef kind="function" id="reduce__op_8cuh_1a713854833f8c87dfec6ca7643bbcbd47" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <templateparamlist>
+          <param>
+            <type>typename T</type>
+          </param>
+          <param>
+            <type>std::size_t...</type>
+            <declname>Is</declname>
+            <defname>Is</defname>
+          </param>
+        </templateparamlist>
+        <type>__host__ __device__ std::enable_if_t&lt; <ref refid="structcugraph_1_1is__thrust__tuple__of__arithmetic" kindref="compound">cugraph::is_thrust_tuple_of_arithmetic</ref>&lt; T &gt;::value, T &gt;</type>
+        <definition>__host__ __device__ std::enable_if_t&lt; cugraph::is_thrust_tuple_of_arithmetic&lt; T &gt;::value, T &gt; cugraph::reduce_op::detail::elementwise_thrust_max</definition>
+        <argsstring>(T lhs, T rhs, std::index_sequence&lt; Is... &gt;)</argsstring>
+        <name>elementwise_thrust_max</name>
+        <qualifiedname>cugraph::reduce_op::detail::elementwise_thrust_max</qualifiedname>
+        <param>
+          <type>T</type>
+          <declname>lhs</declname>
+        </param>
+        <param>
+          <type>T</type>
+          <declname>rhs</declname>
+        </param>
+        <param>
+          <type>std::index_sequence&lt; Is... &gt;</type>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/reduce_op.cuh" line="46" column="1" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/reduce_op.cuh" bodystart="46" bodyend="50"/>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/reduce_op.cuh" line="34" column="1"/>
+  </compounddef>
+</doxygen>

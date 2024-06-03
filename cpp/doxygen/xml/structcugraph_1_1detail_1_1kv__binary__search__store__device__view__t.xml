@@ -1,0 +1,156 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="structcugraph_1_1detail_1_1kv__binary__search__store__device__view__t" kind="struct" language="C++" prot="public">
+    <compoundname>cugraph::detail::kv_binary_search_store_device_view_t</compoundname>
+    <templateparamlist>
+      <param>
+        <type>typename ViewType</type>
+      </param>
+    </templateparamlist>
+    <sectiondef kind="public-type">
+      <memberdef kind="typedef" id="structcugraph_1_1detail_1_1kv__binary__search__store__device__view__t_1a7313d5eb56a51fd377e83de39d4eec70" prot="public" static="no">
+        <type>typename ViewType::key_type</type>
+        <definition>using cugraph::detail::kv_binary_search_store_device_view_t&lt; ViewType &gt;::key_type =  typename ViewType::key_type</definition>
+        <argsstring></argsstring>
+        <name>key_type</name>
+        <qualifiedname>cugraph::detail::kv_binary_search_store_device_view_t::key_type</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/kv_store.cuh" line="162" column="3" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/kv_store.cuh" bodystart="162" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="typedef" id="structcugraph_1_1detail_1_1kv__binary__search__store__device__view__t_1a1399e969fa8fecdc1fb12d7f61e53d5f" prot="public" static="no">
+        <type>typename ViewType::value_type</type>
+        <definition>using cugraph::detail::kv_binary_search_store_device_view_t&lt; ViewType &gt;::value_type =  typename ViewType::value_type</definition>
+        <argsstring></argsstring>
+        <name>value_type</name>
+        <qualifiedname>cugraph::detail::kv_binary_search_store_device_view_t::value_type</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/kv_store.cuh" line="163" column="3" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/kv_store.cuh" bodystart="163" bodyend="-1"/>
+      </memberdef>
+    </sectiondef>
+    <sectiondef kind="public-attrib">
+      <memberdef kind="variable" id="structcugraph_1_1detail_1_1kv__binary__search__store__device__view__t_1a41dc22cc09c6cd38c89462ad23247cc6" prot="public" static="no" mutable="no">
+        <type>ViewType::key_iterator</type>
+        <definition>ViewType::key_iterator cugraph::detail::kv_binary_search_store_device_view_t&lt; ViewType &gt;::store_key_first</definition>
+        <argsstring></argsstring>
+        <name>store_key_first</name>
+        <qualifiedname>cugraph::detail::kv_binary_search_store_device_view_t::store_key_first</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/kv_store.cuh" line="185" column="35" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/kv_store.cuh" bodystart="185" bodyend="185"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph_1_1detail_1_1kv__binary__search__store__device__view__t_1acb63a7d5f22a4e134f6d305fbabaf5d3" prot="public" static="no" mutable="no">
+        <type>ViewType::key_iterator</type>
+        <definition>ViewType::key_iterator cugraph::detail::kv_binary_search_store_device_view_t&lt; ViewType &gt;::store_key_last</definition>
+        <argsstring></argsstring>
+        <name>store_key_last</name>
+        <qualifiedname>cugraph::detail::kv_binary_search_store_device_view_t::store_key_last</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/kv_store.cuh" line="186" column="35" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/kv_store.cuh" bodystart="186" bodyend="186"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph_1_1detail_1_1kv__binary__search__store__device__view__t_1a9bdaf3c75c58923b0bfc45c89c78771a" prot="public" static="no" mutable="no">
+        <type>ViewType::value_iterator</type>
+        <definition>ViewType::value_iterator cugraph::detail::kv_binary_search_store_device_view_t&lt; ViewType &gt;::store_value_first</definition>
+        <argsstring></argsstring>
+        <name>store_value_first</name>
+        <qualifiedname>cugraph::detail::kv_binary_search_store_device_view_t::store_value_first</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/kv_store.cuh" line="187" column="37" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/kv_store.cuh" bodystart="187" bodyend="187"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph_1_1detail_1_1kv__binary__search__store__device__view__t_1a680167b7c078555e2d7af23b94db9690" prot="public" static="no" mutable="no">
+        <type>value_type</type>
+        <definition>value_type cugraph::detail::kv_binary_search_store_device_view_t&lt; ViewType &gt;::invalid_value</definition>
+        <argsstring></argsstring>
+        <name>invalid_value</name>
+        <qualifiedname>cugraph::detail::kv_binary_search_store_device_view_t::invalid_value</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/kv_store.cuh" line="189" column="14" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/kv_store.cuh" bodystart="189" bodyend="189"/>
+      </memberdef>
+    </sectiondef>
+    <sectiondef kind="public-func">
+      <memberdef kind="function" id="structcugraph_1_1detail_1_1kv__binary__search__store__device__view__t_1a0fd8450b1532a83232c8b301bf221584" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type>__host__</type>
+        <definition>__host__ cugraph::detail::kv_binary_search_store_device_view_t&lt; ViewType &gt;::kv_binary_search_store_device_view_t</definition>
+        <argsstring>(ViewType view)</argsstring>
+        <name>kv_binary_search_store_device_view_t</name>
+        <qualifiedname>cugraph::detail::kv_binary_search_store_device_view_t::kv_binary_search_store_device_view_t</qualifiedname>
+        <param>
+          <type>ViewType</type>
+          <declname>view</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/kv_store.cuh" line="167" column="12" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/kv_store.cuh" bodystart="167" bodyend="173"/>
+      </memberdef>
+      <memberdef kind="function" id="structcugraph_1_1detail_1_1kv__binary__search__store__device__view__t_1a680ac8e9d9bf0e45f421304d0d23ce6a" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>__device__ value_type</type>
+        <definition>__device__ value_type cugraph::detail::kv_binary_search_store_device_view_t&lt; ViewType &gt;::find</definition>
+        <argsstring>(key_type key) const</argsstring>
+        <name>find</name>
+        <qualifiedname>cugraph::detail::kv_binary_search_store_device_view_t::find</qualifiedname>
+        <param>
+          <type>key_type</type>
+          <declname>key</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/kv_store.cuh" line="175" column="25" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/kv_store.cuh" bodystart="175" bodyend="183"/>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/kv_store.cuh" line="161" column="1" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/kv_store.cuh" bodystart="161" bodyend="190"/>
+    <listofallmembers>
+      <member refid="structcugraph_1_1detail_1_1kv__binary__search__store__device__view__t_1a680ac8e9d9bf0e45f421304d0d23ce6a" prot="public" virt="non-virtual"><scope>cugraph::detail::kv_binary_search_store_device_view_t</scope><name>find</name></member>
+      <member refid="structcugraph_1_1detail_1_1kv__binary__search__store__device__view__t_1a680167b7c078555e2d7af23b94db9690" prot="public" virt="non-virtual"><scope>cugraph::detail::kv_binary_search_store_device_view_t</scope><name>invalid_value</name></member>
+      <member refid="structcugraph_1_1detail_1_1kv__binary__search__store__device__view__t_1a7313d5eb56a51fd377e83de39d4eec70" prot="public" virt="non-virtual"><scope>cugraph::detail::kv_binary_search_store_device_view_t</scope><name>key_type</name></member>
+      <member refid="structcugraph_1_1detail_1_1kv__binary__search__store__device__view__t_1a0fd8450b1532a83232c8b301bf221584" prot="public" virt="non-virtual"><scope>cugraph::detail::kv_binary_search_store_device_view_t</scope><name>kv_binary_search_store_device_view_t</name></member>
+      <member refid="structcugraph_1_1detail_1_1kv__binary__search__store__device__view__t_1a41dc22cc09c6cd38c89462ad23247cc6" prot="public" virt="non-virtual"><scope>cugraph::detail::kv_binary_search_store_device_view_t</scope><name>store_key_first</name></member>
+      <member refid="structcugraph_1_1detail_1_1kv__binary__search__store__device__view__t_1acb63a7d5f22a4e134f6d305fbabaf5d3" prot="public" virt="non-virtual"><scope>cugraph::detail::kv_binary_search_store_device_view_t</scope><name>store_key_last</name></member>
+      <member refid="structcugraph_1_1detail_1_1kv__binary__search__store__device__view__t_1a9bdaf3c75c58923b0bfc45c89c78771a" prot="public" virt="non-virtual"><scope>cugraph::detail::kv_binary_search_store_device_view_t</scope><name>store_value_first</name></member>
+      <member refid="structcugraph_1_1detail_1_1kv__binary__search__store__device__view__t_1a1399e969fa8fecdc1fb12d7f61e53d5f" prot="public" virt="non-virtual"><scope>cugraph::detail::kv_binary_search_store_device_view_t</scope><name>value_type</name></member>
+    </listofallmembers>
+  </compounddef>
+</doxygen>

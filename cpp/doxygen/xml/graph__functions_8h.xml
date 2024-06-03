@@ -1,0 +1,1414 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="graph__functions_8h" kind="file" language="C++">
+    <compoundname>graph_functions.h</compoundname>
+    <includes refid="array_8h" local="no">cugraph_c/array.h</includes>
+    <includes refid="graph_8h" local="no">cugraph_c/graph.h</includes>
+    <includes refid="resource__handle_8h" local="no">cugraph_c/resource_handle.h</includes>
+    <includedby refid="community__algorithms_8h" local="no">community_algorithms.h</includedby>
+    <includedby refid="degrees__result_8cpp" local="no">degrees_result.cpp</includedby>
+    <includedby refid="graph__functions_8cpp" local="no">graph_functions.cpp</includedby>
+    <includedby refid="similarity__algorithms_8h" local="no">similarity_algorithms.h</includedby>
+    <incdepgraph>
+      <node id="2">
+        <label>cugraph_c/array.h</label>
+        <link refid="array_8h_source"/>
+        <childnode refid="3" relation="include">
+        </childnode>
+      </node>
+      <node id="4">
+        <label>cugraph_c/error.h</label>
+        <link refid="error_8h_source"/>
+        <childnode refid="5" relation="include">
+        </childnode>
+      </node>
+      <node id="7">
+        <label>cugraph_c/graph.h</label>
+        <link refid="graph_8h_source"/>
+        <childnode refid="2" relation="include">
+        </childnode>
+      </node>
+      <node id="1">
+        <label>graph_functions.h</label>
+        <link refid="graph__functions_8h"/>
+        <childnode refid="2" relation="include">
+        </childnode>
+        <childnode refid="7" relation="include">
+        </childnode>
+        <childnode refid="3" relation="include">
+        </childnode>
+      </node>
+      <node id="3">
+        <label>cugraph_c/resource_handle.h</label>
+        <link refid="resource__handle_8h_source"/>
+        <childnode refid="4" relation="include">
+        </childnode>
+        <childnode refid="6" relation="include">
+        </childnode>
+        <childnode refid="5" relation="include">
+        </childnode>
+      </node>
+      <node id="6">
+        <label>stddef.h</label>
+      </node>
+      <node id="5">
+        <label>stdint.h</label>
+      </node>
+    </incdepgraph>
+    <invincdepgraph>
+      <node id="3">
+        <label>algorithms.h</label>
+        <link refid="algorithms_8h_source"/>
+        <childnode refid="4" relation="include">
+        </childnode>
+      </node>
+      <node id="2">
+        <label>community_algorithms.h</label>
+        <link refid="community__algorithms_8h_source"/>
+        <childnode refid="3" relation="include">
+        </childnode>
+      </node>
+      <node id="1">
+        <label>graph_functions.h</label>
+        <link refid="graph__functions_8h"/>
+        <childnode refid="2" relation="include">
+        </childnode>
+        <childnode refid="5" relation="include">
+        </childnode>
+      </node>
+      <node id="5">
+        <label>similarity_algorithms.h</label>
+        <link refid="similarity__algorithms_8h_source"/>
+        <childnode refid="3" relation="include">
+        </childnode>
+      </node>
+      <node id="4">
+        <label>hierarchical_clustering_result.hpp</label>
+        <link refid="hierarchical__clustering__result_8hpp_source"/>
+      </node>
+    </invincdepgraph>
+    <innerclass refid="structcugraph__vertex__pairs__t" prot="public">cugraph_vertex_pairs_t</innerclass>
+    <innerclass refid="structcugraph__induced__subgraph__result__t" prot="public">cugraph_induced_subgraph_result_t</innerclass>
+    <innerclass refid="structcugraph__degrees__result__t" prot="public">cugraph_degrees_result_t</innerclass>
+    <sectiondef kind="func">
+      <memberdef kind="function" id="graph__functions_8h_1a77cd0870c3f1dc24e80b870cb6b66608" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>cugraph_error_code_t</type>
+        <definition>cugraph_error_code_t cugraph_create_vertex_pairs</definition>
+        <argsstring>(const cugraph_resource_handle_t *handle, cugraph_graph_t *graph, const cugraph_type_erased_device_array_view_t *first, const cugraph_type_erased_device_array_view_t *second, cugraph_vertex_pairs_t **vertex_pairs, cugraph_error_t **error)</argsstring>
+        <name>cugraph_create_vertex_pairs</name>
+        <param>
+          <type>const <ref refid="structcugraph__resource__handle__" kindref="compound">cugraph_resource_handle_t</ref> *</type>
+          <declname>handle</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__graph__t" kindref="compound">cugraph_graph_t</ref> *</type>
+          <declname>graph</declname>
+        </param>
+        <param>
+          <type>const <ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref> *</type>
+          <declname>first</declname>
+        </param>
+        <param>
+          <type>const <ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref> *</type>
+          <declname>second</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__vertex__pairs__t" kindref="compound">cugraph_vertex_pairs_t</ref> **</type>
+          <declname>vertex_pairs</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__error__" kindref="compound">cugraph_error_t</ref> **</type>
+          <declname>error</declname>
+        </param>
+        <briefdescription>
+<para>Create vertex_pairs. </para>
+        </briefdescription>
+        <detaileddescription>
+<para>Input data will be shuffled to the proper GPU and stored in the output vertex_pairs.</para>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">handle</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Handle for accessing resources </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">graph</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Graph to operate on </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">first</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Type erased array of vertex ids for the first vertex of the pair </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">second</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Type erased array of vertex ids for the second vertex of the pair </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="out">vertex_pairs</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Opaque pointer to vertex_pairs </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="out">error</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Pointer to an error object storing details of any error. Will be populated if error code is not CUGRAPH_SUCCESS </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>error code </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/graph_functions.h" line="49" column="22" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/graph_functions.cpp" bodystart="257" bodyend="284" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/graph_functions.h" declline="49" declcolumn="22"/>
+      </memberdef>
+      <memberdef kind="function" id="graph__functions_8h_1afbd9b59971653a41a65500a29878363b" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref> *</type>
+        <definition>cugraph_type_erased_device_array_view_t * cugraph_vertex_pairs_get_first</definition>
+        <argsstring>(cugraph_vertex_pairs_t *vertex_pairs)</argsstring>
+        <name>cugraph_vertex_pairs_get_first</name>
+        <param>
+          <type><ref refid="structcugraph__vertex__pairs__t" kindref="compound">cugraph_vertex_pairs_t</ref> *</type>
+          <declname>vertex_pairs</declname>
+        </param>
+        <briefdescription>
+<para>Get the first vertex id array. </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">vertex_pairs</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>A vertex_pairs </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>type erased array of vertex ids </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/graph_functions.h" line="63" column="41" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/graph_functions.cpp" bodystart="286" bodyend="292" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/graph_functions.h" declline="63" declcolumn="41"/>
+      </memberdef>
+      <memberdef kind="function" id="graph__functions_8h_1a534e977b8955a0abc583accc372cd7fd" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref> *</type>
+        <definition>cugraph_type_erased_device_array_view_t * cugraph_vertex_pairs_get_second</definition>
+        <argsstring>(cugraph_vertex_pairs_t *vertex_pairs)</argsstring>
+        <name>cugraph_vertex_pairs_get_second</name>
+        <param>
+          <type><ref refid="structcugraph__vertex__pairs__t" kindref="compound">cugraph_vertex_pairs_t</ref> *</type>
+          <declname>vertex_pairs</declname>
+        </param>
+        <briefdescription>
+<para>Get the second vertex id array. </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">vertex_pairs</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>A vertex_pairs </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>type erased array of vertex ids </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/graph_functions.h" line="72" column="41" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/graph_functions.cpp" bodystart="294" bodyend="300" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/graph_functions.h" declline="72" declcolumn="41"/>
+      </memberdef>
+      <memberdef kind="function" id="graph__functions_8h_1ae2c0c0e1478f4eb4926eb6fc4b4077f8" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>void</type>
+        <definition>void cugraph_vertex_pairs_free</definition>
+        <argsstring>(cugraph_vertex_pairs_t *vertex_pairs)</argsstring>
+        <name>cugraph_vertex_pairs_free</name>
+        <param>
+          <type><ref refid="structcugraph__vertex__pairs__t" kindref="compound">cugraph_vertex_pairs_t</ref> *</type>
+          <declname>vertex_pairs</declname>
+        </param>
+        <briefdescription>
+<para>Free vertex pair. </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">vertex_pairs</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>The vertex pairs </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/graph_functions.h" line="80" column="6" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/graph_functions.cpp" bodystart="302" bodyend="308" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/graph_functions.h" declline="80" declcolumn="6"/>
+      </memberdef>
+      <memberdef kind="function" id="graph__functions_8h_1a3da7bcacd081a8fc27d6fd8ec296b864" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>cugraph_error_code_t</type>
+        <definition>cugraph_error_code_t cugraph_two_hop_neighbors</definition>
+        <argsstring>(const cugraph_resource_handle_t *handle, cugraph_graph_t *graph, const cugraph_type_erased_device_array_view_t *start_vertices, bool_t do_expensive_check, cugraph_vertex_pairs_t **result, cugraph_error_t **error)</argsstring>
+        <name>cugraph_two_hop_neighbors</name>
+        <param>
+          <type>const <ref refid="structcugraph__resource__handle__" kindref="compound">cugraph_resource_handle_t</ref> *</type>
+          <declname>handle</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__graph__t" kindref="compound">cugraph_graph_t</ref> *</type>
+          <declname>graph</declname>
+        </param>
+        <param>
+          <type>const <ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref> *</type>
+          <declname>start_vertices</declname>
+        </param>
+        <param>
+          <type>bool_t</type>
+          <declname>do_expensive_check</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__vertex__pairs__t" kindref="compound">cugraph_vertex_pairs_t</ref> **</type>
+          <declname>result</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__error__" kindref="compound">cugraph_error_t</ref> **</type>
+          <declname>error</declname>
+        </param>
+        <briefdescription>
+<para>Find all 2-hop neighbors in the graph. </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">handle</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Handle for accessing resources </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">graph</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Pointer to graph </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">start_vertices</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Optional type erased array of starting vertices If NULL use all, if specified compute two-hop neighbors for these starting vertices </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">do_expensive_check</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>A flag to run expensive checks for input arguments (if set to true) </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="out">result</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Opaque pointer to resulting vertex pairs </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="out">error</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Pointer to an error object storing details of any error. Will be populated if error code is not CUGRAPH_SUCCESS </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>error code </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/graph_functions.h" line="97" column="22" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/graph_functions.cpp" bodystart="310" bodyend="321" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/graph_functions.h" declline="97" declcolumn="22"/>
+      </memberdef>
+      <memberdef kind="function" id="graph__functions_8h_1aa490ec277fa396467f8953d85f7b799e" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref> *</type>
+        <definition>cugraph_type_erased_device_array_view_t * cugraph_induced_subgraph_get_sources</definition>
+        <argsstring>(cugraph_induced_subgraph_result_t *induced_subgraph)</argsstring>
+        <name>cugraph_induced_subgraph_get_sources</name>
+        <param>
+          <type><ref refid="structcugraph__induced__subgraph__result__t" kindref="compound">cugraph_induced_subgraph_result_t</ref> *</type>
+          <declname>induced_subgraph</declname>
+        </param>
+        <briefdescription>
+<para>Get the source vertex ids. </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">induced_subgraph</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Opaque pointer to induced subgraph </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>type erased array view of source vertex ids </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/graph_functions.h" line="118" column="41" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/induced_subgraph_result.cpp" bodystart="21" bodyend="27" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/graph_functions.h" declline="118" declcolumn="41"/>
+      </memberdef>
+      <memberdef kind="function" id="graph__functions_8h_1ad038c3028b724add607f4e9265d25f07" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref> *</type>
+        <definition>cugraph_type_erased_device_array_view_t * cugraph_induced_subgraph_get_destinations</definition>
+        <argsstring>(cugraph_induced_subgraph_result_t *induced_subgraph)</argsstring>
+        <name>cugraph_induced_subgraph_get_destinations</name>
+        <param>
+          <type><ref refid="structcugraph__induced__subgraph__result__t" kindref="compound">cugraph_induced_subgraph_result_t</ref> *</type>
+          <declname>induced_subgraph</declname>
+        </param>
+        <briefdescription>
+<para>Get the destination vertex ids. </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">induced_subgraph</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Opaque pointer to induced subgraph </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>type erased array view of destination vertex ids </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/graph_functions.h" line="127" column="41" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/induced_subgraph_result.cpp" bodystart="29" bodyend="35" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/graph_functions.h" declline="127" declcolumn="41"/>
+      </memberdef>
+      <memberdef kind="function" id="graph__functions_8h_1ae2d28cdb36480091f03b10feefc19de0" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref> *</type>
+        <definition>cugraph_type_erased_device_array_view_t * cugraph_induced_subgraph_get_edge_weights</definition>
+        <argsstring>(cugraph_induced_subgraph_result_t *induced_subgraph)</argsstring>
+        <name>cugraph_induced_subgraph_get_edge_weights</name>
+        <param>
+          <type><ref refid="structcugraph__induced__subgraph__result__t" kindref="compound">cugraph_induced_subgraph_result_t</ref> *</type>
+          <declname>induced_subgraph</declname>
+        </param>
+        <briefdescription>
+<para>Get the edge weights. </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">induced_subgraph</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Opaque pointer to induced subgraph </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>type erased array view of edge weights </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/graph_functions.h" line="136" column="41" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/induced_subgraph_result.cpp" bodystart="37" bodyend="46" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/graph_functions.h" declline="136" declcolumn="41"/>
+      </memberdef>
+      <memberdef kind="function" id="graph__functions_8h_1ac8747efcf9583320b36fbf355c036c2d" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref> *</type>
+        <definition>cugraph_type_erased_device_array_view_t * cugraph_induced_subgraph_get_edge_ids</definition>
+        <argsstring>(cugraph_induced_subgraph_result_t *induced_subgraph)</argsstring>
+        <name>cugraph_induced_subgraph_get_edge_ids</name>
+        <param>
+          <type><ref refid="structcugraph__induced__subgraph__result__t" kindref="compound">cugraph_induced_subgraph_result_t</ref> *</type>
+          <declname>induced_subgraph</declname>
+        </param>
+        <briefdescription>
+<para>Get the edge ids. </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">induced_subgraph</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Opaque pointer to induced subgraph </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>type erased array view of edge ids </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/graph_functions.h" line="145" column="41" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/induced_subgraph_result.cpp" bodystart="48" bodyend="57" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/graph_functions.h" declline="145" declcolumn="41"/>
+      </memberdef>
+      <memberdef kind="function" id="graph__functions_8h_1adb83bfe6f420c0fd103cb91a9438af42" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref> *</type>
+        <definition>cugraph_type_erased_device_array_view_t * cugraph_induced_subgraph_get_edge_type_ids</definition>
+        <argsstring>(cugraph_induced_subgraph_result_t *induced_subgraph)</argsstring>
+        <name>cugraph_induced_subgraph_get_edge_type_ids</name>
+        <param>
+          <type><ref refid="structcugraph__induced__subgraph__result__t" kindref="compound">cugraph_induced_subgraph_result_t</ref> *</type>
+          <declname>induced_subgraph</declname>
+        </param>
+        <briefdescription>
+<para>Get the edge types. </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">induced_subgraph</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Opaque pointer to induced subgraph </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>type erased array view of edge types </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/graph_functions.h" line="154" column="41" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/induced_subgraph_result.cpp" bodystart="59" bodyend="68" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/graph_functions.h" declline="154" declcolumn="41"/>
+      </memberdef>
+      <memberdef kind="function" id="graph__functions_8h_1a3a0be13982d05ab46319861ba514353a" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref> *</type>
+        <definition>cugraph_type_erased_device_array_view_t * cugraph_induced_subgraph_get_subgraph_offsets</definition>
+        <argsstring>(cugraph_induced_subgraph_result_t *induced_subgraph)</argsstring>
+        <name>cugraph_induced_subgraph_get_subgraph_offsets</name>
+        <param>
+          <type><ref refid="structcugraph__induced__subgraph__result__t" kindref="compound">cugraph_induced_subgraph_result_t</ref> *</type>
+          <declname>induced_subgraph</declname>
+        </param>
+        <briefdescription>
+<para>Get the subgraph offsets. </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">induced_subgraph</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Opaque pointer to induced subgraph </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>type erased array view of subgraph identifiers </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/graph_functions.h" line="163" column="41" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/induced_subgraph_result.cpp" bodystart="70" bodyend="77" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/graph_functions.h" declline="163" declcolumn="41"/>
+      </memberdef>
+      <memberdef kind="function" id="graph__functions_8h_1a6c7a08f4b5b4274b5a3f9fcadb75d286" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>void</type>
+        <definition>void cugraph_induced_subgraph_result_free</definition>
+        <argsstring>(cugraph_induced_subgraph_result_t *induced_subgraph)</argsstring>
+        <name>cugraph_induced_subgraph_result_free</name>
+        <param>
+          <type><ref refid="structcugraph__induced__subgraph__result__t" kindref="compound">cugraph_induced_subgraph_result_t</ref> *</type>
+          <declname>induced_subgraph</declname>
+        </param>
+        <briefdescription>
+<para>Free induced subgraph. </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">induced</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>subgraph Opaque pointer to induced subgraph </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/graph_functions.h" line="171" column="6" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/induced_subgraph_result.cpp" bodystart="79" bodyend="91" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/graph_functions.h" declline="171" declcolumn="6"/>
+      </memberdef>
+      <memberdef kind="function" id="graph__functions_8h_1a3fd203ea58575f655c1bbe49a3b41ff3" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>cugraph_error_code_t</type>
+        <definition>cugraph_error_code_t cugraph_extract_induced_subgraph</definition>
+        <argsstring>(const cugraph_resource_handle_t *handle, cugraph_graph_t *graph, const cugraph_type_erased_device_array_view_t *subgraph_offsets, const cugraph_type_erased_device_array_view_t *subgraph_vertices, bool_t do_expensive_check, cugraph_induced_subgraph_result_t **result, cugraph_error_t **error)</argsstring>
+        <name>cugraph_extract_induced_subgraph</name>
+        <param>
+          <type>const <ref refid="structcugraph__resource__handle__" kindref="compound">cugraph_resource_handle_t</ref> *</type>
+          <declname>handle</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__graph__t" kindref="compound">cugraph_graph_t</ref> *</type>
+          <declname>graph</declname>
+        </param>
+        <param>
+          <type>const <ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref> *</type>
+          <declname>subgraph_offsets</declname>
+        </param>
+        <param>
+          <type>const <ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref> *</type>
+          <declname>subgraph_vertices</declname>
+        </param>
+        <param>
+          <type>bool_t</type>
+          <declname>do_expensive_check</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__induced__subgraph__result__t" kindref="compound">cugraph_induced_subgraph_result_t</ref> **</type>
+          <declname>result</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__error__" kindref="compound">cugraph_error_t</ref> **</type>
+          <declname>error</declname>
+        </param>
+        <briefdescription>
+<para>Extract induced subgraph(s) </para>
+        </briefdescription>
+        <detaileddescription>
+<para>Given a list of vertex ids, extract a list of edges that represent the subgraph containing only the specified vertex ids.</para>
+<para>This function will do multiple subgraph extractions concurrently. The vertex ids are specified in CSR-style, with <computeroutput>subgraph_vertices</computeroutput> being a list of vertex ids and <computeroutput>subgraph_offsets</computeroutput>[i] identifying the start offset for each extracted subgraph</para>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">handle</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Handle for accessing resources </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">graph</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Pointer to graph </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">subgraph_offsets</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Type erased array of subgraph offsets into <computeroutput>subgraph_vertices</computeroutput> </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">subgraph_vertices</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Type erased array of vertices to include in extracted subgraph. </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">do_expensive_check</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>A flag to run expensive checks for input arguments (if set to <computeroutput>true</computeroutput>). </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="out">result</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Opaque pointer to induced subgraph result </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="out">error</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Pointer to an error object storing details of any error. Will be populated if error code is not CUGRAPH_SUCCESS </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>error code </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/graph_functions.h" line="196" column="22" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/induced_subgraph.cpp" bodystart="165" bodyend="186" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/graph_functions.h" declline="196" declcolumn="22"/>
+      </memberdef>
+      <memberdef kind="function" id="graph__functions_8h_1a1b106ed228c342b5e5ea6191e6a11729" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>cugraph_error_code_t</type>
+        <definition>cugraph_error_code_t cugraph_allgather</definition>
+        <argsstring>(const cugraph_resource_handle_t *handle, const cugraph_type_erased_device_array_view_t *src, const cugraph_type_erased_device_array_view_t *dst, const cugraph_type_erased_device_array_view_t *weights, const cugraph_type_erased_device_array_view_t *edge_ids, const cugraph_type_erased_device_array_view_t *edge_type_ids, cugraph_induced_subgraph_result_t **result, cugraph_error_t **error)</argsstring>
+        <name>cugraph_allgather</name>
+        <param>
+          <type>const <ref refid="structcugraph__resource__handle__" kindref="compound">cugraph_resource_handle_t</ref> *</type>
+          <declname>handle</declname>
+        </param>
+        <param>
+          <type>const <ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref> *</type>
+          <declname>src</declname>
+        </param>
+        <param>
+          <type>const <ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref> *</type>
+          <declname>dst</declname>
+        </param>
+        <param>
+          <type>const <ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref> *</type>
+          <declname>weights</declname>
+        </param>
+        <param>
+          <type>const <ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref> *</type>
+          <declname>edge_ids</declname>
+        </param>
+        <param>
+          <type>const <ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref> *</type>
+          <declname>edge_type_ids</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__induced__subgraph__result__t" kindref="compound">cugraph_induced_subgraph_result_t</ref> **</type>
+          <declname>result</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__error__" kindref="compound">cugraph_error_t</ref> **</type>
+          <declname>error</declname>
+        </param>
+        <briefdescription>
+<para>Gather edgelist. </para>
+        </briefdescription>
+        <detaileddescription>
+<para>This function collects the edgelist from all ranks and stores the combine edgelist in each rank</para>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">handle</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Handle for accessing resources. </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">src</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Device array containing the source vertex ids. </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">dst</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Device array containing the destination vertex ids </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">weights</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Optional device array containing the edge weights </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">edge_ids</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Optional device array containing the edge ids for each edge. </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">edge_type_ids</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Optional device array containing the edge types for each edge </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="out">result</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Opaque pointer to gathered edgelist result </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="out">error</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Pointer to an error object storing details of any error. Will be populated if error code is not CUGRAPH_SUCCESS </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>error code </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/graph_functions.h" line="223" column="22" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/allgather.cpp" bodystart="178" bodyend="282" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/graph_functions.h" declline="223" declcolumn="22"/>
+      </memberdef>
+      <memberdef kind="function" id="graph__functions_8h_1aeb16b6680d2e0cfcde57e033b6e79f04" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>cugraph_error_code_t</type>
+        <definition>cugraph_error_code_t cugraph_count_multi_edges</definition>
+        <argsstring>(const cugraph_resource_handle_t *handle, cugraph_graph_t *graph, bool_t do_expensive_check, size_t *result, cugraph_error_t **error)</argsstring>
+        <name>cugraph_count_multi_edges</name>
+        <param>
+          <type>const <ref refid="structcugraph__resource__handle__" kindref="compound">cugraph_resource_handle_t</ref> *</type>
+          <declname>handle</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__graph__t" kindref="compound">cugraph_graph_t</ref> *</type>
+          <declname>graph</declname>
+        </param>
+        <param>
+          <type>bool_t</type>
+          <declname>do_expensive_check</declname>
+        </param>
+        <param>
+          <type>size_t *</type>
+          <declname>result</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__error__" kindref="compound">cugraph_error_t</ref> **</type>
+          <declname>error</declname>
+        </param>
+        <briefdescription>
+<para>Count multi_edges. </para>
+        </briefdescription>
+        <detaileddescription>
+<para>Count the number of multi-edges in the graph</para>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">handle</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Handle for accessing resources. </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">graph</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Pointer to graph </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">do_expensive_check</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>A flag to run expensive checks for input arguments (if set to true) </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="out">result</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Where to store the count of multi-edges </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="out">error</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Pointer to an error object storing details of any error. Will be populated if error code is not CUGRAPH_SUCCESS </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>error code </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/graph_functions.h" line="246" column="22" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/graph_functions.cpp" bodystart="323" bodyend="332" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/graph_functions.h" declline="246" declcolumn="22"/>
+      </memberdef>
+      <memberdef kind="function" id="graph__functions_8h_1a09ed4a10967afabebaf1d16478a70bde" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>cugraph_error_code_t</type>
+        <definition>cugraph_error_code_t cugraph_in_degrees</definition>
+        <argsstring>(const cugraph_resource_handle_t *handle, cugraph_graph_t *graph, const cugraph_type_erased_device_array_view_t *source_vertices, bool_t do_expensive_check, cugraph_degrees_result_t **result, cugraph_error_t **error)</argsstring>
+        <name>cugraph_in_degrees</name>
+        <param>
+          <type>const <ref refid="structcugraph__resource__handle__" kindref="compound">cugraph_resource_handle_t</ref> *</type>
+          <declname>handle</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__graph__t" kindref="compound">cugraph_graph_t</ref> *</type>
+          <declname>graph</declname>
+        </param>
+        <param>
+          <type>const <ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref> *</type>
+          <declname>source_vertices</declname>
+        </param>
+        <param>
+          <type>bool_t</type>
+          <declname>do_expensive_check</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__degrees__result__t" kindref="compound">cugraph_degrees_result_t</ref> **</type>
+          <declname>result</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__error__" kindref="compound">cugraph_error_t</ref> **</type>
+          <declname>error</declname>
+        </param>
+        <briefdescription>
+<para>Compute in degrees. </para>
+        </briefdescription>
+        <detaileddescription>
+<para>Compute the in degrees for the vertices in the graph.</para>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">handle</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Handle for accessing resources. </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">graph</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Pointer to graph </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">source_vertices</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Device array of vertices we want to compute in degrees for. </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">do_expensive_check</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>A flag to run expensive checks for input arguments (if set to true) </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="out">result</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Opaque pointer to degrees result </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="out">error</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Pointer to an error object storing details of any error. Will be populated if error code is not CUGRAPH_SUCCESS </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>error code </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/graph_functions.h" line="274" column="22" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/degrees.cu" bodystart="188" bodyend="199" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/graph_functions.h" declline="274" declcolumn="22"/>
+      </memberdef>
+      <memberdef kind="function" id="graph__functions_8h_1afdcb9c12af81ed237563c6da7330bda4" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>cugraph_error_code_t</type>
+        <definition>cugraph_error_code_t cugraph_out_degrees</definition>
+        <argsstring>(const cugraph_resource_handle_t *handle, cugraph_graph_t *graph, const cugraph_type_erased_device_array_view_t *source_vertices, bool_t do_expensive_check, cugraph_degrees_result_t **result, cugraph_error_t **error)</argsstring>
+        <name>cugraph_out_degrees</name>
+        <param>
+          <type>const <ref refid="structcugraph__resource__handle__" kindref="compound">cugraph_resource_handle_t</ref> *</type>
+          <declname>handle</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__graph__t" kindref="compound">cugraph_graph_t</ref> *</type>
+          <declname>graph</declname>
+        </param>
+        <param>
+          <type>const <ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref> *</type>
+          <declname>source_vertices</declname>
+        </param>
+        <param>
+          <type>bool_t</type>
+          <declname>do_expensive_check</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__degrees__result__t" kindref="compound">cugraph_degrees_result_t</ref> **</type>
+          <declname>result</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__error__" kindref="compound">cugraph_error_t</ref> **</type>
+          <declname>error</declname>
+        </param>
+        <briefdescription>
+<para>Compute out degrees. </para>
+        </briefdescription>
+        <detaileddescription>
+<para>Compute the out degrees for the vertices in the graph.</para>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">handle</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Handle for accessing resources. </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">graph</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Pointer to graph </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">source_vertices</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Device array of vertices we want to compute out degrees for. </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">do_expensive_check</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>A flag to run expensive checks for input arguments (if set to true) </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="out">result</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Opaque pointer to degrees result </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="out">error</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Pointer to an error object storing details of any error. Will be populated if error code is not CUGRAPH_SUCCESS </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>error code </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/graph_functions.h" line="297" column="22" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/degrees.cu" bodystart="201" bodyend="212" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/graph_functions.h" declline="297" declcolumn="22"/>
+      </memberdef>
+      <memberdef kind="function" id="graph__functions_8h_1a609150402f341ebaee571b6a3983e1ad" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>cugraph_error_code_t</type>
+        <definition>cugraph_error_code_t cugraph_degrees</definition>
+        <argsstring>(const cugraph_resource_handle_t *handle, cugraph_graph_t *graph, const cugraph_type_erased_device_array_view_t *source_vertices, bool_t do_expensive_check, cugraph_degrees_result_t **result, cugraph_error_t **error)</argsstring>
+        <name>cugraph_degrees</name>
+        <param>
+          <type>const <ref refid="structcugraph__resource__handle__" kindref="compound">cugraph_resource_handle_t</ref> *</type>
+          <declname>handle</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__graph__t" kindref="compound">cugraph_graph_t</ref> *</type>
+          <declname>graph</declname>
+        </param>
+        <param>
+          <type>const <ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref> *</type>
+          <declname>source_vertices</declname>
+        </param>
+        <param>
+          <type>bool_t</type>
+          <declname>do_expensive_check</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__degrees__result__t" kindref="compound">cugraph_degrees_result_t</ref> **</type>
+          <declname>result</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__error__" kindref="compound">cugraph_error_t</ref> **</type>
+          <declname>error</declname>
+        </param>
+        <briefdescription>
+<para>Compute degrees. </para>
+        </briefdescription>
+        <detaileddescription>
+<para>Compute the degrees for the vertices in the graph.</para>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">handle</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Handle for accessing resources. </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">graph</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Pointer to graph </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">source_vertices</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Device array of vertices we want to compute degrees for. </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">do_expensive_check</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>A flag to run expensive checks for input arguments (if set to true) </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="out">result</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Opaque pointer to degrees result </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="out">error</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Pointer to an error object storing details of any error. Will be populated if error code is not CUGRAPH_SUCCESS </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>error code </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/graph_functions.h" line="320" column="22" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/degrees.cu" bodystart="214" bodyend="225" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/graph_functions.h" declline="320" declcolumn="22"/>
+      </memberdef>
+      <memberdef kind="function" id="graph__functions_8h_1a4373ad15b5266cfa96fa96660692764d" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref> *</type>
+        <definition>cugraph_type_erased_device_array_view_t * cugraph_degrees_result_get_vertices</definition>
+        <argsstring>(cugraph_degrees_result_t *degrees_result)</argsstring>
+        <name>cugraph_degrees_result_get_vertices</name>
+        <param>
+          <type><ref refid="structcugraph__degrees__result__t" kindref="compound">cugraph_degrees_result_t</ref> *</type>
+          <declname>degrees_result</declname>
+        </param>
+        <briefdescription>
+<para>Get the vertex ids. </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">degrees_result</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Opaque pointer to degree result </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>type erased array view of vertex ids </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/graph_functions.h" line="333" column="41" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/degrees_result.cpp" bodystart="21" bodyend="28" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/graph_functions.h" declline="333" declcolumn="41"/>
+      </memberdef>
+      <memberdef kind="function" id="graph__functions_8h_1af1cbff61ca29f4c9af5bbe2a4aa585b3" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref> *</type>
+        <definition>cugraph_type_erased_device_array_view_t * cugraph_degrees_result_get_in_degrees</definition>
+        <argsstring>(cugraph_degrees_result_t *degrees_result)</argsstring>
+        <name>cugraph_degrees_result_get_in_degrees</name>
+        <param>
+          <type><ref refid="structcugraph__degrees__result__t" kindref="compound">cugraph_degrees_result_t</ref> *</type>
+          <declname>degrees_result</declname>
+        </param>
+        <briefdescription>
+<para>Get the in degrees. </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">degrees_result</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Opaque pointer to degree result </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>type erased array view of vertex ids </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/graph_functions.h" line="342" column="41" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/degrees_result.cpp" bodystart="30" bodyend="39" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/graph_functions.h" declline="342" declcolumn="41"/>
+      </memberdef>
+      <memberdef kind="function" id="graph__functions_8h_1adf747a6cd1a6afa1b98c1f07e9ee8965" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref> *</type>
+        <definition>cugraph_type_erased_device_array_view_t * cugraph_degrees_result_get_out_degrees</definition>
+        <argsstring>(cugraph_degrees_result_t *degrees_result)</argsstring>
+        <name>cugraph_degrees_result_get_out_degrees</name>
+        <param>
+          <type><ref refid="structcugraph__degrees__result__t" kindref="compound">cugraph_degrees_result_t</ref> *</type>
+          <declname>degrees_result</declname>
+        </param>
+        <briefdescription>
+<para>Get the out degrees. </para>
+        </briefdescription>
+        <detaileddescription>
+<para>If the graph is symmetric, in degrees and out degrees will be equal (and will be stored in the same memory).</para>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">degrees_result</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Opaque pointer to degree result </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>type erased array view of vertex ids </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/graph_functions.h" line="354" column="41" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/degrees_result.cpp" bodystart="41" bodyend="53" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/graph_functions.h" declline="354" declcolumn="41"/>
+      </memberdef>
+      <memberdef kind="function" id="graph__functions_8h_1ac4409c4ec3f68d3880bd98dfa1ae8bdd" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>void</type>
+        <definition>void cugraph_degrees_result_free</definition>
+        <argsstring>(cugraph_degrees_result_t *degrees_result)</argsstring>
+        <name>cugraph_degrees_result_free</name>
+        <param>
+          <type><ref refid="structcugraph__degrees__result__t" kindref="compound">cugraph_degrees_result_t</ref> *</type>
+          <declname>degrees_result</declname>
+        </param>
+        <briefdescription>
+<para>Free degree result. </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">degrees_result</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Opaque pointer to degree result </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/graph_functions.h" line="362" column="6" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/degrees_result.cpp" bodystart="55" bodyend="63" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/graph_functions.h" declline="362" declcolumn="6"/>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <programlisting>
+<codeline lineno="1"><highlight class="comment">/*</highlight></codeline>
+<codeline lineno="2"><highlight class="comment"><sp/>*<sp/>Copyright<sp/>(c)<sp/>2022-2024,<sp/>NVIDIA<sp/>CORPORATION.</highlight></codeline>
+<codeline lineno="3"><highlight class="comment"><sp/>*</highlight></codeline>
+<codeline lineno="4"><highlight class="comment"><sp/>*<sp/>Licensed<sp/>under<sp/>the<sp/>Apache<sp/>License,<sp/>Version<sp/>2.0<sp/>(the<sp/>&quot;License&quot;);</highlight></codeline>
+<codeline lineno="5"><highlight class="comment"><sp/>*<sp/>you<sp/>may<sp/>not<sp/>use<sp/>this<sp/>file<sp/>except<sp/>in<sp/>compliance<sp/>with<sp/>the<sp/>License.</highlight></codeline>
+<codeline lineno="6"><highlight class="comment"><sp/>*<sp/>You<sp/>may<sp/>obtain<sp/>a<sp/>copy<sp/>of<sp/>the<sp/>License<sp/>at</highlight></codeline>
+<codeline lineno="7"><highlight class="comment"><sp/>*</highlight></codeline>
+<codeline lineno="8"><highlight class="comment"><sp/>*<sp/><sp/><sp/><sp/><sp/>http://www.apache.org/licenses/LICENSE-2.0</highlight></codeline>
+<codeline lineno="9"><highlight class="comment"><sp/>*</highlight></codeline>
+<codeline lineno="10"><highlight class="comment"><sp/>*<sp/>Unless<sp/>required<sp/>by<sp/>applicable<sp/>law<sp/>or<sp/>agreed<sp/>to<sp/>in<sp/>writing,<sp/>software</highlight></codeline>
+<codeline lineno="11"><highlight class="comment"><sp/>*<sp/>distributed<sp/>under<sp/>the<sp/>License<sp/>is<sp/>distributed<sp/>on<sp/>an<sp/>&quot;AS<sp/>IS&quot;<sp/>BASIS,</highlight></codeline>
+<codeline lineno="12"><highlight class="comment"><sp/>*<sp/>WITHOUT<sp/>WARRANTIES<sp/>OR<sp/>CONDITIONS<sp/>OF<sp/>ANY<sp/>KIND,<sp/>either<sp/>express<sp/>or<sp/>implied.</highlight></codeline>
+<codeline lineno="13"><highlight class="comment"><sp/>*<sp/>See<sp/>the<sp/>License<sp/>for<sp/>the<sp/>specific<sp/>language<sp/>governing<sp/>permissions<sp/>and</highlight></codeline>
+<codeline lineno="14"><highlight class="comment"><sp/>*<sp/>limitations<sp/>under<sp/>the<sp/>License.</highlight></codeline>
+<codeline lineno="15"><highlight class="comment"><sp/>*/</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="16"><highlight class="normal"></highlight></codeline>
+<codeline lineno="17"><highlight class="normal"></highlight><highlight class="preprocessor">#pragma<sp/>once</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="18"><highlight class="normal"></highlight></codeline>
+<codeline lineno="19"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&lt;cugraph_c/array.h&gt;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="20"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&lt;cugraph_c/graph.h&gt;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="21"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&lt;cugraph_c/resource_handle.h&gt;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="22"><highlight class="normal"></highlight></codeline>
+<codeline lineno="23"><highlight class="normal"></highlight><highlight class="preprocessor">#ifdef<sp/>__cplusplus</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="24"><highlight class="normal"></highlight><highlight class="keyword">extern</highlight><highlight class="normal"><sp/></highlight><highlight class="stringliteral">&quot;C&quot;</highlight><highlight class="normal"><sp/>{</highlight></codeline>
+<codeline lineno="25"><highlight class="normal"></highlight><highlight class="preprocessor">#endif</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="26"><highlight class="normal"></highlight></codeline>
+<codeline lineno="30" refid="structcugraph__vertex__pairs__t" refkind="compound"><highlight class="normal"></highlight><highlight class="keyword">typedef</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">struct<sp/></highlight><highlight class="normal">{</highlight></codeline>
+<codeline lineno="31"><highlight class="normal"><sp/><sp/>int32_t<sp/>align_;</highlight></codeline>
+<codeline lineno="32"><highlight class="normal">}<sp/><ref refid="structcugraph__vertex__pairs__t" kindref="compound">cugraph_vertex_pairs_t</ref>;</highlight></codeline>
+<codeline lineno="33"><highlight class="normal"></highlight></codeline>
+<codeline lineno="49"><highlight class="normal">cugraph_error_code_t<sp/>cugraph_create_vertex_pairs(</highlight></codeline>
+<codeline lineno="50"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__resource__handle__" kindref="compound">cugraph_resource_handle_t</ref>*<sp/>handle,</highlight></codeline>
+<codeline lineno="51"><highlight class="normal"><sp/><sp/><ref refid="structcugraph__graph__t" kindref="compound">cugraph_graph_t</ref>*<sp/>graph,</highlight></codeline>
+<codeline lineno="52"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/>first,</highlight></codeline>
+<codeline lineno="53"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/>second,</highlight></codeline>
+<codeline lineno="54"><highlight class="normal"><sp/><sp/><ref refid="structcugraph__vertex__pairs__t" kindref="compound">cugraph_vertex_pairs_t</ref>**<sp/>vertex_pairs,</highlight></codeline>
+<codeline lineno="55"><highlight class="normal"><sp/><sp/><ref refid="structcugraph__error__" kindref="compound">cugraph_error_t</ref>**<sp/>error);</highlight></codeline>
+<codeline lineno="56"><highlight class="normal"></highlight></codeline>
+<codeline lineno="63"><highlight class="normal"><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/>cugraph_vertex_pairs_get_first(</highlight></codeline>
+<codeline lineno="64"><highlight class="normal"><sp/><sp/><ref refid="structcugraph__vertex__pairs__t" kindref="compound">cugraph_vertex_pairs_t</ref>*<sp/>vertex_pairs);</highlight></codeline>
+<codeline lineno="65"><highlight class="normal"></highlight></codeline>
+<codeline lineno="72"><highlight class="normal"><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/>cugraph_vertex_pairs_get_second(</highlight></codeline>
+<codeline lineno="73"><highlight class="normal"><sp/><sp/><ref refid="structcugraph__vertex__pairs__t" kindref="compound">cugraph_vertex_pairs_t</ref>*<sp/>vertex_pairs);</highlight></codeline>
+<codeline lineno="74"><highlight class="normal"></highlight></codeline>
+<codeline lineno="80"><highlight class="normal"></highlight><highlight class="keywordtype">void</highlight><highlight class="normal"><sp/>cugraph_vertex_pairs_free(<ref refid="structcugraph__vertex__pairs__t" kindref="compound">cugraph_vertex_pairs_t</ref>*<sp/>vertex_pairs);</highlight></codeline>
+<codeline lineno="81"><highlight class="normal"></highlight></codeline>
+<codeline lineno="97"><highlight class="normal">cugraph_error_code_t<sp/>cugraph_two_hop_neighbors(</highlight></codeline>
+<codeline lineno="98"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__resource__handle__" kindref="compound">cugraph_resource_handle_t</ref>*<sp/>handle,</highlight></codeline>
+<codeline lineno="99"><highlight class="normal"><sp/><sp/><ref refid="structcugraph__graph__t" kindref="compound">cugraph_graph_t</ref>*<sp/>graph,</highlight></codeline>
+<codeline lineno="100"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/>start_vertices,</highlight></codeline>
+<codeline lineno="101"><highlight class="normal"><sp/><sp/>bool_t<sp/>do_expensive_check,</highlight></codeline>
+<codeline lineno="102"><highlight class="normal"><sp/><sp/><ref refid="structcugraph__vertex__pairs__t" kindref="compound">cugraph_vertex_pairs_t</ref>**<sp/>result,</highlight></codeline>
+<codeline lineno="103"><highlight class="normal"><sp/><sp/><ref refid="structcugraph__error__" kindref="compound">cugraph_error_t</ref>**<sp/>error);</highlight></codeline>
+<codeline lineno="104"><highlight class="normal"></highlight></codeline>
+<codeline lineno="108" refid="structcugraph__induced__subgraph__result__t" refkind="compound"><highlight class="normal"></highlight><highlight class="keyword">typedef</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">struct<sp/></highlight><highlight class="normal">{</highlight></codeline>
+<codeline lineno="109"><highlight class="normal"><sp/><sp/>int32_t<sp/>align_;</highlight></codeline>
+<codeline lineno="110"><highlight class="normal">}<sp/><ref refid="structcugraph__induced__subgraph__result__t" kindref="compound">cugraph_induced_subgraph_result_t</ref>;</highlight></codeline>
+<codeline lineno="111"><highlight class="normal"></highlight></codeline>
+<codeline lineno="118"><highlight class="normal"><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/>cugraph_induced_subgraph_get_sources(</highlight></codeline>
+<codeline lineno="119"><highlight class="normal"><sp/><sp/><ref refid="structcugraph__induced__subgraph__result__t" kindref="compound">cugraph_induced_subgraph_result_t</ref>*<sp/>induced_subgraph);</highlight></codeline>
+<codeline lineno="120"><highlight class="normal"></highlight></codeline>
+<codeline lineno="127"><highlight class="normal"><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/>cugraph_induced_subgraph_get_destinations(</highlight></codeline>
+<codeline lineno="128"><highlight class="normal"><sp/><sp/><ref refid="structcugraph__induced__subgraph__result__t" kindref="compound">cugraph_induced_subgraph_result_t</ref>*<sp/>induced_subgraph);</highlight></codeline>
+<codeline lineno="129"><highlight class="normal"></highlight></codeline>
+<codeline lineno="136"><highlight class="normal"><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/>cugraph_induced_subgraph_get_edge_weights(</highlight></codeline>
+<codeline lineno="137"><highlight class="normal"><sp/><sp/><ref refid="structcugraph__induced__subgraph__result__t" kindref="compound">cugraph_induced_subgraph_result_t</ref>*<sp/>induced_subgraph);</highlight></codeline>
+<codeline lineno="138"><highlight class="normal"></highlight></codeline>
+<codeline lineno="145"><highlight class="normal"><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/>cugraph_induced_subgraph_get_edge_ids(</highlight></codeline>
+<codeline lineno="146"><highlight class="normal"><sp/><sp/><ref refid="structcugraph__induced__subgraph__result__t" kindref="compound">cugraph_induced_subgraph_result_t</ref>*<sp/>induced_subgraph);</highlight></codeline>
+<codeline lineno="147"><highlight class="normal"></highlight></codeline>
+<codeline lineno="154"><highlight class="normal"><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/>cugraph_induced_subgraph_get_edge_type_ids(</highlight></codeline>
+<codeline lineno="155"><highlight class="normal"><sp/><sp/><ref refid="structcugraph__induced__subgraph__result__t" kindref="compound">cugraph_induced_subgraph_result_t</ref>*<sp/>induced_subgraph);</highlight></codeline>
+<codeline lineno="156"><highlight class="normal"></highlight></codeline>
+<codeline lineno="163"><highlight class="normal"><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/>cugraph_induced_subgraph_get_subgraph_offsets(</highlight></codeline>
+<codeline lineno="164"><highlight class="normal"><sp/><sp/><ref refid="structcugraph__induced__subgraph__result__t" kindref="compound">cugraph_induced_subgraph_result_t</ref>*<sp/>induced_subgraph);</highlight></codeline>
+<codeline lineno="165"><highlight class="normal"></highlight></codeline>
+<codeline lineno="171"><highlight class="normal"></highlight><highlight class="keywordtype">void</highlight><highlight class="normal"><sp/>cugraph_induced_subgraph_result_free(<ref refid="structcugraph__induced__subgraph__result__t" kindref="compound">cugraph_induced_subgraph_result_t</ref>*<sp/>induced_subgraph);</highlight></codeline>
+<codeline lineno="172"><highlight class="normal"></highlight></codeline>
+<codeline lineno="196"><highlight class="normal">cugraph_error_code_t<sp/>cugraph_extract_induced_subgraph(</highlight></codeline>
+<codeline lineno="197"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__resource__handle__" kindref="compound">cugraph_resource_handle_t</ref>*<sp/>handle,</highlight></codeline>
+<codeline lineno="198"><highlight class="normal"><sp/><sp/><ref refid="structcugraph__graph__t" kindref="compound">cugraph_graph_t</ref>*<sp/>graph,</highlight></codeline>
+<codeline lineno="199"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/>subgraph_offsets,</highlight></codeline>
+<codeline lineno="200"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/>subgraph_vertices,</highlight></codeline>
+<codeline lineno="201"><highlight class="normal"><sp/><sp/>bool_t<sp/>do_expensive_check,</highlight></codeline>
+<codeline lineno="202"><highlight class="normal"><sp/><sp/><ref refid="structcugraph__induced__subgraph__result__t" kindref="compound">cugraph_induced_subgraph_result_t</ref>**<sp/>result,</highlight></codeline>
+<codeline lineno="203"><highlight class="normal"><sp/><sp/><ref refid="structcugraph__error__" kindref="compound">cugraph_error_t</ref>**<sp/>error);</highlight></codeline>
+<codeline lineno="204"><highlight class="normal"></highlight></codeline>
+<codeline lineno="205"><highlight class="normal"></highlight><highlight class="comment">//<sp/>FIXME:<sp/>Rename<sp/>the<sp/>return<sp/>type</highlight></codeline>
+<codeline lineno="223"><highlight class="normal">cugraph_error_code_t<sp/>cugraph_allgather(</highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__resource__handle__" kindref="compound">cugraph_resource_handle_t</ref>*<sp/>handle,</highlight></codeline>
+<codeline lineno="224"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/>src,</highlight></codeline>
+<codeline lineno="225"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/>dst,</highlight></codeline>
+<codeline lineno="226"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/>weights,</highlight></codeline>
+<codeline lineno="227"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/>edge_ids,</highlight></codeline>
+<codeline lineno="228"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/>edge_type_ids,</highlight></codeline>
+<codeline lineno="229"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><ref refid="structcugraph__induced__subgraph__result__t" kindref="compound">cugraph_induced_subgraph_result_t</ref>**<sp/>result,</highlight></codeline>
+<codeline lineno="230"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><ref refid="structcugraph__error__" kindref="compound">cugraph_error_t</ref>**<sp/>error);</highlight></codeline>
+<codeline lineno="231"><highlight class="normal"></highlight></codeline>
+<codeline lineno="246"><highlight class="normal">cugraph_error_code_t<sp/>cugraph_count_multi_edges(</highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__resource__handle__" kindref="compound">cugraph_resource_handle_t</ref>*<sp/>handle,</highlight></codeline>
+<codeline lineno="247"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><ref refid="structcugraph__graph__t" kindref="compound">cugraph_graph_t</ref>*<sp/>graph,</highlight></codeline>
+<codeline lineno="248"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>bool_t<sp/>do_expensive_check,</highlight></codeline>
+<codeline lineno="249"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordtype">size_t</highlight><highlight class="normal">*<sp/>result,</highlight></codeline>
+<codeline lineno="250"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><ref refid="structcugraph__error__" kindref="compound">cugraph_error_t</ref>**<sp/>error);</highlight></codeline>
+<codeline lineno="251"><highlight class="normal"></highlight></codeline>
+<codeline lineno="255" refid="structcugraph__degrees__result__t" refkind="compound"><highlight class="normal"></highlight><highlight class="keyword">typedef</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">struct<sp/></highlight><highlight class="normal">{</highlight></codeline>
+<codeline lineno="256"><highlight class="normal"><sp/><sp/>int32_t<sp/>align_;</highlight></codeline>
+<codeline lineno="257"><highlight class="normal">}<sp/><ref refid="structcugraph__degrees__result__t" kindref="compound">cugraph_degrees_result_t</ref>;</highlight></codeline>
+<codeline lineno="258"><highlight class="normal"></highlight></codeline>
+<codeline lineno="274"><highlight class="normal">cugraph_error_code_t<sp/>cugraph_in_degrees(</highlight></codeline>
+<codeline lineno="275"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__resource__handle__" kindref="compound">cugraph_resource_handle_t</ref>*<sp/>handle,</highlight></codeline>
+<codeline lineno="276"><highlight class="normal"><sp/><sp/><ref refid="structcugraph__graph__t" kindref="compound">cugraph_graph_t</ref>*<sp/>graph,</highlight></codeline>
+<codeline lineno="277"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/>source_vertices,</highlight></codeline>
+<codeline lineno="278"><highlight class="normal"><sp/><sp/>bool_t<sp/>do_expensive_check,</highlight></codeline>
+<codeline lineno="279"><highlight class="normal"><sp/><sp/><ref refid="structcugraph__degrees__result__t" kindref="compound">cugraph_degrees_result_t</ref>**<sp/>result,</highlight></codeline>
+<codeline lineno="280"><highlight class="normal"><sp/><sp/><ref refid="structcugraph__error__" kindref="compound">cugraph_error_t</ref>**<sp/>error);</highlight></codeline>
+<codeline lineno="281"><highlight class="normal"></highlight></codeline>
+<codeline lineno="297"><highlight class="normal">cugraph_error_code_t<sp/>cugraph_out_degrees(</highlight></codeline>
+<codeline lineno="298"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__resource__handle__" kindref="compound">cugraph_resource_handle_t</ref>*<sp/>handle,</highlight></codeline>
+<codeline lineno="299"><highlight class="normal"><sp/><sp/><ref refid="structcugraph__graph__t" kindref="compound">cugraph_graph_t</ref>*<sp/>graph,</highlight></codeline>
+<codeline lineno="300"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/>source_vertices,</highlight></codeline>
+<codeline lineno="301"><highlight class="normal"><sp/><sp/>bool_t<sp/>do_expensive_check,</highlight></codeline>
+<codeline lineno="302"><highlight class="normal"><sp/><sp/><ref refid="structcugraph__degrees__result__t" kindref="compound">cugraph_degrees_result_t</ref>**<sp/>result,</highlight></codeline>
+<codeline lineno="303"><highlight class="normal"><sp/><sp/><ref refid="structcugraph__error__" kindref="compound">cugraph_error_t</ref>**<sp/>error);</highlight></codeline>
+<codeline lineno="304"><highlight class="normal"></highlight></codeline>
+<codeline lineno="320"><highlight class="normal">cugraph_error_code_t<sp/>cugraph_degrees(</highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__resource__handle__" kindref="compound">cugraph_resource_handle_t</ref>*<sp/>handle,</highlight></codeline>
+<codeline lineno="321"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><ref refid="structcugraph__graph__t" kindref="compound">cugraph_graph_t</ref>*<sp/>graph,</highlight></codeline>
+<codeline lineno="322"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/>source_vertices,</highlight></codeline>
+<codeline lineno="323"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>bool_t<sp/>do_expensive_check,</highlight></codeline>
+<codeline lineno="324"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><ref refid="structcugraph__degrees__result__t" kindref="compound">cugraph_degrees_result_t</ref>**<sp/>result,</highlight></codeline>
+<codeline lineno="325"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><ref refid="structcugraph__error__" kindref="compound">cugraph_error_t</ref>**<sp/>error);</highlight></codeline>
+<codeline lineno="326"><highlight class="normal"></highlight></codeline>
+<codeline lineno="333"><highlight class="normal"><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/>cugraph_degrees_result_get_vertices(</highlight></codeline>
+<codeline lineno="334"><highlight class="normal"><sp/><sp/><ref refid="structcugraph__degrees__result__t" kindref="compound">cugraph_degrees_result_t</ref>*<sp/>degrees_result);</highlight></codeline>
+<codeline lineno="335"><highlight class="normal"></highlight></codeline>
+<codeline lineno="342"><highlight class="normal"><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/>cugraph_degrees_result_get_in_degrees(</highlight></codeline>
+<codeline lineno="343"><highlight class="normal"><sp/><sp/><ref refid="structcugraph__degrees__result__t" kindref="compound">cugraph_degrees_result_t</ref>*<sp/>degrees_result);</highlight></codeline>
+<codeline lineno="344"><highlight class="normal"></highlight></codeline>
+<codeline lineno="354"><highlight class="normal"><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/>cugraph_degrees_result_get_out_degrees(</highlight></codeline>
+<codeline lineno="355"><highlight class="normal"><sp/><sp/><ref refid="structcugraph__degrees__result__t" kindref="compound">cugraph_degrees_result_t</ref>*<sp/>degrees_result);</highlight></codeline>
+<codeline lineno="356"><highlight class="normal"></highlight></codeline>
+<codeline lineno="362"><highlight class="normal"></highlight><highlight class="keywordtype">void</highlight><highlight class="normal"><sp/>cugraph_degrees_result_free(<ref refid="structcugraph__degrees__result__t" kindref="compound">cugraph_degrees_result_t</ref>*<sp/>degrees_result);</highlight></codeline>
+<codeline lineno="363"><highlight class="normal"></highlight></codeline>
+<codeline lineno="364"><highlight class="normal"></highlight><highlight class="preprocessor">#ifdef<sp/>__cplusplus</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="365"><highlight class="normal">}</highlight></codeline>
+<codeline lineno="366"><highlight class="normal"></highlight><highlight class="preprocessor">#endif</highlight></codeline>
+    </programlisting>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/graph_functions.h"/>
+  </compounddef>
+</doxygen>

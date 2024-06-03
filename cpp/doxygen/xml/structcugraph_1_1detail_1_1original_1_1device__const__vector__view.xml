@@ -1,0 +1,207 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="structcugraph_1_1detail_1_1original_1_1device__const__vector__view" kind="struct" language="C++" prot="public">
+    <compoundname>cugraph::detail::original::device_const_vector_view</compoundname>
+    <templateparamlist>
+      <param>
+        <type>typename value_t</type>
+      </param>
+      <param>
+        <type>typename index_t</type>
+        <defval>size_t</defval>
+      </param>
+    </templateparamlist>
+    <sectiondef kind="private-attrib">
+      <memberdef kind="variable" id="structcugraph_1_1detail_1_1original_1_1device__const__vector__view_1a796ce5b678ac79dcd91d3febc3798c9e" prot="private" static="no" mutable="no">
+        <type>value_t const  *</type>
+        <definition>value_t const* cugraph::detail::original::device_const_vector_view&lt; value_t, index_t &gt;::d_buffer_</definition>
+        <argsstring></argsstring>
+        <name>d_buffer_</name>
+        <qualifiedname>cugraph::detail::original::device_const_vector_view::d_buffer_</qualifiedname>
+        <initializer>{nullptr}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/sampling/rw_traversals.hpp" line="97" column="17" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/sampling/rw_traversals.hpp" bodystart="97" bodyend="97"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph_1_1detail_1_1original_1_1device__const__vector__view_1ac2c57d28e19fe81e760baaede37e448c" prot="private" static="no" mutable="no">
+        <type>index_t</type>
+        <definition>index_t cugraph::detail::original::device_const_vector_view&lt; value_t, index_t &gt;::size_</definition>
+        <argsstring></argsstring>
+        <name>size_</name>
+        <qualifiedname>cugraph::detail::original::device_const_vector_view::size_</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/sampling/rw_traversals.hpp" line="98" column="11" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/sampling/rw_traversals.hpp" bodystart="98" bodyend="-1"/>
+      </memberdef>
+    </sectiondef>
+    <sectiondef kind="public-func">
+      <memberdef kind="function" id="structcugraph_1_1detail_1_1original_1_1device__const__vector__view_1ac48e1d5d260a9cd59ffd2694cf469bcf" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type></type>
+        <definition>cugraph::detail::original::device_const_vector_view&lt; value_t, index_t &gt;::device_const_vector_view</definition>
+        <argsstring>(value_t const *d_buffer, index_t size)</argsstring>
+        <name>device_const_vector_view</name>
+        <qualifiedname>cugraph::detail::original::device_const_vector_view::device_const_vector_view</qualifiedname>
+        <param>
+          <type>value_t const *</type>
+          <declname>d_buffer</declname>
+        </param>
+        <param>
+          <type>index_t</type>
+          <declname>size</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/sampling/rw_traversals.hpp" line="70" column="3" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/sampling/rw_traversals.hpp" bodystart="70" bodyend="72"/>
+      </memberdef>
+      <memberdef kind="function" id="structcugraph_1_1detail_1_1original_1_1device__const__vector__view_1a60bbcf8711f80f16eb0246e237a4c47a" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type></type>
+        <definition>cugraph::detail::original::device_const_vector_view&lt; value_t, index_t &gt;::device_const_vector_view</definition>
+        <argsstring>(device_const_vector_view const &amp;other)=delete</argsstring>
+        <name>device_const_vector_view</name>
+        <qualifiedname>cugraph::detail::original::device_const_vector_view::device_const_vector_view</qualifiedname>
+        <param>
+          <type><ref refid="structcugraph_1_1detail_1_1original_1_1device__const__vector__view" kindref="compound">device_const_vector_view</ref> const &amp;</type>
+          <declname>other</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/sampling/rw_traversals.hpp" line="74" column="3"/>
+      </memberdef>
+      <memberdef kind="function" id="structcugraph_1_1detail_1_1original_1_1device__const__vector__view_1a97fd639740ac31da2e9552ca7529bb82" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type><ref refid="structcugraph_1_1detail_1_1original_1_1device__const__vector__view" kindref="compound">device_const_vector_view</ref> &amp;</type>
+        <definition>device_const_vector_view &amp; cugraph::detail::original::device_const_vector_view&lt; value_t, index_t &gt;::operator=</definition>
+        <argsstring>(device_const_vector_view const &amp;other)=delete</argsstring>
+        <name>operator=</name>
+        <qualifiedname>cugraph::detail::original::device_const_vector_view::operator=</qualifiedname>
+        <param>
+          <type><ref refid="structcugraph_1_1detail_1_1original_1_1device__const__vector__view" kindref="compound">device_const_vector_view</ref> const &amp;</type>
+          <declname>other</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/sampling/rw_traversals.hpp" line="75" column="28"/>
+      </memberdef>
+      <memberdef kind="function" id="structcugraph_1_1detail_1_1original_1_1device__const__vector__view_1af30ad67fa65238721c74d617ada43185" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type></type>
+        <definition>cugraph::detail::original::device_const_vector_view&lt; value_t, index_t &gt;::device_const_vector_view</definition>
+        <argsstring>(device_const_vector_view &amp;&amp;other)</argsstring>
+        <name>device_const_vector_view</name>
+        <qualifiedname>cugraph::detail::original::device_const_vector_view::device_const_vector_view</qualifiedname>
+        <param>
+          <type><ref refid="structcugraph_1_1detail_1_1original_1_1device__const__vector__view" kindref="compound">device_const_vector_view</ref> &amp;&amp;</type>
+          <declname>other</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/sampling/rw_traversals.hpp" line="77" column="3" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/sampling/rw_traversals.hpp" bodystart="77" bodyend="81"/>
+      </memberdef>
+      <memberdef kind="function" id="structcugraph_1_1detail_1_1original_1_1device__const__vector__view_1aa5d9769656db9b4ff79d7f46ddb0dd6d" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type><ref refid="structcugraph_1_1detail_1_1original_1_1device__const__vector__view" kindref="compound">device_const_vector_view</ref> &amp;</type>
+        <definition>device_const_vector_view &amp; cugraph::detail::original::device_const_vector_view&lt; value_t, index_t &gt;::operator=</definition>
+        <argsstring>(device_const_vector_view &amp;&amp;other)</argsstring>
+        <name>operator=</name>
+        <qualifiedname>cugraph::detail::original::device_const_vector_view::operator=</qualifiedname>
+        <param>
+          <type><ref refid="structcugraph_1_1detail_1_1original_1_1device__const__vector__view" kindref="compound">device_const_vector_view</ref> &amp;&amp;</type>
+          <declname>other</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/sampling/rw_traversals.hpp" line="82" column="28" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/sampling/rw_traversals.hpp" bodystart="82" bodyend="88"/>
+      </memberdef>
+      <memberdef kind="function" id="structcugraph_1_1detail_1_1original_1_1device__const__vector__view_1a3c055698101ffd5bdd65748456063da0" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>value_t const *</type>
+        <definition>value_t const  * cugraph::detail::original::device_const_vector_view&lt; value_t, index_t &gt;::begin</definition>
+        <argsstring>(void) const</argsstring>
+        <name>begin</name>
+        <qualifiedname>cugraph::detail::original::device_const_vector_view::begin</qualifiedname>
+        <param>
+          <type>void</type>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/sampling/rw_traversals.hpp" line="90" column="17" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/sampling/rw_traversals.hpp" bodystart="90" bodyend="90"/>
+      </memberdef>
+      <memberdef kind="function" id="structcugraph_1_1detail_1_1original_1_1device__const__vector__view_1a32f3aeed5556bbe3f35fe339d28e86a2" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>value_t const *</type>
+        <definition>value_t const  * cugraph::detail::original::device_const_vector_view&lt; value_t, index_t &gt;::end</definition>
+        <argsstring>() const</argsstring>
+        <name>end</name>
+        <qualifiedname>cugraph::detail::original::device_const_vector_view::end</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/sampling/rw_traversals.hpp" line="92" column="17" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/sampling/rw_traversals.hpp" bodystart="92" bodyend="92"/>
+      </memberdef>
+      <memberdef kind="function" id="structcugraph_1_1detail_1_1original_1_1device__const__vector__view_1a0886b06ed402f823f30fc8c4e53ef9f1" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>index_t</type>
+        <definition>index_t cugraph::detail::original::device_const_vector_view&lt; value_t, index_t &gt;::size</definition>
+        <argsstring>(void) const</argsstring>
+        <name>size</name>
+        <qualifiedname>cugraph::detail::original::device_const_vector_view::size</qualifiedname>
+        <param>
+          <type>void</type>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/sampling/rw_traversals.hpp" line="94" column="11" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/sampling/rw_traversals.hpp" bodystart="94" bodyend="94"/>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/src/sampling/rw_traversals.hpp" line="69" column="1" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/sampling/rw_traversals.hpp" bodystart="69" bodyend="99"/>
+    <listofallmembers>
+      <member refid="structcugraph_1_1detail_1_1original_1_1device__const__vector__view_1a3c055698101ffd5bdd65748456063da0" prot="public" virt="non-virtual"><scope>cugraph::detail::original::device_const_vector_view</scope><name>begin</name></member>
+      <member refid="structcugraph_1_1detail_1_1original_1_1device__const__vector__view_1a796ce5b678ac79dcd91d3febc3798c9e" prot="private" virt="non-virtual"><scope>cugraph::detail::original::device_const_vector_view</scope><name>d_buffer_</name></member>
+      <member refid="structcugraph_1_1detail_1_1original_1_1device__const__vector__view_1ac48e1d5d260a9cd59ffd2694cf469bcf" prot="public" virt="non-virtual"><scope>cugraph::detail::original::device_const_vector_view</scope><name>device_const_vector_view</name></member>
+      <member refid="structcugraph_1_1detail_1_1original_1_1device__const__vector__view_1a60bbcf8711f80f16eb0246e237a4c47a" prot="public" virt="non-virtual"><scope>cugraph::detail::original::device_const_vector_view</scope><name>device_const_vector_view</name></member>
+      <member refid="structcugraph_1_1detail_1_1original_1_1device__const__vector__view_1af30ad67fa65238721c74d617ada43185" prot="public" virt="non-virtual"><scope>cugraph::detail::original::device_const_vector_view</scope><name>device_const_vector_view</name></member>
+      <member refid="structcugraph_1_1detail_1_1original_1_1device__const__vector__view_1a32f3aeed5556bbe3f35fe339d28e86a2" prot="public" virt="non-virtual"><scope>cugraph::detail::original::device_const_vector_view</scope><name>end</name></member>
+      <member refid="structcugraph_1_1detail_1_1original_1_1device__const__vector__view_1a97fd639740ac31da2e9552ca7529bb82" prot="public" virt="non-virtual"><scope>cugraph::detail::original::device_const_vector_view</scope><name>operator=</name></member>
+      <member refid="structcugraph_1_1detail_1_1original_1_1device__const__vector__view_1aa5d9769656db9b4ff79d7f46ddb0dd6d" prot="public" virt="non-virtual"><scope>cugraph::detail::original::device_const_vector_view</scope><name>operator=</name></member>
+      <member refid="structcugraph_1_1detail_1_1original_1_1device__const__vector__view_1a0886b06ed402f823f30fc8c4e53ef9f1" prot="public" virt="non-virtual"><scope>cugraph::detail::original::device_const_vector_view</scope><name>size</name></member>
+      <member refid="structcugraph_1_1detail_1_1original_1_1device__const__vector__view_1ac2c57d28e19fe81e760baaede37e448c" prot="private" virt="non-virtual"><scope>cugraph::detail::original::device_const_vector_view</scope><name>size_</name></member>
+    </listofallmembers>
+  </compounddef>
+</doxygen>

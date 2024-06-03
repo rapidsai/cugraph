@@ -1,0 +1,45 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="structcugraph__graph__properties__t" kind="struct" language="C++" prot="public">
+    <compoundname>cugraph_graph_properties_t</compoundname>
+    <sectiondef kind="public-attrib">
+      <memberdef kind="variable" id="structcugraph__graph__properties__t_1a434e6ecd1883e0202b647cb0f2b7368c" prot="public" static="no" mutable="no">
+        <type>bool_t</type>
+        <definition>bool_t cugraph_graph_properties_t::is_symmetric</definition>
+        <argsstring></argsstring>
+        <name>is_symmetric</name>
+        <qualifiedname>cugraph_graph_properties_t::is_symmetric</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/graph.h" line="34" column="10" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/graph.h" bodystart="34" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph__graph__properties__t_1a51e320d29a5c331c2a86121a95682ead" prot="public" static="no" mutable="no">
+        <type>bool_t</type>
+        <definition>bool_t cugraph_graph_properties_t::is_multigraph</definition>
+        <argsstring></argsstring>
+        <name>is_multigraph</name>
+        <qualifiedname>cugraph_graph_properties_t::is_multigraph</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/graph.h" line="35" column="10" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/graph.h" bodystart="35" bodyend="-1"/>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/graph.h" line="33" column="1" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/graph.h" bodystart="33" bodyend="36"/>
+    <listofallmembers>
+      <member refid="structcugraph__graph__properties__t_1a51e320d29a5c331c2a86121a95682ead" prot="public" virt="non-virtual"><scope>cugraph_graph_properties_t</scope><name>is_multigraph</name></member>
+      <member refid="structcugraph__graph__properties__t_1a434e6ecd1883e0202b647cb0f2b7368c" prot="public" virt="non-virtual"><scope>cugraph_graph_properties_t</scope><name>is_symmetric</name></member>
+    </listofallmembers>
+  </compounddef>
+</doxygen>

@@ -1,0 +1,1607 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="centrality__algorithms_8h" kind="file" language="C++">
+    <compoundname>centrality_algorithms.h</compoundname>
+    <includes refid="array_8h" local="no">cugraph_c/array.h</includes>
+    <includes refid="error_8h" local="no">cugraph_c/error.h</includes>
+    <includes refid="graph_8h" local="no">cugraph_c/graph.h</includes>
+    <includes refid="random_8h" local="no">cugraph_c/random.h</includes>
+    <includes refid="resource__handle_8h" local="no">cugraph_c/resource_handle.h</includes>
+    <includedby refid="algorithms_8h" local="no">algorithms.h</includedby>
+    <incdepgraph>
+      <node id="2">
+        <label>cugraph_c/array.h</label>
+        <link refid="array_8h_source"/>
+        <childnode refid="3" relation="include">
+        </childnode>
+      </node>
+      <node id="1">
+        <label>centrality_algorithms.h</label>
+        <link refid="centrality__algorithms_8h"/>
+        <childnode refid="2" relation="include">
+        </childnode>
+        <childnode refid="4" relation="include">
+        </childnode>
+        <childnode refid="7" relation="include">
+        </childnode>
+        <childnode refid="8" relation="include">
+        </childnode>
+        <childnode refid="3" relation="include">
+        </childnode>
+      </node>
+      <node id="4">
+        <label>cugraph_c/error.h</label>
+        <link refid="error_8h_source"/>
+        <childnode refid="5" relation="include">
+        </childnode>
+      </node>
+      <node id="7">
+        <label>cugraph_c/graph.h</label>
+        <link refid="graph_8h_source"/>
+        <childnode refid="2" relation="include">
+        </childnode>
+      </node>
+      <node id="8">
+        <label>cugraph_c/random.h</label>
+        <link refid="random_8h_source"/>
+        <childnode refid="3" relation="include">
+        </childnode>
+      </node>
+      <node id="3">
+        <label>cugraph_c/resource_handle.h</label>
+        <link refid="resource__handle_8h_source"/>
+        <childnode refid="4" relation="include">
+        </childnode>
+        <childnode refid="6" relation="include">
+        </childnode>
+        <childnode refid="5" relation="include">
+        </childnode>
+      </node>
+      <node id="6">
+        <label>stddef.h</label>
+      </node>
+      <node id="5">
+        <label>stdint.h</label>
+      </node>
+    </incdepgraph>
+    <invincdepgraph>
+      <node id="2">
+        <label>algorithms.h</label>
+        <link refid="algorithms_8h_source"/>
+        <childnode refid="3" relation="include">
+        </childnode>
+      </node>
+      <node id="1">
+        <label>centrality_algorithms.h</label>
+        <link refid="centrality__algorithms_8h"/>
+        <childnode refid="2" relation="include">
+        </childnode>
+      </node>
+      <node id="3">
+        <label>hierarchical_clustering_result.hpp</label>
+        <link refid="hierarchical__clustering__result_8hpp_source"/>
+      </node>
+    </invincdepgraph>
+    <innerclass refid="structcugraph__centrality__result__t" prot="public">cugraph_centrality_result_t</innerclass>
+    <innerclass refid="structcugraph__edge__centrality__result__t" prot="public">cugraph_edge_centrality_result_t</innerclass>
+    <innerclass refid="structcugraph__hits__result__t" prot="public">cugraph_hits_result_t</innerclass>
+    <sectiondef kind="func">
+      <member refid="group__centrality_1ga19bcf9a286457a4896c644b23e2102d7" kind="function"><name>cugraph_centrality_result_get_vertices</name></member>
+      <member refid="group__centrality_1gad15f8beada5a4032955c6ec76d7367d6" kind="function"><name>cugraph_centrality_result_get_values</name></member>
+      <member refid="group__centrality_1ga21f03438b5a6c7df96afa9a752f17521" kind="function"><name>cugraph_centrality_result_get_num_iterations</name></member>
+      <member refid="group__centrality_1gae18a032cf0fe0b4674a0dec747852475" kind="function"><name>cugraph_centrality_result_converged</name></member>
+      <member refid="group__centrality_1ga3671f0ffa0a9018acc50f60467d26de1" kind="function"><name>cugraph_centrality_result_free</name></member>
+      <memberdef kind="function" id="centrality__algorithms_8h_1a70acee8e09e53e536d7d81ff6f3a4b3b" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>cugraph_error_code_t</type>
+        <definition>cugraph_error_code_t cugraph_pagerank</definition>
+        <argsstring>(const cugraph_resource_handle_t *handle, cugraph_graph_t *graph, const cugraph_type_erased_device_array_view_t *precomputed_vertex_out_weight_vertices, const cugraph_type_erased_device_array_view_t *precomputed_vertex_out_weight_sums, const cugraph_type_erased_device_array_view_t *initial_guess_vertices, const cugraph_type_erased_device_array_view_t *initial_guess_values, double alpha, double epsilon, size_t max_iterations, bool_t do_expensive_check, cugraph_centrality_result_t **result, cugraph_error_t **error)</argsstring>
+        <name>cugraph_pagerank</name>
+        <param>
+          <type>const <ref refid="structcugraph__resource__handle__" kindref="compound">cugraph_resource_handle_t</ref> *</type>
+          <declname>handle</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__graph__t" kindref="compound">cugraph_graph_t</ref> *</type>
+          <declname>graph</declname>
+        </param>
+        <param>
+          <type>const <ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref> *</type>
+          <declname>precomputed_vertex_out_weight_vertices</declname>
+        </param>
+        <param>
+          <type>const <ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref> *</type>
+          <declname>precomputed_vertex_out_weight_sums</declname>
+        </param>
+        <param>
+          <type>const <ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref> *</type>
+          <declname>initial_guess_vertices</declname>
+        </param>
+        <param>
+          <type>const <ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref> *</type>
+          <declname>initial_guess_values</declname>
+        </param>
+        <param>
+          <type>double</type>
+          <declname>alpha</declname>
+        </param>
+        <param>
+          <type>double</type>
+          <declname>epsilon</declname>
+        </param>
+        <param>
+          <type>size_t</type>
+          <declname>max_iterations</declname>
+        </param>
+        <param>
+          <type>bool_t</type>
+          <declname>do_expensive_check</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__centrality__result__t" kindref="compound">cugraph_centrality_result_t</ref> **</type>
+          <declname>result</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__error__" kindref="compound">cugraph_error_t</ref> **</type>
+          <declname>error</declname>
+        </param>
+        <briefdescription>
+<para>Compute pagerank. </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">handle</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Handle for accessing resources </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">graph</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Pointer to graph </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">precomputed_vertex_out_weight_vertices</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Optionally send in precomputed sum of vertex out weights (a performance optimization). This defines the vertices. Set to NULL if no value is passed. </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">precomputed_vertex_out_weight_sums</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Optionally send in precomputed sum of vertex out weights (a performance optimization). Set to NULL if no value is passed. </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">initial_guess_vertices</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Optionally send in an initial guess of the pagerank values (a performance optimization). This defines the vertices. Set to NULL if no value is passed. If NULL, initial PageRank values are set to 1.0 divided by the number of vertices in the graph. </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">initial_guess_values</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Optionally send in an initial guess of the pagerank values (a performance optimization). Set to NULL if no value is passed. If NULL, initial PageRank values are set to 1.0 divided by the number of vertices in the graph. </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">alpha</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>PageRank damping factor. </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">epsilon</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Error tolerance to check convergence. Convergence is assumed if the sum of the differences in PageRank values between two consecutive iterations is less than the number of vertices in the graph multiplied by <computeroutput>epsilon</computeroutput>. </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">max_iterations</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Maximum number of PageRank iterations. </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">do_expensive_check</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>A flag to run expensive checks for input arguments (if set to <computeroutput>true</computeroutput>). </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="out">result</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Opaque pointer to pagerank results </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="out">error</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Pointer to an error object storing details of any error. Will be populated if error code is not CUGRAPH_SUCCESS </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>error code </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/centrality_algorithms.h" line="122" column="22" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/pagerank.cpp" bodystart="254" bodyend="321" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/centrality_algorithms.h" declline="122" declcolumn="22"/>
+      </memberdef>
+      <memberdef kind="function" id="centrality__algorithms_8h_1afb32ba9b67568717a36e75a8184d9514" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>cugraph_error_code_t</type>
+        <definition>cugraph_error_code_t cugraph_pagerank_allow_nonconvergence</definition>
+        <argsstring>(const cugraph_resource_handle_t *handle, cugraph_graph_t *graph, const cugraph_type_erased_device_array_view_t *precomputed_vertex_out_weight_vertices, const cugraph_type_erased_device_array_view_t *precomputed_vertex_out_weight_sums, const cugraph_type_erased_device_array_view_t *initial_guess_vertices, const cugraph_type_erased_device_array_view_t *initial_guess_values, double alpha, double epsilon, size_t max_iterations, bool_t do_expensive_check, cugraph_centrality_result_t **result, cugraph_error_t **error)</argsstring>
+        <name>cugraph_pagerank_allow_nonconvergence</name>
+        <param>
+          <type>const <ref refid="structcugraph__resource__handle__" kindref="compound">cugraph_resource_handle_t</ref> *</type>
+          <declname>handle</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__graph__t" kindref="compound">cugraph_graph_t</ref> *</type>
+          <declname>graph</declname>
+        </param>
+        <param>
+          <type>const <ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref> *</type>
+          <declname>precomputed_vertex_out_weight_vertices</declname>
+        </param>
+        <param>
+          <type>const <ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref> *</type>
+          <declname>precomputed_vertex_out_weight_sums</declname>
+        </param>
+        <param>
+          <type>const <ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref> *</type>
+          <declname>initial_guess_vertices</declname>
+        </param>
+        <param>
+          <type>const <ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref> *</type>
+          <declname>initial_guess_values</declname>
+        </param>
+        <param>
+          <type>double</type>
+          <declname>alpha</declname>
+        </param>
+        <param>
+          <type>double</type>
+          <declname>epsilon</declname>
+        </param>
+        <param>
+          <type>size_t</type>
+          <declname>max_iterations</declname>
+        </param>
+        <param>
+          <type>bool_t</type>
+          <declname>do_expensive_check</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__centrality__result__t" kindref="compound">cugraph_centrality_result_t</ref> **</type>
+          <declname>result</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__error__" kindref="compound">cugraph_error_t</ref> **</type>
+          <declname>error</declname>
+        </param>
+        <briefdescription>
+<para>Compute pagerank. </para>
+        </briefdescription>
+        <detaileddescription>
+<para><xrefsect id="deprecated_1_deprecated000007"><xreftitle>Deprecated</xreftitle><xrefdescription><para>This version of pagerank should be dropped in favor of the cugraph_pagerank_allow_nonconvergence version. Eventually that version will be renamed to this version.</para>
+</xrefdescription></xrefsect></para>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">handle</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Handle for accessing resources </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">graph</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Pointer to graph </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">precomputed_vertex_out_weight_vertices</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Optionally send in precomputed sum of vertex out weights (a performance optimization). This defines the vertices. Set to NULL if no value is passed. </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">precomputed_vertex_out_weight_sums</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Optionally send in precomputed sum of vertex out weights (a performance optimization). Set to NULL if no value is passed. </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">initial_guess_vertices</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Optionally send in an initial guess of the pagerank values (a performance optimization). This defines the vertices. Set to NULL if no value is passed. If NULL, initial PageRank values are set to 1.0 divided by the number of vertices in the graph. </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">initial_guess_values</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Optionally send in an initial guess of the pagerank values (a performance optimization). Set to NULL if no value is passed. If NULL, initial PageRank values are set to 1.0 divided by the number of vertices in the graph. </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">alpha</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>PageRank damping factor. </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">epsilon</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Error tolerance to check convergence. Convergence is assumed if the sum of the differences in PageRank values between two consecutive iterations is less than the number of vertices in the graph multiplied by <computeroutput>epsilon</computeroutput>. </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">max_iterations</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Maximum number of PageRank iterations. </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">do_expensive_check</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>A flag to run expensive checks for input arguments (if set to <computeroutput>true</computeroutput>). </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="out">result</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Opaque pointer to pagerank results </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="out">error</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Pointer to an error object storing details of any error. Will be populated if error code is not CUGRAPH_SUCCESS </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>error code </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/centrality_algorithms.h" line="177" column="22" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/pagerank.cpp" bodystart="323" bodyend="383" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/centrality_algorithms.h" declline="177" declcolumn="22"/>
+      </memberdef>
+      <memberdef kind="function" id="centrality__algorithms_8h_1afd45edb18dbbb39ba5e1b1d6e4ce5926" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>cugraph_error_code_t</type>
+        <definition>cugraph_error_code_t cugraph_personalized_pagerank</definition>
+        <argsstring>(const cugraph_resource_handle_t *handle, cugraph_graph_t *graph, const cugraph_type_erased_device_array_view_t *precomputed_vertex_out_weight_vertices, const cugraph_type_erased_device_array_view_t *precomputed_vertex_out_weight_sums, const cugraph_type_erased_device_array_view_t *initial_guess_vertices, const cugraph_type_erased_device_array_view_t *initial_guess_values, const cugraph_type_erased_device_array_view_t *personalization_vertices, const cugraph_type_erased_device_array_view_t *personalization_values, double alpha, double epsilon, size_t max_iterations, bool_t do_expensive_check, cugraph_centrality_result_t **result, cugraph_error_t **error)</argsstring>
+        <name>cugraph_personalized_pagerank</name>
+        <param>
+          <type>const <ref refid="structcugraph__resource__handle__" kindref="compound">cugraph_resource_handle_t</ref> *</type>
+          <declname>handle</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__graph__t" kindref="compound">cugraph_graph_t</ref> *</type>
+          <declname>graph</declname>
+        </param>
+        <param>
+          <type>const <ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref> *</type>
+          <declname>precomputed_vertex_out_weight_vertices</declname>
+        </param>
+        <param>
+          <type>const <ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref> *</type>
+          <declname>precomputed_vertex_out_weight_sums</declname>
+        </param>
+        <param>
+          <type>const <ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref> *</type>
+          <declname>initial_guess_vertices</declname>
+        </param>
+        <param>
+          <type>const <ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref> *</type>
+          <declname>initial_guess_values</declname>
+        </param>
+        <param>
+          <type>const <ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref> *</type>
+          <declname>personalization_vertices</declname>
+        </param>
+        <param>
+          <type>const <ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref> *</type>
+          <declname>personalization_values</declname>
+        </param>
+        <param>
+          <type>double</type>
+          <declname>alpha</declname>
+        </param>
+        <param>
+          <type>double</type>
+          <declname>epsilon</declname>
+        </param>
+        <param>
+          <type>size_t</type>
+          <declname>max_iterations</declname>
+        </param>
+        <param>
+          <type>bool_t</type>
+          <declname>do_expensive_check</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__centrality__result__t" kindref="compound">cugraph_centrality_result_t</ref> **</type>
+          <declname>result</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__error__" kindref="compound">cugraph_error_t</ref> **</type>
+          <declname>error</declname>
+        </param>
+        <briefdescription>
+<para>Compute personalized pagerank. </para>
+        </briefdescription>
+        <detaileddescription>
+<para><xrefsect id="deprecated_1_deprecated000008"><xreftitle>Deprecated</xreftitle><xrefdescription><para>This version of personalized pagerank should be dropped in favor of the cugraph_personalized_pagerank_allow_nonconvergence version. Eventually that version will be renamed to this version.</para>
+</xrefdescription></xrefsect></para>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">handle</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Handle for accessing resources </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">graph</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Pointer to graph </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">precomputed_vertex_out_weight_vertices</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Optionally send in precomputed sum of vertex out weights (a performance optimization). This defines the vertices. Set to NULL if no value is passed. </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">precomputed_vertex_out_weight_sums</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Optionally send in precomputed sum of vertex out weights (a performance optimization). Set to NULL if no value is passed. </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">initial_guess_vertices</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Optionally send in an initial guess of the pagerank values (a performance optimization). This defines the vertices. Set to NULL if no value is passed. If NULL, initial PageRank values are set to 1.0 divided by the number of vertices in the graph. </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">initial_guess_values</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Optionally send in an initial guess of the pagerank values (a performance optimization). Set to NULL if no value is passed. If NULL, initial PageRank values are set to 1.0 divided by the number of vertices in the graph. </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">personalization_vertices</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Pointer to an array storing personalization vertex identifiers (compute personalized PageRank). </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">personalization_values</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Pointer to an array storing personalization values for the vertices in the personalization set. </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">alpha</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>PageRank damping factor. </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">epsilon</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Error tolerance to check convergence. Convergence is assumed if the sum of the differences in PageRank values between two consecutive iterations is less than the number of vertices in the graph multiplied by <computeroutput>epsilon</computeroutput>. </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">max_iterations</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Maximum number of PageRank iterations. </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">do_expensive_check</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>A flag to run expensive checks for input arguments (if set to <computeroutput>true</computeroutput>). </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="out">result</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Opaque pointer to pagerank results </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="out">error</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Pointer to an error object storing details of any error. Will be populated if error code is not CUGRAPH_SUCCESS </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>error code </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/centrality_algorithms.h" line="236" column="22" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/pagerank.cpp" bodystart="385" bodyend="471" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/centrality_algorithms.h" declline="236" declcolumn="22"/>
+      </memberdef>
+      <memberdef kind="function" id="centrality__algorithms_8h_1a56fca1624ebc7c182be554940c981dec" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>cugraph_error_code_t</type>
+        <definition>cugraph_error_code_t cugraph_personalized_pagerank_allow_nonconvergence</definition>
+        <argsstring>(const cugraph_resource_handle_t *handle, cugraph_graph_t *graph, const cugraph_type_erased_device_array_view_t *precomputed_vertex_out_weight_vertices, const cugraph_type_erased_device_array_view_t *precomputed_vertex_out_weight_sums, const cugraph_type_erased_device_array_view_t *initial_guess_vertices, const cugraph_type_erased_device_array_view_t *initial_guess_values, const cugraph_type_erased_device_array_view_t *personalization_vertices, const cugraph_type_erased_device_array_view_t *personalization_values, double alpha, double epsilon, size_t max_iterations, bool_t do_expensive_check, cugraph_centrality_result_t **result, cugraph_error_t **error)</argsstring>
+        <name>cugraph_personalized_pagerank_allow_nonconvergence</name>
+        <param>
+          <type>const <ref refid="structcugraph__resource__handle__" kindref="compound">cugraph_resource_handle_t</ref> *</type>
+          <declname>handle</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__graph__t" kindref="compound">cugraph_graph_t</ref> *</type>
+          <declname>graph</declname>
+        </param>
+        <param>
+          <type>const <ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref> *</type>
+          <declname>precomputed_vertex_out_weight_vertices</declname>
+        </param>
+        <param>
+          <type>const <ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref> *</type>
+          <declname>precomputed_vertex_out_weight_sums</declname>
+        </param>
+        <param>
+          <type>const <ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref> *</type>
+          <declname>initial_guess_vertices</declname>
+        </param>
+        <param>
+          <type>const <ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref> *</type>
+          <declname>initial_guess_values</declname>
+        </param>
+        <param>
+          <type>const <ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref> *</type>
+          <declname>personalization_vertices</declname>
+        </param>
+        <param>
+          <type>const <ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref> *</type>
+          <declname>personalization_values</declname>
+        </param>
+        <param>
+          <type>double</type>
+          <declname>alpha</declname>
+        </param>
+        <param>
+          <type>double</type>
+          <declname>epsilon</declname>
+        </param>
+        <param>
+          <type>size_t</type>
+          <declname>max_iterations</declname>
+        </param>
+        <param>
+          <type>bool_t</type>
+          <declname>do_expensive_check</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__centrality__result__t" kindref="compound">cugraph_centrality_result_t</ref> **</type>
+          <declname>result</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__error__" kindref="compound">cugraph_error_t</ref> **</type>
+          <declname>error</declname>
+        </param>
+        <briefdescription>
+<para>Compute personalized pagerank. </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">handle</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Handle for accessing resources </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">graph</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Pointer to graph </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">precomputed_vertex_out_weight_vertices</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Optionally send in precomputed sum of vertex out weights (a performance optimization). This defines the vertices. Set to NULL if no value is passed. </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">precomputed_vertex_out_weight_sums</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Optionally send in precomputed sum of vertex out weights (a performance optimization). Set to NULL if no value is passed. </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">initial_guess_vertices</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Optionally send in an initial guess of the pagerank values (a performance optimization). This defines the vertices. Set to NULL if no value is passed. If NULL, initial PageRank values are set to 1.0 divided by the number of vertices in the graph. </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">initial_guess_values</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Optionally send in an initial guess of the pagerank values (a performance optimization). Set to NULL if no value is passed. If NULL, initial PageRank values are set to 1.0 divided by the number of vertices in the graph. </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">personalization_vertices</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Pointer to an array storing personalization vertex identifiers (compute personalized PageRank). </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">personalization_values</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Pointer to an array storing personalization values for the vertices in the personalization set. </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">alpha</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>PageRank damping factor. </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">epsilon</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Error tolerance to check convergence. Convergence is assumed if the sum of the differences in PageRank values between two consecutive iterations is less than the number of vertices in the graph multiplied by <computeroutput>epsilon</computeroutput>. </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">max_iterations</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Maximum number of PageRank iterations. </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">do_expensive_check</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>A flag to run expensive checks for input arguments (if set to <computeroutput>true</computeroutput>). </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="out">result</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Opaque pointer to pagerank results </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="out">error</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Pointer to an error object storing details of any error. Will be populated if error code is not CUGRAPH_SUCCESS </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>error code </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/centrality_algorithms.h" line="293" column="22" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/pagerank.cpp" bodystart="473" bodyend="552" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/centrality_algorithms.h" declline="293" declcolumn="22"/>
+      </memberdef>
+      <memberdef kind="function" id="centrality__algorithms_8h_1a522f8f7a65b7b9bfffa149470776612e" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>cugraph_error_code_t</type>
+        <definition>cugraph_error_code_t cugraph_eigenvector_centrality</definition>
+        <argsstring>(const cugraph_resource_handle_t *handle, cugraph_graph_t *graph, double epsilon, size_t max_iterations, bool_t do_expensive_check, cugraph_centrality_result_t **result, cugraph_error_t **error)</argsstring>
+        <name>cugraph_eigenvector_centrality</name>
+        <param>
+          <type>const <ref refid="structcugraph__resource__handle__" kindref="compound">cugraph_resource_handle_t</ref> *</type>
+          <declname>handle</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__graph__t" kindref="compound">cugraph_graph_t</ref> *</type>
+          <declname>graph</declname>
+        </param>
+        <param>
+          <type>double</type>
+          <declname>epsilon</declname>
+        </param>
+        <param>
+          <type>size_t</type>
+          <declname>max_iterations</declname>
+        </param>
+        <param>
+          <type>bool_t</type>
+          <declname>do_expensive_check</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__centrality__result__t" kindref="compound">cugraph_centrality_result_t</ref> **</type>
+          <declname>result</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__error__" kindref="compound">cugraph_error_t</ref> **</type>
+          <declname>error</declname>
+        </param>
+        <briefdescription>
+<para>Compute eigenvector centrality. </para>
+        </briefdescription>
+        <detaileddescription>
+<para>Computed using the power method.</para>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">handle</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Handle for accessing resources </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">graph</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Pointer to graph </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">epsilon</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Error tolerance to check convergence. Convergence is measured comparing the L1 norm until it is less than epsilon </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">max_iterations</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Maximum number of power iterations, will not exceed this number of iterations even if we haven&apos;t converged </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">do_expensive_check</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>A flag to run expensive checks for input arguments (if set to <computeroutput>true</computeroutput>). </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="out">result</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Opaque pointer to eigenvector centrality results </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="out">error</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Pointer to an error object storing details of any error. Will be populated if error code is not CUGRAPH_SUCCESS </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>error code </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/centrality_algorithms.h" line="327" column="22" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/eigenvector_centrality.cpp" bodystart="108" bodyend="121" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/centrality_algorithms.h" declline="327" declcolumn="22"/>
+      </memberdef>
+      <memberdef kind="function" id="centrality__algorithms_8h_1a6221daf172d69df1b80a971a27065feb" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>cugraph_error_code_t</type>
+        <definition>cugraph_error_code_t cugraph_katz_centrality</definition>
+        <argsstring>(const cugraph_resource_handle_t *handle, cugraph_graph_t *graph, const cugraph_type_erased_device_array_view_t *betas, double alpha, double beta, double epsilon, size_t max_iterations, bool_t do_expensive_check, cugraph_centrality_result_t **result, cugraph_error_t **error)</argsstring>
+        <name>cugraph_katz_centrality</name>
+        <param>
+          <type>const <ref refid="structcugraph__resource__handle__" kindref="compound">cugraph_resource_handle_t</ref> *</type>
+          <declname>handle</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__graph__t" kindref="compound">cugraph_graph_t</ref> *</type>
+          <declname>graph</declname>
+        </param>
+        <param>
+          <type>const <ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref> *</type>
+          <declname>betas</declname>
+        </param>
+        <param>
+          <type>double</type>
+          <declname>alpha</declname>
+        </param>
+        <param>
+          <type>double</type>
+          <declname>beta</declname>
+        </param>
+        <param>
+          <type>double</type>
+          <declname>epsilon</declname>
+        </param>
+        <param>
+          <type>size_t</type>
+          <declname>max_iterations</declname>
+        </param>
+        <param>
+          <type>bool_t</type>
+          <declname>do_expensive_check</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__centrality__result__t" kindref="compound">cugraph_centrality_result_t</ref> **</type>
+          <declname>result</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__error__" kindref="compound">cugraph_error_t</ref> **</type>
+          <declname>error</declname>
+        </param>
+        <briefdescription>
+<para>Compute katz centrality. </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">handle</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Handle for accessing resources </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">graph</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Pointer to graph </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">betas</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Optionally send in a device array holding values to be added to each vertex&apos;s new Katz Centrality score in every iteration. If set to NULL then <computeroutput>beta</computeroutput> is used for all vertices. </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">alpha</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Katz centrality attenuation factor. This should be smaller than the inverse of the maximum eigenvalue of this graph </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">beta</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Constant value to be added to each vertex&apos;s new Katz Centrality score in every iteration. Relevant only when <computeroutput>betas</computeroutput> is NULL </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">epsilon</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Error tolerance to check convergence. Convergence is assumed if the sum of the differences in Katz Centrality values between two consecutive iterations is less than the number of vertices in the graph multiplied by <computeroutput>epsilon</computeroutput>. (L1-norm) </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">max_iterations</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Maximum number of Katz Centrality iterations. </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">do_expensive_check</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>A flag to run expensive checks for input arguments (if set to <computeroutput>true</computeroutput>). </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="out">result</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Opaque pointer to katz centrality results </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="out">error</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Pointer to an error object storing details of any error. Will be populated if error code is not CUGRAPH_SUCCESS </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>error code </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/centrality_algorithms.h" line="360" column="22" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/katz.cpp" bodystart="151" bodyend="167" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/centrality_algorithms.h" declline="360" declcolumn="22"/>
+      </memberdef>
+      <memberdef kind="function" id="centrality__algorithms_8h_1a173d6bae1edc44e6429fd311e3d554eb" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>cugraph_error_code_t</type>
+        <definition>cugraph_error_code_t cugraph_betweenness_centrality</definition>
+        <argsstring>(const cugraph_resource_handle_t *handle, cugraph_graph_t *graph, const cugraph_type_erased_device_array_view_t *vertex_list, bool_t normalized, bool_t include_endpoints, bool_t do_expensive_check, cugraph_centrality_result_t **result, cugraph_error_t **error)</argsstring>
+        <name>cugraph_betweenness_centrality</name>
+        <param>
+          <type>const <ref refid="structcugraph__resource__handle__" kindref="compound">cugraph_resource_handle_t</ref> *</type>
+          <declname>handle</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__graph__t" kindref="compound">cugraph_graph_t</ref> *</type>
+          <declname>graph</declname>
+        </param>
+        <param>
+          <type>const <ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref> *</type>
+          <declname>vertex_list</declname>
+        </param>
+        <param>
+          <type>bool_t</type>
+          <declname>normalized</declname>
+        </param>
+        <param>
+          <type>bool_t</type>
+          <declname>include_endpoints</declname>
+        </param>
+        <param>
+          <type>bool_t</type>
+          <declname>do_expensive_check</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__centrality__result__t" kindref="compound">cugraph_centrality_result_t</ref> **</type>
+          <declname>result</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__error__" kindref="compound">cugraph_error_t</ref> **</type>
+          <declname>error</declname>
+        </param>
+        <briefdescription>
+<para>Compute betweenness centrality. </para>
+        </briefdescription>
+        <detaileddescription>
+<para>Betweenness can be computed exactly by specifying vertex_list as NULL. This will compute betweenness centrality by doing a traversal from every source vertex.</para>
+<para>Approximate betweenness can be computed specifying a list of vertices that should be used as seeds for the traversals. Note that the function cugraph_select_random_vertices can be used to create a list of seeds.</para>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">handle</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Handle for accessing resources </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">graph</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Pointer to graph </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">vertex_list</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Optionally specify a device array containing a list of vertices to use as seeds for betweenness centrality approximation </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">normalized</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Normalize </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">include_endpoints</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>The traditional formulation of betweenness centrality does not include endpoints when considering a vertex to be on a shortest path. Setting this to true will consider the endpoints of a path to be part of the path. </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">do_expensive_check</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>A flag to run expensive checks for input arguments (if set to <computeroutput>true</computeroutput>). </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="out">result</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Opaque pointer to betweenness centrality results </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="out">error</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Pointer to an error object storing details of any error. Will be populated if error code is not CUGRAPH_SUCCESS </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>error code </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/centrality_algorithms.h" line="397" column="22" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/betweenness_centrality.cpp" bodystart="262" bodyend="276" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/centrality_algorithms.h" declline="397" declcolumn="22"/>
+      </memberdef>
+      <member refid="group__centrality_1ga3b24ab80308bbf896b8c12261645382e" kind="function"><name>cugraph_edge_centrality_result_get_src_vertices</name></member>
+      <member refid="group__centrality_1ga40fd0ad1d7fb1dde3383c1c6552a01c6" kind="function"><name>cugraph_edge_centrality_result_get_dst_vertices</name></member>
+      <member refid="group__centrality_1ga578060fffb6c3188346dbbd09622bdb0" kind="function"><name>cugraph_edge_centrality_result_get_edge_ids</name></member>
+      <member refid="group__centrality_1ga26f6ee905429ca70251caa970497c4c1" kind="function"><name>cugraph_edge_centrality_result_get_values</name></member>
+      <member refid="group__centrality_1ga8692339201a3756d1dbc78984ed55b93" kind="function"><name>cugraph_edge_centrality_result_free</name></member>
+      <memberdef kind="function" id="centrality__algorithms_8h_1a91ec3644d9e307da792a8a7e57705d22" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>cugraph_error_code_t</type>
+        <definition>cugraph_error_code_t cugraph_edge_betweenness_centrality</definition>
+        <argsstring>(const cugraph_resource_handle_t *handle, cugraph_graph_t *graph, const cugraph_type_erased_device_array_view_t *vertex_list, bool_t normalized, bool_t do_expensive_check, cugraph_edge_centrality_result_t **result, cugraph_error_t **error)</argsstring>
+        <name>cugraph_edge_betweenness_centrality</name>
+        <param>
+          <type>const <ref refid="structcugraph__resource__handle__" kindref="compound">cugraph_resource_handle_t</ref> *</type>
+          <declname>handle</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__graph__t" kindref="compound">cugraph_graph_t</ref> *</type>
+          <declname>graph</declname>
+        </param>
+        <param>
+          <type>const <ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref> *</type>
+          <declname>vertex_list</declname>
+        </param>
+        <param>
+          <type>bool_t</type>
+          <declname>normalized</declname>
+        </param>
+        <param>
+          <type>bool_t</type>
+          <declname>do_expensive_check</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__edge__centrality__result__t" kindref="compound">cugraph_edge_centrality_result_t</ref> **</type>
+          <declname>result</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__error__" kindref="compound">cugraph_error_t</ref> **</type>
+          <declname>error</declname>
+        </param>
+        <briefdescription>
+<para>Compute edge betweenness centrality. </para>
+        </briefdescription>
+        <detaileddescription>
+<para>Edge betweenness can be computed exactly by specifying vertex_list as NULL. This will compute betweenness centrality by doing a traversal from every vertex and counting the frequency that a edge appears on a shortest path.</para>
+<para>Approximate betweenness can be computed specifying a list of vertices that should be used as seeds for the traversals. Note that the function cugraph_select_random_vertices can be used to create a list of seeds.</para>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">handle</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Handle for accessing resources </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">graph</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Pointer to graph </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">vertex_list</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Optionally specify a device array containing a list of vertices to use as seeds for betweenness centrality approximation </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">normalized</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Normalize </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">do_expensive_check</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>A flag to run expensive checks for input arguments (if set to <computeroutput>true</computeroutput>). </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="out">result</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Opaque pointer to edge betweenness centrality results </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="out">error</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Pointer to an error object storing details of any error. Will be populated if error code is not CUGRAPH_SUCCESS </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>error code </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/centrality_algorithms.h" line="485" column="22" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/betweenness_centrality.cpp" bodystart="278" bodyend="291" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/centrality_algorithms.h" declline="485" declcolumn="22"/>
+      </memberdef>
+      <member refid="group__centrality_1ga3d8414b2525c37116bbc02e0ffc1fc84" kind="function"><name>cugraph_hits_result_get_vertices</name></member>
+      <member refid="group__centrality_1gad1b685aea09a6e5d17b1faf97d77f3c2" kind="function"><name>cugraph_hits_result_get_hubs</name></member>
+      <member refid="group__centrality_1gac4351d4c149467954d1420ce78dca040" kind="function"><name>cugraph_hits_result_get_authorities</name></member>
+      <member refid="group__centrality_1gab4f724ca86996a258744958d7066dd85" kind="function"><name>cugraph_hits_result_get_hub_score_differences</name></member>
+      <member refid="group__centrality_1gac40c66bffcb71b3ccab54acc38beb6be" kind="function"><name>cugraph_hits_result_get_number_of_iterations</name></member>
+      <member refid="group__centrality_1gac8b2d3d4d7dc25bc4f90b79ed4be7b2c" kind="function"><name>cugraph_hits_result_free</name></member>
+      <memberdef kind="function" id="centrality__algorithms_8h_1a96ce826df16014c331290ce4ffa20ffe" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>cugraph_error_code_t</type>
+        <definition>cugraph_error_code_t cugraph_hits</definition>
+        <argsstring>(const cugraph_resource_handle_t *handle, cugraph_graph_t *graph, double epsilon, size_t max_iterations, const cugraph_type_erased_device_array_view_t *initial_hubs_guess_vertices, const cugraph_type_erased_device_array_view_t *initial_hubs_guess_values, bool_t normalize, bool_t do_expensive_check, cugraph_hits_result_t **result, cugraph_error_t **error)</argsstring>
+        <name>cugraph_hits</name>
+        <param>
+          <type>const <ref refid="structcugraph__resource__handle__" kindref="compound">cugraph_resource_handle_t</ref> *</type>
+          <declname>handle</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__graph__t" kindref="compound">cugraph_graph_t</ref> *</type>
+          <declname>graph</declname>
+        </param>
+        <param>
+          <type>double</type>
+          <declname>epsilon</declname>
+        </param>
+        <param>
+          <type>size_t</type>
+          <declname>max_iterations</declname>
+        </param>
+        <param>
+          <type>const <ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref> *</type>
+          <declname>initial_hubs_guess_vertices</declname>
+        </param>
+        <param>
+          <type>const <ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref> *</type>
+          <declname>initial_hubs_guess_values</declname>
+        </param>
+        <param>
+          <type>bool_t</type>
+          <declname>normalize</declname>
+        </param>
+        <param>
+          <type>bool_t</type>
+          <declname>do_expensive_check</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__hits__result__t" kindref="compound">cugraph_hits_result_t</ref> **</type>
+          <declname>result</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__error__" kindref="compound">cugraph_error_t</ref> **</type>
+          <declname>error</declname>
+        </param>
+        <briefdescription>
+<para>Compute hits. </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">handle</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Handle for accessing resources </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">graph</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Pointer to graph </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">epsilon</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Error tolerance to check convergence. Convergence is assumed if the sum of the differences in Hits values between two consecutive iterations is less than the number of vertices in the graph multiplied by <computeroutput>epsilon</computeroutput>. </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">max_iterations</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Maximum number of Hits iterations. </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">initial_hubs_guess_vertices</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Pointer to optional type erased device array containing the vertex ids for an initial hubs guess. If set to NULL there is no initial guess. </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">initial_hubs_guess_values</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Pointer to optional type erased device array containing the values for an initial hubs guess. If set to NULL there is no initial guess. Note that both <computeroutput>initial_hubs_guess_vertices</computeroutput> and <computeroutput>initial_hubs_guess_values</computeroutput> have to be specified (or they both have to be NULL). Otherwise this will be treated as an error. </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">normalize</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>A flag to normalize the results (if set to <computeroutput>true</computeroutput>) </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">do_expensive_check</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>A flag to run expensive checks for input arguments (if set to <computeroutput>true</computeroutput>). </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="out">result</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Opaque pointer to hits results </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="out">error</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Pointer to an error object storing details of any error. Will be populated if error code is not CUGRAPH_SUCCESS </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>error code </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/centrality_algorithms.h" line="587" column="22" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/hits.cpp" bodystart="216" bodyend="238" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/centrality_algorithms.h" declline="587" declcolumn="22"/>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <programlisting>
+<codeline lineno="1"><highlight class="comment">/*</highlight></codeline>
+<codeline lineno="2"><highlight class="comment"><sp/>*<sp/>Copyright<sp/>(c)<sp/>2022-2023,<sp/>NVIDIA<sp/>CORPORATION.</highlight></codeline>
+<codeline lineno="3"><highlight class="comment"><sp/>*</highlight></codeline>
+<codeline lineno="4"><highlight class="comment"><sp/>*<sp/>Licensed<sp/>under<sp/>the<sp/>Apache<sp/>License,<sp/>Version<sp/>2.0<sp/>(the<sp/>&quot;License&quot;);</highlight></codeline>
+<codeline lineno="5"><highlight class="comment"><sp/>*<sp/>you<sp/>may<sp/>not<sp/>use<sp/>this<sp/>file<sp/>except<sp/>in<sp/>compliance<sp/>with<sp/>the<sp/>License.</highlight></codeline>
+<codeline lineno="6"><highlight class="comment"><sp/>*<sp/>You<sp/>may<sp/>obtain<sp/>a<sp/>copy<sp/>of<sp/>the<sp/>License<sp/>at</highlight></codeline>
+<codeline lineno="7"><highlight class="comment"><sp/>*</highlight></codeline>
+<codeline lineno="8"><highlight class="comment"><sp/>*<sp/><sp/><sp/><sp/><sp/>http://www.apache.org/licenses/LICENSE-2.0</highlight></codeline>
+<codeline lineno="9"><highlight class="comment"><sp/>*</highlight></codeline>
+<codeline lineno="10"><highlight class="comment"><sp/>*<sp/>Unless<sp/>required<sp/>by<sp/>applicable<sp/>law<sp/>or<sp/>agreed<sp/>to<sp/>in<sp/>writing,<sp/>software</highlight></codeline>
+<codeline lineno="11"><highlight class="comment"><sp/>*<sp/>distributed<sp/>under<sp/>the<sp/>License<sp/>is<sp/>distributed<sp/>on<sp/>an<sp/>&quot;AS<sp/>IS&quot;<sp/>BASIS,</highlight></codeline>
+<codeline lineno="12"><highlight class="comment"><sp/>*<sp/>WITHOUT<sp/>WARRANTIES<sp/>OR<sp/>CONDITIONS<sp/>OF<sp/>ANY<sp/>KIND,<sp/>either<sp/>express<sp/>or<sp/>implied.</highlight></codeline>
+<codeline lineno="13"><highlight class="comment"><sp/>*<sp/>See<sp/>the<sp/>License<sp/>for<sp/>the<sp/>specific<sp/>language<sp/>governing<sp/>permissions<sp/>and</highlight></codeline>
+<codeline lineno="14"><highlight class="comment"><sp/>*<sp/>limitations<sp/>under<sp/>the<sp/>License.</highlight></codeline>
+<codeline lineno="15"><highlight class="comment"><sp/>*/</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="16"><highlight class="normal"></highlight></codeline>
+<codeline lineno="17"><highlight class="normal"></highlight><highlight class="preprocessor">#pragma<sp/>once</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="18"><highlight class="normal"></highlight></codeline>
+<codeline lineno="19"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&lt;cugraph_c/array.h&gt;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="20"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&lt;cugraph_c/error.h&gt;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="21"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&lt;cugraph_c/graph.h&gt;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="22"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&lt;cugraph_c/random.h&gt;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="23"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&lt;cugraph_c/resource_handle.h&gt;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="24"><highlight class="normal"></highlight></codeline>
+<codeline lineno="28"><highlight class="normal"></highlight><highlight class="preprocessor">#ifdef<sp/>__cplusplus</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="29"><highlight class="normal"></highlight><highlight class="keyword">extern</highlight><highlight class="normal"><sp/></highlight><highlight class="stringliteral">&quot;C&quot;</highlight><highlight class="normal"><sp/>{</highlight></codeline>
+<codeline lineno="30"><highlight class="normal"></highlight><highlight class="preprocessor">#endif</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="31"><highlight class="normal"></highlight></codeline>
+<codeline lineno="35" refid="structcugraph__centrality__result__t" refkind="compound"><highlight class="normal"></highlight><highlight class="keyword">typedef</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">struct<sp/></highlight><highlight class="normal">{</highlight></codeline>
+<codeline lineno="36"><highlight class="normal"><sp/><sp/>int32_t<sp/>align_;</highlight></codeline>
+<codeline lineno="37"><highlight class="normal">}<sp/><ref refid="structcugraph__centrality__result__t" kindref="compound">cugraph_centrality_result_t</ref>;</highlight></codeline>
+<codeline lineno="38"><highlight class="normal"></highlight></codeline>
+<codeline lineno="46"><highlight class="normal"><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/><ref refid="group__centrality_1ga19bcf9a286457a4896c644b23e2102d7" kindref="member">cugraph_centrality_result_get_vertices</ref>(</highlight></codeline>
+<codeline lineno="47"><highlight class="normal"><sp/><sp/><ref refid="structcugraph__centrality__result__t" kindref="compound">cugraph_centrality_result_t</ref>*<sp/>result);</highlight></codeline>
+<codeline lineno="48"><highlight class="normal"></highlight></codeline>
+<codeline lineno="56"><highlight class="normal"><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/><ref refid="group__centrality_1gad15f8beada5a4032955c6ec76d7367d6" kindref="member">cugraph_centrality_result_get_values</ref>(</highlight></codeline>
+<codeline lineno="57"><highlight class="normal"><sp/><sp/><ref refid="structcugraph__centrality__result__t" kindref="compound">cugraph_centrality_result_t</ref>*<sp/>result);</highlight></codeline>
+<codeline lineno="58"><highlight class="normal"></highlight></codeline>
+<codeline lineno="66"><highlight class="normal"></highlight><highlight class="keywordtype">size_t</highlight><highlight class="normal"><sp/><ref refid="group__centrality_1ga21f03438b5a6c7df96afa9a752f17521" kindref="member">cugraph_centrality_result_get_num_iterations</ref>(<ref refid="structcugraph__centrality__result__t" kindref="compound">cugraph_centrality_result_t</ref>*<sp/>result);</highlight></codeline>
+<codeline lineno="67"><highlight class="normal"></highlight></codeline>
+<codeline lineno="75"><highlight class="normal">bool_t<sp/><ref refid="group__centrality_1gae18a032cf0fe0b4674a0dec747852475" kindref="member">cugraph_centrality_result_converged</ref>(<ref refid="structcugraph__centrality__result__t" kindref="compound">cugraph_centrality_result_t</ref>*<sp/>result);</highlight></codeline>
+<codeline lineno="76"><highlight class="normal"></highlight></codeline>
+<codeline lineno="83"><highlight class="normal"></highlight><highlight class="keywordtype">void</highlight><highlight class="normal"><sp/><ref refid="group__centrality_1ga3671f0ffa0a9018acc50f60467d26de1" kindref="member">cugraph_centrality_result_free</ref>(<ref refid="structcugraph__centrality__result__t" kindref="compound">cugraph_centrality_result_t</ref>*<sp/>result);</highlight></codeline>
+<codeline lineno="84"><highlight class="normal"></highlight></codeline>
+<codeline lineno="122"><highlight class="normal">cugraph_error_code_t<sp/>cugraph_pagerank(</highlight></codeline>
+<codeline lineno="123"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__resource__handle__" kindref="compound">cugraph_resource_handle_t</ref>*<sp/>handle,</highlight></codeline>
+<codeline lineno="124"><highlight class="normal"><sp/><sp/><ref refid="structcugraph__graph__t" kindref="compound">cugraph_graph_t</ref>*<sp/>graph,</highlight></codeline>
+<codeline lineno="125"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/>precomputed_vertex_out_weight_vertices,</highlight></codeline>
+<codeline lineno="126"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/>precomputed_vertex_out_weight_sums,</highlight></codeline>
+<codeline lineno="127"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/>initial_guess_vertices,</highlight></codeline>
+<codeline lineno="128"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/>initial_guess_values,</highlight></codeline>
+<codeline lineno="129"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordtype">double</highlight><highlight class="normal"><sp/>alpha,</highlight></codeline>
+<codeline lineno="130"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordtype">double</highlight><highlight class="normal"><sp/>epsilon,</highlight></codeline>
+<codeline lineno="131"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordtype">size_t</highlight><highlight class="normal"><sp/>max_iterations,</highlight></codeline>
+<codeline lineno="132"><highlight class="normal"><sp/><sp/>bool_t<sp/>do_expensive_check,</highlight></codeline>
+<codeline lineno="133"><highlight class="normal"><sp/><sp/><ref refid="structcugraph__centrality__result__t" kindref="compound">cugraph_centrality_result_t</ref>**<sp/>result,</highlight></codeline>
+<codeline lineno="134"><highlight class="normal"><sp/><sp/><ref refid="structcugraph__error__" kindref="compound">cugraph_error_t</ref>**<sp/>error);</highlight></codeline>
+<codeline lineno="135"><highlight class="normal"></highlight></codeline>
+<codeline lineno="177"><highlight class="normal">cugraph_error_code_t<sp/>cugraph_pagerank_allow_nonconvergence(</highlight></codeline>
+<codeline lineno="178"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__resource__handle__" kindref="compound">cugraph_resource_handle_t</ref>*<sp/>handle,</highlight></codeline>
+<codeline lineno="179"><highlight class="normal"><sp/><sp/><ref refid="structcugraph__graph__t" kindref="compound">cugraph_graph_t</ref>*<sp/>graph,</highlight></codeline>
+<codeline lineno="180"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/>precomputed_vertex_out_weight_vertices,</highlight></codeline>
+<codeline lineno="181"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/>precomputed_vertex_out_weight_sums,</highlight></codeline>
+<codeline lineno="182"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/>initial_guess_vertices,</highlight></codeline>
+<codeline lineno="183"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/>initial_guess_values,</highlight></codeline>
+<codeline lineno="184"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordtype">double</highlight><highlight class="normal"><sp/>alpha,</highlight></codeline>
+<codeline lineno="185"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordtype">double</highlight><highlight class="normal"><sp/>epsilon,</highlight></codeline>
+<codeline lineno="186"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordtype">size_t</highlight><highlight class="normal"><sp/>max_iterations,</highlight></codeline>
+<codeline lineno="187"><highlight class="normal"><sp/><sp/>bool_t<sp/>do_expensive_check,</highlight></codeline>
+<codeline lineno="188"><highlight class="normal"><sp/><sp/><ref refid="structcugraph__centrality__result__t" kindref="compound">cugraph_centrality_result_t</ref>**<sp/>result,</highlight></codeline>
+<codeline lineno="189"><highlight class="normal"><sp/><sp/><ref refid="structcugraph__error__" kindref="compound">cugraph_error_t</ref>**<sp/>error);</highlight></codeline>
+<codeline lineno="190"><highlight class="normal"></highlight></codeline>
+<codeline lineno="236"><highlight class="normal">cugraph_error_code_t<sp/>cugraph_personalized_pagerank(</highlight></codeline>
+<codeline lineno="237"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__resource__handle__" kindref="compound">cugraph_resource_handle_t</ref>*<sp/>handle,</highlight></codeline>
+<codeline lineno="238"><highlight class="normal"><sp/><sp/><ref refid="structcugraph__graph__t" kindref="compound">cugraph_graph_t</ref>*<sp/>graph,</highlight></codeline>
+<codeline lineno="239"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/>precomputed_vertex_out_weight_vertices,</highlight></codeline>
+<codeline lineno="240"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/>precomputed_vertex_out_weight_sums,</highlight></codeline>
+<codeline lineno="241"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/>initial_guess_vertices,</highlight></codeline>
+<codeline lineno="242"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/>initial_guess_values,</highlight></codeline>
+<codeline lineno="243"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/>personalization_vertices,</highlight></codeline>
+<codeline lineno="244"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/>personalization_values,</highlight></codeline>
+<codeline lineno="245"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordtype">double</highlight><highlight class="normal"><sp/>alpha,</highlight></codeline>
+<codeline lineno="246"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordtype">double</highlight><highlight class="normal"><sp/>epsilon,</highlight></codeline>
+<codeline lineno="247"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordtype">size_t</highlight><highlight class="normal"><sp/>max_iterations,</highlight></codeline>
+<codeline lineno="248"><highlight class="normal"><sp/><sp/>bool_t<sp/>do_expensive_check,</highlight></codeline>
+<codeline lineno="249"><highlight class="normal"><sp/><sp/><ref refid="structcugraph__centrality__result__t" kindref="compound">cugraph_centrality_result_t</ref>**<sp/>result,</highlight></codeline>
+<codeline lineno="250"><highlight class="normal"><sp/><sp/><ref refid="structcugraph__error__" kindref="compound">cugraph_error_t</ref>**<sp/>error);</highlight></codeline>
+<codeline lineno="251"><highlight class="normal"></highlight></codeline>
+<codeline lineno="293"><highlight class="normal">cugraph_error_code_t<sp/>cugraph_personalized_pagerank_allow_nonconvergence(</highlight></codeline>
+<codeline lineno="294"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__resource__handle__" kindref="compound">cugraph_resource_handle_t</ref>*<sp/>handle,</highlight></codeline>
+<codeline lineno="295"><highlight class="normal"><sp/><sp/><ref refid="structcugraph__graph__t" kindref="compound">cugraph_graph_t</ref>*<sp/>graph,</highlight></codeline>
+<codeline lineno="296"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/>precomputed_vertex_out_weight_vertices,</highlight></codeline>
+<codeline lineno="297"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/>precomputed_vertex_out_weight_sums,</highlight></codeline>
+<codeline lineno="298"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/>initial_guess_vertices,</highlight></codeline>
+<codeline lineno="299"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/>initial_guess_values,</highlight></codeline>
+<codeline lineno="300"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/>personalization_vertices,</highlight></codeline>
+<codeline lineno="301"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/>personalization_values,</highlight></codeline>
+<codeline lineno="302"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordtype">double</highlight><highlight class="normal"><sp/>alpha,</highlight></codeline>
+<codeline lineno="303"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordtype">double</highlight><highlight class="normal"><sp/>epsilon,</highlight></codeline>
+<codeline lineno="304"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordtype">size_t</highlight><highlight class="normal"><sp/>max_iterations,</highlight></codeline>
+<codeline lineno="305"><highlight class="normal"><sp/><sp/>bool_t<sp/>do_expensive_check,</highlight></codeline>
+<codeline lineno="306"><highlight class="normal"><sp/><sp/><ref refid="structcugraph__centrality__result__t" kindref="compound">cugraph_centrality_result_t</ref>**<sp/>result,</highlight></codeline>
+<codeline lineno="307"><highlight class="normal"><sp/><sp/><ref refid="structcugraph__error__" kindref="compound">cugraph_error_t</ref>**<sp/>error);</highlight></codeline>
+<codeline lineno="308"><highlight class="normal"></highlight></codeline>
+<codeline lineno="327"><highlight class="normal">cugraph_error_code_t<sp/>cugraph_eigenvector_centrality(</highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__resource__handle__" kindref="compound">cugraph_resource_handle_t</ref>*<sp/>handle,</highlight></codeline>
+<codeline lineno="328"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><ref refid="structcugraph__graph__t" kindref="compound">cugraph_graph_t</ref>*<sp/>graph,</highlight></codeline>
+<codeline lineno="329"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordtype">double</highlight><highlight class="normal"><sp/>epsilon,</highlight></codeline>
+<codeline lineno="330"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordtype">size_t</highlight><highlight class="normal"><sp/>max_iterations,</highlight></codeline>
+<codeline lineno="331"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>bool_t<sp/>do_expensive_check,</highlight></codeline>
+<codeline lineno="332"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><ref refid="structcugraph__centrality__result__t" kindref="compound">cugraph_centrality_result_t</ref>**<sp/>result,</highlight></codeline>
+<codeline lineno="333"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><ref refid="structcugraph__error__" kindref="compound">cugraph_error_t</ref>**<sp/>error);</highlight></codeline>
+<codeline lineno="334"><highlight class="normal"></highlight></codeline>
+<codeline lineno="360"><highlight class="normal">cugraph_error_code_t<sp/>cugraph_katz_centrality(</highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__resource__handle__" kindref="compound">cugraph_resource_handle_t</ref>*<sp/>handle,</highlight></codeline>
+<codeline lineno="361"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><ref refid="structcugraph__graph__t" kindref="compound">cugraph_graph_t</ref>*<sp/>graph,</highlight></codeline>
+<codeline lineno="362"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/>betas,</highlight></codeline>
+<codeline lineno="363"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordtype">double</highlight><highlight class="normal"><sp/>alpha,</highlight></codeline>
+<codeline lineno="364"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordtype">double</highlight><highlight class="normal"><sp/>beta,</highlight></codeline>
+<codeline lineno="365"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordtype">double</highlight><highlight class="normal"><sp/>epsilon,</highlight></codeline>
+<codeline lineno="366"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordtype">size_t</highlight><highlight class="normal"><sp/>max_iterations,</highlight></codeline>
+<codeline lineno="367"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>bool_t<sp/>do_expensive_check,</highlight></codeline>
+<codeline lineno="368"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><ref refid="structcugraph__centrality__result__t" kindref="compound">cugraph_centrality_result_t</ref>**<sp/>result,</highlight></codeline>
+<codeline lineno="369"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><ref refid="structcugraph__error__" kindref="compound">cugraph_error_t</ref>**<sp/>error);</highlight></codeline>
+<codeline lineno="370"><highlight class="normal"></highlight></codeline>
+<codeline lineno="397"><highlight class="normal">cugraph_error_code_t<sp/>cugraph_betweenness_centrality(</highlight></codeline>
+<codeline lineno="398"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__resource__handle__" kindref="compound">cugraph_resource_handle_t</ref>*<sp/>handle,</highlight></codeline>
+<codeline lineno="399"><highlight class="normal"><sp/><sp/><ref refid="structcugraph__graph__t" kindref="compound">cugraph_graph_t</ref>*<sp/>graph,</highlight></codeline>
+<codeline lineno="400"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/>vertex_list,</highlight></codeline>
+<codeline lineno="401"><highlight class="normal"><sp/><sp/>bool_t<sp/>normalized,</highlight></codeline>
+<codeline lineno="402"><highlight class="normal"><sp/><sp/>bool_t<sp/>include_endpoints,</highlight></codeline>
+<codeline lineno="403"><highlight class="normal"><sp/><sp/>bool_t<sp/>do_expensive_check,</highlight></codeline>
+<codeline lineno="404"><highlight class="normal"><sp/><sp/><ref refid="structcugraph__centrality__result__t" kindref="compound">cugraph_centrality_result_t</ref>**<sp/>result,</highlight></codeline>
+<codeline lineno="405"><highlight class="normal"><sp/><sp/><ref refid="structcugraph__error__" kindref="compound">cugraph_error_t</ref>**<sp/>error);</highlight></codeline>
+<codeline lineno="406"><highlight class="normal"></highlight></codeline>
+<codeline lineno="410" refid="structcugraph__edge__centrality__result__t" refkind="compound"><highlight class="normal"></highlight><highlight class="keyword">typedef</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">struct<sp/></highlight><highlight class="normal">{</highlight></codeline>
+<codeline lineno="411"><highlight class="normal"><sp/><sp/>int32_t<sp/>align_;</highlight></codeline>
+<codeline lineno="412"><highlight class="normal">}<sp/><ref refid="structcugraph__edge__centrality__result__t" kindref="compound">cugraph_edge_centrality_result_t</ref>;</highlight></codeline>
+<codeline lineno="413"><highlight class="normal"></highlight></codeline>
+<codeline lineno="421"><highlight class="normal"><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/><ref refid="group__centrality_1ga3b24ab80308bbf896b8c12261645382e" kindref="member">cugraph_edge_centrality_result_get_src_vertices</ref>(</highlight></codeline>
+<codeline lineno="422"><highlight class="normal"><sp/><sp/><ref refid="structcugraph__edge__centrality__result__t" kindref="compound">cugraph_edge_centrality_result_t</ref>*<sp/>result);</highlight></codeline>
+<codeline lineno="423"><highlight class="normal"></highlight></codeline>
+<codeline lineno="431"><highlight class="normal"><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/><ref refid="group__centrality_1ga40fd0ad1d7fb1dde3383c1c6552a01c6" kindref="member">cugraph_edge_centrality_result_get_dst_vertices</ref>(</highlight></codeline>
+<codeline lineno="432"><highlight class="normal"><sp/><sp/><ref refid="structcugraph__edge__centrality__result__t" kindref="compound">cugraph_edge_centrality_result_t</ref>*<sp/>result);</highlight></codeline>
+<codeline lineno="433"><highlight class="normal"></highlight></codeline>
+<codeline lineno="441"><highlight class="normal"><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/><ref refid="group__centrality_1ga578060fffb6c3188346dbbd09622bdb0" kindref="member">cugraph_edge_centrality_result_get_edge_ids</ref>(</highlight></codeline>
+<codeline lineno="442"><highlight class="normal"><sp/><sp/><ref refid="structcugraph__edge__centrality__result__t" kindref="compound">cugraph_edge_centrality_result_t</ref>*<sp/>result);</highlight></codeline>
+<codeline lineno="443"><highlight class="normal"></highlight></codeline>
+<codeline lineno="451"><highlight class="normal"><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/><ref refid="group__centrality_1ga26f6ee905429ca70251caa970497c4c1" kindref="member">cugraph_edge_centrality_result_get_values</ref>(</highlight></codeline>
+<codeline lineno="452"><highlight class="normal"><sp/><sp/><ref refid="structcugraph__edge__centrality__result__t" kindref="compound">cugraph_edge_centrality_result_t</ref>*<sp/>result);</highlight></codeline>
+<codeline lineno="453"><highlight class="normal"></highlight></codeline>
+<codeline lineno="460"><highlight class="normal"></highlight><highlight class="keywordtype">void</highlight><highlight class="normal"><sp/><ref refid="group__centrality_1ga8692339201a3756d1dbc78984ed55b93" kindref="member">cugraph_edge_centrality_result_free</ref>(<ref refid="structcugraph__edge__centrality__result__t" kindref="compound">cugraph_edge_centrality_result_t</ref>*<sp/>result);</highlight></codeline>
+<codeline lineno="461"><highlight class="normal"></highlight></codeline>
+<codeline lineno="485"><highlight class="normal">cugraph_error_code_t<sp/>cugraph_edge_betweenness_centrality(</highlight></codeline>
+<codeline lineno="486"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__resource__handle__" kindref="compound">cugraph_resource_handle_t</ref>*<sp/>handle,</highlight></codeline>
+<codeline lineno="487"><highlight class="normal"><sp/><sp/><ref refid="structcugraph__graph__t" kindref="compound">cugraph_graph_t</ref>*<sp/>graph,</highlight></codeline>
+<codeline lineno="488"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/>vertex_list,</highlight></codeline>
+<codeline lineno="489"><highlight class="normal"><sp/><sp/>bool_t<sp/>normalized,</highlight></codeline>
+<codeline lineno="490"><highlight class="normal"><sp/><sp/>bool_t<sp/>do_expensive_check,</highlight></codeline>
+<codeline lineno="491"><highlight class="normal"><sp/><sp/><ref refid="structcugraph__edge__centrality__result__t" kindref="compound">cugraph_edge_centrality_result_t</ref>**<sp/>result,</highlight></codeline>
+<codeline lineno="492"><highlight class="normal"><sp/><sp/><ref refid="structcugraph__error__" kindref="compound">cugraph_error_t</ref>**<sp/>error);</highlight></codeline>
+<codeline lineno="493"><highlight class="normal"></highlight></codeline>
+<codeline lineno="497" refid="structcugraph__hits__result__t" refkind="compound"><highlight class="normal"></highlight><highlight class="keyword">typedef</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">struct<sp/></highlight><highlight class="normal">{</highlight></codeline>
+<codeline lineno="498"><highlight class="normal"><sp/><sp/>int32_t<sp/>align_;</highlight></codeline>
+<codeline lineno="499"><highlight class="normal">}<sp/><ref refid="structcugraph__hits__result__t" kindref="compound">cugraph_hits_result_t</ref>;</highlight></codeline>
+<codeline lineno="500"><highlight class="normal"></highlight></codeline>
+<codeline lineno="508"><highlight class="normal"><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/><ref refid="group__centrality_1ga3d8414b2525c37116bbc02e0ffc1fc84" kindref="member">cugraph_hits_result_get_vertices</ref>(</highlight></codeline>
+<codeline lineno="509"><highlight class="normal"><sp/><sp/><ref refid="structcugraph__hits__result__t" kindref="compound">cugraph_hits_result_t</ref>*<sp/>result);</highlight></codeline>
+<codeline lineno="510"><highlight class="normal"></highlight></codeline>
+<codeline lineno="518"><highlight class="normal"><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/><ref refid="group__centrality_1gad1b685aea09a6e5d17b1faf97d77f3c2" kindref="member">cugraph_hits_result_get_hubs</ref>(</highlight></codeline>
+<codeline lineno="519"><highlight class="normal"><sp/><sp/><ref refid="structcugraph__hits__result__t" kindref="compound">cugraph_hits_result_t</ref>*<sp/>result);</highlight></codeline>
+<codeline lineno="520"><highlight class="normal"></highlight></codeline>
+<codeline lineno="528"><highlight class="normal"><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/><ref refid="group__centrality_1gac4351d4c149467954d1420ce78dca040" kindref="member">cugraph_hits_result_get_authorities</ref>(</highlight></codeline>
+<codeline lineno="529"><highlight class="normal"><sp/><sp/><ref refid="structcugraph__hits__result__t" kindref="compound">cugraph_hits_result_t</ref>*<sp/>result);</highlight></codeline>
+<codeline lineno="530"><highlight class="normal"></highlight></codeline>
+<codeline lineno="538"><highlight class="normal"></highlight><highlight class="keywordtype">double</highlight><highlight class="normal"><sp/><ref refid="group__centrality_1gab4f724ca86996a258744958d7066dd85" kindref="member">cugraph_hits_result_get_hub_score_differences</ref>(<ref refid="structcugraph__hits__result__t" kindref="compound">cugraph_hits_result_t</ref>*<sp/>result);</highlight></codeline>
+<codeline lineno="539"><highlight class="normal"></highlight></codeline>
+<codeline lineno="547"><highlight class="normal"></highlight><highlight class="keywordtype">size_t</highlight><highlight class="normal"><sp/><ref refid="group__centrality_1gac40c66bffcb71b3ccab54acc38beb6be" kindref="member">cugraph_hits_result_get_number_of_iterations</ref>(<ref refid="structcugraph__hits__result__t" kindref="compound">cugraph_hits_result_t</ref>*<sp/>result);</highlight></codeline>
+<codeline lineno="548"><highlight class="normal"></highlight></codeline>
+<codeline lineno="555"><highlight class="normal"></highlight><highlight class="keywordtype">void</highlight><highlight class="normal"><sp/><ref refid="group__centrality_1gac8b2d3d4d7dc25bc4f90b79ed4be7b2c" kindref="member">cugraph_hits_result_free</ref>(<ref refid="structcugraph__hits__result__t" kindref="compound">cugraph_hits_result_t</ref>*<sp/>result);</highlight></codeline>
+<codeline lineno="556"><highlight class="normal"></highlight></codeline>
+<codeline lineno="587"><highlight class="normal">cugraph_error_code_t<sp/>cugraph_hits(</highlight></codeline>
+<codeline lineno="588"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__resource__handle__" kindref="compound">cugraph_resource_handle_t</ref>*<sp/>handle,</highlight></codeline>
+<codeline lineno="589"><highlight class="normal"><sp/><sp/><ref refid="structcugraph__graph__t" kindref="compound">cugraph_graph_t</ref>*<sp/>graph,</highlight></codeline>
+<codeline lineno="590"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordtype">double</highlight><highlight class="normal"><sp/>epsilon,</highlight></codeline>
+<codeline lineno="591"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordtype">size_t</highlight><highlight class="normal"><sp/>max_iterations,</highlight></codeline>
+<codeline lineno="592"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/>initial_hubs_guess_vertices,</highlight></codeline>
+<codeline lineno="593"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/>initial_hubs_guess_values,</highlight></codeline>
+<codeline lineno="594"><highlight class="normal"><sp/><sp/>bool_t<sp/>normalize,</highlight></codeline>
+<codeline lineno="595"><highlight class="normal"><sp/><sp/>bool_t<sp/>do_expensive_check,</highlight></codeline>
+<codeline lineno="596"><highlight class="normal"><sp/><sp/><ref refid="structcugraph__hits__result__t" kindref="compound">cugraph_hits_result_t</ref>**<sp/>result,</highlight></codeline>
+<codeline lineno="597"><highlight class="normal"><sp/><sp/><ref refid="structcugraph__error__" kindref="compound">cugraph_error_t</ref>**<sp/>error);</highlight></codeline>
+<codeline lineno="598"><highlight class="normal"></highlight></codeline>
+<codeline lineno="599"><highlight class="normal"></highlight><highlight class="preprocessor">#ifdef<sp/>__cplusplus</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="600"><highlight class="normal">}</highlight></codeline>
+<codeline lineno="601"><highlight class="normal"></highlight><highlight class="preprocessor">#endif</highlight></codeline>
+    </programlisting>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/centrality_algorithms.h"/>
+  </compounddef>
+</doxygen>

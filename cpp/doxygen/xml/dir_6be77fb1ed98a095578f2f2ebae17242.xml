@@ -1,0 +1,12 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="dir_6be77fb1ed98a095578f2f2ebae17242" kind="dir">
+    <compoundname>converters</compoundname>
+    <innerdir refid="dir_b9e28ec66004b39fa55e07f649e03623">legacy</innerdir>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/src/converters/"/>
+  </compounddef>
+</doxygen>

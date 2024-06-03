@@ -1,0 +1,1306 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="group__samplingC" kind="group">
+    <compoundname>samplingC</compoundname>
+    <title>Sampling algorithms</title>
+    <sectiondef kind="func">
+      <memberdef kind="function" id="group__samplingC_1gadf5f79cca0112855b14fc82bb620f405" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>size_t</type>
+        <definition>size_t cugraph_random_walk_result_get_max_path_length</definition>
+        <argsstring>(cugraph_random_walk_result_t *result)</argsstring>
+        <name>cugraph_random_walk_result_get_max_path_length</name>
+        <param>
+          <type><ref refid="structcugraph__random__walk__result__t" kindref="compound">cugraph_random_walk_result_t</ref> *</type>
+          <declname>result</declname>
+        </param>
+        <briefdescription>
+<para>Get the max path length from random walk result. </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">result</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>The result from random walks </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>maximum path length </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/sampling_algorithms.h" line="142" column="8" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/random_walks.cpp" bodystart="492" bodyend="496" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/sampling_algorithms.h" declline="142" declcolumn="8"/>
+      </memberdef>
+      <memberdef kind="function" id="group__samplingC_1ga4ed5aef9476d68ab846fd1f5eac8290f" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref> *</type>
+        <definition>cugraph_type_erased_device_array_view_t * cugraph_random_walk_result_get_paths</definition>
+        <argsstring>(cugraph_random_walk_result_t *result)</argsstring>
+        <name>cugraph_random_walk_result_get_paths</name>
+        <param>
+          <type><ref refid="structcugraph__random__walk__result__t" kindref="compound">cugraph_random_walk_result_t</ref> *</type>
+          <declname>result</declname>
+        </param>
+        <briefdescription>
+<para>Get the matrix (row major order) of vertices in the paths. </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">result</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>The result from a random walk algorithm </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>type erased array pointing to the path matrix in device memory </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/sampling_algorithms.h" line="154" column="41" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/random_walks.cpp" bodystart="498" bodyend="504" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/sampling_algorithms.h" declline="154" declcolumn="41"/>
+      </memberdef>
+      <memberdef kind="function" id="group__samplingC_1ga4abee8ffa8d15a940e0905e79ae894af" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref> *</type>
+        <definition>cugraph_type_erased_device_array_view_t * cugraph_random_walk_result_get_weights</definition>
+        <argsstring>(cugraph_random_walk_result_t *result)</argsstring>
+        <name>cugraph_random_walk_result_get_weights</name>
+        <param>
+          <type><ref refid="structcugraph__random__walk__result__t" kindref="compound">cugraph_random_walk_result_t</ref> *</type>
+          <declname>result</declname>
+        </param>
+        <briefdescription>
+<para>Get the matrix (row major order) of edge weights in the paths. </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">result</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>The result from a random walk algorithm </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>type erased array pointing to the path edge weights in device memory </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/sampling_algorithms.h" line="164" column="41" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/random_walks.cpp" bodystart="506" bodyend="512" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/sampling_algorithms.h" declline="164" declcolumn="41"/>
+      </memberdef>
+      <memberdef kind="function" id="group__samplingC_1ga4b0f8923adbc6aa2156360d21c480951" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref> *</type>
+        <definition>cugraph_type_erased_device_array_view_t * cugraph_random_walk_result_get_path_sizes</definition>
+        <argsstring>(cugraph_random_walk_result_t *result)</argsstring>
+        <name>cugraph_random_walk_result_get_path_sizes</name>
+        <param>
+          <type><ref refid="structcugraph__random__walk__result__t" kindref="compound">cugraph_random_walk_result_t</ref> *</type>
+          <declname>result</declname>
+        </param>
+        <briefdescription>
+<para>If the random walk result is compressed, get the path sizes. </para>
+        </briefdescription>
+        <detaileddescription>
+<para><xrefsect id="deprecated_1_deprecated000016"><xreftitle>Deprecated</xreftitle><xrefdescription><para>This call will no longer be relevant once the new node2vec are called</para>
+</xrefdescription></xrefsect></para>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">result</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>The result from a random walk algorithm </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>type erased array pointing to the path sizes in device memory </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/sampling_algorithms.h" line="175" column="41" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/random_walks.cpp" bodystart="514" bodyend="520" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/sampling_algorithms.h" declline="175" declcolumn="41"/>
+      </memberdef>
+      <memberdef kind="function" id="group__samplingC_1gad3ff7003c7ff73b12fd33be97db31d67" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>void</type>
+        <definition>void cugraph_random_walk_result_free</definition>
+        <argsstring>(cugraph_random_walk_result_t *result)</argsstring>
+        <name>cugraph_random_walk_result_free</name>
+        <param>
+          <type><ref refid="structcugraph__random__walk__result__t" kindref="compound">cugraph_random_walk_result_t</ref> *</type>
+          <declname>result</declname>
+        </param>
+        <briefdescription>
+<para>Free random walks result. </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">result</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>The result from random walks </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/sampling_algorithms.h" line="184" column="6" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/random_walks.cpp" bodystart="522" bodyend="529" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/sampling_algorithms.h" declline="184" declcolumn="6"/>
+      </memberdef>
+      <memberdef kind="function" id="group__samplingC_1gae43633f8ac4add282942c4e599b7e08a" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>cugraph_error_code_t</type>
+        <definition>cugraph_error_code_t cugraph_sampling_options_create</definition>
+        <argsstring>(cugraph_sampling_options_t **options, cugraph_error_t **error)</argsstring>
+        <name>cugraph_sampling_options_create</name>
+        <param>
+          <type><ref refid="structcugraph__sampling__options__t" kindref="compound">cugraph_sampling_options_t</ref> **</type>
+          <declname>options</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__error__" kindref="compound">cugraph_error_t</ref> **</type>
+          <declname>error</declname>
+        </param>
+        <briefdescription>
+<para>Create sampling options object. </para>
+        </briefdescription>
+        <detaileddescription>
+<para>All sampling options set to FALSE</para>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="out">options</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Opaque pointer to the sampling options </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="out">error</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Pointer to an error object storing details of any error. Will be populated if error code is not CUGRAPH_SUCCESS </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/sampling_algorithms.h" line="236" column="22" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/uniform_neighbor_sampling.cpp" bodystart="407" bodyend="419" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/sampling_algorithms.h" declline="236" declcolumn="22"/>
+      </memberdef>
+      <memberdef kind="function" id="group__samplingC_1ga117b95fed045dc00de61e49f723cb615" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>void</type>
+        <definition>void cugraph_sampling_set_retain_seeds</definition>
+        <argsstring>(cugraph_sampling_options_t *options, bool_t value)</argsstring>
+        <name>cugraph_sampling_set_retain_seeds</name>
+        <param>
+          <type><ref refid="structcugraph__sampling__options__t" kindref="compound">cugraph_sampling_options_t</ref> *</type>
+          <declname>options</declname>
+        </param>
+        <param>
+          <type>bool_t</type>
+          <declname>value</declname>
+        </param>
+        <briefdescription>
+<para>Set flag to retain seeds (original sources) </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername>options</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>- opaque pointer to the sampling options </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>value</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>- Boolean value to assign to the option </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/sampling_algorithms.h" line="246" column="6" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/uniform_neighbor_sampling.cpp" bodystart="421" bodyend="425" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/sampling_algorithms.h" declline="246" declcolumn="6"/>
+      </memberdef>
+      <memberdef kind="function" id="group__samplingC_1ga2008317b8348a7228a96ade6360bb20f" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>void</type>
+        <definition>void cugraph_sampling_set_renumber_results</definition>
+        <argsstring>(cugraph_sampling_options_t *options, bool_t value)</argsstring>
+        <name>cugraph_sampling_set_renumber_results</name>
+        <param>
+          <type><ref refid="structcugraph__sampling__options__t" kindref="compound">cugraph_sampling_options_t</ref> *</type>
+          <declname>options</declname>
+        </param>
+        <param>
+          <type>bool_t</type>
+          <declname>value</declname>
+        </param>
+        <briefdescription>
+<para>Set flag to renumber results. </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername>options</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>- opaque pointer to the sampling options </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>value</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>- Boolean value to assign to the option </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/sampling_algorithms.h" line="255" column="6" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/uniform_neighbor_sampling.cpp" bodystart="427" bodyend="432" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/sampling_algorithms.h" declline="255" declcolumn="6"/>
+      </memberdef>
+      <memberdef kind="function" id="group__samplingC_1gaa55f31d8fd2a5b482fcb4d8a111fe4a5" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>void</type>
+        <definition>void cugraph_sampling_set_compress_per_hop</definition>
+        <argsstring>(cugraph_sampling_options_t *options, bool_t value)</argsstring>
+        <name>cugraph_sampling_set_compress_per_hop</name>
+        <param>
+          <type><ref refid="structcugraph__sampling__options__t" kindref="compound">cugraph_sampling_options_t</ref> *</type>
+          <declname>options</declname>
+        </param>
+        <param>
+          <type>bool_t</type>
+          <declname>value</declname>
+        </param>
+        <briefdescription>
+<para>Set whether to compress per-hop (True) or globally (False) </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername>options</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>- opaque pointer to the sampling options </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>value</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>- Boolean value to assign to the option </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/sampling_algorithms.h" line="264" column="6" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/uniform_neighbor_sampling.cpp" bodystart="434" bodyend="439" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/sampling_algorithms.h" declline="264" declcolumn="6"/>
+      </memberdef>
+      <memberdef kind="function" id="group__samplingC_1gaf9073b0b09e988f6e704ce802f899cff" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>void</type>
+        <definition>void cugraph_sampling_set_with_replacement</definition>
+        <argsstring>(cugraph_sampling_options_t *options, bool_t value)</argsstring>
+        <name>cugraph_sampling_set_with_replacement</name>
+        <param>
+          <type><ref refid="structcugraph__sampling__options__t" kindref="compound">cugraph_sampling_options_t</ref> *</type>
+          <declname>options</declname>
+        </param>
+        <param>
+          <type>bool_t</type>
+          <declname>value</declname>
+        </param>
+        <briefdescription>
+<para>Set flag to sample with_replacement. </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername>options</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>- opaque pointer to the sampling options </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>value</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>- Boolean value to assign to the option </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/sampling_algorithms.h" line="273" column="6" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/uniform_neighbor_sampling.cpp" bodystart="441" bodyend="446" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/sampling_algorithms.h" declline="273" declcolumn="6"/>
+      </memberdef>
+      <memberdef kind="function" id="group__samplingC_1ga97c7116850a268200cee72ef336216e8" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>void</type>
+        <definition>void cugraph_sampling_set_return_hops</definition>
+        <argsstring>(cugraph_sampling_options_t *options, bool_t value)</argsstring>
+        <name>cugraph_sampling_set_return_hops</name>
+        <param>
+          <type><ref refid="structcugraph__sampling__options__t" kindref="compound">cugraph_sampling_options_t</ref> *</type>
+          <declname>options</declname>
+        </param>
+        <param>
+          <type>bool_t</type>
+          <declname>value</declname>
+        </param>
+        <briefdescription>
+<para>Set flag to sample return_hops. </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername>options</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>- opaque pointer to the sampling options </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>value</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>- Boolean value to assign to the option </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/sampling_algorithms.h" line="282" column="6" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/uniform_neighbor_sampling.cpp" bodystart="448" bodyend="452" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/sampling_algorithms.h" declline="282" declcolumn="6"/>
+      </memberdef>
+      <memberdef kind="function" id="group__samplingC_1ga7d1873abeff902d633ba4aac32502c12" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>void</type>
+        <definition>void cugraph_sampling_set_compression_type</definition>
+        <argsstring>(cugraph_sampling_options_t *options, cugraph_compression_type_t value)</argsstring>
+        <name>cugraph_sampling_set_compression_type</name>
+        <param>
+          <type><ref refid="structcugraph__sampling__options__t" kindref="compound">cugraph_sampling_options_t</ref> *</type>
+          <declname>options</declname>
+        </param>
+        <param>
+          <type>cugraph_compression_type_t</type>
+          <declname>value</declname>
+        </param>
+        <briefdescription>
+<para>Set compression type. </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername>options</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>- opaque pointer to the sampling options </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>value</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>- Enum defining the compresion type </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/sampling_algorithms.h" line="291" column="6" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/uniform_neighbor_sampling.cpp" bodystart="454" bodyend="466" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/sampling_algorithms.h" declline="291" declcolumn="6"/>
+      </memberdef>
+      <memberdef kind="function" id="group__samplingC_1gaea65452afe7afd1da419464a53d184f7" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>void</type>
+        <definition>void cugraph_sampling_set_prior_sources_behavior</definition>
+        <argsstring>(cugraph_sampling_options_t *options, cugraph_prior_sources_behavior_t value)</argsstring>
+        <name>cugraph_sampling_set_prior_sources_behavior</name>
+        <param>
+          <type><ref refid="structcugraph__sampling__options__t" kindref="compound">cugraph_sampling_options_t</ref> *</type>
+          <declname>options</declname>
+        </param>
+        <param>
+          <type>cugraph_prior_sources_behavior_t</type>
+          <declname>value</declname>
+        </param>
+        <briefdescription>
+<para>Set prior sources behavior. </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername>options</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>- opaque pointer to the sampling options </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>value</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>- Enum defining prior sources behavior </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/sampling_algorithms.h" line="301" column="6" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/uniform_neighbor_sampling.cpp" bodystart="468" bodyend="483" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/sampling_algorithms.h" declline="301" declcolumn="6"/>
+      </memberdef>
+      <memberdef kind="function" id="group__samplingC_1ga79c33f34f41e5fb7bc6d408204f077c2" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>void</type>
+        <definition>void cugraph_sampling_set_dedupe_sources</definition>
+        <argsstring>(cugraph_sampling_options_t *options, bool_t value)</argsstring>
+        <name>cugraph_sampling_set_dedupe_sources</name>
+        <param>
+          <type><ref refid="structcugraph__sampling__options__t" kindref="compound">cugraph_sampling_options_t</ref> *</type>
+          <declname>options</declname>
+        </param>
+        <param>
+          <type>bool_t</type>
+          <declname>value</declname>
+        </param>
+        <briefdescription>
+<para>Set flag to sample dedupe_sources prior to sampling. </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername>options</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>- opaque pointer to the sampling options </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>value</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>- Boolean value to assign to the option </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/sampling_algorithms.h" line="311" column="6" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/uniform_neighbor_sampling.cpp" bodystart="485" bodyend="490" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/sampling_algorithms.h" declline="311" declcolumn="6"/>
+      </memberdef>
+      <memberdef kind="function" id="group__samplingC_1gab7c69ccc1d3958508ea6f66786e525e2" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>void</type>
+        <definition>void cugraph_sampling_options_free</definition>
+        <argsstring>(cugraph_sampling_options_t *options)</argsstring>
+        <name>cugraph_sampling_options_free</name>
+        <param>
+          <type><ref refid="structcugraph__sampling__options__t" kindref="compound">cugraph_sampling_options_t</ref> *</type>
+          <declname>options</declname>
+        </param>
+        <briefdescription>
+<para>Free sampling options object. </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">options</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Opaque pointer to sampling object </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/sampling_algorithms.h" line="319" column="6" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/uniform_neighbor_sampling.cpp" bodystart="492" bodyend="496" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/sampling_algorithms.h" declline="319" declcolumn="6"/>
+      </memberdef>
+      <memberdef kind="function" id="group__samplingC_1ga5bd2697648249b7ab02256764ab1cbd1" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref> *</type>
+        <definition>cugraph_type_erased_device_array_view_t * cugraph_sample_result_get_majors</definition>
+        <argsstring>(const cugraph_sample_result_t *result)</argsstring>
+        <name>cugraph_sample_result_get_majors</name>
+        <param>
+          <type>const <ref refid="structcugraph__sample__result__t" kindref="compound">cugraph_sample_result_t</ref> *</type>
+          <declname>result</declname>
+        </param>
+        <briefdescription>
+<para>Get the major vertices from the sampling algorithm result. </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">result</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>The result from a sampling algorithm </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>type erased array pointing to the major vertices in device memory </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/sampling_algorithms.h" line="403" column="41" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/uniform_neighbor_sampling.cpp" bodystart="512" bodyend="521" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/sampling_algorithms.h" declline="403" declcolumn="41"/>
+      </memberdef>
+      <memberdef kind="function" id="group__samplingC_1gaff742d4d95bcfc519aeb849cb0c2f60a" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref> *</type>
+        <definition>cugraph_type_erased_device_array_view_t * cugraph_sample_result_get_minors</definition>
+        <argsstring>(const cugraph_sample_result_t *result)</argsstring>
+        <name>cugraph_sample_result_get_minors</name>
+        <param>
+          <type>const <ref refid="structcugraph__sample__result__t" kindref="compound">cugraph_sample_result_t</ref> *</type>
+          <declname>result</declname>
+        </param>
+        <briefdescription>
+<para>Get the minor vertices from the sampling algorithm result. </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">result</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>The result from a sampling algorithm </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>type erased array pointing to the minor vertices in device memory </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/sampling_algorithms.h" line="413" column="41" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/uniform_neighbor_sampling.cpp" bodystart="534" bodyend="540" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/sampling_algorithms.h" declline="413" declcolumn="41"/>
+      </memberdef>
+      <memberdef kind="function" id="group__samplingC_1ga6f20c3408f73f8fa62b5db6e0d92fb92" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref> *</type>
+        <definition>cugraph_type_erased_device_array_view_t * cugraph_sample_result_get_major_offsets</definition>
+        <argsstring>(const cugraph_sample_result_t *result)</argsstring>
+        <name>cugraph_sample_result_get_major_offsets</name>
+        <param>
+          <type>const <ref refid="structcugraph__sample__result__t" kindref="compound">cugraph_sample_result_t</ref> *</type>
+          <declname>result</declname>
+        </param>
+        <briefdescription>
+<para>Get the major offsets from the sampling algorithm result. </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">result</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>The result from a sampling algorithm </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>type erased array pointing to the major offsets in device memory </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/sampling_algorithms.h" line="423" column="41" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/uniform_neighbor_sampling.cpp" bodystart="523" bodyend="532" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/sampling_algorithms.h" declline="423" declcolumn="41"/>
+      </memberdef>
+      <memberdef kind="function" id="group__samplingC_1ga480368296880d40e70dfe795f9a9afdf" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref> *</type>
+        <definition>cugraph_type_erased_device_array_view_t * cugraph_sample_result_get_start_labels</definition>
+        <argsstring>(const cugraph_sample_result_t *result)</argsstring>
+        <name>cugraph_sample_result_get_start_labels</name>
+        <param>
+          <type>const <ref refid="structcugraph__sample__result__t" kindref="compound">cugraph_sample_result_t</ref> *</type>
+          <declname>result</declname>
+        </param>
+        <briefdescription>
+<para>Get the start labels from the sampling algorithm result. </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">result</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>The result from a sampling algorithm </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>type erased array pointing to the start labels </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/sampling_algorithms.h" line="433" column="41" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/uniform_neighbor_sampling.cpp" bodystart="542" bodyend="550" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/sampling_algorithms.h" declline="433" declcolumn="41"/>
+      </memberdef>
+      <memberdef kind="function" id="group__samplingC_1gafc1b9b3287b96210e3e97c6dbf529945" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref> *</type>
+        <definition>cugraph_type_erased_device_array_view_t * cugraph_sample_result_get_edge_id</definition>
+        <argsstring>(const cugraph_sample_result_t *result)</argsstring>
+        <name>cugraph_sample_result_get_edge_id</name>
+        <param>
+          <type>const <ref refid="structcugraph__sample__result__t" kindref="compound">cugraph_sample_result_t</ref> *</type>
+          <declname>result</declname>
+        </param>
+        <briefdescription>
+<para>Get the edge_id from the sampling algorithm result. </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">result</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>The result from a sampling algorithm </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>type erased array pointing to the edge_id </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/sampling_algorithms.h" line="443" column="41" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/uniform_neighbor_sampling.cpp" bodystart="552" bodyend="560" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/sampling_algorithms.h" declline="443" declcolumn="41"/>
+      </memberdef>
+      <memberdef kind="function" id="group__samplingC_1ga11d277fbfc7d49ffdcf3eae4b0d286b6" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref> *</type>
+        <definition>cugraph_type_erased_device_array_view_t * cugraph_sample_result_get_edge_type</definition>
+        <argsstring>(const cugraph_sample_result_t *result)</argsstring>
+        <name>cugraph_sample_result_get_edge_type</name>
+        <param>
+          <type>const <ref refid="structcugraph__sample__result__t" kindref="compound">cugraph_sample_result_t</ref> *</type>
+          <declname>result</declname>
+        </param>
+        <briefdescription>
+<para>Get the edge_type from the sampling algorithm result. </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">result</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>The result from a sampling algorithm </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>type erased array pointing to the edge_type </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/sampling_algorithms.h" line="453" column="41" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/uniform_neighbor_sampling.cpp" bodystart="562" bodyend="570" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/sampling_algorithms.h" declline="453" declcolumn="41"/>
+      </memberdef>
+      <memberdef kind="function" id="group__samplingC_1ga72ff963de88ee46a7dd6de846823b1b8" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref> *</type>
+        <definition>cugraph_type_erased_device_array_view_t * cugraph_sample_result_get_edge_weight</definition>
+        <argsstring>(const cugraph_sample_result_t *result)</argsstring>
+        <name>cugraph_sample_result_get_edge_weight</name>
+        <param>
+          <type>const <ref refid="structcugraph__sample__result__t" kindref="compound">cugraph_sample_result_t</ref> *</type>
+          <declname>result</declname>
+        </param>
+        <briefdescription>
+<para>Get the edge_weight from the sampling algorithm result. </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">result</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>The result from a sampling algorithm </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>type erased array pointing to the edge_weight </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/sampling_algorithms.h" line="463" column="41" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/uniform_neighbor_sampling.cpp" bodystart="572" bodyend="580" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/sampling_algorithms.h" declline="463" declcolumn="41"/>
+      </memberdef>
+      <memberdef kind="function" id="group__samplingC_1ga69ca1fadcd96923813e34f3d8c210cec" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref> *</type>
+        <definition>cugraph_type_erased_device_array_view_t * cugraph_sample_result_get_hop</definition>
+        <argsstring>(const cugraph_sample_result_t *result)</argsstring>
+        <name>cugraph_sample_result_get_hop</name>
+        <param>
+          <type>const <ref refid="structcugraph__sample__result__t" kindref="compound">cugraph_sample_result_t</ref> *</type>
+          <declname>result</declname>
+        </param>
+        <briefdescription>
+<para>Get the hop from the sampling algorithm result. </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">result</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>The result from a sampling algorithm </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>type erased array pointing to the hop </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/sampling_algorithms.h" line="473" column="41" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/uniform_neighbor_sampling.cpp" bodystart="582" bodyend="590" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/sampling_algorithms.h" declline="473" declcolumn="41"/>
+      </memberdef>
+      <memberdef kind="function" id="group__samplingC_1ga18d5834ee4685e2fad7920892b30e53c" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref> *</type>
+        <definition>cugraph_type_erased_device_array_view_t * cugraph_sample_result_get_label_hop_offsets</definition>
+        <argsstring>(const cugraph_sample_result_t *result)</argsstring>
+        <name>cugraph_sample_result_get_label_hop_offsets</name>
+        <param>
+          <type>const <ref refid="structcugraph__sample__result__t" kindref="compound">cugraph_sample_result_t</ref> *</type>
+          <declname>result</declname>
+        </param>
+        <briefdescription>
+<para>Get the label-hop offsets from the sampling algorithm result. </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">result</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>The result from a sampling algorithm </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>type erased array pointing to the label-hop offsets </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/sampling_algorithms.h" line="483" column="41" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/uniform_neighbor_sampling.cpp" bodystart="592" bodyend="600" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/sampling_algorithms.h" declline="483" declcolumn="41"/>
+      </memberdef>
+      <memberdef kind="function" id="group__samplingC_1ga62f2128b7cab4204030f3298d3f7713e" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref> *</type>
+        <definition>cugraph_type_erased_device_array_view_t * cugraph_sample_result_get_index</definition>
+        <argsstring>(const cugraph_sample_result_t *result)</argsstring>
+        <name>cugraph_sample_result_get_index</name>
+        <param>
+          <type>const <ref refid="structcugraph__sample__result__t" kindref="compound">cugraph_sample_result_t</ref> *</type>
+          <declname>result</declname>
+        </param>
+        <briefdescription>
+<para>Get the index from the sampling algorithm result. </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">result</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>The result from a sampling algorithm </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>type erased array pointing to the index </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/sampling_algorithms.h" line="493" column="41" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/uniform_neighbor_sampling.cpp" bodystart="602" bodyend="608" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/sampling_algorithms.h" declline="493" declcolumn="41"/>
+      </memberdef>
+      <memberdef kind="function" id="group__samplingC_1ga2b710fe11461032348d003dea4851829" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref> *</type>
+        <definition>cugraph_type_erased_device_array_view_t * cugraph_sample_result_get_renumber_map</definition>
+        <argsstring>(const cugraph_sample_result_t *result)</argsstring>
+        <name>cugraph_sample_result_get_renumber_map</name>
+        <param>
+          <type>const <ref refid="structcugraph__sample__result__t" kindref="compound">cugraph_sample_result_t</ref> *</type>
+          <declname>result</declname>
+        </param>
+        <briefdescription>
+<para>Get the renumber map. </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">result</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>The result from a sampling algorithm </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>type erased array pointing to the renumber map </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/sampling_algorithms.h" line="513" column="41" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/uniform_neighbor_sampling.cpp" bodystart="617" bodyend="625" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/sampling_algorithms.h" declline="513" declcolumn="41"/>
+      </memberdef>
+      <memberdef kind="function" id="group__samplingC_1ga281cbae0cfa0a69a54c0a9a68eed493a" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref> *</type>
+        <definition>cugraph_type_erased_device_array_view_t * cugraph_sample_result_get_renumber_map_offsets</definition>
+        <argsstring>(const cugraph_sample_result_t *result)</argsstring>
+        <name>cugraph_sample_result_get_renumber_map_offsets</name>
+        <param>
+          <type>const <ref refid="structcugraph__sample__result__t" kindref="compound">cugraph_sample_result_t</ref> *</type>
+          <declname>result</declname>
+        </param>
+        <briefdescription>
+<para>Get the renumber map offsets. </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">result</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>The result from a sampling algorithm </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>type erased array pointing to the renumber map offsets </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/sampling_algorithms.h" line="523" column="41" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/uniform_neighbor_sampling.cpp" bodystart="627" bodyend="635" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/sampling_algorithms.h" declline="523" declcolumn="41"/>
+      </memberdef>
+      <memberdef kind="function" id="group__samplingC_1gaa8dbfaffc0299b2cbba820718fda48d9" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>void</type>
+        <definition>void cugraph_sample_result_free</definition>
+        <argsstring>(cugraph_sample_result_t *result)</argsstring>
+        <name>cugraph_sample_result_free</name>
+        <param>
+          <type><ref refid="structcugraph__sample__result__t" kindref="compound">cugraph_sample_result_t</ref> *</type>
+          <declname>result</declname>
+        </param>
+        <briefdescription>
+<para>Free a sampling result. </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">result</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>The result from a sampling algorithm </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/sampling_algorithms.h" line="532" column="6" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/uniform_neighbor_sampling.cpp" bodystart="872" bodyend="887" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/sampling_algorithms.h" declline="532" declcolumn="6"/>
+      </memberdef>
+      <memberdef kind="function" id="group__samplingC_1ga29acd1812799edbd44092dcc25e3ef1e" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>cugraph_error_code_t</type>
+        <definition>cugraph_error_code_t cugraph_test_sample_result_create</definition>
+        <argsstring>(const cugraph_resource_handle_t *handle, const cugraph_type_erased_device_array_view_t *srcs, const cugraph_type_erased_device_array_view_t *dsts, const cugraph_type_erased_device_array_view_t *edge_id, const cugraph_type_erased_device_array_view_t *edge_type, const cugraph_type_erased_device_array_view_t *wgt, const cugraph_type_erased_device_array_view_t *hop, const cugraph_type_erased_device_array_view_t *label, cugraph_sample_result_t **result, cugraph_error_t **error)</argsstring>
+        <name>cugraph_test_sample_result_create</name>
+        <param>
+          <type>const <ref refid="structcugraph__resource__handle__" kindref="compound">cugraph_resource_handle_t</ref> *</type>
+          <declname>handle</declname>
+        </param>
+        <param>
+          <type>const <ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref> *</type>
+          <declname>srcs</declname>
+        </param>
+        <param>
+          <type>const <ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref> *</type>
+          <declname>dsts</declname>
+        </param>
+        <param>
+          <type>const <ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref> *</type>
+          <declname>edge_id</declname>
+        </param>
+        <param>
+          <type>const <ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref> *</type>
+          <declname>edge_type</declname>
+        </param>
+        <param>
+          <type>const <ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref> *</type>
+          <declname>wgt</declname>
+        </param>
+        <param>
+          <type>const <ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref> *</type>
+          <declname>hop</declname>
+        </param>
+        <param>
+          <type>const <ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref> *</type>
+          <declname>label</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__sample__result__t" kindref="compound">cugraph_sample_result_t</ref> **</type>
+          <declname>result</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__error__" kindref="compound">cugraph_error_t</ref> **</type>
+          <declname>error</declname>
+        </param>
+        <briefdescription>
+<para>Create a sampling result (testing API) </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">handle</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Handle for accessing resources </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">srcs</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Device array view to populate srcs </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">dsts</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Device array view to populate dsts </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">edge_id</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Device array view to populate edge_id (can be NULL) </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">edge_type</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Device array view to populate edge_type (can be NULL) </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">wgt</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Device array view to populate wgt (can be NULL) </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">hop</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Device array view to populate hop </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">label</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Device array view to populate label (can be NULL) </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="out">result</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Pointer to the location to store the cugraph_sample_result_t* </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="out">error</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Pointer to an error object storing details of any error. Will be populated if error code is not CUGRAPH_SUCCESS </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>error code </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/sampling_algorithms.h" line="553" column="22" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/uniform_neighbor_sampling.cpp" bodystart="749" bodyend="870" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/sampling_algorithms.h" declline="553" declcolumn="22"/>
+      </memberdef>
+      <memberdef kind="function" id="group__samplingC_1gab5bf25ec8e8afc782d685a1b1e542f42" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>cugraph_error_code_t</type>
+        <definition>cugraph_error_code_t cugraph_test_uniform_neighborhood_sample_result_create</definition>
+        <argsstring>(const cugraph_resource_handle_t *handle, const cugraph_type_erased_device_array_view_t *srcs, const cugraph_type_erased_device_array_view_t *dsts, const cugraph_type_erased_device_array_view_t *edge_id, const cugraph_type_erased_device_array_view_t *edge_type, const cugraph_type_erased_device_array_view_t *weight, const cugraph_type_erased_device_array_view_t *hop, const cugraph_type_erased_device_array_view_t *label, cugraph_sample_result_t **result, cugraph_error_t **error)</argsstring>
+        <name>cugraph_test_uniform_neighborhood_sample_result_create</name>
+        <param>
+          <type>const <ref refid="structcugraph__resource__handle__" kindref="compound">cugraph_resource_handle_t</ref> *</type>
+          <declname>handle</declname>
+        </param>
+        <param>
+          <type>const <ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref> *</type>
+          <declname>srcs</declname>
+        </param>
+        <param>
+          <type>const <ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref> *</type>
+          <declname>dsts</declname>
+        </param>
+        <param>
+          <type>const <ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref> *</type>
+          <declname>edge_id</declname>
+        </param>
+        <param>
+          <type>const <ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref> *</type>
+          <declname>edge_type</declname>
+        </param>
+        <param>
+          <type>const <ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref> *</type>
+          <declname>weight</declname>
+        </param>
+        <param>
+          <type>const <ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref> *</type>
+          <declname>hop</declname>
+        </param>
+        <param>
+          <type>const <ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref> *</type>
+          <declname>label</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__sample__result__t" kindref="compound">cugraph_sample_result_t</ref> **</type>
+          <declname>result</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__error__" kindref="compound">cugraph_error_t</ref> **</type>
+          <declname>error</declname>
+        </param>
+        <briefdescription>
+<para>Create a sampling result (testing API) </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">handle</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Handle for accessing resources </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">srcs</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Device array view to populate srcs </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">dsts</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Device array view to populate dsts </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">edge_id</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Device array view to populate edge_id </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">edge_type</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Device array view to populate edge_type </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">weight</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Device array view to populate weight </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">hop</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Device array view to populate hop </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">label</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Device array view to populate label </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="out">result</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Pointer to the location to store the cugraph_sample_result_t* </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="out">error</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Pointer to an error object storing details of any error. Will be populated if error code is not CUGRAPH_SUCCESS </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>error code </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/sampling_algorithms.h" line="584" column="22" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/uniform_neighbor_sampling.cpp" bodystart="637" bodyend="747" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/sampling_algorithms.h" declline="584" declcolumn="22"/>
+      </memberdef>
+      <memberdef kind="function" id="group__samplingC_1ga91ed6aa64c8ad3e8fcfe0be8e8c40bbe" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>cugraph_error_code_t</type>
+        <definition>cugraph_error_code_t cugraph_select_random_vertices</definition>
+        <argsstring>(const cugraph_resource_handle_t *handle, const cugraph_graph_t *graph, cugraph_rng_state_t *rng_state, size_t num_vertices, cugraph_type_erased_device_array_t **vertices, cugraph_error_t **error)</argsstring>
+        <name>cugraph_select_random_vertices</name>
+        <param>
+          <type>const <ref refid="structcugraph__resource__handle__" kindref="compound">cugraph_resource_handle_t</ref> *</type>
+          <declname>handle</declname>
+        </param>
+        <param>
+          <type>const <ref refid="structcugraph__graph__t" kindref="compound">cugraph_graph_t</ref> *</type>
+          <declname>graph</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__rng__state__t" kindref="compound">cugraph_rng_state_t</ref> *</type>
+          <declname>rng_state</declname>
+        </param>
+        <param>
+          <type>size_t</type>
+          <declname>num_vertices</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__type__erased__device__array__t" kindref="compound">cugraph_type_erased_device_array_t</ref> **</type>
+          <declname>vertices</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__error__" kindref="compound">cugraph_error_t</ref> **</type>
+          <declname>error</declname>
+        </param>
+        <briefdescription>
+<para>Select random vertices from the graph. </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">handle</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Handle for accessing resources </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">graph</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Pointer to graph </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="inout">rng_state</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>State of the random number generator, updated with each call </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">num_vertices</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Number of vertices to sample </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="out">vertices</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Device array view to populate label </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="out">error</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Pointer to an error object storing details of any error. Will be populated if error code is not CUGRAPH_SUCCESS </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>error code </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/sampling_algorithms.h" line="610" column="22" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/random.cpp" bodystart="139" bodyend="150" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/sampling_algorithms.h" declline="610" declcolumn="22"/>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+  </compounddef>
+</doxygen>

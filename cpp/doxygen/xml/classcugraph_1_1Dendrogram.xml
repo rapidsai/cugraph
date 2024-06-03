@@ -1,0 +1,280 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="classcugraph_1_1Dendrogram" kind="class" language="C++" prot="public">
+    <compoundname>cugraph::Dendrogram</compoundname>
+    <templateparamlist>
+      <param>
+        <type>typename vertex_t</type>
+      </param>
+    </templateparamlist>
+    <sectiondef kind="private-attrib">
+      <memberdef kind="variable" id="classcugraph_1_1Dendrogram_1ac2d725cf43f74652007e49a2fdab54bd" prot="private" static="no" mutable="no">
+        <type>std::vector&lt; vertex_t &gt;</type>
+        <definition>std::vector&lt;vertex_t&gt; cugraph::Dendrogram&lt; vertex_t &gt;::level_first_index_</definition>
+        <argsstring></argsstring>
+        <name>level_first_index_</name>
+        <qualifiedname>cugraph::Dendrogram::level_first_index_</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/dendrogram.hpp" line="67" column="15" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/dendrogram.hpp" bodystart="67" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="variable" id="classcugraph_1_1Dendrogram_1acbbdefc387cd54739a44f4d6f98254b4" prot="private" static="no" mutable="no">
+        <type>std::vector&lt; std::unique_ptr&lt; rmm::device_uvector&lt; vertex_t &gt; &gt; &gt;</type>
+        <definition>std::vector&lt;std::unique_ptr&lt;rmm::device_uvector&lt;vertex_t&gt; &gt; &gt; cugraph::Dendrogram&lt; vertex_t &gt;::level_ptr_</definition>
+        <argsstring></argsstring>
+        <name>level_ptr_</name>
+        <qualifiedname>cugraph::Dendrogram::level_ptr_</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/dendrogram.hpp" line="68" column="15" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/dendrogram.hpp" bodystart="68" bodyend="-1"/>
+      </memberdef>
+    </sectiondef>
+    <sectiondef kind="public-func">
+      <memberdef kind="function" id="classcugraph_1_1Dendrogram_1ae9d8ef36f5d02219daf5a9a203c88128" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type>void</type>
+        <definition>void cugraph::Dendrogram&lt; vertex_t &gt;::add_level</definition>
+        <argsstring>(vertex_t first_index, vertex_t num_verts, rmm::cuda_stream_view stream_view, rmm::device_async_resource_ref mr=rmm::mr::get_current_device_resource())</argsstring>
+        <name>add_level</name>
+        <qualifiedname>cugraph::Dendrogram::add_level</qualifiedname>
+        <param>
+          <type>vertex_t</type>
+          <declname>first_index</declname>
+        </param>
+        <param>
+          <type>vertex_t</type>
+          <declname>num_verts</declname>
+        </param>
+        <param>
+          <type>rmm::cuda_stream_view</type>
+          <declname>stream_view</declname>
+        </param>
+        <param>
+          <type>rmm::device_async_resource_ref</type>
+          <declname>mr</declname>
+          <defval>rmm::mr::get_current_device_resource()</defval>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/dendrogram.hpp" line="29" column="8" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/dendrogram.hpp" bodystart="29" bodyend="37"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1Dendrogram_1a484a6f2cedb0d4382a53b5d33de99c7f" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>size_t</type>
+        <definition>size_t cugraph::Dendrogram&lt; vertex_t &gt;::current_level</definition>
+        <argsstring>() const</argsstring>
+        <name>current_level</name>
+        <qualifiedname>cugraph::Dendrogram::current_level</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/dendrogram.hpp" line="39" column="10" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/dendrogram.hpp" bodystart="39" bodyend="39"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1Dendrogram_1a1b6523fbb39a51a04bd901ab2b362c0b" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>size_t</type>
+        <definition>size_t cugraph::Dendrogram&lt; vertex_t &gt;::num_levels</definition>
+        <argsstring>() const</argsstring>
+        <name>num_levels</name>
+        <qualifiedname>cugraph::Dendrogram::num_levels</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/dendrogram.hpp" line="41" column="10" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/dendrogram.hpp" bodystart="41" bodyend="41"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1Dendrogram_1ad8261fab3cbbf0e70eaf3d9864a3853f" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>vertex_t const *</type>
+        <definition>vertex_t const  * cugraph::Dendrogram&lt; vertex_t &gt;::get_level_ptr_nocheck</definition>
+        <argsstring>(size_t level) const</argsstring>
+        <name>get_level_ptr_nocheck</name>
+        <qualifiedname>cugraph::Dendrogram::get_level_ptr_nocheck</qualifiedname>
+        <param>
+          <type>size_t</type>
+          <declname>level</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/dendrogram.hpp" line="43" column="18" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/dendrogram.hpp" bodystart="43" bodyend="43"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1Dendrogram_1af317f33603c08c430923a2dc729c4406" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type>vertex_t *</type>
+        <definition>vertex_t * cugraph::Dendrogram&lt; vertex_t &gt;::get_level_ptr_nocheck</definition>
+        <argsstring>(size_t level)</argsstring>
+        <name>get_level_ptr_nocheck</name>
+        <qualifiedname>cugraph::Dendrogram::get_level_ptr_nocheck</qualifiedname>
+        <param>
+          <type>size_t</type>
+          <declname>level</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/dendrogram.hpp" line="45" column="12" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/dendrogram.hpp" bodystart="45" bodyend="45"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1Dendrogram_1a42222a72baecd31eff8045b3064a4c73" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>size_t</type>
+        <definition>size_t cugraph::Dendrogram&lt; vertex_t &gt;::get_level_size_nocheck</definition>
+        <argsstring>(size_t level) const</argsstring>
+        <name>get_level_size_nocheck</name>
+        <qualifiedname>cugraph::Dendrogram::get_level_size_nocheck</qualifiedname>
+        <param>
+          <type>size_t</type>
+          <declname>level</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/dendrogram.hpp" line="47" column="10" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/dendrogram.hpp" bodystart="47" bodyend="47"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1Dendrogram_1a88207fff2fce93e688b93edb8bb7a6a6" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>vertex_t</type>
+        <definition>vertex_t cugraph::Dendrogram&lt; vertex_t &gt;::get_level_first_index_nocheck</definition>
+        <argsstring>(size_t level) const</argsstring>
+        <name>get_level_first_index_nocheck</name>
+        <qualifiedname>cugraph::Dendrogram::get_level_first_index_nocheck</qualifiedname>
+        <param>
+          <type>size_t</type>
+          <declname>level</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/dendrogram.hpp" line="49" column="12" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/dendrogram.hpp" bodystart="49" bodyend="49"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1Dendrogram_1a5ae681331c9fd2b7c666e3b3a6199ec9" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>vertex_t const *</type>
+        <definition>vertex_t const  * cugraph::Dendrogram&lt; vertex_t &gt;::current_level_begin</definition>
+        <argsstring>() const</argsstring>
+        <name>current_level_begin</name>
+        <qualifiedname>cugraph::Dendrogram::current_level_begin</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/dendrogram.hpp" line="51" column="18" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/dendrogram.hpp" bodystart="51" bodyend="51"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1Dendrogram_1a6afe19fe7d3d1f496bfe9971e474a268" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>vertex_t const *</type>
+        <definition>vertex_t const  * cugraph::Dendrogram&lt; vertex_t &gt;::current_level_end</definition>
+        <argsstring>() const</argsstring>
+        <name>current_level_end</name>
+        <qualifiedname>cugraph::Dendrogram::current_level_end</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/dendrogram.hpp" line="53" column="18" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/dendrogram.hpp" bodystart="53" bodyend="53"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1Dendrogram_1af2d7190b615aad0ff92fc5d64008cd6a" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type>vertex_t *</type>
+        <definition>vertex_t * cugraph::Dendrogram&lt; vertex_t &gt;::current_level_begin</definition>
+        <argsstring>()</argsstring>
+        <name>current_level_begin</name>
+        <qualifiedname>cugraph::Dendrogram::current_level_begin</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/dendrogram.hpp" line="55" column="12" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/dendrogram.hpp" bodystart="55" bodyend="55"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1Dendrogram_1af350251e89a6ee666a53d08563e5c2be" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type>vertex_t *</type>
+        <definition>vertex_t * cugraph::Dendrogram&lt; vertex_t &gt;::current_level_end</definition>
+        <argsstring>()</argsstring>
+        <name>current_level_end</name>
+        <qualifiedname>cugraph::Dendrogram::current_level_end</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/dendrogram.hpp" line="57" column="12" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/dendrogram.hpp" bodystart="57" bodyend="57"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1Dendrogram_1ad52d45e228b4c4c580d0f811f85cf0e9" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>size_t</type>
+        <definition>size_t cugraph::Dendrogram&lt; vertex_t &gt;::current_level_size</definition>
+        <argsstring>() const</argsstring>
+        <name>current_level_size</name>
+        <qualifiedname>cugraph::Dendrogram::current_level_size</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/dendrogram.hpp" line="59" column="10" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/dendrogram.hpp" bodystart="59" bodyend="59"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1Dendrogram_1ad2e15be54d61ea89cf19c7e99b938d55" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>vertex_t</type>
+        <definition>vertex_t cugraph::Dendrogram&lt; vertex_t &gt;::current_level_first_index</definition>
+        <argsstring>() const</argsstring>
+        <name>current_level_first_index</name>
+        <qualifiedname>cugraph::Dendrogram::current_level_first_index</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/dendrogram.hpp" line="61" column="12" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/dendrogram.hpp" bodystart="61" bodyend="64"/>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/dendrogram.hpp" line="27" column="1" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/dendrogram.hpp" bodystart="27" bodyend="69"/>
+    <listofallmembers>
+      <member refid="classcugraph_1_1Dendrogram_1ae9d8ef36f5d02219daf5a9a203c88128" prot="public" virt="non-virtual"><scope>cugraph::Dendrogram</scope><name>add_level</name></member>
+      <member refid="classcugraph_1_1Dendrogram_1a484a6f2cedb0d4382a53b5d33de99c7f" prot="public" virt="non-virtual"><scope>cugraph::Dendrogram</scope><name>current_level</name></member>
+      <member refid="classcugraph_1_1Dendrogram_1a5ae681331c9fd2b7c666e3b3a6199ec9" prot="public" virt="non-virtual"><scope>cugraph::Dendrogram</scope><name>current_level_begin</name></member>
+      <member refid="classcugraph_1_1Dendrogram_1af2d7190b615aad0ff92fc5d64008cd6a" prot="public" virt="non-virtual"><scope>cugraph::Dendrogram</scope><name>current_level_begin</name></member>
+      <member refid="classcugraph_1_1Dendrogram_1a6afe19fe7d3d1f496bfe9971e474a268" prot="public" virt="non-virtual"><scope>cugraph::Dendrogram</scope><name>current_level_end</name></member>
+      <member refid="classcugraph_1_1Dendrogram_1af350251e89a6ee666a53d08563e5c2be" prot="public" virt="non-virtual"><scope>cugraph::Dendrogram</scope><name>current_level_end</name></member>
+      <member refid="classcugraph_1_1Dendrogram_1ad2e15be54d61ea89cf19c7e99b938d55" prot="public" virt="non-virtual"><scope>cugraph::Dendrogram</scope><name>current_level_first_index</name></member>
+      <member refid="classcugraph_1_1Dendrogram_1ad52d45e228b4c4c580d0f811f85cf0e9" prot="public" virt="non-virtual"><scope>cugraph::Dendrogram</scope><name>current_level_size</name></member>
+      <member refid="classcugraph_1_1Dendrogram_1a88207fff2fce93e688b93edb8bb7a6a6" prot="public" virt="non-virtual"><scope>cugraph::Dendrogram</scope><name>get_level_first_index_nocheck</name></member>
+      <member refid="classcugraph_1_1Dendrogram_1ad8261fab3cbbf0e70eaf3d9864a3853f" prot="public" virt="non-virtual"><scope>cugraph::Dendrogram</scope><name>get_level_ptr_nocheck</name></member>
+      <member refid="classcugraph_1_1Dendrogram_1af317f33603c08c430923a2dc729c4406" prot="public" virt="non-virtual"><scope>cugraph::Dendrogram</scope><name>get_level_ptr_nocheck</name></member>
+      <member refid="classcugraph_1_1Dendrogram_1a42222a72baecd31eff8045b3064a4c73" prot="public" virt="non-virtual"><scope>cugraph::Dendrogram</scope><name>get_level_size_nocheck</name></member>
+      <member refid="classcugraph_1_1Dendrogram_1ac2d725cf43f74652007e49a2fdab54bd" prot="private" virt="non-virtual"><scope>cugraph::Dendrogram</scope><name>level_first_index_</name></member>
+      <member refid="classcugraph_1_1Dendrogram_1acbbdefc387cd54739a44f4d6f98254b4" prot="private" virt="non-virtual"><scope>cugraph::Dendrogram</scope><name>level_ptr_</name></member>
+      <member refid="classcugraph_1_1Dendrogram_1a1b6523fbb39a51a04bd901ab2b362c0b" prot="public" virt="non-virtual"><scope>cugraph::Dendrogram</scope><name>num_levels</name></member>
+    </listofallmembers>
+  </compounddef>
+</doxygen>

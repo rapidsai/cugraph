@@ -1,0 +1,112 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="structcugraph_1_1detail_1_1compute__edge__partition__id__from__ext__edge__endpoints__t" kind="struct" language="C++" prot="public">
+    <compoundname>cugraph::detail::compute_edge_partition_id_from_ext_edge_endpoints_t</compoundname>
+    <templateparamlist>
+      <param>
+        <type>typename vertex_t</type>
+      </param>
+    </templateparamlist>
+    <sectiondef kind="public-attrib">
+      <memberdef kind="variable" id="structcugraph_1_1detail_1_1compute__edge__partition__id__from__ext__edge__endpoints__t_1ad9ff0efcd91a0812890e68706c6c9aab" prot="public" static="no" mutable="no">
+        <type>int</type>
+        <definition>int cugraph::detail::compute_edge_partition_id_from_ext_edge_endpoints_t&lt; vertex_t &gt;::comm_size</definition>
+        <argsstring></argsstring>
+        <name>comm_size</name>
+        <qualifiedname>cugraph::detail::compute_edge_partition_id_from_ext_edge_endpoints_t::comm_size</qualifiedname>
+        <initializer>{0}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/detail/graph_partition_utils.cuh" line="174" column="7" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/detail/graph_partition_utils.cuh" bodystart="174" bodyend="174"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph_1_1detail_1_1compute__edge__partition__id__from__ext__edge__endpoints__t_1ab76f89b343c729d81a36c344c1956553" prot="public" static="no" mutable="no">
+        <type>int</type>
+        <definition>int cugraph::detail::compute_edge_partition_id_from_ext_edge_endpoints_t&lt; vertex_t &gt;::major_comm_size</definition>
+        <argsstring></argsstring>
+        <name>major_comm_size</name>
+        <qualifiedname>cugraph::detail::compute_edge_partition_id_from_ext_edge_endpoints_t::major_comm_size</qualifiedname>
+        <initializer>{0}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/detail/graph_partition_utils.cuh" line="175" column="7" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/detail/graph_partition_utils.cuh" bodystart="175" bodyend="175"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph_1_1detail_1_1compute__edge__partition__id__from__ext__edge__endpoints__t_1a470d23558a90734bffdfdf50c0a25c88" prot="public" static="no" mutable="no">
+        <type>int</type>
+        <definition>int cugraph::detail::compute_edge_partition_id_from_ext_edge_endpoints_t&lt; vertex_t &gt;::minor_comm_size</definition>
+        <argsstring></argsstring>
+        <name>minor_comm_size</name>
+        <qualifiedname>cugraph::detail::compute_edge_partition_id_from_ext_edge_endpoints_t::minor_comm_size</qualifiedname>
+        <initializer>{0}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/detail/graph_partition_utils.cuh" line="176" column="7" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/detail/graph_partition_utils.cuh" bodystart="176" bodyend="176"/>
+      </memberdef>
+    </sectiondef>
+    <sectiondef kind="public-func">
+      <memberdef kind="function" id="structcugraph_1_1detail_1_1compute__edge__partition__id__from__ext__edge__endpoints__t_1a13f843f37749d0842677775d0cdb6ce8" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>__host__ __device__ int</type>
+        <definition>__host__ __device__ int cugraph::detail::compute_edge_partition_id_from_ext_edge_endpoints_t&lt; vertex_t &gt;::operator()</definition>
+        <argsstring>(vertex_t major, vertex_t minor) const</argsstring>
+        <name>operator()</name>
+        <qualifiedname>cugraph::detail::compute_edge_partition_id_from_ext_edge_endpoints_t::operator()</qualifiedname>
+        <param>
+          <type>vertex_t</type>
+          <declname>major</declname>
+        </param>
+        <param>
+          <type>vertex_t</type>
+          <declname>minor</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/detail/graph_partition_utils.cuh" line="178" column="27" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/detail/graph_partition_utils.cuh" bodystart="178" bodyend="183"/>
+      </memberdef>
+      <memberdef kind="function" id="structcugraph_1_1detail_1_1compute__edge__partition__id__from__ext__edge__endpoints__t_1aa1492bae9bd3656a6e6cba8aa0efe69a" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>__host__ __device__ int</type>
+        <definition>__host__ __device__ int cugraph::detail::compute_edge_partition_id_from_ext_edge_endpoints_t&lt; vertex_t &gt;::operator()</definition>
+        <argsstring>(thrust::tuple&lt; vertex_t, vertex_t &gt; pair) const</argsstring>
+        <name>operator()</name>
+        <qualifiedname>cugraph::detail::compute_edge_partition_id_from_ext_edge_endpoints_t::operator()</qualifiedname>
+        <param>
+          <type>thrust::tuple&lt; vertex_t, vertex_t &gt;</type>
+          <declname>pair</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/detail/graph_partition_utils.cuh" line="185" column="27" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/detail/graph_partition_utils.cuh" bodystart="185" bodyend="191"/>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/src/detail/graph_partition_utils.cuh" line="173" column="1" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/detail/graph_partition_utils.cuh" bodystart="173" bodyend="192"/>
+    <listofallmembers>
+      <member refid="structcugraph_1_1detail_1_1compute__edge__partition__id__from__ext__edge__endpoints__t_1ad9ff0efcd91a0812890e68706c6c9aab" prot="public" virt="non-virtual"><scope>cugraph::detail::compute_edge_partition_id_from_ext_edge_endpoints_t</scope><name>comm_size</name></member>
+      <member refid="structcugraph_1_1detail_1_1compute__edge__partition__id__from__ext__edge__endpoints__t_1ab76f89b343c729d81a36c344c1956553" prot="public" virt="non-virtual"><scope>cugraph::detail::compute_edge_partition_id_from_ext_edge_endpoints_t</scope><name>major_comm_size</name></member>
+      <member refid="structcugraph_1_1detail_1_1compute__edge__partition__id__from__ext__edge__endpoints__t_1a470d23558a90734bffdfdf50c0a25c88" prot="public" virt="non-virtual"><scope>cugraph::detail::compute_edge_partition_id_from_ext_edge_endpoints_t</scope><name>minor_comm_size</name></member>
+      <member refid="structcugraph_1_1detail_1_1compute__edge__partition__id__from__ext__edge__endpoints__t_1a13f843f37749d0842677775d0cdb6ce8" prot="public" virt="non-virtual"><scope>cugraph::detail::compute_edge_partition_id_from_ext_edge_endpoints_t</scope><name>operator()</name></member>
+      <member refid="structcugraph_1_1detail_1_1compute__edge__partition__id__from__ext__edge__endpoints__t_1aa1492bae9bd3656a6e6cba8aa0efe69a" prot="public" virt="non-virtual"><scope>cugraph::detail::compute_edge_partition_id_from_ext_edge_endpoints_t</scope><name>operator()</name></member>
+    </listofallmembers>
+  </compounddef>
+</doxygen>

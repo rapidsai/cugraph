@@ -1,0 +1,90 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="structcugraph_1_1detail_1_1minor__to__key__t" kind="struct" language="C++" prot="public">
+    <compoundname>cugraph::detail::minor_to_key_t</compoundname>
+    <templateparamlist>
+      <param>
+        <type>typename EdgePartitionDstKeyInputWrapper</type>
+      </param>
+    </templateparamlist>
+    <sectiondef kind="public-type">
+      <memberdef kind="typedef" id="structcugraph_1_1detail_1_1minor__to__key__t_1ac323f8a49788bc97d1b73cbffe42bd9c" prot="public" static="no">
+        <type>typename EdgePartitionDstKeyInputWrapper::value_type</type>
+        <definition>using cugraph::detail::minor_to_key_t&lt; EdgePartitionDstKeyInputWrapper &gt;::vertex_t =  typename EdgePartitionDstKeyInputWrapper::value_type</definition>
+        <argsstring></argsstring>
+        <name>vertex_t</name>
+        <qualifiedname>cugraph::detail::minor_to_key_t::vertex_t</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/per_v_transform_reduce_dst_key_aggregated_outgoing_e.cuh" line="69" column="3" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/per_v_transform_reduce_dst_key_aggregated_outgoing_e.cuh" bodystart="69" bodyend="-1"/>
+      </memberdef>
+    </sectiondef>
+    <sectiondef kind="public-attrib">
+      <memberdef kind="variable" id="structcugraph_1_1detail_1_1minor__to__key__t_1a17c5191797a8165815115a1f38272d30" prot="public" static="no" mutable="no">
+        <type>EdgePartitionDstKeyInputWrapper</type>
+        <definition>EdgePartitionDstKeyInputWrapper cugraph::detail::minor_to_key_t&lt; EdgePartitionDstKeyInputWrapper &gt;::edge_partition_dst_key_input</definition>
+        <argsstring></argsstring>
+        <name>edge_partition_dst_key_input</name>
+        <qualifiedname>cugraph::detail::minor_to_key_t::edge_partition_dst_key_input</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/per_v_transform_reduce_dst_key_aggregated_outgoing_e.cuh" line="70" column="35" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/per_v_transform_reduce_dst_key_aggregated_outgoing_e.cuh" bodystart="70" bodyend="70"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph_1_1detail_1_1minor__to__key__t_1ac8bf3697a7996d1b3c529b9808187784" prot="public" static="no" mutable="no">
+        <type>vertex_t</type>
+        <definition>vertex_t cugraph::detail::minor_to_key_t&lt; EdgePartitionDstKeyInputWrapper &gt;::minor_range_first</definition>
+        <argsstring></argsstring>
+        <name>minor_range_first</name>
+        <qualifiedname>cugraph::detail::minor_to_key_t::minor_range_first</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/per_v_transform_reduce_dst_key_aggregated_outgoing_e.cuh" line="71" column="12" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/per_v_transform_reduce_dst_key_aggregated_outgoing_e.cuh" bodystart="71" bodyend="71"/>
+      </memberdef>
+    </sectiondef>
+    <sectiondef kind="public-func">
+      <memberdef kind="function" id="structcugraph_1_1detail_1_1minor__to__key__t_1a7e69feba0e485deb2982bb4a21f2881b" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>__device__ vertex_t</type>
+        <definition>__device__ vertex_t cugraph::detail::minor_to_key_t&lt; EdgePartitionDstKeyInputWrapper &gt;::operator()</definition>
+        <argsstring>(vertex_t minor) const</argsstring>
+        <name>operator()</name>
+        <qualifiedname>cugraph::detail::minor_to_key_t::operator()</qualifiedname>
+        <param>
+          <type>vertex_t</type>
+          <declname>minor</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/per_v_transform_reduce_dst_key_aggregated_outgoing_e.cuh" line="72" column="23" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/per_v_transform_reduce_dst_key_aggregated_outgoing_e.cuh" bodystart="72" bodyend="75"/>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/per_v_transform_reduce_dst_key_aggregated_outgoing_e.cuh" line="68" column="1" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/per_v_transform_reduce_dst_key_aggregated_outgoing_e.cuh" bodystart="68" bodyend="76"/>
+    <listofallmembers>
+      <member refid="structcugraph_1_1detail_1_1minor__to__key__t_1a17c5191797a8165815115a1f38272d30" prot="public" virt="non-virtual"><scope>cugraph::detail::minor_to_key_t</scope><name>edge_partition_dst_key_input</name></member>
+      <member refid="structcugraph_1_1detail_1_1minor__to__key__t_1ac8bf3697a7996d1b3c529b9808187784" prot="public" virt="non-virtual"><scope>cugraph::detail::minor_to_key_t</scope><name>minor_range_first</name></member>
+      <member refid="structcugraph_1_1detail_1_1minor__to__key__t_1a7e69feba0e485deb2982bb4a21f2881b" prot="public" virt="non-virtual"><scope>cugraph::detail::minor_to_key_t</scope><name>operator()</name></member>
+      <member refid="structcugraph_1_1detail_1_1minor__to__key__t_1ac323f8a49788bc97d1b73cbffe42bd9c" prot="public" virt="non-virtual"><scope>cugraph::detail::minor_to_key_t</scope><name>vertex_t</name></member>
+    </listofallmembers>
+  </compounddef>
+</doxygen>

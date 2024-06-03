@@ -1,0 +1,30 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="structcugraph_1_1c__api_1_1cugraph__coo__list__t" kind="struct" language="C++" prot="public">
+    <compoundname>cugraph::c_api::cugraph_coo_list_t</compoundname>
+    <sectiondef kind="public-attrib">
+      <memberdef kind="variable" id="structcugraph_1_1c__api_1_1cugraph__coo__list__t_1ac792137ee299e08872b6043968eecbfc" prot="public" static="no" mutable="no">
+        <type>std::vector&lt; std::unique_ptr&lt; <ref refid="structcugraph_1_1c__api_1_1cugraph__coo__t" kindref="compound">cugraph_coo_t</ref> &gt; &gt;</type>
+        <definition>std::vector&lt;std::unique_ptr&lt;cugraph_coo_t&gt; &gt; cugraph::c_api::cugraph_coo_list_t::list_</definition>
+        <argsstring></argsstring>
+        <name>list_</name>
+        <qualifiedname>cugraph::c_api::cugraph_coo_list_t::list_</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/c_api/graph_generators.cpp" line="41" column="15" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/graph_generators.cpp" bodystart="41" bodyend="-1"/>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/src/c_api/graph_generators.cpp" line="40" column="1" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/graph_generators.cpp" bodystart="40" bodyend="42"/>
+    <listofallmembers>
+      <member refid="structcugraph_1_1c__api_1_1cugraph__coo__list__t_1ac792137ee299e08872b6043968eecbfc" prot="public" virt="non-virtual"><scope>cugraph::c_api::cugraph_coo_list_t</scope><name>list_</name></member>
+    </listofallmembers>
+  </compounddef>
+</doxygen>

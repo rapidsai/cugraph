@@ -1,0 +1,126 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="structcugraph_1_1detail_1_1leiden__key__aggregated__edge__op__t" kind="struct" language="C++" prot="public">
+    <compoundname>cugraph::detail::leiden_key_aggregated_edge_op_t</compoundname>
+    <templateparamlist>
+      <param>
+        <type>typename vertex_t</type>
+      </param>
+      <param>
+        <type>typename weight_t</type>
+      </param>
+      <param>
+        <type>typename cluster_value_t</type>
+      </param>
+    </templateparamlist>
+    <sectiondef kind="public-attrib">
+      <memberdef kind="variable" id="structcugraph_1_1detail_1_1leiden__key__aggregated__edge__op__t_1a51c9731ef9e398272c9a85e86623db1b" prot="public" static="no" mutable="no">
+        <type>weight_t</type>
+        <definition>weight_t cugraph::detail::leiden_key_aggregated_edge_op_t&lt; vertex_t, weight_t, cluster_value_t &gt;::total_edge_weight</definition>
+        <argsstring></argsstring>
+        <name>total_edge_weight</name>
+        <qualifiedname>cugraph::detail::leiden_key_aggregated_edge_op_t::total_edge_weight</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/community/detail/refine_impl.cuh" line="66" column="12" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/community/detail/refine_impl.cuh" bodystart="66" bodyend="66"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph_1_1detail_1_1leiden__key__aggregated__edge__op__t_1a7292c0d3b69f751d0c31ad0e042374a6" prot="public" static="no" mutable="no">
+        <type>weight_t</type>
+        <definition>weight_t cugraph::detail::leiden_key_aggregated_edge_op_t&lt; vertex_t, weight_t, cluster_value_t &gt;::resolution</definition>
+        <argsstring></argsstring>
+        <name>resolution</name>
+        <qualifiedname>cugraph::detail::leiden_key_aggregated_edge_op_t::resolution</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/community/detail/refine_impl.cuh" line="67" column="12" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/community/detail/refine_impl.cuh" bodystart="67" bodyend="67"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph_1_1detail_1_1leiden__key__aggregated__edge__op__t_1aadf9bd689e05ef37da44242a3fdfcb6b" prot="public" static="no" mutable="no">
+        <type>weight_t</type>
+        <definition>weight_t cugraph::detail::leiden_key_aggregated_edge_op_t&lt; vertex_t, weight_t, cluster_value_t &gt;::theta</definition>
+        <argsstring></argsstring>
+        <name>theta</name>
+        <qualifiedname>cugraph::detail::leiden_key_aggregated_edge_op_t::theta</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/community/detail/refine_impl.cuh" line="68" column="12" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/community/detail/refine_impl.cuh" bodystart="68" bodyend="68"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph_1_1detail_1_1leiden__key__aggregated__edge__op__t_1a160f96ef6a4efc25cc9d74150a8304c2" prot="public" static="no" mutable="no">
+        <type>raft::random::DeviceState&lt; raft::random::PCGenerator &gt; &amp;</type>
+        <definition>raft::random::DeviceState&lt;raft::random::PCGenerator&gt;&amp; cugraph::detail::leiden_key_aggregated_edge_op_t&lt; vertex_t, weight_t, cluster_value_t &gt;::device_state</definition>
+        <argsstring></argsstring>
+        <name>device_state</name>
+        <qualifiedname>cugraph::detail::leiden_key_aggregated_edge_op_t::device_state</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/community/detail/refine_impl.cuh" line="69" column="29" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/community/detail/refine_impl.cuh" bodystart="69" bodyend="-1"/>
+      </memberdef>
+    </sectiondef>
+    <sectiondef kind="public-func">
+      <memberdef kind="function" id="structcugraph_1_1detail_1_1leiden__key__aggregated__edge__op__t_1a37ef6a68d1f9ffeac3369277db838aa0" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>__device__ auto</type>
+        <definition>__device__ auto cugraph::detail::leiden_key_aggregated_edge_op_t&lt; vertex_t, weight_t, cluster_value_t &gt;::operator()</definition>
+        <argsstring>(vertex_t src, vertex_t neighboring_leiden_cluster, thrust::tuple&lt; weight_t, weight_t, weight_t, uint8_t, vertex_t, vertex_t &gt; src_info, cluster_value_t keyed_data, weight_t aggregated_weight_to_neighboring_leiden_cluster) const</argsstring>
+        <name>operator()</name>
+        <qualifiedname>cugraph::detail::leiden_key_aggregated_edge_op_t::operator()</qualifiedname>
+        <param>
+          <type>vertex_t</type>
+          <declname>src</declname>
+        </param>
+        <param>
+          <type>vertex_t</type>
+          <declname>neighboring_leiden_cluster</declname>
+        </param>
+        <param>
+          <type>thrust::tuple&lt; weight_t, weight_t, weight_t, uint8_t, vertex_t, vertex_t &gt;</type>
+          <declname>src_info</declname>
+        </param>
+        <param>
+          <type>cluster_value_t</type>
+          <declname>keyed_data</declname>
+        </param>
+        <param>
+          <type>weight_t</type>
+          <declname>aggregated_weight_to_neighboring_leiden_cluster</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/community/detail/refine_impl.cuh" line="70" column="19" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/community/detail/refine_impl.cuh" bodystart="70" bodyend="129"/>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/src/community/detail/refine_impl.cuh" line="65" column="1" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/community/detail/refine_impl.cuh" bodystart="65" bodyend="130"/>
+    <listofallmembers>
+      <member refid="structcugraph_1_1detail_1_1leiden__key__aggregated__edge__op__t_1a160f96ef6a4efc25cc9d74150a8304c2" prot="public" virt="non-virtual"><scope>cugraph::detail::leiden_key_aggregated_edge_op_t</scope><name>device_state</name></member>
+      <member refid="structcugraph_1_1detail_1_1leiden__key__aggregated__edge__op__t_1a37ef6a68d1f9ffeac3369277db838aa0" prot="public" virt="non-virtual"><scope>cugraph::detail::leiden_key_aggregated_edge_op_t</scope><name>operator()</name></member>
+      <member refid="structcugraph_1_1detail_1_1leiden__key__aggregated__edge__op__t_1a7292c0d3b69f751d0c31ad0e042374a6" prot="public" virt="non-virtual"><scope>cugraph::detail::leiden_key_aggregated_edge_op_t</scope><name>resolution</name></member>
+      <member refid="structcugraph_1_1detail_1_1leiden__key__aggregated__edge__op__t_1aadf9bd689e05ef37da44242a3fdfcb6b" prot="public" virt="non-virtual"><scope>cugraph::detail::leiden_key_aggregated_edge_op_t</scope><name>theta</name></member>
+      <member refid="structcugraph_1_1detail_1_1leiden__key__aggregated__edge__op__t_1a51c9731ef9e398272c9a85e86623db1b" prot="public" virt="non-virtual"><scope>cugraph::detail::leiden_key_aggregated_edge_op_t</scope><name>total_edge_weight</name></member>
+    </listofallmembers>
+  </compounddef>
+</doxygen>

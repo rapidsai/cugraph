@@ -1,0 +1,238 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="namespacecugraph_1_1mtmg" kind="namespace" language="C++">
+    <compoundname>cugraph::mtmg</compoundname>
+    <innerclass refid="classcugraph_1_1mtmg_1_1edge__property__t" prot="public">cugraph::mtmg::edge_property_t</innerclass>
+    <innerclass refid="classcugraph_1_1mtmg_1_1edgelist__t" prot="public">cugraph::mtmg::edgelist_t</innerclass>
+    <innerclass refid="classcugraph_1_1mtmg_1_1graph__t" prot="public">cugraph::mtmg::graph_t</innerclass>
+    <innerclass refid="classcugraph_1_1mtmg_1_1graph__view__t" prot="public">cugraph::mtmg::graph_view_t</innerclass>
+    <innerclass refid="classcugraph_1_1mtmg_1_1handle__t" prot="public">cugraph::mtmg::handle_t</innerclass>
+    <innerclass refid="classcugraph_1_1mtmg_1_1instance__manager__t" prot="public">cugraph::mtmg::instance_manager_t</innerclass>
+    <innerclass refid="classcugraph_1_1mtmg_1_1per__thread__edgelist__t" prot="public">cugraph::mtmg::per_thread_edgelist_t</innerclass>
+    <innerclass refid="classcugraph_1_1mtmg_1_1renumber__map__t" prot="public">cugraph::mtmg::renumber_map_t</innerclass>
+    <innerclass refid="classcugraph_1_1mtmg_1_1resource__manager__t" prot="public">cugraph::mtmg::resource_manager_t</innerclass>
+    <innerclass refid="classcugraph_1_1mtmg_1_1vertex__pair__result__t" prot="public">cugraph::mtmg::vertex_pair_result_t</innerclass>
+    <innerclass refid="classcugraph_1_1mtmg_1_1vertex__pair__result__view__t" prot="public">cugraph::mtmg::vertex_pair_result_view_t</innerclass>
+    <innerclass refid="classcugraph_1_1mtmg_1_1vertex__result__t" prot="public">cugraph::mtmg::vertex_result_t</innerclass>
+    <innerclass refid="classcugraph_1_1mtmg_1_1vertex__result__view__t" prot="public">cugraph::mtmg::vertex_result_view_t</innerclass>
+    <innernamespace refid="namespacecugraph_1_1mtmg_1_1detail">cugraph::mtmg::detail</innernamespace>
+    <sectiondef kind="typedef">
+      <memberdef kind="typedef" id="edge__property__view_8hpp_1afcab9df8e5e4d3e45e3e086afe5ea772" prot="public" static="no">
+        <templateparamlist>
+          <param>
+            <type>typename edge_t</type>
+          </param>
+          <param>
+            <type>typename value_iterator_t</type>
+          </param>
+        </templateparamlist>
+        <type><ref refid="classcugraph_1_1mtmg_1_1detail_1_1device__shared__wrapper__t" kindref="compound">detail::device_shared_wrapper_t</ref>&lt; <ref refid="classcugraph_1_1edge__property__view__t" kindref="compound">cugraph::edge_property_view_t</ref>&lt; edge_t, value_iterator_t &gt; &gt;</type>
+        <definition>using cugraph::mtmg::edge_property_view_t = 
+  detail::device_shared_wrapper_t&lt;cugraph::edge_property_view_t&lt;edge_t, value_iterator_t&gt;&gt;</definition>
+        <argsstring></argsstring>
+        <name>edge_property_view_t</name>
+        <qualifiedname>cugraph::mtmg::edge_property_view_t</qualifiedname>
+        <briefdescription>
+<para>Edge property object for each GPU. </para>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/edge_property_view.hpp" line="28" column="1" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/edge_property_view.hpp" bodystart="28" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="typedef" id="renumber__map__view_8hpp_1a73a026e084786a1544362a33221cfeab" prot="public" static="no">
+        <templateparamlist>
+          <param>
+            <type>typename vertex_t</type>
+          </param>
+        </templateparamlist>
+        <type><ref refid="classcugraph_1_1mtmg_1_1detail_1_1device__shared__wrapper__t" kindref="compound">detail::device_shared_device_span_t</ref>&lt; vertex_t const  &gt;</type>
+        <definition>using cugraph::mtmg::renumber_map_view_t =  detail::device_shared_device_span_t&lt;vertex_t const&gt;</definition>
+        <argsstring></argsstring>
+        <name>renumber_map_view_t</name>
+        <qualifiedname>cugraph::mtmg::renumber_map_view_t</qualifiedname>
+        <briefdescription>
+<para>An MTMG device span for storing a renumber map. </para>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/renumber_map_view.hpp" line="29" column="1" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/renumber_map_view.hpp" bodystart="29" bodyend="-1"/>
+      </memberdef>
+    </sectiondef>
+    <sectiondef kind="func">
+      <memberdef kind="function" id="include_2cugraph_2mtmg_2graph_8hpp_1aef2b23d8b4ffe666755d37b2f38cd976" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <templateparamlist>
+          <param>
+            <type>typename vertex_t</type>
+          </param>
+          <param>
+            <type>typename edge_t</type>
+          </param>
+          <param>
+            <type>typename weight_t</type>
+          </param>
+          <param>
+            <type>typename edge_id_t</type>
+          </param>
+          <param>
+            <type>typename edge_type_t</type>
+          </param>
+          <param>
+            <type>bool</type>
+            <declname>store_transposed</declname>
+            <defname>store_transposed</defname>
+          </param>
+          <param>
+            <type>bool</type>
+            <declname>multi_gpu</declname>
+            <defname>multi_gpu</defname>
+          </param>
+        </templateparamlist>
+        <type>void</type>
+        <definition>void cugraph::mtmg::create_graph_from_edgelist</definition>
+        <argsstring>(handle_t const &amp;handle, cugraph::mtmg::edgelist_t&lt; vertex_t, weight_t, edge_id_t, edge_type_t &gt; &amp;edgelist, graph_properties_t graph_properties, bool renumber, cugraph::mtmg::graph_t&lt; vertex_t, edge_t, store_transposed, multi_gpu &gt; &amp;graph, std::optional&lt; cugraph::mtmg::edge_property_t&lt; cugraph::mtmg::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu &gt;, weight_t &gt; &gt; &amp;edge_weights, std::optional&lt; cugraph::mtmg::edge_property_t&lt; cugraph::mtmg::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu &gt;, edge_id_t &gt; &gt; &amp;edge_ids, std::optional&lt; cugraph::mtmg::edge_property_t&lt; cugraph::mtmg::graph_view_t&lt; vertex_t, edge_t, store_transposed, multi_gpu &gt;, edge_type_t &gt; &gt; &amp;edge_types, std::optional&lt; cugraph::mtmg::renumber_map_t&lt; vertex_t &gt; &gt; &amp;renumber_map, bool do_expensive_check=false)</argsstring>
+        <name>create_graph_from_edgelist</name>
+        <qualifiedname>cugraph::mtmg::create_graph_from_edgelist</qualifiedname>
+        <param>
+          <type><ref refid="classcugraph_1_1mtmg_1_1handle__t" kindref="compound">handle_t</ref> const &amp;</type>
+          <declname>handle</declname>
+        </param>
+        <param>
+          <type><ref refid="classcugraph_1_1mtmg_1_1edgelist__t" kindref="compound">cugraph::mtmg::edgelist_t</ref>&lt; vertex_t, weight_t, edge_id_t, edge_type_t &gt; &amp;</type>
+          <declname>edgelist</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph_1_1graph__properties__t" kindref="compound">graph_properties_t</ref></type>
+          <declname>graph_properties</declname>
+        </param>
+        <param>
+          <type>bool</type>
+          <declname>renumber</declname>
+        </param>
+        <param>
+          <type><ref refid="classcugraph_1_1mtmg_1_1graph__t" kindref="compound">cugraph::mtmg::graph_t</ref>&lt; vertex_t, edge_t, store_transposed, multi_gpu &gt; &amp;</type>
+          <declname>graph</declname>
+        </param>
+        <param>
+          <type>std::optional&lt; <ref refid="classcugraph_1_1mtmg_1_1edge__property__t" kindref="compound">cugraph::mtmg::edge_property_t</ref>&lt; <ref refid="classcugraph_1_1mtmg_1_1graph__view__t" kindref="compound">cugraph::mtmg::graph_view_t</ref>&lt; vertex_t, edge_t, store_transposed, multi_gpu &gt;, weight_t &gt; &gt; &amp;</type>
+          <declname>edge_weights</declname>
+        </param>
+        <param>
+          <type>std::optional&lt; <ref refid="classcugraph_1_1mtmg_1_1edge__property__t" kindref="compound">cugraph::mtmg::edge_property_t</ref>&lt; <ref refid="classcugraph_1_1mtmg_1_1graph__view__t" kindref="compound">cugraph::mtmg::graph_view_t</ref>&lt; vertex_t, edge_t, store_transposed, multi_gpu &gt;, edge_id_t &gt; &gt; &amp;</type>
+          <declname>edge_ids</declname>
+        </param>
+        <param>
+          <type>std::optional&lt; <ref refid="classcugraph_1_1mtmg_1_1edge__property__t" kindref="compound">cugraph::mtmg::edge_property_t</ref>&lt; <ref refid="classcugraph_1_1mtmg_1_1graph__view__t" kindref="compound">cugraph::mtmg::graph_view_t</ref>&lt; vertex_t, edge_t, store_transposed, multi_gpu &gt;, edge_type_t &gt; &gt; &amp;</type>
+          <declname>edge_types</declname>
+        </param>
+        <param>
+          <type>std::optional&lt; <ref refid="classcugraph_1_1mtmg_1_1renumber__map__t" kindref="compound">cugraph::mtmg::renumber_map_t</ref>&lt; vertex_t &gt; &gt; &amp;</type>
+          <declname>renumber_map</declname>
+        </param>
+        <param>
+          <type>bool</type>
+          <declname>do_expensive_check</declname>
+          <defval>false</defval>
+        </param>
+        <briefdescription>
+<para>Create an MTMG graph from an edgelist. </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">handle</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Resource handle </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">edgelist</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Edgelist </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">graph_properties</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Graph properties </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">renumber</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>If true, renumber graph (must be true for MG) </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="out">graph</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>MTMG graph is stored here </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="out">edge_weights</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>MTMG edge weights is stored here </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="out">edge_ids</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>MTMG edge ids is stored here </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="out">edge_types</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>MTMG edge types is stored here </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">renumber_map</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>MTMG renumber_map is stored here </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">do_expensive_check</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>A flag to run expensive checks for input arguments (if set to <computeroutput>true</computeroutput>). </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/graph.hpp" line="77" column="6" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/graph.hpp" bodystart="77" bodyend="133"/>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/src/mtmg/vertex_pairs_result.cu" line="28" column="1"/>
+  </compounddef>
+</doxygen>

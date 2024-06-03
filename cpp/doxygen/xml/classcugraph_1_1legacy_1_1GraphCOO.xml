@@ -1,0 +1,408 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="classcugraph_1_1legacy_1_1GraphCOO" kind="class" language="C++" prot="public">
+    <compoundname>cugraph::legacy::GraphCOO</compoundname>
+    <includes refid="include_2cugraph_2legacy_2graph_8hpp" local="no">graph.hpp</includes>
+    <templateparamlist>
+      <param>
+        <type><ref refid="classcugraph_1_1legacy_1_1GraphCSRView" kindref="compound">typename</ref> vertex_t</type>
+      </param>
+      <param>
+        <type><ref refid="classcugraph_1_1legacy_1_1GraphCSRView" kindref="compound">typename</ref> edge_t</type>
+      </param>
+      <param>
+        <type><ref refid="classcugraph_1_1legacy_1_1GraphCSRView" kindref="compound">typename</ref> weight_t</type>
+      </param>
+    </templateparamlist>
+    <sectiondef kind="private-attrib">
+      <memberdef kind="variable" id="classcugraph_1_1legacy_1_1GraphCOO_1a3e6ca2a2ca19ec04780dd92d5cf584e2" prot="private" static="no" mutable="no">
+        <type>vertex_t</type>
+        <definition>vertex_t cugraph::legacy::GraphCOO&lt; vertex_t, edge_t, weight_t &gt;::number_of_vertices_p</definition>
+        <argsstring></argsstring>
+        <name>number_of_vertices_p</name>
+        <qualifiedname>cugraph::legacy::GraphCOO::number_of_vertices_p</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/legacy/graph.hpp" line="335" column="12" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/legacy/graph.hpp" bodystart="335" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="variable" id="classcugraph_1_1legacy_1_1GraphCOO_1a8fab6141d4d706d6236f1939f224c7fc" prot="private" static="no" mutable="no">
+        <type>edge_t</type>
+        <definition>edge_t cugraph::legacy::GraphCOO&lt; vertex_t, edge_t, weight_t &gt;::number_of_edges_p</definition>
+        <argsstring></argsstring>
+        <name>number_of_edges_p</name>
+        <qualifiedname>cugraph::legacy::GraphCOO::number_of_edges_p</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/legacy/graph.hpp" line="336" column="10" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/legacy/graph.hpp" bodystart="336" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="variable" id="classcugraph_1_1legacy_1_1GraphCOO_1ab94b5c6acb03beb829bba1b69c420a1d" prot="private" static="no" mutable="no">
+        <type>rmm::device_buffer</type>
+        <definition>rmm::device_buffer cugraph::legacy::GraphCOO&lt; vertex_t, edge_t, weight_t &gt;::src_indices_p</definition>
+        <argsstring></argsstring>
+        <name>src_indices_p</name>
+        <qualifiedname>cugraph::legacy::GraphCOO::src_indices_p</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+<para>rowInd </para>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/legacy/graph.hpp" line="337" column="22" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/legacy/graph.hpp" bodystart="337" bodyend="337"/>
+      </memberdef>
+      <memberdef kind="variable" id="classcugraph_1_1legacy_1_1GraphCOO_1abde0e6ea4f24dec1bfd851eb47675162" prot="private" static="no" mutable="no">
+        <type>rmm::device_buffer</type>
+        <definition>rmm::device_buffer cugraph::legacy::GraphCOO&lt; vertex_t, edge_t, weight_t &gt;::dst_indices_p</definition>
+        <argsstring></argsstring>
+        <name>dst_indices_p</name>
+        <qualifiedname>cugraph::legacy::GraphCOO::dst_indices_p</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+<para>colInd </para>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/legacy/graph.hpp" line="338" column="22" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/legacy/graph.hpp" bodystart="338" bodyend="338"/>
+      </memberdef>
+      <memberdef kind="variable" id="classcugraph_1_1legacy_1_1GraphCOO_1a2e94c9d46f9486009861a96222edcc8e" prot="private" static="no" mutable="no">
+        <type>rmm::device_buffer</type>
+        <definition>rmm::device_buffer cugraph::legacy::GraphCOO&lt; vertex_t, edge_t, weight_t &gt;::edge_data_p</definition>
+        <argsstring></argsstring>
+        <name>edge_data_p</name>
+        <qualifiedname>cugraph::legacy::GraphCOO::edge_data_p</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+<para>data </para>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/legacy/graph.hpp" line="339" column="22" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/legacy/graph.hpp" bodystart="339" bodyend="339"/>
+      </memberdef>
+    </sectiondef>
+    <sectiondef kind="public-func">
+      <memberdef kind="function" id="classcugraph_1_1legacy_1_1GraphCOO_1ad8eca456d7e9aabdde0ea8660a443189" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type></type>
+        <definition>cugraph::legacy::GraphCOO&lt; vertex_t, edge_t, weight_t &gt;::GraphCOO</definition>
+        <argsstring>(vertex_t number_of_vertices, edge_t number_of_edges, bool has_data=false, cudaStream_t stream=nullptr, rmm::device_async_resource_ref mr=rmm::mr::get_current_device_resource())</argsstring>
+        <name>GraphCOO</name>
+        <qualifiedname>cugraph::legacy::GraphCOO::GraphCOO</qualifiedname>
+        <param>
+          <type>vertex_t</type>
+          <declname>number_of_vertices</declname>
+        </param>
+        <param>
+          <type>edge_t</type>
+          <declname>number_of_edges</declname>
+        </param>
+        <param>
+          <type><ref refid="classcugraph_1_1legacy_1_1GraphCSRView" kindref="compound">bool</ref></type>
+          <declname>has_data</declname>
+          <defval><ref refid="classcugraph_1_1legacy_1_1GraphCSRView" kindref="compound">false</ref></defval>
+        </param>
+        <param>
+          <type><ref refid="classcugraph_1_1legacy_1_1GraphCSRView" kindref="compound">cudaStream_t</ref></type>
+          <declname>stream</declname>
+          <defval><ref refid="classcugraph_1_1legacy_1_1GraphCSRView" kindref="compound">nullptr</ref></defval>
+        </param>
+        <param>
+          <type>rmm::device_async_resource_ref</type>
+          <declname>mr</declname>
+          <defval>rmm::mr::get_current_device_resource()</defval>
+        </param>
+        <briefdescription>
+<para>Take ownership of the provided graph arrays in COO format. </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername>number_of_vertices</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>The number of vertices in the graph </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>number_of_edges</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>The number of edges in the graph </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>has_data</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Whether or not the class has data, default = False </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>stream</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Specify the cudaStream, default = null </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>mr</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Specify the memory resource </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/legacy/graph.hpp" line="351" column="3" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/legacy/graph.hpp" bodystart="351" bodyend="362"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1legacy_1_1GraphCOO_1a831ca8610b4f1fbcc675b79f180574aa" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type></type>
+        <definition>cugraph::legacy::GraphCOO&lt; vertex_t, edge_t, weight_t &gt;::GraphCOO</definition>
+        <argsstring>(GraphCOOView&lt; vertex_t, edge_t, weight_t &gt; const &amp;graph, cudaStream_t stream=nullptr, rmm::device_async_resource_ref mr=rmm::mr::get_current_device_resource())</argsstring>
+        <name>GraphCOO</name>
+        <qualifiedname>cugraph::legacy::GraphCOO::GraphCOO</qualifiedname>
+        <param>
+          <type><ref refid="classcugraph_1_1legacy_1_1GraphCOOView" kindref="compound">GraphCOOView</ref>&lt; vertex_t, edge_t, weight_t &gt; <ref refid="classcugraph_1_1legacy_1_1GraphCSRView" kindref="compound">const</ref> &amp;</type>
+          <declname>graph</declname>
+        </param>
+        <param>
+          <type><ref refid="classcugraph_1_1legacy_1_1GraphCSRView" kindref="compound">cudaStream_t</ref></type>
+          <declname>stream</declname>
+          <defval><ref refid="classcugraph_1_1legacy_1_1GraphCSRView" kindref="compound">nullptr</ref></defval>
+        </param>
+        <param>
+          <type>rmm::device_async_resource_ref</type>
+          <declname>mr</declname>
+          <defval>rmm::mr::get_current_device_resource()</defval>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/legacy/graph.hpp" line="364" column="3" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/legacy/graph.hpp" bodystart="364" bodyend="376"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1legacy_1_1GraphCOO_1a329a12ff368996b4478a1edc2c53ecf4" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type></type>
+        <definition>cugraph::legacy::GraphCOO&lt; vertex_t, edge_t, weight_t &gt;::GraphCOO</definition>
+        <argsstring>(GraphCOOContents&lt; vertex_t, edge_t, weight_t &gt; &amp;&amp;contents)</argsstring>
+        <name>GraphCOO</name>
+        <qualifiedname>cugraph::legacy::GraphCOO::GraphCOO</qualifiedname>
+        <param>
+          <type><ref refid="structcugraph_1_1legacy_1_1GraphCOOContents" kindref="compound">GraphCOOContents</ref>&lt; vertex_t, edge_t, weight_t &gt; &amp;&amp;</type>
+          <declname>contents</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/legacy/graph.hpp" line="377" column="3" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/legacy/graph.hpp" bodystart="377" bodyend="384"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1legacy_1_1GraphCOO_1a4107bfab7aa8b4a705becedb5f3e4625" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type>vertex_t</type>
+        <definition>vertex_t cugraph::legacy::GraphCOO&lt; vertex_t, edge_t, weight_t &gt;::number_of_vertices</definition>
+        <argsstring>(void)</argsstring>
+        <name>number_of_vertices</name>
+        <qualifiedname>cugraph::legacy::GraphCOO::number_of_vertices</qualifiedname>
+        <param>
+          <type><ref refid="classcugraph_1_1legacy_1_1GraphCSRView" kindref="compound">void</ref></type>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/legacy/graph.hpp" line="386" column="12" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/legacy/graph.hpp" bodystart="386" bodyend="386"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1legacy_1_1GraphCOO_1aa1d3de71cfa43905380ed661bff365d9" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type>edge_t</type>
+        <definition>edge_t cugraph::legacy::GraphCOO&lt; vertex_t, edge_t, weight_t &gt;::number_of_edges</definition>
+        <argsstring>(void)</argsstring>
+        <name>number_of_edges</name>
+        <qualifiedname>cugraph::legacy::GraphCOO::number_of_edges</qualifiedname>
+        <param>
+          <type><ref refid="classcugraph_1_1legacy_1_1GraphCSRView" kindref="compound">void</ref></type>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/legacy/graph.hpp" line="387" column="10" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/legacy/graph.hpp" bodystart="387" bodyend="387"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1legacy_1_1GraphCOO_1a175bda3b47e36393b9903aa8be1b45cf" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type>vertex_t *</type>
+        <definition>vertex_t * cugraph::legacy::GraphCOO&lt; vertex_t, edge_t, weight_t &gt;::src_indices</definition>
+        <argsstring>(void)</argsstring>
+        <name>src_indices</name>
+        <qualifiedname>cugraph::legacy::GraphCOO::src_indices</qualifiedname>
+        <param>
+          <type><ref refid="classcugraph_1_1legacy_1_1GraphCSRView" kindref="compound">void</ref></type>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/legacy/graph.hpp" line="388" column="12" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/legacy/graph.hpp" bodystart="388" bodyend="388"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1legacy_1_1GraphCOO_1a9a7a44fc5e579f88352b335a2762f446" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type>vertex_t *</type>
+        <definition>vertex_t * cugraph::legacy::GraphCOO&lt; vertex_t, edge_t, weight_t &gt;::dst_indices</definition>
+        <argsstring>(void)</argsstring>
+        <name>dst_indices</name>
+        <qualifiedname>cugraph::legacy::GraphCOO::dst_indices</qualifiedname>
+        <param>
+          <type><ref refid="classcugraph_1_1legacy_1_1GraphCSRView" kindref="compound">void</ref></type>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/legacy/graph.hpp" line="389" column="12" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/legacy/graph.hpp" bodystart="389" bodyend="389"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1legacy_1_1GraphCOO_1a479972041a69a0e92a3f2dd24f0c0384" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type>weight_t *</type>
+        <definition>weight_t * cugraph::legacy::GraphCOO&lt; vertex_t, edge_t, weight_t &gt;::edge_data</definition>
+        <argsstring>(void)</argsstring>
+        <name>edge_data</name>
+        <qualifiedname>cugraph::legacy::GraphCOO::edge_data</qualifiedname>
+        <param>
+          <type><ref refid="classcugraph_1_1legacy_1_1GraphCSRView" kindref="compound">void</ref></type>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/legacy/graph.hpp" line="390" column="12" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/legacy/graph.hpp" bodystart="390" bodyend="390"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1legacy_1_1GraphCOO_1af071d8d2551c143b3296e0ee24c471ab" prot="public" static="no" const="no" explicit="no" inline="yes" noexcept="yes" virt="non-virtual">
+        <type><ref refid="structcugraph_1_1legacy_1_1GraphCOOContents" kindref="compound">GraphCOOContents</ref>&lt; vertex_t, edge_t, weight_t &gt;</type>
+        <definition>GraphCOOContents&lt; vertex_t, edge_t, weight_t &gt; cugraph::legacy::GraphCOO&lt; vertex_t, edge_t, weight_t &gt;::release</definition>
+        <argsstring>() noexcept</argsstring>
+        <name>release</name>
+        <qualifiedname>cugraph::legacy::GraphCOO::release</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/legacy/graph.hpp" line="392" column="20" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/legacy/graph.hpp" bodystart="392" bodyend="404"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1legacy_1_1GraphCOO_1ad8670eae8245b9e6fb0be22146d2a05d" prot="public" static="no" const="no" explicit="no" inline="yes" noexcept="yes" virt="non-virtual">
+        <type><ref refid="classcugraph_1_1legacy_1_1GraphCOOView" kindref="compound">GraphCOOView</ref>&lt; vertex_t, edge_t, weight_t &gt;</type>
+        <definition>GraphCOOView&lt; vertex_t, edge_t, weight_t &gt; cugraph::legacy::GraphCOO&lt; vertex_t, edge_t, weight_t &gt;::view</definition>
+        <argsstring>(void) noexcept</argsstring>
+        <name>view</name>
+        <qualifiedname>cugraph::legacy::GraphCOO::view</qualifiedname>
+        <param>
+          <type><ref refid="classcugraph_1_1legacy_1_1GraphCSRView" kindref="compound">void</ref></type>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/legacy/graph.hpp" line="406" column="16" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/legacy/graph.hpp" bodystart="406" bodyend="410"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1legacy_1_1GraphCOO_1afce9cc3e292ed8f584988441d78cb84c" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type><ref refid="classcugraph_1_1legacy_1_1GraphCSRView" kindref="compound">bool</ref></type>
+        <definition>bool cugraph::legacy::GraphCOO&lt; vertex_t, edge_t, weight_t &gt;::has_data</definition>
+        <argsstring>(void)</argsstring>
+        <name>has_data</name>
+        <qualifiedname>cugraph::legacy::GraphCOO::has_data</qualifiedname>
+        <param>
+          <type><ref refid="classcugraph_1_1legacy_1_1GraphCSRView" kindref="compound">void</ref></type>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/legacy/graph.hpp" line="412" column="8" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/legacy/graph.hpp" bodystart="412" bodyend="412"/>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+<para>A constructed graph stored in COO (COOrdinate) format. </para>
+    </briefdescription>
+    <detaileddescription>
+<para>This class will src_indices and dst_indicies (until moved)</para>
+<para><parameterlist kind="templateparam"><parameteritem>
+<parameternamelist>
+<parametername>vertex_t</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Type of vertex id </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>edge_t</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Type of edge id </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>weight_t</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Type of weight </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+</para>
+    </detaileddescription>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/legacy/graph.hpp" line="334" column="1" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/legacy/graph.hpp" bodystart="334" bodyend="413"/>
+    <listofallmembers>
+      <member refid="classcugraph_1_1legacy_1_1GraphCOO_1a9a7a44fc5e579f88352b335a2762f446" prot="public" virt="non-virtual"><scope>cugraph::legacy::GraphCOO</scope><name>dst_indices</name></member>
+      <member refid="classcugraph_1_1legacy_1_1GraphCOO_1abde0e6ea4f24dec1bfd851eb47675162" prot="private" virt="non-virtual"><scope>cugraph::legacy::GraphCOO</scope><name>dst_indices_p</name></member>
+      <member refid="classcugraph_1_1legacy_1_1GraphCOO_1a479972041a69a0e92a3f2dd24f0c0384" prot="public" virt="non-virtual"><scope>cugraph::legacy::GraphCOO</scope><name>edge_data</name></member>
+      <member refid="classcugraph_1_1legacy_1_1GraphCOO_1a2e94c9d46f9486009861a96222edcc8e" prot="private" virt="non-virtual"><scope>cugraph::legacy::GraphCOO</scope><name>edge_data_p</name></member>
+      <member refid="classcugraph_1_1legacy_1_1GraphCOO_1ad8eca456d7e9aabdde0ea8660a443189" prot="public" virt="non-virtual"><scope>cugraph::legacy::GraphCOO</scope><name>GraphCOO</name></member>
+      <member refid="classcugraph_1_1legacy_1_1GraphCOO_1a831ca8610b4f1fbcc675b79f180574aa" prot="public" virt="non-virtual"><scope>cugraph::legacy::GraphCOO</scope><name>GraphCOO</name></member>
+      <member refid="classcugraph_1_1legacy_1_1GraphCOO_1a329a12ff368996b4478a1edc2c53ecf4" prot="public" virt="non-virtual"><scope>cugraph::legacy::GraphCOO</scope><name>GraphCOO</name></member>
+      <member refid="classcugraph_1_1legacy_1_1GraphCOO_1afce9cc3e292ed8f584988441d78cb84c" prot="public" virt="non-virtual"><scope>cugraph::legacy::GraphCOO</scope><name>has_data</name></member>
+      <member refid="classcugraph_1_1legacy_1_1GraphCOO_1aa1d3de71cfa43905380ed661bff365d9" prot="public" virt="non-virtual"><scope>cugraph::legacy::GraphCOO</scope><name>number_of_edges</name></member>
+      <member refid="classcugraph_1_1legacy_1_1GraphCOO_1a8fab6141d4d706d6236f1939f224c7fc" prot="private" virt="non-virtual"><scope>cugraph::legacy::GraphCOO</scope><name>number_of_edges_p</name></member>
+      <member refid="classcugraph_1_1legacy_1_1GraphCOO_1a4107bfab7aa8b4a705becedb5f3e4625" prot="public" virt="non-virtual"><scope>cugraph::legacy::GraphCOO</scope><name>number_of_vertices</name></member>
+      <member refid="classcugraph_1_1legacy_1_1GraphCOO_1a3e6ca2a2ca19ec04780dd92d5cf584e2" prot="private" virt="non-virtual"><scope>cugraph::legacy::GraphCOO</scope><name>number_of_vertices_p</name></member>
+      <member refid="classcugraph_1_1legacy_1_1GraphCOO_1af071d8d2551c143b3296e0ee24c471ab" prot="public" virt="non-virtual"><scope>cugraph::legacy::GraphCOO</scope><name>release</name></member>
+      <member refid="classcugraph_1_1legacy_1_1GraphCOO_1a175bda3b47e36393b9903aa8be1b45cf" prot="public" virt="non-virtual"><scope>cugraph::legacy::GraphCOO</scope><name>src_indices</name></member>
+      <member refid="classcugraph_1_1legacy_1_1GraphCOO_1ab94b5c6acb03beb829bba1b69c420a1d" prot="private" virt="non-virtual"><scope>cugraph::legacy::GraphCOO</scope><name>src_indices_p</name></member>
+      <member refid="classcugraph_1_1legacy_1_1GraphCOO_1ad8670eae8245b9e6fb0be22146d2a05d" prot="public" virt="non-virtual"><scope>cugraph::legacy::GraphCOO</scope><name>view</name></member>
+    </listofallmembers>
+  </compounddef>
+</doxygen>

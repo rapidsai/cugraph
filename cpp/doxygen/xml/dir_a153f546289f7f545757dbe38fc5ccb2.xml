@@ -1,0 +1,33 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="dir_a153f546289f7f545757dbe38fc5ccb2" kind="dir">
+    <compoundname>cugraph</compoundname>
+    <innerdir refid="dir_9edd585f7f1e7bb4325a9913f502fc1b">detail</innerdir>
+    <innerdir refid="dir_3073655a10823909eeb565e7adb1370c">legacy</innerdir>
+    <innerdir refid="dir_3ef0c0d8b7397604c36a447c1b1c3b1a">mtmg</innerdir>
+    <innerdir refid="dir_92b2a968487729c8d501e5fe93b5c16a">utilities</innerdir>
+    <innerfile refid="algorithms_8hpp">algorithms.hpp</innerfile>
+    <innerfile refid="api__helpers_8hpp">api_helpers.hpp</innerfile>
+    <innerfile refid="dendrogram_8hpp">dendrogram.hpp</innerfile>
+    <innerfile refid="edge__partition__device__view_8cuh">edge_partition_device_view.cuh</innerfile>
+    <innerfile refid="edge__partition__edge__property__device__view_8cuh">edge_partition_edge_property_device_view.cuh</innerfile>
+    <innerfile refid="edge__partition__endpoint__property__device__view_8cuh">edge_partition_endpoint_property_device_view.cuh</innerfile>
+    <innerfile refid="edge__partition__view_8hpp">edge_partition_view.hpp</innerfile>
+    <innerfile refid="edge__property_8hpp">edge_property.hpp</innerfile>
+    <innerfile refid="edge__src__dst__property_8hpp">edge_src_dst_property.hpp</innerfile>
+    <innerfile refid="eidecl__graph_8hpp">eidecl_graph.hpp</innerfile>
+    <innerfile refid="include_2cugraph_2graph_8hpp">include/cugraph/graph.hpp</innerfile>
+    <innerfile refid="include_2cugraph_2graph__functions_8hpp">include/cugraph/graph_functions.hpp</innerfile>
+    <innerfile refid="graph__generators_8hpp">graph_generators.hpp</innerfile>
+    <innerfile refid="graph__view_8hpp">graph_view.hpp</innerfile>
+    <innerfile refid="partition__manager_8hpp">partition_manager.hpp</innerfile>
+    <innerfile refid="sampling__functions_8hpp">sampling_functions.hpp</innerfile>
+    <innerfile refid="vertex__partition__device__view_8cuh">vertex_partition_device_view.cuh</innerfile>
+    <innerfile refid="vertex__partition__view_8hpp">vertex_partition_view.hpp</innerfile>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/"/>
+  </compounddef>
+</doxygen>

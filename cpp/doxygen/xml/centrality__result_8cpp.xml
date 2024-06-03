@@ -1,0 +1,321 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="centrality__result_8cpp" kind="file" language="C++">
+    <compoundname>centrality_result.cpp</compoundname>
+    <includes refid="centrality__result_8hpp" local="yes">c_api/centrality_result.hpp</includes>
+    <includes refid="algorithms_8h" local="no">cugraph_c/algorithms.h</includes>
+    <incdepgraph>
+      <node id="11">
+        <label>cugraph_c/algorithms.h</label>
+        <link refid="algorithms_8h_source"/>
+        <childnode refid="6" relation="include">
+        </childnode>
+        <childnode refid="12" relation="include">
+        </childnode>
+        <childnode refid="5" relation="include">
+        </childnode>
+        <childnode refid="13" relation="include">
+        </childnode>
+        <childnode refid="15" relation="include">
+        </childnode>
+        <childnode refid="17" relation="include">
+        </childnode>
+        <childnode refid="18" relation="include">
+        </childnode>
+        <childnode refid="19" relation="include">
+        </childnode>
+        <childnode refid="20" relation="include">
+        </childnode>
+        <childnode refid="21" relation="include">
+        </childnode>
+      </node>
+      <node id="4">
+        <label>cugraph_c/array.h</label>
+        <link refid="array_8h_source"/>
+        <childnode refid="5" relation="include">
+        </childnode>
+      </node>
+      <node id="13">
+        <label>cugraph_c/centrality_algorithms.h</label>
+        <link refid="centrality__algorithms_8h_source"/>
+        <childnode refid="4" relation="include">
+        </childnode>
+        <childnode refid="6" relation="include">
+        </childnode>
+        <childnode refid="12" relation="include">
+        </childnode>
+        <childnode refid="14" relation="include">
+        </childnode>
+        <childnode refid="5" relation="include">
+        </childnode>
+      </node>
+      <node id="15">
+        <label>cugraph_c/community_algorithms.h</label>
+        <link refid="community__algorithms_8h_source"/>
+        <childnode refid="6" relation="include">
+        </childnode>
+        <childnode refid="12" relation="include">
+        </childnode>
+        <childnode refid="16" relation="include">
+        </childnode>
+        <childnode refid="14" relation="include">
+        </childnode>
+        <childnode refid="5" relation="include">
+        </childnode>
+      </node>
+      <node id="17">
+        <label>cugraph_c/core_algorithms.h</label>
+        <link refid="core__algorithms_8h_source"/>
+        <childnode refid="4" relation="include">
+        </childnode>
+        <childnode refid="6" relation="include">
+        </childnode>
+        <childnode refid="12" relation="include">
+        </childnode>
+        <childnode refid="5" relation="include">
+        </childnode>
+      </node>
+      <node id="6">
+        <label>cugraph_c/error.h</label>
+        <link refid="error_8h_source"/>
+        <childnode refid="7" relation="include">
+        </childnode>
+      </node>
+      <node id="12">
+        <label>cugraph_c/graph.h</label>
+        <link refid="graph_8h_source"/>
+        <childnode refid="4" relation="include">
+        </childnode>
+      </node>
+      <node id="16">
+        <label>cugraph_c/graph_functions.h</label>
+        <link refid="graph__functions_8h_source"/>
+        <childnode refid="4" relation="include">
+        </childnode>
+        <childnode refid="12" relation="include">
+        </childnode>
+        <childnode refid="5" relation="include">
+        </childnode>
+      </node>
+      <node id="18">
+        <label>cugraph_c/labeling_algorithms.h</label>
+        <link refid="labeling__algorithms_8h_source"/>
+        <childnode refid="6" relation="include">
+        </childnode>
+        <childnode refid="12" relation="include">
+        </childnode>
+        <childnode refid="5" relation="include">
+        </childnode>
+      </node>
+      <node id="14">
+        <label>cugraph_c/random.h</label>
+        <link refid="random_8h_source"/>
+        <childnode refid="5" relation="include">
+        </childnode>
+      </node>
+      <node id="5">
+        <label>cugraph_c/resource_handle.h</label>
+        <link refid="resource__handle_8h_source"/>
+        <childnode refid="6" relation="include">
+        </childnode>
+        <childnode refid="8" relation="include">
+        </childnode>
+        <childnode refid="7" relation="include">
+        </childnode>
+      </node>
+      <node id="19">
+        <label>cugraph_c/sampling_algorithms.h</label>
+        <link refid="sampling__algorithms_8h_source"/>
+        <childnode refid="6" relation="include">
+        </childnode>
+        <childnode refid="12" relation="include">
+        </childnode>
+        <childnode refid="14" relation="include">
+        </childnode>
+        <childnode refid="5" relation="include">
+        </childnode>
+      </node>
+      <node id="20">
+        <label>cugraph_c/similarity_algorithms.h</label>
+        <link refid="similarity__algorithms_8h_source"/>
+        <childnode refid="4" relation="include">
+        </childnode>
+        <childnode refid="6" relation="include">
+        </childnode>
+        <childnode refid="12" relation="include">
+        </childnode>
+        <childnode refid="16" relation="include">
+        </childnode>
+        <childnode refid="5" relation="include">
+        </childnode>
+      </node>
+      <node id="21">
+        <label>cugraph_c/traversal_algorithms.h</label>
+        <link refid="traversal__algorithms_8h_source"/>
+        <childnode refid="6" relation="include">
+        </childnode>
+        <childnode refid="12" relation="include">
+        </childnode>
+        <childnode refid="5" relation="include">
+        </childnode>
+      </node>
+      <node id="3">
+        <label>c_api/array.hpp</label>
+        <link refid="array_8hpp_source"/>
+        <childnode refid="4" relation="include">
+        </childnode>
+        <childnode refid="9" relation="include">
+        </childnode>
+        <childnode refid="10" relation="include">
+        </childnode>
+      </node>
+      <node id="1">
+        <label>centrality_result.cpp</label>
+        <link refid="centrality__result_8cpp"/>
+        <childnode refid="2" relation="include">
+        </childnode>
+        <childnode refid="11" relation="include">
+        </childnode>
+      </node>
+      <node id="2">
+        <label>c_api/centrality_result.hpp</label>
+        <link refid="centrality__result_8hpp_source"/>
+        <childnode refid="3" relation="include">
+        </childnode>
+      </node>
+      <node id="9">
+        <label>rmm/device_buffer.hpp</label>
+      </node>
+      <node id="10">
+        <label>rmm/device_uvector.hpp</label>
+      </node>
+      <node id="8">
+        <label>stddef.h</label>
+      </node>
+      <node id="7">
+        <label>stdint.h</label>
+      </node>
+    </incdepgraph>
+    <sectiondef kind="func">
+      <member refid="group__centrality_1ga19bcf9a286457a4896c644b23e2102d7" kind="function"><name>cugraph_centrality_result_get_vertices</name></member>
+      <member refid="group__centrality_1gad15f8beada5a4032955c6ec76d7367d6" kind="function"><name>cugraph_centrality_result_get_values</name></member>
+      <member refid="group__centrality_1ga21f03438b5a6c7df96afa9a752f17521" kind="function"><name>cugraph_centrality_result_get_num_iterations</name></member>
+      <member refid="group__centrality_1gae18a032cf0fe0b4674a0dec747852475" kind="function"><name>cugraph_centrality_result_converged</name></member>
+      <member refid="group__centrality_1ga3671f0ffa0a9018acc50f60467d26de1" kind="function"><name>cugraph_centrality_result_free</name></member>
+      <member refid="group__centrality_1ga3b24ab80308bbf896b8c12261645382e" kind="function"><name>cugraph_edge_centrality_result_get_src_vertices</name></member>
+      <member refid="group__centrality_1ga40fd0ad1d7fb1dde3383c1c6552a01c6" kind="function"><name>cugraph_edge_centrality_result_get_dst_vertices</name></member>
+      <member refid="group__centrality_1ga26f6ee905429ca70251caa970497c4c1" kind="function"><name>cugraph_edge_centrality_result_get_values</name></member>
+      <member refid="group__centrality_1ga578060fffb6c3188346dbbd09622bdb0" kind="function"><name>cugraph_edge_centrality_result_get_edge_ids</name></member>
+      <member refid="group__centrality_1ga8692339201a3756d1dbc78984ed55b93" kind="function"><name>cugraph_edge_centrality_result_free</name></member>
+    </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <programlisting>
+<codeline lineno="1"><highlight class="comment">/*</highlight></codeline>
+<codeline lineno="2"><highlight class="comment"><sp/>*<sp/>Copyright<sp/>(c)<sp/>2022-2024,<sp/>NVIDIA<sp/>CORPORATION.</highlight></codeline>
+<codeline lineno="3"><highlight class="comment"><sp/>*</highlight></codeline>
+<codeline lineno="4"><highlight class="comment"><sp/>*<sp/>Licensed<sp/>under<sp/>the<sp/>Apache<sp/>License,<sp/>Version<sp/>2.0<sp/>(the<sp/>&quot;License&quot;);</highlight></codeline>
+<codeline lineno="5"><highlight class="comment"><sp/>*<sp/>you<sp/>may<sp/>not<sp/>use<sp/>this<sp/>file<sp/>except<sp/>in<sp/>compliance<sp/>with<sp/>the<sp/>License.</highlight></codeline>
+<codeline lineno="6"><highlight class="comment"><sp/>*<sp/>You<sp/>may<sp/>obtain<sp/>a<sp/>copy<sp/>of<sp/>the<sp/>License<sp/>at</highlight></codeline>
+<codeline lineno="7"><highlight class="comment"><sp/>*</highlight></codeline>
+<codeline lineno="8"><highlight class="comment"><sp/>*<sp/><sp/><sp/><sp/><sp/>http://www.apache.org/licenses/LICENSE-2.0</highlight></codeline>
+<codeline lineno="9"><highlight class="comment"><sp/>*</highlight></codeline>
+<codeline lineno="10"><highlight class="comment"><sp/>*<sp/>Unless<sp/>required<sp/>by<sp/>applicable<sp/>law<sp/>or<sp/>agreed<sp/>to<sp/>in<sp/>writing,<sp/>software</highlight></codeline>
+<codeline lineno="11"><highlight class="comment"><sp/>*<sp/>distributed<sp/>under<sp/>the<sp/>License<sp/>is<sp/>distributed<sp/>on<sp/>an<sp/>&quot;AS<sp/>IS&quot;<sp/>BASIS,</highlight></codeline>
+<codeline lineno="12"><highlight class="comment"><sp/>*<sp/>WITHOUT<sp/>WARRANTIES<sp/>OR<sp/>CONDITIONS<sp/>OF<sp/>ANY<sp/>KIND,<sp/>either<sp/>express<sp/>or<sp/>implied.</highlight></codeline>
+<codeline lineno="13"><highlight class="comment"><sp/>*<sp/>See<sp/>the<sp/>License<sp/>for<sp/>the<sp/>specific<sp/>language<sp/>governing<sp/>permissions<sp/>and</highlight></codeline>
+<codeline lineno="14"><highlight class="comment"><sp/>*<sp/>limitations<sp/>under<sp/>the<sp/>License.</highlight></codeline>
+<codeline lineno="15"><highlight class="comment"><sp/>*/</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="16"><highlight class="normal"></highlight></codeline>
+<codeline lineno="17"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&quot;c_api/centrality_result.hpp&quot;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="18"><highlight class="normal"></highlight></codeline>
+<codeline lineno="19"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&lt;cugraph_c/algorithms.h&gt;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="20"><highlight class="normal"></highlight></codeline>
+<codeline lineno="21"><highlight class="normal"></highlight><highlight class="keyword">extern</highlight><highlight class="normal"><sp/></highlight><highlight class="stringliteral">&quot;C&quot;</highlight><highlight class="normal"><sp/><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/><ref refid="group__centrality_1ga19bcf9a286457a4896c644b23e2102d7" kindref="member">cugraph_centrality_result_get_vertices</ref>(</highlight></codeline>
+<codeline lineno="22"><highlight class="normal"><sp/><sp/><ref refid="structcugraph__centrality__result__t" kindref="compound">cugraph_centrality_result_t</ref>*<sp/>result)</highlight></codeline>
+<codeline lineno="23"><highlight class="normal">{</highlight></codeline>
+<codeline lineno="24"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">auto</highlight><highlight class="normal"><sp/>internal_pointer<sp/>=<sp/></highlight><highlight class="keyword">reinterpret_cast&lt;</highlight><highlight class="normal"><ref refid="structcugraph_1_1c__api_1_1cugraph__centrality__result__t" kindref="compound">cugraph::c_api::cugraph_centrality_result_t</ref>*</highlight><highlight class="keyword">&gt;</highlight><highlight class="normal">(result);</highlight></codeline>
+<codeline lineno="25"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordflow">return</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">reinterpret_cast&lt;</highlight><highlight class="normal"><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*</highlight><highlight class="keyword">&gt;</highlight><highlight class="normal">(</highlight></codeline>
+<codeline lineno="26"><highlight class="normal"><sp/><sp/><sp/><sp/>internal_pointer-&gt;vertex_ids_-&gt;view());</highlight></codeline>
+<codeline lineno="27"><highlight class="normal">}</highlight></codeline>
+<codeline lineno="28"><highlight class="normal"></highlight></codeline>
+<codeline lineno="29"><highlight class="normal"></highlight><highlight class="keyword">extern</highlight><highlight class="normal"><sp/></highlight><highlight class="stringliteral">&quot;C&quot;</highlight><highlight class="normal"><sp/><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/><ref refid="group__centrality_1gad15f8beada5a4032955c6ec76d7367d6" kindref="member">cugraph_centrality_result_get_values</ref>(</highlight></codeline>
+<codeline lineno="30"><highlight class="normal"><sp/><sp/><ref refid="structcugraph__centrality__result__t" kindref="compound">cugraph_centrality_result_t</ref>*<sp/>result)</highlight></codeline>
+<codeline lineno="31"><highlight class="normal">{</highlight></codeline>
+<codeline lineno="32"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">auto</highlight><highlight class="normal"><sp/>internal_pointer<sp/>=<sp/></highlight><highlight class="keyword">reinterpret_cast&lt;</highlight><highlight class="normal"><ref refid="structcugraph_1_1c__api_1_1cugraph__centrality__result__t" kindref="compound">cugraph::c_api::cugraph_centrality_result_t</ref>*</highlight><highlight class="keyword">&gt;</highlight><highlight class="normal">(result);</highlight></codeline>
+<codeline lineno="33"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordflow">return</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">reinterpret_cast&lt;</highlight><highlight class="normal"><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*</highlight><highlight class="keyword">&gt;</highlight><highlight class="normal">(</highlight></codeline>
+<codeline lineno="34"><highlight class="normal"><sp/><sp/><sp/><sp/>internal_pointer-&gt;values_-&gt;view());</highlight></codeline>
+<codeline lineno="35"><highlight class="normal">}</highlight></codeline>
+<codeline lineno="36"><highlight class="normal"></highlight></codeline>
+<codeline lineno="37"><highlight class="normal"></highlight><highlight class="keywordtype">size_t</highlight><highlight class="normal"><sp/><ref refid="group__centrality_1ga21f03438b5a6c7df96afa9a752f17521" kindref="member">cugraph_centrality_result_get_num_iterations</ref>(<ref refid="structcugraph__centrality__result__t" kindref="compound">cugraph_centrality_result_t</ref>*<sp/>result)</highlight></codeline>
+<codeline lineno="38"><highlight class="normal">{</highlight></codeline>
+<codeline lineno="39"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">auto</highlight><highlight class="normal"><sp/>internal_pointer<sp/>=<sp/></highlight><highlight class="keyword">reinterpret_cast&lt;</highlight><highlight class="normal"><ref refid="structcugraph_1_1c__api_1_1cugraph__centrality__result__t" kindref="compound">cugraph::c_api::cugraph_centrality_result_t</ref>*</highlight><highlight class="keyword">&gt;</highlight><highlight class="normal">(result);</highlight></codeline>
+<codeline lineno="40"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordflow">return</highlight><highlight class="normal"><sp/>internal_pointer-&gt;num_iterations_;</highlight></codeline>
+<codeline lineno="41"><highlight class="normal">}</highlight></codeline>
+<codeline lineno="42"><highlight class="normal"></highlight></codeline>
+<codeline lineno="43"><highlight class="normal">bool_t<sp/><ref refid="group__centrality_1gae18a032cf0fe0b4674a0dec747852475" kindref="member">cugraph_centrality_result_converged</ref>(<ref refid="structcugraph__centrality__result__t" kindref="compound">cugraph_centrality_result_t</ref>*<sp/>result)</highlight></codeline>
+<codeline lineno="44"><highlight class="normal">{</highlight></codeline>
+<codeline lineno="45"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">auto</highlight><highlight class="normal"><sp/>internal_pointer<sp/>=<sp/></highlight><highlight class="keyword">reinterpret_cast&lt;</highlight><highlight class="normal"><ref refid="structcugraph_1_1c__api_1_1cugraph__centrality__result__t" kindref="compound">cugraph::c_api::cugraph_centrality_result_t</ref>*</highlight><highlight class="keyword">&gt;</highlight><highlight class="normal">(result);</highlight></codeline>
+<codeline lineno="46"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordflow">return</highlight><highlight class="normal"><sp/>internal_pointer-&gt;converged_<sp/>?<sp/>bool_t::TRUE<sp/>:<sp/>bool_t::FALSE;</highlight></codeline>
+<codeline lineno="47"><highlight class="normal">}</highlight></codeline>
+<codeline lineno="48"><highlight class="normal"></highlight></codeline>
+<codeline lineno="49"><highlight class="normal"></highlight><highlight class="keyword">extern</highlight><highlight class="normal"><sp/></highlight><highlight class="stringliteral">&quot;C&quot;</highlight><highlight class="normal"><sp/></highlight><highlight class="keywordtype">void</highlight><highlight class="normal"><sp/><ref refid="group__centrality_1ga3671f0ffa0a9018acc50f60467d26de1" kindref="member">cugraph_centrality_result_free</ref>(<ref refid="structcugraph__centrality__result__t" kindref="compound">cugraph_centrality_result_t</ref>*<sp/>result)</highlight></codeline>
+<codeline lineno="50"><highlight class="normal">{</highlight></codeline>
+<codeline lineno="51"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">auto</highlight><highlight class="normal"><sp/>internal_pointer<sp/>=<sp/></highlight><highlight class="keyword">reinterpret_cast&lt;</highlight><highlight class="normal"><ref refid="structcugraph_1_1c__api_1_1cugraph__centrality__result__t" kindref="compound">cugraph::c_api::cugraph_centrality_result_t</ref>*</highlight><highlight class="keyword">&gt;</highlight><highlight class="normal">(result);</highlight></codeline>
+<codeline lineno="52"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">delete</highlight><highlight class="normal"><sp/>internal_pointer-&gt;vertex_ids_;</highlight></codeline>
+<codeline lineno="53"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">delete</highlight><highlight class="normal"><sp/>internal_pointer-&gt;values_;</highlight></codeline>
+<codeline lineno="54"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">delete</highlight><highlight class="normal"><sp/>internal_pointer;</highlight></codeline>
+<codeline lineno="55"><highlight class="normal">}</highlight></codeline>
+<codeline lineno="56"><highlight class="normal"></highlight></codeline>
+<codeline lineno="57"><highlight class="normal"></highlight><highlight class="keyword">extern</highlight><highlight class="normal"><sp/></highlight><highlight class="stringliteral">&quot;C&quot;</highlight><highlight class="normal"><sp/><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/><ref refid="group__centrality_1ga3b24ab80308bbf896b8c12261645382e" kindref="member">cugraph_edge_centrality_result_get_src_vertices</ref>(</highlight></codeline>
+<codeline lineno="58"><highlight class="normal"><sp/><sp/><ref refid="structcugraph__edge__centrality__result__t" kindref="compound">cugraph_edge_centrality_result_t</ref>*<sp/>result)</highlight></codeline>
+<codeline lineno="59"><highlight class="normal">{</highlight></codeline>
+<codeline lineno="60"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">auto</highlight><highlight class="normal"><sp/>internal_pointer<sp/>=</highlight></codeline>
+<codeline lineno="61"><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="keyword">reinterpret_cast&lt;</highlight><highlight class="normal"><ref refid="structcugraph_1_1c__api_1_1cugraph__edge__centrality__result__t" kindref="compound">cugraph::c_api::cugraph_edge_centrality_result_t</ref>*</highlight><highlight class="keyword">&gt;</highlight><highlight class="normal">(result);</highlight></codeline>
+<codeline lineno="62"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordflow">return</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">reinterpret_cast&lt;</highlight><highlight class="normal"><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*</highlight><highlight class="keyword">&gt;</highlight><highlight class="normal">(</highlight></codeline>
+<codeline lineno="63"><highlight class="normal"><sp/><sp/><sp/><sp/>internal_pointer-&gt;src_ids_-&gt;view());</highlight></codeline>
+<codeline lineno="64"><highlight class="normal">}</highlight></codeline>
+<codeline lineno="65"><highlight class="normal"></highlight></codeline>
+<codeline lineno="66"><highlight class="normal"></highlight><highlight class="keyword">extern</highlight><highlight class="normal"><sp/></highlight><highlight class="stringliteral">&quot;C&quot;</highlight><highlight class="normal"><sp/><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/><ref refid="group__centrality_1ga40fd0ad1d7fb1dde3383c1c6552a01c6" kindref="member">cugraph_edge_centrality_result_get_dst_vertices</ref>(</highlight></codeline>
+<codeline lineno="67"><highlight class="normal"><sp/><sp/><ref refid="structcugraph__edge__centrality__result__t" kindref="compound">cugraph_edge_centrality_result_t</ref>*<sp/>result)</highlight></codeline>
+<codeline lineno="68"><highlight class="normal">{</highlight></codeline>
+<codeline lineno="69"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">auto</highlight><highlight class="normal"><sp/>internal_pointer<sp/>=</highlight></codeline>
+<codeline lineno="70"><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="keyword">reinterpret_cast&lt;</highlight><highlight class="normal"><ref refid="structcugraph_1_1c__api_1_1cugraph__edge__centrality__result__t" kindref="compound">cugraph::c_api::cugraph_edge_centrality_result_t</ref>*</highlight><highlight class="keyword">&gt;</highlight><highlight class="normal">(result);</highlight></codeline>
+<codeline lineno="71"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordflow">return</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">reinterpret_cast&lt;</highlight><highlight class="normal"><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*</highlight><highlight class="keyword">&gt;</highlight><highlight class="normal">(</highlight></codeline>
+<codeline lineno="72"><highlight class="normal"><sp/><sp/><sp/><sp/>internal_pointer-&gt;dst_ids_-&gt;view());</highlight></codeline>
+<codeline lineno="73"><highlight class="normal">}</highlight></codeline>
+<codeline lineno="74"><highlight class="normal"></highlight></codeline>
+<codeline lineno="75"><highlight class="normal"></highlight><highlight class="keyword">extern</highlight><highlight class="normal"><sp/></highlight><highlight class="stringliteral">&quot;C&quot;</highlight><highlight class="normal"><sp/><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/><ref refid="group__centrality_1ga26f6ee905429ca70251caa970497c4c1" kindref="member">cugraph_edge_centrality_result_get_values</ref>(</highlight></codeline>
+<codeline lineno="76"><highlight class="normal"><sp/><sp/><ref refid="structcugraph__edge__centrality__result__t" kindref="compound">cugraph_edge_centrality_result_t</ref>*<sp/>result)</highlight></codeline>
+<codeline lineno="77"><highlight class="normal">{</highlight></codeline>
+<codeline lineno="78"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">auto</highlight><highlight class="normal"><sp/>internal_pointer<sp/>=</highlight></codeline>
+<codeline lineno="79"><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="keyword">reinterpret_cast&lt;</highlight><highlight class="normal"><ref refid="structcugraph_1_1c__api_1_1cugraph__edge__centrality__result__t" kindref="compound">cugraph::c_api::cugraph_edge_centrality_result_t</ref>*</highlight><highlight class="keyword">&gt;</highlight><highlight class="normal">(result);</highlight></codeline>
+<codeline lineno="80"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordflow">return</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">reinterpret_cast&lt;</highlight><highlight class="normal"><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*</highlight><highlight class="keyword">&gt;</highlight><highlight class="normal">(</highlight></codeline>
+<codeline lineno="81"><highlight class="normal"><sp/><sp/><sp/><sp/>internal_pointer-&gt;values_-&gt;view());</highlight></codeline>
+<codeline lineno="82"><highlight class="normal">}</highlight></codeline>
+<codeline lineno="83"><highlight class="normal"></highlight></codeline>
+<codeline lineno="84"><highlight class="normal"></highlight><highlight class="keyword">extern</highlight><highlight class="normal"><sp/></highlight><highlight class="stringliteral">&quot;C&quot;</highlight><highlight class="normal"><sp/><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/><ref refid="group__centrality_1ga578060fffb6c3188346dbbd09622bdb0" kindref="member">cugraph_edge_centrality_result_get_edge_ids</ref>(</highlight></codeline>
+<codeline lineno="85"><highlight class="normal"><sp/><sp/><ref refid="structcugraph__edge__centrality__result__t" kindref="compound">cugraph_edge_centrality_result_t</ref>*<sp/>result)</highlight></codeline>
+<codeline lineno="86"><highlight class="normal">{</highlight></codeline>
+<codeline lineno="87"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">auto</highlight><highlight class="normal"><sp/>internal_pointer<sp/>=</highlight></codeline>
+<codeline lineno="88"><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="keyword">reinterpret_cast&lt;</highlight><highlight class="normal"><ref refid="structcugraph_1_1c__api_1_1cugraph__edge__centrality__result__t" kindref="compound">cugraph::c_api::cugraph_edge_centrality_result_t</ref>*</highlight><highlight class="keyword">&gt;</highlight><highlight class="normal">(result);</highlight></codeline>
+<codeline lineno="89"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordflow">return</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">reinterpret_cast&lt;</highlight><highlight class="normal"><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*</highlight><highlight class="keyword">&gt;</highlight><highlight class="normal">(</highlight></codeline>
+<codeline lineno="90"><highlight class="normal"><sp/><sp/><sp/><sp/>internal_pointer-&gt;edge_ids_-&gt;view());</highlight></codeline>
+<codeline lineno="91"><highlight class="normal">}</highlight></codeline>
+<codeline lineno="92"><highlight class="normal"></highlight></codeline>
+<codeline lineno="93"><highlight class="normal"></highlight><highlight class="keyword">extern</highlight><highlight class="normal"><sp/></highlight><highlight class="stringliteral">&quot;C&quot;</highlight><highlight class="normal"><sp/></highlight><highlight class="keywordtype">void</highlight><highlight class="normal"><sp/><ref refid="group__centrality_1ga8692339201a3756d1dbc78984ed55b93" kindref="member">cugraph_edge_centrality_result_free</ref>(<ref refid="structcugraph__edge__centrality__result__t" kindref="compound">cugraph_edge_centrality_result_t</ref>*<sp/>result)</highlight></codeline>
+<codeline lineno="94"><highlight class="normal">{</highlight></codeline>
+<codeline lineno="95"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">auto</highlight><highlight class="normal"><sp/>internal_pointer<sp/>=</highlight></codeline>
+<codeline lineno="96"><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="keyword">reinterpret_cast&lt;</highlight><highlight class="normal"><ref refid="structcugraph_1_1c__api_1_1cugraph__edge__centrality__result__t" kindref="compound">cugraph::c_api::cugraph_edge_centrality_result_t</ref>*</highlight><highlight class="keyword">&gt;</highlight><highlight class="normal">(result);</highlight></codeline>
+<codeline lineno="97"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">delete</highlight><highlight class="normal"><sp/>internal_pointer-&gt;src_ids_;</highlight></codeline>
+<codeline lineno="98"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">delete</highlight><highlight class="normal"><sp/>internal_pointer-&gt;dst_ids_;</highlight></codeline>
+<codeline lineno="99"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">delete</highlight><highlight class="normal"><sp/>internal_pointer-&gt;values_;</highlight></codeline>
+<codeline lineno="100"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">delete</highlight><highlight class="normal"><sp/>internal_pointer-&gt;edge_ids_;</highlight></codeline>
+<codeline lineno="101"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">delete</highlight><highlight class="normal"><sp/>internal_pointer;</highlight></codeline>
+<codeline lineno="102"><highlight class="normal">}</highlight></codeline>
+    </programlisting>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/src/c_api/centrality_result.cpp"/>
+  </compounddef>
+</doxygen>

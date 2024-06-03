@@ -1,0 +1,39 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="structcugraph_1_1detail_1_1square" kind="struct" language="C++" prot="public">
+    <compoundname>cugraph::detail::square</compoundname>
+    <templateparamlist>
+      <param>
+        <type>typename T</type>
+      </param>
+    </templateparamlist>
+    <sectiondef kind="public-func">
+      <memberdef kind="function" id="structcugraph_1_1detail_1_1square_1a1e35f46acc7841e57c4f3e1f7a6ec0a8" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>__host__ __device__ T</type>
+        <definition>__host__ __device__ T cugraph::detail::square&lt; T &gt;::operator()</definition>
+        <argsstring>(const T &amp;x) const</argsstring>
+        <name>operator()</name>
+        <qualifiedname>cugraph::detail::square::operator()</qualifiedname>
+        <param>
+          <type>const T &amp;</type>
+          <declname>x</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/utilities/graph_utils.cuh" line="120" column="25" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/utilities/graph_utils.cuh" bodystart="120" bodyend="120"/>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/src/utilities/graph_utils.cuh" line="119" column="1" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/utilities/graph_utils.cuh" bodystart="119" bodyend="121"/>
+    <listofallmembers>
+      <member refid="structcugraph_1_1detail_1_1square_1a1e35f46acc7841e57c4f3e1f7a6ec0a8" prot="public" virt="non-virtual"><scope>cugraph::detail::square</scope><name>operator()</name></member>
+    </listofallmembers>
+  </compounddef>
+</doxygen>

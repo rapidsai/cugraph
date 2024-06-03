@@ -1,0 +1,445 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="classcugraph_1_1mtmg_1_1per__thread__edgelist__t" kind="class" language="C++" prot="public">
+    <compoundname>cugraph::mtmg::per_thread_edgelist_t</compoundname>
+    <includes refid="per__thread__edgelist_8hpp" local="no">per_thread_edgelist.hpp</includes>
+    <templateparamlist>
+      <param>
+        <type>typename vertex_t</type>
+      </param>
+      <param>
+        <type>typename weight_t</type>
+      </param>
+      <param>
+        <type>typename edge_t</type>
+      </param>
+      <param>
+        <type>typename edge_type_t</type>
+      </param>
+    </templateparamlist>
+    <sectiondef kind="private-attrib">
+      <memberdef kind="variable" id="classcugraph_1_1mtmg_1_1per__thread__edgelist__t_1ac0c4ae9c296999fd32b51c09dd0612d0" prot="private" static="no" mutable="no">
+        <type><ref refid="classcugraph_1_1mtmg_1_1detail_1_1per__device__edgelist__t" kindref="compound">detail::per_device_edgelist_t</ref>&lt; vertex_t, weight_t, edge_t, edge_type_t &gt; &amp;</type>
+        <definition>detail::per_device_edgelist_t&lt;vertex_t, weight_t, edge_t, edge_type_t&gt;&amp; cugraph::mtmg::per_thread_edgelist_t&lt; vertex_t, weight_t, edge_t, edge_type_t &gt;::edgelist_</definition>
+        <argsstring></argsstring>
+        <name>edgelist_</name>
+        <qualifiedname>cugraph::mtmg::per_thread_edgelist_t::edgelist_</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/per_thread_edgelist.hpp" line="167" column="33" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/per_thread_edgelist.hpp" bodystart="167" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="variable" id="classcugraph_1_1mtmg_1_1per__thread__edgelist__t_1abad5cdd87fee124085830f1bdcf926ad" prot="private" static="no" mutable="no">
+        <type>size_t</type>
+        <definition>size_t cugraph::mtmg::per_thread_edgelist_t&lt; vertex_t, weight_t, edge_t, edge_type_t &gt;::current_pos_</definition>
+        <argsstring></argsstring>
+        <name>current_pos_</name>
+        <qualifiedname>cugraph::mtmg::per_thread_edgelist_t::current_pos_</qualifiedname>
+        <initializer>{0}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/per_thread_edgelist.hpp" line="168" column="10" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/per_thread_edgelist.hpp" bodystart="168" bodyend="168"/>
+      </memberdef>
+      <memberdef kind="variable" id="classcugraph_1_1mtmg_1_1per__thread__edgelist__t_1a419ba0bbdc1679ae925f96ba5ef49414" prot="private" static="no" mutable="no">
+        <type>std::vector&lt; vertex_t &gt;</type>
+        <definition>std::vector&lt;vertex_t&gt; cugraph::mtmg::per_thread_edgelist_t&lt; vertex_t, weight_t, edge_t, edge_type_t &gt;::src_</definition>
+        <argsstring></argsstring>
+        <name>src_</name>
+        <qualifiedname>cugraph::mtmg::per_thread_edgelist_t::src_</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/per_thread_edgelist.hpp" line="169" column="15" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/per_thread_edgelist.hpp" bodystart="169" bodyend="169"/>
+      </memberdef>
+      <memberdef kind="variable" id="classcugraph_1_1mtmg_1_1per__thread__edgelist__t_1aab9abd8c41a503356c4ba0cc1b260b0e" prot="private" static="no" mutable="no">
+        <type>std::vector&lt; vertex_t &gt;</type>
+        <definition>std::vector&lt;vertex_t&gt; cugraph::mtmg::per_thread_edgelist_t&lt; vertex_t, weight_t, edge_t, edge_type_t &gt;::dst_</definition>
+        <argsstring></argsstring>
+        <name>dst_</name>
+        <qualifiedname>cugraph::mtmg::per_thread_edgelist_t::dst_</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/per_thread_edgelist.hpp" line="170" column="15" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/per_thread_edgelist.hpp" bodystart="170" bodyend="170"/>
+      </memberdef>
+      <memberdef kind="variable" id="classcugraph_1_1mtmg_1_1per__thread__edgelist__t_1a5ad0966be33b170eb0ef10c0e06957af" prot="private" static="no" mutable="no">
+        <type>std::optional&lt; std::vector&lt; weight_t &gt; &gt;</type>
+        <definition>std::optional&lt;std::vector&lt;weight_t&gt; &gt; cugraph::mtmg::per_thread_edgelist_t&lt; vertex_t, weight_t, edge_t, edge_type_t &gt;::wgt_</definition>
+        <argsstring></argsstring>
+        <name>wgt_</name>
+        <qualifiedname>cugraph::mtmg::per_thread_edgelist_t::wgt_</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/per_thread_edgelist.hpp" line="171" column="17" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/per_thread_edgelist.hpp" bodystart="171" bodyend="171"/>
+      </memberdef>
+      <memberdef kind="variable" id="classcugraph_1_1mtmg_1_1per__thread__edgelist__t_1a31789748fbb62c4ef1d2862bf462a12c" prot="private" static="no" mutable="no">
+        <type>std::optional&lt; std::vector&lt; edge_t &gt; &gt;</type>
+        <definition>std::optional&lt;std::vector&lt;edge_t&gt; &gt; cugraph::mtmg::per_thread_edgelist_t&lt; vertex_t, weight_t, edge_t, edge_type_t &gt;::edge_id_</definition>
+        <argsstring></argsstring>
+        <name>edge_id_</name>
+        <qualifiedname>cugraph::mtmg::per_thread_edgelist_t::edge_id_</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/per_thread_edgelist.hpp" line="172" column="17" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/per_thread_edgelist.hpp" bodystart="172" bodyend="172"/>
+      </memberdef>
+      <memberdef kind="variable" id="classcugraph_1_1mtmg_1_1per__thread__edgelist__t_1a154bfa4102203311b76b9685def8ecd9" prot="private" static="no" mutable="no">
+        <type>std::optional&lt; std::vector&lt; edge_type_t &gt; &gt;</type>
+        <definition>std::optional&lt;std::vector&lt;edge_type_t&gt; &gt; cugraph::mtmg::per_thread_edgelist_t&lt; vertex_t, weight_t, edge_t, edge_type_t &gt;::edge_type_</definition>
+        <argsstring></argsstring>
+        <name>edge_type_</name>
+        <qualifiedname>cugraph::mtmg::per_thread_edgelist_t::edge_type_</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/per_thread_edgelist.hpp" line="173" column="17" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/per_thread_edgelist.hpp" bodystart="173" bodyend="173"/>
+      </memberdef>
+    </sectiondef>
+    <sectiondef kind="public-func">
+      <memberdef kind="function" id="classcugraph_1_1mtmg_1_1per__thread__edgelist__t_1ac29874fe3dc937f51c43eea942a3f4e5" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type></type>
+        <definition>cugraph::mtmg::per_thread_edgelist_t&lt; vertex_t, weight_t, edge_t, edge_type_t &gt;::per_thread_edgelist_t</definition>
+        <argsstring>()=delete</argsstring>
+        <name>per_thread_edgelist_t</name>
+        <qualifiedname>cugraph::mtmg::per_thread_edgelist_t::per_thread_edgelist_t</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/per_thread_edgelist.hpp" line="40" column="3"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1mtmg_1_1per__thread__edgelist__t_1ac5d8cfe78899323562bec876cfdb2b19" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type></type>
+        <definition>cugraph::mtmg::per_thread_edgelist_t&lt; vertex_t, weight_t, edge_t, edge_type_t &gt;::per_thread_edgelist_t</definition>
+        <argsstring>(per_thread_edgelist_t const &amp;)=delete</argsstring>
+        <name>per_thread_edgelist_t</name>
+        <qualifiedname>cugraph::mtmg::per_thread_edgelist_t::per_thread_edgelist_t</qualifiedname>
+        <param>
+          <type><ref refid="classcugraph_1_1mtmg_1_1per__thread__edgelist__t" kindref="compound">per_thread_edgelist_t</ref> const &amp;</type>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/per_thread_edgelist.hpp" line="41" column="3"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1mtmg_1_1per__thread__edgelist__t_1aee66a2035aac70a7c810b2aed54e031b" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type></type>
+        <definition>cugraph::mtmg::per_thread_edgelist_t&lt; vertex_t, weight_t, edge_t, edge_type_t &gt;::per_thread_edgelist_t</definition>
+        <argsstring>(detail::per_device_edgelist_t&lt; vertex_t, weight_t, edge_t, edge_type_t &gt; &amp;edgelist, size_t thread_buffer_size)</argsstring>
+        <name>per_thread_edgelist_t</name>
+        <qualifiedname>cugraph::mtmg::per_thread_edgelist_t::per_thread_edgelist_t</qualifiedname>
+        <param>
+          <type><ref refid="classcugraph_1_1mtmg_1_1detail_1_1per__device__edgelist__t" kindref="compound">detail::per_device_edgelist_t</ref>&lt; vertex_t, weight_t, edge_t, edge_type_t &gt; &amp;</type>
+          <declname>edgelist</declname>
+        </param>
+        <param>
+          <type>size_t</type>
+          <declname>thread_buffer_size</declname>
+        </param>
+        <briefdescription>
+<para>Only constructor. </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername>edgelist</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>The edge list this thread_edgelist_t should be associated with </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>thread_buffer_size</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Size of the local buffer for accumulating edges on the CPU </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/per_thread_edgelist.hpp" line="49" column="3" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/per_thread_edgelist.hpp" bodystart="49" bodyend="67"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1mtmg_1_1per__thread__edgelist__t_1acef36ae65fd2c3dc971d939fdcb75755" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type>void</type>
+        <definition>void cugraph::mtmg::per_thread_edgelist_t&lt; vertex_t, weight_t, edge_t, edge_type_t &gt;::append</definition>
+        <argsstring>(vertex_t src, vertex_t dst, std::optional&lt; weight_t &gt; wgt, std::optional&lt; edge_t &gt; edge_id, std::optional&lt; edge_type_t &gt; edge_type, rmm::cuda_stream_view stream_view)</argsstring>
+        <name>append</name>
+        <qualifiedname>cugraph::mtmg::per_thread_edgelist_t::append</qualifiedname>
+        <param>
+          <type>vertex_t</type>
+          <declname>src</declname>
+        </param>
+        <param>
+          <type>vertex_t</type>
+          <declname>dst</declname>
+        </param>
+        <param>
+          <type>std::optional&lt; weight_t &gt;</type>
+          <declname>wgt</declname>
+        </param>
+        <param>
+          <type>std::optional&lt; edge_t &gt;</type>
+          <declname>edge_id</declname>
+        </param>
+        <param>
+          <type>std::optional&lt; edge_type_t &gt;</type>
+          <declname>edge_type</declname>
+        </param>
+        <param>
+          <type>rmm::cuda_stream_view</type>
+          <declname>stream_view</declname>
+        </param>
+        <briefdescription>
+<para>Append an edge to the edge list. </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername>src</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Source vertex id </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>dst</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Destination vertex id </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>wgt</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Edge weight </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>edge_id</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Edge id </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>edge_type</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Edge type </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>stream_view</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>The cuda stream </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/per_thread_edgelist.hpp" line="79" column="8" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/per_thread_edgelist.hpp" bodystart="79" bodyend="95"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1mtmg_1_1per__thread__edgelist__t_1aa1cbb0bcde6ca580b1af2f8786cca540" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type>void</type>
+        <definition>void cugraph::mtmg::per_thread_edgelist_t&lt; vertex_t, weight_t, edge_t, edge_type_t &gt;::append</definition>
+        <argsstring>(raft::host_span&lt; vertex_t const &gt; src, raft::host_span&lt; vertex_t const &gt; dst, std::optional&lt; raft::host_span&lt; weight_t const &gt; &gt; wgt, std::optional&lt; raft::host_span&lt; edge_t const &gt; &gt; edge_id, std::optional&lt; raft::host_span&lt; edge_type_t const &gt; &gt; edge_type, rmm::cuda_stream_view stream_view)</argsstring>
+        <name>append</name>
+        <qualifiedname>cugraph::mtmg::per_thread_edgelist_t::append</qualifiedname>
+        <param>
+          <type>raft::host_span&lt; vertex_t const &gt;</type>
+          <declname>src</declname>
+        </param>
+        <param>
+          <type>raft::host_span&lt; vertex_t const &gt;</type>
+          <declname>dst</declname>
+        </param>
+        <param>
+          <type>std::optional&lt; raft::host_span&lt; weight_t const &gt; &gt;</type>
+          <declname>wgt</declname>
+        </param>
+        <param>
+          <type>std::optional&lt; raft::host_span&lt; edge_t const &gt; &gt;</type>
+          <declname>edge_id</declname>
+        </param>
+        <param>
+          <type>std::optional&lt; raft::host_span&lt; edge_type_t const &gt; &gt;</type>
+          <declname>edge_type</declname>
+        </param>
+        <param>
+          <type>rmm::cuda_stream_view</type>
+          <declname>stream_view</declname>
+        </param>
+        <briefdescription>
+<para>Append a list of edges to the edge list. </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername>src</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Source vertex id </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>dst</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Destination vertex id </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>wgt</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Edge weight </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>edge_id</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Edge id </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>edge_type</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Edge type </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>stream_view</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>The cuda stream </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/per_thread_edgelist.hpp" line="107" column="8" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/per_thread_edgelist.hpp" bodystart="107" bodyend="138"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1mtmg_1_1per__thread__edgelist__t_1a4d452970b0f8b02a9d7e71cec8325aad" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type>void</type>
+        <definition>void cugraph::mtmg::per_thread_edgelist_t&lt; vertex_t, weight_t, edge_t, edge_type_t &gt;::flush</definition>
+        <argsstring>(rmm::cuda_stream_view stream_view, bool sync=false)</argsstring>
+        <name>flush</name>
+        <qualifiedname>cugraph::mtmg::per_thread_edgelist_t::flush</qualifiedname>
+        <param>
+          <type>rmm::cuda_stream_view</type>
+          <declname>stream_view</declname>
+        </param>
+        <param>
+          <type>bool</type>
+          <declname>sync</declname>
+          <defval>false</defval>
+        </param>
+        <briefdescription>
+<para>Flush thread data from host to GPU memory. </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername>stream_view</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>The cuda stream </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>sync</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>If true, synchronize the asynchronous copy of data; defaults to false. </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/per_thread_edgelist.hpp" line="147" column="8" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/per_thread_edgelist.hpp" bodystart="147" bodyend="164"/>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+<para>Supports creating an edgelist from individual host threads. </para>
+    </briefdescription>
+    <detaileddescription>
+<para>A cugraph edgelist needs to contain all of the edges necessary to create the graph stored in GPU memory (distributed across multiple GPUs in a multi-GPU configuration).</para>
+<para>This class provides a mechanism for populating the edgelist object from independent CPU threads.</para>
+<para>Calls to the <ref refid="classcugraph_1_1mtmg_1_1per__thread__edgelist__t_1acef36ae65fd2c3dc971d939fdcb75755" kindref="member">append()</ref> method will take edges (in CPU host memory) and append them to a local buffer. As the local buffer fills, the buffer will be sent to GPU memory using the <ref refid="classcugraph_1_1mtmg_1_1per__thread__edgelist__t_1a4d452970b0f8b02a9d7e71cec8325aad" kindref="member">flush()</ref> method. This allows the CPU to GPU transfers to be larger (and consequently more efficient). </para>
+    </detaileddescription>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/per_thread_edgelist.hpp" line="38" column="1" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/mtmg/per_thread_edgelist.hpp" bodystart="38" bodyend="174"/>
+    <listofallmembers>
+      <member refid="classcugraph_1_1mtmg_1_1per__thread__edgelist__t_1acef36ae65fd2c3dc971d939fdcb75755" prot="public" virt="non-virtual"><scope>cugraph::mtmg::per_thread_edgelist_t</scope><name>append</name></member>
+      <member refid="classcugraph_1_1mtmg_1_1per__thread__edgelist__t_1aa1cbb0bcde6ca580b1af2f8786cca540" prot="public" virt="non-virtual"><scope>cugraph::mtmg::per_thread_edgelist_t</scope><name>append</name></member>
+      <member refid="classcugraph_1_1mtmg_1_1per__thread__edgelist__t_1abad5cdd87fee124085830f1bdcf926ad" prot="private" virt="non-virtual"><scope>cugraph::mtmg::per_thread_edgelist_t</scope><name>current_pos_</name></member>
+      <member refid="classcugraph_1_1mtmg_1_1per__thread__edgelist__t_1aab9abd8c41a503356c4ba0cc1b260b0e" prot="private" virt="non-virtual"><scope>cugraph::mtmg::per_thread_edgelist_t</scope><name>dst_</name></member>
+      <member refid="classcugraph_1_1mtmg_1_1per__thread__edgelist__t_1a31789748fbb62c4ef1d2862bf462a12c" prot="private" virt="non-virtual"><scope>cugraph::mtmg::per_thread_edgelist_t</scope><name>edge_id_</name></member>
+      <member refid="classcugraph_1_1mtmg_1_1per__thread__edgelist__t_1a154bfa4102203311b76b9685def8ecd9" prot="private" virt="non-virtual"><scope>cugraph::mtmg::per_thread_edgelist_t</scope><name>edge_type_</name></member>
+      <member refid="classcugraph_1_1mtmg_1_1per__thread__edgelist__t_1ac0c4ae9c296999fd32b51c09dd0612d0" prot="private" virt="non-virtual"><scope>cugraph::mtmg::per_thread_edgelist_t</scope><name>edgelist_</name></member>
+      <member refid="classcugraph_1_1mtmg_1_1per__thread__edgelist__t_1a4d452970b0f8b02a9d7e71cec8325aad" prot="public" virt="non-virtual"><scope>cugraph::mtmg::per_thread_edgelist_t</scope><name>flush</name></member>
+      <member refid="classcugraph_1_1mtmg_1_1per__thread__edgelist__t_1ac29874fe3dc937f51c43eea942a3f4e5" prot="public" virt="non-virtual"><scope>cugraph::mtmg::per_thread_edgelist_t</scope><name>per_thread_edgelist_t</name></member>
+      <member refid="classcugraph_1_1mtmg_1_1per__thread__edgelist__t_1ac5d8cfe78899323562bec876cfdb2b19" prot="public" virt="non-virtual"><scope>cugraph::mtmg::per_thread_edgelist_t</scope><name>per_thread_edgelist_t</name></member>
+      <member refid="classcugraph_1_1mtmg_1_1per__thread__edgelist__t_1aee66a2035aac70a7c810b2aed54e031b" prot="public" virt="non-virtual"><scope>cugraph::mtmg::per_thread_edgelist_t</scope><name>per_thread_edgelist_t</name></member>
+      <member refid="classcugraph_1_1mtmg_1_1per__thread__edgelist__t_1a419ba0bbdc1679ae925f96ba5ef49414" prot="private" virt="non-virtual"><scope>cugraph::mtmg::per_thread_edgelist_t</scope><name>src_</name></member>
+      <member refid="classcugraph_1_1mtmg_1_1per__thread__edgelist__t_1a5ad0966be33b170eb0ef10c0e06957af" prot="private" virt="non-virtual"><scope>cugraph::mtmg::per_thread_edgelist_t</scope><name>wgt_</name></member>
+    </listofallmembers>
+  </compounddef>
+</doxygen>

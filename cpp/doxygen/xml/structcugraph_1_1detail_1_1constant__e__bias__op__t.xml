@@ -1,0 +1,62 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="structcugraph_1_1detail_1_1constant__e__bias__op__t" kind="struct" language="C++" prot="public">
+    <compoundname>cugraph::detail::constant_e_bias_op_t</compoundname>
+    <templateparamlist>
+      <param>
+        <type>typename GraphViewType</type>
+      </param>
+      <param>
+        <type>typename EdgeSrcValueInputWrapper</type>
+      </param>
+      <param>
+        <type>typename EdgeDstValueInputWrapper</type>
+      </param>
+      <param>
+        <type>typename EdgeValueInputWrapper</type>
+      </param>
+      <param>
+        <type>typename key_t</type>
+      </param>
+    </templateparamlist>
+    <sectiondef kind="public-func">
+      <memberdef kind="function" id="structcugraph_1_1detail_1_1constant__e__bias__op__t_1a9f7b30ec711883d10863b8d70f6bb9e2" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>__device__ float</type>
+        <definition>__device__ float cugraph::detail::constant_e_bias_op_t&lt; GraphViewType, EdgeSrcValueInputWrapper, EdgeDstValueInputWrapper, EdgeValueInputWrapper, key_t &gt;::operator()</definition>
+        <argsstring>(key_t, typename GraphViewType::vertex_type, typename EdgeSrcValueInputWrapper::value_type, typename EdgeDstValueInputWrapper::value_type, typename EdgeValueInputWrapper::value_type) const</argsstring>
+        <name>operator()</name>
+        <qualifiedname>cugraph::detail::constant_e_bias_op_t::operator()</qualifiedname>
+        <param>
+          <type>key_t</type>
+        </param>
+        <param>
+          <type>typename GraphViewType::vertex_type</type>
+        </param>
+        <param>
+          <type>typename EdgeSrcValueInputWrapper::value_type</type>
+        </param>
+        <param>
+          <type>typename EdgeDstValueInputWrapper::value_type</type>
+        </param>
+        <param>
+          <type>typename EdgeValueInputWrapper::value_type</type>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/per_v_random_select_transform_outgoing_e.cuh" line="63" column="20" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/per_v_random_select_transform_outgoing_e.cuh" bodystart="63" bodyend="70"/>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/per_v_random_select_transform_outgoing_e.cuh" line="62" column="1" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/per_v_random_select_transform_outgoing_e.cuh" bodystart="62" bodyend="71"/>
+    <listofallmembers>
+      <member refid="structcugraph_1_1detail_1_1constant__e__bias__op__t_1a9f7b30ec711883d10863b8d70f6bb9e2" prot="public" virt="non-virtual"><scope>cugraph::detail::constant_e_bias_op_t</scope><name>operator()</name></member>
+    </listofallmembers>
+  </compounddef>
+</doxygen>

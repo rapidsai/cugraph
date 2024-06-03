@@ -1,0 +1,1754 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="community__algorithms_8h" kind="file" language="C++">
+    <compoundname>community_algorithms.h</compoundname>
+    <includes refid="error_8h" local="no">cugraph_c/error.h</includes>
+    <includes refid="graph_8h" local="no">cugraph_c/graph.h</includes>
+    <includes refid="graph__functions_8h" local="no">cugraph_c/graph_functions.h</includes>
+    <includes refid="random_8h" local="no">cugraph_c/random.h</includes>
+    <includes refid="resource__handle_8h" local="no">cugraph_c/resource_handle.h</includes>
+    <includedby refid="algorithms_8h" local="no">algorithms.h</includedby>
+    <includedby refid="ecg_8cpp" local="no">ecg.cpp</includedby>
+    <includedby refid="hierarchical__clustering__result_8cpp" local="no">hierarchical_clustering_result.cpp</includedby>
+    <includedby refid="leiden_8cpp" local="no">leiden.cpp</includedby>
+    <includedby refid="louvain_8cpp" local="no">louvain.cpp</includedby>
+    <incdepgraph>
+      <node id="5">
+        <label>cugraph_c/array.h</label>
+        <link refid="array_8h_source"/>
+        <childnode refid="6" relation="include">
+        </childnode>
+      </node>
+      <node id="1">
+        <label>community_algorithms.h</label>
+        <link refid="community__algorithms_8h"/>
+        <childnode refid="2" relation="include">
+        </childnode>
+        <childnode refid="4" relation="include">
+        </childnode>
+        <childnode refid="8" relation="include">
+        </childnode>
+        <childnode refid="9" relation="include">
+        </childnode>
+        <childnode refid="6" relation="include">
+        </childnode>
+      </node>
+      <node id="2">
+        <label>cugraph_c/error.h</label>
+        <link refid="error_8h_source"/>
+        <childnode refid="3" relation="include">
+        </childnode>
+      </node>
+      <node id="4">
+        <label>cugraph_c/graph.h</label>
+        <link refid="graph_8h_source"/>
+        <childnode refid="5" relation="include">
+        </childnode>
+      </node>
+      <node id="8">
+        <label>cugraph_c/graph_functions.h</label>
+        <link refid="graph__functions_8h_source"/>
+        <childnode refid="5" relation="include">
+        </childnode>
+        <childnode refid="4" relation="include">
+        </childnode>
+        <childnode refid="6" relation="include">
+        </childnode>
+      </node>
+      <node id="9">
+        <label>cugraph_c/random.h</label>
+        <link refid="random_8h_source"/>
+        <childnode refid="6" relation="include">
+        </childnode>
+      </node>
+      <node id="6">
+        <label>cugraph_c/resource_handle.h</label>
+        <link refid="resource__handle_8h_source"/>
+        <childnode refid="2" relation="include">
+        </childnode>
+        <childnode refid="7" relation="include">
+        </childnode>
+        <childnode refid="3" relation="include">
+        </childnode>
+      </node>
+      <node id="7">
+        <label>stddef.h</label>
+      </node>
+      <node id="3">
+        <label>stdint.h</label>
+      </node>
+    </incdepgraph>
+    <invincdepgraph>
+      <node id="2">
+        <label>algorithms.h</label>
+        <link refid="algorithms_8h_source"/>
+        <childnode refid="3" relation="include">
+        </childnode>
+      </node>
+      <node id="1">
+        <label>community_algorithms.h</label>
+        <link refid="community__algorithms_8h"/>
+        <childnode refid="2" relation="include">
+        </childnode>
+      </node>
+      <node id="3">
+        <label>hierarchical_clustering_result.hpp</label>
+        <link refid="hierarchical__clustering__result_8hpp_source"/>
+      </node>
+    </invincdepgraph>
+    <innerclass refid="structcugraph__triangle__count__result__t" prot="public">cugraph_triangle_count_result_t</innerclass>
+    <innerclass refid="structcugraph__hierarchical__clustering__result__t" prot="public">cugraph_hierarchical_clustering_result_t</innerclass>
+    <innerclass refid="structcugraph__clustering__result__t" prot="public">cugraph_clustering_result_t</innerclass>
+    <sectiondef kind="func">
+      <memberdef kind="function" id="community__algorithms_8h_1a8beb956d848525a5bb962f7054ad9882" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>cugraph_error_code_t</type>
+        <definition>cugraph_error_code_t cugraph_triangle_count</definition>
+        <argsstring>(const cugraph_resource_handle_t *handle, cugraph_graph_t *graph, const cugraph_type_erased_device_array_view_t *start, bool_t do_expensive_check, cugraph_triangle_count_result_t **result, cugraph_error_t **error)</argsstring>
+        <name>cugraph_triangle_count</name>
+        <param>
+          <type>const <ref refid="structcugraph__resource__handle__" kindref="compound">cugraph_resource_handle_t</ref> *</type>
+          <declname>handle</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__graph__t" kindref="compound">cugraph_graph_t</ref> *</type>
+          <declname>graph</declname>
+        </param>
+        <param>
+          <type>const <ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref> *</type>
+          <declname>start</declname>
+        </param>
+        <param>
+          <type>bool_t</type>
+          <declname>do_expensive_check</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__triangle__count__result__t" kindref="compound">cugraph_triangle_count_result_t</ref> **</type>
+          <declname>result</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__error__" kindref="compound">cugraph_error_t</ref> **</type>
+          <declname>error</declname>
+        </param>
+        <briefdescription>
+<para>Triangle Counting. </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">handle</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Handle for accessing resources </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">graph</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Pointer to graph. NOTE: Graph might be modified if the storage needs to be transposed </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">start</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Device array of vertices we want to count triangles for. If NULL the entire set of vertices in the graph is processed </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">do_expensive_check</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>A flag to run expensive checks for input arguments (if set to true) </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="out">result</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Output from the triangle_count call </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="out">error</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Pointer to an error object storing details of any error. Will be populated if error code is not CUGRAPH_SUCCESS </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>error code </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/community_algorithms.h" line="54" column="22" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/triangle_count.cpp" bodystart="178" bodyend="189" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/community_algorithms.h" declline="54" declcolumn="22"/>
+      </memberdef>
+      <member refid="group__community_1gad840c36332f4121a434353777f287644" kind="function"><name>cugraph_triangle_count_result_get_vertices</name></member>
+      <member refid="group__community_1ga8628743ba647dc9e2930654200636aa2" kind="function"><name>cugraph_triangle_count_result_get_counts</name></member>
+      <member refid="group__community_1gafbff5b19c284c567cb47f0eff180c807" kind="function"><name>cugraph_triangle_count_result_free</name></member>
+      <memberdef kind="function" id="community__algorithms_8h_1abd9b34721dae5e97b1e3e9c077bf1763" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>cugraph_error_code_t</type>
+        <definition>cugraph_error_code_t cugraph_louvain</definition>
+        <argsstring>(const cugraph_resource_handle_t *handle, cugraph_graph_t *graph, size_t max_level, double threshold, double resolution, bool_t do_expensive_check, cugraph_hierarchical_clustering_result_t **result, cugraph_error_t **error)</argsstring>
+        <name>cugraph_louvain</name>
+        <param>
+          <type>const <ref refid="structcugraph__resource__handle__" kindref="compound">cugraph_resource_handle_t</ref> *</type>
+          <declname>handle</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__graph__t" kindref="compound">cugraph_graph_t</ref> *</type>
+          <declname>graph</declname>
+        </param>
+        <param>
+          <type>size_t</type>
+          <declname>max_level</declname>
+        </param>
+        <param>
+          <type>double</type>
+          <declname>threshold</declname>
+        </param>
+        <param>
+          <type>double</type>
+          <declname>resolution</declname>
+        </param>
+        <param>
+          <type>bool_t</type>
+          <declname>do_expensive_check</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__hierarchical__clustering__result__t" kindref="compound">cugraph_hierarchical_clustering_result_t</ref> **</type>
+          <declname>result</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__error__" kindref="compound">cugraph_error_t</ref> **</type>
+          <declname>error</declname>
+        </param>
+        <briefdescription>
+<para>Compute Louvain. </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">handle</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Handle for accessing resources </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">graph</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Pointer to graph. NOTE: Graph might be modified if the storage needs to be transposed </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">max_level</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Maximum level in hierarchy </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">threshold</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Threshold parameter, defines convergence at each level of hierarchy </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">resolution</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Resolution parameter (gamma) in modularity formula. This changes the size of the communities. Higher resolutions lead to more smaller communities, lower resolutions lead to fewer larger communities. </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">do_expensive_check</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>A flag to run expensive checks for input arguments (if set to true) </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="out">result</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Output from the Louvain call </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="out">error</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Pointer to an error object storing details of any error. Will be populated if error code is not CUGRAPH_SUCCESS </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>error code </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/community_algorithms.h" line="109" column="22" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/louvain.cpp" bodystart="126" bodyend="138" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/community_algorithms.h" declline="109" declcolumn="22"/>
+      </memberdef>
+      <memberdef kind="function" id="community__algorithms_8h_1a0488d84e5671d85f10b2465c016c2705" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>cugraph_error_code_t</type>
+        <definition>cugraph_error_code_t cugraph_leiden</definition>
+        <argsstring>(const cugraph_resource_handle_t *handle, cugraph_rng_state_t *rng_state, cugraph_graph_t *graph, size_t max_level, double resolution, double theta, bool_t do_expensive_check, cugraph_hierarchical_clustering_result_t **result, cugraph_error_t **error)</argsstring>
+        <name>cugraph_leiden</name>
+        <param>
+          <type>const <ref refid="structcugraph__resource__handle__" kindref="compound">cugraph_resource_handle_t</ref> *</type>
+          <declname>handle</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__rng__state__t" kindref="compound">cugraph_rng_state_t</ref> *</type>
+          <declname>rng_state</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__graph__t" kindref="compound">cugraph_graph_t</ref> *</type>
+          <declname>graph</declname>
+        </param>
+        <param>
+          <type>size_t</type>
+          <declname>max_level</declname>
+        </param>
+        <param>
+          <type>double</type>
+          <declname>resolution</declname>
+        </param>
+        <param>
+          <type>double</type>
+          <declname>theta</declname>
+        </param>
+        <param>
+          <type>bool_t</type>
+          <declname>do_expensive_check</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__hierarchical__clustering__result__t" kindref="compound">cugraph_hierarchical_clustering_result_t</ref> **</type>
+          <declname>result</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__error__" kindref="compound">cugraph_error_t</ref> **</type>
+          <declname>error</declname>
+        </param>
+        <briefdescription>
+<para>Compute Leiden. </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">handle</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Handle for accessing resources </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">graph</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Pointer to graph. NOTE: Graph might be modified if the storage needs to be transposed </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="inout">rng_state</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>State of the random number generator, updated with each call </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">max_level</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Maximum level in hierarchy </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">resolution</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Resolution parameter (gamma) in modularity formula. This changes the size of the communities. Higher resolutions lead to more smaller communities, lower resolutions lead to fewer larger communities. </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">theta</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>(optional) The value of the parameter to scale modularity gain in Leiden refinement phase. It is used to compute the probability of joining a random leiden community. Called theta in the Leiden algorithm. </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">do_expensive_check</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>A flag to run expensive checks for input arguments (if set to true) </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="out">result</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Output from the Leiden call </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="out">error</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Pointer to an error object storing details of any error. Will be populated if error code is not CUGRAPH_SUCCESS </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>error code </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/community_algorithms.h" line="141" column="22" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/leiden.cpp" bodystart="128" bodyend="141" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/community_algorithms.h" declline="141" declcolumn="22"/>
+      </memberdef>
+      <member refid="group__community_1ga9ea74b43f71b83c027d678d48c8b468f" kind="function"><name>cugraph_hierarchical_clustering_result_get_vertices</name></member>
+      <member refid="group__community_1ga6e0a70ee5f7a323dec6a82383885e8a3" kind="function"><name>cugraph_hierarchical_clustering_result_get_clusters</name></member>
+      <member refid="group__community_1gafeb10bbe094b6890c81051c5c335c0f0" kind="function"><name>cugraph_hierarchical_clustering_result_get_modularity</name></member>
+      <member refid="group__community_1ga2ea105ec256f4c51e7732edbd68818dc" kind="function"><name>cugraph_hierarchical_clustering_result_free</name></member>
+      <memberdef kind="function" id="community__algorithms_8h_1a50b0ca2fda8aacfd31392769d6d533a2" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>cugraph_error_code_t</type>
+        <definition>cugraph_error_code_t cugraph_ecg</definition>
+        <argsstring>(const cugraph_resource_handle_t *handle, cugraph_rng_state_t *rng_state, cugraph_graph_t *graph, double min_weight, size_t ensemble_size, size_t max_level, double threshold, double resolution, bool_t do_expensive_check, cugraph_hierarchical_clustering_result_t **result, cugraph_error_t **error)</argsstring>
+        <name>cugraph_ecg</name>
+        <param>
+          <type>const <ref refid="structcugraph__resource__handle__" kindref="compound">cugraph_resource_handle_t</ref> *</type>
+          <declname>handle</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__rng__state__t" kindref="compound">cugraph_rng_state_t</ref> *</type>
+          <declname>rng_state</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__graph__t" kindref="compound">cugraph_graph_t</ref> *</type>
+          <declname>graph</declname>
+        </param>
+        <param>
+          <type>double</type>
+          <declname>min_weight</declname>
+        </param>
+        <param>
+          <type>size_t</type>
+          <declname>ensemble_size</declname>
+        </param>
+        <param>
+          <type>size_t</type>
+          <declname>max_level</declname>
+        </param>
+        <param>
+          <type>double</type>
+          <declname>threshold</declname>
+        </param>
+        <param>
+          <type>double</type>
+          <declname>resolution</declname>
+        </param>
+        <param>
+          <type>bool_t</type>
+          <declname>do_expensive_check</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__hierarchical__clustering__result__t" kindref="compound">cugraph_hierarchical_clustering_result_t</ref> **</type>
+          <declname>result</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__error__" kindref="compound">cugraph_error_t</ref> **</type>
+          <declname>error</declname>
+        </param>
+        <briefdescription>
+<para>Compute ECG clustering. </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">handle</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Handle for accessing resources </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="inout">rng_state</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>State of the random number generator, updated with each call </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">graph</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Pointer to graph. NOTE: Graph might be modified if the storage needs to be transposed </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">min_weight</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Minimum edge weight in final graph </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">ensemble_size</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>The number of Louvain iterations to run </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">max_level</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Maximum level in hierarchy for final Louvain </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">threshold</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Threshold parameter, defines convergence at each level of hierarchy for final Louvain </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">resolution</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Resolution parameter (gamma) in modularity formula. This changes the size of the communities. Higher resolutions lead to more smaller communities, lower resolutions lead to fewer larger communities. </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">do_expensive_check</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>A flag to run expensive checks for input arguments (if set to true) </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="out">result</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Output from the Louvain call </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="out">error</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Pointer to an error object storing details of any error. Will be populated if error code is not CUGRAPH_SUCCESS </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>error code </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/community_algorithms.h" line="203" column="22" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/ecg.cpp" bodystart="131" bodyend="154" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/community_algorithms.h" declline="203" declcolumn="22"/>
+      </memberdef>
+      <memberdef kind="function" id="community__algorithms_8h_1a7d6a59ef1a894af4f36a430ad0ae8f65" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>cugraph_error_code_t</type>
+        <definition>cugraph_error_code_t cugraph_legacy_ecg</definition>
+        <argsstring>(const cugraph_resource_handle_t *handle, cugraph_graph_t *graph, double min_weight, size_t ensemble_size, bool_t do_expensive_check, cugraph_hierarchical_clustering_result_t **result, cugraph_error_t **error)</argsstring>
+        <name>cugraph_legacy_ecg</name>
+        <param>
+          <type>const <ref refid="structcugraph__resource__handle__" kindref="compound">cugraph_resource_handle_t</ref> *</type>
+          <declname>handle</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__graph__t" kindref="compound">cugraph_graph_t</ref> *</type>
+          <declname>graph</declname>
+        </param>
+        <param>
+          <type>double</type>
+          <declname>min_weight</declname>
+        </param>
+        <param>
+          <type>size_t</type>
+          <declname>ensemble_size</declname>
+        </param>
+        <param>
+          <type>bool_t</type>
+          <declname>do_expensive_check</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__hierarchical__clustering__result__t" kindref="compound">cugraph_hierarchical_clustering_result_t</ref> **</type>
+          <declname>result</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__error__" kindref="compound">cugraph_error_t</ref> **</type>
+          <declname>error</declname>
+        </param>
+        <briefdescription>
+<para>Compute ECG clustering of the given graph. </para>
+        </briefdescription>
+        <detaileddescription>
+<para>ECG runs truncated Louvain on an ensemble of permutations of the input graph, then uses the ensemble partitions to determine weights for the input graph. The final result is found by running full Louvain on the input graph using the determined weights. See <ulink url="https://arxiv.org/abs/1809.05578">https://arxiv.org/abs/1809.05578</ulink> for further information.</para>
+<para>NOTE: This currently wraps the legacy ECG clustering implementation which is only available in Single GPU implementation.</para>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">handle</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Handle for accessing resources </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">graph</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Pointer to graph. NOTE: Graph might be modified if the storage </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">min_weight</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>The minimum weight parameter </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">ensemble_size</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>The ensemble size parameter </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">do_expensive_check</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>A flag to run expensive checks for input arguments (if set to true) </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="out">result</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>The result from the clustering algorithm </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="out">error</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Pointer to an error object storing details of any error. Will be populated if error code is not CUGRAPH_SUCCESS </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>error code </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/community_algorithms.h" line="238" column="22" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/legacy_ecg.cpp" bodystart="123" bodyend="135" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/community_algorithms.h" declline="238" declcolumn="22"/>
+      </memberdef>
+      <memberdef kind="function" id="community__algorithms_8h_1a63fc98a97a16b404be103108a92dd676" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>cugraph_error_code_t</type>
+        <definition>cugraph_error_code_t cugraph_extract_ego</definition>
+        <argsstring>(const cugraph_resource_handle_t *handle, cugraph_graph_t *graph, const cugraph_type_erased_device_array_view_t *source_vertices, size_t radius, bool_t do_expensive_check, cugraph_induced_subgraph_result_t **result, cugraph_error_t **error)</argsstring>
+        <name>cugraph_extract_ego</name>
+        <param>
+          <type>const <ref refid="structcugraph__resource__handle__" kindref="compound">cugraph_resource_handle_t</ref> *</type>
+          <declname>handle</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__graph__t" kindref="compound">cugraph_graph_t</ref> *</type>
+          <declname>graph</declname>
+        </param>
+        <param>
+          <type>const <ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref> *</type>
+          <declname>source_vertices</declname>
+        </param>
+        <param>
+          <type>size_t</type>
+          <declname>radius</declname>
+        </param>
+        <param>
+          <type>bool_t</type>
+          <declname>do_expensive_check</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__induced__subgraph__result__t" kindref="compound">cugraph_induced_subgraph_result_t</ref> **</type>
+          <declname>result</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__error__" kindref="compound">cugraph_error_t</ref> **</type>
+          <declname>error</declname>
+        </param>
+        <briefdescription>
+<para>Extract ego graphs. </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">handle</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Handle for accessing resources </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">graph</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Pointer to graph. NOTE: Graph might be modified if the storage needs to be transposed </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">source_vertices</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Device array of vertices we want to extract egonets for. </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">radius</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>The number of hops to go out from each source vertex </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">do_expensive_check</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>A flag to run expensive checks for input arguments (if set to true) </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="out">result</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Opaque object containing the extracted subgraph </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="out">error</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Pointer to an error object storing details of any error. Will be populated if error code is not CUGRAPH_SUCCESS </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>error code </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/community_algorithms.h" line="261" column="22" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/extract_ego.cpp" bodystart="190" bodyend="202" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/community_algorithms.h" declline="261" declcolumn="22"/>
+      </memberdef>
+      <memberdef kind="function" id="community__algorithms_8h_1aa1f2e3056dedf32f73882ac7d09f69e0" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>cugraph_error_code_t</type>
+        <definition>cugraph_error_code_t cugraph_k_truss_subgraph</definition>
+        <argsstring>(const cugraph_resource_handle_t *handle, cugraph_graph_t *graph, size_t k, bool_t do_expensive_check, cugraph_induced_subgraph_result_t **result, cugraph_error_t **error)</argsstring>
+        <name>cugraph_k_truss_subgraph</name>
+        <param>
+          <type>const <ref refid="structcugraph__resource__handle__" kindref="compound">cugraph_resource_handle_t</ref> *</type>
+          <declname>handle</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__graph__t" kindref="compound">cugraph_graph_t</ref> *</type>
+          <declname>graph</declname>
+        </param>
+        <param>
+          <type>size_t</type>
+          <declname>k</declname>
+        </param>
+        <param>
+          <type>bool_t</type>
+          <declname>do_expensive_check</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__induced__subgraph__result__t" kindref="compound">cugraph_induced_subgraph_result_t</ref> **</type>
+          <declname>result</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__error__" kindref="compound">cugraph_error_t</ref> **</type>
+          <declname>error</declname>
+        </param>
+        <briefdescription>
+<para>Extract k truss for a graph. </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">handle</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Handle for accessing resources </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">graph</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Pointer to graph. NOTE: Graph might be modified if the storage needs to be transposed </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">k</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>The order of the truss </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">do_expensive_check</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>A flag to run expensive checks for input arguments (if set to true) </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="out">result</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Opaque object containing the extracted subgraph </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="out">error</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Pointer to an error object storing details of any error. Will be populated if error code is not CUGRAPH_SUCCESS </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>error code </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/community_algorithms.h" line="284" column="22" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/k_truss.cpp" bodystart="131" bodyend="141" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/community_algorithms.h" declline="284" declcolumn="22"/>
+      </memberdef>
+      <memberdef kind="function" id="community__algorithms_8h_1a8c7716c5c573e3c9589afde86f69bc53" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>cugraph_error_code_t</type>
+        <definition>cugraph_error_code_t cugraph_balanced_cut_clustering</definition>
+        <argsstring>(const cugraph_resource_handle_t *handle, cugraph_graph_t *graph, size_t n_clusters, size_t n_eigenvectors, double evs_tolerance, int evs_max_iterations, double k_means_tolerance, int k_means_max_iterations, bool_t do_expensive_check, cugraph_clustering_result_t **result, cugraph_error_t **error)</argsstring>
+        <name>cugraph_balanced_cut_clustering</name>
+        <param>
+          <type>const <ref refid="structcugraph__resource__handle__" kindref="compound">cugraph_resource_handle_t</ref> *</type>
+          <declname>handle</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__graph__t" kindref="compound">cugraph_graph_t</ref> *</type>
+          <declname>graph</declname>
+        </param>
+        <param>
+          <type>size_t</type>
+          <declname>n_clusters</declname>
+        </param>
+        <param>
+          <type>size_t</type>
+          <declname>n_eigenvectors</declname>
+        </param>
+        <param>
+          <type>double</type>
+          <declname>evs_tolerance</declname>
+        </param>
+        <param>
+          <type>int</type>
+          <declname>evs_max_iterations</declname>
+        </param>
+        <param>
+          <type>double</type>
+          <declname>k_means_tolerance</declname>
+        </param>
+        <param>
+          <type>int</type>
+          <declname>k_means_max_iterations</declname>
+        </param>
+        <param>
+          <type>bool_t</type>
+          <declname>do_expensive_check</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__clustering__result__t" kindref="compound">cugraph_clustering_result_t</ref> **</type>
+          <declname>result</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__error__" kindref="compound">cugraph_error_t</ref> **</type>
+          <declname>error</declname>
+        </param>
+        <briefdescription>
+<para>Balanced cut clustering. </para>
+        </briefdescription>
+        <detaileddescription>
+<para>NOTE: This currently wraps the legacy balanced cut clustering implementation and is only available in Single GPU implementation.</para>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">handle</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Handle for accessing resources </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">graph</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Pointer to graph. NOTE: Graph might be modified if the storage needs to be transposed </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">n_clusters</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>The desired number of clusters </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">n_eigenvectors</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>The number of eigenvectors to use </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">evs_tolerance</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>The tolerance to use for the eigenvalue solver </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">evs_max_iterations</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>The maximum number of iterations of the eigenvalue solver </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">k_means_tolerance</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>The tolerance to use for the k-means solver </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">k_means_max_iterations</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>The maximum number of iterations of the k-means solver </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">do_expensive_check</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>A flag to run expensive checks for input arguments (if set to true) </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="out">result</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Opaque object containing the clustering result </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="out">error</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Pointer to an error object storing details of any error. Will be populated if error code is not CUGRAPH_SUCCESS </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>error code </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/community_algorithms.h" line="320" column="22" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/legacy_spectral.cpp" bodystart="629" bodyend="653" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/community_algorithms.h" declline="320" declcolumn="22"/>
+      </memberdef>
+      <memberdef kind="function" id="community__algorithms_8h_1a7b043ba3e8249749aae179834cbb2c17" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>cugraph_error_code_t</type>
+        <definition>cugraph_error_code_t cugraph_spectral_modularity_maximization</definition>
+        <argsstring>(const cugraph_resource_handle_t *handle, cugraph_graph_t *graph, size_t n_clusters, size_t n_eigenvectors, double evs_tolerance, int evs_max_iterations, double k_means_tolerance, int k_means_max_iterations, bool_t do_expensive_check, cugraph_clustering_result_t **result, cugraph_error_t **error)</argsstring>
+        <name>cugraph_spectral_modularity_maximization</name>
+        <param>
+          <type>const <ref refid="structcugraph__resource__handle__" kindref="compound">cugraph_resource_handle_t</ref> *</type>
+          <declname>handle</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__graph__t" kindref="compound">cugraph_graph_t</ref> *</type>
+          <declname>graph</declname>
+        </param>
+        <param>
+          <type>size_t</type>
+          <declname>n_clusters</declname>
+        </param>
+        <param>
+          <type>size_t</type>
+          <declname>n_eigenvectors</declname>
+        </param>
+        <param>
+          <type>double</type>
+          <declname>evs_tolerance</declname>
+        </param>
+        <param>
+          <type>int</type>
+          <declname>evs_max_iterations</declname>
+        </param>
+        <param>
+          <type>double</type>
+          <declname>k_means_tolerance</declname>
+        </param>
+        <param>
+          <type>int</type>
+          <declname>k_means_max_iterations</declname>
+        </param>
+        <param>
+          <type>bool_t</type>
+          <declname>do_expensive_check</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__clustering__result__t" kindref="compound">cugraph_clustering_result_t</ref> **</type>
+          <declname>result</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__error__" kindref="compound">cugraph_error_t</ref> **</type>
+          <declname>error</declname>
+        </param>
+        <briefdescription>
+<para>Spectral clustering. </para>
+        </briefdescription>
+        <detaileddescription>
+<para>NOTE: This currently wraps the legacy spectral clustering implementation and is only available in Single GPU implementation.</para>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">handle</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Handle for accessing resources </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">graph</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Pointer to graph. NOTE: Graph might be modified if the storage needs to be transposed </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">n_clusters</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>The desired number of clusters </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">n_eigenvectors</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>The number of eigenvectors to use </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">evs_tolerance</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>The tolerance to use for the eigenvalue solver </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">evs_max_iterations</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>The maximum number of iterations of the eigenvalue solver </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">k_means_tolerance</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>The tolerance to use for the k-means solver </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">k_means_max_iterations</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>The maximum number of iterations of the k-means solver </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">do_expensive_check</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>A flag to run expensive checks for input arguments (if set to true) </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="out">result</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Opaque object containing the clustering result </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="out">error</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Pointer to an error object storing details of any error. Will be populated if error code is not CUGRAPH_SUCCESS </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>error code </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/community_algorithms.h" line="354" column="22" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/legacy_spectral.cpp" bodystart="654" bodyend="678" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/community_algorithms.h" declline="354" declcolumn="22"/>
+      </memberdef>
+      <memberdef kind="function" id="community__algorithms_8h_1afac4eb321936c6459a633d16427c9b33" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>cugraph_error_code_t</type>
+        <definition>cugraph_error_code_t cugraph_analyze_clustering_modularity</definition>
+        <argsstring>(const cugraph_resource_handle_t *handle, cugraph_graph_t *graph, size_t n_clusters, const cugraph_type_erased_device_array_view_t *vertices, const cugraph_type_erased_device_array_view_t *clusters, double *score, cugraph_error_t **error)</argsstring>
+        <name>cugraph_analyze_clustering_modularity</name>
+        <param>
+          <type>const <ref refid="structcugraph__resource__handle__" kindref="compound">cugraph_resource_handle_t</ref> *</type>
+          <declname>handle</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__graph__t" kindref="compound">cugraph_graph_t</ref> *</type>
+          <declname>graph</declname>
+        </param>
+        <param>
+          <type>size_t</type>
+          <declname>n_clusters</declname>
+        </param>
+        <param>
+          <type>const <ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref> *</type>
+          <declname>vertices</declname>
+        </param>
+        <param>
+          <type>const <ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref> *</type>
+          <declname>clusters</declname>
+        </param>
+        <param>
+          <type>double *</type>
+          <declname>score</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__error__" kindref="compound">cugraph_error_t</ref> **</type>
+          <declname>error</declname>
+        </param>
+        <briefdescription>
+<para>Compute modularity of the specified clustering. </para>
+        </briefdescription>
+        <detaileddescription>
+<para>NOTE: This currently wraps the legacy spectral modularity implementation and is only available in Single GPU implementation.</para>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">handle</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Handle for accessing resources </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">graph</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Pointer to graph. NOTE: Graph might be modified if the storage needs to be transposed </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">n_clusters</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>The desired number of clusters </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">vertices</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Vertex ids from the clustering result </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">clusters</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Cluster ids from the clustering result </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="out">score</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>The modularity score for this clustering </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="out">error</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Pointer to an error object storing details of any error. Will be populated if error code is not CUGRAPH_SUCCESS </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>error code </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/community_algorithms.h" line="384" column="22" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/legacy_spectral.cpp" bodystart="680" bodyend="692" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/community_algorithms.h" declline="384" declcolumn="22"/>
+      </memberdef>
+      <memberdef kind="function" id="community__algorithms_8h_1ad6d3adbcfb01aa5957729261da61c269" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>cugraph_error_code_t</type>
+        <definition>cugraph_error_code_t cugraph_analyze_clustering_edge_cut</definition>
+        <argsstring>(const cugraph_resource_handle_t *handle, cugraph_graph_t *graph, size_t n_clusters, const cugraph_type_erased_device_array_view_t *vertices, const cugraph_type_erased_device_array_view_t *clusters, double *score, cugraph_error_t **error)</argsstring>
+        <name>cugraph_analyze_clustering_edge_cut</name>
+        <param>
+          <type>const <ref refid="structcugraph__resource__handle__" kindref="compound">cugraph_resource_handle_t</ref> *</type>
+          <declname>handle</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__graph__t" kindref="compound">cugraph_graph_t</ref> *</type>
+          <declname>graph</declname>
+        </param>
+        <param>
+          <type>size_t</type>
+          <declname>n_clusters</declname>
+        </param>
+        <param>
+          <type>const <ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref> *</type>
+          <declname>vertices</declname>
+        </param>
+        <param>
+          <type>const <ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref> *</type>
+          <declname>clusters</declname>
+        </param>
+        <param>
+          <type>double *</type>
+          <declname>score</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__error__" kindref="compound">cugraph_error_t</ref> **</type>
+          <declname>error</declname>
+        </param>
+        <briefdescription>
+<para>Compute edge cut of the specified clustering. </para>
+        </briefdescription>
+        <detaileddescription>
+<para>NOTE: This currently wraps the legacy spectral edge cut implementation and is only available in Single GPU implementation.</para>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">handle</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Handle for accessing resources </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">graph</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Pointer to graph. NOTE: Graph might be modified if the storage needs to be transposed </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">n_clusters</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>The desired number of clusters </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">vertices</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Vertex ids from the clustering result </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">clusters</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Cluster ids from the clustering result </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="out">score</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>The edge cut score for this clustering </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="out">error</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Pointer to an error object storing details of any error. Will be populated if error code is not CUGRAPH_SUCCESS </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>error code </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/community_algorithms.h" line="410" column="22" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/legacy_spectral.cpp" bodystart="694" bodyend="706" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/community_algorithms.h" declline="410" declcolumn="22"/>
+      </memberdef>
+      <memberdef kind="function" id="community__algorithms_8h_1a49e1efc466afedb41a2e6189b44f51ff" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>cugraph_error_code_t</type>
+        <definition>cugraph_error_code_t cugraph_analyze_clustering_ratio_cut</definition>
+        <argsstring>(const cugraph_resource_handle_t *handle, cugraph_graph_t *graph, size_t n_clusters, const cugraph_type_erased_device_array_view_t *vertices, const cugraph_type_erased_device_array_view_t *clusters, double *score, cugraph_error_t **error)</argsstring>
+        <name>cugraph_analyze_clustering_ratio_cut</name>
+        <param>
+          <type>const <ref refid="structcugraph__resource__handle__" kindref="compound">cugraph_resource_handle_t</ref> *</type>
+          <declname>handle</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__graph__t" kindref="compound">cugraph_graph_t</ref> *</type>
+          <declname>graph</declname>
+        </param>
+        <param>
+          <type>size_t</type>
+          <declname>n_clusters</declname>
+        </param>
+        <param>
+          <type>const <ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref> *</type>
+          <declname>vertices</declname>
+        </param>
+        <param>
+          <type>const <ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref> *</type>
+          <declname>clusters</declname>
+        </param>
+        <param>
+          <type>double *</type>
+          <declname>score</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__error__" kindref="compound">cugraph_error_t</ref> **</type>
+          <declname>error</declname>
+        </param>
+        <briefdescription>
+<para>Compute ratio cut of the specified clustering. </para>
+        </briefdescription>
+        <detaileddescription>
+<para>NOTE: This currently wraps the legacy spectral ratio cut implementation and is only available in Single GPU implementation.</para>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">handle</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Handle for accessing resources </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">graph</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Pointer to graph. NOTE: Graph might be modified if the storage needs to be transposed </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">n_clusters</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>The desired number of clusters </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">vertices</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Vertex ids from the clustering result </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">clusters</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Cluster ids from the clustering result </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="out">score</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>The ratio cut score for this clustering </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="out">error</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Pointer to an error object storing details of any error. Will be populated if error code is not CUGRAPH_SUCCESS </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>error code </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/community_algorithms.h" line="436" column="22" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/legacy_spectral.cpp" bodystart="708" bodyend="720" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/community_algorithms.h" declline="436" declcolumn="22"/>
+      </memberdef>
+      <memberdef kind="function" id="community__algorithms_8h_1a1e8b40ac4d40c99a6677a40b594ea37b" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref> *</type>
+        <definition>cugraph_type_erased_device_array_view_t * cugraph_clustering_result_get_vertices</definition>
+        <argsstring>(cugraph_clustering_result_t *result)</argsstring>
+        <name>cugraph_clustering_result_get_vertices</name>
+        <param>
+          <type><ref refid="structcugraph__clustering__result__t" kindref="compound">cugraph_clustering_result_t</ref> *</type>
+          <declname>result</declname>
+        </param>
+        <briefdescription>
+<para>Get clustering vertices. </para>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/community_algorithms.h" line="448" column="41" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/legacy_spectral.cpp" bodystart="605" bodyend="611" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/community_algorithms.h" declline="448" declcolumn="41"/>
+      </memberdef>
+      <memberdef kind="function" id="community__algorithms_8h_1a66ec6a93e40abee66aaa7a4351074b08" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref> *</type>
+        <definition>cugraph_type_erased_device_array_view_t * cugraph_clustering_result_get_clusters</definition>
+        <argsstring>(cugraph_clustering_result_t *result)</argsstring>
+        <name>cugraph_clustering_result_get_clusters</name>
+        <param>
+          <type><ref refid="structcugraph__clustering__result__t" kindref="compound">cugraph_clustering_result_t</ref> *</type>
+          <declname>result</declname>
+        </param>
+        <briefdescription>
+<para>Get clustering clusters. </para>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/community_algorithms.h" line="454" column="41" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/legacy_spectral.cpp" bodystart="613" bodyend="619" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/community_algorithms.h" declline="454" declcolumn="41"/>
+      </memberdef>
+      <memberdef kind="function" id="community__algorithms_8h_1ad4f87c5c88c8c6b2756a9c6e6ddf6763" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>void</type>
+        <definition>void cugraph_clustering_result_free</definition>
+        <argsstring>(cugraph_clustering_result_t *result)</argsstring>
+        <name>cugraph_clustering_result_free</name>
+        <param>
+          <type><ref refid="structcugraph__clustering__result__t" kindref="compound">cugraph_clustering_result_t</ref> *</type>
+          <declname>result</declname>
+        </param>
+        <briefdescription>
+<para>Free a clustering result. </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">result</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>The result from a sampling algorithm </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/community_algorithms.h" line="462" column="6" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/legacy_spectral.cpp" bodystart="621" bodyend="627" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/community_algorithms.h" declline="462" declcolumn="6"/>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <programlisting>
+<codeline lineno="1"><highlight class="comment">/*</highlight></codeline>
+<codeline lineno="2"><highlight class="comment"><sp/>*<sp/>Copyright<sp/>(c)<sp/>2022-2024,<sp/>NVIDIA<sp/>CORPORATION.</highlight></codeline>
+<codeline lineno="3"><highlight class="comment"><sp/>*</highlight></codeline>
+<codeline lineno="4"><highlight class="comment"><sp/>*<sp/>Licensed<sp/>under<sp/>the<sp/>Apache<sp/>License,<sp/>Version<sp/>2.0<sp/>(the<sp/>&quot;License&quot;);</highlight></codeline>
+<codeline lineno="5"><highlight class="comment"><sp/>*<sp/>you<sp/>may<sp/>not<sp/>use<sp/>this<sp/>file<sp/>except<sp/>in<sp/>compliance<sp/>with<sp/>the<sp/>License.</highlight></codeline>
+<codeline lineno="6"><highlight class="comment"><sp/>*<sp/>You<sp/>may<sp/>obtain<sp/>a<sp/>copy<sp/>of<sp/>the<sp/>License<sp/>at</highlight></codeline>
+<codeline lineno="7"><highlight class="comment"><sp/>*</highlight></codeline>
+<codeline lineno="8"><highlight class="comment"><sp/>*<sp/><sp/><sp/><sp/><sp/>http://www.apache.org/licenses/LICENSE-2.0</highlight></codeline>
+<codeline lineno="9"><highlight class="comment"><sp/>*</highlight></codeline>
+<codeline lineno="10"><highlight class="comment"><sp/>*<sp/>Unless<sp/>required<sp/>by<sp/>applicable<sp/>law<sp/>or<sp/>agreed<sp/>to<sp/>in<sp/>writing,<sp/>software</highlight></codeline>
+<codeline lineno="11"><highlight class="comment"><sp/>*<sp/>distributed<sp/>under<sp/>the<sp/>License<sp/>is<sp/>distributed<sp/>on<sp/>an<sp/>&quot;AS<sp/>IS&quot;<sp/>BASIS,</highlight></codeline>
+<codeline lineno="12"><highlight class="comment"><sp/>*<sp/>WITHOUT<sp/>WARRANTIES<sp/>OR<sp/>CONDITIONS<sp/>OF<sp/>ANY<sp/>KIND,<sp/>either<sp/>express<sp/>or<sp/>implied.</highlight></codeline>
+<codeline lineno="13"><highlight class="comment"><sp/>*<sp/>See<sp/>the<sp/>License<sp/>for<sp/>the<sp/>specific<sp/>language<sp/>governing<sp/>permissions<sp/>and</highlight></codeline>
+<codeline lineno="14"><highlight class="comment"><sp/>*<sp/>limitations<sp/>under<sp/>the<sp/>License.</highlight></codeline>
+<codeline lineno="15"><highlight class="comment"><sp/>*/</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="16"><highlight class="normal"></highlight></codeline>
+<codeline lineno="17"><highlight class="normal"></highlight><highlight class="preprocessor">#pragma<sp/>once</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="18"><highlight class="normal"></highlight></codeline>
+<codeline lineno="19"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&lt;cugraph_c/error.h&gt;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="20"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&lt;cugraph_c/graph.h&gt;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="21"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&lt;cugraph_c/graph_functions.h&gt;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="22"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&lt;cugraph_c/random.h&gt;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="23"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&lt;cugraph_c/resource_handle.h&gt;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="24"><highlight class="normal"></highlight></codeline>
+<codeline lineno="28"><highlight class="normal"></highlight><highlight class="preprocessor">#ifdef<sp/>__cplusplus</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="29"><highlight class="normal"></highlight><highlight class="keyword">extern</highlight><highlight class="normal"><sp/></highlight><highlight class="stringliteral">&quot;C&quot;</highlight><highlight class="normal"><sp/>{</highlight></codeline>
+<codeline lineno="30"><highlight class="normal"></highlight><highlight class="preprocessor">#endif</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="31"><highlight class="normal"></highlight></codeline>
+<codeline lineno="35" refid="structcugraph__triangle__count__result__t" refkind="compound"><highlight class="normal"></highlight><highlight class="keyword">typedef</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">struct<sp/></highlight><highlight class="normal">{</highlight></codeline>
+<codeline lineno="36"><highlight class="normal"><sp/><sp/>int32_t<sp/>align_;</highlight></codeline>
+<codeline lineno="37"><highlight class="normal">}<sp/><ref refid="structcugraph__triangle__count__result__t" kindref="compound">cugraph_triangle_count_result_t</ref>;</highlight></codeline>
+<codeline lineno="38"><highlight class="normal"></highlight></codeline>
+<codeline lineno="54"><highlight class="normal">cugraph_error_code_t<sp/>cugraph_triangle_count(</highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__resource__handle__" kindref="compound">cugraph_resource_handle_t</ref>*<sp/>handle,</highlight></codeline>
+<codeline lineno="55"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><ref refid="structcugraph__graph__t" kindref="compound">cugraph_graph_t</ref>*<sp/>graph,</highlight></codeline>
+<codeline lineno="56"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/>start,</highlight></codeline>
+<codeline lineno="57"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>bool_t<sp/>do_expensive_check,</highlight></codeline>
+<codeline lineno="58"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><ref refid="structcugraph__triangle__count__result__t" kindref="compound">cugraph_triangle_count_result_t</ref>**<sp/>result,</highlight></codeline>
+<codeline lineno="59"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><ref refid="structcugraph__error__" kindref="compound">cugraph_error_t</ref>**<sp/>error);</highlight></codeline>
+<codeline lineno="60"><highlight class="normal"></highlight></codeline>
+<codeline lineno="65"><highlight class="normal"><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/><ref refid="group__community_1gad840c36332f4121a434353777f287644" kindref="member">cugraph_triangle_count_result_get_vertices</ref>(</highlight></codeline>
+<codeline lineno="66"><highlight class="normal"><sp/><sp/><ref refid="structcugraph__triangle__count__result__t" kindref="compound">cugraph_triangle_count_result_t</ref>*<sp/>result);</highlight></codeline>
+<codeline lineno="67"><highlight class="normal"></highlight></codeline>
+<codeline lineno="72"><highlight class="normal"><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/><ref refid="group__community_1ga8628743ba647dc9e2930654200636aa2" kindref="member">cugraph_triangle_count_result_get_counts</ref>(</highlight></codeline>
+<codeline lineno="73"><highlight class="normal"><sp/><sp/><ref refid="structcugraph__triangle__count__result__t" kindref="compound">cugraph_triangle_count_result_t</ref>*<sp/>result);</highlight></codeline>
+<codeline lineno="74"><highlight class="normal"></highlight></codeline>
+<codeline lineno="81"><highlight class="normal"></highlight><highlight class="keywordtype">void</highlight><highlight class="normal"><sp/><ref refid="group__community_1gafbff5b19c284c567cb47f0eff180c807" kindref="member">cugraph_triangle_count_result_free</ref>(<ref refid="structcugraph__triangle__count__result__t" kindref="compound">cugraph_triangle_count_result_t</ref>*<sp/>result);</highlight></codeline>
+<codeline lineno="82"><highlight class="normal"></highlight></codeline>
+<codeline lineno="86" refid="structcugraph__hierarchical__clustering__result__t" refkind="compound"><highlight class="normal"></highlight><highlight class="keyword">typedef</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">struct<sp/></highlight><highlight class="normal">{</highlight></codeline>
+<codeline lineno="87"><highlight class="normal"><sp/><sp/>int32_t<sp/>align_;</highlight></codeline>
+<codeline lineno="88"><highlight class="normal">}<sp/><ref refid="structcugraph__hierarchical__clustering__result__t" kindref="compound">cugraph_hierarchical_clustering_result_t</ref>;</highlight></codeline>
+<codeline lineno="89"><highlight class="normal"></highlight></codeline>
+<codeline lineno="109"><highlight class="normal">cugraph_error_code_t<sp/>cugraph_louvain(</highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__resource__handle__" kindref="compound">cugraph_resource_handle_t</ref>*<sp/>handle,</highlight></codeline>
+<codeline lineno="110"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><ref refid="structcugraph__graph__t" kindref="compound">cugraph_graph_t</ref>*<sp/>graph,</highlight></codeline>
+<codeline lineno="111"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordtype">size_t</highlight><highlight class="normal"><sp/>max_level,</highlight></codeline>
+<codeline lineno="112"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordtype">double</highlight><highlight class="normal"><sp/>threshold,</highlight></codeline>
+<codeline lineno="113"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordtype">double</highlight><highlight class="normal"><sp/>resolution,</highlight></codeline>
+<codeline lineno="114"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>bool_t<sp/>do_expensive_check,</highlight></codeline>
+<codeline lineno="115"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><ref refid="structcugraph__hierarchical__clustering__result__t" kindref="compound">cugraph_hierarchical_clustering_result_t</ref>**<sp/>result,</highlight></codeline>
+<codeline lineno="116"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><ref refid="structcugraph__error__" kindref="compound">cugraph_error_t</ref>**<sp/>error);</highlight></codeline>
+<codeline lineno="117"><highlight class="normal"></highlight></codeline>
+<codeline lineno="141"><highlight class="normal">cugraph_error_code_t<sp/>cugraph_leiden(</highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__resource__handle__" kindref="compound">cugraph_resource_handle_t</ref>*<sp/>handle,</highlight></codeline>
+<codeline lineno="142"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><ref refid="structcugraph__rng__state__t" kindref="compound">cugraph_rng_state_t</ref>*<sp/>rng_state,</highlight></codeline>
+<codeline lineno="143"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><ref refid="structcugraph__graph__t" kindref="compound">cugraph_graph_t</ref>*<sp/>graph,</highlight></codeline>
+<codeline lineno="144"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordtype">size_t</highlight><highlight class="normal"><sp/>max_level,</highlight></codeline>
+<codeline lineno="145"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordtype">double</highlight><highlight class="normal"><sp/>resolution,</highlight></codeline>
+<codeline lineno="146"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordtype">double</highlight><highlight class="normal"><sp/>theta,</highlight></codeline>
+<codeline lineno="147"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>bool_t<sp/>do_expensive_check,</highlight></codeline>
+<codeline lineno="148"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><ref refid="structcugraph__hierarchical__clustering__result__t" kindref="compound">cugraph_hierarchical_clustering_result_t</ref>**<sp/>result,</highlight></codeline>
+<codeline lineno="149"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><ref refid="structcugraph__error__" kindref="compound">cugraph_error_t</ref>**<sp/>error);</highlight></codeline>
+<codeline lineno="150"><highlight class="normal"></highlight></codeline>
+<codeline lineno="155"><highlight class="normal"><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/><ref refid="group__community_1ga9ea74b43f71b83c027d678d48c8b468f" kindref="member">cugraph_hierarchical_clustering_result_get_vertices</ref>(</highlight></codeline>
+<codeline lineno="156"><highlight class="normal"><sp/><sp/><ref refid="structcugraph__hierarchical__clustering__result__t" kindref="compound">cugraph_hierarchical_clustering_result_t</ref>*<sp/>result);</highlight></codeline>
+<codeline lineno="157"><highlight class="normal"></highlight></codeline>
+<codeline lineno="162"><highlight class="normal"><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/><ref refid="group__community_1ga6e0a70ee5f7a323dec6a82383885e8a3" kindref="member">cugraph_hierarchical_clustering_result_get_clusters</ref>(</highlight></codeline>
+<codeline lineno="163"><highlight class="normal"><sp/><sp/><ref refid="structcugraph__hierarchical__clustering__result__t" kindref="compound">cugraph_hierarchical_clustering_result_t</ref>*<sp/>result);</highlight></codeline>
+<codeline lineno="164"><highlight class="normal"></highlight></codeline>
+<codeline lineno="169"><highlight class="normal"></highlight><highlight class="keywordtype">double</highlight><highlight class="normal"><sp/><ref refid="group__community_1gafeb10bbe094b6890c81051c5c335c0f0" kindref="member">cugraph_hierarchical_clustering_result_get_modularity</ref>(</highlight></codeline>
+<codeline lineno="170"><highlight class="normal"><sp/><sp/><ref refid="structcugraph__hierarchical__clustering__result__t" kindref="compound">cugraph_hierarchical_clustering_result_t</ref>*<sp/>result);</highlight></codeline>
+<codeline lineno="171"><highlight class="normal"></highlight></codeline>
+<codeline lineno="178"><highlight class="normal"></highlight><highlight class="keywordtype">void</highlight><highlight class="normal"><sp/><ref refid="group__community_1ga2ea105ec256f4c51e7732edbd68818dc" kindref="member">cugraph_hierarchical_clustering_result_free</ref>(<ref refid="structcugraph__hierarchical__clustering__result__t" kindref="compound">cugraph_hierarchical_clustering_result_t</ref>*<sp/>result);</highlight></codeline>
+<codeline lineno="179"><highlight class="normal"></highlight></codeline>
+<codeline lineno="203"><highlight class="normal">cugraph_error_code_t<sp/>cugraph_ecg(</highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__resource__handle__" kindref="compound">cugraph_resource_handle_t</ref>*<sp/>handle,</highlight></codeline>
+<codeline lineno="204"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><ref refid="structcugraph__rng__state__t" kindref="compound">cugraph_rng_state_t</ref>*<sp/>rng_state,</highlight></codeline>
+<codeline lineno="205"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><ref refid="structcugraph__graph__t" kindref="compound">cugraph_graph_t</ref>*<sp/>graph,</highlight></codeline>
+<codeline lineno="206"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordtype">double</highlight><highlight class="normal"><sp/>min_weight,</highlight></codeline>
+<codeline lineno="207"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordtype">size_t</highlight><highlight class="normal"><sp/>ensemble_size,</highlight></codeline>
+<codeline lineno="208"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordtype">size_t</highlight><highlight class="normal"><sp/>max_level,</highlight></codeline>
+<codeline lineno="209"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordtype">double</highlight><highlight class="normal"><sp/>threshold,</highlight></codeline>
+<codeline lineno="210"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordtype">double</highlight><highlight class="normal"><sp/>resolution,</highlight></codeline>
+<codeline lineno="211"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>bool_t<sp/>do_expensive_check,</highlight></codeline>
+<codeline lineno="212"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><ref refid="structcugraph__hierarchical__clustering__result__t" kindref="compound">cugraph_hierarchical_clustering_result_t</ref>**<sp/>result,</highlight></codeline>
+<codeline lineno="213"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><ref refid="structcugraph__error__" kindref="compound">cugraph_error_t</ref>**<sp/>error);</highlight></codeline>
+<codeline lineno="214"><highlight class="normal"></highlight></codeline>
+<codeline lineno="238"><highlight class="normal">cugraph_error_code_t<sp/>cugraph_legacy_ecg(</highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__resource__handle__" kindref="compound">cugraph_resource_handle_t</ref>*<sp/>handle,</highlight></codeline>
+<codeline lineno="239"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><ref refid="structcugraph__graph__t" kindref="compound">cugraph_graph_t</ref>*<sp/>graph,</highlight></codeline>
+<codeline lineno="240"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordtype">double</highlight><highlight class="normal"><sp/>min_weight,</highlight></codeline>
+<codeline lineno="241"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordtype">size_t</highlight><highlight class="normal"><sp/>ensemble_size,</highlight></codeline>
+<codeline lineno="242"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>bool_t<sp/>do_expensive_check,</highlight></codeline>
+<codeline lineno="243"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><ref refid="structcugraph__hierarchical__clustering__result__t" kindref="compound">cugraph_hierarchical_clustering_result_t</ref>**<sp/>result,</highlight></codeline>
+<codeline lineno="244"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><ref refid="structcugraph__error__" kindref="compound">cugraph_error_t</ref>**<sp/>error);</highlight></codeline>
+<codeline lineno="245"><highlight class="normal"></highlight></codeline>
+<codeline lineno="261"><highlight class="normal">cugraph_error_code_t<sp/>cugraph_extract_ego(</highlight></codeline>
+<codeline lineno="262"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__resource__handle__" kindref="compound">cugraph_resource_handle_t</ref>*<sp/>handle,</highlight></codeline>
+<codeline lineno="263"><highlight class="normal"><sp/><sp/><ref refid="structcugraph__graph__t" kindref="compound">cugraph_graph_t</ref>*<sp/>graph,</highlight></codeline>
+<codeline lineno="264"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/>source_vertices,</highlight></codeline>
+<codeline lineno="265"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordtype">size_t</highlight><highlight class="normal"><sp/>radius,</highlight></codeline>
+<codeline lineno="266"><highlight class="normal"><sp/><sp/>bool_t<sp/>do_expensive_check,</highlight></codeline>
+<codeline lineno="267"><highlight class="normal"><sp/><sp/><ref refid="structcugraph__induced__subgraph__result__t" kindref="compound">cugraph_induced_subgraph_result_t</ref>**<sp/>result,</highlight></codeline>
+<codeline lineno="268"><highlight class="normal"><sp/><sp/><ref refid="structcugraph__error__" kindref="compound">cugraph_error_t</ref>**<sp/>error);</highlight></codeline>
+<codeline lineno="269"><highlight class="normal"></highlight></codeline>
+<codeline lineno="284"><highlight class="normal">cugraph_error_code_t<sp/>cugraph_k_truss_subgraph(</highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__resource__handle__" kindref="compound">cugraph_resource_handle_t</ref>*<sp/>handle,</highlight></codeline>
+<codeline lineno="285"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><ref refid="structcugraph__graph__t" kindref="compound">cugraph_graph_t</ref>*<sp/>graph,</highlight></codeline>
+<codeline lineno="286"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordtype">size_t</highlight><highlight class="normal"><sp/>k,</highlight></codeline>
+<codeline lineno="287"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>bool_t<sp/>do_expensive_check,</highlight></codeline>
+<codeline lineno="288"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><ref refid="structcugraph__induced__subgraph__result__t" kindref="compound">cugraph_induced_subgraph_result_t</ref>**<sp/>result,</highlight></codeline>
+<codeline lineno="289"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><ref refid="structcugraph__error__" kindref="compound">cugraph_error_t</ref>**<sp/>error);</highlight></codeline>
+<codeline lineno="290"><highlight class="normal"></highlight></codeline>
+<codeline lineno="294" refid="structcugraph__clustering__result__t" refkind="compound"><highlight class="normal"></highlight><highlight class="keyword">typedef</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">struct<sp/></highlight><highlight class="normal">{</highlight></codeline>
+<codeline lineno="295"><highlight class="normal"><sp/><sp/>int32_t<sp/>align_;</highlight></codeline>
+<codeline lineno="296"><highlight class="normal">}<sp/><ref refid="structcugraph__clustering__result__t" kindref="compound">cugraph_clustering_result_t</ref>;</highlight></codeline>
+<codeline lineno="297"><highlight class="normal"></highlight></codeline>
+<codeline lineno="320"><highlight class="normal">cugraph_error_code_t<sp/>cugraph_balanced_cut_clustering(</highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__resource__handle__" kindref="compound">cugraph_resource_handle_t</ref>*<sp/>handle,</highlight></codeline>
+<codeline lineno="321"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><ref refid="structcugraph__graph__t" kindref="compound">cugraph_graph_t</ref>*<sp/>graph,</highlight></codeline>
+<codeline lineno="322"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordtype">size_t</highlight><highlight class="normal"><sp/>n_clusters,</highlight></codeline>
+<codeline lineno="323"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordtype">size_t</highlight><highlight class="normal"><sp/>n_eigenvectors,</highlight></codeline>
+<codeline lineno="324"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordtype">double</highlight><highlight class="normal"><sp/>evs_tolerance,</highlight></codeline>
+<codeline lineno="325"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/>evs_max_iterations,</highlight></codeline>
+<codeline lineno="326"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordtype">double</highlight><highlight class="normal"><sp/>k_means_tolerance,</highlight></codeline>
+<codeline lineno="327"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/>k_means_max_iterations,</highlight></codeline>
+<codeline lineno="328"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>bool_t<sp/>do_expensive_check,</highlight></codeline>
+<codeline lineno="329"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><ref refid="structcugraph__clustering__result__t" kindref="compound">cugraph_clustering_result_t</ref>**<sp/>result,</highlight></codeline>
+<codeline lineno="330"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><ref refid="structcugraph__error__" kindref="compound">cugraph_error_t</ref>**<sp/>error);</highlight></codeline>
+<codeline lineno="331"><highlight class="normal"></highlight></codeline>
+<codeline lineno="354"><highlight class="normal">cugraph_error_code_t<sp/>cugraph_spectral_modularity_maximization(</highlight></codeline>
+<codeline lineno="355"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__resource__handle__" kindref="compound">cugraph_resource_handle_t</ref>*<sp/>handle,</highlight></codeline>
+<codeline lineno="356"><highlight class="normal"><sp/><sp/><ref refid="structcugraph__graph__t" kindref="compound">cugraph_graph_t</ref>*<sp/>graph,</highlight></codeline>
+<codeline lineno="357"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordtype">size_t</highlight><highlight class="normal"><sp/>n_clusters,</highlight></codeline>
+<codeline lineno="358"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordtype">size_t</highlight><highlight class="normal"><sp/>n_eigenvectors,</highlight></codeline>
+<codeline lineno="359"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordtype">double</highlight><highlight class="normal"><sp/>evs_tolerance,</highlight></codeline>
+<codeline lineno="360"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/>evs_max_iterations,</highlight></codeline>
+<codeline lineno="361"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordtype">double</highlight><highlight class="normal"><sp/>k_means_tolerance,</highlight></codeline>
+<codeline lineno="362"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/>k_means_max_iterations,</highlight></codeline>
+<codeline lineno="363"><highlight class="normal"><sp/><sp/>bool_t<sp/>do_expensive_check,</highlight></codeline>
+<codeline lineno="364"><highlight class="normal"><sp/><sp/><ref refid="structcugraph__clustering__result__t" kindref="compound">cugraph_clustering_result_t</ref>**<sp/>result,</highlight></codeline>
+<codeline lineno="365"><highlight class="normal"><sp/><sp/><ref refid="structcugraph__error__" kindref="compound">cugraph_error_t</ref>**<sp/>error);</highlight></codeline>
+<codeline lineno="366"><highlight class="normal"></highlight></codeline>
+<codeline lineno="384"><highlight class="normal">cugraph_error_code_t<sp/>cugraph_analyze_clustering_modularity(</highlight></codeline>
+<codeline lineno="385"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__resource__handle__" kindref="compound">cugraph_resource_handle_t</ref>*<sp/>handle,</highlight></codeline>
+<codeline lineno="386"><highlight class="normal"><sp/><sp/><ref refid="structcugraph__graph__t" kindref="compound">cugraph_graph_t</ref>*<sp/>graph,</highlight></codeline>
+<codeline lineno="387"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordtype">size_t</highlight><highlight class="normal"><sp/>n_clusters,</highlight></codeline>
+<codeline lineno="388"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/>vertices,</highlight></codeline>
+<codeline lineno="389"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/>clusters,</highlight></codeline>
+<codeline lineno="390"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordtype">double</highlight><highlight class="normal">*<sp/>score,</highlight></codeline>
+<codeline lineno="391"><highlight class="normal"><sp/><sp/><ref refid="structcugraph__error__" kindref="compound">cugraph_error_t</ref>**<sp/>error);</highlight></codeline>
+<codeline lineno="392"><highlight class="normal"></highlight></codeline>
+<codeline lineno="410"><highlight class="normal">cugraph_error_code_t<sp/>cugraph_analyze_clustering_edge_cut(</highlight></codeline>
+<codeline lineno="411"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__resource__handle__" kindref="compound">cugraph_resource_handle_t</ref>*<sp/>handle,</highlight></codeline>
+<codeline lineno="412"><highlight class="normal"><sp/><sp/><ref refid="structcugraph__graph__t" kindref="compound">cugraph_graph_t</ref>*<sp/>graph,</highlight></codeline>
+<codeline lineno="413"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordtype">size_t</highlight><highlight class="normal"><sp/>n_clusters,</highlight></codeline>
+<codeline lineno="414"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/>vertices,</highlight></codeline>
+<codeline lineno="415"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/>clusters,</highlight></codeline>
+<codeline lineno="416"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordtype">double</highlight><highlight class="normal">*<sp/>score,</highlight></codeline>
+<codeline lineno="417"><highlight class="normal"><sp/><sp/><ref refid="structcugraph__error__" kindref="compound">cugraph_error_t</ref>**<sp/>error);</highlight></codeline>
+<codeline lineno="418"><highlight class="normal"></highlight></codeline>
+<codeline lineno="436"><highlight class="normal">cugraph_error_code_t<sp/>cugraph_analyze_clustering_ratio_cut(</highlight></codeline>
+<codeline lineno="437"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__resource__handle__" kindref="compound">cugraph_resource_handle_t</ref>*<sp/>handle,</highlight></codeline>
+<codeline lineno="438"><highlight class="normal"><sp/><sp/><ref refid="structcugraph__graph__t" kindref="compound">cugraph_graph_t</ref>*<sp/>graph,</highlight></codeline>
+<codeline lineno="439"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordtype">size_t</highlight><highlight class="normal"><sp/>n_clusters,</highlight></codeline>
+<codeline lineno="440"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/>vertices,</highlight></codeline>
+<codeline lineno="441"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/>clusters,</highlight></codeline>
+<codeline lineno="442"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordtype">double</highlight><highlight class="normal">*<sp/>score,</highlight></codeline>
+<codeline lineno="443"><highlight class="normal"><sp/><sp/><ref refid="structcugraph__error__" kindref="compound">cugraph_error_t</ref>**<sp/>error);</highlight></codeline>
+<codeline lineno="444"><highlight class="normal"></highlight></codeline>
+<codeline lineno="448"><highlight class="normal"><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/>cugraph_clustering_result_get_vertices(</highlight></codeline>
+<codeline lineno="449"><highlight class="normal"><sp/><sp/><ref refid="structcugraph__clustering__result__t" kindref="compound">cugraph_clustering_result_t</ref>*<sp/>result);</highlight></codeline>
+<codeline lineno="450"><highlight class="normal"></highlight></codeline>
+<codeline lineno="454"><highlight class="normal"><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/>cugraph_clustering_result_get_clusters(</highlight></codeline>
+<codeline lineno="455"><highlight class="normal"><sp/><sp/><ref refid="structcugraph__clustering__result__t" kindref="compound">cugraph_clustering_result_t</ref>*<sp/>result);</highlight></codeline>
+<codeline lineno="456"><highlight class="normal"></highlight></codeline>
+<codeline lineno="462"><highlight class="normal"></highlight><highlight class="keywordtype">void</highlight><highlight class="normal"><sp/>cugraph_clustering_result_free(<ref refid="structcugraph__clustering__result__t" kindref="compound">cugraph_clustering_result_t</ref>*<sp/>result);</highlight></codeline>
+<codeline lineno="463"><highlight class="normal"></highlight></codeline>
+<codeline lineno="464"><highlight class="normal"></highlight><highlight class="preprocessor">#ifdef<sp/>__cplusplus</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="465"><highlight class="normal">}</highlight></codeline>
+<codeline lineno="466"><highlight class="normal"></highlight><highlight class="preprocessor">#endif</highlight></codeline>
+    </programlisting>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/community_algorithms.h"/>
+  </compounddef>
+</doxygen>

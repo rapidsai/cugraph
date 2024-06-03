@@ -1,0 +1,25 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="dir_9650009b8257b356631859d2388d9bc9" kind="dir">
+    <compoundname>traversal</compoundname>
+    <innerfile refid="bfs__impl_8cuh">bfs_impl.cuh</innerfile>
+    <innerfile refid="bfs__mg_8cu">bfs_mg.cu</innerfile>
+    <innerfile refid="bfs__sg_8cu">bfs_sg.cu</innerfile>
+    <innerfile refid="extract__bfs__paths__impl_8cuh">extract_bfs_paths_impl.cuh</innerfile>
+    <innerfile refid="extract__bfs__paths__mg_8cu">extract_bfs_paths_mg.cu</innerfile>
+    <innerfile refid="extract__bfs__paths__sg_8cu">extract_bfs_paths_sg.cu</innerfile>
+    <innerfile refid="k__hop__nbrs__impl_8cuh">k_hop_nbrs_impl.cuh</innerfile>
+    <innerfile refid="k__hop__nbrs__mg_8cu">k_hop_nbrs_mg.cu</innerfile>
+    <innerfile refid="k__hop__nbrs__sg_8cu">k_hop_nbrs_sg.cu</innerfile>
+    <innerfile refid="od__shortest__distances__impl_8cuh">od_shortest_distances_impl.cuh</innerfile>
+    <innerfile refid="od__shortest__distances__sg_8cu">od_shortest_distances_sg.cu</innerfile>
+    <innerfile refid="sssp__impl_8cuh">sssp_impl.cuh</innerfile>
+    <innerfile refid="sssp__mg_8cu">sssp_mg.cu</innerfile>
+    <innerfile refid="sssp__sg_8cu">sssp_sg.cu</innerfile>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/src/traversal/"/>
+  </compounddef>
+</doxygen>

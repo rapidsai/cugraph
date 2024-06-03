@@ -1,0 +1,591 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="classcugraph_1_1edge__partition__device__view__t_3_01vertex__t_00_01edge__t_00_01multi__gpu_00_0cfa43e09a0397045baa42dbf7b50054c" kind="class" language="C++" prot="public">
+    <compoundname>cugraph::edge_partition_device_view_t&lt; vertex_t, edge_t, multi_gpu, std::enable_if_t&lt;!multi_gpu &gt; &gt;</compoundname>
+    <basecompoundref refid="classcugraph_1_1detail_1_1edge__partition__device__view__base__t" prot="public" virt="non-virtual">cugraph::detail::edge_partition_device_view_base_t&lt; vertex_t, edge_t &gt;</basecompoundref>
+    <templateparamlist>
+      <param>
+        <type>typename vertex_t</type>
+      </param>
+      <param>
+        <type>typename edge_t</type>
+      </param>
+      <param>
+        <type>bool</type>
+        <declname>multi_gpu</declname>
+        <defname>multi_gpu</defname>
+      </param>
+    </templateparamlist>
+    <sectiondef kind="private-attrib">
+      <memberdef kind="variable" id="classcugraph_1_1edge__partition__device__view__t_3_01vertex__t_00_01edge__t_00_01multi__gpu_00_0cfa43e09a0397045baa42dbf7b50054c_1aa29d9c4e9510c07cb3c11364e6fdc973" prot="private" static="no" mutable="no">
+        <type>vertex_t</type>
+        <definition>vertex_t cugraph::edge_partition_device_view_t&lt; vertex_t, edge_t, multi_gpu, std::enable_if_t&lt;!multi_gpu &gt; &gt;::number_of_vertices_</definition>
+        <argsstring></argsstring>
+        <name>number_of_vertices_</name>
+        <qualifiedname>cugraph::edge_partition_device_view_t&lt; vertex_t, edge_t, multi_gpu, std::enable_if_t&lt;!multi_gpu &gt; &gt;::number_of_vertices_</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_device_view.cuh" line="753" column="12" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_device_view.cuh" bodystart="753" bodyend="753"/>
+      </memberdef>
+    </sectiondef>
+    <sectiondef kind="public-func">
+      <memberdef kind="function" id="classcugraph_1_1edge__partition__device__view__t_3_01vertex__t_00_01edge__t_00_01multi__gpu_00_0cfa43e09a0397045baa42dbf7b50054c_1aa81f9c42f473a6785e13f0ff0c9b06b8" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type></type>
+        <definition>cugraph::edge_partition_device_view_t&lt; vertex_t, edge_t, multi_gpu, std::enable_if_t&lt;!multi_gpu &gt; &gt;::edge_partition_device_view_t</definition>
+        <argsstring>(edge_partition_view_t&lt; vertex_t, edge_t, multi_gpu &gt; view)</argsstring>
+        <name>edge_partition_device_view_t</name>
+        <qualifiedname>cugraph::edge_partition_device_view_t&lt; vertex_t, edge_t, multi_gpu, std::enable_if_t&lt;!multi_gpu &gt; &gt;::edge_partition_device_view_t</qualifiedname>
+        <param>
+          <type><ref refid="classcugraph_1_1edge__partition__view__t" kindref="compound">edge_partition_view_t</ref>&lt; vertex_t, edge_t, multi_gpu &gt;</type>
+          <declname>view</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_device_view.cuh" line="550" column="3" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_device_view.cuh" bodystart="550" bodyend="554"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1edge__partition__device__view__t_3_01vertex__t_00_01edge__t_00_01multi__gpu_00_0cfa43e09a0397045baa42dbf7b50054c_1a0884083e78723d246ed7656b6c0af55b" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <templateparamlist>
+          <param>
+            <type>typename MajorIterator</type>
+          </param>
+        </templateparamlist>
+        <type>__host__ size_t</type>
+        <definition>__host__ size_t cugraph::edge_partition_device_view_t&lt; vertex_t, edge_t, multi_gpu, std::enable_if_t&lt;!multi_gpu &gt; &gt;::compute_number_of_edges</definition>
+        <argsstring>(MajorIterator major_first, MajorIterator major_last, rmm::cuda_stream_view stream) const</argsstring>
+        <name>compute_number_of_edges</name>
+        <qualifiedname>cugraph::edge_partition_device_view_t&lt; vertex_t, edge_t, multi_gpu, std::enable_if_t&lt;!multi_gpu &gt; &gt;::compute_number_of_edges</qualifiedname>
+        <param>
+          <type>MajorIterator</type>
+          <declname>major_first</declname>
+        </param>
+        <param>
+          <type>MajorIterator</type>
+          <declname>major_last</declname>
+        </param>
+        <param>
+          <type>rmm::cuda_stream_view</type>
+          <declname>stream</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_device_view.cuh" line="557" column="19" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_device_view.cuh" bodystart="557" bodyend="575"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1edge__partition__device__view__t_3_01vertex__t_00_01edge__t_00_01multi__gpu_00_0cfa43e09a0397045baa42dbf7b50054c_1a94d34cad52abc58fec3f3dddf33e5366" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>__host__ rmm::device_uvector&lt; edge_t &gt;</type>
+        <definition>__host__ rmm::device_uvector&lt; edge_t &gt; cugraph::edge_partition_device_view_t&lt; vertex_t, edge_t, multi_gpu, std::enable_if_t&lt;!multi_gpu &gt; &gt;::compute_local_degrees</definition>
+        <argsstring>(rmm::cuda_stream_view stream) const</argsstring>
+        <name>compute_local_degrees</name>
+        <qualifiedname>cugraph::edge_partition_device_view_t&lt; vertex_t, edge_t, multi_gpu, std::enable_if_t&lt;!multi_gpu &gt; &gt;::compute_local_degrees</qualifiedname>
+        <param>
+          <type>rmm::cuda_stream_view</type>
+          <declname>stream</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_device_view.cuh" line="577" column="32" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_device_view.cuh" bodystart="577" bodyend="590"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1edge__partition__device__view__t_3_01vertex__t_00_01edge__t_00_01multi__gpu_00_0cfa43e09a0397045baa42dbf7b50054c_1a39f9f76eebdfdfb54dacf969178dbfd9" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <templateparamlist>
+          <param>
+            <type>typename MajorIterator</type>
+          </param>
+        </templateparamlist>
+        <type>__host__ rmm::device_uvector&lt; edge_t &gt;</type>
+        <definition>__host__ rmm::device_uvector&lt; edge_t &gt; cugraph::edge_partition_device_view_t&lt; vertex_t, edge_t, multi_gpu, std::enable_if_t&lt;!multi_gpu &gt; &gt;::compute_local_degrees</definition>
+        <argsstring>(MajorIterator major_first, MajorIterator major_last, rmm::cuda_stream_view stream) const</argsstring>
+        <name>compute_local_degrees</name>
+        <qualifiedname>cugraph::edge_partition_device_view_t&lt; vertex_t, edge_t, multi_gpu, std::enable_if_t&lt;!multi_gpu &gt; &gt;::compute_local_degrees</qualifiedname>
+        <param>
+          <type>MajorIterator</type>
+          <declname>major_first</declname>
+        </param>
+        <param>
+          <type>MajorIterator</type>
+          <declname>major_last</declname>
+        </param>
+        <param>
+          <type>rmm::cuda_stream_view</type>
+          <declname>stream</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_device_view.cuh" line="593" column="32" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_device_view.cuh" bodystart="593" bodyend="608"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1edge__partition__device__view__t_3_01vertex__t_00_01edge__t_00_01multi__gpu_00_0cfa43e09a0397045baa42dbf7b50054c_1af4c09fe9a713b8fa627fa165da274b96" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <templateparamlist>
+          <param>
+            <type>typename MaskIterator</type>
+          </param>
+          <param>
+            <type>typename MajorIterator</type>
+          </param>
+        </templateparamlist>
+        <type>__host__ size_t</type>
+        <definition>__host__ size_t cugraph::edge_partition_device_view_t&lt; vertex_t, edge_t, multi_gpu, std::enable_if_t&lt;!multi_gpu &gt; &gt;::compute_number_of_edges_with_mask</definition>
+        <argsstring>(MaskIterator mask_first, MajorIterator major_first, MajorIterator major_last, rmm::cuda_stream_view stream) const</argsstring>
+        <name>compute_number_of_edges_with_mask</name>
+        <qualifiedname>cugraph::edge_partition_device_view_t&lt; vertex_t, edge_t, multi_gpu, std::enable_if_t&lt;!multi_gpu &gt; &gt;::compute_number_of_edges_with_mask</qualifiedname>
+        <param>
+          <type>MaskIterator</type>
+          <declname>mask_first</declname>
+        </param>
+        <param>
+          <type>MajorIterator</type>
+          <declname>major_first</declname>
+        </param>
+        <param>
+          <type>MajorIterator</type>
+          <declname>major_last</declname>
+        </param>
+        <param>
+          <type>rmm::cuda_stream_view</type>
+          <declname>stream</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_device_view.cuh" line="611" column="19" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_device_view.cuh" bodystart="611" bodyend="633"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1edge__partition__device__view__t_3_01vertex__t_00_01edge__t_00_01multi__gpu_00_0cfa43e09a0397045baa42dbf7b50054c_1a1f674c622395231129025bf61f14227c" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <templateparamlist>
+          <param>
+            <type>typename MaskIterator</type>
+          </param>
+        </templateparamlist>
+        <type>__host__ rmm::device_uvector&lt; edge_t &gt;</type>
+        <definition>__host__ rmm::device_uvector&lt; edge_t &gt; cugraph::edge_partition_device_view_t&lt; vertex_t, edge_t, multi_gpu, std::enable_if_t&lt;!multi_gpu &gt; &gt;::compute_local_degrees_with_mask</definition>
+        <argsstring>(MaskIterator mask_first, rmm::cuda_stream_view stream) const</argsstring>
+        <name>compute_local_degrees_with_mask</name>
+        <qualifiedname>cugraph::edge_partition_device_view_t&lt; vertex_t, edge_t, multi_gpu, std::enable_if_t&lt;!multi_gpu &gt; &gt;::compute_local_degrees_with_mask</qualifiedname>
+        <param>
+          <type>MaskIterator</type>
+          <declname>mask_first</declname>
+        </param>
+        <param>
+          <type>rmm::cuda_stream_view</type>
+          <declname>stream</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_device_view.cuh" line="636" column="32" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_device_view.cuh" bodystart="636" bodyend="652"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1edge__partition__device__view__t_3_01vertex__t_00_01edge__t_00_01multi__gpu_00_0cfa43e09a0397045baa42dbf7b50054c_1af7f2429461e1fca3661114827c3f87f1" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <templateparamlist>
+          <param>
+            <type>typename MaskIterator</type>
+          </param>
+          <param>
+            <type>typename MajorIterator</type>
+          </param>
+        </templateparamlist>
+        <type>__host__ rmm::device_uvector&lt; edge_t &gt;</type>
+        <definition>__host__ rmm::device_uvector&lt; edge_t &gt; cugraph::edge_partition_device_view_t&lt; vertex_t, edge_t, multi_gpu, std::enable_if_t&lt;!multi_gpu &gt; &gt;::compute_local_degrees_with_mask</definition>
+        <argsstring>(MaskIterator mask_first, MajorIterator major_first, MajorIterator major_last, rmm::cuda_stream_view stream) const</argsstring>
+        <name>compute_local_degrees_with_mask</name>
+        <qualifiedname>cugraph::edge_partition_device_view_t&lt; vertex_t, edge_t, multi_gpu, std::enable_if_t&lt;!multi_gpu &gt; &gt;::compute_local_degrees_with_mask</qualifiedname>
+        <param>
+          <type>MaskIterator</type>
+          <declname>mask_first</declname>
+        </param>
+        <param>
+          <type>MajorIterator</type>
+          <declname>major_first</declname>
+        </param>
+        <param>
+          <type>MajorIterator</type>
+          <declname>major_last</declname>
+        </param>
+        <param>
+          <type>rmm::cuda_stream_view</type>
+          <declname>stream</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_device_view.cuh" line="655" column="32" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_device_view.cuh" bodystart="655" bodyend="674"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1edge__partition__device__view__t_3_01vertex__t_00_01edge__t_00_01multi__gpu_00_0cfa43e09a0397045baa42dbf7b50054c_1ae17a72d498a31ce38de0d27415487a4a" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>__host__ __device__ vertex_t</type>
+        <definition>__host__ __device__ vertex_t cugraph::edge_partition_device_view_t&lt; vertex_t, edge_t, multi_gpu, std::enable_if_t&lt;!multi_gpu &gt; &gt;::major_value_start_offset</definition>
+        <argsstring>() const</argsstring>
+        <name>major_value_start_offset</name>
+        <qualifiedname>cugraph::edge_partition_device_view_t&lt; vertex_t, edge_t, multi_gpu, std::enable_if_t&lt;!multi_gpu &gt; &gt;::major_value_start_offset</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_device_view.cuh" line="676" column="32" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_device_view.cuh" bodystart="676" bodyend="676"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1edge__partition__device__view__t_3_01vertex__t_00_01edge__t_00_01multi__gpu_00_0cfa43e09a0397045baa42dbf7b50054c_1ac4465fffa09d2d0fa9a39e8bd128986f" prot="public" static="no" const="yes" explicit="no" inline="yes" noexcept="yes" virt="non-virtual">
+        <type>__host__ __device__ thrust::optional&lt; vertex_t &gt;</type>
+        <definition>__host__ __device__ thrust::optional&lt; vertex_t &gt; cugraph::edge_partition_device_view_t&lt; vertex_t, edge_t, multi_gpu, std::enable_if_t&lt;!multi_gpu &gt; &gt;::major_hypersparse_first</definition>
+        <argsstring>() const noexcept</argsstring>
+        <name>major_hypersparse_first</name>
+        <qualifiedname>cugraph::edge_partition_device_view_t&lt; vertex_t, edge_t, multi_gpu, std::enable_if_t&lt;!multi_gpu &gt; &gt;::major_hypersparse_first</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_device_view.cuh" line="678" column="40" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_device_view.cuh" bodystart="678" bodyend="682"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1edge__partition__device__view__t_3_01vertex__t_00_01edge__t_00_01multi__gpu_00_0cfa43e09a0397045baa42dbf7b50054c_1a629ed43b7492477290dfa3b2d7506fc8" prot="public" static="no" constexpr="yes" const="yes" explicit="no" inline="yes" noexcept="yes" virt="non-virtual">
+        <type>__host__ __device__ constexpr vertex_t</type>
+        <definition>__host__ __device__ constexpr vertex_t cugraph::edge_partition_device_view_t&lt; vertex_t, edge_t, multi_gpu, std::enable_if_t&lt;!multi_gpu &gt; &gt;::major_range_first</definition>
+        <argsstring>() const noexcept</argsstring>
+        <name>major_range_first</name>
+        <qualifiedname>cugraph::edge_partition_device_view_t&lt; vertex_t, edge_t, multi_gpu, std::enable_if_t&lt;!multi_gpu &gt; &gt;::major_range_first</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_device_view.cuh" line="684" column="42" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_device_view.cuh" bodystart="684" bodyend="684"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1edge__partition__device__view__t_3_01vertex__t_00_01edge__t_00_01multi__gpu_00_0cfa43e09a0397045baa42dbf7b50054c_1a998d757f7dbbfa4e2eadddfa5c31b2d9" prot="public" static="no" const="yes" explicit="no" inline="yes" noexcept="yes" virt="non-virtual">
+        <type>__host__ __device__ vertex_t</type>
+        <definition>__host__ __device__ vertex_t cugraph::edge_partition_device_view_t&lt; vertex_t, edge_t, multi_gpu, std::enable_if_t&lt;!multi_gpu &gt; &gt;::major_range_last</definition>
+        <argsstring>() const noexcept</argsstring>
+        <name>major_range_last</name>
+        <qualifiedname>cugraph::edge_partition_device_view_t&lt; vertex_t, edge_t, multi_gpu, std::enable_if_t&lt;!multi_gpu &gt; &gt;::major_range_last</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_device_view.cuh" line="686" column="32" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_device_view.cuh" bodystart="686" bodyend="686"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1edge__partition__device__view__t_3_01vertex__t_00_01edge__t_00_01multi__gpu_00_0cfa43e09a0397045baa42dbf7b50054c_1a81b1e91c05bfd9a9c8422fd460c6aea5" prot="public" static="no" const="yes" explicit="no" inline="yes" noexcept="yes" virt="non-virtual">
+        <type>__host__ __device__ vertex_t</type>
+        <definition>__host__ __device__ vertex_t cugraph::edge_partition_device_view_t&lt; vertex_t, edge_t, multi_gpu, std::enable_if_t&lt;!multi_gpu &gt; &gt;::major_range_size</definition>
+        <argsstring>() const noexcept</argsstring>
+        <name>major_range_size</name>
+        <qualifiedname>cugraph::edge_partition_device_view_t&lt; vertex_t, edge_t, multi_gpu, std::enable_if_t&lt;!multi_gpu &gt; &gt;::major_range_size</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_device_view.cuh" line="688" column="32" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_device_view.cuh" bodystart="688" bodyend="688"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1edge__partition__device__view__t_3_01vertex__t_00_01edge__t_00_01multi__gpu_00_0cfa43e09a0397045baa42dbf7b50054c_1afed103817ff54a18f98e4746aa904cd2" prot="public" static="no" constexpr="yes" const="yes" explicit="no" inline="yes" noexcept="yes" virt="non-virtual">
+        <type>__host__ __device__ constexpr vertex_t</type>
+        <definition>__host__ __device__ constexpr vertex_t cugraph::edge_partition_device_view_t&lt; vertex_t, edge_t, multi_gpu, std::enable_if_t&lt;!multi_gpu &gt; &gt;::minor_range_first</definition>
+        <argsstring>() const noexcept</argsstring>
+        <name>minor_range_first</name>
+        <qualifiedname>cugraph::edge_partition_device_view_t&lt; vertex_t, edge_t, multi_gpu, std::enable_if_t&lt;!multi_gpu &gt; &gt;::minor_range_first</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_device_view.cuh" line="690" column="42" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_device_view.cuh" bodystart="690" bodyend="690"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1edge__partition__device__view__t_3_01vertex__t_00_01edge__t_00_01multi__gpu_00_0cfa43e09a0397045baa42dbf7b50054c_1ae7a7bb79449fb636beeaa78bfe2050f7" prot="public" static="no" const="yes" explicit="no" inline="yes" noexcept="yes" virt="non-virtual">
+        <type>__host__ __device__ vertex_t</type>
+        <definition>__host__ __device__ vertex_t cugraph::edge_partition_device_view_t&lt; vertex_t, edge_t, multi_gpu, std::enable_if_t&lt;!multi_gpu &gt; &gt;::minor_range_last</definition>
+        <argsstring>() const noexcept</argsstring>
+        <name>minor_range_last</name>
+        <qualifiedname>cugraph::edge_partition_device_view_t&lt; vertex_t, edge_t, multi_gpu, std::enable_if_t&lt;!multi_gpu &gt; &gt;::minor_range_last</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_device_view.cuh" line="692" column="32" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_device_view.cuh" bodystart="692" bodyend="692"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1edge__partition__device__view__t_3_01vertex__t_00_01edge__t_00_01multi__gpu_00_0cfa43e09a0397045baa42dbf7b50054c_1a6b498d8882944e965c51774c12514168" prot="public" static="no" const="yes" explicit="no" inline="yes" noexcept="yes" virt="non-virtual">
+        <type>__host__ __device__ vertex_t</type>
+        <definition>__host__ __device__ vertex_t cugraph::edge_partition_device_view_t&lt; vertex_t, edge_t, multi_gpu, std::enable_if_t&lt;!multi_gpu &gt; &gt;::minor_range_size</definition>
+        <argsstring>() const noexcept</argsstring>
+        <name>minor_range_size</name>
+        <qualifiedname>cugraph::edge_partition_device_view_t&lt; vertex_t, edge_t, multi_gpu, std::enable_if_t&lt;!multi_gpu &gt; &gt;::minor_range_size</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_device_view.cuh" line="694" column="32" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_device_view.cuh" bodystart="694" bodyend="694"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1edge__partition__device__view__t_3_01vertex__t_00_01edge__t_00_01multi__gpu_00_0cfa43e09a0397045baa42dbf7b50054c_1af006d8f77f2ce1745992be9fd96fe9c3" prot="public" static="no" const="yes" explicit="no" inline="yes" noexcept="yes" virt="non-virtual">
+        <type>__host__ __device__ vertex_t</type>
+        <definition>__host__ __device__ vertex_t cugraph::edge_partition_device_view_t&lt; vertex_t, edge_t, multi_gpu, std::enable_if_t&lt;!multi_gpu &gt; &gt;::major_offset_from_major_nocheck</definition>
+        <argsstring>(vertex_t major) const noexcept</argsstring>
+        <name>major_offset_from_major_nocheck</name>
+        <qualifiedname>cugraph::edge_partition_device_view_t&lt; vertex_t, edge_t, multi_gpu, std::enable_if_t&lt;!multi_gpu &gt; &gt;::major_offset_from_major_nocheck</qualifiedname>
+        <param>
+          <type>vertex_t</type>
+          <declname>major</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_device_view.cuh" line="696" column="32" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_device_view.cuh" bodystart="696" bodyend="699"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1edge__partition__device__view__t_3_01vertex__t_00_01edge__t_00_01multi__gpu_00_0cfa43e09a0397045baa42dbf7b50054c_1a8954f1dce02f242ac8762bf1cdb608db" prot="public" static="no" const="yes" explicit="no" inline="yes" noexcept="yes" virt="non-virtual">
+        <type>__host__ __device__ vertex_t</type>
+        <definition>__host__ __device__ vertex_t cugraph::edge_partition_device_view_t&lt; vertex_t, edge_t, multi_gpu, std::enable_if_t&lt;!multi_gpu &gt; &gt;::minor_offset_from_minor_nocheck</definition>
+        <argsstring>(vertex_t minor) const noexcept</argsstring>
+        <name>minor_offset_from_minor_nocheck</name>
+        <qualifiedname>cugraph::edge_partition_device_view_t&lt; vertex_t, edge_t, multi_gpu, std::enable_if_t&lt;!multi_gpu &gt; &gt;::minor_offset_from_minor_nocheck</qualifiedname>
+        <param>
+          <type>vertex_t</type>
+          <declname>minor</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_device_view.cuh" line="701" column="32" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_device_view.cuh" bodystart="701" bodyend="704"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1edge__partition__device__view__t_3_01vertex__t_00_01edge__t_00_01multi__gpu_00_0cfa43e09a0397045baa42dbf7b50054c_1ab32c4aaf8191d1abb0d7cc17193fa8ae" prot="public" static="no" const="yes" explicit="no" inline="yes" noexcept="yes" virt="non-virtual">
+        <type>__host__ __device__ vertex_t</type>
+        <definition>__host__ __device__ vertex_t cugraph::edge_partition_device_view_t&lt; vertex_t, edge_t, multi_gpu, std::enable_if_t&lt;!multi_gpu &gt; &gt;::major_from_major_offset_nocheck</definition>
+        <argsstring>(vertex_t major_offset) const noexcept</argsstring>
+        <name>major_from_major_offset_nocheck</name>
+        <qualifiedname>cugraph::edge_partition_device_view_t&lt; vertex_t, edge_t, multi_gpu, std::enable_if_t&lt;!multi_gpu &gt; &gt;::major_from_major_offset_nocheck</qualifiedname>
+        <param>
+          <type>vertex_t</type>
+          <declname>major_offset</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_device_view.cuh" line="706" column="32" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_device_view.cuh" bodystart="706" bodyend="709"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1edge__partition__device__view__t_3_01vertex__t_00_01edge__t_00_01multi__gpu_00_0cfa43e09a0397045baa42dbf7b50054c_1ac38a823c9723e4a4a335af5b15fcc2b6" prot="public" static="no" const="yes" explicit="no" inline="yes" noexcept="yes" virt="non-virtual">
+        <type>__device__ thrust::optional&lt; vertex_t &gt;</type>
+        <definition>__device__ thrust::optional&lt; vertex_t &gt; cugraph::edge_partition_device_view_t&lt; vertex_t, edge_t, multi_gpu, std::enable_if_t&lt;!multi_gpu &gt; &gt;::major_idx_from_major_nocheck</definition>
+        <argsstring>(vertex_t major) const noexcept</argsstring>
+        <name>major_idx_from_major_nocheck</name>
+        <qualifiedname>cugraph::edge_partition_device_view_t&lt; vertex_t, edge_t, multi_gpu, std::enable_if_t&lt;!multi_gpu &gt; &gt;::major_idx_from_major_nocheck</qualifiedname>
+        <param>
+          <type>vertex_t</type>
+          <declname>major</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_device_view.cuh" line="711" column="31" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_device_view.cuh" bodystart="711" bodyend="714"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1edge__partition__device__view__t_3_01vertex__t_00_01edge__t_00_01multi__gpu_00_0cfa43e09a0397045baa42dbf7b50054c_1afe020110326a93f5ffa78b2c269a2268" prot="public" static="no" const="yes" explicit="no" inline="yes" noexcept="yes" virt="non-virtual">
+        <type>__device__ vertex_t</type>
+        <definition>__device__ vertex_t cugraph::edge_partition_device_view_t&lt; vertex_t, edge_t, multi_gpu, std::enable_if_t&lt;!multi_gpu &gt; &gt;::major_from_major_idx_nocheck</definition>
+        <argsstring>(vertex_t major_idx) const noexcept</argsstring>
+        <name>major_from_major_idx_nocheck</name>
+        <qualifiedname>cugraph::edge_partition_device_view_t&lt; vertex_t, edge_t, multi_gpu, std::enable_if_t&lt;!multi_gpu &gt; &gt;::major_from_major_idx_nocheck</qualifiedname>
+        <param>
+          <type>vertex_t</type>
+          <declname>major_idx</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_device_view.cuh" line="716" column="23" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_device_view.cuh" bodystart="716" bodyend="719"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1edge__partition__device__view__t_3_01vertex__t_00_01edge__t_00_01multi__gpu_00_0cfa43e09a0397045baa42dbf7b50054c_1ab75e3a1d4937456f397d35b6f6c3b91a" prot="public" static="no" const="yes" explicit="no" inline="yes" noexcept="yes" virt="non-virtual">
+        <type>__device__ thrust::optional&lt; vertex_t &gt;</type>
+        <definition>__device__ thrust::optional&lt; vertex_t &gt; cugraph::edge_partition_device_view_t&lt; vertex_t, edge_t, multi_gpu, std::enable_if_t&lt;!multi_gpu &gt; &gt;::major_hypersparse_idx_from_major_nocheck</definition>
+        <argsstring>(vertex_t major) const noexcept</argsstring>
+        <name>major_hypersparse_idx_from_major_nocheck</name>
+        <qualifiedname>cugraph::edge_partition_device_view_t&lt; vertex_t, edge_t, multi_gpu, std::enable_if_t&lt;!multi_gpu &gt; &gt;::major_hypersparse_idx_from_major_nocheck</qualifiedname>
+        <param>
+          <type>vertex_t</type>
+          <declname>major</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_device_view.cuh" line="722" column="31" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_device_view.cuh" bodystart="722" bodyend="727"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1edge__partition__device__view__t_3_01vertex__t_00_01edge__t_00_01multi__gpu_00_0cfa43e09a0397045baa42dbf7b50054c_1a0628c9227e85778dd3947cf853ae424c" prot="public" static="no" const="yes" explicit="no" inline="yes" noexcept="yes" virt="non-virtual">
+        <type>__device__ thrust::optional&lt; vertex_t &gt;</type>
+        <definition>__device__ thrust::optional&lt; vertex_t &gt; cugraph::edge_partition_device_view_t&lt; vertex_t, edge_t, multi_gpu, std::enable_if_t&lt;!multi_gpu &gt; &gt;::major_from_major_hypersparse_idx_nocheck</definition>
+        <argsstring>(vertex_t major_hypersparse_idx) const noexcept</argsstring>
+        <name>major_from_major_hypersparse_idx_nocheck</name>
+        <qualifiedname>cugraph::edge_partition_device_view_t&lt; vertex_t, edge_t, multi_gpu, std::enable_if_t&lt;!multi_gpu &gt; &gt;::major_from_major_hypersparse_idx_nocheck</qualifiedname>
+        <param>
+          <type>vertex_t</type>
+          <declname>major_hypersparse_idx</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_device_view.cuh" line="730" column="31" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_device_view.cuh" bodystart="730" bodyend="735"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1edge__partition__device__view__t_3_01vertex__t_00_01edge__t_00_01multi__gpu_00_0cfa43e09a0397045baa42dbf7b50054c_1addbf7aed8e9649d55732697fa83b2015" prot="public" static="no" const="yes" explicit="no" inline="yes" noexcept="yes" virt="non-virtual">
+        <type>__host__ __device__ vertex_t</type>
+        <definition>__host__ __device__ vertex_t cugraph::edge_partition_device_view_t&lt; vertex_t, edge_t, multi_gpu, std::enable_if_t&lt;!multi_gpu &gt; &gt;::minor_from_minor_offset_nocheck</definition>
+        <argsstring>(vertex_t minor_offset) const noexcept</argsstring>
+        <name>minor_from_minor_offset_nocheck</name>
+        <qualifiedname>cugraph::edge_partition_device_view_t&lt; vertex_t, edge_t, multi_gpu, std::enable_if_t&lt;!multi_gpu &gt; &gt;::minor_from_minor_offset_nocheck</qualifiedname>
+        <param>
+          <type>vertex_t</type>
+          <declname>minor_offset</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_device_view.cuh" line="737" column="32" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_device_view.cuh" bodystart="737" bodyend="740"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1edge__partition__device__view__t_3_01vertex__t_00_01edge__t_00_01multi__gpu_00_0cfa43e09a0397045baa42dbf7b50054c_1a70a56c026d13ff52b0aca3c16a68b476" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>__host__ __device__ thrust::optional&lt; vertex_t const * &gt;</type>
+        <definition>__host__ __device__ thrust::optional&lt; vertex_t const  * &gt; cugraph::edge_partition_device_view_t&lt; vertex_t, edge_t, multi_gpu, std::enable_if_t&lt;!multi_gpu &gt; &gt;::dcs_nzd_vertices</definition>
+        <argsstring>() const</argsstring>
+        <name>dcs_nzd_vertices</name>
+        <qualifiedname>cugraph::edge_partition_device_view_t&lt; vertex_t, edge_t, multi_gpu, std::enable_if_t&lt;!multi_gpu &gt; &gt;::dcs_nzd_vertices</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_device_view.cuh" line="742" column="40" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_device_view.cuh" bodystart="742" bodyend="745"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1edge__partition__device__view__t_3_01vertex__t_00_01edge__t_00_01multi__gpu_00_0cfa43e09a0397045baa42dbf7b50054c_1a6480289a1148e433d829f76b6058a598" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>__host__ __device__ thrust::optional&lt; vertex_t &gt;</type>
+        <definition>__host__ __device__ thrust::optional&lt; vertex_t &gt; cugraph::edge_partition_device_view_t&lt; vertex_t, edge_t, multi_gpu, std::enable_if_t&lt;!multi_gpu &gt; &gt;::dcs_nzd_vertex_count</definition>
+        <argsstring>() const</argsstring>
+        <name>dcs_nzd_vertex_count</name>
+        <qualifiedname>cugraph::edge_partition_device_view_t&lt; vertex_t, edge_t, multi_gpu, std::enable_if_t&lt;!multi_gpu &gt; &gt;::dcs_nzd_vertex_count</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_device_view.cuh" line="747" column="40" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_device_view.cuh" bodystart="747" bodyend="750"/>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <inheritancegraph>
+      <node id="2">
+        <label>cugraph::detail::edge_partition_device_view_base_t&lt; vertex_t, edge_t &gt;</label>
+        <link refid="classcugraph_1_1detail_1_1edge__partition__device__view__base__t"/>
+      </node>
+      <node id="1">
+        <label>cugraph::edge_partition_device_view_t&lt; vertex_t, edge_t, multi_gpu, std::enable_if_t&lt;!multi_gpu &gt; &gt;</label>
+        <link refid="classcugraph_1_1edge__partition__device__view__t_3_01vertex__t_00_01edge__t_00_01multi__gpu_00_0cfa43e09a0397045baa42dbf7b50054c"/>
+        <childnode refid="2" relation="public-inheritance">
+        </childnode>
+      </node>
+    </inheritancegraph>
+    <collaborationgraph>
+      <node id="2">
+        <label>cugraph::detail::edge_partition_device_view_base_t&lt; vertex_t, edge_t &gt;</label>
+        <link refid="classcugraph_1_1detail_1_1edge__partition__device__view__base__t"/>
+      </node>
+      <node id="1">
+        <label>cugraph::edge_partition_device_view_t&lt; vertex_t, edge_t, multi_gpu, std::enable_if_t&lt;!multi_gpu &gt; &gt;</label>
+        <link refid="classcugraph_1_1edge__partition__device__view__t_3_01vertex__t_00_01edge__t_00_01multi__gpu_00_0cfa43e09a0397045baa42dbf7b50054c"/>
+        <childnode refid="2" relation="public-inheritance">
+        </childnode>
+      </node>
+    </collaborationgraph>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_device_view.cuh" line="547" column="1" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/edge_partition_device_view.cuh" bodystart="548" bodyend="754"/>
+    <listofallmembers>
+      <member refid="classcugraph_1_1edge__partition__device__view__t_3_01vertex__t_00_01edge__t_00_01multi__gpu_00_0cfa43e09a0397045baa42dbf7b50054c_1a94d34cad52abc58fec3f3dddf33e5366" prot="public" virt="non-virtual"><scope>cugraph::edge_partition_device_view_t&lt; vertex_t, edge_t, multi_gpu, std::enable_if_t&lt;!multi_gpu &gt; &gt;</scope><name>compute_local_degrees</name></member>
+      <member refid="classcugraph_1_1edge__partition__device__view__t_3_01vertex__t_00_01edge__t_00_01multi__gpu_00_0cfa43e09a0397045baa42dbf7b50054c_1a39f9f76eebdfdfb54dacf969178dbfd9" prot="public" virt="non-virtual"><scope>cugraph::edge_partition_device_view_t&lt; vertex_t, edge_t, multi_gpu, std::enable_if_t&lt;!multi_gpu &gt; &gt;</scope><name>compute_local_degrees</name></member>
+      <member refid="classcugraph_1_1edge__partition__device__view__t_3_01vertex__t_00_01edge__t_00_01multi__gpu_00_0cfa43e09a0397045baa42dbf7b50054c_1a1f674c622395231129025bf61f14227c" prot="public" virt="non-virtual"><scope>cugraph::edge_partition_device_view_t&lt; vertex_t, edge_t, multi_gpu, std::enable_if_t&lt;!multi_gpu &gt; &gt;</scope><name>compute_local_degrees_with_mask</name></member>
+      <member refid="classcugraph_1_1edge__partition__device__view__t_3_01vertex__t_00_01edge__t_00_01multi__gpu_00_0cfa43e09a0397045baa42dbf7b50054c_1af7f2429461e1fca3661114827c3f87f1" prot="public" virt="non-virtual"><scope>cugraph::edge_partition_device_view_t&lt; vertex_t, edge_t, multi_gpu, std::enable_if_t&lt;!multi_gpu &gt; &gt;</scope><name>compute_local_degrees_with_mask</name></member>
+      <member refid="classcugraph_1_1edge__partition__device__view__t_3_01vertex__t_00_01edge__t_00_01multi__gpu_00_0cfa43e09a0397045baa42dbf7b50054c_1a0884083e78723d246ed7656b6c0af55b" prot="public" virt="non-virtual"><scope>cugraph::edge_partition_device_view_t&lt; vertex_t, edge_t, multi_gpu, std::enable_if_t&lt;!multi_gpu &gt; &gt;</scope><name>compute_number_of_edges</name></member>
+      <member refid="classcugraph_1_1edge__partition__device__view__t_3_01vertex__t_00_01edge__t_00_01multi__gpu_00_0cfa43e09a0397045baa42dbf7b50054c_1af4c09fe9a713b8fa627fa165da274b96" prot="public" virt="non-virtual"><scope>cugraph::edge_partition_device_view_t&lt; vertex_t, edge_t, multi_gpu, std::enable_if_t&lt;!multi_gpu &gt; &gt;</scope><name>compute_number_of_edges_with_mask</name></member>
+      <member refid="classcugraph_1_1edge__partition__device__view__t_3_01vertex__t_00_01edge__t_00_01multi__gpu_00_0cfa43e09a0397045baa42dbf7b50054c_1a6480289a1148e433d829f76b6058a598" prot="public" virt="non-virtual"><scope>cugraph::edge_partition_device_view_t&lt; vertex_t, edge_t, multi_gpu, std::enable_if_t&lt;!multi_gpu &gt; &gt;</scope><name>dcs_nzd_vertex_count</name></member>
+      <member refid="classcugraph_1_1edge__partition__device__view__t_3_01vertex__t_00_01edge__t_00_01multi__gpu_00_0cfa43e09a0397045baa42dbf7b50054c_1a70a56c026d13ff52b0aca3c16a68b476" prot="public" virt="non-virtual"><scope>cugraph::edge_partition_device_view_t&lt; vertex_t, edge_t, multi_gpu, std::enable_if_t&lt;!multi_gpu &gt; &gt;</scope><name>dcs_nzd_vertices</name></member>
+      <member refid="classcugraph_1_1detail_1_1edge__partition__device__view__base__t_1aed792068ea26496f199c0300cddab252" prot="public" virt="non-virtual"><scope>cugraph::edge_partition_device_view_t&lt; vertex_t, edge_t, multi_gpu, std::enable_if_t&lt;!multi_gpu &gt; &gt;</scope><name>edge_partition_device_view_base_t</name></member>
+      <member refid="classcugraph_1_1edge__partition__device__view__t_3_01vertex__t_00_01edge__t_00_01multi__gpu_00_0cfa43e09a0397045baa42dbf7b50054c_1aa81f9c42f473a6785e13f0ff0c9b06b8" prot="public" virt="non-virtual"><scope>cugraph::edge_partition_device_view_t&lt; vertex_t, edge_t, multi_gpu, std::enable_if_t&lt;!multi_gpu &gt; &gt;</scope><name>edge_partition_device_view_t</name></member>
+      <member refid="classcugraph_1_1detail_1_1edge__partition__device__view__base__t_1aca42f73392de0efb175613497f612c75" prot="public" virt="non-virtual"><scope>cugraph::edge_partition_device_view_t&lt; vertex_t, edge_t, multi_gpu, std::enable_if_t&lt;!multi_gpu &gt; &gt;</scope><name>indices</name></member>
+      <member refid="classcugraph_1_1detail_1_1edge__partition__device__view__base__t_1a37dd2007c7dd4df9f0188bc764b5f22d" prot="protected" virt="non-virtual"><scope>cugraph::edge_partition_device_view_t&lt; vertex_t, edge_t, multi_gpu, std::enable_if_t&lt;!multi_gpu &gt; &gt;</scope><name>indices_</name></member>
+      <member refid="classcugraph_1_1detail_1_1edge__partition__device__view__base__t_1afb2e9d853766e3d4ab0452c0880e45e3" prot="public" virt="non-virtual"><scope>cugraph::edge_partition_device_view_t&lt; vertex_t, edge_t, multi_gpu, std::enable_if_t&lt;!multi_gpu &gt; &gt;</scope><name>local_degree</name></member>
+      <member refid="classcugraph_1_1detail_1_1edge__partition__device__view__base__t_1ae70030848b7b47684db65e0d5f0a4e0b" prot="public" virt="non-virtual"><scope>cugraph::edge_partition_device_view_t&lt; vertex_t, edge_t, multi_gpu, std::enable_if_t&lt;!multi_gpu &gt; &gt;</scope><name>local_edges</name></member>
+      <member refid="classcugraph_1_1detail_1_1edge__partition__device__view__base__t_1acbeb6fce38abab4fec8bffea382e194a" prot="public" virt="non-virtual"><scope>cugraph::edge_partition_device_view_t&lt; vertex_t, edge_t, multi_gpu, std::enable_if_t&lt;!multi_gpu &gt; &gt;</scope><name>local_offset</name></member>
+      <member refid="classcugraph_1_1edge__partition__device__view__t_3_01vertex__t_00_01edge__t_00_01multi__gpu_00_0cfa43e09a0397045baa42dbf7b50054c_1a0628c9227e85778dd3947cf853ae424c" prot="public" virt="non-virtual"><scope>cugraph::edge_partition_device_view_t&lt; vertex_t, edge_t, multi_gpu, std::enable_if_t&lt;!multi_gpu &gt; &gt;</scope><name>major_from_major_hypersparse_idx_nocheck</name></member>
+      <member refid="classcugraph_1_1edge__partition__device__view__t_3_01vertex__t_00_01edge__t_00_01multi__gpu_00_0cfa43e09a0397045baa42dbf7b50054c_1afe020110326a93f5ffa78b2c269a2268" prot="public" virt="non-virtual"><scope>cugraph::edge_partition_device_view_t&lt; vertex_t, edge_t, multi_gpu, std::enable_if_t&lt;!multi_gpu &gt; &gt;</scope><name>major_from_major_idx_nocheck</name></member>
+      <member refid="classcugraph_1_1edge__partition__device__view__t_3_01vertex__t_00_01edge__t_00_01multi__gpu_00_0cfa43e09a0397045baa42dbf7b50054c_1ab32c4aaf8191d1abb0d7cc17193fa8ae" prot="public" virt="non-virtual"><scope>cugraph::edge_partition_device_view_t&lt; vertex_t, edge_t, multi_gpu, std::enable_if_t&lt;!multi_gpu &gt; &gt;</scope><name>major_from_major_offset_nocheck</name></member>
+      <member refid="classcugraph_1_1edge__partition__device__view__t_3_01vertex__t_00_01edge__t_00_01multi__gpu_00_0cfa43e09a0397045baa42dbf7b50054c_1ac4465fffa09d2d0fa9a39e8bd128986f" prot="public" virt="non-virtual"><scope>cugraph::edge_partition_device_view_t&lt; vertex_t, edge_t, multi_gpu, std::enable_if_t&lt;!multi_gpu &gt; &gt;</scope><name>major_hypersparse_first</name></member>
+      <member refid="classcugraph_1_1edge__partition__device__view__t_3_01vertex__t_00_01edge__t_00_01multi__gpu_00_0cfa43e09a0397045baa42dbf7b50054c_1ab75e3a1d4937456f397d35b6f6c3b91a" prot="public" virt="non-virtual"><scope>cugraph::edge_partition_device_view_t&lt; vertex_t, edge_t, multi_gpu, std::enable_if_t&lt;!multi_gpu &gt; &gt;</scope><name>major_hypersparse_idx_from_major_nocheck</name></member>
+      <member refid="classcugraph_1_1detail_1_1edge__partition__device__view__base__t_1a476885bf0ac68765cbafa86454172971" prot="public" virt="non-virtual"><scope>cugraph::edge_partition_device_view_t&lt; vertex_t, edge_t, multi_gpu, std::enable_if_t&lt;!multi_gpu &gt; &gt;</scope><name>major_idx_from_local_edge_idx_nocheck</name></member>
+      <member refid="classcugraph_1_1edge__partition__device__view__t_3_01vertex__t_00_01edge__t_00_01multi__gpu_00_0cfa43e09a0397045baa42dbf7b50054c_1ac38a823c9723e4a4a335af5b15fcc2b6" prot="public" virt="non-virtual"><scope>cugraph::edge_partition_device_view_t&lt; vertex_t, edge_t, multi_gpu, std::enable_if_t&lt;!multi_gpu &gt; &gt;</scope><name>major_idx_from_major_nocheck</name></member>
+      <member refid="classcugraph_1_1edge__partition__device__view__t_3_01vertex__t_00_01edge__t_00_01multi__gpu_00_0cfa43e09a0397045baa42dbf7b50054c_1af006d8f77f2ce1745992be9fd96fe9c3" prot="public" virt="non-virtual"><scope>cugraph::edge_partition_device_view_t&lt; vertex_t, edge_t, multi_gpu, std::enable_if_t&lt;!multi_gpu &gt; &gt;</scope><name>major_offset_from_major_nocheck</name></member>
+      <member refid="classcugraph_1_1edge__partition__device__view__t_3_01vertex__t_00_01edge__t_00_01multi__gpu_00_0cfa43e09a0397045baa42dbf7b50054c_1a629ed43b7492477290dfa3b2d7506fc8" prot="public" virt="non-virtual"><scope>cugraph::edge_partition_device_view_t&lt; vertex_t, edge_t, multi_gpu, std::enable_if_t&lt;!multi_gpu &gt; &gt;</scope><name>major_range_first</name></member>
+      <member refid="classcugraph_1_1edge__partition__device__view__t_3_01vertex__t_00_01edge__t_00_01multi__gpu_00_0cfa43e09a0397045baa42dbf7b50054c_1a998d757f7dbbfa4e2eadddfa5c31b2d9" prot="public" virt="non-virtual"><scope>cugraph::edge_partition_device_view_t&lt; vertex_t, edge_t, multi_gpu, std::enable_if_t&lt;!multi_gpu &gt; &gt;</scope><name>major_range_last</name></member>
+      <member refid="classcugraph_1_1edge__partition__device__view__t_3_01vertex__t_00_01edge__t_00_01multi__gpu_00_0cfa43e09a0397045baa42dbf7b50054c_1a81b1e91c05bfd9a9c8422fd460c6aea5" prot="public" virt="non-virtual"><scope>cugraph::edge_partition_device_view_t&lt; vertex_t, edge_t, multi_gpu, std::enable_if_t&lt;!multi_gpu &gt; &gt;</scope><name>major_range_size</name></member>
+      <member refid="classcugraph_1_1edge__partition__device__view__t_3_01vertex__t_00_01edge__t_00_01multi__gpu_00_0cfa43e09a0397045baa42dbf7b50054c_1ae17a72d498a31ce38de0d27415487a4a" prot="public" virt="non-virtual"><scope>cugraph::edge_partition_device_view_t&lt; vertex_t, edge_t, multi_gpu, std::enable_if_t&lt;!multi_gpu &gt; &gt;</scope><name>major_value_start_offset</name></member>
+      <member refid="classcugraph_1_1edge__partition__device__view__t_3_01vertex__t_00_01edge__t_00_01multi__gpu_00_0cfa43e09a0397045baa42dbf7b50054c_1addbf7aed8e9649d55732697fa83b2015" prot="public" virt="non-virtual"><scope>cugraph::edge_partition_device_view_t&lt; vertex_t, edge_t, multi_gpu, std::enable_if_t&lt;!multi_gpu &gt; &gt;</scope><name>minor_from_minor_offset_nocheck</name></member>
+      <member refid="classcugraph_1_1edge__partition__device__view__t_3_01vertex__t_00_01edge__t_00_01multi__gpu_00_0cfa43e09a0397045baa42dbf7b50054c_1a8954f1dce02f242ac8762bf1cdb608db" prot="public" virt="non-virtual"><scope>cugraph::edge_partition_device_view_t&lt; vertex_t, edge_t, multi_gpu, std::enable_if_t&lt;!multi_gpu &gt; &gt;</scope><name>minor_offset_from_minor_nocheck</name></member>
+      <member refid="classcugraph_1_1edge__partition__device__view__t_3_01vertex__t_00_01edge__t_00_01multi__gpu_00_0cfa43e09a0397045baa42dbf7b50054c_1afed103817ff54a18f98e4746aa904cd2" prot="public" virt="non-virtual"><scope>cugraph::edge_partition_device_view_t&lt; vertex_t, edge_t, multi_gpu, std::enable_if_t&lt;!multi_gpu &gt; &gt;</scope><name>minor_range_first</name></member>
+      <member refid="classcugraph_1_1edge__partition__device__view__t_3_01vertex__t_00_01edge__t_00_01multi__gpu_00_0cfa43e09a0397045baa42dbf7b50054c_1ae7a7bb79449fb636beeaa78bfe2050f7" prot="public" virt="non-virtual"><scope>cugraph::edge_partition_device_view_t&lt; vertex_t, edge_t, multi_gpu, std::enable_if_t&lt;!multi_gpu &gt; &gt;</scope><name>minor_range_last</name></member>
+      <member refid="classcugraph_1_1edge__partition__device__view__t_3_01vertex__t_00_01edge__t_00_01multi__gpu_00_0cfa43e09a0397045baa42dbf7b50054c_1a6b498d8882944e965c51774c12514168" prot="public" virt="non-virtual"><scope>cugraph::edge_partition_device_view_t&lt; vertex_t, edge_t, multi_gpu, std::enable_if_t&lt;!multi_gpu &gt; &gt;</scope><name>minor_range_size</name></member>
+      <member refid="classcugraph_1_1detail_1_1edge__partition__device__view__base__t_1a9c5ab3a2b2bced220d44caff286a3352" prot="public" virt="non-virtual"><scope>cugraph::edge_partition_device_view_t&lt; vertex_t, edge_t, multi_gpu, std::enable_if_t&lt;!multi_gpu &gt; &gt;</scope><name>number_of_edges</name></member>
+      <member refid="classcugraph_1_1edge__partition__device__view__t_3_01vertex__t_00_01edge__t_00_01multi__gpu_00_0cfa43e09a0397045baa42dbf7b50054c_1aa29d9c4e9510c07cb3c11364e6fdc973" prot="private" virt="non-virtual"><scope>cugraph::edge_partition_device_view_t&lt; vertex_t, edge_t, multi_gpu, std::enable_if_t&lt;!multi_gpu &gt; &gt;</scope><name>number_of_vertices_</name></member>
+      <member refid="classcugraph_1_1detail_1_1edge__partition__device__view__base__t_1a07f028b679e7771ee23b61d8bb76529d" prot="public" virt="non-virtual"><scope>cugraph::edge_partition_device_view_t&lt; vertex_t, edge_t, multi_gpu, std::enable_if_t&lt;!multi_gpu &gt; &gt;</scope><name>offsets</name></member>
+      <member refid="classcugraph_1_1detail_1_1edge__partition__device__view__base__t_1a3a00b638dbaf3ec4ce3093c130c0419b" prot="protected" virt="non-virtual"><scope>cugraph::edge_partition_device_view_t&lt; vertex_t, edge_t, multi_gpu, std::enable_if_t&lt;!multi_gpu &gt; &gt;</scope><name>offsets_</name></member>
+    </listofallmembers>
+  </compounddef>
+</doxygen>

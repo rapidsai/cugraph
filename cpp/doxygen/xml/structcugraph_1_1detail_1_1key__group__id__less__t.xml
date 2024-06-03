@@ -1,0 +1,76 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="structcugraph_1_1detail_1_1key__group__id__less__t" kind="struct" language="C++" prot="public">
+    <compoundname>cugraph::detail::key_group_id_less_t</compoundname>
+    <templateparamlist>
+      <param>
+        <type>typename key_type</type>
+      </param>
+      <param>
+        <type>typename KeyToGroupIdOp</type>
+      </param>
+    </templateparamlist>
+    <sectiondef kind="public-attrib">
+      <memberdef kind="variable" id="structcugraph_1_1detail_1_1key__group__id__less__t_1a99debd2f94ff78bcc888e7cb8ead1ba0" prot="public" static="no" mutable="no">
+        <type>KeyToGroupIdOp</type>
+        <definition>KeyToGroupIdOp cugraph::detail::key_group_id_less_t&lt; key_type, KeyToGroupIdOp &gt;::key_to_group_id_op</definition>
+        <argsstring></argsstring>
+        <name>key_to_group_id_op</name>
+        <qualifiedname>cugraph::detail::key_group_id_less_t::key_to_group_id_op</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/utilities/shuffle_comm.cuh" line="142" column="18" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/utilities/shuffle_comm.cuh" bodystart="142" bodyend="142"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph_1_1detail_1_1key__group__id__less__t_1aa29cb8e4862fce47c1755240ec08052f" prot="public" static="no" mutable="no">
+        <type>int</type>
+        <definition>int cugraph::detail::key_group_id_less_t&lt; key_type, KeyToGroupIdOp &gt;::pivot</definition>
+        <argsstring></argsstring>
+        <name>pivot</name>
+        <qualifiedname>cugraph::detail::key_group_id_less_t::pivot</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/utilities/shuffle_comm.cuh" line="143" column="7" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/utilities/shuffle_comm.cuh" bodystart="143" bodyend="143"/>
+      </memberdef>
+    </sectiondef>
+    <sectiondef kind="public-func">
+      <memberdef kind="function" id="structcugraph_1_1detail_1_1key__group__id__less__t_1a5eee0ea12d91a919c7515ce796f2dc96" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>__device__ bool</type>
+        <definition>__device__ bool cugraph::detail::key_group_id_less_t&lt; key_type, KeyToGroupIdOp &gt;::operator()</definition>
+        <argsstring>(key_type k) const</argsstring>
+        <name>operator()</name>
+        <qualifiedname>cugraph::detail::key_group_id_less_t::operator()</qualifiedname>
+        <param>
+          <type>key_type</type>
+          <declname>k</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/utilities/shuffle_comm.cuh" line="144" column="19" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/utilities/shuffle_comm.cuh" bodystart="144" bodyend="144"/>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/utilities/shuffle_comm.cuh" line="141" column="1" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/utilities/shuffle_comm.cuh" bodystart="141" bodyend="145"/>
+    <listofallmembers>
+      <member refid="structcugraph_1_1detail_1_1key__group__id__less__t_1a99debd2f94ff78bcc888e7cb8ead1ba0" prot="public" virt="non-virtual"><scope>cugraph::detail::key_group_id_less_t</scope><name>key_to_group_id_op</name></member>
+      <member refid="structcugraph_1_1detail_1_1key__group__id__less__t_1a5eee0ea12d91a919c7515ce796f2dc96" prot="public" virt="non-virtual"><scope>cugraph::detail::key_group_id_less_t</scope><name>operator()</name></member>
+      <member refid="structcugraph_1_1detail_1_1key__group__id__less__t_1aa29cb8e4862fce47c1755240ec08052f" prot="public" virt="non-virtual"><scope>cugraph::detail::key_group_id_less_t</scope><name>pivot</name></member>
+    </listofallmembers>
+  </compounddef>
+</doxygen>

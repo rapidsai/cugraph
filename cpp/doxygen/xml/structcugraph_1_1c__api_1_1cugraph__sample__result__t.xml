@@ -1,0 +1,214 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="structcugraph_1_1c__api_1_1cugraph__sample__result__t" kind="struct" language="C++" prot="public">
+    <compoundname>cugraph::c_api::cugraph_sample_result_t</compoundname>
+    <sectiondef kind="public-attrib">
+      <memberdef kind="variable" id="structcugraph_1_1c__api_1_1cugraph__sample__result__t_1a75ad71f270dbba140d2c5e42329ab39b" prot="public" static="no" mutable="no">
+        <type><ref refid="structcugraph_1_1c__api_1_1cugraph__type__erased__device__array__t" kindref="compound">cugraph_type_erased_device_array_t</ref> *</type>
+        <definition>cugraph_type_erased_device_array_t* cugraph::c_api::cugraph_sample_result_t::major_offsets_</definition>
+        <argsstring></argsstring>
+        <name>major_offsets_</name>
+        <qualifiedname>cugraph::c_api::cugraph_sample_result_t::major_offsets_</qualifiedname>
+        <initializer>{nullptr}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/c_api/uniform_neighbor_sampling.cpp" line="47" column="38" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/uniform_neighbor_sampling.cpp" bodystart="47" bodyend="47"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph_1_1c__api_1_1cugraph__sample__result__t_1aca7dfe147d2081ccde878fe96226cddd" prot="public" static="no" mutable="no">
+        <type><ref refid="structcugraph_1_1c__api_1_1cugraph__type__erased__device__array__t" kindref="compound">cugraph_type_erased_device_array_t</ref> *</type>
+        <definition>cugraph_type_erased_device_array_t* cugraph::c_api::cugraph_sample_result_t::majors_</definition>
+        <argsstring></argsstring>
+        <name>majors_</name>
+        <qualifiedname>cugraph::c_api::cugraph_sample_result_t::majors_</qualifiedname>
+        <initializer>{nullptr}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/c_api/uniform_neighbor_sampling.cpp" line="48" column="38" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/uniform_neighbor_sampling.cpp" bodystart="48" bodyend="48"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph_1_1c__api_1_1cugraph__sample__result__t_1ac2f0748fcb9966c2fa8f8c4036d066c2" prot="public" static="no" mutable="no">
+        <type><ref refid="structcugraph_1_1c__api_1_1cugraph__type__erased__device__array__t" kindref="compound">cugraph_type_erased_device_array_t</ref> *</type>
+        <definition>cugraph_type_erased_device_array_t* cugraph::c_api::cugraph_sample_result_t::minors_</definition>
+        <argsstring></argsstring>
+        <name>minors_</name>
+        <qualifiedname>cugraph::c_api::cugraph_sample_result_t::minors_</qualifiedname>
+        <initializer>{nullptr}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/c_api/uniform_neighbor_sampling.cpp" line="49" column="38" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/uniform_neighbor_sampling.cpp" bodystart="49" bodyend="49"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph_1_1c__api_1_1cugraph__sample__result__t_1af3a2135ff7445803ef05836ac12311af" prot="public" static="no" mutable="no">
+        <type><ref refid="structcugraph_1_1c__api_1_1cugraph__type__erased__device__array__t" kindref="compound">cugraph_type_erased_device_array_t</ref> *</type>
+        <definition>cugraph_type_erased_device_array_t* cugraph::c_api::cugraph_sample_result_t::edge_id_</definition>
+        <argsstring></argsstring>
+        <name>edge_id_</name>
+        <qualifiedname>cugraph::c_api::cugraph_sample_result_t::edge_id_</qualifiedname>
+        <initializer>{nullptr}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/c_api/uniform_neighbor_sampling.cpp" line="50" column="38" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/uniform_neighbor_sampling.cpp" bodystart="50" bodyend="50"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph_1_1c__api_1_1cugraph__sample__result__t_1ac38c7e8e1b7329a97e6a2ecc6e6a4ce4" prot="public" static="no" mutable="no">
+        <type><ref refid="structcugraph_1_1c__api_1_1cugraph__type__erased__device__array__t" kindref="compound">cugraph_type_erased_device_array_t</ref> *</type>
+        <definition>cugraph_type_erased_device_array_t* cugraph::c_api::cugraph_sample_result_t::edge_type_</definition>
+        <argsstring></argsstring>
+        <name>edge_type_</name>
+        <qualifiedname>cugraph::c_api::cugraph_sample_result_t::edge_type_</qualifiedname>
+        <initializer>{nullptr}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/c_api/uniform_neighbor_sampling.cpp" line="51" column="38" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/uniform_neighbor_sampling.cpp" bodystart="51" bodyend="51"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph_1_1c__api_1_1cugraph__sample__result__t_1ac686a65c420a9335c56e20e3094cbc40" prot="public" static="no" mutable="no">
+        <type><ref refid="structcugraph_1_1c__api_1_1cugraph__type__erased__device__array__t" kindref="compound">cugraph_type_erased_device_array_t</ref> *</type>
+        <definition>cugraph_type_erased_device_array_t* cugraph::c_api::cugraph_sample_result_t::wgt_</definition>
+        <argsstring></argsstring>
+        <name>wgt_</name>
+        <qualifiedname>cugraph::c_api::cugraph_sample_result_t::wgt_</qualifiedname>
+        <initializer>{nullptr}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/c_api/uniform_neighbor_sampling.cpp" line="52" column="38" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/uniform_neighbor_sampling.cpp" bodystart="52" bodyend="52"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph_1_1c__api_1_1cugraph__sample__result__t_1a9d42cb9d20011984fa65a7f5816ba0d4" prot="public" static="no" mutable="no">
+        <type><ref refid="structcugraph_1_1c__api_1_1cugraph__type__erased__device__array__t" kindref="compound">cugraph_type_erased_device_array_t</ref> *</type>
+        <definition>cugraph_type_erased_device_array_t* cugraph::c_api::cugraph_sample_result_t::hop_</definition>
+        <argsstring></argsstring>
+        <name>hop_</name>
+        <qualifiedname>cugraph::c_api::cugraph_sample_result_t::hop_</qualifiedname>
+        <initializer>{nullptr}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/c_api/uniform_neighbor_sampling.cpp" line="53" column="38" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/uniform_neighbor_sampling.cpp" bodystart="53" bodyend="53"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph_1_1c__api_1_1cugraph__sample__result__t_1a300b180d74a24faa872c24d845fb129e" prot="public" static="no" mutable="no">
+        <type><ref refid="structcugraph_1_1c__api_1_1cugraph__type__erased__device__array__t" kindref="compound">cugraph_type_erased_device_array_t</ref> *</type>
+        <definition>cugraph_type_erased_device_array_t* cugraph::c_api::cugraph_sample_result_t::label_hop_offsets_</definition>
+        <argsstring></argsstring>
+        <name>label_hop_offsets_</name>
+        <qualifiedname>cugraph::c_api::cugraph_sample_result_t::label_hop_offsets_</qualifiedname>
+        <initializer>{nullptr}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/c_api/uniform_neighbor_sampling.cpp" line="54" column="38" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/uniform_neighbor_sampling.cpp" bodystart="54" bodyend="54"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph_1_1c__api_1_1cugraph__sample__result__t_1afe170ce43ae182325bc488ccaf76f6f0" prot="public" static="no" mutable="no">
+        <type><ref refid="structcugraph_1_1c__api_1_1cugraph__type__erased__device__array__t" kindref="compound">cugraph_type_erased_device_array_t</ref> *</type>
+        <definition>cugraph_type_erased_device_array_t* cugraph::c_api::cugraph_sample_result_t::label_</definition>
+        <argsstring></argsstring>
+        <name>label_</name>
+        <qualifiedname>cugraph::c_api::cugraph_sample_result_t::label_</qualifiedname>
+        <initializer>{nullptr}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/c_api/uniform_neighbor_sampling.cpp" line="55" column="38" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/uniform_neighbor_sampling.cpp" bodystart="55" bodyend="55"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph_1_1c__api_1_1cugraph__sample__result__t_1abc0b373bc54546b75cfe2de0213875c2" prot="public" static="no" mutable="no">
+        <type><ref refid="structcugraph_1_1c__api_1_1cugraph__type__erased__device__array__t" kindref="compound">cugraph_type_erased_device_array_t</ref> *</type>
+        <definition>cugraph_type_erased_device_array_t* cugraph::c_api::cugraph_sample_result_t::renumber_map_</definition>
+        <argsstring></argsstring>
+        <name>renumber_map_</name>
+        <qualifiedname>cugraph::c_api::cugraph_sample_result_t::renumber_map_</qualifiedname>
+        <initializer>{nullptr}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/c_api/uniform_neighbor_sampling.cpp" line="56" column="38" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/uniform_neighbor_sampling.cpp" bodystart="56" bodyend="56"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph_1_1c__api_1_1cugraph__sample__result__t_1ac23522378fce24888eb4051f1b4ceb7e" prot="public" static="no" mutable="no">
+        <type><ref refid="structcugraph_1_1c__api_1_1cugraph__type__erased__device__array__t" kindref="compound">cugraph_type_erased_device_array_t</ref> *</type>
+        <definition>cugraph_type_erased_device_array_t* cugraph::c_api::cugraph_sample_result_t::renumber_map_offsets_</definition>
+        <argsstring></argsstring>
+        <name>renumber_map_offsets_</name>
+        <qualifiedname>cugraph::c_api::cugraph_sample_result_t::renumber_map_offsets_</qualifiedname>
+        <initializer>{nullptr}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/c_api/uniform_neighbor_sampling.cpp" line="57" column="38" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/uniform_neighbor_sampling.cpp" bodystart="57" bodyend="57"/>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <collaborationgraph>
+      <node id="1">
+        <label>cugraph::c_api::cugraph_sample_result_t</label>
+        <link refid="structcugraph_1_1c__api_1_1cugraph__sample__result__t"/>
+        <childnode refid="2" relation="usage">
+          <edgelabel>edge_id_</edgelabel>
+          <edgelabel>edge_type_</edgelabel>
+          <edgelabel>hop_</edgelabel>
+          <edgelabel>label_</edgelabel>
+          <edgelabel>label_hop_offsets_</edgelabel>
+          <edgelabel>major_offsets_</edgelabel>
+          <edgelabel>majors_</edgelabel>
+          <edgelabel>minors_</edgelabel>
+          <edgelabel>renumber_map_</edgelabel>
+          <edgelabel>renumber_map_offsets_</edgelabel>
+          <edgelabel>...</edgelabel>
+        </childnode>
+      </node>
+      <node id="2">
+        <label>cugraph::c_api::cugraph_type_erased_device_array_t</label>
+        <link refid="structcugraph_1_1c__api_1_1cugraph__type__erased__device__array__t"/>
+      </node>
+    </collaborationgraph>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/src/c_api/uniform_neighbor_sampling.cpp" line="46" column="1" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/uniform_neighbor_sampling.cpp" bodystart="46" bodyend="58"/>
+    <listofallmembers>
+      <member refid="structcugraph_1_1c__api_1_1cugraph__sample__result__t_1af3a2135ff7445803ef05836ac12311af" prot="public" virt="non-virtual"><scope>cugraph::c_api::cugraph_sample_result_t</scope><name>edge_id_</name></member>
+      <member refid="structcugraph_1_1c__api_1_1cugraph__sample__result__t_1ac38c7e8e1b7329a97e6a2ecc6e6a4ce4" prot="public" virt="non-virtual"><scope>cugraph::c_api::cugraph_sample_result_t</scope><name>edge_type_</name></member>
+      <member refid="structcugraph_1_1c__api_1_1cugraph__sample__result__t_1a9d42cb9d20011984fa65a7f5816ba0d4" prot="public" virt="non-virtual"><scope>cugraph::c_api::cugraph_sample_result_t</scope><name>hop_</name></member>
+      <member refid="structcugraph_1_1c__api_1_1cugraph__sample__result__t_1afe170ce43ae182325bc488ccaf76f6f0" prot="public" virt="non-virtual"><scope>cugraph::c_api::cugraph_sample_result_t</scope><name>label_</name></member>
+      <member refid="structcugraph_1_1c__api_1_1cugraph__sample__result__t_1a300b180d74a24faa872c24d845fb129e" prot="public" virt="non-virtual"><scope>cugraph::c_api::cugraph_sample_result_t</scope><name>label_hop_offsets_</name></member>
+      <member refid="structcugraph_1_1c__api_1_1cugraph__sample__result__t_1a75ad71f270dbba140d2c5e42329ab39b" prot="public" virt="non-virtual"><scope>cugraph::c_api::cugraph_sample_result_t</scope><name>major_offsets_</name></member>
+      <member refid="structcugraph_1_1c__api_1_1cugraph__sample__result__t_1aca7dfe147d2081ccde878fe96226cddd" prot="public" virt="non-virtual"><scope>cugraph::c_api::cugraph_sample_result_t</scope><name>majors_</name></member>
+      <member refid="structcugraph_1_1c__api_1_1cugraph__sample__result__t_1ac2f0748fcb9966c2fa8f8c4036d066c2" prot="public" virt="non-virtual"><scope>cugraph::c_api::cugraph_sample_result_t</scope><name>minors_</name></member>
+      <member refid="structcugraph_1_1c__api_1_1cugraph__sample__result__t_1abc0b373bc54546b75cfe2de0213875c2" prot="public" virt="non-virtual"><scope>cugraph::c_api::cugraph_sample_result_t</scope><name>renumber_map_</name></member>
+      <member refid="structcugraph_1_1c__api_1_1cugraph__sample__result__t_1ac23522378fce24888eb4051f1b4ceb7e" prot="public" virt="non-virtual"><scope>cugraph::c_api::cugraph_sample_result_t</scope><name>renumber_map_offsets_</name></member>
+      <member refid="structcugraph_1_1c__api_1_1cugraph__sample__result__t_1ac686a65c420a9335c56e20e3094cbc40" prot="public" virt="non-virtual"><scope>cugraph::c_api::cugraph_sample_result_t</scope><name>wgt_</name></member>
+    </listofallmembers>
+  </compounddef>
+</doxygen>

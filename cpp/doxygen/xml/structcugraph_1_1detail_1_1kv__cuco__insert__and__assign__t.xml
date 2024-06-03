@@ -1,0 +1,63 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="structcugraph_1_1detail_1_1kv__cuco__insert__and__assign__t" kind="struct" language="C++" prot="public">
+    <compoundname>cugraph::detail::kv_cuco_insert_and_assign_t</compoundname>
+    <templateparamlist>
+      <param>
+        <type>typename RefType</type>
+      </param>
+      <param>
+        <type>typename key_t</type>
+      </param>
+      <param>
+        <type>typename value_t</type>
+      </param>
+    </templateparamlist>
+    <sectiondef kind="public-attrib">
+      <memberdef kind="variable" id="structcugraph_1_1detail_1_1kv__cuco__insert__and__assign__t_1a5ad02006bdf209024785550175a8255f" prot="public" static="no" mutable="no">
+        <type>RefType</type>
+        <definition>RefType cugraph::detail::kv_cuco_insert_and_assign_t&lt; RefType, key_t, value_t &gt;::device_ref</definition>
+        <argsstring></argsstring>
+        <name>device_ref</name>
+        <qualifiedname>cugraph::detail::kv_cuco_insert_and_assign_t::device_ref</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/kv_store.cuh" line="147" column="11" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/kv_store.cuh" bodystart="147" bodyend="147"/>
+      </memberdef>
+    </sectiondef>
+    <sectiondef kind="public-func">
+      <memberdef kind="function" id="structcugraph_1_1detail_1_1kv__cuco__insert__and__assign__t_1a4e1daf06db7af129c94606b4bf91a3d8" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type>__device__ void</type>
+        <definition>__device__ void cugraph::detail::kv_cuco_insert_and_assign_t&lt; RefType, key_t, value_t &gt;::operator()</definition>
+        <argsstring>(thrust::tuple&lt; key_t, value_t &gt; pair)</argsstring>
+        <name>operator()</name>
+        <qualifiedname>cugraph::detail::kv_cuco_insert_and_assign_t::operator()</qualifiedname>
+        <param>
+          <type>thrust::tuple&lt; key_t, value_t &gt;</type>
+          <declname>pair</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/kv_store.cuh" line="149" column="19" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/kv_store.cuh" bodystart="149" bodyend="157"/>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/kv_store.cuh" line="146" column="1" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/kv_store.cuh" bodystart="146" bodyend="158"/>
+    <listofallmembers>
+      <member refid="structcugraph_1_1detail_1_1kv__cuco__insert__and__assign__t_1a5ad02006bdf209024785550175a8255f" prot="public" virt="non-virtual"><scope>cugraph::detail::kv_cuco_insert_and_assign_t</scope><name>device_ref</name></member>
+      <member refid="structcugraph_1_1detail_1_1kv__cuco__insert__and__assign__t_1a4e1daf06db7af129c94606b4bf91a3d8" prot="public" virt="non-virtual"><scope>cugraph::detail::kv_cuco_insert_and_assign_t</scope><name>operator()</name></member>
+    </listofallmembers>
+  </compounddef>
+</doxygen>

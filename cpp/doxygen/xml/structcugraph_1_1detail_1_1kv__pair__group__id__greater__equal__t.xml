@@ -1,0 +1,79 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="structcugraph_1_1detail_1_1kv__pair__group__id__greater__equal__t" kind="struct" language="C++" prot="public">
+    <compoundname>cugraph::detail::kv_pair_group_id_greater_equal_t</compoundname>
+    <templateparamlist>
+      <param>
+        <type>typename key_type</type>
+      </param>
+      <param>
+        <type>typename value_type</type>
+      </param>
+      <param>
+        <type>typename KeyToGroupIdOp</type>
+      </param>
+    </templateparamlist>
+    <sectiondef kind="public-attrib">
+      <memberdef kind="variable" id="structcugraph_1_1detail_1_1kv__pair__group__id__greater__equal__t_1a6cd570f76017daa7ce2f8520208575ff" prot="public" static="no" mutable="no">
+        <type>KeyToGroupIdOp</type>
+        <definition>KeyToGroupIdOp cugraph::detail::kv_pair_group_id_greater_equal_t&lt; key_type, value_type, KeyToGroupIdOp &gt;::key_to_group_id_op</definition>
+        <argsstring></argsstring>
+        <name>key_to_group_id_op</name>
+        <qualifiedname>cugraph::detail::kv_pair_group_id_greater_equal_t::key_to_group_id_op</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/utilities/shuffle_comm.cuh" line="173" column="18" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/utilities/shuffle_comm.cuh" bodystart="173" bodyend="173"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph_1_1detail_1_1kv__pair__group__id__greater__equal__t_1aee07478a52220a91f2fcb80672aebf02" prot="public" static="no" mutable="no">
+        <type>int</type>
+        <definition>int cugraph::detail::kv_pair_group_id_greater_equal_t&lt; key_type, value_type, KeyToGroupIdOp &gt;::pivot</definition>
+        <argsstring></argsstring>
+        <name>pivot</name>
+        <qualifiedname>cugraph::detail::kv_pair_group_id_greater_equal_t::pivot</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/utilities/shuffle_comm.cuh" line="174" column="7" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/utilities/shuffle_comm.cuh" bodystart="174" bodyend="174"/>
+      </memberdef>
+    </sectiondef>
+    <sectiondef kind="public-func">
+      <memberdef kind="function" id="structcugraph_1_1detail_1_1kv__pair__group__id__greater__equal__t_1ad12fa21cd1c1733041f130921aafe362" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>__device__ bool</type>
+        <definition>__device__ bool cugraph::detail::kv_pair_group_id_greater_equal_t&lt; key_type, value_type, KeyToGroupIdOp &gt;::operator()</definition>
+        <argsstring>(thrust::tuple&lt; key_type, value_type &gt; t) const</argsstring>
+        <name>operator()</name>
+        <qualifiedname>cugraph::detail::kv_pair_group_id_greater_equal_t::operator()</qualifiedname>
+        <param>
+          <type>thrust::tuple&lt; key_type, value_type &gt;</type>
+          <declname>t</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/utilities/shuffle_comm.cuh" line="175" column="19" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/utilities/shuffle_comm.cuh" bodystart="175" bodyend="178"/>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/utilities/shuffle_comm.cuh" line="172" column="1" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/utilities/shuffle_comm.cuh" bodystart="172" bodyend="179"/>
+    <listofallmembers>
+      <member refid="structcugraph_1_1detail_1_1kv__pair__group__id__greater__equal__t_1a6cd570f76017daa7ce2f8520208575ff" prot="public" virt="non-virtual"><scope>cugraph::detail::kv_pair_group_id_greater_equal_t</scope><name>key_to_group_id_op</name></member>
+      <member refid="structcugraph_1_1detail_1_1kv__pair__group__id__greater__equal__t_1ad12fa21cd1c1733041f130921aafe362" prot="public" virt="non-virtual"><scope>cugraph::detail::kv_pair_group_id_greater_equal_t</scope><name>operator()</name></member>
+      <member refid="structcugraph_1_1detail_1_1kv__pair__group__id__greater__equal__t_1aee07478a52220a91f2fcb80672aebf02" prot="public" virt="non-virtual"><scope>cugraph::detail::kv_pair_group_id_greater_equal_t</scope><name>pivot</name></member>
+    </listofallmembers>
+  </compounddef>
+</doxygen>

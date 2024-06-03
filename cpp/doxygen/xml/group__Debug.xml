@@ -1,0 +1,151 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="group__Debug" kind="group">
+    <compoundname>Debug</compoundname>
+    <title>utils for debug device code</title>
+    <sectiondef kind="func">
+      <memberdef kind="function" id="group__Debug_1ga1b48e66987008dad2ec1735461e7b493" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <templateparamlist>
+          <param>
+            <type>class T</type>
+          </param>
+          <param>
+            <type>class OutStream</type>
+          </param>
+        </templateparamlist>
+        <type>void</type>
+        <definition>void MLCommon::myPrintHostVector</definition>
+        <argsstring>(const char *variableName, const T *hostMem, size_t componentsCount, OutStream &amp;out)</argsstring>
+        <name>myPrintHostVector</name>
+        <qualifiedname>MLCommon::myPrintHostVector</qualifiedname>
+        <param>
+          <type>const char *</type>
+          <declname>variableName</declname>
+        </param>
+        <param>
+          <type>const T *</type>
+          <declname>hostMem</declname>
+        </param>
+        <param>
+          <type>size_t</type>
+          <declname>componentsCount</declname>
+        </param>
+        <param>
+          <type>OutStream &amp;</type>
+          <declname>out</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/components/legacy/utils.h" line="168" column="6" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/components/legacy/utils.h" bodystart="168" bodyend="179"/>
+      </memberdef>
+      <memberdef kind="function" id="group__Debug_1ga8c1f66ceb7c337287a596649ad1f9d5f" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <templateparamlist>
+          <param>
+            <type>class T</type>
+          </param>
+        </templateparamlist>
+        <type>void</type>
+        <definition>void MLCommon::myPrintHostVector</definition>
+        <argsstring>(const char *variableName, const T *hostMem, size_t componentsCount)</argsstring>
+        <name>myPrintHostVector</name>
+        <qualifiedname>MLCommon::myPrintHostVector</qualifiedname>
+        <param>
+          <type>const char *</type>
+          <declname>variableName</declname>
+        </param>
+        <param>
+          <type>const T *</type>
+          <declname>hostMem</declname>
+        </param>
+        <param>
+          <type>size_t</type>
+          <declname>componentsCount</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/components/legacy/utils.h" line="182" column="6" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/components/legacy/utils.h" bodystart="182" bodyend="186"/>
+      </memberdef>
+      <memberdef kind="function" id="group__Debug_1ga6e879b962a3d64b12229d29affcc77c8" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <templateparamlist>
+          <param>
+            <type>class T</type>
+          </param>
+          <param>
+            <type>class OutStream</type>
+          </param>
+        </templateparamlist>
+        <type>void</type>
+        <definition>void MLCommon::myPrintDevVector</definition>
+        <argsstring>(const char *variableName, const T *devMem, size_t componentsCount, OutStream &amp;out)</argsstring>
+        <name>myPrintDevVector</name>
+        <qualifiedname>MLCommon::myPrintDevVector</qualifiedname>
+        <param>
+          <type>const char *</type>
+          <declname>variableName</declname>
+        </param>
+        <param>
+          <type>const T *</type>
+          <declname>devMem</declname>
+        </param>
+        <param>
+          <type>size_t</type>
+          <declname>componentsCount</declname>
+        </param>
+        <param>
+          <type>OutStream &amp;</type>
+          <declname>out</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/components/legacy/utils.h" line="189" column="6" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/components/legacy/utils.h" bodystart="189" bodyend="198"/>
+      </memberdef>
+      <memberdef kind="function" id="group__Debug_1ga20e91ba5a336edf93adc3bf154ee7c5f" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <templateparamlist>
+          <param>
+            <type>class T</type>
+          </param>
+        </templateparamlist>
+        <type>void</type>
+        <definition>void MLCommon::myPrintDevVector</definition>
+        <argsstring>(const char *variableName, const T *devMem, size_t componentsCount)</argsstring>
+        <name>myPrintDevVector</name>
+        <qualifiedname>MLCommon::myPrintDevVector</qualifiedname>
+        <param>
+          <type>const char *</type>
+          <declname>variableName</declname>
+        </param>
+        <param>
+          <type>const T *</type>
+          <declname>devMem</declname>
+        </param>
+        <param>
+          <type>size_t</type>
+          <declname>componentsCount</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/components/legacy/utils.h" line="201" column="6" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/components/legacy/utils.h" bodystart="201" bodyend="205"/>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+  </compounddef>
+</doxygen>

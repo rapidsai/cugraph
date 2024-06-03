@@ -1,0 +1,60 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="structcugraph_1_1detail_1_1count__updown__moves__op__t" kind="struct" language="C++" prot="public">
+    <compoundname>cugraph::detail::count_updown_moves_op_t</compoundname>
+    <templateparamlist>
+      <param>
+        <type>typename vertex_t</type>
+      </param>
+      <param>
+        <type>typename weight_t</type>
+      </param>
+    </templateparamlist>
+    <sectiondef kind="public-attrib">
+      <memberdef kind="variable" id="structcugraph_1_1detail_1_1count__updown__moves__op__t_1a7c16443d3ad92e0484d82ba017b62dc8" prot="public" static="no" mutable="no">
+        <type>bool</type>
+        <definition>bool cugraph::detail::count_updown_moves_op_t&lt; vertex_t, weight_t &gt;::up_down</definition>
+        <argsstring></argsstring>
+        <name>up_down</name>
+        <qualifiedname>cugraph::detail::count_updown_moves_op_t::up_down</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/community/detail/common_methods.cuh" line="106" column="8" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/community/detail/common_methods.cuh" bodystart="106" bodyend="106"/>
+      </memberdef>
+    </sectiondef>
+    <sectiondef kind="public-func">
+      <memberdef kind="function" id="structcugraph_1_1detail_1_1count__updown__moves__op__t_1ac838f8a1cb1a2265a272df2738209cc8" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>__device__ auto</type>
+        <definition>__device__ auto cugraph::detail::count_updown_moves_op_t&lt; vertex_t, weight_t &gt;::operator()</definition>
+        <argsstring>(thrust::tuple&lt; vertex_t, thrust::tuple&lt; vertex_t, weight_t &gt; &gt; p) const</argsstring>
+        <name>operator()</name>
+        <qualifiedname>cugraph::detail::count_updown_moves_op_t::operator()</qualifiedname>
+        <param>
+          <type>thrust::tuple&lt; vertex_t, thrust::tuple&lt; vertex_t, weight_t &gt; &gt;</type>
+          <declname>p</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/community/detail/common_methods.cuh" line="107" column="19" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/community/detail/common_methods.cuh" bodystart="107" bodyend="122"/>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/src/community/detail/common_methods.cuh" line="105" column="1" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/community/detail/common_methods.cuh" bodystart="105" bodyend="123"/>
+    <listofallmembers>
+      <member refid="structcugraph_1_1detail_1_1count__updown__moves__op__t_1ac838f8a1cb1a2265a272df2738209cc8" prot="public" virt="non-virtual"><scope>cugraph::detail::count_updown_moves_op_t</scope><name>operator()</name></member>
+      <member refid="structcugraph_1_1detail_1_1count__updown__moves__op__t_1a7c16443d3ad92e0484d82ba017b62dc8" prot="public" virt="non-virtual"><scope>cugraph::detail::count_updown_moves_op_t</scope><name>up_down</name></member>
+    </listofallmembers>
+  </compounddef>
+</doxygen>

@@ -1,0 +1,41 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="structcugraph_1_1invalid__idx_3_01T_00_01typename_01std_1_1enable__if__t_3_01std_1_1is__integrala86ae2d93d44d918b9efbc21d0fbe771" kind="struct" language="C++" prot="public">
+    <compoundname>cugraph::invalid_idx&lt; T, typename std::enable_if_t&lt; std::is_integral&lt; T &gt;::value &amp;&amp;std::is_signed&lt; T &gt;::value &gt; &gt;</compoundname>
+    <basecompoundref prot="public" virt="non-virtual">std::integral_constant&lt; T, -1 &gt;</basecompoundref>
+    <templateparamlist>
+      <param>
+        <type>typename T</type>
+      </param>
+    </templateparamlist>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <inheritancegraph>
+      <node id="1">
+        <label>cugraph::invalid_idx&lt; T, typename std::enable_if_t&lt; std::is_integral&lt; T &gt;::value &amp;&amp;std::is_signed&lt; T &gt;::value &gt; &gt;</label>
+        <link refid="structcugraph_1_1invalid__idx_3_01T_00_01typename_01std_1_1enable__if__t_3_01std_1_1is__integrala86ae2d93d44d918b9efbc21d0fbe771"/>
+        <childnode refid="2" relation="public-inheritance">
+        </childnode>
+      </node>
+      <node id="2">
+        <label>std::integral_constant&lt; T, -1 &gt;</label>
+      </node>
+    </inheritancegraph>
+    <collaborationgraph>
+      <node id="1">
+        <label>cugraph::invalid_idx&lt; T, typename std::enable_if_t&lt; std::is_integral&lt; T &gt;::value &amp;&amp;std::is_signed&lt; T &gt;::value &gt; &gt;</label>
+        <link refid="structcugraph_1_1invalid__idx_3_01T_00_01typename_01std_1_1enable__if__t_3_01std_1_1is__integrala86ae2d93d44d918b9efbc21d0fbe771"/>
+        <childnode refid="2" relation="public-inheritance">
+        </childnode>
+      </node>
+      <node id="2">
+        <label>std::integral_constant&lt; T, -1 &gt;</label>
+      </node>
+    </collaborationgraph>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph.hpp" line="308" column="1" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/graph.hpp" bodystart="311" bodyend="311"/>
+    <listofallmembers>
+    </listofallmembers>
+  </compounddef>
+</doxygen>

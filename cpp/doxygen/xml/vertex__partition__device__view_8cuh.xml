@@ -1,0 +1,465 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="vertex__partition__device__view_8cuh" kind="file" language="C++">
+    <compoundname>vertex_partition_device_view.cuh</compoundname>
+    <includes refid="include_2cugraph_2utilities_2error_8hpp" local="no">cugraph/utilities/error.hpp</includes>
+    <includes refid="vertex__partition__view_8hpp" local="no">cugraph/vertex_partition_view.hpp</includes>
+    <includes local="no">type_traits</includes>
+    <includedby refid="betweenness__centrality__impl_8cuh" local="no">betweenness_centrality_impl.cuh</includedby>
+    <includedby refid="bfs__impl_8cuh" local="no">bfs_impl.cuh</includedby>
+    <includedby refid="degrees_8cu" local="no">degrees.cu</includedby>
+    <includedby refid="extract__bfs__paths__impl_8cuh" local="no">extract_bfs_paths_impl.cuh</includedby>
+    <includedby refid="induced__subgraph__impl_8cuh" local="no">induced_subgraph_impl.cuh</includedby>
+    <includedby refid="k__hop__nbrs__impl_8cuh" local="no">k_hop_nbrs_impl.cuh</includedby>
+    <includedby refid="od__shortest__distances__impl_8cuh" local="no">od_shortest_distances_impl.cuh</includedby>
+    <includedby refid="partition__v__frontier_8cuh" local="no">partition_v_frontier.cuh</includedby>
+    <includedby refid="per__v__transform__reduce__dst__key__aggregated__outgoing__e_8cuh" local="no">per_v_transform_reduce_dst_key_aggregated_outgoing_e.cuh</includedby>
+    <includedby refid="prepare__next__frontier__impl_8cuh" local="no">prepare_next_frontier_impl.cuh</includedby>
+    <includedby refid="sample__and__compute__local__nbr__indices_8cuh" local="no">sample_and_compute_local_nbr_indices.cuh</includedby>
+    <includedby refid="shuffle__and__organize__output__impl_8cuh" local="no">shuffle_and_organize_output_impl.cuh</includedby>
+    <includedby refid="sssp__impl_8cuh" local="no">sssp_impl.cuh</includedby>
+    <includedby refid="transform__reduce__v__frontier__outgoing__e__by__dst_8cuh" local="no">transform_reduce_v_frontier_outgoing_e_by_dst.cuh</includedby>
+    <includedby refid="update__edge__src__dst__property_8cuh" local="no">update_edge_src_dst_property.cuh</includedby>
+    <includedby refid="vertex__pairs__result_8cu" local="no">vertex_pairs_result.cu</includedby>
+    <includedby refid="vertex__result_8cu" local="no">vertex_result.cu</includedby>
+    <incdepgraph>
+      <node id="2">
+        <label>cugraph/utilities/error.hpp</label>
+        <link refid="include_2cugraph_2utilities_2error_8hpp_source"/>
+        <childnode refid="3" relation="include">
+        </childnode>
+      </node>
+      <node id="1">
+        <label>vertex_partition_device_view.cuh</label>
+        <link refid="vertex__partition__device__view_8cuh"/>
+        <childnode refid="2" relation="include">
+        </childnode>
+        <childnode refid="4" relation="include">
+        </childnode>
+        <childnode refid="5" relation="include">
+        </childnode>
+      </node>
+      <node id="4">
+        <label>cugraph/vertex_partition_view.hpp</label>
+        <link refid="vertex__partition__view_8hpp_source"/>
+        <childnode refid="5" relation="include">
+        </childnode>
+      </node>
+      <node id="3">
+        <label>raft/core/error.hpp</label>
+      </node>
+      <node id="5">
+        <label>type_traits</label>
+      </node>
+    </incdepgraph>
+    <invincdepgraph>
+      <node id="1">
+        <label>vertex_partition_device_view.cuh</label>
+        <link refid="vertex__partition__device__view_8cuh"/>
+        <childnode refid="2" relation="include">
+        </childnode>
+        <childnode refid="3" relation="include">
+        </childnode>
+        <childnode refid="4" relation="include">
+        </childnode>
+        <childnode refid="5" relation="include">
+        </childnode>
+        <childnode refid="6" relation="include">
+        </childnode>
+        <childnode refid="7" relation="include">
+        </childnode>
+        <childnode refid="8" relation="include">
+        </childnode>
+        <childnode refid="14" relation="include">
+        </childnode>
+        <childnode refid="17" relation="include">
+        </childnode>
+        <childnode refid="9" relation="include">
+        </childnode>
+        <childnode refid="18" relation="include">
+        </childnode>
+        <childnode refid="19" relation="include">
+        </childnode>
+        <childnode refid="20" relation="include">
+        </childnode>
+        <childnode refid="23" relation="include">
+        </childnode>
+      </node>
+      <node id="2">
+        <label>betweenness_centrality_impl.cuh</label>
+        <link refid="betweenness__centrality__impl_8cuh_source"/>
+      </node>
+      <node id="27">
+        <label>eigenvector_centrality_impl.cuh</label>
+        <link refid="eigenvector__centrality__impl_8cuh_source"/>
+      </node>
+      <node id="31">
+        <label>katz_centrality_impl.cuh</label>
+        <link refid="katz__centrality__impl_8cuh_source"/>
+      </node>
+      <node id="24">
+        <label>approx_weighted_matching_impl.cuh</label>
+        <link refid="approx__weighted__matching__impl_8cuh_source"/>
+      </node>
+      <node id="15">
+        <label>common_methods.cuh</label>
+        <link refid="common__methods_8cuh_source"/>
+      </node>
+      <node id="34">
+        <label>maximal_independent_moves.cuh</label>
+        <link refid="maximal__independent__moves_8cuh_source"/>
+      </node>
+      <node id="16">
+        <label>refine_impl.cuh</label>
+        <link refid="refine__impl_8cuh_source"/>
+      </node>
+      <node id="26">
+        <label>ecg_impl.cuh</label>
+        <link refid="ecg__impl_8cuh_source"/>
+      </node>
+      <node id="30">
+        <label>k_truss_impl.cuh</label>
+        <link refid="k__truss__impl_8cuh_source"/>
+      </node>
+      <node id="32">
+        <label>leiden_impl.cuh</label>
+        <link refid="leiden__impl_8cuh_source"/>
+      </node>
+      <node id="33">
+        <label>louvain_impl.cuh</label>
+        <link refid="louvain__impl_8cuh_source"/>
+      </node>
+      <node id="41">
+        <label>triangle_count_impl.cuh</label>
+        <link refid="triangle__count__impl_8cuh_source"/>
+      </node>
+      <node id="35">
+        <label>mis_impl.cuh</label>
+        <link refid="mis__impl_8cuh_source"/>
+      </node>
+      <node id="42">
+        <label>vertex_coloring_impl.cuh</label>
+        <link refid="vertex__coloring__impl_8cuh_source"/>
+      </node>
+      <node id="22">
+        <label>weakly_connected_components_impl.cuh</label>
+        <link refid="weakly__connected__components__impl_8cuh_source"/>
+      </node>
+      <node id="21">
+        <label>core_number_impl.cuh</label>
+        <link refid="core__number__impl_8cuh_source"/>
+      </node>
+      <node id="29">
+        <label>hits_impl.cuh</label>
+        <link refid="hits__impl_8cuh_source"/>
+      </node>
+      <node id="36">
+        <label>pagerank_impl.cuh</label>
+        <link refid="pagerank__impl_8cuh_source"/>
+      </node>
+      <node id="38">
+        <label>jaccard_impl.cuh</label>
+        <link refid="jaccard__impl_8cuh_source"/>
+      </node>
+      <node id="39">
+        <label>overlap_impl.cuh</label>
+        <link refid="overlap__impl_8cuh_source"/>
+      </node>
+      <node id="37">
+        <label>similarity_impl.cuh</label>
+        <link refid="similarity__impl_8cuh_source"/>
+        <childnode refid="38" relation="include">
+        </childnode>
+        <childnode refid="39" relation="include">
+        </childnode>
+        <childnode refid="40" relation="include">
+        </childnode>
+      </node>
+      <node id="40">
+        <label>sorensen_impl.cuh</label>
+        <link refid="sorensen__impl_8cuh_source"/>
+      </node>
+      <node id="8">
+        <label>partition_v_frontier.cuh</label>
+        <link refid="partition__v__frontier_8cuh_source"/>
+        <childnode refid="9" relation="include">
+        </childnode>
+        <childnode refid="13" relation="include">
+        </childnode>
+      </node>
+      <node id="9">
+        <label>sample_and_compute_local_nbr_indices.cuh</label>
+        <link refid="sample__and__compute__local__nbr__indices_8cuh_source"/>
+        <childnode refid="10" relation="include">
+        </childnode>
+      </node>
+      <node id="13">
+        <label>transform_v_frontier_e.cuh</label>
+        <link refid="transform__v__frontier__e_8cuh_source"/>
+        <childnode refid="9" relation="include">
+        </childnode>
+      </node>
+      <node id="10">
+        <label>per_v_random_select_transform_outgoing_e.cuh</label>
+        <link refid="per__v__random__select__transform__outgoing__e_8cuh_source"/>
+        <childnode refid="11" relation="include">
+        </childnode>
+        <childnode refid="12" relation="include">
+        </childnode>
+      </node>
+      <node id="14">
+        <label>per_v_transform_reduce_dst_key_aggregated_outgoing_e.cuh</label>
+        <link refid="per__v__transform__reduce__dst__key__aggregated__outgoing__e_8cuh_source"/>
+        <childnode refid="15" relation="include">
+        </childnode>
+        <childnode refid="16" relation="include">
+        </childnode>
+      </node>
+      <node id="20">
+        <label>transform_reduce_v_frontier_outgoing_e_by_dst.cuh</label>
+        <link refid="transform__reduce__v__frontier__outgoing__e__by__dst_8cuh_source"/>
+        <childnode refid="2" relation="include">
+        </childnode>
+        <childnode refid="3" relation="include">
+        </childnode>
+        <childnode refid="21" relation="include">
+        </childnode>
+        <childnode refid="6" relation="include">
+        </childnode>
+        <childnode refid="7" relation="include">
+        </childnode>
+        <childnode refid="19" relation="include">
+        </childnode>
+        <childnode refid="22" relation="include">
+        </childnode>
+      </node>
+      <node id="23">
+        <label>update_edge_src_dst_property.cuh</label>
+        <link refid="update__edge__src__dst__property_8cuh_source"/>
+        <childnode refid="24" relation="include">
+        </childnode>
+        <childnode refid="2" relation="include">
+        </childnode>
+        <childnode refid="3" relation="include">
+        </childnode>
+        <childnode refid="25" relation="include">
+        </childnode>
+        <childnode refid="15" relation="include">
+        </childnode>
+        <childnode refid="21" relation="include">
+        </childnode>
+        <childnode refid="26" relation="include">
+        </childnode>
+        <childnode refid="27" relation="include">
+        </childnode>
+        <childnode refid="28" relation="include">
+        </childnode>
+        <childnode refid="29" relation="include">
+        </childnode>
+        <childnode refid="30" relation="include">
+        </childnode>
+        <childnode refid="31" relation="include">
+        </childnode>
+        <childnode refid="32" relation="include">
+        </childnode>
+        <childnode refid="33" relation="include">
+        </childnode>
+        <childnode refid="34" relation="include">
+        </childnode>
+        <childnode refid="35" relation="include">
+        </childnode>
+        <childnode refid="7" relation="include">
+        </childnode>
+        <childnode refid="36" relation="include">
+        </childnode>
+        <childnode refid="16" relation="include">
+        </childnode>
+        <childnode refid="12" relation="include">
+        </childnode>
+        <childnode refid="18" relation="include">
+        </childnode>
+        <childnode refid="37" relation="include">
+        </childnode>
+        <childnode refid="19" relation="include">
+        </childnode>
+        <childnode refid="41" relation="include">
+        </childnode>
+        <childnode refid="42" relation="include">
+        </childnode>
+        <childnode refid="22" relation="include">
+        </childnode>
+      </node>
+      <node id="28">
+        <label>gather_one_hop_edgelist_impl.cuh</label>
+        <link refid="gather__one__hop__edgelist__impl_8cuh_source"/>
+      </node>
+      <node id="17">
+        <label>prepare_next_frontier_impl.cuh</label>
+        <link refid="prepare__next__frontier__impl_8cuh_source"/>
+      </node>
+      <node id="12">
+        <label>sample_edges.cuh</label>
+        <link refid="sample__edges_8cuh_source"/>
+      </node>
+      <node id="18">
+        <label>shuffle_and_organize_output_impl.cuh</label>
+        <link refid="shuffle__and__organize__output__impl_8cuh_source"/>
+      </node>
+      <node id="11">
+        <label>random_walks_impl.cuh</label>
+        <link refid="random__walks__impl_8cuh_source"/>
+      </node>
+      <node id="25">
+        <label>coarsen_graph_impl.cuh</label>
+        <link refid="coarsen__graph__impl_8cuh_source"/>
+      </node>
+      <node id="5">
+        <label>induced_subgraph_impl.cuh</label>
+        <link refid="induced__subgraph__impl_8cuh_source"/>
+      </node>
+      <node id="3">
+        <label>bfs_impl.cuh</label>
+        <link refid="bfs__impl_8cuh_source"/>
+      </node>
+      <node id="4">
+        <label>extract_bfs_paths_impl.cuh</label>
+        <link refid="extract__bfs__paths__impl_8cuh_source"/>
+      </node>
+      <node id="6">
+        <label>k_hop_nbrs_impl.cuh</label>
+        <link refid="k__hop__nbrs__impl_8cuh_source"/>
+      </node>
+      <node id="7">
+        <label>od_shortest_distances_impl.cuh</label>
+        <link refid="od__shortest__distances__impl_8cuh_source"/>
+      </node>
+      <node id="19">
+        <label>sssp_impl.cuh</label>
+        <link refid="sssp__impl_8cuh_source"/>
+      </node>
+    </invincdepgraph>
+    <innerclass refid="classcugraph_1_1detail_1_1vertex__partition__device__view__base__t" prot="public">cugraph::detail::vertex_partition_device_view_base_t</innerclass>
+    <innerclass refid="classcugraph_1_1vertex__partition__device__view__t_3_01vertex__t_00_01multi__gpu_00_01std_1_1ena852dd6e9071ecf96345ff549a9b20238" prot="public">cugraph::vertex_partition_device_view_t&lt; vertex_t, multi_gpu, std::enable_if_t&lt; multi_gpu &gt; &gt;</innerclass>
+    <innerclass refid="classcugraph_1_1vertex__partition__device__view__t_3_01vertex__t_00_01multi__gpu_00_01std_1_1enaafe258083c73f09613bba6173b275a13" prot="public">cugraph::vertex_partition_device_view_t&lt; vertex_t, multi_gpu, std::enable_if_t&lt;!multi_gpu &gt; &gt;</innerclass>
+    <innernamespace refid="namespacecugraph">cugraph</innernamespace>
+    <innernamespace refid="namespacecugraph_1_1detail">cugraph::detail</innernamespace>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <programlisting>
+<codeline lineno="1"><highlight class="comment">/*</highlight></codeline>
+<codeline lineno="2"><highlight class="comment"><sp/>*<sp/>Copyright<sp/>(c)<sp/>2020-2024,<sp/>NVIDIA<sp/>CORPORATION.</highlight></codeline>
+<codeline lineno="3"><highlight class="comment"><sp/>*</highlight></codeline>
+<codeline lineno="4"><highlight class="comment"><sp/>*<sp/>Licensed<sp/>under<sp/>the<sp/>Apache<sp/>License,<sp/>Version<sp/>2.0<sp/>(the<sp/>&quot;License&quot;);</highlight></codeline>
+<codeline lineno="5"><highlight class="comment"><sp/>*<sp/>you<sp/>may<sp/>not<sp/>use<sp/>this<sp/>file<sp/>except<sp/>in<sp/>compliance<sp/>with<sp/>the<sp/>License.</highlight></codeline>
+<codeline lineno="6"><highlight class="comment"><sp/>*<sp/>You<sp/>may<sp/>obtain<sp/>a<sp/>copy<sp/>of<sp/>the<sp/>License<sp/>at</highlight></codeline>
+<codeline lineno="7"><highlight class="comment"><sp/>*</highlight></codeline>
+<codeline lineno="8"><highlight class="comment"><sp/>*<sp/><sp/><sp/><sp/><sp/>http://www.apache.org/licenses/LICENSE-2.0</highlight></codeline>
+<codeline lineno="9"><highlight class="comment"><sp/>*</highlight></codeline>
+<codeline lineno="10"><highlight class="comment"><sp/>*<sp/>Unless<sp/>required<sp/>by<sp/>applicable<sp/>law<sp/>or<sp/>agreed<sp/>to<sp/>in<sp/>writing,<sp/>software</highlight></codeline>
+<codeline lineno="11"><highlight class="comment"><sp/>*<sp/>distributed<sp/>under<sp/>the<sp/>License<sp/>is<sp/>distributed<sp/>on<sp/>an<sp/>&quot;AS<sp/>IS&quot;<sp/>BASIS,</highlight></codeline>
+<codeline lineno="12"><highlight class="comment"><sp/>*<sp/>WITHOUT<sp/>WARRANTIES<sp/>OR<sp/>CONDITIONS<sp/>OF<sp/>ANY<sp/>KIND,<sp/>either<sp/>express<sp/>or<sp/>implied.</highlight></codeline>
+<codeline lineno="13"><highlight class="comment"><sp/>*<sp/>See<sp/>the<sp/>License<sp/>for<sp/>the<sp/>specific<sp/>language<sp/>governing<sp/>permissions<sp/>and</highlight></codeline>
+<codeline lineno="14"><highlight class="comment"><sp/>*<sp/>limitations<sp/>under<sp/>the<sp/>License.</highlight></codeline>
+<codeline lineno="15"><highlight class="comment"><sp/>*/</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="16"><highlight class="normal"></highlight><highlight class="preprocessor">#pragma<sp/>once</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="17"><highlight class="normal"></highlight></codeline>
+<codeline lineno="18"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&lt;cugraph/utilities/error.hpp&gt;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="19"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&lt;cugraph/vertex_partition_view.hpp&gt;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="20"><highlight class="normal"></highlight></codeline>
+<codeline lineno="21"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&lt;type_traits&gt;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="22"><highlight class="normal"></highlight></codeline>
+<codeline lineno="23"><highlight class="normal"></highlight><highlight class="keyword">namespace<sp/></highlight><highlight class="normal">cugraph<sp/>{</highlight></codeline>
+<codeline lineno="24"><highlight class="normal"></highlight></codeline>
+<codeline lineno="25"><highlight class="normal"></highlight><highlight class="keyword">namespace<sp/></highlight><highlight class="normal">detail<sp/>{</highlight></codeline>
+<codeline lineno="26"><highlight class="normal"></highlight></codeline>
+<codeline lineno="27"><highlight class="normal"></highlight><highlight class="keyword">template</highlight><highlight class="normal"><sp/>&lt;</highlight><highlight class="keyword">typename</highlight><highlight class="normal"><sp/>vertex_t&gt;</highlight></codeline>
+<codeline lineno="28" refid="classcugraph_1_1detail_1_1vertex__partition__device__view__base__t" refkind="compound"><highlight class="normal"></highlight><highlight class="keyword">class<sp/></highlight><highlight class="normal"><ref refid="classcugraph_1_1detail_1_1vertex__partition__device__view__base__t" kindref="compound">vertex_partition_device_view_base_t</ref><sp/>{</highlight></codeline>
+<codeline lineno="29"><highlight class="normal"><sp/></highlight><highlight class="keyword">public</highlight><highlight class="normal">:</highlight></codeline>
+<codeline lineno="30"><highlight class="normal"><sp/><sp/><ref refid="classcugraph_1_1detail_1_1vertex__partition__device__view__base__t" kindref="compound">vertex_partition_device_view_base_t</ref>(vertex_t<sp/>number_of_vertices)</highlight></codeline>
+<codeline lineno="31"><highlight class="normal"><sp/><sp/><sp/><sp/>:<sp/>number_of_vertices_(number_of_vertices)</highlight></codeline>
+<codeline lineno="32"><highlight class="normal"><sp/><sp/>{</highlight></codeline>
+<codeline lineno="33"><highlight class="normal"><sp/><sp/>}</highlight></codeline>
+<codeline lineno="34"><highlight class="normal"></highlight></codeline>
+<codeline lineno="35"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">template</highlight><highlight class="normal"><sp/>&lt;</highlight><highlight class="keyword">typename</highlight><highlight class="normal"><sp/>vertex_type<sp/>=<sp/>vertex_t&gt;</highlight></codeline>
+<codeline lineno="36"><highlight class="normal"><sp/><sp/>__host__<sp/>__device__<sp/>std::enable_if_t&lt;std::is_signed&lt;vertex_type&gt;::value,<sp/></highlight><highlight class="keywordtype">bool</highlight><highlight class="normal">&gt;<sp/>is_valid_vertex(</highlight></codeline>
+<codeline lineno="37"><highlight class="normal"><sp/><sp/><sp/><sp/>vertex_type<sp/>v)<sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">noexcept</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="38"><highlight class="normal"><sp/><sp/>{</highlight></codeline>
+<codeline lineno="39"><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="keywordflow">return</highlight><highlight class="normal"><sp/>((v<sp/>&gt;=<sp/>0)<sp/>&amp;&amp;<sp/>(v<sp/>&lt;<sp/>number_of_vertices_));</highlight></codeline>
+<codeline lineno="40"><highlight class="normal"><sp/><sp/>}</highlight></codeline>
+<codeline lineno="41"><highlight class="normal"></highlight></codeline>
+<codeline lineno="42"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">template</highlight><highlight class="normal"><sp/>&lt;</highlight><highlight class="keyword">typename</highlight><highlight class="normal"><sp/>vertex_type<sp/>=<sp/>vertex_t&gt;</highlight></codeline>
+<codeline lineno="43"><highlight class="normal"><sp/><sp/>__host__<sp/>__device__<sp/>std::enable_if_t&lt;std::is_unsigned&lt;vertex_type&gt;::value,<sp/></highlight><highlight class="keywordtype">bool</highlight><highlight class="normal">&gt;<sp/>is_valid_vertex(</highlight></codeline>
+<codeline lineno="44"><highlight class="normal"><sp/><sp/><sp/><sp/>vertex_type<sp/>v)<sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">noexcept</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="45"><highlight class="normal"><sp/><sp/>{</highlight></codeline>
+<codeline lineno="46"><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="keywordflow">return</highlight><highlight class="normal"><sp/>(v<sp/>&lt;<sp/>number_of_vertices_);</highlight></codeline>
+<codeline lineno="47"><highlight class="normal"><sp/><sp/>}</highlight></codeline>
+<codeline lineno="48"><highlight class="normal"></highlight></codeline>
+<codeline lineno="49"><highlight class="normal"><sp/></highlight><highlight class="keyword">private</highlight><highlight class="normal">:</highlight></codeline>
+<codeline lineno="50"><highlight class="normal"><sp/><sp/></highlight><highlight class="comment">//<sp/>should<sp/>be<sp/>trivially<sp/>copyable<sp/>to<sp/>device</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="51"><highlight class="normal"><sp/><sp/>vertex_t<sp/>number_of_vertices_{0};</highlight></codeline>
+<codeline lineno="52"><highlight class="normal">};</highlight></codeline>
+<codeline lineno="53"><highlight class="normal"></highlight></codeline>
+<codeline lineno="54"><highlight class="normal">}<sp/><sp/></highlight><highlight class="comment">//<sp/>namespace<sp/>detail</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="55"><highlight class="normal"></highlight></codeline>
+<codeline lineno="56"><highlight class="normal"></highlight><highlight class="keyword">template</highlight><highlight class="normal"><sp/>&lt;</highlight><highlight class="keyword">typename</highlight><highlight class="normal"><sp/>GraphViewType,<sp/></highlight><highlight class="keywordtype">bool</highlight><highlight class="normal"><sp/>multi_gpu,<sp/></highlight><highlight class="keyword">typename</highlight><highlight class="normal"><sp/>Enable<sp/>=<sp/></highlight><highlight class="keywordtype">void</highlight><highlight class="normal">&gt;</highlight></codeline>
+<codeline lineno="57" refid="classcugraph_1_1vertex__partition__device__view__t" refkind="compound"><highlight class="normal"></highlight><highlight class="keyword">class<sp/></highlight><highlight class="normal"><ref refid="classcugraph_1_1vertex__partition__device__view__t" kindref="compound">vertex_partition_device_view_t</ref>;</highlight></codeline>
+<codeline lineno="58"><highlight class="normal"></highlight></codeline>
+<codeline lineno="59"><highlight class="normal"></highlight><highlight class="comment">//<sp/>multi-GPU<sp/>version</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="60"><highlight class="normal"></highlight><highlight class="keyword">template</highlight><highlight class="normal"><sp/>&lt;</highlight><highlight class="keyword">typename</highlight><highlight class="normal"><sp/>vertex_t,<sp/></highlight><highlight class="keywordtype">bool</highlight><highlight class="normal"><sp/>multi_gpu&gt;</highlight></codeline>
+<codeline lineno="61" refid="classcugraph_1_1vertex__partition__device__view__t_3_01vertex__t_00_01multi__gpu_00_01std_1_1ena852dd6e9071ecf96345ff549a9b20238" refkind="compound"><highlight class="normal"></highlight><highlight class="keyword">class<sp/></highlight><highlight class="normal"><ref refid="classcugraph_1_1vertex__partition__device__view__t" kindref="compound">vertex_partition_device_view_t</ref>&lt;vertex_t,<sp/>multi_gpu,<sp/>std::enable_if_t&lt;multi_gpu&gt;&gt;</highlight></codeline>
+<codeline lineno="62"><highlight class="normal"><sp/><sp/>:<sp/></highlight><highlight class="keyword">public</highlight><highlight class="normal"><sp/><ref refid="classcugraph_1_1detail_1_1vertex__partition__device__view__base__t" kindref="compound">detail::vertex_partition_device_view_base_t</ref>&lt;vertex_t&gt;<sp/>{</highlight></codeline>
+<codeline lineno="63"><highlight class="normal"><sp/></highlight><highlight class="keyword">public</highlight><highlight class="normal">:</highlight></codeline>
+<codeline lineno="64"><highlight class="normal"><sp/><sp/><ref refid="classcugraph_1_1vertex__partition__device__view__t" kindref="compound">vertex_partition_device_view_t</ref>(<ref refid="classcugraph_1_1vertex__partition__view__t" kindref="compound">vertex_partition_view_t&lt;vertex_t, multi_gpu&gt;</ref><sp/>view)</highlight></codeline>
+<codeline lineno="65"><highlight class="normal"><sp/><sp/><sp/><sp/>:<sp/><ref refid="classcugraph_1_1detail_1_1vertex__partition__device__view__base__t" kindref="compound">detail::vertex_partition_device_view_base_t&lt;vertex_t&gt;</ref>(view.number_of_vertices()),</highlight></codeline>
+<codeline lineno="66"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/>local_vertex_partition_range_first_(view.local_vertex_partition_range_first()),</highlight></codeline>
+<codeline lineno="67"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/>local_vertex_partition_range_last_(view.local_vertex_partition_range_last())</highlight></codeline>
+<codeline lineno="68"><highlight class="normal"><sp/><sp/>{</highlight></codeline>
+<codeline lineno="69"><highlight class="normal"><sp/><sp/>}</highlight></codeline>
+<codeline lineno="70"><highlight class="normal"></highlight></codeline>
+<codeline lineno="71"><highlight class="normal"><sp/><sp/>__host__<sp/>__device__<sp/></highlight><highlight class="keywordtype">bool</highlight><highlight class="normal"><sp/>in_local_vertex_partition_range_nocheck(vertex_t<sp/>v)<sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">noexcept</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="72"><highlight class="normal"><sp/><sp/>{</highlight></codeline>
+<codeline lineno="73"><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="keywordflow">return</highlight><highlight class="normal"><sp/>(v<sp/>&gt;=<sp/>local_vertex_partition_range_first_)<sp/>&amp;&amp;<sp/>(v<sp/>&lt;<sp/>local_vertex_partition_range_last_);</highlight></codeline>
+<codeline lineno="74"><highlight class="normal"><sp/><sp/>}</highlight></codeline>
+<codeline lineno="75"><highlight class="normal"></highlight></codeline>
+<codeline lineno="76"><highlight class="normal"><sp/><sp/>__host__<sp/>__device__<sp/>vertex_t</highlight></codeline>
+<codeline lineno="77"><highlight class="normal"><sp/><sp/>local_vertex_partition_offset_from_vertex_nocheck(vertex_t<sp/>v)<sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">noexcept</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="78"><highlight class="normal"><sp/><sp/>{</highlight></codeline>
+<codeline lineno="79"><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="keywordflow">return</highlight><highlight class="normal"><sp/>v<sp/>-<sp/>local_vertex_partition_range_first_;</highlight></codeline>
+<codeline lineno="80"><highlight class="normal"><sp/><sp/>}</highlight></codeline>
+<codeline lineno="81"><highlight class="normal"></highlight></codeline>
+<codeline lineno="82"><highlight class="normal"><sp/></highlight><highlight class="keyword">private</highlight><highlight class="normal">:</highlight></codeline>
+<codeline lineno="83"><highlight class="normal"><sp/><sp/></highlight><highlight class="comment">//<sp/>should<sp/>be<sp/>trivially<sp/>copyable<sp/>to<sp/>device</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="84"><highlight class="normal"><sp/><sp/>vertex_t<sp/>local_vertex_partition_range_first_{0};</highlight></codeline>
+<codeline lineno="85"><highlight class="normal"><sp/><sp/>vertex_t<sp/>local_vertex_partition_range_last_{0};</highlight></codeline>
+<codeline lineno="86"><highlight class="normal">};</highlight></codeline>
+<codeline lineno="87"><highlight class="normal"></highlight></codeline>
+<codeline lineno="88"><highlight class="normal"></highlight><highlight class="comment">//<sp/>single-GPU<sp/>version</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="89"><highlight class="normal"></highlight><highlight class="keyword">template</highlight><highlight class="normal"><sp/>&lt;</highlight><highlight class="keyword">typename</highlight><highlight class="normal"><sp/>vertex_t,<sp/></highlight><highlight class="keywordtype">bool</highlight><highlight class="normal"><sp/>multi_gpu&gt;</highlight></codeline>
+<codeline lineno="90" refid="classcugraph_1_1vertex__partition__device__view__t_3_01vertex__t_00_01multi__gpu_00_01std_1_1enaafe258083c73f09613bba6173b275a13" refkind="compound"><highlight class="normal"></highlight><highlight class="keyword">class<sp/></highlight><highlight class="normal"><ref refid="classcugraph_1_1vertex__partition__device__view__t" kindref="compound">vertex_partition_device_view_t</ref>&lt;vertex_t,<sp/>multi_gpu,<sp/>std::enable_if_t&lt;!multi_gpu&gt;&gt;</highlight></codeline>
+<codeline lineno="91"><highlight class="normal"><sp/><sp/>:<sp/></highlight><highlight class="keyword">public</highlight><highlight class="normal"><sp/><ref refid="classcugraph_1_1detail_1_1vertex__partition__device__view__base__t" kindref="compound">detail::vertex_partition_device_view_base_t</ref>&lt;vertex_t&gt;<sp/>{</highlight></codeline>
+<codeline lineno="92"><highlight class="normal"><sp/></highlight><highlight class="keyword">public</highlight><highlight class="normal">:</highlight></codeline>
+<codeline lineno="93"><highlight class="normal"><sp/><sp/><ref refid="classcugraph_1_1vertex__partition__device__view__t" kindref="compound">vertex_partition_device_view_t</ref>(<ref refid="classcugraph_1_1vertex__partition__view__t" kindref="compound">vertex_partition_view_t&lt;vertex_t, multi_gpu&gt;</ref><sp/>view)</highlight></codeline>
+<codeline lineno="94"><highlight class="normal"><sp/><sp/><sp/><sp/>:<sp/><ref refid="classcugraph_1_1detail_1_1vertex__partition__device__view__base__t" kindref="compound">detail::vertex_partition_device_view_base_t&lt;vertex_t&gt;</ref>(view.number_of_vertices())</highlight></codeline>
+<codeline lineno="95"><highlight class="normal"><sp/><sp/>{</highlight></codeline>
+<codeline lineno="96"><highlight class="normal"><sp/><sp/>}</highlight></codeline>
+<codeline lineno="97"><highlight class="normal"></highlight></codeline>
+<codeline lineno="98"><highlight class="normal"><sp/><sp/>__host__<sp/>__device__<sp/></highlight><highlight class="keyword">constexpr</highlight><highlight class="normal"><sp/></highlight><highlight class="keywordtype">bool</highlight><highlight class="normal"><sp/>in_local_vertex_partition_range_nocheck(</highlight></codeline>
+<codeline lineno="99"><highlight class="normal"><sp/><sp/><sp/><sp/>vertex_t<sp/>v)<sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">noexcept</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="100"><highlight class="normal"><sp/><sp/>{</highlight></codeline>
+<codeline lineno="101"><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="keywordflow">return</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">true</highlight><highlight class="normal">;</highlight></codeline>
+<codeline lineno="102"><highlight class="normal"><sp/><sp/>}</highlight></codeline>
+<codeline lineno="103"><highlight class="normal"></highlight></codeline>
+<codeline lineno="104"><highlight class="normal"><sp/><sp/>__host__<sp/>__device__<sp/></highlight><highlight class="keyword">constexpr</highlight><highlight class="normal"><sp/>vertex_t<sp/>local_vertex_partition_offset_from_vertex_nocheck(</highlight></codeline>
+<codeline lineno="105"><highlight class="normal"><sp/><sp/><sp/><sp/>vertex_t<sp/>v)<sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">noexcept</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="106"><highlight class="normal"><sp/><sp/>{</highlight></codeline>
+<codeline lineno="107"><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="keywordflow">return</highlight><highlight class="normal"><sp/>v;</highlight></codeline>
+<codeline lineno="108"><highlight class="normal"><sp/><sp/>}</highlight></codeline>
+<codeline lineno="109"><highlight class="normal">};</highlight></codeline>
+<codeline lineno="110"><highlight class="normal"></highlight></codeline>
+<codeline lineno="111"><highlight class="normal">}<sp/><sp/></highlight><highlight class="comment">//<sp/>namespace<sp/>cugraph</highlight><highlight class="normal"></highlight></codeline>
+    </programlisting>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/vertex_partition_device_view.cuh"/>
+  </compounddef>
+</doxygen>

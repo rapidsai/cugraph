@@ -1,0 +1,45 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="structcugraph_1_1reduce__op_1_1has__identity__element" kind="struct" language="C++" prot="public">
+    <compoundname>cugraph::reduce_op::has_identity_element</compoundname>
+    <basecompoundref prot="public" virt="non-virtual">std::false_type</basecompoundref>
+    <templateparamlist>
+      <param>
+        <type>typename ReduceOp</type>
+      </param>
+      <param>
+        <type>typename</type>
+        <defval>typename ReduceOp::value_type</defval>
+      </param>
+    </templateparamlist>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <inheritancegraph>
+      <node id="1">
+        <label>cugraph::reduce_op::has_identity_element&lt; ReduceOp, typename &gt;</label>
+        <link refid="structcugraph_1_1reduce__op_1_1has__identity__element"/>
+        <childnode refid="2" relation="public-inheritance">
+        </childnode>
+      </node>
+      <node id="2">
+        <label>std::false_type</label>
+      </node>
+    </inheritancegraph>
+    <collaborationgraph>
+      <node id="1">
+        <label>cugraph::reduce_op::has_identity_element&lt; ReduceOp, typename &gt;</label>
+        <link refid="structcugraph_1_1reduce__op_1_1has__identity__element"/>
+        <childnode refid="2" relation="public-inheritance">
+        </childnode>
+      </node>
+      <node id="2">
+        <label>std::false_type</label>
+      </node>
+    </collaborationgraph>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/reduce_op.cuh" line="239" column="1" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/reduce_op.cuh" bodystart="239" bodyend="239"/>
+    <listofallmembers>
+    </listofallmembers>
+  </compounddef>
+</doxygen>

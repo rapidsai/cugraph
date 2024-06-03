@@ -1,0 +1,46 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="structcugraph_1_1is__arithmetic__vector" kind="struct" language="C++" prot="public">
+    <compoundname>cugraph::is_arithmetic_vector</compoundname>
+    <basecompoundref prot="public" virt="non-virtual">std::false_type</basecompoundref>
+    <templateparamlist>
+      <param>
+        <type>typename T</type>
+      </param>
+      <param>
+        <type>template&lt; typename &gt; typename</type>
+        <declname>Vector</declname>
+        <defname>Vector</defname>
+      </param>
+    </templateparamlist>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <inheritancegraph>
+      <node id="1">
+        <label>cugraph::is_arithmetic_vector&lt; T, Vector &gt;</label>
+        <link refid="structcugraph_1_1is__arithmetic__vector"/>
+        <childnode refid="2" relation="public-inheritance">
+        </childnode>
+      </node>
+      <node id="2">
+        <label>std::false_type</label>
+      </node>
+    </inheritancegraph>
+    <collaborationgraph>
+      <node id="1">
+        <label>cugraph::is_arithmetic_vector&lt; T, Vector &gt;</label>
+        <link refid="structcugraph_1_1is__arithmetic__vector"/>
+        <childnode refid="2" relation="public-inheritance">
+        </childnode>
+      </node>
+      <node id="2">
+        <label>std::false_type</label>
+      </node>
+    </collaborationgraph>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/utilities/thrust_tuple_utils.hpp" line="123" column="1" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/utilities/thrust_tuple_utils.hpp" bodystart="123" bodyend="123"/>
+    <listofallmembers>
+    </listofallmembers>
+  </compounddef>
+</doxygen>

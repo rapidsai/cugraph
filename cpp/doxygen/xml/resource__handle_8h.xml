@@ -1,0 +1,618 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="resource__handle_8h" kind="file" language="C++">
+    <compoundname>resource_handle.h</compoundname>
+    <includes refid="error_8h" local="no">cugraph_c/error.h</includes>
+    <includes local="no">stddef.h</includes>
+    <includes local="no">stdint.h</includes>
+    <includedby refid="algorithms_8h" local="no">algorithms.h</includedby>
+    <includedby refid="array_8h" local="no">array.h</includedby>
+    <includedby refid="centrality__algorithms_8h" local="no">centrality_algorithms.h</includedby>
+    <includedby refid="community__algorithms_8h" local="no">community_algorithms.h</includedby>
+    <includedby refid="core__algorithms_8h" local="no">core_algorithms.h</includedby>
+    <includedby refid="generic__cascaded__dispatch_8hpp" local="no">generic_cascaded_dispatch.hpp</includedby>
+    <includedby refid="graph__functions_8h" local="no">graph_functions.h</includedby>
+    <includedby refid="graph__generators_8h" local="no">graph_generators.h</includedby>
+    <includedby refid="labeling__algorithms_8h" local="no">labeling_algorithms.h</includedby>
+    <includedby refid="random_8h" local="no">random.h</includedby>
+    <includedby refid="resource__handle_8cpp" local="no">resource_handle.cpp</includedby>
+    <includedby refid="sampling__algorithms_8h" local="no">sampling_algorithms.h</includedby>
+    <includedby refid="similarity__algorithms_8h" local="no">similarity_algorithms.h</includedby>
+    <includedby refid="traversal__algorithms_8h" local="no">traversal_algorithms.h</includedby>
+    <incdepgraph>
+      <node id="2">
+        <label>cugraph_c/error.h</label>
+        <link refid="error_8h_source"/>
+        <childnode refid="3" relation="include">
+        </childnode>
+      </node>
+      <node id="1">
+        <label>resource_handle.h</label>
+        <link refid="resource__handle_8h"/>
+        <childnode refid="2" relation="include">
+        </childnode>
+        <childnode refid="4" relation="include">
+        </childnode>
+        <childnode refid="3" relation="include">
+        </childnode>
+      </node>
+      <node id="4">
+        <label>stddef.h</label>
+      </node>
+      <node id="3">
+        <label>stdint.h</label>
+      </node>
+    </incdepgraph>
+    <invincdepgraph>
+      <node id="2">
+        <label>algorithms.h</label>
+        <link refid="algorithms_8h_source"/>
+        <childnode refid="3" relation="include">
+        </childnode>
+      </node>
+      <node id="4">
+        <label>array.h</label>
+        <link refid="array_8h_source"/>
+        <childnode refid="5" relation="include">
+        </childnode>
+        <childnode refid="15" relation="include">
+        </childnode>
+        <childnode refid="16" relation="include">
+        </childnode>
+        <childnode refid="17" relation="include">
+        </childnode>
+        <childnode refid="19" relation="include">
+        </childnode>
+        <childnode refid="21" relation="include">
+        </childnode>
+        <childnode refid="20" relation="include">
+        </childnode>
+      </node>
+      <node id="15">
+        <label>centrality_algorithms.h</label>
+        <link refid="centrality__algorithms_8h_source"/>
+        <childnode refid="2" relation="include">
+        </childnode>
+      </node>
+      <node id="18">
+        <label>community_algorithms.h</label>
+        <link refid="community__algorithms_8h_source"/>
+        <childnode refid="2" relation="include">
+        </childnode>
+      </node>
+      <node id="16">
+        <label>core_algorithms.h</label>
+        <link refid="core__algorithms_8h_source"/>
+        <childnode refid="2" relation="include">
+        </childnode>
+      </node>
+      <node id="17">
+        <label>graph.h</label>
+        <link refid="graph_8h_source"/>
+        <childnode refid="2" relation="include">
+        </childnode>
+        <childnode refid="15" relation="include">
+        </childnode>
+        <childnode refid="18" relation="include">
+        </childnode>
+        <childnode refid="16" relation="include">
+        </childnode>
+        <childnode refid="9" relation="include">
+        </childnode>
+        <childnode refid="19" relation="include">
+        </childnode>
+        <childnode refid="21" relation="include">
+        </childnode>
+        <childnode refid="22" relation="include">
+        </childnode>
+        <childnode refid="23" relation="include">
+        </childnode>
+        <childnode refid="20" relation="include">
+        </childnode>
+        <childnode refid="24" relation="include">
+        </childnode>
+      </node>
+      <node id="19">
+        <label>graph_functions.h</label>
+        <link refid="graph__functions_8h_source"/>
+        <childnode refid="18" relation="include">
+        </childnode>
+        <childnode refid="20" relation="include">
+        </childnode>
+      </node>
+      <node id="21">
+        <label>graph_generators.h</label>
+        <link refid="graph__generators_8h_source"/>
+      </node>
+      <node id="22">
+        <label>labeling_algorithms.h</label>
+        <link refid="labeling__algorithms_8h_source"/>
+        <childnode refid="2" relation="include">
+        </childnode>
+      </node>
+      <node id="26">
+        <label>random.h</label>
+        <link refid="random_8h_source"/>
+        <childnode refid="15" relation="include">
+        </childnode>
+        <childnode refid="18" relation="include">
+        </childnode>
+        <childnode refid="21" relation="include">
+        </childnode>
+        <childnode refid="27" relation="include">
+        </childnode>
+        <childnode refid="23" relation="include">
+        </childnode>
+      </node>
+      <node id="1">
+        <label>resource_handle.h</label>
+        <link refid="resource__handle_8h"/>
+        <childnode refid="2" relation="include">
+        </childnode>
+        <childnode refid="4" relation="include">
+        </childnode>
+        <childnode refid="15" relation="include">
+        </childnode>
+        <childnode refid="18" relation="include">
+        </childnode>
+        <childnode refid="16" relation="include">
+        </childnode>
+        <childnode refid="25" relation="include">
+        </childnode>
+        <childnode refid="19" relation="include">
+        </childnode>
+        <childnode refid="21" relation="include">
+        </childnode>
+        <childnode refid="22" relation="include">
+        </childnode>
+        <childnode refid="26" relation="include">
+        </childnode>
+        <childnode refid="23" relation="include">
+        </childnode>
+        <childnode refid="20" relation="include">
+        </childnode>
+        <childnode refid="24" relation="include">
+        </childnode>
+      </node>
+      <node id="23">
+        <label>sampling_algorithms.h</label>
+        <link refid="sampling__algorithms_8h_source"/>
+        <childnode refid="2" relation="include">
+        </childnode>
+      </node>
+      <node id="20">
+        <label>similarity_algorithms.h</label>
+        <link refid="similarity__algorithms_8h_source"/>
+        <childnode refid="2" relation="include">
+        </childnode>
+      </node>
+      <node id="24">
+        <label>traversal_algorithms.h</label>
+        <link refid="traversal__algorithms_8h_source"/>
+        <childnode refid="2" relation="include">
+        </childnode>
+      </node>
+      <node id="5">
+        <label>array.hpp</label>
+        <link refid="array_8hpp_source"/>
+        <childnode refid="6" relation="include">
+        </childnode>
+        <childnode refid="7" relation="include">
+        </childnode>
+        <childnode refid="8" relation="include">
+        </childnode>
+        <childnode refid="9" relation="include">
+        </childnode>
+        <childnode refid="11" relation="include">
+        </childnode>
+        <childnode refid="3" relation="include">
+        </childnode>
+        <childnode refid="12" relation="include">
+        </childnode>
+        <childnode refid="13" relation="include">
+        </childnode>
+        <childnode refid="14" relation="include">
+        </childnode>
+      </node>
+      <node id="6">
+        <label>centrality_result.hpp</label>
+        <link refid="centrality__result_8hpp_source"/>
+      </node>
+      <node id="7">
+        <label>core_result.hpp</label>
+        <link refid="core__result_8hpp_source"/>
+      </node>
+      <node id="8">
+        <label>degrees_result.hpp</label>
+        <link refid="degrees__result_8hpp_source"/>
+      </node>
+      <node id="25">
+        <label>generic_cascaded_dispatch.hpp</label>
+        <link refid="generic__cascaded__dispatch_8hpp_source"/>
+        <childnode refid="10" relation="include">
+        </childnode>
+      </node>
+      <node id="9">
+        <label>graph.hpp</label>
+        <link refid="src_2c__api_2graph_8hpp_source"/>
+        <childnode refid="10" relation="include">
+        </childnode>
+      </node>
+      <node id="11">
+        <label>graph_functions.hpp</label>
+        <link refid="src_2c__api_2graph__functions_8hpp_source"/>
+      </node>
+      <node id="3">
+        <label>hierarchical_clustering_result.hpp</label>
+        <link refid="hierarchical__clustering__result_8hpp_source"/>
+      </node>
+      <node id="12">
+        <label>induced_subgraph_result.hpp</label>
+        <link refid="induced__subgraph__result_8hpp_source"/>
+      </node>
+      <node id="13">
+        <label>labeling_result.hpp</label>
+        <link refid="labeling__result_8hpp_source"/>
+      </node>
+      <node id="14">
+        <label>paths_result.hpp</label>
+        <link refid="paths__result_8hpp_source"/>
+      </node>
+      <node id="27">
+        <label>random.hpp</label>
+        <link refid="random_8hpp_source"/>
+      </node>
+      <node id="10">
+        <label>utils.hpp</label>
+        <link refid="c__api_2utils_8hpp_source"/>
+      </node>
+    </invincdepgraph>
+    <innerclass refid="structcugraph__resource__handle__" prot="public">cugraph_resource_handle_</innerclass>
+    <sectiondef kind="enum">
+      <memberdef kind="enum" id="resource__handle_8h_1a5b0f071ea4e22b0eb499062a615b29b5" prot="public" static="no" strong="no">
+        <type></type>
+        <name>bool_</name>
+        <enumvalue id="resource__handle_8h_1a5b0f071ea4e22b0eb499062a615b29b5aa1e095cc966dbecf6a0d8aad75348d1a" prot="public">
+          <name>FALSE</name>
+          <initializer>= 0</initializer>
+          <briefdescription>
+          </briefdescription>
+          <detaileddescription>
+          </detaileddescription>
+        </enumvalue>
+        <enumvalue id="resource__handle_8h_1a5b0f071ea4e22b0eb499062a615b29b5aa82764c3079aea4e60c80e45befbb839" prot="public">
+          <name>TRUE</name>
+          <initializer>= 1</initializer>
+          <briefdescription>
+          </briefdescription>
+          <detaileddescription>
+          </detaileddescription>
+        </enumvalue>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/resource_handle.h" line="28" column="1" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/resource_handle.h" bodystart="28" bodyend="28"/>
+      </memberdef>
+      <memberdef kind="enum" id="resource__handle_8h_1a12a01629611f3ed5565c972da1371748" prot="public" static="no" strong="no">
+        <type></type>
+        <name>data_type_id_</name>
+        <enumvalue id="resource__handle_8h_1a12a01629611f3ed5565c972da1371748ac1081c62db14e24ef35a1c3c36cba2e7" prot="public">
+          <name>INT32</name>
+          <initializer>= 0</initializer>
+          <briefdescription>
+          </briefdescription>
+          <detaileddescription>
+          </detaileddescription>
+        </enumvalue>
+        <enumvalue id="resource__handle_8h_1a12a01629611f3ed5565c972da1371748a423a1db7cbc915478f654b15f87f3aac" prot="public">
+          <name>INT64</name>
+          <briefdescription>
+          </briefdescription>
+          <detaileddescription>
+          </detaileddescription>
+        </enumvalue>
+        <enumvalue id="resource__handle_8h_1a12a01629611f3ed5565c972da1371748a2644b741f40df4c4c3a83bbdcf7124b3" prot="public">
+          <name>FLOAT32</name>
+          <briefdescription>
+          </briefdescription>
+          <detaileddescription>
+          </detaileddescription>
+        </enumvalue>
+        <enumvalue id="resource__handle_8h_1a12a01629611f3ed5565c972da1371748aa1f95514c315d551fb2d44d8a5bc6ee2" prot="public">
+          <name>FLOAT64</name>
+          <briefdescription>
+          </briefdescription>
+          <detaileddescription>
+          </detaileddescription>
+        </enumvalue>
+        <enumvalue id="resource__handle_8h_1a12a01629611f3ed5565c972da1371748a931308ba87cee1d9f9727a7781f5f40b" prot="public">
+          <name>SIZE_T</name>
+          <briefdescription>
+          </briefdescription>
+          <detaileddescription>
+          </detaileddescription>
+        </enumvalue>
+        <enumvalue id="resource__handle_8h_1a12a01629611f3ed5565c972da1371748a4f8d3b013bf35aa7fc50eddc1083543f" prot="public">
+          <name>NTYPES</name>
+          <briefdescription>
+          </briefdescription>
+          <detaileddescription>
+          </detaileddescription>
+        </enumvalue>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+<para><xrefsect id="deprecated_1_deprecated000014"><xreftitle>Deprecated</xreftitle><xrefdescription><para><itemizedlist>
+<listitem><para>use cugraph_data_type_id_t; </para>
+</listitem></itemizedlist>
+</para>
+</xrefdescription></xrefsect></para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/resource_handle.h" line="35" column="1" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/resource_handle.h" bodystart="35" bodyend="35"/>
+      </memberdef>
+    </sectiondef>
+    <sectiondef kind="typedef">
+      <memberdef kind="typedef" id="resource__handle_8h_1ab93fdaab09ae0b315d8c5db6cdc10857" prot="public" static="no">
+        <type>enum bool_</type>
+        <definition>typedef enum bool_ bool_t</definition>
+        <argsstring></argsstring>
+        <name>bool_t</name>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/resource_handle.h" line="28" column="26"/>
+      </memberdef>
+      <memberdef kind="typedef" id="resource__handle_8h_1a5cb62e5283553894669a5c5220755682" prot="public" static="no">
+        <type>int8_t</type>
+        <definition>typedef int8_t byte_t</definition>
+        <argsstring></argsstring>
+        <name>byte_t</name>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/resource_handle.h" line="30" column="16" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/resource_handle.h" bodystart="30" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="typedef" id="resource__handle_8h_1a60f9ef052014f0d34e2911549566d7d8" prot="public" static="no">
+        <type>enum data_type_id_</type>
+        <definition>typedef enum data_type_id_ data_type_id_t</definition>
+        <argsstring></argsstring>
+        <name>data_type_id_t</name>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+<para><xrefsect id="deprecated_1_deprecated000014"><xreftitle>Deprecated</xreftitle><xrefdescription><para><itemizedlist>
+<listitem><para>use cugraph_data_type_id_t; </para>
+</listitem></itemizedlist>
+</para>
+</xrefdescription></xrefsect></para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/resource_handle.h" line="35" column="42"/>
+      </memberdef>
+      <memberdef kind="typedef" id="resource__handle_8h_1a13e2fe9b8a484103805e4ef2652c6d51" prot="public" static="no">
+        <type>data_type_id_t</type>
+        <definition>typedef data_type_id_t cugraph_data_type_id_t</definition>
+        <argsstring></argsstring>
+        <name>cugraph_data_type_id_t</name>
+        <briefdescription>
+<para><itemizedlist>
+<listitem><para>Enumeration of data types </para>
+</listitem></itemizedlist>
+</para>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/resource_handle.h" line="40" column="24" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/resource_handle.h" bodystart="40" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="typedef" id="resource__handle_8h_1aaf77049bbd7a6bc93821057e296af267" prot="public" static="no">
+        <type>struct <ref refid="structcugraph__resource__handle__" kindref="compound">cugraph_resource_handle_</ref></type>
+        <definition>typedef struct cugraph_resource_handle_ cugraph_resource_handle_t</definition>
+        <argsstring></argsstring>
+        <name>cugraph_resource_handle_t</name>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/resource_handle.h" line="44" column="27"/>
+      </memberdef>
+    </sectiondef>
+    <sectiondef kind="func">
+      <memberdef kind="function" id="resource__handle_8h_1a305c1eb7744dbdc37e99ff1954d4a95b" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type><ref refid="structcugraph__resource__handle__" kindref="compound">cugraph_resource_handle_t</ref> *</type>
+        <definition>cugraph_resource_handle_t * cugraph_create_resource_handle</definition>
+        <argsstring>(void *raft_handle)</argsstring>
+        <name>cugraph_create_resource_handle</name>
+        <param>
+          <type>void *</type>
+          <declname>raft_handle</declname>
+        </param>
+        <briefdescription>
+<para>Construct a resource handle. </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">raft_handle</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Handle for accessing resources If NULL, we will create a raft handle internally</para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>A graph resource handle </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/resource_handle.h" line="58" column="27" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/resource_handle.cpp" bodystart="21" bodyend="29" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/resource_handle.h" declline="58" declcolumn="27"/>
+      </memberdef>
+      <memberdef kind="function" id="resource__handle_8h_1a05bce7fff80480de1d7dc39e58dc8e50" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>int</type>
+        <definition>int cugraph_resource_handle_get_comm_size</definition>
+        <argsstring>(const cugraph_resource_handle_t *handle)</argsstring>
+        <name>cugraph_resource_handle_get_comm_size</name>
+        <param>
+          <type>const <ref refid="structcugraph__resource__handle__" kindref="compound">cugraph_resource_handle_t</ref> *</type>
+          <declname>handle</declname>
+        </param>
+        <briefdescription>
+<para>get comm_size from resource handle </para>
+        </briefdescription>
+        <detaileddescription>
+<para>If the resource handle has been configured for multi-gpu, this will return the comm_size for this cluster. If the resource handle has not been configured for multi-gpu this will always return 1.</para>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">handle</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Handle for accessing resources </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>comm_size </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/resource_handle.h" line="70" column="5" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/resource_handle.cpp" bodystart="45" bodyend="50" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/resource_handle.h" declline="70" declcolumn="5"/>
+      </memberdef>
+      <memberdef kind="function" id="resource__handle_8h_1a945627211671e9b22d5bfc1313f31aef" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>int</type>
+        <definition>int cugraph_resource_handle_get_rank</definition>
+        <argsstring>(const cugraph_resource_handle_t *handle)</argsstring>
+        <name>cugraph_resource_handle_get_rank</name>
+        <param>
+          <type>const <ref refid="structcugraph__resource__handle__" kindref="compound">cugraph_resource_handle_t</ref> *</type>
+          <declname>handle</declname>
+        </param>
+        <briefdescription>
+<para>get rank from resource handle </para>
+        </briefdescription>
+        <detaileddescription>
+<para>If the resource handle has been configured for multi-gpu, this will return the rank for this worker. If the resource handle has not been configured for multi-gpu this will always return 0.</para>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">handle</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Handle for accessing resources </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>rank </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/resource_handle.h" line="82" column="5" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/resource_handle.cpp" bodystart="38" bodyend="43" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/resource_handle.h" declline="82" declcolumn="5"/>
+      </memberdef>
+      <memberdef kind="function" id="resource__handle_8h_1af32e9708f4c721bba7e2990bd09983e0" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>void</type>
+        <definition>void cugraph_free_resource_handle</definition>
+        <argsstring>(cugraph_resource_handle_t *handle)</argsstring>
+        <name>cugraph_free_resource_handle</name>
+        <param>
+          <type><ref refid="structcugraph__resource__handle__" kindref="compound">cugraph_resource_handle_t</ref> *</type>
+          <declname>handle</declname>
+        </param>
+        <briefdescription>
+<para>Free resources in the resource handle. </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">handle</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Handle for accessing resources </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/resource_handle.h" line="89" column="6" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/resource_handle.cpp" bodystart="31" bodyend="36" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/resource_handle.h" declline="89" declcolumn="6"/>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <programlisting>
+<codeline lineno="1"><highlight class="comment">/*</highlight></codeline>
+<codeline lineno="2"><highlight class="comment"><sp/>*<sp/>Copyright<sp/>(c)<sp/>2022-2023,<sp/>NVIDIA<sp/>CORPORATION.</highlight></codeline>
+<codeline lineno="3"><highlight class="comment"><sp/>*</highlight></codeline>
+<codeline lineno="4"><highlight class="comment"><sp/>*<sp/>Licensed<sp/>under<sp/>the<sp/>Apache<sp/>License,<sp/>Version<sp/>2.0<sp/>(the<sp/>&quot;License&quot;);</highlight></codeline>
+<codeline lineno="5"><highlight class="comment"><sp/>*<sp/>you<sp/>may<sp/>not<sp/>use<sp/>this<sp/>file<sp/>except<sp/>in<sp/>compliance<sp/>with<sp/>the<sp/>License.</highlight></codeline>
+<codeline lineno="6"><highlight class="comment"><sp/>*<sp/>You<sp/>may<sp/>obtain<sp/>a<sp/>copy<sp/>of<sp/>the<sp/>License<sp/>at</highlight></codeline>
+<codeline lineno="7"><highlight class="comment"><sp/>*</highlight></codeline>
+<codeline lineno="8"><highlight class="comment"><sp/>*<sp/><sp/><sp/><sp/><sp/>http://www.apache.org/licenses/LICENSE-2.0</highlight></codeline>
+<codeline lineno="9"><highlight class="comment"><sp/>*</highlight></codeline>
+<codeline lineno="10"><highlight class="comment"><sp/>*<sp/>Unless<sp/>required<sp/>by<sp/>applicable<sp/>law<sp/>or<sp/>agreed<sp/>to<sp/>in<sp/>writing,<sp/>software</highlight></codeline>
+<codeline lineno="11"><highlight class="comment"><sp/>*<sp/>distributed<sp/>under<sp/>the<sp/>License<sp/>is<sp/>distributed<sp/>on<sp/>an<sp/>&quot;AS<sp/>IS&quot;<sp/>BASIS,</highlight></codeline>
+<codeline lineno="12"><highlight class="comment"><sp/>*<sp/>WITHOUT<sp/>WARRANTIES<sp/>OR<sp/>CONDITIONS<sp/>OF<sp/>ANY<sp/>KIND,<sp/>either<sp/>express<sp/>or<sp/>implied.</highlight></codeline>
+<codeline lineno="13"><highlight class="comment"><sp/>*<sp/>See<sp/>the<sp/>License<sp/>for<sp/>the<sp/>specific<sp/>language<sp/>governing<sp/>permissions<sp/>and</highlight></codeline>
+<codeline lineno="14"><highlight class="comment"><sp/>*<sp/>limitations<sp/>under<sp/>the<sp/>License.</highlight></codeline>
+<codeline lineno="15"><highlight class="comment"><sp/>*/</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="16"><highlight class="normal"></highlight></codeline>
+<codeline lineno="17"><highlight class="normal"></highlight><highlight class="preprocessor">#pragma<sp/>once</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="18"><highlight class="normal"></highlight></codeline>
+<codeline lineno="19"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&lt;cugraph_c/error.h&gt;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="20"><highlight class="normal"></highlight></codeline>
+<codeline lineno="21"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&lt;stddef.h&gt;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="22"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&lt;stdint.h&gt;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="23"><highlight class="normal"></highlight></codeline>
+<codeline lineno="24"><highlight class="normal"></highlight><highlight class="preprocessor">#ifdef<sp/>__cplusplus</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="25"><highlight class="normal"></highlight><highlight class="keyword">extern</highlight><highlight class="normal"><sp/></highlight><highlight class="stringliteral">&quot;C&quot;</highlight><highlight class="normal"><sp/>{</highlight></codeline>
+<codeline lineno="26"><highlight class="normal"></highlight><highlight class="preprocessor">#endif</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="27"><highlight class="normal"></highlight></codeline>
+<codeline lineno="28"><highlight class="normal"></highlight><highlight class="keyword">typedef</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">enum</highlight><highlight class="normal"><sp/>bool_<sp/>{<sp/>FALSE<sp/>=<sp/>0,<sp/>TRUE<sp/>=<sp/>1<sp/>}<sp/>bool_t;</highlight></codeline>
+<codeline lineno="29"><highlight class="normal"></highlight></codeline>
+<codeline lineno="30"><highlight class="normal"></highlight><highlight class="keyword">typedef</highlight><highlight class="normal"><sp/>int8_t<sp/>byte_t;</highlight></codeline>
+<codeline lineno="31"><highlight class="normal"></highlight></codeline>
+<codeline lineno="35"><highlight class="normal"></highlight><highlight class="keyword">typedef</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">enum</highlight><highlight class="normal"><sp/>data_type_id_<sp/>{<sp/>INT32<sp/>=<sp/>0,<sp/>INT64,<sp/>FLOAT32,<sp/>FLOAT64,<sp/>SIZE_T,<sp/>NTYPES<sp/>}<sp/>data_type_id_t;</highlight></codeline>
+<codeline lineno="36"><highlight class="normal"></highlight></codeline>
+<codeline lineno="40"><highlight class="normal"></highlight><highlight class="keyword">typedef</highlight><highlight class="normal"><sp/>data_type_id_t<sp/>cugraph_data_type_id_t;</highlight></codeline>
+<codeline lineno="41"><highlight class="normal"></highlight></codeline>
+<codeline lineno="42" refid="structcugraph__resource__handle__" refkind="compound"><highlight class="normal"></highlight><highlight class="keyword">typedef</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">struct<sp/></highlight><highlight class="normal"><ref refid="structcugraph__resource__handle__" kindref="compound">cugraph_resource_handle_</ref><sp/>{</highlight></codeline>
+<codeline lineno="43"><highlight class="normal"><sp/><sp/>int32_t<sp/>align_;</highlight></codeline>
+<codeline lineno="44"><highlight class="normal">}<sp/><ref refid="structcugraph__resource__handle__" kindref="compound">cugraph_resource_handle_t</ref>;</highlight></codeline>
+<codeline lineno="45"><highlight class="normal"></highlight></codeline>
+<codeline lineno="46"><highlight class="normal"></highlight><highlight class="comment">//<sp/>FIXME:<sp/>Don&apos;t<sp/>really<sp/>want<sp/>a<sp/>raft<sp/>handle<sp/>here.<sp/><sp/>We<sp/>really<sp/>want<sp/>to<sp/>be<sp/>able<sp/>to</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="47"><highlight class="normal"></highlight><highlight class="comment">//<sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>configure<sp/>the<sp/>resource<sp/>handle<sp/>ourselves.<sp/><sp/>But<sp/>that<sp/>requires<sp/>a<sp/>bunch</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="48"><highlight class="normal"></highlight><highlight class="comment">//<sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>of<sp/>logic<sp/>that&apos;s<sp/>currently<sp/>only<sp/>available<sp/>in<sp/>python.</highlight></codeline>
+<codeline lineno="58"><highlight class="normal"><ref refid="structcugraph__resource__handle__" kindref="compound">cugraph_resource_handle_t</ref>*<sp/>cugraph_create_resource_handle(</highlight><highlight class="keywordtype">void</highlight><highlight class="normal">*<sp/>raft_handle);</highlight></codeline>
+<codeline lineno="59"><highlight class="normal"></highlight></codeline>
+<codeline lineno="70"><highlight class="normal"></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/>cugraph_resource_handle_get_comm_size(</highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__resource__handle__" kindref="compound">cugraph_resource_handle_t</ref>*<sp/>handle);</highlight></codeline>
+<codeline lineno="71"><highlight class="normal"></highlight></codeline>
+<codeline lineno="82"><highlight class="normal"></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/>cugraph_resource_handle_get_rank(</highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__resource__handle__" kindref="compound">cugraph_resource_handle_t</ref>*<sp/>handle);</highlight></codeline>
+<codeline lineno="83"><highlight class="normal"></highlight></codeline>
+<codeline lineno="89"><highlight class="normal"></highlight><highlight class="keywordtype">void</highlight><highlight class="normal"><sp/>cugraph_free_resource_handle(<ref refid="structcugraph__resource__handle__" kindref="compound">cugraph_resource_handle_t</ref>*<sp/>handle);</highlight></codeline>
+<codeline lineno="90"><highlight class="normal"></highlight></codeline>
+<codeline lineno="91"><highlight class="normal"></highlight><highlight class="preprocessor">#ifdef<sp/>__cplusplus</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="92"><highlight class="normal">}</highlight></codeline>
+<codeline lineno="93"><highlight class="normal"></highlight><highlight class="preprocessor">#endif</highlight></codeline>
+    </programlisting>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/resource_handle.h"/>
+  </compounddef>
+</doxygen>

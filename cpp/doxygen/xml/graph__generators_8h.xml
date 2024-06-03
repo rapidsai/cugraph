@@ -1,0 +1,1050 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="graph__generators_8h" kind="file" language="C++">
+    <compoundname>graph_generators.h</compoundname>
+    <includes refid="array_8h" local="no">cugraph_c/array.h</includes>
+    <includes refid="graph_8h" local="no">cugraph_c/graph.h</includes>
+    <includes refid="random_8h" local="no">cugraph_c/random.h</includes>
+    <includes refid="resource__handle_8h" local="no">cugraph_c/resource_handle.h</includes>
+    <includedby refid="allgather_8cpp" local="no">allgather.cpp</includedby>
+    <includedby refid="graph__generators_8cpp" local="no">graph_generators.cpp</includedby>
+    <incdepgraph>
+      <node id="2">
+        <label>cugraph_c/array.h</label>
+        <link refid="array_8h_source"/>
+        <childnode refid="3" relation="include">
+        </childnode>
+      </node>
+      <node id="4">
+        <label>cugraph_c/error.h</label>
+        <link refid="error_8h_source"/>
+        <childnode refid="5" relation="include">
+        </childnode>
+      </node>
+      <node id="7">
+        <label>cugraph_c/graph.h</label>
+        <link refid="graph_8h_source"/>
+        <childnode refid="2" relation="include">
+        </childnode>
+      </node>
+      <node id="1">
+        <label>graph_generators.h</label>
+        <link refid="graph__generators_8h"/>
+        <childnode refid="2" relation="include">
+        </childnode>
+        <childnode refid="7" relation="include">
+        </childnode>
+        <childnode refid="8" relation="include">
+        </childnode>
+        <childnode refid="3" relation="include">
+        </childnode>
+      </node>
+      <node id="8">
+        <label>cugraph_c/random.h</label>
+        <link refid="random_8h_source"/>
+        <childnode refid="3" relation="include">
+        </childnode>
+      </node>
+      <node id="3">
+        <label>cugraph_c/resource_handle.h</label>
+        <link refid="resource__handle_8h_source"/>
+        <childnode refid="4" relation="include">
+        </childnode>
+        <childnode refid="6" relation="include">
+        </childnode>
+        <childnode refid="5" relation="include">
+        </childnode>
+      </node>
+      <node id="6">
+        <label>stddef.h</label>
+      </node>
+      <node id="5">
+        <label>stdint.h</label>
+      </node>
+    </incdepgraph>
+    <innerclass refid="structcugraph__coo__t" prot="public">cugraph_coo_t</innerclass>
+    <innerclass refid="structcugraph__coo__list__t" prot="public">cugraph_coo_list_t</innerclass>
+    <sectiondef kind="enum">
+      <memberdef kind="enum" id="graph__generators_8h_1a37201e061caff6c60c2f81cf3156a395" prot="public" static="no" strong="no">
+        <type></type>
+        <name>cugraph_generator_distribution_t</name>
+        <enumvalue id="graph__generators_8h_1a37201e061caff6c60c2f81cf3156a395a7194cc4e5dc070f2bcddfdd3f10e755b" prot="public">
+          <name>POWER_LAW</name>
+          <initializer>= 0</initializer>
+          <briefdescription>
+          </briefdescription>
+          <detaileddescription>
+          </detaileddescription>
+        </enumvalue>
+        <enumvalue id="graph__generators_8h_1a37201e061caff6c60c2f81cf3156a395a8f44784d154005a214e0fe94119d28ef" prot="public">
+          <name>UNIFORM</name>
+          <briefdescription>
+          </briefdescription>
+          <detaileddescription>
+          </detaileddescription>
+        </enumvalue>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/graph_generators.h" line="28" column="1" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/graph_generators.h" bodystart="28" bodyend="28"/>
+      </memberdef>
+    </sectiondef>
+    <sectiondef kind="func">
+      <memberdef kind="function" id="graph__generators_8h_1a714edb060201b06458573c7e958bbc9a" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref> *</type>
+        <definition>cugraph_type_erased_device_array_view_t * cugraph_coo_get_sources</definition>
+        <argsstring>(cugraph_coo_t *coo)</argsstring>
+        <name>cugraph_coo_get_sources</name>
+        <param>
+          <type><ref refid="structcugraph__coo__t" kindref="compound">cugraph_coo_t</ref> *</type>
+          <declname>coo</declname>
+        </param>
+        <briefdescription>
+<para>Get the source vertex ids. </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">coo</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Opaque pointer to COO </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>type erased array view of source vertex ids </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/graph_generators.h" line="50" column="41" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/graph_generators.cpp" bodystart="141" bodyend="145" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/graph_generators.h" declline="50" declcolumn="41"/>
+      </memberdef>
+      <memberdef kind="function" id="graph__generators_8h_1a1bb15f166c498d8ae1cb48a4efd6bdfb" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref> *</type>
+        <definition>cugraph_type_erased_device_array_view_t * cugraph_coo_get_destinations</definition>
+        <argsstring>(cugraph_coo_t *coo)</argsstring>
+        <name>cugraph_coo_get_destinations</name>
+        <param>
+          <type><ref refid="structcugraph__coo__t" kindref="compound">cugraph_coo_t</ref> *</type>
+          <declname>coo</declname>
+        </param>
+        <briefdescription>
+<para>Get the destination vertex ids. </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">coo</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Opaque pointer to COO </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>type erased array view of destination vertex ids </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/graph_generators.h" line="58" column="41" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/graph_generators.cpp" bodystart="147" bodyend="151" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/graph_generators.h" declline="58" declcolumn="41"/>
+      </memberdef>
+      <memberdef kind="function" id="graph__generators_8h_1a9e62d523754f8abf167a7a25b08fbaae" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref> *</type>
+        <definition>cugraph_type_erased_device_array_view_t * cugraph_coo_get_edge_weights</definition>
+        <argsstring>(cugraph_coo_t *coo)</argsstring>
+        <name>cugraph_coo_get_edge_weights</name>
+        <param>
+          <type><ref refid="structcugraph__coo__t" kindref="compound">cugraph_coo_t</ref> *</type>
+          <declname>coo</declname>
+        </param>
+        <briefdescription>
+<para>Get the edge weights. </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">coo</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Opaque pointer to COO </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>type erased array view of edge weights, NULL if no edge weights in COO </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/graph_generators.h" line="66" column="41" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/graph_generators.cpp" bodystart="153" bodyend="157" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/graph_generators.h" declline="66" declcolumn="41"/>
+      </memberdef>
+      <memberdef kind="function" id="graph__generators_8h_1a273ad10c2bcf9d7d06379b2573da4098" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref> *</type>
+        <definition>cugraph_type_erased_device_array_view_t * cugraph_coo_get_edge_id</definition>
+        <argsstring>(cugraph_coo_t *coo)</argsstring>
+        <name>cugraph_coo_get_edge_id</name>
+        <param>
+          <type><ref refid="structcugraph__coo__t" kindref="compound">cugraph_coo_t</ref> *</type>
+          <declname>coo</declname>
+        </param>
+        <briefdescription>
+<para>Get the edge id. </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">coo</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Opaque pointer to COO </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>type erased array view of edge id, NULL if no edge ids in COO </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/graph_generators.h" line="74" column="41" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/graph_generators.cpp" bodystart="159" bodyend="163" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/graph_generators.h" declline="74" declcolumn="41"/>
+      </memberdef>
+      <memberdef kind="function" id="graph__generators_8h_1ac66e84970ca4d8c49c9999fc24228238" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref> *</type>
+        <definition>cugraph_type_erased_device_array_view_t * cugraph_coo_get_edge_type</definition>
+        <argsstring>(cugraph_coo_t *coo)</argsstring>
+        <name>cugraph_coo_get_edge_type</name>
+        <param>
+          <type><ref refid="structcugraph__coo__t" kindref="compound">cugraph_coo_t</ref> *</type>
+          <declname>coo</declname>
+        </param>
+        <briefdescription>
+<para>Get the edge type. </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">coo</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Opaque pointer to COO </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>type erased array view of edge type, NULL if no edge types in COO </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/graph_generators.h" line="82" column="41" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/graph_generators.cpp" bodystart="165" bodyend="170" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/graph_generators.h" declline="82" declcolumn="41"/>
+      </memberdef>
+      <memberdef kind="function" id="graph__generators_8h_1a30e48b48e25557689337fd380f2981a3" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>size_t</type>
+        <definition>size_t cugraph_coo_list_size</definition>
+        <argsstring>(const cugraph_coo_list_t *coo_list)</argsstring>
+        <name>cugraph_coo_list_size</name>
+        <param>
+          <type>const <ref refid="structcugraph__coo__list__t" kindref="compound">cugraph_coo_list_t</ref> *</type>
+          <declname>coo_list</declname>
+        </param>
+        <briefdescription>
+<para>Get the number of coo object in the list. </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">coo_list</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Opaque pointer to COO list </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>number of elements </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/graph_generators.h" line="90" column="8" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/graph_generators.cpp" bodystart="172" bodyend="176" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/graph_generators.h" declline="90" declcolumn="8"/>
+      </memberdef>
+      <memberdef kind="function" id="graph__generators_8h_1a79237a5dd8fa407c1029992f53d4d072" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type><ref refid="structcugraph__coo__t" kindref="compound">cugraph_coo_t</ref> *</type>
+        <definition>cugraph_coo_t * cugraph_coo_list_element</definition>
+        <argsstring>(cugraph_coo_list_t *coo_list, size_t index)</argsstring>
+        <name>cugraph_coo_list_element</name>
+        <param>
+          <type><ref refid="structcugraph__coo__list__t" kindref="compound">cugraph_coo_list_t</ref> *</type>
+          <declname>coo_list</declname>
+        </param>
+        <param>
+          <type>size_t</type>
+          <declname>index</declname>
+        </param>
+        <briefdescription>
+<para>Get a COO from the list. </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">coo_list</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Opaque pointer to COO list </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">index</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Index of desired COO from list </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>a cugraph_coo_t* object from the list </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/graph_generators.h" line="99" column="15" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/graph_generators.cpp" bodystart="178" bodyend="183" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/graph_generators.h" declline="99" declcolumn="15"/>
+      </memberdef>
+      <memberdef kind="function" id="graph__generators_8h_1ac1f9ba0fcfee8782dbde350868398782" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>void</type>
+        <definition>void cugraph_coo_free</definition>
+        <argsstring>(cugraph_coo_t *coo)</argsstring>
+        <name>cugraph_coo_free</name>
+        <param>
+          <type><ref refid="structcugraph__coo__t" kindref="compound">cugraph_coo_t</ref> *</type>
+          <declname>coo</declname>
+        </param>
+        <briefdescription>
+<para>Free coo object. </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">coo</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Opaque pointer to COO </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/graph_generators.h" line="106" column="6" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/graph_generators.cpp" bodystart="185" bodyend="189" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/graph_generators.h" declline="106" declcolumn="6"/>
+      </memberdef>
+      <memberdef kind="function" id="graph__generators_8h_1a6d1e9609acfb3af61eac7720b11b09b8" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>void</type>
+        <definition>void cugraph_coo_list_free</definition>
+        <argsstring>(cugraph_coo_list_t *coo_list)</argsstring>
+        <name>cugraph_coo_list_free</name>
+        <param>
+          <type><ref refid="structcugraph__coo__list__t" kindref="compound">cugraph_coo_list_t</ref> *</type>
+          <declname>coo_list</declname>
+        </param>
+        <briefdescription>
+<para>Free coo list. </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">coo_list</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Opaque pointer to list of COO objects </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/graph_generators.h" line="113" column="6" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/graph_generators.cpp" bodystart="191" bodyend="195" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/graph_generators.h" declline="113" declcolumn="6"/>
+      </memberdef>
+      <memberdef kind="function" id="graph__generators_8h_1a7607cedb9931c6c1e2af2073c0c63535" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>cugraph_error_code_t</type>
+        <definition>cugraph_error_code_t cugraph_generate_rmat_edgelist</definition>
+        <argsstring>(const cugraph_resource_handle_t *handle, cugraph_rng_state_t *rng_state, size_t scale, size_t num_edges, double a, double b, double c, bool_t clip_and_flip, bool_t scramble_vertex_ids, cugraph_coo_t **result, cugraph_error_t **error)</argsstring>
+        <name>cugraph_generate_rmat_edgelist</name>
+        <param>
+          <type>const <ref refid="structcugraph__resource__handle__" kindref="compound">cugraph_resource_handle_t</ref> *</type>
+          <declname>handle</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__rng__state__t" kindref="compound">cugraph_rng_state_t</ref> *</type>
+          <declname>rng_state</declname>
+        </param>
+        <param>
+          <type>size_t</type>
+          <declname>scale</declname>
+        </param>
+        <param>
+          <type>size_t</type>
+          <declname>num_edges</declname>
+        </param>
+        <param>
+          <type>double</type>
+          <declname>a</declname>
+        </param>
+        <param>
+          <type>double</type>
+          <declname>b</declname>
+        </param>
+        <param>
+          <type>double</type>
+          <declname>c</declname>
+        </param>
+        <param>
+          <type>bool_t</type>
+          <declname>clip_and_flip</declname>
+        </param>
+        <param>
+          <type>bool_t</type>
+          <declname>scramble_vertex_ids</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__coo__t" kindref="compound">cugraph_coo_t</ref> **</type>
+          <declname>result</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__error__" kindref="compound">cugraph_error_t</ref> **</type>
+          <declname>error</declname>
+        </param>
+        <briefdescription>
+<para>Generate RMAT edge list. </para>
+        </briefdescription>
+        <detaileddescription>
+<para>Returns a COO containing edges generated from the RMAT generator.</para>
+<para>Vertex types will be int32 if scale &lt; 32 and int64 if scale &gt;= 32</para>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">handle</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Handle for accessing resources </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="inout">rng_state</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>State of the random number generator, updated with each call </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">scale</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Scale factor to set the number of vertices in the graph. Vertex IDs have values in [0, V), where V = 1 &lt;&lt; <computeroutput>scale</computeroutput>. </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">num_edges</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Number of edges to generate. </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">a</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>a, b, c, d (= 1.0 - (a + b + c)) in the R-mat graph generator (vist <ulink url="https://graph500.org">https://graph500.org</ulink> for additional details). a, b, c, d should be non-negative and a + b + c should be no larger than 1.0. </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">b</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>a, b, c, d (= 1.0 - (a + b + c)) in the R-mat graph generator (vist <ulink url="https://graph500.org">https://graph500.org</ulink> for additional details). a, b, c, d should be non-negative and a + b + c should be no larger than 1.0. </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">c</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>a, b, c, d (= 1.0 - (a + b + c)) in the R-mat graph generator (vist <ulink url="https://graph500.org">https://graph500.org</ulink> for additional details). a, b, c, d should be non-negative and a + b + c should be no larger than 1.0. </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">clip_and_flip</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Flag controlling whether to generate edges only in the lower triangular part (including the diagonal) of the graph adjacency matrix (if set to <computeroutput>true</computeroutput>) or not (if set to <computeroutput>false</computeroutput>). </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">scramble_vertex_ids</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Flag controlling whether to scramble vertex ID bits (if set to <computeroutput>true</computeroutput>) or not (if set to <computeroutput>false</computeroutput>); scrambling vertex ID bits breaks correlation between vertex ID values and vertex degrees. </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="out">result</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Opaque pointer to generated coo </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="out">error</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Pointer to an error object storing details of any error. Will be populated if error code is not CUGRAPH_SUCCESS </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>error code </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/graph_generators.h" line="147" column="22" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/graph_generators.cpp" bodystart="197" bodyend="244" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/graph_generators.h" declline="147" declcolumn="22"/>
+      </memberdef>
+      <memberdef kind="function" id="graph__generators_8h_1a22384b2a4da37f91d42438f15b08a5ad" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>cugraph_error_code_t</type>
+        <definition>cugraph_error_code_t cugraph_generate_rmat_edgelists</definition>
+        <argsstring>(const cugraph_resource_handle_t *handle, cugraph_rng_state_t *rng_state, size_t n_edgelists, size_t min_scale, size_t max_scale, size_t edge_factor, cugraph_generator_distribution_t size_distribution, cugraph_generator_distribution_t edge_distribution, bool_t clip_and_flip, bool_t scramble_vertex_ids, cugraph_coo_list_t **result, cugraph_error_t **error)</argsstring>
+        <name>cugraph_generate_rmat_edgelists</name>
+        <param>
+          <type>const <ref refid="structcugraph__resource__handle__" kindref="compound">cugraph_resource_handle_t</ref> *</type>
+          <declname>handle</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__rng__state__t" kindref="compound">cugraph_rng_state_t</ref> *</type>
+          <declname>rng_state</declname>
+        </param>
+        <param>
+          <type>size_t</type>
+          <declname>n_edgelists</declname>
+        </param>
+        <param>
+          <type>size_t</type>
+          <declname>min_scale</declname>
+        </param>
+        <param>
+          <type>size_t</type>
+          <declname>max_scale</declname>
+        </param>
+        <param>
+          <type>size_t</type>
+          <declname>edge_factor</declname>
+        </param>
+        <param>
+          <type>cugraph_generator_distribution_t</type>
+          <declname>size_distribution</declname>
+        </param>
+        <param>
+          <type>cugraph_generator_distribution_t</type>
+          <declname>edge_distribution</declname>
+        </param>
+        <param>
+          <type>bool_t</type>
+          <declname>clip_and_flip</declname>
+        </param>
+        <param>
+          <type>bool_t</type>
+          <declname>scramble_vertex_ids</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__coo__list__t" kindref="compound">cugraph_coo_list_t</ref> **</type>
+          <declname>result</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__error__" kindref="compound">cugraph_error_t</ref> **</type>
+          <declname>error</declname>
+        </param>
+        <briefdescription>
+<para>Generate RMAT edge lists. </para>
+        </briefdescription>
+        <detaileddescription>
+<para>Returns a COO list containing edges generated from the RMAT generator.</para>
+<para>Vertex types will be int32 if scale &lt; 32 and int64 if scale &gt;= 32</para>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">handle</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Handle for accessing resources </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="inout">rng_state</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>State of the random number generator, updated with each call </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">n_edgelists</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Number of edge lists (graphs) to generate </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">min_scale</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Scale factor to set the minimum number of verties in the graph. </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">max_scale</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Scale factor to set the maximum number of verties in the graph. </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">edge_factor</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Average number of edges per vertex to generate. </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">size_distribution</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Distribution of the graph sizes, impacts the scale parameter of the R-MAT generator </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">edge_distribution</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Edges distribution for each graph, impacts how R-MAT parameters a,b,c,d, are set. </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">clip_and_flip</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Flag controlling whether to generate edges only in the lower triangular part (including the diagonal) of the graph adjacency matrix (if set to <computeroutput>true</computeroutput>) or not (if set to <computeroutput>false</computeroutput>). </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">scramble_vertex_ids</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Flag controlling whether to scramble vertex ID bits (if set to <computeroutput>true</computeroutput>) or not (if set to <computeroutput>false</computeroutput>); scrambling vertex ID bits breaks correlation between vertex ID values and vertex degrees. </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="out">result</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Opaque pointer to generated coo list </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="out">error</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Pointer to an error object storing details of any error. Will be populated if error code is not CUGRAPH_SUCCESS </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>error code </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/graph_generators.h" line="187" column="22" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/graph_generators.cpp" bodystart="246" bodyend="296" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/graph_generators.h" declline="187" declcolumn="22"/>
+      </memberdef>
+      <memberdef kind="function" id="graph__generators_8h_1a5a8325094236345a5b2582fc1f2bb7e4" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>cugraph_error_code_t</type>
+        <definition>cugraph_error_code_t cugraph_generate_edge_weights</definition>
+        <argsstring>(const cugraph_resource_handle_t *handle, cugraph_rng_state_t *rng_state, cugraph_coo_t *coo, cugraph_data_type_id_t dtype, double minimum_weight, double maximum_weight, cugraph_error_t **error)</argsstring>
+        <name>cugraph_generate_edge_weights</name>
+        <param>
+          <type>const <ref refid="structcugraph__resource__handle__" kindref="compound">cugraph_resource_handle_t</ref> *</type>
+          <declname>handle</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__rng__state__t" kindref="compound">cugraph_rng_state_t</ref> *</type>
+          <declname>rng_state</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__coo__t" kindref="compound">cugraph_coo_t</ref> *</type>
+          <declname>coo</declname>
+        </param>
+        <param>
+          <type>cugraph_data_type_id_t</type>
+          <declname>dtype</declname>
+        </param>
+        <param>
+          <type>double</type>
+          <declname>minimum_weight</declname>
+        </param>
+        <param>
+          <type>double</type>
+          <declname>maximum_weight</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__error__" kindref="compound">cugraph_error_t</ref> **</type>
+          <declname>error</declname>
+        </param>
+        <briefdescription>
+<para>Generate edge weights and add to an rmat edge list. </para>
+        </briefdescription>
+        <detaileddescription>
+<para>Updates a COO to contain random edge weights</para>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">handle</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Handle for accessing resources </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="inout">rng_state</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>State of the random number generator, updated with each call </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="inout">coo</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Opaque pointer to the coo, weights will be added (overwriting any existing weights) </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">dtype</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>The type of weight to generate (FLOAT32 or FLOAT64), ignored unless include_weights is true </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">minimum_weight</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Minimum weight value to generate </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">maximum_weight</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Maximum weight value to generate </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="out">error</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Pointer to an error object storing details of any error. Will be populated if error code is not CUGRAPH_SUCCESS </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/graph_generators.h" line="217" column="22" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/graph_generators.cpp" bodystart="298" bodyend="347" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/graph_generators.h" declline="217" declcolumn="22"/>
+      </memberdef>
+      <memberdef kind="function" id="graph__generators_8h_1a01f1ed1e1233e2417003d95d8ef2347c" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>cugraph_error_code_t</type>
+        <definition>cugraph_error_code_t cugraph_generate_edge_ids</definition>
+        <argsstring>(const cugraph_resource_handle_t *handle, cugraph_coo_t *coo, bool_t multi_gpu, cugraph_error_t **error)</argsstring>
+        <name>cugraph_generate_edge_ids</name>
+        <param>
+          <type>const <ref refid="structcugraph__resource__handle__" kindref="compound">cugraph_resource_handle_t</ref> *</type>
+          <declname>handle</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__coo__t" kindref="compound">cugraph_coo_t</ref> *</type>
+          <declname>coo</declname>
+        </param>
+        <param>
+          <type>bool_t</type>
+          <declname>multi_gpu</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__error__" kindref="compound">cugraph_error_t</ref> **</type>
+          <declname>error</declname>
+        </param>
+        <briefdescription>
+<para>Add edge ids to an COO. </para>
+        </briefdescription>
+        <detaileddescription>
+<para>Updates a COO to contain edge ids. Edges will be numbered from 0 to n-1 where n is the number of edges</para>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">handle</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Handle for accessing resources </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="inout">coo</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Opaque pointer to the coo, weights will be added (overwriting any existing weights) </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">multi_gpu</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Flag if the COO is being created on multiple GPUs </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="out">error</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Pointer to an error object storing details of any error. Will be populated if error code is not CUGRAPH_SUCCESS </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/graph_generators.h" line="238" column="22" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/graph_generators.cpp" bodystart="349" bodyend="394" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/graph_generators.h" declline="238" declcolumn="22"/>
+      </memberdef>
+      <memberdef kind="function" id="graph__generators_8h_1a744488a7bf1277710fcf3755a3ab7f85" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>cugraph_error_code_t</type>
+        <definition>cugraph_error_code_t cugraph_generate_edge_types</definition>
+        <argsstring>(const cugraph_resource_handle_t *handle, cugraph_rng_state_t *rng_state, cugraph_coo_t *coo, int32_t min_edge_type, int32_t max_edge_type, cugraph_error_t **error)</argsstring>
+        <name>cugraph_generate_edge_types</name>
+        <param>
+          <type>const <ref refid="structcugraph__resource__handle__" kindref="compound">cugraph_resource_handle_t</ref> *</type>
+          <declname>handle</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__rng__state__t" kindref="compound">cugraph_rng_state_t</ref> *</type>
+          <declname>rng_state</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__coo__t" kindref="compound">cugraph_coo_t</ref> *</type>
+          <declname>coo</declname>
+        </param>
+        <param>
+          <type>int32_t</type>
+          <declname>min_edge_type</declname>
+        </param>
+        <param>
+          <type>int32_t</type>
+          <declname>max_edge_type</declname>
+        </param>
+        <param>
+          <type><ref refid="structcugraph__error__" kindref="compound">cugraph_error_t</ref> **</type>
+          <declname>error</declname>
+        </param>
+        <briefdescription>
+<para>Generate random edge types, add them to an COO. </para>
+        </briefdescription>
+        <detaileddescription>
+<para>Updates a COO to contain edge types. Edges types will be randomly generated.</para>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">handle</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Handle for accessing resources </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="inout">rng_state</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>State of the random number generator, updated with each call </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="inout">coo</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Opaque pointer to the coo, weights will be added (overwriting any existing weights) </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">max_edge_type</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Edge types will be randomly generated between min_edge_type and max_edge_type </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="out">error</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Pointer to an error object storing details of any error. Will be populated if error code is not CUGRAPH_SUCCESS </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/graph_generators.h" line="257" column="22" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/graph_generators.cpp" bodystart="396" bodyend="421" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/graph_generators.h" declline="257" declcolumn="22"/>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <programlisting>
+<codeline lineno="1"><highlight class="comment">/*</highlight></codeline>
+<codeline lineno="2"><highlight class="comment"><sp/>*<sp/>Copyright<sp/>(c)<sp/>2023-2024,<sp/>NVIDIA<sp/>CORPORATION.</highlight></codeline>
+<codeline lineno="3"><highlight class="comment"><sp/>*</highlight></codeline>
+<codeline lineno="4"><highlight class="comment"><sp/>*<sp/>Licensed<sp/>under<sp/>the<sp/>Apache<sp/>License,<sp/>Version<sp/>2.0<sp/>(the<sp/>&quot;License&quot;);</highlight></codeline>
+<codeline lineno="5"><highlight class="comment"><sp/>*<sp/>you<sp/>may<sp/>not<sp/>use<sp/>this<sp/>file<sp/>except<sp/>in<sp/>compliance<sp/>with<sp/>the<sp/>License.</highlight></codeline>
+<codeline lineno="6"><highlight class="comment"><sp/>*<sp/>You<sp/>may<sp/>obtain<sp/>a<sp/>copy<sp/>of<sp/>the<sp/>License<sp/>at</highlight></codeline>
+<codeline lineno="7"><highlight class="comment"><sp/>*</highlight></codeline>
+<codeline lineno="8"><highlight class="comment"><sp/>*<sp/><sp/><sp/><sp/><sp/>http://www.apache.org/licenses/LICENSE-2.0</highlight></codeline>
+<codeline lineno="9"><highlight class="comment"><sp/>*</highlight></codeline>
+<codeline lineno="10"><highlight class="comment"><sp/>*<sp/>Unless<sp/>required<sp/>by<sp/>applicable<sp/>law<sp/>or<sp/>agreed<sp/>to<sp/>in<sp/>writing,<sp/>software</highlight></codeline>
+<codeline lineno="11"><highlight class="comment"><sp/>*<sp/>distributed<sp/>under<sp/>the<sp/>License<sp/>is<sp/>distributed<sp/>on<sp/>an<sp/>&quot;AS<sp/>IS&quot;<sp/>BASIS,</highlight></codeline>
+<codeline lineno="12"><highlight class="comment"><sp/>*<sp/>WITHOUT<sp/>WARRANTIES<sp/>OR<sp/>CONDITIONS<sp/>OF<sp/>ANY<sp/>KIND,<sp/>either<sp/>express<sp/>or<sp/>implied.</highlight></codeline>
+<codeline lineno="13"><highlight class="comment"><sp/>*<sp/>See<sp/>the<sp/>License<sp/>for<sp/>the<sp/>specific<sp/>language<sp/>governing<sp/>permissions<sp/>and</highlight></codeline>
+<codeline lineno="14"><highlight class="comment"><sp/>*<sp/>limitations<sp/>under<sp/>the<sp/>License.</highlight></codeline>
+<codeline lineno="15"><highlight class="comment"><sp/>*/</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="16"><highlight class="normal"></highlight></codeline>
+<codeline lineno="17"><highlight class="normal"></highlight><highlight class="preprocessor">#pragma<sp/>once</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="18"><highlight class="normal"></highlight></codeline>
+<codeline lineno="19"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&lt;cugraph_c/array.h&gt;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="20"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&lt;cugraph_c/graph.h&gt;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="21"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&lt;cugraph_c/random.h&gt;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="22"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&lt;cugraph_c/resource_handle.h&gt;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="23"><highlight class="normal"></highlight></codeline>
+<codeline lineno="24"><highlight class="normal"></highlight><highlight class="preprocessor">#ifdef<sp/>__cplusplus</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="25"><highlight class="normal"></highlight><highlight class="keyword">extern</highlight><highlight class="normal"><sp/></highlight><highlight class="stringliteral">&quot;C&quot;</highlight><highlight class="normal"><sp/>{</highlight></codeline>
+<codeline lineno="26"><highlight class="normal"></highlight><highlight class="preprocessor">#endif</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="27"><highlight class="normal"></highlight></codeline>
+<codeline lineno="28"><highlight class="normal"></highlight><highlight class="keyword">typedef</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">enum</highlight><highlight class="normal"><sp/>{<sp/>POWER_LAW<sp/>=<sp/>0,<sp/>UNIFORM<sp/>}<sp/>cugraph_generator_distribution_t;</highlight></codeline>
+<codeline lineno="29"><highlight class="normal"></highlight></codeline>
+<codeline lineno="33" refid="structcugraph__coo__t" refkind="compound"><highlight class="normal"></highlight><highlight class="keyword">typedef</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">struct<sp/></highlight><highlight class="normal">{</highlight></codeline>
+<codeline lineno="34"><highlight class="normal"><sp/><sp/>int32_t<sp/>align_;</highlight></codeline>
+<codeline lineno="35"><highlight class="normal">}<sp/><ref refid="structcugraph__coo__t" kindref="compound">cugraph_coo_t</ref>;</highlight></codeline>
+<codeline lineno="36"><highlight class="normal"></highlight></codeline>
+<codeline lineno="40" refid="structcugraph__coo__list__t" refkind="compound"><highlight class="normal"></highlight><highlight class="keyword">typedef</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">struct<sp/></highlight><highlight class="normal">{</highlight></codeline>
+<codeline lineno="41"><highlight class="normal"><sp/><sp/>int32_t<sp/>align_;</highlight></codeline>
+<codeline lineno="42"><highlight class="normal">}<sp/><ref refid="structcugraph__coo__list__t" kindref="compound">cugraph_coo_list_t</ref>;</highlight></codeline>
+<codeline lineno="43"><highlight class="normal"></highlight></codeline>
+<codeline lineno="50"><highlight class="normal"><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/>cugraph_coo_get_sources(<ref refid="structcugraph__coo__t" kindref="compound">cugraph_coo_t</ref>*<sp/>coo);</highlight></codeline>
+<codeline lineno="51"><highlight class="normal"></highlight></codeline>
+<codeline lineno="58"><highlight class="normal"><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/>cugraph_coo_get_destinations(<ref refid="structcugraph__coo__t" kindref="compound">cugraph_coo_t</ref>*<sp/>coo);</highlight></codeline>
+<codeline lineno="59"><highlight class="normal"></highlight></codeline>
+<codeline lineno="66"><highlight class="normal"><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/>cugraph_coo_get_edge_weights(<ref refid="structcugraph__coo__t" kindref="compound">cugraph_coo_t</ref>*<sp/>coo);</highlight></codeline>
+<codeline lineno="67"><highlight class="normal"></highlight></codeline>
+<codeline lineno="74"><highlight class="normal"><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/>cugraph_coo_get_edge_id(<ref refid="structcugraph__coo__t" kindref="compound">cugraph_coo_t</ref>*<sp/>coo);</highlight></codeline>
+<codeline lineno="75"><highlight class="normal"></highlight></codeline>
+<codeline lineno="82"><highlight class="normal"><ref refid="structcugraph__type__erased__device__array__view__t" kindref="compound">cugraph_type_erased_device_array_view_t</ref>*<sp/>cugraph_coo_get_edge_type(<ref refid="structcugraph__coo__t" kindref="compound">cugraph_coo_t</ref>*<sp/>coo);</highlight></codeline>
+<codeline lineno="83"><highlight class="normal"></highlight></codeline>
+<codeline lineno="90"><highlight class="normal"></highlight><highlight class="keywordtype">size_t</highlight><highlight class="normal"><sp/>cugraph_coo_list_size(</highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__coo__list__t" kindref="compound">cugraph_coo_list_t</ref>*<sp/>coo_list);</highlight></codeline>
+<codeline lineno="91"><highlight class="normal"></highlight></codeline>
+<codeline lineno="99"><highlight class="normal"><ref refid="structcugraph__coo__t" kindref="compound">cugraph_coo_t</ref>*<sp/>cugraph_coo_list_element(<ref refid="structcugraph__coo__list__t" kindref="compound">cugraph_coo_list_t</ref>*<sp/>coo_list,<sp/></highlight><highlight class="keywordtype">size_t</highlight><highlight class="normal"><sp/>index);</highlight></codeline>
+<codeline lineno="100"><highlight class="normal"></highlight></codeline>
+<codeline lineno="106"><highlight class="normal"></highlight><highlight class="keywordtype">void</highlight><highlight class="normal"><sp/>cugraph_coo_free(<ref refid="structcugraph__coo__t" kindref="compound">cugraph_coo_t</ref>*<sp/>coo);</highlight></codeline>
+<codeline lineno="107"><highlight class="normal"></highlight></codeline>
+<codeline lineno="113"><highlight class="normal"></highlight><highlight class="keywordtype">void</highlight><highlight class="normal"><sp/>cugraph_coo_list_free(<ref refid="structcugraph__coo__list__t" kindref="compound">cugraph_coo_list_t</ref>*<sp/>coo_list);</highlight></codeline>
+<codeline lineno="114"><highlight class="normal"></highlight></codeline>
+<codeline lineno="147"><highlight class="normal">cugraph_error_code_t<sp/>cugraph_generate_rmat_edgelist(</highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__resource__handle__" kindref="compound">cugraph_resource_handle_t</ref>*<sp/>handle,</highlight></codeline>
+<codeline lineno="148"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><ref refid="structcugraph__rng__state__t" kindref="compound">cugraph_rng_state_t</ref>*<sp/>rng_state,</highlight></codeline>
+<codeline lineno="149"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordtype">size_t</highlight><highlight class="normal"><sp/>scale,</highlight></codeline>
+<codeline lineno="150"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordtype">size_t</highlight><highlight class="normal"><sp/>num_edges,</highlight></codeline>
+<codeline lineno="151"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordtype">double</highlight><highlight class="normal"><sp/>a,</highlight></codeline>
+<codeline lineno="152"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordtype">double</highlight><highlight class="normal"><sp/>b,</highlight></codeline>
+<codeline lineno="153"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordtype">double</highlight><highlight class="normal"><sp/>c,</highlight></codeline>
+<codeline lineno="154"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>bool_t<sp/>clip_and_flip,</highlight></codeline>
+<codeline lineno="155"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>bool_t<sp/>scramble_vertex_ids,</highlight></codeline>
+<codeline lineno="156"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><ref refid="structcugraph__coo__t" kindref="compound">cugraph_coo_t</ref>**<sp/>result,</highlight></codeline>
+<codeline lineno="157"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><ref refid="structcugraph__error__" kindref="compound">cugraph_error_t</ref>**<sp/>error);</highlight></codeline>
+<codeline lineno="158"><highlight class="normal"></highlight></codeline>
+<codeline lineno="187"><highlight class="normal">cugraph_error_code_t<sp/>cugraph_generate_rmat_edgelists(</highlight></codeline>
+<codeline lineno="188"><highlight class="normal"><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__resource__handle__" kindref="compound">cugraph_resource_handle_t</ref>*<sp/>handle,</highlight></codeline>
+<codeline lineno="189"><highlight class="normal"><sp/><sp/><ref refid="structcugraph__rng__state__t" kindref="compound">cugraph_rng_state_t</ref>*<sp/>rng_state,</highlight></codeline>
+<codeline lineno="190"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordtype">size_t</highlight><highlight class="normal"><sp/>n_edgelists,</highlight></codeline>
+<codeline lineno="191"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordtype">size_t</highlight><highlight class="normal"><sp/>min_scale,</highlight></codeline>
+<codeline lineno="192"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordtype">size_t</highlight><highlight class="normal"><sp/>max_scale,</highlight></codeline>
+<codeline lineno="193"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordtype">size_t</highlight><highlight class="normal"><sp/>edge_factor,</highlight></codeline>
+<codeline lineno="194"><highlight class="normal"><sp/><sp/>cugraph_generator_distribution_t<sp/>size_distribution,</highlight></codeline>
+<codeline lineno="195"><highlight class="normal"><sp/><sp/>cugraph_generator_distribution_t<sp/>edge_distribution,</highlight></codeline>
+<codeline lineno="196"><highlight class="normal"><sp/><sp/>bool_t<sp/>clip_and_flip,</highlight></codeline>
+<codeline lineno="197"><highlight class="normal"><sp/><sp/>bool_t<sp/>scramble_vertex_ids,</highlight></codeline>
+<codeline lineno="198"><highlight class="normal"><sp/><sp/><ref refid="structcugraph__coo__list__t" kindref="compound">cugraph_coo_list_t</ref>**<sp/>result,</highlight></codeline>
+<codeline lineno="199"><highlight class="normal"><sp/><sp/><ref refid="structcugraph__error__" kindref="compound">cugraph_error_t</ref>**<sp/>error);</highlight></codeline>
+<codeline lineno="200"><highlight class="normal"></highlight></codeline>
+<codeline lineno="217"><highlight class="normal">cugraph_error_code_t<sp/>cugraph_generate_edge_weights(</highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__resource__handle__" kindref="compound">cugraph_resource_handle_t</ref>*<sp/>handle,</highlight></codeline>
+<codeline lineno="218"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><ref refid="structcugraph__rng__state__t" kindref="compound">cugraph_rng_state_t</ref>*<sp/>rng_state,</highlight></codeline>
+<codeline lineno="219"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><ref refid="structcugraph__coo__t" kindref="compound">cugraph_coo_t</ref>*<sp/>coo,</highlight></codeline>
+<codeline lineno="220"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>cugraph_data_type_id_t<sp/>dtype,</highlight></codeline>
+<codeline lineno="221"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordtype">double</highlight><highlight class="normal"><sp/>minimum_weight,</highlight></codeline>
+<codeline lineno="222"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordtype">double</highlight><highlight class="normal"><sp/>maximum_weight,</highlight></codeline>
+<codeline lineno="223"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><ref refid="structcugraph__error__" kindref="compound">cugraph_error_t</ref>**<sp/>error);</highlight></codeline>
+<codeline lineno="224"><highlight class="normal"></highlight></codeline>
+<codeline lineno="238"><highlight class="normal">cugraph_error_code_t<sp/>cugraph_generate_edge_ids(</highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__resource__handle__" kindref="compound">cugraph_resource_handle_t</ref>*<sp/>handle,</highlight></codeline>
+<codeline lineno="239"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><ref refid="structcugraph__coo__t" kindref="compound">cugraph_coo_t</ref>*<sp/>coo,</highlight></codeline>
+<codeline lineno="240"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>bool_t<sp/>multi_gpu,</highlight></codeline>
+<codeline lineno="241"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><ref refid="structcugraph__error__" kindref="compound">cugraph_error_t</ref>**<sp/>error);</highlight></codeline>
+<codeline lineno="242"><highlight class="normal"></highlight></codeline>
+<codeline lineno="257"><highlight class="normal">cugraph_error_code_t<sp/>cugraph_generate_edge_types(</highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structcugraph__resource__handle__" kindref="compound">cugraph_resource_handle_t</ref>*<sp/>handle,</highlight></codeline>
+<codeline lineno="258"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><ref refid="structcugraph__rng__state__t" kindref="compound">cugraph_rng_state_t</ref>*<sp/>rng_state,</highlight></codeline>
+<codeline lineno="259"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><ref refid="structcugraph__coo__t" kindref="compound">cugraph_coo_t</ref>*<sp/>coo,</highlight></codeline>
+<codeline lineno="260"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>int32_t<sp/>min_edge_type,</highlight></codeline>
+<codeline lineno="261"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>int32_t<sp/>max_edge_type,</highlight></codeline>
+<codeline lineno="262"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><ref refid="structcugraph__error__" kindref="compound">cugraph_error_t</ref>**<sp/>error);</highlight></codeline>
+<codeline lineno="263"><highlight class="normal"></highlight></codeline>
+<codeline lineno="264"><highlight class="normal"></highlight><highlight class="preprocessor">#ifdef<sp/>__cplusplus</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="265"><highlight class="normal">}</highlight></codeline>
+<codeline lineno="266"><highlight class="normal"></highlight><highlight class="preprocessor">#endif</highlight></codeline>
+    </programlisting>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph_c/graph_generators.h"/>
+  </compounddef>
+</doxygen>

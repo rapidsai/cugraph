@@ -1,0 +1,57 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="structcugraph_1_1detail_1_1shift__left__t" kind="struct" language="C++" prot="public">
+    <compoundname>cugraph::detail::shift_left_t</compoundname>
+    <templateparamlist>
+      <param>
+        <type>typename T</type>
+      </param>
+    </templateparamlist>
+    <sectiondef kind="public-attrib">
+      <memberdef kind="variable" id="structcugraph_1_1detail_1_1shift__left__t_1afea7f1a7e6a1c589bf9604695851eae5" prot="public" static="no" mutable="no">
+        <type>T</type>
+        <definition>T cugraph::detail::shift_left_t&lt; T &gt;::offset</definition>
+        <argsstring></argsstring>
+        <name>offset</name>
+        <qualifiedname>cugraph::detail::shift_left_t::offset</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/utilities/device_functors.cuh" line="150" column="5" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/utilities/device_functors.cuh" bodystart="150" bodyend="150"/>
+      </memberdef>
+    </sectiondef>
+    <sectiondef kind="public-func">
+      <memberdef kind="function" id="structcugraph_1_1detail_1_1shift__left__t_1aa4fb2dbe9029050076ba6ab8c8452250" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>__device__ T</type>
+        <definition>__device__ T cugraph::detail::shift_left_t&lt; T &gt;::operator()</definition>
+        <argsstring>(T input) const</argsstring>
+        <name>operator()</name>
+        <qualifiedname>cugraph::detail::shift_left_t::operator()</qualifiedname>
+        <param>
+          <type>T</type>
+          <declname>input</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/utilities/device_functors.cuh" line="152" column="16" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/utilities/device_functors.cuh" bodystart="152" bodyend="152"/>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/utilities/device_functors.cuh" line="149" column="1" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/utilities/device_functors.cuh" bodystart="149" bodyend="153"/>
+    <listofallmembers>
+      <member refid="structcugraph_1_1detail_1_1shift__left__t_1afea7f1a7e6a1c589bf9604695851eae5" prot="public" virt="non-virtual"><scope>cugraph::detail::shift_left_t</scope><name>offset</name></member>
+      <member refid="structcugraph_1_1detail_1_1shift__left__t_1aa4fb2dbe9029050076ba6ab8c8452250" prot="public" virt="non-virtual"><scope>cugraph::detail::shift_left_t</scope><name>operator()</name></member>
+    </listofallmembers>
+  </compounddef>
+</doxygen>

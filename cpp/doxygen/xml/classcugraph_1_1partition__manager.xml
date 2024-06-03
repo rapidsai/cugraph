@@ -1,0 +1,205 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="classcugraph_1_1partition__manager" kind="class" language="C++" prot="public">
+    <compoundname>cugraph::partition_manager</compoundname>
+    <includes refid="partition__manager_8hpp" local="no">partition_manager.hpp</includes>
+    <sectiondef kind="public-static-attrib">
+      <memberdef kind="variable" id="classcugraph_1_1partition__manager_1a03d459eabdc1604fc933248446e2ac27" prot="public" static="yes" constexpr="yes" mutable="no">
+        <type>constexpr bool</type>
+        <definition>constexpr bool cugraph::partition_manager::map_major_comm_to_gpu_row_comm</definition>
+        <argsstring></argsstring>
+        <name>map_major_comm_to_gpu_row_comm</name>
+        <qualifiedname>cugraph::partition_manager::map_major_comm_to_gpu_row_comm</qualifiedname>
+        <initializer>= true</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/partition_manager.hpp" line="45" column="25" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/partition_manager.hpp" bodystart="45" bodyend="-1"/>
+      </memberdef>
+    </sectiondef>
+    <sectiondef kind="public-static-func">
+      <memberdef kind="function" id="classcugraph_1_1partition__manager_1ada9cca114fb5625f3ce7fe3184947fda" prot="public" static="yes" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type>int</type>
+        <definition>static int cugraph::partition_manager::compute_global_comm_rank_from_vertex_partition_id</definition>
+        <argsstring>(int major_comm_size, int minor_comm_size, int vertex_partition_id)</argsstring>
+        <name>compute_global_comm_rank_from_vertex_partition_id</name>
+        <qualifiedname>cugraph::partition_manager::compute_global_comm_rank_from_vertex_partition_id</qualifiedname>
+        <param>
+          <type>int</type>
+          <declname>major_comm_size</declname>
+        </param>
+        <param>
+          <type>int</type>
+          <declname>minor_comm_size</declname>
+        </param>
+        <param>
+          <type>int</type>
+          <declname>vertex_partition_id</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/partition_manager.hpp" line="51" column="5" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/partition_manager.hpp" bodystart="51" bodyend="59"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1partition__manager_1a7211c5f3b353e27fddf426d5b765085f" prot="public" static="yes" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type>int</type>
+        <definition>static int cugraph::partition_manager::compute_global_comm_rank_from_graph_subcomm_ranks</definition>
+        <argsstring>(int major_comm_size, int minor_comm_size, int major_comm_rank, int minor_comm_rank)</argsstring>
+        <name>compute_global_comm_rank_from_graph_subcomm_ranks</name>
+        <qualifiedname>cugraph::partition_manager::compute_global_comm_rank_from_graph_subcomm_ranks</qualifiedname>
+        <param>
+          <type>int</type>
+          <declname>major_comm_size</declname>
+        </param>
+        <param>
+          <type>int</type>
+          <declname>minor_comm_size</declname>
+        </param>
+        <param>
+          <type>int</type>
+          <declname>major_comm_rank</declname>
+        </param>
+        <param>
+          <type>int</type>
+          <declname>minor_comm_rank</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/partition_manager.hpp" line="65" column="5" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/partition_manager.hpp" bodystart="65" bodyend="72"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1partition__manager_1ada4e6e1baee2e7f20028bc40e558a64a" prot="public" static="yes" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type>int</type>
+        <definition>static int cugraph::partition_manager::compute_vertex_partition_id_from_graph_subcomm_ranks</definition>
+        <argsstring>(int major_comm_size, int minor_comm_size, int major_comm_rank, int minor_comm_rank)</argsstring>
+        <name>compute_vertex_partition_id_from_graph_subcomm_ranks</name>
+        <qualifiedname>cugraph::partition_manager::compute_vertex_partition_id_from_graph_subcomm_ranks</qualifiedname>
+        <param>
+          <type>int</type>
+          <declname>major_comm_size</declname>
+        </param>
+        <param>
+          <type>int</type>
+          <declname>minor_comm_size</declname>
+        </param>
+        <param>
+          <type>int</type>
+          <declname>major_comm_rank</declname>
+        </param>
+        <param>
+          <type>int</type>
+          <declname>minor_comm_rank</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/partition_manager.hpp" line="78" column="5" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/partition_manager.hpp" bodystart="78" bodyend="87"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1partition__manager_1a98c21586bee096c62ef86a2d52b5f991" prot="public" static="yes" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type>std::string</type>
+        <definition>static std::string cugraph::partition_manager::major_comm_name</definition>
+        <argsstring>()</argsstring>
+        <name>major_comm_name</name>
+        <qualifiedname>cugraph::partition_manager::major_comm_name</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/partition_manager.hpp" line="89" column="22" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/partition_manager.hpp" bodystart="89" bodyend="92"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1partition__manager_1a6fadcc231cb5f92a8702a796827c8db0" prot="public" static="yes" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type>std::string</type>
+        <definition>static std::string cugraph::partition_manager::minor_comm_name</definition>
+        <argsstring>()</argsstring>
+        <name>minor_comm_name</name>
+        <qualifiedname>cugraph::partition_manager::minor_comm_name</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/partition_manager.hpp" line="94" column="22" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/partition_manager.hpp" bodystart="94" bodyend="97"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1partition__manager_1ab2185f99ff989291bad6e96af99d3e4d" prot="public" static="yes" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <templateparamlist>
+          <param>
+            <type>typename vertex_t</type>
+          </param>
+        </templateparamlist>
+        <type>std::vector&lt; vertex_t &gt;</type>
+        <definition>static std::vector&lt; vertex_t &gt; cugraph::partition_manager::compute_partition_range_lasts</definition>
+        <argsstring>(raft::handle_t const &amp;handle, vertex_t local_partition_size)</argsstring>
+        <name>compute_partition_range_lasts</name>
+        <qualifiedname>cugraph::partition_manager::compute_partition_range_lasts</qualifiedname>
+        <param>
+          <type>raft::handle_t const &amp;</type>
+          <declname>handle</declname>
+        </param>
+        <param>
+          <type>vertex_t</type>
+          <declname>local_partition_size</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/partition_manager.hpp" line="100" column="22" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/partition_manager.hpp" bodystart="100" bodyend="130"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1partition__manager_1ad230ad57792cb769815756b0729ca2c4" prot="public" static="yes" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type>void</type>
+        <definition>static void cugraph::partition_manager::init_subcomm</definition>
+        <argsstring>(raft::handle_t &amp;handle, int gpu_row_comm_size)</argsstring>
+        <name>init_subcomm</name>
+        <qualifiedname>cugraph::partition_manager::init_subcomm</qualifiedname>
+        <param>
+          <type>raft::handle_t &amp;</type>
+          <declname>handle</declname>
+        </param>
+        <param>
+          <type>int</type>
+          <declname>gpu_row_comm_size</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/partition_manager.hpp" line="132" column="15" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/partition_manager.hpp" bodystart="132" bodyend="144"/>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+<para>managed the mapping between graph partitioning and GPU partitioning </para>
+    </detaileddescription>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/partition_manager.hpp" line="32" column="1" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/partition_manager.hpp" bodystart="32" bodyend="145"/>
+    <listofallmembers>
+      <member refid="classcugraph_1_1partition__manager_1a7211c5f3b353e27fddf426d5b765085f" prot="public" virt="non-virtual"><scope>cugraph::partition_manager</scope><name>compute_global_comm_rank_from_graph_subcomm_ranks</name></member>
+      <member refid="classcugraph_1_1partition__manager_1ada9cca114fb5625f3ce7fe3184947fda" prot="public" virt="non-virtual"><scope>cugraph::partition_manager</scope><name>compute_global_comm_rank_from_vertex_partition_id</name></member>
+      <member refid="classcugraph_1_1partition__manager_1ab2185f99ff989291bad6e96af99d3e4d" prot="public" virt="non-virtual"><scope>cugraph::partition_manager</scope><name>compute_partition_range_lasts</name></member>
+      <member refid="classcugraph_1_1partition__manager_1ada4e6e1baee2e7f20028bc40e558a64a" prot="public" virt="non-virtual"><scope>cugraph::partition_manager</scope><name>compute_vertex_partition_id_from_graph_subcomm_ranks</name></member>
+      <member refid="classcugraph_1_1partition__manager_1ad230ad57792cb769815756b0729ca2c4" prot="public" virt="non-virtual"><scope>cugraph::partition_manager</scope><name>init_subcomm</name></member>
+      <member refid="classcugraph_1_1partition__manager_1a98c21586bee096c62ef86a2d52b5f991" prot="public" virt="non-virtual"><scope>cugraph::partition_manager</scope><name>major_comm_name</name></member>
+      <member refid="classcugraph_1_1partition__manager_1a03d459eabdc1604fc933248446e2ac27" prot="public" virt="non-virtual"><scope>cugraph::partition_manager</scope><name>map_major_comm_to_gpu_row_comm</name></member>
+      <member refid="classcugraph_1_1partition__manager_1a6fadcc231cb5f92a8702a796827c8db0" prot="public" virt="non-virtual"><scope>cugraph::partition_manager</scope><name>minor_comm_name</name></member>
+    </listofallmembers>
+  </compounddef>
+</doxygen>

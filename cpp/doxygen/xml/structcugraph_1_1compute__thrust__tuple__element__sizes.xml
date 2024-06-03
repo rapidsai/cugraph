@@ -1,0 +1,35 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="structcugraph_1_1compute__thrust__tuple__element__sizes" kind="struct" language="C++" prot="public">
+    <compoundname>cugraph::compute_thrust_tuple_element_sizes</compoundname>
+    <templateparamlist>
+      <param>
+        <type>typename TupleType</type>
+      </param>
+    </templateparamlist>
+    <sectiondef kind="public-func">
+      <memberdef kind="function" id="structcugraph_1_1compute__thrust__tuple__element__sizes_1a7f876133950e4fcc1d22cc83b551ac96" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>auto</type>
+        <definition>auto cugraph::compute_thrust_tuple_element_sizes&lt; TupleType &gt;::operator()</definition>
+        <argsstring>() const</argsstring>
+        <name>operator()</name>
+        <qualifiedname>cugraph::compute_thrust_tuple_element_sizes::operator()</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/utilities/thrust_tuple_utils.hpp" line="154" column="8" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/utilities/thrust_tuple_utils.hpp" bodystart="154" bodyend="161"/>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/utilities/thrust_tuple_utils.hpp" line="153" column="1" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/utilities/thrust_tuple_utils.hpp" bodystart="153" bodyend="162"/>
+    <listofallmembers>
+      <member refid="structcugraph_1_1compute__thrust__tuple__element__sizes_1a7f876133950e4fcc1d22cc83b551ac96" prot="public" virt="non-virtual"><scope>cugraph::compute_thrust_tuple_element_sizes</scope><name>operator()</name></member>
+    </listofallmembers>
+  </compounddef>
+</doxygen>

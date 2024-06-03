@@ -1,0 +1,520 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="namespacecugraph_1_1dense" kind="namespace" language="C++">
+    <compoundname>cugraph::dense</compoundname>
+    <sectiondef kind="func">
+      <memberdef kind="function" id="hungarian_8cu_1a5beac909e950720023a74def401e03e7" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <templateparamlist>
+          <param>
+            <type>typename index_t</type>
+          </param>
+          <param>
+            <type>typename weight_t</type>
+          </param>
+        </templateparamlist>
+        <type>weight_t</type>
+        <definition>weight_t cugraph::dense::hungarian</definition>
+        <argsstring>(raft::handle_t const &amp;handle, weight_t const *costs, index_t num_rows, index_t num_cols, index_t *assignment)</argsstring>
+        <name>hungarian</name>
+        <qualifiedname>cugraph::dense::hungarian</qualifiedname>
+        <param>
+          <type>raft::handle_t const &amp;</type>
+          <declname>handle</declname>
+        </param>
+        <param>
+          <type>weight_t const *</type>
+          <declname>costs</declname>
+        </param>
+        <param>
+          <type>index_t</type>
+          <declname>num_rows</declname>
+        </param>
+        <param>
+          <type>index_t</type>
+          <declname>num_cols</declname>
+        </param>
+        <param>
+          <type>index_t *</type>
+          <declname>assignment</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/linear_assignment/legacy/hungarian.cu" line="333" column="10" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/linear_assignment/legacy/hungarian.cu" bodystart="333" bodyend="341"/>
+      </memberdef>
+      <memberdef kind="function" id="hungarian_8cu_1ac400372fa1c295c89a4558f1877f188f" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <templateparamlist>
+          <param>
+            <type>typename index_t</type>
+          </param>
+          <param>
+            <type>typename weight_t</type>
+          </param>
+        </templateparamlist>
+        <type>weight_t</type>
+        <definition>weight_t cugraph::dense::hungarian</definition>
+        <argsstring>(raft::handle_t const &amp;handle, weight_t const *costs, index_t num_rows, index_t num_cols, index_t *assignment, weight_t epsilon)</argsstring>
+        <name>hungarian</name>
+        <qualifiedname>cugraph::dense::hungarian</qualifiedname>
+        <param>
+          <type>raft::handle_t const &amp;</type>
+          <declname>handle</declname>
+        </param>
+        <param>
+          <type>weight_t const *</type>
+          <declname>costs</declname>
+        </param>
+        <param>
+          <type>index_t</type>
+          <declname>num_rows</declname>
+        </param>
+        <param>
+          <type>index_t</type>
+          <declname>num_cols</declname>
+        </param>
+        <param>
+          <type>index_t *</type>
+          <declname>assignment</declname>
+        </param>
+        <param>
+          <type>weight_t</type>
+          <declname>epsilon</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/linear_assignment/legacy/hungarian.cu" line="344" column="10" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/linear_assignment/legacy/hungarian.cu" bodystart="344" bodyend="352"/>
+      </memberdef>
+      <memberdef kind="function" id="hungarian_8cu_1a6efe125cb4990e169498e9b3af8ffcee" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>template int32_t</type>
+        <definition>template int32_t cugraph::dense::hungarian&lt; int32_t, int32_t &gt;</definition>
+        <argsstring>(raft::handle_t const &amp;, int32_t const *, int32_t, int32_t, int32_t *)</argsstring>
+        <name>hungarian&lt; int32_t, int32_t &gt;</name>
+        <qualifiedname>cugraph::dense::hungarian&lt; int32_t, int32_t &gt;</qualifiedname>
+        <param>
+          <type>raft::handle_t const &amp;</type>
+        </param>
+        <param>
+          <type>int32_t const *</type>
+        </param>
+        <param>
+          <type>int32_t</type>
+        </param>
+        <param>
+          <type>int32_t</type>
+        </param>
+        <param>
+          <type>int32_t *</type>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/linear_assignment/legacy/hungarian.cu" line="354" column="10" declfile="/home/nfs/abarghi/cugraph6/cpp/src/linear_assignment/legacy/hungarian.cu" declline="354" declcolumn="10"/>
+      </memberdef>
+      <memberdef kind="function" id="hungarian_8cu_1aba38291f22cf1bcd610d3f813d0b39fb" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>template float</type>
+        <definition>template float cugraph::dense::hungarian&lt; int32_t, float &gt;</definition>
+        <argsstring>(raft::handle_t const &amp;, float const *, int32_t, int32_t, int32_t *)</argsstring>
+        <name>hungarian&lt; int32_t, float &gt;</name>
+        <qualifiedname>cugraph::dense::hungarian&lt; int32_t, float &gt;</qualifiedname>
+        <param>
+          <type>raft::handle_t const &amp;</type>
+        </param>
+        <param>
+          <type>float const *</type>
+        </param>
+        <param>
+          <type>int32_t</type>
+        </param>
+        <param>
+          <type>int32_t</type>
+        </param>
+        <param>
+          <type>int32_t *</type>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/linear_assignment/legacy/hungarian.cu" line="356" column="10" declfile="/home/nfs/abarghi/cugraph6/cpp/src/linear_assignment/legacy/hungarian.cu" declline="356" declcolumn="10"/>
+      </memberdef>
+      <memberdef kind="function" id="hungarian_8cu_1afe446e23b005faceef61c7eba4f929be" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>template double</type>
+        <definition>template double cugraph::dense::hungarian&lt; int32_t, double &gt;</definition>
+        <argsstring>(raft::handle_t const &amp;, double const *, int32_t, int32_t, int32_t *)</argsstring>
+        <name>hungarian&lt; int32_t, double &gt;</name>
+        <qualifiedname>cugraph::dense::hungarian&lt; int32_t, double &gt;</qualifiedname>
+        <param>
+          <type>raft::handle_t const &amp;</type>
+        </param>
+        <param>
+          <type>double const *</type>
+        </param>
+        <param>
+          <type>int32_t</type>
+        </param>
+        <param>
+          <type>int32_t</type>
+        </param>
+        <param>
+          <type>int32_t *</type>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/linear_assignment/legacy/hungarian.cu" line="358" column="10" declfile="/home/nfs/abarghi/cugraph6/cpp/src/linear_assignment/legacy/hungarian.cu" declline="358" declcolumn="10"/>
+      </memberdef>
+      <memberdef kind="function" id="hungarian_8cu_1ad1d32cd124bd6dbc29031e3e1af2bdf7" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>template int32_t</type>
+        <definition>template int32_t cugraph::dense::hungarian&lt; int32_t, int32_t &gt;</definition>
+        <argsstring>(raft::handle_t const &amp;, int32_t const *, int32_t, int32_t, int32_t *, int32_t)</argsstring>
+        <name>hungarian&lt; int32_t, int32_t &gt;</name>
+        <qualifiedname>cugraph::dense::hungarian&lt; int32_t, int32_t &gt;</qualifiedname>
+        <param>
+          <type>raft::handle_t const &amp;</type>
+        </param>
+        <param>
+          <type>int32_t const *</type>
+        </param>
+        <param>
+          <type>int32_t</type>
+        </param>
+        <param>
+          <type>int32_t</type>
+        </param>
+        <param>
+          <type>int32_t *</type>
+        </param>
+        <param>
+          <type>int32_t</type>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/linear_assignment/legacy/hungarian.cu" line="360" column="10" declfile="/home/nfs/abarghi/cugraph6/cpp/src/linear_assignment/legacy/hungarian.cu" declline="360" declcolumn="10"/>
+      </memberdef>
+      <memberdef kind="function" id="hungarian_8cu_1ab99b2c162f81a827e11786a6e0976ecd" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>template float</type>
+        <definition>template float cugraph::dense::hungarian&lt; int32_t, float &gt;</definition>
+        <argsstring>(raft::handle_t const &amp;, float const *, int32_t, int32_t, int32_t *, float)</argsstring>
+        <name>hungarian&lt; int32_t, float &gt;</name>
+        <qualifiedname>cugraph::dense::hungarian&lt; int32_t, float &gt;</qualifiedname>
+        <param>
+          <type>raft::handle_t const &amp;</type>
+        </param>
+        <param>
+          <type>float const *</type>
+        </param>
+        <param>
+          <type>int32_t</type>
+        </param>
+        <param>
+          <type>int32_t</type>
+        </param>
+        <param>
+          <type>int32_t *</type>
+        </param>
+        <param>
+          <type>float</type>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/linear_assignment/legacy/hungarian.cu" line="362" column="10" declfile="/home/nfs/abarghi/cugraph6/cpp/src/linear_assignment/legacy/hungarian.cu" declline="362" declcolumn="10"/>
+      </memberdef>
+      <memberdef kind="function" id="hungarian_8cu_1a8408f1213f320440d381e4528cdae0fa" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>template double</type>
+        <definition>template double cugraph::dense::hungarian&lt; int32_t, double &gt;</definition>
+        <argsstring>(raft::handle_t const &amp;, double const *, int32_t, int32_t, int32_t *, double)</argsstring>
+        <name>hungarian&lt; int32_t, double &gt;</name>
+        <qualifiedname>cugraph::dense::hungarian&lt; int32_t, double &gt;</qualifiedname>
+        <param>
+          <type>raft::handle_t const &amp;</type>
+        </param>
+        <param>
+          <type>double const *</type>
+        </param>
+        <param>
+          <type>int32_t</type>
+        </param>
+        <param>
+          <type>int32_t</type>
+        </param>
+        <param>
+          <type>int32_t *</type>
+        </param>
+        <param>
+          <type>double</type>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/linear_assignment/legacy/hungarian.cu" line="364" column="10" declfile="/home/nfs/abarghi/cugraph6/cpp/src/linear_assignment/legacy/hungarian.cu" declline="364" declcolumn="10"/>
+      </memberdef>
+      <memberdef kind="function" id="algorithms_8hpp_1a540cc6842d34a6d34e9eebc26ed452ac" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <templateparamlist>
+          <param>
+            <type>typename vertex_t</type>
+          </param>
+          <param>
+            <type>typename weight_t</type>
+          </param>
+        </templateparamlist>
+        <type>weight_t</type>
+        <definition>weight_t cugraph::dense::hungarian</definition>
+        <argsstring>(raft::handle_t const &amp;handle, weight_t const *costs, vertex_t num_rows, vertex_t num_columns, vertex_t *assignments)</argsstring>
+        <name>hungarian</name>
+        <qualifiedname>cugraph::dense::hungarian</qualifiedname>
+        <param>
+          <type>raft::handle_t const &amp;</type>
+          <declname>handle</declname>
+        </param>
+        <param>
+          <type>weight_t const *</type>
+          <declname>costs</declname>
+        </param>
+        <param>
+          <type>vertex_t</type>
+          <declname>num_rows</declname>
+        </param>
+        <param>
+          <type>vertex_t</type>
+          <declname>num_columns</declname>
+        </param>
+        <param>
+          <type>vertex_t *</type>
+          <declname>assignments</declname>
+        </param>
+        <briefdescription>
+<para>Compute Hungarian algorithm on a weighted bipartite graph. </para>
+        </briefdescription>
+        <detaileddescription>
+<para>The Hungarian algorithm computes an assigment of &quot;jobs&quot; to &quot;workers&quot;. This function accepts a weighted graph and a vertex list identifying the &quot;workers&quot;. The weights in the weighted graph identify the cost of assigning a particular job to a worker. The algorithm computes a minimum cost assignment and returns the cost as well as a vector identifying the assignment.</para>
+<para><parameterlist kind="exception"><parameteritem>
+<parameternamelist>
+<parametername><ref refid="structcugraph_1_1logic__error" kindref="compound">cugraph::logic_error</ref></parametername>
+</parameternamelist>
+<parameterdescription>
+<para>when an error occurs.</para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<parameterlist kind="templateparam"><parameteritem>
+<parameternamelist>
+<parametername>vertex_t</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Type of vertex identifiers. Supported value : int (signed, 32-bit) </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>weight_t</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Type of edge weights. Supported values : float or double.</para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">handle</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Library handle (RAFT). If a communicator is set in the handle, </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">costs</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>pointer to array of costs, stored in row major order </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">num_rows</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>number of rows in dense matrix </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">num_cols</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>number of cols in dense matrix </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="out">assignments</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>device pointer to an array to which the assignment will be written. The array should be num_cols long, and will identify which vertex id (job) is assigned to that worker </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/algorithms.hpp" line="1019" column="10" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/algorithms.hpp" declline="1019" declcolumn="10"/>
+      </memberdef>
+      <memberdef kind="function" id="algorithms_8hpp_1ab75299b27bd76679a3895a4f2a8fc786" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <templateparamlist>
+          <param>
+            <type>typename vertex_t</type>
+          </param>
+          <param>
+            <type>typename weight_t</type>
+          </param>
+        </templateparamlist>
+        <type>weight_t</type>
+        <definition>weight_t cugraph::dense::hungarian</definition>
+        <argsstring>(raft::handle_t const &amp;handle, weight_t const *costs, vertex_t num_rows, vertex_t num_columns, vertex_t *assignments, weight_t epsilon)</argsstring>
+        <name>hungarian</name>
+        <qualifiedname>cugraph::dense::hungarian</qualifiedname>
+        <param>
+          <type>raft::handle_t const &amp;</type>
+          <declname>handle</declname>
+        </param>
+        <param>
+          <type>weight_t const *</type>
+          <declname>costs</declname>
+        </param>
+        <param>
+          <type>vertex_t</type>
+          <declname>num_rows</declname>
+        </param>
+        <param>
+          <type>vertex_t</type>
+          <declname>num_columns</declname>
+        </param>
+        <param>
+          <type>vertex_t *</type>
+          <declname>assignments</declname>
+        </param>
+        <param>
+          <type>weight_t</type>
+          <declname>epsilon</declname>
+        </param>
+        <briefdescription>
+<para>Compute Hungarian algorithm on a weighted bipartite graph. </para>
+        </briefdescription>
+        <detaileddescription>
+<para>The Hungarian algorithm computes an assigment of &quot;jobs&quot; to &quot;workers&quot;. This function accepts a weighted graph and a vertex list identifying the &quot;workers&quot;. The weights in the weighted graph identify the cost of assigning a particular job to a worker. The algorithm computes a minimum cost assignment and returns the cost as well as a vector identifying the assignment.</para>
+<para><parameterlist kind="exception"><parameteritem>
+<parameternamelist>
+<parametername><ref refid="structcugraph_1_1logic__error" kindref="compound">cugraph::logic_error</ref></parametername>
+</parameternamelist>
+<parameterdescription>
+<para>when an error occurs.</para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<parameterlist kind="templateparam"><parameteritem>
+<parameternamelist>
+<parametername>vertex_t</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Type of vertex identifiers. Supported value : int (signed, 32-bit) </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>weight_t</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Type of edge weights. Supported values : float or double.</para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername direction="in">handle</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Library handle (RAFT). If a communicator is set in the handle, </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">costs</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>pointer to array of costs, stored in row major order </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">num_rows</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>number of rows in dense matrix </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">num_cols</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>number of cols in dense matrix </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="out">assignments</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>device pointer to an array to which the assignment will be written. The array should be num_cols long, and will identify which vertex id (job) is assigned to that worker </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername direction="in">epsilon</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>parameter to define precision of comparisons in reducing weights to zero. </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/algorithms.hpp" line="1050" column="10" declfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/algorithms.hpp" declline="1050" declcolumn="10"/>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/src/linear_assignment/legacy/hungarian.cu" line="330" column="1"/>
+  </compounddef>
+</doxygen>

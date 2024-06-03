@@ -1,0 +1,589 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="classcugraph_1_1detail_1_1kv__cuco__store__t" kind="class" language="C++" prot="public">
+    <compoundname>cugraph::detail::kv_cuco_store_t</compoundname>
+    <templateparamlist>
+      <param>
+        <type>typename key_t</type>
+      </param>
+      <param>
+        <type>typename value_t</type>
+      </param>
+    </templateparamlist>
+    <sectiondef kind="public-type">
+      <memberdef kind="typedef" id="classcugraph_1_1detail_1_1kv__cuco__store__t_1ac6c55c2e93557d030eef13ec8f083486" prot="public" static="no">
+        <type>key_t</type>
+        <definition>using cugraph::detail::kv_cuco_store_t&lt; key_t, value_t &gt;::key_type =  key_t</definition>
+        <argsstring></argsstring>
+        <name>key_type</name>
+        <qualifiedname>cugraph::detail::kv_cuco_store_t::key_type</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/kv_store.cuh" line="497" column="3" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/kv_store.cuh" bodystart="497" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="typedef" id="classcugraph_1_1detail_1_1kv__cuco__store__t_1a967e0063c9f8a2d2ef4225f8c87ca1ed" prot="public" static="no">
+        <type>value_t</type>
+        <definition>using cugraph::detail::kv_cuco_store_t&lt; key_t, value_t &gt;::value_type =  value_t</definition>
+        <argsstring></argsstring>
+        <name>value_type</name>
+        <qualifiedname>cugraph::detail::kv_cuco_store_t::value_type</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/kv_store.cuh" line="498" column="3" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/kv_store.cuh" bodystart="498" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="typedef" id="classcugraph_1_1detail_1_1kv__cuco__store__t_1a95353e87c96a90b5376d34f8d8a261fe" prot="public" static="no">
+        <type>decltype(allocate_dataframe_buffer&lt; value_t &gt;(0, rmm::cuda_stream_view{}))</type>
+        <definition>using cugraph::detail::kv_cuco_store_t&lt; key_t, value_t &gt;::value_buffer_type = 
+    decltype(allocate_dataframe_buffer&lt;value_t&gt;(0, rmm::cuda_stream_view{}))</definition>
+        <argsstring></argsstring>
+        <name>value_buffer_type</name>
+        <qualifiedname>cugraph::detail::kv_cuco_store_t::value_buffer_type</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/kv_store.cuh" line="499" column="3" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/kv_store.cuh" bodystart="499" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="typedef" id="classcugraph_1_1detail_1_1kv__cuco__store__t_1ad2a28c4ca134a5690ad2e90a95c40084" prot="public" static="no">
+        <type>std::invoke_result_t&lt; decltype(get_dataframe_buffer_cbegin&lt; value_buffer_type &gt;), value_buffer_type &amp; &gt;</type>
+        <definition>using cugraph::detail::kv_cuco_store_t&lt; key_t, value_t &gt;::const_value_iterator = 
+    std::invoke_result_t&lt;decltype(get_dataframe_buffer_cbegin&lt;value_buffer_type&gt;),
+                         value_buffer_type&amp;&gt;</definition>
+        <argsstring></argsstring>
+        <name>const_value_iterator</name>
+        <qualifiedname>cugraph::detail::kv_cuco_store_t::const_value_iterator</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/kv_store.cuh" line="501" column="3" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/kv_store.cuh" bodystart="501" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="typedef" id="classcugraph_1_1detail_1_1kv__cuco__store__t_1a3b5247c04660a3087812ffc9d076ad86" prot="public" static="no">
+        <type>cuco::static_map&lt; key_t, std::conditional_t&lt; std::is_arithmetic_v&lt; value_t &gt;, value_t, size_t &gt;, cuco::extent&lt; std::size_t &gt;, cuda::thread_scope_device, thrust::equal_to&lt; key_t &gt;, cuco::linear_probing&lt; 1, cuco::murmurhash3_32&lt; key_t &gt; &gt;, rmm::mr::stream_allocator_adaptor&lt; rmm::mr::polymorphic_allocator&lt; std::byte &gt; &gt;, cuco_storage_type &gt;</type>
+        <definition>using cugraph::detail::kv_cuco_store_t&lt; key_t, value_t &gt;::cuco_map_type = 
+    cuco::static_map&lt;key_t,
+                     std::conditional_t&lt;std::is_arithmetic_v&lt;value_t&gt;, value_t, size_t&gt;,
+                     cuco::extent&lt;std::size_t&gt;,
+                     cuda::thread_scope_device,
+                     thrust::equal_to&lt;key_t&gt;,
+                     cuco::linear_probing&lt;1,  
+                                          cuco::murmurhash3_32&lt;key_t&gt;&gt;,
+                     rmm::mr::stream_allocator_adaptor&lt;rmm::mr::polymorphic_allocator&lt;std::byte&gt;&gt;,
+                     cuco_storage_type&gt;</definition>
+        <argsstring></argsstring>
+        <name>cuco_map_type</name>
+        <qualifiedname>cugraph::detail::kv_cuco_store_t::cuco_map_type</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/kv_store.cuh" line="505" column="3" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/kv_store.cuh" bodystart="505" bodyend="-1"/>
+      </memberdef>
+    </sectiondef>
+    <sectiondef kind="private-attrib">
+      <memberdef kind="variable" id="classcugraph_1_1detail_1_1kv__cuco__store__t_1a49252c8cc5421016f245529c09056664" prot="private" static="no" mutable="no">
+        <type>std::unique_ptr&lt; cuco_map_type &gt;</type>
+        <definition>std::unique_ptr&lt;cuco_map_type&gt; cugraph::detail::kv_cuco_store_t&lt; key_t, value_t &gt;::cuco_store_</definition>
+        <argsstring></argsstring>
+        <name>cuco_store_</name>
+        <qualifiedname>cugraph::detail::kv_cuco_store_t::cuco_store_</qualifiedname>
+        <initializer>{nullptr}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/kv_store.cuh" line="853" column="19" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/kv_store.cuh" bodystart="853" bodyend="853"/>
+      </memberdef>
+      <memberdef kind="variable" id="classcugraph_1_1detail_1_1kv__cuco__store__t_1a2a58edf8ecb34a19fb71b9c44a453478" prot="private" static="no" mutable="no">
+        <type>decltype(allocate_optional_dataframe_buffer&lt; std::conditional_t&lt;!std::is_arithmetic_v&lt; value_t &gt;, value_t, void &gt; &gt;(0, rmm::cuda_stream_view{}))</type>
+        <definition>decltype(allocate_optional_dataframe_buffer&lt; std::conditional_t&lt;!std::is_arithmetic_v&lt;value_t&gt;, value_t, void&gt;&gt;( 0, rmm::cuda_stream_view{})) cugraph::detail::kv_cuco_store_t&lt; key_t, value_t &gt;::store_values_</definition>
+        <argsstring></argsstring>
+        <name>store_values_</name>
+        <qualifiedname>cugraph::detail::kv_cuco_store_t::store_values_</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/kv_store.cuh" line="856" column="2" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/kv_store.cuh" bodystart="856" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="variable" id="classcugraph_1_1detail_1_1kv__cuco__store__t_1a32699ff288d8736183fc5538e6ebd5ac" prot="private" static="no" mutable="no">
+        <type>std::conditional_t&lt;!std::is_arithmetic_v&lt; value_t &gt;, value_t, std::byte &gt;</type>
+        <definition>std::conditional_t&lt;!std::is_arithmetic_v&lt;value_t&gt;, value_t, std::byte &gt; cugraph::detail::kv_cuco_store_t&lt; key_t, value_t &gt;::invalid_value_</definition>
+        <argsstring></argsstring>
+        <name>invalid_value_</name>
+        <qualifiedname>cugraph::detail::kv_cuco_store_t::invalid_value_</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/kv_store.cuh" line="859" column="5" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/kv_store.cuh" bodystart="859" bodyend="859"/>
+      </memberdef>
+      <memberdef kind="variable" id="classcugraph_1_1detail_1_1kv__cuco__store__t_1a22f427c669bc67e31d40bede27e75025" prot="private" static="no" mutable="no">
+        <type>size_t</type>
+        <definition>size_t cugraph::detail::kv_cuco_store_t&lt; key_t, value_t &gt;::capacity_</definition>
+        <argsstring></argsstring>
+        <name>capacity_</name>
+        <qualifiedname>cugraph::detail::kv_cuco_store_t::capacity_</qualifiedname>
+        <initializer>{0}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/kv_store.cuh" line="860" column="10" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/kv_store.cuh" bodystart="860" bodyend="860"/>
+      </memberdef>
+      <memberdef kind="variable" id="classcugraph_1_1detail_1_1kv__cuco__store__t_1a46988a7ab9363319bdee8deacf35e777" prot="private" static="no" mutable="no">
+        <type>size_t</type>
+        <definition>size_t cugraph::detail::kv_cuco_store_t&lt; key_t, value_t &gt;::size_</definition>
+        <argsstring></argsstring>
+        <name>size_</name>
+        <qualifiedname>cugraph::detail::kv_cuco_store_t::size_</qualifiedname>
+        <initializer>{
+    0}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/kv_store.cuh" line="861" column="10" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/kv_store.cuh" bodystart="861" bodyend="862"/>
+      </memberdef>
+    </sectiondef>
+    <sectiondef kind="public-func">
+      <memberdef kind="function" id="classcugraph_1_1detail_1_1kv__cuco__store__t_1a378f15af0a59688ee5882de231422f25" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type></type>
+        <definition>cugraph::detail::kv_cuco_store_t&lt; key_t, value_t &gt;::kv_cuco_store_t</definition>
+        <argsstring>(rmm::cuda_stream_view stream)</argsstring>
+        <name>kv_cuco_store_t</name>
+        <qualifiedname>cugraph::detail::kv_cuco_store_t::kv_cuco_store_t</qualifiedname>
+        <param>
+          <type>rmm::cuda_stream_view</type>
+          <declname>stream</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/kv_store.cuh" line="516" column="3" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/kv_store.cuh" bodystart="516" bodyend="520"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1detail_1_1kv__cuco__store__t_1a2dcf8e934f8a1ea59529651f33326ba2" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type></type>
+        <definition>cugraph::detail::kv_cuco_store_t&lt; key_t, value_t &gt;::kv_cuco_store_t</definition>
+        <argsstring>(size_t capacity, key_t invalid_key, value_t invalid_value, rmm::cuda_stream_view stream)</argsstring>
+        <name>kv_cuco_store_t</name>
+        <qualifiedname>cugraph::detail::kv_cuco_store_t::kv_cuco_store_t</qualifiedname>
+        <param>
+          <type>size_t</type>
+          <declname>capacity</declname>
+        </param>
+        <param>
+          <type>key_t</type>
+          <declname>invalid_key</declname>
+        </param>
+        <param>
+          <type>value_t</type>
+          <declname>invalid_value</declname>
+        </param>
+        <param>
+          <type>rmm::cuda_stream_view</type>
+          <declname>stream</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/kv_store.cuh" line="522" column="3" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/kv_store.cuh" bodystart="522" bodyend="533"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1detail_1_1kv__cuco__store__t_1ac0cf05b77b1ed5d6662ccb7190ffe251" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <templateparamlist>
+          <param>
+            <type>typename KeyIterator</type>
+          </param>
+          <param>
+            <type>typename ValueIterator</type>
+          </param>
+        </templateparamlist>
+        <type></type>
+        <definition>cugraph::detail::kv_cuco_store_t&lt; key_t, value_t &gt;::kv_cuco_store_t</definition>
+        <argsstring>(KeyIterator key_first, KeyIterator key_last, ValueIterator value_first, key_t invalid_key, value_t invalid_value, rmm::cuda_stream_view stream)</argsstring>
+        <name>kv_cuco_store_t</name>
+        <qualifiedname>cugraph::detail::kv_cuco_store_t::kv_cuco_store_t</qualifiedname>
+        <param>
+          <type>KeyIterator</type>
+          <declname>key_first</declname>
+        </param>
+        <param>
+          <type>KeyIterator</type>
+          <declname>key_last</declname>
+        </param>
+        <param>
+          <type>ValueIterator</type>
+          <declname>value_first</declname>
+        </param>
+        <param>
+          <type>key_t</type>
+          <declname>invalid_key</declname>
+        </param>
+        <param>
+          <type>value_t</type>
+          <declname>invalid_value</declname>
+        </param>
+        <param>
+          <type>rmm::cuda_stream_view</type>
+          <declname>stream</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/kv_store.cuh" line="536" column="3" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/kv_store.cuh" bodystart="536" bodyend="556"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1detail_1_1kv__cuco__store__t_1af6c08bdd0ad97644ea1fc09c36ceeb0d" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <templateparamlist>
+          <param>
+            <type>typename KeyIterator</type>
+          </param>
+          <param>
+            <type>typename ValueIterator</type>
+          </param>
+        </templateparamlist>
+        <type>void</type>
+        <definition>void cugraph::detail::kv_cuco_store_t&lt; key_t, value_t &gt;::insert</definition>
+        <argsstring>(KeyIterator key_first, KeyIterator key_last, ValueIterator value_first, rmm::cuda_stream_view stream)</argsstring>
+        <name>insert</name>
+        <qualifiedname>cugraph::detail::kv_cuco_store_t::insert</qualifiedname>
+        <param>
+          <type>KeyIterator</type>
+          <declname>key_first</declname>
+        </param>
+        <param>
+          <type>KeyIterator</type>
+          <declname>key_last</declname>
+        </param>
+        <param>
+          <type>ValueIterator</type>
+          <declname>value_first</declname>
+        </param>
+        <param>
+          <type>rmm::cuda_stream_view</type>
+          <declname>stream</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/kv_store.cuh" line="559" column="8" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/kv_store.cuh" bodystart="559" bodyend="598"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1detail_1_1kv__cuco__store__t_1a78f3adf708e7148f922a5021d18b37ff" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <templateparamlist>
+          <param>
+            <type>typename KeyIterator</type>
+          </param>
+          <param>
+            <type>typename ValueIterator</type>
+          </param>
+          <param>
+            <type>typename StencilIterator</type>
+          </param>
+          <param>
+            <type>typename PredOp</type>
+          </param>
+        </templateparamlist>
+        <type>void</type>
+        <definition>void cugraph::detail::kv_cuco_store_t&lt; key_t, value_t &gt;::insert_if</definition>
+        <argsstring>(KeyIterator key_first, KeyIterator key_last, ValueIterator value_first, StencilIterator stencil_first, PredOp pred_op, rmm::cuda_stream_view stream)</argsstring>
+        <name>insert_if</name>
+        <qualifiedname>cugraph::detail::kv_cuco_store_t::insert_if</qualifiedname>
+        <param>
+          <type>KeyIterator</type>
+          <declname>key_first</declname>
+        </param>
+        <param>
+          <type>KeyIterator</type>
+          <declname>key_last</declname>
+        </param>
+        <param>
+          <type>ValueIterator</type>
+          <declname>value_first</declname>
+        </param>
+        <param>
+          <type>StencilIterator</type>
+          <declname>stencil_first</declname>
+        </param>
+        <param>
+          <type>PredOp</type>
+          <declname>pred_op</declname>
+        </param>
+        <param>
+          <type>rmm::cuda_stream_view</type>
+          <declname>stream</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/kv_store.cuh" line="601" column="8" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/kv_store.cuh" bodystart="601" bodyend="650"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1detail_1_1kv__cuco__store__t_1a26c12b6c91cd12ec54965289c2cc4e04" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <templateparamlist>
+          <param>
+            <type>typename KeyIterator</type>
+          </param>
+          <param>
+            <type>typename ValueIterator</type>
+          </param>
+        </templateparamlist>
+        <type>void</type>
+        <definition>void cugraph::detail::kv_cuco_store_t&lt; key_t, value_t &gt;::insert_and_assign</definition>
+        <argsstring>(KeyIterator key_first, KeyIterator key_last, ValueIterator value_first, rmm::cuda_stream_view stream)</argsstring>
+        <name>insert_and_assign</name>
+        <qualifiedname>cugraph::detail::kv_cuco_store_t::insert_and_assign</qualifiedname>
+        <param>
+          <type>KeyIterator</type>
+          <declname>key_first</declname>
+        </param>
+        <param>
+          <type>KeyIterator</type>
+          <declname>key_last</declname>
+        </param>
+        <param>
+          <type>ValueIterator</type>
+          <declname>value_first</declname>
+        </param>
+        <param>
+          <type>rmm::cuda_stream_view</type>
+          <declname>stream</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/kv_store.cuh" line="653" column="8" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/kv_store.cuh" bodystart="653" bodyend="751"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1detail_1_1kv__cuco__store__t_1aa840cba0b4cb5f1cb1f0559057ce56bc" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type>auto</type>
+        <definition>auto cugraph::detail::kv_cuco_store_t&lt; key_t, value_t &gt;::retrieve_all</definition>
+        <argsstring>(rmm::cuda_stream_view stream)</argsstring>
+        <name>retrieve_all</name>
+        <qualifiedname>cugraph::detail::kv_cuco_store_t::retrieve_all</qualifiedname>
+        <param>
+          <type>rmm::cuda_stream_view</type>
+          <declname>stream</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/kv_store.cuh" line="753" column="8" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/kv_store.cuh" bodystart="753" bodyend="777"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1detail_1_1kv__cuco__store__t_1af0ecbd96a0952c17e9c47f923e1c2dcb" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type>auto</type>
+        <definition>auto cugraph::detail::kv_cuco_store_t&lt; key_t, value_t &gt;::release</definition>
+        <argsstring>(rmm::cuda_stream_view stream)</argsstring>
+        <name>release</name>
+        <qualifiedname>cugraph::detail::kv_cuco_store_t::release</qualifiedname>
+        <param>
+          <type>rmm::cuda_stream_view</type>
+          <declname>stream</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/kv_store.cuh" line="779" column="8" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/kv_store.cuh" bodystart="779" bodyend="786"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1detail_1_1kv__cuco__store__t_1afc6d9176dc020e94cb1e18ab7584e4aa" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>cuco_map_type const *</type>
+        <definition>cuco_map_type const  * cugraph::detail::kv_cuco_store_t&lt; key_t, value_t &gt;::cuco_store_ptr</definition>
+        <argsstring>() const</argsstring>
+        <name>cuco_store_ptr</name>
+        <qualifiedname>cugraph::detail::kv_cuco_store_t::cuco_store_ptr</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/kv_store.cuh" line="788" column="23" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/kv_store.cuh" bodystart="788" bodyend="788"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1detail_1_1kv__cuco__store__t_1a502c34983c6d60c60205cd38ac022976" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <templateparamlist>
+          <param>
+            <type>typename type</type>
+            <defval>value_t</defval>
+          </param>
+        </templateparamlist>
+        <type>std::enable_if_t&lt;!std::is_arithmetic_v&lt; type &gt;, const_value_iterator &gt;</type>
+        <definition>std::enable_if_t&lt;!std::is_arithmetic_v&lt; type &gt;, const_value_iterator &gt; cugraph::detail::kv_cuco_store_t&lt; key_t, value_t &gt;::store_value_first</definition>
+        <argsstring>() const</argsstring>
+        <name>store_value_first</name>
+        <qualifiedname>cugraph::detail::kv_cuco_store_t::store_value_first</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/kv_store.cuh" line="791" column="20" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/kv_store.cuh" bodystart="791" bodyend="794"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1detail_1_1kv__cuco__store__t_1acc2fb06801e6bb9546527fdb78563c31" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>key_t</type>
+        <definition>key_t cugraph::detail::kv_cuco_store_t&lt; key_t, value_t &gt;::invalid_key</definition>
+        <argsstring>() const</argsstring>
+        <name>invalid_key</name>
+        <qualifiedname>cugraph::detail::kv_cuco_store_t::invalid_key</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/kv_store.cuh" line="796" column="9" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/kv_store.cuh" bodystart="796" bodyend="796"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1detail_1_1kv__cuco__store__t_1a39fd0b78e41659d8e088c62986c86bbb" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>value_t</type>
+        <definition>value_t cugraph::detail::kv_cuco_store_t&lt; key_t, value_t &gt;::invalid_value</definition>
+        <argsstring>() const</argsstring>
+        <name>invalid_value</name>
+        <qualifiedname>cugraph::detail::kv_cuco_store_t::invalid_value</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/kv_store.cuh" line="798" column="11" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/kv_store.cuh" bodystart="798" bodyend="805"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1detail_1_1kv__cuco__store__t_1a0aba19557a4a19c4ce2328536ddb8897" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>size_t</type>
+        <definition>size_t cugraph::detail::kv_cuco_store_t&lt; key_t, value_t &gt;::size</definition>
+        <argsstring>() const</argsstring>
+        <name>size</name>
+        <qualifiedname>cugraph::detail::kv_cuco_store_t::size</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/kv_store.cuh" line="808" column="10" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/kv_store.cuh" bodystart="808" bodyend="808"/>
+      </memberdef>
+      <memberdef kind="function" id="classcugraph_1_1detail_1_1kv__cuco__store__t_1ad4406abc294b24373cd1b3e64e36ee89" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>size_t</type>
+        <definition>size_t cugraph::detail::kv_cuco_store_t&lt; key_t, value_t &gt;::capacity</definition>
+        <argsstring>() const</argsstring>
+        <name>capacity</name>
+        <qualifiedname>cugraph::detail::kv_cuco_store_t::capacity</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/kv_store.cuh" line="810" column="10" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/kv_store.cuh" bodystart="810" bodyend="810"/>
+      </memberdef>
+    </sectiondef>
+    <sectiondef kind="private-func">
+      <memberdef kind="function" id="classcugraph_1_1detail_1_1kv__cuco__store__t_1acc27c671673562cf02dfaad85013ca73" prot="private" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type>void</type>
+        <definition>void cugraph::detail::kv_cuco_store_t&lt; key_t, value_t &gt;::allocate</definition>
+        <argsstring>(size_t num_keys, key_t invalid_key, value_t invalid_value, rmm::cuda_stream_view stream)</argsstring>
+        <name>allocate</name>
+        <qualifiedname>cugraph::detail::kv_cuco_store_t::allocate</qualifiedname>
+        <param>
+          <type>size_t</type>
+          <declname>num_keys</declname>
+        </param>
+        <param>
+          <type>key_t</type>
+          <declname>invalid_key</declname>
+        </param>
+        <param>
+          <type>value_t</type>
+          <declname>invalid_value</declname>
+        </param>
+        <param>
+          <type>rmm::cuda_stream_view</type>
+          <declname>stream</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/kv_store.cuh" line="813" column="8" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/kv_store.cuh" bodystart="813" bodyend="851"/>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/kv_store.cuh" line="495" column="1" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/kv_store.cuh" bodystart="495" bodyend="866"/>
+    <listofallmembers>
+      <member refid="classcugraph_1_1detail_1_1kv__cuco__store__t_1acc27c671673562cf02dfaad85013ca73" prot="private" virt="non-virtual"><scope>cugraph::detail::kv_cuco_store_t</scope><name>allocate</name></member>
+      <member refid="classcugraph_1_1detail_1_1kv__cuco__store__t_1ad4406abc294b24373cd1b3e64e36ee89" prot="public" virt="non-virtual"><scope>cugraph::detail::kv_cuco_store_t</scope><name>capacity</name></member>
+      <member refid="classcugraph_1_1detail_1_1kv__cuco__store__t_1a22f427c669bc67e31d40bede27e75025" prot="private" virt="non-virtual"><scope>cugraph::detail::kv_cuco_store_t</scope><name>capacity_</name></member>
+      <member refid="classcugraph_1_1detail_1_1kv__cuco__store__t_1ad2a28c4ca134a5690ad2e90a95c40084" prot="public" virt="non-virtual"><scope>cugraph::detail::kv_cuco_store_t</scope><name>const_value_iterator</name></member>
+      <member refid="classcugraph_1_1detail_1_1kv__cuco__store__t_1a3b5247c04660a3087812ffc9d076ad86" prot="public" virt="non-virtual"><scope>cugraph::detail::kv_cuco_store_t</scope><name>cuco_map_type</name></member>
+      <member refid="classcugraph_1_1detail_1_1kv__cuco__store__t_1a49252c8cc5421016f245529c09056664" prot="private" virt="non-virtual"><scope>cugraph::detail::kv_cuco_store_t</scope><name>cuco_store_</name></member>
+      <member refid="classcugraph_1_1detail_1_1kv__cuco__store__t_1afc6d9176dc020e94cb1e18ab7584e4aa" prot="public" virt="non-virtual"><scope>cugraph::detail::kv_cuco_store_t</scope><name>cuco_store_ptr</name></member>
+      <member refid="classcugraph_1_1detail_1_1kv__cuco__store__t_1af6c08bdd0ad97644ea1fc09c36ceeb0d" prot="public" virt="non-virtual"><scope>cugraph::detail::kv_cuco_store_t</scope><name>insert</name></member>
+      <member refid="classcugraph_1_1detail_1_1kv__cuco__store__t_1a26c12b6c91cd12ec54965289c2cc4e04" prot="public" virt="non-virtual"><scope>cugraph::detail::kv_cuco_store_t</scope><name>insert_and_assign</name></member>
+      <member refid="classcugraph_1_1detail_1_1kv__cuco__store__t_1a78f3adf708e7148f922a5021d18b37ff" prot="public" virt="non-virtual"><scope>cugraph::detail::kv_cuco_store_t</scope><name>insert_if</name></member>
+      <member refid="classcugraph_1_1detail_1_1kv__cuco__store__t_1acc2fb06801e6bb9546527fdb78563c31" prot="public" virt="non-virtual"><scope>cugraph::detail::kv_cuco_store_t</scope><name>invalid_key</name></member>
+      <member refid="classcugraph_1_1detail_1_1kv__cuco__store__t_1a39fd0b78e41659d8e088c62986c86bbb" prot="public" virt="non-virtual"><scope>cugraph::detail::kv_cuco_store_t</scope><name>invalid_value</name></member>
+      <member refid="classcugraph_1_1detail_1_1kv__cuco__store__t_1a32699ff288d8736183fc5538e6ebd5ac" prot="private" virt="non-virtual"><scope>cugraph::detail::kv_cuco_store_t</scope><name>invalid_value_</name></member>
+      <member refid="classcugraph_1_1detail_1_1kv__cuco__store__t_1ac6c55c2e93557d030eef13ec8f083486" prot="public" virt="non-virtual"><scope>cugraph::detail::kv_cuco_store_t</scope><name>key_type</name></member>
+      <member refid="classcugraph_1_1detail_1_1kv__cuco__store__t_1a378f15af0a59688ee5882de231422f25" prot="public" virt="non-virtual"><scope>cugraph::detail::kv_cuco_store_t</scope><name>kv_cuco_store_t</name></member>
+      <member refid="classcugraph_1_1detail_1_1kv__cuco__store__t_1a2dcf8e934f8a1ea59529651f33326ba2" prot="public" virt="non-virtual"><scope>cugraph::detail::kv_cuco_store_t</scope><name>kv_cuco_store_t</name></member>
+      <member refid="classcugraph_1_1detail_1_1kv__cuco__store__t_1ac0cf05b77b1ed5d6662ccb7190ffe251" prot="public" virt="non-virtual"><scope>cugraph::detail::kv_cuco_store_t</scope><name>kv_cuco_store_t</name></member>
+      <member refid="classcugraph_1_1detail_1_1kv__cuco__store__t_1af0ecbd96a0952c17e9c47f923e1c2dcb" prot="public" virt="non-virtual"><scope>cugraph::detail::kv_cuco_store_t</scope><name>release</name></member>
+      <member refid="classcugraph_1_1detail_1_1kv__cuco__store__t_1aa840cba0b4cb5f1cb1f0559057ce56bc" prot="public" virt="non-virtual"><scope>cugraph::detail::kv_cuco_store_t</scope><name>retrieve_all</name></member>
+      <member refid="classcugraph_1_1detail_1_1kv__cuco__store__t_1a0aba19557a4a19c4ce2328536ddb8897" prot="public" virt="non-virtual"><scope>cugraph::detail::kv_cuco_store_t</scope><name>size</name></member>
+      <member refid="classcugraph_1_1detail_1_1kv__cuco__store__t_1a46988a7ab9363319bdee8deacf35e777" prot="private" virt="non-virtual"><scope>cugraph::detail::kv_cuco_store_t</scope><name>size_</name></member>
+      <member refid="classcugraph_1_1detail_1_1kv__cuco__store__t_1a502c34983c6d60c60205cd38ac022976" prot="public" virt="non-virtual"><scope>cugraph::detail::kv_cuco_store_t</scope><name>store_value_first</name></member>
+      <member refid="classcugraph_1_1detail_1_1kv__cuco__store__t_1a2a58edf8ecb34a19fb71b9c44a453478" prot="private" virt="non-virtual"><scope>cugraph::detail::kv_cuco_store_t</scope><name>store_values_</name></member>
+      <member refid="classcugraph_1_1detail_1_1kv__cuco__store__t_1a95353e87c96a90b5376d34f8d8a261fe" prot="public" virt="non-virtual"><scope>cugraph::detail::kv_cuco_store_t</scope><name>value_buffer_type</name></member>
+      <member refid="classcugraph_1_1detail_1_1kv__cuco__store__t_1a967e0063c9f8a2d2ef4225f8c87ca1ed" prot="public" virt="non-virtual"><scope>cugraph::detail::kv_cuco_store_t</scope><name>value_type</name></member>
+    </listofallmembers>
+  </compounddef>
+</doxygen>

@@ -1,0 +1,54 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="structcugraph_1_1detail_1_1return__edge__weight__t" kind="struct" language="C++" prot="public">
+    <compoundname>cugraph::detail::return_edge_weight_t</compoundname>
+    <templateparamlist>
+      <param>
+        <type>typename vertex_t</type>
+      </param>
+      <param>
+        <type>typename weight_t</type>
+      </param>
+    </templateparamlist>
+    <sectiondef kind="public-func">
+      <memberdef kind="function" id="structcugraph_1_1detail_1_1return__edge__weight__t_1a3cfb86e39108f0383b77006db86c48c6" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>__device__ auto</type>
+        <definition>__device__ auto cugraph::detail::return_edge_weight_t&lt; vertex_t, weight_t &gt;::operator()</definition>
+        <argsstring>(vertex_t, vertex_t, thrust::nullopt_t, thrust::nullopt_t, weight_t w) const</argsstring>
+        <name>operator()</name>
+        <qualifiedname>cugraph::detail::return_edge_weight_t::operator()</qualifiedname>
+        <param>
+          <type>vertex_t</type>
+        </param>
+        <param>
+          <type>vertex_t</type>
+        </param>
+        <param>
+          <type>thrust::nullopt_t</type>
+        </param>
+        <param>
+          <type>thrust::nullopt_t</type>
+        </param>
+        <param>
+          <type>weight_t</type>
+          <declname>w</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/community/detail/common_methods.cuh" line="142" column="19" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/community/detail/common_methods.cuh" bodystart="142" bodyend="146"/>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/src/community/detail/common_methods.cuh" line="141" column="1" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/community/detail/common_methods.cuh" bodystart="141" bodyend="147"/>
+    <listofallmembers>
+      <member refid="structcugraph_1_1detail_1_1return__edge__weight__t_1a3cfb86e39108f0383b77006db86c48c6" prot="public" virt="non-virtual"><scope>cugraph::detail::return_edge_weight_t</scope><name>operator()</name></member>
+    </listofallmembers>
+  </compounddef>
+</doxygen>

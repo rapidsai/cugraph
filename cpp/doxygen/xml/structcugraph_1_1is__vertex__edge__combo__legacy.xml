@@ -1,0 +1,41 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="structcugraph_1_1is__vertex__edge__combo__legacy" kind="struct" language="C++" prot="public">
+    <compoundname>cugraph::is_vertex_edge_combo_legacy</compoundname>
+    <templateparamlist>
+      <param>
+        <type>typename vertex_t</type>
+      </param>
+      <param>
+        <type>typename edge_t</type>
+      </param>
+    </templateparamlist>
+    <sectiondef kind="public-static-attrib">
+      <memberdef kind="variable" id="structcugraph_1_1is__vertex__edge__combo__legacy_1ad467839ec943c9d67967ebc12b05cb9d" prot="public" static="yes" constexpr="yes" mutable="no">
+        <type>constexpr bool</type>
+        <definition>constexpr bool cugraph::is_vertex_edge_combo_legacy&lt; vertex_t, edge_t &gt;::value</definition>
+        <argsstring></argsstring>
+        <name>value</name>
+        <qualifiedname>cugraph::is_vertex_edge_combo_legacy::value</qualifiedname>
+        <initializer>= <ref refid="structcugraph_1_1is__one__of" kindref="compound">is_one_of</ref>&lt;vertex_t, int32_t&gt;::value &amp;&amp;
+                                <ref refid="structcugraph_1_1is__one__of" kindref="compound">is_one_of</ref>&lt;edge_t, int32_t&gt;::value &amp;&amp;
+                                (sizeof(vertex_t) &lt;= sizeof(edge_t))</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/utilities/graph_traits.hpp" line="55" column="25" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/utilities/graph_traits.hpp" bodystart="55" bodyend="-1"/>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/utilities/graph_traits.hpp" line="54" column="1" bodyfile="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/utilities/graph_traits.hpp" bodystart="54" bodyend="58"/>
+    <listofallmembers>
+      <member refid="structcugraph_1_1is__vertex__edge__combo__legacy_1ad467839ec943c9d67967ebc12b05cb9d" prot="public" virt="non-virtual"><scope>cugraph::is_vertex_edge_combo_legacy</scope><name>value</name></member>
+    </listofallmembers>
+  </compounddef>
+</doxygen>

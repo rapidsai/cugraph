@@ -1,0 +1,16 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="dir_3073655a10823909eeb565e7adb1370c" kind="dir">
+    <compoundname>legacy</compoundname>
+    <innerfile refid="legacy_2eidecl__graph_8hpp">legacy/eidecl_graph.hpp</innerfile>
+    <innerfile refid="eidir__graph_8hpp">eidir_graph.hpp</innerfile>
+    <innerfile refid="functions_8hpp">functions.hpp</innerfile>
+    <innerfile refid="include_2cugraph_2legacy_2graph_8hpp">include/cugraph/legacy/graph.hpp</innerfile>
+    <innerfile refid="internals_8hpp">internals.hpp</innerfile>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/include/cugraph/legacy/"/>
+  </compounddef>
+</doxygen>

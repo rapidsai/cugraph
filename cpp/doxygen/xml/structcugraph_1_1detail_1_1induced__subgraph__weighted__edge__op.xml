@@ -1,0 +1,110 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="structcugraph_1_1detail_1_1induced__subgraph__weighted__edge__op" kind="struct" language="C++" prot="public">
+    <compoundname>cugraph::detail::induced_subgraph_weighted_edge_op</compoundname>
+    <templateparamlist>
+      <param>
+        <type>typename vertex_t</type>
+      </param>
+      <param>
+        <type>typename weight_t</type>
+      </param>
+      <param>
+        <type>typename property_t</type>
+      </param>
+    </templateparamlist>
+    <sectiondef kind="public-type">
+      <memberdef kind="typedef" id="structcugraph_1_1detail_1_1induced__subgraph__weighted__edge__op_1a6d9ec635dc315fc22aae58926d023a62" prot="public" static="no">
+        <type>thrust::optional&lt; thrust::tuple&lt; vertex_t, vertex_t, weight_t, size_t &gt; &gt;</type>
+        <definition>using cugraph::detail::induced_subgraph_weighted_edge_op&lt; vertex_t, weight_t, property_t &gt;::return_type =  thrust::optional&lt;thrust::tuple&lt;vertex_t, vertex_t, weight_t, size_t&gt;&gt;</definition>
+        <argsstring></argsstring>
+        <name>return_type</name>
+        <qualifiedname>cugraph::detail::induced_subgraph_weighted_edge_op::return_type</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/structure/induced_subgraph_impl.cuh" line="66" column="3" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/structure/induced_subgraph_impl.cuh" bodystart="66" bodyend="-1"/>
+      </memberdef>
+    </sectiondef>
+    <sectiondef kind="public-attrib">
+      <memberdef kind="variable" id="structcugraph_1_1detail_1_1induced__subgraph__weighted__edge__op_1a7a811645d96ceb6a94ffde3c545458cc" prot="public" static="no" mutable="no">
+        <type>raft::device_span&lt; size_t const  &gt;</type>
+        <definition>raft::device_span&lt;size_t const&gt; cugraph::detail::induced_subgraph_weighted_edge_op&lt; vertex_t, weight_t, property_t &gt;::dst_subgraph_offsets</definition>
+        <argsstring></argsstring>
+        <name>dst_subgraph_offsets</name>
+        <qualifiedname>cugraph::detail::induced_subgraph_weighted_edge_op::dst_subgraph_offsets</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/structure/induced_subgraph_impl.cuh" line="68" column="21" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/structure/induced_subgraph_impl.cuh" bodystart="68" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph_1_1detail_1_1induced__subgraph__weighted__edge__op_1a819fe8a3eb75b5dcfd949dc0886f4e6c" prot="public" static="no" mutable="no">
+        <type>raft::device_span&lt; vertex_t const  &gt;</type>
+        <definition>raft::device_span&lt;vertex_t const&gt; cugraph::detail::induced_subgraph_weighted_edge_op&lt; vertex_t, weight_t, property_t &gt;::dst_subgraph_vertices</definition>
+        <argsstring></argsstring>
+        <name>dst_subgraph_vertices</name>
+        <qualifiedname>cugraph::detail::induced_subgraph_weighted_edge_op::dst_subgraph_vertices</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/structure/induced_subgraph_impl.cuh" line="69" column="21" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/structure/induced_subgraph_impl.cuh" bodystart="69" bodyend="-1"/>
+      </memberdef>
+    </sectiondef>
+    <sectiondef kind="public-func">
+      <memberdef kind="function" id="structcugraph_1_1detail_1_1induced__subgraph__weighted__edge__op_1a49fb9b734fd9b72ea9e1c8fec872b3fb" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>return_type __device__</type>
+        <definition>return_type __device__ cugraph::detail::induced_subgraph_weighted_edge_op&lt; vertex_t, weight_t, property_t &gt;::operator()</definition>
+        <argsstring>(thrust::tuple&lt; vertex_t, size_t &gt; tagged_src, vertex_t dst, property_t sv, property_t dv, weight_t wgt) const</argsstring>
+        <name>operator()</name>
+        <qualifiedname>cugraph::detail::induced_subgraph_weighted_edge_op::operator()</qualifiedname>
+        <param>
+          <type>thrust::tuple&lt; vertex_t, size_t &gt;</type>
+          <declname>tagged_src</declname>
+        </param>
+        <param>
+          <type>vertex_t</type>
+          <declname>dst</declname>
+        </param>
+        <param>
+          <type>property_t</type>
+          <declname>sv</declname>
+        </param>
+        <param>
+          <type>property_t</type>
+          <declname>dv</declname>
+        </param>
+        <param>
+          <type>weight_t</type>
+          <declname>wgt</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/structure/induced_subgraph_impl.cuh" line="71" column="26" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/structure/induced_subgraph_impl.cuh" bodystart="71" bodyend="85"/>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/src/structure/induced_subgraph_impl.cuh" line="65" column="1" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/structure/induced_subgraph_impl.cuh" bodystart="65" bodyend="86"/>
+    <listofallmembers>
+      <member refid="structcugraph_1_1detail_1_1induced__subgraph__weighted__edge__op_1a7a811645d96ceb6a94ffde3c545458cc" prot="public" virt="non-virtual"><scope>cugraph::detail::induced_subgraph_weighted_edge_op</scope><name>dst_subgraph_offsets</name></member>
+      <member refid="structcugraph_1_1detail_1_1induced__subgraph__weighted__edge__op_1a819fe8a3eb75b5dcfd949dc0886f4e6c" prot="public" virt="non-virtual"><scope>cugraph::detail::induced_subgraph_weighted_edge_op</scope><name>dst_subgraph_vertices</name></member>
+      <member refid="structcugraph_1_1detail_1_1induced__subgraph__weighted__edge__op_1a49fb9b734fd9b72ea9e1c8fec872b3fb" prot="public" virt="non-virtual"><scope>cugraph::detail::induced_subgraph_weighted_edge_op</scope><name>operator()</name></member>
+      <member refid="structcugraph_1_1detail_1_1induced__subgraph__weighted__edge__op_1a6d9ec635dc315fc22aae58926d023a62" prot="public" virt="non-virtual"><scope>cugraph::detail::induced_subgraph_weighted_edge_op</scope><name>return_type</name></member>
+    </listofallmembers>
+  </compounddef>
+</doxygen>

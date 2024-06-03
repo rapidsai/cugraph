@@ -1,0 +1,121 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="structcugraph_1_1detail_1_1convert__pair__to__quadruplet__t" kind="struct" language="C++" prot="public">
+    <compoundname>cugraph::detail::convert_pair_to_quadruplet_t</compoundname>
+    <templateparamlist>
+      <param>
+        <type>typename value_t</type>
+      </param>
+    </templateparamlist>
+    <sectiondef kind="public-attrib">
+      <memberdef kind="variable" id="structcugraph_1_1detail_1_1convert__pair__to__quadruplet__t_1a2b37cef3193990a870df0509158532e9" prot="public" static="no" mutable="no">
+        <type>raft::device_span&lt; value_t const  &gt;</type>
+        <definition>raft::device_span&lt;value_t const&gt; cugraph::detail::convert_pair_to_quadruplet_t&lt; value_t &gt;::partitioned_local_value_displacements</definition>
+        <argsstring></argsstring>
+        <name>partitioned_local_value_displacements</name>
+        <qualifiedname>cugraph::detail::convert_pair_to_quadruplet_t::partitioned_local_value_displacements</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/detail/sample_and_compute_local_nbr_indices.cuh" line="112" column="5" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/detail/sample_and_compute_local_nbr_indices.cuh" bodystart="112" bodyend="112"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph_1_1detail_1_1convert__pair__to__quadruplet__t_1a99e118abda1d8ea458432333398f354e" prot="public" static="no" mutable="no">
+        <type>raft::device_span&lt; size_t &gt;</type>
+        <definition>raft::device_span&lt;size_t&gt; cugraph::detail::convert_pair_to_quadruplet_t&lt; value_t &gt;::tx_counts</definition>
+        <argsstring></argsstring>
+        <name>tx_counts</name>
+        <qualifiedname>cugraph::detail::convert_pair_to_quadruplet_t::tx_counts</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/detail/sample_and_compute_local_nbr_indices.cuh" line="113" column="21" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/detail/sample_and_compute_local_nbr_indices.cuh" bodystart="113" bodyend="113"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph_1_1detail_1_1convert__pair__to__quadruplet__t_1a77a9daf27aa3b91648e4d952ade03679" prot="public" static="no" mutable="no">
+        <type>size_t</type>
+        <definition>size_t cugraph::detail::convert_pair_to_quadruplet_t&lt; value_t &gt;::stride</definition>
+        <argsstring></argsstring>
+        <name>stride</name>
+        <qualifiedname>cugraph::detail::convert_pair_to_quadruplet_t::stride</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/detail/sample_and_compute_local_nbr_indices.cuh" line="114" column="10" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/detail/sample_and_compute_local_nbr_indices.cuh" bodystart="114" bodyend="114"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph_1_1detail_1_1convert__pair__to__quadruplet__t_1a0e21e1286f060bb1c1d229ffb7b27484" prot="public" static="no" mutable="no">
+        <type>int</type>
+        <definition>int cugraph::detail::convert_pair_to_quadruplet_t&lt; value_t &gt;::minor_comm_size</definition>
+        <argsstring></argsstring>
+        <name>minor_comm_size</name>
+        <qualifiedname>cugraph::detail::convert_pair_to_quadruplet_t::minor_comm_size</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/detail/sample_and_compute_local_nbr_indices.cuh" line="115" column="7" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/detail/sample_and_compute_local_nbr_indices.cuh" bodystart="115" bodyend="115"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph_1_1detail_1_1convert__pair__to__quadruplet__t_1aaf5b78f7507098d2df1720665c0bec96" prot="public" static="no" mutable="no">
+        <type>value_t</type>
+        <definition>value_t cugraph::detail::convert_pair_to_quadruplet_t&lt; value_t &gt;::invalid_value</definition>
+        <argsstring></argsstring>
+        <name>invalid_value</name>
+        <qualifiedname>cugraph::detail::convert_pair_to_quadruplet_t::invalid_value</qualifiedname>
+        <initializer>{}</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/detail/sample_and_compute_local_nbr_indices.cuh" line="116" column="11" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/detail/sample_and_compute_local_nbr_indices.cuh" bodystart="116" bodyend="116"/>
+      </memberdef>
+    </sectiondef>
+    <sectiondef kind="public-func">
+      <memberdef kind="function" id="structcugraph_1_1detail_1_1convert__pair__to__quadruplet__t_1a2a8009c450e62584a9a8fe8861e6432e" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>__device__ thrust::tuple&lt; int, size_t, value_t, size_t &gt;</type>
+        <definition>__device__ thrust::tuple&lt; int, size_t, value_t, size_t &gt; cugraph::detail::convert_pair_to_quadruplet_t&lt; value_t &gt;::operator()</definition>
+        <argsstring>(thrust::tuple&lt; value_t, size_t &gt; pair) const</argsstring>
+        <name>operator()</name>
+        <qualifiedname>cugraph::detail::convert_pair_to_quadruplet_t::operator()</qualifiedname>
+        <param>
+          <type>thrust::tuple&lt; value_t, size_t &gt;</type>
+          <declname>pair</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/detail/sample_and_compute_local_nbr_indices.cuh" line="118" column="28" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/detail/sample_and_compute_local_nbr_indices.cuh" bodystart="118" bodyend="140"/>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/src/prims/detail/sample_and_compute_local_nbr_indices.cuh" line="110" column="1" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/prims/detail/sample_and_compute_local_nbr_indices.cuh" bodystart="110" bodyend="141"/>
+    <listofallmembers>
+      <member refid="structcugraph_1_1detail_1_1convert__pair__to__quadruplet__t_1aaf5b78f7507098d2df1720665c0bec96" prot="public" virt="non-virtual"><scope>cugraph::detail::convert_pair_to_quadruplet_t</scope><name>invalid_value</name></member>
+      <member refid="structcugraph_1_1detail_1_1convert__pair__to__quadruplet__t_1a0e21e1286f060bb1c1d229ffb7b27484" prot="public" virt="non-virtual"><scope>cugraph::detail::convert_pair_to_quadruplet_t</scope><name>minor_comm_size</name></member>
+      <member refid="structcugraph_1_1detail_1_1convert__pair__to__quadruplet__t_1a2a8009c450e62584a9a8fe8861e6432e" prot="public" virt="non-virtual"><scope>cugraph::detail::convert_pair_to_quadruplet_t</scope><name>operator()</name></member>
+      <member refid="structcugraph_1_1detail_1_1convert__pair__to__quadruplet__t_1a2b37cef3193990a870df0509158532e9" prot="public" virt="non-virtual"><scope>cugraph::detail::convert_pair_to_quadruplet_t</scope><name>partitioned_local_value_displacements</name></member>
+      <member refid="structcugraph_1_1detail_1_1convert__pair__to__quadruplet__t_1a77a9daf27aa3b91648e4d952ade03679" prot="public" virt="non-virtual"><scope>cugraph::detail::convert_pair_to_quadruplet_t</scope><name>stride</name></member>
+      <member refid="structcugraph_1_1detail_1_1convert__pair__to__quadruplet__t_1a99e118abda1d8ea458432333398f354e" prot="public" virt="non-virtual"><scope>cugraph::detail::convert_pair_to_quadruplet_t</scope><name>tx_counts</name></member>
+    </listofallmembers>
+  </compounddef>
+</doxygen>

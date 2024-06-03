@@ -1,0 +1,132 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="structcugraph_1_1c__api_1_1cugraph__type__erased__host__array__view__t" kind="struct" language="C++" prot="public">
+    <compoundname>cugraph::c_api::cugraph_type_erased_host_array_view_t</compoundname>
+    <sectiondef kind="public-attrib">
+      <memberdef kind="variable" id="structcugraph_1_1c__api_1_1cugraph__type__erased__host__array__view__t_1ad6b11d9072b775a2ec220e40c8fba6d0" prot="public" static="no" mutable="no">
+        <type>std::byte *</type>
+        <definition>std::byte* cugraph::c_api::cugraph_type_erased_host_array_view_t::data_</definition>
+        <argsstring></argsstring>
+        <name>data_</name>
+        <qualifiedname>cugraph::c_api::cugraph_type_erased_host_array_view_t::data_</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/c_api/array.hpp" line="86" column="13" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/array.hpp" bodystart="86" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph_1_1c__api_1_1cugraph__type__erased__host__array__view__t_1af3688d6bf200856a38ad6be765863ac6" prot="public" static="no" mutable="no">
+        <type>size_t</type>
+        <definition>size_t cugraph::c_api::cugraph_type_erased_host_array_view_t::size_</definition>
+        <argsstring></argsstring>
+        <name>size_</name>
+        <qualifiedname>cugraph::c_api::cugraph_type_erased_host_array_view_t::size_</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/c_api/array.hpp" line="87" column="10" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/array.hpp" bodystart="87" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph_1_1c__api_1_1cugraph__type__erased__host__array__view__t_1a1ea971f176e1af06b1e4000723501bd5" prot="public" static="no" mutable="no">
+        <type>size_t</type>
+        <definition>size_t cugraph::c_api::cugraph_type_erased_host_array_view_t::num_bytes_</definition>
+        <argsstring></argsstring>
+        <name>num_bytes_</name>
+        <qualifiedname>cugraph::c_api::cugraph_type_erased_host_array_view_t::num_bytes_</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/c_api/array.hpp" line="88" column="10" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/array.hpp" bodystart="88" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="variable" id="structcugraph_1_1c__api_1_1cugraph__type__erased__host__array__view__t_1ab07afbcac1fe2d2b6bb82e6e772671bb" prot="public" static="no" mutable="no">
+        <type>cugraph_data_type_id_t</type>
+        <definition>cugraph_data_type_id_t cugraph::c_api::cugraph_type_erased_host_array_view_t::type_</definition>
+        <argsstring></argsstring>
+        <name>type_</name>
+        <qualifiedname>cugraph::c_api::cugraph_type_erased_host_array_view_t::type_</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/c_api/array.hpp" line="89" column="26" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/array.hpp" bodystart="89" bodyend="-1"/>
+      </memberdef>
+    </sectiondef>
+    <sectiondef kind="public-func">
+      <memberdef kind="function" id="structcugraph_1_1c__api_1_1cugraph__type__erased__host__array__view__t_1a14b431ce550cf42e6c56e7ad9cd5056f" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <templateparamlist>
+          <param>
+            <type>typename T</type>
+          </param>
+        </templateparamlist>
+        <type>T *</type>
+        <definition>T * cugraph::c_api::cugraph_type_erased_host_array_view_t::as_type</definition>
+        <argsstring>()</argsstring>
+        <name>as_type</name>
+        <qualifiedname>cugraph::c_api::cugraph_type_erased_host_array_view_t::as_type</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/c_api/array.hpp" line="92" column="5" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/array.hpp" bodystart="92" bodyend="95"/>
+      </memberdef>
+      <memberdef kind="function" id="structcugraph_1_1c__api_1_1cugraph__type__erased__host__array__view__t_1a33f11ac45707a68ad20246f1caabb304" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <templateparamlist>
+          <param>
+            <type>typename T</type>
+          </param>
+        </templateparamlist>
+        <type>T const *</type>
+        <definition>T const  * cugraph::c_api::cugraph_type_erased_host_array_view_t::as_type</definition>
+        <argsstring>() const</argsstring>
+        <name>as_type</name>
+        <qualifiedname>cugraph::c_api::cugraph_type_erased_host_array_view_t::as_type</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/c_api/array.hpp" line="98" column="11" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/array.hpp" bodystart="98" bodyend="101"/>
+      </memberdef>
+      <memberdef kind="function" id="structcugraph_1_1c__api_1_1cugraph__type__erased__host__array__view__t_1a67a9393b4b5979aa5a8215cb4fba9862" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>size_t</type>
+        <definition>size_t cugraph::c_api::cugraph_type_erased_host_array_view_t::num_bytes</definition>
+        <argsstring>() const</argsstring>
+        <name>num_bytes</name>
+        <qualifiedname>cugraph::c_api::cugraph_type_erased_host_array_view_t::num_bytes</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/home/nfs/abarghi/cugraph6/cpp/src/c_api/array.hpp" line="103" column="10" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/array.hpp" bodystart="103" bodyend="103"/>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/src/c_api/array.hpp" line="85" column="1" bodyfile="/home/nfs/abarghi/cugraph6/cpp/src/c_api/array.hpp" bodystart="85" bodyend="104"/>
+    <listofallmembers>
+      <member refid="structcugraph_1_1c__api_1_1cugraph__type__erased__host__array__view__t_1a14b431ce550cf42e6c56e7ad9cd5056f" prot="public" virt="non-virtual"><scope>cugraph::c_api::cugraph_type_erased_host_array_view_t</scope><name>as_type</name></member>
+      <member refid="structcugraph_1_1c__api_1_1cugraph__type__erased__host__array__view__t_1a33f11ac45707a68ad20246f1caabb304" prot="public" virt="non-virtual"><scope>cugraph::c_api::cugraph_type_erased_host_array_view_t</scope><name>as_type</name></member>
+      <member refid="structcugraph_1_1c__api_1_1cugraph__type__erased__host__array__view__t_1ad6b11d9072b775a2ec220e40c8fba6d0" prot="public" virt="non-virtual"><scope>cugraph::c_api::cugraph_type_erased_host_array_view_t</scope><name>data_</name></member>
+      <member refid="structcugraph_1_1c__api_1_1cugraph__type__erased__host__array__view__t_1a67a9393b4b5979aa5a8215cb4fba9862" prot="public" virt="non-virtual"><scope>cugraph::c_api::cugraph_type_erased_host_array_view_t</scope><name>num_bytes</name></member>
+      <member refid="structcugraph_1_1c__api_1_1cugraph__type__erased__host__array__view__t_1a1ea971f176e1af06b1e4000723501bd5" prot="public" virt="non-virtual"><scope>cugraph::c_api::cugraph_type_erased_host_array_view_t</scope><name>num_bytes_</name></member>
+      <member refid="structcugraph_1_1c__api_1_1cugraph__type__erased__host__array__view__t_1af3688d6bf200856a38ad6be765863ac6" prot="public" virt="non-virtual"><scope>cugraph::c_api::cugraph_type_erased_host_array_view_t</scope><name>size_</name></member>
+      <member refid="structcugraph_1_1c__api_1_1cugraph__type__erased__host__array__view__t_1ab07afbcac1fe2d2b6bb82e6e772671bb" prot="public" virt="non-virtual"><scope>cugraph::c_api::cugraph_type_erased_host_array_view_t</scope><name>type_</name></member>
+    </listofallmembers>
+  </compounddef>
+</doxygen>

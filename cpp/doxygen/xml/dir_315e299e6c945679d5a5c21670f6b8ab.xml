@@ -1,0 +1,15 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.10.0" xml:lang="en-US">
+  <compounddef id="dir_315e299e6c945679d5a5c21670f6b8ab" kind="dir">
+    <compoundname>legacy</compoundname>
+    <innerfile refid="ecg_8cu">ecg.cu</innerfile>
+    <innerfile refid="louvain_8cu">louvain.cu</innerfile>
+    <innerfile refid="louvain_8cuh">louvain.cuh</innerfile>
+    <innerfile refid="spectral__clustering_8cu">spectral_clustering.cu</innerfile>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <location file="/home/nfs/abarghi/cugraph6/cpp/src/community/legacy/"/>
+  </compounddef>
+</doxygen>
