@@ -161,15 +161,17 @@ struct find_nth_valid_nbr_idx_t {
   edge_partition_device_view_t<vertex_t, edge_t, GraphViewType::is_multi_gpu> edge_partition{};
   EdgePartitionEdgeMaskWrapper edge_partition_e_mask;
   VertexIterator major_first{};
+  raft::device_span<size_t const> major_idx_to_unique_major_idx{};
   thrust::tuple<raft::device_span<size_t const>, raft::device_span<edge_t const>>
-    major_valid_local_nbr_count_inclusive_sums{};
+    unique_major_valid_local_nbr_count_inclusive_sums{};
 
   __device__ edge_t operator()(thrust::tuple<edge_t, size_t> pair) const
   {
-    edge_t local_nbr_idx = thrust::get<0>(pair);
-    size_t major_idx     = thrust::get<1>(pair);
-    auto major           = *(major_first + major_idx);
-    auto major_offset    = edge_partition.major_offset_from_major_nocheck(major);
+    edge_t local_nbr_idx    = thrust::get<0>(pair);
+    size_t major_idx        = thrust::get<1>(pair);
+    size_t unique_major_idx = major_idx_to_unique_major_idx[major_idx];
+    auto major              = *(major_first + major_idx);
+    auto major_offset       = edge_partition.major_offset_from_major_nocheck(major);
     vertex_t const* indices{nullptr};
     edge_t edge_offset{0};
     [[maybe_unused]] edge_t local_degree{0};
@@ -193,9 +195,12 @@ struct find_nth_valid_nbr_idx_t {
       local_nbr_idx = find_nth_set_bits(
         (*edge_partition_e_mask).value_first(), edge_offset, local_degree, local_nbr_idx + 1);
     } else {
-      auto inclusive_sum_first = thrust::get<1>(major_valid_local_nbr_count_inclusive_sums).begin();
-      auto start_offset = thrust::get<0>(major_valid_local_nbr_count_inclusive_sums)[major_idx];
-      auto end_offset   = thrust::get<0>(major_valid_local_nbr_count_inclusive_sums)[major_idx + 1];
+      auto inclusive_sum_first =
+        thrust::get<1>(unique_major_valid_local_nbr_count_inclusive_sums).begin();
+      auto start_offset =
+        thrust::get<0>(unique_major_valid_local_nbr_count_inclusive_sums)[unique_major_idx];
+      auto end_offset =
+        thrust::get<0>(unique_major_valid_local_nbr_count_inclusive_sums)[unique_major_idx + 1];
       auto word_idx =
         static_cast<edge_t>(thrust::distance(inclusive_sum_first + start_offset,
                                              thrust::upper_bound(thrust::seq,
@@ -323,6 +328,83 @@ __global__ static void compute_valid_local_nbr_count_inclusive_sums_high_local_d
 
     idx += gridDim.x;
   }
+}
+
+template <typename KeyIterator>
+std::tuple<dataframe_buffer_type_t<typename thrust::iterator_traits<KeyIterator>::value_type>,
+           rmm::device_uvector<size_t>,
+           std::vector<size_t>,
+           std::vector<size_t>>
+compute_unique_keys(raft::handle_t const& handle,
+                    KeyIterator aggregate_local_frontier_key_first,
+                    std::vector<size_t> const& local_frontier_displacements,
+                    std::vector<size_t> const& local_frontier_sizes)
+{
+  using key_t = typename thrust::iterator_traits<KeyIterator>::value_type;
+
+  auto aggregate_local_frontier_unique_keys =
+    allocate_dataframe_buffer<key_t>(0, handle.get_stream());
+  auto aggregate_local_frontier_key_idx_to_unique_key_idx = rmm::device_uvector<size_t>(
+    local_frontier_displacements.back() + local_frontier_sizes.back(), handle.get_stream());
+  auto local_frontier_unique_key_displacements =
+    std::vector<size_t>(local_frontier_displacements.size());
+  auto local_frontier_unique_key_sizes = std::vector<size_t>(local_frontier_sizes.size());
+
+  auto tmp_keys = allocate_dataframe_buffer<key_t>(
+    local_frontier_displacements.back() + local_frontier_sizes.back(), handle.get_stream());
+  for (size_t i = 0; i < local_frontier_displacements.size(); ++i) {
+    thrust::copy(handle.get_thrust_policy(),
+                 aggregate_local_frontier_key_first + local_frontier_displacements[i],
+                 aggregate_local_frontier_key_first + local_frontier_displacements[i] +
+                   local_frontier_sizes[i],
+                 get_dataframe_buffer_begin(tmp_keys) + local_frontier_displacements[i]);
+    thrust::sort(handle.get_thrust_policy(),
+                 get_dataframe_buffer_begin(tmp_keys) + local_frontier_displacements[i],
+                 get_dataframe_buffer_begin(tmp_keys) + local_frontier_displacements[i] +
+                   local_frontier_sizes[i]);
+    local_frontier_unique_key_sizes[i] = thrust::distance(
+      get_dataframe_buffer_begin(tmp_keys) + local_frontier_displacements[i],
+      thrust::unique(handle.get_thrust_policy(),
+                     get_dataframe_buffer_begin(tmp_keys) + local_frontier_displacements[i],
+                     get_dataframe_buffer_begin(tmp_keys) + local_frontier_displacements[i] +
+                       local_frontier_sizes[i]));
+  }
+  std::exclusive_scan(local_frontier_unique_key_sizes.begin(),
+                      local_frontier_unique_key_sizes.end(),
+                      local_frontier_unique_key_displacements.begin(),
+                      size_t{0});
+  resize_dataframe_buffer(
+    aggregate_local_frontier_unique_keys,
+    local_frontier_unique_key_displacements.back() + local_frontier_unique_key_sizes.back(),
+    handle.get_stream());
+  for (size_t i = 0; i < local_frontier_displacements.size(); ++i) {
+    thrust::copy(handle.get_thrust_policy(),
+                 get_dataframe_buffer_begin(tmp_keys) + local_frontier_displacements[i],
+                 get_dataframe_buffer_begin(tmp_keys) + local_frontier_displacements[i] +
+                   local_frontier_unique_key_sizes[i],
+                 get_dataframe_buffer_begin(aggregate_local_frontier_unique_keys) +
+                   local_frontier_unique_key_displacements[i]);
+    thrust::transform(
+      handle.get_thrust_policy(),
+      aggregate_local_frontier_key_first + local_frontier_displacements[i],
+      aggregate_local_frontier_key_first + local_frontier_displacements[i] +
+        local_frontier_sizes[i],
+      aggregate_local_frontier_key_idx_to_unique_key_idx.begin() + local_frontier_displacements[i],
+      cuda::proclaim_return_type<size_t>(
+        [unique_key_first = get_dataframe_buffer_begin(aggregate_local_frontier_unique_keys) +
+                            local_frontier_unique_key_displacements[i],
+         num_unique_keys = local_frontier_unique_key_sizes[i]] __device__(key_t key) {
+          return static_cast<size_t>(thrust::distance(
+            unique_key_first,
+            thrust::lower_bound(
+              thrust::seq, unique_key_first, unique_key_first + num_unique_keys, key)));
+        }));
+  }
+
+  return std::make_tuple(std::move(aggregate_local_frontier_unique_keys),
+                         std::move(aggregate_local_frontier_key_idx_to_unique_key_idx),
+                         std::move(local_frontier_unique_key_displacements),
+                         std::move(local_frontier_unique_key_sizes));
 }
 
 template <typename value_t>
@@ -950,175 +1032,204 @@ void compute_biased_sampling_index_without_replacement(
       1,
       handle.get_stream());
     handle.sync_stream();
-    rmm::device_uvector<bias_t> keys(num_pairs, handle.get_stream());
 
-    cugraph::detail::uniform_random_fill(
-      handle.get_stream(), keys.data(), keys.size(), bias_t{0.0}, bias_t{1.0}, rng_state);
+    auto approx_edges_to_process_per_iteration =
+      static_cast<size_t>(handle.get_device_properties().multiProcessorCount) *
+      (1 << 18) /* tuning parameter */;
+    auto [chunk_offsets, element_offsets] = cugraph::detail::compute_offset_aligned_element_chunks(
+      handle,
+      raft::device_span<size_t const>(
+        packed_input_degree_offsets ? (*packed_input_degree_offsets).data()
+                                    : input_degree_offsets.data(),
+        packed_input_degree_offsets ? (*packed_input_degree_offsets).size()
+                                    : input_degree_offsets.size()),
+      num_pairs,
+      approx_edges_to_process_per_iteration);
+    auto num_chunks = chunk_offsets.size() - 1;
+    for (size_t i = 0; i < num_chunks; ++i) {
+      auto num_chunk_pairs = element_offsets[i + 1] - element_offsets[i];
+      rmm::device_uvector<bias_t> keys(num_chunk_pairs, handle.get_stream());
 
-    if (input_frontier_indices) {
-      auto bias_first = thrust::make_transform_iterator(
-        thrust::make_counting_iterator(size_t{0}),
-        cuda::proclaim_return_type<bias_t>(
-          [input_biases,
-           input_degree_offsets,
-           frontier_indices            = *input_frontier_indices,
-           packed_input_degree_offsets = raft::device_span<size_t const>(
-             (*packed_input_degree_offsets).data(),
-             (*packed_input_degree_offsets).size())] __device__(size_t i) {
-            auto it           = thrust::upper_bound(thrust::seq,
-                                          packed_input_degree_offsets.begin() + 1,
-                                          packed_input_degree_offsets.end(),
-                                          i);
-            auto idx          = thrust::distance(packed_input_degree_offsets.begin() + 1, it);
-            auto frontier_idx = frontier_indices[idx];
-            return input_biases[input_degree_offsets[frontier_idx] +
-                                (i - packed_input_degree_offsets[idx])];
+      cugraph::detail::uniform_random_fill(
+        handle.get_stream(), keys.data(), keys.size(), bias_t{0.0}, bias_t{1.0}, rng_state);
+
+      if (packed_input_degree_offsets) {
+        auto bias_first = thrust::make_transform_iterator(
+          thrust::make_counting_iterator(element_offsets[i]),
+          cuda::proclaim_return_type<bias_t>(
+            [input_biases,
+             input_degree_offsets,
+             frontier_indices            = *input_frontier_indices,
+             packed_input_degree_offsets = raft::device_span<size_t const>(
+               (*packed_input_degree_offsets).data(),
+               (*packed_input_degree_offsets).size())] __device__(size_t i) {
+              auto it           = thrust::upper_bound(thrust::seq,
+                                            packed_input_degree_offsets.begin() + 1,
+                                            packed_input_degree_offsets.end(),
+                                            i);
+              auto idx          = thrust::distance(packed_input_degree_offsets.begin() + 1, it);
+              auto frontier_idx = frontier_indices[idx];
+              return input_biases[input_degree_offsets[frontier_idx] +
+                                  (i - packed_input_degree_offsets[idx])];
+            }));
+        thrust::transform(
+          handle.get_thrust_policy(),
+          keys.begin(),
+          keys.end(),
+          bias_first,
+          keys.begin(),
+          cuda::proclaim_return_type<bias_t>([] __device__(bias_t r, bias_t b) {
+            return b > 0.0
+                     ? cuda::std::min(-log(r) / b, std::numeric_limits<bias_t>::max())
+                     : std::numeric_limits<
+                         bias_t>::infinity() /* inf used as invalid value (can't be selected) */;
           }));
-      thrust::transform(
+      } else {
+        thrust::transform(handle.get_thrust_policy(),
+                          keys.begin(),
+                          keys.end(),
+                          input_biases.begin() + element_offsets[i],
+                          keys.begin(),
+                          cuda::proclaim_return_type<bias_t>([] __device__(bias_t r, bias_t b) {
+                            return b > 0.0 ? cuda::std::min(-log(r) / b,
+                                                            std::numeric_limits<bias_t>::max())
+                                           : std::numeric_limits<bias_t>::infinity()
+                              /* inf used as invalid value (can't be selected) */;
+                          }));
+      }
+
+      rmm::device_uvector<edge_t> nbr_indices(keys.size(), handle.get_stream());
+      thrust::tabulate(
         handle.get_thrust_policy(),
-        keys.begin(),
-        keys.end(),
-        bias_first,
-        keys.begin(),
-        cuda::proclaim_return_type<bias_t>([] __device__(bias_t r, bias_t b) {
-          return b > 0.0
-                   ? cuda::std::min(-log(r) / b, std::numeric_limits<bias_t>::max())
-                   : std::numeric_limits<
-                       bias_t>::infinity() /* inf used as invalid value (can't be selected) */;
-        }));
-    } else {
-      thrust::transform(handle.get_thrust_policy(),
-                        keys.begin(),
-                        keys.end(),
-                        input_biases.begin(),
-                        keys.begin(),
-                        cuda::proclaim_return_type<bias_t>([] __device__(bias_t r, bias_t b) {
-                          return b > 0.0
-                                   ? cuda::std::min(-log(r) / b, std::numeric_limits<bias_t>::max())
-                                   : std::numeric_limits<bias_t>::infinity()
-                            /* inf used as invalid value (can't be selected) */;
-                        }));
-    }
+        nbr_indices.begin(),
+        nbr_indices.end(),
+        [offsets        = packed_input_degree_offsets
+                            ? raft::device_span<size_t const>((*packed_input_degree_offsets).data(),
+                                                       (*packed_input_degree_offsets).size())
+                            : input_degree_offsets,
+         element_offset = element_offsets[i]] __device__(size_t i) {
+          auto it = thrust::upper_bound(
+            thrust::seq, offsets.begin() + 1, offsets.end(), element_offset + i);
+          auto idx = thrust::distance(offsets.begin() + 1, it);
+          return static_cast<edge_t>((element_offset + i) - offsets[idx]);
+        });
 
-    rmm::device_uvector<edge_t> nbr_indices(keys.size(), handle.get_stream());
-    thrust::tabulate(
-      handle.get_thrust_policy(),
-      nbr_indices.begin(),
-      nbr_indices.end(),
-      [offsets = packed_input_degree_offsets
-                   ? raft::device_span<size_t const>((*packed_input_degree_offsets).data(),
-                                                     (*packed_input_degree_offsets).size())
-                   : input_degree_offsets] __device__(size_t i) {
-        auto it  = thrust::upper_bound(thrust::seq, offsets.begin() + 1, offsets.end(), i);
-        auto idx = thrust::distance(offsets.begin() + 1, it);
-        return static_cast<edge_t>(i - offsets[idx]);
-      });
+      // pick top K for each frontier index
 
-    // pick top K for each frontier index
+      rmm::device_uvector<std::byte> d_tmp_storage(0, handle.get_stream());
+      size_t tmp_storage_bytes{0};
 
-    rmm::device_uvector<std::byte> d_tmp_storage(0, handle.get_stream());
-    size_t tmp_storage_bytes{0};
+      rmm::device_uvector<bias_t> segment_sorted_keys(keys.size(), handle.get_stream());
+      rmm::device_uvector<edge_t> segment_sorted_nbr_indices(nbr_indices.size(),
+                                                             handle.get_stream());
 
-    rmm::device_uvector<bias_t> segment_sorted_keys(keys.size(), handle.get_stream());
-    rmm::device_uvector<edge_t> segment_sorted_nbr_indices(nbr_indices.size(), handle.get_stream());
+      auto offset_first = thrust::make_transform_iterator(
+        (packed_input_degree_offsets ? (*packed_input_degree_offsets).begin()
+                                     : input_degree_offsets.begin()) +
+          chunk_offsets[i],
+        detail::shift_left_t<size_t>{element_offsets[i]});
+      cub::DeviceSegmentedSort::SortPairs(static_cast<void*>(nullptr),
+                                          tmp_storage_bytes,
+                                          keys.data(),
+                                          segment_sorted_keys.data(),
+                                          nbr_indices.data(),
+                                          segment_sorted_nbr_indices.data(),
+                                          keys.size(),
+                                          chunk_offsets[i + 1] - chunk_offsets[i],
+                                          offset_first,
+                                          offset_first + 1,
+                                          handle.get_stream());
+      if (tmp_storage_bytes > d_tmp_storage.size()) {
+        d_tmp_storage = rmm::device_uvector<std::byte>(tmp_storage_bytes, handle.get_stream());
+      }
+      cub::DeviceSegmentedSort::SortPairs(d_tmp_storage.data(),
+                                          tmp_storage_bytes,
+                                          keys.data(),
+                                          segment_sorted_keys.data(),
+                                          nbr_indices.data(),
+                                          segment_sorted_nbr_indices.data(),
+                                          keys.size(),
+                                          chunk_offsets[i + 1] - chunk_offsets[i],
+                                          offset_first,
+                                          offset_first + 1,
+                                          handle.get_stream());
 
-    cub::DeviceSegmentedSort::SortPairs(
-      static_cast<void*>(nullptr),
-      tmp_storage_bytes,
-      keys.data(),
-      segment_sorted_keys.data(),
-      nbr_indices.data(),
-      segment_sorted_nbr_indices.data(),
-      keys.size(),
-      input_frontier_indices ? (*input_frontier_indices).size() : (input_degree_offsets.size() - 1),
-      packed_input_degree_offsets ? (*packed_input_degree_offsets).begin()
-                                  : input_degree_offsets.begin(),
-      (packed_input_degree_offsets ? (*packed_input_degree_offsets).begin()
-                                   : input_degree_offsets.begin()) +
-        1,
-      handle.get_stream());
-    if (tmp_storage_bytes > d_tmp_storage.size()) {
-      d_tmp_storage = rmm::device_uvector<std::byte>(tmp_storage_bytes, handle.get_stream());
-    }
-    cub::DeviceSegmentedSort::SortPairs(
-      d_tmp_storage.data(),
-      tmp_storage_bytes,
-      keys.data(),
-      segment_sorted_keys.data(),
-      nbr_indices.data(),
-      segment_sorted_nbr_indices.data(),
-      keys.size(),
-      input_frontier_indices ? (*input_frontier_indices).size() : input_degree_offsets.size() - 1,
-      packed_input_degree_offsets ? (*packed_input_degree_offsets).begin()
-                                  : input_degree_offsets.begin(),
-      (packed_input_degree_offsets ? (*packed_input_degree_offsets).begin()
-                                   : input_degree_offsets.begin()) +
-        1,
-      handle.get_stream());
-
-    if (output_frontier_indices) {
-      thrust::for_each(
-        handle.get_thrust_policy(),
-        thrust::make_counting_iterator(size_t{0}),
-        thrust::make_counting_iterator((*output_frontier_indices).size() * K),
-        [input_degree_offsets =
-           packed_input_degree_offsets
-             ? raft::device_span<size_t const>((*packed_input_degree_offsets).data(),
-                                               (*packed_input_degree_offsets).size())
-             : input_degree_offsets,
-         output_frontier_indices = *output_frontier_indices,
-         output_keys,
-         output_nbr_indices,
-         segment_sorted_keys =
-           raft::device_span<bias_t const>(segment_sorted_keys.data(), segment_sorted_keys.size()),
-         segment_sorted_nbr_indices = raft::device_span<edge_t const>(
-           segment_sorted_nbr_indices.data(), segment_sorted_nbr_indices.size()),
-         K,
-         invalid_idx = cugraph::ops::graph::INVALID_ID<edge_t>] __device__(size_t i) {
-          auto output_frontier_idx = output_frontier_indices[i / K];
-          auto output_idx          = output_frontier_idx * K + (i % K);
-          auto degree              = input_degree_offsets[i / K + 1] - input_degree_offsets[i / K];
-          auto input_idx           = input_degree_offsets[i / K] + (i % K);
-          if ((i % K < degree) &&
-              (segment_sorted_keys[input_idx] < std::numeric_limits<bias_t>::infinity())) {
-            if (output_keys) { (*output_keys)[output_idx] = segment_sorted_keys[input_idx]; }
-            output_nbr_indices[output_idx] = segment_sorted_nbr_indices[input_idx];
-          } else {
-            if (output_keys) {
-              (*output_keys)[output_idx] = std::numeric_limits<bias_t>::infinity();
+      if (output_frontier_indices) {
+        thrust::for_each(
+          handle.get_thrust_policy(),
+          thrust::make_counting_iterator(size_t{0}),
+          thrust::make_counting_iterator((chunk_offsets[i + 1] - chunk_offsets[i]) * K),
+          [input_degree_offsets =
+             packed_input_degree_offsets
+               ? raft::device_span<size_t const>((*packed_input_degree_offsets).data(),
+                                                 (*packed_input_degree_offsets).size())
+               : input_degree_offsets,
+           idx_offset              = chunk_offsets[i] * K,
+           output_frontier_indices = *output_frontier_indices,
+           output_keys,
+           output_nbr_indices,
+           segment_sorted_keys        = raft::device_span<bias_t const>(segment_sorted_keys.data(),
+                                                                 segment_sorted_keys.size()),
+           segment_sorted_nbr_indices = raft::device_span<edge_t const>(
+             segment_sorted_nbr_indices.data(), segment_sorted_nbr_indices.size()),
+           K,
+           invalid_idx = cugraph::ops::graph::INVALID_ID<edge_t>] __device__(size_t i) {
+            auto idx                 = idx_offset + i;
+            auto key_idx             = idx / K;
+            auto output_frontier_idx = output_frontier_indices[key_idx];
+            auto output_idx          = output_frontier_idx * K + (idx % K);
+            auto degree = input_degree_offsets[key_idx + 1] - input_degree_offsets[key_idx];
+            auto segment_sorted_input_idx =
+              (input_degree_offsets[key_idx] - input_degree_offsets[idx_offset / K]) + (idx % K);
+            if (((idx % K) < degree) && (segment_sorted_keys[segment_sorted_input_idx] <
+                                         std::numeric_limits<bias_t>::infinity())) {
+              if (output_keys) {
+                (*output_keys)[output_idx] = segment_sorted_keys[segment_sorted_input_idx];
+              }
+              output_nbr_indices[output_idx] = segment_sorted_nbr_indices[segment_sorted_input_idx];
+            } else {
+              if (output_keys) {
+                (*output_keys)[output_idx] = std::numeric_limits<bias_t>::infinity();
+              }
+              output_nbr_indices[output_idx] = invalid_idx;
             }
-            output_nbr_indices[output_idx] = invalid_idx;
-          }
-        });
-    } else {
-      thrust::for_each(
-        handle.get_thrust_policy(),
-        thrust::make_counting_iterator(size_t{0}),
-        thrust::make_counting_iterator(output_nbr_indices.size()),
-        [input_degree_offsets =
-           packed_input_degree_offsets
-             ? raft::device_span<size_t const>((*packed_input_degree_offsets).data(),
-                                               (*packed_input_degree_offsets).size())
-             : input_degree_offsets,
-         output_keys,
-         output_nbr_indices,
-         segment_sorted_keys =
-           raft::device_span<bias_t const>(segment_sorted_keys.data(), segment_sorted_keys.size()),
-         segment_sorted_nbr_indices = raft::device_span<edge_t const>(
-           segment_sorted_nbr_indices.data(), segment_sorted_nbr_indices.size()),
-         K,
-         invalid_idx = cugraph::ops::graph::INVALID_ID<edge_t>] __device__(size_t i) {
-          auto degree    = input_degree_offsets[i / K + 1] - input_degree_offsets[i / K];
-          auto input_idx = input_degree_offsets[i / K] + (i % K);
-          if ((i % K < degree) &&
-              (segment_sorted_keys[input_idx] < std::numeric_limits<bias_t>::infinity())) {
-            if (output_keys) { (*output_keys)[i] = segment_sorted_keys[input_idx]; }
-            output_nbr_indices[i] = segment_sorted_nbr_indices[input_idx];
-          } else {
-            if (output_keys) { (*output_keys)[i] = std::numeric_limits<bias_t>::infinity(); }
-            output_nbr_indices[i] = invalid_idx;
-          }
-        });
+          });
+      } else {
+        thrust::for_each(
+          handle.get_thrust_policy(),
+          thrust::make_counting_iterator(size_t{0}),
+          thrust::make_counting_iterator((chunk_offsets[i + 1] - chunk_offsets[i]) * K),
+          [input_degree_offsets =
+             packed_input_degree_offsets
+               ? raft::device_span<size_t const>((*packed_input_degree_offsets).data(),
+                                                 (*packed_input_degree_offsets).size())
+               : input_degree_offsets,
+           idx_offset = chunk_offsets[i] * K,
+           output_keys,
+           output_nbr_indices,
+           segment_sorted_keys        = raft::device_span<bias_t const>(segment_sorted_keys.data(),
+                                                                 segment_sorted_keys.size()),
+           segment_sorted_nbr_indices = raft::device_span<edge_t const>(
+             segment_sorted_nbr_indices.data(), segment_sorted_nbr_indices.size()),
+           K,
+           invalid_idx = cugraph::ops::graph::INVALID_ID<edge_t>] __device__(size_t i) {
+            auto idx     = idx_offset + i;
+            auto key_idx = idx / K;
+            auto degree  = input_degree_offsets[key_idx + 1] - input_degree_offsets[key_idx];
+            auto segment_sorted_input_idx =
+              (input_degree_offsets[key_idx] - input_degree_offsets[idx_offset / K]) + (idx % K);
+            if (((idx % K) < degree) && (segment_sorted_keys[segment_sorted_input_idx] <
+                                         std::numeric_limits<bias_t>::infinity())) {
+              if (output_keys) {
+                (*output_keys)[idx] = segment_sorted_keys[segment_sorted_input_idx];
+              }
+              output_nbr_indices[idx] = segment_sorted_nbr_indices[segment_sorted_input_idx];
+            } else {
+              if (output_keys) { (*output_keys)[idx] = std::numeric_limits<bias_t>::infinity(); }
+              output_nbr_indices[idx] = invalid_idx;
+            }
+          });
+      }
     }
   }
 
@@ -1374,13 +1485,22 @@ rmm::device_uvector<typename GraphViewType::edge_type> convert_to_unmasked_local
 
   auto edge_mask_view = graph_view.edge_mask_view();
 
+  auto [aggregate_local_frontier_unique_majors,
+        aggregate_local_frontier_major_idx_to_unique_major_idx,
+        local_frontier_unique_major_displacements,
+        local_frontier_unique_major_sizes] =
+    compute_unique_keys(handle,
+                        aggregate_local_frontier_major_first,
+                        local_frontier_displacements,
+                        local_frontier_sizes);
+
   // to avoid searching the entire neighbor list K times for high degree vertices with edge masking
-  auto local_frontier_valid_local_nbr_count_inclusive_sums =
+  auto local_frontier_unique_major_valid_local_nbr_count_inclusive_sums =
     compute_valid_local_nbr_count_inclusive_sums(handle,
                                                  graph_view,
-                                                 aggregate_local_frontier_major_first,
-                                                 local_frontier_displacements,
-                                                 local_frontier_sizes);
+                                                 aggregate_local_frontier_unique_majors.begin(),
+                                                 local_frontier_unique_major_displacements,
+                                                 local_frontier_unique_major_sizes);
 
   auto sample_major_idx_first = thrust::make_transform_iterator(
     thrust::make_counting_iterator(size_t{0}),
@@ -1417,13 +1537,19 @@ rmm::device_uvector<typename GraphViewType::edge_type> convert_to_unmasked_local
         edge_partition,
         edge_partition_e_mask,
         edge_partition_frontier_major_first,
+        raft::device_span<size_t const>(
+          aggregate_local_frontier_major_idx_to_unique_major_idx.data() +
+            local_frontier_displacements[i],
+          local_frontier_sizes[i]),
         thrust::make_tuple(
           raft::device_span<size_t const>(
-            std::get<0>(local_frontier_valid_local_nbr_count_inclusive_sums[i]).data(),
-            std::get<0>(local_frontier_valid_local_nbr_count_inclusive_sums[i]).size()),
+            std::get<0>(local_frontier_unique_major_valid_local_nbr_count_inclusive_sums[i]).data(),
+            std::get<0>(local_frontier_unique_major_valid_local_nbr_count_inclusive_sums[i])
+              .size()),
           raft::device_span<edge_t const>(
-            std::get<1>(local_frontier_valid_local_nbr_count_inclusive_sums[i]).data(),
-            std::get<1>(local_frontier_valid_local_nbr_count_inclusive_sums[i]).size()))},
+            std::get<1>(local_frontier_unique_major_valid_local_nbr_count_inclusive_sums[i]).data(),
+            std::get<1>(local_frontier_unique_major_valid_local_nbr_count_inclusive_sums[i])
+              .size()))},
       is_not_equal_t<edge_t>{cugraph::ops::graph::INVALID_ID<edge_t>});
   }
 
@@ -1596,66 +1722,13 @@ biased_sample_and_compute_local_nbr_indices(
 
   // 1. compute biases for unique keys (to reduce memory footprint)
 
-  auto aggregate_local_frontier_unique_keys =
-    allocate_dataframe_buffer<key_t>(0, handle.get_stream());
-  auto aggregate_local_frontier_key_idx_to_unique_key_idx = rmm::device_uvector<size_t>(
-    local_frontier_displacements.back() + local_frontier_sizes.back(), handle.get_stream());
-  auto local_frontier_unique_key_displacements =
-    std::vector<size_t>(local_frontier_displacements.size());
-  auto local_frontier_unique_key_sizes = std::vector<size_t>(local_frontier_sizes.size());
-  {
-    auto tmp_keys = allocate_dataframe_buffer<key_t>(
-      local_frontier_displacements.back() + local_frontier_sizes.back(), handle.get_stream());
-    for (size_t i = 0; i < graph_view.number_of_local_edge_partitions(); ++i) {
-      thrust::copy(handle.get_thrust_policy(),
-                   aggregate_local_frontier_key_first + local_frontier_displacements[i],
-                   aggregate_local_frontier_key_first + local_frontier_displacements[i] +
-                     local_frontier_sizes[i],
-                   get_dataframe_buffer_begin(tmp_keys) + local_frontier_displacements[i]);
-      thrust::sort(handle.get_thrust_policy(),
-                   get_dataframe_buffer_begin(tmp_keys) + local_frontier_displacements[i],
-                   get_dataframe_buffer_begin(tmp_keys) + local_frontier_displacements[i] +
-                     local_frontier_sizes[i]);
-      local_frontier_unique_key_sizes[i] = thrust::distance(
-        get_dataframe_buffer_begin(tmp_keys) + local_frontier_displacements[i],
-        thrust::unique(handle.get_thrust_policy(),
-                       get_dataframe_buffer_begin(tmp_keys) + local_frontier_displacements[i],
-                       get_dataframe_buffer_begin(tmp_keys) + local_frontier_displacements[i] +
-                         local_frontier_sizes[i]));
-    }
-    std::exclusive_scan(local_frontier_unique_key_sizes.begin(),
-                        local_frontier_unique_key_sizes.end(),
-                        local_frontier_unique_key_displacements.begin(),
-                        size_t{0});
-    resize_dataframe_buffer(
-      aggregate_local_frontier_unique_keys,
-      local_frontier_unique_key_displacements.back() + local_frontier_unique_key_sizes.back(),
-      handle.get_stream());
-    for (size_t i = 0; i < graph_view.number_of_local_edge_partitions(); ++i) {
-      thrust::copy(handle.get_thrust_policy(),
-                   get_dataframe_buffer_begin(tmp_keys) + local_frontier_displacements[i],
-                   get_dataframe_buffer_begin(tmp_keys) + local_frontier_displacements[i] +
-                     local_frontier_unique_key_sizes[i],
-                   get_dataframe_buffer_begin(aggregate_local_frontier_unique_keys) +
-                     local_frontier_unique_key_displacements[i]);
-      thrust::transform(
-        handle.get_thrust_policy(),
-        aggregate_local_frontier_key_first + local_frontier_displacements[i],
-        aggregate_local_frontier_key_first + local_frontier_displacements[i] +
-          local_frontier_sizes[i],
-        aggregate_local_frontier_key_idx_to_unique_key_idx.begin() +
-          local_frontier_displacements[i],
-        cuda::proclaim_return_type<size_t>(
-          [unique_key_first = get_dataframe_buffer_begin(aggregate_local_frontier_unique_keys) +
-                              local_frontier_unique_key_displacements[i],
-           num_unique_keys = local_frontier_unique_key_sizes[i]] __device__(key_t key) {
-            return static_cast<size_t>(thrust::distance(
-              unique_key_first,
-              thrust::lower_bound(
-                thrust::seq, unique_key_first, unique_key_first + num_unique_keys, key)));
-          }));
-    }
-  }
+  auto [aggregate_local_frontier_unique_keys,
+        aggregate_local_frontier_key_idx_to_unique_key_idx,
+        local_frontier_unique_key_displacements,
+        local_frontier_unique_key_sizes] = compute_unique_keys(handle,
+                                                               aggregate_local_frontier_key_first,
+                                                               local_frontier_displacements,
+                                                               local_frontier_sizes);
 
   auto [aggregate_local_frontier_unique_key_biases,
         aggregate_local_frontier_unique_key_local_degree_offsets] =
@@ -1855,8 +1928,7 @@ biased_sample_and_compute_local_nbr_indices(
            unique_key_local_degree_offsets = raft::device_span<size_t>(
              aggregate_local_frontier_unique_key_local_degree_offsets.data() +
                local_frontier_unique_key_displacements[i],
-             aggregate_local_frontier_unique_key_local_degree_offsets
-               .size())] __device__(size_t i) {
+             local_frontier_unique_key_sizes[i] + 1)] __device__(size_t i) {
             auto unique_key_idx = key_idx_to_unique_key_idx[i];
             return unique_key_local_degree_offsets[unique_key_idx + 1] -
                    unique_key_local_degree_offsets[unique_key_idx];

@@ -263,10 +263,10 @@ INSTANTIATE_TEST_SUITE_P(
   file_test,
   Tests_Biased_Neighbor_Sampling_File,
   ::testing::Combine(
-    ::testing::Values(Biased_Neighbor_Sampling_Usecase{{10, 25}, 128, false, false},
-                      Biased_Neighbor_Sampling_Usecase{{10, 25}, 128, false, true},
-                      Biased_Neighbor_Sampling_Usecase{{10, 25}, 128, true, false},
-                      Biased_Neighbor_Sampling_Usecase{{10, 25}, 128, true, true}),
+    ::testing::Values(Biased_Neighbor_Sampling_Usecase{{4, 10}, 128, false, false},
+                      Biased_Neighbor_Sampling_Usecase{{4, 10}, 128, false, true},
+                      Biased_Neighbor_Sampling_Usecase{{4, 10}, 128, true, false},
+                      Biased_Neighbor_Sampling_Usecase{{4, 10}, 128, true, true}),
     ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"),
                       cugraph::test::File_Usecase("test/datasets/web-Google.mtx"),
                       cugraph::test::File_Usecase("test/datasets/ljournal-2008.mtx"),
@@ -276,10 +276,10 @@ INSTANTIATE_TEST_SUITE_P(
   rmat_small_test,
   Tests_Biased_Neighbor_Sampling_Rmat,
   ::testing::Combine(
-    ::testing::Values(Biased_Neighbor_Sampling_Usecase{{10, 25}, 128, false, false},
-                      Biased_Neighbor_Sampling_Usecase{{10, 25}, 128, false, true},
-                      Biased_Neighbor_Sampling_Usecase{{10, 25}, 128, true, false},
-                      Biased_Neighbor_Sampling_Usecase{{10, 25}, 128, true, true}),
+    ::testing::Values(Biased_Neighbor_Sampling_Usecase{{4, 10}, 128, false, false},
+                      Biased_Neighbor_Sampling_Usecase{{4, 10}, 128, false, true},
+                      Biased_Neighbor_Sampling_Usecase{{4, 10}, 128, true, false},
+                      Biased_Neighbor_Sampling_Usecase{{4, 10}, 128, true, true}),
     ::testing::Values(cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, false, false, 0))));
 
 INSTANTIATE_TEST_SUITE_P(
@@ -290,10 +290,10 @@ INSTANTIATE_TEST_SUITE_P(
                           factor (to avoid running same benchmarks more than once) */
   Tests_Biased_Neighbor_Sampling_Rmat,
   ::testing::Combine(
-    ::testing::Values(Biased_Neighbor_Sampling_Usecase{{10, 25}, 1024, false, false, false},
-                      Biased_Neighbor_Sampling_Usecase{{10, 25}, 1024, false, true, false},
-                      Biased_Neighbor_Sampling_Usecase{{10, 25}, 1024, true, false, false},
-                      Biased_Neighbor_Sampling_Usecase{{10, 25}, 1024, true, true, false}),
+    ::testing::Values(Biased_Neighbor_Sampling_Usecase{{4, 10}, 1024, false, false, false},
+                      Biased_Neighbor_Sampling_Usecase{{4, 10}, 1024, false, true, false},
+                      Biased_Neighbor_Sampling_Usecase{{4, 10}, 1024, true, false, false},
+                      Biased_Neighbor_Sampling_Usecase{{4, 10}, 1024, true, true, false}),
     ::testing::Values(cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false, 0))));
 
 CUGRAPH_TEST_PROGRAM_MAIN()

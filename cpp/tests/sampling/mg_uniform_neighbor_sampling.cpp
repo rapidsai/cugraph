@@ -336,10 +336,10 @@ INSTANTIATE_TEST_SUITE_P(
   file_test,
   Tests_MGUniform_Neighbor_Sampling_File,
   ::testing::Combine(
-    ::testing::Values(Uniform_Neighbor_Sampling_Usecase{{10, 25}, 128, false, false},
-                      Uniform_Neighbor_Sampling_Usecase{{10, 25}, 128, false, true},
-                      Uniform_Neighbor_Sampling_Usecase{{10, 25}, 128, true, false},
-                      Uniform_Neighbor_Sampling_Usecase{{10, 25}, 128, true, true}),
+    ::testing::Values(Uniform_Neighbor_Sampling_Usecase{{4, 10}, 128, false, false},
+                      Uniform_Neighbor_Sampling_Usecase{{4, 10}, 128, false, true},
+                      Uniform_Neighbor_Sampling_Usecase{{4, 10}, 128, true, false},
+                      Uniform_Neighbor_Sampling_Usecase{{4, 10}, 128, true, true}),
     ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"),
                       cugraph::test::File_Usecase("test/datasets/web-Google.mtx"),
                       cugraph::test::File_Usecase("test/datasets/ljournal-2008.mtx"),
@@ -349,10 +349,10 @@ INSTANTIATE_TEST_SUITE_P(
   rmat_small_test,
   Tests_MGUniform_Neighbor_Sampling_Rmat,
   ::testing::Combine(
-    ::testing::Values(Uniform_Neighbor_Sampling_Usecase{{10, 25}, 128, false, false},
-                      Uniform_Neighbor_Sampling_Usecase{{10, 25}, 128, false, true},
-                      Uniform_Neighbor_Sampling_Usecase{{10, 25}, 128, true, false},
-                      Uniform_Neighbor_Sampling_Usecase{{10, 25}, 128, true, true}),
+    ::testing::Values(Uniform_Neighbor_Sampling_Usecase{{4, 10}, 128, false, false},
+                      Uniform_Neighbor_Sampling_Usecase{{4, 10}, 128, false, true},
+                      Uniform_Neighbor_Sampling_Usecase{{4, 10}, 128, true, false},
+                      Uniform_Neighbor_Sampling_Usecase{{4, 10}, 128, true, true}),
     ::testing::Values(
       // cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, false, false))));
       cugraph::test::Rmat_Usecase(5, 16, 0.57, 0.19, 0.19, 0, false, false))));
@@ -365,10 +365,10 @@ INSTANTIATE_TEST_SUITE_P(
                           factor (to avoid running same benchmarks more than once) */
   Tests_MGUniform_Neighbor_Sampling_Rmat,
   ::testing::Combine(
-    ::testing::Values(Uniform_Neighbor_Sampling_Usecase{{10, 25}, 128, false, false, false},
-                      Uniform_Neighbor_Sampling_Usecase{{10, 25}, 128, false, true, false},
-                      Uniform_Neighbor_Sampling_Usecase{{10, 25}, 128, true, false, false},
-                      Uniform_Neighbor_Sampling_Usecase{{10, 25}, 128, true, true, false}),
+    ::testing::Values(Uniform_Neighbor_Sampling_Usecase{{4, 10}, 128, false, false, false},
+                      Uniform_Neighbor_Sampling_Usecase{{4, 10}, 128, false, true, false},
+                      Uniform_Neighbor_Sampling_Usecase{{4, 10}, 128, true, false, false},
+                      Uniform_Neighbor_Sampling_Usecase{{4, 10}, 128, true, true, false}),
     ::testing::Values(cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false))));
 
 CUGRAPH_MG_TEST_PROGRAM_MAIN()
