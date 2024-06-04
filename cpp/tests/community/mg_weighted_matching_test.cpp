@@ -69,7 +69,7 @@ class Tests_MGWeightedMatching
 
     constexpr bool multi_gpu = true;
 
-    bool test_weighted    = true;
+    bool test_weighted    = false;
     bool renumber         = true;
     bool drop_self_loops  = false;
     bool drop_multi_edges = false;
@@ -97,6 +97,26 @@ class Tests_MGWeightedMatching
     auto mg_edge_weight_view =
       mg_edge_weights ? std::make_optional((*mg_edge_weights).view()) : std::nullopt;
 
+    //
+    CUGRAPH_EXPECTS(mg_edge_weight_view.has_value(), "Graph must be weighted");
+
+    auto const comm_rank = handle_->get_comms().get_rank();
+    for (size_t ep_idx = 0; ep_idx < mg_graph_view.number_of_local_edge_partitions(); ++ep_idx) {
+      raft::device_span<weight_t const> weights_of_edges_stored_in_this_edge_partition{};
+
+      auto value_firsts = mg_edge_weight_view->value_firsts();
+      auto edge_counts  = mg_edge_weight_view->edge_counts();
+
+      RAFT_CUDA_TRY(cudaDeviceSynchronize());
+      auto weights_title = std::string("weights_")
+                             .append(std::to_string(comm_rank))
+                             .append("_")
+                             .append(std::to_string(ep_idx));
+      raft::print_device_vector(
+        weights_title.c_str(), value_firsts[ep_idx], edge_counts[ep_idx], std::cout);
+    }
+
+    //
     std::optional<cugraph::edge_property_t<decltype(mg_graph_view), bool>> edge_mask{std::nullopt};
     if (weighted_matching_usecase.edge_masking) {
       edge_mask = cugraph::test::generate<decltype(mg_graph_view), bool>::edge_property(
@@ -107,10 +127,22 @@ class Tests_MGWeightedMatching
     rmm::device_uvector<vertex_t> mg_partners(0, handle_->get_stream());
     weight_t mg_matching_weights;
 
+    if (cugraph::test::g_perf) {
+      RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      handle_->get_comms().barrier();
+      hr_timer.start("MG approximate_weighted_matching");
+    }
+
     std::forward_as_tuple(mg_partners, mg_matching_weights) =
       cugraph::approximate_weighted_matching<vertex_t, edge_t, weight_t, multi_gpu>(
         *handle_, mg_graph_view, (*mg_edge_weights).view());
 
+    if (cugraph::test::g_perf) {
+      RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      handle_->get_comms().barrier();
+      hr_timer.stop();
+      hr_timer.display_and_clear(std::cout);
+    }
     if (weighted_matching_usecase.check_correctness) {
       auto h_mg_partners = cugraph::test::to_host(*handle_, mg_partners);
 

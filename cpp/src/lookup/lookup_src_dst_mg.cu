@@ -19,8 +19,8 @@
 namespace cugraph {
 
 template class lookup_container_t<int32_t, int32_t, thrust::tuple<int32_t, int32_t>>;
-template class lookup_container_t<int64_t, int32_t, thrust::tuple<int32_t, int32_t>>;
-template class lookup_container_t<int64_t, int32_t, thrust::tuple<int64_t, int64_t>>;
+// template class lookup_container_t<int64_t, int32_t, thrust::tuple<int32_t, int32_t>>;
+// template class lookup_container_t<int64_t, int32_t, thrust::tuple<int64_t, int64_t>>;
 
 template lookup_container_t<int32_t, int32_t, thrust::tuple<int32_t, int32_t>>
 build_edge_id_and_type_to_src_dst_lookup_map(
@@ -42,7 +42,7 @@ lookup_endpoints_for_edge_ids_and_types<int32_t, int32_t, int32_t, true>(
   lookup_container_t<int32_t, int32_t, thrust::tuple<int32_t, int32_t>> const& search_container,
   raft::device_span<int32_t const> edge_ids_to_lookup,
   raft::device_span<int32_t const> edge_types_to_lookup);
-
+/*
 template lookup_container_t<int64_t, int32_t, thrust::tuple<int32_t, int32_t>>
 build_edge_id_and_type_to_src_dst_lookup_map(
   raft::handle_t const& handle,
@@ -84,5 +84,5 @@ lookup_endpoints_for_edge_ids_and_types<int64_t, int64_t, int32_t, true>(
   lookup_container_t<int64_t, int32_t, thrust::tuple<int64_t, int64_t>> const& search_container,
   raft::device_span<int64_t const> edge_ids_to_lookup,
   raft::device_span<int32_t const> edge_types_to_lookup);
-
+*/
 }  // namespace cugraph

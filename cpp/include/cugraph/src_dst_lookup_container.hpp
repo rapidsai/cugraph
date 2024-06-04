@@ -73,8 +73,7 @@ class lookup_container_t {
   void insert(raft::handle_t const& handle,
               edge_type_t typ,
               raft::device_span<edge_id_t const> edge_ids_to_insert,
-              decltype(cugraph::allocate_dataframe_buffer<value_t>(
-                0, rmm::cuda_stream_view{}))&& values_to_insert);
+              dataframe_buffer_type_t<value_t>&& values_to_insert);
 
   dataframe_buffer_type_t<value_t> src_dst_from_edge_id_and_type(
     raft::handle_t const& handle,

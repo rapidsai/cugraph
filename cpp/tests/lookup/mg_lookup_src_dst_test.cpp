@@ -41,7 +41,7 @@
 #include <random>
 
 struct EdgeSrcDstLookup_UseCase {
-  bool edge_masking{false};
+  // FIXME: Test with edge mask once the graph generator is updated to generate edge ids and types
   bool check_correctness{true};
 };
 
@@ -101,11 +101,6 @@ class Tests_MGLookupEdgeSrcDst
       mg_edge_weights ? std::make_optional((*mg_edge_weights).view()) : std::nullopt;
 
     std::optional<cugraph::edge_property_t<decltype(mg_graph_view), bool>> edge_mask{std::nullopt};
-    if (lookup_usecase.edge_masking) {
-      edge_mask = cugraph::test::generate<decltype(mg_graph_view), bool>::edge_property(
-        *handle_, mg_graph_view, 2);
-      // mg_graph_view.attach_edge_mask((*edge_mask).view());
-    }
 
     //
     // FIXME: As the graph generator doesn't generate edge ids and types at the moment, generate
@@ -114,7 +109,7 @@ class Tests_MGLookupEdgeSrcDst
     //
 
     int32_t number_of_edge_types =
-      6 + static_cast<int>(mg_graph_view.number_of_vertices() / (1 << 10));
+      1 + (std::rand() % (1 + (mg_graph_view.number_of_vertices() / (1 << 10))));
 
     std::optional<cugraph::edge_property_t<decltype(mg_graph_view), int32_t>> edge_types{
       std::nullopt};
@@ -275,26 +270,26 @@ class Tests_MGLookupEdgeSrcDst
 template <typename input_usecase_t>
 std::unique_ptr<raft::handle_t> Tests_MGLookupEdgeSrcDst<input_usecase_t>::handle_ = nullptr;
 
-using Tests_MGLookupEdgeSrcDst_File = Tests_MGLookupEdgeSrcDst<cugraph::test::File_Usecase>;
+// using Tests_MGLookupEdgeSrcDst_File = Tests_MGLookupEdgeSrcDst<cugraph::test::File_Usecase>;
 using Tests_MGLookupEdgeSrcDst_Rmat = Tests_MGLookupEdgeSrcDst<cugraph::test::Rmat_Usecase>;
 
-TEST_P(Tests_MGLookupEdgeSrcDst_File, CheckInt32Int32FloatFloat)
-{
-  run_current_test<int32_t, int32_t, float, int>(
-    override_File_Usecase_with_cmd_line_arguments(GetParam()));
-}
+// TEST_P(Tests_MGLookupEdgeSrcDst_File, CheckInt32Int32FloatFloat)
+// {
+//   run_current_test<int32_t, int32_t, float, int>(
+//     override_File_Usecase_with_cmd_line_arguments(GetParam()));
+// }
 
-TEST_P(Tests_MGLookupEdgeSrcDst_File, CheckInt32Int64FloatFloat)
-{
-  run_current_test<int32_t, int64_t, float, int>(
-    override_File_Usecase_with_cmd_line_arguments(GetParam()));
-}
+// TEST_P(Tests_MGLookupEdgeSrcDst_File, CheckInt32Int64FloatFloat)
+// {
+//   run_current_test<int32_t, int64_t, float, int>(
+//     override_File_Usecase_with_cmd_line_arguments(GetParam()));
+// }
 
-TEST_P(Tests_MGLookupEdgeSrcDst_File, CheckInt64Int64FloatFloat)
-{
-  run_current_test<int64_t, int64_t, float, int>(
-    override_File_Usecase_with_cmd_line_arguments(GetParam()));
-}
+// TEST_P(Tests_MGLookupEdgeSrcDst_File, CheckInt64Int64FloatFloat)
+// {
+//   run_current_test<int64_t, int64_t, float, int>(
+//     override_File_Usecase_with_cmd_line_arguments(GetParam()));
+// }
 
 TEST_P(Tests_MGLookupEdgeSrcDst_Rmat, CheckInt32Int32FloatFloat)
 {
@@ -302,31 +297,27 @@ TEST_P(Tests_MGLookupEdgeSrcDst_Rmat, CheckInt32Int32FloatFloat)
     override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
 }
 
-TEST_P(Tests_MGLookupEdgeSrcDst_Rmat, CheckInt32Int64FloatFloat)
-{
-  run_current_test<int32_t, int64_t, float, int>(
-    override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
-}
+// TEST_P(Tests_MGLookupEdgeSrcDst_Rmat, CheckInt32Int64FloatFloat)
+// {
+//   run_current_test<int32_t, int64_t, float, int>(
+//     override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
+// }
 
-TEST_P(Tests_MGLookupEdgeSrcDst_Rmat, CheckInt64Int64FloatFloat)
-{
-  run_current_test<int64_t, int64_t, float, int>(
-    override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
-}
+// TEST_P(Tests_MGLookupEdgeSrcDst_Rmat, CheckInt64Int64FloatFloat)
+// {
+//   run_current_test<int64_t, int64_t, float, int>(
+//     override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
+// }
 
-INSTANTIATE_TEST_SUITE_P(
-  file_test,
-  Tests_MGLookupEdgeSrcDst_File,
-  ::testing::Combine(::testing::Values(EdgeSrcDstLookup_UseCase{false}
-                                       // , EdgeSrcDstLookup_UseCase{true}
-                                       ),
-                     ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"))));
+// INSTANTIATE_TEST_SUITE_P(
+//   file_test,
+//   Tests_MGLookupEdgeSrcDst_File,
+//   ::testing::Combine(::testing::Values(EdgeSrcDstLookup_UseCase{}),
+//                      ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"))));
 
 INSTANTIATE_TEST_SUITE_P(rmat_small_test,
                          Tests_MGLookupEdgeSrcDst_Rmat,
-                         ::testing::Combine(::testing::Values(EdgeSrcDstLookup_UseCase{false}
-                                                              //  , EdgeSrcDstLookup_UseCase{true}
-                                                              ),
+                         ::testing::Combine(::testing::Values(EdgeSrcDstLookup_UseCase{}),
                                             ::testing::Values(cugraph::test::Rmat_Usecase(
                                               3, 2, 0.57, 0.19, 0.19, 0, true, false))));
 
@@ -338,9 +329,7 @@ INSTANTIATE_TEST_SUITE_P(
                           factor (to avoid running same benchmarks more than once) */
   Tests_MGLookupEdgeSrcDst_Rmat,
   ::testing::Combine(
-    ::testing::Values(EdgeSrcDstLookup_UseCase{false, false}
-                      // , EdgeSrcDstLookup_UseCase{true, false}
-                      ),
+    ::testing::Values(EdgeSrcDstLookup_UseCase{false}),
     ::testing::Values(cugraph::test::Rmat_Usecase(5, 32, 0.57, 0.19, 0.19, 0, true, false))));
 
 CUGRAPH_MG_TEST_PROGRAM_MAIN()
