@@ -31,28 +31,14 @@
 
 namespace cugraph {
 
-namespace detail {
-
-template <typename TupleType, std::size_t... Is>
-constexpr TupleType invalid_of_thrust_tuple_of_integral(std::index_sequence<Is...>)
-{
-  return thrust::make_tuple(
-    cugraph::invalid_idx<typename thrust::tuple_element<Is, TupleType>::type>::value...);
-}
-}  // namespace detail
-
-template <typename TupleType>
-constexpr TupleType invalid_of_thrust_tuple_of_integral()
-{
-  return detail::invalid_of_thrust_tuple_of_integral<TupleType>(
-    std::make_index_sequence<thrust::tuple_size<TupleType>::value>());
-}
-
-template <typename edge_id_t, typename edge_type_t, typename value_t>
+template <typename edge_id_t,
+          typename edge_type_t,
+          typename vertex_t,
+          typename value_t = thrust::tuple<vertex_t, vertex_t>>
 class lookup_container_t {
-  template <typename _edge_id_t, typename _edge_type_t, typename _value_t>
+  template <typename _edge_id_t, typename _edge_type_t, typename _vertex_t, typename _value_t>
   struct lookup_container_impl;
-  std::unique_ptr<lookup_container_impl<edge_id_t, edge_type_t, value_t>> pimpl;
+  std::unique_ptr<lookup_container_impl<edge_id_t, edge_type_t, vertex_t, value_t>> pimpl;
 
  public:
   using edge_id_type   = edge_id_t;

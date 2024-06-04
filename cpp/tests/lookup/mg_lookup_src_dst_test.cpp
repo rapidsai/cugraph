@@ -244,7 +244,7 @@ class Tests_MGLookupEdgeSrcDst
       d_mg_edge_types = cugraph::test::to_device(*handle_, h_mg_edge_types);
 
       auto [srcs, dsts] =
-        cugraph::lookup_endpoints_for_edge_ids_and_types<vertex_t, edge_t, int32_t, multi_gpu>(
+        cugraph::lookup_endpoints_from_edge_ids_and_types<vertex_t, edge_t, int32_t, multi_gpu>(
           *handle_,
           search_container,
           raft::device_span<edge_t>((*d_mg_edge_ids).begin(), (*d_mg_edge_ids).size()),
