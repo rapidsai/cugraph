@@ -541,7 +541,6 @@ dependencies:
       - output_types: [conda]
         packages:
           - pylibwholegraph==24.8.*
-
   test_python_pylibcugraph:
     common:
       - output_types: [conda, pyproject]
@@ -576,7 +575,7 @@ dependencies:
     common:
       - output_types: conda
         packages:
-          - &pylibwholegraph_conda pylibwholegraph==24.6.*
+          - &pylibwholegraph_conda pylibwholegraph==24.8.*
       - output_types: requirements
         packages:
           # pip recognizes the index as a global option for the requirements.txt file
@@ -587,10 +586,10 @@ dependencies:
         matrices:
           - matrix: {cuda: "12.*"}
             packages:
-              - pylibwholegraph-cu12==24.6.*
+              - pylibwholegraph-cu12==24.8.*
           - matrix: {cuda: "11.*"}
             packages:
-              - pylibwholegraph-cu11==24.6.*
+              - pylibwholegraph-cu11==24.8.*
           - {matrix: null, packages: [*pylibwholegraph_conda]}
 
   depends_on_rmm:
