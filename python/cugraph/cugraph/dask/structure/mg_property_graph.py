@@ -1123,8 +1123,7 @@ class EXPERIMENTAL__MGPropertyGraph:
             Series is passed, the index or keys are the columns to fill
             and the values are the fill value for the corresponding column.
         """
-
-        self.__edge_prop_dataframe = self.__edge_prop_dataframe.fillna(val).persist()
+        self.__edge_prop_dataframe['val'] = self.__edge_prop_dataframe['val'].fillna(val).persist()
 
     def select_vertices(self, expr, from_previous_selection=None):
         raise NotImplementedError

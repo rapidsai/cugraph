@@ -48,6 +48,7 @@ DEGREE_TYPE = ["bidirectional", "outgoing", "incoming"]
 
 
 def get_sg_results(dataset, core_number, degree_type):
+    dataset.get_edgelist(download=True)
     G = dataset.get_graph(create_using=cugraph.Graph(directed=False))
 
     if core_number:
@@ -105,7 +106,7 @@ def test_dask_mg_k_core(dask_client, dataset, core_number, degree_type, benchmar
     expected_k_core_results, core_number = get_sg_results(
         dataset, core_number, degree_type
     )
-
+    dataset.get_dask_edgelist() # reload with MG edgelist
     dg = dataset.get_dask_graph(create_using=cugraph.Graph(directed=False))
     k_core_results = benchmark(dcg.k_core, dg, core_number=core_number)
     k_core_results = (
@@ -123,6 +124,7 @@ def test_dask_mg_k_core(dask_client, dataset, core_number, degree_type, benchmar
 @pytest.mark.mg
 def test_dask_mg_k_core_invalid_input(dask_client):
     dataset = DATASETS[0]
+    dataset.get_dask_edgelist(download=True) # reload with MG edgelist
     dg = dataset.get_dask_graph(create_using=cugraph.Graph(directed=True))
 
     with pytest.raises(ValueError):
