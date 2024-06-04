@@ -228,6 +228,7 @@ def run_train(
     with torch.no_grad():
         total_correct = total_examples = 0
         for i, batch in enumerate(test_loader):
+            print(f"test batch {i}")
             batch = batch.to(rank)
             batch_size = batch.batch_size
 
