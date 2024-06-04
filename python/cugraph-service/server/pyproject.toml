@@ -76,5 +76,4 @@ include = [
 
 [tool.rapids-build-backend]
 build-backend = "setuptools.build_meta"
-requires = []
 dependencies-file = "../../../dependencies.yaml"

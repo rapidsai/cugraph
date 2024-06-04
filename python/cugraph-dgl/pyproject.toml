@@ -33,7 +33,7 @@ dependencies = [
 [project.optional-dependencies]
 test = [
     "pandas",
-    "pylibwholegraph==24.8.*",
+    "pylibwholegraph==24.8.*,>=0.0.0a0",
     "pytest",
     "pytest-benchmark",
     "pytest-cov",
@@ -58,5 +58,4 @@ include = [
 
 [tool.rapids-build-backend]
 build-backend = "setuptools.build_meta"
-requires = []
 dependencies-file = "../../dependencies.yaml"

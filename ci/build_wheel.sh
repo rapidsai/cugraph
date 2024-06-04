@@ -5,7 +5,6 @@ set -euo pipefail
 
 package_name=$1
 package_dir=$2
-underscore_package_name=$(echo "${package_name}" | tr "-" "_")
 
 source rapids-configure-sccache
 source rapids-date-string
