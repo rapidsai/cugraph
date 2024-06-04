@@ -283,26 +283,26 @@ class Tests_MGLookupEdgeSrcDst
 template <typename input_usecase_t>
 std::unique_ptr<raft::handle_t> Tests_MGLookupEdgeSrcDst<input_usecase_t>::handle_ = nullptr;
 
-// using Tests_MGLookupEdgeSrcDst_File = Tests_MGLookupEdgeSrcDst<cugraph::test::File_Usecase>;
+using Tests_MGLookupEdgeSrcDst_File = Tests_MGLookupEdgeSrcDst<cugraph::test::File_Usecase>;
 using Tests_MGLookupEdgeSrcDst_Rmat = Tests_MGLookupEdgeSrcDst<cugraph::test::Rmat_Usecase>;
 
-// TEST_P(Tests_MGLookupEdgeSrcDst_File, CheckInt32Int32FloatFloat)
-// {
-//   run_current_test<int32_t, int32_t, float, int>(
-//     override_File_Usecase_with_cmd_line_arguments(GetParam()));
-// }
+TEST_P(Tests_MGLookupEdgeSrcDst_File, CheckInt32Int32FloatFloat)
+{
+  run_current_test<int32_t, int32_t, float, int>(
+    override_File_Usecase_with_cmd_line_arguments(GetParam()));
+}
 
-// TEST_P(Tests_MGLookupEdgeSrcDst_File, CheckInt32Int64FloatFloat)
-// {
-//   run_current_test<int32_t, int64_t, float, int>(
-//     override_File_Usecase_with_cmd_line_arguments(GetParam()));
-// }
+TEST_P(Tests_MGLookupEdgeSrcDst_File, CheckInt32Int64FloatFloat)
+{
+  run_current_test<int32_t, int64_t, float, int>(
+    override_File_Usecase_with_cmd_line_arguments(GetParam()));
+}
 
-// TEST_P(Tests_MGLookupEdgeSrcDst_File, CheckInt64Int64FloatFloat)
-// {
-//   run_current_test<int64_t, int64_t, float, int>(
-//     override_File_Usecase_with_cmd_line_arguments(GetParam()));
-// }
+TEST_P(Tests_MGLookupEdgeSrcDst_File, CheckInt64Int64FloatFloat)
+{
+  run_current_test<int64_t, int64_t, float, int>(
+    override_File_Usecase_with_cmd_line_arguments(GetParam()));
+}
 
 TEST_P(Tests_MGLookupEdgeSrcDst_Rmat, CheckInt32Int32FloatFloat)
 {
@@ -310,23 +310,23 @@ TEST_P(Tests_MGLookupEdgeSrcDst_Rmat, CheckInt32Int32FloatFloat)
     override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
 }
 
-// TEST_P(Tests_MGLookupEdgeSrcDst_Rmat, CheckInt32Int64FloatFloat)
-// {
-//   run_current_test<int32_t, int64_t, float, int>(
-//     override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
-// }
+TEST_P(Tests_MGLookupEdgeSrcDst_Rmat, CheckInt32Int64FloatFloat)
+{
+  run_current_test<int32_t, int64_t, float, int>(
+    override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
+}
 
-// TEST_P(Tests_MGLookupEdgeSrcDst_Rmat, CheckInt64Int64FloatFloat)
-// {
-//   run_current_test<int64_t, int64_t, float, int>(
-//     override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
-// }
+TEST_P(Tests_MGLookupEdgeSrcDst_Rmat, CheckInt64Int64FloatFloat)
+{
+  run_current_test<int64_t, int64_t, float, int>(
+    override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
+}
 
-// INSTANTIATE_TEST_SUITE_P(
-//   file_test,
-//   Tests_MGLookupEdgeSrcDst_File,
-//   ::testing::Combine(::testing::Values(EdgeSrcDstLookup_UseCase{}),
-//                      ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"))));
+INSTANTIATE_TEST_SUITE_P(
+  file_test,
+  Tests_MGLookupEdgeSrcDst_File,
+  ::testing::Combine(::testing::Values(EdgeSrcDstLookup_UseCase{}),
+                     ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"))));
 
 INSTANTIATE_TEST_SUITE_P(rmat_small_test,
                          Tests_MGLookupEdgeSrcDst_Rmat,
