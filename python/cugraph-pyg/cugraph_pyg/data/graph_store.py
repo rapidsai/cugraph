@@ -43,12 +43,12 @@ class GraphStore(
     the graph across workers.  This object uses lazy graph creation.
     Users can repeatedly call put_edge_index, and the tensors won't
     be converted into a cuGraph graph until one is needed
-    (i.e. when creating a loader). Supports 
+    (i.e. when creating a loader). Supports
     single-node/single-GPU, single-node/multi-GPU, and
     multi-node/multi-GPU graph storage.
 
     Each worker should have a slice of the graph locally, and
-    call put_edge_index with its slice.  
+    call put_edge_index with its slice.
     """
 
     def __init__(self, is_multi_gpu: bool = False):

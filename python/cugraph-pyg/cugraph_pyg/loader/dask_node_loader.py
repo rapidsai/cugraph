@@ -496,6 +496,7 @@ class DaskNeighborLoader:
     Duck-typed version of the PyG NeighborLoader interface that uses
     Dask to sample nodes using the uniform neighbor sampling algorithm.
     """
+
     def __init__(
         self,
         data: Union[DaskGraphStore, Tuple[DaskGraphStore, DaskGraphStore]],

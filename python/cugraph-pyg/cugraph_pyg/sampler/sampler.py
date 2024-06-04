@@ -26,6 +26,7 @@ class SampleIterator:
     features to produce final output minibatches
     that can be fed into a GNN model.
     """
+
     def __init__(
         self,
         data: Tuple[
@@ -134,6 +135,7 @@ class SampleReader:
     """
     Iterator that processes results from the cuGraph distributed sampler.
     """
+
     def __init__(self, base_reader: DistSampleReader):
         """
         Constructs a new SampleReader.
@@ -183,6 +185,7 @@ class HomogeneousSampleReader(SampleReader):
     Subclass of SampleReader that reads homogeneous output samples
     produced by the cuGraph distributed sampler.
     """
+
     def __init__(self, base_reader: DistSampleReader):
         """
         Constructs a new HomogeneousSampleReader
