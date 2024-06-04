@@ -191,15 +191,15 @@ class Tests_Multithreaded
 
         for (size_t j = i; j < h_src_v.size(); j += num_threads) {
           per_thread_edgelist.append(
-            thread_handle,
             h_src_v[j],
             h_dst_v[j],
             h_weights_v ? std::make_optional((*h_weights_v)[j]) : std::nullopt,
             std::nullopt,
-            std::nullopt);
+            std::nullopt,
+            thread_handle.get_stream());
         }
 
-        per_thread_edgelist.flush(thread_handle);
+        per_thread_edgelist.flush(thread_handle.get_stream());
       });
     }
 
@@ -384,12 +384,13 @@ class Tests_Multithreaded
             auto thread_handle = instance_manager->get_handle();
 
             if (thread_handle.get_rank() == 0) {
-              std::tie(sg_graph, sg_edge_weights, std::ignore) =
+              std::tie(sg_graph, sg_edge_weights, std::ignore, std::ignore) =
                 cugraph::test::mg_graph_to_sg_graph(
                   thread_handle.raft_handle(),
                   graph_view.get(thread_handle),
                   edge_weights ? std::make_optional(edge_weights->get(thread_handle).view())
                                : std::nullopt,
+                  std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
                   std::optional<raft::device_span<vertex_t const>>{std::nullopt},
                   false);  // create an SG graph with MG graph vertex IDs
             } else {
@@ -398,6 +399,7 @@ class Tests_Multithreaded
                 graph_view.get(thread_handle),
                 edge_weights ? std::make_optional(edge_weights->get(thread_handle).view())
                              : std::nullopt,
+                std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
                 std::optional<raft::device_span<vertex_t const>>{std::nullopt},
                 false);  // create an SG graph with MG graph vertex IDs
             }

@@ -21,6 +21,7 @@ files:
       - depends_on_pylibraft
       - depends_on_raft_dask
       - depends_on_pylibcugraphops
+      - depends_on_pylibwholegraph
       - depends_on_cupy
       - python_run_cugraph
       - python_run_nx_cugraph
@@ -61,6 +62,7 @@ files:
     includes:
       - cuda_version
       - depends_on_cudf
+      - depends_on_pylibwholegraph
       - py_version
       - test_python_common
       - test_python_cugraph
@@ -106,6 +108,7 @@ files:
     includes:
       - test_python_common
       - test_python_cugraph
+      - depends_on_pylibwholegraph
   py_build_pylibcugraph:
     output: pyproject
     pyproject_dir: python/pylibcugraph
@@ -192,6 +195,7 @@ files:
       key: test
     includes:
       - test_python_common
+      - depends_on_pylibwholegraph
   py_build_cugraph_pyg:
     output: pyproject
     pyproject_dir: python/cugraph-pyg
@@ -216,6 +220,7 @@ files:
       key: test
     includes:
       - test_python_common
+      - depends_on_pylibwholegraph
   py_build_cugraph_equivariant:
     output: pyproject
     pyproject_dir: python/cugraph-equivariant
@@ -643,7 +648,29 @@ dependencies:
           - cugraph==24.8.*,>=0.0.0a0
           - pytorch>=2.0
           - pytorch-cuda==11.8
+          - tensordict>=0.1.2
           - pyg>=2.5,<2.6
+
+  depends_on_pylibwholegraph:
+    common:
+      - output_types: conda
+        packages:
+          - &pylibwholegraph_conda pylibwholegraph==24.8.*
+      - output_types: requirements
+        packages:
+          # pip recognizes the index as a global option for the requirements.txt file
+          - --extra-index-url=https://pypi.nvidia.com
+          - --extra-index-url=https://pypi.anaconda.org/rapidsai-wheels-nightly/simple
+    specific:
+      - output_types: [requirements, pyproject]
+        matrices:
+          - matrix: {cuda: "12.*"}
+            packages:
+              - pylibwholegraph-cu12==24.8.*
+          - matrix: {cuda: "11.*"}
+            packages:
+              - pylibwholegraph-cu11==24.8.*
+          - {matrix: null, packages: [*pylibwholegraph_conda]}
 
   depends_on_rmm:
     common:

@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2023, NVIDIA CORPORATION.
+# Copyright (c) 2019-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -40,7 +40,7 @@ def from_edgelist(
 
     Parameters
     ----------
-    df : cudf.DataFrame, pandas.DataFrame, dask_cudf.core.DataFrame
+    df : cudf.DataFrame, pandas.DataFrame, dask_cudf.DataFrame
         This DataFrame contains columns storing edge source vertices,
         destination (or target following NetworkX's terminology) vertices, and
         (optional) weights.
@@ -95,7 +95,7 @@ def from_edgelist(
             renumber=renumber,
         )
 
-    elif df_type is dask_cudf.core.DataFrame:
+    elif df_type is dask_cudf.DataFrame:
         if create_using is None:
             G = Graph()
         elif isinstance(create_using, Graph):
@@ -277,6 +277,8 @@ def from_pandas_edgelist(
     renumber=True,
 ):
     """
+    See :func:`networkx.convert_matrix.from_pandas_edgelist`.
+
     Initialize a graph from the edge list. It is an error to call this
     method on an initialized Graph object. Source argument is source
     column name and destination argument is destination column name.
