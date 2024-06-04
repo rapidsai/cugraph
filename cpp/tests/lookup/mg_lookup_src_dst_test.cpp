@@ -196,9 +196,22 @@ class Tests_MGLookupEdgeSrcDst
                           handle_->get_stream());
     }
 
+    if (cugraph::test::g_perf) {
+      RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      handle_->get_comms().barrier();
+      hr_timer.start("MG Build Lookup Map");
+    }
+
     auto search_container =
       cugraph::build_edge_id_and_type_to_src_dst_lookup_map<vertex_t, edge_t, int32_t, multi_gpu>(
         *handle_, mg_graph_view, (*edge_ids).view(), (*edge_types).view());
+
+    if (cugraph::test::g_perf) {
+      RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      handle_->get_comms().barrier();
+      hr_timer.stop();
+      hr_timer.display_and_clear(std::cout);
+    }
 
     if (lookup_usecase.check_correctness) {
       rmm::device_uvector<vertex_t> d_mg_srcs(0, handle_->get_stream());
