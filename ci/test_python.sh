@@ -3,10 +3,6 @@
 
 set -euo pipefail
 
-# TODO: Enable dask query planning (by default) once some bugs are fixed.
-# xref: https://github.com/rapidsai/cudf/issues/15027
-export DASK_DATAFRAME__QUERY_PLANNING=False
-
 # Support invoking test_python.sh outside the script directory
 cd "$(dirname "$(realpath "${BASH_SOURCE[0]}")")"/../
 
@@ -217,13 +213,14 @@ if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
 
     # Install pyg dependencies (which requires pip)
 
-    pip install ogb
+    pip install \
+      ogb \
+      tensordict
+
     pip install \
         pyg_lib \
         torch_scatter \
         torch_sparse \
-        torch_cluster \
-        torch_spline_conv \
       -f ${PYG_URL}
 
     rapids-print-env

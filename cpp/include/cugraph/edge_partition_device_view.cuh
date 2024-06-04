@@ -214,9 +214,9 @@ class edge_partition_device_view_t<vertex_t, edge_t, multi_gpu, std::enable_if_t
   }
 
   template <typename MajorIterator>
-  size_t compute_number_of_edges(MajorIterator major_first,
-                                 MajorIterator major_last,
-                                 rmm::cuda_stream_view stream) const
+  __host__ size_t compute_number_of_edges(MajorIterator major_first,
+                                          MajorIterator major_last,
+                                          rmm::cuda_stream_view stream) const
   {
     return dcs_nzd_vertices_ ? thrust::transform_reduce(
                                  rmm::exec_policy(stream),
@@ -250,7 +250,7 @@ class edge_partition_device_view_t<vertex_t, edge_t, multi_gpu, std::enable_if_t
                                  thrust::plus<size_t>());
   }
 
-  rmm::device_uvector<edge_t> compute_local_degrees(rmm::cuda_stream_view stream) const
+  __host__ rmm::device_uvector<edge_t> compute_local_degrees(rmm::cuda_stream_view stream) const
   {
     rmm::device_uvector<edge_t> local_degrees(this->major_range_size(), stream);
     if (dcs_nzd_vertices_) {
@@ -277,9 +277,9 @@ class edge_partition_device_view_t<vertex_t, edge_t, multi_gpu, std::enable_if_t
   }
 
   template <typename MajorIterator>
-  rmm::device_uvector<edge_t> compute_local_degrees(MajorIterator major_first,
-                                                    MajorIterator major_last,
-                                                    rmm::cuda_stream_view stream) const
+  __host__ rmm::device_uvector<edge_t> compute_local_degrees(MajorIterator major_first,
+                                                             MajorIterator major_last,
+                                                             rmm::cuda_stream_view stream) const
   {
     rmm::device_uvector<edge_t> local_degrees(thrust::distance(major_first, major_last), stream);
     if (dcs_nzd_vertices_) {
@@ -306,10 +306,10 @@ class edge_partition_device_view_t<vertex_t, edge_t, multi_gpu, std::enable_if_t
   }
 
   template <typename MaskIterator, typename MajorIterator>
-  size_t compute_number_of_edges_with_mask(MaskIterator mask_first,
-                                           MajorIterator major_first,
-                                           MajorIterator major_last,
-                                           rmm::cuda_stream_view stream) const
+  __host__ size_t compute_number_of_edges_with_mask(MaskIterator mask_first,
+                                                    MajorIterator major_first,
+                                                    MajorIterator major_last,
+                                                    rmm::cuda_stream_view stream) const
   {
     return dcs_nzd_vertices_ ? thrust::transform_reduce(
                                  rmm::exec_policy(stream),
@@ -348,8 +348,8 @@ class edge_partition_device_view_t<vertex_t, edge_t, multi_gpu, std::enable_if_t
   }
 
   template <typename MaskIterator>
-  rmm::device_uvector<edge_t> compute_local_degrees_with_mask(MaskIterator mask_first,
-                                                              rmm::cuda_stream_view stream) const
+  __host__ rmm::device_uvector<edge_t> compute_local_degrees_with_mask(
+    MaskIterator mask_first, rmm::cuda_stream_view stream) const
   {
     rmm::device_uvector<edge_t> local_degrees(this->major_range_size(), stream);
     if (dcs_nzd_vertices_) {
@@ -384,10 +384,11 @@ class edge_partition_device_view_t<vertex_t, edge_t, multi_gpu, std::enable_if_t
   }
 
   template <typename MaskIterator, typename MajorIterator>
-  rmm::device_uvector<edge_t> compute_local_degrees_with_mask(MaskIterator mask_first,
-                                                              MajorIterator major_first,
-                                                              MajorIterator major_last,
-                                                              rmm::cuda_stream_view stream) const
+  __host__ rmm::device_uvector<edge_t> compute_local_degrees_with_mask(
+    MaskIterator mask_first,
+    MajorIterator major_first,
+    MajorIterator major_last,
+    rmm::cuda_stream_view stream) const
   {
     rmm::device_uvector<edge_t> local_degrees(thrust::distance(major_first, major_last), stream);
     if (dcs_nzd_vertices_) {
@@ -553,9 +554,9 @@ class edge_partition_device_view_t<vertex_t, edge_t, multi_gpu, std::enable_if_t
   }
 
   template <typename MajorIterator>
-  size_t compute_number_of_edges(MajorIterator major_first,
-                                 MajorIterator major_last,
-                                 rmm::cuda_stream_view stream) const
+  __host__ size_t compute_number_of_edges(MajorIterator major_first,
+                                          MajorIterator major_last,
+                                          rmm::cuda_stream_view stream) const
   {
     return thrust::transform_reduce(
       rmm::exec_policy(stream),
@@ -573,7 +574,7 @@ class edge_partition_device_view_t<vertex_t, edge_t, multi_gpu, std::enable_if_t
       thrust::plus<size_t>());
   }
 
-  rmm::device_uvector<edge_t> compute_local_degrees(rmm::cuda_stream_view stream) const
+  __host__ rmm::device_uvector<edge_t> compute_local_degrees(rmm::cuda_stream_view stream) const
   {
     rmm::device_uvector<edge_t> local_degrees(this->major_range_size(), stream);
     thrust::transform(rmm::exec_policy(stream),
@@ -589,9 +590,9 @@ class edge_partition_device_view_t<vertex_t, edge_t, multi_gpu, std::enable_if_t
   }
 
   template <typename MajorIterator>
-  rmm::device_uvector<edge_t> compute_local_degrees(MajorIterator major_first,
-                                                    MajorIterator major_last,
-                                                    rmm::cuda_stream_view stream) const
+  __host__ rmm::device_uvector<edge_t> compute_local_degrees(MajorIterator major_first,
+                                                             MajorIterator major_last,
+                                                             rmm::cuda_stream_view stream) const
   {
     rmm::device_uvector<edge_t> local_degrees(thrust::distance(major_first, major_last), stream);
     thrust::transform(rmm::exec_policy(stream),
@@ -607,10 +608,10 @@ class edge_partition_device_view_t<vertex_t, edge_t, multi_gpu, std::enable_if_t
   }
 
   template <typename MaskIterator, typename MajorIterator>
-  size_t compute_number_of_edges_with_mask(MaskIterator mask_first,
-                                           MajorIterator major_first,
-                                           MajorIterator major_last,
-                                           rmm::cuda_stream_view stream) const
+  __host__ size_t compute_number_of_edges_with_mask(MaskIterator mask_first,
+                                                    MajorIterator major_first,
+                                                    MajorIterator major_last,
+                                                    rmm::cuda_stream_view stream) const
   {
     return thrust::transform_reduce(
       rmm::exec_policy(stream),
@@ -632,8 +633,8 @@ class edge_partition_device_view_t<vertex_t, edge_t, multi_gpu, std::enable_if_t
   }
 
   template <typename MaskIterator>
-  rmm::device_uvector<edge_t> compute_local_degrees_with_mask(MaskIterator mask_first,
-                                                              rmm::cuda_stream_view stream) const
+  __host__ rmm::device_uvector<edge_t> compute_local_degrees_with_mask(
+    MaskIterator mask_first, rmm::cuda_stream_view stream) const
   {
     rmm::device_uvector<edge_t> local_degrees(this->major_range_size(), stream);
     thrust::transform(
@@ -651,10 +652,11 @@ class edge_partition_device_view_t<vertex_t, edge_t, multi_gpu, std::enable_if_t
   }
 
   template <typename MaskIterator, typename MajorIterator>
-  rmm::device_uvector<edge_t> compute_local_degrees_with_mask(MaskIterator mask_first,
-                                                              MajorIterator major_first,
-                                                              MajorIterator major_last,
-                                                              rmm::cuda_stream_view stream) const
+  __host__ rmm::device_uvector<edge_t> compute_local_degrees_with_mask(
+    MaskIterator mask_first,
+    MajorIterator major_first,
+    MajorIterator major_last,
+    rmm::cuda_stream_view stream) const
   {
     rmm::device_uvector<edge_t> local_degrees(thrust::distance(major_first, major_last), stream);
     thrust::transform(

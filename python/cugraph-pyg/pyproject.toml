@@ -40,6 +40,7 @@ Documentation = "https://docs.rapids.ai/api/cugraph/stable/"
 [project.optional-dependencies]
 test = [
     "pandas",
+    "pylibwholegraph==24.8.*",
     "pytest",
     "pytest-benchmark",
     "pytest-cov",
