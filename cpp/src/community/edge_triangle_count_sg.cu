@@ -18,22 +18,16 @@
 namespace cugraph {
 
 // SG instantiation
-template rmm::device_uvector<int32_t> edge_triangle_count(
+template edge_property_t<graph_view_t<int32_t, int32_t, false, false>, int32_t> edge_triangle_count(
   raft::handle_t const& handle,
-  cugraph::graph_view_t<int32_t, int32_t, false, false> const& graph_view,
-  raft::device_span<int32_t> edgelist_srcs,
-  raft::device_span<int32_t> edgelist_dsts);
+  cugraph::graph_view_t<int32_t, int32_t, false, false> const& graph_view);
 
-template rmm::device_uvector<int64_t> edge_triangle_count(
+template edge_property_t<graph_view_t<int32_t, int64_t, false, false>, int64_t> edge_triangle_count(
   raft::handle_t const& handle,
-  cugraph::graph_view_t<int32_t, int64_t, false, false> const& graph_view,
-  raft::device_span<int32_t> edgelist_srcs,
-  raft::device_span<int32_t> edgelist_dsts);
+  cugraph::graph_view_t<int32_t, int64_t, false, false> const& graph_view);
 
-template rmm::device_uvector<int64_t> edge_triangle_count(
+template edge_property_t<graph_view_t<int64_t, int64_t, false, false>, int64_t> edge_triangle_count(
   raft::handle_t const& handle,
-  cugraph::graph_view_t<int64_t, int64_t, false, false> const& graph_view,
-  raft::device_span<int64_t> edgelist_srcs,
-  raft::device_span<int64_t> edgelist_dsts);
+  cugraph::graph_view_t<int64_t, int64_t, false, false> const& graph_view);
 
 }  // namespace cugraph
