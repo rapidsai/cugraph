@@ -23,6 +23,8 @@
 #include <cugraph/legacy/graph.hpp>
 #include <cugraph/legacy/internals.hpp>
 
+#include <rmm/resource_ref.hpp>
+
 #ifndef NO_CUGRAPH_OPS
 #include <cugraph-ops/graph/sampling.hpp>
 #endif
@@ -830,7 +832,7 @@ template <typename vertex_t, typename edge_t, typename weight_t>
 std::unique_ptr<legacy::GraphCOO<vertex_t, edge_t, weight_t>> minimum_spanning_tree(
   raft::handle_t const& handle,
   legacy::GraphCSRView<vertex_t, edge_t, weight_t> const& graph,
-  rmm::mr::device_memory_resource* mr = rmm::mr::get_current_device_resource());
+  rmm::device_async_resource_ref mr = rmm::mr::get_current_device_resource());
 
 namespace subgraph {
 /**
@@ -2006,6 +2008,24 @@ void triangle_count(raft::handle_t const& handle,
                     bool do_expensive_check = false);
 
 /*
+ * @brief Compute edge triangle counts.
+ *
+ * Compute edge triangle counts for the entire set of edges.
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param graph_view Graph view object.
+ *
+ * @return edge_property_t containing the edge triangle count
+ */
+template <typename vertex_t, typename edge_t, bool multi_gpu>
+edge_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>, edge_t> edge_triangle_count(
+  raft::handle_t const& handle, graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view);
+
+/*
  * @brief Compute K-Truss.
  *
  * Extract the K-Truss subgraph of a graph
@@ -2366,6 +2386,32 @@ rmm::device_uvector<vertex_t> vertex_coloring(
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   raft::random::RngState& rng_state);
 
+/*
+ * @brief Approximate Weighted Matching
+ *
+ * A matching in an undirected graph G = (V, E) is a pairing of adjacent vertices
+ * such that each vertex is matched with at most one other vertex, the objective
+ * being to match as many vertices as possible or to maximise the sum of the
+ * weights of the matched edges. Here we provide an implementation of an
+ * approximation algorithm to the weighted Maximum matching. See
+ * https://web.archive.org/web/20081031230449id_/http://www.ii.uib.no/~fredrikm/fredrik/papers/CP75.pdf
+ * for further information.
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
+ * @param[in] handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator,
+ * and handles to various CUDA libraries) to run graph algorithms.
+ * @param[in] graph_view Graph view object.
+ * @param[in] edge_weight_view View object holding edge weights for @p graph_view.
+ * @return A tuple of device vector of matched vertex ids and sum of the weights of the matched
+ * edges.
+ */
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+std::tuple<rmm::device_uvector<vertex_t>, weight_t> approximate_weighted_matching(
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+  edge_property_view_t<edge_t, weight_t const*> edge_weight_view);
 }  // namespace cugraph
 
 /**

@@ -47,7 +47,6 @@ SUBSET_SIZES = [4, None]
 
 
 def get_sg_graph(dataset, directed, edge_ids):
-    dataset.unload()
     df = dataset.get_edgelist()
     if edge_ids:
         if not directed:
@@ -71,7 +70,6 @@ def get_sg_graph(dataset, directed, edge_ids):
 
 
 def get_mg_graph(dataset, directed, edge_ids, weight):
-    dataset.unload()
     ddf = dataset.get_dask_edgelist()
 
     if weight:
@@ -178,6 +176,3 @@ def test_dask_mg_edge_betweenness_centrality(
 
         assert len(edge_bc_diffs1) == 0
         assert len(edge_bc_diffs2) == 0
-
-    # Clean-up stored dataset edge-lists
-    dataset.unload()

@@ -18,6 +18,7 @@
 #include "utilities/conversion_utilities.hpp"
 #include "utilities/device_comm_wrapper.hpp"
 #include "utilities/mg_utilities.hpp"
+#include "utilities/property_generator_utilities.hpp"
 #include "utilities/test_graphs.hpp"
 #include "utilities/thrust_wrapper.hpp"
 
@@ -41,6 +42,8 @@
 struct KHopNbrs_Usecase {
   size_t num_start_vertices{0};
   size_t k{0};
+
+  bool edge_masking{false};
   bool check_correctness{true};
 };
 
@@ -91,6 +94,13 @@ class Tests_MGKHopNbrs
     }
 
     auto mg_graph_view = mg_graph.view();
+
+    std::optional<cugraph::edge_property_t<decltype(mg_graph_view), bool>> edge_mask{std::nullopt};
+    if (k_hop_nbrs_usecase.edge_masking) {
+      edge_mask = cugraph::test::generate<decltype(mg_graph_view), bool>::edge_property(
+        *handle_, mg_graph_view, 2);
+      mg_graph_view.attach_edge_mask((*edge_mask).view());
+    }
 
     std::vector<vertex_t> h_mg_start_vertices(
       std::min(static_cast<size_t>(
@@ -168,13 +178,15 @@ class Tests_MGKHopNbrs
         *handle_, raft::device_span<vertex_t const>(d_mg_nbrs.data(), d_mg_nbrs.size()));
 
       cugraph::graph_t<vertex_t, edge_t, false, false> sg_graph(*handle_);
-      std::tie(sg_graph, std::ignore, std::ignore) = cugraph::test::mg_graph_to_sg_graph(
-        *handle_,
-        mg_graph_view,
-        std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>>{std::nullopt},
-        std::make_optional<raft::device_span<vertex_t const>>((*mg_renumber_map).data(),
-                                                              (*mg_renumber_map).size()),
-        false);
+      std::tie(sg_graph, std::ignore, std::ignore, std::ignore) =
+        cugraph::test::mg_graph_to_sg_graph(
+          *handle_,
+          mg_graph_view,
+          std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>>{std::nullopt},
+          std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
+          std::make_optional<raft::device_span<vertex_t const>>((*mg_renumber_map).data(),
+                                                                (*mg_renumber_map).size()),
+          false);
 
       if (handle_->get_comms().get_rank() == int{0}) {
         // 3-3. run SG K-hop neighbors
@@ -261,19 +273,23 @@ INSTANTIATE_TEST_SUITE_P(
   Tests_MGKHopNbrs_File,
   ::testing::Combine(
     // enable correctness checks
-    ::testing::Values(KHopNbrs_Usecase{1024, 2}, KHopNbrs_Usecase{1024, 1}),
+    ::testing::Values(KHopNbrs_Usecase{1024, 2, false},
+                      KHopNbrs_Usecase{1024, 2, true},
+                      KHopNbrs_Usecase{1024, 1, false},
+                      KHopNbrs_Usecase{1024, 1, true}),
     ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"),
                       cugraph::test::File_Usecase("test/datasets/web-Google.mtx"),
                       cugraph::test::File_Usecase("test/datasets/ljournal-2008.mtx"),
                       cugraph::test::File_Usecase("test/datasets/webbase-1M.mtx"))));
 
-INSTANTIATE_TEST_SUITE_P(
-  rmat_small_test,
-  Tests_MGKHopNbrs_Rmat,
-  ::testing::Values(
-    // enable correctness checks
-    std::make_tuple(KHopNbrs_Usecase{1024, 2},
-                    cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, false, false))));
+INSTANTIATE_TEST_SUITE_P(rmat_small_test,
+                         Tests_MGKHopNbrs_Rmat,
+                         ::testing::Combine(::testing::Values(
+                                              // enable correctness checks
+                                              KHopNbrs_Usecase{1024, 2, false},
+                                              KHopNbrs_Usecase{1024, 2, true}),
+                                            ::testing::Values(cugraph::test::Rmat_Usecase(
+                                              10, 16, 0.57, 0.19, 0.19, 0, false, false))));
 
 INSTANTIATE_TEST_SUITE_P(
   rmat_benchmark_test, /* note that scale & edge factor can be overridden in benchmarking (with
@@ -282,9 +298,11 @@ INSTANTIATE_TEST_SUITE_P(
                           include more than one Rmat_Usecase that differ only in scale or edge
                           factor (to avoid running same benchmarks more than once) */
   Tests_MGKHopNbrs_Rmat,
-  ::testing::Values(
-    // disable correctness checks for large graphs
-    std::make_tuple(KHopNbrs_Usecase{4, 2, false},
-                    cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false))));
+  ::testing::Combine(
+    ::testing::Values(
+      // disable correctness checks for large graphs
+      KHopNbrs_Usecase{4, 2, false, false},
+      KHopNbrs_Usecase{4, 2, true, false}),
+    ::testing::Values(cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false))));
 
 CUGRAPH_MG_TEST_PROGRAM_MAIN()

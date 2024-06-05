@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2023, NVIDIA CORPORATION.
+# Copyright (c) 2019-2024, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -18,8 +18,8 @@ from toolz import first
 import collections
 import dask_cudf
 from dask.array.core import Array as daskArray
-from dask_cudf.core import DataFrame as daskDataFrame
-from dask_cudf.core import Series as daskSeries
+from dask_cudf import DataFrame as daskDataFrame
+from dask_cudf import Series as daskSeries
 from functools import reduce
 import cugraph.dask.comms.comms as Comms
 from dask.delayed import delayed
@@ -115,7 +115,10 @@ def persist_dask_df_equal_parts_per_worker(
         raise ValueError("return_type must be either 'dask_cudf.DataFrame' or 'dict'")
 
     ddf_keys = dask_df.to_delayed()
-    workers = client.scheduler_info()["workers"].keys()
+    rank_to_worker = Comms.rank_to_worker(client)
+    # rank-worker mappings are in ascending order
+    workers = dict(sorted(rank_to_worker.items())).values()
+
     ddf_keys_ls = _chunk_lst(ddf_keys, len(workers))
     persisted_keys_d = {}
     for w, ddf_k in zip(workers, ddf_keys_ls):

@@ -1,4 +1,4 @@
-# Copyright (c) 2022-2023, NVIDIA CORPORATION.
+# Copyright (c) 2022-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -68,7 +68,7 @@ def input_combo(request):
     chunksize = dcg.get_chunksize(input_data_path)
     ddf = dask_cudf.read_csv(
         input_data_path,
-        chunksize=chunksize,
+        blocksize=chunksize,
         delimiter=" ",
         names=["src", "dst", "value"],
         dtype=["int32", "int32", "float32"],
@@ -99,13 +99,13 @@ def test_nodes_functionality(dask_client, input_combo):
     expected_nodes = (
         dask_cudf.concat([ddf["src"], ddf["dst"]])
         .drop_duplicates()
-        .to_frame()
-        .sort_values(0)
+        .to_frame(name="0")
+        .sort_values("0")
     )
 
     expected_nodes = expected_nodes.compute().reset_index(drop=True)
 
-    result_nodes["expected_nodes"] = expected_nodes[0]
+    result_nodes["expected_nodes"] = expected_nodes["0"]
 
     compare = result_nodes.query("result_nodes != expected_nodes")
 
@@ -285,7 +285,7 @@ def test_graph_repartition(dask_client):
 
     ddf = dask_cudf.read_csv(
         input_data_path,
-        chunksize=chunksize,
+        blocksize=chunksize,
         delimiter=" ",
         names=["src", "dst", "value"],
         dtype=["int32", "int32", "float32"],

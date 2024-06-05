@@ -18,6 +18,7 @@
 #include "utilities/conversion_utilities.hpp"
 #include "utilities/device_comm_wrapper.hpp"
 #include "utilities/mg_utilities.hpp"
+#include "utilities/property_generator_utilities.hpp"
 #include "utilities/test_graphs.hpp"
 #include "utilities/thrust_wrapper.hpp"
 
@@ -40,6 +41,8 @@
 
 struct SSSP_Usecase {
   size_t source{0};
+
+  bool edge_masking{false};
   bool check_correctness{true};
 };
 
@@ -83,6 +86,13 @@ class Tests_MGSSSP : public ::testing::TestWithParam<std::tuple<SSSP_Usecase, in
     auto mg_graph_view = mg_graph.view();
     auto mg_edge_weight_view =
       mg_edge_weights ? std::make_optional((*mg_edge_weights).view()) : std::nullopt;
+
+    std::optional<cugraph::edge_property_t<decltype(mg_graph_view), bool>> edge_mask{std::nullopt};
+    if (sssp_usecase.edge_masking) {
+      edge_mask = cugraph::test::generate<decltype(mg_graph_view), bool>::edge_property(
+        *handle_, mg_graph_view, 2);
+      mg_graph_view.attach_edge_mask((*edge_mask).view());
+    }
 
     ASSERT_TRUE(static_cast<vertex_t>(sssp_usecase.source) >= 0 &&
                 static_cast<vertex_t>(sssp_usecase.source) < mg_graph_view.number_of_vertices())
@@ -166,13 +176,15 @@ class Tests_MGSSSP : public ::testing::TestWithParam<std::tuple<SSSP_Usecase, in
       std::optional<
         cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, false, false>, weight_t>>
         sg_edge_weights{std::nullopt};
-      std::tie(sg_graph, sg_edge_weights, std::ignore) =
-        cugraph::test::mg_graph_to_sg_graph(*handle_,
-                                            mg_graph_view,
-                                            mg_edge_weight_view,
-                                            std::make_optional<raft::device_span<vertex_t const>>(
-                                              (*mg_renumber_map).data(), (*mg_renumber_map).size()),
-                                            false);
+      std::tie(sg_graph, sg_edge_weights, std::ignore, std::ignore) =
+        cugraph::test::mg_graph_to_sg_graph(
+          *handle_,
+          mg_graph_view,
+          mg_edge_weight_view,
+          std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
+          std::make_optional<raft::device_span<vertex_t const>>((*mg_renumber_map).data(),
+                                                                (*mg_renumber_map).size()),
+          false);
 
       if (handle_->get_comms().get_rank() == int{0}) {
         // 3-3. run SG SSSP
@@ -292,9 +304,14 @@ INSTANTIATE_TEST_SUITE_P(
   Tests_MGSSSP_File,
   ::testing::Values(
     // enable correctness checks
-    std::make_tuple(SSSP_Usecase{0}, cugraph::test::File_Usecase("test/datasets/karate.mtx")),
-    std::make_tuple(SSSP_Usecase{0}, cugraph::test::File_Usecase("test/datasets/dblp.mtx")),
-    std::make_tuple(SSSP_Usecase{1000},
+    std::make_tuple(SSSP_Usecase{0, false},
+                    cugraph::test::File_Usecase("test/datasets/karate.mtx")),
+    std::make_tuple(SSSP_Usecase{0, true}, cugraph::test::File_Usecase("test/datasets/karate.mtx")),
+    std::make_tuple(SSSP_Usecase{0, false}, cugraph::test::File_Usecase("test/datasets/dblp.mtx")),
+    std::make_tuple(SSSP_Usecase{0, true}, cugraph::test::File_Usecase("test/datasets/dblp.mtx")),
+    std::make_tuple(SSSP_Usecase{1000, false},
+                    cugraph::test::File_Usecase("test/datasets/wiki2003.mtx")),
+    std::make_tuple(SSSP_Usecase{1000, true},
                     cugraph::test::File_Usecase("test/datasets/wiki2003.mtx"))));
 
 INSTANTIATE_TEST_SUITE_P(
@@ -302,7 +319,9 @@ INSTANTIATE_TEST_SUITE_P(
   Tests_MGSSSP_Rmat,
   ::testing::Values(
     // enable correctness checks
-    std::make_tuple(SSSP_Usecase{0},
+    std::make_tuple(SSSP_Usecase{0, false},
+                    cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, false, false)),
+    std::make_tuple(SSSP_Usecase{0, true},
                     cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, false, false))));
 
 INSTANTIATE_TEST_SUITE_P(
@@ -314,7 +333,9 @@ INSTANTIATE_TEST_SUITE_P(
   Tests_MGSSSP_Rmat,
   ::testing::Values(
     // disable correctness checks for large graphs
-    std::make_tuple(SSSP_Usecase{0, false},
+    std::make_tuple(SSSP_Usecase{0, false, false},
+                    cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false)),
+    std::make_tuple(SSSP_Usecase{0, true, false},
                     cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false))));
 
 CUGRAPH_MG_TEST_PROGRAM_MAIN()

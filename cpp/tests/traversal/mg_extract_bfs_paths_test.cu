@@ -18,6 +18,7 @@
 #include "utilities/conversion_utilities.hpp"
 #include "utilities/device_comm_wrapper.hpp"
 #include "utilities/mg_utilities.hpp"
+#include "utilities/property_generator_utilities.hpp"
 #include "utilities/test_graphs.hpp"
 #include "utilities/thrust_wrapper.hpp"
 
@@ -46,6 +47,8 @@
 struct ExtractBFSPaths_Usecase {
   size_t source{0};
   size_t num_paths_to_check{0};
+
+  bool edge_masking{false};
   bool check_correctness{true};
 };
 
@@ -234,13 +237,15 @@ class Tests_MGExtractBFSPaths
         cugraph::test::device_gatherv(*handle_, d_mg_paths.data(), d_mg_paths.size());
 
       cugraph::graph_t<vertex_t, edge_t, false, false> sg_graph(*handle_);
-      std::tie(sg_graph, std::ignore, std::ignore) = cugraph::test::mg_graph_to_sg_graph(
-        *handle_,
-        mg_graph_view,
-        std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>>{std::nullopt},
-        std::make_optional<raft::device_span<vertex_t const>>((*mg_renumber_map).data(),
-                                                              (*mg_renumber_map).size()),
-        false);
+      std::tie(sg_graph, std::ignore, std::ignore, std::ignore) =
+        cugraph::test::mg_graph_to_sg_graph(
+          *handle_,
+          mg_graph_view,
+          std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>>{std::nullopt},
+          std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
+          std::make_optional<raft::device_span<vertex_t const>>((*mg_renumber_map).data(),
+                                                                (*mg_renumber_map).size()),
+          false);
 
       if (handle_->get_comms().get_rank() == int{0}) {
         // run SG extract_bfs_paths
@@ -312,13 +317,21 @@ INSTANTIATE_TEST_SUITE_P(
   Tests_MGExtractBFSPaths_File,
   ::testing::Values(
     // enable correctness checks
-    std::make_tuple(ExtractBFSPaths_Usecase{0, 10},
+    std::make_tuple(ExtractBFSPaths_Usecase{0, 10, false},
                     cugraph::test::File_Usecase("test/datasets/karate.mtx")),
-    std::make_tuple(ExtractBFSPaths_Usecase{0, 100},
+    std::make_tuple(ExtractBFSPaths_Usecase{0, 10, true},
+                    cugraph::test::File_Usecase("test/datasets/karate.mtx")),
+    std::make_tuple(ExtractBFSPaths_Usecase{0, 100, false},
                     cugraph::test::File_Usecase("test/datasets/polbooks.mtx")),
-    std::make_tuple(ExtractBFSPaths_Usecase{0, 100},
+    std::make_tuple(ExtractBFSPaths_Usecase{0, 100, true},
+                    cugraph::test::File_Usecase("test/datasets/polbooks.mtx")),
+    std::make_tuple(ExtractBFSPaths_Usecase{0, 100, false},
                     cugraph::test::File_Usecase("test/datasets/netscience.mtx")),
-    std::make_tuple(ExtractBFSPaths_Usecase{100, 100},
+    std::make_tuple(ExtractBFSPaths_Usecase{0, 100, true},
+                    cugraph::test::File_Usecase("test/datasets/netscience.mtx")),
+    std::make_tuple(ExtractBFSPaths_Usecase{100, 100, false},
+                    cugraph::test::File_Usecase("test/datasets/netscience.mtx")),
+    std::make_tuple(ExtractBFSPaths_Usecase{100, 100, true},
                     cugraph::test::File_Usecase("test/datasets/netscience.mtx"))));
 
 INSTANTIATE_TEST_SUITE_P(
@@ -326,7 +339,9 @@ INSTANTIATE_TEST_SUITE_P(
   Tests_MGExtractBFSPaths_Rmat,
   ::testing::Values(
     // enable correctness checks
-    std::make_tuple(ExtractBFSPaths_Usecase{0, 20},
+    std::make_tuple(ExtractBFSPaths_Usecase{0, 20, false},
+                    cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, false, true)),
+    std::make_tuple(ExtractBFSPaths_Usecase{0, 20, true},
                     cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, false, true))));
 
 INSTANTIATE_TEST_SUITE_P(
@@ -338,7 +353,9 @@ INSTANTIATE_TEST_SUITE_P(
   Tests_MGExtractBFSPaths_Rmat,
   ::testing::Values(
     // disable correctness checks for large graphs
-    std::make_pair(ExtractBFSPaths_Usecase{0, 1000, false},
+    std::make_pair(ExtractBFSPaths_Usecase{0, 1000, false, false},
+                   cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, true)),
+    std::make_pair(ExtractBFSPaths_Usecase{0, 1000, true, false},
                    cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, true))));
 
 CUGRAPH_MG_TEST_PROGRAM_MAIN()

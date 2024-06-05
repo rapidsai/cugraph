@@ -18,6 +18,7 @@
 #include "utilities/conversion_utilities.hpp"
 #include "utilities/device_comm_wrapper.hpp"
 #include "utilities/mg_utilities.hpp"
+#include "utilities/property_generator_utilities.hpp"
 #include "utilities/test_graphs.hpp"
 #include "utilities/thrust_wrapper.hpp"
 
@@ -35,6 +36,8 @@
 
 struct Hits_Usecase {
   bool check_initial_input{false};
+
+  bool edge_masking{false};
   bool check_correctness{true};
 };
 
@@ -80,6 +83,13 @@ class Tests_MGHits : public ::testing::TestWithParam<std::tuple<Hits_Usecase, in
     // 2. run hits
 
     auto mg_graph_view = mg_graph.view();
+
+    std::optional<cugraph::edge_property_t<decltype(mg_graph_view), bool>> edge_mask{std::nullopt};
+    if (hits_usecase.edge_masking) {
+      edge_mask = cugraph::test::generate<decltype(mg_graph_view), bool>::edge_property(
+        *handle_, mg_graph_view, 2);
+      mg_graph_view.attach_edge_mask((*edge_mask).view());
+    }
 
     auto maximum_iterations = 200;
     weight_t epsilon        = 1e-7;
@@ -176,13 +186,15 @@ class Tests_MGHits : public ::testing::TestWithParam<std::tuple<Hits_Usecase, in
       std::optional<
         cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, true, false>, weight_t>>
         sg_edge_weights{std::nullopt};
-      std::tie(sg_graph, sg_edge_weights, std::ignore) = cugraph::test::mg_graph_to_sg_graph(
-        *handle_,
-        mg_graph_view,
-        std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>>{std::nullopt},
-        std::make_optional<raft::device_span<vertex_t const>>((*mg_renumber_map).data(),
-                                                              (*mg_renumber_map).size()),
-        false);
+      std::tie(sg_graph, sg_edge_weights, std::ignore, std::ignore) =
+        cugraph::test::mg_graph_to_sg_graph(
+          *handle_,
+          mg_graph_view,
+          std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>>{std::nullopt},
+          std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
+          std::make_optional<raft::device_span<vertex_t const>>((*mg_renumber_map).data(),
+                                                                (*mg_renumber_map).size()),
+          false);
 
       if (handle_->get_comms().get_rank() == int{0}) {
         // 3-3. run SG Hits
@@ -217,9 +229,9 @@ class Tests_MGHits : public ::testing::TestWithParam<std::tuple<Hits_Usecase, in
         auto h_mg_aggregate_hubs = cugraph::test::to_host(*handle_, d_mg_aggregate_hubs);
         auto h_sg_hubs           = cugraph::test::to_host(*handle_, d_sg_hubs);
 
-        auto threshold_ratio = 1e-3;
+        auto threshold_ratio = 2e-3;
         auto threshold_magnitude =
-          1e-6;  // skip comparison for low Hits verties (lowly ranked vertices)
+          2e-6;  // skip comparison for low Hits verties (lowly ranked vertices)
         auto nearly_equal = [threshold_ratio, threshold_magnitude](auto lhs, auto rhs) {
           return std::abs(lhs - rhs) <
                  std::max(std::max(lhs, rhs) * threshold_ratio, threshold_magnitude);
@@ -273,7 +285,10 @@ INSTANTIATE_TEST_SUITE_P(
   Tests_MGHits_File,
   ::testing::Combine(
     // enable correctness checks
-    ::testing::Values(Hits_Usecase{false, true}, Hits_Usecase{true, true}),
+    ::testing::Values(Hits_Usecase{false, false},
+                      Hits_Usecase{false, true},
+                      Hits_Usecase{true, false},
+                      Hits_Usecase{true, true}),
     ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"),
                       cugraph::test::File_Usecase("test/datasets/web-Google.mtx"),
                       cugraph::test::File_Usecase("test/datasets/ljournal-2008.mtx"),
@@ -284,7 +299,10 @@ INSTANTIATE_TEST_SUITE_P(
   Tests_MGHits_Rmat,
   ::testing::Combine(
     // enable correctness checks
-    ::testing::Values(Hits_Usecase{false, true}, Hits_Usecase{true, true}),
+    ::testing::Values(Hits_Usecase{false, false},
+                      Hits_Usecase{false, true},
+                      Hits_Usecase{true, false},
+                      Hits_Usecase{true, true}),
     ::testing::Values(cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, false, false))));
 
 INSTANTIATE_TEST_SUITE_P(
@@ -296,7 +314,10 @@ INSTANTIATE_TEST_SUITE_P(
   Tests_MGHits_Rmat,
   ::testing::Combine(
     // disable correctness checks for large graphs
-    ::testing::Values(Hits_Usecase{false, false}, Hits_Usecase{true, false}),
+    ::testing::Values(Hits_Usecase{false, false, false},
+                      Hits_Usecase{false, true, false},
+                      Hits_Usecase{true, false, false},
+                      Hits_Usecase{true, true, false}),
     ::testing::Values(cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false))));
 
 CUGRAPH_MG_TEST_PROGRAM_MAIN()

@@ -153,12 +153,15 @@ __global__ static void extract_transform_v_frontier_e_hypersparse_or_low_degree(
                                  typename EdgePartitionEdgeValueInputWrapper::value_type,
                                  EdgeOp>::type;
 
-  auto const tid          = threadIdx.x + blockIdx.x * blockDim.x;
-  auto const warp_id      = threadIdx.x / raft::warp_size();
-  auto const lane_id      = tid % raft::warp_size();
-  auto major_start_offset = static_cast<size_t>(*(edge_partition.major_hypersparse_first()) -
-                                                edge_partition.major_range_first());
-  auto idx                = static_cast<size_t>(tid);
+  auto const tid     = threadIdx.x + blockIdx.x * blockDim.x;
+  auto const warp_id = threadIdx.x / raft::warp_size();
+  auto const lane_id = tid % raft::warp_size();
+  [[maybe_unused]] vertex_t major_start_offset{};  // relevant only when hypersparse is true
+  if constexpr (hypersparse) {
+    major_start_offset = static_cast<size_t>(*(edge_partition.major_hypersparse_first()) -
+                                             edge_partition.major_range_first());
+  }
+  auto idx = static_cast<size_t>(tid);
 
   cuda::atomic_ref<size_t, cuda::thread_scope_device> buffer_idx(*buffer_idx_ptr);
 
@@ -185,13 +188,8 @@ __global__ static void extract_transform_v_frontier_e_hypersparse_or_low_degree(
 
     edge_t local_degree{0};
     if (lane_id < static_cast<int32_t>(max_key_idx - min_key_idx)) {
-      auto key = *(key_first + idx);
-      vertex_t major{};
-      if constexpr (std::is_same_v<key_t, vertex_t>) {
-        major = key;
-      } else {
-        major = thrust::get<0>(key);
-      }
+      auto key   = *(key_first + idx);
+      auto major = thrust_tuple_get_or_identity<key_t, 0>(key);
       if constexpr (hypersparse) {
         auto major_hypersparse_idx = edge_partition.major_hypersparse_idx_from_major_nocheck(major);
         if (major_hypersparse_idx) {
@@ -330,13 +328,8 @@ __global__ static void extract_transform_v_frontier_e_mid_degree(
   cuda::atomic_ref<size_t, cuda::thread_scope_device> buffer_idx(*buffer_idx_ptr);
 
   while (idx < static_cast<size_t>(thrust::distance(key_first, key_last))) {
-    auto key = *(key_first + idx);
-    vertex_t major{};
-    if constexpr (std::is_same_v<key_t, vertex_t>) {
-      major = key;
-    } else {
-      major = thrust::get<0>(key);
-    }
+    auto key          = *(key_first + idx);
+    auto major        = thrust_tuple_get_or_identity<key_t, 0>(key);
     auto major_offset = edge_partition.major_offset_from_major_nocheck(major);
     vertex_t const* indices{nullptr};
     edge_t local_edge_offset{};
@@ -429,13 +422,8 @@ __global__ static void extract_transform_v_frontier_e_high_degree(
   cuda::atomic_ref<size_t, cuda::thread_scope_device> buffer_idx(*buffer_idx_ptr);
 
   while (idx < static_cast<size_t>(thrust::distance(key_first, key_last))) {
-    auto key = *(key_first + idx);
-    vertex_t major{};
-    if constexpr (std::is_same_v<key_t, vertex_t>) {
-      major = key;
-    } else {
-      major = thrust::get<0>(key);
-    }
+    auto key          = *(key_first + idx);
+    auto major        = thrust_tuple_get_or_identity<key_t, 0>(key);
     auto major_offset = edge_partition.major_offset_from_major_nocheck(major);
     vertex_t const* indices{nullptr};
     edge_t local_edge_offset{};
@@ -558,15 +546,10 @@ extract_transform_v_frontier_e(raft::handle_t const& handle,
                                                          thrust::optional<output_value_t>>>>);
 
   if (do_expensive_check) {
-    vertex_t const* frontier_vertex_first{nullptr};
-    vertex_t const* frontier_vertex_last{nullptr};
-    if constexpr (std::is_same_v<key_t, vertex_t>) {
-      frontier_vertex_first = frontier.begin();
-      frontier_vertex_last  = frontier.end();
-    } else {
-      frontier_vertex_first = thrust::get<0>(frontier.begin().get_iterator_tuple());
-      frontier_vertex_last  = thrust::get<0>(frontier.end().get_iterator_tuple());
-    }
+    auto frontier_vertex_first =
+      thrust_tuple_get_or_identity<decltype(frontier.begin()), 0>(frontier.begin());
+    auto frontier_vertex_last =
+      thrust_tuple_get_or_identity<decltype(frontier.end()), 0>(frontier.end());
     auto num_invalid_keys =
       frontier.size() -
       thrust::count_if(handle.get_thrust_policy(),
@@ -656,17 +639,12 @@ extract_transform_v_frontier_e(raft::handle_t const& handle,
         get_dataframe_buffer_end(edge_partition_frontier_key_buffer);
     }
 
-    vertex_t const* edge_partition_frontier_major_first{nullptr};
-    vertex_t const* edge_partition_frontier_major_last{nullptr};
-    if constexpr (std::is_same_v<key_t, vertex_t>) {
-      edge_partition_frontier_major_first = edge_partition_frontier_key_first;
-      edge_partition_frontier_major_last  = edge_partition_frontier_key_last;
-    } else {
-      edge_partition_frontier_major_first =
-        thrust::get<0>(edge_partition_frontier_key_first.get_iterator_tuple());
-      edge_partition_frontier_major_last =
-        thrust::get<0>(edge_partition_frontier_key_last.get_iterator_tuple());
-    }
+    auto edge_partition_frontier_major_first =
+      thrust_tuple_get_or_identity<decltype(edge_partition_frontier_key_first), 0>(
+        edge_partition_frontier_key_first);
+    auto edge_partition_frontier_major_last =
+      thrust_tuple_get_or_identity<decltype(edge_partition_frontier_key_last), 0>(
+        edge_partition_frontier_key_last);
 
     auto segment_offsets = graph_view.local_edge_partition_segment_offsets(i);
     auto max_pushes      = edge_partition.compute_number_of_edges(

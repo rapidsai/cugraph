@@ -77,6 +77,7 @@ _info = {
         "diamond_graph",
         "dodecahedral_graph",
         "edge_betweenness_centrality",
+        "ego_graph",
         "eigenvector_centrality",
         "empty_graph",
         "florentine_families_graph",
@@ -163,13 +164,10 @@ _info = {
         "clustering": "Directed graphs and `weight` parameter are not yet supported.",
         "core_number": "Directed graphs are not yet supported.",
         "edge_betweenness_centrality": "`weight` parameter is not yet supported, and RNG with seed may be different.",
+        "ego_graph": "Weighted ego_graph with negative cycles is not yet supported. `NotImplementedError` will be raised if there are negative `distance` edge weights.",
         "eigenvector_centrality": "`nstart` parameter is not used, but it is checked for validity.",
         "from_pandas_edgelist": "cudf.DataFrame inputs also supported; value columns with str is unsuppported.",
         "generic_bfs_edges": "`neighbors` and `sort_neighbors` parameters are not yet supported.",
-        "k_truss": (
-            "Currently raises `NotImplementedError` for graphs with more than one connected\n"
-            "component when k >= 3. We expect to fix this soon."
-        ),
         "katz_centrality": "`nstart` isn't used (but is checked), and `normalized=False` is not supported.",
         "louvain_communities": "`seed` parameter is currently ignored, and self-loops are not yet supported.",
         "pagerank": "`dangling` parameter is not supported, but it is checked for validity.",
@@ -195,6 +193,9 @@ _info = {
         "bellman_ford_path_length": {
             "dtype : dtype or None, optional": "The data type (np.float32, np.float64, or None) to use for the edge weights in the algorithm. If None, then dtype is determined by the edge values.",
         },
+        "ego_graph": {
+            "dtype : dtype or None, optional": "The data type (np.float32, np.float64, or None) to use for the edge weights in the algorithm. If None, then dtype is determined by the edge values.",
+        },
         "eigenvector_centrality": {
             "dtype : dtype or None, optional": "The data type (np.float32, np.float64, or None) to use for the edge weights in the algorithm. If None, then dtype is determined by the edge values.",
         },
@@ -207,7 +208,6 @@ _info = {
         },
         "louvain_communities": {
             "dtype : dtype or None, optional": "The data type (np.float32, np.float64, or None) to use for the edge weights in the algorithm. If None, then dtype is determined by the edge values.",
-            "max_level : int, optional": "Upper limit of the number of macro-iterations (max: 500).",
         },
         "pagerank": {
             "dtype : dtype or None, optional": "The data type (np.float32, np.float64, or None) to use for the edge weights in the algorithm. If None, then dtype is determined by the edge values.",

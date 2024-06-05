@@ -11,12 +11,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# For this script, dask must be started first in a separate process.
+# To do this, the `start_dask.sh` script has been provided.  This scripts starts
+# a dask scheduler and dask workers.  To select the GPUs and amount of memory
+# allocated to dask per GPU, the `CUDA_VISIBLE_DEVICES` and `WORKER_RMM_POOL_SIZE`
+# arguments in that script can be modified.
+# To connect to dask, the scheduler JSON file must be provided.  This can be done
+# using the `--dask_scheduler_file` argument in the mg python script being run.
 
 from ogb.nodeproppred import NodePropPredDataset
 
 import time
 import argparse
 import gc
+import warnings
 
 import torch
 import numpy as np
@@ -158,8 +166,8 @@ def train(
     td.barrier()
 
     import cugraph
-    from cugraph_pyg.data import CuGraphStore
-    from cugraph_pyg.loader import CuGraphNeighborLoader
+    from cugraph_pyg.data import DaskGraphStore
+    from cugraph_pyg.loader import DaskNeighborLoader
 
     if rank == 0:
         print("Rank 0 downloading dataset")
@@ -211,7 +219,7 @@ def train(
         # Rank 0 will initialize the distributed cugraph graph.
         cugraph_store_create_start = time.perf_counter_ns()
         print("G:", G[("paper", "cites", "paper")].shape)
-        cugraph_store = CuGraphStore(fs, G, N, multi_gpu=True)
+        cugraph_store = DaskGraphStore(fs, G, N, multi_gpu=True)
         cugraph_store_create_end = time.perf_counter_ns()
         print(
             "cuGraph Store created on rank 0 in "
@@ -236,7 +244,7 @@ def train(
 
             # Will automatically use the stored distributed cugraph graph on rank 0.
             cugraph_store_create_start = time.perf_counter_ns()
-            cugraph_store = CuGraphStore(fs, G, N, multi_gpu=True)
+            cugraph_store = DaskGraphStore(fs, G, N, multi_gpu=True)
             cugraph_store_create_end = time.perf_counter_ns()
             print(
                 f"Rank {rank} created cugraph store in "
@@ -268,7 +276,7 @@ def train(
         model.train()
 
         start_time_loader = time.perf_counter_ns()
-        cugraph_bulk_loader = CuGraphNeighborLoader(
+        cugraph_bulk_loader = DaskNeighborLoader(
             cugraph_store,
             train_nodes,
             batch_size=250,
@@ -405,7 +413,8 @@ def parse_args():
         "--dask_scheduler_file",
         type=str,
         help="The path to the dask scheduler file",
-        required=True,
+        required=False,
+        default=None,
     )
 
     return parser.parse_args()
@@ -413,19 +422,24 @@ def parse_args():
 
 def main():
     args = parse_args()
+    if args.dask_scheduler_file is None:
+        warnings.warn(
+            "You must provide the dask scheduler file " "to run this example.  Exiting."
+        )
 
-    torch_devices = [int(d) for d in args.torch_devices.split(",")]
+    else:
+        torch_devices = [int(d) for d in args.torch_devices.split(",")]
 
-    train_args = (
-        torch_devices,
-        args.torch_manager_ip,
-        args.torch_manager_port,
-        args.dask_scheduler_file,
-        args.num_epochs,
-        args.features_on_gpu,
-    )
+        train_args = (
+            torch_devices,
+            args.torch_manager_ip,
+            args.torch_manager_port,
+            args.dask_scheduler_file,
+            args.num_epochs,
+            args.features_on_gpu,
+        )
 
-    tmp.spawn(train, args=train_args, nprocs=len(torch_devices))
+        tmp.spawn(train, args=train_args, nprocs=len(torch_devices))
 
 
 if __name__ == "__main__":

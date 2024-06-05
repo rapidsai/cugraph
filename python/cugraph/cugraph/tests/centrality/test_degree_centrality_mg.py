@@ -45,14 +45,12 @@ IS_DIRECTED = [True, False]
 
 
 def get_sg_graph(dataset, directed):
-    dataset.unload()
     G = dataset.get_graph(create_using=cugraph.Graph(directed=directed))
 
     return G
 
 
 def get_mg_graph(dataset, directed):
-    dataset.unload()
     ddf = dataset.get_dask_edgelist()
     dg = cugraph.Graph(directed=directed)
     dg.from_dask_cudf_edgelist(
@@ -118,6 +116,3 @@ def test_dask_mg_degree(dask_client, dataset, directed):
         check_names=False,
         check_dtype=False,
     )
-
-    # Clean-up stored dataset edge-lists
-    dataset.unload()

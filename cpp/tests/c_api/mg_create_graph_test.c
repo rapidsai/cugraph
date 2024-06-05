@@ -96,21 +96,22 @@ int test_create_mg_graph_simple(const cugraph_resource_handle_t* handle)
     handle, wgt_view, (byte_t*)h_wgt, &ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "wgt copy_from_host failed.");
 
-  ret_code = cugraph_graph_create_mg(handle,
-                                     &properties,
-                                     NULL,
-                                     (cugraph_type_erased_device_array_view_t const* const*) &src_view,
-                                     (cugraph_type_erased_device_array_view_t const* const*) &dst_view,
-                                     (cugraph_type_erased_device_array_view_t const* const*) &wgt_view,
-                                     NULL,
-                                     NULL,
-                                     FALSE,
-                                     1,
-                                     FALSE,
-                                     FALSE,
-                                     TRUE,
-                                     &graph,
-                                     &ret_error);
+  ret_code =
+    cugraph_graph_create_mg(handle,
+                            &properties,
+                            NULL,
+                            (cugraph_type_erased_device_array_view_t const* const*)&src_view,
+                            (cugraph_type_erased_device_array_view_t const* const*)&dst_view,
+                            (cugraph_type_erased_device_array_view_t const* const*)&wgt_view,
+                            NULL,
+                            NULL,
+                            FALSE,
+                            1,
+                            FALSE,
+                            FALSE,
+                            TRUE,
+                            &graph,
+                            &ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "graph creation failed.");
   TEST_ALWAYS_ASSERT(ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
 
@@ -145,11 +146,11 @@ int test_create_mg_graph_multiple_edge_lists(const cugraph_resource_handle_t* ha
   double epsilon        = 0.0001;
   size_t max_iterations = 20;
 
-  vertex_t h_vertices[] = { 0, 1, 2, 3, 4, 5, 6 };
-  vertex_t h_src[] = {0, 1, 1, 2, 2, 2, 3, 4};
-  vertex_t h_dst[] = {1, 3, 4, 0, 1, 3, 5, 5};
-  weight_t h_wgt[] = {0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
-  weight_t h_result[] = { 0.0859168, 0.158029, 0.0616337, 0.179675, 0.113239, 0.339873, 0.0616337 };
+  vertex_t h_vertices[] = {0, 1, 2, 3, 4, 5, 6};
+  vertex_t h_src[]      = {0, 1, 1, 2, 2, 2, 3, 4};
+  vertex_t h_dst[]      = {1, 3, 4, 0, 1, 3, 5, 5};
+  weight_t h_wgt[]      = {0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
+  weight_t h_result[]   = {0.0859168, 0.158029, 0.0616337, 0.179675, 0.113239, 0.339873, 0.0616337};
 
   cugraph_graph_t* graph = NULL;
   cugraph_graph_properties_t properties;
@@ -172,30 +173,33 @@ int test_create_mg_graph_multiple_edge_lists(const cugraph_resource_handle_t* ha
   cugraph_type_erased_device_array_view_t* dst_view[num_local_arrays];
   cugraph_type_erased_device_array_view_t* wgt_view[num_local_arrays];
 
-  int my_rank = cugraph_resource_handle_get_rank(handle);
+  int my_rank   = cugraph_resource_handle_get_rank(handle);
   int comm_size = cugraph_resource_handle_get_comm_size(handle);
 
   size_t local_num_vertices = num_vertices / comm_size;
   size_t local_start_vertex = my_rank * local_num_vertices;
-  size_t local_num_edges = num_edges / comm_size;
-  size_t local_start_edge = my_rank * local_num_edges;
+  size_t local_num_edges    = num_edges / comm_size;
+  size_t local_start_edge   = my_rank * local_num_edges;
 
   local_num_edges = (my_rank != (comm_size - 1)) ? local_num_edges : (num_edges - local_start_edge);
-  local_num_vertices = (my_rank != (comm_size - 1)) ? local_num_vertices : (num_vertices - local_start_vertex);
+  local_num_vertices =
+    (my_rank != (comm_size - 1)) ? local_num_vertices : (num_vertices - local_start_vertex);
 
-  for (size_t i = 0 ; i < num_local_arrays ; ++i) {
+  for (size_t i = 0; i < num_local_arrays; ++i) {
     size_t vertex_count = local_num_vertices / num_local_arrays;
     size_t vertex_start = i * vertex_count;
-    vertex_count = (i != (num_local_arrays - 1)) ? vertex_count : (local_num_vertices - vertex_start);
+    vertex_count =
+      (i != (num_local_arrays - 1)) ? vertex_count : (local_num_vertices - vertex_start);
 
-    ret_code =
-      cugraph_type_erased_device_array_create(handle, vertex_count, vertex_tid, vertices + i, &ret_error);
+    ret_code = cugraph_type_erased_device_array_create(
+      handle, vertex_count, vertex_tid, vertices + i, &ret_error);
     TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "vertices create failed.");
     TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
 
     size_t edge_count = (local_num_edges + num_local_arrays - 1) / num_local_arrays;
     size_t edge_start = i * edge_count;
-    edge_count = (edge_count < (local_num_edges - edge_start)) ? edge_count : (local_num_edges - edge_start);
+    edge_count =
+      (edge_count < (local_num_edges - edge_start)) ? edge_count : (local_num_edges - edge_start);
 
     ret_code =
       cugraph_type_erased_device_array_create(handle, edge_count, vertex_tid, src + i, &ret_error);
@@ -210,12 +214,15 @@ int test_create_mg_graph_multiple_edge_lists(const cugraph_resource_handle_t* ha
     TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "wgt create failed.");
 
     vertices_view[i] = cugraph_type_erased_device_array_view(vertices[i]);
-    src_view[i] = cugraph_type_erased_device_array_view(src[i]);
-    dst_view[i] = cugraph_type_erased_device_array_view(dst[i]);
-    wgt_view[i] = cugraph_type_erased_device_array_view(wgt[i]);
+    src_view[i]      = cugraph_type_erased_device_array_view(src[i]);
+    dst_view[i]      = cugraph_type_erased_device_array_view(dst[i]);
+    wgt_view[i]      = cugraph_type_erased_device_array_view(wgt[i]);
 
     ret_code = cugraph_type_erased_device_array_view_copy_from_host(
-      handle, vertices_view[i], (byte_t*)(h_vertices + local_start_vertex + vertex_start), &ret_error);
+      handle,
+      vertices_view[i],
+      (byte_t*)(h_vertices + local_start_vertex + vertex_start),
+      &ret_error);
     TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "src copy_from_host failed.");
 
     ret_code = cugraph_type_erased_device_array_view_copy_from_host(
@@ -231,21 +238,22 @@ int test_create_mg_graph_multiple_edge_lists(const cugraph_resource_handle_t* ha
     TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "wgt copy_from_host failed.");
   }
 
-  ret_code = cugraph_graph_create_mg(handle,
-                                     &properties,
-                                     (cugraph_type_erased_device_array_view_t const* const*) vertices_view,
-                                     (cugraph_type_erased_device_array_view_t const* const*) src_view,
-                                     (cugraph_type_erased_device_array_view_t const* const*) dst_view,
-                                     (cugraph_type_erased_device_array_view_t const* const*) wgt_view,
-                                     NULL,
-                                     NULL,
-                                     FALSE,
-                                     num_local_arrays,
-                                     FALSE,
-                                     FALSE,
-                                     TRUE,
-                                     &graph,
-                                     &ret_error);
+  ret_code =
+    cugraph_graph_create_mg(handle,
+                            &properties,
+                            (cugraph_type_erased_device_array_view_t const* const*)vertices_view,
+                            (cugraph_type_erased_device_array_view_t const* const*)src_view,
+                            (cugraph_type_erased_device_array_view_t const* const*)dst_view,
+                            (cugraph_type_erased_device_array_view_t const* const*)wgt_view,
+                            NULL,
+                            NULL,
+                            FALSE,
+                            num_local_arrays,
+                            FALSE,
+                            FALSE,
+                            TRUE,
+                            &graph,
+                            &ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "graph creation failed.");
   TEST_ALWAYS_ASSERT(ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
 
@@ -275,8 +283,8 @@ int test_create_mg_graph_multiple_edge_lists(const cugraph_resource_handle_t* ha
   cugraph_type_erased_device_array_view_t* result_vertices;
   cugraph_type_erased_device_array_view_t* pageranks;
 
-  result_vertices  = cugraph_centrality_result_get_vertices(result);
-  pageranks = cugraph_centrality_result_get_values(result);
+  result_vertices = cugraph_centrality_result_get_vertices(result);
+  pageranks       = cugraph_centrality_result_get_values(result);
 
   size_t num_local_vertices = cugraph_type_erased_device_array_view_size(result_vertices);
 
@@ -300,7 +308,7 @@ int test_create_mg_graph_multiple_edge_lists(const cugraph_resource_handle_t* ha
   cugraph_centrality_result_free(result);
   cugraph_graph_free(graph);
 
-  for (size_t i = 0 ; i < num_local_arrays ; ++i) {
+  for (size_t i = 0; i < num_local_arrays; ++i) {
     cugraph_type_erased_device_array_view_free(wgt_view[i]);
     cugraph_type_erased_device_array_view_free(dst_view[i]);
     cugraph_type_erased_device_array_view_free(src_view[i]);
@@ -333,11 +341,11 @@ int test_create_mg_graph_multiple_edge_lists_multi_edge(const cugraph_resource_h
   double epsilon        = 0.0001;
   size_t max_iterations = 20;
 
-  vertex_t h_vertices[] = { 0, 1, 2, 3, 4, 5, 6 };
-  vertex_t h_src[] = {0, 1, 1, 2, 2, 2, 3, 4, 4, 4, 5};
-  vertex_t h_dst[] = {1, 3, 4, 0, 1, 3, 5, 5, 5, 5, 5};
-  weight_t h_wgt[] = {0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f, 3.2f, 3.2f, 1.1f};
-  weight_t h_result[] = { 0.0859168, 0.158029, 0.0616337, 0.179675, 0.113239, 0.339873, 0.0616337 };
+  vertex_t h_vertices[] = {0, 1, 2, 3, 4, 5, 6};
+  vertex_t h_src[]      = {0, 1, 1, 2, 2, 2, 3, 4, 4, 4, 5};
+  vertex_t h_dst[]      = {1, 3, 4, 0, 1, 3, 5, 5, 5, 5, 5};
+  weight_t h_wgt[]      = {0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f, 3.2f, 3.2f, 1.1f};
+  weight_t h_result[]   = {0.0859168, 0.158029, 0.0616337, 0.179675, 0.113239, 0.339873, 0.0616337};
 
   cugraph_graph_t* graph = NULL;
   cugraph_graph_properties_t properties;
@@ -360,30 +368,33 @@ int test_create_mg_graph_multiple_edge_lists_multi_edge(const cugraph_resource_h
   cugraph_type_erased_device_array_view_t* dst_view[num_local_arrays];
   cugraph_type_erased_device_array_view_t* wgt_view[num_local_arrays];
 
-  int my_rank = cugraph_resource_handle_get_rank(handle);
+  int my_rank   = cugraph_resource_handle_get_rank(handle);
   int comm_size = cugraph_resource_handle_get_comm_size(handle);
 
   size_t local_num_vertices = num_vertices / comm_size;
   size_t local_start_vertex = my_rank * local_num_vertices;
-  size_t local_num_edges = num_edges / comm_size;
-  size_t local_start_edge = my_rank * local_num_edges;
+  size_t local_num_edges    = num_edges / comm_size;
+  size_t local_start_edge   = my_rank * local_num_edges;
 
   local_num_edges = (my_rank != (comm_size - 1)) ? local_num_edges : (num_edges - local_start_edge);
-  local_num_vertices = (my_rank != (comm_size - 1)) ? local_num_vertices : (num_vertices - local_start_vertex);
+  local_num_vertices =
+    (my_rank != (comm_size - 1)) ? local_num_vertices : (num_vertices - local_start_vertex);
 
-  for (size_t i = 0 ; i < num_local_arrays ; ++i) {
+  for (size_t i = 0; i < num_local_arrays; ++i) {
     size_t vertex_count = (local_num_vertices + num_local_arrays - 1) / num_local_arrays;
     size_t vertex_start = i * vertex_count;
-    vertex_count = (i != (num_local_arrays - 1)) ? vertex_count : (local_num_vertices - vertex_start);
+    vertex_count =
+      (i != (num_local_arrays - 1)) ? vertex_count : (local_num_vertices - vertex_start);
 
-    ret_code =
-      cugraph_type_erased_device_array_create(handle, vertex_count, vertex_tid, vertices + i, &ret_error);
+    ret_code = cugraph_type_erased_device_array_create(
+      handle, vertex_count, vertex_tid, vertices + i, &ret_error);
     TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "vertices create failed.");
     TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
 
     size_t edge_count = (local_num_edges + num_local_arrays - 1) / num_local_arrays;
     size_t edge_start = i * edge_count;
-    edge_count = (edge_count < (local_num_edges - edge_start)) ? edge_count : (local_num_edges - edge_start);
+    edge_count =
+      (edge_count < (local_num_edges - edge_start)) ? edge_count : (local_num_edges - edge_start);
 
     ret_code =
       cugraph_type_erased_device_array_create(handle, edge_count, vertex_tid, src + i, &ret_error);
@@ -398,12 +409,15 @@ int test_create_mg_graph_multiple_edge_lists_multi_edge(const cugraph_resource_h
     TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "wgt create failed.");
 
     vertices_view[i] = cugraph_type_erased_device_array_view(vertices[i]);
-    src_view[i] = cugraph_type_erased_device_array_view(src[i]);
-    dst_view[i] = cugraph_type_erased_device_array_view(dst[i]);
-    wgt_view[i] = cugraph_type_erased_device_array_view(wgt[i]);
+    src_view[i]      = cugraph_type_erased_device_array_view(src[i]);
+    dst_view[i]      = cugraph_type_erased_device_array_view(dst[i]);
+    wgt_view[i]      = cugraph_type_erased_device_array_view(wgt[i]);
 
     ret_code = cugraph_type_erased_device_array_view_copy_from_host(
-      handle, vertices_view[i], (byte_t*)(h_vertices + local_start_vertex + vertex_start), &ret_error);
+      handle,
+      vertices_view[i],
+      (byte_t*)(h_vertices + local_start_vertex + vertex_start),
+      &ret_error);
     TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "src copy_from_host failed.");
 
     ret_code = cugraph_type_erased_device_array_view_copy_from_host(
@@ -419,21 +433,22 @@ int test_create_mg_graph_multiple_edge_lists_multi_edge(const cugraph_resource_h
     TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "wgt copy_from_host failed.");
   }
 
-  ret_code = cugraph_graph_create_mg(handle,
-                                     &properties,
-                                     (cugraph_type_erased_device_array_view_t const* const*) vertices_view,
-                                     (cugraph_type_erased_device_array_view_t const* const*) src_view,
-                                     (cugraph_type_erased_device_array_view_t const* const*) dst_view,
-                                     (cugraph_type_erased_device_array_view_t const* const*) wgt_view,
-                                     NULL,
-                                     NULL,
-                                     FALSE,
-                                     num_local_arrays,
-                                     TRUE,
-                                     TRUE,
-                                     TRUE,
-                                     &graph,
-                                     &ret_error);
+  ret_code =
+    cugraph_graph_create_mg(handle,
+                            &properties,
+                            (cugraph_type_erased_device_array_view_t const* const*)vertices_view,
+                            (cugraph_type_erased_device_array_view_t const* const*)src_view,
+                            (cugraph_type_erased_device_array_view_t const* const*)dst_view,
+                            (cugraph_type_erased_device_array_view_t const* const*)wgt_view,
+                            NULL,
+                            NULL,
+                            FALSE,
+                            num_local_arrays,
+                            TRUE,
+                            TRUE,
+                            TRUE,
+                            &graph,
+                            &ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "graph creation failed.");
   TEST_ALWAYS_ASSERT(ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
 
@@ -463,8 +478,8 @@ int test_create_mg_graph_multiple_edge_lists_multi_edge(const cugraph_resource_h
   cugraph_type_erased_device_array_view_t* result_vertices;
   cugraph_type_erased_device_array_view_t* pageranks;
 
-  result_vertices  = cugraph_centrality_result_get_vertices(result);
-  pageranks = cugraph_centrality_result_get_values(result);
+  result_vertices = cugraph_centrality_result_get_vertices(result);
+  pageranks       = cugraph_centrality_result_get_values(result);
 
   size_t num_local_vertices = cugraph_type_erased_device_array_view_size(result_vertices);
 
@@ -488,7 +503,7 @@ int test_create_mg_graph_multiple_edge_lists_multi_edge(const cugraph_resource_h
   cugraph_centrality_result_free(result);
   cugraph_graph_free(graph);
 
-  for (size_t i = 0 ; i < num_local_arrays ; ++i) {
+  for (size_t i = 0; i < num_local_arrays; ++i) {
     cugraph_type_erased_device_array_view_free(wgt_view[i]);
     cugraph_type_erased_device_array_view_free(dst_view[i]);
     cugraph_type_erased_device_array_view_free(src_view[i]);

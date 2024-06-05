@@ -11,7 +11,7 @@ default_language_version:
     python: python3
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.5.0
+    rev: v4.6.0
     hooks:
       - id: check-added-large-files
       - id: check-case-conflict
@@ -26,12 +26,12 @@ repos:
       - id: mixed-line-ending
       - id: trailing-whitespace
   - repo: https://github.com/abravalheri/validate-pyproject
-    rev: v0.16
+    rev: v0.17
     hooks:
       - id: validate-pyproject
         name: Validate pyproject.toml
   - repo: https://github.com/PyCQA/autoflake
-    rev: v2.3.0
+    rev: v2.3.1
     hooks:
       - id: autoflake
         args: [--in-place]
@@ -40,17 +40,17 @@ repos:
     hooks:
       - id: isort
   - repo: https://github.com/asottile/pyupgrade
-    rev: v3.15.1
+    rev: v3.15.2
     hooks:
       - id: pyupgrade
         args: [--py39-plus]
   - repo: https://github.com/psf/black
-    rev: 24.2.0
+    rev: 24.4.2
     hooks:
       - id: black
       # - id: black-jupyter
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.3.2
+    rev: v0.4.4
     hooks:
       - id: ruff
         args: [--fix-only, --show-fixes]  # --unsafe-fixes]
@@ -62,7 +62,7 @@ repos:
         additional_dependencies: &flake8_dependencies
           # These versions need updated manually
           - flake8==7.0.0
-          - flake8-bugbear==24.2.6
+          - flake8-bugbear==24.4.26
           - flake8-simplify==0.21.0
   - repo: https://github.com/asottile/yesqa
     rev: v1.5.0
@@ -77,11 +77,11 @@ repos:
         additional_dependencies: [tomli]
         files: ^(nx_cugraph|docs)/
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.3.2
+    rev: v0.4.4
     hooks:
       - id: ruff
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.5.0
+    rev: v4.6.0
     hooks:
       - id: no-commit-to-branch
         args: [-p, "^branch-2....$"]

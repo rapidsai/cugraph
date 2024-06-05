@@ -1,4 +1,4 @@
-# Copyright (c) 2022-2023, NVIDIA CORPORATION.
+# Copyright (c) 2022-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -17,18 +17,23 @@ import pytest
 
 import dask_cudf
 import numpy as np
-from cugraph.testing import UNDIRECTED_DATASETS, karate_disjoint
-
+from cugraph.datasets import karate, dolphins, karate_disjoint
 from cugraph.structure.replicate_edgelist import replicate_edgelist
 from cudf.testing.testing import assert_frame_equal
-from pylibcugraph.testing.utils import gen_fixture_params_product
 
 
 # =============================================================================
 # Pytest Setup / Teardown - called for each test function
 # =============================================================================
+
+
 def setup_function():
     gc.collect()
+
+
+# =============================================================================
+# Parameters
+# =============================================================================
 
 
 edgeWeightCol = "weights"
@@ -37,53 +42,29 @@ edgeTypeCol = "edge_type"
 srcCol = "src"
 dstCol = "dst"
 
-
-input_data = UNDIRECTED_DATASETS + [karate_disjoint]
-datasets = [pytest.param(d) for d in input_data]
-
-fixture_params = gen_fixture_params_product(
-    (datasets, "graph_file"),
-    ([True, False], "distributed"),
-    ([True, False], "use_weights"),
-    ([True, False], "use_edge_ids"),
-    ([True, False], "use_edge_type_ids"),
-)
-
-
-@pytest.fixture(scope="module", params=fixture_params)
-def input_combo(request):
-    """
-    Simply return the current combination of params as a dictionary for use in
-    tests or other parameterized fixtures.
-    """
-    return dict(
-        zip(
-            (
-                "graph_file",
-                "use_weights",
-                "use_edge_ids",
-                "use_edge_type_ids",
-                "distributed",
-            ),
-            request.param,
-        )
-    )
+DATASETS = [karate, dolphins, karate_disjoint]
+IS_DISTRIBUTED = [True, False]
+USE_WEIGHTS = [True, False]
+USE_EDGE_IDS = [True, False]
+USE_EDGE_TYPE_IDS = [True, False]
 
 
 # =============================================================================
 # Tests
 # =============================================================================
-# @pytest.mark.skipif(
-#    is_single_gpu(), reason="skipping MG testing on Single GPU system"
-# )
-@pytest.mark.mg
-def test_mg_replicate_edgelist(dask_client, input_combo):
-    df = input_combo["graph_file"].get_edgelist()
-    distributed = input_combo["distributed"]
 
-    use_weights = input_combo["use_weights"]
-    use_edge_ids = input_combo["use_edge_ids"]
-    use_edge_type_ids = input_combo["use_edge_type_ids"]
+
+@pytest.mark.mg
+@pytest.mark.parametrize("dataset", DATASETS)
+@pytest.mark.parametrize("distributed", IS_DISTRIBUTED)
+@pytest.mark.parametrize("use_weights", USE_WEIGHTS)
+@pytest.mark.parametrize("use_edge_ids", USE_EDGE_IDS)
+@pytest.mark.parametrize("use_edge_type_ids", USE_EDGE_TYPE_IDS)
+def test_mg_replicate_edgelist(
+    dask_client, dataset, distributed, use_weights, use_edge_ids, use_edge_type_ids
+):
+    dataset.unload()
+    df = dataset.get_edgelist()
 
     columns = [srcCol, dstCol]
     weight = None
