@@ -67,7 +67,9 @@ neighbor_sample_impl(
   raft::random::RngState& rng_state,
   bool do_expensive_check)
 {
-#ifdef NO_CUGRAPH_OPS
+#ifdef NO_CUGRAPH_OPS  // FIXME: this is relevant only when edge_bias_view.has_value() is false,
+                       // this ifdef statement will be removed once we migrate relevant cugraph-ops
+                       // functions to cugraph
   CUGRAPH_FAIL(
     "neighbor_sample_impl not supported in this configuration, built with NO_CUGRAPH_OPS");
 #else
