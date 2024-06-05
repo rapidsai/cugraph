@@ -217,7 +217,7 @@ if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
 
     pip install \
       ogb \
-      tensordict
+      tensordict==0.3.2
 
     pip install \
         pyg_lib \

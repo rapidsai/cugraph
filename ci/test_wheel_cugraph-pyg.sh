@@ -42,7 +42,7 @@ rapids-retry python -m pip install \
   pyg_lib \
   torch_scatter \
   torch_sparse \
-  tensordict \
+  tensordict==0.3.2 \
   -f ${PYG_URL}
 
 rapids-logger "pytest cugraph-pyg (single GPU)"
