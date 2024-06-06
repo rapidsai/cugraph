@@ -214,9 +214,8 @@ if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
     # Install pyg dependencies (which requires pip)
 
     pip install \
-      ogb \
-      tensordict
-
+      ogb 
+      
     pip install \
         pyg_lib \
         torch_scatter \
