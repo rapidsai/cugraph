@@ -61,13 +61,13 @@ class lookup_container_t {
               raft::device_span<edge_id_t const> edge_ids_to_insert,
               dataframe_buffer_type_t<value_t>&& values_to_insert);
 
-  dataframe_buffer_type_t<value_t> src_dst_from_edge_id_and_type(
+  dataframe_buffer_type_t<value_t> lookup_from_edge_ids_and_single_type(
     raft::handle_t const& handle,
     raft::device_span<edge_id_t const> edge_ids_to_lookup,
     edge_type_t edge_type_to_lookup,
     bool multi_gpu) const;
 
-  dataframe_buffer_type_t<value_t> src_dst_from_edge_id_and_type(
+  dataframe_buffer_type_t<value_t> lookup_from_edge_ids_and_types(
     raft::handle_t const& handle,
     raft::device_span<edge_id_t const> edge_ids_to_lookup,
     raft::device_span<edge_type_t const> edge_types_to_lookup,

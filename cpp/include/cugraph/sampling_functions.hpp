@@ -352,7 +352,7 @@ lookup_container_t<edge_t, edge_type_t, vertex_t> build_edge_id_and_type_to_src_
  * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
- * @param search_container Object of type cugraph::lookup_container_t that encapsulates edge id and
+ * @param lookup_container Object of type cugraph::lookup_container_t that encapsulates edge id and
  * type to source and destination lookup map.
  * @param edge_ids_to_lookup Device span of edge ids to lookup
  * @param edge_type_to_lookup Type of the edges corresponding to edge ids in @p edge_ids_to_lookup
@@ -365,7 +365,7 @@ template <typename vertex_t, typename edge_t, typename edge_type_t, bool multi_g
 std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>>
 lookup_endpoints_from_edge_ids_and_single_type(
   raft::handle_t const& handle,
-  lookup_container_t<edge_t, edge_type_t, vertex_t> const& search_container,
+  lookup_container_t<edge_t, edge_type_t, vertex_t> const& lookup_container,
   raft::device_span<edge_t const> edge_ids_to_lookup,
   edge_type_t edge_type_to_lookup);
 
@@ -379,7 +379,7 @@ lookup_endpoints_from_edge_ids_and_single_type(
  * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
- * @param search_container Object of type cugraph::lookup_container_t that encapsulates edge id and
+ * @param lookup_container Object of type cugraph::lookup_container_t that encapsulates edge id and
  * type to source and destination lookup map.
  * @param edge_ids_to_lookup Device span of edge ids to lookup
  * @param edge_types_to_lookup Device span of edge types corresponding to the edge ids
@@ -394,7 +394,7 @@ template <typename vertex_t, typename edge_t, typename edge_type_t, bool multi_g
 std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>>
 lookup_endpoints_from_edge_ids_and_types(
   raft::handle_t const& handle,
-  lookup_container_t<edge_t, edge_type_t, vertex_t> const& search_container,
+  lookup_container_t<edge_t, edge_type_t, vertex_t> const& lookup_container,
   raft::device_span<edge_t const> edge_ids_to_lookup,
   raft::device_span<edge_type_t const> edge_types_to_lookup);
 

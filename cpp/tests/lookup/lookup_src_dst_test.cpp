@@ -100,8 +100,9 @@ class Tests_SGLookupEdgeSrcDst
     // file once the graph generator is updated to generate edge ids and types.
     //
 
-    int32_t number_of_edge_types =
-      1 + (std::rand() % (1 + (sg_graph_view.number_of_vertices() / (1 << 10))));
+    int32_t number_of_edge_types = std::max(
+      1 << 8,
+      static_cast<int>(std::rand() % (1 + (sg_graph_view.number_of_vertices() / (1 << 16)))));
 
     std::optional<cugraph::edge_property_t<decltype(sg_graph_view), int32_t>> edge_types{
       std::nullopt};
@@ -209,7 +210,7 @@ class Tests_SGLookupEdgeSrcDst
           if (id_or_type)
             (*h_mg_edge_ids)[random_idx] = std::numeric_limits<edge_t>::max();
           else
-            (*h_mg_edge_types)[random_idx] = number_of_edge_types;
+            (*h_mg_edge_types)[random_idx] = std::numeric_limits<int32_t>::max() - 2;
 
           h_srcs_expected[random_idx] = cugraph::invalid_vertex_id<vertex_t>::value;
           h_dsts_expected[random_idx] = cugraph::invalid_vertex_id<vertex_t>::value;

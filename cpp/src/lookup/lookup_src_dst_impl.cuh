@@ -181,24 +181,23 @@ struct lookup_container_t<edge_id_t, edge_type_t, vertex_t, value_t>::lookup_con
 
     rmm::device_uvector<edge_type_t> unique_types(nr_uniqe_edge_types_to_lookup,
                                                   handle.get_stream());
-    rmm::device_uvector<edge_id_t> type_offsets(nr_uniqe_edge_types_to_lookup + 1,
+    rmm::device_uvector<edge_id_t> type_offsets(nr_uniqe_edge_types_to_lookup + size_t{1},
                                                 handle.get_stream());
 
-    thrust::fill(
-      handle.get_thrust_policy(), type_offsets.begin(), type_offsets.end(), edge_id_t{0});
+    thrust::copy_if(handle.get_thrust_policy(),
+                    tmp_edge_types_to_lookup.begin(),
+                    tmp_edge_types_to_lookup.end(),
+                    thrust::make_counting_iterator(size_t{0}),
+                    unique_types.begin(),
+                    detail::is_first_in_run_t<edge_type_t const*>{tmp_edge_types_to_lookup.data()});
 
-    thrust::reduce_by_key(handle.get_thrust_policy(),
-                          tmp_edge_types_to_lookup.begin(),
-                          tmp_edge_types_to_lookup.end(),
-                          thrust::make_constant_iterator(size_t{1}),
-                          unique_types.begin(),
-                          type_offsets.begin());
-
-    thrust::exclusive_scan(handle.get_thrust_policy(),
-                           type_offsets.begin(),
-                           type_offsets.end(),
-                           type_offsets.begin(),
-                           size_t{0});
+    type_offsets.set_element_to_zero_async(0, handle.get_stream());
+    thrust::upper_bound(handle.get_thrust_policy(),
+                        tmp_edge_types_to_lookup.begin(),
+                        tmp_edge_types_to_lookup.end(),
+                        unique_types.begin(),
+                        unique_types.end(),
+                        type_offsets.begin() + 1);
 
     std::vector<edge_type_t> h_unique_types(unique_types.size());
     std::vector<edge_id_t> h_type_offsets(type_offsets.size());
@@ -327,7 +326,7 @@ void lookup_container_t<edge_id_t, edge_type_t, vertex_t, value_t>::insert(
 
 template <typename edge_id_t, typename edge_type_t, typename vertex_t, typename value_t>
 dataframe_buffer_type_t<value_t>
-lookup_container_t<edge_id_t, edge_type_t, vertex_t, value_t>::src_dst_from_edge_id_and_type(
+lookup_container_t<edge_id_t, edge_type_t, vertex_t, value_t>::lookup_from_edge_ids_and_single_type(
   raft::handle_t const& handle,
   raft::device_span<edge_id_t const> edge_ids_to_lookup,
   edge_type_t edge_type_to_lookup,
@@ -339,7 +338,7 @@ lookup_container_t<edge_id_t, edge_type_t, vertex_t, value_t>::src_dst_from_edge
 
 template <typename edge_id_t, typename edge_type_t, typename vertex_t, typename value_t>
 dataframe_buffer_type_t<value_t>
-lookup_container_t<edge_id_t, edge_type_t, vertex_t, value_t>::src_dst_from_edge_id_and_type(
+lookup_container_t<edge_id_t, edge_type_t, vertex_t, value_t>::lookup_from_edge_ids_and_types(
   raft::handle_t const& handle,
   raft::device_span<edge_id_t const> edge_ids_to_lookup,
   raft::device_span<edge_type_t const> edge_types_to_lookup,
@@ -435,20 +434,37 @@ EdgeTypeAndIdToSrcDstLookupContainerType build_edge_id_and_type_to_src_dst_looku
 
     rmm::device_uvector<edge_t> unique_pair_counts(nr_unique_paris, handle.get_stream());
 
-    thrust::reduce_by_key(handle.get_thrust_policy(),
+    {
+      rmm::device_uvector<edge_t> unique_pair_end_offsets(nr_unique_paris, handle.get_stream());
+
+      thrust::copy_if(handle.get_thrust_policy(),
+                      type_and_gpu_id_pair_begin,
+                      type_and_gpu_id_pair_begin + edge_types.size(),
+                      thrust::make_counting_iterator(size_t{0}),
+                      cugraph::get_dataframe_buffer_begin(unique_pairs_buffer),
+                      detail::is_first_in_run_t<decltype(type_and_gpu_id_pair_begin)>{
+                        type_and_gpu_id_pair_begin});
+
+      thrust::upper_bound(handle.get_thrust_policy(),
                           type_and_gpu_id_pair_begin,
                           type_and_gpu_id_pair_begin + edge_types.size(),
-                          thrust::make_constant_iterator(size_t{1}),
                           cugraph::get_dataframe_buffer_begin(unique_pairs_buffer),
-                          unique_pair_counts.begin());
+                          cugraph::get_dataframe_buffer_end(unique_pairs_buffer),
+                          unique_pair_end_offsets.begin());
+
+      thrust::adjacent_difference(handle.get_thrust_policy(),
+                                  unique_pair_end_offsets.begin(),
+                                  unique_pair_end_offsets.end(),
+                                  unique_pair_counts.begin());
+    }
 
     edge_types.resize(0, handle.get_stream());
     gpu_ids.resize(0, handle.get_stream());
+    edge_types.shrink_to_fit(handle.get_stream());
+    gpu_ids.shrink_to_fit(handle.get_stream());
 
     std::forward_as_tuple(
-      std::tie(
-        std::get<0>(unique_pairs_buffer), std::get<1>(unique_pairs_buffer), unique_pair_counts),
-      std::ignore) =
+      std::tie(std::get<0>(unique_pairs_buffer), std::ignore, unique_pair_counts), std::ignore) =
       cugraph::groupby_gpu_id_and_shuffle_values(
         handle.get_comms(),
         thrust::make_zip_iterator(thrust::make_tuple(std::get<0>(unique_pairs_buffer).begin(),
@@ -508,12 +524,27 @@ EdgeTypeAndIdToSrcDstLookupContainerType build_edge_id_and_type_to_src_dst_looku
     unique_types.resize(static_cast<size_t>(nr_unique_types), handle.get_stream());
     unique_type_counts.resize(static_cast<size_t>(nr_unique_types), handle.get_stream());
 
-    thrust::reduce_by_key(handle.get_thrust_policy(),
+    {
+      rmm::device_uvector<edge_t> unique_type_end_offsets(nr_unique_types, handle.get_stream());
+      thrust::copy_if(handle.get_thrust_policy(),
+                      edge_types.begin(),
+                      edge_types.end(),
+                      thrust::make_counting_iterator(size_t{0}),
+                      unique_types.begin(),
+                      detail::is_first_in_run_t<edge_type_t const*>{edge_types.data()});
+
+      thrust::upper_bound(handle.get_thrust_policy(),
                           edge_types.begin(),
                           edge_types.end(),
-                          thrust::make_constant_iterator(size_t{1}),
                           unique_types.begin(),
-                          unique_type_counts.begin());
+                          unique_types.end(),
+                          unique_type_end_offsets.begin());
+
+      thrust::adjacent_difference(handle.get_thrust_policy(),
+                                  unique_type_end_offsets.begin(),
+                                  unique_type_end_offsets.end(),
+                                  unique_type_counts.begin());
+    }
   }
 
   std::vector<edge_type_t> h_unique_types(unique_types.size());
@@ -634,20 +665,21 @@ EdgeTypeAndIdToSrcDstLookupContainerType build_edge_id_and_type_to_src_dst_looku
     rmm::device_uvector<edge_t> type_offsets(nr_uniqe_edge_types_partition + 1,
                                              handle.get_stream());
 
-    thrust::fill(handle.get_thrust_policy(), type_offsets.begin(), type_offsets.end(), edge_t{0});
+    thrust::copy_if(handle.get_thrust_policy(),
+                    edgelist_types.begin(),
+                    edgelist_types.end(),
+                    thrust::make_counting_iterator(size_t{0}),
+                    unique_types.begin(),
+                    detail::is_first_in_run_t<edge_type_t const*>{edgelist_types.data()});
 
-    thrust::reduce_by_key(handle.get_thrust_policy(),
-                          edgelist_types.begin(),
-                          edgelist_types.end(),
-                          thrust::make_constant_iterator(size_t{1}),
-                          unique_types.begin(),
-                          type_offsets.begin());
+    type_offsets.set_element_to_zero_async(0, handle.get_stream());
 
-    thrust::exclusive_scan(handle.get_thrust_policy(),
-                           type_offsets.begin(),
-                           type_offsets.end(),
-                           type_offsets.begin(),
-                           size_t{0});
+    thrust::upper_bound(handle.get_thrust_policy(),
+                        edgelist_types.begin(),
+                        edgelist_types.end(),
+                        unique_types.begin(),
+                        unique_types.end(),
+                        type_offsets.begin() + 1);
 
     std::vector<edge_type_t> h_unique_types(unique_types.size());
     std::vector<edge_t> h_type_offsets(type_offsets.size());
@@ -714,7 +746,7 @@ lookup_endpoints_from_edge_ids_and_single_type(
     std::is_same_v<typename EdgeTypeAndIdToSrcDstLookupContainerType::edge_type_type, edge_type_t>,
     "edge_type_t must match EdgeTypeAndIdToSrcDstLookupContainerType::edge_type_type ");
 
-  auto value_buffer = search_container.src_dst_from_edge_id_and_type(
+  auto value_buffer = search_container.lookup_from_edge_ids_and_single_type(
     handle, edge_ids_to_lookup, edge_type_to_lookup, multi_gpu);
 
   return std::make_tuple(std::move(std::get<0>(value_buffer)),
@@ -747,7 +779,7 @@ lookup_endpoints_from_edge_ids_and_types(
     std::is_same_v<typename EdgeTypeAndIdToSrcDstLookupContainerType::edge_type_type, edge_type_t>,
     "edge_type_t must match EdgeTypeAndIdToSrcDstLookupContainerType::edge_type_type ");
 
-  auto value_buffer = search_container.src_dst_from_edge_id_and_type(
+  auto value_buffer = search_container.lookup_from_edge_ids_and_types(
     handle, edge_ids_to_lookup, edge_types_to_lookup, multi_gpu);
 
   return std::make_tuple(std::move(std::get<0>(value_buffer)),
