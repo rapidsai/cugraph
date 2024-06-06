@@ -114,13 +114,13 @@ struct lookup_container_t<edge_id_t, edge_type_t, vertex_t, value_t>::lookup_con
       auto& minor_comm = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
       auto const minor_comm_size = minor_comm.get_size();
 
-      value_buffer =
-        cugraph::collect_values_for_keys(handle,
-                                         kv_store_object->view(),
-                                         edge_ids_to_lookup.begin(),
-                                         edge_ids_to_lookup.end(),
-                                         cugraph::detail::compute_gpu_id_from_ext_edge_t<edge_id_t>{
-                                           comm_size, major_comm_size, minor_comm_size});
+      value_buffer = cugraph::collect_values_for_keys(
+        handle,
+        kv_store_object->view(),
+        edge_ids_to_lookup.begin(),
+        edge_ids_to_lookup.end(),
+        cugraph::detail::compute_gpu_id_from_ext_edge_id_t<edge_id_t>{
+          comm_size, major_comm_size, minor_comm_size});
     } else {
       cugraph::resize_dataframe_buffer(
         value_buffer, edge_ids_to_lookup.size(), handle.get_stream());
@@ -403,7 +403,7 @@ EdgeTypeAndIdToSrcDstLookupContainerType build_edge_id_and_type_to_src_dst_looku
         view_concat(edge_id_view, edge_type_view),
         cuda::proclaim_return_type<thrust::optional<thrust::tuple<int, edge_type_t>>>(
           [key_func =
-             cugraph::detail::compute_gpu_id_from_ext_edge_t<edge_t>{
+             cugraph::detail::compute_gpu_id_from_ext_edge_id_t<edge_t>{
                comm_size,
                major_comm_size,
                minor_comm_size}] __device__(auto,
@@ -637,7 +637,7 @@ EdgeTypeAndIdToSrcDstLookupContainerType build_edge_id_and_type_to_src_dst_looku
                                                        edgelist_ids.end(),
                                                        edgelist_types.end())),
           [key_func =
-             cugraph::detail::compute_gpu_id_from_ext_edge_t<edge_t>{
+             cugraph::detail::compute_gpu_id_from_ext_edge_id_t<edge_t>{
                comm_size,
                major_comm_size,
                minor_comm_size}] __device__(auto val) { return key_func(thrust::get<2>(val)); },

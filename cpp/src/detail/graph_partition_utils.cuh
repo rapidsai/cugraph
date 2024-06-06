@@ -51,7 +51,7 @@ struct compute_gpu_id_from_ext_vertex_t {
 };
 
 template <typename edge_t>
-struct compute_gpu_id_from_ext_edge_t {
+struct compute_gpu_id_from_ext_edge_id_t {
   int comm_size{0};
   int major_comm_size{0};
   int minor_comm_size{0};
