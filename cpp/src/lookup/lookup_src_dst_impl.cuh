@@ -573,14 +573,23 @@ EdgeTypeAndIdToSrcDstLookupContainerType build_edge_id_and_type_to_src_dst_looku
     // decompress one edge_partition at a time
     //
 
-    auto number_of_local_edges =
-      graph_view.local_edge_partition_view(local_ep_idx).number_of_edges();
+    auto edge_partition = edge_partition_device_view_t<vertex_t, edge_t, multi_gpu>(
+      graph_view.local_edge_partition_view(local_ep_idx));
 
+    auto edge_partition_mask_view =
+      graph_view.has_edge_mask()
+        ? std::make_optional<
+            detail::edge_partition_edge_property_device_view_t<edge_t, uint32_t const*, bool>>(
+            *(graph_view.edge_mask_view()), local_ep_idx)
+        : std::nullopt;
+
+    auto number_of_local_edges = edge_partition.number_of_edges();
     if (graph_view.has_edge_mask()) {
-      number_of_local_edges =
-        detail::count_set_bits(handle,
-                               (*(graph_view.edge_mask_view())).value_firsts()[local_ep_idx],
-                               number_of_local_edges);
+      number_of_local_edges = edge_partition.compute_number_of_edges_with_mask(
+        (*edge_partition_mask_view).value_first(),
+        thrust::make_counting_iterator(edge_partition.major_range_first()),
+        thrust::make_counting_iterator(edge_partition.major_range_last()),
+        handle.get_stream());
     }
 
     rmm::device_uvector<vertex_t> edgelist_majors(number_of_local_edges, handle.get_stream());
@@ -591,19 +600,14 @@ EdgeTypeAndIdToSrcDstLookupContainerType build_edge_id_and_type_to_src_dst_looku
 
     detail::decompress_edge_partition_to_edgelist<vertex_t, edge_t, float, edge_type_t, multi_gpu>(
       handle,
-      edge_partition_device_view_t<vertex_t, edge_t, multi_gpu>(
-        graph_view.local_edge_partition_view(local_ep_idx)),
+      edge_partition,
       std::nullopt,
       std::make_optional<detail::edge_partition_edge_property_device_view_t<edge_t, edge_t const*>>(
         edge_id_view, local_ep_idx),
       std::make_optional<
         detail::edge_partition_edge_property_device_view_t<edge_t, edge_type_t const*>>(
         edge_type_view, local_ep_idx),
-      graph_view.has_edge_mask()
-        ? std::make_optional<
-            detail::edge_partition_edge_property_device_view_t<edge_t, uint32_t const*, bool>>(
-            *(graph_view.edge_mask_view()), local_ep_idx)
-        : std::nullopt,
+      edge_partition_mask_view,
       raft::device_span<vertex_t>(edgelist_majors.data(), number_of_local_edges),
       raft::device_span<vertex_t>(edgelist_minors.data(), number_of_local_edges),
       std::nullopt,
