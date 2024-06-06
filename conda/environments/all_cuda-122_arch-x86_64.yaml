@@ -61,6 +61,7 @@ dependencies:
 - pytest-mpl
 - pytest-xdist
 - python-louvain
+- pytorch>=2.0,<2.2.0a0
 - raft-dask==24.6.*
 - rapids-dask-dependency==24.6.*
 - recommonmark
@@ -74,7 +75,7 @@ dependencies:
 - sphinx-markdown-tables
 - sphinx<6
 - sphinxcontrib-websupport
-- tensordict>=0.1.2,<0.3.1a0
+- tensordict>=0.1.2
 - ucx-proc=*=gpu
 - ucx-py==0.38.*
 - wget

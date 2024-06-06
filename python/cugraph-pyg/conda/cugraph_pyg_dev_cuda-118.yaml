@@ -21,5 +21,5 @@ dependencies:
 - pytorch-cuda==11.8
 - pytorch>=2.0
 - scipy
-- tensordict>=0.1.2,<0.3.1a0
+- tensordict>=0.1.2
 name: cugraph_pyg_dev_cuda-118

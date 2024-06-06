@@ -22,6 +22,7 @@ files:
       - depends_on_pylibcugraphops
       - depends_on_pylibwholegraph
       - depends_on_cupy
+      - depends_on_pytorch
       - python_run_cugraph
       - python_run_nx_cugraph
       - python_run_cugraph_dgl
@@ -62,6 +63,7 @@ files:
       - cuda_version
       - depends_on_cudf
       - depends_on_pylibwholegraph
+      - depends_on_pytorch
       - py_version
       - test_python_common
       - test_python_cugraph
@@ -179,6 +181,7 @@ files:
     includes:
       - test_python_common
       - depends_on_pylibwholegraph
+      - depends_on_pytorch
   py_build_cugraph_pyg:
     output: pyproject
     pyproject_dir: python/cugraph-pyg
@@ -203,6 +206,7 @@ files:
     includes:
       - test_python_common
       - depends_on_pylibwholegraph
+      - depends_on_pytorch
   py_build_cugraph_equivariant:
     output: pyproject
     pyproject_dir: python/cugraph-equivariant
@@ -486,7 +490,7 @@ dependencies:
         packages:
           - *numba
           - *numpy
-          - &tensordict tensordict>=0.1.2,<0.3.1a0
+          - &tensordict tensordict>=0.1.2
       - output_types: [pyproject]
         packages:
           - *cugraph
@@ -571,6 +575,24 @@ dependencies:
           - pytorch-cuda==11.8
           - *tensordict
           - pyg>=2.5,<2.6
+
+  depends_on_pytorch:
+    common:
+      - output_types: [conda]
+        packages:
+          - &pytorch_conda pytorch>=2.0,<2.2.0a0
+    specific:
+      - output_types: [requirements, pyproject]
+        matrices:
+          - matrix: {cuda: "12.*"}
+            packages:
+              - torch>=2.0,<2.2.0a0
+              - --extra-index-url=https://download.pytorch.org/whl/cu121
+          - matrix: {cuda: "11.*"}
+            packages:
+              - torch>=2.0,<2.2.0a0
+              - --extra-index-url=https://download.pytorch.org/whl/cu118
+          - {matrix: null, packages: [*pytorch_conda]}
 
   depends_on_pylibwholegraph:
     common:
