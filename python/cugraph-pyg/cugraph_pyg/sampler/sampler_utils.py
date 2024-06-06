@@ -14,7 +14,7 @@
 
 from typing import Sequence, Dict, Tuple
 
-from cugraph_pyg.data import CuGraphStore
+from cugraph_pyg.data import DaskGraphStore
 
 from cugraph.utilities.utils import import_optional
 import cudf
@@ -28,7 +28,7 @@ HeteroSamplerOutput = torch_geometric.sampler.base.HeteroSamplerOutput
 
 def _get_unique_nodes(
     sampling_results: cudf.DataFrame,
-    graph_store: CuGraphStore,
+    graph_store: DaskGraphStore,
     node_type: str,
     node_position: str,
 ) -> int:
@@ -40,7 +40,7 @@ def _get_unique_nodes(
     sampling_results: cudf.DataFrame
         The dataframe containing sampling results or filtered sampling results
         (i.e. sampling results for hop 2)
-    graph_store: CuGraphStore
+    graph_store: DaskGraphStore
         The graph store containing the structure of the sampled graph.
     node_type: str
         The node type to count the number of unique nodes of.
@@ -81,7 +81,7 @@ def _get_unique_nodes(
 def _sampler_output_from_sampling_results_homogeneous_coo(
     sampling_results: cudf.DataFrame,
     renumber_map: torch.Tensor,
-    graph_store: CuGraphStore,
+    graph_store: DaskGraphStore,
     data_index: Dict[Tuple[int, int], Dict[str, int]],
     batch_id: int,
     metadata: Sequence = None,
@@ -94,7 +94,7 @@ def _sampler_output_from_sampling_results_homogeneous_coo(
     renumber_map: torch.Tensor
         The tensor containing the renumber map, or None if there
         is no renumber map.
-    graph_store: CuGraphStore
+    graph_store: DaskGraphStore
         The graph store containing the structure of the sampled graph.
     data_index: Dict[Tuple[int, int], Dict[str, int]]
         Dictionary where keys are the batch id and hop id,
@@ -181,7 +181,7 @@ def _sampler_output_from_sampling_results_homogeneous_csr(
     major_offsets: torch.Tensor,
     minors: torch.Tensor,
     renumber_map: torch.Tensor,
-    graph_store: CuGraphStore,
+    graph_store: DaskGraphStore,
     label_hop_offsets: torch.Tensor,
     batch_id: int,
     metadata: Sequence = None,
@@ -196,7 +196,7 @@ def _sampler_output_from_sampling_results_homogeneous_csr(
     renumber_map: torch.Tensor
         The tensor containing the renumber map.
         Required.
-    graph_store: CuGraphStore
+    graph_store: DaskGraphStore
         The graph store containing the structure of the sampled graph.
     label_hop_offsets: torch.Tensor
         The tensor containing the label-hop offsets.
@@ -263,7 +263,7 @@ def _sampler_output_from_sampling_results_homogeneous_csr(
 def _sampler_output_from_sampling_results_heterogeneous(
     sampling_results: cudf.DataFrame,
     renumber_map: cudf.Series,
-    graph_store: CuGraphStore,
+    graph_store: DaskGraphStore,
     metadata: Sequence = None,
 ) -> HeteroSamplerOutput:
     """
@@ -274,7 +274,7 @@ def _sampler_output_from_sampling_results_heterogeneous(
     renumber_map: cudf.Series
         The series containing the renumber map, or None if there
         is no renumber map.
-    graph_store: CuGraphStore
+    graph_store: DaskGraphStore
         The graph store containing the structure of the sampled graph.
     metadata: Tensor
         The metadata for the sampled batch.
@@ -403,41 +403,3 @@ def _sampler_output_from_sampling_results_heterogeneous(
         num_sampled_edges={k: t.tolist() for k, t in num_edges_per_hop_dict.items()},
         metadata=metadata,
     )
-
-
-def filter_cugraph_store_csc(
-    feature_store: torch_geometric.data.FeatureStore,
-    graph_store: torch_geometric.data.GraphStore,
-    node_dict: Dict[str, torch.Tensor],
-    row_dict: Dict[str, torch.Tensor],
-    col_dict: Dict[str, torch.Tensor],
-    edge_dict: Dict[str, Tuple[torch.Tensor]],
-) -> torch_geometric.data.HeteroData:
-    """
-    Deprecated
-    """
-
-    data = torch_geometric.data.HeteroData()
-
-    for attr in graph_store.get_all_edge_attrs():
-        key = attr.edge_type
-        if key in row_dict and key in col_dict:
-            data.put_edge_index(
-                (row_dict[key], col_dict[key]),
-                edge_type=key,
-                layout="csc",
-                is_sorted=True,
-            )
-
-    required_attrs = []
-    for attr in feature_store.get_all_tensor_attrs():
-        if attr.group_name in node_dict:
-            attr.index = node_dict[attr.group_name]
-            required_attrs.append(attr)
-            data[attr.group_name].num_nodes = attr.index.size(0)
-
-    tensors = feature_store.multi_get_tensor(required_attrs)
-    for i, attr in enumerate(required_attrs):
-        data[attr.group_name][attr.attr_name] = tensors[i]
-
-    return data

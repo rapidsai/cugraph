@@ -330,23 +330,26 @@ class Tests_MGCoarsenGraph
         cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, store_transposed, false>,
                                  weight_t>>
         sg_edge_weights{std::nullopt};
-      std::tie(sg_graph, sg_edge_weights, std::ignore) = cugraph::test::mg_graph_to_sg_graph(
-        *handle_,
-        mg_graph_view,
-        mg_edge_weight_view,
-        std::optional<raft::device_span<vertex_t const>>{std::nullopt},
-        false);
+      std::tie(sg_graph, sg_edge_weights, std::ignore, std::ignore) =
+        cugraph::test::mg_graph_to_sg_graph(
+          *handle_,
+          mg_graph_view,
+          mg_edge_weight_view,
+          std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
+          std::optional<raft::device_span<vertex_t const>>{std::nullopt},
+          false);
 
       cugraph::graph_t<vertex_t, edge_t, store_transposed, false> sg_coarse_graph(*handle_);
       std::optional<
         cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, store_transposed, false>,
                                  weight_t>>
         sg_coarse_edge_weights{std::nullopt};
-      std::tie(sg_coarse_graph, sg_coarse_edge_weights, std::ignore) =
+      std::tie(sg_coarse_graph, sg_coarse_edge_weights, std::ignore, std::ignore) =
         cugraph::test::mg_graph_to_sg_graph(
           *handle_,
           mg_coarse_graph_view,
           mg_coarse_edge_weight_view,
+          std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
           std::optional<raft::device_span<vertex_t const>>{std::nullopt},
           false);
 

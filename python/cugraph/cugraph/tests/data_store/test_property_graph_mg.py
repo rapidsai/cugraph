@@ -159,8 +159,8 @@ def df_type_id(dataframe_type):
         return s + "cudf.DataFrame"
     if dataframe_type == pd.DataFrame:
         return s + "pandas.DataFrame"
-    if dataframe_type == dask_cudf.core.DataFrame:
-        return s + "dask_cudf.core.DataFrame"
+    if dataframe_type == dask_cudf.DataFrame:
+        return s + "dask_cudf.DataFrame"
     return s + "?"
 
 
@@ -1042,7 +1042,8 @@ def test_add_data_noncontiguous(dask_client, set_index):
     for edge_type in ["cat", "dog", "pig"]:
         cur_df = df[df.edge_type == edge_type]
         if set_index:
-            cur_df = cur_df.set_index("vertex")
+            cur_df["ind_vertex"] = cur_df["vertex"]
+            cur_df = cur_df.set_index("ind_vertex")
         pG.add_vertex_data(cur_df, vertex_col_name="vertex", type_name=edge_type)
     for edge_type in ["cat", "dog", "pig"]:
         cur_df = pG.get_vertex_data(types=edge_type).compute()

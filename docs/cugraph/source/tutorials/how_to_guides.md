@@ -1,5 +1,5 @@
 # How To Guides
-- Basic use of cuGraph, on the page
+- [Basic use of cuGraph](./basic_cugraph.md)
 - Property graph with analytic flow
 - GNN – model building
 - cuGraph Service – client/server setup and use (ucx)

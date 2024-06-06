@@ -344,7 +344,7 @@ def generate_rmat_dataset(
     del label_df
     gc.collect()
 
-    dask_label_df = dask_cudf.from_dask_dataframe(dask_label_df)
+    dask_label_df = dask_label_df.to_backend("cudf")
 
     node_offsets = {"paper": 0}
     edge_offsets = {("paper", "cites", "paper"): 0}

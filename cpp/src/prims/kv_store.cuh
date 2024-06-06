@@ -17,6 +17,7 @@
 
 #include "prims/detail/optional_dataframe_buffer.hpp"
 
+#include <cugraph/graph.hpp>
 #include <cugraph/utilities/dataframe_buffer.hpp>
 #include <cugraph/utilities/device_functors.cuh>
 
@@ -584,7 +585,7 @@ class kv_cuco_store_t {
         store_value_offsets.end(),
         kv_cuco_insert_and_increment_t<decltype(mutable_device_ref), KeyIterator>{
           mutable_device_ref, key_first, counter.data(), std::numeric_limits<size_t>::max()});
-      size_ += counter.value(stream);
+      size_ = counter.value(stream);
       resize_optional_dataframe_buffer<value_t>(store_values_, size_, stream);
       thrust::scatter_if(rmm::exec_policy(stream),
                          value_first,
@@ -636,7 +637,7 @@ class kv_cuco_store_t {
                                                   pred_op,
                                                   counter.data(),
                                                   std::numeric_limits<size_t>::max()});
-      size_ += counter.value(stream);
+      size_ = counter.value(stream);
       resize_optional_dataframe_buffer<value_t>(store_values_, size_, stream);
       thrust::scatter_if(rmm::exec_policy(stream),
                          value_first,
@@ -688,7 +689,7 @@ class kv_cuco_store_t {
         store_value_offsets.end(),
         kv_cuco_insert_and_increment_t<decltype(mutable_device_ref), KeyIterator>{
           mutable_device_ref, key_first, counter.data(), std::numeric_limits<size_t>::max()});
-      size_ += counter.value(stream);
+      size_ = counter.value(stream);
       resize_optional_dataframe_buffer<value_t>(store_values_, size_, stream);
       thrust::scatter_if(rmm::exec_policy(stream),
                          value_first,

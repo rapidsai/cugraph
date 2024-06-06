@@ -199,9 +199,13 @@ class CuGraphTensorAttr:
         return cls(*args, **kwargs)
 
 
-class CuGraphStore:
+class DaskGraphStore:
     """
-    Duck-typed version of PyG's GraphStore and FeatureStore.
+    Duck-typed version of PyG's GraphStore and FeatureStore that uses
+    Dask to distribute the graph structure across GPUs and a
+    cugraph.gnn.FeatureStore to store node/edge features.  Supports
+    single-node/single-GPU, single-node/multi-GPU, and multi-node/multi-GPU
+    configurations.  Supports both homogeneous and heterogeneous graphs.
     """
 
     # TODO allow (and possibly require) separate stores for node, edge attrs
@@ -221,7 +225,7 @@ class CuGraphStore:
         order: str = "CSR",
     ):
         """
-        Constructs a new CuGraphStore from the provided
+        Constructs a new DaskGraphStore from the provided
         arguments.
 
         Parameters
