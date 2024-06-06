@@ -20,7 +20,7 @@ Graph Neural Networks API Documentation
 
 .. toctree::
     :maxdepth: 3
-    :caption: Graph Nerual Networks API Documentation
+    :caption: Graph Neural Networks API Documentation
 
     cugraph-dgl/cugraph_dgl.rst
     cugraph-pyg/cugraph_pyg.rst
