@@ -486,7 +486,7 @@ dependencies:
         packages:
           - *numba
           - *numpy
-          - &tensordict tensordict>=0.1.2,<0.3.1
+          - &tensordict tensordict>=0.1.2,<0.3.1a0
       - output_types: [pyproject]
         packages:
           - *cugraph
