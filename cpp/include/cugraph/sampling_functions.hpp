@@ -31,7 +31,7 @@ namespace cugraph {
 /**
  * @brief Controls how we treat prior sources in sampling
  *
- * @param DEFAULT    Add vertices encounted while sampling to the new frontier
+ * @param DEFAULT    Add vertices encountered while sampling to the new frontier
  * @param CARRY_OVER In addition to newly encountered vertices, include vertices
  *                   used as sources in any previous frontier in the new frontier
  * @param EXCLUDE    Filter the new frontier to exclude any vertex that was
