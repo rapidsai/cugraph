@@ -82,11 +82,7 @@ class Tests_Biased_Neighbor_Sampling
       graph_view.attach_edge_mask((*edge_mask).view());
     }
 
-    //
-    // Test is designed like GNN sampling.  We'll select 90% of vertices
-    // to be included in sampling batches
-    //
-    constexpr float select_probability{0.9};
+    constexpr float select_probability{0.5};
 
     // FIXME:  Update the tests to initialize RngState and use it instead
     //         of seed...
