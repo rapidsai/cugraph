@@ -114,115 +114,60 @@ bool validate_extracted_graph_is_subgraph(
 
   rmm::device_uvector<vertex_t> src_v(src.size(), handle.get_stream());
   rmm::device_uvector<vertex_t> dst_v(dst.size(), handle.get_stream());
-  rmm::device_uvector<vertex_t> subgraph_src_v(subgraph_src.size(), handle.get_stream());
-  rmm::device_uvector<vertex_t> subgraph_dst_v(subgraph_dst.size(), handle.get_stream());
-
   raft::copy(src_v.data(), src.data(), src.size(), handle.get_stream());
   raft::copy(dst_v.data(), dst.data(), dst.size(), handle.get_stream());
-  raft::copy(subgraph_src_v.data(), subgraph_src.data(), subgraph_src.size(), handle.get_stream());
-  raft::copy(subgraph_dst_v.data(), subgraph_dst.data(), subgraph_dst.size(), handle.get_stream());
 
-  size_t dist{0};
-
+  size_t num_invalids{0};
   if (wgt) {
     rmm::device_uvector<weight_t> wgt_v(wgt->size(), handle.get_stream());
-    rmm::device_uvector<weight_t> subgraph_wgt_v(subgraph_wgt->size(), handle.get_stream());
-
     raft::copy(wgt_v.data(), wgt->data(), wgt->size(), handle.get_stream());
-    raft::copy(
-      subgraph_wgt_v.data(), subgraph_wgt->data(), subgraph_wgt->size(), handle.get_stream());
 
     auto graph_iter =
       thrust::make_zip_iterator(thrust::make_tuple(src_v.begin(), dst_v.begin(), wgt_v.begin()));
-    auto subgraph_iter = thrust::make_zip_iterator(
-      thrust::make_tuple(subgraph_src_v.begin(), subgraph_dst_v.begin(), subgraph_wgt_v.begin()));
-
     thrust::sort(
       handle.get_thrust_policy(), graph_iter, graph_iter + src_v.size(), ArithmeticZipLess{});
-    thrust::sort(handle.get_thrust_policy(),
-                 subgraph_iter,
-                 subgraph_iter + subgraph_src_v.size(),
-                 ArithmeticZipLess{});
-
     auto graph_iter_end = thrust::unique(
       handle.get_thrust_policy(), graph_iter, graph_iter + src_v.size(), ArithmeticZipEqual{});
-    auto subgraph_iter_end = thrust::unique(handle.get_thrust_policy(),
-                                            subgraph_iter,
-                                            subgraph_iter + subgraph_src_v.size(),
-                                            ArithmeticZipEqual{});
-
     auto new_size = thrust::distance(graph_iter, graph_iter_end);
 
     src_v.resize(new_size, handle.get_stream());
     dst_v.resize(new_size, handle.get_stream());
     wgt_v.resize(new_size, handle.get_stream());
 
-    new_size = thrust::distance(subgraph_iter, subgraph_iter_end);
-    subgraph_src_v.resize(new_size, handle.get_stream());
-    subgraph_dst_v.resize(new_size, handle.get_stream());
-    subgraph_wgt_v.resize(new_size, handle.get_stream());
-
-    rmm::device_uvector<vertex_t> tmp_src(new_size, handle.get_stream());
-    rmm::device_uvector<vertex_t> tmp_dst(new_size, handle.get_stream());
-    rmm::device_uvector<weight_t> tmp_wgt(new_size, handle.get_stream());
-
-    auto tmp_subgraph_iter = thrust::make_zip_iterator(
-      thrust::make_tuple(tmp_src.begin(), tmp_dst.begin(), tmp_wgt.begin()));
-
-    auto tmp_subgraph_iter_end = thrust::set_difference(handle.get_thrust_policy(),
-                                                        subgraph_iter,
-                                                        subgraph_iter + subgraph_src_v.size(),
-                                                        graph_iter,
-                                                        graph_iter + src_v.size(),
-                                                        tmp_subgraph_iter,
-                                                        ArithmeticZipLess{});
-
-    dist = thrust::distance(tmp_subgraph_iter, tmp_subgraph_iter_end);
+    auto subgraph_iter = thrust::make_zip_iterator(
+      thrust::make_tuple(subgraph_src.begin(), subgraph_dst.begin(), subgraph_wgt->begin()));
+    num_invalids =
+      thrust::count_if(handle.get_thrust_policy(),
+                       subgraph_iter,
+                       subgraph_iter + subgraph_src.size(),
+                       [graph_iter, new_size] __device__(auto tup) {
+                         return (thrust::binary_search(
+                                   thrust::seq, graph_iter, graph_iter + new_size, tup) == false);
+                       });
   } else {
     auto graph_iter = thrust::make_zip_iterator(thrust::make_tuple(src_v.begin(), dst_v.begin()));
-    auto subgraph_iter =
-      thrust::make_zip_iterator(thrust::make_tuple(subgraph_src_v.begin(), subgraph_dst_v.begin()));
-
     thrust::sort(
       handle.get_thrust_policy(), graph_iter, graph_iter + src_v.size(), ArithmeticZipLess{});
-    thrust::sort(handle.get_thrust_policy(),
-                 subgraph_iter,
-                 subgraph_iter + subgraph_src_v.size(),
-                 ArithmeticZipLess{});
-
     auto graph_iter_end = thrust::unique(
       handle.get_thrust_policy(), graph_iter, graph_iter + src_v.size(), ArithmeticZipEqual{});
-    auto subgraph_iter_end = thrust::unique(handle.get_thrust_policy(),
-                                            subgraph_iter,
-                                            subgraph_iter + subgraph_src_v.size(),
-                                            ArithmeticZipEqual{});
-
     auto new_size = thrust::distance(graph_iter, graph_iter_end);
 
     src_v.resize(new_size, handle.get_stream());
     dst_v.resize(new_size, handle.get_stream());
 
-    new_size = thrust::distance(subgraph_iter, subgraph_iter_end);
-    subgraph_src_v.resize(new_size, handle.get_stream());
-    subgraph_dst_v.resize(new_size, handle.get_stream());
-
-    rmm::device_uvector<vertex_t> tmp_src(new_size, handle.get_stream());
-    rmm::device_uvector<vertex_t> tmp_dst(new_size, handle.get_stream());
-
-    auto tmp_subgraph_iter = thrust::make_zip_iterator(tmp_src.begin(), tmp_dst.begin());
-
-    auto tmp_subgraph_iter_end = thrust::set_difference(handle.get_thrust_policy(),
-                                                        subgraph_iter,
-                                                        subgraph_iter + subgraph_src_v.size(),
-                                                        graph_iter,
-                                                        graph_iter + src_v.size(),
-                                                        tmp_subgraph_iter,
-                                                        ArithmeticZipLess{});
-
-    dist = thrust::distance(tmp_subgraph_iter, tmp_subgraph_iter_end);
+    auto subgraph_iter =
+      thrust::make_zip_iterator(thrust::make_tuple(subgraph_src.begin(), subgraph_dst.begin()));
+    num_invalids =
+      thrust::count_if(handle.get_thrust_policy(),
+                       subgraph_iter,
+                       subgraph_iter + subgraph_src.size(),
+                       [graph_iter, new_size] __device__(auto tup) {
+                         return (thrust::binary_search(
+                                   thrust::seq, graph_iter, graph_iter + new_size, tup) == false);
+                       });
   }
 
-  return (dist == 0);
+  return (num_invalids == 0);
 }
 
 template bool validate_extracted_graph_is_subgraph(
