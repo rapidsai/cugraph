@@ -13,7 +13,9 @@
 
 # Utils to convert b/w dgl heterograph to cugraph GraphStore
 from __future__ import annotations
-from typing import Dict, Tuple, Union
+from typing import Dict, Tuple, Union, List
+
+from cugraph_dgl.typing import TensorType
 
 import cudf
 import pandas as pd
@@ -21,6 +23,7 @@ import dask.dataframe as dd
 import dask_cudf
 from dask.distributed import get_client
 import cupy as cp
+import numpy as np
 from cugraph.utilities.utils import import_optional
 from cugraph.gnn.dgl_extensions.dgl_uniform_sampler import src_n, dst_n
 
@@ -115,3 +118,13 @@ def add_edata_from_dgl_HeteroGraph(gs, g):
                 gs.edata_storage.add_data(
                     feat_name=feat_name, type_name=etype, feat_obj=feat_t
                 )
+
+
+def _cast_to_torch_tensor(t: TensorType) -> "torch.Tensor":
+    if isinstance(t, torch.Tensor):
+        return t
+    elif isinstance(t, (cp.ndarray, cudf.Series)):
+        return torch.as_tensor(t, device='cuda')
+    elif isinstance(t, pd.Series, np.ndarray):
+        return torch.as_tensor(t, device='cpu')
+    return torch.as_tensor(t)
