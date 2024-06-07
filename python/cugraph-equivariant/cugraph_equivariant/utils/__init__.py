@@ -11,8 +11,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .scatter import scatter_reduce
+from .scatter import scatter_mean, scatter_reduce
 
 __all__ = [
+    "scatter_mean",
     "scatter_reduce",
 ]
