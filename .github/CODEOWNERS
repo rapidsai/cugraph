@@ -28,7 +28,7 @@ python/            @rapidsai/cugraph-python-codeowners
 /.pre-commit-config.yaml @rapidsai/ci-codeowners
 
 #packaging code owners
-/.devcontainers/   @rapidsai/packaging-codeowners
+/.devcontainer/   @rapidsai/packaging-codeowners
 /conda/            @rapidsai/packaging-codeowners
 /dependencies.yaml @rapidsai/packaging-codeowners
 /build.sh          @rapidsai/packaging-codeowners
