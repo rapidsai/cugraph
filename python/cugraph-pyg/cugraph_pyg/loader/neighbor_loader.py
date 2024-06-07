@@ -28,10 +28,10 @@ torch_geometric = import_optional("torch_geometric")
 
 class NeighborLoader(NodeLoader):
     """
+    Duck-typed version of torch_geometric.loader.NeighborLoader
+
     Node loader that implements the neighbor sampling
     algorithm used in GraphSAGE.
-
-    Duck-typed version of torch_geometric.loader.NeighborLoader
     """
 
     def __init__(

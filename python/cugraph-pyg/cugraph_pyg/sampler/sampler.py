@@ -21,6 +21,12 @@ torch_geometric = import_optional("torch_geometric")
 
 
 class SampleIterator:
+    """
+    Iterator that combines output graphs with their
+    features to produce final output minibatches
+    that can be fed into a GNN model.
+    """
+
     def __init__(
         self,
         data: Tuple[
@@ -33,6 +39,18 @@ class SampleIterator:
             ]
         ],
     ):
+        """
+        Constructs a new SampleIterator
+
+        Parameters
+        ----------
+        data: Tuple[torch_geometric.data.FeatureStore, torch_geometric.data.GraphStore]
+            The original graph that samples were generated from, as a
+            FeatureStore/GraphStore tuple.
+        output_iter: Iterator[Union["torch_geometric.sampler.HeteroSamplerOutput",
+        "torch_geometric.sampler.SamplerOutput"]]
+            An iterator over outputted sampling results.
+        """
         self.__feature_store, self.__graph_store = data
         self.__output_iter = output_iter
 
@@ -114,7 +132,20 @@ class SampleIterator:
 
 
 class SampleReader:
+    """
+    Iterator that processes results from the cuGraph distributed sampler.
+    """
+
     def __init__(self, base_reader: DistSampleReader):
+        """
+        Constructs a new SampleReader.
+
+        Parameters
+        ----------
+        base_reader: DistSampleReader
+            The reader responsible for loading saved samples produced by
+            the cuGraph distributed sampler.
+        """
         self.__base_reader = base_reader
         self.__num_samples_remaining = 0
         self.__index = 0
@@ -150,7 +181,21 @@ class SampleReader:
 
 
 class HomogeneousSampleReader(SampleReader):
+    """
+    Subclass of SampleReader that reads homogeneous output samples
+    produced by the cuGraph distributed sampler.
+    """
+
     def __init__(self, base_reader: DistSampleReader):
+        """
+        Constructs a new HomogeneousSampleReader
+
+        Parameters
+        ----------
+        base_reader: DistSampleReader
+            The reader responsible for loading saved samples produced by
+            the cuGraph distributed sampler.
+        """
         super().__init__(base_reader)
 
     def __decode_csc(self, raw_sample_data: Dict[str, "torch.Tensor"], index: int):
