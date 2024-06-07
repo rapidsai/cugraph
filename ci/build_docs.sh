@@ -72,7 +72,7 @@ pushd docs/cugraph
 # type of failure well.
 python -c "import cugraph; print(f'Using cugraph: {cugraph}')"
 sphinx-build -b dirhtml source _html
-mkdir -p "${RAPIDS_DOCS_DIR}/cugraph/"html
+mkdir -p "${RAPIDS_DOCS_DIR}/cugraph/html"
 mv _html/* "${RAPIDS_DOCS_DIR}/cugraph/html"
 popd
 
