@@ -42,7 +42,7 @@ requirements:
     - {{ compiler('cxx') }}
     - cmake {{ cmake_version }}
     - ninja
-    - openmpi # Required for building cpp-mgtests (multi-GPU tests)
+    - openmpi=5.0.3-*_104 # Required for building cpp-mgtests (multi-GPU tests)
     - {{ stdlib("c") }}
   host:
     {% if cuda_major == "11" %}
