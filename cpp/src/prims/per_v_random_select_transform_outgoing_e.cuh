@@ -594,7 +594,7 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
 #else
   CUGRAPH_FAIL("unimplemented.");
   return std::make_tuple(std::nullopt,
-                         allocate_dataframe_buffer<t>(size_t{0}, rmm::cuda_stream_view{}));
+                         allocate_dataframe_buffer<T>(size_t{0}, rmm::cuda_stream_view{}));
 #endif
 }
 
