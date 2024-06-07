@@ -47,7 +47,7 @@ dependencies:
 - numba>=0.57
 - numpy>=1.23,<2.0a0
 - numpydoc
-- openmpi
+- openmpi=5.0.3=*_104
 - packaging>=21
 - pandas
 - pre-commit
