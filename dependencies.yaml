@@ -586,13 +586,13 @@ dependencies:
         matrices:
           - matrix: {cuda: "12.*"}
             packages:
-              - torch>=2.0,<2.2.0a0
+              - &pytorch_pip torch>=2.0,<2.2.0a0
               - --extra-index-url=https://download.pytorch.org/whl/cu121
           - matrix: {cuda: "11.*"}
             packages:
-              - torch>=2.0,<2.2.0a0
+              - *pytorch_pip
               - --extra-index-url=https://download.pytorch.org/whl/cu118
-          - {matrix: null, packages: [*pytorch_conda]}
+          - {matrix: null, packages: [*pytorch_pip]}
 
   depends_on_pylibwholegraph:
     common:
