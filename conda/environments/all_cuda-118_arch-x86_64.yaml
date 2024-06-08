@@ -42,7 +42,7 @@ dependencies:
 - numpy>=1.23,<2.0a0
 - numpydoc
 - nvcc_linux-64=11.8
-- openmpi=5.0.3=*_104
+- openmpi<5.0.3
 - packaging>=21
 - pandas
 - pre-commit
