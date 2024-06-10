@@ -24,14 +24,12 @@ import cudf
 
 from typing import Union, List, Dict, Tuple, Iterator, Optional
 
-from cugraph.utilities import import_optional
+from cugraph.utilities.utils import import_optional, MissingModule
 from cugraph.gnn.comms import cugraph_comms_get_raft_handle
 
 from cugraph.gnn.data_loading.bulk_sampler_io import create_df_from_disjoint_arrays
 
-# PyTorch is NOT optional but this is required for container builds.
-torch = import_optional("torch")
-
+torch = MissingModule("torch")
 TensorType = Union["torch.Tensor", cupy.ndarray, cudf.Series]
 
 
@@ -44,6 +42,8 @@ class DistSampleReader:
         rank: Optional[int] = None,
         filelist=None,
     ):
+        torch = import_optional("torch")
+
         self.__format = format
         self.__directory = directory
 
@@ -77,6 +77,8 @@ class DistSampleReader:
         return self
 
     def __next__(self):
+        torch = import_optional("torch")
+
         if len(self.__files) > 0:
             f = self.__files.pop()
             fname = f[0]
@@ -404,6 +406,7 @@ class DistSampler:
         """
         Returns an iterator over sampled data.
         """
+        torch = import_optional("torch")
         rank = torch.distributed.get_rank() if self.is_multi_gpu else None
         return self.__writer.get_reader(rank)
 
@@ -461,6 +464,8 @@ class DistSampler:
         label_to_output_comm_rank: TensorType
             The global mapping of labels to ranks.
         """
+        torch = import_optional("torch")
+
         world_size = torch.distributed.get_world_size()
 
         if assume_equal_input_size:
@@ -528,6 +533,8 @@ class DistSampler:
             and whether the input sizes on each rank are equal (bool).
 
         """
+        torch = import_optional("torch")
+
         input_size_is_equal = True
         if self.is_multi_gpu:
             rank = torch.distributed.get_rank()
@@ -581,6 +588,8 @@ class DistSampler:
         random_state: int
             The random seed to use for sampling.
         """
+        torch = import_optional("torch")
+
         nodes = torch.as_tensor(nodes, device="cuda")
 
         batches_per_call = self._local_seeds_per_call // batch_size
@@ -700,6 +709,8 @@ class UniformNeighborSampler(DistSampler):
         )
 
     def __calc_local_seeds_per_call(self, local_seeds_per_call: Optional[int] = None):
+        torch = import_optional("torch")
+
         if local_seeds_per_call is None:
             if len([x for x in self.__fanout if x <= 0]) > 0:
                 return UniformNeighborSampler.UNKNOWN_VERTICES_DEFAULT
@@ -722,6 +733,8 @@ class UniformNeighborSampler(DistSampler):
         assume_equal_input_size: bool = False,
     ) -> Dict[str, TensorType]:
         if self.is_multi_gpu:
+            torch = import_optional("torch")
+
             rank = torch.distributed.get_rank()
 
             batch_ids = batch_ids.to(device="cuda", dtype=torch.int32)
@@ -800,7 +813,9 @@ class UniformNeighborSampler(DistSampler):
                 compression=self.__compression,
                 compress_per_hop=self.__compress_per_hop,
                 retain_seeds=self._retain_original_seeds,
-                label_offsets=cupy.asarray(label_offsets),
+                label_offsets=None
+                if label_offsets is None
+                else cupy.asarray(label_offsets),
                 return_dict=True,
             )
 
