@@ -11,13 +11,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import cupy
+
+import pylibcugraph
+
+from typing import Union, Optional, Dict, Tuple
+
 from cugraph.utilities.utils import import_optional
 
 from cugraph_dgl.typing import TensorType
 from cugraph_dgl.utils.cugraph_conversion_utils import _cast_to_torch_tensor
 from cugraph_dgl.features import WholeFeatureStore
 
-from typing import Union, Optional, Dict, Tuple
+
 
 # Have to use import_optional even though these are required
 # dependencies in order to build properly.
@@ -87,6 +93,7 @@ class Graph:
             )
 
         self.__num_nodes_dict = {}
+        self.__num_edges_dict = {}
         self.__edge_indices = tensordict.TensorDict({}, batch_size=(2,))
 
         self.__sizes = {}
@@ -200,6 +207,9 @@ class Graph:
             self.__ndata_storage[ntype, feature_name] = self.__ndata_storage_type(
                 feature_tensor, **self.__wg_kwargs
             )
+        
+        self.__graph = None
+        self.__vertex_offsets = None
 
     def __check_node_ids(self, ntype: str, ids: TensorType):
         """
@@ -281,14 +291,87 @@ class Graph:
                     dgl_can_edge_type, attr_name
                 ] = self.__edata_storage_type(attr_tensor, **self.__wg_kwargs)
 
-    def num_nodes(self, ntype: str = None):
+        num_edges = self.__edge_indices[dgl_can_edge_type].shape[1]
+        if self.is_multi_gpu:
+            num_edges = torch.tensor([num_edges], device='cuda', dtype=torch.int64)
+            torch.distributed.all_reduce(num_edges, op=torch.distributed.ReduceOp.SUM)
+        
+        self.__num_edges_dict[dgl_can_edge_type] = int(num_edges)
+        
+        self.__graph = None
+        self.__vertex_offsets = None
+
+    def num_nodes(self, ntype: str = None) -> int:
         """
         Returns the number of nodes of ntype, or if ntype is not provided,
         the total number of nodes in the graph.
         """
         if ntype is None:
-            if len(self.__num_nodes_dict.keys()) > 1:
-                raise ValueError("ntype is required for heterogeneous graphs")
-            return self.__num_nodes_dict[HOMOGENEOUS_NODE_TYPE]
+            return sum(self.__num_nodes_dict.values())
 
         return self.__num_nodes_dict[ntype]
+
+    def number_of_nodes(self, ntype: str = None) -> int:
+        """
+        Alias for num_nodes.
+        """
+        return self.num_nodes(ntype=ntype)
+    
+    def num_edges(self, etype: Union[str, Tuple[str, str, str]]=None) -> int:
+        """
+        Returns the number of edges of etype, or if etype is not provided,
+        the total number of edges in the graph.
+        """
+        if etype is None:
+            return sum(self.__num_edges_dict.values())
+    
+        etype = self.to_canonical_etype(etype)
+        return self.__num_edges_dict[etype]
+    
+    def number_of_edges(self, etype: Union[str, Tuple[str, str, str]]=None) -> int:
+        """
+        Alias for num_edges.
+        """
+        return self.num_edges(etype=etype)
+
+    @property
+    def is_homogeneous(self):
+        return len(self.__num_edges_dict) <= 1 and len(self.__num_nodes_dict) <=1
+
+    @property
+    def _graph(self) -> Union[pylibcugraph.SGGraph, pylibcugraph.MGGraph]:
+        if self.__graph is None:
+            edgelist_dict = self.__get_edgelist()
+
+            if self.is_multi_gpu:
+                rank = torch.distributed.get_rank()
+                world_size = torch.distributed.get_world_size()
+
+                vertices_array = cupy.arange(
+                    sum(self._num_vertices().values()), dtype="int64"
+                )
+                vertices_array = cupy.array_split(vertices_array, world_size)[rank]
+
+                self.__graph = pylibcugraph.MGGraph(
+                    self._resource_handle,
+                    graph_properties,
+                    [cupy.asarray(edgelist_dict["src"]).astype("int64")],
+                    [cupy.asarray(edgelist_dict["dst"]).astype("int64")],
+                    vertices_array=[vertices_array],
+                    edge_id_array=[cupy.asarray(edgelist_dict["eid"])],
+                    edge_type_array=[cupy.asarray(edgelist_dict["etp"])],
+                )
+            else:
+                self.__graph = pylibcugraph.SGGraph(
+                    self._resource_handle,
+                    graph_properties,
+                    cupy.asarray(edgelist_dict["src"]).astype("int64"),
+                    cupy.asarray(edgelist_dict["dst"]).astype("int64"),
+                    vertices_array=cupy.arange(
+                        sum(self._num_vertices().values()), dtype="int64"
+                    ),
+                    edge_id_array=cupy.asarray(edgelist_dict["eid"]),
+                    edge_type_array=cupy.asarray(edgelist_dict["etp"]),
+                )
+
+        return self.__graph
