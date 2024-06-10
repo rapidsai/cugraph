@@ -320,19 +320,19 @@ template <typename vertex_t>
 struct invalid_vertex_id : invalid_idx<vertex_t> {};
 
 template <typename vertex_t>
-using invalid_vertex_id_v = invalid_vertex_id<vertex_t>::value;
+inline constexpr vertex_t invalid_vertex_id_v = invalid_vertex_id<vertex_t>::value;
 
 template <typename edge_t>
 struct invalid_edge_id : invalid_idx<edge_t> {};
 
 template <typename edge_t>
-using invalid_edge_id_v = invalid_edge_id<edge_t>::value;
+inline constexpr edge_t invalid_edge_id_v = invalid_edge_id<edge_t>::value;
 
 template <typename component_t>
 struct invalid_component_id : invalid_idx<component_t> {};
 
 template <typename component_t>
-using invalid_component_id_v = invalid_component_id<component_t>::value;
+inline constexpr component_t invalid_component_id_v = invalid_component_id<component_t>::value;
 
 template <typename vertex_t>
 __host__ __device__ std::enable_if_t<std::is_signed<vertex_t>::value, bool> is_valid_vertex(
