@@ -599,6 +599,8 @@ rmm::device_uvector<edge_t> compute_uniform_sampling_index_without_replacement(
   size_t K)
 {
 #ifndef NO_CUGRAPH_OPS
+  assert(cugraph::invalid_edge_id_v<edge_t> == cugraph::ops::graph::INVALID_ID<edge_t>);
+
   edge_t mid_partition_degree_range_last = static_cast<edge_t>(K * 10);  // tuning parameter
   assert(mid_partition_degree_range_last > K);
   size_t high_partition_oversampling_K = K * 2;  // tuning parameter
@@ -624,7 +626,7 @@ rmm::device_uvector<edge_t> compute_uniform_sampling_index_without_replacement(
        frontier_degrees =
          raft::device_span<edge_t const>(frontier_degrees.data(), frontier_degrees.size()),
        nbr_indices = raft::device_span<edge_t>(nbr_indices.data(), nbr_indices.size()),
-       invalid_idx = cugraph::ops::graph::INVALID_ID<edge_t>] __device__(size_t i) {
+       invalid_idx = cugraph::invalid_edge_id_v<edge_t>] __device__(size_t i) {
         auto frontier_idx = frontier_indices[i / K];
         auto degree       = frontier_degrees[frontier_idx];
         auto sample_idx   = static_cast<edge_t>(i % K);
@@ -1173,7 +1175,7 @@ void compute_biased_sampling_index_without_replacement(
            segment_sorted_nbr_indices = raft::device_span<edge_t const>(
              segment_sorted_nbr_indices.data(), segment_sorted_nbr_indices.size()),
            K,
-           invalid_idx = cugraph::ops::graph::INVALID_ID<edge_t>] __device__(size_t i) {
+           invalid_idx = cugraph::invalid_edge_id_v<edge_t>] __device__(size_t i) {
             auto idx                 = idx_offset + i;
             auto key_idx             = idx / K;
             auto output_frontier_idx = output_frontier_indices[key_idx];
@@ -1212,7 +1214,7 @@ void compute_biased_sampling_index_without_replacement(
            segment_sorted_nbr_indices = raft::device_span<edge_t const>(
              segment_sorted_nbr_indices.data(), segment_sorted_nbr_indices.size()),
            K,
-           invalid_idx = cugraph::ops::graph::INVALID_ID<edge_t>] __device__(size_t i) {
+           invalid_idx = cugraph::invalid_edge_id_v<edge_t>] __device__(size_t i) {
             auto idx     = idx_offset + i;
             auto key_idx = idx / K;
             auto degree  = input_degree_offsets[key_idx + 1] - input_degree_offsets[key_idx];
@@ -1465,7 +1467,7 @@ shuffle_and_compute_local_nbr_values(raft::handle_t const& handle,
                          std::move(local_frontier_sample_offsets));
 }
 
-// skip conversion if local neighbor index is cugraph::ops::graph::INVALID_ID<edge_t>
+// skip conversion if local neighbor index is cugraph::invalid_edge_id_v<edge_t>
 template <typename GraphViewType, typename VertexIterator>
 rmm::device_uvector<typename GraphViewType::edge_type> convert_to_unmasked_local_nbr_idx(
   raft::handle_t const& handle,
@@ -1550,7 +1552,7 @@ rmm::device_uvector<typename GraphViewType::edge_type> convert_to_unmasked_local
             std::get<1>(local_frontier_unique_major_valid_local_nbr_count_inclusive_sums[i]).data(),
             std::get<1>(local_frontier_unique_major_valid_local_nbr_count_inclusive_sums[i])
               .size()))},
-      is_not_equal_t<edge_t>{cugraph::ops::graph::INVALID_ID<edge_t>});
+      is_not_equal_t<edge_t>{cugraph::invalid_edge_id_v<edge_t>});
   }
 
   return std::move(local_nbr_indices);
@@ -1570,9 +1572,13 @@ uniform_sample_and_compute_local_nbr_indices(
   size_t K,
   bool with_replacement)
 {
-  using vertex_t = typename GraphViewType::vertex_type;
-  using edge_t   = typename GraphViewType::edge_type;
-  using key_t    = typename thrust::iterator_traits<KeyIterator>::value_type;
+#ifndef NO_CUGRAPH_OPS
+  assert(cugraph::invalid_edge_id_v<edge_t> == cugraph::ops::graph::INVALID_ID<edge_t>);
+
+  edge_t mid_partition_degree_range_last = static_cast<edge_t>(K * 10);  // tuning parameter
+  using vertex_t                         = typename GraphViewType::vertex_type;
+  using edge_t                           = typename GraphViewType::edge_type;
+  using key_t = typename thrust::iterator_traits<KeyIterator>::value_type;
 
   int minor_comm_size{1};
   if constexpr (GraphViewType::is_multi_gpu) {
@@ -1647,7 +1653,7 @@ uniform_sample_and_compute_local_nbr_indices(
             (*frontier_partitioned_local_degree_displacements).size())
         : std::nullopt,
       K,
-      cugraph::ops::graph::INVALID_ID<edge_t>);
+      cugraph::invalid_edge_id_v<edge_t>);
 
   // 4. convert neighbor indices in the neighbor list considering edge mask to neighbor indices in
   // the neighbor list ignoring edge mask
@@ -1669,6 +1675,11 @@ uniform_sample_and_compute_local_nbr_indices(
 
   return std::make_tuple(
     std::move(local_nbr_indices), std::move(key_indices), std::move(local_frontier_sample_offsets));
+#else
+  CUGRAPH_FAIL("unimplemented.");
+  return std::make_tuple(
+    rmm::device_uvector<edge_t>(0, handle.get_stream()), std::nullopt, std::vector<size_t>());
+#endif
 }
 
 template <typename GraphViewType,
@@ -1886,7 +1897,7 @@ biased_sample_and_compute_local_nbr_indices(
              local_frontier_unique_key_displacements[i],
            local_frontier_unique_key_sizes[i] + 1),
          invalid_random_number = std::numeric_limits<bias_t>::infinity(),
-         invalid_idx           = cugraph::ops::graph::INVALID_ID<edge_t>] __device__(size_t i) {
+         invalid_idx           = cugraph::invalid_edge_id_v<edge_t>] __device__(size_t i) {
           auto key_idx             = key_indices ? (*key_indices)[i] : (i / K);
           auto unique_key_idx      = key_idx_to_unique_key_idx[key_idx];
           auto local_random_number = sample_local_random_numbers[i];
@@ -2100,7 +2111,7 @@ biased_sample_and_compute_local_nbr_indices(
              raft::device_span<edge_t const>(frontier_degrees.data(), frontier_degrees.size()),
            nbr_indices = raft::device_span<edge_t>(nbr_indices.data(), nbr_indices.size()),
            K,
-           invalid_idx = cugraph::ops::graph::INVALID_ID<edge_t>] __device__(size_t i) {
+           invalid_idx = cugraph::invalid_edge_id_v<edge_t>] __device__(size_t i) {
             auto first = thrust::lower_bound(thrust::seq,
                                              sorted_zero_bias_frontier_indices.begin(),
                                              sorted_zero_bias_frontier_indices.end(),
@@ -2554,7 +2565,7 @@ biased_sample_and_compute_local_nbr_indices(
            aggregate_local_frontier_unique_key_local_degree_offsets.size()),
          nbr_indices = raft::device_span<edge_t>(nbr_indices.data(), nbr_indices.size()),
          K,
-         invalid_idx = cugraph::ops::graph::INVALID_ID<edge_t>] __device__(size_t i) {
+         invalid_idx = cugraph::invalid_edge_id_v<edge_t>] __device__(size_t i) {
           auto unique_key_idx = key_idx_to_unique_key_idx[i];
           auto start_offset =
             aggregate_local_frontier_unique_key_local_degree_offsets[unique_key_idx];
@@ -2613,7 +2624,7 @@ biased_sample_and_compute_local_nbr_indices(
               (*frontier_partitioned_local_degree_displacements).size())
           : std::nullopt,
         K,
-        cugraph::ops::graph::INVALID_ID<edge_t>);
+        cugraph::invalid_edge_id_v<edge_t>);
   }
 
   // 3. convert neighbor indices in the neighbor list considering edge mask to neighbor indices in
