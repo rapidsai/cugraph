@@ -22,9 +22,14 @@ python/            @rapidsai/cugraph-python-codeowners
 **/CMakeLists.txt  @rapidsai/cugraph-cmake-codeowners
 **/cmake/          @rapidsai/cugraph-cmake-codeowners
 
-#build/ops code owners
-.github/           @rapidsai/ops-codeowners
-ci/                @rapidsai/ops-codeowners
-conda/             @rapidsai/ops-codeowners
-**/Dockerfile      @rapidsai/ops-codeowners
-**/.dockerignore   @rapidsai/ops-codeowners
+#CI code owners
+/.github/                @rapidsai/ci-codeowners
+/ci/                     @rapidsai/ci-codeowners
+/.pre-commit-config.yaml @rapidsai/ci-codeowners
+
+#packaging code owners
+/.devcontainer/   @rapidsai/packaging-codeowners
+/conda/            @rapidsai/packaging-codeowners
+/dependencies.yaml @rapidsai/packaging-codeowners
+/build.sh          @rapidsai/packaging-codeowners
+pyproject.toml     @rapidsai/packaging-codeowners
