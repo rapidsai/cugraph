@@ -1576,9 +1576,9 @@ uniform_sample_and_compute_local_nbr_indices(
 #ifndef NO_CUGRAPH_OPS
   assert(cugraph::invalid_edge_id_v<edge_t> == cugraph::ops::graph::INVALID_ID<edge_t>);
 
-  using vertex_t                         = typename GraphViewType::vertex_type;
-  using edge_t                           = typename GraphViewType::edge_type;
-  using key_t = typename thrust::iterator_traits<KeyIterator>::value_type;
+  using vertex_t = typename GraphViewType::vertex_type;
+  using edge_t   = typename GraphViewType::edge_type;
+  using key_t    = typename thrust::iterator_traits<KeyIterator>::value_type;
 
   int minor_comm_size{1};
   if constexpr (GraphViewType::is_multi_gpu) {
