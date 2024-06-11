@@ -640,6 +640,7 @@ rmm::device_uvector<weight_t> od_shortest_distances(
         cutoff,
         invalid_distance};
       detail::transform_reduce_v_frontier_call_e_op_t<
+        false,
         thrust::tuple<vertex_t, od_idx_t>,
         weight_t,
         vertex_t,

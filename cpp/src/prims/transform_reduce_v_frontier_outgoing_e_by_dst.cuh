@@ -74,7 +74,8 @@ namespace detail {
 
 int32_t constexpr update_v_frontier_from_outgoing_e_kernel_block_size = 512;
 
-template <typename key_t,
+template <bool reduce_by_src,
+          typename key_t,
           typename payload_t,
           typename vertex_t,
           typename src_value_t,
@@ -92,14 +93,15 @@ struct transform_reduce_v_frontier_call_e_op_t {
   {
     auto e_op_result = e_op(key, dst, sv, dv, ev);
     if (e_op_result.has_value()) {
+      auto reduce_by = reduce_by_src ? thrust_tuple_get_or_identity<key_t, 0>(key) : dst;
       if constexpr (std::is_same_v<key_t, vertex_t> && std::is_same_v<payload_t, void>) {
-        return dst;
+        return reduce_by;
       } else if constexpr (std::is_same_v<key_t, vertex_t> && !std::is_same_v<payload_t, void>) {
-        return thrust::make_tuple(dst, *e_op_result);
+        return thrust::make_tuple(reduce_by, *e_op_result);
       } else if constexpr (!std::is_same_v<key_t, vertex_t> && std::is_same_v<payload_t, void>) {
-        return thrust::make_tuple(dst, *e_op_result);
+        return thrust::make_tuple(reduce_by, *e_op_result);
       } else {
-        return thrust::make_tuple(thrust::make_tuple(dst, thrust::get<0>(*e_op_result)),
+        return thrust::make_tuple(thrust::make_tuple(reduce_by, thrust::get<0>(*e_op_result)),
                                   thrust::get<1>(*e_op_result));
       }
     } else {
@@ -176,141 +178,8 @@ auto sort_and_reduce_buffer_elements(
   return std::make_tuple(std::move(key_buffer), std::move(payload_buffer));
 }
 
-}  // namespace detail
-
-template <typename GraphViewType, typename VertexFrontierBucketType>
-size_t compute_num_out_nbrs_from_frontier(raft::handle_t const& handle,
-                                          GraphViewType const& graph_view,
-                                          VertexFrontierBucketType const& frontier)
-{
-  static_assert(!GraphViewType::is_storage_transposed,
-                "GraphViewType should support the push model.");
-
-  using vertex_t = typename GraphViewType::vertex_type;
-  using edge_t   = typename GraphViewType::edge_type;
-  using key_t    = typename VertexFrontierBucketType::key_type;
-
-  size_t ret{0};
-
-  auto local_frontier_vertex_first =
-    thrust_tuple_get_or_identity<decltype(frontier.begin()), 0>(frontier.begin());
-
-  std::vector<size_t> local_frontier_sizes{};
-  if constexpr (GraphViewType::is_multi_gpu) {
-    auto& minor_comm     = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
-    local_frontier_sizes = host_scalar_allgather(minor_comm, frontier.size(), handle.get_stream());
-  } else {
-    local_frontier_sizes = std::vector<size_t>{static_cast<size_t>(frontier.size())};
-  }
-
-  auto edge_mask_view = graph_view.edge_mask_view();
-
-  for (size_t i = 0; i < graph_view.number_of_local_edge_partitions(); ++i) {
-    auto edge_partition =
-      edge_partition_device_view_t<vertex_t, edge_t, GraphViewType::is_multi_gpu>(
-        graph_view.local_edge_partition_view(i));
-    auto edge_partition_e_mask =
-      edge_mask_view
-        ? thrust::make_optional<
-            detail::edge_partition_edge_property_device_view_t<edge_t, uint32_t const*, bool>>(
-            *edge_mask_view, i)
-        : thrust::nullopt;
-
-    if constexpr (GraphViewType::is_multi_gpu) {
-      auto& minor_comm = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
-      auto const minor_comm_rank = minor_comm.get_rank();
-
-      rmm::device_uvector<vertex_t> edge_partition_frontier_vertices(local_frontier_sizes[i],
-                                                                     handle.get_stream());
-      device_bcast(minor_comm,
-                   local_frontier_vertex_first,
-                   edge_partition_frontier_vertices.data(),
-                   local_frontier_sizes[i],
-                   static_cast<int>(i),
-                   handle.get_stream());
-
-      if (edge_partition_e_mask) {
-        ret +=
-          edge_partition.compute_number_of_edges_with_mask((*edge_partition_e_mask).value_first(),
-                                                           edge_partition_frontier_vertices.begin(),
-                                                           edge_partition_frontier_vertices.end(),
-                                                           handle.get_stream());
-      } else {
-        ret += edge_partition.compute_number_of_edges(edge_partition_frontier_vertices.begin(),
-                                                      edge_partition_frontier_vertices.end(),
-                                                      handle.get_stream());
-      }
-    } else {
-      assert(i == 0);
-      if (edge_partition_e_mask) {
-        ret += edge_partition.compute_number_of_edges_with_mask(
-          (*edge_partition_e_mask).value_first(),
-          local_frontier_vertex_first,
-          local_frontier_vertex_first + frontier.size(),
-          handle.get_stream());
-      } else {
-        ret += edge_partition.compute_number_of_edges(local_frontier_vertex_first,
-                                                      local_frontier_vertex_first + frontier.size(),
-                                                      handle.get_stream());
-      }
-    }
-  }
-
-  return ret;
-}
-
-/**
- * @brief Iterate over outgoing edges from the current vertex frontier and reduce valid edge functor
- * outputs by (tagged-)destination ID.
- *
- * Edge functor outputs are thrust::optional objects and invalid if thrust::nullopt. Vertices are
- * assumed to be tagged if VertexFrontierBucketType::key_type is a tuple of a vertex type and a tag
- * type (VertexFrontierBucketType::key_type is identical to a vertex type otherwise).
- *
- * @tparam GraphViewType Type of the passed non-owning graph object.
- * @tparam VertexFrontierBucketType Type of the vertex frontier bucket class which abstracts the
- * current (tagged-)vertex frontier.
- * @tparam EdgeSrcValueInputWrapper Type of the wrapper for edge source property values.
- * @tparam EdgeDstValueInputWrapper Type of the wrapper for edge destination property values.
- * @tparam EdgeValueInputWrapper Type of the wrapper for edge property values.
- * @tparam EdgeOp Type of the quinary edge operator.
- * @tparam ReduceOp Type of the binary reduction operator.
- * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
- * handles to various CUDA libraries) to run graph algorithms.
- * @param graph_view Non-owning graph object.
- * @param frontier VertexFrontierBucketType class object for the current vertex frontier.
- * @param edge_src_value_input Wrapper used to access source input property values (for the edge
- * sources assigned to this process in multi-GPU). Use either cugraph::edge_src_property_t::view()
- * (if @p e_op needs to access source property values) or cugraph::edge_src_dummy_property_t::view()
- * (if @p e_op does not access source property values). Use update_edge_src_property to fill the
- * wrapper.
- * @param edge_dst_value_input Wrapper used to access destination input property values (for the
- * edge destinations assigned to this process in multi-GPU). Use either
- * cugraph::edge_dst_property_t::view() (if @p e_op needs to access destination property values) or
- * cugraph::edge_dst_dummy_property_t::view() (if @p e_op does not access destination property
- * values). Use update_edge_dst_property to fill the wrapper.
- * @param edge_value_input Wrapper used to access edge input property values (for the edges assigned
- * to this process in multi-GPU). Use either cugraph::edge_property_t::view() (if @p e_op needs to
- * access edge property values) or cugraph::edge_dummy_property_t::view() (if @p e_op does not
- * access edge property values).
- * @param e_op Quinary operator takes edge source, edge destination, property values for the source,
- * destination, and edge and returns 1) thrust::nullopt (if invalid and to be discarded); 2) dummy
- * (but valid) thrust::optional object (e.g. thrust::optional<std::byte>{std::byte{0}}, if vertices
- * are not tagged and ReduceOp::value_type is void); 3) a tag (if vertices are tagged and
- * ReduceOp::value_type is void); 4) a value to be reduced using the @p reduce_op (if vertices are
- * not tagged and ReduceOp::value_type is not void); or 5) a tuple of a tag and a value to be
- * reduced (if vertices are tagged and ReduceOp::value_type is not void).
- * @param reduce_op Binary operator that takes two input arguments and reduce the two values to one.
- * There are pre-defined reduction operators in prims/reduce_op.cuh. It is
- * recommended to use the pre-defined reduction operators whenever possible as the current (and
- * future) implementations of graph primitives may check whether @p ReduceOp is a known type (or has
- * known member variables) to take a more optimized code path. See the documentation in the
- * reduce_op.cuh file for instructions on writing custom reduction operators.
- * @return Tuple of key values and payload values (if ReduceOp::value_type is not void) or just key
- * values (if ReduceOp::value_type is void). Keys in the return values are sorted in ascending order
- * using a vertex ID as the primary key and a tag (if relevant) as the secondary key.
- */
-template <typename GraphViewType,
+template <bool reduce_by_src,
+          typename GraphViewType,
           typename VertexFrontierBucketType,
           typename EdgeSrcValueInputWrapper,
           typename EdgeDstValueInputWrapper,
@@ -325,15 +194,15 @@ std::conditional_t<
                0, rmm::cuda_stream_view{}))>,
   decltype(allocate_dataframe_buffer<typename VertexFrontierBucketType::key_type>(
     0, rmm::cuda_stream_view{}))>
-transform_reduce_v_frontier_outgoing_e_by_dst(raft::handle_t const& handle,
-                                              GraphViewType const& graph_view,
-                                              VertexFrontierBucketType const& frontier,
-                                              EdgeSrcValueInputWrapper edge_src_value_input,
-                                              EdgeDstValueInputWrapper edge_dst_value_input,
-                                              EdgeValueInputWrapper edge_value_input,
-                                              EdgeOp e_op,
-                                              ReduceOp reduce_op,
-                                              bool do_expensive_check = false)
+transform_reduce_v_frontier_outgoing_e_by_src_dst(raft::handle_t const& handle,
+                                                  GraphViewType const& graph_view,
+                                                  VertexFrontierBucketType const& frontier,
+                                                  EdgeSrcValueInputWrapper edge_src_value_input,
+                                                  EdgeDstValueInputWrapper edge_dst_value_input,
+                                                  EdgeValueInputWrapper edge_value_input,
+                                                  EdgeOp e_op,
+                                                  ReduceOp reduce_op,
+                                                  bool do_expensive_check = false)
 {
   static_assert(!GraphViewType::is_storage_transposed,
                 "GraphViewType should support the push model.");
@@ -349,7 +218,8 @@ transform_reduce_v_frontier_outgoing_e_by_dst(raft::handle_t const& handle,
 
   // 1. fill the buffer
 
-  detail::transform_reduce_v_frontier_call_e_op_t<key_t,
+  detail::transform_reduce_v_frontier_call_e_op_t<reduce_by_src,
+                                                  key_t,
                                                   payload_t,
                                                   vertex_t,
                                                   typename EdgeSrcValueInputWrapper::value_type,
@@ -437,6 +307,265 @@ transform_reduce_v_frontier_outgoing_e_by_dst(raft::handle_t const& handle,
   } else {
     return std::move(key_buffer);
   }
+}
+
+}  // namespace detail
+
+template <typename GraphViewType, typename VertexFrontierBucketType>
+size_t compute_num_out_nbrs_from_frontier(raft::handle_t const& handle,
+                                          GraphViewType const& graph_view,
+                                          VertexFrontierBucketType const& frontier)
+{
+  static_assert(!GraphViewType::is_storage_transposed,
+                "GraphViewType should support the push model.");
+
+  using vertex_t = typename GraphViewType::vertex_type;
+  using edge_t   = typename GraphViewType::edge_type;
+  using key_t    = typename VertexFrontierBucketType::key_type;
+
+  size_t ret{0};
+
+  auto local_frontier_vertex_first =
+    thrust_tuple_get_or_identity<decltype(frontier.begin()), 0>(frontier.begin());
+
+  std::vector<size_t> local_frontier_sizes{};
+  if constexpr (GraphViewType::is_multi_gpu) {
+    auto& minor_comm     = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
+    local_frontier_sizes = host_scalar_allgather(minor_comm, frontier.size(), handle.get_stream());
+  } else {
+    local_frontier_sizes = std::vector<size_t>{static_cast<size_t>(frontier.size())};
+  }
+
+  auto edge_mask_view = graph_view.edge_mask_view();
+
+  for (size_t i = 0; i < graph_view.number_of_local_edge_partitions(); ++i) {
+    auto edge_partition =
+      edge_partition_device_view_t<vertex_t, edge_t, GraphViewType::is_multi_gpu>(
+        graph_view.local_edge_partition_view(i));
+    auto edge_partition_e_mask =
+      edge_mask_view
+        ? thrust::make_optional<
+            detail::edge_partition_edge_property_device_view_t<edge_t, uint32_t const*, bool>>(
+            *edge_mask_view, i)
+        : thrust::nullopt;
+
+    if constexpr (GraphViewType::is_multi_gpu) {
+      auto& minor_comm = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
+      auto const minor_comm_rank = minor_comm.get_rank();
+
+      rmm::device_uvector<vertex_t> edge_partition_frontier_vertices(local_frontier_sizes[i],
+                                                                     handle.get_stream());
+      device_bcast(minor_comm,
+                   local_frontier_vertex_first,
+                   edge_partition_frontier_vertices.data(),
+                   local_frontier_sizes[i],
+                   static_cast<int>(i),
+                   handle.get_stream());
+
+      if (edge_partition_e_mask) {
+        ret +=
+          edge_partition.compute_number_of_edges_with_mask((*edge_partition_e_mask).value_first(),
+                                                           edge_partition_frontier_vertices.begin(),
+                                                           edge_partition_frontier_vertices.end(),
+                                                           handle.get_stream());
+      } else {
+        ret += edge_partition.compute_number_of_edges(edge_partition_frontier_vertices.begin(),
+                                                      edge_partition_frontier_vertices.end(),
+                                                      handle.get_stream());
+      }
+    } else {
+      assert(i == 0);
+      if (edge_partition_e_mask) {
+        ret += edge_partition.compute_number_of_edges_with_mask(
+          (*edge_partition_e_mask).value_first(),
+          local_frontier_vertex_first,
+          local_frontier_vertex_first + frontier.size(),
+          handle.get_stream());
+      } else {
+        ret += edge_partition.compute_number_of_edges(local_frontier_vertex_first,
+                                                      local_frontier_vertex_first + frontier.size(),
+                                                      handle.get_stream());
+      }
+    }
+  }
+
+  return ret;
+}
+
+/**
+ * @brief Iterate over outgoing edges from the current vertex frontier and reduce valid edge functor
+ * outputs by (tagged-)source ID.
+ *
+ * Edge functor outputs are thrust::optional objects and invalid if thrust::nullopt. Vertices are
+ * assumed to be tagged if VertexFrontierBucketType::key_type is a tuple of a vertex type and a tag
+ * type (VertexFrontierBucketType::key_type is identical to a vertex type otherwise).
+ *
+ * @tparam GraphViewType Type of the passed non-owning graph object.
+ * @tparam VertexFrontierBucketType Type of the vertex frontier bucket class which abstracts the
+ * current (tagged-)vertex frontier.
+ * @tparam EdgeSrcValueInputWrapper Type of the wrapper for edge source property values.
+ * @tparam EdgeDstValueInputWrapper Type of the wrapper for edge destination property values.
+ * @tparam EdgeValueInputWrapper Type of the wrapper for edge property values.
+ * @tparam EdgeOp Type of the quinary edge operator.
+ * @tparam ReduceOp Type of the binary reduction operator.
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param graph_view Non-owning graph object.
+ * @param frontier VertexFrontierBucketType class object for the current vertex frontier.
+ * @param edge_src_value_input Wrapper used to access source input property values (for the edge
+ * sources assigned to this process in multi-GPU). Use either cugraph::edge_src_property_t::view()
+ * (if @p e_op needs to access source property values) or cugraph::edge_src_dummy_property_t::view()
+ * (if @p e_op does not access source property values). Use update_edge_src_property to fill the
+ * wrapper.
+ * @param edge_dst_value_input Wrapper used to access destination input property values (for the
+ * edge destinations assigned to this process in multi-GPU). Use either
+ * cugraph::edge_dst_property_t::view() (if @p e_op needs to access destination property values) or
+ * cugraph::edge_dst_dummy_property_t::view() (if @p e_op does not access destination property
+ * values). Use update_edge_dst_property to fill the wrapper.
+ * @param edge_value_input Wrapper used to access edge input property values (for the edges assigned
+ * to this process in multi-GPU). Use either cugraph::edge_property_t::view() (if @p e_op needs to
+ * access edge property values) or cugraph::edge_dummy_property_t::view() (if @p e_op does not
+ * access edge property values).
+ * @param e_op Quinary operator takes edge (tagged-)source, edge destination, property values for
+ * the source, destination, and edge and returns 1) thrust::nullopt (if invalid and to be
+ * discarded); 2) dummy (but valid) thrust::optional object (e.g.
+ * thrust::optional<std::byte>{std::byte{0}}, if vertices are not tagged and ReduceOp::value_type is
+ * void); 3) a tag (if vertices are tagged and ReduceOp::value_type is void); 4) a value to be
+ * reduced using the @p reduce_op (if vertices are not tagged and ReduceOp::value_type is not void);
+ * or 5) a tuple of a tag and a value to be reduced (if vertices are tagged and ReduceOp::value_type
+ * is not void).
+ * @param reduce_op Binary operator that takes two input arguments and reduce the two values to one.
+ * There are pre-defined reduction operators in prims/reduce_op.cuh. It is
+ * recommended to use the pre-defined reduction operators whenever possible as the current (and
+ * future) implementations of graph primitives may check whether @p ReduceOp is a known type (or has
+ * known member variables) to take a more optimized code path. See the documentation in the
+ * reduce_op.cuh file for instructions on writing custom reduction operators.
+ * @return Tuple of key values and payload values (if ReduceOp::value_type is not void) or just key
+ * values (if ReduceOp::value_type is void). Keys in the return values are sorted in ascending order
+ * using a vertex ID as the primary key and a tag (if relevant) as the secondary key.
+ */
+template <typename GraphViewType,
+          typename VertexFrontierBucketType,
+          typename EdgeSrcValueInputWrapper,
+          typename EdgeDstValueInputWrapper,
+          typename EdgeValueInputWrapper,
+          typename EdgeOp,
+          typename ReduceOp>
+std::conditional_t<
+  !std::is_same_v<typename ReduceOp::value_type, void>,
+  std::tuple<decltype(allocate_dataframe_buffer<typename VertexFrontierBucketType::key_type>(
+               0, rmm::cuda_stream_view{})),
+             decltype(detail::allocate_optional_dataframe_buffer<typename ReduceOp::value_type>(
+               0, rmm::cuda_stream_view{}))>,
+  decltype(allocate_dataframe_buffer<typename VertexFrontierBucketType::key_type>(
+    0, rmm::cuda_stream_view{}))>
+transform_reduce_v_frontier_outgoing_e_by_src(raft::handle_t const& handle,
+                                              GraphViewType const& graph_view,
+                                              VertexFrontierBucketType const& frontier,
+                                              EdgeSrcValueInputWrapper edge_src_value_input,
+                                              EdgeDstValueInputWrapper edge_dst_value_input,
+                                              EdgeValueInputWrapper edge_value_input,
+                                              EdgeOp e_op,
+                                              ReduceOp reduce_op,
+                                              bool do_expensive_check = false)
+{
+  return detail::transform_reduce_v_frontier_outgoing_e_by_src_dst<true>(handle,
+                                                                         graph_view,
+                                                                         frontier,
+                                                                         edge_src_value_input,
+                                                                         edge_dst_value_input,
+                                                                         edge_value_input,
+                                                                         e_op,
+                                                                         reduce_op,
+                                                                         do_expensive_check);
+}
+
+/**
+ * @brief Iterate over outgoing edges from the current vertex frontier and reduce valid edge functor
+ * outputs by (tagged-)destination ID.
+ *
+ * Edge functor outputs are thrust::optional objects and invalid if thrust::nullopt. Vertices are
+ * assumed to be tagged if VertexFrontierBucketType::key_type is a tuple of a vertex type and a tag
+ * type (VertexFrontierBucketType::key_type is identical to a vertex type otherwise).
+ *
+ * @tparam GraphViewType Type of the passed non-owning graph object.
+ * @tparam VertexFrontierBucketType Type of the vertex frontier bucket class which abstracts the
+ * current (tagged-)vertex frontier.
+ * @tparam EdgeSrcValueInputWrapper Type of the wrapper for edge source property values.
+ * @tparam EdgeDstValueInputWrapper Type of the wrapper for edge destination property values.
+ * @tparam EdgeValueInputWrapper Type of the wrapper for edge property values.
+ * @tparam EdgeOp Type of the quinary edge operator.
+ * @tparam ReduceOp Type of the binary reduction operator.
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param graph_view Non-owning graph object.
+ * @param frontier VertexFrontierBucketType class object for the current vertex frontier.
+ * @param edge_src_value_input Wrapper used to access source input property values (for the edge
+ * sources assigned to this process in multi-GPU). Use either cugraph::edge_src_property_t::view()
+ * (if @p e_op needs to access source property values) or cugraph::edge_src_dummy_property_t::view()
+ * (if @p e_op does not access source property values). Use update_edge_src_property to fill the
+ * wrapper.
+ * @param edge_dst_value_input Wrapper used to access destination input property values (for the
+ * edge destinations assigned to this process in multi-GPU). Use either
+ * cugraph::edge_dst_property_t::view() (if @p e_op needs to access destination property values) or
+ * cugraph::edge_dst_dummy_property_t::view() (if @p e_op does not access destination property
+ * values). Use update_edge_dst_property to fill the wrapper.
+ * @param edge_value_input Wrapper used to access edge input property values (for the edges assigned
+ * to this process in multi-GPU). Use either cugraph::edge_property_t::view() (if @p e_op needs to
+ * access edge property values) or cugraph::edge_dummy_property_t::view() (if @p e_op does not
+ * access edge property values).
+ * @param e_op Quinary operator takes edge (tagged-)source, edge destination, property values for
+ * the source, destination, and edge and returns 1) thrust::nullopt (if invalid and to be
+ * discarded); 2) dummy (but valid) thrust::optional object (e.g.
+ * thrust::optional<std::byte>{std::byte{0}}, if vertices are not tagged and ReduceOp::value_type is
+ * void); 3) a tag (if vertices are tagged and ReduceOp::value_type is void); 4) a value to be
+ * reduced using the @p reduce_op (if vertices are not tagged and ReduceOp::value_type is not void);
+ * or 5) a tuple of a tag and a value to be reduced (if vertices are tagged and ReduceOp::value_type
+ * is not void).
+ * @param reduce_op Binary operator that takes two input arguments and reduce the two values to one.
+ * There are pre-defined reduction operators in prims/reduce_op.cuh. It is
+ * recommended to use the pre-defined reduction operators whenever possible as the current (and
+ * future) implementations of graph primitives may check whether @p ReduceOp is a known type (or has
+ * known member variables) to take a more optimized code path. See the documentation in the
+ * reduce_op.cuh file for instructions on writing custom reduction operators.
+ * @return Tuple of key values and payload values (if ReduceOp::value_type is not void) or just key
+ * values (if ReduceOp::value_type is void). Keys in the return values are sorted in ascending order
+ * using a vertex ID as the primary key and a tag (if relevant) as the secondary key.
+ */
+template <typename GraphViewType,
+          typename VertexFrontierBucketType,
+          typename EdgeSrcValueInputWrapper,
+          typename EdgeDstValueInputWrapper,
+          typename EdgeValueInputWrapper,
+          typename EdgeOp,
+          typename ReduceOp>
+std::conditional_t<
+  !std::is_same_v<typename ReduceOp::value_type, void>,
+  std::tuple<decltype(allocate_dataframe_buffer<typename VertexFrontierBucketType::key_type>(
+               0, rmm::cuda_stream_view{})),
+             decltype(detail::allocate_optional_dataframe_buffer<typename ReduceOp::value_type>(
+               0, rmm::cuda_stream_view{}))>,
+  decltype(allocate_dataframe_buffer<typename VertexFrontierBucketType::key_type>(
+    0, rmm::cuda_stream_view{}))>
+transform_reduce_v_frontier_outgoing_e_by_dst(raft::handle_t const& handle,
+                                              GraphViewType const& graph_view,
+                                              VertexFrontierBucketType const& frontier,
+                                              EdgeSrcValueInputWrapper edge_src_value_input,
+                                              EdgeDstValueInputWrapper edge_dst_value_input,
+                                              EdgeValueInputWrapper edge_value_input,
+                                              EdgeOp e_op,
+                                              ReduceOp reduce_op,
+                                              bool do_expensive_check = false)
+{
+  return detail::transform_reduce_v_frontier_outgoing_e_by_src_dst<false>(handle,
+                                                                          graph_view,
+                                                                          frontier,
+                                                                          edge_src_value_input,
+                                                                          edge_dst_value_input,
+                                                                          edge_value_input,
+                                                                          e_op,
+                                                                          reduce_op,
+                                                                          do_expensive_check);
 }
 
 }  // namespace cugraph
