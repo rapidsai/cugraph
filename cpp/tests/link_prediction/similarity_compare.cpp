@@ -275,6 +275,14 @@ template void similarity_compare(
     edge_list,
   std::tuple<std::vector<int32_t>&, std::vector<int32_t>&> vertex_pairs,
   std::vector<float>& result_score,
+  test_cosine_t const& test_functor);
+
+template void similarity_compare(
+  int32_t num_vertices,
+  std::tuple<std::vector<int32_t>&, std::vector<int32_t>&, std::optional<std::vector<float>>&>
+    edge_list,
+  std::tuple<std::vector<int32_t>&, std::vector<int32_t>&> vertex_pairs,
+  std::vector<float>& result_score,
   test_sorensen_t const& test_functor);
 
 template void similarity_compare(
@@ -292,6 +300,14 @@ template void similarity_compare(
   std::tuple<std::vector<int64_t>&, std::vector<int64_t>&> vertex_pairs,
   std::vector<float>& result_score,
   test_jaccard_t const& test_functor);
+
+template void similarity_compare(
+  int64_t num_vertices,
+  std::tuple<std::vector<int64_t>&, std::vector<int64_t>&, std::optional<std::vector<float>>&>
+    edge_list,
+  std::tuple<std::vector<int64_t>&, std::vector<int64_t>&> vertex_pairs,
+  std::vector<float>& result_score,
+  test_cosine_t const& test_functor);
 
 template void similarity_compare(
   int64_t num_vertices,
@@ -325,6 +341,14 @@ template void weighted_similarity_compare(
     edge_list,
   std::tuple<std::vector<int32_t>&, std::vector<int32_t>&> vertex_pairs,
   std::vector<float>& result_score,
+  test_cosine_t const& test_functor);
+
+template void weighted_similarity_compare(
+  int32_t num_vertices,
+  std::tuple<std::vector<int32_t>&, std::vector<int32_t>&, std::optional<std::vector<float>>&>
+    edge_list,
+  std::tuple<std::vector<int32_t>&, std::vector<int32_t>&> vertex_pairs,
+  std::vector<float>& result_score,
   test_sorensen_t const& test_functor);
 
 template void weighted_similarity_compare(
@@ -342,6 +366,14 @@ template void weighted_similarity_compare(
   std::tuple<std::vector<int64_t>&, std::vector<int64_t>&> vertex_pairs,
   std::vector<float>& result_score,
   test_jaccard_t const& test_functor);
+
+template void weighted_similarity_compare(
+  int64_t num_vertices,
+  std::tuple<std::vector<int64_t>&, std::vector<int64_t>&, std::optional<std::vector<float>>&>
+    edge_list,
+  std::tuple<std::vector<int64_t>&, std::vector<int64_t>&> vertex_pairs,
+  std::vector<float>& result_score,
+  test_cosine_t const& test_functor);
 
 template void weighted_similarity_compare(
   int64_t num_vertices,

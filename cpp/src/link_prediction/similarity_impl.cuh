@@ -117,8 +117,8 @@ rmm::device_uvector<weight_t> similarity(
                                         thrust::get<1>(lhs) + thrust::get<1>(rhs),
                                         thrust::get<2>(lhs) + thrust::get<2>(rhs));
             });
-          return functor.compute_score(static_cast<weight_t>(norm_a),
-                                       static_cast<weight_t>(norm_b),
+          return functor.compute_score(static_cast<weight_t>(sqrt(norm_a)),
+                                       static_cast<weight_t>(sqrt(norm_b)),
                                        static_cast<weight_t>(sum_of_product_of_a_and_b),
                                        weight_t{1});
         },
