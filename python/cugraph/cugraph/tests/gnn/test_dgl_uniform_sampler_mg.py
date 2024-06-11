@@ -21,8 +21,11 @@ import cupy as cp
 from cugraph.gnn.dgl_extensions.dgl_uniform_sampler import DGLUniformSampler
 
 
-pytestmark = pytest.mark.skip(reason="Skipping this file until dask worker \
-                              slowdown has been investigated")
+pytestmark = pytest.mark.skip(
+    reason="Skipping this file until dask worker \
+                              slowdown has been investigated"
+)
+
 
 def assert_correct_eids(edge_df, sample_edge_id_df):
     # We test that all src, dst correspond to the correct
