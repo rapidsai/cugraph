@@ -6,12 +6,12 @@ backend](<https://networkx.org/documentation/stable/reference/utils.html#backend
 
 By simply [installing and enabling nx-cugraph](<https://github.com/rapidsai/cugraph/blob/HEAD/python/nx-cugraph/README.md#install>), users can see significant speedup on workflows where performance is hindered by the default NetworkX implementation.  With nx-cugraph, users can have GPU-based, large-scale performance without changing their familiar and easy-to-use NetworkX code.
 
-Let's look at some examples of algorithm speedups comparing NetworkX with and without GPU accelration using nx-cugraph.
+Let's look at some examples of algorithm speedups comparing NetworkX with and without GPU acceleration using nx-cugraph.
 
 Each chart has three measurements.
 * NX - default NetworkX, no GPU acceleration
 * nx-cugraph - GPU-accelerated NetworkX using nx-cugraph. This involves an internal conversion/transfer of graph data from CPU to GPU memory
-* nx-cugraph (preconvert) - GPU-accelerated NetworkX using nx-cugraph with the graph data pre-converted/transfered to GPU
+* nx-cugraph (preconvert) - GPU-accelerated NetworkX using nx-cugraph with the graph data pre-converted/transferred to GPU
 
 
 ![Ancestors](../images/ancestors.png)
@@ -43,7 +43,7 @@ user@machine:/# ipython bc_demo.ipy
 
 You will observe a run time of approximately 7 minutes...more or less depending on your cpu.
 
-Run the command again, this time specifiying cugraph as the NetworkX backend.
+Run the command again, this time specifying cugraph as the NetworkX backend.
 ```
 user@machine:/# NETWORKX_BACKEND_PRIORITY=cugraph ipython bc_demo.ipy
 ```
@@ -53,7 +53,7 @@ user@machine:/# NETWORKX_BACKEND_PRIORITY=cugraph ipython bc_demo.ipy
 ```
 There is also an option to cache the graph conversion to GPU. This can dramatically improve performance when running multiple algorithms on the same graph.
 ```
-NETWORKX_BACKEND_PRIORITY=cugraph CACHE_CONVERTED_GRAPHS=True ipython bc_demo.ipy
+NETWORKX_BACKEND_PRIORITY=cugraph NETWORKX_CACHE_CONVERTED_GRAPHS=True ipython bc_demo.ipy
 ```
 
 When running Python interactively, the cugraph backend can be specified as an argument in the algorithm call.
@@ -64,4 +64,4 @@ nx.betweenness_centrality(cit_patents_graph, k=k, backend="cugraph")
 ```
 
 
-The latest list of algorithms supported by nx-cuGraph can be found [here](https://github.com/rapidsai/cugraph/blob/main/python/nx-cugraph/README.md#algorithms).
+The latest list of algorithms supported by nx-cugraph can be found [here](https://github.com/rapidsai/cugraph/blob/main/python/nx-cugraph/README.md#algorithms).
