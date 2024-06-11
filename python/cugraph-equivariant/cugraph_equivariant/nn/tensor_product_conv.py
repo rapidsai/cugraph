@@ -78,26 +78,32 @@ class FullyConnectedTensorProductConv(nn.Module):
 
     Examples
     --------
-    >>> # Case 1: MLP with the input layer having 6 channels and 2 hidden layers
-    >>> # having 16 channels. edge_emb.size(1) must match the size of the input layer: 6
-    >>>
+    Case 1: MLP with the input layer having 6 channels and 2 hidden layers
+    having 16 channels. edge_emb.size(1) must match the size of the input layer: 6
+
     >>> conv1 = FullyConnectedTensorProductConv(in_irreps, sh_irreps, out_irreps,
     >>>     mlp_channels=[6, 16, 16], mlp_activation=nn.ReLU()).cuda()
     >>> out = conv1(src_features, edge_sh, edge_emb, graph)
-    >>>
-    >>> # Case 2: Same as case 1 but with the scalar features from edges, sources
-    >>> # and destinations passed in separately. This option allows a smaller GEMM
-    >>> # in the first MLP layer by performing GEMM on each component before indexing.
-    >>> # The first-layer weights are split into sections for edges, sources and
-    >>> # destinations, in that order.
-    >>>
+
+    Case 2: If `edge_emb` is constructed by concatenating scalar features from
+    edges, sources and destinations, as in DiffDock, the layer can accept each
+    scalar component separately:
+
     >>> conv2 = FullyConnectedTensorProductConv(in_irreps, sh_irreps, out_irreps,
     >>>     mlp_channels=[6, 16, 16], mlp_activation=nn.ReLU()).cuda()
     >>> out = conv2(src_features, edge_sh, edge_scalars, graph,
     >>>     src_scalars=src_scalars, dst_scalars=dst_scalars)
-    >>>
-    >>> # Case 3: No MLP, edge_emb will be directly used as the tensor product weights
-    >>>
+
+    This allows a smaller GEMM in the first MLP layer by performing GEMM on each
+    component before indexing. The first-layer weights are split into sections
+    for edges, sources and destinations, in that order.This is equivalent to
+
+    >>> src, dst = graph.edge_index
+    >>> edge_emb = torch.hstack((edge_scalars, src_scalars[src], dst_scalars[dst]))
+    >>> out = conv2(src_features, edge_sh, edge_emb, graph)
+
+    Case 3: No MLP, `edge_emb` will be directly used as the tensor product weights:
+
     >>> conv3 = FullyConnectedTensorProductConv(in_irreps, sh_irreps, out_irreps,
     >>>     mlp_channels=None).cuda()
     >>> out = conv3(src_features, edge_sh, edge_emb, graph)
@@ -182,11 +188,11 @@ class FullyConnectedTensorProductConv(nn.Module):
             (num_src_nodes, num_dst_nodes).
 
         src_scalars: torch.Tensor, optional
-            Scalar features of source nodes.
+            Scalar features of source nodes. See examples for usage.
             Shape: (num_src_nodes, num_src_scalars)
 
         dst_scalars: torch.Tensor, optional
-            Scalar features of destination nodes.
+            Scalar features of destination nodes. See examples for usage.
             Shape: (num_dst_nodes, num_dst_scalars)
 
         reduce : str, optional (default="mean")
