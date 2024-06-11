@@ -24,8 +24,9 @@
 namespace cugraph {
 namespace detail {
 
+template <typename weight_t, bool order_two>
 struct jaccard_functor_t {
-  template <typename weight_t>
+  static constexpr bool is_order_two = order_two;
   weight_t __device__ compute_score(weight_t weight_a,
                                     weight_t weight_b,
                                     weight_t weight_a_intersect_b,
@@ -53,7 +54,7 @@ rmm::device_uvector<weight_t> jaccard_coefficients(
                             graph_view,
                             edge_weight_view,
                             vertex_pairs,
-                            detail::jaccard_functor_t{},
+                            detail::jaccard_functor_t<weight_t, false>{},
                             do_expensive_check);
 }
 
@@ -75,7 +76,7 @@ std::
                                       edge_weight_view,
                                       vertices,
                                       topk,
-                                      detail::jaccard_functor_t{},
+                                      detail::jaccard_functor_t<weight_t, false>{},
                                       do_expensive_check);
 }
 

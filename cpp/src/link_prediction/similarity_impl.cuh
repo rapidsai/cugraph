@@ -81,84 +81,148 @@ rmm::device_uvector<weight_t> similarity(
     rmm::device_uvector<weight_t> weighted_out_degrees =
       compute_out_weight_sums(handle, graph_view, *edge_weight_view);
 
-    per_v_pair_transform_dst_nbr_intersection(
-      handle,
-      graph_view,
-      *edge_weight_view,
-      vertex_pairs_begin,
-      vertex_pairs_begin + num_vertex_pairs,
-      weighted_out_degrees.begin(),
-      [functor] __device__(auto a,
-                           auto b,
-                           auto weight_a,
-                           auto weight_b,
-                           auto intersection,
-                           auto intersected_properties_a,
-                           auto intersected_properties_b) {
-        weight_t sum_of_min_weight_a_intersect_b = weight_t{0};
-        weight_t sum_of_max_weight_a_intersect_b = weight_t{0};
-        weight_t sum_of_intersected_a            = weight_t{0};
-        weight_t sum_of_intersected_b            = weight_t{0};
+    if constexpr (functor_t::is_order_two) {
+      per_v_pair_transform_dst_nbr_intersection(
+        handle,
+        graph_view,
+        *edge_weight_view,
+        vertex_pairs_begin,
+        vertex_pairs_begin + num_vertex_pairs,
+        weighted_out_degrees.begin(),
+        [functor] __device__(auto a,
+                             auto b,
+                             auto weight_a,
+                             auto weight_b,
+                             auto intersection,
+                             auto intersected_properties_a,
+                             auto intersected_properties_b) {
+          weight_t norm_a                    = weight_t{0};
+          weight_t norm_b                    = weight_t{0};
+          weight_t sum_of_product_of_a_and_b = weight_t{0};
 
-        auto pair_first = thrust::make_zip_iterator(intersected_properties_a.data(),
-                                                    intersected_properties_b.data());
-        thrust::tie(sum_of_min_weight_a_intersect_b,
-                    sum_of_max_weight_a_intersect_b,
-                    sum_of_intersected_a,
-                    sum_of_intersected_b) =
-          thrust::transform_reduce(
+          auto pair_first = thrust::make_zip_iterator(intersected_properties_a.data(),
+                                                      intersected_properties_b.data());
+          thrust::tie(norm_a, norm_b, sum_of_product_of_a_and_b) = thrust::transform_reduce(
             thrust::seq,
             pair_first,
             pair_first + intersected_properties_a.size(),
             [] __device__(auto property_pair) {
               auto prop_a = thrust::get<0>(property_pair);
               auto prop_b = thrust::get<1>(property_pair);
-              return thrust::make_tuple(min(prop_a, prop_b), max(prop_a, prop_b), prop_a, prop_b);
+              return thrust::make_tuple(prop_a * prop_a, prop_b * prop_b, prop_a * prop_b);
             },
-            thrust::make_tuple(weight_t{0}, weight_t{0}, weight_t{0}, weight_t{0}),
+            thrust::make_tuple(weight_t{0}, weight_t{0}, weight_t{0}),
             [] __device__(auto lhs, auto rhs) {
               return thrust::make_tuple(thrust::get<0>(lhs) + thrust::get<0>(rhs),
                                         thrust::get<1>(lhs) + thrust::get<1>(rhs),
-                                        thrust::get<2>(lhs) + thrust::get<2>(rhs),
-                                        thrust::get<3>(lhs) + thrust::get<3>(rhs));
+                                        thrust::get<2>(lhs) + thrust::get<2>(rhs));
             });
+          return functor.compute_score(static_cast<weight_t>(norm_a),
+                                       static_cast<weight_t>(norm_b),
+                                       static_cast<weight_t>(sum_of_product_of_a_and_b),
+                                       weight_t{1});
+        },
+        similarity_score.begin(),
+        do_expensive_check);
+    } else {
+      per_v_pair_transform_dst_nbr_intersection(
+        handle,
+        graph_view,
+        *edge_weight_view,
+        vertex_pairs_begin,
+        vertex_pairs_begin + num_vertex_pairs,
+        weighted_out_degrees.begin(),
+        [functor] __device__(auto a,
+                             auto b,
+                             auto weight_a,
+                             auto weight_b,
+                             auto intersection,
+                             auto intersected_properties_a,
+                             auto intersected_properties_b) {
+          weight_t sum_of_min_weight_a_intersect_b = weight_t{0};
+          weight_t sum_of_max_weight_a_intersect_b = weight_t{0};
+          weight_t sum_of_intersected_a            = weight_t{0};
+          weight_t sum_of_intersected_b            = weight_t{0};
 
-        weight_t sum_of_uniq_a = weight_a - sum_of_intersected_a;
-        weight_t sum_of_uniq_b = weight_b - sum_of_intersected_b;
+          auto pair_first = thrust::make_zip_iterator(intersected_properties_a.data(),
+                                                      intersected_properties_b.data());
+          thrust::tie(sum_of_min_weight_a_intersect_b,
+                      sum_of_max_weight_a_intersect_b,
+                      sum_of_intersected_a,
+                      sum_of_intersected_b) =
+            thrust::transform_reduce(
+              thrust::seq,
+              pair_first,
+              pair_first + intersected_properties_a.size(),
+              [] __device__(auto property_pair) {
+                auto prop_a = thrust::get<0>(property_pair);
+                auto prop_b = thrust::get<1>(property_pair);
+                return thrust::make_tuple(min(prop_a, prop_b), max(prop_a, prop_b), prop_a, prop_b);
+              },
+              thrust::make_tuple(weight_t{0}, weight_t{0}, weight_t{0}, weight_t{0}),
+              [] __device__(auto lhs, auto rhs) {
+                return thrust::make_tuple(thrust::get<0>(lhs) + thrust::get<0>(rhs),
+                                          thrust::get<1>(lhs) + thrust::get<1>(rhs),
+                                          thrust::get<2>(lhs) + thrust::get<2>(rhs),
+                                          thrust::get<3>(lhs) + thrust::get<3>(rhs));
+              });
 
-        sum_of_max_weight_a_intersect_b += sum_of_uniq_a + sum_of_uniq_b;
+          weight_t sum_of_uniq_a = weight_a - sum_of_intersected_a;
+          weight_t sum_of_uniq_b = weight_b - sum_of_intersected_b;
 
-        return functor.compute_score(static_cast<weight_t>(weight_a),
-                                     static_cast<weight_t>(weight_b),
-                                     static_cast<weight_t>(sum_of_min_weight_a_intersect_b),
-                                     static_cast<weight_t>(sum_of_max_weight_a_intersect_b));
-      },
-      similarity_score.begin(),
-      do_expensive_check);
+          sum_of_max_weight_a_intersect_b += sum_of_uniq_a + sum_of_uniq_b;
 
+          return functor.compute_score(static_cast<weight_t>(weight_a),
+                                       static_cast<weight_t>(weight_b),
+                                       static_cast<weight_t>(sum_of_min_weight_a_intersect_b),
+                                       static_cast<weight_t>(sum_of_max_weight_a_intersect_b));
+        },
+        similarity_score.begin(),
+        do_expensive_check);
+    }
     return similarity_score;
   } else {
     rmm::device_uvector<weight_t> similarity_score(num_vertex_pairs, handle.get_stream());
 
     auto out_degrees = graph_view.compute_out_degrees(handle);
 
-    per_v_pair_transform_dst_nbr_intersection(
-      handle,
-      graph_view,
-      cugraph::edge_dummy_property_t{}.view(),
-      vertex_pairs_begin,
-      vertex_pairs_begin + num_vertex_pairs,
-      out_degrees.begin(),
-      [functor] __device__(
-        auto v1, auto v2, auto v1_degree, auto v2_degree, auto intersection, auto, auto) {
-        return functor.compute_score(
-          static_cast<weight_t>(v1_degree),
-          static_cast<weight_t>(v2_degree),
-          static_cast<weight_t>(intersection.size()),
-          static_cast<weight_t>(v1_degree + v2_degree - intersection.size()));
-      },
-      similarity_score.begin(),
-      do_expensive_check);
+    if constexpr (functor_t::is_order_two) {
+      per_v_pair_transform_dst_nbr_intersection(
+        handle,
+        graph_view,
+        cugraph::edge_dummy_property_t{}.view(),
+        vertex_pairs_begin,
+        vertex_pairs_begin + num_vertex_pairs,
+        out_degrees.begin(),
+        [functor] __device__(
+          auto v1, auto v2, auto v1_degree, auto v2_degree, auto intersection, auto, auto) {
+          return functor.compute_score(static_cast<weight_t>(1),
+                                       static_cast<weight_t>(1),
+                                       static_cast<weight_t>(intersection.size()),
+                                       static_cast<weight_t>(1));
+        },
+        similarity_score.begin(),
+        do_expensive_check);
+
+    } else {
+      per_v_pair_transform_dst_nbr_intersection(
+        handle,
+        graph_view,
+        cugraph::edge_dummy_property_t{}.view(),
+        vertex_pairs_begin,
+        vertex_pairs_begin + num_vertex_pairs,
+        out_degrees.begin(),
+        [functor] __device__(
+          auto v1, auto v2, auto v1_degree, auto v2_degree, auto intersection, auto, auto) {
+          return functor.compute_score(
+            static_cast<weight_t>(v1_degree),
+            static_cast<weight_t>(v2_degree),
+            static_cast<weight_t>(intersection.size()),
+            static_cast<weight_t>(v1_degree + v2_degree - intersection.size()));
+        },
+        similarity_score.begin(),
+        do_expensive_check);
+    }
 
     return similarity_score;
   }
