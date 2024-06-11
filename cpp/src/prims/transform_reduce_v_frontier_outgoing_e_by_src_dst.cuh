@@ -253,12 +253,18 @@ transform_reduce_v_frontier_outgoing_e_by_src_dst(raft::handle_t const& handle,
     auto const minor_comm_rank = minor_comm.get_rank();
     auto const minor_comm_size = minor_comm.get_size();
 
-    std::vector<vertex_t> h_vertex_lasts(major_comm_size);
+    std::vector<vertex_t> h_vertex_lasts(reduce_by_src ? minor_comm_size : major_comm_size);
     for (size_t i = 0; i < h_vertex_lasts.size(); ++i) {
-      auto minor_range_vertex_partition_id =
-        detail::compute_local_edge_partition_minor_range_vertex_partition_id_t{
-          major_comm_size, minor_comm_size, major_comm_rank, minor_comm_rank}(i);
-      h_vertex_lasts[i] = graph_view.vertex_partition_range_last(minor_range_vertex_partition_id);
+      auto vertex_partition_id =
+        reduce_by_src
+          ? detail::compute_local_edge_partition_major_range_vertex_partition_id_t{major_comm_size,
+                                                                                   minor_comm_size,
+                                                                                   major_comm_rank,
+                                                                                   minor_comm_rank}(
+              i)
+          : detail::compute_local_edge_partition_minor_range_vertex_partition_id_t{
+              major_comm_size, minor_comm_size, major_comm_rank, minor_comm_rank}(i);
+      h_vertex_lasts[i] = graph_view.vertex_partition_range_last(vertex_partition_id);
     }
 
     rmm::device_uvector<vertex_t> d_vertex_lasts(h_vertex_lasts.size(), handle.get_stream());
@@ -266,12 +272,12 @@ transform_reduce_v_frontier_outgoing_e_by_src_dst(raft::handle_t const& handle,
       d_vertex_lasts.data(), h_vertex_lasts.data(), h_vertex_lasts.size(), handle.get_stream());
     rmm::device_uvector<edge_t> d_tx_buffer_last_boundaries(d_vertex_lasts.size(),
                                                             handle.get_stream());
-    auto dst_first =
+    auto reduce_by_first =
       thrust_tuple_get_or_identity<decltype(get_dataframe_buffer_begin(key_buffer)), 0>(
         get_dataframe_buffer_begin(key_buffer));
     thrust::lower_bound(handle.get_thrust_policy(),
-                        dst_first,
-                        dst_first + size_dataframe_buffer(key_buffer),
+                        reduce_by_first,
+                        reduce_by_first + size_dataframe_buffer(key_buffer),
                         d_vertex_lasts.begin(),
                         d_vertex_lasts.end(),
                         d_tx_buffer_last_boundaries.begin());
@@ -286,14 +292,19 @@ transform_reduce_v_frontier_outgoing_e_by_src_dst(raft::handle_t const& handle,
       h_tx_buffer_last_boundaries.begin(), h_tx_buffer_last_boundaries.end(), tx_counts.begin());
 
     auto rx_key_buffer = allocate_dataframe_buffer<key_t>(size_t{0}, handle.get_stream());
-    std::tie(rx_key_buffer, std::ignore) = shuffle_values(
-      major_comm, get_dataframe_buffer_begin(key_buffer), tx_counts, handle.get_stream());
+    std::tie(rx_key_buffer, std::ignore) = shuffle_values(reduce_by_src ? minor_comm : major_comm,
+                                                          get_dataframe_buffer_begin(key_buffer),
+                                                          tx_counts,
+                                                          handle.get_stream());
     key_buffer = std::move(rx_key_buffer);
 
     if constexpr (!std::is_same_v<payload_t, void>) {
       auto rx_payload_buffer = allocate_dataframe_buffer<payload_t>(size_t{0}, handle.get_stream());
-      std::tie(rx_payload_buffer, std::ignore) = shuffle_values(
-        major_comm, get_dataframe_buffer_begin(payload_buffer), tx_counts, handle.get_stream());
+      std::tie(rx_payload_buffer, std::ignore) =
+        shuffle_values(reduce_by_src ? minor_comm : major_comm,
+                       get_dataframe_buffer_begin(payload_buffer),
+                       tx_counts,
+                       handle.get_stream());
       payload_buffer = std::move(rx_payload_buffer);
     }
 
