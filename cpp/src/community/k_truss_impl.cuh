@@ -489,7 +489,7 @@ k_truss(raft::handle_t const& handle,
     modified_graph_view = (*modified_graph).view();
   }
 
-  // 3. Find (k-1)-core and exclude edges that do not belong to (k-1)-core
+  // 2. Find (k-1)-core and exclude edges that do not belong to (k-1)-core
   //#if 0
   {
     auto cur_graph_view = modified_graph_view ? *modified_graph_view : graph_view;
@@ -549,7 +549,7 @@ k_truss(raft::handle_t const& handle,
   }
   //#endif
 
-  // 4. Keep only the edges from a low-degree vertex to a high-degree vertex.
+  // 3. Keep only the edges from a low-degree vertex to a high-degree vertex.
 
   {
     auto cur_graph_view = modified_graph_view ? *modified_graph_view : graph_view;
@@ -625,7 +625,7 @@ k_truss(raft::handle_t const& handle,
     renumber_map = std::move(tmp_renumber_map);
   }
 
-  // 5. Compute triangle count using nbr_intersection and unroll weak edges
+  // 4. Compute triangle count using nbr_intersection and unroll weak edges
 
   {
     auto cur_graph_view = modified_graph_view ? *modified_graph_view : graph_view;
