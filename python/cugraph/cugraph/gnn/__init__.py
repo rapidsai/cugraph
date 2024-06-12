@@ -16,6 +16,7 @@ from .data_loading.bulk_sampler import BulkSampler
 from .data_loading.dist_sampler import (
     DistSampler,
     DistSampleWriter,
+    DistSampleReader,
     UniformNeighborSampler,
 )
 from .comms.cugraph_nccl_comms import (
