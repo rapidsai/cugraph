@@ -625,8 +625,7 @@ k_truss(raft::handle_t const& handle,
     renumber_map = std::move(tmp_renumber_map);
   }
 
-  // 5. Decompress the resulting graph to an edges list and ind intersection of edges endpoints
-  // for each partition using detail::nbr_intersection
+  // 5. Compute triangle count using nbr_intersection and unroll weak edges
 
   {
     auto cur_graph_view = modified_graph_view ? *modified_graph_view : graph_view;
