@@ -732,9 +732,8 @@ class UniformNeighborSampler(DistSampler):
         random_state: int = 0,
         assume_equal_input_size: bool = False,
     ) -> Dict[str, TensorType]:
+        torch = import_optional("torch")
         if self.is_multi_gpu:
-            torch = import_optional("torch")
-
             rank = torch.distributed.get_rank()
 
             batch_ids = batch_ids.to(device="cuda", dtype=torch.int32)
