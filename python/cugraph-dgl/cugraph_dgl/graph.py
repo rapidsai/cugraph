@@ -11,13 +11,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import cupy
-
-import pylibcugraph
-
-from typing import Union, Optional, Dict, Tuple
+from typing import Union, Optional, Dict, Tuple, List
 
 from cugraph.utilities.utils import import_optional
+from cugraph.gnn import cugraph_comms_get_raft_handle
+
+import cupy
+import pylibcugraph
 
 from cugraph_dgl.typing import TensorType
 from cugraph_dgl.utils.cugraph_conversion_utils import _cast_to_torch_tensor
@@ -33,7 +33,6 @@ tensordict = import_optional("tensordict")
 
 HOMOGENEOUS_NODE_TYPE = "n"
 HOMOGENEOUS_EDGE_TYPE = (HOMOGENEOUS_NODE_TYPE, "e", HOMOGENEOUS_NODE_TYPE)
-
 
 class Graph:
     """
@@ -96,7 +95,6 @@ class Graph:
         self.__num_edges_dict = {}
         self.__edge_indices = tensordict.TensorDict({}, batch_size=(2,))
 
-        self.__sizes = {}
         self.__graph = None
         self.__vertex_offsets = None
         self.__handle = None
@@ -148,11 +146,11 @@ class Graph:
         """
         Adds the given number of nodes to this graph.  Can only be called once
         per node type. The number of nodes specified here refers to the total
-        number of nodes across workers. If the backing feature store is
-        distributed (i.e. wholegraph), then only local features should
-        be passed to the data argument.  If the backing feature store is
-        replicated, then features for all nodes should be passed to the
-        data argument, including those for nodes not on the local worker.
+        number of nodes across all workers (the entire graph). If the backing
+        feature store is distributed (i.e. wholegraph), then only local features
+        should be passed to the data argument.  If the backing feature store is
+        replicated, then features for all nodes in the graph should be passed to
+        the data argument, including those for nodes not on the local worker.
 
         Parameters
         ----------
@@ -335,12 +333,191 @@ class Graph:
         return self.num_edges(etype=etype)
 
     @property
-    def is_homogeneous(self):
-        return len(self.__num_edges_dict) <= 1 and len(self.__num_nodes_dict) <=1
+    def ntypes(self) -> List[str]:
+        """
+        Returns the node type names in this graph.
+        """
+        return list(self.__num_nodes_dict.keys())
 
     @property
-    def _graph(self) -> Union[pylibcugraph.SGGraph, pylibcugraph.MGGraph]:
+    def etypes(self) -> List[str]:
+        """
+        Returns the edge type names in this graph
+        (the second element of the canonical edge
+        type tuple).
+        """
+        return [
+            et[1]
+            for et in self.__num_edges_dict.keys()
+        ]
+
+    @property
+    def canonical_etypes(self) -> List[str]:
+        """
+        Returns the canonical edge type names in this
+        graph.
+        """
+        return list(self.__num_edges_dict.keys())
+
+    @property
+    def _vertex_offsets(self) -> Dict[str, int]:
+        if self.__vertex_offsets is None:
+            ordered_keys = sorted(list(self.ntypes))
+            self.__vertex_offsets = {}
+            offset = 0
+            for vtype in ordered_keys:
+                self.__vertex_offsets[vtype] = offset
+                offset += self.num_nodes(vtype)
+
+        return dict(self.__vertex_offsets)
+
+    def __get_edgelist(self) -> Dict[str, "torch.Tensor"]:
+        """
+        This function always returns src/dst labels with respect
+        to the out direction.
+
+        Returns
+        -------
+        Dict[str, torch.Tensor] with the following keys:
+            src: source vertices (int64)
+                Note that src is the 1st element of the DGL edge index.
+            dst: destination vertices (int64)
+                Note that dst is the 2nd element of the DGL edge index.
+            eid: edge ids for each edge (int64)
+                Note that these start from 0 for each edge type.
+            etp: edge types for each edge (int32)
+                Note that these are in lexicographic order.
+        """
+        sorted_keys = sorted(
+            list(self.__edge_indices.keys(leaves_only=True, include_nested=True))
+        )
+
+        # note that this still follows the DGL convention of (src, rel, dst)
+        # i.e. (author, writes, paper): [[0,1,2],[2,0,1]] is referring to a
+        # cuGraph graph where (paper 2) -> (author 0), (paper 0) -> (author 1),
+        # and (paper 1) -> (author 0)
+        edge_index = torch.concat(
+            [
+                torch.stack(
+                    [
+                        self.__edge_indices[src_type, rel_type, dst_type][0]
+                        + self._vertex_offsets[src_type],
+                        self.__edge_indices[src_type, rel_type, dst_type][1]
+                        + self._vertex_offsets[dst_type],
+                    ]
+                )
+                for (src_type, rel_type, dst_type) in sorted_keys
+            ],
+            axis=1,
+        ).cuda()
+
+        edge_type_array = torch.arange(
+            len(sorted_keys), dtype=torch.int32, device="cuda"
+        ).repeat_interleave(
+            torch.tensor(
+                [self.__edge_indices[et].shape[1] for et in sorted_keys],
+                device="cuda",
+                dtype=torch.int32,
+            )
+        )
+
+        if self.is_multi_gpu:
+            rank = torch.distributed.get_rank()
+            world_size = torch.distributed.get_world_size()
+
+            num_edges_t = torch.tensor(
+                [self.__edge_indices[et].shape[1] for et in sorted_keys], device="cuda"
+            )
+            num_edges_all_t = torch.empty(
+                world_size, num_edges_t.numel(), dtype=torch.int64, device="cuda"
+            )
+            torch.distributed.all_gather_into_tensor(num_edges_all_t, num_edges_t)
+
+            if rank > 0:
+                start_offsets = num_edges_all_t[:rank].T.sum(axis=1)
+                edge_id_array = torch.concat(
+                    [
+                        torch.arange(
+                            start_offsets[i],
+                            start_offsets[i] + num_edges_all_t[rank][i],
+                            dtype=torch.int64,
+                            device="cuda",
+                        )
+                        for i in range(len(sorted_keys))
+                    ]
+                )
+            else:
+                edge_id_array = torch.concat(
+                    [
+                        torch.arange(
+                            self.__edge_indices[et].shape[1],
+                            dtype=torch.int64,
+                            device="cuda",
+                        )
+                        for et in sorted_keys
+                    ]
+                )
+
+        else:
+            # single GPU
+            edge_id_array = torch.concat(
+                [
+                    torch.arange(
+                        self.__edge_indices[et].shape[1],
+                        dtype=torch.int64,
+                        device="cuda",
+                    )
+                    for et in sorted_keys
+                ]
+            )
+
+        return {
+            "src": edge_index[0],
+            "dst": edge_index[1],
+            "etp": edge_type_array,
+            "eid": edge_id_array,
+        }
+
+    @property
+    def is_homogeneous(self):
+        return len(self.__num_edges_dict) <= 1 and len(self.__num_nodes_dict) <=1
+    
+    @property
+    def idtype(self):
+        return torch.int64
+    
+    @property
+    def _resource_handle(self):
+        if self.__handle is None:
+            if self.is_multi_gpu:
+                self.__handle = pylibcugraph.ResourceHandle(
+                    cugraph_comms_get_raft_handle().getHandle()
+                )
+            else:
+                self.__handle = pylibcugraph.ResourceHandle()
+        return self.__handle
+
+    def _graph(self, direction:str) -> Union[pylibcugraph.SGGraph, pylibcugraph.MGGraph]:
+        """
+        Gets the pylibcugraph Graph object with edges pointing in the given direction
+        (i.e. 'out' is standard, 'in' is reverse).
+        """
+
+        if direction not in ['out','in']:
+            raise ValueError(f"Invalid direction {direction} (expected 'in' or 'out').")
+
+        graph_properties = pylibcugraph.GraphProperties(
+            is_multigraph=True, is_symmetric=False
+        )
+
+        if self.__graph[1] != direction:
+            self.__graph = None
+
         if self.__graph is None:
+            src_col, dst_col = (
+                ('src','dst') if direction == 'out'
+                else ('dst','src')
+            )
             edgelist_dict = self.__get_edgelist()
 
             if self.is_multi_gpu:
@@ -348,30 +525,103 @@ class Graph:
                 world_size = torch.distributed.get_world_size()
 
                 vertices_array = cupy.arange(
-                    sum(self._num_vertices().values()), dtype="int64"
+                    self.num_nodes(), dtype="int64"
                 )
                 vertices_array = cupy.array_split(vertices_array, world_size)[rank]
 
-                self.__graph = pylibcugraph.MGGraph(
+                self.__graph = (pylibcugraph.MGGraph(
                     self._resource_handle,
                     graph_properties,
-                    [cupy.asarray(edgelist_dict["src"]).astype("int64")],
-                    [cupy.asarray(edgelist_dict["dst"]).astype("int64")],
+                    [cupy.asarray(edgelist_dict[src_col]).astype("int64")],
+                    [cupy.asarray(edgelist_dict[dst_col]).astype("int64")],
                     vertices_array=[vertices_array],
                     edge_id_array=[cupy.asarray(edgelist_dict["eid"])],
                     edge_type_array=[cupy.asarray(edgelist_dict["etp"])],
-                )
+                ), direction)
             else:
-                self.__graph = pylibcugraph.SGGraph(
+                self.__graph = (pylibcugraph.SGGraph(
                     self._resource_handle,
                     graph_properties,
-                    cupy.asarray(edgelist_dict["src"]).astype("int64"),
-                    cupy.asarray(edgelist_dict["dst"]).astype("int64"),
+                    cupy.asarray(edgelist_dict[src_col]).astype("int64"),
+                    cupy.asarray(edgelist_dict[dst_col]).astype("int64"),
                     vertices_array=cupy.arange(
-                        sum(self._num_vertices().values()), dtype="int64"
+                        self.num_nodes(), dtype="int64"
                     ),
                     edge_id_array=cupy.asarray(edgelist_dict["eid"]),
                     edge_type_array=cupy.asarray(edgelist_dict["etp"]),
-                )
+                ), direction)
 
-        return self.__graph
+        return self.__graph[0]
+
+    def _get_n_emb(self, ntype:str, emb_name: str, u:Union[str, TensorType]):
+        """
+        Gets the embedding of a single node type.
+        Unlike DGL, this function takes the string node
+        type name instead of an integer id.
+
+        Parameters
+        ----------
+        ntype: str
+            The node type to get the embedding of.
+        emb_name: str
+            The embedding name of the embedding to get.
+        u: Union[str, TensorType]
+            Nodes to get the representation of, or ALL
+            to get the representation of all nodes of
+            the given type.
+        """
+
+        if dgl.base.is_all(u):
+            u = torch.arange(self.num_nodes(ntype), dtype=torch.int64)
+        
+        return self.__ndata_storage[ntype, emb_name].fetch(
+            _cast_to_torch_tensor(u),
+            'cuda'
+        )
+
+    def _set_n_emb(self, ntype:str, u:Union[str, TensorType], kv: Dict[str, TensorType]):
+        """
+        Stores or updates the embedding(s) of a single node type.
+        Unlike DGL, this function takes the string node type name
+        instead of an integer id.
+
+        The semantics of this function match those of add_nodes
+        with respect to whether or not the backing feature store
+        is distributed.
+
+        Parameters
+        ----------
+        ntype: str
+            The node type to store an embedding of.
+        u: Union[str, TensorType]
+            The indices to update, if updating the embedding.
+            Currently, updating a slice of an embedding is
+            unsupported, so this should be ALL.
+        kv: Dict[str, TensorType]
+            A mapping of embedding names to embedding tensors.
+        """
+
+        if not dgl.base.is_all(u):
+            raise NotImplementedError(
+                "Updating a slice of an embedding is "
+                "currently unimplemented in cuGraph-DGL."
+            )
+    
+        for k, v in kv:
+            self.__ndata_storage[ntype, k] = self.__ndata_storage_type(
+                v, **self.__wg_kwargs
+            )
+        
+    def _pop_n_emb(self, ntype:str, key: str):
+        return self.__ndata_storage[ntype, key].pop(key)
+
+    def _get_n_emb_keys(self, ntype:str):
+        return [
+            k
+            for (t, k) in self.__ndata_storage
+            if ntype == t
+        ]
+
+    @property
+    def ndata(self):
+        

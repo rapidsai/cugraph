@@ -118,4 +118,4 @@ class WholeFeatureStore(
         if self.__td < 0:
             t = t.reshape((t.shape[0],))
 
-        return t
+        return t.to(torch.device(device))
