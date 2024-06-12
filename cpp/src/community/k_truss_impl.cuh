@@ -677,7 +677,7 @@ k_truss(raft::handle_t const& handle,
       size_t chunk_num_weak_edges = weak_edgelist_srcs.size();
       size_t edges_to_intersect_per_iteration =
             static_cast<size_t>(handle.get_device_properties().multiProcessorCount) * (1 << 17);
-      edges_to_intersect_per_iteration = 100;
+      edges_to_intersect_per_iteration = 100; // FIXME: For testing
       auto num_chunks =
         raft::div_rounding_up_safe(weak_edgelist_srcs.size(), edges_to_intersect_per_iteration);
       
