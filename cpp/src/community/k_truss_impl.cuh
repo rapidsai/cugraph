@@ -653,23 +653,15 @@ k_truss(raft::handle_t const& handle,
                                                                           edge_dst_dummy_property_t{}.view(),
                                                                           e_property_triangle_count.view(),
                                                                           extract_weak_edges<vertex_t, edge_t>{k});
-      auto done = 1;
-      if constexpr (multi_gpu)
-      {
-        if (weak_edgelist_srcs.size() == 0) { done = 0; }
-        done = host_scalar_allreduce(
-          handle.get_comms(), done, raft::comms::op_t::MAX, handle.get_stream());
-
-        if (done == 0) { break; }
+      auto num_weak_edges = weak_edgelist_srcs.size();
+      if constexpr (multi_gpu) {
+        num_weak_edges = host_scalar_allreduce(handle.get_comms(), num_weak_edges, raft::comms::op_t::SUM, handle.get_stream());
       }
-      else if (weak_edgelist_srcs.size() == 0)
-      {
-        break;
-      }
-      auto weak_edgelist_first = thrust::make_zip_iterator(weak_edgelist_srcs.begin(), weak_edgelist_dsts.begin());
-      thrust::sort(handle.get_thrust_policy(),
-                          weak_edgelist_first,
-                          weak_edgelist_first + weak_edgelist_srcs.size());
+      if (num_weak_edges == 0) { break; }
+            auto weak_edgelist_first = thrust::make_zip_iterator(weak_edgelist_srcs.begin(), weak_edgelist_dsts.begin());
+            thrust::sort(handle.get_thrust_policy(),
+                                weak_edgelist_first,
+                                weak_edgelist_first + weak_edgelist_srcs.size());
       
       // Find intersection edges
       size_t prev_chunk_size         = 0;
