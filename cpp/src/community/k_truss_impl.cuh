@@ -456,7 +456,6 @@ k_truss(raft::handle_t const& handle,
   std::optional<rmm::device_uvector<vertex_t>> renumber_map{std::nullopt};
   std::optional<edge_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>, weight_t>>
     edge_weight{std::nullopt};
-  std::optional<rmm::device_uvector<weight_t>> wgts{std::nullopt};
 
   if (graph_view.count_self_loops(handle) > edge_t{0}) {
     auto [srcs, dsts] = extract_transform_e(handle,
@@ -507,9 +506,7 @@ k_truss(raft::handle_t const& handle,
 
     raft::device_span<edge_t const> core_number_span{core_numbers.data(), core_numbers.size()};
 
-    rmm::device_uvector<vertex_t> srcs{0, handle.get_stream()};
-    rmm::device_uvector<vertex_t> dsts{0, handle.get_stream()};
-    std::tie(srcs, dsts, wgts) = k_core(handle,
+    auto [srcs, dsts, wgts] = k_core(handle,
                                         cur_graph_view,
                                         edge_weight_view,
                                         k - 1,
