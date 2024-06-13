@@ -25,7 +25,6 @@
     "ghcr.io/rapidsai/devcontainers/features/rapids-build-utils:24.8": {}
   },
   "overrideFeatureInstallOrder": [
-    "ghcr.io/rapidsai/devcontainers/features/ucx",
     "ghcr.io/rapidsai/devcontainers/features/cuda",
     "ghcr.io/rapidsai/devcontainers/features/rapids-build-utils"
   ],

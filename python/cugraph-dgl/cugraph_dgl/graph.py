@@ -22,7 +22,12 @@ import pylibcugraph
 from cugraph_dgl.typing import TensorType
 from cugraph_dgl.utils.cugraph_conversion_utils import _cast_to_torch_tensor
 from cugraph_dgl.features import WholeFeatureStore
-
+from cugraph_dgl.view import (
+    HeteroNodeView,
+    HeteroNodeDataView,
+    HeteroEdgeView,
+    HeteroEdgeDataView,
+)
 
 
 # Have to use import_optional even though these are required
@@ -33,6 +38,7 @@ tensordict = import_optional("tensordict")
 
 HOMOGENEOUS_NODE_TYPE = "n"
 HOMOGENEOUS_EDGE_TYPE = (HOMOGENEOUS_NODE_TYPE, "e", HOMOGENEOUS_NODE_TYPE)
+
 
 class Graph:
     """
@@ -205,7 +211,7 @@ class Graph:
             self.__ndata_storage[ntype, feature_name] = self.__ndata_storage_type(
                 feature_tensor, **self.__wg_kwargs
             )
-        
+
         self.__graph = None
         self.__vertex_offsets = None
 
@@ -291,11 +297,11 @@ class Graph:
 
         num_edges = self.__edge_indices[dgl_can_edge_type].shape[1]
         if self.is_multi_gpu:
-            num_edges = torch.tensor([num_edges], device='cuda', dtype=torch.int64)
+            num_edges = torch.tensor([num_edges], device="cuda", dtype=torch.int64)
             torch.distributed.all_reduce(num_edges, op=torch.distributed.ReduceOp.SUM)
-        
+
         self.__num_edges_dict[dgl_can_edge_type] = int(num_edges)
-        
+
         self.__graph = None
         self.__vertex_offsets = None
 
@@ -314,19 +320,19 @@ class Graph:
         Alias for num_nodes.
         """
         return self.num_nodes(ntype=ntype)
-    
-    def num_edges(self, etype: Union[str, Tuple[str, str, str]]=None) -> int:
+
+    def num_edges(self, etype: Union[str, Tuple[str, str, str]] = None) -> int:
         """
         Returns the number of edges of etype, or if etype is not provided,
         the total number of edges in the graph.
         """
         if etype is None:
             return sum(self.__num_edges_dict.values())
-    
+
         etype = self.to_canonical_etype(etype)
         return self.__num_edges_dict[etype]
-    
-    def number_of_edges(self, etype: Union[str, Tuple[str, str, str]]=None) -> int:
+
+    def number_of_edges(self, etype: Union[str, Tuple[str, str, str]] = None) -> int:
         """
         Alias for num_edges.
         """
@@ -346,10 +352,7 @@ class Graph:
         (the second element of the canonical edge
         type tuple).
         """
-        return [
-            et[1]
-            for et in self.__num_edges_dict.keys()
-        ]
+        return [et[1] for et in self.__num_edges_dict.keys()]
 
     @property
     def canonical_etypes(self) -> List[str]:
@@ -480,12 +483,12 @@ class Graph:
 
     @property
     def is_homogeneous(self):
-        return len(self.__num_edges_dict) <= 1 and len(self.__num_nodes_dict) <=1
-    
+        return len(self.__num_edges_dict) <= 1 and len(self.__num_nodes_dict) <= 1
+
     @property
     def idtype(self):
         return torch.int64
-    
+
     @property
     def _resource_handle(self):
         if self.__handle is None:
@@ -497,13 +500,15 @@ class Graph:
                 self.__handle = pylibcugraph.ResourceHandle()
         return self.__handle
 
-    def _graph(self, direction:str) -> Union[pylibcugraph.SGGraph, pylibcugraph.MGGraph]:
+    def _graph(
+        self, direction: str
+    ) -> Union[pylibcugraph.SGGraph, pylibcugraph.MGGraph]:
         """
         Gets the pylibcugraph Graph object with edges pointing in the given direction
         (i.e. 'out' is standard, 'in' is reverse).
         """
 
-        if direction not in ['out','in']:
+        if direction not in ["out", "in"]:
             raise ValueError(f"Invalid direction {direction} (expected 'in' or 'out').")
 
         graph_properties = pylibcugraph.GraphProperties(
@@ -514,46 +519,47 @@ class Graph:
             self.__graph = None
 
         if self.__graph is None:
-            src_col, dst_col = (
-                ('src','dst') if direction == 'out'
-                else ('dst','src')
-            )
+            src_col, dst_col = ("src", "dst") if direction == "out" else ("dst", "src")
             edgelist_dict = self.__get_edgelist()
 
             if self.is_multi_gpu:
                 rank = torch.distributed.get_rank()
                 world_size = torch.distributed.get_world_size()
 
-                vertices_array = cupy.arange(
-                    self.num_nodes(), dtype="int64"
-                )
+                vertices_array = cupy.arange(self.num_nodes(), dtype="int64")
                 vertices_array = cupy.array_split(vertices_array, world_size)[rank]
 
-                self.__graph = (pylibcugraph.MGGraph(
-                    self._resource_handle,
-                    graph_properties,
-                    [cupy.asarray(edgelist_dict[src_col]).astype("int64")],
-                    [cupy.asarray(edgelist_dict[dst_col]).astype("int64")],
-                    vertices_array=[vertices_array],
-                    edge_id_array=[cupy.asarray(edgelist_dict["eid"])],
-                    edge_type_array=[cupy.asarray(edgelist_dict["etp"])],
-                ), direction)
-            else:
-                self.__graph = (pylibcugraph.SGGraph(
-                    self._resource_handle,
-                    graph_properties,
-                    cupy.asarray(edgelist_dict[src_col]).astype("int64"),
-                    cupy.asarray(edgelist_dict[dst_col]).astype("int64"),
-                    vertices_array=cupy.arange(
-                        self.num_nodes(), dtype="int64"
+                self.__graph = (
+                    pylibcugraph.MGGraph(
+                        self._resource_handle,
+                        graph_properties,
+                        [cupy.asarray(edgelist_dict[src_col]).astype("int64")],
+                        [cupy.asarray(edgelist_dict[dst_col]).astype("int64")],
+                        vertices_array=[vertices_array],
+                        edge_id_array=[cupy.asarray(edgelist_dict["eid"])],
+                        edge_type_array=[cupy.asarray(edgelist_dict["etp"])],
                     ),
-                    edge_id_array=cupy.asarray(edgelist_dict["eid"]),
-                    edge_type_array=cupy.asarray(edgelist_dict["etp"]),
-                ), direction)
+                    direction,
+                )
+            else:
+                self.__graph = (
+                    pylibcugraph.SGGraph(
+                        self._resource_handle,
+                        graph_properties,
+                        cupy.asarray(edgelist_dict[src_col]).astype("int64"),
+                        cupy.asarray(edgelist_dict[dst_col]).astype("int64"),
+                        vertices_array=cupy.arange(self.num_nodes(), dtype="int64"),
+                        edge_id_array=cupy.asarray(edgelist_dict["eid"]),
+                        edge_type_array=cupy.asarray(edgelist_dict["etp"]),
+                    ),
+                    direction,
+                )
 
         return self.__graph[0]
 
-    def _get_n_emb(self, ntype:str, emb_name: str, u:Union[str, TensorType]):
+    def _get_n_emb(
+        self, ntype: str, emb_name: str, u: Union[str, TensorType]
+    ) -> "torch.Tensor":
         """
         Gets the embedding of a single node type.
         Unlike DGL, this function takes the string node
@@ -569,17 +575,55 @@ class Graph:
             Nodes to get the representation of, or ALL
             to get the representation of all nodes of
             the given type.
+
+        Returns
+        -------
+        torch.Tensor
+            The embedding of the given edge type with the given embedding name.
         """
 
         if dgl.base.is_all(u):
-            u = torch.arange(self.num_nodes(ntype), dtype=torch.int64)
-        
+            u = torch.arange(self.num_nodes(ntype), dtype=self.idtype)
+
         return self.__ndata_storage[ntype, emb_name].fetch(
-            _cast_to_torch_tensor(u),
-            'cuda'
+            _cast_to_torch_tensor(u), "cuda"
         )
 
-    def _set_n_emb(self, ntype:str, u:Union[str, TensorType], kv: Dict[str, TensorType]):
+    def _get_e_emb(
+        self, etype: Tuple[str, str, str], emb_name: str, u: Union[str, TensorType]
+    ) -> "torch.Tensor":
+        """
+        Gets the embedding of a single edge type.
+        Unlike DGL, this function takes the canonical edge type
+        instead of an integer id.
+
+        Parameters
+        ----------
+        etype: str
+            The edge type to get the embedding of.
+        emb_name: str
+            The embedding name of the embedding to get.
+        u: Union[str, TensorType]
+            Edges to get the representation of, or ALL to
+            get the representation of all nodes of the
+            given type.
+
+        Returns
+        -------
+        torch.Tensor
+            The embedding of the given edge type with the given embedding name.
+        """
+
+        if dgl.base.is_all(u):
+            u = torch.arange(self.num_edges(etype), dtype=self.idtype)
+
+        return self.__edata_storage[etype, emb_name].fetch(
+            _cast_to_torch_tensor(u), "cuda"
+        )
+
+    def _set_n_emb(
+        self, ntype: str, u: Union[str, TensorType], kv: Dict[str, TensorType]
+    ) -> None:
         """
         Stores or updates the embedding(s) of a single node type.
         Unlike DGL, this function takes the string node type name
@@ -606,22 +650,200 @@ class Graph:
                 "Updating a slice of an embedding is "
                 "currently unimplemented in cuGraph-DGL."
             )
-    
+
         for k, v in kv:
             self.__ndata_storage[ntype, k] = self.__ndata_storage_type(
-                v, **self.__wg_kwargs
+                v,
+                **self.__wg_kwargs,
             )
-        
-    def _pop_n_emb(self, ntype:str, key: str):
+
+    def _set_e_emb(
+        self, etype: str, u: Union[str, TensorType], kv: Dict[str, TensorType]
+    ) -> None:
+        """
+        Stores or updates the embedding(s) of a single edge type.
+        Unlike DGL, this function takes the canonical edge type name
+        instead of an integer id.
+
+        The semantics of this function match those of add_edges
+        with respect to whether or not the backing feature store
+        is distributed.
+
+        Parameters
+        ----------
+        etype: str
+            The edge type to store an embedding of.
+        u: Union[str, TensorType]
+            The indices to update, if updating the embedding.
+            Currently, updating a slice of an embedding is
+            unsupported, so this should be ALL.
+        kv: Dict[str, TensorType]
+            A mapping of embedding names to embedding tensors.
+        """
+
+        if not dgl.base.is_all(u):
+            raise NotImplementedError(
+                "Updating a slice of an embedding is "
+                "currently unimplemented in cuGraph-DGL."
+            )
+
+        for k, v in kv:
+            self.__edata_storage[etype, k] = self.__edata_storage_type(
+                v,
+                **self.__wg_kwargs,
+            )
+
+    def _pop_n_emb(self, ntype: str, key: str) -> "torch.Tensor":
+        """
+        Removes and returns the embedding of the given node
+        type with the given name.
+
+        Parameters
+        ----------
+        ntype:str
+            The node type.
+        key:str
+            The embedding name.
+
+        Returns
+        -------
+        The removed embedding.
+        """
         return self.__ndata_storage[ntype, key].pop(key)
 
-    def _get_n_emb_keys(self, ntype:str):
-        return [
-            k
-            for (t, k) in self.__ndata_storage
-            if ntype == t
-        ]
+    def _pop_e_emb(self, etype: str, key: str) -> "torch.Tensor":
+        """
+        Removes and returns the embedding of the given edge
+        type with the given name.
+
+        Parameters
+        ----------
+        etype:str
+            The node type.
+        key:str
+            The embedding name.
+
+        Returns
+        -------
+        torch.Tensor
+            The removed embedding.
+        """
+        return self.__edata_storage[etype, key].pop(key)
+
+    def _get_n_emb_keys(self, ntype: str) -> List[str]:
+        """
+        Gets a list of the embedding names for a given node
+        type.
+
+        Parameters
+        ----------
+        ntype: str
+            The node type to get embedding names for.
+
+        Returns
+        -------
+        List[str]
+            The list of embedding names for the given node type.
+        """
+        return [k for (t, k) in self.__ndata_storage if ntype == t]
+
+    def _get_e_emb_keys(self, etype: str) -> List[str]:
+        """
+        Gets a list of the embedding names for a given edge
+        type.
+
+        Parameters
+        ----------
+        etype: str
+            The edge type to get embedding names for.
+
+        Returns
+        -------
+        List[str]
+            The list of embedding names for the given edge type.
+        """
+        return [k for (t, k) in self.__ndata_storage if etype == t]
+
+    def all_edges(
+        self,
+        form="uv",
+        order="eid",
+        etype: Union[str, Tuple[str, str, str]] = None,
+        device: Union[str, int, "torch.device"] = "cpu",
+    ):
+        """
+        Returns all edges with the specified edge type.
+        cuGraph-DGL currently only supports 'eid' format and
+        'eid' order.
+
+        Parameters
+        ----------
+        form: str (optional, default='uv')
+            The format to return ('uv', 'eid', 'all').
+            cuGraph-DGL currently only supports 'eid'.
+        order: str (optional, default='eid')
+            The order to return edges in ('eid', 'srcdst')
+            cuGraph-DGL currently only supports 'eid'.
+        etype: Union[str, Tuple[str, str, str]] (optional, default=None)
+            The edge type to get.  Not required if this is
+            a homogeneous graph.  Can be the relation type if the
+            relation type is unique, or the canonical edge type.
+        device: Union[str, int, torch.device] (optional, default='cpu')
+            The device where returned edges should be stored
+            ('cpu', 'cuda', or device id).
+        """
+
+        if form != "eid":
+            raise NotImplementedError("cuGraph-DGL only supports eid format.")
+
+        if order != "eid":
+            raise NotImplementedError("cugraph-DGL only supports eid order.")
+
+        if etype is None and len(self.canonical_etypes) > 1:
+            raise ValueError("Edge type is required for heterogeneous graphs.")
+
+        etype = self.to_canonical_etype(etype)
+        return torch.arange(
+            0,
+            self.__num_edges_dict[etype],
+            dtype=self.idtype,
+            device=device,
+        )
 
     @property
-    def ndata(self):
-        
+    def ndata(self) -> HeteroNodeDataView:
+        """
+        Returns a view of the node data in this graph which can be used to
+        access or modify node features.
+        """
+
+        if len(self.ntypes) == 1:
+            ntype = self.ntypes[0]
+            return HeteroNodeDataView(self, ntype, dgl.base.ALL)
+
+        return HeteroNodeDataView(self, self.ntypes, dgl.base.ALL)
+
+    @property
+    def edata(self) -> HeteroEdgeDataView:
+        """
+        Returns a view of the edge data in this graph which can be used to
+        access or modify edge features.
+        """
+        if len(self.canonical_etypes) == 1:
+            return HeteroEdgeDataView(self, None, dgl.base.ALL)
+
+        return HeteroEdgeDataView(self, self.canonical_etypes, dgl.base.ALL)
+
+    @property
+    def nodes(self) -> HeteroNodeView:
+        """
+        Returns a view of the nodes in this graph.
+        """
+        return HeteroNodeView(self)
+
+    @property
+    def edges(self) -> HeteroEdgeView:
+        """
+        Returns a view of the edges in this graph.
+        """
+        return HeteroEdgeView(self)
