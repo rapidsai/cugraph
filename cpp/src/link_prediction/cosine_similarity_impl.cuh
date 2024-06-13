@@ -52,7 +52,7 @@ rmm::device_uvector<weight_t> cosine_similarity_coefficients(
                             edge_weight_view,
                             vertex_pairs,
                             detail::cosine_functor_t<weight_t>{},
-                            detail::Coefficient::COSINE,
+                            detail::coefficient_t::COSINE,
                             do_expensive_check);
 }
 
@@ -75,7 +75,7 @@ std::
                                       vertices,
                                       topk,
                                       detail::cosine_functor_t<weight_t>{},
-                                      detail::Coefficient::COSINE,
+                                      detail::coefficient_t::COSINE,
                                       do_expensive_check);
 }
 

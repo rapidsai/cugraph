@@ -54,7 +54,7 @@ rmm::device_uvector<weight_t> jaccard_coefficients(
                             edge_weight_view,
                             vertex_pairs,
                             detail::jaccard_functor_t<weight_t>{},
-                            detail::Coefficient::JACCARD,
+                            detail::coefficient_t::JACCARD,
                             do_expensive_check);
 }
 
@@ -77,7 +77,7 @@ std::
                                       vertices,
                                       topk,
                                       detail::jaccard_functor_t<weight_t>{},
-                                      detail::Coefficient::JACCARD,
+                                      detail::coefficient_t::JACCARD,
                                       do_expensive_check);
 }
 

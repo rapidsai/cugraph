@@ -36,7 +36,7 @@
 namespace cugraph {
 namespace detail {
 
-enum Coefficient { JACCARD, SORENSEN, OVERLAP, COSINE };
+enum coefficient_t { JACCARD, SORENSEN, OVERLAP, COSINE };
 
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu, typename functor_t>
 rmm::device_uvector<weight_t> similarity(
@@ -45,7 +45,7 @@ rmm::device_uvector<weight_t> similarity(
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
   std::tuple<raft::device_span<vertex_t const>, raft::device_span<vertex_t const>> vertex_pairs,
   functor_t functor,
-  Coefficient coff,
+  coefficient_t coeff,
   bool do_expensive_check = false)
 {
   using GraphViewType = graph_view_t<vertex_t, edge_t, false, multi_gpu>;
@@ -91,14 +91,14 @@ rmm::device_uvector<weight_t> similarity(
       vertex_pairs_begin,
       vertex_pairs_begin + num_vertex_pairs,
       weighted_out_degrees.begin(),
-      [functor, coff] __device__(auto a,
+      [functor, coeff] __device__(auto a,
                                  auto b,
                                  auto weight_a,
                                  auto weight_b,
                                  auto intersection,
                                  auto intersected_properties_a,
                                  auto intersected_properties_b) {
-        if (coff == Coefficient::COSINE) {
+        if (coeff == coefficient_t::COSINE) {
           weight_t norm_a                    = weight_t{0};
           weight_t norm_b                    = weight_t{0};
           weight_t sum_of_product_of_a_and_b = weight_t{0};
@@ -180,9 +180,9 @@ rmm::device_uvector<weight_t> similarity(
       vertex_pairs_begin,
       vertex_pairs_begin + num_vertex_pairs,
       out_degrees.begin(),
-      [functor, coff] __device__(
+      [functor, coeff] __device__(
         auto v1, auto v2, auto v1_degree, auto v2_degree, auto intersection, auto, auto) {
-        if (coff == Coefficient::COSINE) {
+        if (coeff == coefficient_t::COSINE) {
           return functor.compute_score(weight_t{1},
                                        weight_t{1},
                                        intersection.size() >= 1 ? weight_t{1} : weight_t{0},
@@ -211,7 +211,7 @@ all_pairs_similarity(raft::handle_t const& handle,
                      std::optional<raft::device_span<vertex_t const>> vertices,
                      std::optional<size_t> topk,
                      functor_t functor,
-                     Coefficient coff,
+                     coefficient_t coeff,
                      bool do_expensive_check = false)
 {
   using GraphViewType = graph_view_t<vertex_t, edge_t, false, multi_gpu>;
@@ -429,7 +429,7 @@ all_pairs_similarity(raft::handle_t const& handle,
                      std::make_tuple(raft::device_span<vertex_t const>{v1.data(), v1.size()},
                                      raft::device_span<vertex_t const>{v2.data(), v2.size()}),
                      functor,
-                     coff,
+                     coeff,
                      do_expensive_check);
 
         // Add a remove_if to remove items that are less than the last topk element
@@ -620,7 +620,7 @@ all_pairs_similarity(raft::handle_t const& handle,
                  std::make_tuple(raft::device_span<vertex_t const>{v1.data(), v1.size()},
                                  raft::device_span<vertex_t const>{v2.data(), v2.size()}),
                  functor,
-                 coff,
+                 coeff,
                  do_expensive_check);
 
     return std::make_tuple(std::move(v1), std::move(v2), std::move(score));

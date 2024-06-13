@@ -54,7 +54,7 @@ rmm::device_uvector<weight_t> overlap_coefficients(
                             edge_weight_view,
                             vertex_pairs,
                             detail::overlap_functor_t<weight_t>{},
-                            detail::Coefficient::OVERLAP,
+                            detail::coefficient_t::OVERLAP,
                             do_expensive_check);
 }
 
@@ -77,7 +77,7 @@ std::
                                       vertices,
                                       topk,
                                       detail::overlap_functor_t<weight_t>{},
-                                      detail::Coefficient::OVERLAP,
+                                      detail::coefficient_t::OVERLAP,
                                       do_expensive_check);
 }
 

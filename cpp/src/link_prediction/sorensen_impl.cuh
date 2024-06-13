@@ -54,7 +54,7 @@ rmm::device_uvector<weight_t> sorensen_coefficients(
                             edge_weight_view,
                             vertex_pairs,
                             detail::sorensen_functor_t<weight_t>{},
-                            detail::Coefficient::SORENSEN,
+                            detail::coefficient_t::SORENSEN,
                             do_expensive_check);
 }
 
@@ -77,7 +77,7 @@ std::
                                       vertices,
                                       topk,
                                       detail::sorensen_functor_t<weight_t>{},
-                                      detail::Coefficient::SORENSEN,
+                                      detail::coefficient_t::SORENSEN,
                                       do_expensive_check);
 }
 
