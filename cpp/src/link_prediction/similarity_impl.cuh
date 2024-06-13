@@ -36,7 +36,7 @@
 namespace cugraph {
 namespace detail {
 
-enum coefficient_t { JACCARD, SORENSEN, OVERLAP, COSINE };
+enum class coefficient_t { JACCARD, SORENSEN, OVERLAP, COSINE };
 
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu, typename functor_t>
 rmm::device_uvector<weight_t> similarity(
@@ -92,12 +92,12 @@ rmm::device_uvector<weight_t> similarity(
       vertex_pairs_begin + num_vertex_pairs,
       weighted_out_degrees.begin(),
       [functor, coeff] __device__(auto a,
-                                 auto b,
-                                 auto weight_a,
-                                 auto weight_b,
-                                 auto intersection,
-                                 auto intersected_properties_a,
-                                 auto intersected_properties_b) {
+                                  auto b,
+                                  auto weight_a,
+                                  auto weight_b,
+                                  auto intersection,
+                                  auto intersected_properties_a,
+                                  auto intersected_properties_b) {
         if (coeff == coefficient_t::COSINE) {
           weight_t norm_a                    = weight_t{0};
           weight_t norm_b                    = weight_t{0};
