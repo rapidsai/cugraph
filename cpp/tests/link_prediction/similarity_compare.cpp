@@ -161,33 +161,56 @@ void weighted_similarity_compare(
           ++intersected_weight_idx;
         });
 
-      weight_t sum_intersected_weights_v1 =
-        std::accumulate(intersected_weights_v1.begin(), intersected_weights_v1.end(), 0.0);
-      weight_t sum_intersected_weights_v2 =
-        std::accumulate(intersected_weights_v2.begin(), intersected_weights_v2.end(), 0.0);
+      if (test_functor.is_jaccard_or_sorensen_or_overlap) {
+        weight_t sum_intersected_weights_v1 =
+          std::accumulate(intersected_weights_v1.begin(), intersected_weights_v1.end(), 0.0);
+        weight_t sum_intersected_weights_v2 =
+          std::accumulate(intersected_weights_v2.begin(), intersected_weights_v2.end(), 0.0);
 
-      weight_t sum_of_uniq_weights_v1 = weighted_vertex_degrees[v1] - sum_intersected_weights_v1;
-      weight_t sum_of_uniq_weights_v2 = weighted_vertex_degrees[v2] - sum_intersected_weights_v2;
+        weight_t sum_of_uniq_weights_v1 = weighted_vertex_degrees[v1] - sum_intersected_weights_v1;
+        weight_t sum_of_uniq_weights_v2 = weighted_vertex_degrees[v2] - sum_intersected_weights_v2;
 
-      weight_t min_weight_v1_intersect_v2 = weight_t{0};
-      weight_t max_weight_v1_intersect_v2 = weight_t{0};
+        weight_t min_weight_v1_intersect_v2 = weight_t{0};
+        weight_t max_weight_v1_intersect_v2 = weight_t{0};
 
-      std::for_each(
-        thrust::make_zip_iterator(intersected_weights_v1.begin(), intersected_weights_v2.begin()),
-        thrust::make_zip_iterator(intersected_weights_v1.end(), intersected_weights_v2.end()),
-        [&min_weight_v1_intersect_v2,
-         &max_weight_v1_intersect_v2](thrust::tuple<weight_t, weight_t> w1_w2) {
-          min_weight_v1_intersect_v2 += std::min(thrust::get<0>(w1_w2), thrust::get<1>(w1_w2));
-          max_weight_v1_intersect_v2 += std::max(thrust::get<0>(w1_w2), thrust::get<1>(w1_w2));
-        });
+        std::for_each(
+          thrust::make_zip_iterator(intersected_weights_v1.begin(), intersected_weights_v2.begin()),
+          thrust::make_zip_iterator(intersected_weights_v1.end(), intersected_weights_v2.end()),
+          [&min_weight_v1_intersect_v2,
+           &max_weight_v1_intersect_v2](thrust::tuple<weight_t, weight_t> w1_w2) {
+            min_weight_v1_intersect_v2 += std::min(thrust::get<0>(w1_w2), thrust::get<1>(w1_w2));
+            max_weight_v1_intersect_v2 += std::max(thrust::get<0>(w1_w2), thrust::get<1>(w1_w2));
+          });
 
-      max_weight_v1_intersect_v2 += (sum_of_uniq_weights_v1 + sum_of_uniq_weights_v2);
-      auto expected_score = test_functor.compute_score(weighted_vertex_degrees[v1],
-                                                       weighted_vertex_degrees[v2],
-                                                       min_weight_v1_intersect_v2,
-                                                       max_weight_v1_intersect_v2);
-      EXPECT_TRUE(compare_functor(score, expected_score))
-        << "score mismatch, got " << score << ", expected " << expected_score;
+        max_weight_v1_intersect_v2 += (sum_of_uniq_weights_v1 + sum_of_uniq_weights_v2);
+        auto expected_score = test_functor.compute_score(weighted_vertex_degrees[v1],
+                                                         weighted_vertex_degrees[v2],
+                                                         min_weight_v1_intersect_v2,
+                                                         max_weight_v1_intersect_v2);
+        EXPECT_TRUE(compare_functor(score, expected_score))
+          << "score mismatch, got " << score << ", expected " << expected_score;
+      } else {
+        weight_t norm_v1   = weight_t{0};
+        weight_t norm_v2   = weight_t{0};
+        weight_t v1_dot_v2 = weight_t{0};
+
+        std::for_each(
+          thrust::make_zip_iterator(intersected_weights_v1.begin(), intersected_weights_v2.begin()),
+          thrust::make_zip_iterator(intersected_weights_v1.end(), intersected_weights_v2.end()),
+          [&norm_v1, &norm_v2, &v1_dot_v2](thrust::tuple<weight_t, weight_t> w1_w2) {
+            auto x = thrust::get<0>(w1_w2);
+            auto y = thrust::get<1>(w1_w2);
+
+            norm_v1 += x * x;
+            norm_v2 += y * y;
+            v1_dot_v2 += x * y;
+          });
+
+        auto expected_score = test_functor.compute_score(
+          std::sqrt(norm_v1), std::sqrt(norm_v2), v1_dot_v2, weight_t{1.0});
+        EXPECT_TRUE(compare_functor(score, expected_score))
+          << "score mismatch, got " << score << ", expected " << expected_score;
+      }
     });
 }
 
@@ -249,15 +272,27 @@ void similarity_compare(
                                                     graph_dst.begin() + v2_end,
                                                     intersection.begin());
 
-      auto expected_score = test_functor.compute_score(
-        static_cast<weight_t>(vertex_degrees[v1]),
-        static_cast<weight_t>(vertex_degrees[v2]),
-        static_cast<weight_t>(std::distance(intersection.begin(), intersection_end)),
-        static_cast<weight_t>(vertex_degrees[v1] + vertex_degrees[v2] -
-                              std::distance(intersection.begin(), intersection_end)));
+      if (test_functor.is_jaccard_or_sorensen_or_overlap) {
+        auto expected_score = test_functor.compute_score(
+          static_cast<weight_t>(vertex_degrees[v1]),
+          static_cast<weight_t>(vertex_degrees[v2]),
+          static_cast<weight_t>(std::distance(intersection.begin(), intersection_end)),
+          static_cast<weight_t>(vertex_degrees[v1] + vertex_degrees[v2] -
+                                std::distance(intersection.begin(), intersection_end)));
 
-      EXPECT_TRUE(compare_functor(score, expected_score))
-        << "score mismatch, got " << score << ", expected " << expected_score;
+        EXPECT_TRUE(compare_functor(score, expected_score))
+          << "score mismatch, got " << score << ", expected " << expected_score;
+
+      } else {
+        auto expected_score =
+          test_functor.compute_score(weight_t{1},
+                                     weight_t{1},
+                                     intersection.size() >= 1 ? weight_t{1} : weight_t{0},
+                                     weight_t{1});
+
+        EXPECT_TRUE(compare_functor(score, expected_score))
+          << "score mismatch, got " << score << ", expected " << expected_score;
+      }
     });
 }
 
@@ -324,8 +359,6 @@ template void similarity_compare(
   std::tuple<std::vector<int64_t>&, std::vector<int64_t>&> vertex_pairs,
   std::vector<float>& result_score,
   test_overlap_t const& test_functor);
-
-////
 
 template void weighted_similarity_compare(
   int32_t num_vertices,

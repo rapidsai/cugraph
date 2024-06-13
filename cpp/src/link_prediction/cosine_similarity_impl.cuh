@@ -24,9 +24,8 @@
 namespace cugraph {
 namespace detail {
 
-template <typename weight_t, bool order_two>
+template <typename weight_t>
 struct cosine_functor_t {
-  static constexpr bool is_order_two = order_two;
   weight_t __device__ compute_score(weight_t norm_a,
                                     weight_t norm_b,
                                     weight_t sum_of_product_of_a_and_b,
@@ -52,7 +51,8 @@ rmm::device_uvector<weight_t> cosine_similarity_coefficients(
                             graph_view,
                             edge_weight_view,
                             vertex_pairs,
-                            detail::cosine_functor_t<weight_t, true>{},
+                            detail::cosine_functor_t<weight_t>{},
+                            detail::Coefficient::COSINE,
                             do_expensive_check);
 }
 
@@ -74,7 +74,8 @@ std::
                                       edge_weight_view,
                                       vertices,
                                       topk,
-                                      detail::cosine_functor_t<weight_t, true>{},
+                                      detail::cosine_functor_t<weight_t>{},
+                                      detail::Coefficient::COSINE,
                                       do_expensive_check);
 }
 

@@ -15,6 +15,7 @@
  */
 
 #include <cugraph/algorithms.hpp>
+#include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/graph_functions.hpp>
 
 #include <raft/comms/mpi_comms.hpp>
@@ -182,7 +183,7 @@ void run_graph_algorithms(
 {
   auto const comm_rank = handle.get_comms().get_rank();
   auto const comm_size = handle.get_comms().get_size();
-
+  /*
   //
   // BFS
   //
@@ -246,6 +247,47 @@ void run_graph_algorithms(
                             d_cluster_assignments.begin(),
                             d_cluster_assignments.size(),
                             std::cout);
+*/
+
+  std::vector<vertex_t> edge_srcs;
+  std::vector<vertex_t> edge_dsts;
+
+  if (comm_rank) {
+    edge_srcs.push_back(0);
+    edge_srcs.push_back(2);
+
+    edge_dsts.push_back(1);
+    edge_dsts.push_back(3);
+  }
+
+  rmm::device_uvector<vertex_t> d_v1(edge_srcs.size(), handle.get_stream());
+  rmm::device_uvector<vertex_t> d_v2(edge_srcs.size(), handle.get_stream());
+
+  raft::update_device(d_v1.data(), edge_srcs.data(), edge_srcs.size(), handle.get_stream());
+  raft::update_device(d_v2.data(), edge_dsts.data(), edge_srcs.size(), handle.get_stream());
+
+  std::tie(d_v1, d_v2, std::ignore, std::ignore, std::ignore) =
+    cugraph::detail::shuffle_int_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning<
+      vertex_t,
+      edge_t,
+      weight_t,
+      int32_t>(handle,
+               std::move(d_v1),
+               std::move(d_v2),
+               std::nullopt,
+               std::nullopt,
+               std::nullopt,
+               graph_view.vertex_partition_range_lasts());
+
+  std::tuple<raft::device_span<vertex_t const>, raft::device_span<vertex_t const>> vertex_pairs{
+    {d_v1.data(), d_v1.size()}, {d_v2.data(), d_v2.size()}};
+
+  auto result_score = cugraph::cosine_similarity_coefficients(
+    handle, graph_view, edge_weight_view, vertex_pairs, true);
+
+  auto result_score_title = std::string("result_score_").append(std::to_string(comm_rank));
+  raft::print_device_vector(
+    result_score_title.c_str(), result_score.begin(), result_score.size(), std::cout);
 }
 
 int main(int argc, char** argv)
@@ -262,10 +304,15 @@ int main(int argc, char** argv)
   using weight_t    = float;
   bool is_symmetric = true;
 
-  std::vector<vertex_t> edge_srcs = {0, 1, 1, 2, 2, 2, 3, 4, 1, 3, 4, 0, 1, 3, 5, 5};
-  std::vector<vertex_t> edge_dsts = {1, 3, 4, 0, 1, 3, 5, 5, 0, 1, 1, 2, 2, 2, 3, 4};
-  std::vector<weight_t> edge_wgts = {
-    0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f, 0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
+  // std::vector<vertex_t> edge_srcs = {0, 1, 1, 2, 2, 2, 3, 4, 1, 3, 4, 0, 1, 3, 5, 5};
+  // std::vector<vertex_t> edge_dsts = {1, 3, 4, 0, 1, 3, 5, 5, 0, 1, 1, 2, 2, 2, 3, 4};
+  // std::vector<weight_t> edge_wgts = {
+  //   0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f,
+  //   0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
+
+  std::vector<vertex_t> edge_srcs = {5, 5, 1, 1, 7, 3, 7, 3};
+  std::vector<vertex_t> edge_dsts = {7, 3, 7, 3, 5, 5, 1, 1};
+  std::vector<weight_t> edge_wgts = {5.7, 5.3, 1.7, 1.3, 5.7, 5.3, 1.7, 1.3};
 
   constexpr bool multi_gpu        = true;
   constexpr bool store_transposed = false;
@@ -290,7 +337,7 @@ int main(int argc, char** argv)
   //
 
   run_graph_algorithms<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(
-    *handle, graph_view, edge_weight_view);
+    *handle, graph_view, std::nullopt);
 
   RAFT_MPI_TRY(MPI_Finalize());
 }

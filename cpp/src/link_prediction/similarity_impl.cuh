@@ -36,6 +36,8 @@
 namespace cugraph {
 namespace detail {
 
+enum Coefficient { JACCARD, SORENSEN, OVERLAP, COSINE };
+
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu, typename functor_t>
 rmm::device_uvector<weight_t> similarity(
   raft::handle_t const& handle,
@@ -43,6 +45,7 @@ rmm::device_uvector<weight_t> similarity(
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
   std::tuple<raft::device_span<vertex_t const>, raft::device_span<vertex_t const>> vertex_pairs,
   functor_t functor,
+  Coefficient coff,
   bool do_expensive_check = false)
 {
   using GraphViewType = graph_view_t<vertex_t, edge_t, false, multi_gpu>;
@@ -81,21 +84,21 @@ rmm::device_uvector<weight_t> similarity(
     rmm::device_uvector<weight_t> weighted_out_degrees =
       compute_out_weight_sums(handle, graph_view, *edge_weight_view);
 
-    if constexpr (functor_t::is_order_two) {
-      per_v_pair_transform_dst_nbr_intersection(
-        handle,
-        graph_view,
-        *edge_weight_view,
-        vertex_pairs_begin,
-        vertex_pairs_begin + num_vertex_pairs,
-        weighted_out_degrees.begin(),
-        [functor] __device__(auto a,
-                             auto b,
-                             auto weight_a,
-                             auto weight_b,
-                             auto intersection,
-                             auto intersected_properties_a,
-                             auto intersected_properties_b) {
+    per_v_pair_transform_dst_nbr_intersection(
+      handle,
+      graph_view,
+      *edge_weight_view,
+      vertex_pairs_begin,
+      vertex_pairs_begin + num_vertex_pairs,
+      weighted_out_degrees.begin(),
+      [functor, coff] __device__(auto a,
+                                 auto b,
+                                 auto weight_a,
+                                 auto weight_b,
+                                 auto intersection,
+                                 auto intersected_properties_a,
+                                 auto intersected_properties_b) {
+        if (coff == Coefficient::COSINE) {
           weight_t norm_a                    = weight_t{0};
           weight_t norm_b                    = weight_t{0};
           weight_t sum_of_product_of_a_and_b = weight_t{0};
@@ -117,28 +120,13 @@ rmm::device_uvector<weight_t> similarity(
                                         thrust::get<1>(lhs) + thrust::get<1>(rhs),
                                         thrust::get<2>(lhs) + thrust::get<2>(rhs));
             });
+
           return functor.compute_score(static_cast<weight_t>(sqrt(norm_a)),
                                        static_cast<weight_t>(sqrt(norm_b)),
                                        static_cast<weight_t>(sum_of_product_of_a_and_b),
-                                       weight_t{1});
-        },
-        similarity_score.begin(),
-        do_expensive_check);
-    } else {
-      per_v_pair_transform_dst_nbr_intersection(
-        handle,
-        graph_view,
-        *edge_weight_view,
-        vertex_pairs_begin,
-        vertex_pairs_begin + num_vertex_pairs,
-        weighted_out_degrees.begin(),
-        [functor] __device__(auto a,
-                             auto b,
-                             auto weight_a,
-                             auto weight_b,
-                             auto intersection,
-                             auto intersected_properties_a,
-                             auto intersected_properties_b) {
+                                       weight_t{1.0});
+
+        } else {
           weight_t sum_of_min_weight_a_intersect_b = weight_t{0};
           weight_t sum_of_max_weight_a_intersect_b = weight_t{0};
           weight_t sum_of_intersected_a            = weight_t{0};
@@ -176,54 +164,39 @@ rmm::device_uvector<weight_t> similarity(
                                        static_cast<weight_t>(weight_b),
                                        static_cast<weight_t>(sum_of_min_weight_a_intersect_b),
                                        static_cast<weight_t>(sum_of_max_weight_a_intersect_b));
-        },
-        similarity_score.begin(),
-        do_expensive_check);
-    }
+        }
+      },
+      similarity_score.begin(),
+      do_expensive_check);
     return similarity_score;
   } else {
     rmm::device_uvector<weight_t> similarity_score(num_vertex_pairs, handle.get_stream());
-
     auto out_degrees = graph_view.compute_out_degrees(handle);
 
-    if constexpr (functor_t::is_order_two) {
-      per_v_pair_transform_dst_nbr_intersection(
-        handle,
-        graph_view,
-        cugraph::edge_dummy_property_t{}.view(),
-        vertex_pairs_begin,
-        vertex_pairs_begin + num_vertex_pairs,
-        out_degrees.begin(),
-        [functor] __device__(
-          auto v1, auto v2, auto v1_degree, auto v2_degree, auto intersection, auto, auto) {
-          return functor.compute_score(static_cast<weight_t>(1),
-                                       static_cast<weight_t>(1),
-                                       static_cast<weight_t>(intersection.size()),
-                                       static_cast<weight_t>(1));
-        },
-        similarity_score.begin(),
-        do_expensive_check);
-
-    } else {
-      per_v_pair_transform_dst_nbr_intersection(
-        handle,
-        graph_view,
-        cugraph::edge_dummy_property_t{}.view(),
-        vertex_pairs_begin,
-        vertex_pairs_begin + num_vertex_pairs,
-        out_degrees.begin(),
-        [functor] __device__(
-          auto v1, auto v2, auto v1_degree, auto v2_degree, auto intersection, auto, auto) {
+    per_v_pair_transform_dst_nbr_intersection(
+      handle,
+      graph_view,
+      cugraph::edge_dummy_property_t{}.view(),
+      vertex_pairs_begin,
+      vertex_pairs_begin + num_vertex_pairs,
+      out_degrees.begin(),
+      [functor, coff] __device__(
+        auto v1, auto v2, auto v1_degree, auto v2_degree, auto intersection, auto, auto) {
+        if (coff == Coefficient::COSINE) {
+          return functor.compute_score(weight_t{1},
+                                       weight_t{1},
+                                       intersection.size() >= 1 ? weight_t{1} : weight_t{0},
+                                       weight_t{1});
+        } else {
           return functor.compute_score(
             static_cast<weight_t>(v1_degree),
             static_cast<weight_t>(v2_degree),
             static_cast<weight_t>(intersection.size()),
             static_cast<weight_t>(v1_degree + v2_degree - intersection.size()));
-        },
-        similarity_score.begin(),
-        do_expensive_check);
-    }
-
+        }
+      },
+      similarity_score.begin(),
+      do_expensive_check);
     return similarity_score;
   }
 }
@@ -238,6 +211,7 @@ all_pairs_similarity(raft::handle_t const& handle,
                      std::optional<raft::device_span<vertex_t const>> vertices,
                      std::optional<size_t> topk,
                      functor_t functor,
+                     Coefficient coff,
                      bool do_expensive_check = false)
 {
   using GraphViewType = graph_view_t<vertex_t, edge_t, false, multi_gpu>;
@@ -455,6 +429,7 @@ all_pairs_similarity(raft::handle_t const& handle,
                      std::make_tuple(raft::device_span<vertex_t const>{v1.data(), v1.size()},
                                      raft::device_span<vertex_t const>{v2.data(), v2.size()}),
                      functor,
+                     coff,
                      do_expensive_check);
 
         // Add a remove_if to remove items that are less than the last topk element
@@ -645,6 +620,7 @@ all_pairs_similarity(raft::handle_t const& handle,
                  std::make_tuple(raft::device_span<vertex_t const>{v1.data(), v1.size()},
                                  raft::device_span<vertex_t const>{v2.data(), v2.size()}),
                  functor,
+                 coff,
                  do_expensive_check);
 
     return std::make_tuple(std::move(v1), std::move(v2), std::move(score));
