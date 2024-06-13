@@ -409,15 +409,10 @@ int main(int argc, char** argv)
   using weight_t    = float;
   bool is_symmetric = true;
 
-  std::vector<vertex_t> edge_srcs = {5, 5, 1, 1, 7, 3, 7, 3};
-  std::vector<vertex_t> edge_dsts = {7, 3, 7, 3, 5, 5, 1, 1};
-  std::vector<weight_t> edge_wgts = {5.7, 5.3, 1.7, 1.3, 5.7, 5.3, 1.7, 1.3};
-
-  // std::vector<vertex_t> edge_srcs = {0, 1, 1, 2, 2, 2, 3, 4, 1, 3, 4, 0, 1, 3, 5, 5};
-  // std::vector<vertex_t> edge_dsts = {1, 3, 4, 0, 1, 3, 5, 5, 0, 1, 1, 2, 2, 2, 3, 4};
-  // std::vector<weight_t> edge_wgts = {
-  //   0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f,
-  //   0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
+  std::vector<vertex_t> edge_srcs = {0, 1, 1, 2, 2, 2, 3, 4, 1, 3, 4, 0, 1, 3, 5, 5};
+  std::vector<vertex_t> edge_dsts = {1, 3, 4, 0, 1, 3, 5, 5, 0, 1, 1, 2, 2, 2, 3, 4};
+  std::vector<weight_t> edge_wgts = {
+    0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f, 0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
 
   constexpr bool multi_gpu        = true;
   constexpr bool store_transposed = false;
