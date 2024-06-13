@@ -56,7 +56,13 @@ fi
 
 cd "${package_dir}"
 
-python -m pip wheel . -w dist -vvv --no-deps --disable-pip-version-check
+python -m pip wheel \
+    -w dist \
+    -vvv \
+    --no-deps \
+    --disable-pip-version-check \
+    --extra-index-url https://pypi.nvidia.com \
+    .
 
 # pure-python packages should be marked as pure, and not have auditwheel run on them.
 if [[ ${package_name} == "nx-cugraph" ]] || \
