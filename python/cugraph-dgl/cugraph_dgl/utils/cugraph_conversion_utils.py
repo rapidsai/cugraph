@@ -1,4 +1,4 @@
-# Copyright (c) 2022-2023, NVIDIA CORPORATION.
+# Copyright (c) 2022-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -13,7 +13,7 @@
 
 # Utils to convert b/w dgl heterograph to cugraph GraphStore
 from __future__ import annotations
-from typing import Dict, Tuple, Union, List
+from typing import Dict, Tuple, Union
 
 from cugraph_dgl.typing import TensorType
 
@@ -124,7 +124,7 @@ def _cast_to_torch_tensor(t: TensorType) -> "torch.Tensor":
     if isinstance(t, torch.Tensor):
         return t
     elif isinstance(t, (cp.ndarray, cudf.Series)):
-        return torch.as_tensor(t, device='cuda')
-    elif isinstance(t, pd.Series, np.ndarray):
-        return torch.as_tensor(t, device='cpu')
+        return torch.as_tensor(t, device="cuda")
+    elif isinstance(t, (pd.Series, np.ndarray)):
+        return torch.as_tensor(t, device="cpu")
     return torch.as_tensor(t)

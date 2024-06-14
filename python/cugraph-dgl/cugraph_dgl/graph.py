@@ -128,11 +128,11 @@ class Graph:
         self, etype: Union[str, Tuple[str, str, str]]
     ) -> Tuple[str, str, str]:
         if etype is None:
-            if len(self.__edge_indices.keys(leaves_only=True, include_nested=True)) > 1:
+            if len(self.canonical_etypes) > 1:
                 raise ValueError("Edge type is required for heterogeneous graphs.")
             return HOMOGENEOUS_EDGE_TYPE
 
-        if isinstance(etype, Tuple[str, str, str]):
+        if isinstance(etype, tuple) and len(etype) == 3:
             return etype
 
         for src_type, rel_type, dst_type in self.__edge_indices.keys(
@@ -209,7 +209,7 @@ class Graph:
 
         for feature_name, feature_tensor in data.items():
             self.__ndata_storage[ntype, feature_name] = self.__ndata_storage_type(
-                feature_tensor, **self.__wg_kwargs
+                _cast_to_torch_tensor(feature_tensor), **self.__wg_kwargs
             )
 
         self.__graph = None
@@ -228,7 +228,7 @@ class Graph:
             The tensor of ids being validated.
         """
         if ntype in self.__num_nodes_dict:
-            if ids.max() + 1 > self.__num_nodes(ntype):
+            if ids.max() + 1 > self.num_nodes(ntype):
                 raise ValueError(
                     f"input tensor contains invalid node ids for type {ntype}"
                 )
@@ -293,7 +293,9 @@ class Graph:
             for attr_name, attr_tensor in data.items():
                 self.__edata_storage[
                     dgl_can_edge_type, attr_name
-                ] = self.__edata_storage_type(attr_tensor, **self.__wg_kwargs)
+                ] = self.__edata_storage_type(
+                    _cast_to_torch_tensor(attr_tensor), **self.__wg_kwargs
+                )
 
         num_edges = self.__edge_indices[dgl_can_edge_type].shape[1]
         if self.is_multi_gpu:
@@ -515,7 +517,7 @@ class Graph:
             is_multigraph=True, is_symmetric=False
         )
 
-        if self.__graph[1] != direction:
+        if self.__graph is not None and self.__graph[1] != direction:
             self.__graph = None
 
         if self.__graph is None:
@@ -582,8 +584,14 @@ class Graph:
             The embedding of the given edge type with the given embedding name.
         """
 
+        if ntype is None:
+            if len(self.ntypes) == 1:
+                ntype = HOMOGENEOUS_NODE_TYPE
+            else:
+                raise ValueError("Must provide the node type for a heterogeneous graph")
+
         if dgl.base.is_all(u):
-            u = torch.arange(self.num_nodes(ntype), dtype=self.idtype)
+            u = torch.arange(self.num_nodes(ntype), dtype=self.idtype, device="cpu")
 
         return self.__ndata_storage[ntype, emb_name].fetch(
             _cast_to_torch_tensor(u), "cuda"
@@ -614,8 +622,10 @@ class Graph:
             The embedding of the given edge type with the given embedding name.
         """
 
+        etype = self.to_canonical_etype(etype)
+
         if dgl.base.is_all(u):
-            u = torch.arange(self.num_edges(etype), dtype=self.idtype)
+            u = torch.arange(self.num_edges(etype), dtype=self.idtype, device="cpu")
 
         return self.__edata_storage[etype, emb_name].fetch(
             _cast_to_torch_tensor(u), "cuda"

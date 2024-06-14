@@ -54,11 +54,11 @@ class HeteroEdgeDataView(MutableMapping):
 
     def __getitem__(self, key: str):
         if isinstance(self._etype, list):
-            return {t: self._graph._get_e_emb(t, key, self._nodes) for t in self._etype}
+            return {t: self._graph._get_e_emb(t, key, self._edges) for t in self._etype}
 
-        return self._graph._get_e_emb(self._etype, key, self._nodes)
+        return self._graph._get_e_emb(self._etype, key, self._edges)
 
-    def __setitem__(self, key: str, val: Union[TensorType, Dict[TensorType]]):
+    def __setitem__(self, key: str, val: Union[TensorType, Dict[str, TensorType]]):
         if isinstance(self._etype, list):
             if not isinstance(val, dict):
                 raise ValueError(
@@ -118,7 +118,7 @@ class HeteroEdgeDataView(MutableMapping):
         return self._transpose().values()
 
     def __repr__(self):
-        return repr(self.__transpose(fetch_vals=False))
+        return repr(self._transpose(fetch_vals=False))
 
 
 class HeteroNodeDataView(MutableMapping):
@@ -155,7 +155,7 @@ class HeteroNodeDataView(MutableMapping):
         else:
             return self._graph._get_n_emb(self._ntype, key, self._nodes)
 
-    def __setitem__(self, key: str, val: Union[TensorType, Dict[TensorType]]):
+    def __setitem__(self, key: str, val: Union[TensorType, Dict[str, TensorType]]):
         if isinstance(self._ntype, list):
             if not isinstance(val, dict):
                 raise ValueError(
@@ -215,7 +215,7 @@ class HeteroNodeDataView(MutableMapping):
         return self._transpose().values()
 
     def __repr__(self):
-        return repr(self.__transpose(fetch_vals=False))
+        return repr(self._transpose(fetch_vals=False))
 
 
 class HeteroEdgeView:
