@@ -127,7 +127,7 @@ class edge_partition_edge_property_device_view_t {
     value_t>
   atomic_add(edge_t offset, value_t val) const
   {
-    cugraph::atomic_add(value_first_ + offset, val);
+    return cugraph::atomic_add(value_first_ + offset, val);
   }
 
   template <typename Iter = ValueIterator>
@@ -154,7 +154,7 @@ class edge_partition_edge_property_device_view_t {
     value_t>
   elementwise_atomic_min(edge_t offset, value_t val) const
   {
-    cugraph::elementwise_atomic_min(value_first_ + offset, val);
+    return cugraph::elementwise_atomic_min(value_first_ + offset, val);
   }
 
   template <typename Iter = ValueIterator, typename T = value_t>
@@ -164,7 +164,7 @@ class edge_partition_edge_property_device_view_t {
     value_t>
   elementwise_atomic_max(edge_t offset, value_t val) const
   {
-    cugraph::elementwise_atomic_max(value_first_ + offset, val);
+    return cugraph::elementwise_atomic_max(value_first_ + offset, val);
   }
 
  private:

@@ -155,6 +155,8 @@ struct transform_local_nbr_indices_t {
                   edge_partition_e_value_input.get(edge_offset + local_nbr_idx));
     } else if (invalid_value) {
       return *invalid_value;
+    } else {
+      return T{};
     }
   }
 };
