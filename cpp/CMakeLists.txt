@@ -295,6 +295,7 @@ set(CUGRAPH_SOURCES
     src/traversal/k_hop_nbrs_mg.cu
     src/mtmg/vertex_result.cu
     src/mtmg/vertex_pairs_result.cu
+    src/from_cugraph_ops/sampling_index.cu
 )
 
 if(USE_CUGRAPH_OPS)

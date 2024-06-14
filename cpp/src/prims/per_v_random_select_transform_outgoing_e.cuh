@@ -15,6 +15,7 @@
  */
 #pragma once
 
+#include "from_cugraph_ops/sampling.hpp"
 #include "prims/detail/sample_and_compute_local_nbr_indices.cuh"
 #include "prims/property_op_utils.cuh"
 
@@ -29,9 +30,6 @@
 #include <cugraph/utilities/shuffle_comm.cuh>
 
 #include <raft/random/rng.cuh>
-#ifndef NO_CUGRAPH_OPS
-#include <cugraph-ops/graph/sampling.hpp>
-#endif
 
 #include <cub/cub.cuh>
 #include <cuda/atomic>
@@ -433,7 +431,7 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
           edge_partition_dst_value_input,
           edge_partition_e_value_input,
           e_op,
-          cugraph::ops::graph::INVALID_ID<edge_t>,
+          cugraph::legacy::ops::graph::INVALID_ID<edge_t>,
           to_thrust_optional(invalid_value),
           K});
     } else {
@@ -457,7 +455,7 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
                                          edge_partition_dst_value_input,
                                          edge_partition_e_value_input,
                                          e_op,
-                                         cugraph::ops::graph::INVALID_ID<edge_t>,
+                                         cugraph::legacy::ops::graph::INVALID_ID<edge_t>,
                                          to_thrust_optional(invalid_value),
                                          K});
     }
@@ -557,7 +555,7 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
         count_valids_t<edge_t>{raft::device_span<edge_t const>(sample_local_nbr_indices.data(),
                                                                sample_local_nbr_indices.size()),
                                K,
-                               cugraph::ops::graph::INVALID_ID<edge_t>});
+                               cugraph::legacy::ops::graph::INVALID_ID<edge_t>});
       (*sample_offsets).set_element_to_zero_async(size_t{0}, handle.get_stream());
       auto typecasted_sample_count_first =
         thrust::make_transform_iterator(sample_counts.begin(), typecast_t<int32_t, size_t>{});
@@ -570,11 +568,11 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
 
       auto pair_first = thrust::make_zip_iterator(thrust::make_tuple(
         sample_local_nbr_indices.begin(), get_dataframe_buffer_begin(sample_e_op_results)));
-      auto pair_last =
-        thrust::remove_if(handle.get_thrust_policy(),
-                          pair_first,
-                          pair_first + sample_local_nbr_indices.size(),
-                          check_invalid_t<edge_t, T>{cugraph::ops::graph::INVALID_ID<edge_t>});
+      auto pair_last  = thrust::remove_if(
+        handle.get_thrust_policy(),
+        pair_first,
+        pair_first + sample_local_nbr_indices.size(),
+        check_invalid_t<edge_t, T>{cugraph::legacy::ops::graph::INVALID_ID<edge_t>});
       sample_local_nbr_indices.resize(0, handle.get_stream());
       sample_local_nbr_indices.shrink_to_fit(handle.get_stream());
 

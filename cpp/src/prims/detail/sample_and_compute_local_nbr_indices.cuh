@@ -15,6 +15,7 @@
  */
 #pragma once
 
+#include "from_cugraph_ops/sampling.hpp"
 #include "prims/detail/partition_v_frontier.cuh"
 #include "prims/detail/transform_v_frontier_e.cuh"
 #include "prims/property_op_utils.cuh"
@@ -32,9 +33,6 @@
 #include <cugraph/vertex_partition_device_view.cuh>
 
 #include <raft/random/rng.cuh>
-#ifndef NO_CUGRAPH_OPS
-#include <cugraph-ops/graph/sampling.hpp>
-#endif
 
 #include <cub/cub.cuh>
 #include <cuda/atomic>
@@ -543,7 +541,7 @@ rmm::device_uvector<edge_t> compute_uniform_sampling_index_without_replacement(
        frontier_degrees =
          raft::device_span<edge_t const>(frontier_degrees.data(), frontier_degrees.size()),
        nbr_indices = raft::device_span<edge_t>(nbr_indices.data(), nbr_indices.size()),
-       invalid_idx = cugraph::ops::graph::INVALID_ID<edge_t>] __device__(size_t i) {
+       invalid_idx = cugraph::legacy::ops::graph::INVALID_ID<edge_t>] __device__(size_t i) {
         auto frontier_idx = frontier_indices[i / K];
         auto degree       = frontier_degrees[frontier_idx];
         auto sample_idx   = static_cast<edge_t>(i % K);
@@ -555,7 +553,7 @@ rmm::device_uvector<edge_t> compute_uniform_sampling_index_without_replacement(
   auto mid_partition_size = frontier_partition_offsets[2] - frontier_partition_offsets[1];
   if (mid_partition_size > 0) {
     // FIXME: tmp_degrees & tmp_nbr_indices can be avoided if we customize
-    // cugraph::ops::get_sampling_index
+    // cugraph::legacy::ops::get_sampling_index
     rmm::device_uvector<edge_t> tmp_degrees(mid_partition_size, handle.get_stream());
     rmm::device_uvector<edge_t> tmp_nbr_indices(mid_partition_size * K, handle.get_stream());
     thrust::gather(handle.get_thrust_policy(),
@@ -563,13 +561,13 @@ rmm::device_uvector<edge_t> compute_uniform_sampling_index_without_replacement(
                    frontier_indices.begin() + frontier_partition_offsets[2],
                    frontier_degrees.begin(),
                    tmp_degrees.begin());
-    cugraph::ops::graph::get_sampling_index(tmp_nbr_indices.data(),
-                                            rng_state,
-                                            tmp_degrees.data(),
-                                            mid_partition_size,
-                                            static_cast<int32_t>(K),
-                                            false,
-                                            handle.get_stream());
+    cugraph::legacy::ops::graph::get_sampling_index(tmp_nbr_indices.data(),
+                                                    rng_state,
+                                                    tmp_degrees.data(),
+                                                    mid_partition_size,
+                                                    static_cast<int32_t>(K),
+                                                    false,
+                                                    handle.get_stream());
     thrust::for_each(
       handle.get_thrust_policy(),
       thrust::make_counting_iterator(size_t{0}),
@@ -652,7 +650,7 @@ rmm::device_uvector<edge_t> compute_uniform_sampling_index_without_replacement(
         }
 
         if (retry_segment_indices) {
-          cugraph::ops::graph::get_sampling_index(
+          cugraph::legacy::ops::graph::get_sampling_index(
             (*retry_nbr_indices).data(),
             rng_state,
             (*retry_degrees).begin(),
@@ -668,7 +666,7 @@ rmm::device_uvector<edge_t> compute_uniform_sampling_index_without_replacement(
                        segment_frontier_degree_first,
                        segment_frontier_degree_first + num_segments,
                        tmp_degrees.begin());
-          cugraph::ops::graph::get_sampling_index(
+          cugraph::legacy::ops::graph::get_sampling_index(
             tmp_nbr_indices.data(),
             rng_state,
             tmp_degrees.data(),
@@ -1075,7 +1073,7 @@ void compute_biased_sampling_index_without_replacement(
          segment_sorted_nbr_indices = raft::device_span<edge_t const>(
            segment_sorted_nbr_indices.data(), segment_sorted_nbr_indices.size()),
          K,
-         invalid_idx = cugraph::ops::graph::INVALID_ID<edge_t>] __device__(size_t i) {
+         invalid_idx = cugraph::legacy::ops::graph::INVALID_ID<edge_t>] __device__(size_t i) {
           auto output_frontier_idx = output_frontier_indices[i / K];
           auto output_idx          = output_frontier_idx * K + (i % K);
           auto degree              = input_degree_offsets[i / K + 1] - input_degree_offsets[i / K];
@@ -1108,7 +1106,7 @@ void compute_biased_sampling_index_without_replacement(
          segment_sorted_nbr_indices = raft::device_span<edge_t const>(
            segment_sorted_nbr_indices.data(), segment_sorted_nbr_indices.size()),
          K,
-         invalid_idx = cugraph::ops::graph::INVALID_ID<edge_t>] __device__(size_t i) {
+         invalid_idx = cugraph::legacy::ops::graph::INVALID_ID<edge_t>] __device__(size_t i) {
           auto degree    = input_degree_offsets[i / K + 1] - input_degree_offsets[i / K];
           auto input_idx = input_degree_offsets[i / K] + (i % K);
           if ((i % K < degree) &&
@@ -1361,7 +1359,7 @@ shuffle_and_compute_local_nbr_values(raft::handle_t const& handle,
                          std::move(local_frontier_sample_offsets));
 }
 
-// skip conversion if local neighbor index is cugraph::ops::graph::INVALID_ID<edge_t>
+// skip conversion if local neighbor index is cugraph::legacy::ops::graph::INVALID_ID<edge_t>
 template <typename GraphViewType, typename VertexIterator>
 rmm::device_uvector<typename GraphViewType::edge_type> convert_to_unmasked_local_nbr_idx(
   raft::handle_t const& handle,
@@ -1431,7 +1429,7 @@ rmm::device_uvector<typename GraphViewType::edge_type> convert_to_unmasked_local
           raft::device_span<edge_t const>(
             std::get<1>(local_frontier_valid_local_nbr_count_inclusive_sums[i]).data(),
             std::get<1>(local_frontier_valid_local_nbr_count_inclusive_sums[i]).size()))},
-      is_not_equal_t<edge_t>{cugraph::ops::graph::INVALID_ID<edge_t>});
+      is_not_equal_t<edge_t>{cugraph::legacy::ops::graph::INVALID_ID<edge_t>});
   }
 
   return std::move(local_nbr_indices);
@@ -1501,13 +1499,13 @@ uniform_sample_and_compute_local_nbr_indices(
   if (with_replacement) {
     if (frontier_degrees.size() > 0) {
       nbr_indices.resize(frontier_degrees.size() * K, handle.get_stream());
-      cugraph::ops::graph::get_sampling_index(nbr_indices.data(),
-                                              rng_state,
-                                              frontier_degrees.data(),
-                                              static_cast<edge_t>(frontier_degrees.size()),
-                                              static_cast<int32_t>(K),
-                                              with_replacement,
-                                              handle.get_stream());
+      cugraph::legacy::ops::graph::get_sampling_index(nbr_indices.data(),
+                                                      rng_state,
+                                                      frontier_degrees.data(),
+                                                      static_cast<edge_t>(frontier_degrees.size()),
+                                                      static_cast<int32_t>(K),
+                                                      with_replacement,
+                                                      handle.get_stream());
       frontier_degrees.resize(0, handle.get_stream());
       frontier_degrees.shrink_to_fit(handle.get_stream());
     }
@@ -1530,7 +1528,7 @@ uniform_sample_and_compute_local_nbr_indices(
       local_frontier_displacements,
       local_frontier_sizes,
       K,
-      cugraph::ops::graph::INVALID_ID<edge_t>);
+      cugraph::legacy::ops::graph::INVALID_ID<edge_t>);
 
   // 4. convert neighbor indices in the neighbor list considering edge mask to neighbor indices in
   // the neighbor list ignoring edge mask
@@ -1743,7 +1741,7 @@ biased_sample_and_compute_local_nbr_indices(
            aggregate_local_frontier_local_degree_offsets.data() + local_frontier_displacements[i],
            local_frontier_sizes[i] + 1),
          invalid_random_number = std::numeric_limits<bias_t>::infinity(),
-         invalid_idx           = cugraph::ops::graph::INVALID_ID<edge_t>] __device__(size_t i) {
+         invalid_idx = cugraph::legacy::ops::graph::INVALID_ID<edge_t>] __device__(size_t i) {
           auto key_idx             = key_indices ? (*key_indices)[i] : (i / K);
           auto local_random_number = sample_local_random_numbers[i];
           if (local_random_number != invalid_random_number) {
@@ -1933,7 +1931,7 @@ biased_sample_and_compute_local_nbr_indices(
              raft::device_span<edge_t const>(frontier_degrees.data(), frontier_degrees.size()),
            nbr_indices = raft::device_span<edge_t>(nbr_indices.data(), nbr_indices.size()),
            K,
-           invalid_idx = cugraph::ops::graph::INVALID_ID<edge_t>] __device__(size_t i) {
+           invalid_idx = cugraph::legacy::ops::graph::INVALID_ID<edge_t>] __device__(size_t i) {
             auto first = thrust::lower_bound(thrust::seq,
                                              sorted_zero_bias_frontier_indices.begin(),
                                              sorted_zero_bias_frontier_indices.end(),
@@ -2363,7 +2361,7 @@ biased_sample_and_compute_local_nbr_indices(
                                      aggregate_local_frontier_local_degree_offsets.size()),
          nbr_indices = raft::device_span<edge_t>(nbr_indices.data(), nbr_indices.size()),
          K,
-         invalid_idx = cugraph::ops::graph::INVALID_ID<edge_t>] __device__(size_t i) {
+         invalid_idx = cugraph::legacy::ops::graph::INVALID_ID<edge_t>] __device__(size_t i) {
           auto start_offset = aggregate_local_frontier_local_degree_offsets[i];
           auto degree       = aggregate_local_frontier_local_degree_offsets[i + 1] - start_offset;
           edge_t num_valid  = 0;
@@ -2411,7 +2409,7 @@ biased_sample_and_compute_local_nbr_indices(
         local_frontier_displacements,
         local_frontier_sizes,
         K,
-        cugraph::ops::graph::INVALID_ID<edge_t>);
+        cugraph::legacy::ops::graph::INVALID_ID<edge_t>);
   }
 
   // 3. convert neighbor indices in the neighbor list considering edge mask to neighbor indices in

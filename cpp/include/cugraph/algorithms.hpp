@@ -1724,6 +1724,8 @@ node2vec_random_walks(raft::handle_t const& handle,
  * list of vertices and sample size per vertex. The output graph consists of the given
  * vertices with each vertex having at most `sample_size` neighbors from the original graph
  *
+ * @deprecated This API will be deprecated.  uniform_neighbor_sample can be used instead.
+ *
  * @tparam graph_t Type of input graph/view (typically, graph_view_t, non-transposed and
  * single-gpu).
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
@@ -1753,6 +1755,8 @@ sample_neighbors_adjacency_list(raft::handle_t const& handle,
  * @brief generate sub-sampled graph as an edge list (COO format) given input graph,
  * list of vertices and sample size per vertex. The output graph consists of the given
  * vertices with each vertex having at most `sample_size` neighbors from the original graph
+ *
+ * @deprecated This API will be deprecated.  uniform_neighbor_sample can be used instead.
  *
  * @tparam graph_t Type of input graph/view (typically, graph_view_t, non-transposed and
  * single-gpu).
