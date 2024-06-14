@@ -452,7 +452,7 @@ dependencies:
     common:
       - output_types: [conda, pyproject, requirements]
         packages:
-          - rapids-build-backend>=0.3.0,<0.4.0.dev0
+          - rapids-build-backend>=0.3.1,<0.4.0.dev0
   python_build_wheel:
     common:
       - output_types: [conda, pyproject, requirements]
