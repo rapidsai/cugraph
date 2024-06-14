@@ -20,7 +20,15 @@ from e3nn.nn import BatchNorm
 
 from cugraph_equivariant.utils import scatter_reduce
 
-from pylibcugraphops.pytorch.operators import FusedFullyConnectedTensorProduct
+try:
+    from pylibcugraphops.pytorch.operators import FusedFullyConnectedTensorProduct
+except ImportError as exc:
+    raise RuntimeError(
+        "FullyConnectedTensorProductConv is no longer supported in "
+        "cugraph-equivariant starting from version 24.08. It will be migrated "
+        "to the new `cuequivariance` package. Please use 24.06 release for the "
+        "legacy interface."
+    ) from exc
 
 
 class Graph(NamedTuple):

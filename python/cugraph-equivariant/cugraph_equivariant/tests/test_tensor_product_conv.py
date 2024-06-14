@@ -13,10 +13,17 @@
 
 import pytest
 
+try:
+    from cugraph_equivariant.nn import FullyConnectedTensorProductConv
+except RuntimeError:
+    pytest.skip(
+        "Migrated to cuequivariance package starting from 24.08.",
+        allow_module_level=True,
+    )
+
 import torch
 from torch import nn
 from e3nn import o3
-from cugraph_equivariant.nn import FullyConnectedTensorProductConv
 from cugraph_equivariant.nn.tensor_product_conv import Graph
 
 device = torch.device("cuda")
