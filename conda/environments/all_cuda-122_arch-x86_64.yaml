@@ -61,6 +61,7 @@ dependencies:
 - pytest-mpl
 - pytest-xdist
 - python-louvain
+- pytorch>=2.0,<2.2.0a0
 - raft-dask==24.6.*
 - rapids-dask-dependency==24.6.*
 - recommonmark
