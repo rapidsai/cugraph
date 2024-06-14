@@ -332,8 +332,8 @@ if hasArg cugraph-service || hasArg all; then
     if hasArg --clean; then
         cleanPythonDir ${REPODIR}/python/cugraph-service
     else
-        python ${PYTHON_ARGS_FOR_INSTALL} --config-settings rapidsai.disable-cuda=true ${REPODIR}/python/cugraph-service/client
-        python ${PYTHON_ARGS_FOR_INSTALL} --config-settings rapidsai.disable-cuda=true ${REPODIR}/python/cugraph-service/server
+        python ${PYTHON_ARGS_FOR_INSTALL} ${REPODIR}/python/cugraph-service/client
+        python ${PYTHON_ARGS_FOR_INSTALL} ${REPODIR}/python/cugraph-service/server
     fi
 fi
 
