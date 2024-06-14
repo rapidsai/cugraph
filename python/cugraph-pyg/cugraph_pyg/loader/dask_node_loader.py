@@ -42,6 +42,10 @@ InputNodes = (
 
 
 class BulkSampleLoader:
+    """
+    Iterator that executes sampling using Dask and cuGraph and
+    loads sampled minibatches from disk.
+    """
 
     __ex_parquet_file = re.compile(r"batch=([0-9]+)\-([0-9]+)\.parquet")
 
@@ -488,6 +492,11 @@ class BulkSampleLoader:
 
 
 class DaskNeighborLoader:
+    """
+    Duck-typed version of the PyG NeighborLoader interface that uses
+    Dask to sample nodes using the uniform neighbor sampling algorithm.
+    """
+
     def __init__(
         self,
         data: Union[DaskGraphStore, Tuple[DaskGraphStore, DaskGraphStore]],
@@ -496,6 +505,8 @@ class DaskNeighborLoader:
         **kwargs,
     ):
         """
+        Constructs a new DaskNeighborLoader object.
+
         Parameters
         ----------
         data: DaskGraphStore or (DaskGraphStore, DaskGraphStore)
