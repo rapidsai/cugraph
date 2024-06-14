@@ -77,4 +77,3 @@ include = [
 [tool.rapids-build-backend]
 build-backend = "setuptools.build_meta"
 dependencies-file = "../../../dependencies.yaml"
-disable-cuda = true

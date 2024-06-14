@@ -109,7 +109,7 @@ BUILD_CPP_MTMG_TESTS=OFF
 BUILD_ALL_GPU_ARCH=0
 BUILD_WITH_CUGRAPHOPS=ON
 CMAKE_GENERATOR_OPTION="-G Ninja"
-PYTHON_ARGS_FOR_INSTALL="-m pip install --no-build-isolation --no-deps"
+PYTHON_ARGS_FOR_INSTALL="-m pip install --no-build-isolation --no-deps --config-settings rapidsai.disable-cuda=true"
 
 # Set defaults for vars that may not have been defined externally
 #  FIXME: if PREFIX is not set, check CONDA_PREFIX, but there is no fallback
@@ -313,7 +313,7 @@ if buildDefault || hasArg pylibcugraph || hasArg all; then
         cleanPythonDir ${REPODIR}/python/pylibcugraph
     else
         SKBUILD_CMAKE_ARGS="${SKBUILD_EXTRA_CMAKE_ARGS};-DUSE_CUGRAPH_OPS=${BUILD_WITH_CUGRAPHOPS}" \
-            python ${PYTHON_ARGS_FOR_INSTALL} --config-settings rapidsai.disable-cuda=true ${REPODIR}/python/pylibcugraph
+            python ${PYTHON_ARGS_FOR_INSTALL} ${REPODIR}/python/pylibcugraph
     fi
 fi
 
@@ -323,7 +323,7 @@ if buildDefault || hasArg cugraph || hasArg all; then
         cleanPythonDir ${REPODIR}/python/cugraph
     else
         SKBUILD_CMAKE_ARGS="${SKBUILD_EXTRA_CMAKE_ARGS};-DUSE_CUGRAPH_OPS=${BUILD_WITH_CUGRAPHOPS}" \
-            python ${PYTHON_ARGS_FOR_INSTALL} --config-settings rapidsai.disable-cuda=true ${REPODIR}/python/cugraph
+            python ${PYTHON_ARGS_FOR_INSTALL} ${REPODIR}/python/cugraph
     fi
 fi
 
@@ -342,7 +342,7 @@ if hasArg cugraph-pyg || hasArg all; then
     if hasArg --clean; then
         cleanPythonDir ${REPODIR}/python/cugraph-pyg
     else
-        python ${PYTHON_ARGS_FOR_INSTALL} --config-settings rapidsai.disable-cuda=true ${REPODIR}/python/cugraph-pyg
+        python ${PYTHON_ARGS_FOR_INSTALL} ${REPODIR}/python/cugraph-pyg
     fi
 fi
 
@@ -351,7 +351,7 @@ if hasArg cugraph-dgl || hasArg all; then
     if hasArg --clean; then
         cleanPythonDir ${REPODIR}/python/cugraph-dgl
     else
-        python ${PYTHON_ARGS_FOR_INSTALL} --config-settings rapidsai.disable-cuda=true ${REPODIR}/python/cugraph-dgl
+        python ${PYTHON_ARGS_FOR_INSTALL} ${REPODIR}/python/cugraph-dgl
     fi
 fi
 
@@ -360,7 +360,7 @@ if hasArg cugraph-equivariant || hasArg all; then
     if hasArg --clean; then
         cleanPythonDir ${REPODIR}/python/cugraph-equivariant
     else
-        python ${PYTHON_ARGS_FOR_INSTALL} --config-settings rapidsai.disable-cuda=true ${REPODIR}/python/cugraph-equivariant
+        python ${PYTHON_ARGS_FOR_INSTALL} ${REPODIR}/python/cugraph-equivariant
     fi
 fi
 
@@ -369,7 +369,7 @@ if hasArg nx-cugraph || hasArg all; then
     if hasArg --clean; then
         cleanPythonDir ${REPODIR}/python/nx-cugraph
     else
-        python ${PYTHON_ARGS_FOR_INSTALL} --config-settings rapidsai.disable-cuda=true ${REPODIR}/python/nx-cugraph
+        python ${PYTHON_ARGS_FOR_INSTALL} ${REPODIR}/python/nx-cugraph
     fi
 fi
 
