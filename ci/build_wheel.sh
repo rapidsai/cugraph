@@ -56,12 +56,18 @@ fi
 
 cd "${package_dir}"
 
+
+PARALLEL_LEVEL=$(python -c \
+  "from math import ceil; from multiprocessing import cpu_count; print(ceil(cpu_count()/2))")
+
+SKBUILD_BUILD_OPTIONS="-j${PARALLEL_LEVEL}" \
 python -m pip wheel \
     -w dist \
     -vvv \
     --no-deps \
     --disable-pip-version-check \
     --extra-index-url https://pypi.nvidia.com \
+    --global-option="-j${PARALLEL_LEVEL}" \
     .
 
 # pure-python packages should be marked as pure, and not have auditwheel run on them.
