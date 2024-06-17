@@ -64,7 +64,6 @@ python -m pip wheel \
     --no-deps \
     --disable-pip-version-check \
     --extra-index-url https://pypi.nvidia.com \
-    --global-option="-j${PARALLEL_LEVEL}" \
     .
 
 # pure-python packages should be marked as pure, and not have auditwheel run on them.
