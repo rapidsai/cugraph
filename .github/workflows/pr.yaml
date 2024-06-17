@@ -103,7 +103,7 @@ jobs:
       extra-repo: rapidsai/cugraph-ops
       extra-repo-sha: branch-24.08
       extra-repo-deploy-key: CUGRAPH_OPS_SSH_PRIVATE_DEPLOY_KEY
-      node_type: cpu32
+      node_type: cpu8
 # wheel-tests-pylibcugraph:
 #   needs: wheel-build-pylibcugraph
 #   secrets: inherit
