@@ -23,6 +23,7 @@ from cudf.core.column import as_column
 from cuda.cudart import cudaDeviceAttr
 from rmm._cuda.gpu import getDeviceAttribute
 
+from warnings import warn
 
 # optional dependencies
 try:
@@ -334,6 +335,9 @@ def ensure_cugraph_obj_for_nx(
 
     input_type = type(obj)
     if is_nx_graph_type(input_type):
+        warn("Accepting a NetworkX object is being deprecated."
+            " Please use the nx-cugraph plug-in for NetworkX", 
+             DeprecationWarning, 2)
         return (
             convert_from_nx(
                 obj,
