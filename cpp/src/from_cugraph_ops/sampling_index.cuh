@@ -9,9 +9,6 @@
 #pragma once
 
 #include "algo_R.cuh"
-#include "cudart.hpp"
-#include "format.hpp"
-#include "nvtx.hpp"
 #include "sampling.hpp"
 
 #include <raft/random/rng.cuh>
@@ -22,6 +19,7 @@
 namespace cugraph::legacy::ops::graph {
 
 namespace utils = cugraph::ops::utils;
+
 template <typename IdxT>
 using smem_algo_r_t = utils::smem_unit_simple_t<1, IdxT>;
 
@@ -50,7 +48,7 @@ CUGRAPH_OPS_KERNEL void index_replace_kernel(raft::random::DeviceState<GenT> rng
   if (size <= 0) {
     CUGRAPH_OPS_UNROLL
     for (auto i = lane; i < sample_size; i += utils::WARP_SIZE) {
-      index[row_id * IdxT{sample_size} + IdxT{i}] = graph::INVALID_ID<IdxT>;
+      index[row_id * IdxT{sample_size} + IdxT{i}] = cugraph::invalid_idx<IdxT>::value;
     }
     return;
   }
@@ -124,8 +122,9 @@ CUGRAPH_OPS_KERNEL void index_algo_r_kernel(raft::random::DeviceState<GenT> rng_
   for (auto i = lane; i < sample_size; i += utils::WARP_SIZE) {
     // 4. output index
     // still need to check if the index is actually valid
-    auto idx                                    = s_idx[i];
-    index[row_id * IdxT{sample_size} + IdxT{i}] = idx >= size ? graph::INVALID_ID<IdxT> : idx;
+    auto idx = s_idx[i];
+    index[row_id * IdxT{sample_size} + IdxT{i}] =
+      idx >= size ? cugraph::invalid_idx<IdxT>::value : idx;
   }
 }
 

@@ -9,7 +9,8 @@
 #pragma once
 
 #include "device.cuh"
-#include "format.hpp"
+
+#include <cugraph/graph.hpp>
 
 #include <raft/random/rng.cuh>
 #include <raft/random/rng_device.cuh>
@@ -143,15 +144,15 @@ CUGRAPH_OPS_KERNEL void algo_r_kernel(raft::random::DeviceState<GenT> rng_state,
     auto nidx = s_idx[i];
     // checking for node_end here because sample_size may be larger than
     // the total number of neighbors of the node
-    auto val = nidx < node_end ? indices[nidx] : cugraph::legacy::ops::graph::INVALID_ID<IdxT>;
+    auto val = nidx < node_end ? indices[nidx] : cugraph::invalid_idx<IdxT>::value;
     // TODO(mjoux) it's possible that we break the ELLPACK format here since
     // if we set val to invalid, we should add it to end of list, rather
     // than simply at index "i". This is ignored for now since the case
     // where SAMPLE_SELF := false is rare and unconventional
-    if (!SAMPLE_SELF && val == node_id) val = cugraph::legacy::ops::graph::INVALID_ID<IdxT>;
+    if (!SAMPLE_SELF && val == node_id) val = cugraph::invalid_idx<IdxT>::value;
     auto local_id       = row_id * IdxT{sample_size} + i;
     neighbors[local_id] = val;
-    if (val != cugraph::legacy::ops::graph::INVALID_ID<IdxT>) {
+    if (val != cugraph::invalid_idx<IdxT>::value) {
       ++count;
       if (IS_HG) edge_types[local_id] = g_edge_types[nidx];
     }
@@ -234,112 +235,5 @@ void algo_r_impl(IdxT* neighbors,
   rng.advance(static_cast<uint64_t>(n_blks * TPB), thread_rs);
   RAFT_CUDA_TRY(cudaGetLastError());
 }
-
-#if 0
-/**
- * @brief Reservoir sampling algorithm R as described in the wiki page here:
- *        https://en.wikipedia.org/wiki/Reservoir_sampling#Simple_algorithm
- */
-template <typename IdxT>
-void algo_r(IdxT* neighbors,
-            IdxT* counts,
-            raft::random::RngState& rng,
-            const graph::csc<IdxT>& graph,
-            const IdxT* nodes,
-            IdxT n_dst_nodes,
-            IdxT sample_size,
-            IdxT max_val,
-            bool sample_self,
-            cudaStream_t stream)
-{
-  if (sample_self) {
-    algo_r_impl<IdxT, true, false>(neighbors,
-                                   counts,
-                                   nullptr,
-                                   nullptr,
-                                   rng,
-                                   graph.offsets,
-                                   graph.indices,
-                                   nullptr,
-                                   nullptr,
-                                   nodes,
-                                   n_dst_nodes,
-                                   graph.n_dst_nodes,
-                                   sample_size,
-                                   max_val,
-                                   stream);
-  } else {
-    algo_r_impl<IdxT, false, false>(neighbors,
-                                    counts,
-                                    nullptr,
-                                    nullptr,
-                                    rng,
-                                    graph.offsets,
-                                    graph.indices,
-                                    nullptr,
-                                    nullptr,
-                                    nodes,
-                                    n_dst_nodes,
-                                    graph.n_dst_nodes,
-                                    sample_size,
-                                    max_val,
-                                    stream);
-  }
-}
-
-/**
- * @brief Reservoir sampling algorithm for heterogeneous graphs.
- *
- * @note Simply copies over out node and edge type information
- */
-template <typename IdxT>
-void algo_r(IdxT* neighbors,
-            IdxT* counts,
-            int32_t* edge_types,
-            int32_t* dst_node_types,
-            raft::random::RngState& rng,
-            const graph::csc_hg<IdxT>& graph,
-            const IdxT* nodes,
-            IdxT n_dst_nodes,
-            IdxT sample_size,
-            IdxT max_val,
-            bool sample_self,
-            cudaStream_t stream)
-{
-  if (sample_self) {
-    algo_r_impl<IdxT, true, true>(neighbors,
-                                  counts,
-                                  edge_types,
-                                  dst_node_types,
-                                  rng,
-                                  graph.offsets,
-                                  graph.indices,
-                                  graph.edge_types,
-                                  graph.node_types,
-                                  nodes,
-                                  n_dst_nodes,
-                                  graph.n_dst_nodes,
-                                  sample_size,
-                                  max_val,
-                                  stream);
-  } else {
-    algo_r_impl<IdxT, false, true>(neighbors,
-                                   counts,
-                                   edge_types,
-                                   dst_node_types,
-                                   rng,
-                                   graph.offsets,
-                                   graph.indices,
-                                   graph.edge_types,
-                                   graph.node_types,
-                                   nodes,
-                                   n_dst_nodes,
-                                   graph.n_dst_nodes,
-                                   sample_size,
-                                   max_val,
-                                   stream);
-  }
-}
-#endif
 
 }  // namespace cugraph::ops::graph
