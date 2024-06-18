@@ -11,7 +11,8 @@
 # or implied. See the License for the specific language governing permissions and limitations under
 # the License.
 # =============================================================================
-file(READ "${CMAKE_CURRENT_LIST_DIR}/VERSION" _rapids_version)
+# file(READ "${CMAKE_CURRENT_LIST_DIR}/VERSION" _rapids_version)
+set(_rapids_version "24.06.00")
 if(_rapids_version MATCHES [[^([0-9][0-9])\.([0-9][0-9])\.([0-9][0-9])]])
   set(RAPIDS_VERSION_MAJOR "${CMAKE_MATCH_1}")
   set(RAPIDS_VERSION_MINOR "${CMAKE_MATCH_2}")
