@@ -56,6 +56,9 @@ fi
 
 cd "${package_dir}"
 
+rapids-print-env
+
+export PARALLEL_LEVEL=10
 
 SKBUILD_BUILD_OPTIONS="-j${PARALLEL_LEVEL}" \
 python -m pip wheel \
