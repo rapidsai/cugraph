@@ -1,4 +1,4 @@
-# Copyright (c) 2020-2023, NVIDIA CORPORATION.
+# Copyright (c) 2020-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -337,9 +337,9 @@ def ensure_cugraph_obj_for_nx(
     if is_nx_graph_type(input_type):
         warn(
             "Accepting a NetworkX object is being deprecated."
-            " Please use the nx-cugraph plug-in for NetworkX", 
-             DeprecationWarning, 
-             2,
+            " Please use the nx-cugraph plug-in for NetworkX",
+            DeprecationWarning,
+            2,
         )
         return (
             convert_from_nx(
