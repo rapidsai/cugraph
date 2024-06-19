@@ -1,4 +1,4 @@
-# Copyright (c) 2020-2023, NVIDIA CORPORATION.
+# Copyright (c) 2020-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -10,6 +10,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
+from dask import config
 
 from .link_analysis.pagerank import pagerank
 from .link_analysis.hits import hits
@@ -35,3 +37,6 @@ from .link_prediction.jaccard import jaccard
 from .link_prediction.sorensen import sorensen
 from .link_prediction.overlap import overlap
 from .community.leiden import leiden
+
+# Avoid "p2p" shuffling in dask for now
+config.set({"dataframe.shuffle.method": "tasks"})

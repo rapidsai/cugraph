@@ -95,7 +95,7 @@ def main():
     with tempfile.TemporaryDirectory() as directory:
         tmp.spawn(
             sample,
-            args=(world_size, uid, el, "."),
+            args=(world_size, uid, el, directory),
             nprocs=world_size,
         )
 

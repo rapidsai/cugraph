@@ -1,4 +1,4 @@
-# Copyright (c) 2020-2023, NVIDIA CORPORATION.
+# Copyright (c) 2020-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -200,8 +200,8 @@ def test_enable_batch_edgelist_replication(graph_file, directed, dask_client):
     G = utils.generate_cugraph_graph_from_file(graph_file, directed)
     G.enable_batch()
     df = G.edgelist.edgelist_df
-    for worker in G.batch_edgelists:
-        replicated_df = G.batch_edgelists[worker].result()
+    for i in range(G.batch_edgelists.npartitions):
+        replicated_df = G.batch_edgelists.get_partition(i).compute()
         assert_frame_equal(df, replicated_df)
 
 

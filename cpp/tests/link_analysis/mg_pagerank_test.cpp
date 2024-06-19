@@ -202,13 +202,15 @@ class Tests_MGPageRank
       std::optional<
         cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, true, false>, weight_t>>
         sg_edge_weights{std::nullopt};
-      std::tie(sg_graph, sg_edge_weights, std::ignore) = cugraph::test::mg_graph_to_sg_graph(
-        *handle_,
-        mg_graph_view,
-        mg_edge_weight_view,
-        std::make_optional<raft::device_span<vertex_t const>>((*d_mg_renumber_map).data(),
-                                                              (*d_mg_renumber_map).size()),
-        false);
+      std::tie(sg_graph, sg_edge_weights, std::ignore, std::ignore) =
+        cugraph::test::mg_graph_to_sg_graph(
+          *handle_,
+          mg_graph_view,
+          mg_edge_weight_view,
+          std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
+          std::make_optional<raft::device_span<vertex_t const>>((*d_mg_renumber_map).data(),
+                                                                (*d_mg_renumber_map).size()),
+          false);
 
       if (handle_->get_comms().get_rank() == int{0}) {
         // 4-2. run SG PageRank

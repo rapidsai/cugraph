@@ -848,6 +848,23 @@ def bench_weakly_connected_components(benchmark, graph_obj, backend_wrapper):
     assert type(result) is list
 
 
+def bench_ego_graph(benchmark, graph_obj, backend_wrapper):
+    G = get_graph_obj_for_benchmark(graph_obj, backend_wrapper)
+    node = get_highest_degree_node(graph_obj)
+    result = benchmark.pedantic(
+        target=backend_wrapper(nx.ego_graph),
+        args=(G,),
+        kwargs=dict(
+            n=node,
+            radius=100,
+        ),
+        rounds=rounds,
+        iterations=iterations,
+        warmup_rounds=warmup_rounds,
+    )
+    assert isinstance(result, (nx.Graph, nxcg.Graph))
+
+
 @pytest.mark.skip(reason="benchmark not implemented")
 def bench_complete_bipartite_graph(benchmark, graph_obj, backend_wrapper):
     pass
