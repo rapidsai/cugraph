@@ -413,6 +413,7 @@ add_library(cugraph_c
         src/c_api/random.cpp
         src/c_api/similarity.cpp
         src/c_api/leiden.cpp
+        src/c_api/lookup_src_dst.cpp
         src/c_api/louvain.cpp
         src/c_api/triangle_count.cpp
         src/c_api/uniform_neighbor_sampling.cpp
