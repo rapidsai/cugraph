@@ -36,6 +36,10 @@ from cugraph.utilities.utils import (
 )
 
 torch = import_optional("torch")
+if __name__ == "__main__" and not isinstance(torch, MissingModule):
+    from rmm.allocators.torch import rmm_torch_allocator
+
+    torch.cuda.change_current_allocator(rmm_torch_allocator)
 
 
 def karate_mg_graph(rank, world_size):
