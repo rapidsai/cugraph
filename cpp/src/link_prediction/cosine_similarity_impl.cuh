@@ -25,22 +25,20 @@ namespace cugraph {
 namespace detail {
 
 template <typename weight_t>
-struct sorensen_functor_t {
-  weight_t __device__ compute_score(weight_t weight_a,
-                                    weight_t weight_b,
-                                    weight_t weight_a_intersect_b,
-                                    weight_t weight_a_union_b) const
+struct cosine_functor_t {
+  weight_t __device__ compute_score(weight_t norm_a,
+                                    weight_t norm_b,
+                                    weight_t sum_of_product_of_a_and_b,
+                                    weight_t reserved_param) const
   {
-    return (weight_a + weight_b) <= std::numeric_limits<weight_t>::min()
-             ? weight_t{0}
-             : (2 * weight_a_intersect_b) / (weight_a + weight_b);
+    return sum_of_product_of_a_and_b / (norm_a * norm_b);
   }
 };
 
 }  // namespace detail
 
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
-rmm::device_uvector<weight_t> sorensen_coefficients(
+rmm::device_uvector<weight_t> cosine_similarity_coefficients(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
@@ -53,15 +51,15 @@ rmm::device_uvector<weight_t> sorensen_coefficients(
                             graph_view,
                             edge_weight_view,
                             vertex_pairs,
-                            detail::sorensen_functor_t<weight_t>{},
-                            detail::coefficient_t::SORENSEN,
+                            detail::cosine_functor_t<weight_t>{},
+                            detail::coefficient_t::COSINE,
                             do_expensive_check);
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 std::
   tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>, rmm::device_uvector<weight_t>>
-  sorensen_all_pairs_coefficients(
+  cosine_similarity_all_pairs_coefficients(
     raft::handle_t const& handle,
     graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
     std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
@@ -76,8 +74,8 @@ std::
                                       edge_weight_view,
                                       vertices,
                                       topk,
-                                      detail::sorensen_functor_t<weight_t>{},
-                                      detail::coefficient_t::SORENSEN,
+                                      detail::cosine_functor_t<weight_t>{},
+                                      detail::coefficient_t::COSINE,
                                       do_expensive_check);
 }
 
