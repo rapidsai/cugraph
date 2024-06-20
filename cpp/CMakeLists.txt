@@ -195,9 +195,11 @@ set(CUGRAPH_SOURCES
     src/link_prediction/jaccard_sg.cu
     src/link_prediction/sorensen_sg.cu
     src/link_prediction/overlap_sg.cu
+    src/link_prediction/cosine_sg.cu
     src/link_prediction/jaccard_mg.cu
     src/link_prediction/sorensen_mg.cu
     src/link_prediction/overlap_mg.cu
+    src/link_prediction/cosine_mg.cu
     src/layout/legacy/force_atlas2.cu
     src/converters/legacy/COOtoCSR.cu
     src/community/legacy/spectral_clustering.cu
