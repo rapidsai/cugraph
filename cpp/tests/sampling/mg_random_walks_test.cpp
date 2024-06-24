@@ -71,7 +71,7 @@ struct BiasedRandomWalks_Usecase {
   }
 
   // FIXME: Not currently implemented
-  bool expect_throw() { return true; }
+  bool expect_throw() { return !test_weighted; }
 };
 
 struct Node2VecRandomWalks_Usecase {
@@ -295,7 +295,7 @@ INSTANTIATE_TEST_SUITE_P(
                       cugraph::test::File_Usecase("test/datasets/web-Google.mtx"),
                       cugraph::test::File_Usecase("test/datasets/ljournal-2008.mtx"),
                       cugraph::test::File_Usecase("test/datasets/webbase-1M.mtx"))));
-
+                      
 INSTANTIATE_TEST_SUITE_P(
   simple_test,
   Tests_BiasedRandomWalks_File,
