@@ -51,7 +51,7 @@ cdef extern from "cugraph_c/lookup_src_dst.h":
         const lookup_container_t* lookup_container,
         const cugraph_type_erased_device_array_view_t* edge_ids_to_lookup,
         int edge_type_to_lookup,
-        lookup_container_t** result,
+        lookup_result_t** result,
         cugraph_error_t** error)
 
     cdef cugraph_error_code_t cugraph_lookup_endpoints_from_edge_ids_and_types(
@@ -60,5 +60,5 @@ cdef extern from "cugraph_c/lookup_src_dst.h":
         const lookup_container_t* lookup_container,
         const cugraph_type_erased_device_array_view_t* edge_ids_to_lookup,
         const cugraph_type_erased_device_array_view_t* edge_types_to_lookup,
-        lookup_container_t** result,
+        lookup_result_t** result,
         cugraph_error_t** error)
