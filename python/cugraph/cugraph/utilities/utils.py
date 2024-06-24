@@ -336,8 +336,9 @@ def ensure_cugraph_obj_for_nx(
     input_type = type(obj)
     if is_nx_graph_type(input_type):
         warn(
-            "Accepting a NetworkX object is being deprecated."
-            " Please use the nx-cugraph plug-in for NetworkX",
+            "Support for accepting and returning NetworkX objects is "
+            "deprecated. Please use NetworkX with the nx-cugraph backend "
+            "when working with NetworkX objects in GPU environments."
             DeprecationWarning,
             2,
         )

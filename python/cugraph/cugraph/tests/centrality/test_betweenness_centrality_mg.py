@@ -21,6 +21,8 @@ import cugraph
 import cugraph.dask as dcg
 from cugraph.datasets import karate, dolphins
 
+import warnings
+warnings.filterwarnings("ignore", category=DeprecationWarning, module=cugraph)
 
 # =============================================================================
 # Pytest Setup / Teardown - called for each test function
