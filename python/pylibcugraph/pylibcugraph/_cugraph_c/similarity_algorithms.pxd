@@ -50,7 +50,7 @@ cdef extern from "cugraph_c/similarity_algorithms.h":
         cugraph_similarity_result_free(
             cugraph_similarity_result_t* result
         )
-
+    
     ###########################################################################
     # jaccard coefficients
     cdef cugraph_error_code_t \
@@ -59,6 +59,20 @@ cdef extern from "cugraph_c/similarity_algorithms.h":
             cugraph_graph_t* graph,
             const cugraph_vertex_pairs_t* vertex_pairs,
             bool_t use_weight,
+            bool_t do_expensive_check,
+            cugraph_similarity_result_t** result,
+            cugraph_error_t** error
+        )
+    
+    ###########################################################################
+    # all-pairs jaccard coefficients
+    cdef cugraph_error_code_t \
+        cugraph_all_pairs_jaccard_coefficients(
+            const cugraph_resource_handle_t* handle,
+            cugraph_graph_t* graph,
+            const cugraph_type_erased_device_array_view_t* vertices,
+            bool_t use_weight,
+            size_t topk,
             bool_t do_expensive_check,
             cugraph_similarity_result_t** result,
             cugraph_error_t** error
@@ -76,6 +90,20 @@ cdef extern from "cugraph_c/similarity_algorithms.h":
             cugraph_similarity_result_t** result,
             cugraph_error_t** error
         )
+    
+    ###########################################################################
+    # all-pairs sorensen coefficients
+    cdef cugraph_error_code_t \
+        cugraph_all_pairs_sorensen_coefficients(
+            const cugraph_resource_handle_t* handle,
+            cugraph_graph_t* graph,
+            const cugraph_type_erased_device_array_view_t* vertices,
+            bool_t use_weight,
+            size_t topk,
+            bool_t do_expensive_check,
+            cugraph_similarity_result_t** result,
+            cugraph_error_t** error
+        )
 
     ###########################################################################
     # overlap coefficients
@@ -85,6 +113,20 @@ cdef extern from "cugraph_c/similarity_algorithms.h":
             cugraph_graph_t* graph,
             const cugraph_vertex_pairs_t* vertex_pairs,
             bool_t use_weight,
+            bool_t do_expensive_check,
+            cugraph_similarity_result_t** result,
+            cugraph_error_t** error
+        )
+    
+    ###########################################################################
+    # all-pairs overlap coefficients
+    cdef cugraph_error_code_t \
+        cugraph_all_pairs_overlap_coefficients(
+            const cugraph_resource_handle_t* handle,
+            cugraph_graph_t* graph,
+            const cugraph_type_erased_device_array_view_t* vertices,
+            bool_t use_weight,
+            size_t topk,
             bool_t do_expensive_check,
             cugraph_similarity_result_t** result,
             cugraph_error_t** error
