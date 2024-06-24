@@ -28,14 +28,6 @@ from cugraph_equivariant.nn.tensor_product_conv import Graph
 
 device = torch.device("cuda")
 
-try:
-    from cugraph_equivariant.nn import FullyConnectedTensorProductConv
-except RuntimeError:
-    pytest.skip(
-        "Migrated to cuequivariance package starting from 24.08.",
-        allow_module_level=True,
-    )
-
 
 def create_random_graph(
     num_src_nodes,
