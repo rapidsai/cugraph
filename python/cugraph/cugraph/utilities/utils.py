@@ -338,7 +338,7 @@ def ensure_cugraph_obj_for_nx(
         warn(
             "Support for accepting and returning NetworkX objects is "
             "deprecated. Please use NetworkX with the nx-cugraph backend "
-            "when working with NetworkX objects in GPU environments."
+            "when working with NetworkX objects in GPU environments.",
             DeprecationWarning,
             2,
         )

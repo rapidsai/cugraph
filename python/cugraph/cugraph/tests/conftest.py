@@ -23,6 +23,10 @@ import tempfile
 # Avoid timeout during shutdown
 from dask_cuda.utils_test import IncreasedCloseTimeoutNanny
 
+import warnings
+warnings.filterwarnings("ignore", category=DeprecationWarning, module="cugraph")
+
+
 # module-wide fixtures
 
 
