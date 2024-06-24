@@ -24,6 +24,8 @@ import cugraph
 from cugraph.datasets import karate_disjoint
 from cugraph.testing import utils, SMALL_DATASETS
 
+import warnings
+warnings.filterwarnings("ignore", category=DeprecationWarning, module=cugraph)
 
 # =============================================================================
 # Parameters
