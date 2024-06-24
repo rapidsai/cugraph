@@ -67,7 +67,7 @@ struct BiasedRandomWalks_Usecase {
   }
 
   // FIXME: Not currently implemented
-  bool expect_throw() { return true; }
+  bool expect_throw() { return !test_weighted; }
 };
 
 struct Node2VecRandomWalks_Usecase {
