@@ -42,7 +42,7 @@ dependencies:
 - numpy>=1.23,<2.0a0
 - numpydoc
 - nvcc_linux-64=11.8
-- openmpi
+- openmpi<5.0.3
 - packaging>=21
 - pandas
 - pre-commit
@@ -56,6 +56,7 @@ dependencies:
 - pytest-mpl
 - pytest-xdist
 - python-louvain
+- pytorch>=2.0,<2.2.0a0
 - raft-dask==24.8.*,>=0.0.0a0
 - rapids-build-backend>=0.3.1,<0.4.0.dev0
 - rapids-dask-dependency==24.8.*,>=0.0.0a0
