@@ -22,8 +22,6 @@
 #include "c_api/resource_handle.hpp"
 #include "c_api/utils.hpp"
 
-// #include <cugraph_c/community_algorithms.h>
-// #include <cugraph_c/lookup_src_dst.h>
 #include <cugraph_c/algorithms.h>
 
 #include <cugraph/algorithms.hpp>

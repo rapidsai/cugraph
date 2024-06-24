@@ -18,8 +18,6 @@
 #include "c_api/array.hpp"
 #include "c_api/error.hpp"
 
-// #include <cugraph_c/lookup_src_dst.h>
-
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_functions.hpp>
 

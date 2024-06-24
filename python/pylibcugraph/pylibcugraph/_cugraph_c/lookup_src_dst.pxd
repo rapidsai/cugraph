@@ -68,3 +68,5 @@ cdef extern from "cugraph_c/lookup_src_dst.h":
 
     cdef cugraph_type_erased_device_array_view_t* cugraph_lookup_result_get_dsts(
         const cugraph_lookup_result_t* result)
+
+    cdef void cugraph_lookup_result_free(cugraph_lookup_result_t* result)
