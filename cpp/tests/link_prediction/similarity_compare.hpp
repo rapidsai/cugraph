@@ -28,6 +28,7 @@ namespace test {
 
 struct test_jaccard_t {
   std::string testname{"Jaccard"};
+  bool is_jaccard_or_sorensen_or_overlap{true};
 
   template <typename weight_t>
   weight_t compute_score(weight_t weight_a,
@@ -69,6 +70,7 @@ struct test_jaccard_t {
 
 struct test_sorensen_t {
   std::string testname{"Sorensen"};
+  bool is_jaccard_or_sorensen_or_overlap{true};
 
   template <typename weight_t>
   weight_t compute_score(weight_t weight_a,
@@ -110,6 +112,7 @@ struct test_sorensen_t {
 
 struct test_overlap_t {
   std::string testname{"Overlap"};
+  bool is_jaccard_or_sorensen_or_overlap{true};
 
   template <typename weight_t>
   weight_t compute_score(weight_t weight_a,
@@ -145,6 +148,49 @@ struct test_overlap_t {
            std::optional<size_t> topk) const
   {
     return cugraph::overlap_all_pairs_coefficients(
+      handle, graph_view, edge_weight_view, vertices, topk);
+  }
+};
+
+struct test_cosine_t {
+  std::string testname{"Cosine"};
+  bool is_jaccard_or_sorensen_or_overlap{false};
+
+  template <typename weight_t>
+  weight_t compute_score(weight_t norm_a,
+                         weight_t norm_b,
+                         weight_t sum_of_product_of_a_and_b,
+                         weight_t reserved_param) const
+  {
+    if (std::abs(static_cast<double>(norm_a * norm_b)) <
+        double{2} / std::numeric_limits<double>::max()) {
+      return weight_t{0};
+    } else {
+      return sum_of_product_of_a_and_b / (norm_a * norm_b);
+    }
+  }
+
+  template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+  auto run(
+    raft::handle_t const& handle,
+    graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+    std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
+    std::tuple<raft::device_span<vertex_t const>, raft::device_span<vertex_t const>> vertex_pairs,
+    bool use_weights) const
+  {
+    return cugraph::cosine_similarity_coefficients(
+      handle, graph_view, edge_weight_view, vertex_pairs, true);
+  }
+
+  template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+  auto run(raft::handle_t const& handle,
+           graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+           std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
+           std::optional<raft::device_span<vertex_t const>> vertices,
+           bool use_weights,
+           std::optional<size_t> topk) const
+  {
+    return cugraph::cosine_similarity_all_pairs_coefficients(
       handle, graph_view, edge_weight_view, vertices, topk);
   }
 };
