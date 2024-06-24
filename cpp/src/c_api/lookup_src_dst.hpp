@@ -18,7 +18,7 @@
 #include "c_api/array.hpp"
 #include "c_api/error.hpp"
 
-#include <cugraph_c/lookup_src_dst.h>
+// #include <cugraph_c/lookup_src_dst.h>
 
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_functions.hpp>
@@ -28,7 +28,7 @@
 namespace cugraph {
 namespace c_api {
 
-struct lookup_container_t {
+struct cugraph_lookup_container_t {
   cugraph_data_type_id_t edge_type_;
   cugraph_data_type_id_t edge_type_id_type_;
   cugraph_data_type_id_t vertex_type_;
@@ -36,7 +36,7 @@ struct lookup_container_t {
   void* lookup_container_;
 };
 
-struct lookup_result_t {
+struct cugraph_lookup_result_t {
   cugraph_type_erased_device_array_t* srcs_{nullptr};
   cugraph_type_erased_device_array_t* dsts_{nullptr};
 };

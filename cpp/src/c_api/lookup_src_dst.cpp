@@ -19,13 +19,12 @@
 #include "c_api/abstract_functor.hpp"
 #include "c_api/graph.hpp"
 #include "c_api/graph_helper.hpp"
-#include "c_api/hierarchical_clustering_result.hpp"
-#include "c_api/random.hpp"
 #include "c_api/resource_handle.hpp"
 #include "c_api/utils.hpp"
 
-#include <cugraph_c/community_algorithms.h>
-#include <cugraph_c/lookup_src_dst.h>
+// #include <cugraph_c/community_algorithms.h>
+// #include <cugraph_c/lookup_src_dst.h>
+#include <cugraph_c/algorithms.h>
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/detail/shuffle_wrappers.hpp>
@@ -42,7 +41,7 @@ namespace {
 struct build_lookup_map_functor : public cugraph::c_api::abstract_functor {
   raft::handle_t const& handle_;
   cugraph::c_api::cugraph_graph_t* graph_{nullptr};
-  cugraph::c_api::lookup_container_t* result_{};
+  cugraph::c_api::cugraph_lookup_container_t* result_{};
 
   build_lookup_map_functor(::cugraph_resource_handle_t const* handle, ::cugraph_graph_t* graph)
     : abstract_functor(),
@@ -84,20 +83,23 @@ struct build_lookup_map_functor : public cugraph::c_api::abstract_functor {
 
       auto number_map = reinterpret_cast<rmm::device_uvector<vertex_t>*>(graph_->number_map_);
 
-      rmm::device_uvector<vertex_t> clusters(0, handle_.get_stream());
-
       auto lookup_container = new cugraph::lookup_container_t<edge_t, edge_type_type_t, vertex_t>();
+
+      std::cout << "\n\nGoing to call cugraph::build_edge_id_and_type_to_src_dst_lookup_map\n\n";
 
       cugraph::build_edge_id_and_type_to_src_dst_lookup_map(
         handle_, graph_view, edge_ids->view(), edge_types->view());
 
-      *lookup_container = std::move(cugraph::build_edge_id_and_type_to_src_dst_lookup_map(
-        handle_, graph_view, edge_ids->view(), edge_types->view()));
+      std::cout << "\n\nAfter calling cugraph::build_edge_id_and_type_to_src_dst_lookup_map\n\n";
+      /*
+        *lookup_container = std::move(cugraph::build_edge_id_and_type_to_src_dst_lookup_map(
+          handle_, graph_view, edge_ids->view(), edge_types->view()));
 
-      auto result = new cugraph::c_api::lookup_container_t{
-        graph_->edge_type_, graph_->edge_type_id_type_, graph_->vertex_type_, lookup_container};
+        auto result = new cugraph::c_api::cugraph_lookup_container_t{
+          graph_->edge_type_, graph_->edge_type_id_type_, graph_->vertex_type_, lookup_container};
 
-      result_ = reinterpret_cast<cugraph::c_api::lookup_container_t*>(result);
+        result_ = reinterpret_cast<cugraph::c_api::cugraph_lookup_container_t*>(result);
+        */
     }
   }
 };
@@ -105,22 +107,22 @@ struct build_lookup_map_functor : public cugraph::c_api::abstract_functor {
 struct lookup_using_edge_ids_of_single_type_functor : public cugraph::c_api::abstract_functor {
   raft::handle_t const& handle_;
   cugraph::c_api::cugraph_graph_t* graph_{nullptr};
-  cugraph::c_api::lookup_container_t const* lookup_container_{nullptr};
+  cugraph::c_api::cugraph_lookup_container_t const* lookup_container_{nullptr};
   cugraph::c_api::cugraph_type_erased_device_array_view_t const* edge_ids_to_lookup_{nullptr};
   int edge_type_to_lookup_{};
-  cugraph::c_api::lookup_result_t* result_{nullptr};
+  cugraph::c_api::cugraph_lookup_result_t* result_{nullptr};
 
   lookup_using_edge_ids_of_single_type_functor(
     cugraph_resource_handle_t const* handle,
     cugraph_graph_t* graph,
-    lookup_container_t const* lookup_container,
+    cugraph_lookup_container_t const* lookup_container,
     cugraph_type_erased_device_array_view_t const* edge_ids_to_lookup,
     int edge_type_to_lookup)
     : abstract_functor(),
       handle_(*reinterpret_cast<cugraph::c_api::cugraph_resource_handle_t const*>(handle)->handle_),
       graph_(reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph)),
       lookup_container_(
-        reinterpret_cast<cugraph::c_api::lookup_container_t const*>(lookup_container)),
+        reinterpret_cast<cugraph::c_api::cugraph_lookup_container_t const*>(lookup_container)),
       edge_ids_to_lookup_(
         reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(
           edge_ids_to_lookup)),
@@ -167,7 +169,7 @@ struct lookup_using_edge_ids_of_single_type_functor : public cugraph::c_api::abs
 
       auto number_map = reinterpret_cast<rmm::device_uvector<vertex_t>*>(graph_->number_map_);
 
-      result_ = new cugraph::c_api::lookup_result_t{
+      result_ = new cugraph::c_api::cugraph_lookup_result_t{
         new cugraph::c_api::cugraph_type_erased_device_array_t(std::get<0>(result),
                                                                lookup_container_->vertex_type_),
         new cugraph::c_api::cugraph_type_erased_device_array_t(std::get<1>(result),
@@ -179,22 +181,22 @@ struct lookup_using_edge_ids_of_single_type_functor : public cugraph::c_api::abs
 struct lookup_using_edge_ids_and_types_functor : public cugraph::c_api::abstract_functor {
   raft::handle_t const& handle_;
   cugraph::c_api::cugraph_graph_t* graph_{nullptr};
-  cugraph::c_api::lookup_container_t const* lookup_container_{nullptr};
+  cugraph::c_api::cugraph_lookup_container_t const* lookup_container_{nullptr};
   cugraph::c_api::cugraph_type_erased_device_array_view_t const* edge_ids_to_lookup_{nullptr};
   cugraph::c_api::cugraph_type_erased_device_array_view_t const* edge_types_to_lookup_{nullptr};
-  cugraph::c_api::lookup_result_t* result_{nullptr};
+  cugraph::c_api::cugraph_lookup_result_t* result_{nullptr};
 
   lookup_using_edge_ids_and_types_functor(
     cugraph_resource_handle_t const* handle,
     cugraph_graph_t* graph,
-    lookup_container_t const* lookup_container,
+    cugraph_lookup_container_t const* lookup_container,
     cugraph_type_erased_device_array_view_t const* edge_ids_to_lookup,
     cugraph_type_erased_device_array_view_t const* edge_types_to_lookup)
     : abstract_functor(),
       handle_(*reinterpret_cast<cugraph::c_api::cugraph_resource_handle_t const*>(handle)->handle_),
       graph_(reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph)),
       lookup_container_(
-        reinterpret_cast<cugraph::c_api::lookup_container_t const*>(lookup_container)),
+        reinterpret_cast<cugraph::c_api::cugraph_lookup_container_t const*>(lookup_container)),
       edge_ids_to_lookup_(
         reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(
           edge_ids_to_lookup)),
@@ -243,7 +245,7 @@ struct lookup_using_edge_ids_and_types_functor : public cugraph::c_api::abstract
 
       auto number_map = reinterpret_cast<rmm::device_uvector<vertex_t>*>(graph_->number_map_);
 
-      result_ = new cugraph::c_api::lookup_result_t{
+      result_ = new cugraph::c_api::cugraph_lookup_result_t{
         new cugraph::c_api::cugraph_type_erased_device_array_t(std::get<0>(result),
                                                                lookup_container_->vertex_type_),
         new cugraph::c_api::cugraph_type_erased_device_array_t(std::get<1>(result),
@@ -257,21 +259,23 @@ struct lookup_using_edge_ids_and_types_functor : public cugraph::c_api::abstract
 extern "C" cugraph_error_code_t cugraph_build_edge_id_and_type_to_src_dst_lookup_map(
   const cugraph_resource_handle_t* handle,
   cugraph_graph_t* graph,
-  lookup_container_t** lookup_container,
+  cugraph_lookup_container_t** lookup_container,
   cugraph_error_t** error)
 {
+  std::cout << "\nbefore functor\n";
   build_lookup_map_functor functor(handle, graph);
-
+  std::cout << "\nafter functor, bfore run algo\n";
   return cugraph::c_api::run_algorithm(graph, functor, lookup_container, error);
+  std::cout << "\nafter run algo\n";
 }
 
 extern "C" cugraph_error_code_t cugraph_lookup_endpoints_from_edge_ids_and_types(
   const cugraph_resource_handle_t* handle,
   cugraph_graph_t* graph,
-  const lookup_container_t* lookup_container,
+  const cugraph_lookup_container_t* lookup_container,
   const cugraph_type_erased_device_array_view_t* edge_ids_to_lookup,
   const cugraph_type_erased_device_array_view_t* edge_types_to_lookup,
-  lookup_result_t** result,
+  cugraph_lookup_result_t** result,
   cugraph_error_t** error)
 {
   lookup_using_edge_ids_and_types_functor functor(
@@ -283,14 +287,38 @@ extern "C" cugraph_error_code_t cugraph_lookup_endpoints_from_edge_ids_and_types
 extern "C" cugraph_error_code_t cugraph_lookup_endpoints_from_edge_ids_and_single_type(
   const cugraph_resource_handle_t* handle,
   cugraph_graph_t* graph,
-  const lookup_container_t* lookup_container,
+  const cugraph_lookup_container_t* lookup_container,
   const cugraph_type_erased_device_array_view_t* edge_ids_to_lookup,
   int edge_type_to_lookup,
-  lookup_result_t** result,
+  cugraph_lookup_result_t** result,
   cugraph_error_t** error)
 {
   lookup_using_edge_ids_of_single_type_functor functor(
     handle, graph, lookup_container, edge_ids_to_lookup, edge_type_to_lookup);
 
   return cugraph::c_api::run_algorithm(graph, functor, result, error);
+}
+
+extern "C" cugraph_type_erased_device_array_view_t* cugraph_lookup_result_get_srcs(
+  const cugraph_lookup_result_t* result)
+{
+  auto internal_pointer = reinterpret_cast<const cugraph::c_api::cugraph_lookup_result_t*>(result);
+  return reinterpret_cast<cugraph_type_erased_device_array_view_t*>(
+    internal_pointer->srcs_->view());
+}
+
+extern "C" cugraph_type_erased_device_array_view_t* cugraph_lookup_result_get_dsts(
+  const cugraph_lookup_result_t* result)
+{
+  auto internal_pointer = reinterpret_cast<const cugraph::c_api::cugraph_lookup_result_t*>(result);
+  return reinterpret_cast<cugraph_type_erased_device_array_view_t*>(
+    internal_pointer->dsts_->view());
+}
+
+extern "C" void cugraph_lookup_result_free(cugraph_lookup_result_t* result)
+{
+  auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_lookup_result_t*>(result);
+  delete internal_pointer->srcs_;
+  delete internal_pointer->dsts_;
+  delete internal_pointer;
 }
