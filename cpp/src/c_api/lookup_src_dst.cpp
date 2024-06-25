@@ -74,30 +74,23 @@ struct build_lookup_map_functor : public cugraph::c_api::abstract_functor {
 
       auto edge_ids = reinterpret_cast<
         cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, false, multi_gpu>,
-                                 edge_t>*>(graph_->edge_type_);
+                                 edge_t>*>(graph_->edge_ids_);
+
       auto edge_types = reinterpret_cast<
         cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, false, multi_gpu>,
-                                 edge_type_type_t>*>(graph_->edge_type_id_type_);
+                                 edge_type_type_t>*>(graph_->edge_types_);
 
-      auto number_map = reinterpret_cast<rmm::device_uvector<vertex_t>*>(graph_->number_map_);
+      auto renumber_map = reinterpret_cast<rmm::device_uvector<vertex_t>*>(graph_->number_map_);
 
       auto lookup_container = new cugraph::lookup_container_t<edge_t, edge_type_type_t, vertex_t>();
 
-      std::cout << "\n\nGoing to call cugraph::build_edge_id_and_type_to_src_dst_lookup_map\n\n";
+      *lookup_container = std::move(cugraph::build_edge_id_and_type_to_src_dst_lookup_map(
+        handle_, graph_view, edge_ids->view(), edge_types->view()));
 
-      cugraph::build_edge_id_and_type_to_src_dst_lookup_map(
-        handle_, graph_view, edge_ids->view(), edge_types->view());
+      auto result = new cugraph::c_api::cugraph_lookup_container_t{
+        graph_->edge_type_, graph_->edge_type_id_type_, graph_->vertex_type_, lookup_container};
 
-      std::cout << "\n\nAfter calling cugraph::build_edge_id_and_type_to_src_dst_lookup_map\n\n";
-      /*
-        *lookup_container = std::move(cugraph::build_edge_id_and_type_to_src_dst_lookup_map(
-          handle_, graph_view, edge_ids->view(), edge_types->view()));
-
-        auto result = new cugraph::c_api::cugraph_lookup_container_t{
-          graph_->edge_type_, graph_->edge_type_id_type_, graph_->vertex_type_, lookup_container};
-
-        result_ = reinterpret_cast<cugraph::c_api::cugraph_lookup_container_t*>(result);
-        */
+      result_ = reinterpret_cast<cugraph::c_api::cugraph_lookup_container_t*>(result);
     }
   }
 };
@@ -165,12 +158,31 @@ struct lookup_using_edge_ids_of_single_type_functor : public cugraph::c_api::abs
                                         edge_ids_to_lookup_->size_),
         edge_type_to_lookup_);
 
-      auto number_map = reinterpret_cast<rmm::device_uvector<vertex_t>*>(graph_->number_map_);
+      auto renumber_map = reinterpret_cast<rmm::device_uvector<vertex_t>*>(graph_->number_map_);
+
+      auto result_srcs = std::move(std::get<0>(result));
+      auto result_dsts = std::move(std::get<1>(result));
+
+      cugraph::unrenumber_int_vertices<vertex_t, multi_gpu>(
+        handle_,
+        result_srcs.data(),
+        result_srcs.size(),
+        renumber_map->data(),
+        graph_view.vertex_partition_range_lasts(),
+        false);
+
+      cugraph::unrenumber_int_vertices<vertex_t, multi_gpu>(
+        handle_,
+        result_dsts.data(),
+        result_dsts.size(),
+        renumber_map->data(),
+        graph_view.vertex_partition_range_lasts(),
+        false);
 
       result_ = new cugraph::c_api::cugraph_lookup_result_t{
-        new cugraph::c_api::cugraph_type_erased_device_array_t(std::get<0>(result),
+        new cugraph::c_api::cugraph_type_erased_device_array_t(result_srcs,
                                                                lookup_container_->vertex_type_),
-        new cugraph::c_api::cugraph_type_erased_device_array_t(std::get<1>(result),
+        new cugraph::c_api::cugraph_type_erased_device_array_t(result_dsts,
                                                                lookup_container_->vertex_type_)};
     }
   }
@@ -241,12 +253,31 @@ struct lookup_using_edge_ids_and_types_functor : public cugraph::c_api::abstract
           raft::device_span<edge_type_type_t const>(
             edge_types_to_lookup_->as_type<edge_type_type_t>(), edge_types_to_lookup_->size_));
 
-      auto number_map = reinterpret_cast<rmm::device_uvector<vertex_t>*>(graph_->number_map_);
+      auto renumber_map = reinterpret_cast<rmm::device_uvector<vertex_t>*>(graph_->number_map_);
+
+      auto result_srcs = std::move(std::get<0>(result));
+      auto result_dsts = std::move(std::get<1>(result));
+
+      cugraph::unrenumber_int_vertices<vertex_t, multi_gpu>(
+        handle_,
+        result_srcs.data(),
+        result_srcs.size(),
+        renumber_map->data(),
+        graph_view.vertex_partition_range_lasts(),
+        false);
+
+      cugraph::unrenumber_int_vertices<vertex_t, multi_gpu>(
+        handle_,
+        result_dsts.data(),
+        result_dsts.size(),
+        renumber_map->data(),
+        graph_view.vertex_partition_range_lasts(),
+        false);
 
       result_ = new cugraph::c_api::cugraph_lookup_result_t{
-        new cugraph::c_api::cugraph_type_erased_device_array_t(std::get<0>(result),
+        new cugraph::c_api::cugraph_type_erased_device_array_t(result_srcs,
                                                                lookup_container_->vertex_type_),
-        new cugraph::c_api::cugraph_type_erased_device_array_t(std::get<1>(result),
+        new cugraph::c_api::cugraph_type_erased_device_array_t(result_dsts,
                                                                lookup_container_->vertex_type_)};
     }
   }
@@ -260,11 +291,9 @@ extern "C" cugraph_error_code_t cugraph_build_edge_id_and_type_to_src_dst_lookup
   cugraph_lookup_container_t** lookup_container,
   cugraph_error_t** error)
 {
-  std::cout << "\nbefore functor\n";
   build_lookup_map_functor functor(handle, graph);
-  std::cout << "\nafter functor, bfore run algo\n";
+
   return cugraph::c_api::run_algorithm(graph, functor, lookup_container, error);
-  std::cout << "\nafter run algo\n";
 }
 
 extern "C" cugraph_error_code_t cugraph_lookup_endpoints_from_edge_ids_and_types(
@@ -278,7 +307,6 @@ extern "C" cugraph_error_code_t cugraph_lookup_endpoints_from_edge_ids_and_types
 {
   lookup_using_edge_ids_and_types_functor functor(
     handle, graph, lookup_container, edge_ids_to_lookup, edge_types_to_lookup);
-
   return cugraph::c_api::run_algorithm(graph, functor, result, error);
 }
 
@@ -293,7 +321,6 @@ extern "C" cugraph_error_code_t cugraph_lookup_endpoints_from_edge_ids_and_singl
 {
   lookup_using_edge_ids_of_single_type_functor functor(
     handle, graph, lookup_container, edge_ids_to_lookup, edge_type_to_lookup);
-
   return cugraph::c_api::run_algorithm(graph, functor, result, error);
 }
 

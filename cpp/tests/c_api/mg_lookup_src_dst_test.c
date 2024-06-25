@@ -86,7 +86,6 @@ int generic_lookup_src_dst_test(const cugraph_resource_handle_t* handle,
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
   TEST_ALWAYS_ASSERT(ret_code == CUGRAPH_SUCCESS, "cugraph_ecg failed.");
 
-#if 0
   cugraph_type_erased_device_array_t* d_edge_ids_to_lookup           = NULL;
   cugraph_type_erased_device_array_view_t* d_edge_ids_to_lookup_view = NULL;
 
@@ -146,23 +145,66 @@ int generic_lookup_src_dst_test(const cugraph_resource_handle_t* handle,
                        "number of edges in returned result")
 
     for (int i = 0; i < num_edge_ids_to_lookup; i++) {
-      printf("\n %d  %d\n", h_result_srcs[i], h_result_dsts[i]);
       vertex_t src = (h_result_srcs[i] < h_result_dsts[i]) ? h_result_srcs[i] : h_result_dsts[i];
       vertex_t dst = (h_result_srcs[i] >= h_result_dsts[i]) ? h_result_srcs[i] : h_result_dsts[i];
-      printf("\n%d  %d\n", src, dst);
       TEST_ASSERT(test_ret_value,
                   src == h_expected_srcs[i],
                   "expected sources don't match with returned ones");
-
       TEST_ASSERT(test_ret_value,
                   dst == h_expected_dsts[i],
                   "expected destinations don't match with returned ones");
     }
-
-    cugraph_lookup_result_free(result);
   }
 
-#endif
+  cugraph_lookup_result_free(result);
+
+  ret_code = cugraph_lookup_endpoints_from_edge_ids_and_single_type(handle,
+                                                                    graph,
+                                                                    lookup_container,
+                                                                    d_edge_ids_to_lookup_view,
+                                                                    edge_types_to_lookup[0],
+                                                                    &result,
+                                                                    &ret_error);
+
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
+  TEST_ALWAYS_ASSERT(ret_code == CUGRAPH_SUCCESS, "cugraph_ecg failed.");
+
+  if (test_ret_value == 0) {
+    cugraph_type_erased_device_array_view_t* d_srcs;
+    cugraph_type_erased_device_array_view_t* d_dsts;
+
+    d_srcs = cugraph_lookup_result_get_srcs(result);
+    d_dsts = cugraph_lookup_result_get_dsts(result);
+
+    vertex_t h_result_srcs[num_edge_ids_to_lookup];
+    edge_t h_result_dsts[num_edge_ids_to_lookup];
+
+    ret_code = cugraph_type_erased_device_array_view_copy_to_host(
+      handle, (byte_t*)h_result_srcs, d_srcs, &ret_error);
+    TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "copy_to_host failed.");
+
+    ret_code = cugraph_type_erased_device_array_view_copy_to_host(
+      handle, (byte_t*)h_result_dsts, d_dsts, &ret_error);
+    TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "copy_to_host failed.");
+
+    size_t result_num_edges = cugraph_type_erased_device_array_view_size(d_srcs);
+
+    TEST_ALWAYS_ASSERT(result_num_edges == num_edge_ids_to_lookup,
+                       "number of edges in returned result")
+
+    for (int i = 0; i < num_edge_ids_to_lookup; i++) {
+      vertex_t src = (h_result_srcs[i] < h_result_dsts[i]) ? h_result_srcs[i] : h_result_dsts[i];
+      vertex_t dst = (h_result_srcs[i] >= h_result_dsts[i]) ? h_result_srcs[i] : h_result_dsts[i];
+      TEST_ASSERT(test_ret_value,
+                  src == h_expected_srcs[i],
+                  "expected sources don't match with returned ones");
+      TEST_ASSERT(test_ret_value,
+                  dst == h_expected_dsts[i],
+                  "expected destinations don't match with returned ones");
+    }
+  }
+
+  cugraph_lookup_result_free(result);
 
   cugraph_mg_graph_free(graph);
   cugraph_error_free(ret_error);
@@ -182,12 +224,12 @@ int test_lookup_src_dst_test(const cugraph_resource_handle_t* handle)
 
   edge_type_t h_edge_types[] = {0, 0, 0, 0, 1, 1, 1, 1, 2, 2};
 
-  edge_t edge_ids_to_lookup[]   = {10, 12, 78, 78};
-  edge_t edge_types_to_lookup[] = {2, 0, 0, 2};
+  edge_t edge_ids_to_lookup[]   = {10, 12, 78, 20};
+  edge_t edge_types_to_lookup[] = {2, 0, 3, 2};
 
   // expected results
-  vertex_t h_expected_srcs[]    = {0, -1, 7, -1};
-  vertex_t h_expected_dsts[]    = {1, -1, 8, -1};
+  vertex_t h_expected_srcs[]    = {0, -1, -1, 0};
+  vertex_t h_expected_dsts[]    = {1, -1, -1, 2};
   size_t num_edge_ids_to_lookup = 4;
 
   return generic_lookup_src_dst_test(handle,
