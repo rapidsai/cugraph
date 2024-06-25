@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2023, NVIDIA CORPORATION.
+# Copyright (c) 2019-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -135,6 +135,12 @@ def bfs(
         information. Edge weights, if present, should be single or double
         precision floating point values.
 
+        .. deprecated:: 24.08
+
+           Accepting ``networkx.Graph`` is deprecated and will be removed in a
+           future version.  For ``networkx.Graph`` use netwotkx directly with
+           the ``nx-cugraph`` plug-in.
+
     start : Integer or list, optional (default=None)
         The id of the graph vertex from which the traversal begins, or
         if a list, the vertex from which the traversal begins in each
@@ -264,6 +270,12 @@ def bfs_edges(G, source, reverse=False, depth_limit=None, sort_neighbors=None):
         Graph or matrix object, which should contain the connectivity
         information. Edge weights, if present, should be single or double
         precision floating point values.
+
+        .. deprecated:: 24.08
+
+           Accepting ``networkx.Graph`` is deprecated and will be removed in a
+           future version.  For ``networkx.Graph`` use netwotkx directly with
+           the ``nx-cugraph`` plug-in.
 
     source : Integer
         The starting vertex index
