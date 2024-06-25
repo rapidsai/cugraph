@@ -61,7 +61,7 @@ def betweenness_centrality(
         .. deprecated:: 24.08
 
            Accepting ``networkx.Graph`` is deprecated and will be removed in a
-           future version.  For ``networkx.Graph`` use netwotkx directly with
+           future version.  For ``networkx.Graph`` use networkx directly with
            the ``nx-cugraph`` plug-in.
 
     k : int, list or cudf object or None, optional (default=None)
@@ -233,7 +233,7 @@ def edge_betweenness_centrality(
         .. deprecated:: 24.08
 
            Accepting ``networkx.Graph`` is deprecated and will be removed in a
-           future version.  For ``networkx.Graph`` use netwotkx directly with
+           future version.  For ``networkx.Graph`` use networkx directly with
            the ``nx-cugraph`` plug-in.
 
     k : int or list or None, optional (default=None)
