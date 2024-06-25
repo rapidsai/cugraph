@@ -260,7 +260,10 @@ class HeteroEdgeView:
         )
 
     def __call__(self, *args, **kwargs):
-        return self.__graph.all_edges(*args, **kwargs)
+        if 'device' in kwargs:
+            return self.__graph.all_edges(*args, **kwargs)
+        
+        return self.__graph.all_edges(*args, **kwargs, device='cuda')
 
 
 class HeteroNodeView:

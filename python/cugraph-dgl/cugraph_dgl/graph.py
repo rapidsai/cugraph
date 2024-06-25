@@ -287,7 +287,7 @@ class Graph:
                 _cast_to_torch_tensor(u),
                 _cast_to_torch_tensor(v),
             ]
-        )
+        ).to(self.idtype)
 
         if data is not None:
             for attr_name, attr_tensor in data.items():
@@ -790,7 +790,7 @@ class Graph:
         ----------
         form: str (optional, default='uv')
             The format to return ('uv', 'eid', 'all').
-            cuGraph-DGL currently only supports 'eid'.
+
         order: str (optional, default='eid')
             The order to return edges in ('eid', 'srcdst')
             cuGraph-DGL currently only supports 'eid'.
@@ -803,9 +803,6 @@ class Graph:
             ('cpu', 'cuda', or device id).
         """
 
-        if form != "eid":
-            raise NotImplementedError("cuGraph-DGL only supports eid format.")
-
         if order != "eid":
             raise NotImplementedError("cugraph-DGL only supports eid order.")
 
@@ -813,12 +810,39 @@ class Graph:
             raise ValueError("Edge type is required for heterogeneous graphs.")
 
         etype = self.to_canonical_etype(etype)
-        return torch.arange(
-            0,
-            self.__num_edges_dict[etype],
-            dtype=self.idtype,
-            device=device,
-        )
+
+        if form == 'eid':
+            return torch.arange(
+                0,
+                self.__num_edges_dict[etype],
+                dtype=self.idtype,
+                device=device,
+            )
+        else:
+            if self.is_multi_gpu:
+                src = torch.empty((self.__num_edges_dict[etype], ), dtype=self.idtype, device='cuda')
+                dst = torch.empty((self.__num_edges_dict[etype], ), dtype=self.idtype, device='cuda')
+                
+                h1 = torch.distributed.all_gather_into_tensor(src, self.__edge_indices[etype][0].cuda(), async_op=True)
+                h2 = torch.distributed.all_gather_into_tensor(dst, self.__edge_indices[etype][1].cuda(), async_op=True)
+
+                h1.wait()
+                h2.wait()
+                if form == 'uv':
+                    return src.to(device), dst.to(device)
+                elif form == 'all':
+                    return src.to(device), dst.to(device), torch.arange(self.__num_edges_dict[etype], dtype=self.idtype,device=device)
+                else:
+                    raise ValueError(f"Invalid form {form}")
+
+            else:
+                eix = self.__edge_indices[etype].to(device)
+                if form == 'uv':
+                    return eix[0], eix[1]
+                elif form == 'all':
+                    return eix[0], eix[1], torch.arange(self.__num_edges_dict[etype], dtype=self.idtype,device=device)
+                else:
+                    raise ValueError(f"Invalid form {form}")
 
     @property
     def ndata(self) -> HeteroNodeDataView:
