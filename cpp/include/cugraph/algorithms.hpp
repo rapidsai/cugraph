@@ -1172,6 +1172,42 @@ void sssp(raft::handle_t const& handle,
           weight_t cutoff         = std::numeric_limits<weight_t>::max(),
           bool do_expensive_check = false);
 
+/**
+ * @brief Run Bellman-Ford algorithm to compute the minimum distances (and predecessors) from
+ * the source vertex.
+ *
+ * This function computes the distances (minimum edge weight sums) from the source vertex. If @p
+ * predecessors is not `nullptr`, this function calculates the predecessor of each vertex in the
+ * shortest-path as well. Bellman-Ford algorithm works for negative edge weights as well. If the
+ * input graph has negative cycle(s), the algorithm return false.
+ *
+ * @throws cugraph::logic_error on erroneous input arguments.
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
+ * @tparam weight_t Type of edge weights. Needs to be a floating point type.
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
+ * or multi-GPU (true).
+ * @param[in] handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator,
+ * and handles to various CUDA libraries) to run graph algorithms.
+ * @param[in] graph_view Graph view object.
+ * @param[in] edge_weight_view View object holding edge weights for @p graph_view.
+ * @param[in] source_vertex Source vertex to start single-source shortest-path.
+ * In a multi-gpu context the source vertex should be local to this GPU.
+ * @param[out] distances Pointer to the output distance array.
+ * @param[out] predecessors Pointer to the output predecessor array or `nullptr`.
+ * @return True if there is no negative cycle in input graph pointed by @p graph_view, and in
+ * that case @p distances and @p predecessors contain valid results.
+ * False otherwise, and in that case @p distances and @p predecessors contain invalid values.
+ */
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+bool bellman_ford(raft::handle_t const& handle,
+                  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+                  edge_property_view_t<edge_t, weight_t const*> edge_weight_view,
+                  vertex_t source_vertex,
+                  vertex_t* predecessors,
+                  weight_t* distances);
+
 /*
  * @brief Compute the shortest distances from the given origins to all the given destinations.
  *
