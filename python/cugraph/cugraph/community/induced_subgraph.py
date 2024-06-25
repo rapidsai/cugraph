@@ -71,6 +71,12 @@ def induced_subgraph(
     G : cugraph.Graph or networkx.Graph
         The current implementation only supports weighted graphs.
 
+        .. deprecated:: 24.08
+
+           Accepting ``networkx.Graph`` is deprecated and will be removed in a
+           future version.  For ``networkx.Graph`` use netwotkx directly with
+           the ``nx-cugraph`` plug-in.
+
     vertices : cudf.Series or cudf.DataFrame
         Specifies the vertices of the induced subgraph. For multi-column
         vertices, vertices should be provided as a cudf.DataFrame

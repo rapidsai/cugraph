@@ -28,6 +28,12 @@ def degree_centrality(G, normalized=True):
         cuGraph graph descriptor with connectivity information. The graph can
         contain either directed or undirected edges.
 
+        .. deprecated:: 24.08
+
+           Accepting ``networkx.Graph`` is deprecated and will be removed in a
+           future version.  For ``networkx.Graph`` use netwotkx directly with
+           the ``nx-cugraph`` plug-in.
+
     normalized : bool, optional, default=True
         If True normalize the resulting degree centrality values
 

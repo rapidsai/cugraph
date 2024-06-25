@@ -45,6 +45,12 @@ def spectralBalancedCutClustering(
     G : cugraph.Graph or networkx.Graph
         Graph descriptor
 
+        .. deprecated:: 24.08
+
+           Accepting ``networkx.Graph`` is deprecated and will be removed in a
+           future version.  For ``networkx.Graph`` use netwotkx directly with
+           the ``nx-cugraph`` plug-in.
+
     num_clusters : integer
         Specifies the number of clusters to find, must be greater than 1
 
@@ -142,6 +148,12 @@ def spectralModularityMaximizationClustering(
     G : cugraph.Graph or networkx.Graph
         cuGraph graph descriptor. This graph should have edge weights.
 
+        .. deprecated:: 24.08
+
+           Accepting ``networkx.Graph`` is deprecated and will be removed in a
+           future version.  For ``networkx.Graph`` use netwotkx directly with
+           the ``nx-cugraph`` plug-in.
+
     num_clusters : integer
         Specifies the number of clusters to find
 
@@ -232,6 +244,12 @@ def analyzeClustering_modularity(
     ----------
     G : cugraph.Graph or networkx.Graph
         graph descriptor. This graph should have edge weights.
+
+        .. deprecated:: 24.08
+
+           Accepting ``networkx.Graph`` is deprecated and will be removed in a
+           future version.  For ``networkx.Graph`` use netwotkx directly with
+           the ``nx-cugraph`` plug-in.
 
     n_clusters : integer
         Specifies the number of clusters in the given clustering

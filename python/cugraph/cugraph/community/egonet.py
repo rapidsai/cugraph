@@ -62,6 +62,12 @@ def ego_graph(G, n, radius=1, center=True, undirected=None, distance=None):
         information. Edge weights, if present, should be single or double
         precision floating point values.
 
+        .. deprecated:: 24.08
+
+           Accepting ``networkx.Graph`` is deprecated and will be removed in a
+           future version.  For ``networkx.Graph`` use netwotkx directly with
+           the ``nx-cugraph`` plug-in.
+
     n : integer or list, cudf.Series, cudf.DataFrame
         A single node as integer or a cudf.DataFrame if nodes are
         represented with multiple columns. If a cudf.DataFrame is provided,
@@ -170,6 +176,12 @@ def batched_ego_graphs(G, seeds, radius=1, center=True, undirected=None, distanc
         Graph or matrix object, which should contain the connectivity
         information. Edge weights, if present, should be single or double
         precision floating point values.
+
+        .. deprecated:: 24.08
+
+           Accepting ``networkx.Graph`` is deprecated and will be removed in a
+           future version.  For ``networkx.Graph`` use netwotkx directly with
+           the ``nx-cugraph`` plug-in.
 
     seeds : cudf.Series or list or cudf.DataFrame
         Specifies the seeds of the induced egonet subgraphs.

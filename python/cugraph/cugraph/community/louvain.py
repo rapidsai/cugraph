@@ -62,6 +62,12 @@ def louvain(
         present.
         The current implementation only supports undirected graphs.
 
+        .. deprecated:: 24.08
+
+           Accepting ``networkx.Graph`` is deprecated and will be removed in a
+           future version.  For ``networkx.Graph`` use netwotkx directly with
+           the ``nx-cugraph`` plug-in.
+
     max_level : integer, optional (default=100)
         This controls the maximum number of levels of the Louvain
         algorithm. When specified the algorithm will terminate after no more

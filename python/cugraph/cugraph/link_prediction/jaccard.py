@@ -189,6 +189,12 @@ def jaccard_coefficient(
 
         This implementation only supports undirected, non-multi Graphs.
 
+        .. deprecated:: 24.08
+
+           Accepting ``networkx.Graph`` is deprecated and will be removed in a
+           future version.  For ``networkx.Graph`` use netwotkx directly with
+           the ``nx-cugraph`` plug-in.
+
     ebunch : cudf.DataFrame or iterable of node pairs, optional (default=None)
         A GPU dataframe consisting of two columns representing pairs of
         vertices or iterable of 2-tuples (u, v) where u and v are nodes in

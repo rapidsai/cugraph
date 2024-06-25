@@ -54,6 +54,12 @@ def triangle_count(G, start_list=None):
         (edge weights are not used in this algorithm).
         The current implementation only supports undirected graphs.
 
+        .. deprecated:: 24.08
+
+           Accepting ``networkx.Graph`` is deprecated and will be removed in a
+           future version.  For ``networkx.Graph`` use netwotkx directly with
+           the ``nx-cugraph`` plug-in.
+
     start_list : list or cudf.Series
         list of vertices for triangle count. if None the entire set of vertices
         in the graph is processed

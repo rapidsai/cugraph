@@ -72,6 +72,12 @@ def random_walks(
     G : cuGraph.Graph or networkx.Graph
         The graph can be either directed or undirected.
 
+        .. deprecated:: 24.08
+
+           Accepting ``networkx.Graph`` is deprecated and will be removed in a
+           future version.  For ``networkx.Graph`` use netwotkx directly with
+           the ``nx-cugraph`` plug-in.
+
     random_walks_type : str, optional (default='uniform')
         Type of random walks: 'uniform', 'biased', 'node2vec'.
         Only 'uniform' random walks is currently supported

@@ -49,12 +49,18 @@ def leiden(
 
     Parameters
     ----------
-    G : cugraph.Graph
+    G : cugraph.Graph, networkx.Graph
         cuGraph graph descriptor of type Graph
 
         The current implementation only supports undirected weighted graphs.
 
         The adjacency list will be computed if not already present.
+
+        .. deprecated:: 24.08
+
+           Accepting ``networkx.Graph`` is deprecated and will be removed in a
+           future version.  For ``networkx.Graph`` use netwotkx directly with
+           the ``nx-cugraph`` plug-in.
 
     max_iter : integer, optional (default=100)
         This controls the maximum number of levels/iterations of the Leiden

@@ -55,6 +55,12 @@ def k_core(G, k=None, core_number=None, degree_type="bidirectional"):
         weights, they don't participate in the calculation of the k-core.
         The current implementation only supports undirected graphs.
 
+        .. deprecated:: 24.08
+
+           Accepting ``networkx.Graph`` is deprecated and will be removed in a
+           future version.  For ``networkx.Graph`` use netwotkx directly with
+           the ``nx-cugraph`` plug-in.
+
     k : int, optional (default=None)
         Order of the core. This value must not be negative. If set to None, the
         main core is returned.

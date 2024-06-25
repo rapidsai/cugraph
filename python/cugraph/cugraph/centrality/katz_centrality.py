@@ -48,6 +48,12 @@ def katz_centrality(
         cuGraph graph descriptor with connectivity information. The graph can
         contain either directed or undirected edges.
 
+        .. deprecated:: 24.08
+
+           Accepting ``networkx.Graph`` is deprecated and will be removed in a
+           future version.  For ``networkx.Graph`` use netwotkx directly with
+           the ``nx-cugraph`` plug-in.
+
     alpha : float, optional (default=None)
         Attenuation factor defaulted to None. If alpha is not specified then
         it is internally calculated as 1/(degree_max) where degree_max is the

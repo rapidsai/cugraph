@@ -38,6 +38,12 @@ def ecg(input_graph, min_weight=0.05, ensemble_size=16, weight=None):
         and weights. The adjacency list will be computed if not already
         present.
 
+        .. deprecated:: 24.08
+
+           Accepting ``networkx.Graph`` is deprecated and will be removed in a
+           future version.  For ``networkx.Graph`` use netwotkx directly with
+           the ``nx-cugraph`` plug-in.
+
     min_weight : float, optional (default=0.5)
         The minimum value to assign as an edgeweight in the ECG algorithm.
         It should be a value in the range [0,1] usually left as the default
