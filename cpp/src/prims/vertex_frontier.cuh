@@ -77,6 +77,20 @@ class key_bucket_t {
   {
   }
 
+  template <typename tag_type = tag_t, std::enable_if_t<std::is_same_v<tag_type, void>>* = nullptr>
+  key_bucket_t(raft::handle_t const& handle, rmm::device_uvector<vertex_t>&& vertices)
+    : handle_ptr_(&handle), vertices_(std::move(vertices)), tags_(std::byte{0})
+  {
+  }
+
+  template <typename tag_type = tag_t, std::enable_if_t<!std::is_same_v<tag_type, void>>* = nullptr>
+  key_bucket_t(raft::handle_t const& handle,
+               rmm::device_uvector<vertex_t>&& vertices,
+               rmm::device_uvector<tag_t>&& tags)
+    : handle_ptr_(&handle), vertices_(std::move(vertices)), tags_(std::move(tags))
+  {
+  }
+
   /**
    * @ brief insert a vertex to the bucket
    *
