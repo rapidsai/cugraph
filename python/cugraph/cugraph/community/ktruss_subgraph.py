@@ -76,7 +76,7 @@ def k_truss(
         .. deprecated:: 24.08
 
            Accepting ``networkx.Graph`` is deprecated and will be removed in a
-           future version.  For ``networkx.Graph`` use netwotkx directly with
+           future version.  For ``networkx.Graph`` use networkx directly with
            the ``nx-cugraph`` plug-in.
 
     k : int
