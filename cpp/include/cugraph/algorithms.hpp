@@ -2008,6 +2008,24 @@ void triangle_count(raft::handle_t const& handle,
                     bool do_expensive_check = false);
 
 /*
+ * @brief Compute edge triangle counts.
+ *
+ * Compute edge triangle counts for the entire set of edges.
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param graph_view Graph view object.
+ *
+ * @return edge_property_t containing the edge triangle count
+ */
+template <typename vertex_t, typename edge_t, bool multi_gpu>
+edge_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>, edge_t> edge_triangle_count(
+  raft::handle_t const& handle, graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view);
+
+/*
  * @brief Compute K-Truss.
  *
  * Extract the K-Truss subgraph of a graph
@@ -2058,6 +2076,37 @@ k_truss(raft::handle_t const& handle,
  */
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 rmm::device_uvector<weight_t> jaccard_coefficients(
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+  std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
+  std::tuple<raft::device_span<vertex_t const>, raft::device_span<vertex_t const>> vertex_pairs,
+  bool do_expensive_check = false);
+
+/**
+ * @brief     Compute Cosine similarity coefficient
+ *
+ * Similarity is computed for every pair of vertices specified. Note that
+ * similarity algorithms expect a symmetric graph.
+ *
+ * @throws                 cugraph::logic_error when an error occurs.
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
+ * @tparam weight_t Type of edge weights. Needs to be a floating point type.
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param graph_view Graph view object.
+ * @param edge_weight_view Optional view object holding edge weights for @p graph_view. If @p
+ * edge_weight_view.has_value() == true, use the weights associated with the graph. If false, assume
+ * a weight of 1 for all edges.
+ * @param vertex_pairs tuple of device spans defining the vertex pairs to compute similarity for
+ * In a multi-gpu context each vertex pair should be local to this GPU.
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
+ * @return similarity coefficient for the corresponding @p vertex_pairs
+ */
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+rmm::device_uvector<weight_t> cosine_similarity_coefficients(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
@@ -2177,6 +2226,62 @@ template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 std::
   tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>, rmm::device_uvector<weight_t>>
   jaccard_all_pairs_coefficients(
+    raft::handle_t const& handle,
+    graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+    std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
+    std::optional<raft::device_span<vertex_t const>> vertices,
+    std::optional<size_t> topk,
+    bool do_expensive_check = false);
+
+/**
+ * @brief     Compute Consine all pairs similarity coefficient
+ *
+ * Similarity is computed for all pairs of vertices.  Note that in a sparse
+ * graph, many of the vertex pairs will have a score of zero.  We actually
+ * compute similarity only for vertices that are two hop neighbors within
+ * the graph, since vertices that are not two hop neighbors will have
+ * a score of 0.
+ *
+ * If @p vertices is specified we will compute similarity on two hop
+ * neighbors the @p vertices.  If @p vertices is not specified it will
+ * compute similarity on all two hop neighbors in the graph.
+ *
+ * If @p topk is specified only the top @p topk scoring vertex pairs
+ * will be returned, if not specified then scores for all computed vertex pairs
+ * will be returned.
+ *
+ * Note the list of two hop neighbors in the entire graph might be a large
+ * number of vertex pairs.  If the graph is dense enough it could be as large
+ * as the the number of vertices squared, which might run out of memory.
+ *
+ * @throws                 cugraph::logic_error when an error occurs.
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
+ * @tparam weight_t Type of edge weights. Needs to be a floating point type.
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param graph_view Graph view object.
+ * @param edge_weight_view Optional view object holding edge weights for @p graph_view. If @p
+ * edge_weight_view.has_value() == true, use the weights associated with the graph. If false, assume
+ * a weight of 1 for all edges.
+ * @param vertices optional device span defining the seed vertices. In a multi-gpu context the
+ * vertices should be local to this GPU.
+ * @param topk optional specification of the how many of the top scoring vertex pairs should be
+ * returned
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
+ * @return tuple containing three device vectors (v1, v2, score) of the same length.  Corresponding
+ * elements in the vectors identify a result, v1 identifying a vertex in the graph, v2 identifying
+ * one of v1's two hop neighors, and the score identifying the similarity score between v1 and v2.
+ * If @p topk was specified then the vectors will be no longer than @p topk elements.  In a
+ * multi-gpu context, if @p topk is specified all results will return on GPU rank 0, otherwise they
+ * will be returned on the local GPU for vertex v1.
+ */
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+std::
+  tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>, rmm::device_uvector<weight_t>>
+  cosine_similarity_all_pairs_coefficients(
     raft::handle_t const& handle,
     graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
     std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
@@ -2368,6 +2473,32 @@ rmm::device_uvector<vertex_t> vertex_coloring(
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   raft::random::RngState& rng_state);
 
+/*
+ * @brief Approximate Weighted Matching
+ *
+ * A matching in an undirected graph G = (V, E) is a pairing of adjacent vertices
+ * such that each vertex is matched with at most one other vertex, the objective
+ * being to match as many vertices as possible or to maximise the sum of the
+ * weights of the matched edges. Here we provide an implementation of an
+ * approximation algorithm to the weighted Maximum matching. See
+ * https://web.archive.org/web/20081031230449id_/http://www.ii.uib.no/~fredrikm/fredrik/papers/CP75.pdf
+ * for further information.
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
+ * @param[in] handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator,
+ * and handles to various CUDA libraries) to run graph algorithms.
+ * @param[in] graph_view Graph view object.
+ * @param[in] edge_weight_view View object holding edge weights for @p graph_view.
+ * @return A tuple of device vector of matched vertex ids and sum of the weights of the matched
+ * edges.
+ */
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+std::tuple<rmm::device_uvector<vertex_t>, weight_t> approximate_weighted_matching(
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+  edge_property_view_t<edge_t, weight_t const*> edge_weight_view);
 }  // namespace cugraph
 
 /**

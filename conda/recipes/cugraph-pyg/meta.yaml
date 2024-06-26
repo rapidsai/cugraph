@@ -34,7 +34,8 @@ requirements:
     - cupy >=12.0.0
     - cugraph ={{ version }}
     - pylibcugraphops ={{ minor_version }}
-    - pyg >=2.3,<2.5
+    - tensordict >=0.1.2
+    - pyg >=2.5,<2.6
 
 tests:
   imports:

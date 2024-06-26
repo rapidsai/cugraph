@@ -1,4 +1,4 @@
-# Copyright (c) 2023, NVIDIA CORPORATION.
+# Copyright (c) 2023-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -20,9 +20,9 @@ import cudf
 import cupy
 import numpy as np
 
-from cugraph_pyg.loader import CuGraphNeighborLoader
+from cugraph_pyg.loader import DaskNeighborLoader
 from cugraph_pyg.loader import BulkSampleLoader
-from cugraph_pyg.data import CuGraphStore
+from cugraph_pyg.data import DaskGraphStore
 from cugraph_pyg.nn import SAGEConv as CuGraphSAGEConv
 
 from cugraph.gnn import FeatureStore
@@ -32,7 +32,11 @@ from typing import Dict, Tuple
 
 torch = import_optional("torch")
 torch_geometric = import_optional("torch_geometric")
+
 trim_to_layer = import_optional("torch_geometric.utils.trim_to_layer")
+if isinstance(trim_to_layer, MissingModule):
+    trim_to_layer = import_optional("torch_geometric.utils._trim_to_layer")
+
 
 try:
     import torch_sparse  # noqa: F401
@@ -43,14 +47,15 @@ except:  # noqa: E722
 
 
 @pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
+@pytest.mark.sg
 def test_cugraph_loader_basic(
     karate_gnn: Tuple[
         FeatureStore, Dict[Tuple[str, str, str], np.ndarray], Dict[str, int]
     ]
 ):
     F, G, N = karate_gnn
-    cugraph_store = CuGraphStore(F, G, N, order="CSR")
-    loader = CuGraphNeighborLoader(
+    cugraph_store = DaskGraphStore(F, G, N, order="CSR")
+    loader = DaskNeighborLoader(
         (cugraph_store, cugraph_store),
         torch.arange(N["type0"] + N["type1"], dtype=torch.int64),
         10,
@@ -73,14 +78,15 @@ def test_cugraph_loader_basic(
 
 
 @pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
+@pytest.mark.sg
 def test_cugraph_loader_hetero(
     karate_gnn: Tuple[
         FeatureStore, Dict[Tuple[str, str, str], np.ndarray], Dict[str, int]
     ]
 ):
     F, G, N = karate_gnn
-    cugraph_store = CuGraphStore(F, G, N, order="CSR")
-    loader = CuGraphNeighborLoader(
+    cugraph_store = DaskGraphStore(F, G, N, order="CSR")
+    loader = DaskNeighborLoader(
         (cugraph_store, cugraph_store),
         input_nodes=("type1", torch.tensor([0, 1, 2, 5], device="cuda")),
         batch_size=2,
@@ -103,6 +109,7 @@ def test_cugraph_loader_hetero(
 
 
 @pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
+@pytest.mark.sg
 def test_cugraph_loader_from_disk():
     m = [2, 9, 99, 82, 9, 3, 18, 1, 12]
     n = torch.arange(1, 1 + len(m), dtype=torch.int32)
@@ -114,7 +121,7 @@ def test_cugraph_loader_from_disk():
     G = {("t0", "knows", "t0"): 9080}
     N = {"t0": 256}
 
-    cugraph_store = CuGraphStore(F, G, N, order="CSR")
+    cugraph_store = DaskGraphStore(F, G, N, order="CSR")
 
     bogus_samples = cudf.DataFrame(
         {
@@ -160,6 +167,7 @@ def test_cugraph_loader_from_disk():
 
 
 @pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
+@pytest.mark.sg
 def test_cugraph_loader_from_disk_subset():
     m = [2, 9, 99, 82, 9, 3, 18, 1, 12]
     n = torch.arange(1, 1 + len(m), dtype=torch.int32)
@@ -171,7 +179,7 @@ def test_cugraph_loader_from_disk_subset():
     G = {("t0", "knows", "t0"): 9080}
     N = {"t0": 256}
 
-    cugraph_store = CuGraphStore(F, G, N, order="CSR")
+    cugraph_store = DaskGraphStore(F, G, N, order="CSR")
 
     bogus_samples = cudf.DataFrame(
         {
@@ -219,6 +227,7 @@ def test_cugraph_loader_from_disk_subset():
 
 @pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
 @pytest.mark.skipif(not HAS_TORCH_SPARSE, reason="torch-sparse not available")
+@pytest.mark.sg
 def test_cugraph_loader_from_disk_subset_csr():
     m = [2, 9, 99, 82, 11, 13]
     n = torch.arange(1, 1 + len(m), dtype=torch.int32)
@@ -230,7 +239,7 @@ def test_cugraph_loader_from_disk_subset_csr():
     G = {("t0", "knows", "t0"): 9080}
     N = {"t0": 256}
 
-    cugraph_store = CuGraphStore(F, G, N)
+    cugraph_store = DaskGraphStore(F, G, N)
 
     bogus_samples = cudf.DataFrame(
         {
@@ -278,13 +287,14 @@ def test_cugraph_loader_from_disk_subset_csr():
         )
         assert row.tolist() == bogus_samples.minors.dropna().values_host.tolist()
 
-        assert sample["t0"]["num_sampled_nodes"].tolist() == [1, 3, 2]
-        assert sample["t0", "knows", "t0"]["num_sampled_edges"].tolist() == [3, 5]
+        assert sample["t0"]["num_sampled_nodes"] == [1, 3, 2]
+        assert sample["t0", "knows", "t0"]["num_sampled_edges"] == [3, 5]
 
     assert num_samples == 100
 
 
 @pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
+@pytest.mark.sg
 def test_cugraph_loader_e2e_coo():
     m = [2, 9, 99, 82, 9, 3, 18, 1, 12]
     x = torch.randint(3000, (256, 256)).to(torch.float32)
@@ -294,7 +304,7 @@ def test_cugraph_loader_e2e_coo():
     G = {("t0", "knows", "t0"): 9999}
     N = {"t0": 256}
 
-    cugraph_store = CuGraphStore(F, G, N, order="CSR")
+    cugraph_store = DaskGraphStore(F, G, N, order="CSR")
 
     bogus_samples = cudf.DataFrame(
         {
@@ -353,6 +363,7 @@ def test_cugraph_loader_e2e_coo():
 @pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
 @pytest.mark.skipif(not HAS_TORCH_SPARSE, reason="torch-sparse not available")
 @pytest.mark.parametrize("framework", ["pyg", "cugraph-ops"])
+@pytest.mark.sg
 def test_cugraph_loader_e2e_csc(framework: str):
     m = [2, 9, 99, 82, 9, 3, 18, 1, 12]
     x = torch.randint(3000, (256, 256)).to(torch.float32)
@@ -362,7 +373,7 @@ def test_cugraph_loader_e2e_csc(framework: str):
     G = {("t0", "knows", "t0"): 9999}
     N = {"t0": 256}
 
-    cugraph_store = CuGraphStore(F, G, N)
+    cugraph_store = DaskGraphStore(F, G, N)
 
     bogus_samples = cudf.DataFrame(
         {
@@ -457,6 +468,7 @@ def test_cugraph_loader_e2e_csc(framework: str):
 
 @pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
 @pytest.mark.parametrize("drop_last", [True, False])
+@pytest.mark.sg
 def test_drop_last(drop_last):
     N = {"N": 10}
     G = {
@@ -467,9 +479,9 @@ def test_drop_last(drop_last):
     F = FeatureStore(backend="torch")
     F.add_data(torch.arange(10), "N", "z")
 
-    store = CuGraphStore(F, G, N)
+    store = DaskGraphStore(F, G, N)
     with tempfile.TemporaryDirectory() as dir:
-        loader = CuGraphNeighborLoader(
+        loader = DaskNeighborLoader(
             (store, store),
             input_nodes=torch.tensor([0, 1, 2, 3, 4]),
             num_neighbors=[1],
@@ -495,6 +507,7 @@ def test_drop_last(drop_last):
 
 
 @pytest.mark.parametrize("directory", ["local", "temp"])
+@pytest.mark.sg
 def test_load_directory(
     karate_gnn: Tuple[
         FeatureStore, Dict[Tuple[str, str, str], np.ndarray], Dict[str, int]
@@ -504,8 +517,8 @@ def test_load_directory(
     if directory == "local":
         local_dir = tempfile.TemporaryDirectory(dir=".")
 
-    cugraph_store = CuGraphStore(*karate_gnn)
-    cugraph_loader = CuGraphNeighborLoader(
+    cugraph_store = DaskGraphStore(*karate_gnn)
+    cugraph_loader = DaskNeighborLoader(
         (cugraph_store, cugraph_store),
         torch.arange(8, dtype=torch.int64),
         2,

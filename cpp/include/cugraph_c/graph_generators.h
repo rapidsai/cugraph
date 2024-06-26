@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, NVIDIA CORPORATION.
+ * Copyright (c) 2023-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -120,7 +120,7 @@ void cugraph_coo_list_free(cugraph_coo_list_t* coo_list);
  * Vertex types will be int32 if scale < 32 and int64 if scale >= 32
  *
  * @param [in]     handle             Handle for accessing resources
- * @param [in/out] rng_state          State of the random number generator, updated with each call
+ * @param [in,out] rng_state          State of the random number generator, updated with each call
  * @param [in]     scale Scale factor to set the number of vertices in the graph. Vertex IDs have
  * values in [0, V), where V = 1 << @p scale.
  * @param [in]     num_edges          Number of edges to generate.
@@ -164,7 +164,7 @@ cugraph_error_code_t cugraph_generate_rmat_edgelist(const cugraph_resource_handl
  * Vertex types will be int32 if scale < 32 and int64 if scale >= 32
  *
  * @param [in]     handle             Handle for accessing resources
- * @param [in/out] rng_state          State of the random number generator, updated with each call
+ * @param [in,out] rng_state          State of the random number generator, updated with each call
  * @param [in]     n_edgelists Number of edge lists (graphs) to generate
  * @param [in]     min_scale Scale factor to set the minimum number of verties in the graph.
  * @param [in]     max_scale Scale factor to set the maximum number of verties in the graph.
@@ -204,8 +204,8 @@ cugraph_error_code_t cugraph_generate_rmat_edgelists(
  * Updates a COO to contain random edge weights
  *
  * @param [in]     handle             Handle for accessing resources
- * @param [in/out] rng_state          State of the random number generator, updated with each call
- * @param [in/out] coo                Opaque pointer to the coo, weights will be added (overwriting
+ * @param [in,out] rng_state          State of the random number generator, updated with each call
+ * @param [in,out] coo                Opaque pointer to the coo, weights will be added (overwriting
  * any existing weights)
  * @param [in]     dtype              The type of weight to generate (FLOAT32 or FLOAT64), ignored
  * unless include_weights is true
@@ -229,7 +229,7 @@ cugraph_error_code_t cugraph_generate_edge_weights(const cugraph_resource_handle
  * edges
  *
  * @param [in]     handle             Handle for accessing resources
- * @param [in/out] coo                Opaque pointer to the coo, weights will be added (overwriting
+ * @param [in,out] coo                Opaque pointer to the coo, weights will be added (overwriting
  * any existing weights)
  * @param [in]     multi_gpu          Flag if the COO is being created on multiple GPUs
  * @param [out]    error              Pointer to an error object storing details of any error.  Will
@@ -246,8 +246,8 @@ cugraph_error_code_t cugraph_generate_edge_ids(const cugraph_resource_handle_t* 
  * Updates a COO to contain edge types.  Edges types will be randomly generated.
  *
  * @param [in]     handle             Handle for accessing resources
- * @param [in/out] rng_state          State of the random number generator, updated with each call
- * @param [in/out] coo                Opaque pointer to the coo, weights will be added (overwriting
+ * @param [in,out] rng_state          State of the random number generator, updated with each call
+ * @param [in,out] coo                Opaque pointer to the coo, weights will be added (overwriting
  * any existing weights)
  * @param [in]     max_edge_type      Edge types will be randomly generated between min_edge_type
  * and max_edge_type

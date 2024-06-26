@@ -169,7 +169,11 @@ function(ConfigureTest CMAKE_TEST_NAME)
     )
     set_target_properties(
         ${CMAKE_TEST_NAME}
-            PROPERTIES INSTALL_RPATH "\$ORIGIN/../../../lib")
+            PROPERTIES INSTALL_RPATH "\$ORIGIN/../../../lib"
+                       CXX_STANDARD                        17
+                       CXX_STANDARD_REQUIRED               ON
+                       CUDA_STANDARD                       17
+                       CUDA_STANDARD_REQUIRED              ON)
 
     rapids_test_add(
         NAME ${CMAKE_TEST_NAME}
@@ -195,7 +199,11 @@ function(ConfigureTestMG CMAKE_TEST_NAME)
     )
     set_target_properties(
         ${CMAKE_TEST_NAME}
-            PROPERTIES INSTALL_RPATH "\$ORIGIN/../../../lib")
+            PROPERTIES INSTALL_RPATH "\$ORIGIN/../../../lib"
+                       CXX_STANDARD                        17
+                       CXX_STANDARD_REQUIRED               ON
+                       CUDA_STANDARD                       17
+                       CUDA_STANDARD_REQUIRED              ON)
 
     rapids_test_add(
         NAME ${CMAKE_TEST_NAME}
@@ -241,7 +249,11 @@ function(ConfigureCTest CMAKE_TEST_NAME)
     )
     set_target_properties(
         ${CMAKE_TEST_NAME}
-            PROPERTIES INSTALL_RPATH "\$ORIGIN/../../../lib")
+            PROPERTIES INSTALL_RPATH "\$ORIGIN/../../../lib"
+                       CXX_STANDARD                        17
+                       CXX_STANDARD_REQUIRED               ON
+                       CUDA_STANDARD                       17
+                       CUDA_STANDARD_REQUIRED              ON)
 
     rapids_test_add(
         NAME ${CMAKE_TEST_NAME}
@@ -269,7 +281,11 @@ function(ConfigureCTestMG CMAKE_TEST_NAME)
     )
     set_target_properties(
         ${CMAKE_TEST_NAME}
-            PROPERTIES INSTALL_RPATH "\$ORIGIN/../../../lib")
+            PROPERTIES INSTALL_RPATH "\$ORIGIN/../../../lib"
+                       CXX_STANDARD                        17
+                       CXX_STANDARD_REQUIRED               ON
+                       CUDA_STANDARD                       17
+                       CUDA_STANDARD_REQUIRED              ON)
 
     rapids_test_add(
         NAME ${CMAKE_TEST_NAME}
@@ -308,6 +324,10 @@ ConfigureTest(LOUVAIN_TEST community/louvain_test.cpp)
 ###################################################################################################
 # - LEIDEN tests ----------------------------------------------------------------------------------
 ConfigureTest(LEIDEN_TEST community/leiden_test.cpp)
+
+###################################################################################################
+# - WEIGHTED MATCHING tests ----------------------------------------------------------------------------------
+ConfigureTest(WEIGHTED_MATCHING_TEST community/weighted_matching_test.cpp)
 
 ###################################################################################################
 # - Legacy ECG tests -------------------------------------------------------------------------------------
@@ -487,6 +507,11 @@ ConfigureTest(K_TRUSS_TEST community/k_truss_test.cpp)
 ConfigureTest(TRIANGLE_COUNT_TEST community/triangle_count_test.cpp)
 
 ###################################################################################################
+# - Edge Triangle Count tests --------------------------------------------------------------------------
+ConfigureTest(EDGE_TRIANGLE_COUNT_TEST community/edge_triangle_count_test.cpp)
+
+
+###################################################################################################
 # - K-hop Neighbors tests -------------------------------------------------------------------------
 ConfigureTest(K_HOP_NBRS_TEST traversal/k_hop_nbrs_test.cpp)
 
@@ -571,6 +596,10 @@ if(BUILD_CUGRAPH_MG_TESTS)
     ConfigureTestMG(MG_LEIDEN_TEST community/mg_leiden_test.cpp)
 
     ###############################################################################################
+    # - MG WEIGHTED MATCHING tests --------------------------------------------------------------------------
+    ConfigureTestMG(MG_WEIGHTED_MATCHING_TEST community/mg_weighted_matching_test.cpp)
+
+    ###############################################################################################
     # - MG ECG tests --------------------------------------------------------------------------
     ConfigureTestMG(MG_ECG_TEST community/mg_ecg_test.cpp)
 
@@ -581,6 +610,10 @@ if(BUILD_CUGRAPH_MG_TESTS)
     ###############################################################################################
     # - MG LOUVAIN tests --------------------------------------------------------------------------
     ConfigureTestMG(MG_EGONET_TEST community/mg_egonet_test.cu)
+
+    ###############################################################################################
+    # - MG EDGE TRIANGLE COUNT tests --------------------------------------------------------------------------
+    ConfigureTestMG(MG_EDGE_TRIANGLE_COUNT_TEST community/mg_edge_triangle_count_test.cpp)
 
     ###############################################################################################
     # - MG WEAKLY CONNECTED COMPONENTS tests ------------------------------------------------------
@@ -733,6 +766,7 @@ if(BUILD_CUGRAPH_MG_TESTS)
     ConfigureCTestMG(MG_CAPI_K_CORE_TEST c_api/mg_k_core_test.c)
     ConfigureCTestMG(MG_CAPI_INDUCED_SUBGRAPH_TEST c_api/mg_induced_subgraph_test.c)
     ConfigureCTestMG(MG_CAPI_DEGREES c_api/mg_degrees_test.c)
+    ConfigureCTestMG(MG_CAPI_COUNT_MULTI_EDGES c_api/mg_count_multi_edges_test.c)
     ConfigureCTestMG(MG_CAPI_EGONET_TEST c_api/mg_egonet_test.c)
     ConfigureCTestMG(MG_CAPI_TWO_HOP_NEIGHBORS_TEST c_api/mg_two_hop_neighbors_test.c)
 
@@ -777,6 +811,7 @@ ConfigureCTest(CAPI_SIMILARITY_TEST c_api/similarity_test.c)
 ConfigureCTest(CAPI_K_CORE_TEST c_api/k_core_test.c)
 ConfigureCTest(CAPI_INDUCED_SUBGRAPH_TEST c_api/induced_subgraph_test.c)
 ConfigureCTest(CAPI_DEGREES c_api/degrees_test.c)
+ConfigureCTest(CAPI_COUNT_MULTI_EDGES c_api/count_multi_edges_test.c)
 ConfigureCTest(CAPI_EGONET_TEST c_api/egonet_test.c)
 ConfigureCTest(CAPI_TWO_HOP_NEIGHBORS_TEST c_api/two_hop_neighbors_test.c)
 ConfigureCTest(CAPI_K_TRUSS_TEST c_api/k_truss_test.c)
@@ -787,14 +822,31 @@ if (BUILD_CUGRAPH_MTMG_TESTS)
     ConfigureTest(MTMG_TEST mtmg/threaded_test.cu)
     target_link_libraries(MTMG_TEST
                           PRIVATE
-                          UCP::UCP
+                          cugraphmgtestutil
+                          ${COMPILED_RAFT_LIB}
+                          ucx::ucp
+                          ucx::ucs
+                          ucxx::ucxx
                          )
 
     ConfigureTest(MTMG_LOUVAIN_TEST mtmg/threaded_test_louvain.cu)
     target_link_libraries(MTMG_LOUVAIN_TEST
                           PRIVATE
                           cugraphmgtestutil
-                          UCP::UCP
+                          ${COMPILED_RAFT_LIB}
+                          ucx::ucp
+                          ucx::ucs
+                          ucxx::ucxx
+                         )
+
+    ConfigureTest(MTMG_JACCARD_TEST mtmg/threaded_test_jaccard.cu)
+    target_link_libraries(MTMG_JACCARD_TEST
+                          PRIVATE
+                          cugraphmgtestutil
+                          ${COMPILED_RAFT_LIB}
+                          ucx::ucp
+                          ucx::ucs
+                          ucxx::ucxx
                          )
 
     if(BUILD_CUGRAPH_MG_TESTS)
@@ -804,7 +856,10 @@ if (BUILD_CUGRAPH_MTMG_TESTS)
         target_link_libraries(MTMG_MULTINODE_TEST
                               PRIVATE
                               cugraphmgtestutil
-                              UCP::UCP
+                              ${COMPILED_RAFT_LIB}
+                              ucx::ucp
+                              ucx::ucs
+                              ucxx::ucxx
                              )
     endif(BUILD_CUGRAPH_MG_TESTS)
 endif(BUILD_CUGRAPH_MTMG_TESTS)

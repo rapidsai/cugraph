@@ -18,8 +18,8 @@ from toolz import first
 import collections
 import dask_cudf
 from dask.array.core import Array as daskArray
-from dask_cudf.core import DataFrame as daskDataFrame
-from dask_cudf.core import Series as daskSeries
+from dask_cudf import DataFrame as daskDataFrame
+from dask_cudf import Series as daskSeries
 from functools import reduce
 import cugraph.dask.comms.comms as Comms
 from dask.delayed import delayed
