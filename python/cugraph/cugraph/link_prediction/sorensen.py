@@ -207,7 +207,7 @@ def sorensen_coefficient(
         .. deprecated:: 24.08
 
            Accepting ``networkx.Graph`` is deprecated and will be removed in a
-           future version.  For ``networkx.Graph`` use netwotkx directly with
+           future version.  For ``networkx.Graph`` use networkx directly with
            the ``nx-cugraph`` plug-in.
 
     ebunch : cudf.DataFrame or iterable of node pairs, optional (default=None)
