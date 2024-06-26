@@ -63,7 +63,7 @@ def node2vec(G, start_vertices, max_depth=1, compress_result=True, p=1.0, q=1.0)
         .. deprecated:: 24.08
 
            Accepting ``networkx.Graph`` is deprecated and will be removed in a
-           future version.  For ``networkx.Graph`` use netwotkx directly with
+           future version.  For ``networkx.Graph`` use networkx  directly with
            the ``nx-cugraph`` plug-in.
 
     start_vertices: int or list or cudf.Series or cudf.DataFrame
