@@ -17,6 +17,7 @@
 #include "c_api/abstract_functor.hpp"
 #include "c_api/graph.hpp"
 #include "c_api/resource_handle.hpp"
+#include "c_api/random.hpp"
 #include "c_api/utils.hpp"
 
 #include <cugraph_c/algorithms.h>
@@ -156,7 +157,7 @@ struct uniform_random_walks_functor : public cugraph::c_api::abstract_functor {
   cugraph::c_api::cugraph_graph_t* graph_{nullptr};
   cugraph::c_api::cugraph_type_erased_device_array_view_t const* start_vertices_{nullptr};
   size_t max_length_{0};
-  size_t seed_{0};
+  cugraph::c_api::cugraph_rng_state_t* rng_state_{nullptr};
   cugraph::c_api::cugraph_random_walk_result_t* result_{nullptr};
 
   uniform_random_walks_functor(cugraph_resource_handle_t const* handle,
@@ -228,7 +229,7 @@ struct uniform_random_walks_functor : public cugraph::c_api::abstract_functor {
         (edge_weights != nullptr) ? std::make_optional(edge_weights->view()) : std::nullopt,
         raft::device_span<vertex_t const>{start_vertices.data(), start_vertices.size()},
         max_length_,
-        seed_);
+        rng_state_->rng_state_);
 
       //
       // Need to unrenumber the vertices in the resulting paths
@@ -259,7 +260,7 @@ struct biased_random_walks_functor : public cugraph::c_api::abstract_functor {
   cugraph::c_api::cugraph_type_erased_device_array_view_t const* start_vertices_{nullptr};
   size_t max_length_{0};
   cugraph::c_api::cugraph_random_walk_result_t* result_{nullptr};
-  uint64_t seed_{0};
+  cugraph::c_api::cugraph_rng_state_t* rng_state_{nullptr};
 
   biased_random_walks_functor(cugraph_resource_handle_t const* handle,
                               cugraph_graph_t* graph,
@@ -332,7 +333,7 @@ struct biased_random_walks_functor : public cugraph::c_api::abstract_functor {
         edge_weights->view(),
         raft::device_span<vertex_t const>{start_vertices.data(), start_vertices.size()},
         max_length_,
-        seed_);
+        rng_state_->rng_state_);
 
       //
       // Need to unrenumber the vertices in the resulting paths

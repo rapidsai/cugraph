@@ -40,8 +40,10 @@ struct UniformRandomWalks_Usecase {
              raft::device_span<vertex_t const> start_vertices,
              size_t num_paths)
   {
+     raft::random::RngState rng_state(0);
+
     return cugraph::uniform_random_walks(
-      handle, graph_view, edge_weight_view, start_vertices, num_paths, seed);
+      handle, graph_view, edge_weight_view, start_vertices, num_paths, rng_state);
   }
 
   bool expect_throw() { return false; }
@@ -62,8 +64,10 @@ struct BiasedRandomWalks_Usecase {
   {
     CUGRAPH_EXPECTS(edge_weight_view.has_value(), "Biased random walk requires edge weights.");
 
+    raft::random::RngState rng_state(0);
+
     return cugraph::biased_random_walks(
-      handle, graph_view, *edge_weight_view, start_vertices, num_paths, seed);
+      handle, graph_view, *edge_weight_view, start_vertices, num_paths, rng_state);
   }
 
   // FIXME: Not currently implemented

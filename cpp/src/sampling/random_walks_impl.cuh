@@ -20,6 +20,7 @@
 #include "prims/per_v_random_select_transform_outgoing_e.cuh"
 #include "prims/vertex_frontier.cuh"
 #include "prims/property_op_utils.cuh"
+#include "prims/update_edge_src_dst_property.cuh"
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/detail/shuffle_wrappers.hpp>
@@ -73,22 +74,27 @@ struct sample_edges_op_t {
 };
 
 template <typename vertex_t, typename bias_t>
-struct e_bias_op_t {
-
-  raft::device_span<bias_t const> vertex_weight_sum{};
+struct biased_random_walk_e_bias_op_t {
 
   __device__ bias_t
-  operator()(vertex_t src, vertex_t, thrust::nullopt_t, thrust::nullopt_t, bias_t weight) const
+  operator()(vertex_t, vertex_t, bias_t src_out_weight_sum, thrust::nullopt_t, bias_t weight) const
   {
-    return weight / vertex_weight_sum[src];
+    return weight / src_out_weight_sum;
+  }
+};
+
+template <typename vertex_t, typename weight_t>
+struct biased_sample_edges_op_t {
+  __device__ thrust::tuple<vertex_t, weight_t>
+  operator()(vertex_t, vertex_t dst, weight_t, thrust::nullopt_t, weight_t weight) const
+  {
+    return thrust::make_tuple(dst, weight);
   }
 };
 
 template <typename weight_t>
 struct uniform_selector {
   raft::random::RngState rng_state_;
-
-  uniform_selector(uint64_t seed) : rng_state_(seed) {}
 
   template <typename GraphViewType>
   std::tuple<rmm::device_uvector<typename GraphViewType::vertex_type>,
@@ -154,8 +160,6 @@ struct uniform_selector {
 template <typename weight_t>
 struct biased_selector {
   raft::random::RngState rng_state_;
-  
-  biased_selector(uint64_t seed) : rng_state_(seed) {}
 
   template <typename GraphViewType>
   std::tuple<rmm::device_uvector<typename GraphViewType::vertex_type>,
@@ -189,17 +193,18 @@ struct biased_selector {
 
     if (edge_weight_view) {
       auto vertex_weight_sum  = compute_out_weight_sums(handle, graph_view, *edge_weight_view);
+      edge_src_property_t<GraphViewType, weight_t> edge_src_out_weight_sums(handle, graph_view);
+      update_edge_src_property(handle, graph_view, vertex_weight_sum.data(), edge_src_out_weight_sums);
       auto [sample_offsets, sample_e_op_results] =
         cugraph::per_v_random_select_transform_outgoing_e(
           handle,
           graph_view,
           vertex_frontier.bucket(0),
-          cugraph::edge_src_dummy_property_t{}.view(),
+          edge_src_out_weight_sums.view(),
           cugraph::edge_dst_dummy_property_t{}.view(),
           *edge_weight_view,
-          e_bias_op_t<vertex_t, weight_t>{
-            raft::device_span<weight_t const>(vertex_weight_sum.data(), vertex_weight_sum.size())},
-          sample_edges_op_t<vertex_t, weight_t>{},
+          biased_random_walk_e_bias_op_t<vertex_t, weight_t>{},
+          biased_sample_edges_op_t<vertex_t, weight_t>{},
           rng_state_,
           size_t{1},
           true,
@@ -525,7 +530,7 @@ uniform_random_walks(raft::handle_t const& handle,
                      std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
                      raft::device_span<vertex_t const> start_vertices,
                      size_t max_length,
-                     uint64_t seed)
+                     raft::random::RngState& rng_state)
 {
   CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
 
@@ -534,8 +539,7 @@ uniform_random_walks(raft::handle_t const& handle,
                                   edge_weight_view,
                                   start_vertices,
                                   max_length,
-                                  detail::uniform_selector<weight_t>(
-                                    (seed == 0 ? detail::get_current_time_nanoseconds() : seed)));
+                                  detail::uniform_selector<weight_t>{rng_state});
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
@@ -545,7 +549,7 @@ biased_random_walks(raft::handle_t const& handle,
                     edge_property_view_t<edge_t, weight_t const*> edge_weight_view,
                     raft::device_span<vertex_t const> start_vertices,
                     size_t max_length,
-                    uint64_t seed)
+                    raft::random::RngState& rng_state)
 {
   CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
 
@@ -555,7 +559,7 @@ biased_random_walks(raft::handle_t const& handle,
     std::optional<edge_property_view_t<edge_t, weight_t const*>>{edge_weight_view},
     start_vertices,
     max_length,
-    detail::biased_selector<weight_t>((seed == 0 ? detail::get_current_time_nanoseconds() : seed)));
+    detail::biased_selector<weight_t>{rng_state});
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
