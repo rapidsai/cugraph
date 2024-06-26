@@ -57,7 +57,7 @@ def triangle_count(G, start_list=None):
         .. deprecated:: 24.08
 
            Accepting ``networkx.Graph`` is deprecated and will be removed in a
-           future version.  For ``networkx.Graph`` use netwotkx directly with
+           future version.  For ``networkx.Graph`` use networkx directly with
            the ``nx-cugraph`` plug-in.
 
     start_list : list or cudf.Series
