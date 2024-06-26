@@ -15,6 +15,7 @@
  */
 #pragma once
 
+#include <cugraph/utilities/packed_bool_utils.hpp>
 #include <cugraph/utilities/thrust_tuple_utils.hpp>
 
 #include <raft/util/device_atomics.cuh>
@@ -253,6 +254,18 @@ __device__
                 thrust::tuple_size<T>::value);
   return detail::thrust_tuple_elementwise_atomic_max(
     iter, value, std::make_index_sequence<thrust::tuple_size<T>::value>{});
+}
+
+template <typename Iterator, typename T>
+__device__ void packed_bool_atomic_set(Iterator iter, T offset, bool val)
+{
+  auto packed_output_offset = packed_bool_offset(offset);
+  auto packed_output_mask   = packed_bool_mask(offset);
+  if (val) {
+    atomicOr(iter + packed_output_offset, packed_output_mask);
+  } else {
+    atomicAnd(iter + packed_output_offset, ~packed_output_mask);
+  }
 }
 
 }  // namespace cugraph

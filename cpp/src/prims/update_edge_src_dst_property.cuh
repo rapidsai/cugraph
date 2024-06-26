@@ -22,6 +22,7 @@
 #include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/partition_manager.hpp>
+#include <cugraph/utilities/atomic_ops.cuh>
 #include <cugraph/utilities/dataframe_buffer.hpp>
 #include <cugraph/utilities/device_comm.hpp>
 #include <cugraph/utilities/error.hpp>
@@ -55,18 +56,6 @@
 namespace cugraph {
 
 namespace detail {
-
-template <typename Iterator, typename vertex_t>
-__device__ void packed_bool_atomic_set(Iterator value_first, vertex_t offset, bool val)
-{
-  auto packed_output_offset = packed_bool_offset(offset);
-  auto packed_output_mask   = packed_bool_mask(offset);
-  if (val) {
-    atomicOr(value_first + packed_output_offset, packed_output_mask);
-  } else {
-    atomicAnd(value_first + packed_output_offset, ~packed_output_mask);
-  }
-}
 
 template <typename BoolInputIterator, typename PackedBoolOutputIterator>
 void pack_bools(raft::handle_t const& handle,
