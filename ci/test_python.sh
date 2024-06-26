@@ -44,6 +44,8 @@ rapids-mamba-retry install \
 rapids-logger "Check GPU usage"
 nvidia-smi
 
+export LD_PRELOAD="${CONDA_PREFIX}/lib/libgomp.so.1"
+
 # RAPIDS_DATASET_ROOT_DIR is used by test scripts
 export RAPIDS_DATASET_ROOT_DIR="$(realpath datasets)"
 pushd "${RAPIDS_DATASET_ROOT_DIR}"
@@ -191,6 +193,8 @@ if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
     conda activate test_cugraph_pyg
     set -u
 
+    rapids-print-env
+
     # TODO re-enable logic once CUDA 12 is testable
     #if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
     CONDA_CUDA_VERSION="11.8"
@@ -204,19 +208,14 @@ if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
     rapids-mamba-retry install \
       --channel "${CPP_CHANNEL}" \
       --channel "${PYTHON_CHANNEL}" \
-      --channel pytorch \
       --channel pyg \
-      --channel nvidia \
       "cugraph-pyg" \
       "pytorch=2.1.0" \
       "pytorch-cuda=${CONDA_CUDA_VERSION}"
 
     # Install pyg dependencies (which requires pip)
-
     pip install \
-      ogb 
-      
-    pip install \
+        ogb \
         pyg_lib \
         torch_scatter \
         torch_sparse \
