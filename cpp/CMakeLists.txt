@@ -281,7 +281,9 @@ set(CUGRAPH_SOURCES
     src/sampling/detail/sample_edges_mg64.cu
     src/sampling/detail/sample_edges_mg32.cu
     src/sampling/detail/sample_edges_mg3264.cu
-    src/sampling/detail/shuffle_and_organize_output_mg.cu
+    src/sampling/detail/shuffle_and_organize_output_mg64.cu
+    src/sampling/detail/shuffle_and_organize_output_mg32.cu
+    src/sampling/detail/shuffle_and_organize_output_mg3264.cu
     src/sampling/uniform_neighbor_sampling_mg.cpp
     src/sampling/uniform_neighbor_sampling_sg.cpp
     src/sampling/renumber_sampled_edgelist_sg.cu
