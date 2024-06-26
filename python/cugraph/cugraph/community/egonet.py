@@ -65,7 +65,7 @@ def ego_graph(G, n, radius=1, center=True, undirected=None, distance=None):
         .. deprecated:: 24.08
 
            Accepting ``networkx.Graph`` is deprecated and will be removed in a
-           future version.  For ``networkx.Graph`` use netwotkx directly with
+           future version.  For ``networkx.Graph`` use networkx directly with
            the ``nx-cugraph`` plug-in.
 
     n : integer or list, cudf.Series, cudf.DataFrame
