@@ -274,7 +274,7 @@ def bfs_edges(G, source, reverse=False, depth_limit=None, sort_neighbors=None):
         .. deprecated:: 24.08
 
            Accepting ``networkx.Graph`` is deprecated and will be removed in a
-           future version.  For ``networkx.Graph`` use netwotkx directly with
+           future version.  For ``networkx.Graph`` use networkx directly with
            the ``nx-cugraph`` plug-in.
 
     source : Integer
