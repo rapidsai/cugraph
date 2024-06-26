@@ -5,7 +5,7 @@
 requires = [
     "cmake>=3.26.4",
     "cython>=3.0.0",
-    "libcugraph==24.6.*",
+    "libcugraph==24.8.*",
     "ninja",
     "pylibcugraph==24.8.*",
     "pylibraft==24.8.*",
@@ -33,7 +33,7 @@ dependencies = [
     "dask-cuda==24.8.*",
     "dask-cudf==24.8.*",
     "fsspec[http]>=0.6.0",
-    "libcugraph==24.6.*",
+    "libcugraph==24.8.*",
     "numba>=0.57",
     "numpy>=1.23,<2.0a0",
     "pylibcugraph==24.8.*",

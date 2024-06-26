@@ -471,7 +471,7 @@ dependencies:
     common:
       - output_types: [pyproject, requirements]
         packages:
-          - libcugraph==24.6.*
+          - libcugraph==24.8.*
   libcugraph_build:
     common:
       - output_types: [pyproject, requirements]
@@ -481,9 +481,9 @@ dependencies:
     common:
       - output_types: [requirements, pyproject]
         packages:
-          - librmm==24.6.*
-          - libraft==24.6.*
-          - libcugraphops==24.6.*
+          - librmm==24.8.*
+          - libraft==24.8.*
+          - libcugraphops==24.8.*
   python_run_cugraph:
     common:
       - output_types: [conda, pyproject]
