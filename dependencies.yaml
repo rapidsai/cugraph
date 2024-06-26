@@ -495,7 +495,7 @@ dependencies:
     common:
       - output_types: [conda, pyproject]
         packages:
-          - &thrift thriftpy2
+          - &thrift thriftpy2=0.5.0
   python_run_cugraph_service_server:
     common:
       - output_types: [conda, pyproject]
