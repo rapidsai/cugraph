@@ -811,7 +811,7 @@ class Graph:
 
         etype = self.to_canonical_etype(etype)
 
-        if form == 'eid':
+        if form == "eid":
             return torch.arange(
                 0,
                 self.__num_edges_dict[etype],
@@ -820,27 +820,26 @@ class Graph:
             )
         else:
             if self.is_multi_gpu:
-                src = torch.empty((self.__num_edges_dict[etype], ), dtype=self.idtype, device='cuda')
-                dst = torch.empty((self.__num_edges_dict[etype], ), dtype=self.idtype, device='cuda')
-                
-                h1 = torch.distributed.all_gather_into_tensor(src, self.__edge_indices[etype][0].cuda(), async_op=True)
-                h2 = torch.distributed.all_gather_into_tensor(dst, self.__edge_indices[etype][1].cuda(), async_op=True)
-
-                h1.wait()
-                h2.wait()
-                if form == 'uv':
-                    return src.to(device), dst.to(device)
-                elif form == 'all':
-                    return src.to(device), dst.to(device), torch.arange(self.__num_edges_dict[etype], dtype=self.idtype,device=device)
-                else:
-                    raise ValueError(f"Invalid form {form}")
+                # This can't be done because it requires collective communication.
+                raise ValueError(
+                    "Calling all_edges in a distributed graph with"
+                    " form 'uv' or 'all' is unsupported."
+                )
 
             else:
                 eix = self.__edge_indices[etype].to(device)
-                if form == 'uv':
+                if form == "uv":
                     return eix[0], eix[1]
-                elif form == 'all':
-                    return eix[0], eix[1], torch.arange(self.__num_edges_dict[etype], dtype=self.idtype,device=device)
+                elif form == "all":
+                    return (
+                        eix[0],
+                        eix[1],
+                        torch.arange(
+                            self.__num_edges_dict[etype],
+                            dtype=self.idtype,
+                            device=device,
+                        ),
+                    )
                 else:
                     raise ValueError(f"Invalid form {form}")
 

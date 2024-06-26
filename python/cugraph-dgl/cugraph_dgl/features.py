@@ -76,7 +76,7 @@ class WholeFeatureStore(
             tensor = tensor.reshape((tensor.shape[0], 1))
 
         wg_tensor = wgth.create_wholememory_tensor(
-            self.__wg_commm,
+            self.__wg_comm,
             memory_type,
             location,
             global_shape,
