@@ -55,7 +55,8 @@ from pylibcugraph.graphs cimport (
 from pylibcugraph.utils cimport (
     assert_success,
     copy_to_cupy_array,
-    create_cugraph_type_erased_device_array_view_from_py_obj
+    create_cugraph_type_erased_device_array_view_from_py_obj,
+    SIZE_MAX
 )
 
 
@@ -89,7 +90,7 @@ def all_pairs_jaccard_coefficients(ResourceHandle resource_handle,
         Otherwise, computed un-weighted jaccard_coefficients
     
     topk : size_t
-        Specify how many answers to return otherwise will return all values.
+        Specify the number of answers to return otherwise will return all values.
 
 
     do_expensive_check : bool
@@ -106,6 +107,9 @@ def all_pairs_jaccard_coefficients(ResourceHandle resource_handle,
     # FIXME: No example yet
 
     """
+
+    if topk is None:
+        topk = SIZE_MAX
 
     cdef cugraph_vertex_pairs_t* vertex_pairs_ptr
 
