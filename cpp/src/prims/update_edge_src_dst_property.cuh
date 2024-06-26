@@ -849,6 +849,7 @@ void update_edge_minor_property(raft::handle_t const& handle,
  *
  * @tparam GraphViewType Type of the passed non-owning graph object.
  * @tparam VertexPropertyInputIterator Type of the iterator for vertex property values.
+ * @tparam EdgeSrcValueOutputWrapper Type of the wrapper for output edge source property values.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Non-owning graph object.
@@ -856,19 +857,18 @@ void update_edge_minor_property(raft::handle_t const& handle,
  * (inclusive) vertex (of the vertex partition assigned to this process in multi-GPU).
  * `vertex_property_input_last` (exclusive) is deduced as @p vertex_property_input_first + @p
  * graph_view.local_vertex_partition_range_size().
- * @param edge_partition_src_property_output edge_src_property_t class object to store source
+ * @param edge_partition_src_property_output edge_src_property_view_t class object to store source
  * property values (for the edge sources assigned to this process in multi-GPU).
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  */
-template <typename GraphViewType, typename VertexPropertyInputIterator>
-void update_edge_src_property(
-  raft::handle_t const& handle,
-  GraphViewType const& graph_view,
-  VertexPropertyInputIterator vertex_property_input_first,
-  edge_src_property_t<GraphViewType,
-                      typename std::iterator_traits<VertexPropertyInputIterator>::value_type>&
-    edge_src_property_output,
-  bool do_expensive_check = false)
+template <typename GraphViewType,
+          typename VertexPropertyInputIterator,
+          typename EdgeSrcValueOutputWrapper>
+void update_edge_src_property(raft::handle_t const& handle,
+                              GraphViewType const& graph_view,
+                              VertexPropertyInputIterator vertex_property_input_first,
+                              EdgeSrcValueOutputWrapper edge_src_property_output,
+                              bool do_expensive_check = false)
 {
   if (do_expensive_check) {
     // currently, nothing to do
@@ -876,10 +876,10 @@ void update_edge_src_property(
 
   if constexpr (GraphViewType::is_storage_transposed) {
     detail::update_edge_minor_property(
-      handle, graph_view, vertex_property_input_first, edge_src_property_output.mutable_view());
+      handle, graph_view, vertex_property_input_first, edge_src_property_output);
   } else {
     detail::update_edge_major_property(
-      handle, graph_view, vertex_property_input_first, edge_src_property_output.mutable_view());
+      handle, graph_view, vertex_property_input_first, edge_src_property_output);
   }
 }
 
@@ -892,6 +892,7 @@ void update_edge_src_property(
  * @tparam GraphViewType Type of the passed non-owning graph object.
  * @tparam VertexIterator  Type of the iterator for vertex identifiers.
  * @tparam VertexPropertyInputIterator Type of the iterator for vertex property values.
+ * @tparam EdgeSrcValueOutputWrapper Type of the wrapper for output edge source property values.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Non-owning graph object.
@@ -903,21 +904,21 @@ void update_edge_src_property(
  * (inclusive) vertex (of the vertex partition assigned to this process in multi-GPU).
  * `vertex_property_input_last` (exclusive) is deduced as @p vertex_property_input_first + @p
  * graph_view.local_vertex_partition_range_size().
- * @param edge_partition_src_property_output edge_src_property_t class object to store source
+ * @param edge_partition_src_property_output edge_src_property_view_t class object to store source
  * property values (for the edge sources assigned to this process in multi-GPU).
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  */
-template <typename GraphViewType, typename VertexIterator, typename VertexPropertyInputIterator>
-void update_edge_src_property(
-  raft::handle_t const& handle,
-  GraphViewType const& graph_view,
-  VertexIterator vertex_first,
-  VertexIterator vertex_last,
-  VertexPropertyInputIterator vertex_property_input_first,
-  edge_src_property_t<GraphViewType,
-                      typename std::iterator_traits<VertexPropertyInputIterator>::value_type>&
-    edge_src_property_output,
-  bool do_expensive_check = false)
+template <typename GraphViewType,
+          typename VertexIterator,
+          typename VertexPropertyInputIterator,
+          typename EdgeSrcValueOutputWrapper>
+void update_edge_src_property(raft::handle_t const& handle,
+                              GraphViewType const& graph_view,
+                              VertexIterator vertex_first,
+                              VertexIterator vertex_last,
+                              VertexPropertyInputIterator vertex_property_input_first,
+                              EdgeSrcValueOutputWrapper edge_src_property_output,
+                              bool do_expensive_check = false)
 {
   if (do_expensive_check) {
     auto num_invalids = thrust::count_if(
@@ -945,14 +946,14 @@ void update_edge_src_property(
                                        vertex_first,
                                        vertex_last,
                                        vertex_property_input_first,
-                                       edge_src_property_output.mutable_view());
+                                       edge_src_property_output);
   } else {
     detail::update_edge_major_property(handle,
                                        graph_view,
                                        vertex_first,
                                        vertex_last,
                                        vertex_property_input_first,
-                                       edge_src_property_output.mutable_view());
+                                       edge_src_property_output);
   }
 }
 
@@ -964,6 +965,8 @@ void update_edge_src_property(
  *
  * @tparam GraphViewType Type of the passed non-owning graph object.
  * @tparam VertexPropertyInputIterator Type of the iterator for vertex property values.
+ * @tparam EdgeDstValueOutputWrapper Type of the wrapper for output edge destination property
+ * values.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Non-owning graph object.
@@ -971,19 +974,18 @@ void update_edge_src_property(
  * (inclusive) vertex (of the vertex partition assigned to this process in multi-GPU).
  * `vertex_property_input_last` (exclusive) is deduced as @p vertex_property_input_first + @p
  * graph_view.local_vertex_partition_range_size().
- * @param edge_partition_dst_property_output edge_dst_property_t class object to store destination
- * property values (for the edge destinations assigned to this process in multi-GPU).
+ * @param edge_partition_dst_property_output edge_dst_property_view_t class object to store
+ * destination property values (for the edge destinations assigned to this process in multi-GPU).
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  */
-template <typename GraphViewType, typename VertexPropertyInputIterator>
-void update_edge_dst_property(
-  raft::handle_t const& handle,
-  GraphViewType const& graph_view,
-  VertexPropertyInputIterator vertex_property_input_first,
-  edge_dst_property_t<GraphViewType,
-                      typename std::iterator_traits<VertexPropertyInputIterator>::value_type>&
-    edge_dst_property_output,
-  bool do_expensive_check = false)
+template <typename GraphViewType,
+          typename VertexPropertyInputIterator,
+          typename EdgeDstValueOutputWrapper>
+void update_edge_dst_property(raft::handle_t const& handle,
+                              GraphViewType const& graph_view,
+                              VertexPropertyInputIterator vertex_property_input_first,
+                              EdgeDstValueOutputWrapper edge_dst_property_output,
+                              bool do_expensive_check = false)
 {
   if (do_expensive_check) {
     // currently, nothing to do
@@ -991,10 +993,10 @@ void update_edge_dst_property(
 
   if constexpr (GraphViewType::is_storage_transposed) {
     detail::update_edge_major_property(
-      handle, graph_view, vertex_property_input_first, edge_dst_property_output.mutable_view());
+      handle, graph_view, vertex_property_input_first, edge_dst_property_output);
   } else {
     detail::update_edge_minor_property(
-      handle, graph_view, vertex_property_input_first, edge_dst_property_output.mutable_view());
+      handle, graph_view, vertex_property_input_first, edge_dst_property_output);
   }
 }
 
@@ -1007,6 +1009,8 @@ void update_edge_dst_property(
  * @tparam GraphViewType Type of the passed non-owning graph object.
  * @tparam VertexIterator  Type of the iterator for vertex identifiers.
  * @tparam VertexPropertyInputIterator Type of the iterator for vertex property values.
+ * @tparam EdgeDstValueOutputWrapper Type of the wrapper for output edge destination property
+ * values.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Non-owning graph object.
@@ -1018,21 +1022,21 @@ void update_edge_dst_property(
  * (inclusive) vertex (of the vertex partition assigned to this process in multi-GPU).
  * `vertex_property_input_last` (exclusive) is deduced as @p vertex_property_input_first + @p
  * graph_view.local_vertex_partition_range_size().
- * @param edge_partition_dst_property_output edge_dst_property_t class object to store destination
- * property values (for the edge destinations assigned to this process in multi-GPU).
+ * @param edge_partition_dst_property_output edge_dst_property_view_t class object to store
+ * destination property values (for the edge destinations assigned to this process in multi-GPU).
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  */
-template <typename GraphViewType, typename VertexIterator, typename VertexPropertyInputIterator>
-void update_edge_dst_property(
-  raft::handle_t const& handle,
-  GraphViewType const& graph_view,
-  VertexIterator vertex_first,
-  VertexIterator vertex_last,
-  VertexPropertyInputIterator vertex_property_input_first,
-  edge_dst_property_t<GraphViewType,
-                      typename std::iterator_traits<VertexPropertyInputIterator>::value_type>&
-    edge_dst_property_output,
-  bool do_expensive_check = false)
+template <typename GraphViewType,
+          typename VertexIterator,
+          typename VertexPropertyInputIterator,
+          typename EdgeDstValueOutputWrapper>
+void update_edge_dst_property(raft::handle_t const& handle,
+                              GraphViewType const& graph_view,
+                              VertexIterator vertex_first,
+                              VertexIterator vertex_last,
+                              VertexPropertyInputIterator vertex_property_input_first,
+                              EdgeDstValueOutputWrapper edge_dst_property_output,
+                              bool do_expensive_check = false)
 {
   if (do_expensive_check) {
     auto num_invalids = thrust::count_if(
@@ -1060,14 +1064,14 @@ void update_edge_dst_property(
                                        vertex_first,
                                        vertex_last,
                                        vertex_property_input_first,
-                                       edge_dst_property_output.mutable_view());
+                                       edge_dst_property_output);
   } else {
     detail::update_edge_minor_property(handle,
                                        graph_view,
                                        vertex_first,
                                        vertex_last,
                                        vertex_property_input_first,
-                                       edge_dst_property_output.mutable_view());
+                                       edge_dst_property_output);
   }
 }
 

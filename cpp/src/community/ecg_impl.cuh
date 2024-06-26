@@ -83,9 +83,9 @@ std::tuple<rmm::device_uvector<vertex_t>, size_t, weight_t> ecg(
       resolution);
 
     cugraph::update_edge_src_property(
-      handle, graph_view, cluster_assignments.begin(), src_cluster_assignments);
+      handle, graph_view, cluster_assignments.begin(), src_cluster_assignments.mutable_view());
     cugraph::update_edge_dst_property(
-      handle, graph_view, cluster_assignments.begin(), dst_cluster_assignments);
+      handle, graph_view, cluster_assignments.begin(), dst_cluster_assignments.mutable_view());
 
     cugraph::transform_e(
       handle,
@@ -129,9 +129,9 @@ std::tuple<rmm::device_uvector<vertex_t>, size_t, weight_t> ecg(
 
   if constexpr (multi_gpu) {
     cugraph::update_edge_src_property(
-      handle, graph_view, cluster_assignments.begin(), src_cluster_assignments);
+      handle, graph_view, cluster_assignments.begin(), src_cluster_assignments.mutable_view());
     cugraph::update_edge_dst_property(
-      handle, graph_view, cluster_assignments.begin(), dst_cluster_assignments);
+      handle, graph_view, cluster_assignments.begin(), dst_cluster_assignments.mutable_view());
   }
 
   auto [cluster_keys, cluster_weights] = cugraph::detail::compute_cluster_keys_and_values(

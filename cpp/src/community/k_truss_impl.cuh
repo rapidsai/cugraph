@@ -595,8 +595,10 @@ k_truss(raft::handle_t const& handle,
                                                                                cur_graph_view);
     edge_dst_property_t<decltype(cur_graph_view), edge_t> edge_dst_out_degrees(handle,
                                                                                cur_graph_view);
-    update_edge_src_property(handle, cur_graph_view, out_degrees.begin(), edge_src_out_degrees);
-    update_edge_dst_property(handle, cur_graph_view, out_degrees.begin(), edge_dst_out_degrees);
+    update_edge_src_property(
+      handle, cur_graph_view, out_degrees.begin(), edge_src_out_degrees.mutable_view());
+    update_edge_dst_property(
+      handle, cur_graph_view, out_degrees.begin(), edge_dst_out_degrees.mutable_view());
 
     rmm::device_uvector<vertex_t> srcs(0, handle.get_stream());
     rmm::device_uvector<vertex_t> dsts(0, handle.get_stream());

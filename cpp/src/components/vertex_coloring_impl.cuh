@@ -101,10 +101,10 @@ rmm::device_uvector<vertex_t> vertex_coloring(
         cugraph::edge_dst_property_t<graph_view_t, flag_t>(handle, current_graph_view);
 
       cugraph::update_edge_src_property(
-        handle, current_graph_view, is_vertex_in_mis.begin(), src_mis_flags);
+        handle, current_graph_view, is_vertex_in_mis.begin(), src_mis_flags.mutable_view());
 
       cugraph::update_edge_dst_property(
-        handle, current_graph_view, is_vertex_in_mis.begin(), dst_mis_flags);
+        handle, current_graph_view, is_vertex_in_mis.begin(), dst_mis_flags.mutable_view());
     }
 
     if (color_id % 2 == 0) {

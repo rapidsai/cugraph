@@ -316,10 +316,14 @@ void triangle_count(raft::handle_t const& handle,
       handle, cur_graph_view);
     edge_dst_property_t<decltype(cur_graph_view), bool> edge_dst_within_two_hop_flags(
       handle, cur_graph_view);
-    update_edge_src_property(
-      handle, cur_graph_view, within_two_hop_flags.begin(), edge_src_within_two_hop_flags);
-    update_edge_dst_property(
-      handle, cur_graph_view, within_two_hop_flags.begin(), edge_dst_within_two_hop_flags);
+    update_edge_src_property(handle,
+                             cur_graph_view,
+                             within_two_hop_flags.begin(),
+                             edge_src_within_two_hop_flags.mutable_view());
+    update_edge_dst_property(handle,
+                             cur_graph_view,
+                             within_two_hop_flags.begin(),
+                             edge_dst_within_two_hop_flags.mutable_view());
 
     transform_e(
       handle,
@@ -384,9 +388,9 @@ void triangle_count(raft::handle_t const& handle,
                  in_two_core_first + core_numbers.size(),
                  in_two_core_flags.begin());
     update_edge_src_property(
-      handle, cur_graph_view, in_two_core_flags.begin(), edge_src_in_two_cores);
+      handle, cur_graph_view, in_two_core_flags.begin(), edge_src_in_two_cores.mutable_view());
     update_edge_dst_property(
-      handle, cur_graph_view, in_two_core_flags.begin(), edge_dst_in_two_cores);
+      handle, cur_graph_view, in_two_core_flags.begin(), edge_dst_in_two_cores.mutable_view());
 
     transform_e(
       handle,
@@ -416,8 +420,10 @@ void triangle_count(raft::handle_t const& handle,
                                                                                cur_graph_view);
     edge_dst_property_t<decltype(cur_graph_view), edge_t> edge_dst_out_degrees(handle,
                                                                                cur_graph_view);
-    update_edge_src_property(handle, cur_graph_view, out_degrees.begin(), edge_src_out_degrees);
-    update_edge_dst_property(handle, cur_graph_view, out_degrees.begin(), edge_dst_out_degrees);
+    update_edge_src_property(
+      handle, cur_graph_view, out_degrees.begin(), edge_src_out_degrees.mutable_view());
+    update_edge_dst_property(
+      handle, cur_graph_view, out_degrees.begin(), edge_dst_out_degrees.mutable_view());
     auto [srcs, dsts] = extract_transform_e(handle,
                                             cur_graph_view,
                                             edge_src_out_degrees.view(),

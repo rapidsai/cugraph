@@ -190,7 +190,7 @@ void sssp(raft::handle_t const& handle,
                                vertex_frontier.bucket(bucket_idx_cur_near).begin(),
                                vertex_frontier.bucket(bucket_idx_cur_near).end(),
                                distances,
-                               edge_src_distances);
+                               edge_src_distances.mutable_view());
     }
 
     auto vertex_partition = vertex_partition_device_view_t<vertex_t, GraphViewType::is_multi_gpu>(

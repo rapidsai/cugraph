@@ -16,7 +16,6 @@
 
 #include "prims/reduce_op.cuh"
 #include "prims/transform_reduce_e_by_src_dst_key.cuh"
-#include "prims/update_edge_src_dst_property.cuh"
 #include "result_compare.cuh"
 #include "utilities/base_fixture.hpp"
 #include "utilities/conversion_utilities.hpp"

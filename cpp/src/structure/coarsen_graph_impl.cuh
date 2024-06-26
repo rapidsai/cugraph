@@ -291,9 +291,9 @@ coarsen_graph(raft::handle_t const& handle,
     edge_dst_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, vertex_t>>
     edge_minor_labels(handle, graph_view);
   if constexpr (store_transposed) {
-    update_edge_src_property(handle, graph_view, labels, edge_minor_labels);
+    update_edge_src_property(handle, graph_view, labels, edge_minor_labels.mutable_view());
   } else {
-    update_edge_dst_property(handle, graph_view, labels, edge_minor_labels);
+    update_edge_dst_property(handle, graph_view, labels, edge_minor_labels.mutable_view());
   }
 
   std::vector<rmm::device_uvector<vertex_t>> coarsened_edgelist_majors{};

@@ -130,8 +130,8 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<edge_t>> brandes_b
   edge_t hop{0};
 
   while (true) {
-    update_edge_src_property(handle, graph_view, sigmas.begin(), src_sigmas);
-    update_edge_dst_property(handle, graph_view, distances.begin(), dst_distances);
+    update_edge_src_property(handle, graph_view, sigmas.begin(), src_sigmas.mutable_view());
+    update_edge_dst_property(handle, graph_view, distances.begin(), dst_distances.mutable_view());
 
     auto [new_frontier, new_sigma] =
       transform_reduce_v_frontier_outgoing_e_by_dst(handle,
@@ -228,12 +228,12 @@ void accumulate_vertex_results(
     handle,
     graph_view,
     thrust::make_zip_iterator(distances.begin(), sigmas.begin(), deltas.begin()),
-    src_properties);
+    src_properties.mutable_view());
   update_edge_dst_property(
     handle,
     graph_view,
     thrust::make_zip_iterator(distances.begin(), sigmas.begin(), deltas.begin()),
-    dst_properties);
+    dst_properties.mutable_view());
 
   // FIXME: To do this efficiently, I need a version of
   //   per_v_transform_reduce_outgoing_e that takes a vertex list
@@ -272,12 +272,12 @@ void accumulate_vertex_results(
       handle,
       graph_view,
       thrust::make_zip_iterator(distances.begin(), sigmas.begin(), deltas.begin()),
-      src_properties);
+      src_properties.mutable_view());
     update_edge_dst_property(
       handle,
       graph_view,
       thrust::make_zip_iterator(distances.begin(), sigmas.begin(), deltas.begin()),
-      dst_properties);
+      dst_properties.mutable_view());
 
     thrust::transform(handle.get_thrust_policy(),
                       centralities.begin(),
@@ -323,12 +323,12 @@ void accumulate_edge_results(
     handle,
     graph_view,
     thrust::make_zip_iterator(distances.begin(), sigmas.begin(), deltas.begin()),
-    src_properties);
+    src_properties.mutable_view());
   update_edge_dst_property(
     handle,
     graph_view,
     thrust::make_zip_iterator(distances.begin(), sigmas.begin(), deltas.begin()),
-    dst_properties);
+    dst_properties.mutable_view());
 
   //
   //   For now this will do a O(E) pass over all edges over the diameter
@@ -417,12 +417,12 @@ void accumulate_edge_results(
       handle,
       graph_view,
       thrust::make_zip_iterator(distances.begin(), sigmas.begin(), deltas.begin()),
-      src_properties);
+      src_properties.mutable_view());
     update_edge_dst_property(
       handle,
       graph_view,
       thrust::make_zip_iterator(distances.begin(), sigmas.begin(), deltas.begin()),
-      dst_properties);
+      dst_properties.mutable_view());
   }
 }
 

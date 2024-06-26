@@ -536,7 +536,7 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
           thrust::get<0>(vertex_frontier.bucket(bucket_idx_cur).begin().get_iterator_tuple()),
           thrust::get<0>(vertex_frontier.bucket(bucket_idx_cur).end().get_iterator_tuple()),
           level_components,
-          edge_dst_components);
+          edge_dst_components.mutable_view());
       }
 
       auto max_pushes = GraphViewType::is_multi_gpu
