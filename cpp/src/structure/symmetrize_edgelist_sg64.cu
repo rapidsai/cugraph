@@ -17,12 +17,12 @@
 
 namespace cugraph {
 
-// MG instantiation
+// SG instantiation
 
 template std::tuple<rmm::device_uvector<int32_t>,
                     rmm::device_uvector<int32_t>,
                     std::optional<rmm::device_uvector<float>>>
-symmetrize_edgelist<int32_t, float, false, true>(
+symmetrize_edgelist<int32_t, float, false, false>(
   raft::handle_t const& handle,
   rmm::device_uvector<int32_t>&& edgelist_srcs,
   rmm::device_uvector<int32_t>&& edgelist_dsts,
@@ -32,7 +32,7 @@ symmetrize_edgelist<int32_t, float, false, true>(
 template std::tuple<rmm::device_uvector<int32_t>,
                     rmm::device_uvector<int32_t>,
                     std::optional<rmm::device_uvector<float>>>
-symmetrize_edgelist<int32_t, float, true, true>(
+symmetrize_edgelist<int32_t, float, true, false>(
   raft::handle_t const& handle,
   rmm::device_uvector<int32_t>&& edgelist_srcs,
   rmm::device_uvector<int32_t>&& edgelist_dsts,
@@ -42,7 +42,7 @@ symmetrize_edgelist<int32_t, float, true, true>(
 template std::tuple<rmm::device_uvector<int32_t>,
                     rmm::device_uvector<int32_t>,
                     std::optional<rmm::device_uvector<double>>>
-symmetrize_edgelist<int32_t, double, false, true>(
+symmetrize_edgelist<int32_t, double, false, false>(
   raft::handle_t const& handle,
   rmm::device_uvector<int32_t>&& edgelist_srcs,
   rmm::device_uvector<int32_t>&& edgelist_dsts,
@@ -52,7 +52,7 @@ symmetrize_edgelist<int32_t, double, false, true>(
 template std::tuple<rmm::device_uvector<int32_t>,
                     rmm::device_uvector<int32_t>,
                     std::optional<rmm::device_uvector<double>>>
-symmetrize_edgelist<int32_t, double, true, true>(
+symmetrize_edgelist<int32_t, double, true, false>(
   raft::handle_t const& handle,
   rmm::device_uvector<int32_t>&& edgelist_srcs,
   rmm::device_uvector<int32_t>&& edgelist_dsts,
@@ -62,7 +62,7 @@ symmetrize_edgelist<int32_t, double, true, true>(
 template std::tuple<rmm::device_uvector<int64_t>,
                     rmm::device_uvector<int64_t>,
                     std::optional<rmm::device_uvector<float>>>
-symmetrize_edgelist<int64_t, float, false, true>(
+symmetrize_edgelist<int64_t, float, false, false>(
   raft::handle_t const& handle,
   rmm::device_uvector<int64_t>&& edgelist_srcs,
   rmm::device_uvector<int64_t>&& edgelist_dsts,
@@ -72,7 +72,7 @@ symmetrize_edgelist<int64_t, float, false, true>(
 template std::tuple<rmm::device_uvector<int64_t>,
                     rmm::device_uvector<int64_t>,
                     std::optional<rmm::device_uvector<float>>>
-symmetrize_edgelist<int64_t, float, true, true>(
+symmetrize_edgelist<int64_t, float, true, false>(
   raft::handle_t const& handle,
   rmm::device_uvector<int64_t>&& edgelist_srcs,
   rmm::device_uvector<int64_t>&& edgelist_dsts,
@@ -82,7 +82,7 @@ symmetrize_edgelist<int64_t, float, true, true>(
 template std::tuple<rmm::device_uvector<int64_t>,
                     rmm::device_uvector<int64_t>,
                     std::optional<rmm::device_uvector<double>>>
-symmetrize_edgelist<int64_t, double, false, true>(
+symmetrize_edgelist<int64_t, double, false, false>(
   raft::handle_t const& handle,
   rmm::device_uvector<int64_t>&& edgelist_srcs,
   rmm::device_uvector<int64_t>&& edgelist_dsts,
@@ -92,7 +92,7 @@ symmetrize_edgelist<int64_t, double, false, true>(
 template std::tuple<rmm::device_uvector<int64_t>,
                     rmm::device_uvector<int64_t>,
                     std::optional<rmm::device_uvector<double>>>
-symmetrize_edgelist<int64_t, double, true, true>(
+symmetrize_edgelist<int64_t, double, true, false>(
   raft::handle_t const& handle,
   rmm::device_uvector<int64_t>&& edgelist_srcs,
   rmm::device_uvector<int64_t>&& edgelist_dsts,

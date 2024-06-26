@@ -266,8 +266,10 @@ set(CUGRAPH_SOURCES
     src/sampling/random_walks_sg64.cu
     src/sampling/random_walks_sg32.cu
     src/sampling/random_walks_sg3264.cu
-    src/sampling/detail/prepare_next_frontier_sg.cu
-    src/sampling/detail/prepare_next_frontier_mg.cu
+    src/sampling/detail/prepare_next_frontier_sg64.cu
+    src/sampling/detail/prepare_next_frontier_sg32.cu
+    src/sampling/detail/prepare_next_frontier_mg64.cu
+    src/sampling/detail/prepare_next_frontier_mg32.cu
     src/sampling/detail/gather_one_hop_edgelist_sg64.cu
     src/sampling/detail/gather_one_hop_edgelist_sg32.cu
     src/sampling/detail/gather_one_hop_edgelist_sg3264.cu
@@ -286,8 +288,11 @@ set(CUGRAPH_SOURCES
     src/sampling/detail/shuffle_and_organize_output_mg3264.cu
     src/sampling/uniform_neighbor_sampling_mg.cpp
     src/sampling/uniform_neighbor_sampling_sg.cpp
-    src/sampling/renumber_sampled_edgelist_sg.cu
-    src/sampling/sampling_post_processing_sg.cu
+    src/sampling/renumber_sampled_edgelist_sg64.cu
+    src/sampling/renumber_sampled_edgelist_sg32.cu
+    src/sampling/sampling_post_processing_sg64.cu
+    src/sampling/sampling_post_processing_sg32.cu
+    src/sampling/sampling_post_processing_sg3264.cu
     src/cores/core_number_sg64.cu
     src/cores/core_number_sg32.cu
     src/cores/core_number_sg3264.cu
@@ -306,8 +311,12 @@ set(CUGRAPH_SOURCES
     src/generators/generator_tools.cu
     src/generators/simple_generators.cu
     src/generators/erdos_renyi_generator.cu
-    src/structure/graph_sg.cu
-    src/structure/graph_mg.cu
+    src/structure/graph_sg64.cu
+    src/structure/graph_sg32.cu
+    src/structure/graph_sg3264.cu
+    src/structure/graph_mg64.cu
+    src/structure/graph_mg32.cu
+    src/structure/graph_mg3264.cu
     src/structure/graph_view_sg64.cu
     src/structure/graph_view_sg32.cu
     src/structure/graph_view_sg3264.cu
@@ -347,12 +356,20 @@ set(CUGRAPH_SOURCES
     src/structure/graph_weight_utils_sg64.cu
     src/structure/graph_weight_utils_sg32.cu
     src/structure/graph_weight_utils_sg3264.cu
-    src/structure/renumber_edgelist_sg.cu
-    src/structure/renumber_edgelist_mg.cu
-    src/structure/renumber_utils_sg.cu
-    src/structure/renumber_utils_mg.cu
-    src/structure/relabel_sg.cu
-    src/structure/relabel_mg.cu
+    src/structure/renumber_edgelist_sg64.cu
+    src/structure/renumber_edgelist_sg32.cu
+    src/structure/renumber_edgelist_sg3264.cu
+    src/structure/renumber_edgelist_mg64.cu
+    src/structure/renumber_edgelist_mg32.cu
+    src/structure/renumber_edgelist_mg3264.cu
+    src/structure/renumber_utils_sg64.cu
+    src/structure/renumber_utils_sg32.cu
+    src/structure/renumber_utils_mg64.cu
+    src/structure/renumber_utils_mg32.cu
+    src/structure/relabel_sg64.cu
+    src/structure/relabel_sg32.cu
+    src/structure/relabel_mg64.cu
+    src/structure/relabel_mg32.cu
     src/structure/induced_subgraph_sg64.cu
     src/structure/induced_subgraph_sg32.cu
     src/structure/induced_subgraph_sg3264.cu
@@ -441,8 +458,10 @@ set(CUGRAPH_SOURCES
     src/structure/create_graph_from_edgelist_mg64.cu
     src/structure/create_graph_from_edgelist_mg32.cu
     src/structure/create_graph_from_edgelist_mg3264.cu
-    src/structure/symmetrize_edgelist_sg.cu
-    src/structure/symmetrize_edgelist_mg.cu
+    src/structure/symmetrize_edgelist_sg64.cu
+    src/structure/symmetrize_edgelist_sg32.cu
+    src/structure/symmetrize_edgelist_mg64.cu
+    src/structure/symmetrize_edgelist_mg32.cu
     src/community/triangle_count_sg64.cu
     src/community/triangle_count_sg32.cu
     src/community/triangle_count_sg3264.cu

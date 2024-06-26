@@ -17,13 +17,9 @@
 
 namespace cugraph {
 
-// SG instantiation
+// MG instantiation
 
-template class graph_t<int32_t, int32_t, true, false>;
-template class graph_t<int32_t, int32_t, false, false>;
-template class graph_t<int32_t, int64_t, true, false>;
-template class graph_t<int32_t, int64_t, false, false>;
-template class graph_t<int64_t, int64_t, true, false>;
-template class graph_t<int64_t, int64_t, false, false>;
+template class graph_t<int32_t, int64_t, true, true>;
+template class graph_t<int32_t, int64_t, false, true>;
 
 }  // namespace cugraph

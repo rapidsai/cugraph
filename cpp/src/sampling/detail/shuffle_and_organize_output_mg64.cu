@@ -39,7 +39,6 @@ shuffle_and_organize_output(
   std::optional<std::tuple<raft::device_span<int32_t const>, raft::device_span<int32_t const>>>
     label_to_output_comm_rank);
 
-
 template std::tuple<rmm::device_uvector<int64_t>,
                     rmm::device_uvector<int64_t>,
                     std::optional<rmm::device_uvector<double>>,
