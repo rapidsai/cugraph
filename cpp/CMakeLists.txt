@@ -174,62 +174,130 @@ set(CUGRAPH_SOURCES
     src/detail/collect_local_vertex_values.cu
     src/detail/groupby_and_count.cu
     src/detail/collect_comm_wrapper.cu
-    src/sampling/random_walks_mg.cu
-    src/community/detail/common_methods_mg.cu
-    src/community/detail/common_methods_sg.cu
-    src/community/detail/refine_sg.cu
-    src/community/detail/refine_mg.cu
-    src/community/edge_triangle_count_sg.cu
-    src/community/edge_triangle_count_mg.cu
-    src/community/detail/maximal_independent_moves_sg.cu
-    src/community/detail/maximal_independent_moves_mg.cu
+    src/sampling/random_walks_mg64.cu
+    src/sampling/random_walks_mg32.cu
+    src/sampling/random_walks_mg3264.cu
+    src/community/detail/common_methods_mg64.cu
+    src/community/detail/common_methods_mg32.cu
+    src/community/detail/common_methods_mg3264.cu
+    src/community/detail/common_methods_sg64.cu
+    src/community/detail/common_methods_sg32.cu
+    src/community/detail/common_methods_sg3264.cu
+    src/community/detail/refine_sg64.cu
+    src/community/detail/refine_sg32.cu
+    src/community/detail/refine_sg3264.cu
+    src/community/detail/refine_mg64.cu
+    src/community/detail/refine_mg32.cu
+    src/community/detail/refine_mg3264.cu
+    src/community/edge_triangle_count_sg64.cu
+    src/community/edge_triangle_count_sg32.cu
+    src/community/edge_triangle_count_sg3264.cu
+    src/community/edge_triangle_count_mg64.cu
+    src/community/edge_triangle_count_mg32.cu
+    src/community/edge_triangle_count_mg3264.cu
+    src/community/detail/maximal_independent_moves_sg64.cu
+    src/community/detail/maximal_independent_moves_sg32.cu
+    src/community/detail/maximal_independent_moves_sg3264.cu
+    src/community/detail/maximal_independent_moves_mg64.cu
+    src/community/detail/maximal_independent_moves_mg32.cu
+    src/community/detail/maximal_independent_moves_mg3264.cu
     src/detail/utility_wrappers.cu
-    src/structure/graph_view_mg.cu
+    src/structure/graph_view_mg64.cu
+    src/structure/graph_view_mg32.cu
+    src/structure/graph_view_mg3264.cu
     src/structure/remove_self_loops.cu
     src/structure/remove_multi_edges.cu
     src/utilities/path_retrieval.cu
     src/structure/legacy/graph.cu
     src/linear_assignment/legacy/hungarian.cu
-    src/link_prediction/jaccard_sg.cu
-    src/link_prediction/sorensen_sg.cu
-    src/link_prediction/overlap_sg.cu
+    src/link_prediction/jaccard_sg64.cu
+    src/link_prediction/jaccard_sg32.cu
+    src/link_prediction/jaccard_sg3264.cu
+    src/link_prediction/sorensen_sg64.cu
+    src/link_prediction/sorensen_sg32.cu
+    src/link_prediction/sorensen_sg3264.cu
+    src/link_prediction/overlap_sg64.cu
+    src/link_prediction/overlap_sg32.cu
+    src/link_prediction/overlap_sg3264.cu
     src/link_prediction/cosine_sg.cu
-    src/link_prediction/jaccard_mg.cu
-    src/link_prediction/sorensen_mg.cu
-    src/link_prediction/overlap_mg.cu
+    src/link_prediction/jaccard_mg64.cu
+    src/link_prediction/jaccard_mg32.cu
+    src/link_prediction/jaccard_mg3264.cu
+    src/link_prediction/sorensen_mg64.cu
+    src/link_prediction/sorensen_mg32.cu
+    src/link_prediction/sorensen_mg3264.cu
+    src/link_prediction/overlap_mg64.cu
+    src/link_prediction/overlap_mg32.cu
+    src/link_prediction/overlap_mg3264.cu
     src/link_prediction/cosine_mg.cu
     src/layout/legacy/force_atlas2.cu
     src/converters/legacy/COOtoCSR.cu
     src/community/legacy/spectral_clustering.cu
-    src/community/louvain_sg.cu
-    src/community/louvain_mg.cu
-    src/community/leiden_sg.cu
-    src/community/leiden_mg.cu
-    src/community/ecg_sg.cu
-    src/community/ecg_mg.cu
+    src/community/louvain_sg64.cu
+    src/community/louvain_sg32.cu
+    src/community/louvain_sg3264.cu
+    src/community/louvain_mg64.cu
+    src/community/louvain_mg32.cu
+    src/community/louvain_mg3264.cu
+    src/community/leiden_sg64.cu
+    src/community/leiden_sg32.cu
+    src/community/leiden_sg3264.cu
+    src/community/leiden_mg64.cu
+    src/community/leiden_mg32.cu
+    src/community/leiden_mg3264.cu
+    src/community/ecg_sg64.cu
+    src/community/ecg_sg32.cu
+    src/community/ecg_sg3264.cu
+    src/community/ecg_mg64.cu
+    src/community/ecg_mg32.cu
+    src/community/ecg_mg3264.cu
     src/community/legacy/louvain.cu
     src/community/legacy/ecg.cu
-    src/community/egonet_sg.cu
-    src/community/egonet_mg.cu
-    src/community/k_truss_sg.cu
+    src/community/egonet_sg64.cu
+    src/community/egonet_sg32.cu
+    src/community/egonet_sg3264.cu
+    src/community/egonet_mg64.cu
+    src/community/egonet_mg32.cu
+    src/community/egonet_mg3264.cu
+    src/community/k_truss_sg64.cu
+    src/community/k_truss_sg32.cu
+    src/community/k_truss_sg3264.cu
     src/sampling/random_walks.cu
-    src/sampling/random_walks_sg.cu
+    src/sampling/random_walks_sg64.cu
+    src/sampling/random_walks_sg32.cu
+    src/sampling/random_walks_sg3264.cu
     src/sampling/detail/prepare_next_frontier_sg.cu
     src/sampling/detail/prepare_next_frontier_mg.cu
-    src/sampling/detail/gather_one_hop_edgelist_sg.cu
-    src/sampling/detail/gather_one_hop_edgelist_mg.cu
+    src/sampling/detail/gather_one_hop_edgelist_sg64.cu
+    src/sampling/detail/gather_one_hop_edgelist_sg32.cu
+    src/sampling/detail/gather_one_hop_edgelist_sg3264.cu
+    src/sampling/detail/gather_one_hop_edgelist_mg64.cu
+    src/sampling/detail/gather_one_hop_edgelist_mg32.cu
+    src/sampling/detail/gather_one_hop_edgelist_mg3264.cu
     src/sampling/detail/remove_visited_vertices_from_frontier.cu
-    src/sampling/detail/sample_edges_sg.cu
-    src/sampling/detail/sample_edges_mg.cu
+    src/sampling/detail/sample_edges_sg64.cu
+    src/sampling/detail/sample_edges_sg32.cu
+    src/sampling/detail/sample_edges_sg3264.cu
+    src/sampling/detail/sample_edges_mg64.cu
+    src/sampling/detail/sample_edges_mg32.cu
+    src/sampling/detail/sample_edges_mg3264.cu
     src/sampling/detail/shuffle_and_organize_output_mg.cu
     src/sampling/uniform_neighbor_sampling_mg.cpp
     src/sampling/uniform_neighbor_sampling_sg.cpp
     src/sampling/renumber_sampled_edgelist_sg.cu
     src/sampling/sampling_post_processing_sg.cu
-    src/cores/core_number_sg.cu
-    src/cores/core_number_mg.cu
-    src/cores/k_core_sg.cu
-    src/cores/k_core_mg.cu
+    src/cores/core_number_sg64.cu
+    src/cores/core_number_sg32.cu
+    src/cores/core_number_sg3264.cu
+    src/cores/core_number_mg64.cu
+    src/cores/core_number_mg32.cu
+    src/cores/core_number_mg3264.cu
+    src/cores/k_core_sg64.cu
+    src/cores/k_core_sg32.cu
+    src/cores/k_core_sg3264.cu
+    src/cores/k_core_mg64.cu
+    src/cores/k_core_mg32.cu
+    src/cores/k_core_mg3264.cu
     src/components/legacy/connectivity.cu
     src/generators/generate_rmat_edgelist.cu
     src/generators/generate_bipartite_rmat_edgelist.cu
@@ -238,63 +306,159 @@ set(CUGRAPH_SOURCES
     src/generators/erdos_renyi_generator.cu
     src/structure/graph_sg.cu
     src/structure/graph_mg.cu
-    src/structure/graph_view_sg.cu
-    src/structure/decompress_to_edgelist_sg.cu
-    src/structure/decompress_to_edgelist_mg.cu
-    src/structure/symmetrize_graph_sg.cu
-    src/structure/symmetrize_graph_mg.cu
-    src/structure/transpose_graph_sg.cu
-    src/structure/transpose_graph_mg.cu
-    src/structure/transpose_graph_storage_sg.cu
-    src/structure/transpose_graph_storage_mg.cu
-    src/structure/coarsen_graph_sg.cu
-    src/structure/coarsen_graph_mg.cu
-    src/structure/graph_weight_utils_mg.cu
-    src/structure/graph_weight_utils_sg.cu
+    src/structure/graph_view_sg64.cu
+    src/structure/graph_view_sg32.cu
+    src/structure/graph_view_sg3264.cu
+    src/structure/decompress_to_edgelist_sg64.cu
+    src/structure/decompress_to_edgelist_sg32.cu
+    src/structure/decompress_to_edgelist_sg3264.cu
+    src/structure/decompress_to_edgelist_mg64.cu
+    src/structure/decompress_to_edgelist_mg32.cu
+    src/structure/decompress_to_edgelist_mg3264.cu
+    src/structure/symmetrize_graph_sg64.cu
+    src/structure/symmetrize_graph_sg32.cu
+    src/structure/symmetrize_graph_sg3264.cu
+    src/structure/symmetrize_graph_mg64.cu
+    src/structure/symmetrize_graph_mg32.cu
+    src/structure/symmetrize_graph_mg3264.cu
+    src/structure/transpose_graph_sg64.cu
+    src/structure/transpose_graph_sg32.cu
+    src/structure/transpose_graph_sg3264.cu
+    src/structure/transpose_graph_mg64.cu
+    src/structure/transpose_graph_mg32.cu
+    src/structure/transpose_graph_mg3264.cu
+    src/structure/transpose_graph_storage_sg64.cu
+    src/structure/transpose_graph_storage_sg32.cu
+    src/structure/transpose_graph_storage_sg3264.cu
+    src/structure/transpose_graph_storage_mg64.cu
+    src/structure/transpose_graph_storage_mg32.cu
+    src/structure/transpose_graph_storage_mg3264.cu
+    src/structure/coarsen_graph_sg64.cu
+    src/structure/coarsen_graph_sg32.cu
+    src/structure/coarsen_graph_sg3264.cu
+    src/structure/coarsen_graph_mg64.cu
+    src/structure/coarsen_graph_mg32.cu
+    src/structure/coarsen_graph_mg3264.cu
+    src/structure/graph_weight_utils_mg64.cu
+    src/structure/graph_weight_utils_mg32.cu
+    src/structure/graph_weight_utils_mg3264.cu
+    src/structure/graph_weight_utils_sg64.cu
+    src/structure/graph_weight_utils_sg32.cu
+    src/structure/graph_weight_utils_sg3264.cu
     src/structure/renumber_edgelist_sg.cu
     src/structure/renumber_edgelist_mg.cu
     src/structure/renumber_utils_sg.cu
     src/structure/renumber_utils_mg.cu
     src/structure/relabel_sg.cu
     src/structure/relabel_mg.cu
-    src/structure/induced_subgraph_sg.cu
-    src/structure/induced_subgraph_mg.cu
-    src/structure/select_random_vertices_sg.cu
-    src/structure/select_random_vertices_mg.cu
-    src/traversal/extract_bfs_paths_sg.cu
-    src/traversal/extract_bfs_paths_mg.cu
-    src/traversal/bfs_sg.cu
-    src/traversal/bfs_mg.cu
-    src/traversal/sssp_sg.cu
-    src/traversal/od_shortest_distances_sg.cu
-    src/traversal/sssp_mg.cu
-    src/link_analysis/hits_sg.cu
-    src/link_analysis/hits_mg.cu
-    src/link_analysis/pagerank_sg.cu
-    src/link_analysis/pagerank_mg.cu
-    src/centrality/katz_centrality_sg.cu
-    src/centrality/katz_centrality_mg.cu
-    src/centrality/eigenvector_centrality_sg.cu
-    src/centrality/eigenvector_centrality_mg.cu
-    src/centrality/betweenness_centrality_sg.cu
-    src/centrality/betweenness_centrality_mg.cu
+    src/structure/induced_subgraph_sg64.cu
+    src/structure/induced_subgraph_sg32.cu
+    src/structure/induced_subgraph_sg3264.cu
+    src/structure/induced_subgraph_mg64.cu
+    src/structure/induced_subgraph_mg32.cu
+    src/structure/induced_subgraph_mg3264.cu
+    src/structure/select_random_vertices_sg64.cu
+    src/structure/select_random_vertices_sg32.cu
+    src/structure/select_random_vertices_sg3264.cu
+    src/structure/select_random_vertices_mg64.cu
+    src/structure/select_random_vertices_mg32.cu
+    src/structure/select_random_vertices_mg3264.cu
+    src/traversal/extract_bfs_paths_sg64.cu
+    src/traversal/extract_bfs_paths_sg32.cu
+    src/traversal/extract_bfs_paths_sg3264.cu
+    src/traversal/extract_bfs_paths_mg64.cu
+    src/traversal/extract_bfs_paths_mg32.cu
+    src/traversal/extract_bfs_paths_mg3264.cu
+    src/traversal/bfs_sg64.cu
+    src/traversal/bfs_sg32.cu
+    src/traversal/bfs_sg3264.cu
+    src/traversal/bfs_mg64.cu
+    src/traversal/bfs_mg32.cu
+    src/traversal/bfs_mg3264.cu
+    src/traversal/sssp_sg64.cu
+    src/traversal/sssp_sg32.cu
+    src/traversal/sssp_sg3264.cu
+    src/traversal/od_shortest_distances_sg64.cu
+    src/traversal/od_shortest_distances_sg32.cu
+    src/traversal/od_shortest_distances_sg3264.cu
+    src/traversal/sssp_mg64.cu
+    src/traversal/sssp_mg32.cu
+    src/traversal/sssp_mg3264.cu
+    src/link_analysis/hits_sg64.cu
+    src/link_analysis/hits_sg32.cu
+    src/link_analysis/hits_sg3264.cu
+    src/link_analysis/hits_mg64.cu
+    src/link_analysis/hits_mg32.cu
+    src/link_analysis/hits_mg3264.cu
+    src/link_analysis/pagerank_sg64.cu
+    src/link_analysis/pagerank_sg32.cu
+    src/link_analysis/pagerank_sg3264.cu
+    src/link_analysis/pagerank_mg64.cu
+    src/link_analysis/pagerank_mg32.cu
+    src/link_analysis/pagerank_mg3264.cu
+    src/centrality/katz_centrality_sg64.cu
+    src/centrality/katz_centrality_sg32.cu
+    src/centrality/katz_centrality_sg3264.cu
+    src/centrality/katz_centrality_mg64.cu
+    src/centrality/katz_centrality_mg32.cu
+    src/centrality/katz_centrality_mg3264.cu
+    src/centrality/eigenvector_centrality_sg64.cu
+    src/centrality/eigenvector_centrality_sg32.cu
+    src/centrality/eigenvector_centrality_sg3264.cu
+    src/centrality/eigenvector_centrality_mg64.cu
+    src/centrality/eigenvector_centrality_mg32.cu
+    src/centrality/eigenvector_centrality_mg3264.cu
+    src/centrality/betweenness_centrality_sg64.cu
+    src/centrality/betweenness_centrality_sg32.cu
+    src/centrality/betweenness_centrality_sg3264.cu
+    src/centrality/betweenness_centrality_mg64.cu
+    src/centrality/betweenness_centrality_mg32.cu
+    src/centrality/betweenness_centrality_mg3264.cu
     src/tree/legacy/mst.cu
-    src/components/weakly_connected_components_sg.cu
-    src/components/weakly_connected_components_mg.cu
-    src/components/mis_sg.cu
-    src/components/mis_mg.cu
-    src/components/vertex_coloring_sg.cu
-    src/components/vertex_coloring_mg.cu
-    src/structure/create_graph_from_edgelist_sg.cu
-    src/structure/create_graph_from_edgelist_mg.cu
+    src/components/weakly_connected_components_sg64.cu
+    src/components/weakly_connected_components_sg32.cu
+    src/components/weakly_connected_components_sg3264.cu
+    src/components/weakly_connected_components_mg64.cu
+    src/components/weakly_connected_components_mg32.cu
+    src/components/weakly_connected_components_mg3264.cu
+    src/components/mis_sg64.cu
+    src/components/mis_sg32.cu
+    src/components/mis_sg3264.cu
+    src/components/mis_mg64.cu
+    src/components/mis_mg32.cu
+    src/components/mis_mg3264.cu
+    src/components/vertex_coloring_sg64.cu
+    src/components/vertex_coloring_sg32.cu
+    src/components/vertex_coloring_sg3264.cu
+    src/components/vertex_coloring_mg64.cu
+    src/components/vertex_coloring_mg32.cu
+    src/components/vertex_coloring_mg3264.cu
+    src/structure/create_graph_from_edgelist_sg64.cu
+    src/structure/create_graph_from_edgelist_sg32.cu
+    src/structure/create_graph_from_edgelist_sg3264.cu
+    src/structure/create_graph_from_edgelist_mg64.cu
+    src/structure/create_graph_from_edgelist_mg32.cu
+    src/structure/create_graph_from_edgelist_mg3264.cu
     src/structure/symmetrize_edgelist_sg.cu
     src/structure/symmetrize_edgelist_mg.cu
-    src/community/triangle_count_sg.cu
-    src/community/triangle_count_mg.cu
-    src/community/approx_weighted_matching_sg.cu
-    src/community/approx_weighted_matching_mg.cu
-    src/traversal/k_hop_nbrs_sg.cu
-    src/traversal/k_hop_nbrs_mg.cu
+    src/community/triangle_count_sg64.cu
+    src/community/triangle_count_sg32.cu
+    src/community/triangle_count_sg3264.cu
+    src/community/triangle_count_mg64.cu
+    src/community/triangle_count_mg32.cu
+    src/community/triangle_count_mg3264.cu
+    src/community/approx_weighted_matching_sg64.cu
+    src/community/approx_weighted_matching_sg32.cu
+    src/community/approx_weighted_matching_sg3264.cu
+    src/community/approx_weighted_matching_mg64.cu
+    src/community/approx_weighted_matching_mg32.cu
+    src/community/approx_weighted_matching_mg3264.cu
+    src/traversal/k_hop_nbrs_sg64.cu
+    src/traversal/k_hop_nbrs_sg32.cu
+    src/traversal/k_hop_nbrs_sg3264.cu
+    src/traversal/k_hop_nbrs_mg64.cu
+    src/traversal/k_hop_nbrs_mg32.cu
+    src/traversal/k_hop_nbrs_mg3264.cu
     src/mtmg/vertex_result.cu
     src/mtmg/vertex_pairs_result.cu
 )
