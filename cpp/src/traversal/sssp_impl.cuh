@@ -172,8 +172,10 @@ void sssp(raft::handle_t const& handle,
       ? edge_src_property_t<GraphViewType, weight_t>(handle, push_graph_view)
       : edge_src_property_t<GraphViewType, weight_t>(handle);
   if (GraphViewType::is_multi_gpu) {
-    fill_edge_src_property(
-      handle, push_graph_view, std::numeric_limits<weight_t>::max(), edge_src_distances);
+    fill_edge_src_property(handle,
+                           push_graph_view,
+                           edge_src_distances.mutable_view(),
+                           std::numeric_limits<weight_t>::max());
   }
 
   if (push_graph_view.in_local_vertex_partition_range_nocheck(source_vertex)) {

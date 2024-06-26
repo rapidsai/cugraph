@@ -187,7 +187,8 @@ void triangle_count(raft::handle_t const& handle,
   if (vertices) {
     cugraph::edge_property_t<decltype(cur_graph_view), bool> within_two_hop_edge_mask(
       handle, cur_graph_view);
-    cugraph::fill_edge_property(handle, unmasked_cur_graph_view, false, within_two_hop_edge_mask);
+    cugraph::fill_edge_property(
+      handle, unmasked_cur_graph_view, within_two_hop_edge_mask.mutable_view(), false);
 
     rmm::device_uvector<vertex_t> unique_vertices((*vertices).size(), handle.get_stream());
     thrust::copy(
@@ -341,7 +342,8 @@ void triangle_count(raft::handle_t const& handle,
   {
     cugraph::edge_property_t<decltype(cur_graph_view), bool> self_loop_edge_mask(handle,
                                                                                  cur_graph_view);
-    cugraph::fill_edge_property(handle, unmasked_cur_graph_view, false, self_loop_edge_mask);
+    cugraph::fill_edge_property(
+      handle, unmasked_cur_graph_view, self_loop_edge_mask.mutable_view(), false);
 
     transform_e(
       handle,
@@ -362,7 +364,8 @@ void triangle_count(raft::handle_t const& handle,
   {
     cugraph::edge_property_t<decltype(cur_graph_view), bool> in_two_core_edge_mask(handle,
                                                                                    cur_graph_view);
-    cugraph::fill_edge_property(handle, unmasked_cur_graph_view, false, in_two_core_edge_mask);
+    cugraph::fill_edge_property(
+      handle, unmasked_cur_graph_view, in_two_core_edge_mask.mutable_view(), false);
 
     rmm::device_uvector<edge_t> core_numbers(cur_graph_view.number_of_vertices(),
                                              handle.get_stream());

@@ -64,7 +64,8 @@ std::tuple<rmm::device_uvector<vertex_t>, size_t, weight_t> ecg(
   edge_dst_property_t<graph_view_t, vertex_t> dst_cluster_assignments(handle, graph_view);
   edge_property_t<graph_view_t, weight_t> modified_edge_weights(handle, graph_view);
 
-  cugraph::fill_edge_property(handle, graph_view, weight_t{0}, modified_edge_weights);
+  cugraph::fill_edge_property(
+    handle, graph_view, modified_edge_weights.mutable_view(), weight_t{0});
 
   weight_t modularity = -1.0;
   rmm::device_uvector<vertex_t> cluster_assignments(graph_view.local_vertex_partition_range_size(),

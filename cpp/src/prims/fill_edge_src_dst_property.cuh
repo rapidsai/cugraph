@@ -37,11 +37,11 @@ namespace cugraph {
 
 namespace detail {
 
-template <typename GraphViewType, typename T, typename EdgeMajorPropertyOutputWrapper>
+template <typename GraphViewType, typename EdgeMajorPropertyOutputWrapper, typename T>
 void fill_edge_major_property(raft::handle_t const& handle,
                               GraphViewType const& graph_view,
-                              T input,
-                              EdgeMajorPropertyOutputWrapper edge_major_property_output)
+                              EdgeMajorPropertyOutputWrapper edge_major_property_output,
+                              T input)
 {
   static_assert(std::is_same_v<T, typename EdgeMajorPropertyOutputWrapper::value_type>);
 
@@ -77,14 +77,14 @@ void fill_edge_major_property(raft::handle_t const& handle,
 
 template <typename GraphViewType,
           typename VertexIterator,
-          typename T,
-          typename EdgeMajorPropertyOutputWrapper>
+          typename EdgeMajorPropertyOutputWrapper,
+          typename T>
 void fill_edge_major_property(raft::handle_t const& handle,
                               GraphViewType const& graph_view,
                               VertexIterator vertex_first,
                               VertexIterator vertex_last,
-                              T input,
-                              EdgeMajorPropertyOutputWrapper edge_major_property_output)
+                              EdgeMajorPropertyOutputWrapper edge_major_property_output,
+                              T input)
 {
   constexpr bool packed_bool =
     std::is_same_v<typename EdgeMajorPropertyOutputWrapper::value_type, bool>;
@@ -194,11 +194,11 @@ void fill_edge_major_property(raft::handle_t const& handle,
   }
 }
 
-template <typename GraphViewType, typename T, typename EdgeMinorPropertyOutputWrapper>
+template <typename GraphViewType, typename EdgeMinorPropertyOutputWrapper, typename T>
 void fill_edge_minor_property(raft::handle_t const& handle,
                               GraphViewType const& graph_view,
-                              T input,
-                              EdgeMinorPropertyOutputWrapper edge_minor_property_output)
+                              EdgeMinorPropertyOutputWrapper edge_minor_property_output,
+                              T input)
 {
   static_assert(std::is_same_v<T, typename EdgeMinorPropertyOutputWrapper::value_type>);
 
@@ -226,14 +226,14 @@ void fill_edge_minor_property(raft::handle_t const& handle,
 
 template <typename GraphViewType,
           typename VertexIterator,
-          typename T,
-          typename EdgeMinorPropertyOutputWrapper>
+          typename EdgeMinorPropertyOutputWrapper,
+          typename T>
 void fill_edge_minor_property(raft::handle_t const& handle,
                               GraphViewType const& graph_view,
                               VertexIterator vertex_first,
                               VertexIterator vertex_last,
-                              T input,
-                              EdgeMinorPropertyOutputWrapper edge_minor_property_output)
+                              EdgeMinorPropertyOutputWrapper edge_minor_property_output,
+                              T input)
 {
   constexpr bool packed_bool =
     std::is_same_v<typename EdgeMinorPropertyOutputWrapper::value_type, bool>;
@@ -361,32 +361,32 @@ void fill_edge_minor_property(raft::handle_t const& handle,
  * to this process in multi-GPU).
  *
  * @tparam GraphViewType Type of the passed non-owning graph object.
+ * @tparam EdgeSrcValueOutputWrapper Type of the wrapper for output edge source property values.
  * @tparam T Type of the edge source property values.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Non-owning graph object.
+ * @param edge_src_property_output edge_src_property_view_t class object to store source property
+ * values (for the edge source assigned to this process in multi-GPU).
  * @param input Edge source property values will be set to @p input.
- * @param edge_src_property_output edge_src_property_t class object to store source property values
- * (for the edge source assigned to this process in multi-GPU).
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  */
-template <typename GraphViewType, typename T>
+template <typename GraphViewType, typename EdgeSrcValueOutputWrapper, typename T>
 void fill_edge_src_property(raft::handle_t const& handle,
                             GraphViewType const& graph_view,
+                            EdgeSrcValueOutputWrapper edge_src_property_output,
                             T input,
-                            edge_src_property_t<GraphViewType, T>& edge_src_property_output,
                             bool do_expensive_check = false)
 {
+  static_assert(std::is_same_v<T, typename EdgeSrcValueOutputWrapper::value_type>);
   if (do_expensive_check) {
     // currently, nothing to do
   }
 
   if constexpr (GraphViewType::is_storage_transposed) {
-    detail::fill_edge_minor_property(
-      handle, graph_view, input, edge_src_property_output.mutable_view());
+    detail::fill_edge_minor_property(handle, graph_view, edge_src_property_output, input);
   } else {
-    detail::fill_edge_major_property(
-      handle, graph_view, input, edge_src_property_output.mutable_view());
+    detail::fill_edge_major_property(handle, graph_view, edge_src_property_output, input);
   }
 }
 
@@ -398,6 +398,7 @@ void fill_edge_src_property(raft::handle_t const& handle,
  *
  * @tparam GraphViewType Type of the passed non-owning graph object.
  * @tparam VertexIterator Type of the iterator for vertex identifiers.
+ * @tparam EdgeSrcValueOutputWrapper Type of the wrapper for output edge source property values.
  * @tparam T Type of the edge source property values.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
@@ -406,20 +407,24 @@ void fill_edge_src_property(raft::handle_t const& handle,
  * v in [vertex_first, vertex_last) should be distinct (and should belong to the vertex partition
  * assigned to this process in multi-GPU), otherwise undefined behavior.
  * @param vertex_last Iterator pointing to the last (exclusive) vertex with a value to be filled.
+ * @param edge_src_property_output edge_src_property_view_t class object to store source property
+ * values (for the edge source assigned to this process in multi-GPU).
  * @param input Edge source property values will be set to @p input.
- * @param edge_src_property_output edge_src_property_t class object to store source property values
- * (for the edge source assigned to this process in multi-GPU).
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  */
-template <typename GraphViewType, typename VertexIterator, typename T>
+template <typename GraphViewType,
+          typename VertexIterator,
+          typename EdgeSrcValueOutputWrapper,
+          typename T>
 void fill_edge_src_property(raft::handle_t const& handle,
                             GraphViewType const& graph_view,
                             VertexIterator vertex_first,
                             VertexIterator vertex_last,
+                            EdgeSrcValueOutputWrapper edge_src_property_output,
                             T input,
-                            edge_src_property_t<GraphViewType, T>& edge_src_property_output,
                             bool do_expensive_check = false)
 {
+  static_assert(std::is_same_v<T, typename EdgeSrcValueOutputWrapper::value_type>);
   if (do_expensive_check) {
     auto num_invalids = thrust::count_if(
       handle.get_thrust_policy(),
@@ -441,19 +446,11 @@ void fill_edge_src_property(raft::handle_t const& handle,
   }
 
   if constexpr (GraphViewType::is_storage_transposed) {
-    detail::fill_edge_minor_property(handle,
-                                     graph_view,
-                                     vertex_first,
-                                     vertex_last,
-                                     input,
-                                     edge_src_property_output.mutable_view());
+    detail::fill_edge_minor_property(
+      handle, graph_view, vertex_first, vertex_last, edge_src_property_output, input);
   } else {
-    detail::fill_edge_major_property(handle,
-                                     graph_view,
-                                     vertex_first,
-                                     vertex_last,
-                                     input,
-                                     edge_src_property_output.mutable_view());
+    detail::fill_edge_major_property(
+      handle, graph_view, vertex_first, vertex_last, edge_src_property_output, input);
   }
 }
 
@@ -464,32 +461,33 @@ void fill_edge_src_property(raft::handle_t const& handle,
  * (assigned to this process in multi-GPU).
  *
  * @tparam GraphViewType Type of the passed non-owning graph object.
+ * @tparam EdgeDstValueOutputWrapper Type of the wrapper for output edge destination property
+ * values.
  * @tparam T Type of the edge destination property values.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Non-owning graph object.
+ * @param edge_dst_property_output edge_dst_property_view_t class object to store destination
+ * property values (for the edge destinations assigned to this process in multi-GPU).
  * @param input Edge destination property values will be set to @p input.
- * @param edge_dst_property_output edge_dst_property_t class object to store destination property
- * values (for the edge destinations assigned to this process in multi-GPU).
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  */
-template <typename GraphViewType, typename T>
+template <typename GraphViewType, typename EdgeDstValueOutputWrapper, typename T>
 void fill_edge_dst_property(raft::handle_t const& handle,
                             GraphViewType const& graph_view,
+                            EdgeDstValueOutputWrapper edge_dst_property_output,
                             T input,
-                            edge_dst_property_t<GraphViewType, T>& edge_dst_property_output,
                             bool do_expensive_check = false)
 {
+  static_assert(std::is_same_v<T, typename EdgeDstValueOutputWrapper::value_type>);
   if (do_expensive_check) {
     // currently, nothing to do
   }
 
   if constexpr (GraphViewType::is_storage_transposed) {
-    detail::fill_edge_major_property(
-      handle, graph_view, input, edge_dst_property_output.mutable_view());
+    detail::fill_edge_major_property(handle, graph_view, edge_dst_property_output, input);
   } else {
-    detail::fill_edge_minor_property(
-      handle, graph_view, input, edge_dst_property_output.mutable_view());
+    detail::fill_edge_minor_property(handle, graph_view, edge_dst_property_output, input);
   }
 }
 
@@ -501,6 +499,8 @@ void fill_edge_dst_property(raft::handle_t const& handle,
  *
  * @tparam GraphViewType Type of the passed non-owning graph object.
  * @tparam VertexIterator Type of the iterator for vertex identifiers.
+ * @tparam EdgeDstValueOutputWrapper Type of the wrapper for output edge destination property
+ * values.
  * @tparam T Type of the edge destination property values.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
@@ -509,20 +509,24 @@ void fill_edge_dst_property(raft::handle_t const& handle,
  * v in [vertex_first, vertex_last) should be distinct (and should belong to the vertex partition
  * assigned to this process in multi-GPU), otherwise undefined behavior.
  * @param vertex_last Iterator pointing to the last (exclusive) vertex with a value to be filled.
+ * @param edge_dst_property_output edge_dst_property_view_t class object to store destination
+ * property values (for the edge destinations assigned to this process in multi-GPU).
  * @param input Edge destination property values will be set to @p input.
- * @param edge_dst_property_output edge_dst_property_t class object to store destination property
- * values (for the edge destinations assigned to this process in multi-GPU).
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  */
-template <typename GraphViewType, typename VertexIterator, typename T>
+template <typename GraphViewType,
+          typename VertexIterator,
+          typename EdgeDstValueOutputWrapper,
+          typename T>
 void fill_edge_dst_property(raft::handle_t const& handle,
                             GraphViewType const& graph_view,
                             VertexIterator vertex_first,
                             VertexIterator vertex_last,
+                            EdgeDstValueOutputWrapper edge_dst_property_output,
                             T input,
-                            edge_dst_property_t<GraphViewType, T>& edge_dst_property_output,
                             bool do_expensive_check = false)
 {
+  static_assert(std::is_same_v<T, typename EdgeDstValueOutputWrapper::value_type>);
   if (do_expensive_check) {
     auto num_invalids = thrust::count_if(
       handle.get_thrust_policy(),
@@ -544,19 +548,11 @@ void fill_edge_dst_property(raft::handle_t const& handle,
   }
 
   if constexpr (GraphViewType::is_storage_transposed) {
-    detail::fill_edge_major_property(handle,
-                                     graph_view,
-                                     vertex_first,
-                                     vertex_last,
-                                     input,
-                                     edge_dst_property_output.mutable_view());
+    detail::fill_edge_major_property(
+      handle, graph_view, vertex_first, vertex_last, edge_dst_property_output, input);
   } else {
-    detail::fill_edge_minor_property(handle,
-                                     graph_view,
-                                     vertex_first,
-                                     vertex_last,
-                                     input,
-                                     edge_dst_property_output.mutable_view());
+    detail::fill_edge_minor_property(
+      handle, graph_view, vertex_first, vertex_last, edge_dst_property_output, input);
   }
 }
 

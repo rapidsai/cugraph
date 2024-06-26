@@ -695,7 +695,7 @@ k_truss(raft::handle_t const& handle,
                         (*num_triangles).begin());
 
     cugraph::edge_property_t<decltype(cur_graph_view), bool> edge_mask(handle, cur_graph_view);
-    cugraph::fill_edge_property(handle, cur_graph_view, true, edge_mask);
+    cugraph::fill_edge_property(handle, cur_graph_view, edge_mask.mutable_view(), true);
     cur_graph_view.attach_edge_mask(edge_mask.view());
 
     while (true) {

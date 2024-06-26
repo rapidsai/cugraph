@@ -594,9 +594,11 @@ edge_betweenness_centrality(
   if (graph_view.has_edge_mask()) {
     auto unmasked_graph_view = graph_view;
     unmasked_graph_view.clear_edge_mask();
-    fill_edge_property(handle, unmasked_graph_view, weight_t{0}, centralities, do_expensive_check);
+    fill_edge_property(
+      handle, unmasked_graph_view, centralities.mutable_view(), weight_t{0}, do_expensive_check);
   } else {
-    fill_edge_property(handle, graph_view, weight_t{0}, centralities, do_expensive_check);
+    fill_edge_property(
+      handle, graph_view, centralities.mutable_view(), weight_t{0}, do_expensive_check);
   }
 
   size_t num_sources = thrust::distance(vertices_begin, vertices_end);
