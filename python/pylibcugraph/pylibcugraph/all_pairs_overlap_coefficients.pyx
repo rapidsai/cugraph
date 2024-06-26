@@ -16,7 +16,6 @@
 
 from libc.stdint cimport uintptr_t
 from libc.stdio cimport printf
-from cython.operator cimport dereference
 
 from pylibcugraph._cugraph_c.resource_handle cimport (
     bool_t,
@@ -35,7 +34,6 @@ from pylibcugraph._cugraph_c.graph_functions cimport (
     cugraph_vertex_pairs_get_first,
     cugraph_vertex_pairs_get_second,
     cugraph_vertex_pairs_free,
-    cugraph_create_vertex_pairs
 )
 from pylibcugraph._cugraph_c.graph cimport (
     cugraph_graph_t,
@@ -44,6 +42,7 @@ from pylibcugraph._cugraph_c.similarity_algorithms cimport (
     cugraph_all_pairs_overlap_coefficients,
     cugraph_similarity_result_t,
     cugraph_similarity_result_get_similarity,
+    cugraph_similarity_result_get_vertex_pairs,
     cugraph_similarity_result_free
 )
 from pylibcugraph.resource_handle cimport (
@@ -64,12 +63,12 @@ def all_pairs_overlap_coefficients(ResourceHandle resource_handle,
         _GPUGraph graph,
         vertices,
         bool_t use_weight,
-        size_t topk,
+        topk,
         bool_t do_expensive_check):
     """
-    Perform All-Pairs overlap similarity computation.
+    Perform All-Pairs Overlap similarity computation.
 
-    Note that overlap similarity must run on a symmetric graph.
+    Note that Overlap similarity must run on a symmetric graph.
 
     Parameters
     ----------
@@ -85,9 +84,9 @@ def all_pairs_overlap_coefficients(ResourceHandle resource_handle,
             on all vertices in the graph.
 
     use_weight : bool, optional
-        If set to True, the  compute weighted overlap_coefficients(
+        If set to True, then compute weighted overlap_coefficients(
             the input graph must be weighted in that case).
-        Otherwise, computed un-weighted overlap_coefficients
+        Otherwise, compute non-weighted overlap_coefficients
     
     topk : size_t
         Specify the number of answers to return otherwise will return all values.
@@ -100,7 +99,7 @@ def all_pairs_overlap_coefficients(ResourceHandle resource_handle,
     Returns
     -------
     A tuple of device arrays containing the vertex pairs with
-    their corresponding overlap coefficient scores.
+    their corresponding Overlap coefficient scores.
 
     Examples
     --------
@@ -110,8 +109,6 @@ def all_pairs_overlap_coefficients(ResourceHandle resource_handle,
 
     if topk is None:
         topk = SIZE_MAX
-
-    cdef cugraph_vertex_pairs_t* vertex_pairs_ptr
 
     cdef cugraph_resource_handle_t* c_resource_handle_ptr = \
         resource_handle.c_resource_handle_ptr
@@ -143,20 +140,25 @@ def all_pairs_overlap_coefficients(ResourceHandle resource_handle,
 
     cupy_similarity = copy_to_cupy_array(c_resource_handle_ptr, similarity_ptr)
 
-    cdef cugraph_type_erased_device_array_view_t* first_ptr = \
+    cdef cugraph_vertex_pairs_t* vertex_pairs_ptr = \
+        cugraph_similarity_result_get_vertex_pairs(result_ptr)
+    
+    cdef cugraph_type_erased_device_array_view_t* first_view_ptr = \
         cugraph_vertex_pairs_get_first(vertex_pairs_ptr)
 
-    cupy_first = copy_to_cupy_array(c_resource_handle_ptr, first_ptr)
+    cupy_first = copy_to_cupy_array(c_resource_handle_ptr, first_view_ptr)
 
-    cdef cugraph_type_erased_device_array_view_t* second_ptr = \
+    cdef cugraph_type_erased_device_array_view_t* second_view_ptr = \
         cugraph_vertex_pairs_get_second(vertex_pairs_ptr)
 
-    cupy_second = copy_to_cupy_array(c_resource_handle_ptr, second_ptr)
+    cupy_second = copy_to_cupy_array(c_resource_handle_ptr, second_view_ptr)
 
     # Free all pointers
     cugraph_similarity_result_free(result_ptr)
     cugraph_vertex_pairs_free(vertex_pairs_ptr)
 
     cugraph_type_erased_device_array_view_free(vertices_view_ptr)
+    # No need to free 'first_view_ptr' and 'second_view_ptr' as their memory
+    # are already deallocated when freeing 'result_ptr'
 
     return cupy_first, cupy_second, cupy_similarity
