@@ -72,7 +72,7 @@ inline auto make_managed() { return std::make_shared<rmm::mr::managed_memory_res
 // otherwise we'll use 1/10.
 inline auto make_pool(bool use_max = false)
 {
-  // Reduce the default pool allocation to 1/6th of the GPU memory so that we can
+  // Reduce the default pool allocation to 1/10 of GPU memory so that we can
   // run more than 2 tests in parallel at the same time. Changes to this value could
   // effect the maximum amount of parallel tests, and therefore `tests/CMakeLists.txt`
   // `_CUGRAPH_TEST_PERCENT` default value will need to be audited.
