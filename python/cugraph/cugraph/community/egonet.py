@@ -180,7 +180,7 @@ def batched_ego_graphs(G, seeds, radius=1, center=True, undirected=None, distanc
         .. deprecated:: 24.08
 
            Accepting ``networkx.Graph`` is deprecated and will be removed in a
-           future version.  For ``networkx.Graph`` use netwotkx directly with
+           future version.  For ``networkx.Graph`` use networkx directly with
            the ``nx-cugraph`` plug-in.
 
     seeds : cudf.Series or list or cudf.DataFrame
