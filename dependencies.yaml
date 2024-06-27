@@ -665,18 +665,25 @@ dependencies:
           - &pytorch_conda pytorch>=2.0,<2.2.0a0
 
     specific:
+      - output_types: [requirements]
+        matrices:
+          - matrix: {cuda: "12.*"}
+            packages:
+              - --extra-index-url=https://download.pytorch.org/whl/cu121
+          - matrix: {cuda: "11.*"}
+            packages:
+              - --extra-index-url=https://download.pytorch.org/whl/cu118
+          - {matrix: null, packages: null}
       - output_types: [requirements, pyproject]
         matrices:
           - matrix: {cuda: "12.*"}
             packages:
               - &pytorch_pip torch>=2.0,<2.2.0a0
               - *tensordict
-              - --extra-index-url=https://download.pytorch.org/whl/cu121
           - matrix: {cuda: "11.*"}
             packages:
               - *pytorch_pip
               - *tensordict
-              - --extra-index-url=https://download.pytorch.org/whl/cu118
           - {matrix: null, packages: [*pytorch_pip, *tensordict]}
 
   depends_on_pylibwholegraph:
