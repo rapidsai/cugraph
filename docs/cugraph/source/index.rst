@@ -18,7 +18,8 @@ RAPIDS Graph documentation
      - :abbr:`cugraph-service (Graph-as-a-service provides both Client and Server packages)`
    * - :abbr:`pylibcugraph (light-weight Python wrapper with no guard rails)`
      - :abbr:`cugraph-dgl (Accelerated extensions for use with the DGL framework)`
-     -
+     - :abbr:`nx-cugraph` (Accelerated backend for NetworkX)
+     - 
    * - :abbr:`libcugraph (C++ API)`
      - :abbr:`cugraph-pyg (Accelerated extensions for use with the PyG framework)`
      -
@@ -39,6 +40,11 @@ even CuPy or SciPy sparse Matrices.
 Note: We are redoing all of our documents, please be patient as we update
 the docs and links
 
+~~~~~~~~~~~~~~~~~~~~~
+Deprecaations NOTICES
+~~~~~~~~~~~~~~~~~~~~~
+ - Accepting and returning NetworkX objects is being deprecated and will be dropped before the end of 2024. Users are encouraged to use NetworkX directly with the new nx-cugraph backend plug-in.  
+See:  https://developer.nvidia.com/blog/accelerating-networkx-on-nvidia-gpus-for-high-performance-graph-analytics/
 |
 
 .. toctree::
