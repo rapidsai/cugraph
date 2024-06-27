@@ -269,7 +269,9 @@ set(CUGRAPH_SOURCES
     src/community/k_truss_sg64.cu
     src/community/k_truss_sg32.cu
     src/community/k_truss_sg3264.cu
-    src/sampling/random_walks_old_sg.cu
+    src/sampling/random_walks_old_sg32.cu
+    src/sampling/random_walks_old_sg3264.cu
+    src/sampling/random_walks_old_sg64.cu
     src/sampling/random_walks_sg64.cu
     src/sampling/random_walks_sg32.cu
     src/sampling/random_walks_sg3264.cu
@@ -293,8 +295,12 @@ set(CUGRAPH_SOURCES
     src/sampling/detail/shuffle_and_organize_output_mg64.cu
     src/sampling/detail/shuffle_and_organize_output_mg32.cu
     src/sampling/detail/shuffle_and_organize_output_mg3264.cu
-    src/sampling/uniform_neighbor_sampling_mg.cpp
-    src/sampling/uniform_neighbor_sampling_sg.cpp
+    src/sampling/uniform_neighbor_sampling_mg32.cpp
+    src/sampling/uniform_neighbor_sampling_mg3264.cpp
+    src/sampling/uniform_neighbor_sampling_mg64.cpp
+    src/sampling/uniform_neighbor_sampling_sg32.cpp
+    src/sampling/uniform_neighbor_sampling_sg3264.cpp
+    src/sampling/uniform_neighbor_sampling_sg64.cpp
     src/sampling/renumber_sampled_edgelist_sg64.cu
     src/sampling/renumber_sampled_edgelist_sg32.cu
     src/sampling/sampling_post_processing_sg64.cu
