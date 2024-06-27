@@ -104,6 +104,7 @@ def test_edge_cut_clustering_with_edgevals(graph_file, partitions):
 @pytest.mark.sg
 @pytest.mark.parametrize("graph_file", DEFAULT_DATASETS)
 @pytest.mark.parametrize("partitions", PARTITIONS)
+@pytest.mark.filterwarnings("ignore::DeprecationWarning")
 def test_edge_cut_clustering_with_edgevals_nx(graph_file, partitions):
     gc.collect()
 

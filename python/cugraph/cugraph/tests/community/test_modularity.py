@@ -77,6 +77,7 @@ def test_modularity_clustering(graph_file, partitions):
 @pytest.mark.sg
 @pytest.mark.parametrize("graph_file", DEFAULT_DATASETS)
 @pytest.mark.parametrize("partitions", PARTITIONS)
+@pytest.mark.filterwarnings("ignore::DeprecationWarning")
 def test_modularity_clustering_nx(graph_file, partitions):
     # Read in the graph and get a cugraph object
     dataset_path = graph_file.get_path()

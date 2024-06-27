@@ -75,6 +75,7 @@ def test_ecg_clustering(dataset, min_weight, ensemble_size):
 @pytest.mark.parametrize("dataset", DATASETS)
 @pytest.mark.parametrize("min_weight", MIN_WEIGHTS)
 @pytest.mark.parametrize("ensemble_size", ENSEMBLE_SIZES)
+@pytest.mark.filterwarnings("ignore::DeprecationWarning")
 def test_ecg_clustering_nx(dataset, min_weight, ensemble_size):
 
     gc.collect()

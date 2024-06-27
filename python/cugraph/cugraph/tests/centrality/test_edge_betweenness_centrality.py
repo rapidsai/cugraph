@@ -489,6 +489,7 @@ def test_edge_betweenness_invalid_dtype(
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
 @pytest.mark.parametrize("edgevals", WEIGHTED_GRAPH_OPTIONS)
 @pytest.mark.parametrize("normalized", NORMALIZED_OPTIONS)
+@pytest.mark.filterwarnings("ignore::DeprecationWarning")
 def test_edge_betweenness_centrality_nx(graph_file, directed, edgevals, normalized):
     dataset_path = graph_file.get_path()
     Gnx = utils.generate_nx_graph_from_file(dataset_path, directed, edgevals)

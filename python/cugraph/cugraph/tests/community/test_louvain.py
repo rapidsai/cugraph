@@ -135,6 +135,7 @@ def test_louvain_csr_graph(is_weighted):
 
 
 @pytest.mark.sg
+@pytest.mark.filterwarnings("ignore::DeprecationWarning")
 def test_louvain_nx_graph_with_isolated_nodes():
     # Cluster IDs are expected to unique if all nodes are isolated
     G = nx.Graph()
