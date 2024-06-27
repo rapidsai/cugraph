@@ -42,7 +42,7 @@ dependencies:
 - numpy>=1.23,<2.0a0
 - numpydoc
 - nvcc_linux-64=11.8
-- openmpi<5.0.3
+- openmpi
 - packaging>=21
 - pandas
 - pre-commit
@@ -71,6 +71,7 @@ dependencies:
 - sphinx-markdown-tables
 - sphinx<6
 - sphinxcontrib-websupport
+- thriftpy2<=0.5.0
 - ucx-proc=*=gpu
 - ucx-py==0.39.*,>=0.0.0a0
 - wget
