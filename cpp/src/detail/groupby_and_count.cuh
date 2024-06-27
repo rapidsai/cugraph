@@ -13,6 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
+#pragma once
 #include "detail/graph_partition_utils.cuh"
 
 #include <cugraph/detail/shuffle_wrappers.hpp>
@@ -262,60 +264,6 @@ rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partition_id(
 
   return result;
 }
-
-template rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partition_id(
-  raft::handle_t const& handle,
-  rmm::device_uvector<int32_t>& d_edgelist_majors,
-  rmm::device_uvector<int32_t>& d_edgelist_minors,
-  std::optional<rmm::device_uvector<float>>& d_edgelist_weights,
-  std::optional<rmm::device_uvector<int32_t>>& d_edgelist_edge_ids,
-  std::optional<rmm::device_uvector<int32_t>>& d_edgelist_edge_types,
-  bool groupby_and_counts_local_partition);
-
-template rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partition_id(
-  raft::handle_t const& handle,
-  rmm::device_uvector<int32_t>& d_edgelist_majors,
-  rmm::device_uvector<int32_t>& d_edgelist_minors,
-  std::optional<rmm::device_uvector<double>>& d_edgelist_weights,
-  std::optional<rmm::device_uvector<int32_t>>& d_edgelist_edge_ids,
-  std::optional<rmm::device_uvector<int32_t>>& d_edgelist_edge_types,
-  bool groupby_and_counts_local_partition);
-
-template rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partition_id(
-  raft::handle_t const& handle,
-  rmm::device_uvector<int32_t>& d_edgelist_majors,
-  rmm::device_uvector<int32_t>& d_edgelist_minors,
-  std::optional<rmm::device_uvector<float>>& d_edgelist_weights,
-  std::optional<rmm::device_uvector<int64_t>>& d_edgelist_edge_ids,
-  std::optional<rmm::device_uvector<int32_t>>& d_edgelist_edge_types,
-  bool groupby_and_counts_local_partition);
-
-template rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partition_id(
-  raft::handle_t const& handle,
-  rmm::device_uvector<int32_t>& d_edgelist_majors,
-  rmm::device_uvector<int32_t>& d_edgelist_minors,
-  std::optional<rmm::device_uvector<double>>& d_edgelist_weights,
-  std::optional<rmm::device_uvector<int64_t>>& d_edgelist_edge_ids,
-  std::optional<rmm::device_uvector<int32_t>>& d_edgelist_edge_types,
-  bool groupby_and_counts_local_partition);
-
-template rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partition_id(
-  raft::handle_t const& handle,
-  rmm::device_uvector<int64_t>& d_edgelist_majors,
-  rmm::device_uvector<int64_t>& d_edgelist_minors,
-  std::optional<rmm::device_uvector<float>>& d_edgelist_weights,
-  std::optional<rmm::device_uvector<int64_t>>& d_edgelist_edge_ids,
-  std::optional<rmm::device_uvector<int32_t>>& d_edgelist_edge_types,
-  bool groupby_and_counts_local_partition);
-
-template rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partition_id(
-  raft::handle_t const& handle,
-  rmm::device_uvector<int64_t>& d_edgelist_majors,
-  rmm::device_uvector<int64_t>& d_edgelist_minors,
-  std::optional<rmm::device_uvector<double>>& d_edgelist_weights,
-  std::optional<rmm::device_uvector<int64_t>>& d_edgelist_edge_ids,
-  std::optional<rmm::device_uvector<int32_t>>& d_edgelist_edge_types,
-  bool groupby_and_counts_local_partition);
 
 }  // namespace detail
 }  // namespace cugraph

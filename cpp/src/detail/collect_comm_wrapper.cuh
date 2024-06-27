@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+#pragma once
+
 #include "c_api/capi_helper.hpp"
 #include "structure/detail/structure_utils.cuh"
 #include "utilities/collect_comm.cuh"
@@ -36,22 +38,6 @@ rmm::device_uvector<T> device_allgatherv(raft::handle_t const& handle,
 
   return gathered_v;
 }
-
-template rmm::device_uvector<int32_t> device_allgatherv(raft::handle_t const& handle,
-                                                        raft::comms::comms_t const& comm,
-                                                        raft::device_span<int32_t const> d_input);
-
-template rmm::device_uvector<int64_t> device_allgatherv(raft::handle_t const& handle,
-                                                        raft::comms::comms_t const& comm,
-                                                        raft::device_span<int64_t const> d_input);
-
-template rmm::device_uvector<float> device_allgatherv(raft::handle_t const& handle,
-                                                      raft::comms::comms_t const& comm,
-                                                      raft::device_span<float const> d_input);
-
-template rmm::device_uvector<double> device_allgatherv(raft::handle_t const& handle,
-                                                       raft::comms::comms_t const& comm,
-                                                       raft::device_span<double const> d_input);
 
 }  // namespace detail
 }  // namespace cugraph

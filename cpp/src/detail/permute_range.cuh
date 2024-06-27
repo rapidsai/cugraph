@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+#pragma once
+
 #include <cugraph/detail/collect_comm_wrapper.hpp>
 #include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
@@ -168,20 +170,6 @@ rmm::device_uvector<vertex_t> permute_range(raft::handle_t const& handle,
   assert(permuted_integers.size() == local_range_size);
   return permuted_integers;
 }
-
-template rmm::device_uvector<int32_t> permute_range(raft::handle_t const& handle,
-                                                    raft::random::RngState& rng_state,
-                                                    int32_t local_range_start,
-                                                    int32_t local_range_size,
-                                                    bool multi_gpu,
-                                                    bool do_expensive_check);
-
-template rmm::device_uvector<int64_t> permute_range(raft::handle_t const& handle,
-                                                    raft::random::RngState& rng_state,
-                                                    int64_t local_range_start,
-                                                    int64_t local_range_size,
-                                                    bool multi_gpu,
-                                                    bool do_expensive_check);
 
 }  // namespace detail
 }  // namespace cugraph

@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
+#pragma once
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/graph_generators.hpp>
 #include <cugraph/utilities/error.hpp>
@@ -227,98 +227,5 @@ generate_rmat_edgelists(raft::handle_t const& handle,
                                            clip_and_flip,
                                            scramble_vertex_ids);
 }
-
-template std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<int32_t>>
-generate_rmat_edgelist<int32_t>(raft::handle_t const& handle,
-                                raft::random::RngState& rng_state,
-                                size_t scale,
-                                size_t num_edges,
-                                double a,
-                                double b,
-                                double c,
-                                bool clip_and_flip,
-                                bool scramble_vertex_ids);
-
-template std::tuple<rmm::device_uvector<int64_t>, rmm::device_uvector<int64_t>>
-generate_rmat_edgelist<int64_t>(raft::handle_t const& handle,
-                                raft::random::RngState& rng_state,
-                                size_t scale,
-                                size_t num_edges,
-                                double a,
-                                double b,
-                                double c,
-                                bool clip_and_flip,
-                                bool scramble_vertex_ids);
-
-template std::vector<std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<int32_t>>>
-generate_rmat_edgelists<int32_t>(raft::handle_t const& handle,
-                                 raft::random::RngState& rng_state,
-                                 size_t n_edgelists,
-                                 size_t min_scale,
-                                 size_t max_scale,
-                                 size_t edge_factor,
-                                 generator_distribution_t size_distribution,
-                                 generator_distribution_t edge_distribution,
-                                 bool clip_and_flip,
-                                 bool scramble_vertex_ids);
-
-template std::vector<std::tuple<rmm::device_uvector<int64_t>, rmm::device_uvector<int64_t>>>
-generate_rmat_edgelists<int64_t>(raft::handle_t const& handle,
-                                 raft::random::RngState& rng_state,
-                                 size_t n_edgelists,
-                                 size_t min_scale,
-                                 size_t max_scale,
-                                 size_t edge_factor,
-                                 generator_distribution_t size_distribution,
-                                 generator_distribution_t edge_distribution,
-                                 bool clip_and_flip,
-                                 bool scramble_vertex_ids);
-
-/* DEPRECATED */
-template std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<int32_t>>
-generate_rmat_edgelist<int32_t>(raft::handle_t const& handle,
-                                size_t scale,
-                                size_t num_edges,
-                                double a,
-                                double b,
-                                double c,
-                                uint64_t seed,
-                                bool clip_and_flip,
-                                bool scramble_vertex_ids);
-
-template std::tuple<rmm::device_uvector<int64_t>, rmm::device_uvector<int64_t>>
-generate_rmat_edgelist<int64_t>(raft::handle_t const& handle,
-                                size_t scale,
-                                size_t num_edges,
-                                double a,
-                                double b,
-                                double c,
-                                uint64_t seed,
-                                bool clip_and_flip,
-                                bool scramble_vertex_ids);
-
-template std::vector<std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<int32_t>>>
-generate_rmat_edgelists<int32_t>(raft::handle_t const& handle,
-                                 size_t n_edgelists,
-                                 size_t min_scale,
-                                 size_t max_scale,
-                                 size_t edge_factor,
-                                 generator_distribution_t size_distribution,
-                                 generator_distribution_t edge_distribution,
-                                 uint64_t seed,
-                                 bool clip_and_flip,
-                                 bool scramble_vertex_ids);
-
-template std::vector<std::tuple<rmm::device_uvector<int64_t>, rmm::device_uvector<int64_t>>>
-generate_rmat_edgelists<int64_t>(raft::handle_t const& handle,
-                                 size_t n_edgelists,
-                                 size_t min_scale,
-                                 size_t max_scale,
-                                 size_t edge_factor,
-                                 generator_distribution_t size_distribution,
-                                 generator_distribution_t edge_distribution,
-                                 uint64_t seed,
-                                 bool clip_and_flip,
-                                 bool scramble_vertex_ids);
 
 }  // namespace cugraph

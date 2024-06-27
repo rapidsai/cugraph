@@ -102,35 +102,4 @@ void get_traversed_cost(raft::handle_t const& handle,
     handle, vertices, preds, info_weights, out, stop_vertex, num_vertices);
 }
 
-template void get_traversed_cost<int32_t, float>(raft::handle_t const& handle,
-                                                 int32_t const* vertices,
-                                                 int32_t const* preds,
-                                                 float const* info_weights,
-                                                 float* out,
-                                                 int32_t stop_vertex,
-                                                 int32_t num_vertices);
-
-template void get_traversed_cost<int32_t, double>(raft::handle_t const& handle,
-                                                  int32_t const* vertices,
-                                                  int32_t const* preds,
-                                                  double const* info_weights,
-                                                  double* out,
-                                                  int32_t stop_vertex,
-                                                  int32_t num_vertices);
-
-template void get_traversed_cost<int64_t, float>(raft::handle_t const& handle,
-                                                 int64_t const* vertices,
-                                                 int64_t const* preds,
-                                                 float const* info_weights,
-                                                 float* out,
-                                                 int64_t stop_vertex,
-                                                 int64_t num_vertices);
-
-template void get_traversed_cost<int64_t, double>(raft::handle_t const& handle,
-                                                  int64_t const* vertices,
-                                                  int64_t const* preds,
-                                                  double const* info_weights,
-                                                  double* out,
-                                                  int64_t stop_vertex,
-                                                  int64_t num_vertices);
 }  // namespace cugraph

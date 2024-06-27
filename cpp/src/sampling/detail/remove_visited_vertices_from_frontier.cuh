@@ -72,21 +72,5 @@ remove_visited_vertices_from_frontier(
   return std::make_tuple(std::move(frontier_vertices), std::move(frontier_vertex_labels));
 }
 
-template std::tuple<rmm::device_uvector<int32_t>, std::optional<rmm::device_uvector<int32_t>>>
-remove_visited_vertices_from_frontier(
-  raft::handle_t const& handle,
-  rmm::device_uvector<int32_t>&& frontier_vertices,
-  std::optional<rmm::device_uvector<int32_t>>&& frontier_vertex_labels,
-  raft::device_span<int32_t const> vertices_used_as_source,
-  std::optional<raft::device_span<int32_t const>> vertex_labels_used_as_source);
-
-template std::tuple<rmm::device_uvector<int64_t>, std::optional<rmm::device_uvector<int32_t>>>
-remove_visited_vertices_from_frontier(
-  raft::handle_t const& handle,
-  rmm::device_uvector<int64_t>&& frontier_vertices,
-  std::optional<rmm::device_uvector<int32_t>>&& frontier_vertex_labels,
-  raft::device_span<int64_t const> vertices_used_as_source,
-  std::optional<raft::device_span<int32_t const>> vertex_labels_used_as_source);
-
 }  // namespace detail
 }  // namespace cugraph
