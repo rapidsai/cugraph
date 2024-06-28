@@ -1623,7 +1623,7 @@ uniform_random_walks(raft::handle_t const& handle,
                      std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
                      raft::device_span<vertex_t const> start_vertices,
                      size_t max_length,
-                     uint64_t seed = std::numeric_limits<uint64_t>::max());
+                     raft::random::RngState& rng_state);
 
 /**
  * @brief returns biased random walks from starting sources, where each path is of given
@@ -1667,7 +1667,7 @@ biased_random_walks(raft::handle_t const& handle,
                     edge_property_view_t<edge_t, weight_t const*> edge_weight_view,
                     raft::device_span<vertex_t const> start_vertices,
                     size_t max_length,
-                    uint64_t seed = std::numeric_limits<uint64_t>::max());
+                    raft::random::RngState& rng_state);
 
 /**
  * @brief returns biased random walks with node2vec biases from starting sources,
