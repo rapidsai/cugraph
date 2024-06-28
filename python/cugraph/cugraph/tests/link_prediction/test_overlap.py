@@ -166,6 +166,7 @@ def test_overlap(gpubenchmark, read_csv, extract_two_hop, use_weight):
 @pytest.mark.sg
 @pytest.mark.parametrize("graph_file", UNDIRECTED_DATASETS)
 @pytest.mark.parametrize("use_weight", [False, True])
+@pytest.mark.filterwarnings("ignore::DeprecationWarning")
 def test_directed_graph_check(graph_file, use_weight):
     M = utils.read_csv_for_nx(graph_file.get_path())
     cu_M = cudf.DataFrame()

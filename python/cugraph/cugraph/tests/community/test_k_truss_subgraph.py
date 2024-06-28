@@ -108,6 +108,7 @@ def test_ktruss_subgraph_Graph(_, nx_ground_truth):
     (__cuda_version == __unsupported_cuda_version),
     reason="skipping on unsupported CUDA " f"{__unsupported_cuda_version} environment.",
 )
+@pytest.mark.filterwarnings("ignore::DeprecationWarning")
 def test_ktruss_subgraph_Graph_nx():
     k = 5
     dataset_path = polbooks.get_path()

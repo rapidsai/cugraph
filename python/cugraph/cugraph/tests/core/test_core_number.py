@@ -66,6 +66,7 @@ def input_combo(request):
 # Tests
 # =============================================================================
 @pytest.mark.sg
+@pytest.mark.filterwarnings("ignore::DeprecationWarning")
 def test_core_number(input_combo):
     G = input_combo["G"]
     Gnx = input_combo["Gnx"]
