@@ -40,30 +40,30 @@ auto allocate_dataframe_buffer_tuple_impl(std::index_sequence<Is...>,
     buffer_size, stream_view)...);
 }
 
-template <typename TupleType, std::size_t... I>
-auto get_dataframe_buffer_begin_tuple_impl(std::index_sequence<I...>, TupleType& buffer)
+template <typename TupleType, std::size_t... Is>
+auto get_dataframe_buffer_begin_tuple_impl(std::index_sequence<Is...>, TupleType& buffer)
 {
-  return thrust::make_zip_iterator(thrust::make_tuple((std::get<I>(buffer).begin())...));
+  return thrust::make_zip_iterator(thrust::make_tuple((std::get<Is>(buffer).begin())...));
 }
 
-template <typename TupleType, std::size_t... I>
-auto get_dataframe_buffer_end_tuple_impl(std::index_sequence<I...>, TupleType& buffer)
+template <typename TupleType, std::size_t... Is>
+auto get_dataframe_buffer_end_tuple_impl(std::index_sequence<Is...>, TupleType& buffer)
 {
-  return thrust::make_zip_iterator(thrust::make_tuple((std::get<I>(buffer).end())...));
+  return thrust::make_zip_iterator(thrust::make_tuple((std::get<Is>(buffer).end())...));
 }
 
-template <typename TupleType, size_t... I>
-auto get_dataframe_buffer_cbegin_tuple_impl(std::index_sequence<I...>, TupleType& buffer)
+template <typename TupleType, size_t... Is>
+auto get_dataframe_buffer_cbegin_tuple_impl(std::index_sequence<Is...>, TupleType& buffer)
 {
   // thrust::make_tuple instead of std::make_tuple as this is fed to thrust::make_zip_iterator.
-  return thrust::make_zip_iterator(thrust::make_tuple((std::get<I>(buffer).cbegin())...));
+  return thrust::make_zip_iterator(thrust::make_tuple((std::get<Is>(buffer).cbegin())...));
 }
 
-template <typename TupleType, std::size_t... I>
-auto get_dataframe_buffer_cend_tuple_impl(std::index_sequence<I...>, TupleType& buffer)
+template <typename TupleType, std::size_t... Is>
+auto get_dataframe_buffer_cend_tuple_impl(std::index_sequence<Is...>, TupleType& buffer)
 {
   // thrust::make_tuple instead of std::make_tuple as this is fed to thrust::make_zip_iterator.
-  return thrust::make_zip_iterator(thrust::make_tuple((std::get<I>(buffer).cend())...));
+  return thrust::make_zip_iterator(thrust::make_tuple((std::get<Is>(buffer).cend())...));
 }
 
 }  // namespace detail
