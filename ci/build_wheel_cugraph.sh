@@ -12,7 +12,7 @@ RAPIDS_PY_CUDA_SUFFIX="$(rapids-wheel-ctk-name-gen ${RAPIDS_CUDA_VERSION})"
 #
 # using env variable PIP_CONSTRAINT is necessary to ensure the constraints
 # are used when creating the isolated build environment
-CPP_WHEELHOUSE=$(RAPIDS_PY_WHEEL_NAME="pylibcugraph_${RAPIDS_PY_CUDA_SUFFIX}" rapids-download-wheels-from-s3 cpp /tmp/pylibcugraph_dist)
+CPP_WHEELHOUSE=$(RAPIDS_PY_WHEEL_NAME="pylibcugraph_${RAPIDS_PY_CUDA_SUFFIX}" rapids-download-wheels-from-s3 /tmp/pylibcugraph_dist)
 
 echo "pylibcugraph-${RAPIDS_PY_CUDA_SUFFIX} @ file://$(echo ${CPP_WHEELHOUSE}/pylibcugraph_*.whl)" > ./constraints.txt
 export PIP_CONSTRAINT="${PWD}/constraints.txt"
