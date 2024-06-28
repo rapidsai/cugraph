@@ -22,6 +22,7 @@
 #include <cugraph/utilities/atomic_ops.cuh>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/host_scalar_comm.hpp>
+#include <cugraph/utilities/packed_bool_utils.hpp>
 
 #include <raft/core/handle.hpp>
 
@@ -32,10 +33,54 @@
 #include <thrust/iterator/constant_iterator.h>
 
 #include <cstddef>
+#include <utility>
 
 namespace cugraph {
 
 namespace detail {
+
+template <typename Iterator, typename T>
+__device__ std::enable_if_t<std::is_same_v<T, bool>, void> fill_thrust_tuple_element(Iterator iter,
+                                                                                     size_t offset,
+                                                                                     T value)
+{
+  packed_bool_atomic_set(iter, offset, value);
+}
+
+template <typename Iterator, typename T>
+__device__ std::enable_if_t<!std::is_same_v<T, bool>, void> fill_thrust_tuple_element(Iterator iter,
+                                                                                      size_t offset,
+                                                                                      T value)
+{
+  *(iter + offset) = value;
+}
+
+template <typename Iterator, typename T, std::size_t... Is>
+__device__ void fill_thrust_tuple(Iterator iter, size_t offset, T value, std::index_sequence<Is...>)
+{
+  ((fill_thrust_tuple_element(
+     thrust::get<Is>(iter.get_iterator_tuple()), offset, thrust::get<Is>(value))),
+   ...);
+}
+
+template <typename Iterator, typename T>
+__device__ void fill_scalar_or_thrust_tuple(Iterator iter, size_t offset, T value)
+{
+  if constexpr (std::is_arithmetic_v<T>) {
+    if constexpr (cugraph::is_packed_bool<Iterator, T>) {
+      packed_bool_atomic_set(iter, offset, value);
+    } else {
+      *(iter + offset) = value;
+    }
+  } else {
+    if constexpr (cugraph::has_packed_bool_element<Iterator, T>) {
+      fill_thrust_tuple(
+        iter, offset, value, std::make_index_sequence<thrust::tuple_size<T>::value>());
+    } else {
+      *(iter + offset) = value;
+    }
+  }
+}
 
 template <typename GraphViewType, typename EdgeMajorPropertyOutputWrapper, typename T>
 void fill_edge_major_property(raft::handle_t const& handle,
@@ -43,7 +88,13 @@ void fill_edge_major_property(raft::handle_t const& handle,
                               EdgeMajorPropertyOutputWrapper edge_major_property_output,
                               T input)
 {
+  constexpr bool contains_packed_bool_element =
+    cugraph::has_packed_bool_element<typename EdgeMajorPropertyOutputWrapper::value_iterator,
+                                     typename EdgeMajorPropertyOutputWrapper::value_type>();
   static_assert(std::is_same_v<T, typename EdgeMajorPropertyOutputWrapper::value_type>);
+  static_assert(!contains_packed_bool_element ||
+                  std::is_arithmetic_v<typename EdgeMajorPropertyOutputWrapper::value_type>,
+                "unimplemented for thrust::tuple types with a packed bool element.");
 
   auto keys         = edge_major_property_output.keys();
   auto value_firsts = edge_major_property_output.value_firsts();
@@ -60,10 +111,7 @@ void fill_edge_major_property(raft::handle_t const& handle,
           static_cast<size_t>(graph_view.local_edge_partition_src_range_size(i));
       }
     }
-    if constexpr (cugraph::has_packed_bool_element<
-                    std::remove_reference_t<decltype(value_firsts[i])>,
-                    T>()) {
-      static_assert(std::is_arithmetic_v<T>, "unimplemented for thrust::tuple types.");
+    if constexpr (contains_packed_bool_element) {
       auto packed_input = input ? packed_bool_full_mask() : packed_bool_empty_mask();
       thrust::fill_n(handle.get_thrust_policy(),
                      value_firsts[i],
@@ -86,8 +134,13 @@ void fill_edge_major_property(raft::handle_t const& handle,
                               EdgeMajorPropertyOutputWrapper edge_major_property_output,
                               T input)
 {
-  constexpr bool packed_bool =
-    std::is_same_v<typename EdgeMajorPropertyOutputWrapper::value_type, bool>;
+  constexpr bool contains_packed_bool_element =
+    cugraph::has_packed_bool_element<typename EdgeMajorPropertyOutputWrapper::value_iterator,
+                                     typename EdgeMajorPropertyOutputWrapper::value_type>();
+  static_assert(std::is_same_v<T, typename EdgeMajorPropertyOutputWrapper::value_type>);
+  static_assert(!contains_packed_bool_element ||
+                  std::is_arithmetic_v<typename EdgeMajorPropertyOutputWrapper::value_type>,
+                "unimplemented for thrust::tuple types with a packed bool element.");
 
   using vertex_t = typename GraphViewType::vertex_type;
   using edge_t   = typename GraphViewType::edge_type;
@@ -134,7 +187,7 @@ void fill_edge_major_property(raft::handle_t const& handle,
               thrust::seq, edge_partition_key_first, edge_partition_key_last, major);
             if ((it != edge_partition_key_last) && (*it == major)) {
               auto edge_partition_offset = thrust::distance(edge_partition_key_first, it);
-              if constexpr (packed_bool) {
+              if constexpr (contains_packed_bool_element) {
                 packe_bool_atomic_set(edge_partition_value_first, edge_partition_offset, input);
               } else {
                 *(edge_partition_value_first + edge_partition_offset) = input;
@@ -142,7 +195,7 @@ void fill_edge_major_property(raft::handle_t const& handle,
             }
           });
       } else {
-        if constexpr (packed_bool) {
+        if constexpr (contains_packed_bool_element) {
           thrust::for_each(
             handle.get_thrust_policy(),
             thrust::make_counting_iterator(vertex_t{0}),
@@ -177,7 +230,7 @@ void fill_edge_major_property(raft::handle_t const& handle,
              ? graph_view.local_edge_partition_dst_range_size()
              : graph_view.local_edge_partition_src_range_size());
     assert(edge_partition_value_firsts.size() == size_t{1});
-    if constexpr (packed_bool) {
+    if constexpr (contains_packed_bool_element) {
       thrust::for_each(handle.get_thrust_policy(),
                        vertex_first,
                        vertex_last,
@@ -200,6 +253,9 @@ void fill_edge_minor_property(raft::handle_t const& handle,
                               EdgeMinorPropertyOutputWrapper edge_minor_property_output,
                               T input)
 {
+  constexpr bool contains_packed_bool_element =
+    cugraph::has_packed_bool_element<typename EdgeMinorPropertyOutputWrapper::value_iterator,
+                                     typename EdgeMinorPropertyOutputWrapper::value_type>();
   static_assert(std::is_same_v<T, typename EdgeMinorPropertyOutputWrapper::value_type>);
 
   auto keys = edge_minor_property_output.keys();
@@ -214,7 +270,7 @@ void fill_edge_minor_property(raft::handle_t const& handle,
     }
   }
   auto value_first = edge_minor_property_output.value_first();
-  if constexpr (cugraph::has_packed_bool_element<decltype(value_first), T>()) {
+  if constexpr (contains_packed_bool_element) {
     static_assert(std::is_arithmetic_v<T>, "unimplemented for thrust::tuple types.");
     auto packed_input = input ? packed_bool_full_mask() : packed_bool_empty_mask();
     thrust::fill_n(
@@ -235,8 +291,10 @@ void fill_edge_minor_property(raft::handle_t const& handle,
                               EdgeMinorPropertyOutputWrapper edge_minor_property_output,
                               T input)
 {
-  constexpr bool packed_bool =
-    std::is_same_v<typename EdgeMinorPropertyOutputWrapper::value_type, bool>;
+  constexpr bool contains_packed_bool_element =
+    cugraph::has_packed_bool_element<typename EdgeMinorPropertyOutputWrapper::value_iterator,
+                                     typename EdgeMinorPropertyOutputWrapper::value_type>();
+  static_assert(std::is_same_v<T, typename EdgeMinorPropertyOutputWrapper::value_type>);
 
   using vertex_t = typename GraphViewType::vertex_type;
   using edge_t   = typename GraphViewType::edge_type;
@@ -292,8 +350,8 @@ void fill_edge_minor_property(raft::handle_t const& handle,
               thrust::lower_bound(thrust::seq, subrange_key_first, subrange_key_last, minor);
             if ((it != subrange_key_last) && (*it == minor)) {
               auto subrange_offset = thrust::distance(subrange_key_first, it);
-              if constexpr (packed_bool) {
-                packed_bool_atomic_set(
+              if constexpr (contains_packed_bool_element) {
+                fill_scalar_or_thrust_tuple(
                   edge_partition_value_first, subrange_start_offset + subrange_offset, input);
               } else {
                 *(edge_partition_value_first + subrange_start_offset + subrange_offset) = input;
@@ -301,7 +359,7 @@ void fill_edge_minor_property(raft::handle_t const& handle,
             }
           });
       } else {
-        if constexpr (packed_bool) {
+        if constexpr (contains_packed_bool_element) {
           thrust::for_each(handle.get_thrust_policy(),
                            thrust::make_counting_iterator(vertex_t{0}),
                            thrust::make_counting_iterator(static_cast<vertex_t>(rx_counts[i])),
@@ -312,7 +370,7 @@ void fill_edge_minor_property(raft::handle_t const& handle,
                              auto rx_vertex = *(rx_vertex_first + i);
                              auto minor_offset =
                                edge_partition.minor_offset_from_minor_nocheck(rx_vertex);
-                             packed_bool_atomic_set(output_value_first, minor_offset, input);
+                             fill_scalar_or_thrust_tuple(output_value_first, minor_offset, input);
                            });
         } else {
           auto map_first = thrust::make_transform_iterator(
@@ -334,12 +392,12 @@ void fill_edge_minor_property(raft::handle_t const& handle,
   } else {
     assert(graph_view.local_vertex_partition_range_size() ==
            graph_view.local_edge_partition_src_range_size());
-    if constexpr (packed_bool) {
+    if constexpr (contains_packed_bool_element) {
       thrust::for_each(handle.get_thrust_policy(),
                        vertex_first,
                        vertex_last,
                        [input, output_value_first = edge_partition_value_first] __device__(auto v) {
-                         packed_bool_atomic_set(output_value_first, v, input);
+                         fill_scalar_or_thrust_tuple(output_value_first, v, input);
                        });
     } else {
       auto val_first = thrust::make_constant_iterator(input);
