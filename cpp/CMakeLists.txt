@@ -318,12 +318,12 @@ set(CUGRAPH_SOURCES
     src/sampling/detail/shuffle_and_organize_output_mg_v64_e64.cu
     src/sampling/detail/shuffle_and_organize_output_mg_v32_e32.cu
     src/sampling/detail/shuffle_and_organize_output_mg_v32_e64.cu
-    src/sampling/uniform_neighbor_sampling_mg32.cpp
-    src/sampling/uniform_neighbor_sampling_mg3264.cpp
-    src/sampling/uniform_neighbor_sampling_mg64.cpp
-    src/sampling/uniform_neighbor_sampling_sg32.cpp
-    src/sampling/uniform_neighbor_sampling_sg3264.cpp
-    src/sampling/uniform_neighbor_sampling_sg64.cpp
+    src/sampling/uniform_neighbor_sampling_mg_v32_e64.cpp
+    src/sampling/uniform_neighbor_sampling_mg_v32_e32.cpp
+    src/sampling/uniform_neighbor_sampling_mg_v64_e64.cpp
+    src/sampling/uniform_neighbor_sampling_sg_v32_e64.cpp
+    src/sampling/uniform_neighbor_sampling_sg_v32_e32.cpp
+    src/sampling/uniform_neighbor_sampling_sg_v64_e64.cpp
     src/sampling/renumber_sampled_edgelist_sg_v64_e64.cu
     src/sampling/renumber_sampled_edgelist_sg_v32_e32.cu
     src/sampling/sampling_post_processing_sg_v64_e64.cu
