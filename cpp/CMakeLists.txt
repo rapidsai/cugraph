@@ -171,8 +171,6 @@ set(CUGRAPH_SOURCES
     src/utilities/shuffle_vertices.cu
     src/detail/permute_range.cu
     src/utilities/shuffle_vertex_pairs.cu
-    src/lookup/lookup_src_dst_sg.cu
-    src/lookup/lookup_src_dst_mg.cu
     src/detail/collect_local_vertex_values.cu
     src/detail/groupby_and_count.cu
     src/detail/collect_comm_wrapper.cu
@@ -214,6 +212,12 @@ set(CUGRAPH_SOURCES
     src/community/egonet_sg.cu
     src/community/egonet_mg.cu
     src/community/k_truss_sg.cu
+    src/lookup/lookup_src_dst_mg_v32_e32.cu
+    src/lookup/lookup_src_dst_mg_v32_e64.cu
+    src/lookup/lookup_src_dst_mg_v64_e64.cu
+    src/lookup/lookup_src_dst_sg_v32_e32.cu
+    src/lookup/lookup_src_dst_sg_v32_e64.cu
+    src/lookup/lookup_src_dst_sg_v64_e64.cu
     src/sampling/random_walks.cu
     src/sampling/random_walks_sg.cu
     src/sampling/detail/prepare_next_frontier_sg.cu
