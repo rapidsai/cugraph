@@ -1,4 +1,4 @@
-# Copyright (c) 2022-2023, NVIDIA CORPORATION.
+# Copyright (c) 2022-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -64,6 +64,7 @@ fixture_params = gen_fixture_params_product(
 
 
 @pytest.fixture(scope="module", params=fixture_params)
+@pytest.mark.filterwarnings("ignore::DeprecationWarning")
 def input_combo(request):
     """
     Simply return the current combination of params as a dictionary for use in
@@ -80,6 +81,7 @@ def input_combo(request):
 
 
 @pytest.fixture(scope="module")
+@pytest.mark.filterwarnings("ignore::DeprecationWarning")
 def input_expected_output(input_combo):
     """
     This fixture returns the expected results from the pagerank algorithm.
@@ -113,6 +115,7 @@ def input_expected_output(input_combo):
 
 
 @pytest.fixture(scope="module", params=["networkx", "nxcompat"])
+@pytest.mark.filterwarnings("ignore::DeprecationWarning")
 def which_import(request):
     if request.param == "networkx":
         return importlib.import_module("networkx")
@@ -140,6 +143,7 @@ def get_personalization(personalization_perc, nnz_vtx):
 
 @pytest.mark.sg
 @pytest.mark.parametrize("graph_file", FILES_UNDIRECTED)
+@pytest.mark.filterwarnings("ignore::DeprecationWarning")
 def test_with_noparams(graph_file, which_import):
     nx = which_import
 
@@ -157,6 +161,7 @@ def test_with_noparams(graph_file, which_import):
 @pytest.mark.sg
 @pytest.mark.parametrize("graph_file", FILES_UNDIRECTED)
 @pytest.mark.parametrize("max_iter", MAX_ITERATIONS)
+@pytest.mark.filterwarnings("ignore::DeprecationWarning")
 def test_with_max_iter(graph_file, max_iter, which_import):
     nx = which_import
     M = utils.read_csv_for_nx(graph_file)
@@ -172,6 +177,7 @@ def test_with_max_iter(graph_file, max_iter, which_import):
 @pytest.mark.sg
 @pytest.mark.parametrize("graph_file", FILES_UNDIRECTED)
 @pytest.mark.parametrize("max_iter", MAX_ITERATIONS)
+@pytest.mark.filterwarnings("ignore::DeprecationWarning")
 def test_perc_spec(graph_file, max_iter, which_import):
     nx = which_import
 
@@ -204,6 +210,7 @@ def test_perc_spec(graph_file, max_iter, which_import):
 @pytest.mark.sg
 @pytest.mark.parametrize("graph_file", FILES_UNDIRECTED)
 @pytest.mark.parametrize("max_iter", MAX_ITERATIONS)
+@pytest.mark.filterwarnings("ignore::DeprecationWarning")
 def test_with_nstart(graph_file, max_iter, which_import):
     nx = which_import
 
