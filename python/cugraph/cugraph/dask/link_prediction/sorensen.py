@@ -139,21 +139,20 @@ def sorensen(input_graph, vertex_pair=None, use_weight=False):
 
     do_expensive_check = False
 
-    if vertex_pair is not None:
-        result = [
-            client.submit(
-                _call_plc_sorensen,
-                Comms.get_session_id(),
-                input_graph._plc_graph[w],
-                vertex_pair[w][0],
-                use_weight,
-                do_expensive_check,
-                vertex_pair_col_name,
-                workers=[w],
-                allow_other_workers=False,
-            )
-            for w in Comms.get_workers()
-        ]
+    result = [
+        client.submit(
+            _call_plc_sorensen,
+            Comms.get_session_id(),
+            input_graph._plc_graph[w],
+            vertex_pair[w][0],
+            use_weight,
+            do_expensive_check,
+            vertex_pair_col_name,
+            workers=[w],
+            allow_other_workers=False,
+        )
+        for w in Comms.get_workers()
+    ]
 
     wait(result)
 

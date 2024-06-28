@@ -57,3 +57,6 @@ cdef cugraph_type_erased_device_array_view_t* \
 cdef create_cupy_array_view_for_device_ptr(
     cugraph_type_erased_device_array_view_t* device_array_view_ptr,
     owning_py_object)
+
+cdef extern from "stdint.h":
+    size_t SIZE_MAX

@@ -58,6 +58,9 @@ set(cython_sources
     weakly_connected_components.pyx
     replicate_edgelist.pyx
     degrees.pyx
+    all_pairs_jaccard_coefficients.pyx
+    all_pairs_sorensen_coefficients.pyx
+    all_pairs_overlap_coefficients.pyx
 )
 set(linked_libraries cugraph::cugraph;cugraph::cugraph_c)
 

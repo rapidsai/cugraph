@@ -13,7 +13,10 @@
 
 from cugraph.link_prediction.jaccard import jaccard
 from cugraph.link_prediction.jaccard import jaccard_coefficient
+from cugraph.link_prediction.jaccard import all_pairs_jaccard
 from cugraph.link_prediction.sorensen import sorensen
 from cugraph.link_prediction.sorensen import sorensen_coefficient
+from cugraph.link_prediction.sorensen import all_pairs_sorensen
 from cugraph.link_prediction.overlap import overlap
 from cugraph.link_prediction.overlap import overlap_coefficient
+from cugraph.link_prediction.overlap import all_pairs_overlap
