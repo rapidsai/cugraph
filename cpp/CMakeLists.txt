@@ -168,15 +168,10 @@ endif()
 #       which should give us a better parallel schedule.
 
 set(CUGRAPH_SOURCES
-    src/utilities/shuffle_vertices_mg_v_32_val_double.cu
-    src/utilities/shuffle_vertices_mg_v_32_val_float.cu
-    src/utilities/shuffle_vertices_mg_v_32_val_int32_t.cu
-    src/utilities/shuffle_vertices_mg_v_32_val_size_t.cu
-    src/utilities/shuffle_vertices_mg_v_64_val_double.cu
-    src/utilities/shuffle_vertices_mg_v_64_val_float.cu
-    src/utilities/shuffle_vertices_mg_v_64_val_int32_t.cu
-    src/utilities/shuffle_vertices_mg_v_64_val_int64_t.cu
-    src/utilities/shuffle_vertices_mg_v_64_val_size_t.cu
+    src/utilities/shuffle_vertices_mg_v32_fp.cu
+    src/utilities/shuffle_vertices_mg_v32_integral.cu
+    src/utilities/shuffle_vertices_mg_v64_fp.cu
+    src/utilities/shuffle_vertices_mg_v64_integral.cu
     src/detail/permute_range_v32.cu
     src/detail/permute_range_v64.cu
     src/utilities/shuffle_vertex_pairs_mg_v32_e32.cu
