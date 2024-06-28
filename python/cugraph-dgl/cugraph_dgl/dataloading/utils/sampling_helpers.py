@@ -139,28 +139,6 @@ def _get_tensor_d_from_sampled_df(df):
     return result_tensor_d
 
 
-def create_homogeneous_sampled_graphs_from_tensors_dist_coo(
-    tensors: Dict[str, "torch.Tensor"], return_type: str = "dgl.Block"
-):
-    """
-    Creates DGL MFGs for homogeneous graphs from output
-    tensors from a cuGraph DistSampler.
-
-    Parameters
-    ----------
-    tensors: Dict[str, torch.Tensor]
-        The dictionary of output tensors from the bulk sampler.
-    return_type: str
-        Optional (default="dgl.Block").
-        The return type for the MFGs (either "dgl.Block" or
-        "cugraph_dgl.nn.SparseGraph")
-    """
-    if return_type not in ["dgl.Block", "cugraph_dgl.nn.SparseGraph"]:
-        raise ValueError(
-            "return_type must be either dgl.Block or cugraph_dgl.nn.SparseGraph"
-        )
-
-
 def create_homogeneous_sampled_graphs_from_dataframe(
     sampled_df: cudf.DataFrame,
     edge_dir: str = "in",
@@ -580,11 +558,41 @@ def _process_sampled_df_csc(
     )
 
 
+def _create_homogeneous_blocks_from_csc(
+    tensors_dict: Dict[int, Dict[int, Dict[str, torch.Tensor]]],
+    renumber_map_list: List[torch.Tensor],
+    mfg_sizes: List[int, int],
+):
+    """Create mini-batches of MFGs in the dgl.Block format.
+    The input arguments are the outputs of
+    the function `_process_sampled_df_csc`.
+
+    Returns
+    -------
+    output: list
+        A list of mini-batches. Each mini-batch is a list that consists of
+        `input_nodes` tensor, `output_nodes` tensor and a list of MFGs.
+    """
+    n_batches = len(mfg_sizes)
+    output = []
+    for b_id in range(n_batches):
+        output_batch = []
+        output_batch.append(renumber_map_list[b_id])
+        output_batch.append(renumber_map_list[b_id][: mfg_sizes[b_id][-1]])
+
+        mfgs = _create_homogeneous_sampled_graphs_from_tensors_perhop(
+            tensors_batch_d=tensors_dict[b_id], edge_dir="in", return_type="dgl.Block"
+        )[2]
+
+        output_batch.append(mfgs)
+
+        output.append(output_batch)
+
+
 def _create_homogeneous_sparse_graphs_from_csc(
     tensors_dict: Dict[int, Dict[int, Dict[str, torch.Tensor]]],
     renumber_map_list: List[torch.Tensor],
     mfg_sizes: List[int, int],
-    output_format: str = "dgl.Block",
 ) -> List[List[torch.Tensor, torch.Tensor, List[SparseGraph]]]:
     """Create mini-batches of MFGs. The input arguments are the outputs of
     the function `_process_sampled_df_csc`.
@@ -619,17 +627,35 @@ def _create_homogeneous_sparse_graphs_from_csc(
     return output
 
 
-def create_homogeneous_sampled_graphs_from_dataframe_csc(sampled_df: cudf.DataFrame):
+def create_homogeneous_sampled_graphs_from_dataframe_csc(
+    sampled_df: cudf.DataFrame, output_format: str = "cugraph_dgl.nn.SparseGraph"
+):
     """Public API to create mini-batches of MFGs using a dataframe output by
     BulkSampler, where the sampled graph is compressed in CSC format."""
-    return _create_homogeneous_sparse_graphs_from_csc(
-        *(_process_sampled_df_csc(sampled_df)),
-    )
+    if output_format == "cugraph_dgl.nn.SparseGraph":
+        return _create_homogeneous_sparse_graphs_from_csc(
+            *(_process_sampled_df_csc(sampled_df)),
+        )
+    elif output_format == "dgl.Block":
+        return _create_homogeneous_blocks_from_csc(
+            *(_process_sampled_df_csc(sampled_df)),
+        )
+    else:
+        raise ValueError(f"Invalid output format {output_format}")
 
 
-def create_homogeneous_sampled_graphs_from_tensors_csc(tensors: Dict["torch.Tensor"]):
+def create_homogeneous_sampled_graphs_from_tensors_csc(
+    tensors: Dict["torch.Tensor"], output_format: str = "cugraph_dgl.nn.SparseGraph"
+):
     """Public API to create mini-batches of MFGs using a dataframe output by
     BulkSampler, where the sampled graph is compressed in CSC format."""
-    return _create_homogeneous_sparse_graphs_from_csc(
-        *(_process_sampled_tensors_csc(tensors)),
-    )
+    if output_format == "cugraph_dgl.nn.SparseGraph":
+        return _create_homogeneous_sparse_graphs_from_csc(
+            *(_process_sampled_tensors_csc(tensors)),
+        )
+    elif output_format == "dgl.Block":
+        return _create_homogeneous_blocks_from_csc(
+            *(_process_sampled_tensors_csc(tensors)),
+        )
+    else:
+        raise ValueError(f"Invalid output format {output_format}")

@@ -11,11 +11,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Iterator, Dict, Tuple, List
+from typing import Iterator, Dict, Tuple, List, Union
 
 import cugraph_dgl
 from cugraph_dgl.nn import SparseGraph
-from cugraph_dgl.typing import TensorType
+from cugraph_dgl.typing import TensorType, DGLSamplerOutput
 from cugraph_dgl.dataloading.utils.sampling_helpers import (
     create_homogeneous_sampled_graphs_from_tensors_csc,
 )
@@ -25,6 +25,7 @@ from cugraph.gnn import DistSampleReader
 from cugraph.utilities.utils import import_optional
 
 torch = import_optional("torch")
+dgl = import_optional("dgl")
 
 
 class SampleReader:
@@ -32,7 +33,7 @@ class SampleReader:
     Iterator that processes results from the cuGraph distributed sampler.
     """
 
-    def __init__(self, base_reader: DistSampleReader):
+    def __init__(self, base_reader: DistSampleReader, output_format: str = "dgl.Block"):
         """
         Constructs a new SampleReader.
 
@@ -42,11 +43,16 @@ class SampleReader:
             The reader responsible for loading saved samples produced by
             the cuGraph distributed sampler.
         """
+        self.__output_format = output_format
         self.__base_reader = base_reader
         self.__num_samples_remaining = 0
         self.__index = 0
 
-    def __next__(self):
+    @property
+    def output_format(self) -> str:
+        return self.__output_format
+
+    def __next__(self) -> DGLSamplerOutput:
         if self._num_samples_remaining == 0:
             # raw_sample_data is already a dict of tensors
             self.__raw_sample_data, start_inclusive, end_inclusive = next(
@@ -62,10 +68,10 @@ class SampleReader:
         self.__num_samples_remaining -= 1
         return out
 
-    def _decode_all(self):
+    def _decode_all(self) -> List[DGLSamplerOutput]:
         raise NotImplementedError("Must be implemented by subclass")
 
-    def __iter__(self):
+    def __iter__(self) -> DGLSamplerOutput:
         return self
 
 
@@ -75,7 +81,7 @@ class HomogeneousSampleReader(SampleReader):
     produced by the cuGraph distributed sampler.
     """
 
-    def __init__(self, base_reader: DistSampleReader):
+    def __init__(self, base_reader: DistSampleReader, output_format: str = "dgl.Block"):
         """
         Constructs a new HomogeneousSampleReader
 
@@ -84,20 +90,29 @@ class HomogeneousSampleReader(SampleReader):
         base_reader: DistSampleReader
             The reader responsible for loading saved samples produced by
             the cuGraph distributed sampler.
+        output_format: str
+            The output format for blocks (either "dgl.Block" or
+            "cugraph_dgl.nn.SparseGraph").
         """
-        super().__init__(base_reader)
+        super().__init__(base_reader, output_format=output_format)
 
-    def __decode_csc(self, raw_sample_data: Dict[str, "torch.Tensor"]):
+    def __decode_csc(
+        self, raw_sample_data: Dict[str, "torch.Tensor"]
+    ) -> List[DGLSamplerOutput]:
         create_homogeneous_sampled_graphs_from_tensors_csc(
-            raw_sample_data,
+            raw_sample_data, output_format=self.output_format
         )
 
-    def __decode_coo(self, raw_sample_data: Dict[str, "torch.Tensor"]):
+    def __decode_coo(
+        self, raw_sample_data: Dict[str, "torch.Tensor"]
+    ) -> List[DGLSamplerOutput]:
         raise NotImplementedError(
             "COO format is currently unsupported in the non-dask API"
         )
 
-    def _decode_all(self, raw_sample_data: Dict[str, "torch.Tensor"]):
+    def _decode_all(
+        self, raw_sample_data: Dict[str, "torch.Tensor"]
+    ) -> List[DGLSamplerOutput]:
         if "major_offsets" in raw_sample_data:
             return self.__decode_csc(raw_sample_data)
         else:
@@ -109,24 +124,39 @@ class Sampler:
     Base sampler class for all cugraph-DGL samplers.
     """
 
-    def __init__(self, sparse_format: str = "csc"):
+    def __init__(self, sparse_format: str = "csc", output_format="dgl.Block"):
         """
         Parameters
         ----------
         sparse_format: str
-        Optional (default = "coo").
-        The sparse format of the emitted sampled graphs.
-        Currently, only "csc" is supported.
+            Optional (default = "coo").
+            The sparse format of the emitted sampled graphs.
+            Currently, only "csc" is supported.
+        output_format: str
+            Optional (default = "dgl.Block")
+            The output format of the emitted sampled graphs.
+            Can be either "dgl.Block" (default), or "cugraph_dgl.nn.SparseGraph".
         """
 
         if sparse_format != "csc":
             raise ValueError("Only CSC format is supported at this time")
 
         self.__sparse_format = sparse_format
+        self.__output_format = output_format
+
+    @property
+    def output_format(self):
+        return self.__output_format
+
+    @property
+    def sparse_format(self):
+        return self.__sparse_format
 
     def sample(
         self, g: cugraph_dgl.Graph, indices: TensorType, batch_size: int = 1
-    ) -> Iterator[Tuple["torch.Tensor", "torch.Tensor", List[SparseGraph]]]:
+    ) -> Iterator[
+        Tuple["torch.Tensor", "torch.Tensor", List[Union[SparseGraph, "dgl.Block"]]]
+    ]:
         """
         Samples the graph.
 
@@ -141,10 +171,8 @@ class Sampler:
 
         Returns
         -------
-        Iterator[Tuple[torch.Tensor, torch.Tensor, List[cugraph_dgl.nn.SparseGraph]]]
-            Iterator over batches.  Returns batches in the sparse
-            graph format, which can be converted upstream to DGL blocks
-            if needed. The returned tuples are in standard
+        Iterator[DGLSamplerOutput]
+            Iterator over batches.  The returned tuples are in standard
             DGL format: (input nodes, output nodes, blocks) where input
             nodes are the renumbered input nodes, output nodes are
             the renumbered output nodes, and blocks are the output graphs

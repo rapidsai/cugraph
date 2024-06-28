@@ -11,6 +11,30 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import List, Union
+from typing import List, Union, Tuple
+from cugraph.utilities.utils import import_optional
 
-TensorType = Union["torch.Tensor", "cupy.ndarray", "numpy.ndarray", "cudf.Series", "pandas.Series", List[int]]
+from cugraph_dgl.nn import SparseGraph
+
+import pandas
+import numpy
+import cupy
+import cudf
+
+torch = import_optional("torch")
+dgl = import_optional("dgl")
+
+TensorType = Union[
+    "torch.Tensor",
+    "cupy.ndarray",
+    "numpy.ndarray",
+    "cudf.Series",
+    "pandas.Series",
+    List[int],
+]
+
+DGLSamplerOutput = Tuple[
+    "torch.Tensor",
+    "torch.Tensor",
+    List[Union["dgl.Block", SparseGraph]],
+]

@@ -22,8 +22,7 @@ from cugraph.utilities.utils import import_optional
 
 
 import cugraph_dgl
-from cugraph_dgl.nn import SparseGraph
-from cugraph_dgl.typing import TensorType
+from cugraph_dgl.typing import TensorType, DGLSamplerOutput
 from cugraph_dgl.dataloading.sampler import HomogeneousSampleReader
 
 torch = import_optional("torch")
@@ -74,6 +73,8 @@ class NeighborSampler:
         prefetch_labels: Optional[Union[List[str], dict[str, List[str]]]] = None,
         output_device: Optional[Union["torch.device", int, str]] = None,
         fused: bool = True,
+        sparse_format="csc",
+        output_format="dgl.Block",
         **kwargs,
     ):
         """
@@ -114,6 +115,14 @@ class NeighborSampler:
         fused: bool
             Optional (default=True).
             This argument is ignored by cuGraph-DGL.
+        sparse_format: str
+            Optional (default = "coo").
+            The sparse format of the emitted sampled graphs.
+            Currently, only "csc" is supported.
+        output_format: str
+            Optional (default = "dgl.Block")
+            The output format of the emitted sampled graphs.
+            Can be either "dgl.Block" (default), or "cugraph_dgl.nn.SparseGraph".
         **kwargs
             Keyword arguments for the underlying cuGraph distributed sampler
             and writer (directory, batches_per_partition, format,
@@ -146,9 +155,14 @@ class NeighborSampler:
         self.replace = replace
         self.__kwargs = kwargs
 
+        super(
+            sparse_format=sparse_format,
+            output_format=output_format,
+        )
+
     def sample(
         self, g: "cugraph_dgl.Graph", indices: TensorType, batch_size: int = 1
-    ) -> Iterator[Tuple["torch.Tensor", "torch.Tensor", List[SparseGraph]]]:
+    ) -> Iterator[DGLSamplerOutput]:
         kwargs = dict(**self.__kwargs)
 
         writer = DistSampleWriter(
@@ -160,7 +174,7 @@ class NeighborSampler:
         ds = UniformNeighborSampler(
             g._graph(self.edge_dir),
             writer,
-            compression="CSC",
+            compression=self.sparse_format.upper(),
             fanout=self._reversed_fanout_vals,
             prior_sources_behavior="carryover",
             deduplicate_sources=True,
@@ -171,7 +185,7 @@ class NeighborSampler:
 
         if g.is_homogeneous:
             ds.sample_from_nodes(indices, batch_size=batch_size)
-            return HomogeneousSampleReader(ds.get_reader())
+            return HomogeneousSampleReader(ds.get_reader(), self.output_format)
 
         raise ValueError(
             "Sampling heterogeneous graphs is currently"

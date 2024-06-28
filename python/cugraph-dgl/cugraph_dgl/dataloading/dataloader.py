@@ -22,7 +22,7 @@ from cugraph_dgl.typing import TensorType
 from cugraph_dgl.utils.cugraph_conversion_utils import _cast_to_torch_tensor
 
 dgl = import_optional("dgl")
-torch = import_optional('torch')
+torch = import_optional("torch")
 
 
 class DataLoader:
@@ -150,7 +150,7 @@ class DataLoader:
         return self.__dataset
 
     def __iter__(self):
-        # TODO convert to the right output format and device
+        # TODO move to the correct device
         return self.__sampler.sample(
             self.__graph,
             self.__dataset,
