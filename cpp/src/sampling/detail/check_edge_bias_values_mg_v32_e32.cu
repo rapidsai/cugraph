@@ -26,28 +26,8 @@ template std::tuple<size_t, size_t> check_edge_bias_values(
 
 template std::tuple<size_t, size_t> check_edge_bias_values(
   raft::handle_t const& handle,
-  graph_view_t<int32_t, int64_t, false, true> const& graph_view,
-  edge_property_view_t<int64_t, float const*> edge_bias_view);
-
-template std::tuple<size_t, size_t> check_edge_bias_values(
-  raft::handle_t const& handle,
-  graph_view_t<int64_t, int64_t, false, true> const& graph_view,
-  edge_property_view_t<int64_t, float const*> edge_bias_view);
-
-template std::tuple<size_t, size_t> check_edge_bias_values(
-  raft::handle_t const& handle,
   graph_view_t<int32_t, int32_t, false, true> const& graph_view,
   edge_property_view_t<int32_t, double const*> edge_bias_view);
-
-template std::tuple<size_t, size_t> check_edge_bias_values(
-  raft::handle_t const& handle,
-  graph_view_t<int32_t, int64_t, false, true> const& graph_view,
-  edge_property_view_t<int64_t, double const*> edge_bias_view);
-
-template std::tuple<size_t, size_t> check_edge_bias_values(
-  raft::handle_t const& handle,
-  graph_view_t<int64_t, int64_t, false, true> const& graph_view,
-  edge_property_view_t<int64_t, double const*> edge_bias_view);
 
 }  // namespace detail
 }  // namespace cugraph
