@@ -39,25 +39,11 @@ generate_erdos_renyi_graph_edgelist_gnp(raft::handle_t const& handle,
                                         int32_t base_vertex_id,
                                         uint64_t seed);
 
-template std::tuple<rmm::device_uvector<int64_t>, rmm::device_uvector<int64_t>>
-generate_erdos_renyi_graph_edgelist_gnp(raft::handle_t const& handle,
-                                        int64_t num_vertices,
-                                        float p,
-                                        int64_t base_vertex_id,
-                                        uint64_t seed);
-
 template std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<int32_t>>
 generate_erdos_renyi_graph_edgelist_gnm(raft::handle_t const& handle,
                                         int32_t num_vertices,
                                         size_t m,
                                         int32_t base_vertex_id,
-                                        uint64_t seed);
-
-template std::tuple<rmm::device_uvector<int64_t>, rmm::device_uvector<int64_t>>
-generate_erdos_renyi_graph_edgelist_gnm(raft::handle_t const& handle,
-                                        int64_t num_vertices,
-                                        size_t m,
-                                        int64_t base_vertex_id,
                                         uint64_t seed);
 
 }  // namespace cugraph

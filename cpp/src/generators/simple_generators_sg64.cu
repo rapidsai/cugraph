@@ -35,37 +35,19 @@
 
 namespace cugraph {
 
-template std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<int32_t>>
-generate_path_graph_edgelist(raft::handle_t const& handle,
-                             std::vector<std::tuple<int32_t, int32_t>> const& component_parms_v);
-
 template std::tuple<rmm::device_uvector<int64_t>, rmm::device_uvector<int64_t>>
 generate_path_graph_edgelist(raft::handle_t const& handle,
                              std::vector<std::tuple<int64_t, int64_t>> const& component_parms_v);
-
-template std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<int32_t>>
-generate_2d_mesh_graph_edgelist(
-  raft::handle_t const& handle,
-  std::vector<std::tuple<int32_t, int32_t, int32_t>> const& component_parms_v);
 
 template std::tuple<rmm::device_uvector<int64_t>, rmm::device_uvector<int64_t>>
 generate_2d_mesh_graph_edgelist(
   raft::handle_t const& handle,
   std::vector<std::tuple<int64_t, int64_t, int64_t>> const& component_parms_v);
 
-template std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<int32_t>>
-generate_3d_mesh_graph_edgelist(
-  raft::handle_t const& handle,
-  std::vector<std::tuple<int32_t, int32_t, int32_t, int32_t>> const& component_parms_v);
-
 template std::tuple<rmm::device_uvector<int64_t>, rmm::device_uvector<int64_t>>
 generate_3d_mesh_graph_edgelist(
   raft::handle_t const& handle,
   std::vector<std::tuple<int64_t, int64_t, int64_t, int64_t>> const& component_parms_v);
-
-template std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<int32_t>>
-generate_complete_graph_edgelist(
-  raft::handle_t const& handle, std::vector<std::tuple<int32_t, int32_t>> const& component_parms_v);
 
 template std::tuple<rmm::device_uvector<int64_t>, rmm::device_uvector<int64_t>>
 generate_complete_graph_edgelist(

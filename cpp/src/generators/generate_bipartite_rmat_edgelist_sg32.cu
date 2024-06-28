@@ -45,14 +45,4 @@ generate_bipartite_rmat_edgelist<int32_t>(raft::handle_t const& handle,
                                           double b,
                                           double c);
 
-template std::tuple<rmm::device_uvector<int64_t>, rmm::device_uvector<int64_t>>
-generate_bipartite_rmat_edgelist<int64_t>(raft::handle_t const& handle,
-                                          raft::random::RngState& rng_state,
-                                          size_t src_scale,
-                                          size_t dst_scale,
-                                          size_t num_edges,
-                                          double a,
-                                          double b,
-                                          double c);
-
 }  // namespace cugraph

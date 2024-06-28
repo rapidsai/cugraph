@@ -168,14 +168,31 @@ endif()
 #       which should give us a better parallel schedule.
 
 set(CUGRAPH_SOURCES
-    src/utilities/shuffle_vertices_mg.cu
+    src/utilities/shuffle_vertices_mg_v_32_v_double.cu
+    src/utilities/shuffle_vertices_mg_v_32_v_float.cu
+    src/utilities/shuffle_vertices_mg_v_32_v_int32_t.cu
+    src/utilities/shuffle_vertices_mg_v_32_v_size_t.cu
+    src/utilities/shuffle_vertices_mg_v_64_v_double.cu
+    src/utilities/shuffle_vertices_mg_v_64_v_float.cu
+    src/utilities/shuffle_vertices_mg_v_64_v_int32_t.cu
+    src/utilities/shuffle_vertices_mg_v_64_v_int64_t.cu
+    src/utilities/shuffle_vertices_mg_v_64_v_size_t.cu
     src/detail/permute_range_32.cu
     src/detail/permute_range_64.cu
-    src/utilities/shuffle_vertex_pairs_mg.cu
-    src/detail/collect_local_vertex_values_sg.cu
-    src/detail/collect_local_vertex_values_mg.cu
-    src/detail/groupby_and_count_mg.cu
-    src/detail/collect_comm_wrapper_mg.cu
+    src/utilities/shuffle_vertex_pairs_mg32.cu
+    src/utilities/shuffle_vertex_pairs_mg3264.cu
+    src/utilities/shuffle_vertex_pairs_mg64.cu
+    src/detail/collect_local_vertex_values_sg32.cu
+    src/detail/collect_local_vertex_values_sg3264.cu
+    src/detail/collect_local_vertex_values_sg64.cu
+    src/detail/collect_local_vertex_values_mg32.cu
+    src/detail/collect_local_vertex_values_mg3264.cu
+    src/detail/collect_local_vertex_values_mg64.cu
+    src/detail/groupby_and_count_mg32.cu
+    src/detail/groupby_and_count_mg3264.cu
+    src/detail/groupby_and_count_mg64.cu
+    src/detail/collect_comm_wrapper_mg32.cu
+    src/detail/collect_comm_wrapper_mg64.cu
     src/sampling/random_walks_mg64.cu
     src/sampling/random_walks_mg32.cu
     src/sampling/random_walks_mg3264.cu
@@ -208,9 +225,14 @@ set(CUGRAPH_SOURCES
     src/structure/graph_view_mg64.cu
     src/structure/graph_view_mg32.cu
     src/structure/graph_view_mg3264.cu
-    src/structure/remove_self_loops_sg.cu
-    src/structure/remove_multi_edges_sg.cu
-    src/utilities/path_retrieval_sg.cu
+    src/structure/remove_self_loops_sg32.cu
+    src/structure/remove_self_loops_sg3264.cu
+    src/structure/remove_self_loops_sg64.cu
+    src/structure/remove_multi_edges_sg32.cu
+    src/structure/remove_multi_edges_sg3264.cu
+    src/structure/remove_multi_edges_sg64.cu
+    src/utilities/path_retrieval_sg32.cu
+    src/utilities/path_retrieval_sg64.cu
     src/structure/legacy/graph.cu
     src/linear_assignment/legacy/hungarian.cu
     src/link_prediction/jaccard_sg64.cu
@@ -285,7 +307,8 @@ set(CUGRAPH_SOURCES
     src/sampling/detail/gather_one_hop_edgelist_mg64.cu
     src/sampling/detail/gather_one_hop_edgelist_mg32.cu
     src/sampling/detail/gather_one_hop_edgelist_mg3264.cu
-    src/sampling/detail/remove_visited_vertices_from_frontier_sg.cu
+    src/sampling/detail/remove_visited_vertices_from_frontier_sg32.cu
+    src/sampling/detail/remove_visited_vertices_from_frontier_sg64.cu
     src/sampling/detail/sample_edges_sg64.cu
     src/sampling/detail/sample_edges_sg32.cu
     src/sampling/detail/sample_edges_sg3264.cu
@@ -319,11 +342,16 @@ set(CUGRAPH_SOURCES
     src/cores/k_core_mg32.cu
     src/cores/k_core_mg3264.cu
     src/components/legacy/connectivity.cu
-    src/generators/generate_rmat_edgelist_sg.cu
-    src/generators/generate_bipartite_rmat_edgelist_sg.cu
-    src/generators/generator_tools_sg.cu
-    src/generators/simple_generators_sg.cu
-    src/generators/erdos_renyi_generator_sg.cu
+    src/generators/generate_rmat_edgelist_sg32.cu
+    src/generators/generate_rmat_edgelist_sg64.cu
+    src/generators/generate_bipartite_rmat_edgelist_sg32.cu
+    src/generators/generate_bipartite_rmat_edgelist_sg64.cu
+    src/generators/generator_tools_sg32.cu
+    src/generators/generator_tools_sg64.cu
+    src/generators/simple_generators_sg32.cu
+    src/generators/simple_generators_sg64.cu
+    src/generators/erdos_renyi_generator_sg32.cu
+    src/generators/erdos_renyi_generator_sg64.cu
     src/structure/graph_sg64.cu
     src/structure/graph_sg32.cu
     src/structure/graph_sg3264.cu
@@ -493,10 +521,14 @@ set(CUGRAPH_SOURCES
     src/traversal/k_hop_nbrs_mg64.cu
     src/traversal/k_hop_nbrs_mg32.cu
     src/traversal/k_hop_nbrs_mg3264.cu
-    src/mtmg/vertex_result_sg.cu
-    src/mtmg/vertex_result_mg.cu
-    src/mtmg/vertex_pairs_result_sg.cu
-    src/mtmg/vertex_pairs_result_mg.cu
+    src/mtmg/vertex_result_sg32.cu
+    src/mtmg/vertex_result_sg64.cu
+    src/mtmg/vertex_result_mg32.cu
+    src/mtmg/vertex_result_mg64.cu
+    src/mtmg/vertex_pairs_result_sg32.cu
+    src/mtmg/vertex_pairs_result_sg64.cu
+    src/mtmg/vertex_pairs_result_mg32.cu
+    src/mtmg/vertex_pairs_result_mg64.cu
 )
 
 if(USE_CUGRAPH_OPS)
