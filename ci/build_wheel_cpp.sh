@@ -40,11 +40,10 @@ done
 
 cd "${package_dir}"
 
-librmm_wheelhouse=$(RAPIDS_PY_WHEEL_NAME="${RAPIDS_PY_CUDA_SUFFIX}" rapids-get-pr-wheel-artifact rmm 1529 cpp)
 libraft_wheelhouse=$(RAPIDS_PY_WHEEL_NAME="${RAPIDS_PY_CUDA_SUFFIX}" rapids-get-pr-wheel-artifact raft 2264 cpp efafdb6)
 libcugraphops_wheelhouse=$(RAPIDS_PY_WHEEL_NAME="${RAPIDS_PY_CUDA_SUFFIX}" rapids-get-pr-wheel-artifact cugraph-ops 629 cpp e7c6f06)
 
-python -m pip wheel . -w dist -vvv --no-deps --disable-pip-version-check --find-links ${librmm_wheelhouse} --find-links ${libraft_wheelhouse} --find-links ${libcugraphops_wheelhouse}
+python -m pip wheel . -w dist -vvv --no-deps --disable-pip-version-check --find-links ${libraft_wheelhouse} --find-links ${libcugraphops_wheelhouse}
 
 mkdir -p final_dist
 python -m auditwheel repair --exclude libraft.so --exclude libcugraph-ops++.so -w final_dist dist/*
