@@ -24,8 +24,8 @@
 namespace cugraph {
 namespace detail {
 
+template <typename weight_t>
 struct sorensen_functor_t {
-  template <typename weight_t>
   weight_t __device__ compute_score(weight_t weight_a,
                                     weight_t weight_b,
                                     weight_t weight_a_intersect_b,
@@ -53,7 +53,8 @@ rmm::device_uvector<weight_t> sorensen_coefficients(
                             graph_view,
                             edge_weight_view,
                             vertex_pairs,
-                            detail::sorensen_functor_t{},
+                            detail::sorensen_functor_t<weight_t>{},
+                            detail::coefficient_t::SORENSEN,
                             do_expensive_check);
 }
 
@@ -75,7 +76,8 @@ std::
                                       edge_weight_view,
                                       vertices,
                                       topk,
-                                      detail::sorensen_functor_t{},
+                                      detail::sorensen_functor_t<weight_t>{},
+                                      detail::coefficient_t::SORENSEN,
                                       do_expensive_check);
 }
 

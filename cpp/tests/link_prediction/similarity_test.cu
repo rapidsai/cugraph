@@ -283,6 +283,30 @@ TEST_P(Tests_Similarity_Rmat, CheckInt64Int64FloatOverlap)
     override_Rmat_Usecase_with_cmd_line_arguments(GetParam()), cugraph::test::test_overlap_t{});
 }
 
+TEST_P(Tests_Similarity_File, CheckInt32Int32FloatCosine)
+{
+  run_current_test<int32_t, int32_t, float>(
+    override_File_Usecase_with_cmd_line_arguments(GetParam()), cugraph::test::test_cosine_t{});
+}
+
+TEST_P(Tests_Similarity_Rmat, CheckInt32Int32FloatCosine)
+{
+  run_current_test<int32_t, int32_t, float>(
+    override_Rmat_Usecase_with_cmd_line_arguments(GetParam()), cugraph::test::test_cosine_t{});
+}
+
+TEST_P(Tests_Similarity_Rmat, CheckInt32Int64FloatCosine)
+{
+  run_current_test<int32_t, int64_t, float>(
+    override_Rmat_Usecase_with_cmd_line_arguments(GetParam()), cugraph::test::test_cosine_t{});
+}
+
+TEST_P(Tests_Similarity_Rmat, CheckInt64Int64FloatCosine)
+{
+  run_current_test<int64_t, int64_t, float>(
+    override_Rmat_Usecase_with_cmd_line_arguments(GetParam()), cugraph::test::test_cosine_t{});
+}
+
 INSTANTIATE_TEST_SUITE_P(
   file_test,
   Tests_Similarity_File,
