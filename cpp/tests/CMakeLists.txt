@@ -327,11 +327,11 @@ ConfigureTest(LOUVAIN_TEST community/louvain_test.cpp)
 ConfigureTest(LEIDEN_TEST community/leiden_test.cpp)
 
 ###################################################################################################
-# - WEIGHTED MATCHING tests ----------------------------------------------------------------------------------
+# - WEIGHTED MATCHING tests -----------------------------------------------------------------------
 ConfigureTest(WEIGHTED_MATCHING_TEST community/weighted_matching_test.cpp)
 
 ###################################################################################################
-# - Legacy ECG tests -------------------------------------------------------------------------------------
+# - Legacy ECG tests ------------------------------------------------------------------------------
 ConfigureTest(LEGACY_ECG_TEST community/legacy_ecg_test.cpp)
 
 ###################################################################################################
@@ -456,13 +456,13 @@ ConfigureTest(EDGE_BETWEENNESS_CENTRALITY_TEST centrality/edge_betweenness_centr
 # - WEAKLY CONNECTED COMPONENTS tests -------------------------------------------------------------
 ConfigureTest(WEAKLY_CONNECTED_COMPONENTS_TEST components/weakly_connected_components_test.cpp)
 
-###############################################################################################
-# - MIS tests ------------------------------------------------------------------------------
+###################################################################################################
+# - MIS tests -------------------------------------------------------------------------------------
 ConfigureTest(MIS_TEST components/mis_test.cu)
 target_include_directories(MIS_TEST PRIVATE "${CUGRAPH_SOURCE_DIR}/src")
 
-###############################################################################################
-# - VERTEX COLORING tests -------------------------------------------------------------------
+###################################################################################################
+# - VERTEX COLORING tests ----------------------------------------------------------------------
 ConfigureTest(VERTEX_COLORING_TEST components/vertex_coloring_test.cu)
 target_include_directories(VERTEX_COLORING_TEST PRIVATE "${CUGRAPH_SOURCE_DIR}/src")
 
@@ -503,8 +503,8 @@ ConfigureTest(CORE_NUMBER_TEST cores/core_number_test.cpp)
 # - Core Number tests -----------------------------------------------------------------------------
 ConfigureTest(K_CORE_TEST cores/k_core_test.cpp)
 
-###############################################################################################
-# - K-truss tests --------------------------------------------------------------------------
+###################################################################################################
+# - K-truss tests ---------------------------------------------------------------------------------
 ConfigureTest(K_TRUSS_TEST community/k_truss_test.cpp)
 
 ###################################################################################################
@@ -512,9 +512,12 @@ ConfigureTest(K_TRUSS_TEST community/k_truss_test.cpp)
 ConfigureTest(TRIANGLE_COUNT_TEST community/triangle_count_test.cpp)
 
 ###################################################################################################
-# - Edge Triangle Count tests --------------------------------------------------------------------------
+# - Edge Triangle Count tests ---------------------------------------------------------------------
 ConfigureTest(EDGE_TRIANGLE_COUNT_TEST community/edge_triangle_count_test.cpp)
 
+###################################################################################################
+# - EDGE SOURCE DESTINATION LOOKUP tests ----------------------------------------------------------
+ConfigureTest(LOOKUP_SRC_DST_TEST lookup/lookup_src_dst_test.cpp)
 
 ###################################################################################################
 # - K-hop Neighbors tests -------------------------------------------------------------------------
@@ -601,7 +604,7 @@ if(BUILD_CUGRAPH_MG_TESTS)
     ConfigureTestMG(MG_LEIDEN_TEST community/mg_leiden_test.cpp)
 
     ###############################################################################################
-    # - MG WEIGHTED MATCHING tests --------------------------------------------------------------------------
+    # - MG WEIGHTED MATCHING tests ----------------------------------------------------------------
     ConfigureTestMG(MG_WEIGHTED_MATCHING_TEST community/mg_weighted_matching_test.cpp)
 
     ###############################################################################################
@@ -617,13 +620,17 @@ if(BUILD_CUGRAPH_MG_TESTS)
     ConfigureTestMG(MG_EGONET_TEST community/mg_egonet_test.cu)
 
     ###############################################################################################
-    # - MG EDGE TRIANGLE COUNT tests --------------------------------------------------------------------------
+    # - MG EDGE TRIANGLE COUNT tests --------------------------------------------------------------
     ConfigureTestMG(MG_EDGE_TRIANGLE_COUNT_TEST community/mg_edge_triangle_count_test.cpp)
 
     ###############################################################################################
     # - MG WEAKLY CONNECTED COMPONENTS tests ------------------------------------------------------
     ConfigureTestMG(MG_WEAKLY_CONNECTED_COMPONENTS_TEST
                     components/mg_weakly_connected_components_test.cpp)
+
+    ###############################################################################################
+    # - MG EDGE SOURCE DESTINATION LOOKUP tests ---------------------------------------------------
+    ConfigureTestMG(MG_LOOKUP_SRC_DST_TEST lookup/mg_lookup_src_dst_test.cpp)
 
     ###############################################################################################
     # - MG MIS tests ------------------------------------------------------------------------------
