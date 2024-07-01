@@ -40,6 +40,7 @@ repos:
     hooks:
       - id: clang-format
         types_or: [c, c++, cuda]
+        args: ["-fallback-style=none", "-style=file", "-i"]
   - repo: https://github.com/rapidsai/pre-commit-hooks
     rev: v0.1.0
     hooks:
@@ -53,7 +54,6 @@ repos:
               meta[.]yaml$|
               setup[.]cfg$
       - id: verify-alpha-spec
-        args: ["-fallback-style=none", "-style=file", "-i"]
   - repo: https://github.com/rapidsai/dependency-file-generator
     rev: v1.13.11
     hooks:
