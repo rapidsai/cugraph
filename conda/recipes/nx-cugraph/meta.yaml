@@ -1,4 +1,4 @@
-# Copyright (c) 2023, NVIDIA CORPORATION.
+# Copyright (c) 2023-2024, NVIDIA CORPORATION.
 
 {% set version = environ['RAPIDS_PACKAGE_VERSION'].lstrip('v') + environ.get('VERSION_SUFFIX', '') %}
 {% set minor_version = version.split('.')[0] + '.' + version.split('.')[1] %}
@@ -21,6 +21,7 @@ build:
 requirements:
   host:
     - python
+    - rapids-build-backend>=0.3.1,<0.4.0.dev0
   run:
     - pylibcugraph ={{ version }}
     - networkx >=3.0
