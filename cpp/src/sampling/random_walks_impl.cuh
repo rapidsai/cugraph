@@ -32,6 +32,7 @@
 #include <cugraph/utilities/host_scalar_comm.hpp>
 #include <cugraph/utilities/shuffle_comm.cuh>
 #include <cugraph/graph_functions.hpp>
+#include <cugraph/graph_functions.hpp>
 
 #include <raft/core/handle.hpp>
 #include <raft/random/rng.cuh>

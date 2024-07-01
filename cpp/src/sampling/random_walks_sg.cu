@@ -177,3 +177,4 @@ node2vec_random_walks(raft::handle_t const& handle,
                       uint64_t seed);
 
 }  // namespace cugraph
+

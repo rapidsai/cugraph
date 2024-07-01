@@ -68,14 +68,18 @@ inline auto make_cuda() { return std::make_shared<rmm::mr::cuda_memory_resource>
 
 inline auto make_managed() { return std::make_shared<rmm::mr::managed_memory_resource>(); }
 
-inline auto make_pool()
+// use_max set to true will use half of available GPU memory for RMM, otherwise
+// otherwise we'll use 1/10.
+inline auto make_pool(bool use_max = false)
 {
-  // Reduce the default pool allocation to 1/6th of the GPU memory so that we can
+  // Reduce the default pool allocation to 1/10 of GPU memory so that we can
   // run more than 2 tests in parallel at the same time. Changes to this value could
   // effect the maximum amount of parallel tests, and therefore `tests/CMakeLists.txt`
   // `_CUGRAPH_TEST_PERCENT` default value will need to be audited.
   auto const [free, total] = rmm::available_device_memory();
-  auto const min_alloc = rmm::align_down(std::min(free, total / 6), rmm::CUDA_ALLOCATION_ALIGNMENT);
+  auto const min_alloc =
+    use_max ? rmm::align_down(std::min(free, total / 2), rmm::CUDA_ALLOCATION_ALIGNMENT)
+            : rmm::align_down(std::min(free, total / 10), rmm::CUDA_ALLOCATION_ALIGNMENT);
   return rmm::mr::make_owning_wrapper<rmm::mr::pool_memory_resource>(make_cuda(), min_alloc);
 }
 
@@ -99,7 +103,8 @@ inline auto make_binning()
  * @throw cugraph::logic_error if the `allocation_mode` is unsupported.
  *
  * @param allocation_mode String identifies which resource type.
- *        Accepted types are "pool", "cuda", and "managed" only.
+ *        Accepted types are "pool", "cuda", "managed" and
+ *        "maxpool" only.
  * @return Memory resource instance
  */
 inline std::shared_ptr<rmm::mr::device_memory_resource> create_memory_resource(
@@ -108,6 +113,7 @@ inline std::shared_ptr<rmm::mr::device_memory_resource> create_memory_resource(
   if (allocation_mode == "binning") return make_binning();
   if (allocation_mode == "cuda") return make_cuda();
   if (allocation_mode == "pool") return make_pool();
+  if (allocation_mode == "maxpool") return make_pool(true);
   if (allocation_mode == "managed") return make_managed();
   CUGRAPH_FAIL("Invalid RMM allocation mode");
 }

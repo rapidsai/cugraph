@@ -292,7 +292,8 @@ void flatten_dendrogram(raft::handle_t const& handle,
                         Dendrogram<vertex_t> const& dendrogram,
                         vertex_t* clustering)
 {
-  rmm::device_uvector<vertex_t> vertex_ids_v(graph_view.number_of_vertices(), handle.get_stream());
+  rmm::device_uvector<vertex_t> vertex_ids_v(graph_view.local_vertex_partition_range_size(),
+                                             handle.get_stream());
 
   detail::sequence_fill(handle.get_stream(),
                         vertex_ids_v.begin(),
