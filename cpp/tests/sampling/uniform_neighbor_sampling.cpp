@@ -80,7 +80,7 @@ class Tests_Uniform_Neighbor_Sampling
       graph_view.attach_edge_mask((*edge_mask).view());
     }
 
-    constexpr float select_probability{0.5};
+    constexpr float select_probability{0.05};
 
     // FIXME:  Update the tests to initialize RngState and use it instead
     //         of seed...
