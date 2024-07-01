@@ -20,7 +20,6 @@ from typing import Sequence, Optional, Union, List, Tuple, Iterator
 from cugraph.gnn import UniformNeighborSampler, DistSampleWriter
 from cugraph.utilities.utils import import_optional
 
-
 import cugraph_dgl
 from cugraph_dgl.typing import TensorType, DGLSamplerOutput
 from cugraph_dgl.dataloading.sampler import HomogeneousSampleReader
