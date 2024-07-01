@@ -495,7 +495,9 @@ dependencies:
     common:
       - output_types: [conda, pyproject]
         packages:
-          - &thrift thriftpy2
+          # this thriftpy2 entry can be removed entirely (or switched to a '!=')
+          # once a new release of that project resolves https://github.com/Thriftpy/thriftpy2/issues/281
+          - &thrift thriftpy2<=0.5.0
   python_run_cugraph_service_server:
     common:
       - output_types: [conda, pyproject]
@@ -545,9 +547,7 @@ dependencies:
       - output_types: [conda]
         packages:
           - pylibwholegraph==24.8.*
-          # this thriftpy2 entry can be removed entirely (or switched to a '!=')
-          # once a new release of that project resolves https://github.com/Thriftpy/thriftpy2/issues/281
-          - thriftpy2<=0.5.0
+          - *thrift
   test_python_pylibcugraph:
     common:
       - output_types: [conda, pyproject]
