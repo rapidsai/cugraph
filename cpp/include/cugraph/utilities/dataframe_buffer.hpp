@@ -189,14 +189,6 @@ auto get_dataframe_buffer_end(BufferType& buffer)
     std::make_index_sequence<std::tuple_size<BufferType>::value>(), buffer);
 }
 
-template <typename T>
-struct dataframe_buffer_type {
-  using type = decltype(allocate_dataframe_buffer<T>(size_t{0}, rmm::cuda_stream_view{}));
-};
-
-template <typename T>
-using dataframe_buffer_type_t = typename dataframe_buffer_type<T>::type;
-
 template <typename BufferType,
           typename std::enable_if_t<is_arithmetic_vector<std::remove_cv_t<BufferType>,
                                                          rmm::device_uvector>::value>* = nullptr>
