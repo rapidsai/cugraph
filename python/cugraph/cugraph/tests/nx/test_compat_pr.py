@@ -64,7 +64,6 @@ fixture_params = gen_fixture_params_product(
 
 
 @pytest.fixture(scope="module", params=fixture_params)
-@pytest.mark.filterwarnings("ignore::DeprecationWarning")
 def input_combo(request):
     """
     Simply return the current combination of params as a dictionary for use in
