@@ -236,11 +236,10 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
                                 bool do_expensive_check)
 {
 #ifndef NO_CUGRAPH_OPS
-  using vertex_t = typename GraphViewType::vertex_type;
-  using edge_t   = typename GraphViewType::edge_type;
-  using key_t    = typename VertexFrontierBucketType::key_type;
-  using key_buffer_t =
-    decltype(allocate_dataframe_buffer<key_t>(size_t{0}, rmm::cuda_stream_view{}));
+  using vertex_t     = typename GraphViewType::vertex_type;
+  using edge_t       = typename GraphViewType::edge_type;
+  using key_t        = typename VertexFrontierBucketType::key_type;
+  using key_buffer_t = dataframe_buffer_type_t<key_t>;
 
   using edge_partition_src_input_device_view_t = std::conditional_t<
     std::is_same_v<typename EdgeSrcValueInputWrapper::value_type, thrust::nullopt_t>,
@@ -322,13 +321,12 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
 
   // 1. aggregate frontier
 
-  auto aggregate_local_frontier =
-    (minor_comm_size > 1)
-      ? std::make_optional<key_buffer_t>(
-          local_frontier_displacements.back() + local_frontier_sizes.back(), handle.get_stream())
-      : std::nullopt;
+  std::optional<key_buffer_t> aggregate_local_frontier{std::nullopt};
   if (minor_comm_size > 1) {
     auto& minor_comm = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
+
+    aggregate_local_frontier = allocate_dataframe_buffer<key_t>(
+      local_frontier_displacements.back() + local_frontier_sizes.back(), handle.get_stream());
     device_allgatherv(minor_comm,
                       frontier.begin(),
                       get_dataframe_buffer_begin(*aggregate_local_frontier),
