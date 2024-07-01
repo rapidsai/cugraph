@@ -275,8 +275,6 @@ set(CUGRAPH_SOURCES
     src/community/ecg_mg_v64_e64.cu
     src/community/ecg_mg_v32_e32.cu
     src/community/ecg_mg_v32_e64.cu
-    src/community/legacy/louvain.cu
-    src/community/legacy/ecg.cu
     src/community/egonet_sg_v64_e64.cu
     src/community/egonet_sg_v32_e32.cu
     src/community/egonet_sg_v32_e64.cu
