@@ -100,10 +100,8 @@ void sort_sampled_tuples(raft::handle_t const& handle,
                    indices.end(),
                    labels.begin(),
                    tmp_labels.begin());
-    labels = std::move(tmp_labels);
   }
   labels = std::move(tmp_labels);
-  hops   = std::move(tmp_hops);
 
   rmm::device_uvector<vertex_t> tmp_majors(indices.size(), handle.get_stream());
   rmm::device_uvector<vertex_t> tmp_minors(indices.size(), handle.get_stream());
