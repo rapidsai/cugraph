@@ -11,6 +11,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# If libcugraph was installed as a wheel, we must request it to load the library
+# symbols. Otherwise, we assume that the library was installed in a system path that ld
+# can find.
+try:
+    import libcugraph
+except ModuleNotFoundError:
+    pass
+else:
+    libcugraph.load_library()
+    del libcugraph
+
+
 from pylibcugraph.components._connectivity import (
     strongly_connected_components,
 )

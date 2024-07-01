@@ -1,5 +1,5 @@
 # =============================================================================
-# Copyright (c) 2022-2024, NVIDIA CORPORATION.
+# Copyright (c) 2024, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
 # in compliance with the License. You may obtain a copy of the License at
@@ -16,13 +16,11 @@ cmake_minimum_required(VERSION 3.26.4 FATAL_ERROR)
 
 include(../../rapids_config.cmake)
 
-# We always need CUDA for pylibcugraph because the raft dependency brings in a
-# header-only cuco dependency that enables CUDA unconditionally.
 include(rapids-cuda)
-rapids_cuda_init_architectures(pylibcugraph-python)
+rapids_cuda_init_architectures(libcugraph-python)
 
 project(
-  pylibcugraph-python
+  libcugraph-python
   VERSION "${RAPIDS_VERSION}"
   LANGUAGES CXX CUDA
 )
@@ -34,9 +32,8 @@ if(NOT USE_CUGRAPH_OPS)
     add_compile_definitions(NO_CUGRAPH_OPS)
 endif()
 
-find_package(cugraph "${RAPIDS_VERSION}" REQUIRED)
+set(BUILD_TESTS OFF)
+set(BUILD_CUGRAPH_MG_TESTS OFF)
+set(CUDA_STATIC_RUNTIME ON)
 
-include(rapids-cython-core)
-rapids_cython_init()
-
-add_subdirectory(pylibcugraph)
+add_subdirectory(../../cpp cugraph-cpp)
