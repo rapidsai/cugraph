@@ -32,13 +32,14 @@ networkx = import_optional("networkx")
 
 
 def ecg(
-    G: Union[Graph, "networkx.Graph"],
+    input_graph: Union[Graph, "networkx.Graph"],
     min_weight: float = 0.0001,
     ensemble_size: int = 100,
     max_level: int = 10,
     threshold: float = 1e-7,
     resolution: float = 1.0,
     random_state: int = None,
+    weight=None,
 ):
     """
     Compute the Ensemble Clustering for Graphs (ECG) partition of the input
@@ -51,7 +52,7 @@ def ecg(
 
     Parameters
     ----------
-    G : cugraph.Graph or NetworkX Graph
+    input_graph : cugraph.Graph or NetworkX Graph
         The graph descriptor should contain the connectivity information
         and weights. The adjacency list will be computed if not already
         present.
@@ -89,6 +90,10 @@ def ecg(
         Random state to use when generating samples.  Optional argument,
         defaults to a hash of process id, time, and hostname.
 
+    weight : str, optional (default=None)
+        This parameter is here for NetworkX compatibility and
+        represents which NetworkX data column represents Edge weights.
+
     Returns
     -------
     parts : cudf.DataFrame or python dictionary
@@ -112,12 +117,12 @@ def ecg(
 
     """
 
-    G, isNx = ensure_cugraph_obj_for_nx(G)
+    input_graph, isNx = ensure_cugraph_obj_for_nx(input_graph)
 
     vertex, partition, modularity_score = pylibcugraph_ecg(
         resource_handle=ResourceHandle(),
         random_state=random_state,
-        graph=G._plc_graph,
+        graph=input_graph._plc_graph,
         min_weight=min_weight,
         ensemble_size=ensemble_size,
         max_level=max_level,
@@ -130,8 +135,8 @@ def ecg(
     df["vertex"] = vertex
     df["partition"] = partition
 
-    if G.renumbered:
-        parts = G.unrenumber(df, "vertex")
+    if input_graph.renumbered:
+        parts = input_graph.unrenumber(df, "vertex")
     else:
         parts = df
 
