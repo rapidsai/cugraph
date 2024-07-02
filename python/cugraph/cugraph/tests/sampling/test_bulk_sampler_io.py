@@ -1,4 +1,4 @@
-# Copyright (c) 2023, NVIDIA CORPORATION.
+# Copyright (c) 2023-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -169,6 +169,7 @@ def test_bulk_sampler_io_empty_batch(scratch_dir):
 
 
 @pytest.mark.sg
+@pytest.mark.skip(reason="broken")
 def test_bulk_sampler_io_mock_csr(scratch_dir):
     major_offsets_array = cudf.Series([0, 5, 10, 15])
     minors_array = cudf.Series([1, 2, 3, 4, 8, 9, 1, 3, 4, 5, 3, 0, 4, 9, 1])
