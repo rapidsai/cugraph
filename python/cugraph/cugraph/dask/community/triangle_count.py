@@ -1,4 +1,4 @@
-# Copyright (c) 2022-2023, NVIDIA CORPORATION.
+# Copyright (c) 2022-2024, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -103,14 +103,14 @@ def triangle_count(input_graph, start_list=None):
             start_list = input_graph.lookup_internal_vertex_id(start_list).compute()
 
         # Ensure correct dtype
-        start_list.astype(input_graph.edgelist.edgelist_df[
-            input_graph.renumber_map.renumbered_src_col_name
-        ].dtype)
-        
-        n_workers = get_n_workers()
-        start_list = dask_cudf.from_cudf(
-            start_list, npartitions=get_n_workers()
+        start_list.astype(
+            input_graph.edgelist.edgelist_df[
+                input_graph.renumber_map.renumbered_src_col_name
+            ].dtype
         )
+
+        n_workers = get_n_workers()
+        start_list = dask_cudf.from_cudf(start_list, npartitions=get_n_workers())
 
         start_list = start_list.repartition(npartitions=n_workers)
         start_list = persist_dask_df_equal_parts_per_worker(start_list, client)
