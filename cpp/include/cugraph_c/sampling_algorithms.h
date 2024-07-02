@@ -43,7 +43,7 @@ typedef struct {
  *                              needs to be transposed
  * @param [in]  start_vertices  Array of source vertices
  * @param [in]  max_length      Maximum length of the generated path
- * @param [in]  result          Output from the node2vec call
+ * @param [out]  result         Output from the node2vec call
  * @param [out] error           Pointer to an error object storing details of any error.  Will
  *                              be populated if error code is not CUGRAPH_SUCCESS
  * @return error code
@@ -64,7 +64,7 @@ cugraph_error_code_t cugraph_uniform_random_walks(
  *                              needs to be transposed
  * @param [in]  start_vertices  Array of source vertices
  * @param [in]  max_length      Maximum length of the generated path
- * @param [in]  result          Output from the node2vec call
+ * @param [out]  result         Output from the node2vec call
  * @param [out] error           Pointer to an error object storing details of any error.  Will
  *                              be populated if error code is not CUGRAPH_SUCCESS
  * @return error code
@@ -89,7 +89,7 @@ cugraph_error_code_t cugraph_biased_random_walks(
  *                              otherwise return as a dense matrix
  * @param [in]  p               The return parameter
  * @param [in]  q               The in/out parameter
- * @param [in]  result          Output from the node2vec call
+ * @param [out]  result         Output from the node2vec call
  * @param [out] error           Pointer to an error object storing details of any error.  Will
  *                              be populated if error code is not CUGRAPH_SUCCESS
  * @return error code
@@ -117,7 +117,7 @@ cugraph_error_code_t cugraph_node2vec_random_walks(
  *                              otherwise return as a dense matrix
  * @param [in]  p            The return parameter
  * @param [in]  q            The in/out parameter
- * @param [in]  result       Output from the node2vec call
+ * @param [out]  result      Output from the node2vec call
  * @param [out] error        Pointer to an error object storing details of any error.  Will
  *                           be populated if error code is not CUGRAPH_SUCCESS
  * @return error code
@@ -353,7 +353,7 @@ void cugraph_sampling_options_free(cugraph_sampling_options_t* options);
  *                           Opaque pointer defining the sampling options.
  * @param [in]  do_expensive_check
  *                           A flag to run expensive checks for input arguments (if set to true)
- * @param [in]  result       Output from the uniform_neighbor_sample call
+ * @param [out]  result      Output from the uniform_neighbor_sample call
  * @param [out] error        Pointer to an error object storing details of any error.  Will
  *                           be populated if error code is not CUGRAPH_SUCCESS
  * @return error code

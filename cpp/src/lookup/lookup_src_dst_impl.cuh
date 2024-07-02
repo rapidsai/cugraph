@@ -310,8 +310,17 @@ lookup_container_t<edge_id_t, edge_type_t, vertex_t, value_t>::lookup_container_
 
 template <typename edge_id_t, typename edge_type_t, typename vertex_t, typename value_t>
 lookup_container_t<edge_id_t, edge_type_t, vertex_t, value_t>::lookup_container_t(
-  const lookup_container_t&)
+  lookup_container_t&& other)
+  : pimpl{std::move(other.pimpl)}
 {
+}
+
+template <typename edge_id_t, typename edge_type_t, typename vertex_t, typename value_t>
+lookup_container_t<edge_id_t, edge_type_t, vertex_t, value_t>&
+lookup_container_t<edge_id_t, edge_type_t, vertex_t, value_t>::operator=(lookup_container_t&& other)
+{
+  pimpl = std::move(other.pimpl);
+  return *this;
 }
 
 template <typename edge_id_t, typename edge_type_t, typename vertex_t, typename value_t>

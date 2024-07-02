@@ -54,8 +54,9 @@ class lookup_container_t {
   lookup_container_t(raft::handle_t const& handle,
                      std::vector<edge_type_t> types,
                      std::vector<edge_id_t> type_counts);
-  lookup_container_t(const lookup_container_t&);
 
+  lookup_container_t(lookup_container_t&& other);
+  lookup_container_t& operator=(lookup_container_t&& other);
   void insert(raft::handle_t const& handle,
               edge_type_t typ,
               raft::device_span<edge_id_t const> edge_ids_to_insert,

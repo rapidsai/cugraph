@@ -13,25 +13,31 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 #pragma once
 
-#include <cugraph_c/error.h>
-#include <cugraph_c/graph.h>
-#include <cugraph_c/resource_handle.h>
+#include "c_api/array.hpp"
+#include "c_api/error.hpp"
 
-/** @defgroup c_api cuGraph C API
- *  @{
- */
+#include <cugraph/graph.hpp>
+#include <cugraph/graph_functions.hpp>
 
-#include <cugraph_c/centrality_algorithms.h>
-#include <cugraph_c/community_algorithms.h>
-#include <cugraph_c/core_algorithms.h>
-#include <cugraph_c/labeling_algorithms.h>
-#include <cugraph_c/lookup_src_dst.h>
-#include <cugraph_c/sampling_algorithms.h>
-#include <cugraph_c/similarity_algorithms.h>
-#include <cugraph_c/traversal_algorithms.h>
-/**
- *  @}
- */
+#include <memory>
+
+namespace cugraph {
+namespace c_api {
+
+struct cugraph_lookup_container_t {
+  cugraph_data_type_id_t edge_type_;
+  cugraph_data_type_id_t edge_type_id_type_;
+  cugraph_data_type_id_t vertex_type_;
+
+  void* lookup_container_;
+};
+
+struct cugraph_lookup_result_t {
+  cugraph_type_erased_device_array_t* srcs_{nullptr};
+  cugraph_type_erased_device_array_t* dsts_{nullptr};
+};
+
+}  // namespace c_api
+}  // namespace cugraph
