@@ -140,6 +140,7 @@ def get_personalization(personalization_perc, nnz_vtx):
 
 @pytest.mark.sg
 @pytest.mark.parametrize("graph_file", FILES_UNDIRECTED)
+@pytest.mark.filterwarnings("ignore::DeprecationWarning")
 def test_with_noparams(graph_file, which_import):
     nx = which_import
 
@@ -157,6 +158,7 @@ def test_with_noparams(graph_file, which_import):
 @pytest.mark.sg
 @pytest.mark.parametrize("graph_file", FILES_UNDIRECTED)
 @pytest.mark.parametrize("max_iter", MAX_ITERATIONS)
+@pytest.mark.filterwarnings("ignore::DeprecationWarning")
 def test_with_max_iter(graph_file, max_iter, which_import):
     nx = which_import
     M = utils.read_csv_for_nx(graph_file)
@@ -172,6 +174,7 @@ def test_with_max_iter(graph_file, max_iter, which_import):
 @pytest.mark.sg
 @pytest.mark.parametrize("graph_file", FILES_UNDIRECTED)
 @pytest.mark.parametrize("max_iter", MAX_ITERATIONS)
+@pytest.mark.filterwarnings("ignore::DeprecationWarning")
 def test_perc_spec(graph_file, max_iter, which_import):
     nx = which_import
 
@@ -204,6 +207,7 @@ def test_perc_spec(graph_file, max_iter, which_import):
 @pytest.mark.sg
 @pytest.mark.parametrize("graph_file", FILES_UNDIRECTED)
 @pytest.mark.parametrize("max_iter", MAX_ITERATIONS)
+@pytest.mark.filterwarnings("ignore::DeprecationWarning")
 def test_with_nstart(graph_file, max_iter, which_import):
     nx = which_import
 
@@ -226,6 +230,7 @@ def test_with_nstart(graph_file, max_iter, which_import):
 
 
 @pytest.mark.sg
+@pytest.mark.filterwarnings("ignore::DeprecationWarning")
 def test_fixture_data(input_expected_output, which_import):
     nx = which_import
     M = utils.read_csv_for_nx(input_expected_output["graph_file"])
