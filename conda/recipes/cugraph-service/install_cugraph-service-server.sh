@@ -13,6 +13,14 @@
 
 cd "${SRC_DIR}/python/cugraph-service/server"
 mkdir -p pip_cache
-$PYTHON -m pip install --no-build-isolation --no-index --no-deps --ignore-installed --cache-dir ./pip_cache . -vv
+$PYTHON -m pip install \
+    --no-build-isolation \
+    --no-index \
+    --no-deps \
+    --ignore-installed \
+    --cache-dir ./pip_cache \
+    --config-settings rapidsai.disable-cuda=true \
+    -vv \
+    .
 
 #./build.sh cugraph-service
