@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# Copyright (c) 2022-2024, NVIDIA CORPORATION.
+# Copyright (c) 2022-2023, NVIDIA CORPORATION.
 
 # This assumes the script is executed from the root of the repo directory
 
@@ -13,14 +13,6 @@
 
 cd "${SRC_DIR}/python/cugraph-service/server"
 mkdir -p pip_cache
-$PYTHON -m pip install \
-    --no-build-isolation \
-    --no-index \
-    --no-deps \
-    --ignore-installed \
-    --cache-dir ./pip_cache \
-    --config-settings rapidsai.disable-cuda=true \
-    -vv \
-    .
+$PYTHON -m pip install --no-build-isolation --no-index --no-deps --ignore-installed --cache-dir ./pip_cache . -vv
 
 #./build.sh cugraph-service
