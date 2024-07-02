@@ -21,6 +21,7 @@
 #include "prims/vertex_frontier.cuh"
 #include "prims/property_op_utils.cuh"
 #include "prims/update_edge_src_dst_property.cuh"
+#include "prims/detail/nbr_intersection.cuh"
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/detail/shuffle_wrappers.hpp>
@@ -31,7 +32,6 @@
 #include <cugraph/partition_manager.hpp>
 #include <cugraph/utilities/host_scalar_comm.hpp>
 #include <cugraph/utilities/shuffle_comm.cuh>
-#include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_functions.hpp>
 
 #include <raft/core/handle.hpp>
@@ -90,6 +90,31 @@ struct biased_sample_edges_op_t {
   operator()(vertex_t, vertex_t dst, weight_t, thrust::nullopt_t, weight_t weight) const
   {
     return thrust::make_tuple(dst, weight);
+  }
+};
+
+template <typename vertex_t, typename weight_t>
+struct node2vec_sample_edges_op_t {
+  template <typename W = weight_t>
+  __device__ std::enable_if_t<std::is_same_v<W, void>, vertex_t> operator()(
+        thrust::tuple<vertex_t, size_t> tagged_src,
+        vertex_t dst,
+        thrust::nullopt_t,
+        thrust::nullopt_t,
+        W w) const
+  {
+    return dst;
+  }
+
+  template <typename W = weight_t>
+  __device__ std::enable_if_t<!std::is_same_v<W, void>, thrust::tuple<vertex_t, W>> operator()(
+        thrust::tuple<vertex_t, size_t> tagged_src,
+        vertex_t dst,
+        thrust::nullopt_t,
+        thrust::nullopt_t,
+        W w) const
+  {
+    return thrust::make_tuple(dst, w);
   }
 };
 
@@ -238,11 +263,12 @@ struct biased_selector {
   }
 };
 
-template <typename weight_t>
+template <typename weight_t, typename vertex_t>
 struct node2vec_selector {
   weight_t p_;
   weight_t q_;
-  uint64_t seed_{0};
+  raft::random::RngState rng_state_;
+  raft::device_span<vertex_t> prev_vertices_{};
 
   template <typename GraphViewType>
   std::tuple<rmm::device_uvector<typename GraphViewType::vertex_type>,
@@ -261,7 +287,125 @@ struct node2vec_selector {
     //    3) a sampling value that lets me pick the correct edge based on the same computation
     //       (essentially weighted sampling, but with a function that computes the weight rather
     //       than just using the edge weights)
-    CUGRAPH_FAIL("node2vec not implemented");
+
+    //  Create vertex frontier
+    using tag_t = vertex_t;
+
+    cugraph::vertex_frontier_t<vertex_t, tag_t, GraphViewType::is_multi_gpu, false> vertex_frontier(handle, 1);
+    
+    //  Initialize previous vertices if first call
+    if (prev_vertices_.empty()) {
+      thrust::copy(
+        handle.get_thrust_policy(), current_vertices.begin(), current_vertices.end(), prev_vertices_.data());
+    }
+
+    vertex_frontier.bucket(0).insert(thrust::make_zip_iterator(current_vertices.begin(),
+                                                               prev_vertices_.begin()), 
+                                     thrust::make_zip_iterator(current_vertices.end(), 
+                                                              prev_vertices_.end()));
+
+    //  Zip previous and current vertices for nbr_intersection()
+    auto intersection_pairs = thrust::make_zip_iterator(current_vertices.begin(), prev_vertices_.begin());
+    //  sort for nbr_intersection
+    //thrust::sort(handle.get_thrust_policy(), intersection_pairs, intersection_pairs + current_vertices.size());
+    auto [intersection_offsets, intersection_indices] =
+      detail::nbr_intersection(handle,
+                               graph_view,
+                               cugraph::edge_dummy_property_t{}.view(),
+                               intersection_pairs,
+                               intersection_pairs + current_vertices.size(),
+                               std::array<bool, 2>{true, true},
+                               false);
+
+    // Create data structs for results
+    rmm::device_uvector<vertex_t> minors(0, handle.get_stream());
+    std::optional<rmm::device_uvector<weight_t>> weights{std::nullopt};
+
+    if (edge_weight_view) {
+      auto [sample_offsets, sample_e_op_results] =
+        cugraph::per_v_random_select_transform_outgoing_e(
+          handle,
+          graph_view,
+          vertex_frontier.bucket(0),
+          cugraph::edge_src_dummy_property_t{}.view(),
+          cugraph::edge_dst_dummy_property_t{}.view(),
+          *edge_weight_view,
+           /*node2vec bias op [zipped, offsets, indices] (src, dst, prop, prop, e_prop){
+            zipped.at(src) //2d array
+            prev_vert = [1, 4, 5, 6]
+            curr_vert = [0, 2, 2, 3]
+            dst_vert =  [4, 5, 7, 8]
+            src = 2
+            low_idx = 1
+            up_idx = 2
+            //check dst against tag, return if true
+            for(int i = low_idx; i <= up_idx; i++){
+              //check zipped pairs if tag matches prev, save idx if does
+            }
+            //check intersection with saved index, searching for dst match
+          },*/
+          [/*p = p_,
+           q = q_,
+           intersection_offsets = raft::device_span<size_t const>(
+              intersection_offsets.data(), intersection_offsets.size()),
+           intersection_indices = raft::device_span<vertex_t const>(
+              intersection_indices.data(), intersection_indices.size()),
+           current_vertices = raft::device_span<vertex_t const>(
+              current_vertices.data(), current_vertices.size()),
+           prev_vertices = raft::device_span<vertex_t const>(
+              prev_vertices_.data(), prev_vertices_.size())*/] 
+          __device__ (auto tagged_src, auto dst, auto, auto, auto wgt){
+            //  Check tag (prev vert) for destination
+            /*if(dst == thrust::get<1>(tagged_src)){
+              return 1.0 / p;
+            }
+            //  Search current vertices for src
+            auto lower_itr = thrust::lower_bound(
+              thrust::seq, current_vertices.begin(), current_vertices.end(), thrust::get<0>(tagged_src));
+            auto low_idx = thrust::distance(current_vertices.begin(), lower_itr);
+            //  Needed for duplicates in current vertices
+            while(prev_vertices[low_idx] != thrust::get<1>(tagged_src)){
+              low_idx++;
+            }
+            auto start_idx = intersection_offsets[low_idx];
+            auto end_idx = intersection_offsets[low_idx + 1];
+            auto itr = thrust::find(
+                intersection_indices.begin() + start_idx, 
+                intersection_indices.begin() + end_idx, 
+                dst);
+            //  dst not in intersection
+            if(itr == intersection_indices.begin() + end_idx){
+              return 1.0 / q;
+            }*/
+            return 1.0;
+          },
+          node2vec_sample_edges_op_t<vertex_t, weight_t>{},
+          rng_state_,
+          size_t{1},
+          true,
+          std::make_optional(
+            thrust::make_tuple(vertex_t{cugraph::invalid_vertex_id<vertex_t>::value}, weight_t{0.0})));
+        minors = std::move(std::get<0>(sample_e_op_results));
+        weights = std::move(std::get<1>(sample_e_op_results));
+    } /*else {
+      auto[ sample_offsets, sample_e_op_results] =
+        cugraph::per_v_random_select_transform_outgoing_e(
+          handle,
+          graph_view,
+          vertex_frontier.bucket(0),
+          cugraph::edge_src_dummy_property_t{}.view(),
+          cugraph::edge_dst_dummy_property_t{}.view(),
+          cugraph::edge_dummy_property_t{}.view(),
+          //  node2vec bias op,
+          sample_edges_op_t<vertex_t, void>{},
+          rng_state_,
+          size_t{1},
+          true,
+          std::make_optional(vertex_t{cugraph::invalid_vertex_id<vertex_t>::value}));
+      minors = std::move(sample_e_op_results);
+    }*/
+    
+    return std::make_tuple(std::move(minors), std::move(weights));
   }
 };
 
@@ -572,7 +716,7 @@ node2vec_random_walks(raft::handle_t const& handle,
                       size_t max_length,
                       weight_t p,
                       weight_t q,
-                      uint64_t seed)
+                      raft::random::RngState& rng_state)
 {
   CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
 
@@ -582,8 +726,8 @@ node2vec_random_walks(raft::handle_t const& handle,
     edge_weight_view,
     start_vertices,
     max_length,
-    detail::node2vec_selector<weight_t>{
-      p, q, (seed == 0 ? detail::get_current_time_nanoseconds() : seed)});
+    detail::node2vec_selector<weight_t, vertex_t>{
+      p, q, rng_state});
 }
 
 }  // namespace cugraph

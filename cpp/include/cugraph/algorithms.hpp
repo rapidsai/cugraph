@@ -1716,7 +1716,7 @@ node2vec_random_walks(raft::handle_t const& handle,
                       size_t max_length,
                       weight_t p,
                       weight_t q,
-                      uint64_t seed = std::numeric_limits<uint64_t>::max());
+                      raft::random::RngState& rng_state);
 
 #ifndef NO_CUGRAPH_OPS
 /**

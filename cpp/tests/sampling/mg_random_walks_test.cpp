@@ -93,6 +93,8 @@ struct Node2VecRandomWalks_Usecase {
              raft::device_span<vertex_t const> start_vertices,
              size_t max_depth)
   {
+    raft::random::RngState rng_state(static_cast<uint64_t>(handle.get_comms().get_rank()));
+
     return cugraph::node2vec_random_walks(handle,
                                           graph_view,
                                           edge_weight_view,
@@ -100,7 +102,7 @@ struct Node2VecRandomWalks_Usecase {
                                           max_depth,
                                           static_cast<weight_t>(p),
                                           static_cast<weight_t>(q),
-                                          seed);
+                                          rng_state);
   }
 
   // FIXME: Not currently implemented

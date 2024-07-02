@@ -360,7 +360,7 @@ struct node2vec_random_walks_functor : public cugraph::c_api::abstract_functor {
   size_t max_length_{0};
   double p_{0};
   double q_{0};
-  uint64_t seed_{0};
+  cugraph::c_api::cugraph_rng_state_t* rng_state_{nullptr};
   cugraph::c_api::cugraph_random_walk_result_t* result_{nullptr};
 
   node2vec_random_walks_functor(cugraph_resource_handle_t const* handle,
@@ -440,7 +440,7 @@ struct node2vec_random_walks_functor : public cugraph::c_api::abstract_functor {
         max_length_,
         static_cast<weight_t>(p_),
         static_cast<weight_t>(q_),
-        seed_);
+        rng_state_->rng_state_);
 
       // FIXME:  Need to fix invalid_vtx issue here.  We can't unrenumber max_vertex_id+1
       // properly...
