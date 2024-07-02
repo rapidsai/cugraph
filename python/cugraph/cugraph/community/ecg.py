@@ -14,25 +14,13 @@
 from pylibcugraph import ecg as pylibcugraph_ecg
 from pylibcugraph import ResourceHandle
 
-from cugraph.structure import Graph
 import cudf
-from typing import Union
-from cugraph.utilities import (
-    ensure_cugraph_obj_for_nx,
-    df_score_to_dictionary,
-)
-from cugraph.utilities.utils import import_optional
-
-# FIXME: the networkx.Graph type used in the type annotation for
-# leiden() is specified using a string literal to avoid depending on
-# and importing networkx. Instead, networkx is imported optionally, which may
-# cause a problem for a type checker if run in an environment where networkx is
-# not installed.
-networkx = import_optional("networkx")
+import warnings
+from cugraph.utilities import ensure_cugraph_obj_for_nx, df_score_to_dictionary
 
 
 def ecg(
-    input_graph: Union[Graph, "networkx.Graph"],
+    input_graph,
     min_weight: float = 0.0001,
     ensemble_size: int = 100,
     max_level: int = 10,
@@ -91,6 +79,7 @@ def ecg(
         defaults to a hash of process id, time, and hostname.
 
     weight : str, optional (default=None)
+        Deprecated.
         This parameter is here for NetworkX compatibility and
         represents which NetworkX data column represents Edge weights.
 
@@ -119,6 +108,19 @@ def ecg(
 
     input_graph, isNx = ensure_cugraph_obj_for_nx(input_graph)
 
+    if isNx:
+        warning_msg = (
+            " We are deprecating support for handling "
+            "NetworkX types in the next release."
+        )
+        warnings.warn(warning_msg, UserWarning)
+
+    if weight is not None:
+        warning_msg = (
+            "This parameter is deprecated and will be removed in the next release."
+        )
+        warnings.warn(warning_msg, UserWarning)
+
     vertex, partition, modularity_score = pylibcugraph_ecg(
         resource_handle=ResourceHandle(),
         random_state=random_state,
@@ -140,7 +142,7 @@ def ecg(
     else:
         parts = df
 
-    if isNx is True:
-        parts = df_score_to_dictionary(df, "partition")
+    if isNx:
+        df = df_score_to_dictionary(df, "partition")
 
     return parts, modularity_score
