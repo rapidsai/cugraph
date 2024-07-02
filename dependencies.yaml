@@ -647,7 +647,7 @@ dependencies:
           - cugraph==24.8.*,>=0.0.0a0
           - pytorch>=2.0
           - pytorch-cuda==11.8
-          - tensordict>=0.1.2
+          - &tensordict tensordict>=0.1.2
           - dgl>=1.1.0.cu*
   cugraph_pyg_dev:
     common:
@@ -656,7 +656,7 @@ dependencies:
           - cugraph==24.8.*,>=0.0.0a0
           - pytorch>=2.0
           - pytorch-cuda==11.8
-          - tensordict>=0.1.2
+          - *tensordict
           - pyg>=2.5,<2.6
 
   depends_on_pytorch:
