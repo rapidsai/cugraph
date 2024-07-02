@@ -21,7 +21,9 @@ from cugraph.testing import utils
 from cugraph.datasets import karate, dolphins, netscience
 
 
-def cugraph_call(G, min_weight, ensemble_size, max_level, threshold, resolution):
+def cugraph_call(
+    G, min_weight, ensemble_size, max_level, threshold, resolution, random_state
+):
     parts, mod = cugraph.ecg(
         G,
         min_weight=min_weight,
@@ -29,6 +31,7 @@ def cugraph_call(G, min_weight, ensemble_size, max_level, threshold, resolution)
         max_level=max_level,
         threshold=threshold,
         resolution=resolution,
+        random_state=random_state,
     )
     num_parts = parts["partition"].max() + 1
     return mod, num_parts
@@ -55,6 +58,8 @@ RESOLUTIONS = [0.95, 1.0]
 
 THRESHOLDS = [1e-6, 1e-07]
 
+RANDOM_STATES = [0, 42]
+
 
 @pytest.mark.sg
 @pytest.mark.parametrize("dataset", DATASETS)
@@ -63,8 +68,9 @@ THRESHOLDS = [1e-6, 1e-07]
 @pytest.mark.parametrize("max_level", MAX_LEVELS)
 @pytest.mark.parametrize("threshold", THRESHOLDS)
 @pytest.mark.parametrize("resolution", RESOLUTIONS)
+@pytest.mark.parametrize("random_state", RANDOM_STATES)
 def test_ecg_clustering(
-    dataset, min_weight, ensemble_size, max_level, threshold, resolution
+    dataset, min_weight, ensemble_size, max_level, threshold, resolution, random_state
 ):
     gc.collect()
 
@@ -77,7 +83,7 @@ def test_ecg_clustering(
 
     # Get the modularity score for partitioning versus random assignment
     cu_score, num_parts = cugraph_call(
-        G, min_weight, ensemble_size, max_level, threshold, resolution
+        G, min_weight, ensemble_size, max_level, threshold, resolution, random_state
     )
     filename = dataset.metadata["name"]
     golden_score = golden_call(filename)
@@ -94,8 +100,9 @@ def test_ecg_clustering(
 @pytest.mark.parametrize("max_level", MAX_LEVELS)
 @pytest.mark.parametrize("threshold", THRESHOLDS)
 @pytest.mark.parametrize("resolution", RESOLUTIONS)
+@pytest.mark.parametrize("random_state", RANDOM_STATES)
 def test_ecg_clustering_nx(
-    dataset, min_weight, ensemble_size, max_level, threshold, resolution
+    dataset, min_weight, ensemble_size, max_level, threshold, resolution, random_state
 ):
 
     gc.collect()
@@ -114,6 +121,7 @@ def test_ecg_clustering_nx(
         max_level=max_level,
         threshold=threshold,
         resolution=resolution,
+        random_state=random_state,
     )
 
     assert isinstance(df_dict, dict)
