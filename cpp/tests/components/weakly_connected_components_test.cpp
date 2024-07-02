@@ -170,7 +170,8 @@ class Tests_WeaklyConnectedComponent
       if (renumber) {
         rmm::device_uvector<vertex_t> d_unrenumbered_components(size_t{0}, handle.get_stream());
         std::tie(std::ignore, d_unrenumbered_components) =
-          cugraph::test::sort_by_key(handle, *d_renumber_map_labels, d_components);
+          cugraph::test::sort_by_key<vertex_t, vertex_t>(
+            handle, *d_renumber_map_labels, d_components);
         h_cugraph_components = cugraph::test::to_host(handle, d_unrenumbered_components);
       } else {
         h_cugraph_components = cugraph::test::to_host(handle, d_components);
