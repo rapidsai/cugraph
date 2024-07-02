@@ -1,4 +1,4 @@
-# Copyright (c) 2020-2023, NVIDIA CORPORATION.
+# Copyright (c) 2020-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -313,12 +313,6 @@ def bench_bfs(gpubenchmark, graph):
     bfs = dask_cugraph.bfs if is_graph_distributed(graph) else cugraph.bfs
     start = graph.edgelist.edgelist_df["src"][0]
     gpubenchmark(bfs, graph, start)
-
-
-def bench_force_atlas2(gpubenchmark, graph):
-    if is_graph_distributed(graph):
-        pytest.skip("distributed graphs are not supported")
-    gpubenchmark(cugraph.force_atlas2, graph, max_iter=50)
 
 
 def bench_sssp(gpubenchmark, graph):
