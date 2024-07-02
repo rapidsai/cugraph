@@ -18,6 +18,12 @@ from dask.distributed import wait, default_client
 import cugraph.dask.comms.comms as Comms
 import dask_cudf
 import cudf
+from cugraph.dask import get_n_workers
+from cugraph.dask.common.part_utils import (
+    get_persisted_df_worker_map,
+    persist_dask_df_equal_parts_per_worker,
+)
+
 
 from pylibcugraph import ResourceHandle, triangle_count as pylibcugraph_triangle_count
 
@@ -28,7 +34,6 @@ def _call_triangle_count(
     start_list,
     do_expensive_check,
 ):
-
     return pylibcugraph_triangle_count(
         resource_handle=ResourceHandle(Comms.get_handle(sID).getHandle()),
         graph=mg_graph_x,
@@ -97,6 +102,19 @@ def triangle_count(input_graph, start_list=None):
         if input_graph.renumbered:
             start_list = input_graph.lookup_internal_vertex_id(start_list).compute()
 
+        # Ensure correct dtype
+        start_list.astype(input_graph.edgelist.edgelist_df[
+            input_graph.renumber_map.renumbered_src_col_name
+        ].dtype)
+        
+        n_workers = get_n_workers()
+        start_list = dask_cudf.from_cudf(
+            start_list, npartitions=get_n_workers()
+        )
+
+        start_list = start_list.repartition(npartitions=n_workers)
+        start_list = persist_dask_df_equal_parts_per_worker(start_list, client)
+        start_list = get_persisted_df_worker_map(start_list, client)
     do_expensive_check = False
 
     result = [
@@ -104,7 +122,7 @@ def triangle_count(input_graph, start_list=None):
             _call_triangle_count,
             Comms.get_session_id(),
             input_graph._plc_graph[w],
-            start_list,
+            start_list[w][0] if start_list is not None else None,
             do_expensive_check,
             workers=[w],
             allow_other_workers=False,
