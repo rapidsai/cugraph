@@ -255,7 +255,8 @@ class Tests_Hits : public ::testing::TestWithParam<std::tuple<Hits_Usecase, inpu
         if (renumber) {
           rmm::device_uvector<weight_t> d_unrenumbered_initial_random_hubs(0, handle.get_stream());
           std::tie(std::ignore, d_unrenumbered_initial_random_hubs) =
-            cugraph::test::sort_by_key(handle, *d_renumber_map_labels, *d_initial_random_hubs);
+            cugraph::test::sort_by_key<vertex_t, weight_t>(
+              handle, *d_renumber_map_labels, *d_initial_random_hubs);
           h_initial_random_hubs =
             cugraph::test::to_host(handle, d_unrenumbered_initial_random_hubs);
         } else {
@@ -277,7 +278,7 @@ class Tests_Hits : public ::testing::TestWithParam<std::tuple<Hits_Usecase, inpu
       if (renumber) {
         rmm::device_uvector<weight_t> d_unrenumbered_hubs(size_t{0}, handle.get_stream());
         std::tie(std::ignore, d_unrenumbered_hubs) =
-          cugraph::test::sort_by_key(handle, *d_renumber_map_labels, d_hubs);
+          cugraph::test::sort_by_key<vertex_t, weight_t>(handle, *d_renumber_map_labels, d_hubs);
         h_cugraph_hits = cugraph::test::to_host(handle, d_unrenumbered_hubs);
       } else {
         h_cugraph_hits = cugraph::test::to_host(handle, d_hubs);
