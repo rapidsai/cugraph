@@ -15,6 +15,7 @@ import time
 import argparse
 import tempfile
 import os
+import warnings
 
 from typing import Optional, Tuple, Dict
 
@@ -158,6 +159,10 @@ if __name__ == "__main__":
     data, split_idx, num_features, num_classes = load_data(
         args.dataset, args.dataset_root
     )
+
+    if "CI_RUN" in os.environ and os.environ["CI_RUN"] == "1":
+        warnings.warn("Pruning test dataset for CI run.")
+        split_idx["test"] = split_idx["test"][:1000]
 
     with tempfile.TemporaryDirectory(dir=args.tempdir_root) as samples_dir:
         loader_kwargs = {
