@@ -275,8 +275,6 @@ set(CUGRAPH_SOURCES
     src/community/ecg_mg_v64_e64.cu
     src/community/ecg_mg_v32_e32.cu
     src/community/ecg_mg_v32_e64.cu
-    src/community/legacy/louvain.cu
-    src/community/legacy/ecg.cu
     src/community/egonet_sg_v64_e64.cu
     src/community/egonet_sg_v32_e32.cu
     src/community/egonet_sg_v32_e64.cu
@@ -639,7 +637,6 @@ add_library(cugraph_c
         src/c_api/induced_subgraph.cpp
         src/c_api/capi_helper.cu
         src/c_api/legacy_spectral.cpp
-        src/c_api/legacy_ecg.cpp
         src/c_api/graph_helper_sg.cu
         src/c_api/graph_helper_mg.cu
         src/c_api/graph_generators.cpp

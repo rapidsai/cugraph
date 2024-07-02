@@ -213,37 +213,6 @@ cugraph_error_code_t cugraph_ecg(const cugraph_resource_handle_t* handle,
                                  cugraph_error_t** error);
 
 /**
- * @brief     Compute ECG clustering of the given graph
- *
- * ECG runs truncated Louvain on an ensemble of permutations of the input graph,
- * then uses the ensemble partitions to determine weights for the input graph.
- * The final result is found by running full Louvain on the input graph using
- * the determined weights. See https://arxiv.org/abs/1809.05578 for further
- * information.
- *
- * NOTE: This currently wraps the legacy ECG clustering implementation which is only
- * available in Single GPU implementation.
- *
- * @param [in]  handle          Handle for accessing resources
- * @param [in]  graph           Pointer to graph.  NOTE: Graph might be modified if the storage
- * @param [in]  min_weight      The minimum weight parameter
- * @param [in]  ensemble_size   The ensemble size parameter
- * @param [in]  do_expensive_check
- *                              A flag to run expensive checks for input arguments (if set to true)
- * @param [out] result          The result from the clustering algorithm
- * @param [out] error           Pointer to an error object storing details of any error.  Will
- *                              be populated if error code is not CUGRAPH_SUCCESS
- * @return error code
- */
-cugraph_error_code_t cugraph_legacy_ecg(const cugraph_resource_handle_t* handle,
-                                        cugraph_graph_t* graph,
-                                        double min_weight,
-                                        size_t ensemble_size,
-                                        bool_t do_expensive_check,
-                                        cugraph_hierarchical_clustering_result_t** result,
-                                        cugraph_error_t** error);
-
-/**
  * @brief   Extract ego graphs
  *
  * @param [in]  handle          Handle for accessing resources

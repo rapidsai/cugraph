@@ -544,14 +544,6 @@ std::pair<size_t, weight_t> louvain(
   weight_t threshold  = weight_t{1e-7},
   weight_t resolution = weight_t{1});
 
-template <typename vertex_t, typename edge_t, typename weight_t>
-std::pair<size_t, weight_t> louvain(
-  raft::handle_t const& handle,
-  legacy::GraphCSRView<vertex_t, edge_t, weight_t> const& graph_view,
-  vertex_t* clustering,
-  size_t max_level    = 100,
-  weight_t resolution = weight_t{1});
-
 /**
  * @brief      Louvain implementation, returning dendrogram
  *
@@ -726,38 +718,6 @@ std::pair<size_t, weight_t> leiden(
   size_t max_level    = 100,
   weight_t resolution = weight_t{1},
   weight_t theta      = weight_t{1});
-
-/**
- * @brief Computes the ecg clustering of the given graph.
- *
- * ECG runs truncated Louvain on an ensemble of permutations of the input graph,
- * then uses the ensemble partitions to determine weights for the input graph.
- * The final result is found by running full Louvain on the input graph using
- * the determined weights. See https://arxiv.org/abs/1809.05578 for further
- * information.
- *
- * @throws     cugraph::logic_error when an error occurs.
- *
- * @tparam vertex_t                  Type of vertex identifiers. Supported value : int (signed,
- * 32-bit)
- * @tparam edge_t                    Type of edge identifiers.  Supported value : int (signed,
- * 32-bit)
- * @tparam weight_t                  Type of edge weights. Supported values : float or double.
- *
- * @param[in]  handle                Library handle (RAFT). If a communicator is set in the handle,
- * @param[in]  graph_coo             input graph object (COO)
- * @param[in]  graph_csr             input graph object (CSR)
- * @param[in]  min_weight            The minimum weight parameter
- * @param[in]  ensemble_size         The ensemble size parameter
- * @param[out] clustering            A device pointer to array where the partitioning should be
- * written
- */
-template <typename vertex_t, typename edge_t, typename weight_t>
-void ecg(raft::handle_t const& handle,
-         legacy::GraphCSRView<vertex_t, edge_t, weight_t> const& graph,
-         weight_t min_weight,
-         vertex_t ensemble_size,
-         vertex_t* clustering);
 
 /**
  * @brief Computes the ecg clustering of the given graph.
