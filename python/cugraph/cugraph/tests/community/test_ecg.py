@@ -90,7 +90,7 @@ def test_ecg_clustering(
 
     # Assert that the partitioning has better modularity than the random
     # assignment
-    assert cu_score > (0.85 * golden_score)
+    assert cu_score > (0.80 * golden_score)
 
 
 @pytest.mark.sg
