@@ -14,21 +14,22 @@
  * limitations under the License.
  */
 
-#include "detail/nbr_sampling_utils.cuh"
+#include "detail/nbr_sampling_validate.hpp"
+#include "utilities/base_fixture.hpp"
+#include "utilities/property_generator_utilities.hpp"
 
-#include <cugraph/graph_functions.hpp>
-
-#include <thrust/distance.h>
-#include <thrust/sort.h>
-#include <thrust/unique.h>
+#include <cugraph/sampling_functions.hpp>
+#include <cugraph/utilities/high_res_timer.hpp>
 
 #include <gtest/gtest.h>
 
 struct Uniform_Neighbor_Sampling_Usecase {
   std::vector<int32_t> fanout{{-1}};
   int32_t batch_size{10};
-  bool check_correctness{true};
   bool flag_replacement{true};
+
+  bool edge_masking{false};
+  bool check_correctness{true};
 };
 
 template <typename input_usecase_t>
@@ -45,9 +46,11 @@ class Tests_Uniform_Neighbor_Sampling
   virtual void TearDown() {}
 
   template <typename vertex_t, typename edge_t, typename weight_t>
-  void run_current_test(Uniform_Neighbor_Sampling_Usecase const& uniform_neighbor_sampling_usecase,
-                        input_usecase_t const& input_usecase)
+  void run_current_test(
+    std::tuple<Uniform_Neighbor_Sampling_Usecase const&, input_usecase_t const&> const& param)
   {
+    auto [uniform_neighbor_sampling_usecase, input_usecase] = param;
+
     raft::handle_t handle{};
     HighResTimer hr_timer{};
 
@@ -70,11 +73,14 @@ class Tests_Uniform_Neighbor_Sampling
     auto edge_weight_view =
       edge_weights ? std::make_optional((*edge_weights).view()) : std::nullopt;
 
-    //
-    // Test is designed like GNN sampling.  We'll select 90% of vertices
-    // to be included in sampling batches
-    //
-    constexpr float select_probability{0.9};
+    std::optional<cugraph::edge_property_t<decltype(graph_view), bool>> edge_mask{std::nullopt};
+    if (uniform_neighbor_sampling_usecase.edge_masking) {
+      edge_mask =
+        cugraph::test::generate<decltype(graph_view), bool>::edge_property(handle, graph_view, 2);
+      graph_view.attach_edge_mask((*edge_mask).view());
+    }
+
+    constexpr float select_probability{0.05};
 
     // FIXME:  Update the tests to initialize RngState and use it instead
     //         of seed...
@@ -104,22 +110,16 @@ class Tests_Uniform_Neighbor_Sampling
                                          float{1},
                                          rng_state);
 
-    thrust::sort_by_key(handle.get_thrust_policy(),
-                        random_numbers.begin(),
-                        random_numbers.end(),
-                        random_sources.begin());
+    std::tie(random_numbers, random_sources) = cugraph::test::sort_by_key<float, vertex_t>(
+      handle, std::move(random_numbers), std::move(random_sources));
 
     random_numbers.resize(0, handle.get_stream());
     random_numbers.shrink_to_fit(handle.get_stream());
 
-    auto batch_number =
-      std::make_optional<rmm::device_uvector<int32_t>>(random_sources.size(), handle.get_stream());
+    auto batch_number = std::make_optional<rmm::device_uvector<int32_t>>(0, handle.get_stream());
 
-    thrust::tabulate(handle.get_thrust_policy(),
-                     batch_number->begin(),
-                     batch_number->end(),
-                     [batch_size = uniform_neighbor_sampling_usecase.batch_size] __device__(
-                       int32_t index) { return index / batch_size; });
+    batch_number = cugraph::test::sequence(
+      handle, random_sources.size(), uniform_neighbor_sampling_usecase.batch_size, int32_t{0});
 
     rmm::device_uvector<vertex_t> random_sources_copy(random_sources.size(), handle.get_stream());
 
@@ -151,6 +151,11 @@ class Tests_Uniform_Neighbor_Sampling
         uniform_neighbor_sampling_usecase.flag_replacement),
       std::exception);
 #else
+    if (cugraph::test::g_perf) {
+      RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      hr_timer.start("Uniform neighbor sampling");
+    }
+
     auto&& [src_out, dst_out, wgt_out, edge_id, edge_type, hop, labels, offsets] =
       cugraph::uniform_neighbor_sample(
         handle,
@@ -169,6 +174,12 @@ class Tests_Uniform_Neighbor_Sampling
         true,
         uniform_neighbor_sampling_usecase.flag_replacement);
 
+    if (cugraph::test::g_perf) {
+      RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      hr_timer.stop();
+      hr_timer.display_and_clear(std::cout);
+    }
+
     if (uniform_neighbor_sampling_usecase.check_correctness) {
       //  First validate that the extracted edges are actually a subset of the
       //  edges in the input graph
@@ -176,10 +187,8 @@ class Tests_Uniform_Neighbor_Sampling
       raft::copy(vertices.data(), src_out.data(), src_out.size(), handle.get_stream());
       raft::copy(
         vertices.data() + src_out.size(), dst_out.data(), dst_out.size(), handle.get_stream());
-      thrust::sort(handle.get_thrust_policy(), vertices.begin(), vertices.end());
-      auto vertices_end =
-        thrust::unique(handle.get_thrust_policy(), vertices.begin(), vertices.end());
-      vertices.resize(thrust::distance(vertices.begin(), vertices_end), handle.get_stream());
+      vertices = cugraph::test::sort<vertex_t>(handle, std::move(vertices));
+      vertices = cugraph::test::unique<vertex_t>(handle, std::move(vertices));
 
       rmm::device_uvector<size_t> d_subgraph_offsets(2, handle.get_stream());
       std::vector<size_t> h_subgraph_offsets({0, vertices.size()});
@@ -201,17 +210,18 @@ class Tests_Uniform_Neighbor_Sampling
         raft::device_span<vertex_t const>(vertices.data(), vertices.size()),
         true);
 
-      cugraph::test::validate_extracted_graph_is_subgraph(
-        handle, src_compare, dst_compare, wgt_compare, src_out, dst_out, wgt_out);
+      ASSERT_TRUE(cugraph::test::validate_extracted_graph_is_subgraph(
+        handle, src_compare, dst_compare, wgt_compare, src_out, dst_out, wgt_out));
 
       if (random_sources.size() < 100) {
         // This validation is too expensive for large number of vertices
-        cugraph::test::validate_sampling_depth(handle,
-                                               std::move(src_out),
-                                               std::move(dst_out),
-                                               std::move(wgt_out),
-                                               std::move(random_sources),
-                                               uniform_neighbor_sampling_usecase.fanout.size());
+        ASSERT_TRUE(
+          cugraph::test::validate_sampling_depth(handle,
+                                                 std::move(src_out),
+                                                 std::move(dst_out),
+                                                 std::move(wgt_out),
+                                                 std::move(random_sources),
+                                                 uniform_neighbor_sampling_usecase.fanout.size()));
       }
     }
 #endif
@@ -226,46 +236,48 @@ using Tests_Uniform_Neighbor_Sampling_Rmat =
 
 TEST_P(Tests_Uniform_Neighbor_Sampling_File, CheckInt32Int32Float)
 {
-  auto param = GetParam();
-  run_current_test<int32_t, int32_t, float>(std::get<0>(param), std::get<1>(param));
+  run_current_test<int32_t, int32_t, float>(
+    override_File_Usecase_with_cmd_line_arguments(GetParam()));
 }
 
 TEST_P(Tests_Uniform_Neighbor_Sampling_File, CheckInt32Int64Float)
 {
-  auto param = GetParam();
-  run_current_test<int32_t, int64_t, float>(std::get<0>(param), std::get<1>(param));
+  run_current_test<int32_t, int64_t, float>(
+    override_File_Usecase_with_cmd_line_arguments(GetParam()));
 }
 
 TEST_P(Tests_Uniform_Neighbor_Sampling_File, CheckInt64Int64Float)
 {
-  auto param = GetParam();
-  run_current_test<int64_t, int64_t, float>(std::get<0>(param), std::get<1>(param));
+  run_current_test<int64_t, int64_t, float>(
+    override_File_Usecase_with_cmd_line_arguments(GetParam()));
 }
 
 TEST_P(Tests_Uniform_Neighbor_Sampling_Rmat, CheckInt32Int32Float)
 {
-  auto param = GetParam();
-  run_current_test<int32_t, int32_t, float>(std::get<0>(param), std::get<1>(param));
+  run_current_test<int32_t, int32_t, float>(
+    override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
 }
 
 TEST_P(Tests_Uniform_Neighbor_Sampling_Rmat, CheckInt32Int64Float)
 {
-  auto param = GetParam();
-  run_current_test<int32_t, int64_t, float>(std::get<0>(param), std::get<1>(param));
+  run_current_test<int32_t, int64_t, float>(
+    override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
 }
 
 TEST_P(Tests_Uniform_Neighbor_Sampling_Rmat, CheckInt64Int64Float)
 {
-  auto param = GetParam();
-  run_current_test<int64_t, int64_t, float>(std::get<0>(param), std::get<1>(param));
+  run_current_test<int64_t, int64_t, float>(
+    override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
 }
 
 INSTANTIATE_TEST_SUITE_P(
   file_test,
   Tests_Uniform_Neighbor_Sampling_File,
   ::testing::Combine(
-    ::testing::Values(Uniform_Neighbor_Sampling_Usecase{{2}, 100, true, true},
-                      Uniform_Neighbor_Sampling_Usecase{{2}, 100, true, false}),
+    ::testing::Values(Uniform_Neighbor_Sampling_Usecase{{4, 10}, 128, false, false},
+                      Uniform_Neighbor_Sampling_Usecase{{4, 10}, 128, false, true},
+                      Uniform_Neighbor_Sampling_Usecase{{4, 10}, 128, true, false},
+                      Uniform_Neighbor_Sampling_Usecase{{4, 10}, 128, true, true}),
     ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"),
                       cugraph::test::File_Usecase("test/datasets/web-Google.mtx"),
                       cugraph::test::File_Usecase("test/datasets/ljournal-2008.mtx"),
@@ -275,7 +287,10 @@ INSTANTIATE_TEST_SUITE_P(
   rmat_small_test,
   Tests_Uniform_Neighbor_Sampling_Rmat,
   ::testing::Combine(
-    ::testing::Values(Uniform_Neighbor_Sampling_Usecase{{2}, 10, false, true}),
+    ::testing::Values(Uniform_Neighbor_Sampling_Usecase{{4, 10}, 128, false, false},
+                      Uniform_Neighbor_Sampling_Usecase{{4, 10}, 128, false, true},
+                      Uniform_Neighbor_Sampling_Usecase{{4, 10}, 128, true, false},
+                      Uniform_Neighbor_Sampling_Usecase{{4, 10}, 128, true, true}),
     ::testing::Values(cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, false, false, 0))));
 
 INSTANTIATE_TEST_SUITE_P(
@@ -286,7 +301,10 @@ INSTANTIATE_TEST_SUITE_P(
                           factor (to avoid running same benchmarks more than once) */
   Tests_Uniform_Neighbor_Sampling_Rmat,
   ::testing::Combine(
-    ::testing::Values(Uniform_Neighbor_Sampling_Usecase{{2}, 500, false, true}),
+    ::testing::Values(Uniform_Neighbor_Sampling_Usecase{{4, 10}, 1024, false, false, false},
+                      Uniform_Neighbor_Sampling_Usecase{{4, 10}, 1024, false, true, false},
+                      Uniform_Neighbor_Sampling_Usecase{{4, 10}, 1024, true, false, false},
+                      Uniform_Neighbor_Sampling_Usecase{{4, 10}, 1024, true, true, false}),
     ::testing::Values(cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false, 0))));
 
 CUGRAPH_TEST_PROGRAM_MAIN()

@@ -282,9 +282,9 @@ class Tests_PageRank
                                                  vertex_t{0},
                                                  graph_view.number_of_vertices());
           std::tie(d_unrenumbered_personalization_vertices, d_unrenumbered_personalization_values) =
-            cugraph::test::sort_by_key(handle,
-                                       d_unrenumbered_personalization_vertices,
-                                       d_unrenumbered_personalization_values);
+            cugraph::test::sort_by_key<vertex_t, result_t>(handle,
+                                                           d_unrenumbered_personalization_vertices,
+                                                           d_unrenumbered_personalization_values);
 
           h_unrenumbered_personalization_vertices =
             cugraph::test::to_host(handle, d_unrenumbered_personalization_vertices);
@@ -327,7 +327,8 @@ class Tests_PageRank
       if (renumber) {
         rmm::device_uvector<result_t> d_unrenumbered_pageranks(size_t{0}, handle.get_stream());
         std::tie(std::ignore, d_unrenumbered_pageranks) =
-          cugraph::test::sort_by_key(handle, *d_renumber_map_labels, d_pageranks);
+          cugraph::test::sort_by_key<vertex_t, result_t>(
+            handle, *d_renumber_map_labels, d_pageranks);
         h_cugraph_pageranks = cugraph::test::to_host(handle, d_unrenumbered_pageranks);
       } else {
         h_cugraph_pageranks = cugraph::test::to_host(handle, d_pageranks);

@@ -430,7 +430,8 @@ mg_vertex_property_values_to_sg_vertex_property_values(
         static_cast<vertex_t>((*sg_renumber_map).size()));
     }
 
-    std::tie(sg_vertices, sg_values) = cugraph::test::sort_by_key(handle, sg_vertices, sg_values);
+    std::tie(sg_vertices, sg_values) = cugraph::test::sort_by_key<vertex_t, value_t>(
+      handle, std::move(sg_vertices), std::move(sg_values));
 
     if (mg_vertices) {
       return std::make_tuple(std::move(sg_vertices), std::move(sg_values));
