@@ -17,10 +17,18 @@ from cugraph_dgl.dataloading.dataset import (
     HomogenousBulkSamplerDataset,
     HeterogenousBulkSamplerDataset,
 )
+
+from cugraph_dgl.dataloading.sampler import Sampler
 from cugraph_dgl.dataloading.neighbor_sampler import NeighborSampler
+
 from cugraph_dgl.dataloading.dask_dataloader import DaskDataLoader
 
 
 def DataLoader(*args, **kwargs):
-    warnings.warn("DataLoader has been renamed to DaskDataLoader", FutureWarning)
+    warnings.warn(
+        "DataLoader has been renamed to DaskDataLoader.  "
+        "In Release 24.10, cugraph_dgl.dataloading.dataloader.DataLoader "
+        "will take over the DataLoader name.",
+        FutureWarning
+    )
     return DaskDataLoader(*args, **kwargs)

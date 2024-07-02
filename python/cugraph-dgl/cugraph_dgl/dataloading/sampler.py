@@ -53,7 +53,7 @@ class SampleReader:
         return self.__output_format
 
     def __next__(self) -> DGLSamplerOutput:
-        if self._num_samples_remaining == 0:
+        if self.__num_samples_remaining == 0:
             # raw_sample_data is already a dict of tensors
             self.__raw_sample_data, start_inclusive, end_inclusive = next(
                 self.__base_reader
@@ -99,7 +99,7 @@ class HomogeneousSampleReader(SampleReader):
     def __decode_csc(
         self, raw_sample_data: Dict[str, "torch.Tensor"]
     ) -> List[DGLSamplerOutput]:
-        create_homogeneous_sampled_graphs_from_tensors_csc(
+        return create_homogeneous_sampled_graphs_from_tensors_csc(
             raw_sample_data, output_format=self.output_format
         )
 
@@ -153,7 +153,7 @@ class Sampler:
         return self.__sparse_format
 
     def sample(
-        self, g: cugraph_dgl.Graph, indices: TensorType, batch_size: int = 1
+        self, g: cugraph_dgl.Graph, indices: Iterator["torch.Tensor"], batch_size: int = 1
     ) -> Iterator[
         Tuple["torch.Tensor", "torch.Tensor", List[Union[SparseGraph, "dgl.Block"]]]
     ]:

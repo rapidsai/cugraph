@@ -14,6 +14,7 @@
 from __future__ import annotations
 
 import warnings
+import tempfile
 
 from typing import Sequence, Optional, Union, List, Tuple, Iterator
 
@@ -22,12 +23,12 @@ from cugraph.utilities.utils import import_optional
 
 import cugraph_dgl
 from cugraph_dgl.typing import TensorType, DGLSamplerOutput
-from cugraph_dgl.dataloading.sampler import HomogeneousSampleReader
+from cugraph_dgl.dataloading.sampler import Sampler, HomogeneousSampleReader
 
 torch = import_optional("torch")
 
 
-class NeighborSampler:
+class NeighborSampler(Sampler):
     """Sampler that builds computational dependency of node representations via
     neighbor sampling for multilayer GNN.
     This sampler will make every node gather messages from a fixed number of neighbors
@@ -71,7 +72,7 @@ class NeighborSampler:
         ] = None,
         prefetch_labels: Optional[Union[List[str], dict[str, List[str]]]] = None,
         output_device: Optional[Union["torch.device", int, str]] = None,
-        fused: bool = True,
+        fused: Optional[bool] = None,
         sparse_format="csc",
         output_format="dgl.Block",
         **kwargs,
@@ -112,7 +113,7 @@ class NeighborSampler:
             Optional.
             Output device for samples. Defaults to the current device.
         fused: bool
-            Optional (default=True).
+            Optional.
             This argument is ignored by cuGraph-DGL.
         sparse_format: str
             Optional (default = "coo").
@@ -154,18 +155,24 @@ class NeighborSampler:
         self.replace = replace
         self.__kwargs = kwargs
 
-        super(
+        super().__init__(
             sparse_format=sparse_format,
             output_format=output_format,
         )
 
     def sample(
-        self, g: "cugraph_dgl.Graph", indices: TensorType, batch_size: int = 1
+        self, g: "cugraph_dgl.Graph", indices: Iterator["torch.Tensor"], batch_size: int = 1
     ) -> Iterator[DGLSamplerOutput]:
         kwargs = dict(**self.__kwargs)
 
+        directory = kwargs.pop('directory', None)
+        if directory is None:
+            warnings.warn("Setting a directory to store samples is recommended.")
+            self._tempdir = tempfile.TemporaryDirectory()
+            directory = self._tempdir.name
+
         writer = DistSampleWriter(
-            direction=kwargs.pop("directory", None),
+            directory=directory,
             batches_per_partition=kwargs.pop("batches_per_partition", 256),
             format=kwargs.pop("format", "parquet"),
         )
@@ -183,6 +190,7 @@ class NeighborSampler:
         )
 
         if g.is_homogeneous:
+            indices = torch.concat(list(indices))
             ds.sample_from_nodes(indices, batch_size=batch_size)
             return HomogeneousSampleReader(ds.get_reader(), self.output_format)
 

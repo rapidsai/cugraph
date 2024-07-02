@@ -573,20 +573,44 @@ def _create_homogeneous_blocks_from_csc(
         A list of mini-batches. Each mini-batch is a list that consists of
         `input_nodes` tensor, `output_nodes` tensor and a list of MFGs.
     """
-    n_batches = len(mfg_sizes)
+    n_batches, n_hops = len(mfg_sizes), len(mfg_sizes[0]) - 1
     output = []
     for b_id in range(n_batches):
         output_batch = []
         output_batch.append(renumber_map_list[b_id])
         output_batch.append(renumber_map_list[b_id][: mfg_sizes[b_id][-1]])
 
-        mfgs = _create_homogeneous_sampled_graphs_from_tensors_perhop(
-            tensors_batch_d=tensors_dict[b_id], edge_dir="in", return_type="dgl.Block"
-        )[2]
+        mfgs = [
+            SparseGraph(
+                size=(mfg_sizes[b_id][h_id], mfg_sizes[b_id][h_id + 1]),
+                src_ids=tensors_dict[b_id][h_id]["minors"],
+                cdst_ids=tensors_dict[b_id][h_id]["major_offsets"],
+                formats=["csc", "coo"],
+                reduce_memory=True,
+            )
+            for h_id in range(n_hops)
+        ]
 
-        output_batch.append(mfgs)
+        blocks = []
+        seednodes_range=None
+        for mfg in mfgs:
+            block_mfg = _create_homogeneous_dgl_block_from_tensor_d(
+                {'sources': mfg.src_ids(), 'destinations': mfg.dst_ids(), 'sources_range': mfg._num_src_nodes-1, 'destinations_range': mfg._num_dst_nodes-1},
+                renumber_map=renumber_map_list[b_id],
+                seednodes_range=seednodes_range
+            )
+
+            seednodes_range = max(
+                mfg._num_src_nodes-1,
+                mfg._num_dst_nodes-1,
+            )
+            blocks.append(block_mfg)
+        del mfgs
+
+        output_batch.append(blocks)
 
         output.append(output_batch)
+    return output
 
 
 def _create_homogeneous_sparse_graphs_from_csc(

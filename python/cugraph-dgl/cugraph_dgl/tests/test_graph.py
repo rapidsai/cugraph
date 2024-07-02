@@ -22,9 +22,11 @@ from cugraph.datasets import karate
 from cugraph.utilities.utils import import_optional, MissingModule
 
 torch = import_optional("torch")
+dgl = import_optional("dgl")
 
 
 @pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
+@pytest.mark.skipif(isinstance(dgl, MissingModule), reason="dgl not available")
 @pytest.mark.parametrize("direction", ["out", "in"])
 def test_graph_make_homogeneous_graph(direction):
     df = karate.get_edgelist()
@@ -92,6 +94,7 @@ def test_graph_make_homogeneous_graph(direction):
 
 
 @pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
+@pytest.mark.skipif(isinstance(dgl, MissingModule), reason="dgl not available")
 @pytest.mark.parametrize("direction", ["out", "in"])
 def test_graph_make_heterogeneous_graph(direction):
     df = karate.get_edgelist()

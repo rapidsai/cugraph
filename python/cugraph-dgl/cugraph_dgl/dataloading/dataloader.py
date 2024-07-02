@@ -156,3 +156,11 @@ class DataLoader:
             self.__dataset,
             self.__batch_size,
         )
+    
+        """
+        start, end, blocks = out
+
+        start = start.to(self.__device)
+        end = end.to(self.__device)
+        blocks = [b.to(self.__device) for b in blocks]
+        """

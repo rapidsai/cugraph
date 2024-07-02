@@ -34,7 +34,7 @@ from cugraph.gnn import (
 
 pylibwholegraph = import_optional("pylibwholegraph")
 torch = import_optional("torch")
-
+dgl = import_optional('dgl')
 
 def init_pytorch_worker(rank, world_size, cugraph_id):
     import rmm
@@ -160,6 +160,7 @@ def run_test_graph_make_homogeneous_graph_mg(rank, uid, world_size, direction):
 @pytest.mark.skipif(
     isinstance(pylibwholegraph, MissingModule), reason="wholegraph not available"
 )
+@pytest.mark.skipif(isinstance(dgl, MissingModule), reason="dgl not available")
 @pytest.mark.parametrize("direction", ["out", "in"])
 def test_graph_make_homogeneous_graph_mg(direction):
     uid = cugraph_comms_create_unique_id()
@@ -324,6 +325,7 @@ def run_test_graph_make_heterogeneous_graph_mg(rank, uid, world_size, direction)
 @pytest.mark.skipif(
     isinstance(pylibwholegraph, MissingModule), reason="wholegraph not available"
 )
+@pytest.mark.skipif(isinstance(dgl, MissingModule), reason="dgl not available")
 @pytest.mark.parametrize("direction", ["out", "in"])
 def test_graph_make_heterogeneous_graph_mg(direction):
     uid = cugraph_comms_create_unique_id()
