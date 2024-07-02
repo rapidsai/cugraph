@@ -1,4 +1,4 @@
-# Copyright (c) 2020-2023, NVIDIA CORPORATION.
+# Copyright (c) 2020-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -23,6 +23,7 @@ from cudf.core.column import as_column
 from cuda.cudart import cudaDeviceAttr
 from rmm._cuda.gpu import getDeviceAttribute
 
+from warnings import warn
 
 # optional dependencies
 try:
@@ -334,6 +335,13 @@ def ensure_cugraph_obj_for_nx(
 
     input_type = type(obj)
     if is_nx_graph_type(input_type):
+        warn(
+            "Support for accepting and returning NetworkX objects is "
+            "deprecated. Please use NetworkX with the nx-cugraph backend "
+            "when working with NetworkX objects in GPU environments.",
+            DeprecationWarning,
+            2,
+        )
         return (
             convert_from_nx(
                 obj,

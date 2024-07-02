@@ -21,7 +21,6 @@ import cugraph
 import cugraph.dask as dcg
 from cugraph.datasets import karate, dolphins
 
-
 # =============================================================================
 # Pytest Setup / Teardown - called for each test function
 # =============================================================================

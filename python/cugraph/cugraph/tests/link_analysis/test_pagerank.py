@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2023, NVIDIA CORPORATION.
+# Copyright (c) 2019-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -219,6 +219,7 @@ def test_pagerank(
 @pytest.mark.parametrize("alpha", ALPHA)
 @pytest.mark.parametrize("personalization_perc", PERSONALIZATION_PERC)
 @pytest.mark.parametrize("has_guess", HAS_GUESS)
+@pytest.mark.filterwarnings("ignore::DeprecationWarning")
 def test_pagerank_nx(graph_file, max_iter, tol, alpha, personalization_perc, has_guess):
 
     # NetworkX PageRank

@@ -195,6 +195,7 @@ def test_sorensen(gpubenchmark, read_csv, use_weight):
 
 
 @pytest.mark.sg
+@pytest.mark.filterwarnings("ignore::DeprecationWarning")
 def test_nx_sorensen_time(gpubenchmark, read_csv):
     _, M, _ = read_csv
     nx_src, nx_dst, nx_coeff = networkx_call(M, gpubenchmark)

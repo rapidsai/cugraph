@@ -263,6 +263,7 @@ def test_jaccard_two_hop(read_csv, use_weight):
 
 
 @pytest.mark.sg
+@pytest.mark.filterwarnings("ignore::DeprecationWarning")
 def test_jaccard_nx(read_csv):
     M_cu, M, _ = read_csv
     Gnx = nx.from_pandas_edgelist(
