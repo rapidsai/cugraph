@@ -109,7 +109,7 @@ BUILD_CPP_MTMG_TESTS=OFF
 BUILD_ALL_GPU_ARCH=0
 BUILD_WITH_CUGRAPHOPS=ON
 CMAKE_GENERATOR_OPTION="-G Ninja"
-PYTHON_ARGS_FOR_INSTALL="-m pip install --no-build-isolation --no-deps"
+PYTHON_ARGS_FOR_INSTALL="-m pip install --no-build-isolation --no-deps --config-settings rapidsai.disable-cuda=true"
 
 # Set defaults for vars that may not have been defined externally
 #  FIXME: if PREFIX is not set, check CONDA_PREFIX, but there is no fallback
