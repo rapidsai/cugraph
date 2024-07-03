@@ -102,7 +102,7 @@ def triangle_count(input_graph, start_list=None):
         if input_graph.renumbered:
             start_list = input_graph.lookup_internal_vertex_id(start_list).compute()
 
-        # Ensure correct dtype
+        # Ensure correct dtype.
         start_list.astype(
             input_graph.edgelist.edgelist_df[
                 input_graph.renumber_map.renumbered_src_col_name
