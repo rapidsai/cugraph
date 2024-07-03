@@ -89,9 +89,9 @@ def ecg(
         GPU data frame of size V containing two columns, the vertex id and
         the partition id it is assigned to.
 
-        df[vertex] : cudf.Series
+        parts[vertex] : cudf.Series
             Contains the vertex identifiers
-        df[partition] : cudf.Series
+        parts[partition] : cudf.Series
             Contains the partition assigned to the vertices
 
     modularity_score : float
@@ -133,16 +133,14 @@ def ecg(
         do_expensive_check=False,
     )
 
-    df = cudf.DataFrame()
-    df["vertex"] = vertex
-    df["partition"] = partition
+    parts = cudf.DataFrame()
+    parts["vertex"] = vertex
+    parts["partition"] = partition
 
     if input_graph.renumbered:
-        parts = input_graph.unrenumber(df, "vertex")
-    else:
-        parts = df
+        parts = input_graph.unrenumber(parts, "vertex")
 
-    if isNx:
-        df = df_score_to_dictionary(df, "partition")
+    if isNx is True:
+        parts = df_score_to_dictionary(parts, "partition")
 
     return parts, modularity_score
