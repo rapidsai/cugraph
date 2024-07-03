@@ -62,7 +62,7 @@ def betweenness_centrality(
 
            Accepting ``networkx.Graph`` is deprecated and will be removed in a
            future version.  For ``networkx.Graph`` use networkx directly with
-           the ``nx-cugraph`` plug-in.
+           the ``nx-cugraph`` backend.
 
     k : int, list or cudf object or None, optional (default=None)
         If k is not None, use k node samples to estimate betweenness. Higher
