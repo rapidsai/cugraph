@@ -191,26 +191,28 @@ class Graph:
                 raise ValueError("The global number of nodes must match on all workers")
 
             # Ensure the sum of the feature shapes equals the global number of nodes.
-            for feature_name, feature_tensor in data.items():
-                features_size = torch.tensor(
-                    [int(feature_tensor.shape[0])], device="cuda", dtype=torch.int64
-                )
-                torch.distributed.all_reduce(
-                    features_size, op=torch.distributed.ReduceOp.SUM
-                )
-                if features_size != global_num_nodes:
-                    raise ValueError(
-                        "The total length of the feature vector across workers must"
-                        " match the global number of nodes but it does not match for "
-                        f"{feature_name}."
+            if data is not None:
+                for feature_name, feature_tensor in data.items():
+                    features_size = torch.tensor(
+                        [int(feature_tensor.shape[0])], device="cuda", dtype=torch.int64
                     )
+                    torch.distributed.all_reduce(
+                        features_size, op=torch.distributed.ReduceOp.SUM
+                    )
+                    if features_size != global_num_nodes:
+                        raise ValueError(
+                            "The total length of the feature vector across workers must"
+                            " match the global number of nodes but it does not "
+                            f"match for {feature_name}."
+                        )
 
         self.__num_nodes_dict[ntype] = global_num_nodes
 
-        for feature_name, feature_tensor in data.items():
-            self.__ndata_storage[ntype, feature_name] = self.__ndata_storage_type(
-                _cast_to_torch_tensor(feature_tensor), **self.__wg_kwargs
-            )
+        if data is not None:
+            for feature_name, feature_tensor in data.items():
+                self.__ndata_storage[ntype, feature_name] = self.__ndata_storage_type(
+                    _cast_to_torch_tensor(feature_tensor), **self.__wg_kwargs
+                )
 
         self.__graph = None
         self.__vertex_offsets = None

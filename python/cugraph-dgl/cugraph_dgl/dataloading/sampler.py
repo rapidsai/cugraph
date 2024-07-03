@@ -15,7 +15,7 @@ from typing import Iterator, Dict, Tuple, List, Union
 
 import cugraph_dgl
 from cugraph_dgl.nn import SparseGraph
-from cugraph_dgl.typing import TensorType, DGLSamplerOutput
+from cugraph_dgl.typing import DGLSamplerOutput
 from cugraph_dgl.dataloading.utils.sampling_helpers import (
     create_homogeneous_sampled_graphs_from_tensors_csc,
 )
@@ -81,7 +81,12 @@ class HomogeneousSampleReader(SampleReader):
     produced by the cuGraph distributed sampler.
     """
 
-    def __init__(self, base_reader: DistSampleReader, output_format: str = "dgl.Block"):
+    def __init__(
+        self,
+        base_reader: DistSampleReader,
+        output_format: str = "dgl.Block",
+        edge_dir="in",
+    ):
         """
         Constructs a new HomogeneousSampleReader
 
@@ -93,7 +98,11 @@ class HomogeneousSampleReader(SampleReader):
         output_format: str
             The output format for blocks (either "dgl.Block" or
             "cugraph_dgl.nn.SparseGraph").
+        edge_dir: str
+            The direction sampling was performed in ("in" or "out").
         """
+
+        self.__edge_dir = edge_dir
         super().__init__(base_reader, output_format=output_format)
 
     def __decode_csc(
@@ -141,7 +150,6 @@ class Sampler:
         if sparse_format != "csc":
             raise ValueError("Only CSC format is supported at this time")
 
-        self.__sparse_format = sparse_format
         self.__output_format = output_format
 
     @property
@@ -153,7 +161,10 @@ class Sampler:
         return self.__sparse_format
 
     def sample(
-        self, g: cugraph_dgl.Graph, indices: Iterator["torch.Tensor"], batch_size: int = 1
+        self,
+        g: cugraph_dgl.Graph,
+        indices: Iterator["torch.Tensor"],
+        batch_size: int = 1,
     ) -> Iterator[
         Tuple["torch.Tensor", "torch.Tensor", List[Union[SparseGraph, "dgl.Block"]]]
     ]:

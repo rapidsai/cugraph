@@ -22,7 +22,7 @@ from cugraph.gnn import UniformNeighborSampler, DistSampleWriter
 from cugraph.utilities.utils import import_optional
 
 import cugraph_dgl
-from cugraph_dgl.typing import TensorType, DGLSamplerOutput
+from cugraph_dgl.typing import DGLSamplerOutput
 from cugraph_dgl.dataloading.sampler import Sampler, HomogeneousSampleReader
 
 torch = import_optional("torch")
@@ -161,11 +161,14 @@ class NeighborSampler(Sampler):
         )
 
     def sample(
-        self, g: "cugraph_dgl.Graph", indices: Iterator["torch.Tensor"], batch_size: int = 1
+        self,
+        g: "cugraph_dgl.Graph",
+        indices: Iterator["torch.Tensor"],
+        batch_size: int = 1,
     ) -> Iterator[DGLSamplerOutput]:
         kwargs = dict(**self.__kwargs)
 
-        directory = kwargs.pop('directory', None)
+        directory = kwargs.pop("directory", None)
         if directory is None:
             warnings.warn("Setting a directory to store samples is recommended.")
             self._tempdir = tempfile.TemporaryDirectory()
@@ -180,7 +183,7 @@ class NeighborSampler(Sampler):
         ds = UniformNeighborSampler(
             g._graph(self.edge_dir),
             writer,
-            compression=self.sparse_format.upper(),
+            compression="CSR",
             fanout=self._reversed_fanout_vals,
             prior_sources_behavior="carryover",
             deduplicate_sources=True,
@@ -192,7 +195,9 @@ class NeighborSampler(Sampler):
         if g.is_homogeneous:
             indices = torch.concat(list(indices))
             ds.sample_from_nodes(indices, batch_size=batch_size)
-            return HomogeneousSampleReader(ds.get_reader(), self.output_format)
+            return HomogeneousSampleReader(
+                ds.get_reader(), self.output_format, self.edge_dir
+            )
 
         raise ValueError(
             "Sampling heterogeneous graphs is currently"

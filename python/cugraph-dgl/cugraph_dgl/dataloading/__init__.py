@@ -22,13 +22,14 @@ from cugraph_dgl.dataloading.sampler import Sampler
 from cugraph_dgl.dataloading.neighbor_sampler import NeighborSampler
 
 from cugraph_dgl.dataloading.dask_dataloader import DaskDataLoader
+from cugraph_dgl.dataloading.dataloader import DataLoader as FutureDataLoader
 
 
 def DataLoader(*args, **kwargs):
     warnings.warn(
         "DataLoader has been renamed to DaskDataLoader.  "
-        "In Release 24.10, cugraph_dgl.dataloading.dataloader.DataLoader "
+        "In Release 24.10, cugraph_dgl.dataloading.FutureDataLoader "
         "will take over the DataLoader name.",
-        FutureWarning
+        FutureWarning,
     )
     return DaskDataLoader(*args, **kwargs)

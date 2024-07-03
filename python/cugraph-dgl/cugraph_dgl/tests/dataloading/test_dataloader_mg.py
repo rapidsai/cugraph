@@ -11,41 +11,102 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import cugraph_dgl.dataloading
 import pytest
+import os
+
+import numpy as np
 
 import cugraph_dgl
 
 from cugraph.datasets import karate
 from cugraph.utilities.utils import import_optional, MissingModule
 
-import numpy as np
+from cugraph.gnn import (
+    cugraph_comms_create_unique_id,
+    cugraph_comms_init,
+    cugraph_comms_shutdown,
+)
 
 torch = import_optional("torch")
 dgl = import_optional("dgl")
 
 
-@pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
-@pytest.mark.skipif(isinstance(dgl, MissingModule), reason="dgl not available")
-def test_dataloader_basic_homogeneous():
-    graph = cugraph_dgl.Graph(is_multi_gpu=False)
+def init_pytorch_worker(rank, world_size, cugraph_id):
+    import rmm
+
+    rmm.reinitialize(
+        devices=rank,
+    )
+
+    import cupy
+
+    cupy.cuda.Device(rank).use()
+    from rmm.allocators.cupy import rmm_cupy_allocator
+
+    cupy.cuda.set_allocator(rmm_cupy_allocator)
+
+    from cugraph.testing.mg_utils import enable_spilling
+
+    enable_spilling()
+
+    torch.cuda.set_device(rank)
+
+    os.environ["MASTER_ADDR"] = "localhost"
+    os.environ["MASTER_PORT"] = "12355"
+    torch.distributed.init_process_group("nccl", rank=rank, world_size=world_size)
+
+    cugraph_comms_init(rank=rank, world_size=world_size, uid=cugraph_id, device=rank)
+
+
+def run_test_dataloader_basic_homogeneous(rank, world_size, uid):
+    init_pytorch_worker(rank, world_size, uid)
+
+    graph = cugraph_dgl.Graph(is_multi_gpu=True)
 
     num_nodes = karate.number_of_nodes()
-    graph.add_nodes(num_nodes, data={"z": torch.arange(num_nodes)})
+    graph.add_nodes(
+        num_nodes,
+    )
 
     edf = karate.get_edgelist()
     graph.add_edges(
-        u=edf["src"], v=edf["dst"], data={"q": torch.arange(karate.number_of_edges())}
+        u=torch.tensor_split(torch.as_tensor(edf["src"], device="cuda"), world_size)[
+            rank
+        ],
+        v=torch.tensor_split(torch.as_tensor(edf["dst"], device="cuda"), world_size)[
+            rank
+        ],
     )
 
     sampler = cugraph_dgl.dataloading.NeighborSampler([5, 5, 5])
     loader = cugraph_dgl.dataloading.FutureDataLoader(
-        graph, torch.arange(num_nodes), sampler, batch_size=2
+        graph,
+        torch.arange(num_nodes),
+        sampler,
+        batch_size=2,
+        use_ddp=True,
     )
 
     for in_t, out_t, blocks in loader:
         assert len(blocks) == 3
         assert len(out_t) <= 2
+
+
+@pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
+@pytest.mark.skipif(isinstance(dgl, MissingModule), reason="dgl not available")
+def test_dataloader_basic_homogeneous():
+    uid = cugraph_comms_create_unique_id()
+    # Limit the number of GPUs this rest is run with
+    world_size = min(torch.cuda.device_count(), 4)
+
+    torch.multiprocessing.spawn(
+        run_test_dataloader_basic_homogeneous,
+        args=(
+            world_size,
+            uid,
+        ),
+        nprocs=world_size,
+    )
 
 
 def sample_dgl_graphs(g, train_nid, fanouts, batch_size=1):
@@ -93,21 +154,22 @@ def sample_cugraph_dgl_graphs(cugraph_g, train_nid, fanouts, batch_size=1):
     return cugraph_dgl_output
 
 
-@pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
-@pytest.mark.skipif(isinstance(dgl, MissingModule), reason="dgl not available")
-@pytest.mark.parametrize("ix", [[1], [1, 0]])
-@pytest.mark.parametrize("batch_size", [1, 2])
-def test_same_homogeneousgraph_results(ix, batch_size):
+def run_test_same_homogeneousgraph_results(rank, world_size, uid, ix, batch_size):
+    init_pytorch_worker(rank, world_size, uid)
+
     src = torch.tensor([1, 2, 3, 4, 5, 6, 7, 8])
     dst = torch.tensor([0, 0, 0, 0, 1, 1, 1, 1])
+
+    local_src = torch.tensor_split(src, world_size)[rank]
+    local_dst = torch.tensor_split(dst, world_size)[rank]
 
     train_nid = torch.tensor(ix)
     # Create a heterograph with 3 node types and 3 edges types.
     dgl_g = dgl.graph((src, dst))
 
-    cugraph_g = cugraph_dgl.Graph(is_multi_gpu=False)
+    cugraph_g = cugraph_dgl.Graph(is_multi_gpu=True)
     cugraph_g.add_nodes(9)
-    cugraph_g.add_edges(u=src, v=dst)
+    cugraph_g.add_edges(u=local_src, v=local_dst)
 
     dgl_output = sample_dgl_graphs(dgl_g, train_nid, [2], batch_size=batch_size)
     cugraph_output = sample_cugraph_dgl_graphs(cugraph_g, train_nid, [2], batch_size)
@@ -125,4 +187,22 @@ def test_same_homogeneousgraph_results(ix, batch_size):
     assert (
         dgl_output[0]["blocks"][0].num_edges()
         == cugraph_output[0]["blocks"][0].num_edges()
+    )
+
+    cugraph_comms_shutdown()
+
+
+@pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
+@pytest.mark.skipif(isinstance(dgl, MissingModule), reason="dgl not available")
+@pytest.mark.parametrize("ix", [[1], [1, 0]])
+@pytest.mark.parametrize("batch_size", [1, 2])
+def test_same_homogeneousgraph_results_mg(ix, batch_size):
+    uid = cugraph_comms_create_unique_id()
+    # Limit the number of GPUs this rest is run with
+    world_size = min(torch.cuda.device_count(), 4)
+
+    torch.multiprocessing.spawn(
+        run_test_same_homogeneousgraph_results,
+        args=(world_size, uid, ix, batch_size),
+        nprocs=world_size,
     )

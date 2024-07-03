@@ -592,20 +592,27 @@ def _create_homogeneous_blocks_from_csc(
         ]
 
         blocks = []
-        seednodes_range=None
+        seednodes_range = None
         for mfg in mfgs:
             block_mfg = _create_homogeneous_dgl_block_from_tensor_d(
-                {'sources': mfg.src_ids(), 'destinations': mfg.dst_ids(), 'sources_range': mfg._num_src_nodes-1, 'destinations_range': mfg._num_dst_nodes-1},
+                {
+                    "sources": mfg.src_ids(),
+                    "destinations": mfg.dst_ids(),
+                    "sources_range": mfg._num_src_nodes - 1,
+                    "destinations_range": mfg._num_dst_nodes - 1,
+                },
                 renumber_map=renumber_map_list[b_id],
-                seednodes_range=seednodes_range
+                seednodes_range=seednodes_range,
             )
 
             seednodes_range = max(
-                mfg._num_src_nodes-1,
-                mfg._num_dst_nodes-1,
+                mfg._num_src_nodes - 1,
+                mfg._num_dst_nodes - 1,
             )
             blocks.append(block_mfg)
         del mfgs
+
+        blocks.reverse()
 
         output_batch.append(blocks)
 

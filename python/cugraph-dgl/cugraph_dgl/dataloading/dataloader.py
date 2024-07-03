@@ -154,9 +154,9 @@ class DataLoader:
         return self.__sampler.sample(
             self.__graph,
             self.__dataset,
-            self.__batch_size,
+            batch_size=self.__batch_size,
         )
-    
+
         """
         start, end, blocks = out
 
