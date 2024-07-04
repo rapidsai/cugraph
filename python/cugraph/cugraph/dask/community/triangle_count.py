@@ -83,7 +83,7 @@ def triangle_count(input_graph, start_list=None):
     """
     if input_graph.is_directed():
         raise ValueError("input graph must be undirected")
-    # Initialize dask client
+    # Initialize dask client.
     client = default_client()
 
     if start_list is not None:
