@@ -216,14 +216,14 @@ struct all_pairs_similarity_functor : public cugraph::c_api::abstract_functor {
                                                    v1.data(),
                                                    v1.size(),
                                                    number_map->data(),
-                                                   vertex_partition_range_lasts,
+                                                   graph_view.vertex_partition_range_lasts(),
                                                    false);
       
       cugraph::unrenumber_int_vertices<vertex_t, multi_gpu>(handle_,
                                                    v2.data(),
                                                    v2.size(),
                                                    number_map->data(),
-                                                   vertex_partition_range_lasts,
+                                                   graph_view.vertex_partition_range_lasts(),
                                                    false);
 
       result_ = new cugraph::c_api::cugraph_similarity_result_t{
