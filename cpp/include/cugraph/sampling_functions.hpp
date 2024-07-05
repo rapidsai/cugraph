@@ -743,4 +743,59 @@ lookup_endpoints_from_edge_ids_and_types(
   raft::device_span<edge_t const> edge_ids_to_lookup,
   raft::device_span<edge_type_t const> edge_types_to_lookup);
 
+/**
+ * @brief Negative Sampling
+ *
+ * This function generates negative samples for graph.
+ *
+ * Negative sampling is done by generating a random graph according to the specified
+ * parameters and optionally removing the false negatives.
+ *
+ * Sampling occurs by creating a list of source vertex ids from biased samping
+ * of the source vertex space, and destination vertex ids from biased sampling of the
+ * destination vertex space, and using this as the putative list of edges.  We
+ * then can optionally remove duplicates and remove false negatives to generate
+ * the final list.  If necessary we will repeat the process to end with a resulting
+ * edge list of the appropriate size.
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
+ * @tparam store_transposed Flag indicating whether sources (if false) or destinations (if
+ * true) are major indices
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
+ *
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param graph_view optional Graph View object to generate NBR Sampling on, only required if
+ * remove_false_negatives is true
+ * @param rng_state RNG state
+ * @param num_samples Number of negative samples to generate
+ * @param src_bias Optional bias for randomly selecting source vertices.  If std::nullopt vertices
+ * will be selected uniformly
+ * @param dst_bias Optional bias for randomly selecting destination vertices.  If std::nullopt
+ * vertices will be selected uniformly
+ * @param remove_duplicates If true, remove duplicate samples
+ * @param remove_false_negatives If true, remove false negatives (samples that are actually edges in
+ * the graph
+ * @param exact_number_of_samples If true, repeat generation until we get the exact number of
+ * negative samples
+ *
+ * @return tuple containing source vertex ids and destination vertex ids for the negative samples
+ */
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          bool store_transposed,
+          bool multi_gpu>
+std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> negative_sampling(
+  raft::handle_t const& handle,
+  std::optional<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const&> graph_view,
+  raft::random::rng_state& rng_state,
+  size_t num_samples,
+  std::optional<raft::device_span<weight_t>> src_bias,
+  std::optional<raft::device_span<weight_t>> dst_bias,
+  bool remove_duplicates,
+  bool remove_false_negatives,
+  bool exact_number_of_samples);
+
 }  // namespace cugraph
