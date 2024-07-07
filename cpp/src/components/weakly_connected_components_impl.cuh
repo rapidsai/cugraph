@@ -680,6 +680,7 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
                  std::get<1>(edge_buffer),
                  std::ignore,
                  std::ignore,
+                 std::ignore,
                  std::ignore) =
           detail::shuffle_ext_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning<
             vertex_t,

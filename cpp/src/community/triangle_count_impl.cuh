@@ -423,7 +423,7 @@ void triangle_count(raft::handle_t const& handle,
                                             extract_low_to_high_degree_edges_t<vertex_t, edge_t>{});
 
     if constexpr (multi_gpu) {
-      std::tie(srcs, dsts, std::ignore, std::ignore, std::ignore) =
+      std::tie(srcs, dsts, std::ignore, std::ignore, std::ignore, std::ignore) =
         detail::shuffle_ext_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning<vertex_t,
                                                                                        edge_t,
                                                                                        weight_t,

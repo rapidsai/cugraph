@@ -302,6 +302,7 @@ class Rmat_Usecase : public detail::TranslateGraph_Usecase {
                  store_transposed ? tmp_src_v : tmp_dst_v,
                  tmp_weights_v,
                  std::ignore,
+                 std::ignore,
                  std::ignore) =
           cugraph::detail::shuffle_ext_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning<
             vertex_t,
