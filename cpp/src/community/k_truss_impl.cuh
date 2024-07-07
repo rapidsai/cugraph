@@ -482,42 +482,44 @@ struct generate_p_q_q_r {
 };
 
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
-void update_count(raft::handle_t const& handle,
+void decrease_triangle_count(raft::handle_t const& handle,
                           graph_view_t<vertex_t, edge_t, false, multi_gpu> & cur_graph_view,
-                          edge_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>, edge_t> & e_property_triangle_count,
-                          raft::device_span<vertex_t> vertex_pair_buffer_src,
-                          raft::device_span<vertex_t> vertex_pair_buffer_dst
+                          edge_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>, edge_t> & edge_triangle_counts,
+                          raft::device_span<vertex_t> edge_srcs,
+                          raft::device_span<vertex_t> edge_dsts
                           ) {
   
   // Before updating the count, we need to clear the mask
   // cur_graph_view.clear_edge_mask();
-  auto vertex_pair_buffer_begin = thrust::make_zip_iterator(vertex_pair_buffer_src.begin(), vertex_pair_buffer_dst.begin());
+  auto vertex_pair_buffer_begin = thrust::make_zip_iterator(edge_srcs.begin(), edge_dsts.begin());
   
   thrust::sort(handle.get_thrust_policy(),
                vertex_pair_buffer_begin,
-               vertex_pair_buffer_begin + vertex_pair_buffer_src.size());
+               vertex_pair_buffer_begin + edge_srcs.size());
   
   auto unique_pair_count = thrust::unique_count(handle.get_thrust_policy(),
                                                 vertex_pair_buffer_begin,
-                                                vertex_pair_buffer_begin + vertex_pair_buffer_src.size());
+                                                vertex_pair_buffer_begin + edge_srcs.size());
   
   rmm::device_uvector<edge_t> decrease_count(unique_pair_count, handle.get_stream());
 
-  rmm::device_uvector<edge_t> decrease_count_tmp(vertex_pair_buffer_src.size(),
+  /*
+  rmm::device_uvector<edge_t> decrease_count_tmp(edge_srcs.size(),
                                                  handle.get_stream());
   
   thrust::fill(handle.get_thrust_policy(),
                decrease_count_tmp.begin(),
                decrease_count_tmp.end(),
                size_t{1});
+  */
   
   auto vertex_pair_buffer_unique = allocate_dataframe_buffer<thrust::tuple<vertex_t, vertex_t>>(
         unique_pair_count, handle.get_stream());
   
   thrust::reduce_by_key(handle.get_thrust_policy(),
                         vertex_pair_buffer_begin,
-                        vertex_pair_buffer_begin + vertex_pair_buffer_src.size(),
-                        decrease_count_tmp.begin(),
+                        vertex_pair_buffer_begin + edge_srcs.size(),
+                        thrust::make_constant_iterator(size_t{1}),
                         get_dataframe_buffer_begin(vertex_pair_buffer_unique),
                         decrease_count.begin(),
                         thrust::equal_to<thrust::tuple<vertex_t, vertex_t>>{});
@@ -533,7 +535,7 @@ void update_count(raft::handle_t const& handle,
     edges_to_decrement_count,
     cugraph::edge_src_dummy_property_t{}.view(),
     cugraph::edge_dst_dummy_property_t{}.view(),
-    e_property_triangle_count.view(),
+    edge_triangle_counts.view(),
     [
       vertex_pair_buffer_begin = get_dataframe_buffer_begin(vertex_pair_buffer_unique),
       vertex_pair_buffer_end = get_dataframe_buffer_end(vertex_pair_buffer_unique),
@@ -548,7 +550,7 @@ void update_count(raft::handle_t const& handle,
       auto idx_pair = thrust::distance(vertex_pair_buffer_begin, itr_pair);
       return count - decrease_count[idx_pair];
     },
-    e_property_triangle_count.mutable_view(),
+    edge_triangle_counts.mutable_view(),
     true); // FIXME: set expensive check to False 
   
 };
@@ -841,7 +843,7 @@ k_truss(raft::handle_t const& handle,
       edge_weight ? std::make_optional((*edge_weight).view())
                   : std::optional<edge_property_view_t<edge_t, weight_t const*>>{std::nullopt};
     
-    auto e_property_triangle_count = edge_triangle_count<vertex_t, edge_t, multi_gpu>(handle, cur_graph_view);
+    auto edge_triangle_counts = edge_triangle_count<vertex_t, edge_t, multi_gpu>(handle, cur_graph_view);
 
     cugraph::edge_property_t<decltype(cur_graph_view), bool> edge_mask(handle, cur_graph_view);
     cugraph::fill_edge_property(handle, cur_graph_view, true, edge_mask);
@@ -853,7 +855,7 @@ k_truss(raft::handle_t const& handle,
                                                                           cur_graph_view,
                                                                           edge_src_dummy_property_t{}.view(),
                                                                           edge_dst_dummy_property_t{}.view(),
-                                                                          e_property_triangle_count.view(),
+                                                                          edge_triangle_counts.view(),
                                                                           extract_weak_edges<vertex_t, edge_t>{k});
 
       
@@ -966,26 +968,26 @@ k_truss(raft::handle_t const& handle,
         raft::print_device_vector("vertex_pair_buffer_q_r_edge_p_q_dsts", vertex_pair_buffer_q_r_edge_p_q_dsts.data(), vertex_pair_buffer_q_r_edge_p_q_dsts.size(), std::cout);
         */
 
-        update_count<vertex_t, edge_t, weight_t, multi_gpu>(
+        decrease_triangle_count<vertex_t, edge_t, weight_t, multi_gpu>(
           handle,
           cur_graph_view,
-          e_property_triangle_count,
+          edge_triangle_counts,
           raft::device_span<vertex_t>(std::get<0>(vertex_pair_buffer_p_q).data(), std::get<0>(vertex_pair_buffer_p_q).size()),
           raft::device_span<vertex_t>(std::get<1>(vertex_pair_buffer_p_q).data(), std::get<1>(vertex_pair_buffer_p_q).size())
         );
 
-        update_count<vertex_t, edge_t, weight_t, multi_gpu>(
+        decrease_triangle_count<vertex_t, edge_t, weight_t, multi_gpu>(
             handle,
             cur_graph_view,
-            e_property_triangle_count,
+            edge_triangle_counts,
             multi_gpu ? raft::device_span<vertex_t>(vertex_pair_buffer_p_r_edge_p_q_srcs.data(), vertex_pair_buffer_p_r_edge_p_q_srcs.size()) : raft::device_span<vertex_t>(std::get<0>(vertex_pair_buffer_p_r_edge_p_q).data(), std::get<0>(vertex_pair_buffer_p_r_edge_p_q).size()), // FIXME: Make sure multi_gpu is properly handles
             multi_gpu ? raft::device_span<vertex_t>(vertex_pair_buffer_p_r_edge_p_q_dsts.data(), vertex_pair_buffer_p_r_edge_p_q_dsts.size()) : raft::device_span<vertex_t>(std::get<0>(vertex_pair_buffer_p_r_edge_p_q).data(), std::get<0>(vertex_pair_buffer_p_r_edge_p_q).size()) // FIXME: Make sure multi_gpu is properly handles
           );  
 
-        update_count<vertex_t, edge_t, weight_t, multi_gpu>(
+        decrease_triangle_count<vertex_t, edge_t, weight_t, multi_gpu>(
             handle,
             cur_graph_view,
-            e_property_triangle_count,
+            edge_triangle_counts,
             multi_gpu ? raft::device_span<vertex_t>(vertex_pair_buffer_q_r_edge_p_q_srcs.data(), vertex_pair_buffer_q_r_edge_p_q_srcs.size()) : raft::device_span<vertex_t>(std::get<0>(vertex_pair_buffer_q_r_edge_p_q).data(), std::get<0>(vertex_pair_buffer_q_r_edge_p_q).size()),
             multi_gpu ? raft::device_span<vertex_t>(vertex_pair_buffer_q_r_edge_p_q_dsts.data(), vertex_pair_buffer_q_r_edge_p_q_dsts.size()) : raft::device_span<vertex_t>(std::get<0>(vertex_pair_buffer_q_r_edge_p_q).data(), std::get<0>(vertex_pair_buffer_q_r_edge_p_q).size())
           );
@@ -1003,8 +1005,8 @@ k_truss(raft::handle_t const& handle,
                                                     cur_graph_view,
                                                     cugraph::edge_src_dummy_property_t{}.view(),
                                                     cugraph::edge_dst_dummy_property_t{}.view(),
-                                                    //view_concat(e_property_triangle_count.view(), modified_triangle_count.view()),
-                                                    e_property_triangle_count.view(),
+                                                    //view_concat(edge_triangle_counts.view(), modified_triangle_count.view()),
+                                                    edge_triangle_counts.view(),
                                                     extract_edges_and_triangle_counts<vertex_t, edge_t>{});
       /*
       raft::print_device_vector("unrolled_srcs", srcs_0.data(), srcs_0.size(), std::cout);
@@ -1450,10 +1452,10 @@ k_truss(raft::handle_t const& handle,
             std::nullopt,
             cur_graph_view.vertex_partition_range_lasts());
       
-          update_count<vertex_t, edge_t, weight_t, multi_gpu>(
+          decrease_triangle_count<vertex_t, edge_t, weight_t, multi_gpu>(
             handle,
             cur_graph_view,
-            e_property_triangle_count,
+            edge_triangle_counts,
             raft::device_span<vertex_t>(vertex_pair_buffer_q_r_srcs.data(), vertex_pair_buffer_q_r_srcs.size()),
             raft::device_span<vertex_t>(vertex_pair_buffer_q_r_dsts.data(), vertex_pair_buffer_q_r_dsts.size())
           );
@@ -1475,10 +1477,10 @@ k_truss(raft::handle_t const& handle,
             std::nullopt,
             cur_graph_view.vertex_partition_range_lasts());
 
-          update_count<vertex_t, edge_t, weight_t, multi_gpu>(
+          decrease_triangle_count<vertex_t, edge_t, weight_t, multi_gpu>(
             handle,
             cur_graph_view,
-            e_property_triangle_count,
+            edge_triangle_counts,
             raft::device_span<vertex_t>(vertex_pair_buffer_p_q_edge_q_r_dsts.data(), vertex_pair_buffer_p_q_edge_q_r_dsts.size()),
             raft::device_span<vertex_t>(vertex_pair_buffer_p_q_edge_q_r_srcs.data(), vertex_pair_buffer_p_q_edge_q_r_srcs.size())
           );
@@ -1500,33 +1502,33 @@ k_truss(raft::handle_t const& handle,
             std::nullopt,
             cur_graph_view.vertex_partition_range_lasts());
     
-          update_count<vertex_t, edge_t, weight_t, multi_gpu>(
+          decrease_triangle_count<vertex_t, edge_t, weight_t, multi_gpu>(
             handle,
             cur_graph_view,
-            e_property_triangle_count,
+            edge_triangle_counts,
             raft::device_span<vertex_t>(vertex_pair_buffer_p_r_edge_q_r_dsts.data(), vertex_pair_buffer_p_r_edge_q_r_dsts.size()),
             raft::device_span<vertex_t>(vertex_pair_buffer_p_r_edge_q_r_srcs.data(), vertex_pair_buffer_p_r_edge_q_r_srcs.size())
           );
         
         } else {
-          update_count<vertex_t, edge_t, weight_t, multi_gpu>(
+          decrease_triangle_count<vertex_t, edge_t, weight_t, multi_gpu>(
             handle,
             cur_graph_view,
-            e_property_triangle_count,
+            edge_triangle_counts,
             raft::device_span<vertex_t>(std::get<0>(vertex_pair_buffer_q_r).data(), std::get<0>(vertex_pair_buffer_q_r).size()),
             raft::device_span<vertex_t>(std::get<1>(vertex_pair_buffer_q_r).data(), std::get<1>(vertex_pair_buffer_q_r).size())
           );
-          update_count<vertex_t, edge_t, weight_t, multi_gpu>(
+          decrease_triangle_count<vertex_t, edge_t, weight_t, multi_gpu>(
             handle,
             cur_graph_view,
-            e_property_triangle_count,
+            edge_triangle_counts,
             raft::device_span<vertex_t>(std::get<1>(vertex_pair_buffer_p_q_edge_q_r).data(), std::get<0>(vertex_pair_buffer_p_q_edge_q_r).size()),
             raft::device_span<vertex_t>(std::get<0>(vertex_pair_buffer_p_q_edge_q_r).data(), std::get<1>(vertex_pair_buffer_p_q_edge_q_r).size())
           );
-          update_count<vertex_t, edge_t, weight_t, multi_gpu>(
+          decrease_triangle_count<vertex_t, edge_t, weight_t, multi_gpu>(
             handle,
             cur_graph_view,
-            e_property_triangle_count,
+            edge_triangle_counts,
             raft::device_span<vertex_t>(std::get<1>(vertex_pair_buffer_p_r_edge_q_r).data(), std::get<0>(vertex_pair_buffer_p_r_edge_q_r).size()),
             raft::device_span<vertex_t>(std::get<0>(vertex_pair_buffer_p_r_edge_q_r).data(), std::get<1>(vertex_pair_buffer_p_r_edge_q_r).size())
           );
@@ -1545,8 +1547,8 @@ k_truss(raft::handle_t const& handle,
                                                     cur_graph_view,
                                                     cugraph::edge_src_dummy_property_t{}.view(),
                                                     cugraph::edge_dst_dummy_property_t{}.view(),
-                                                    //view_concat(e_property_triangle_count.view(), modified_triangle_count.view()),
-                                                    e_property_triangle_count.view(),
+                                                    //view_concat(edge_triangle_counts.view(), modified_triangle_count.view()),
+                                                    edge_triangle_counts.view(),
                                                     extract_edges_and_triangle_counts<vertex_t, edge_t>{});
       
       /*
@@ -1644,7 +1646,7 @@ k_truss(raft::handle_t const& handle,
                 });
       #endif
 
-      //raft::print_device_vector("vertex_pair_buffer_src", std::get<0>(vertex_pair_buffer_p_tag).data(), std::get<0>(vertex_pair_buffer_p_tag).size(), std::cout);
+      //raft::print_device_vector("edge_srcs", std::get<0>(vertex_pair_buffer_p_tag).data(), std::get<0>(vertex_pair_buffer_p_tag).size(), std::cout);
       //raft::print_device_vector("vertex_pair_buffer_tag", std::get<1>(vertex_pair_buffer_p_tag).data(), std::get<1>(vertex_pair_buffer_p_tag).size(), std::cout);
       
       vertex_frontier_t<vertex_t, edge_t, multi_gpu, false> vertex_frontier(handle, 1);
@@ -2235,10 +2237,10 @@ k_truss(raft::handle_t const& handle,
 
         raft::print_device_vector("vertex_pair_buffer_p_r_srcs", vertex_pair_buffer_p_r_srcs.data(), vertex_pair_buffer_p_r_srcs.size(), std::cout);
         raft::print_device_vector("vertex_pair_buffer_p_r_dsts", vertex_pair_buffer_p_r_dsts.data(), vertex_pair_buffer_p_r_dsts.size(), std::cout);
-        update_count<vertex_t, edge_t, weight_t, multi_gpu>(
+        decrease_triangle_count<vertex_t, edge_t, weight_t, multi_gpu>(
           handle,
           cur_graph_view,
-          e_property_triangle_count,
+          edge_triangle_counts,
           raft::device_span<vertex_t>(vertex_pair_buffer_p_r_srcs.data(), vertex_pair_buffer_p_r_srcs.size()),
           raft::device_span<vertex_t>(vertex_pair_buffer_p_r_dsts.data(), vertex_pair_buffer_p_r_dsts.size())
         );
@@ -2265,10 +2267,10 @@ k_truss(raft::handle_t const& handle,
         raft::print_device_vector("vertex_pair_buffer_p_q_edge_p_r_srcs", vertex_pair_buffer_p_q_edge_p_r_srcs.data(), vertex_pair_buffer_p_q_edge_p_r_srcs.size(), std::cout);
         raft::print_device_vector("vertex_pair_buffer_p_q_edge_p_r_dsts", vertex_pair_buffer_p_q_edge_p_r_dsts.data(), vertex_pair_buffer_p_q_edge_p_r_dsts.size(), std::cout);
 
-        update_count<vertex_t, edge_t, weight_t, multi_gpu>(
+        decrease_triangle_count<vertex_t, edge_t, weight_t, multi_gpu>(
           handle,
           cur_graph_view,
-          e_property_triangle_count,
+          edge_triangle_counts,
           raft::device_span<vertex_t>(vertex_pair_buffer_p_q_edge_p_r_srcs.data(), vertex_pair_buffer_p_q_edge_p_r_srcs.size()),
           raft::device_span<vertex_t>(vertex_pair_buffer_p_q_edge_p_r_dsts.data(), vertex_pair_buffer_p_q_edge_p_r_dsts.size())
         );
@@ -2295,10 +2297,10 @@ k_truss(raft::handle_t const& handle,
         raft::print_device_vector("vertex_pair_buffer_q_r_edge_p_r_srcs", vertex_pair_buffer_q_r_edge_p_r_srcs.data(), vertex_pair_buffer_q_r_edge_p_r_srcs.size(), std::cout);
         raft::print_device_vector("vertex_pair_buffer_q_r_edge_p_r_dsts", vertex_pair_buffer_q_r_edge_p_r_dsts.data(), vertex_pair_buffer_q_r_edge_p_r_dsts.size(), std::cout);
 
-        update_count<vertex_t, edge_t, weight_t, multi_gpu>(
+        decrease_triangle_count<vertex_t, edge_t, weight_t, multi_gpu>(
           handle,
           cur_graph_view,
-          e_property_triangle_count,
+          edge_triangle_counts,
           raft::device_span<vertex_t>(vertex_pair_buffer_q_r_edge_p_r_srcs.data(), vertex_pair_buffer_q_r_edge_p_r_srcs.size()),
           raft::device_span<vertex_t>(vertex_pair_buffer_q_r_edge_p_r_dsts.data(), vertex_pair_buffer_q_r_edge_p_r_dsts.size())
         );
@@ -2306,26 +2308,26 @@ k_truss(raft::handle_t const& handle,
         std::cout << "Done updating count_2" <<std::endl;
       
       } else {
-        update_count<vertex_t, edge_t, weight_t, multi_gpu>(
+        decrease_triangle_count<vertex_t, edge_t, weight_t, multi_gpu>(
           handle,
           cur_graph_view,
-          e_property_triangle_count,
+          edge_triangle_counts,
           raft::device_span<vertex_t>(std::get<0>(vertex_pair_buffer_p_r).data(), std::get<0>(vertex_pair_buffer_p_r).size()),
           raft::device_span<vertex_t>(std::get<1>(vertex_pair_buffer_p_r).data(), std::get<1>(vertex_pair_buffer_p_r).size())
         );
         
-        update_count<vertex_t, edge_t, weight_t, multi_gpu>(
+        decrease_triangle_count<vertex_t, edge_t, weight_t, multi_gpu>(
           handle,
           cur_graph_view,
-          e_property_triangle_count,
+          edge_triangle_counts,
           raft::device_span<vertex_t>(std::get<0>(vertex_pair_buffer_p_q_edge_p_r).data(), std::get<0>(vertex_pair_buffer_p_q_edge_p_r).size()),
           raft::device_span<vertex_t>(std::get<1>(vertex_pair_buffer_p_q_edge_p_r).data(), std::get<1>(vertex_pair_buffer_p_q_edge_p_r).size())
         );
         
-        update_count<vertex_t, edge_t, weight_t, multi_gpu>(
+        decrease_triangle_count<vertex_t, edge_t, weight_t, multi_gpu>(
           handle,
           cur_graph_view,
-          e_property_triangle_count,
+          edge_triangle_counts,
           raft::device_span<vertex_t>(std::get<0>(vertex_pair_buffer_q_r_edge_p_r).data(), std::get<0>(vertex_pair_buffer_q_r_edge_p_r).size()),
           raft::device_span<vertex_t>(std::get<1>(vertex_pair_buffer_q_r_edge_p_r).data(), std::get<1>(vertex_pair_buffer_q_r_edge_p_r).size())
         );
@@ -2338,8 +2340,8 @@ k_truss(raft::handle_t const& handle,
                                                     cur_graph_view,
                                                     cugraph::edge_src_dummy_property_t{}.view(),
                                                     cugraph::edge_dst_dummy_property_t{}.view(),
-                                                    //view_concat(e_property_triangle_count.view(), modified_triangle_count.view()),
-                                                    e_property_triangle_count.view(),
+                                                    //view_concat(edge_triangle_counts.view(), modified_triangle_count.view()),
+                                                    edge_triangle_counts.view(),
                                                     extract_edges_and_triangle_counts<vertex_t, edge_t>{});
       
       raft::print_device_vector("unrolled_srcs_2", srcs_2.data(), srcs_2.size(), std::cout);
@@ -2352,7 +2354,7 @@ k_truss(raft::handle_t const& handle,
           cur_graph_view,
           cugraph::edge_src_dummy_property_t{}.view(),
           cugraph::edge_dst_dummy_property_t{}.view(),
-          e_property_triangle_count.view(),
+          edge_triangle_counts.view(),
           [] __device__(
             auto src, auto dst, thrust::nullopt_t, thrust::nullopt_t, auto count) {
             return count != 0;
@@ -2366,8 +2368,8 @@ k_truss(raft::handle_t const& handle,
                                                     cur_graph_view,
                                                     cugraph::edge_src_dummy_property_t{}.view(),
                                                     cugraph::edge_dst_dummy_property_t{}.view(),
-                                                    //view_concat(e_property_triangle_count.view(), modified_triangle_count.view()),
-                                                    e_property_triangle_count.view(),
+                                                    //view_concat(edge_triangle_counts.view(), modified_triangle_count.view()),
+                                                    edge_triangle_counts.view(),
                                                     extract_edges_and_triangle_counts<vertex_t, edge_t>{});
       
       
