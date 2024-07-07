@@ -178,8 +178,7 @@ edge_t remove_overcompensating_edges(raft::handle_t const& handle,
                                 set_b_query_edges),
       thrust::make_zip_iterator(set_a_query_edges + buffer_size,
                                 set_b_query_edges + buffer_size),
-      [num_weak_edges = set_c_weak_edges_dsts.size(),
-      set_c_weak_edges_first =
+      [set_c_weak_edges_first =
         thrust::make_zip_iterator(set_c_weak_edges_srcs.begin(), set_c_weak_edges_dsts.begin()),
       set_c_weak_edges_last = thrust::make_zip_iterator(set_c_weak_edges_srcs.end(),
                                                 set_c_weak_edges_dsts.end())] __device__(auto e) {
@@ -189,9 +188,12 @@ edge_t remove_overcompensating_edges(raft::handle_t const& handle,
           potential_or_incoming_edge = thrust::make_tuple(thrust::get<1>(potential_edge), thrust::get<0>(potential_edge));
         };
 
+        /*
         auto itr = thrust::lower_bound(
           thrust::seq, set_c_weak_edges_first, set_c_weak_edges_last, potential_or_incoming_edge);
-        return (itr != set_c_weak_edges_last && *itr == potential_or_incoming_edge);
+        */
+        return thrust::binary_search(
+          thrust::seq, set_c_weak_edges_first, set_c_weak_edges_last, potential_or_incoming_edge);
       });
 
     auto dist = thrust::distance(thrust::make_zip_iterator(set_a_query_edges,
@@ -216,7 +218,7 @@ struct extract_weak_edges {
 };
 
 template <typename vertex_t, typename edge_t>
-struct extract_edges {
+struct extract_edges_and_triangle_counts {
   __device__ thrust::optional<thrust::tuple<vertex_t, vertex_t, edge_t>> operator()(
     
     auto src, auto dst, thrust::nullopt_t, thrust::nullopt_t, auto count) const
@@ -1003,7 +1005,7 @@ k_truss(raft::handle_t const& handle,
                                                     cugraph::edge_dst_dummy_property_t{}.view(),
                                                     //view_concat(e_property_triangle_count.view(), modified_triangle_count.view()),
                                                     e_property_triangle_count.view(),
-                                                    extract_edges<vertex_t, edge_t>{});
+                                                    extract_edges_and_triangle_counts<vertex_t, edge_t>{});
       /*
       raft::print_device_vector("unrolled_srcs", srcs_0.data(), srcs_0.size(), std::cout);
       raft::print_device_vector("unrolled_dsts", dsts_0.data(), dsts_0.size(), std::cout);
@@ -1545,7 +1547,7 @@ k_truss(raft::handle_t const& handle,
                                                     cugraph::edge_dst_dummy_property_t{}.view(),
                                                     //view_concat(e_property_triangle_count.view(), modified_triangle_count.view()),
                                                     e_property_triangle_count.view(),
-                                                    extract_edges<vertex_t, edge_t>{});
+                                                    extract_edges_and_triangle_counts<vertex_t, edge_t>{});
       
       /*
       raft::print_device_vector("unrolled_srcs", srcs_1.data(), srcs_1.size(), std::cout);
@@ -2338,7 +2340,7 @@ k_truss(raft::handle_t const& handle,
                                                     cugraph::edge_dst_dummy_property_t{}.view(),
                                                     //view_concat(e_property_triangle_count.view(), modified_triangle_count.view()),
                                                     e_property_triangle_count.view(),
-                                                    extract_edges<vertex_t, edge_t>{});
+                                                    extract_edges_and_triangle_counts<vertex_t, edge_t>{});
       
       raft::print_device_vector("unrolled_srcs_2", srcs_2.data(), srcs_2.size(), std::cout);
       raft::print_device_vector("unrolled_dsts_2", dsts_2.data(), dsts_2.size(), std::cout);
@@ -2366,7 +2368,7 @@ k_truss(raft::handle_t const& handle,
                                                     cugraph::edge_dst_dummy_property_t{}.view(),
                                                     //view_concat(e_property_triangle_count.view(), modified_triangle_count.view()),
                                                     e_property_triangle_count.view(),
-                                                    extract_edges<vertex_t, edge_t>{});
+                                                    extract_edges_and_triangle_counts<vertex_t, edge_t>{});
       
       
       printf("\nafter removing edges with no count: num_edges = %d\n", srcs_3.size());
