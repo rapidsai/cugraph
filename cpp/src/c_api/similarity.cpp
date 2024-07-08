@@ -211,20 +211,22 @@ struct all_pairs_similarity_functor : public cugraph::c_api::abstract_functor {
                                        vertices_->as_type<vertex_t const>(), vertices_->size_})
                                    : std::nullopt,
                          topk_ != SIZE_MAX ? std::make_optional(topk_) : std::nullopt);
-      
-      cugraph::unrenumber_int_vertices<vertex_t, multi_gpu>(handle_,
-                                                   v1.data(),
-                                                   v1.size(),
-                                                   number_map->data(),
-                                                   graph_view.vertex_partition_range_lasts(),
-                                                   false);
-      
-      cugraph::unrenumber_int_vertices<vertex_t, multi_gpu>(handle_,
-                                                   v2.data(),
-                                                   v2.size(),
-                                                   number_map->data(),
-                                                   graph_view.vertex_partition_range_lasts(),
-                                                   false);
+
+      cugraph::unrenumber_int_vertices<vertex_t, multi_gpu>(
+        handle_,
+        v1.data(),
+        v1.size(),
+        number_map->data(),
+        graph_view.vertex_partition_range_lasts(),
+        false);
+
+      cugraph::unrenumber_int_vertices<vertex_t, multi_gpu>(
+        handle_,
+        v2.data(),
+        v2.size(),
+        number_map->data(),
+        graph_view.vertex_partition_range_lasts(),
+        false);
 
       result_ = new cugraph::c_api::cugraph_similarity_result_t{
         new cugraph::c_api::cugraph_type_erased_device_array_t(similarity_coefficients,
@@ -296,7 +298,8 @@ struct cosine_functor {
     std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
     std::tuple<raft::device_span<vertex_t const>, raft::device_span<vertex_t const>> vertex_pairs)
   {
-    return cugraph::cosine_similarity_coefficients(handle, graph_view, edge_weight_view, vertex_pairs);
+    return cugraph::cosine_similarity_coefficients(
+      handle, graph_view, edge_weight_view, vertex_pairs);
   }
 
   template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
@@ -348,7 +351,8 @@ struct cosine_similarity_functor {
     std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
     std::tuple<raft::device_span<vertex_t const>, raft::device_span<vertex_t const>> vertex_pairs)
   {
-    return cugraph::cosine_similarity_coefficients(handle, graph_view, edge_weight_view, vertex_pairs);
+    return cugraph::cosine_similarity_coefficients(
+      handle, graph_view, edge_weight_view, vertex_pairs);
   }
 
   template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>

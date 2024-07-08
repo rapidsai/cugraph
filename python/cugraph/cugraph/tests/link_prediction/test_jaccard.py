@@ -350,13 +350,20 @@ def test_all_pairs_jaccard():
 
     # Call Jaccard
     jaccard_results = cugraph.jaccard(G)
-    
+
     # Remove self loop
-    jaccard_results = jaccard_results[jaccard_results['first'] != jaccard_results['second']].reset_index(drop=True)
-    
+    jaccard_results = jaccard_results[
+        jaccard_results["first"] != jaccard_results["second"]
+    ].reset_index(drop=True)
+
     all_pairs_jaccard_results = cugraph.all_pairs_jaccard(G)
 
-    assert_frame_equal(jaccard_results.head(), all_pairs_jaccard_results.head(), check_dtype=False, check_like=True)
+    assert_frame_equal(
+        jaccard_results.head(),
+        all_pairs_jaccard_results.head(),
+        check_dtype=False,
+        check_like=True,
+    )
 
 
 # FIXME
@@ -368,23 +375,30 @@ def test_all_pairs_jaccard_with_vertices():
 
     # Call Jaccard
     jaccard_results = cugraph.jaccard(G)
-    
+
     # Remove self loop
-    jaccard_results = jaccard_results[jaccard_results['first'] != jaccard_results['second']].reset_index(drop=True)
+    jaccard_results = jaccard_results[
+        jaccard_results["first"] != jaccard_results["second"]
+    ].reset_index(drop=True)
 
     vertices = [0, 1, 2]
 
-    mask_first = jaccard_results['first'].isin(vertices)
-    mask_second = jaccard_results['second'].isin(vertices)
-    # mask = [v in vertices for v in (jaccard_results['first'].to_pandas() or jaccard_results['second'].to_pandas())]
+    mask_first = jaccard_results["first"].isin(vertices)
+    mask_second = jaccard_results["second"].isin(vertices)
+    # mask = [v in vertices for v in (jaccard_results['first'].to_pandas()
+    # or jaccard_results['second'].to_pandas())]
     mask = [f or s for (f, s) in zip(mask_first.to_pandas(), mask_second.to_pandas())]
 
     jaccard_results = jaccard_results[mask].reset_index(drop=True)
 
     # Call all-pairs Jaccard
-    all_pairs_jaccard_results = cugraph.all_pairs_jaccard(G, vertices=cudf.Series(vertices, dtype="int32"))
+    all_pairs_jaccard_results = cugraph.all_pairs_jaccard(
+        G, vertices=cudf.Series(vertices, dtype="int32")
+    )
 
-    assert_frame_equal(jaccard_results, all_pairs_jaccard_results, check_dtype=False, check_like=True)
+    assert_frame_equal(
+        jaccard_results, all_pairs_jaccard_results, check_dtype=False, check_like=True
+    )
 
 
 @pytest.mark.sg
@@ -396,12 +410,21 @@ def test_all_pairs_jaccard_with_topk():
     jaccard_results = cugraph.jaccard(G)
 
     topk = 4
-    
+
     # Remove self loop
-    jaccard_results = jaccard_results[jaccard_results['first'] != jaccard_results['second']].\
-        sort_values(["jaccard_coeff", "first", "second"], ascending=False).reset_index(drop=True)[:topk]
+    jaccard_results = (
+        jaccard_results[jaccard_results["first"] != jaccard_results["second"]]
+        .sort_values(["jaccard_coeff", "first", "second"], ascending=False)
+        .reset_index(drop=True)[:topk]
+    )
 
     # Call all-pairs Jaccard
-    all_pairs_jaccard_results = cugraph.all_pairs_jaccard(G, topk=topk).sort_values(["first", "second"], ascending=False).reset_index(drop=True)
+    all_pairs_jaccard_results = (
+        cugraph.all_pairs_jaccard(G, topk=topk)
+        .sort_values(["first", "second"], ascending=False)
+        .reset_index(drop=True)
+    )
 
-    assert_frame_equal(jaccard_results, all_pairs_jaccard_results, check_dtype=False, check_like=True)
+    assert_frame_equal(
+        jaccard_results, all_pairs_jaccard_results, check_dtype=False, check_like=True
+    )

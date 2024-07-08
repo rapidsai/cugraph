@@ -26,7 +26,16 @@ typedef int32_t vertex_t;
 typedef int32_t edge_t;
 typedef float weight_t;
 
-typedef enum { JACCARD, SORENSEN, OVERLAP, COSINE, ALL_PAIRS_JACCARD, ALL_PAIRS_SORENSEN, ALL_PAIRS_OVERLAP, ALL_PAIRS_COSINE } similarity_t;
+typedef enum {
+  JACCARD,
+  SORENSEN,
+  OVERLAP,
+  COSINE,
+  ALL_PAIRS_JACCARD,
+  ALL_PAIRS_SORENSEN,
+  ALL_PAIRS_OVERLAP,
+  ALL_PAIRS_COSINE
+} similarity_t;
 
 int generic_similarity_test(const cugraph_resource_handle_t* handle,
                             vertex_t* h_src,
@@ -51,14 +60,14 @@ int generic_similarity_test(const cugraph_resource_handle_t* handle,
   cugraph_error_code_t ret_code = CUGRAPH_SUCCESS;
   cugraph_error_t* ret_error;
 
-  cugraph_graph_t* graph                           = NULL;
-  cugraph_similarity_result_t* result              = NULL;
-  cugraph_vertex_pairs_t* vertex_pairs             = NULL;
-  cugraph_type_erased_device_array_t* v1           = NULL;
-  cugraph_type_erased_device_array_t* v2           = NULL;
-  cugraph_type_erased_device_array_t* start_v            = NULL;
-  cugraph_type_erased_device_array_view_t* v1_view = NULL;
-  cugraph_type_erased_device_array_view_t* v2_view = NULL;
+  cugraph_graph_t* graph                                = NULL;
+  cugraph_similarity_result_t* result                   = NULL;
+  cugraph_vertex_pairs_t* vertex_pairs                  = NULL;
+  cugraph_type_erased_device_array_t* v1                = NULL;
+  cugraph_type_erased_device_array_t* v2                = NULL;
+  cugraph_type_erased_device_array_t* start_v           = NULL;
+  cugraph_type_erased_device_array_view_t* v1_view      = NULL;
+  cugraph_type_erased_device_array_view_t* v2_view      = NULL;
   cugraph_type_erased_device_array_view_t* start_v_view = NULL;
 
   ret_code = create_test_graph(
@@ -67,12 +76,11 @@ int generic_similarity_test(const cugraph_resource_handle_t* handle,
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "create_test_graph failed.");
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
 
-  if (topk == 0) { topk = SIZE_MAX;}
+  if (topk == 0) { topk = SIZE_MAX; }
 
-  if (cugraph_resource_handle_get_rank(handle) != 0) { num_pairs = 0;}
+  if (cugraph_resource_handle_get_rank(handle) != 0) { num_pairs = 0; }
 
   if (h_first != NULL && h_second != NULL) {
-
     ret_code =
       cugraph_type_erased_device_array_create(handle, num_pairs, vertex_tid, &v1, &ret_error);
     TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "v1 create failed.");
@@ -97,17 +105,17 @@ int generic_similarity_test(const cugraph_resource_handle_t* handle,
     TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "create vertex pairs failed.");
   }
 
-
   if (h_start_vertices != NULL) {
-    ret_code =
-      cugraph_type_erased_device_array_create(handle, num_start_vertices, vertex_tid, &start_v, &ret_error);
+    ret_code = cugraph_type_erased_device_array_create(
+      handle, num_start_vertices, vertex_tid, &start_v, &ret_error);
     TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "v1 create failed.");
     start_v_view = cugraph_type_erased_device_array_view(start_v);
 
     ret_code = cugraph_type_erased_device_array_view_copy_from_host(
       handle, start_v_view, (byte_t*)h_start_vertices, &ret_error);
 
-    TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "h_start_vertices copy_from_host failed.");
+    TEST_ASSERT(
+      test_ret_value, ret_code == CUGRAPH_SUCCESS, "h_start_vertices copy_from_host failed.");
   }
 
   switch (test_type) {
@@ -179,7 +187,6 @@ int generic_similarity_test(const cugraph_resource_handle_t* handle,
                 "similarity results don't match");
   }
 
-
   if (result != NULL) cugraph_similarity_result_free(result);
   if (vertex_pairs != NULL) cugraph_vertex_pairs_free(vertex_pairs);
   cugraph_mg_graph_free(graph);
@@ -190,17 +197,17 @@ int generic_similarity_test(const cugraph_resource_handle_t* handle,
 
 int test_jaccard(const cugraph_resource_handle_t* handle)
 {
-  size_t num_edges    = 16;
-  size_t num_vertices = 6;
-  size_t num_pairs    = 10;
+  size_t num_edges          = 16;
+  size_t num_vertices       = 6;
+  size_t num_pairs          = 10;
   size_t num_start_vertices = 0;
-  size_t topk = 0;
+  size_t topk               = 0;
 
-  vertex_t h_src[]    = {0, 1, 1, 2, 2, 2, 3, 4, 1, 3, 4, 0, 1, 3, 5, 5};
-  vertex_t h_dst[]    = {1, 3, 4, 0, 1, 3, 5, 5, 0, 1, 1, 2, 2, 2, 3, 4};
-  weight_t h_wgt[]    = {0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
-  vertex_t h_first[]  = {0, 0, 0, 1, 1, 1, 2, 2, 2, 3};
-  vertex_t h_second[] = {1, 3, 4, 2, 3, 5, 3, 4, 5, 4};
+  vertex_t h_src[]           = {0, 1, 1, 2, 2, 2, 3, 4, 1, 3, 4, 0, 1, 3, 5, 5};
+  vertex_t h_dst[]           = {1, 3, 4, 0, 1, 3, 5, 5, 0, 1, 1, 2, 2, 2, 3, 4};
+  weight_t h_wgt[]           = {0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
+  vertex_t h_first[]         = {0, 0, 0, 1, 1, 1, 2, 2, 2, 3};
+  vertex_t h_second[]        = {1, 3, 4, 2, 3, 5, 3, 4, 5, 4};
   vertex_t* h_start_vertices = NULL;
   weight_t h_result[] = {0.2, 0.666667, 0.333333, 0.4, 0.166667, 0.5, 0.2, 0.25, 0.25, 0.666667};
 
@@ -224,21 +231,21 @@ int test_jaccard(const cugraph_resource_handle_t* handle)
 
 int test_weighted_jaccard(const cugraph_resource_handle_t* handle)
 {
-  size_t num_edges    = 16;
-  size_t num_vertices = 7;
-  size_t num_pairs    = 3;
+  size_t num_edges          = 16;
+  size_t num_vertices       = 7;
+  size_t num_pairs          = 3;
   size_t num_start_vertices = 0;
-  size_t topk = 0;
+  size_t topk               = 0;
 
   vertex_t h_src[] = {0, 1, 2, 0, 1, 2, 3, 3, 3, 4, 4, 4, 0, 5, 2, 6};
   vertex_t h_dst[] = {3, 3, 3, 4, 4, 4, 0, 1, 2, 0, 1, 2, 5, 0, 6, 2};
   weight_t h_wgt[] = {
     0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 3.5, 4.0, 4.0};
 
-  vertex_t h_first[]  = {0, 0, 1};
-  vertex_t h_second[] = {1, 2, 3};
+  vertex_t h_first[]         = {0, 0, 1};
+  vertex_t h_second[]        = {1, 2, 3};
   vertex_t* h_start_vertices = NULL;
-  weight_t h_result[] = {0.357143, 0.208333, 0.0};
+  weight_t h_result[]        = {0.357143, 0.208333, 0.0};
 
   return generic_similarity_test(handle,
                                  h_src,
@@ -260,19 +267,21 @@ int test_weighted_jaccard(const cugraph_resource_handle_t* handle)
 
 int test_all_pairs_jaccard(const cugraph_resource_handle_t* handle)
 {
-  size_t num_edges    = 16;
-  size_t num_vertices = 6;
-  size_t num_pairs    = 0;
+  size_t num_edges          = 16;
+  size_t num_vertices       = 6;
+  size_t num_pairs          = 0;
   size_t num_start_vertices = 0;
-  size_t topk = 0;
+  size_t topk               = 0;
 
-  vertex_t h_src[]    = {0, 1, 1, 2, 2, 2, 3, 4, 1, 3, 4, 0, 1, 3, 5, 5};
-  vertex_t h_dst[]    = {1, 3, 4, 0, 1, 3, 5, 5, 0, 1, 1, 2, 2, 2, 3, 4};
-  weight_t h_wgt[]    = {0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
-  vertex_t* h_first = NULL;
-  vertex_t* h_second = NULL;
+  vertex_t h_src[]           = {0, 1, 1, 2, 2, 2, 3, 4, 1, 3, 4, 0, 1, 3, 5, 5};
+  vertex_t h_dst[]           = {1, 3, 4, 0, 1, 3, 5, 5, 0, 1, 1, 2, 2, 2, 3, 4};
+  weight_t h_wgt[]           = {0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
+  vertex_t* h_first          = NULL;
+  vertex_t* h_second         = NULL;
   vertex_t* h_start_vertices = NULL;
-  weight_t h_result[] = {0.2, 0.25, 0.666667, 0.333333, 0.2, 0.4, 0.166667, 0.5, 0.25, 0.4, 0.2, 0.25, 0.25, 0.666667, 0.166667, 0.2, 0.666667, 0.3333333, 0.25, 0.666667, 0.5, 0.25};
+  weight_t h_result[] = {0.2,      0.25,      0.666667, 0.333333, 0.2,  0.4,      0.166667, 0.5,
+                         0.25,     0.4,       0.2,      0.25,     0.25, 0.666667, 0.166667, 0.2,
+                         0.666667, 0.3333333, 0.25,     0.666667, 0.5,  0.25};
 
   return generic_similarity_test(handle,
                                  h_src,
@@ -294,19 +303,20 @@ int test_all_pairs_jaccard(const cugraph_resource_handle_t* handle)
 
 int test_all_pairs_jaccard_with_start_vertices(const cugraph_resource_handle_t* handle)
 {
-  size_t num_edges    = 16;
-  size_t num_vertices = 6;
-  size_t num_pairs    = 0;
+  size_t num_edges          = 16;
+  size_t num_vertices       = 6;
+  size_t num_pairs          = 0;
   size_t num_start_vertices = 3;
-  size_t topk = 0;
+  size_t topk               = 0;
 
-  vertex_t h_src[]    = {0, 1, 1, 2, 2, 2, 3, 4, 1, 3, 4, 0, 1, 3, 5, 5};
-  vertex_t h_dst[]    = {1, 3, 4, 0, 1, 3, 5, 5, 0, 1, 1, 2, 2, 2, 3, 4};
-  weight_t h_wgt[]    = {0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
-  vertex_t* h_first    = NULL;
-  vertex_t* h_second   = NULL;
-  vertex_t h_start_vertices[]   = {0, 1, 2};
-  weight_t h_result[] = {0.2, 0.25, 0.666667, 0.333333, 0.2, 0.4, 0.166667, 0.5, 0.25, 0.4, 0.2, 0.25, 0.25};
+  vertex_t h_src[]            = {0, 1, 1, 2, 2, 2, 3, 4, 1, 3, 4, 0, 1, 3, 5, 5};
+  vertex_t h_dst[]            = {1, 3, 4, 0, 1, 3, 5, 5, 0, 1, 1, 2, 2, 2, 3, 4};
+  weight_t h_wgt[]            = {0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
+  vertex_t* h_first           = NULL;
+  vertex_t* h_second          = NULL;
+  vertex_t h_start_vertices[] = {0, 1, 2};
+  weight_t h_result[]         = {
+    0.2, 0.25, 0.666667, 0.333333, 0.2, 0.4, 0.166667, 0.5, 0.25, 0.4, 0.2, 0.25, 0.25};
 
   return generic_similarity_test(handle,
                                  h_src,
@@ -328,19 +338,19 @@ int test_all_pairs_jaccard_with_start_vertices(const cugraph_resource_handle_t* 
 
 int test_all_pairs_jaccard_with_topk(const cugraph_resource_handle_t* handle)
 {
-  size_t num_edges    = 16;
-  size_t num_vertices = 6;
-  size_t num_pairs    = 0;
+  size_t num_edges          = 16;
+  size_t num_vertices       = 6;
+  size_t num_pairs          = 0;
   size_t num_start_vertices = 3;
-  size_t topk = 5;
+  size_t topk               = 5;
 
-  vertex_t h_src[]    = {0, 1, 1, 2, 2, 2, 3, 4, 1, 3, 4, 0, 1, 3, 5, 5};
-  vertex_t h_dst[]    = {1, 3, 4, 0, 1, 3, 5, 5, 0, 1, 1, 2, 2, 2, 3, 4};
-  weight_t h_wgt[]    = {0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
-  vertex_t* h_first    = NULL;
-  vertex_t* h_second   = NULL;
+  vertex_t h_src[]           = {0, 1, 1, 2, 2, 2, 3, 4, 1, 3, 4, 0, 1, 3, 5, 5};
+  vertex_t h_dst[]           = {1, 3, 4, 0, 1, 3, 5, 5, 0, 1, 1, 2, 2, 2, 3, 4};
+  weight_t h_wgt[]           = {0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
+  vertex_t* h_first          = NULL;
+  vertex_t* h_second         = NULL;
   vertex_t* h_start_vertices = NULL;
-  weight_t h_result[] = {0.666667, 0.666667, 0.666667, 0.666667, 0.5};
+  weight_t h_result[]        = {0.666667, 0.666667, 0.666667, 0.666667, 0.5};
 
   return generic_similarity_test(handle,
                                  h_src,
@@ -360,21 +370,19 @@ int test_all_pairs_jaccard_with_topk(const cugraph_resource_handle_t* handle)
                                  ALL_PAIRS_JACCARD);
 }
 
-
-
 int test_sorensen(const cugraph_resource_handle_t* handle)
 {
-  size_t num_edges    = 16;
-  size_t num_vertices = 6;
-  size_t num_pairs    = 10;
+  size_t num_edges          = 16;
+  size_t num_vertices       = 6;
+  size_t num_pairs          = 10;
   size_t num_start_vertices = 0;
-  size_t topk = 0;
+  size_t topk               = 0;
 
-  vertex_t h_src[]    = {0, 1, 1, 2, 2, 2, 3, 4, 1, 3, 4, 0, 1, 3, 5, 5};
-  vertex_t h_dst[]    = {1, 3, 4, 0, 1, 3, 5, 5, 0, 1, 1, 2, 2, 2, 3, 4};
-  weight_t h_wgt[]    = {0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
-  vertex_t h_first[]  = {0, 0, 0, 1, 1, 1, 2, 2, 2, 3};
-  vertex_t h_second[] = {1, 3, 4, 2, 3, 5, 3, 4, 5, 4};
+  vertex_t h_src[]           = {0, 1, 1, 2, 2, 2, 3, 4, 1, 3, 4, 0, 1, 3, 5, 5};
+  vertex_t h_dst[]           = {1, 3, 4, 0, 1, 3, 5, 5, 0, 1, 1, 2, 2, 2, 3, 4};
+  weight_t h_wgt[]           = {0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
+  vertex_t h_first[]         = {0, 0, 0, 1, 1, 1, 2, 2, 2, 3};
+  vertex_t h_second[]        = {1, 3, 4, 2, 3, 5, 3, 4, 5, 4};
   vertex_t* h_start_vertices = NULL;
   weight_t h_result[] = {0.333333, 0.8, 0.5, 0.571429, 0.285714, 0.666667, 0.333333, 0.4, 0.4, 0.8};
 
@@ -398,21 +406,21 @@ int test_sorensen(const cugraph_resource_handle_t* handle)
 
 int test_weighted_sorensen(const cugraph_resource_handle_t* handle)
 {
-  size_t num_edges    = 16;
-  size_t num_vertices = 7;
-  size_t num_pairs    = 3;
+  size_t num_edges          = 16;
+  size_t num_vertices       = 7;
+  size_t num_pairs          = 3;
   size_t num_start_vertices = 0;
-  size_t topk = 0;
+  size_t topk               = 0;
 
   vertex_t h_src[] = {0, 1, 2, 0, 1, 2, 3, 3, 3, 4, 4, 4, 0, 5, 2, 6};
   vertex_t h_dst[] = {3, 3, 3, 4, 4, 4, 0, 1, 2, 0, 1, 2, 5, 0, 6, 2};
   weight_t h_wgt[] = {
     0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 3.5, 4.0, 4.0};
 
-  vertex_t h_first[]  = {0, 0, 1};
-  vertex_t h_second[] = {1, 2, 3};
+  vertex_t h_first[]         = {0, 0, 1};
+  vertex_t h_second[]        = {1, 2, 3};
   vertex_t* h_start_vertices = NULL;
-  weight_t h_result[] = {0.526316, 0.344828, 0.000000};
+  weight_t h_result[]        = {0.526316, 0.344828, 0.000000};
 
   return generic_similarity_test(handle,
                                  h_src,
@@ -434,19 +442,21 @@ int test_weighted_sorensen(const cugraph_resource_handle_t* handle)
 
 int test_all_pairs_sorensen(const cugraph_resource_handle_t* handle)
 {
-  size_t num_edges    = 16;
-  size_t num_vertices = 6;
-  size_t num_pairs    = 0;
+  size_t num_edges          = 16;
+  size_t num_vertices       = 6;
+  size_t num_pairs          = 0;
   size_t num_start_vertices = 0;
-  size_t topk = 0;
+  size_t topk               = 0;
 
-  vertex_t h_src[]    = {0, 1, 1, 2, 2, 2, 3, 4, 1, 3, 4, 0, 1, 3, 5, 5};
-  vertex_t h_dst[]    = {1, 3, 4, 0, 1, 3, 5, 5, 0, 1, 1, 2, 2, 2, 3, 4};
-  weight_t h_wgt[]    = {0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
-  vertex_t* h_first = NULL;
-  vertex_t* h_second = NULL;
+  vertex_t h_src[]           = {0, 1, 1, 2, 2, 2, 3, 4, 1, 3, 4, 0, 1, 3, 5, 5};
+  vertex_t h_dst[]           = {1, 3, 4, 0, 1, 3, 5, 5, 0, 1, 1, 2, 2, 2, 3, 4};
+  weight_t h_wgt[]           = {0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
+  vertex_t* h_first          = NULL;
+  vertex_t* h_second         = NULL;
   vertex_t* h_start_vertices = NULL;
-  weight_t h_result[] = {0.333333, 0.4, 0.8, 0.5, 0.333333, 0.571429, 0.285714, 0.666667, 0.4, 0.571429, 0.333333, 0.4, 0.4, 0.8, 0.285714, 0.333333, 0.8, 0.5, 0.4, 0.8, 0.666667, 0.4};
+  weight_t h_result[] = {0.333333, 0.4,      0.8,      0.5, 0.333333, 0.571429, 0.285714, 0.666667,
+                         0.4,      0.571429, 0.333333, 0.4, 0.4,      0.8,      0.285714, 0.333333,
+                         0.8,      0.5,      0.4,      0.8, 0.666667, 0.4};
 
   return generic_similarity_test(handle,
                                  h_src,
@@ -468,19 +478,31 @@ int test_all_pairs_sorensen(const cugraph_resource_handle_t* handle)
 
 int test_all_pairs_sorensen_with_start_vertices(const cugraph_resource_handle_t* handle)
 {
-  size_t num_edges    = 16;
-  size_t num_vertices = 6;
-  size_t num_pairs    = 0;
+  size_t num_edges          = 16;
+  size_t num_vertices       = 6;
+  size_t num_pairs          = 0;
   size_t num_start_vertices = 3;
-  size_t topk = 0;
+  size_t topk               = 0;
 
-  vertex_t h_src[]    = {0, 1, 1, 2, 2, 2, 3, 4, 1, 3, 4, 0, 1, 3, 5, 5};
-  vertex_t h_dst[]    = {1, 3, 4, 0, 1, 3, 5, 5, 0, 1, 1, 2, 2, 2, 3, 4};
-  weight_t h_wgt[]    = {0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
-  vertex_t* h_first    = NULL;
-  vertex_t* h_second   = NULL;
-  vertex_t h_start_vertices[]   = {0, 1, 2};
-  weight_t h_result[] = {0.333333, 0.4, 0.8, 0.5, 0.333333, 0.571429, 0.285714, 0.666667, 0.4, 0.571429, 0.333333, 0.4, 0.4};
+  vertex_t h_src[]            = {0, 1, 1, 2, 2, 2, 3, 4, 1, 3, 4, 0, 1, 3, 5, 5};
+  vertex_t h_dst[]            = {1, 3, 4, 0, 1, 3, 5, 5, 0, 1, 1, 2, 2, 2, 3, 4};
+  weight_t h_wgt[]            = {0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
+  vertex_t* h_first           = NULL;
+  vertex_t* h_second          = NULL;
+  vertex_t h_start_vertices[] = {0, 1, 2};
+  weight_t h_result[]         = {0.333333,
+                                 0.4,
+                                 0.8,
+                                 0.5,
+                                 0.333333,
+                                 0.571429,
+                                 0.285714,
+                                 0.666667,
+                                 0.4,
+                                 0.571429,
+                                 0.333333,
+                                 0.4,
+                                 0.4};
 
   return generic_similarity_test(handle,
                                  h_src,
@@ -502,19 +524,19 @@ int test_all_pairs_sorensen_with_start_vertices(const cugraph_resource_handle_t*
 
 int test_all_pairs_sorensen_with_topk(const cugraph_resource_handle_t* handle)
 {
-  size_t num_edges    = 16;
-  size_t num_vertices = 6;
-  size_t num_pairs    = 0;
+  size_t num_edges          = 16;
+  size_t num_vertices       = 6;
+  size_t num_pairs          = 0;
   size_t num_start_vertices = 3;
-  size_t topk = 5;
+  size_t topk               = 5;
 
-  vertex_t h_src[]    = {0, 1, 1, 2, 2, 2, 3, 4, 1, 3, 4, 0, 1, 3, 5, 5};
-  vertex_t h_dst[]    = {1, 3, 4, 0, 1, 3, 5, 5, 0, 1, 1, 2, 2, 2, 3, 4};
-  weight_t h_wgt[]    = {0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
-  vertex_t* h_first    = NULL;
-  vertex_t* h_second   = NULL;
+  vertex_t h_src[]           = {0, 1, 1, 2, 2, 2, 3, 4, 1, 3, 4, 0, 1, 3, 5, 5};
+  vertex_t h_dst[]           = {1, 3, 4, 0, 1, 3, 5, 5, 0, 1, 1, 2, 2, 2, 3, 4};
+  weight_t h_wgt[]           = {0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
+  vertex_t* h_first          = NULL;
+  vertex_t* h_second         = NULL;
   vertex_t* h_start_vertices = NULL;
-  weight_t h_result[] = {0.8, 0.8, 0.8, 0.8, 0.666667};
+  weight_t h_result[]        = {0.8, 0.8, 0.8, 0.8, 0.666667};
 
   return generic_similarity_test(handle,
                                  h_src,
@@ -536,19 +558,19 @@ int test_all_pairs_sorensen_with_topk(const cugraph_resource_handle_t* handle)
 
 int test_overlap(const cugraph_resource_handle_t* handle)
 {
-  size_t num_edges    = 16;
-  size_t num_vertices = 6;
-  size_t num_pairs    = 10;
+  size_t num_edges          = 16;
+  size_t num_vertices       = 6;
+  size_t num_pairs          = 10;
   size_t num_start_vertices = 0;
-  size_t topk = 0;
+  size_t topk               = 0;
 
-  vertex_t h_src[]    = {0, 1, 1, 2, 2, 2, 3, 4, 1, 3, 4, 0, 1, 3, 5, 5};
-  vertex_t h_dst[]    = {1, 3, 4, 0, 1, 3, 5, 5, 0, 1, 1, 2, 2, 2, 3, 4};
-  weight_t h_wgt[]    = {0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
-  vertex_t h_first[]  = {0, 0, 0, 1, 1, 1, 2, 2, 2, 3};
-  vertex_t h_second[] = {1, 3, 4, 2, 3, 5, 3, 4, 5, 4};
+  vertex_t h_src[]           = {0, 1, 1, 2, 2, 2, 3, 4, 1, 3, 4, 0, 1, 3, 5, 5};
+  vertex_t h_dst[]           = {1, 3, 4, 0, 1, 3, 5, 5, 0, 1, 1, 2, 2, 2, 3, 4};
+  weight_t h_wgt[]           = {0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
+  vertex_t h_first[]         = {0, 0, 0, 1, 1, 1, 2, 2, 2, 3};
+  vertex_t h_second[]        = {1, 3, 4, 2, 3, 5, 3, 4, 5, 4};
   vertex_t* h_start_vertices = NULL;
-  weight_t h_result[] = {0.5, 1, 0.5, 0.666667, 0.333333, 1, 0.333333, 0.5, 0.5, 1};
+  weight_t h_result[]        = {0.5, 1, 0.5, 0.666667, 0.333333, 1, 0.333333, 0.5, 0.5, 1};
 
   return generic_similarity_test(handle,
                                  h_src,
@@ -570,21 +592,21 @@ int test_overlap(const cugraph_resource_handle_t* handle)
 
 int test_weighted_overlap(const cugraph_resource_handle_t* handle)
 {
-  size_t num_edges    = 16;
-  size_t num_vertices = 7;
-  size_t num_pairs    = 3;
+  size_t num_edges          = 16;
+  size_t num_vertices       = 7;
+  size_t num_pairs          = 3;
   size_t num_start_vertices = 0;
-  size_t topk = 0;
+  size_t topk               = 0;
 
   vertex_t h_src[] = {0, 1, 2, 0, 1, 2, 3, 3, 3, 4, 4, 4, 0, 5, 2, 6};
   vertex_t h_dst[] = {3, 3, 3, 4, 4, 4, 0, 1, 2, 0, 1, 2, 5, 0, 6, 2};
   weight_t h_wgt[] = {
     0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 3.5, 4.0, 4.0};
 
-  vertex_t h_first[]  = {0, 0, 1};
-  vertex_t h_second[] = {1, 2, 3};
+  vertex_t h_first[]         = {0, 0, 1};
+  vertex_t h_second[]        = {1, 2, 3};
   vertex_t* h_start_vertices = NULL;
-  weight_t h_result[] = {0.714286, 0.416667, 0.000000};
+  weight_t h_result[]        = {0.714286, 0.416667, 0.000000};
 
   return generic_similarity_test(handle,
                                  h_src,
@@ -606,19 +628,21 @@ int test_weighted_overlap(const cugraph_resource_handle_t* handle)
 
 int test_all_pairs_overlap(const cugraph_resource_handle_t* handle)
 {
-  size_t num_edges    = 16;
-  size_t num_vertices = 6;
-  size_t num_pairs    = 0;
+  size_t num_edges          = 16;
+  size_t num_vertices       = 6;
+  size_t num_pairs          = 0;
   size_t num_start_vertices = 0;
-  size_t topk = 0;
+  size_t topk               = 0;
 
-  vertex_t h_src[]    = {0, 1, 1, 2, 2, 2, 3, 4, 1, 3, 4, 0, 1, 3, 5, 5};
-  vertex_t h_dst[]    = {1, 3, 4, 0, 1, 3, 5, 5, 0, 1, 1, 2, 2, 2, 3, 4};
-  weight_t h_wgt[]    = {0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
-  vertex_t* h_first = NULL;
-  vertex_t* h_second = NULL;
+  vertex_t h_src[]           = {0, 1, 1, 2, 2, 2, 3, 4, 1, 3, 4, 0, 1, 3, 5, 5};
+  vertex_t h_dst[]           = {1, 3, 4, 0, 1, 3, 5, 5, 0, 1, 1, 2, 2, 2, 3, 4};
+  weight_t h_wgt[]           = {0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
+  vertex_t* h_first          = NULL;
+  vertex_t* h_second         = NULL;
   vertex_t* h_start_vertices = NULL;
-  weight_t h_result[] = {0.5, 0.5, 1.0, 0.5, 0.5, 0.666667, 0.333333, 1.0, 0.5, 0.666667, 0.333333, 0.5, 0.5, 1.0, 0.333333, 0.333333, 1.0, 0.5, 0.5, 1.0, 1.0, 0.5};
+  weight_t h_result[]        = {0.5, 0.5,      1.0,      0.5, 0.5, 0.666667, 0.333333, 1.0,
+                                0.5, 0.666667, 0.333333, 0.5, 0.5, 1.0,      0.333333, 0.333333,
+                                1.0, 0.5,      0.5,      1.0, 1.0, 0.5};
 
   return generic_similarity_test(handle,
                                  h_src,
@@ -640,19 +664,20 @@ int test_all_pairs_overlap(const cugraph_resource_handle_t* handle)
 
 int test_all_pairs_overlap_with_start_vertices(const cugraph_resource_handle_t* handle)
 {
-  size_t num_edges    = 16;
-  size_t num_vertices = 6;
-  size_t num_pairs    = 0;
+  size_t num_edges          = 16;
+  size_t num_vertices       = 6;
+  size_t num_pairs          = 0;
   size_t num_start_vertices = 3;
-  size_t topk = 0;
+  size_t topk               = 0;
 
-  vertex_t h_src[]    = {0, 1, 1, 2, 2, 2, 3, 4, 1, 3, 4, 0, 1, 3, 5, 5};
-  vertex_t h_dst[]    = {1, 3, 4, 0, 1, 3, 5, 5, 0, 1, 1, 2, 2, 2, 3, 4};
-  weight_t h_wgt[]    = {0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
-  vertex_t* h_first    = NULL;
-  vertex_t* h_second   = NULL;
-  vertex_t h_start_vertices[]   = {0, 1, 2};
-  weight_t h_result[] = {0.5, 0.5, 1.0, 0.5, 0.5, 0.666667, 0.333333, 1.0, 0.5, 0.666667, 0.333333, 0.5, 0.5};
+  vertex_t h_src[]            = {0, 1, 1, 2, 2, 2, 3, 4, 1, 3, 4, 0, 1, 3, 5, 5};
+  vertex_t h_dst[]            = {1, 3, 4, 0, 1, 3, 5, 5, 0, 1, 1, 2, 2, 2, 3, 4};
+  weight_t h_wgt[]            = {0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
+  vertex_t* h_first           = NULL;
+  vertex_t* h_second          = NULL;
+  vertex_t h_start_vertices[] = {0, 1, 2};
+  weight_t h_result[]         = {
+    0.5, 0.5, 1.0, 0.5, 0.5, 0.666667, 0.333333, 1.0, 0.5, 0.666667, 0.333333, 0.5, 0.5};
 
   return generic_similarity_test(handle,
                                  h_src,
@@ -674,19 +699,19 @@ int test_all_pairs_overlap_with_start_vertices(const cugraph_resource_handle_t* 
 
 int test_all_pairs_overlap_with_topk(const cugraph_resource_handle_t* handle)
 {
-  size_t num_edges    = 16;
-  size_t num_vertices = 6;
-  size_t num_pairs    = 0;
+  size_t num_edges          = 16;
+  size_t num_vertices       = 6;
+  size_t num_pairs          = 0;
   size_t num_start_vertices = 3;
-  size_t topk = 5;
+  size_t topk               = 5;
 
-  vertex_t h_src[]    = {0, 1, 1, 2, 2, 2, 3, 4, 1, 3, 4, 0, 1, 3, 5, 5};
-  vertex_t h_dst[]    = {1, 3, 4, 0, 1, 3, 5, 5, 0, 1, 1, 2, 2, 2, 3, 4};
-  weight_t h_wgt[]    = {0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
-  vertex_t* h_first    = NULL;
-  vertex_t* h_second   = NULL;
+  vertex_t h_src[]           = {0, 1, 1, 2, 2, 2, 3, 4, 1, 3, 4, 0, 1, 3, 5, 5};
+  vertex_t h_dst[]           = {1, 3, 4, 0, 1, 3, 5, 5, 0, 1, 1, 2, 2, 2, 3, 4};
+  weight_t h_wgt[]           = {0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
+  vertex_t* h_first          = NULL;
+  vertex_t* h_second         = NULL;
   vertex_t* h_start_vertices = NULL;
-  weight_t h_result[] = {1.0, 1.0, 1.0, 1.0, 1.0};
+  weight_t h_result[]        = {1.0, 1.0, 1.0, 1.0, 1.0};
 
   return generic_similarity_test(handle,
                                  h_src,
@@ -706,32 +731,21 @@ int test_all_pairs_overlap_with_topk(const cugraph_resource_handle_t* handle)
                                  ALL_PAIRS_OVERLAP);
 }
 
-
-
-
-
-
-
-
-
-
-
-
 int test_cosine(const cugraph_resource_handle_t* handle)
 {
-  size_t num_edges    = 16;
-  size_t num_vertices = 6;
-  size_t num_pairs    = 10;
+  size_t num_edges          = 16;
+  size_t num_vertices       = 6;
+  size_t num_pairs          = 10;
   size_t num_start_vertices = 0;
-  size_t topk = 0;
+  size_t topk               = 0;
 
-  vertex_t h_src[]    = {0, 1, 1, 2, 2, 2, 3, 4, 1, 3, 4, 0, 1, 3, 5, 5};
-  vertex_t h_dst[]    = {1, 3, 4, 0, 1, 3, 5, 5, 0, 1, 1, 2, 2, 2, 3, 4};
-  weight_t h_wgt[]    = {0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
-  vertex_t h_first[]  = {0, 0, 0, 1, 1, 1, 2, 2, 2, 3};
-  vertex_t h_second[] = {1, 3, 4, 2, 3, 5, 3, 4, 5, 4};
+  vertex_t h_src[]           = {0, 1, 1, 2, 2, 2, 3, 4, 1, 3, 4, 0, 1, 3, 5, 5};
+  vertex_t h_dst[]           = {1, 3, 4, 0, 1, 3, 5, 5, 0, 1, 1, 2, 2, 2, 3, 4};
+  weight_t h_wgt[]           = {0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
+  vertex_t h_first[]         = {0, 0, 0, 1, 1, 1, 2, 2, 2, 3};
+  vertex_t h_second[]        = {1, 3, 4, 2, 3, 5, 3, 4, 5, 4};
   vertex_t* h_start_vertices = NULL;
-  weight_t h_result[] = {1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
+  weight_t h_result[]        = {1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
 
   return generic_similarity_test(handle,
                                  h_src,
@@ -753,21 +767,21 @@ int test_cosine(const cugraph_resource_handle_t* handle)
 
 int test_weighted_cosine(const cugraph_resource_handle_t* handle)
 {
-  size_t num_edges    = 16;
-  size_t num_vertices = 7;
-  size_t num_pairs    = 2;
+  size_t num_edges          = 16;
+  size_t num_vertices       = 7;
+  size_t num_pairs          = 2;
   size_t num_start_vertices = 0;
-  size_t topk = 0;
+  size_t topk               = 0;
 
   vertex_t h_src[] = {0, 1, 2, 0, 1, 2, 3, 3, 3, 4, 4, 4, 0, 5, 2, 6};
   vertex_t h_dst[] = {3, 3, 3, 4, 4, 4, 0, 1, 2, 0, 1, 2, 5, 0, 6, 2};
   weight_t h_wgt[] = {
     0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 3.5, 4.0, 4.0};
 
-  vertex_t h_first[]  = {0, 0};
-  vertex_t h_second[] = {1, 2};
+  vertex_t h_first[]         = {0, 0};
+  vertex_t h_second[]        = {1, 2};
   vertex_t* h_start_vertices = NULL;
-  weight_t h_result[] = {0.990830, 0.976187};
+  weight_t h_result[]        = {0.990830, 0.976187};
 
   return generic_similarity_test(handle,
                                  h_src,
@@ -789,19 +803,21 @@ int test_weighted_cosine(const cugraph_resource_handle_t* handle)
 
 int test_all_pairs_cosine(const cugraph_resource_handle_t* handle)
 {
-  size_t num_edges    = 16;
-  size_t num_vertices = 6;
-  size_t num_pairs    = 0;
+  size_t num_edges          = 16;
+  size_t num_vertices       = 6;
+  size_t num_pairs          = 0;
   size_t num_start_vertices = 0;
-  size_t topk = 0;
+  size_t topk               = 0;
 
-  vertex_t h_src[]    = {0, 1, 1, 2, 2, 2, 3, 4, 1, 3, 4, 0, 1, 3, 5, 5};
-  vertex_t h_dst[]    = {1, 3, 4, 0, 1, 3, 5, 5, 0, 1, 1, 2, 2, 2, 3, 4};
-  weight_t h_wgt[]    = {0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
-  vertex_t* h_first = NULL;
-  vertex_t* h_second = NULL;
+  vertex_t h_src[]           = {0, 1, 1, 2, 2, 2, 3, 4, 1, 3, 4, 0, 1, 3, 5, 5};
+  vertex_t h_dst[]           = {1, 3, 4, 0, 1, 3, 5, 5, 0, 1, 1, 2, 2, 2, 3, 4};
+  weight_t h_wgt[]           = {0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
+  vertex_t* h_first          = NULL;
+  vertex_t* h_second         = NULL;
   vertex_t* h_start_vertices = NULL;
-  weight_t h_result[] = {0.5, 0.5, 1.0, 0.5, 0.5, 0.666667, 0.333333, 1.0, 0.5, 0.666667, 0.333333, 0.5, 0.5, 1.0, 0.333333, 0.333333, 1.0, 0.5, 0.5, 1.0, 1.0, 0.5};
+  weight_t h_result[]        = {0.5, 0.5,      1.0,      0.5, 0.5, 0.666667, 0.333333, 1.0,
+                                0.5, 0.666667, 0.333333, 0.5, 0.5, 1.0,      0.333333, 0.333333,
+                                1.0, 0.5,      0.5,      1.0, 1.0, 0.5};
 
   return generic_similarity_test(handle,
                                  h_src,
@@ -823,19 +839,20 @@ int test_all_pairs_cosine(const cugraph_resource_handle_t* handle)
 
 int test_all_pairs_cosine_with_start_vertices(const cugraph_resource_handle_t* handle)
 {
-  size_t num_edges    = 16;
-  size_t num_vertices = 6;
-  size_t num_pairs    = 0;
+  size_t num_edges          = 16;
+  size_t num_vertices       = 6;
+  size_t num_pairs          = 0;
   size_t num_start_vertices = 3;
-  size_t topk = 0;
+  size_t topk               = 0;
 
-  vertex_t h_src[]    = {0, 1, 1, 2, 2, 2, 3, 4, 1, 3, 4, 0, 1, 3, 5, 5};
-  vertex_t h_dst[]    = {1, 3, 4, 0, 1, 3, 5, 5, 0, 1, 1, 2, 2, 2, 3, 4};
-  weight_t h_wgt[]    = {0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
-  vertex_t* h_first    = NULL;
-  vertex_t* h_second   = NULL;
-  vertex_t h_start_vertices[]   = {0, 1, 2};
-  weight_t h_result[] = {0.5, 0.5, 1.0, 0.5, 0.5, 0.666667, 0.333333, 1.0, 0.5, 0.666667, 0.333333, 0.5, 0.5};
+  vertex_t h_src[]            = {0, 1, 1, 2, 2, 2, 3, 4, 1, 3, 4, 0, 1, 3, 5, 5};
+  vertex_t h_dst[]            = {1, 3, 4, 0, 1, 3, 5, 5, 0, 1, 1, 2, 2, 2, 3, 4};
+  weight_t h_wgt[]            = {0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
+  vertex_t* h_first           = NULL;
+  vertex_t* h_second          = NULL;
+  vertex_t h_start_vertices[] = {0, 1, 2};
+  weight_t h_result[]         = {
+    0.5, 0.5, 1.0, 0.5, 0.5, 0.666667, 0.333333, 1.0, 0.5, 0.666667, 0.333333, 0.5, 0.5};
 
   return generic_similarity_test(handle,
                                  h_src,
@@ -857,19 +874,19 @@ int test_all_pairs_cosine_with_start_vertices(const cugraph_resource_handle_t* h
 
 int test_all_pairs_cosine_with_topk(const cugraph_resource_handle_t* handle)
 {
-  size_t num_edges    = 16;
-  size_t num_vertices = 6;
-  size_t num_pairs    = 0;
+  size_t num_edges          = 16;
+  size_t num_vertices       = 6;
+  size_t num_pairs          = 0;
   size_t num_start_vertices = 3;
-  size_t topk = 5;
+  size_t topk               = 5;
 
-  vertex_t h_src[]    = {0, 1, 1, 2, 2, 2, 3, 4, 1, 3, 4, 0, 1, 3, 5, 5};
-  vertex_t h_dst[]    = {1, 3, 4, 0, 1, 3, 5, 5, 0, 1, 1, 2, 2, 2, 3, 4};
-  weight_t h_wgt[]    = {0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
-  vertex_t* h_first    = NULL;
-  vertex_t* h_second   = NULL;
+  vertex_t h_src[]           = {0, 1, 1, 2, 2, 2, 3, 4, 1, 3, 4, 0, 1, 3, 5, 5};
+  vertex_t h_dst[]           = {1, 3, 4, 0, 1, 3, 5, 5, 0, 1, 1, 2, 2, 2, 3, 4};
+  weight_t h_wgt[]           = {0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
+  vertex_t* h_first          = NULL;
+  vertex_t* h_second         = NULL;
   vertex_t* h_start_vertices = NULL;
-  weight_t h_result[] = {1.0, 1.0, 1.0, 1.0, 1.0};
+  weight_t h_result[]        = {1.0, 1.0, 1.0, 1.0, 1.0};
 
   return generic_similarity_test(handle,
                                  h_src,
@@ -888,31 +905,6 @@ int test_all_pairs_cosine_with_topk(const cugraph_resource_handle_t* handle)
                                  FALSE,
                                  ALL_PAIRS_COSINE);
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 /******************************************************************************/
 

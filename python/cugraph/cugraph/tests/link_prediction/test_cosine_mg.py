@@ -64,7 +64,17 @@ def input_combo(request):
     tests or other parameterized fixtures.
     """
     parameters = dict(
-        zip(("graph_file", "directed", "has_vertex_pair", "has_vertices", "has_topk", "is_weighted"), request.param)
+        zip(
+            (
+                "graph_file",
+                "directed",
+                "has_vertex_pair",
+                "has_vertices",
+                "has_topk",
+                "is_weighted",
+            ),
+            request.param,
+        )
     )
 
     return parameters
@@ -150,7 +160,7 @@ def input_expected_output_all_pairs(input_combo):
 
     else:
         vertices = None
-    
+
     if has_topk:
         topk = 5
     else:
@@ -160,7 +170,10 @@ def input_expected_output_all_pairs(input_combo):
     print("vertices ", vertices, " is_weighted = ", is_weighted)
     input_combo["topk"] = topk
     sg_cugraph_all_pairs_cosine = cugraph.all_pairs_cosine(
-        G, vertices=input_combo["vertices"], topk=input_combo["topk"], use_weight=is_weighted
+        G,
+        vertices=input_combo["vertices"],
+        topk=input_combo["topk"],
+        use_weight=is_weighted,
     )
     # Save the results back to the input_combo dictionary to prevent redundant
     # cuGraph runs. Other tests using the input_combo fixture will look for
@@ -235,16 +248,20 @@ def test_dask_mg_cosine(dask_client, benchmark, input_expected_output):
 
 
 @pytest.mark.mg
-def test_dask_mg_all_pairs_cosine(dask_client, benchmark, input_expected_output_all_pairs):
+def test_dask_mg_all_pairs_cosine(
+    dask_client, benchmark, input_expected_output_all_pairs
+):
 
     dg = input_expected_output_all_pairs["MGGraph"]
 
-
     use_weight = input_expected_output_all_pairs["is_weighted"]
 
-
     result_cosine = benchmark(
-        dcg.all_pairs_cosine, dg, vertices=input_expected_output_all_pairs["vertices"], topk=input_expected_output_all_pairs["topk"], use_weight=use_weight
+        dcg.all_pairs_cosine,
+        dg,
+        vertices=input_expected_output_all_pairs["vertices"],
+        topk=input_expected_output_all_pairs["topk"],
+        use_weight=use_weight,
     )
 
     result_cosine = (

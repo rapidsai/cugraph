@@ -26,7 +26,7 @@ typedef int32_t vertex_t;
 typedef int32_t edge_t;
 typedef float weight_t;
 
-typedef enum { JACCARD, SORENSEN, OVERLAP, COSINE} similarity_t;
+typedef enum { JACCARD, SORENSEN, OVERLAP, COSINE } similarity_t;
 
 int generic_similarity_test(vertex_t* h_src,
                             vertex_t* h_dst,
@@ -706,7 +706,9 @@ int test_all_pairs_cosine()
   weight_t h_wgt[]    = {0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
   vertex_t h_first[]  = {0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 5, 5};
   vertex_t h_second[] = {1, 2, 3, 4, 0, 2, 3, 5, 0, 1, 3, 4, 5, 0, 1, 2, 4, 0, 2, 3, 1, 2};
-  weight_t h_result[] = {0.5, 0.5, 1.0, 0.5, 0.5, 0.666667, 0.333333, 1.0, 0.5, 0.666667, 0.333333, 0.5, 0.5, 1.0, 0.333333, 0.333333, 1.0, 0.5, 0.5, 1.0, 1.0, 0.5};
+  weight_t h_result[] = {0.5, 0.5,      1.0,      0.5, 0.5, 0.666667, 0.333333, 1.0,
+                         0.5, 0.666667, 0.333333, 0.5, 0.5, 1.0,      0.333333, 0.333333,
+                         1.0, 0.5,      0.5,      1.0, 1.0, 0.5};
 
   return generic_all_pairs_similarity_test(h_src,
                                            h_dst,
@@ -964,8 +966,6 @@ int test_all_pairs_cosine_topk()
                                            COSINE);
 }
 
-
-
 int test_weighted_all_pairs_cosine()
 {
   size_t num_edges    = 16;
@@ -1016,7 +1016,7 @@ int test_weighted_all_pairs_cosine()
 int main(int argc, char** argv)
 {
   int result = 0;
-  
+
   result |= RUN_TEST(test_jaccard);
   result |= RUN_TEST(test_sorensen);
   result |= RUN_TEST(test_overlap);

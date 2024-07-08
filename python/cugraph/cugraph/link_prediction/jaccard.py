@@ -240,11 +240,12 @@ def jaccard_coefficient(
 
     return df
 
+
 def all_pairs_jaccard(
     input_graph: Graph,
     vertices: cudf.Series = None,
     use_weight: bool = False,
-    topk: int = None
+    topk: int = None,
 ):
     """
     Compute the All Pairs Jaccard similarity between all pairs of vertices specified.
@@ -282,7 +283,7 @@ def all_pairs_jaccard(
         Flag to indicate whether to compute weighted jaccard (if use_weight==True)
         or un-weighted jaccard (if use_weight==False).
         'input_graph' must be weighted if 'use_weight=True'.
-    
+
     topk : int, optional (default=None)
         Specify the number of answers to return otherwise returns the entire
         solution
@@ -322,8 +323,9 @@ def all_pairs_jaccard(
 
         if isinstance(vertices, list):
             vertices = cudf.Series(
-                vertices, dtype=input_graph.edgelist.edgelist_df[input_graph.srcCol].dtype
-        )
+                vertices,
+                dtype=input_graph.edgelist.edgelist_df[input_graph.srcCol].dtype,
+            )
 
         if input_graph.renumbered is True:
             if isinstance(vertices, cudf.DataFrame):
@@ -332,8 +334,6 @@ def all_pairs_jaccard(
                 )
             else:
                 vertices = input_graph.lookup_internal_vertex_id(vertices)
-
-
 
     first, second, jaccard_coeff = pylibcugraph_all_pairs_jaccard_coefficients(
         resource_handle=ResourceHandle(),
@@ -348,13 +348,8 @@ def all_pairs_jaccard(
     vertex_pair["second"] = second
 
     if input_graph.renumbered:
-        vertex_pair = input_graph.unrenumber(
-            vertex_pair, "first", preserve_order=True
-        )
-        vertex_pair = input_graph.unrenumber(
-            vertex_pair, "second", preserve_order=True
-        )
-
+        vertex_pair = input_graph.unrenumber(vertex_pair, "first", preserve_order=True)
+        vertex_pair = input_graph.unrenumber(vertex_pair, "second", preserve_order=True)
 
     df = vertex_pair
     df["jaccard_coeff"] = cudf.Series(jaccard_coeff)

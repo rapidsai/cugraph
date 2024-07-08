@@ -150,7 +150,7 @@ def input_expected_output_all_pairs(input_combo):
 
     else:
         vertices = None
-    
+
     if has_topk:
         topk = 5
     else:
@@ -159,7 +159,10 @@ def input_expected_output_all_pairs(input_combo):
     input_combo["vertices"] = vertices
     input_combo["topk"] = topk
     sg_cugraph_all_pairs_overlap = cugraph.all_pairs_overlap(
-        G, vertices=input_combo["vertices"], topk=input_combo["topk"], use_weight=is_weighted
+        G,
+        vertices=input_combo["vertices"],
+        topk=input_combo["topk"],
+        use_weight=is_weighted,
     )
     # Save the results back to the input_combo dictionary to prevent redundant
     # cuGraph runs. Other tests using the input_combo fixture will look for
@@ -237,16 +240,20 @@ def test_dask_mg_overlap(dask_client, benchmark, input_expected_output):
 
 
 @pytest.mark.mg
-def test_dask_mg_all_pairs_overlap(dask_client, benchmark, input_expected_output_all_pairs):
+def test_dask_mg_all_pairs_overlap(
+    dask_client, benchmark, input_expected_output_all_pairs
+):
 
     dg = input_expected_output_all_pairs["MGGraph"]
 
-
     use_weight = input_expected_output_all_pairs["is_weighted"]
 
-
     result_overlap = benchmark(
-        dcg.all_pairs_overlap, dg, vertices=input_expected_output_all_pairs["vertices"], topk=input_expected_output_all_pairs["topk"], use_weight=use_weight
+        dcg.all_pairs_overlap,
+        dg,
+        vertices=input_expected_output_all_pairs["vertices"],
+        topk=input_expected_output_all_pairs["topk"],
+        use_weight=use_weight,
     )
 
     result_overlap = (

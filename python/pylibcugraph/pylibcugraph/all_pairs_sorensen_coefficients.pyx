@@ -87,7 +87,7 @@ def all_pairs_sorensen_coefficients(ResourceHandle resource_handle,
         If set to True, then compute weighted sorensen_coefficients(
             the input graph must be weighted in that case).
         Otherwise, compute non-weighted sorensen_coefficients
-    
+
     topk : size_t
         Specify the number of answers to return otherwise will return all values.
 
@@ -142,7 +142,7 @@ def all_pairs_sorensen_coefficients(ResourceHandle resource_handle,
 
     cdef cugraph_vertex_pairs_t* vertex_pairs_ptr = \
         cugraph_similarity_result_get_vertex_pairs(result_ptr)
-    
+
     cdef cugraph_type_erased_device_array_view_t* first_view_ptr = \
         cugraph_vertex_pairs_get_first(vertex_pairs_ptr)
 

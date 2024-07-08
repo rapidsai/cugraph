@@ -164,13 +164,14 @@ cugraph_error_code_t cugraph_overlap_coefficients(const cugraph_resource_handle_
  *                           be populated if error code is not CUGRAPH_SUCCESS
  * @return error code
  */
-cugraph_error_code_t cugraph_cosine_similarity_coefficients(const cugraph_resource_handle_t* handle,
-                                                  cugraph_graph_t* graph,
-                                                  const cugraph_vertex_pairs_t* vertex_pairs,
-                                                  bool_t use_weight,
-                                                  bool_t do_expensive_check,
-                                                  cugraph_similarity_result_t** result,
-                                                  cugraph_error_t** error);
+cugraph_error_code_t cugraph_cosine_similarity_coefficients(
+  const cugraph_resource_handle_t* handle,
+  cugraph_graph_t* graph,
+  const cugraph_vertex_pairs_t* vertex_pairs,
+  bool_t use_weight,
+  bool_t do_expensive_check,
+  cugraph_similarity_result_t** result,
+  cugraph_error_t** error);
 
 /**
  * @brief     Perform All-Pairs Jaccard similarity computation

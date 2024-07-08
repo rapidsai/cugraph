@@ -63,7 +63,17 @@ def input_combo(request):
     tests or other parameterized fixtures.
     """
     parameters = dict(
-        zip(("graph_file", "directed", "has_vertex_pair", "has_vertices", "has_topk", "is_weighted"), request.param)
+        zip(
+            (
+                "graph_file",
+                "directed",
+                "has_vertex_pair",
+                "has_vertices",
+                "has_topk",
+                "is_weighted",
+            ),
+            request.param,
+        )
     )
 
     return parameters
@@ -149,7 +159,7 @@ def input_expected_output_all_pairs(input_combo):
 
     else:
         vertices = None
-    
+
     if has_topk:
         topk = 5
     else:
@@ -159,7 +169,10 @@ def input_expected_output_all_pairs(input_combo):
     print("vertices ", vertices, " is_weighted = ", is_weighted)
     input_combo["topk"] = topk
     sg_cugraph_all_pairs_sorensen = cugraph.all_pairs_sorensen(
-        G, vertices=input_combo["vertices"], topk=input_combo["topk"], use_weight=is_weighted
+        G,
+        vertices=input_combo["vertices"],
+        topk=input_combo["topk"],
+        use_weight=is_weighted,
     )
     # Save the results back to the input_combo dictionary to prevent redundant
     # cuGraph runs. Other tests using the input_combo fixture will look for

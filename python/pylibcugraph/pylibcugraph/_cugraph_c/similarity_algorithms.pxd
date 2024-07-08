@@ -53,7 +53,7 @@ cdef extern from "cugraph_c/similarity_algorithms.h":
         cugraph_similarity_result_free(
             cugraph_similarity_result_t* result
         )
-    
+
     ###########################################################################
     # jaccard coefficients
     cdef cugraph_error_code_t \
@@ -66,7 +66,7 @@ cdef extern from "cugraph_c/similarity_algorithms.h":
             cugraph_similarity_result_t** result,
             cugraph_error_t** error
         )
-    
+
     ###########################################################################
     # all-pairs jaccard coefficients
     cdef cugraph_error_code_t \
@@ -93,7 +93,7 @@ cdef extern from "cugraph_c/similarity_algorithms.h":
             cugraph_similarity_result_t** result,
             cugraph_error_t** error
         )
-    
+
     ###########################################################################
     # all-pairs sorensen coefficients
     cdef cugraph_error_code_t \
@@ -120,7 +120,7 @@ cdef extern from "cugraph_c/similarity_algorithms.h":
             cugraph_similarity_result_t** result,
             cugraph_error_t** error
         )
-    
+
     ###########################################################################
     # all-pairs overlap coefficients
     cdef cugraph_error_code_t \
@@ -134,7 +134,7 @@ cdef extern from "cugraph_c/similarity_algorithms.h":
             cugraph_similarity_result_t** result,
             cugraph_error_t** error
         )
-    
+
     ###########################################################################
     # cosine coefficients
     cdef cugraph_error_code_t \
@@ -147,7 +147,7 @@ cdef extern from "cugraph_c/similarity_algorithms.h":
             cugraph_similarity_result_t** result,
             cugraph_error_t** error
         )
-    
+
     ###########################################################################
     # all-pairs cosine coefficients
     cdef cugraph_error_code_t \

@@ -346,13 +346,20 @@ def test_all_pairs_sorensen():
 
     # Call Sorensen
     sorensen_results = cugraph.sorensen(G)
-    
+
     # Remove self loop
-    sorensen_results = sorensen_results[sorensen_results['first'] != sorensen_results['second']].reset_index(drop=True)
-    
+    sorensen_results = sorensen_results[
+        sorensen_results["first"] != sorensen_results["second"]
+    ].reset_index(drop=True)
+
     all_pairs_sorensen_results = cugraph.all_pairs_sorensen(G)
 
-    assert_frame_equal(sorensen_results.head(), all_pairs_sorensen_results.head(), check_dtype=False, check_like=True)
+    assert_frame_equal(
+        sorensen_results.head(),
+        all_pairs_sorensen_results.head(),
+        check_dtype=False,
+        check_like=True,
+    )
 
 
 # FIXME
@@ -364,23 +371,30 @@ def test_all_pairs_sorensen_with_vertices():
 
     # Call Sorensen
     sorensen_results = cugraph.sorensen(G)
-    
+
     # Remove self loop
-    sorensen_results = sorensen_results[sorensen_results['first'] != sorensen_results['second']].reset_index(drop=True)
+    sorensen_results = sorensen_results[
+        sorensen_results["first"] != sorensen_results["second"]
+    ].reset_index(drop=True)
 
     vertices = [0, 1, 2]
 
-    mask_first = sorensen_results['first'].isin(vertices)
-    mask_second = sorensen_results['second'].isin(vertices)
-    # mask = [v in vertices for v in (sorensen_results['first'].to_pandas() or sorensen_results['second'].to_pandas())]
+    mask_first = sorensen_results["first"].isin(vertices)
+    mask_second = sorensen_results["second"].isin(vertices)
+    # mask = [v in vertices for v in (sorensen_results['first'].to_pandas()
+    # or sorensen_results['second'].to_pandas())]
     mask = [f or s for (f, s) in zip(mask_first.to_pandas(), mask_second.to_pandas())]
 
     sorensen_results = sorensen_results[mask].reset_index(drop=True)
 
     # Call all-pairs Sorensen
-    all_pairs_sorensen_results = cugraph.all_pairs_sorensen(G, vertices=cudf.Series(vertices, dtype="int32"))
+    all_pairs_sorensen_results = cugraph.all_pairs_sorensen(
+        G, vertices=cudf.Series(vertices, dtype="int32")
+    )
 
-    assert_frame_equal(sorensen_results, all_pairs_sorensen_results, check_dtype=False, check_like=True)
+    assert_frame_equal(
+        sorensen_results, all_pairs_sorensen_results, check_dtype=False, check_like=True
+    )
 
 
 @pytest.mark.sg
@@ -392,12 +406,21 @@ def test_all_pairs_sorensen_with_topk():
     sorensen_results = cugraph.sorensen(G)
 
     topk = 4
-    
+
     # Remove self loop
-    sorensen_results = sorensen_results[sorensen_results['first'] != sorensen_results['second']].\
-        sort_values(["sorensen_coeff", "first", "second"], ascending=False).reset_index(drop=True)[:topk]
+    sorensen_results = (
+        sorensen_results[sorensen_results["first"] != sorensen_results["second"]]
+        .sort_values(["sorensen_coeff", "first", "second"], ascending=False)
+        .reset_index(drop=True)[:topk]
+    )
 
     # Call all-pairs sorensen
-    all_pairs_sorensen_results = cugraph.all_pairs_sorensen(G, topk=topk).sort_values(["first", "second"], ascending=False).reset_index(drop=True)
+    all_pairs_sorensen_results = (
+        cugraph.all_pairs_sorensen(G, topk=topk)
+        .sort_values(["first", "second"], ascending=False)
+        .reset_index(drop=True)
+    )
 
-    assert_frame_equal(sorensen_results, all_pairs_sorensen_results, check_dtype=False, check_like=True)
+    assert_frame_equal(
+        sorensen_results, all_pairs_sorensen_results, check_dtype=False, check_like=True
+    )

@@ -277,7 +277,7 @@ def all_pairs_sorensen(
     input_graph: Graph,
     vertices: cudf.Series = None,
     use_weight: bool = False,
-    topk: int = None
+    topk: int = None,
 ):
     """
     Compute All Pairs the Sorensen coefficient between each pair of vertices connected
@@ -315,7 +315,7 @@ def all_pairs_sorensen(
         Flag to indicate whether to compute weighted sorensen (if use_weight==True)
         or un-weighted sorensen (if use_weight==False).
         'input_graph' must be weighted if 'use_weight=True'.
-    
+
     topk : int, optional (default=None)
         Specify the number of answers to return otherwise returns the entire
         solution
@@ -355,8 +355,9 @@ def all_pairs_sorensen(
 
         if isinstance(vertices, list):
             vertices = cudf.Series(
-                vertices, dtype=input_graph.edgelist.edgelist_df[input_graph.srcCol].dtype
-        )
+                vertices,
+                dtype=input_graph.edgelist.edgelist_df[input_graph.srcCol].dtype,
+            )
 
         if input_graph.renumbered is True:
             if isinstance(vertices, cudf.DataFrame):
@@ -365,8 +366,6 @@ def all_pairs_sorensen(
                 )
             else:
                 vertices = input_graph.lookup_internal_vertex_id(vertices)
-
-
 
     first, second, sorensen_coeff = pylibcugraph_all_pairs_sorensen_coefficients(
         resource_handle=ResourceHandle(),
@@ -381,13 +380,8 @@ def all_pairs_sorensen(
     vertex_pair["second"] = second
 
     if input_graph.renumbered:
-        vertex_pair = input_graph.unrenumber(
-            vertex_pair, "first", preserve_order=True
-        )
-        vertex_pair = input_graph.unrenumber(
-            vertex_pair, "second", preserve_order=True
-        )
-
+        vertex_pair = input_graph.unrenumber(vertex_pair, "first", preserve_order=True)
+        vertex_pair = input_graph.unrenumber(vertex_pair, "second", preserve_order=True)
 
     df = vertex_pair
     df["sorensen_coeff"] = cudf.Series(sorensen_coeff)

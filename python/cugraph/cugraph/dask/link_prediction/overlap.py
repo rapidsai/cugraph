@@ -198,10 +198,11 @@ def overlap(input_graph, vertex_pair=None, use_weight=False):
 
 
 def all_pairs_overlap(
-        input_graph,
-        vertices: cudf.Series = None,
-        use_weight: bool = False,
-        topk: int = None):
+    input_graph,
+    vertices: cudf.Series = None,
+    use_weight: bool = False,
+    topk: int = None,
+):
     """
     Compute the All Pairs Overlap similarity between all pairs of vertices specified.
     All pairs Overlap Coefficient is defined between two sets as the ratio of the volume
@@ -239,7 +240,7 @@ def all_pairs_overlap(
         Flag to indicate whether to compute weighted overlap (if use_weight==True)
         or un-weighted overlap (if use_weight==False).
         'input_graph' must be weighted if 'use_weight=True'.
-    
+
     topk : int, optional (default=None)
         Specify the number of answers to return otherwise returns the entire
         solution
@@ -278,13 +279,11 @@ def all_pairs_overlap(
             )
 
         if not isinstance(vertices, (dask_cudf.Series)):
-            vertices = dask_cudf.from_cudf(
-                vertices, npartitions=get_n_workers()
-            )
+            vertices = dask_cudf.from_cudf(vertices, npartitions=get_n_workers())
 
         if input_graph.renumbered:
             vertices = input_graph.lookup_internal_vertex_id(vertices)
-        
+
         n_workers = get_n_workers()
         vertices = vertices.repartition(npartitions=n_workers)
         vertices = persist_dask_df_equal_parts_per_worker(vertices, client)

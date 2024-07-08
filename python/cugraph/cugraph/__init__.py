@@ -85,7 +85,7 @@ from cugraph.link_prediction import (
     all_pairs_sorensen,
     cosine,
     cosine_coefficient,
-    all_pairs_cosine
+    all_pairs_cosine,
 )
 
 from cugraph.traversal import (
