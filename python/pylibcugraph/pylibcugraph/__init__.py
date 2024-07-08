@@ -95,11 +95,15 @@ from pylibcugraph.overlap_coefficients import overlap_coefficients
 
 from pylibcugraph.sorensen_coefficients import sorensen_coefficients
 
+from pylibcugraph.cosine_coefficients import cosine_coefficients
+
 from pylibcugraph.all_pairs_jaccard_coefficients import all_pairs_jaccard_coefficients
 
 from pylibcugraph.all_pairs_overlap_coefficients import all_pairs_overlap_coefficients
 
 from pylibcugraph.all_pairs_sorensen_coefficients import all_pairs_sorensen_coefficients
+
+from pylibcugraph.all_pairs_cosine_coefficients import all_pairs_cosine_coefficients
 
 from pylibcugraph.degrees import in_degrees, out_degrees, degrees
 
