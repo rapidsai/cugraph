@@ -64,7 +64,7 @@ def input_combo(request):
     tests or other parameterized fixtures.
     """
     parameters = dict(
-        zip(("graph_file", "directed", "has_vertex_pair", "is_weighted"), request.param)
+        zip(("graph_file", "directed", "has_vertex_pair", "has_vertices", "has_topk", "is_weighted"), request.param)
     )
 
     return parameters
@@ -142,6 +142,12 @@ def input_expected_output_all_pairs(input_combo):
     G = utils.generate_cugraph_graph_from_file(
         input_data_path, directed=directed, edgevals=is_weighted
     )
+
+    if has_topk:
+        topk = 5
+    else:
+        topk = None
+
     if has_vertices:
         # Sample random vertices from the graph and compute the two_hop_neighbors
         # with those seeds
@@ -150,14 +156,12 @@ def input_expected_output_all_pairs(input_combo):
 
     else:
         vertices = None
-
-    if has_topk:
-        topk = 5
-    else:
-        topk = None
+        # If no start_vertices are passed, all_pairs similarity runs OOM
+        topk = 10
 
     input_combo["vertices"] = vertices
     input_combo["topk"] = topk
+    print("vertices ", vertices)
     sg_cugraph_all_pairs_overlap = cugraph.all_pairs_overlap(
         G,
         vertices=input_combo["vertices"],

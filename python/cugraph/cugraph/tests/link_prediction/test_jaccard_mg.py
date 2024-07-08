@@ -152,6 +152,12 @@ def input_expected_output_all_pairs(input_combo):
     G = utils.generate_cugraph_graph_from_file(
         input_data_path, directed=directed, edgevals=is_weighted
     )
+
+    if has_topk:
+        topk = 5
+    else:
+        topk = None
+
     if has_vertices:
         # Sample random vertices from the graph and compute the two_hop_neighbors
         # with those seeds
@@ -160,15 +166,12 @@ def input_expected_output_all_pairs(input_combo):
 
     else:
         vertices = None
-
-    if has_topk:
-        topk = 5
-    else:
-        topk = None
+        # If no start_vertices are passed, all_pairs similarity runs OOM
+        topk = 10
 
     input_combo["vertices"] = vertices
-    print("vertices ", vertices, " is_weighted = ", is_weighted)
     input_combo["topk"] = topk
+    print("vertices ", vertices)
     sg_cugraph_all_pairs_jaccard = cugraph.all_pairs_jaccard(
         G,
         vertices=input_combo["vertices"],
