@@ -32,9 +32,11 @@ from cugraph.gnn import (
     cugraph_comms_get_raft_handle,
 )
 
+
 pylibwholegraph = import_optional("pylibwholegraph")
 torch = import_optional("torch")
-dgl = import_optional('dgl')
+dgl = import_optional("dgl")
+
 
 def init_pytorch_worker(rank, world_size, cugraph_id):
     import rmm

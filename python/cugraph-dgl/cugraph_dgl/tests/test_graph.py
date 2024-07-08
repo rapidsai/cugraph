@@ -100,19 +100,18 @@ def test_graph_make_heterogeneous_graph(direction):
     df = karate.get_edgelist()
     df.src = df.src.astype("int64")
     df.dst = df.dst.astype("int64")
-    wgt = np.random.random((len(df),))
 
     graph = cugraph_dgl.Graph()
     total_num_nodes = max(df.src.max(), df.dst.max()) + 1
-    
+
     num_nodes_group_1 = total_num_nodes // 2
     num_nodes_group_2 = total_num_nodes - num_nodes_group_1
-    
+
     node_x_1 = np.random.random((num_nodes_group_1,))
     node_x_2 = np.random.random((num_nodes_group_2,))
 
-    graph.add_nodes(num_nodes_group_1, {'x':node_x_1}, 'type1')
-    graph.add_nodes(num_nodes_group_2, {'x':node_x_2}, 'type2')
+    graph.add_nodes(num_nodes_group_1, {"x": node_x_1}, "type1")
+    graph.add_nodes(num_nodes_group_2, {"x": node_x_2}, "type2")
 
     edges_11 = df[(df.src < num_nodes_group_1) & (df.dst < num_nodes_group_1)]
     edges_12 = df[(df.src < num_nodes_group_1) & (df.dst >= num_nodes_group_1)]
@@ -124,10 +123,10 @@ def test_graph_make_heterogeneous_graph(direction):
     edges_22.dst -= num_nodes_group_1
     edges_22.src -= num_nodes_group_1
 
-    graph.add_edges(edges_11.src, edges_11.dst, etype=('type1', 'e1', 'type1'))
-    graph.add_edges(edges_12.src, edges_12.dst, etype=('type1', 'e2', 'type2'))
-    graph.add_edges(edges_21.src, edges_21.dst, etype=('type2', 'e3', 'type1'))
-    graph.add_edges(edges_22.src, edges_22.dst, etype=('type2', 'e4', 'type2'))
+    graph.add_edges(edges_11.src, edges_11.dst, etype=("type1", "e1", "type1"))
+    graph.add_edges(edges_12.src, edges_12.dst, etype=("type1", "e2", "type2"))
+    graph.add_edges(edges_21.src, edges_21.dst, etype=("type2", "e3", "type1"))
+    graph.add_edges(edges_22.src, edges_22.dst, etype=("type2", "e4", "type2"))
 
     assert not graph.is_homogeneous
     assert not graph.is_multi_gpu
@@ -137,17 +136,31 @@ def test_graph_make_heterogeneous_graph(direction):
         graph.nodes() == torch.arange(total_num_nodes, dtype=torch.int64, device="cuda")
     ).all()
     assert (
-        graph.nodes('type1') == torch.arange(num_nodes_group_1, dtype=torch.int64, device="cuda")
+        graph.nodes("type1")
+        == torch.arange(num_nodes_group_1, dtype=torch.int64, device="cuda")
     ).all()
     assert (
-        graph.nodes('type2') == torch.arange(num_nodes_group_2, dtype=torch.int64, device="cuda")
+        graph.nodes("type2")
+        == torch.arange(num_nodes_group_2, dtype=torch.int64, device="cuda")
     ).all()
 
     # Verify graph.edges()
-    assert((graph.edges('eid',etype=('type1','e1','type1')) == torch.arange(len(edges_11), dtype=torch.int64, device='cuda')).all())
-    assert((graph.edges('eid',etype=('type1','e2','type2')) == torch.arange(len(edges_12), dtype=torch.int64, device='cuda')).all())
-    assert((graph.edges('eid',etype=('type2','e3','type1')) == torch.arange(len(edges_21), dtype=torch.int64, device='cuda')).all())
-    assert((graph.edges('eid',etype=('type2','e4','type2')) == torch.arange(len(edges_22), dtype=torch.int64, device='cuda')).all())
+    assert (
+        graph.edges("eid", etype=("type1", "e1", "type1"))
+        == torch.arange(len(edges_11), dtype=torch.int64, device="cuda")
+    ).all()
+    assert (
+        graph.edges("eid", etype=("type1", "e2", "type2"))
+        == torch.arange(len(edges_12), dtype=torch.int64, device="cuda")
+    ).all()
+    assert (
+        graph.edges("eid", etype=("type2", "e3", "type1"))
+        == torch.arange(len(edges_21), dtype=torch.int64, device="cuda")
+    ).all()
+    assert (
+        graph.edges("eid", etype=("type2", "e4", "type2"))
+        == torch.arange(len(edges_22), dtype=torch.int64, device="cuda")
+    ).all()
 
     # Use sampling call to check graph creation
     # This isn't a test of cuGraph sampling with DGL; the options are
@@ -156,20 +169,20 @@ def test_graph_make_heterogeneous_graph(direction):
     sampling_output = pylibcugraph.uniform_neighbor_sample(
         pylibcugraph.ResourceHandle(),
         plc_graph,
-        start_list=cupy.arange(total_num_nodes, dtype='int64'),
-        h_fan_out=np.array([1, 1], dtype='int32'),
+        start_list=cupy.arange(total_num_nodes, dtype="int64"),
+        h_fan_out=np.array([1, 1], dtype="int32"),
         with_replacement=False,
         do_expensive_check=True,
         with_edge_properties=True,
-        prior_sources_behavior='exclude',
+        prior_sources_behavior="exclude",
         return_dict=True,
     )
 
     expected_etypes = {
-        0: 'e1',
-        1: 'e2',
-        2: 'e3',
-        3: 'e4',
+        0: "e1",
+        1: "e2",
+        2: "e3",
+        3: "e4",
     }
     expected_offsets = {
         0: (0, 0),
@@ -177,20 +190,26 @@ def test_graph_make_heterogeneous_graph(direction):
         2: (num_nodes_group_1, 0),
         3: (num_nodes_group_1, num_nodes_group_1),
     }
-    if direction == 'in':   
-        src_col = 'minors'
-        dst_col = 'majors'
+    if direction == "in":
+        src_col = "minors"
+        dst_col = "majors"
     else:
-        src_col = 'majors'
-        dst_col = 'minors'
+        src_col = "majors"
+        dst_col = "minors"
 
     # Looping over the output verifies that all edges are valid
     # (and therefore, the graph is valid)
-    for i, etype in enumerate(sampling_output['edge_type'].tolist()):
-        eid = int(sampling_output['edge_id'][i])
+    for i, etype in enumerate(sampling_output["edge_type"].tolist()):
+        eid = int(sampling_output["edge_id"][i])
 
-        srcs, dsts, eids = graph.edges('all', etype=expected_etypes[etype], device='cpu')
-        
+        srcs, dsts, eids = graph.edges(
+            "all", etype=expected_etypes[etype], device="cpu"
+        )
+
         assert eids[eid] == eid
-        assert srcs[eid] == int(sampling_output[src_col][i]) - expected_offsets[etype][0]
-        assert dsts[eid] == int(sampling_output[dst_col][i]) - expected_offsets[etype][1]
+        assert (
+            srcs[eid] == int(sampling_output[src_col][i]) - expected_offsets[etype][0]
+        )
+        assert (
+            dsts[eid] == int(sampling_output[dst_col][i]) - expected_offsets[etype][1]
+        )
