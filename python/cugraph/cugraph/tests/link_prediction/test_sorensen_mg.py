@@ -52,6 +52,8 @@ fixture_params = gen_fixture_params_product(
     (datasets, "graph_file"),
     (IS_DIRECTED, "directed"),
     (HAS_VERTEX_PAIR, "has_vertex_pair"),
+    (HAS_VERTICES, "has_vertices"),
+    (HAS_TOPK, "has_topk"),
     (IS_WEIGHTED, "is_weighted"),
 )
 
@@ -151,6 +153,12 @@ def input_expected_output_all_pairs(input_combo):
     G = utils.generate_cugraph_graph_from_file(
         input_data_path, directed=directed, edgevals=is_weighted
     )
+
+    if has_topk:
+        topk = 5
+    else:
+        topk = None
+
     if has_vertices:
         # Sample random vertices from the graph and compute the two_hop_neighbors
         # with those seeds
@@ -159,11 +167,8 @@ def input_expected_output_all_pairs(input_combo):
 
     else:
         vertices = None
-
-    if has_topk:
-        topk = 5
-    else:
-        topk = None
+        # If no start_vertices are passed, all_pairs similarity runs OOM
+        topk = 10
 
     input_combo["vertices"] = vertices
     print("vertices ", vertices, " is_weighted = ", is_weighted)
@@ -228,6 +233,51 @@ def test_dask_mg_sorensen(dask_client, benchmark, input_expected_output):
 
     expected_output = (
         input_expected_output["sg_cugraph_results"]
+        .sort_values(["first", "second"])
+        .reset_index(drop=True)
+    )
+
+    # Update the dask cugraph sorensen results with sg cugraph results for easy
+    # comparison using cuDF DataFrame methods.
+    result_sorensen["sg_cugraph_sorensen_coeff"] = expected_output["sorensen_coeff"]
+
+    sorensen_coeff_diffs1 = result_sorensen.query(
+        "mg_cugraph_sorensen_coeff - sg_cugraph_sorensen_coeff > 0.00001"
+    )
+    sorensen_coeff_diffs2 = result_sorensen.query(
+        "mg_cugraph_sorensen_coeff - sg_cugraph_sorensen_coeff < -0.00001"
+    )
+
+    assert len(sorensen_coeff_diffs1) == 0
+    assert len(sorensen_coeff_diffs2) == 0
+
+
+@pytest.mark.mg
+def test_dask_mg_all_pairs_sorensen(
+    dask_client, benchmark, input_expected_output_all_pairs
+):
+
+    dg = input_expected_output_all_pairs["MGGraph"]
+
+    use_weight = input_expected_output_all_pairs["is_weighted"]
+
+    result_sorensen = benchmark(
+        dcg.all_pairs_sorensen,
+        dg,
+        vertices=input_expected_output_all_pairs["vertices"],
+        topk=input_expected_output_all_pairs["topk"],
+        use_weight=use_weight,
+    )
+
+    result_sorensen = (
+        result_sorensen.compute()
+        .sort_values(["first", "second"])
+        .reset_index(drop=True)
+        .rename(columns={"sorensen_coeff": "mg_cugraph_sorensen_coeff"})
+    )
+
+    expected_output = (
+        input_expected_output_all_pairs["sg_cugraph_results"]
         .sort_values(["first", "second"])
         .reset_index(drop=True)
     )
