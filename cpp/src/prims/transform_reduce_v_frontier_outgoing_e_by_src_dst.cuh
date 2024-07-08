@@ -228,15 +228,18 @@ transform_reduce_v_frontier_outgoing_e_by_src_dst(raft::handle_t const& handle,
                                                   EdgeOp>
     e_op_wrapper{e_op};
 
+  bool constexpr max_one_e_per_frontier_key =
+    reduce_by_src && std::is_same_v<ReduceOp, reduce_op::any<typename ReduceOp::value_type>>;
   auto [key_buffer, payload_buffer] =
-    detail::extract_transform_v_frontier_e<false, key_t, payload_t>(handle,
-                                                                    graph_view,
-                                                                    frontier,
-                                                                    edge_src_value_input,
-                                                                    edge_dst_value_input,
-                                                                    edge_value_input,
-                                                                    e_op_wrapper,
-                                                                    do_expensive_check);
+    detail::extract_transform_v_frontier_e<false, max_one_e_per_frontier_key, key_t, payload_t>(
+      handle,
+      graph_view,
+      frontier,
+      edge_src_value_input,
+      edge_dst_value_input,
+      edge_value_input,
+      e_op_wrapper,
+      do_expensive_check);
 
   // 2. reduce the buffer
 
