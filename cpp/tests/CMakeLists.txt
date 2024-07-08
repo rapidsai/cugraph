@@ -45,6 +45,7 @@ add_library(cugraphtestutil STATIC
             cores/k_core_validate.cu
             structure/induced_subgraph_validate.cu
             sampling/random_walks_check_sg.cu
+            sampling/detail/nbr_sampling_validate.cu
             ../../thirdparty/mmio/mmio.c)
 
 target_compile_options(cugraphtestutil
@@ -479,8 +480,12 @@ ConfigureTest(WEIGHTED_SIMILARITY_TEST link_prediction/weighted_similarity_test.
 ConfigureTest(RANDOM_WALKS_TEST sampling/sg_random_walks_test.cpp)
 
 ###################################################################################################
-# - NBR SAMPLING tests ----------------------------------------------------------------------------
-ConfigureTest(UNIFORM_NEIGHBOR_SAMPLING_TEST sampling/sg_uniform_neighbor_sampling.cu)
+# - UNIFORM NBR SAMPLING tests --------------------------------------------------------------------
+ConfigureTest(UNIFORM_NEIGHBOR_SAMPLING_TEST sampling/uniform_neighbor_sampling.cpp)
+
+###################################################################################################
+# - BIASED NBR SAMPLING tests ---------------------------------------------------------------------
+ConfigureTest(BIASED_NEIGHBOR_SAMPLING_TEST sampling/biased_neighbor_sampling.cpp)
 
 ###################################################################################################
 # - SAMPLING_POST_PROCESSING tests ----------------------------------------------------------------
@@ -729,8 +734,12 @@ if(BUILD_CUGRAPH_MG_TESTS)
                     prims/mg_per_v_pair_transform_dst_nbr_weighted_intersection.cu)
 
     ###############################################################################################
-    # - MG NBR SAMPLING tests ---------------------------------------------------------------------
-    ConfigureTestMG(MG_UNIFORM_NEIGHBOR_SAMPLING_TEST sampling/mg_uniform_neighbor_sampling.cu)
+    # - MG UNIFORM NBR SAMPLING tests -------------------------------------------------------------
+    ConfigureTestMG(MG_UNIFORM_NEIGHBOR_SAMPLING_TEST sampling/mg_uniform_neighbor_sampling.cpp)
+
+    ###############################################################################################
+    # - MG BIASED NBR SAMPLING tests --------------------------------------------------------------
+    ConfigureTestMG(MG_BIASED_NEIGHBOR_SAMPLING_TEST sampling/mg_biased_neighbor_sampling.cpp)
 
     ###############################################################################################
     # - MG RANDOM_WALKS tests ---------------------------------------------------------------------
@@ -763,6 +772,7 @@ if(BUILD_CUGRAPH_MG_TESTS)
     ConfigureCTestMG(MG_CAPI_EDGE_BETWEENNESS_CENTRALITY_TEST c_api/mg_edge_betweenness_centrality_test.c)
     ConfigureCTestMG(MG_CAPI_HITS_TEST c_api/mg_hits_test.c)
     ConfigureCTestMG(MG_CAPI_UNIFORM_NEIGHBOR_SAMPLE_TEST c_api/mg_uniform_neighbor_sample_test.c)
+    ConfigureCTestMG(MG_CAPI_LOOKUP_SRC_DST_TEST c_api/mg_lookup_src_dst_test.c)
     ConfigureCTestMG(MG_CAPI_RANDOM_WALKS_TEST c_api/mg_random_walks_test.c)
     ConfigureCTestMG(MG_CAPI_TRIANGLE_COUNT_TEST c_api/mg_triangle_count_test.c)
     ConfigureCTestMG(MG_CAPI_LOUVAIN_TEST c_api/mg_louvain_test.c)

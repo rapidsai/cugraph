@@ -310,6 +310,12 @@ set(CUGRAPH_SOURCES
     src/sampling/detail/gather_one_hop_edgelist_mg_v32_e64.cu
     src/sampling/detail/remove_visited_vertices_from_frontier_sg_v32_e32.cu
     src/sampling/detail/remove_visited_vertices_from_frontier_sg_v64_e64.cu
+    src/sampling/detail/check_edge_bias_values_sg_v64_e64.cu
+    src/sampling/detail/check_edge_bias_values_sg_v32_e32.cu
+    src/sampling/detail/check_edge_bias_values_sg_v32_e64.cu
+    src/sampling/detail/check_edge_bias_values_mg_v64_e64.cu
+    src/sampling/detail/check_edge_bias_values_mg_v32_e32.cu
+    src/sampling/detail/check_edge_bias_values_mg_v32_e64.cu
     src/sampling/detail/sample_edges_sg_v64_e64.cu
     src/sampling/detail/sample_edges_sg_v32_e32.cu
     src/sampling/detail/sample_edges_sg_v32_e64.cu
@@ -319,12 +325,12 @@ set(CUGRAPH_SOURCES
     src/sampling/detail/shuffle_and_organize_output_mg_v64_e64.cu
     src/sampling/detail/shuffle_and_organize_output_mg_v32_e32.cu
     src/sampling/detail/shuffle_and_organize_output_mg_v32_e64.cu
-    src/sampling/uniform_neighbor_sampling_mg_v32_e64.cpp
-    src/sampling/uniform_neighbor_sampling_mg_v32_e32.cpp
-    src/sampling/uniform_neighbor_sampling_mg_v64_e64.cpp
-    src/sampling/uniform_neighbor_sampling_sg_v32_e64.cpp
-    src/sampling/uniform_neighbor_sampling_sg_v32_e32.cpp
-    src/sampling/uniform_neighbor_sampling_sg_v64_e64.cpp
+    src/sampling/neighbor_sampling_mg_v32_e64.cpp
+    src/sampling/neighbor_sampling_mg_v32_e32.cpp
+    src/sampling/neighbor_sampling_mg_v64_e64.cpp
+    src/sampling/neighbor_sampling_sg_v32_e64.cpp
+    src/sampling/neighbor_sampling_sg_v32_e32.cpp
+    src/sampling/neighbor_sampling_sg_v64_e64.cpp
     src/sampling/renumber_sampled_edgelist_sg_v64_e64.cu
     src/sampling/renumber_sampled_edgelist_sg_v32_e32.cu
     src/sampling/sampling_post_processing_sg_v64_e64.cu
@@ -646,6 +652,7 @@ add_library(cugraph_c
         src/c_api/random.cpp
         src/c_api/similarity.cpp
         src/c_api/leiden.cpp
+        src/c_api/lookup_src_dst.cpp
         src/c_api/louvain.cpp
         src/c_api/triangle_count.cpp
         src/c_api/uniform_neighbor_sampling.cpp

@@ -14,24 +14,20 @@
  * limitations under the License.
  */
 
-#pragma once
+#include "sampling/detail/check_edge_bias_values.cuh"
 
-#include <cugraph_c/error.h>
-#include <cugraph_c/graph.h>
-#include <cugraph_c/resource_handle.h>
+namespace cugraph {
+namespace detail {
 
-/** @defgroup c_api cuGraph C API
- *  @{
- */
+template std::tuple<size_t, size_t> check_edge_bias_values(
+  raft::handle_t const& handle,
+  graph_view_t<int64_t, int64_t, false, false> const& graph_view,
+  edge_property_view_t<int64_t, float const*> edge_bias_view);
 
-#include <cugraph_c/centrality_algorithms.h>
-#include <cugraph_c/community_algorithms.h>
-#include <cugraph_c/core_algorithms.h>
-#include <cugraph_c/labeling_algorithms.h>
-#include <cugraph_c/lookup_src_dst.h>
-#include <cugraph_c/sampling_algorithms.h>
-#include <cugraph_c/similarity_algorithms.h>
-#include <cugraph_c/traversal_algorithms.h>
-/**
- *  @}
- */
+template std::tuple<size_t, size_t> check_edge_bias_values(
+  raft::handle_t const& handle,
+  graph_view_t<int64_t, int64_t, false, false> const& graph_view,
+  edge_property_view_t<int64_t, double const*> edge_bias_view);
+
+}  // namespace detail
+}  // namespace cugraph
