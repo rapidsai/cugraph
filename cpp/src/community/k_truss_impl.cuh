@@ -491,15 +491,15 @@ void decrease_triangle_count(raft::handle_t const& handle,
   
   // Before updating the count, we need to clear the mask
   // cur_graph_view.clear_edge_mask();
-  auto vertex_pair_buffer_begin = thrust::make_zip_iterator(edge_srcs.begin(), edge_dsts.begin());
+  auto edge_buffer_first = thrust::make_zip_iterator(edge_srcs.begin(), edge_dsts.begin());
   
   thrust::sort(handle.get_thrust_policy(),
-               vertex_pair_buffer_begin,
-               vertex_pair_buffer_begin + edge_srcs.size());
+               edge_buffer_first,
+               edge_buffer_first + edge_srcs.size());
   
   auto unique_pair_count = thrust::unique_count(handle.get_thrust_policy(),
-                                                vertex_pair_buffer_begin,
-                                                vertex_pair_buffer_begin + edge_srcs.size());
+                                                edge_buffer_first,
+                                                edge_buffer_first + edge_srcs.size());
   
   rmm::device_uvector<edge_t> decrease_count(unique_pair_count, handle.get_stream());
 
@@ -517,8 +517,8 @@ void decrease_triangle_count(raft::handle_t const& handle,
         unique_pair_count, handle.get_stream());
   
   thrust::reduce_by_key(handle.get_thrust_policy(),
-                        vertex_pair_buffer_begin,
-                        vertex_pair_buffer_begin + edge_srcs.size(),
+                        edge_buffer_first,
+                        edge_buffer_first + edge_srcs.size(),
                         thrust::make_constant_iterator(size_t{1}),
                         get_dataframe_buffer_begin(vertex_pair_buffer_unique),
                         decrease_count.begin(),
@@ -537,17 +537,17 @@ void decrease_triangle_count(raft::handle_t const& handle,
     cugraph::edge_dst_dummy_property_t{}.view(),
     edge_triangle_counts.view(),
     [
-      vertex_pair_buffer_begin = get_dataframe_buffer_begin(vertex_pair_buffer_unique),
-      vertex_pair_buffer_end = get_dataframe_buffer_end(vertex_pair_buffer_unique),
+      edge_buffer_first = get_dataframe_buffer_begin(vertex_pair_buffer_unique),
+      edge_buffer_last = get_dataframe_buffer_end(vertex_pair_buffer_unique),
       decrease_count = decrease_count.data()
     ]
     __device__(auto src, auto dst, thrust::nullopt_t, thrust::nullopt_t, edge_t count) {
       
       auto e = thrust::make_tuple(src, dst);
       auto itr_pair = thrust::lower_bound(
-        thrust::seq, vertex_pair_buffer_begin, vertex_pair_buffer_end, e);
+        thrust::seq, edge_buffer_first, edge_buffer_last, e);
 
-      auto idx_pair = thrust::distance(vertex_pair_buffer_begin, itr_pair);
+      auto idx_pair = thrust::distance(edge_buffer_first, itr_pair);
       return count - decrease_count[idx_pair];
     },
     edge_triangle_counts.mutable_view(),
@@ -856,6 +856,7 @@ k_truss(raft::handle_t const& handle,
                                                                           edge_src_dummy_property_t{}.view(),
                                                                           edge_dst_dummy_property_t{}.view(),
                                                                           edge_triangle_counts.view(),
+                                                                          // FIXME: Replace by lambda function
                                                                           extract_weak_edges<vertex_t, edge_t>{k});
 
       
@@ -871,7 +872,7 @@ k_truss(raft::handle_t const& handle,
       
       // Find intersection edges
       size_t prev_chunk_size         = 0;
-      size_t chunk_num_weak_edges = weak_edgelist_srcs.size();
+      size_t num_remaining_weak_edges = weak_edgelist_srcs.size();
       size_t edges_to_intersect_per_iteration =
             static_cast<size_t>(handle.get_device_properties().multiProcessorCount) * (1 << 17);
     
@@ -895,7 +896,7 @@ k_truss(raft::handle_t const& handle,
       
       for (size_t i = 0; i < num_chunks; ++i) {
         printf("\n in for loop chunk, i = %d, num_chunks = %d\n", i, num_chunks);
-        auto chunk_size = std::min(edges_to_intersect_per_iteration, chunk_num_weak_edges);
+        auto chunk_size = std::min(edges_to_intersect_per_iteration, num_remaining_weak_edges);
         //RAFT_CUDA_TRY(cudaDeviceSynchronize());
         //printf("\ntracking hang\n");
 
@@ -993,9 +994,8 @@ k_truss(raft::handle_t const& handle,
           );
         
         prev_chunk_size += chunk_size;
-        chunk_num_weak_edges -= chunk_size;
+        num_remaining_weak_edges -= chunk_size;
 
-        //#endif
       }
       
       //#if 0
@@ -1125,8 +1125,13 @@ k_truss(raft::handle_t const& handle,
                                                 cugraph::edge_src_dummy_property_t{}.view(),
                                                 cugraph::edge_dst_dummy_property_t{}.view(),
                                                 cugraph::edge_dummy_property_t{}.view(),
+                                                // FIXME: Lambda function instead of functor
                                                 extract_edges_to_q_r<vertex_t>{raft::device_span<vertex_t const>(vertex_q_r.data(), vertex_q_r.size())});
       
+
+
+
+
 
       RAFT_CUDA_TRY(cudaDeviceSynchronize());
       /*
@@ -1225,7 +1230,7 @@ k_truss(raft::handle_t const& handle,
                     weak_edgelist_first + renumbered_weak_edgelist_srcs.size());
       }
       prev_chunk_size         = 0;
-      chunk_num_weak_edges = weak_edgelist_size;
+      num_remaining_weak_edges = weak_edgelist_size;
 
       // FIXME: No need to recompute this. It's the same value as above when unrolling (p, q) edges
       num_chunks =
@@ -1240,7 +1245,7 @@ k_truss(raft::handle_t const& handle,
 
 
       for (size_t i = 0; i < num_chunks; ++i) {
-        auto chunk_size = std::min(edges_to_intersect_per_iteration, chunk_num_weak_edges);
+        auto chunk_size = std::min(edges_to_intersect_per_iteration, num_remaining_weak_edges);
   
         // Find intersection of weak edges
         auto [vertex_pair_buffer_q_r, vertex_pair_buffer_p_q_edge_q_r, vertex_pair_buffer_p_r_edge_q_r] = accumulate_triangles_p_q_or_q_r<vertex_t, edge_t, weight_t, decltype(allocate_dataframe_buffer<thrust::tuple<vertex_t, vertex_t>>(size_t{0}, handle.get_stream())), multi_gpu>(
@@ -1535,7 +1540,7 @@ k_truss(raft::handle_t const& handle,
         }
         
         prev_chunk_size += chunk_size;
-        chunk_num_weak_edges -= chunk_size;
+        num_remaining_weak_edges -= chunk_size;
 
       
       }
@@ -1633,7 +1638,7 @@ k_truss(raft::handle_t const& handle,
                   return thrust::make_tuple(p[idx], idx);
                   });
         }
-      //#endif
+
       #if 0
       thrust::tabulate(
               handle.get_thrust_policy(),
@@ -2078,7 +2083,6 @@ k_truss(raft::handle_t const& handle,
           raft::print_device_vector("check_vertex_pair_buffer_p_r_dsts", std::get<1>(vertex_pair_buffer_p_r).data(), std::get<1>(vertex_pair_buffer_p_r).size(), std::cout);
           raft::print_device_vector("vertex_pair_buffer_p_q_for_p_r_srcs", std::get<0>(vertex_pair_buffer_p_q_edge_p_r).data(), std::get<0>(vertex_pair_buffer_p_q_edge_p_r).size(), std::cout);
           raft::print_device_vector("vertex_pair_buffer_p_q_for_p_r_dsts", std::get<1>(vertex_pair_buffer_p_q_edge_p_r).data(), std::get<1>(vertex_pair_buffer_p_q_edge_p_r).size(), std::cout);
-        //#endif
           
         } else {
           
@@ -2390,7 +2394,6 @@ k_truss(raft::handle_t const& handle,
         std::optional<raft::device_span<vertex_t const>>(std::nullopt));
       */
       
-      //#endif // While loop
     }
 
      
