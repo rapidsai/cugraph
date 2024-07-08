@@ -64,7 +64,17 @@ def input_combo(request):
     tests or other parameterized fixtures.
     """
     parameters = dict(
-        zip(("graph_file", "directed", "has_vertex_pair", "has_vertices", "has_topk", "is_weighted"), request.param)
+        zip(
+            (
+                "graph_file",
+                "directed",
+                "has_vertex_pair",
+                "has_vertices",
+                "has_topk",
+                "is_weighted",
+            ),
+            request.param,
+        )
     )
 
     return parameters
