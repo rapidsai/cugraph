@@ -138,7 +138,7 @@ cdef extern from "cugraph_c/similarity_algorithms.h":
     ###########################################################################
     # cosine coefficients
     cdef cugraph_error_code_t \
-        cugraph_cosine_coefficients(
+        cugraph_cosine_similarity_coefficients(
             const cugraph_resource_handle_t* handle,
             cugraph_graph_t* graph,
             const cugraph_vertex_pairs_t* vertex_pairs,
@@ -151,7 +151,7 @@ cdef extern from "cugraph_c/similarity_algorithms.h":
     ###########################################################################
     # all-pairs cosine coefficients
     cdef cugraph_error_code_t \
-        cugraph_all_pairs_cosine_coefficients(
+        cugraph_all_pairs_cosine_similarity_coefficients(
             const cugraph_resource_handle_t* handle,
             cugraph_graph_t* graph,
             const cugraph_type_erased_device_array_view_t* vertices,

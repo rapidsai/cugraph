@@ -82,7 +82,10 @@ from cugraph.link_prediction import (
     all_pairs_overlap,
     sorensen,
     sorensen_coefficient,
-    all_pairs_sorensen
+    all_pairs_sorensen,
+    cosine,
+    cosine_coefficient,
+    all_pairs_cosine
 )
 
 from cugraph.traversal import (

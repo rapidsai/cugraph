@@ -41,7 +41,7 @@ from pylibcugraph._cugraph_c.graph cimport (
     cugraph_graph_t,
 )
 from pylibcugraph._cugraph_c.similarity_algorithms cimport (
-    cugraph_cosine_coefficients,
+    cugraph_cosine_similarity_coefficients,
     cugraph_similarity_result_t,
     cugraph_similarity_result_get_similarity,
     cugraph_similarity_result_free
@@ -135,14 +135,14 @@ def cosine_coefficients(ResourceHandle resource_handle,
                                              &error_ptr)
     assert_success(error_code, error_ptr, "vertex_pairs")
 
-    error_code = cugraph_cosine_coefficients(c_resource_handle_ptr,
+    error_code = cugraph_cosine_similarity_coefficients(c_resource_handle_ptr,
                                               c_graph_ptr,
                                               vertex_pairs_ptr,
                                               use_weight,
                                               do_expensive_check,
                                               &result_ptr,
                                               &error_ptr)
-    assert_success(error_code, error_ptr, "cugraph_cosine_coefficients")
+    assert_success(error_code, error_ptr, "cugraph_cosine_similarity_coefficients")
 
     # Extract individual device array pointers from result and copy to cupy
     # arrays for returning.
