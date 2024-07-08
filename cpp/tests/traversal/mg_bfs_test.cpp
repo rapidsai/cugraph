@@ -139,7 +139,7 @@ class Tests_MGBFS : public ::testing::TestWithParam<std::tuple<BFS_Usecase, inpu
                  d_mg_predecessors.data(),
                  d_mg_source ? (*d_mg_source).data() : static_cast<vertex_t const*>(nullptr),
                  d_mg_source ? size_t{1} : size_t{0},
-                 false,
+                 mg_graph_view.is_symmetric() ? true : false,
                  std::numeric_limits<vertex_t>::max());
 
     if (cugraph::test::g_perf) {
