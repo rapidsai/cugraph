@@ -11,6 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+
 from collections import defaultdict
 from collections.abc import MutableMapping
 from typing import Union, Dict, List, Tuple
@@ -260,10 +261,10 @@ class HeteroEdgeView:
         )
 
     def __call__(self, *args, **kwargs):
-        if 'device' in kwargs:
+        if "device" in kwargs:
             return self.__graph.all_edges(*args, **kwargs)
-        
-        return self.__graph.all_edges(*args, **kwargs, device='cuda')
+
+        return self.__graph.all_edges(*args, **kwargs, device="cuda")
 
 
 class HeteroNodeView:
