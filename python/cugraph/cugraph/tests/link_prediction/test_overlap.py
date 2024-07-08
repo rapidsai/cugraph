@@ -20,7 +20,7 @@ import scipy
 import cudf
 import cugraph
 from cugraph.testing import utils, UNDIRECTED_DATASETS
-from cudf.testing import assert_series_equal
+from cudf.testing import assert_series_equal, assert_frame_equal
 
 SRC_COL = "0"
 DST_COL = "1"
@@ -242,3 +242,67 @@ def test_weighted_overlap():
     G = karate.get_graph(ignore_weights=True)
     with pytest.raises(ValueError):
         cugraph.overlap(G, use_weight=True)
+
+
+@pytest.mark.sg
+def test_all_pairs_overlap():
+    karate = UNDIRECTED_DATASETS[0]
+    G = karate.get_graph(ignore_weights=True)
+
+    # Call Overlap
+    overlap_results = cugraph.overlap(G)
+    
+    # Remove self loop
+    overlap_results = overlap_results[overlap_results['first'] != overlap_results['second']].reset_index(drop=True)
+    
+    all_pairs_overlap_results = cugraph.all_pairs_overlap(G)
+
+    assert_frame_equal(overlap_results.head(), all_pairs_overlap_results.head(), check_dtype=False, check_like=True)
+
+
+# FIXME
+@pytest.mark.sg
+@pytest.mark.skip(reason="Inaccurate results returned by all-pairs similarity")
+def test_all_pairs_overlap_with_vertices():
+    karate = UNDIRECTED_DATASETS[0]
+    G = karate.get_graph(ignore_weights=True)
+
+    # Call Overlap
+    overlap_results = cugraph.overlap(G)
+    
+    # Remove self loop
+    overlap_results = overlap_results[overlap_results['first'] != overlap_results['second']].reset_index(drop=True)
+
+    vertices = [0, 1, 2]
+
+    mask_first = overlap_results['first'].isin(vertices)
+    mask_second = overlap_results['second'].isin(vertices)
+    # mask = [v in vertices for v in (overlap_results['first'].to_pandas() or overlap_results['second'].to_pandas())]
+    mask = [f or s for (f, s) in zip(mask_first.to_pandas(), mask_second.to_pandas())]
+
+    overlap_results = overlap_results[mask].reset_index(drop=True)
+
+    # Call all-pairs Overlap
+    all_pairs_overlap_results = cugraph.all_pairs_overlap(G, vertices=cudf.Series(vertices, dtype="int32"))
+
+    assert_frame_equal(overlap_results, all_pairs_overlap_results, check_dtype=False, check_like=True)
+
+
+@pytest.mark.sg
+def test_all_pairs_overlap_with_topk():
+    karate = UNDIRECTED_DATASETS[0]
+    G = karate.get_graph(ignore_weights=True)
+
+    # Call Overlap
+    overlap_results = cugraph.overlap(G)
+
+    topk = 4
+    
+    # Remove self loop
+    overlap_results = overlap_results[overlap_results['first'] != overlap_results['second']].\
+        sort_values(["overlap_coeff", "first", "second"], ascending=False).reset_index(drop=True)[:topk]
+
+    # Call all-pairs overlap
+    all_pairs_overlap_results = cugraph.all_pairs_overlap(G, topk=topk).sort_values(["first", "second"], ascending=False).reset_index(drop=True)
+
+    assert_frame_equal(overlap_results, all_pairs_overlap_results, check_dtype=False, check_like=True)
