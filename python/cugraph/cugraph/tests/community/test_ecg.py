@@ -1,4 +1,4 @@
-# Copyright (c) 2020-2023, NVIDIA CORPORATION.
+# Copyright (c) 2020-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -75,6 +75,7 @@ def test_ecg_clustering(dataset, min_weight, ensemble_size):
 @pytest.mark.parametrize("dataset", DATASETS)
 @pytest.mark.parametrize("min_weight", MIN_WEIGHTS)
 @pytest.mark.parametrize("ensemble_size", ENSEMBLE_SIZES)
+@pytest.mark.filterwarnings("ignore::DeprecationWarning")
 def test_ecg_clustering_nx(dataset, min_weight, ensemble_size):
 
     gc.collect()

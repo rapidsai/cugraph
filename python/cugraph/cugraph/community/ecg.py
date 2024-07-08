@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2023, NVIDIA CORPORATION.
+# Copyright (c) 2019-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -37,6 +37,12 @@ def ecg(input_graph, min_weight=0.05, ensemble_size=16, weight=None):
         The graph descriptor should contain the connectivity information
         and weights. The adjacency list will be computed if not already
         present.
+
+        .. deprecated:: 24.08
+
+           Accepting ``networkx.Graph`` is deprecated and will be removed in a
+           future version.  For ``networkx.Graph`` use networkx directly with
+           the ``nx-cugraph`` plug-in.
 
     min_weight : float, optional (default=0.5)
         The minimum value to assign as an edgeweight in the ECG algorithm.

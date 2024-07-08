@@ -103,6 +103,7 @@ def test_triangles(input_combo):
 
 
 @pytest.mark.sg
+@pytest.mark.filterwarnings("ignore::DeprecationWarning")
 def test_triangles_int64(input_combo):
     Gnx = input_combo["Gnx"]
     count_legacy_32 = cugraph.triangle_count(Gnx)
@@ -126,6 +127,7 @@ def test_triangles_int64(input_combo):
 
 
 @pytest.mark.sg
+@pytest.mark.filterwarnings("ignore::DeprecationWarning")
 def test_triangles_no_weights(input_combo):
     G_weighted = input_combo["Gnx"]
     count_legacy = (

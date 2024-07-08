@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2023, NVIDIA CORPORATION.
+# Copyright (c) 2019-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -72,6 +72,12 @@ def minimum_spanning_tree(G, weight=None, algorithm="boruvka", ignore_nan=False)
     G : cuGraph.Graph or networkx.Graph
         cuGraph graph descriptor with connectivity information.
 
+        .. deprecated:: 24.08
+
+           Accepting ``networkx.Graph`` is deprecated and will be removed in a
+           future version.  For ``networkx.Graph`` use networkx directly with
+           the ``nx-cugraph`` plug-in.
+
     weight : string
         default to the weights in the graph, if the graph edges do not have a
         weight attribute a default weight of 1 will be used.
@@ -114,6 +120,12 @@ def maximum_spanning_tree(G, weight=None, algorithm="boruvka", ignore_nan=False)
     ----------
     G : cuGraph.Graph or networkx.Graph
         cuGraph graph descriptor with connectivity information.
+
+        .. deprecated:: 24.08
+
+           Accepting ``networkx.Graph`` is deprecated and will be removed in a
+           future version.  For ``networkx.Graph`` use networkx directly with
+           the ``nx-cugraph`` plug-in.
 
     weight : string
         default to the weights in the graph, if the graph edges do not have a

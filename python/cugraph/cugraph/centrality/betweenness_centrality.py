@@ -58,6 +58,12 @@ def betweenness_centrality(
         Algorithm (2001) to compute exact or approximate betweenness.
         If weights are provided in the edgelist, they will not be used.
 
+        .. deprecated:: 24.08
+
+           Accepting ``networkx.Graph`` is deprecated and will be removed in a
+           future version.  For ``networkx.Graph`` use networkx directly with
+           the ``nx-cugraph`` backend.
+
     k : int, list or cudf object or None, optional (default=None)
         If k is not None, use k node samples to estimate betweenness. Higher
         values give better approximation.  If k is either a list, a cudf DataFrame,
@@ -223,6 +229,12 @@ def edge_betweenness_centrality(
         The graph can be either directed (Graph(directed=True)) or undirected.
         The current implementation uses BFS traversals. Use weight parameter
         if weights need to be considered (currently not supported).
+
+        .. deprecated:: 24.08
+
+           Accepting ``networkx.Graph`` is deprecated and will be removed in a
+           future version.  For ``networkx.Graph`` use networkx directly with
+           the ``nx-cugraph`` plug-in.
 
     k : int or list or None, optional (default=None)
         If k is not None, use k node samples to estimate betweenness. Higher

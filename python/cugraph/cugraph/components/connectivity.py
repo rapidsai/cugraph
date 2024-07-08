@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2023, NVIDIA CORPORATION.
+# Copyright (c) 2019-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -115,6 +115,12 @@ def weakly_connected_components(G, directed=None, connection=None, return_labels
         The adjacency list will be computed if not already present. The number
         of vertices should fit into a 32b int.
 
+        .. deprecated:: 24.08
+
+           Accepting ``networkx.Graph`` is deprecated and will be removed in a
+           future version.  For ``networkx.Graph`` use networkx directly with
+           the ``nx-cugraph`` plug-in.
+
     directed : bool, optional (default=None)
 
         NOTE
@@ -224,6 +230,12 @@ def strongly_connected_components(
         The adjacency list will be computed if not already present.  The number
         of vertices should fit into a 32b int.
 
+        .. deprecated:: 24.08
+
+           Accepting ``networkx.Graph`` is deprecated and will be removed in a
+           future version.  For ``networkx.Graph`` use networkx directly with
+           the ``nx-cugraph`` plug-in.
+
     directed : bool, optional (default=True)
 
         NOTE
@@ -329,6 +341,12 @@ def connected_components(G, directed=None, connection="weak", return_labels=None
         undirected edge is represented by a directed edge in both directions.
         The adjacency list will be computed if not already present.  The number
         of vertices should fit into a 32b int.
+
+        .. deprecated:: 24.08
+
+           Accepting ``networkx.Graph`` is deprecated and will be removed in a
+           future version.  For ``networkx.Graph`` use networkx directly with
+           the ``nx-cugraph`` plug-in.
 
     directed : bool, optional (default=True)
 

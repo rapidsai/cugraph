@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2023, NVIDIA CORPORATION.
+# Copyright (c) 2019-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -156,6 +156,13 @@ def sssp(
         weights, if present, should be single or double precision floating
         point values.
         The current implementation only supports weighted graphs.
+
+        .. deprecated:: 24.08
+
+           Accepting ``networkx.Graph`` is deprecated and will be removed in a
+           future version.  For ``networkx.Graph`` use networkx directly with
+           the ``nx-cugraph`` plug-in.
+
     source : int
         Index of the source vertex.
     cutoff : double, optional (default=None)
@@ -320,6 +327,12 @@ def shortest_path_length(G, source, target=None):
     graph : cuGraph.Graph, NetworkX.Graph, or CuPy sparse COO matrix
         cuGraph graph descriptor with connectivity information. Edge weights,
         if present, should be single or double precision floating point values.
+
+        .. deprecated:: 24.08
+
+           Accepting ``networkx.Graph`` is deprecated and will be removed in a
+           future version.  For ``networkx.Graph`` use networkx directly with
+           the ``nx-cugraph`` plug-in.
 
     source : Dependant on graph type. Index of the source vertex.
 

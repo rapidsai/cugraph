@@ -1,4 +1,4 @@
-# Copyright (c) 2022-2023, NVIDIA CORPORATION.
+# Copyright (c) 2022-2024, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -34,10 +34,16 @@ def hits(G, max_iter=100, tol=1.0e-5, nstart=None, normalized=True):
 
     Parameters
     ----------
-    G : cugraph.Graph
+    G : cugraph.Graph, networkx.Graph
         cuGraph graph descriptor, should contain the connectivity information
         as an edge list (edge weights are not used for this algorithm).
         The adjacency list will be computed if not already present.
+
+        .. deprecated:: 24.08
+
+           Accepting ``networkx.Graph`` is deprecated and will be removed in a
+           future version.  For ``networkx.Graph`` use networkx directly with
+           the ``nx-cugraph`` plug-in.
 
     max_iter : int, optional (default=100)
         The maximum number of iterations before an answer is returned.
