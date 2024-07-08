@@ -376,7 +376,7 @@ dependencies:
     common:
       - output_types: [conda, pyproject]
         packages:
-          - &cmake_ver cmake>=3.26.4
+          - &cmake_ver cmake>=3.26.4,!=3.30.0
           - ninja
   cpp_build:
     common:
@@ -559,7 +559,9 @@ dependencies:
     common:
       - output_types: [conda, pyproject]
         packages:
-          - &thrift thriftpy2
+          # this thriftpy2 entry can be removed entirely (or switched to a '!=')
+          # once a new release of that project resolves https://github.com/Thriftpy/thriftpy2/issues/281
+          - &thrift thriftpy2<=0.5.0
   python_run_cugraph_service_server:
     common:
       - output_types: [conda, pyproject]
@@ -625,9 +627,7 @@ dependencies:
       - output_types: [conda]
         packages:
           - &pylibwholegraph_conda pylibwholegraph==24.8.*,>=0.0.0a0
-          # this thriftpy2 entry can be removed entirely (or switched to a '!=')
-          # once a new release of that project resolves https://github.com/Thriftpy/thriftpy2/issues/281
-          - thriftpy2<=0.5.0
+          - *thrift
   test_python_pylibcugraph:
     common:
       - output_types: [conda, pyproject]
