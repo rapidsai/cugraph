@@ -21,6 +21,8 @@
 #include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/graph.hpp>
+#include <cugraph/graph_functions.hpp>
+#include <cugraph/sampling_functions.hpp>
 #include <cugraph/vertex_partition_view.hpp>
 
 #include <raft/core/handle.hpp>
@@ -34,6 +36,7 @@ template <typename vertex_t,
           typename edge_t,
           typename weight_t,
           typename edge_type_t,
+          typename bias_t,
           typename label_t,
           bool store_transposed,
           bool multi_gpu>
@@ -45,12 +48,13 @@ std::tuple<rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<int32_t>>,
            std::optional<rmm::device_uvector<label_t>>,
            std::optional<rmm::device_uvector<size_t>>>
-uniform_neighbor_sample_impl(
+neighbor_sample_impl(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
   std::optional<edge_property_view_t<edge_t, edge_t const*>> edge_id_view,
   std::optional<edge_property_view_t<edge_t, edge_type_t const*>> edge_type_view,
+  std::optional<edge_property_view_t<edge_t, bias_t const*>> edge_bias_view,
   raft::device_span<vertex_t const> this_frontier_vertices,
   std::optional<raft::device_span<label_t const>> this_frontier_vertex_labels,
   std::optional<std::tuple<raft::device_span<label_t const>, raft::device_span<int32_t const>>>
@@ -63,10 +67,14 @@ uniform_neighbor_sample_impl(
   raft::random::RngState& rng_state,
   bool do_expensive_check)
 {
-#ifdef NO_CUGRAPH_OPS
+#ifdef NO_CUGRAPH_OPS  // FIXME: this is relevant only when edge_bias_view.has_value() is false,
+                       // this ifdef statement will be removed once we migrate relevant cugraph-ops
+                       // functions to cugraph
   CUGRAPH_FAIL(
-    "uniform_neighbor_sample_impl not supported in this configuration, built with NO_CUGRAPH_OPS");
+    "neighbor_sample_impl not supported in this configuration, built with NO_CUGRAPH_OPS");
 #else
+  static_assert(std::is_floating_point_v<bias_t>);
+
   CUGRAPH_EXPECTS(fan_out.size() > 0, "Invalid input argument: number of levels must be non-zero.");
   CUGRAPH_EXPECTS(
     fan_out.size() <= static_cast<size_t>(std::numeric_limits<int32_t>::max()),
@@ -83,6 +91,18 @@ uniform_neighbor_sample_impl(
     "cannot specify output GPU mapping without also specifying this_frontier_vertex_labels");
 
   if (do_expensive_check) {
+    if (edge_bias_view) {
+      auto [num_negative_edge_weights, num_overflows] =
+        check_edge_bias_values(handle, graph_view, *edge_bias_view);
+
+      CUGRAPH_EXPECTS(
+        num_negative_edge_weights == 0,
+        "Invalid input argument: input edge bias values should have non-negative values.");
+      CUGRAPH_EXPECTS(num_overflows == 0,
+                      "Invalid input argument: sum of neighboring edge bias values should not "
+                      "exceed std::numeric_limits<bias_t>::max() for any vertex.");
+    }
+
     if (label_to_output_comm_rank) {
       CUGRAPH_EXPECTS(cugraph::detail::is_sorted(handle, std::get<0>(*label_to_output_comm_rank)),
                       "Labels in label_to_output_comm_rank must be sorted");
@@ -145,6 +165,7 @@ uniform_neighbor_sample_impl(
                      edge_weight_view,
                      edge_id_view,
                      edge_type_view,
+                     edge_bias_view,
                      rng_state,
                      this_frontier_vertices,
                      this_frontier_vertex_labels,
@@ -353,23 +374,78 @@ uniform_neighbor_sample(
   bool dedupe_sources,
   bool do_expensive_check)
 {
-  CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
+  using bias_t = weight_t;  // dummy
+  return detail::neighbor_sample_impl<vertex_t, edge_t, weight_t, edge_type_t, bias_t>(
+    handle,
+    graph_view,
+    edge_weight_view,
+    edge_id_view,
+    edge_type_view,
+    std::nullopt,
+    starting_vertices,
+    starting_vertex_labels,
+    label_to_output_comm_rank,
+    fan_out,
+    return_hops,
+    with_replacement,
+    prior_sources_behavior,
+    dedupe_sources,
+    rng_state,
+    do_expensive_check);
+}
 
-  return detail::uniform_neighbor_sample_impl(handle,
-                                              graph_view,
-                                              edge_weight_view,
-                                              edge_id_view,
-                                              edge_type_view,
-                                              starting_vertices,
-                                              starting_vertex_labels,
-                                              label_to_output_comm_rank,
-                                              fan_out,
-                                              return_hops,
-                                              with_replacement,
-                                              prior_sources_behavior,
-                                              dedupe_sources,
-                                              rng_state,
-                                              do_expensive_check);
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          typename edge_type_t,
+          typename bias_t,
+          typename label_t,
+          bool store_transposed,
+          bool multi_gpu>
+std::tuple<rmm::device_uvector<vertex_t>,
+           rmm::device_uvector<vertex_t>,
+           std::optional<rmm::device_uvector<weight_t>>,
+           std::optional<rmm::device_uvector<edge_t>>,
+           std::optional<rmm::device_uvector<edge_type_t>>,
+           std::optional<rmm::device_uvector<int32_t>>,
+           std::optional<rmm::device_uvector<label_t>>,
+           std::optional<rmm::device_uvector<size_t>>>
+biased_neighbor_sample(
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
+  std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
+  std::optional<edge_property_view_t<edge_t, edge_t const*>> edge_id_view,
+  std::optional<edge_property_view_t<edge_t, edge_type_t const*>> edge_type_view,
+  edge_property_view_t<edge_t, bias_t const*> edge_bias_view,
+  raft::device_span<vertex_t const> starting_vertices,
+  std::optional<raft::device_span<label_t const>> starting_vertex_labels,
+  std::optional<std::tuple<raft::device_span<label_t const>, raft::device_span<int32_t const>>>
+    label_to_output_comm_rank,
+  raft::host_span<int32_t const> fan_out,
+  raft::random::RngState& rng_state,
+  bool return_hops,
+  bool with_replacement,
+  prior_sources_behavior_t prior_sources_behavior,
+  bool dedupe_sources,
+  bool do_expensive_check)
+{
+  return detail::neighbor_sample_impl<vertex_t, edge_t, weight_t, edge_type_t, bias_t>(
+    handle,
+    graph_view,
+    edge_weight_view,
+    edge_id_view,
+    edge_type_view,
+    edge_bias_view,
+    starting_vertices,
+    starting_vertex_labels,
+    label_to_output_comm_rank,
+    fan_out,
+    return_hops,
+    with_replacement,
+    prior_sources_behavior,
+    dedupe_sources,
+    rng_state,
+    do_expensive_check);
 }
 
 }  // namespace cugraph

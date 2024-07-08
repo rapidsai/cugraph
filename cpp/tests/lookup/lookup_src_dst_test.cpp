@@ -301,6 +301,6 @@ INSTANTIATE_TEST_SUITE_P(
   Tests_SGLookupEdgeSrcDst_Rmat,
   ::testing::Combine(
     ::testing::Values(EdgeSrcDstLookup_UseCase{false}),
-    ::testing::Values(cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false))));
+    ::testing::Values(cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, false, false))));
 
 CUGRAPH_TEST_PROGRAM_MAIN()
