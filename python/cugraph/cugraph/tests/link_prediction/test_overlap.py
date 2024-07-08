@@ -114,6 +114,7 @@ def cpu_call(M, first, second):
         result.append(overlap(first[i], second[i], M))
     return result
 
+
 def compare(src1, dst1, val1, src2, dst2, val2):
     #
     #  We will do comparison computations by using dataframe
@@ -360,7 +361,7 @@ def test_all_pairs_overlap_with_topk():
     overlap_results = (
         overlap_results[overlap_results["first"] != overlap_results["second"]]
         .sort_values(["overlap_coeff", "first", "second"], ascending=False)
-        .reset_index(drop=True)#[:topk]
+        .reset_index(drop=True)  # [:topk]
     )
     print("overlap_results = \n", overlap_results)
 
@@ -385,4 +386,7 @@ def test_all_pairs_overlap_with_topk():
     )
 
     # 2. Ensure the coefficient scores are still the highest
-    assert_series_equal(all_pairs_overlap_results["overlap_coeff"], overlap_results["overlap_coeff"][:topk])
+    assert_series_equal(
+        all_pairs_overlap_results["overlap_coeff"],
+        overlap_results["overlap_coeff"][:topk],
+    )

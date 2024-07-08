@@ -480,4 +480,7 @@ def test_all_pairs_sorensen_with_topk():
     )
 
     # 2. Ensure the coefficient scores are still the highest
-    assert_series_equal(all_pairs_sorensen_results["sorensen_coeff"], sorensen_results["sorensen_coeff"][:topk])
+    assert_series_equal(
+        all_pairs_sorensen_results["sorensen_coeff"],
+        sorensen_results["sorensen_coeff"][:topk],
+    )
