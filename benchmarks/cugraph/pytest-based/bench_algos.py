@@ -267,16 +267,23 @@ def is_graph_distributed(graph):
     """
     return isinstance(graph.edgelist.edgelist_df, dask_cudf.DataFrame)
 
+
 def get_vertex_pairs(G, subset_factor=3):
     """
     Return a DF of two columns representing random vertex pairs
     """
     sample_num = G.number_of_nodes() // subset_factor
-    col_a = G.select_random_vertices(num_vertices=sample_num).to_frame() \
-      .reset_index(drop=True)
-    col_b = G.select_random_vertices(num_vertices=sample_num).to_frame() \
-      .reset_index(drop=True)
-    
+    col_a = (
+        G.select_random_vertices(num_vertices=sample_num)
+        .to_frame()
+        .reset_index(drop=True)
+    )
+    col_b = (
+        G.select_random_vertices(num_vertices=sample_num)
+        .to_frame()
+        .reset_index(drop=True)
+    )
+
     return col_a.merge(col_b, left_index=True, right_index=True)
 
 
