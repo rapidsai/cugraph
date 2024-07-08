@@ -68,24 +68,6 @@ auto get_dataframe_buffer_cend_tuple_impl(std::index_sequence<I...>, TupleType& 
 
 }  // namespace detail
 
-template <typename T>
-struct dataframe_element {
-  using type = void;
-};
-
-template <typename... Ts>
-struct dataframe_element<std::tuple<rmm::device_uvector<Ts>...>> {
-  using type = thrust::tuple<Ts...>;
-};
-
-template <typename T>
-struct dataframe_element<rmm::device_uvector<T>> {
-  using type = T;
-};
-
-template <typename DataframeType>
-using dataframe_element_t = typename dataframe_element<DataframeType>::type;
-
 template <typename T, typename std::enable_if_t<std::is_arithmetic<T>::value>* = nullptr>
 auto allocate_dataframe_buffer(size_t buffer_size, rmm::cuda_stream_view stream_view)
 {
@@ -223,5 +205,31 @@ auto get_dataframe_buffer_cend(BufferType& buffer)
   return detail::get_dataframe_buffer_cend_tuple_impl(
     std::make_index_sequence<std::tuple_size<BufferType>::value>(), buffer);
 }
+
+template <typename T>
+struct dataframe_buffer_value_type {
+  using type = void;
+};
+
+template <typename T>
+struct dataframe_buffer_value_type<rmm::device_uvector<T>> {
+  using type = T;
+};
+
+template <typename... Ts>
+struct dataframe_buffer_value_type<std::tuple<rmm::device_uvector<Ts>...>> {
+  using type = thrust::tuple<Ts...>;
+};
+
+template <typename BufferType>
+using dataframe_buffer_value_type_t = typename dataframe_buffer_value_type<BufferType>::type;
+
+template <typename T>
+struct dataframe_buffer_type {
+  using type = decltype(allocate_dataframe_buffer<T>(size_t{0}, rmm::cuda_stream_view{}));
+};
+
+template <typename T>
+using dataframe_buffer_type_t = typename dataframe_buffer_type<T>::type;
 
 }  // namespace cugraph
