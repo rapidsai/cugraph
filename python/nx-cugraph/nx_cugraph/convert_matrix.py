@@ -35,11 +35,21 @@ def from_pandas_edgelist(
 ):
     """cudf.DataFrame inputs also supported; value columns with str is unsuppported."""
     graph_class, inplace = _create_using_class(create_using)
+    # Try to be optimal whether using pandas, cudf, or cudf.pandas
     src_array = df[source].to_numpy()
     dst_array = df[target].to_numpy()
+    try:
+        # Optimistically try to use cupy, but fall back to numpy if necessary
+        src_array = cp.asarray(src_array)
+        dst_array = cp.asarray(dst_array)
+        np_or_cp = cp
+    except ValueError:
+        src_array = np.asarray(src_array)
+        dst_array = np.asarray(dst_array)
+        np_or_cp = np
     # TODO: create renumbering helper function(s)
     # Renumber step 0: node keys
-    nodes = np.unique(np.concatenate([src_array, dst_array]))
+    nodes = np_or_cp.unique(np_or_cp.concatenate([src_array, dst_array]))
     N = nodes.size
     kwargs = {}
     if N > 0 and (
@@ -47,13 +57,13 @@ def from_pandas_edgelist(
         or nodes[N - 1] != N - 1
         or (
             nodes.dtype.kind not in {"i", "u"}
-            and not (nodes == np.arange(N, dtype=np.int64)).all()
+            and not (nodes == np_or_cp.arange(N, dtype=np.int64)).all()
         )
     ):
-        # We need to renumber indices--np.searchsorted to the rescue!
+        # We need to renumber indices--np_or_cp.searchsorted to the rescue!
         kwargs["id_to_key"] = nodes.tolist()
-        src_indices = cp.array(np.searchsorted(nodes, src_array), index_dtype)
-        dst_indices = cp.array(np.searchsorted(nodes, dst_array), index_dtype)
+        src_indices = cp.asarray(np_or_cp.searchsorted(nodes, src_array), index_dtype)
+        dst_indices = cp.asarray(np_or_cp.searchsorted(nodes, dst_array), index_dtype)
     else:
         src_indices = cp.array(src_array)
         dst_indices = cp.array(dst_array)
