@@ -210,12 +210,9 @@ if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
       --channel "${PYTHON_CHANNEL}" \
       --channel pyg \
       "cugraph-pyg" \
-      "pytorch=2.1.0" \
-      "pytorch-cuda=${CONDA_CUDA_VERSION}"
+      "ogb"
 
-    # Install pyg dependencies (which requires pip)
     pip install \
-        ogb \
         pyg_lib \
         torch_scatter \
         torch_sparse \
