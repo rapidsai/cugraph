@@ -48,7 +48,8 @@ That's it.  NetworkX now leverages cuGraph for accelerated graph algorithms.
 
 ## NOTICES
 
-__Deprecaations__:
+__Deprecations__:
+
  - Accepting and returning NetworkX objects is being deprecated and will be dropped before the end of 2024. Users are encouraged to use NetworkX directly with the new nx-cugraph backend plug-in.  
 See:  https://developer.nvidia.com/blog/accelerating-networkx-on-nvidia-gpus-for-high-performance-graph-analytics/
 
