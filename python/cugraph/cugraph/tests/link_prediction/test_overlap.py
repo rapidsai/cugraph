@@ -21,6 +21,7 @@ import cudf
 import cugraph
 from cugraph.testing import utils, UNDIRECTED_DATASETS
 from cudf.testing import assert_series_equal, assert_frame_equal
+import pandas as pd
 
 SRC_COL = "0"
 DST_COL = "1"
@@ -112,6 +113,49 @@ def cpu_call(M, first, second):
     for i in range(len(first)):
         result.append(overlap(first[i], second[i], M))
     return result
+
+def compare(src1, dst1, val1, src2, dst2, val2):
+    #
+    #  We will do comparison computations by using dataframe
+    #  merge functions (essentially doing fast joins).  We
+    #  start by making two data frames
+    #
+    df1 = cudf.DataFrame()
+    df1["src1"] = src1
+    df1["dst1"] = dst1
+    if val1 is not None:
+        df1["val1"] = val1
+
+    df2 = cudf.DataFrame()
+    df2["src2"] = src2
+    df2["dst2"] = dst2
+    if val2 is not None:
+        df2["val2"] = val2
+
+    #
+    #  Check to see if all pairs in the original data frame
+    #  still exist in the new data frame.  If we join (merge)
+    #  the data frames where (src1[i]=src2[i]) and (dst1[i]=dst2[i])
+    #  then we should get exactly the same number of entries in
+    #  the data frame if we did not lose any data.
+    #
+    join = df1.merge(df2, left_on=["src1", "dst1"], right_on=["src2", "dst2"])
+
+    if len(df1) != len(join):
+        join2 = df1.merge(
+            df2, how="left", left_on=["src1", "dst1"], right_on=["src2", "dst2"]
+        )
+        pd.set_option("display.max_rows", 500)
+        print("df1 = \n", df1.sort_values(["src1", "dst1"]))
+        print("df2 = \n", df2.sort_values(["src2", "dst2"]))
+        print(
+            "join2 = \n",
+            join2.sort_values(["src1", "dst1"])
+            .to_pandas()
+            .query("src2.isnull()", engine="python"),
+        )
+
+    assert len(df1) == len(join)
 
 
 # =============================================================================
@@ -310,14 +354,15 @@ def test_all_pairs_overlap_with_topk():
     # Call Overlap
     overlap_results = cugraph.overlap(G)
 
-    topk = 4
+    topk = 10
 
     # Remove self loop
     overlap_results = (
         overlap_results[overlap_results["first"] != overlap_results["second"]]
         .sort_values(["overlap_coeff", "first", "second"], ascending=False)
-        .reset_index(drop=True)[:topk]
+        .reset_index(drop=True)#[:topk]
     )
+    print("overlap_results = \n", overlap_results)
 
     # Call all-pairs overlap
     all_pairs_overlap_results = (
@@ -326,6 +371,18 @@ def test_all_pairs_overlap_with_topk():
         .reset_index(drop=True)
     )
 
-    assert_frame_equal(
-        overlap_results, all_pairs_overlap_results, check_dtype=False, check_like=True
+    # 1. All pair similarity might return different top pairs k pairs
+    # which are still valid hence, ensure the pairs returned by all-pairs
+    # exists.
+
+    compare(
+        all_pairs_overlap_results["first"],
+        all_pairs_overlap_results["second"],
+        all_pairs_overlap_results["overlap_coeff"],
+        overlap_results["first"],
+        overlap_results["second"],
+        overlap_results["overlap_coeff"],
     )
+
+    # 2. Ensure the coefficient scores are still the highest
+    assert_series_equal(all_pairs_overlap_results["overlap_coeff"], overlap_results["overlap_coeff"][:topk])
