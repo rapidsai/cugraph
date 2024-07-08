@@ -56,7 +56,8 @@ See:  https://developer.nvidia.com/blog/accelerating-networkx-on-nvidia-gpus-for
 __Repo Refactoring__:</br>
 We are moving away from this being a mono-repo.  Several graph packages will be moved into their own repo over the next few releases. This will not impact the final packages being produced, just where the source code lives.
   - New nx-cugraph repo for the accelerated NetworkX backend software: nx-cugraph
-  - New cugraph-gnn repo to house our GNN works: cugraph-pyg, cugraph-dgl, and wholegraph
+  - New cugraph-gnn repo to house our GNN work: cugraph-pyg, cugraph-dgl, and wholegraph
+
   - New cugraph-docs repo to centralize documentation
   - New cugraph-pg repo to house the property graph work which is currently in experimental
 
