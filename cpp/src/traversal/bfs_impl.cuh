@@ -217,7 +217,6 @@ void bfs(raft::handle_t const& handle,
                   })),
               handle.get_stream());
     (*nzd_unvisited_vertices).shrink_to_fit(handle.get_stream());
-    std::cout << "\tiniitial nzd unvisited count=" << (*nzd_unvisited_vertices).size() << std::endl;
   }
 
   // 4. initialize BFS frontier
@@ -438,9 +437,6 @@ void bfs(raft::handle_t const& handle,
                                   handle.get_stream())
           : static_cast<vertex_t>((*nzd_unvisited_vertices).size());
 
-      std::cout << "\tnext_aggregate_vertex_frontier_size=" << next_aggregate_vertex_frontier_size
-                << " aggregate_nzd_unvisted_vertices=" << aggregate_nzd_unvisted_vertices
-                << std::endl;
       if ((next_aggregate_vertex_frontier_size * direction_optimizing_beta <
            aggregate_nzd_unvisted_vertices) &&
           (next_aggregate_vertex_frontier_size < cur_aggregate_vertex_frontier_size)) {
