@@ -34,8 +34,10 @@ def setup_function():
 
 
 IS_DIRECTED = [False]
-HAS_VERTEX_PAIR = [True, False]
-IS_WEIGHTED = [True, False]
+HAS_VERTEX_PAIR = [False, True]
+HAS_VERTICES = [False, True]
+HAS_TOPK = [False, True]
+IS_WEIGHTED = [False, True]
 
 
 # =============================================================================
@@ -61,7 +63,7 @@ def input_combo(request):
     tests or other parameterized fixtures.
     """
     parameters = dict(
-        zip(("graph_file", "directed", "has_vertex_pair", "is_weighted"), request.param)
+        zip(("graph_file", "directed", "has_vertex_pair", "has_vertices", "has_topk", "is_weighted"), request.param)
     )
 
     return parameters
@@ -100,6 +102,70 @@ def input_expected_output(input_combo):
     # them, and if not present they will have to re-run the same cuGraph call.
 
     input_combo["sg_cugraph_results"] = sg_cugraph_sorensen
+    chunksize = dcg.get_chunksize(input_data_path)
+    ddf = dask_cudf.read_csv(
+        input_data_path,
+        blocksize=chunksize,
+        delimiter=" ",
+        names=["src", "dst", "value"],
+        dtype=["int32", "int32", "float32"],
+    )
+
+    dg = cugraph.Graph(directed=directed)
+    dg.from_dask_cudf_edgelist(
+        ddf,
+        source="src",
+        destination="dst",
+        edge_attr="value" if is_weighted else None,
+        renumber=True,
+        store_transposed=True,
+    )
+
+    input_combo["MGGraph"] = dg
+
+    return input_combo
+
+
+@pytest.fixture(scope="module")
+def input_expected_output_all_pairs(input_combo):
+    """
+    This fixture returns the inputs and expected results from the Sorensen algo.
+    (based on cuGraph Sorensen) which can be used for validation.
+    """
+
+    input_data_path = input_combo["graph_file"]
+    directed = input_combo["directed"]
+    has_vertices = input_combo["has_vertices"]
+    has_topk = input_combo["has_topk"]
+    is_weighted = input_combo["is_weighted"]
+    G = utils.generate_cugraph_graph_from_file(
+        input_data_path, directed=directed, edgevals=is_weighted
+    )
+    if has_vertices:
+        # Sample random vertices from the graph and compute the two_hop_neighbors
+        # with those seeds
+        k = random.randint(1, 10)
+        vertices = random.sample(range(G.number_of_vertices()), k)
+
+    else:
+        vertices = None
+    
+    if has_topk:
+        topk = 5
+    else:
+        topk = None
+
+    input_combo["vertices"] = vertices
+    print("vertices ", vertices, " is_weighted = ", is_weighted)
+    input_combo["topk"] = topk
+    sg_cugraph_all_pairs_sorensen = cugraph.all_pairs_sorensen(
+        G, vertices=input_combo["vertices"], topk=input_combo["topk"], use_weight=is_weighted
+    )
+    # Save the results back to the input_combo dictionary to prevent redundant
+    # cuGraph runs. Other tests using the input_combo fixture will look for
+    # them, and if not present they will have to re-run the same cuGraph call.
+
+    input_combo["sg_cugraph_results"] = sg_cugraph_all_pairs_sorensen
     chunksize = dcg.get_chunksize(input_data_path)
     ddf = dask_cudf.read_csv(
         input_data_path,
