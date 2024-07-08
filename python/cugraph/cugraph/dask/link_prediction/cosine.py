@@ -18,16 +18,17 @@ import cugraph.dask.comms.comms as Comms
 import dask_cudf
 import cudf
 from cugraph.dask.common.input_utils import get_distributed_data
-from cugraph.utilities import renumber_vertex_pair
 from cugraph.dask import get_n_workers
+from cugraph.utilities import renumber_vertex_pair
 from cugraph.dask.common.part_utils import (
     get_persisted_df_worker_map,
     persist_dask_df_equal_parts_per_worker,
 )
 
+
 from pylibcugraph import (
-    overlap_coefficients as pylibcugraph_overlap_coefficients,
-    all_pairs_overlap_coefficients as pylibcugraph_all_pairs_overlap_coefficients,
+    cosine_coefficients as pylibcugraph_cosine_coefficients,
+    all_pairs_cosine_coefficients as pylibcugraph_all_pairs_cosine_coefficients,
 )
 from pylibcugraph import ResourceHandle
 
@@ -42,16 +43,18 @@ def convert_to_cudf(cp_arrays):
     df = cudf.DataFrame()
     df["first"] = cupy_first
     df["second"] = cupy_second
-    df["overlap_coeff"] = cupy_similarity
+    df["cosine_coeff"] = cupy_similarity
 
     return df
 
 
-def _call_plc_all_pairs_overlap(
+def _call_plc_all_pairs_cosine(
     sID, mg_graph_x, vertices, use_weight, topk, do_expensive_check
 ):
+    print("vertices = ", vertices)
+    print("topk = ", topk)
 
-    return pylibcugraph_all_pairs_overlap_coefficients(
+    return pylibcugraph_all_pairs_cosine_coefficients(
         resource_handle=ResourceHandle(Comms.get_handle(sID).getHandle()),
         graph=mg_graph_x,
         vertices=vertices,
@@ -61,14 +64,14 @@ def _call_plc_all_pairs_overlap(
     )
 
 
-def _call_plc_overlap(
+def _call_plc_cosine(
     sID, mg_graph_x, vertex_pair, use_weight, do_expensive_check, vertex_pair_col_name
 ):
 
     first = vertex_pair[vertex_pair_col_name[0]]
     second = vertex_pair[vertex_pair_col_name[1]]
 
-    return pylibcugraph_overlap_coefficients(
+    return pylibcugraph_cosine_coefficients(
         resource_handle=ResourceHandle(Comms.get_handle(sID).getHandle()),
         graph=mg_graph_x,
         first=first,
@@ -78,24 +81,21 @@ def _call_plc_overlap(
     )
 
 
-def overlap(input_graph, vertex_pair=None, use_weight=False):
+def cosine(input_graph, vertex_pair=None, use_weight=False):
     """
-    Compute the Overlap Coefficient between each pair of vertices connected by
+    Compute the Cosine similarity between each pair of vertices connected by
     an edge, or between arbitrary pairs of vertices specified by the user.
-    Overlap Coefficient is defined between two sets as the ratio of the volume
-    of their intersection divided by the smaller of their two volumes. In the
-    context of graphs, the neighborhood of a vertex is seen as a set. The
-    Overlap Coefficient weight of each edge represents the strength of
-    connection between vertices based on the relative similarity of their
-    neighbors. If first is specified but second is not, or vice versa, an
-    exception will be thrown.
+    Cosine similarity is defined between two sets as the ratio of the volume
+    of their intersection divided by the volume of their union. In the context
+    of graphs, the neighborhood of a vertex is seen as a set. The Cosine
+    similarity weight of each edge represents the strength of connection
+    between vertices based on the relative similarity of their neighbors.
 
-    cugraph.overlap, in the absence of a specified vertex pair list, will
+    cugraph.dask.cosine, in the absence of a specified vertex pair list, will
     compute the two_hop_neighbors of the entire graph to construct a vertex pair
-    list and will return the Overlap coefficient for those vertex pairs. This is
+    list and will return the cosine coefficient for those vertex pairs. This is
     not advisable as the vertex_pairs can grow exponentially with respect to the
-    size of the datasets
-
+    size of the datasets.
 
     Parameters
     ----------
@@ -110,14 +110,14 @@ def overlap(input_graph, vertex_pair=None, use_weight=False):
 
     vertex_pair : cudf.DataFrame, optional (default=None)
         A GPU dataframe consisting of two columns representing pairs of
-        vertices. If provided, the Overlap coefficient is computed for the
+        vertices. If provided, the cosine coefficient is computed for the
         given vertex pairs.  If the vertex_pair is not provided then the
-        current implementation computes the Overlap coefficient for all
+        current implementation computes the cosine coefficient for all
         adjacent vertices in the graph.
 
     use_weight : bool, optional (default=False)
-        Flag to indicate whether to compute weighted overlap (if use_weight==True)
-        or un-weighted overlap (if use_weight==False).
+        Flag to indicate whether to compute weighted cosine (if use_weight==True)
+        or un-weighted cosine (if use_weight==False).
         'input_graph' must be weighted if 'use_weight=True'.
 
     Returns
@@ -126,12 +126,12 @@ def overlap(input_graph, vertex_pair=None, use_weight=False):
         GPU distributed data frame containing 2 dask_cudf.Series
 
         ddf['first']: dask_cudf.Series
-            The first vertex ID of each pair(will be identical to first if specified).
+            The first vertex ID of each pair (will be identical to first if specified).
         ddf['second']: dask_cudf.Series
-            The second vertex ID of each pair(will be identical to second if
+            The second vertex ID of each pair (will be identical to second if
             specified).
-        ddf['overlap_coeff']: dask_cudf.Series
-            The computed overlap coefficient between the first and the second
+        ddf['cosine_coeff']: dask_cudf.Series
+            The computed cosine coefficient between the first and the second
             vertex ID.
     """
 
@@ -165,7 +165,7 @@ def overlap(input_graph, vertex_pair=None, use_weight=False):
 
     result = [
         client.submit(
-            _call_plc_overlap,
+            _call_plc_cosine,
             Comms.get_session_id(),
             input_graph._plc_graph[w],
             vertex_pair[w][0],
@@ -197,22 +197,22 @@ def overlap(input_graph, vertex_pair=None, use_weight=False):
     return ddf
 
 
-def all_pairs_overlap(
+def all_pairs_cosine(
         input_graph,
         vertices: cudf.Series = None,
         use_weight: bool = False,
         topk: int = None):
     """
-    Compute the All Pairs Overlap similarity between all pairs of vertices specified.
-    All pairs Overlap Coefficient is defined between two sets as the ratio of the volume
-    of their intersection divided by the smaller of their two volumes. In the context
-    of graphs, the neighborhood of a vertex is seen as a set. The Overlap
+    Compute the All Pairs Cosine similarity between all pairs of vertices specified.
+    All pairs Cosine similarity is defined between two sets as the ratio of the volume
+    of their intersection divided by the volume of their union. In the context
+    of graphs, the neighborhood of a vertex is seen as a set. The Cosine
     similarity weight of each edge represents the strength of connection
     between vertices based on the relative similarity of their neighbors.
 
-    cugraph.all_pairs_overlap, in the absence of specified vertices, will
+    cugraph.all_pairs_cosine, in the absence of specified vertices, will
     compute the two_hop_neighbors of the entire graph to construct a vertex pair
-    list and will return the overlap coefficient for all the vertex pairs in the graph.
+    list and will return the cosine coefficient for all the vertex pairs in the graph.
     This is not advisable as the vertex_pairs can grow exponentially with respect to
     the size of the datasets.
 
@@ -232,12 +232,12 @@ def all_pairs_overlap(
 
     vertices : int or list or cudf.Series, dask_cudf.Series, optional (default=None)
         A GPU Series containing the input vertex list.  If the vertex list is not
-        provided then the current implementation computes the overlap coefficient for
+        provided then the current implementation computes the cosine coefficient for
         all adjacent vertices in the graph.
 
     use_weight : bool, optional (default=False)
-        Flag to indicate whether to compute weighted overlap (if use_weight==True)
-        or un-weighted overlap (if use_weight==False).
+        Flag to indicate whether to compute weighted cosine (if use_weight==True)
+        or un-weighted cosine (if use_weight==False).
         'input_graph' must be weighted if 'use_weight=True'.
     
     topk : int, optional (default=None)
@@ -254,8 +254,8 @@ def all_pairs_overlap(
         ddf['second']: dask_cudf.Series
             The second vertex ID of each pair (will be identical to second if
             specified).
-        ddf['overlap_coeff']: dask_cudf.Series
-            The computed overlap coefficient between the first and the second
+        ddf['cosine_coeff']: dask_cudf.Series
+            The computed cosine coefficient between the first and the second
             vertex ID.
     """
 
@@ -294,7 +294,7 @@ def all_pairs_overlap(
 
     result = [
         client.submit(
-            _call_plc_all_pairs_overlap,
+            _call_plc_all_pairs_cosine,
             Comms.get_session_id(),
             input_graph._plc_graph[w],
             vertices[w][0] if vertices is not None else None,

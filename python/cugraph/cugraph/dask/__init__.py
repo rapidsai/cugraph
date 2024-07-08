@@ -35,9 +35,11 @@ from .cores.k_core import k_core
 from .link_prediction.jaccard import jaccard
 from .link_prediction.jaccard import all_pairs_jaccard
 from .link_prediction.sorensen import sorensen
-#from .link_prediction.sorensen import all_pairs_sorensen
+from .link_prediction.sorensen import all_pairs_sorensen
 from .link_prediction.overlap import overlap
-#from .link_prediction.overlap import all_pairs_overlap
+from .link_prediction.overlap import all_pairs_overlap
+from .link_prediction.cosine import cosine
+from .link_prediction.cosine import all_pairs_cosine
 from .community.leiden import leiden
 
 # Avoid "p2p" shuffling in dask for now
