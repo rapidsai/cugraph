@@ -16,6 +16,7 @@
 #pragma once
 
 #include "prims/count_if_e.cuh"
+#include "prims/detail/extract_transform_v_frontier_e.cuh"
 #include "prims/fill_edge_src_dst_property.cuh"
 #include "prims/key_store.cuh"
 #include "prims/kv_store.cuh"
@@ -652,8 +653,8 @@ rmm::device_uvector<weight_t> od_shortest_distances(
 
       auto new_frontier_tagged_vertex_buffer =
         allocate_dataframe_buffer<thrust::tuple<vertex_t, od_idx_t>>(0, handle.get_stream());
-      std::tie(new_frontier_tagged_vertex_buffer, distance_buffer) =
-        detail::extract_transform_v_frontier_e<false, thrust::tuple<vertex_t, od_idx_t>, weight_t>(
+      std::tie(new_frontier_tagged_vertex_buffer, distance_buffer) = detail::
+        extract_transform_v_frontier_e<false, false, thrust::tuple<vertex_t, od_idx_t>, weight_t>(
           handle,
           graph_view,
           vertex_frontier.bucket(bucket_idx_near),
