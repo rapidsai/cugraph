@@ -331,10 +331,6 @@ ConfigureTest(LEIDEN_TEST community/leiden_test.cpp)
 ConfigureTest(WEIGHTED_MATCHING_TEST community/weighted_matching_test.cpp)
 
 ###################################################################################################
-# - Legacy ECG tests ------------------------------------------------------------------------------
-ConfigureTest(LEGACY_ECG_TEST community/legacy_ecg_test.cpp)
-
-###################################################################################################
 # - Balanced cut clustering tests -----------------------------------------------------------------
 ConfigureTest(BALANCED_TEST community/balanced_edge_test.cpp)
 
@@ -772,6 +768,7 @@ if(BUILD_CUGRAPH_MG_TESTS)
     ConfigureCTestMG(MG_CAPI_EDGE_BETWEENNESS_CENTRALITY_TEST c_api/mg_edge_betweenness_centrality_test.c)
     ConfigureCTestMG(MG_CAPI_HITS_TEST c_api/mg_hits_test.c)
     ConfigureCTestMG(MG_CAPI_UNIFORM_NEIGHBOR_SAMPLE_TEST c_api/mg_uniform_neighbor_sample_test.c)
+    ConfigureCTestMG(MG_CAPI_LOOKUP_SRC_DST_TEST c_api/mg_lookup_src_dst_test.c)
     ConfigureCTestMG(MG_CAPI_RANDOM_WALKS_TEST c_api/mg_random_walks_test.c)
     ConfigureCTestMG(MG_CAPI_TRIANGLE_COUNT_TEST c_api/mg_triangle_count_test.c)
     ConfigureCTestMG(MG_CAPI_LOUVAIN_TEST c_api/mg_louvain_test.c)
@@ -821,7 +818,6 @@ ConfigureCTest(CAPI_ECG_TEST c_api/ecg_test.c)
 # xref: https://github.com/rapidsai/raft/issues/2186                        #
 #############################################################################
 # ConfigureCTest(CAPI_LEGACY_SPECTRAL_TEST c_api/legacy_spectral_test.c)
-ConfigureCTest(CAPI_LEGACY_ECG_TEST c_api/legacy_ecg_test.c)
 ConfigureCTest(CAPI_CORE_NUMBER_TEST c_api/core_number_test.c)
 ConfigureCTest(CAPI_SIMILARITY_TEST c_api/similarity_test.c)
 ConfigureCTest(CAPI_K_CORE_TEST c_api/k_core_test.c)

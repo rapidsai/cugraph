@@ -172,7 +172,14 @@ void triangle_count(raft::handle_t const& handle,
     }
   }
 
-  if (vertices.has_value() && ((*vertices).size() == 0)) { return; }
+  if (vertices.has_value()) {
+    auto aggregate_vertex_count =
+      multi_gpu
+        ? host_scalar_allreduce(
+            handle.get_comms(), (*vertices).size(), raft::comms::op_t::SUM, handle.get_stream())
+        : (*vertices).size();
+    if (aggregate_vertex_count == 0) { return; }
+  }
 
   auto cur_graph_view = graph_view;
 
