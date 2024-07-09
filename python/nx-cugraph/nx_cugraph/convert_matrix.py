@@ -42,7 +42,7 @@ def from_pandas_edgelist(
         # Optimistically try to use cupy, but fall back to numpy if necessary
         src_array = src_series.to_cupy()
         dst_array = dst_series.to_cupy()
-    except (AttributeError, ValueError, NotImplementedError):
+    except (AttributeError, TypeError, ValueError, NotImplementedError):
         src_array = src_series.to_numpy()
         dst_array = dst_series.to_numpy()
     try:
@@ -77,9 +77,13 @@ def from_pandas_edgelist(
         src_indices = cp.asarray(np_or_cp.searchsorted(nodes, src_array), index_dtype)
         dst_indices = cp.asarray(np_or_cp.searchsorted(nodes, dst_array), index_dtype)
     else:
-        if not is_src_copied:
+        if is_src_copied:
+            src_indices = src_array
+        else:
             src_indices = cp.array(src_array)
-        if not is_dst_copied:
+        if is_dst_copied:
+            dst_indices = dst_array
+        else:
             dst_indices = cp.array(dst_array)
 
     if not graph_class.is_directed():
