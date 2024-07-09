@@ -728,6 +728,12 @@ class simpleGraphImpl:
         Compute vertex pairs that are two hops apart. The resulting pairs are
         sorted before returning.
 
+        Parameters
+        ----------
+        start_vertices : Int or List (default=None)
+        Subset of vertices to compute two hop neighbors on. If None, compute
+        for all nodes.
+
         Returns
         -------
         df : cudf.DataFrame
