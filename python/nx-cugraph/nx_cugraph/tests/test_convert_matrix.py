@@ -10,6 +10,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import networkx as nx
 import pandas as pd
 import pytest
 
@@ -22,18 +23,20 @@ except ModuleNotFoundError:
     cudf = None
 
 
-data = [
+DATA = [
     {"source": [0, 1], "target": [1, 2]},  # nodes are 0, 1, 2
     {"source": [0, 1], "target": [1, 3]},  # nodes are 0, 1, 3 (need renumbered!)
     {"source": ["a", "b"], "target": ["b", "c"]},  # nodes are 'a', 'b', 'c'
 ]
+CREATE_USING = [nx.Graph, nx.DiGraph, nx.MultiGraph, nx.MultiDiGraph]
 
 
 @pytest.mark.skipif("not cudf")
-@pytest.mark.parametrize("data", data)
-def test_from_cudf_edgelist(data):
+@pytest.mark.parametrize("data", DATA)
+@pytest.mark.parametrize("create_using", CREATE_USING)
+def test_from_cudf_edgelist(data, create_using):
     df = cudf.DataFrame(data)
-    nxcg.from_pandas_edgelist(df)  # Basic smoke test
+    nxcg.from_pandas_edgelist(df, create_using=create_using)  # Basic smoke test
     source = df["source"]
     if source.dtype == int:
         is_copied, src_array = _cp_iscopied_asarray(source)
@@ -64,10 +67,11 @@ def test_from_cudf_edgelist(data):
             _cp_iscopied_asarray(source.to_numpy(), orig_object=source)
 
 
-@pytest.mark.parametrize("data", data)
-def test_from_pandas_edgelist(data):
+@pytest.mark.parametrize("data", DATA)
+@pytest.mark.parametrize("create_using", CREATE_USING)
+def test_from_pandas_edgelist(data, create_using):
     df = pd.DataFrame(data)
-    nxcg.from_pandas_edgelist(df)  # Basic smoke test
+    nxcg.from_pandas_edgelist(df, create_using=create_using)  # Basic smoke test
     source = df["source"]
     if source.dtype == int:
         is_copied, src_array = _cp_iscopied_asarray(source)
