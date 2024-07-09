@@ -31,7 +31,7 @@ requirements:
     - tensordict >=0.1.2
     - python
     - pytorch >=2.0
-    - cupy >= 12.0.0
+    - cupy >=12.0.0
 
 tests:
   imports:
