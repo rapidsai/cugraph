@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#include "detail/utility_wrappers.cuh"
+#include "detail/utility_wrappers_impl.cuh"
 
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/utilities/error.hpp>
