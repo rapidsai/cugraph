@@ -281,7 +281,7 @@ def get_batch_id_series(n_output_rows: int, batch_size: int):
     return cudf.Series(batch_ar)
 
 
-def create_batch_df(dataset: torch.Tensor):
+def create_batch_df(dataset: torch.Tensor) -> cudf.DataFrame:
     batch_id_ls = []
     indices_ls = []
     for batch_id, b_indices in enumerate(dataset):

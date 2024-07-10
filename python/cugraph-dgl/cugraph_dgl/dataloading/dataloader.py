@@ -38,7 +38,7 @@ class DataLoader:
         device: Union[int, str, "torch.device"] = None,
         use_ddp: bool = False,
         ddp_seed: int = 0,
-        batch_size=1,
+        batch_size: int= 1,
         drop_last: bool = False,
         shuffle: bool = False,
         use_prefetch_thread: Optional[bool] = None,

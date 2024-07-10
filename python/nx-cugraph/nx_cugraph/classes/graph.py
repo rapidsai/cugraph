@@ -124,13 +124,13 @@ class Graph:
         # Easy and fast sanity checks
         if size != new_graph.dst_indices.size:
             raise ValueError
-        for attr in ["edge_values", "edge_masks"]:
-            if datadict := getattr(new_graph, attr):
+        for edge_attr in ["edge_values", "edge_masks"]:
+            if datadict := getattr(new_graph, edge_attr):
                 for key, val in datadict.items():
                     if val.shape[0] != size:
                         raise ValueError(key)
-        for attr in ["node_values", "node_masks"]:
-            if datadict := getattr(new_graph, attr):
+        for node_attr in ["node_values", "node_masks"]:
+            if datadict := getattr(new_graph, node_attr):
                 for key, val in datadict.items():
                     if val.shape[0] != N:
                         raise ValueError(key)
