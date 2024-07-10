@@ -21,9 +21,6 @@ import cugraph.dask as dcg
 from cugraph.datasets import karate, dolphins
 
 
-pytestmark = pytest.mark.skip(reason="Skipping until MG bug is resolved")
-
-
 # =============================================================================
 # Pytest Setup / Teardown - called for each test function
 # =============================================================================

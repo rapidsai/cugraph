@@ -268,6 +268,20 @@ def is_graph_distributed(graph):
     return isinstance(graph.edgelist.edgelist_df, dask_cudf.DataFrame)
 
 
+def get_vertex_pairs(G, num_vertices=10):
+    """
+    Return a DateFrame containing two-hop vertex pairs randomly sampled from
+    a Graph.
+    """
+    random_vertices = G.select_random_vertices(num_vertices=num_vertices)
+
+    if isinstance(random_vertices, dask_cudf.Series):
+        random_vertices = random_vertices.compute()
+
+    vertices = random_vertices.to_arrow().to_pylist()
+    return G.get_two_hop_neighbors(start_vertices=vertices)
+
+
 ###############################################################################
 # Benchmarks
 def bench_create_graph(gpubenchmark, edgelist):
@@ -323,8 +337,20 @@ def bench_sssp(gpubenchmark, graph):
 
 def bench_jaccard(gpubenchmark, unweighted_graph):
     G = unweighted_graph
+    # algo cannot compute neighbors on all nodes without running into OOM
+    # this is why we will call jaccard on a subset of nodes
+    vert_pairs = get_vertex_pairs(G)
     jaccard = dask_cugraph.jaccard if is_graph_distributed(G) else cugraph.jaccard
-    gpubenchmark(jaccard, G)
+    gpubenchmark(jaccard, G, vert_pairs)
+
+
+def bench_sorensen(gpubenchmark, unweighted_graph):
+    G = unweighted_graph
+    # algo cannot compute neighbors on all nodes without running into OOM
+    # this is why we will call sorensen on a subset of nodes
+    vert_pairs = get_vertex_pairs(G)
+    sorensen = dask_cugraph.sorensen if is_graph_distributed(G) else cugraph.sorensen
+    gpubenchmark(sorensen, G, vert_pairs)
 
 
 @pytest.mark.skipif(
@@ -347,8 +373,11 @@ def bench_weakly_connected_components(gpubenchmark, graph):
 
 def bench_overlap(gpubenchmark, unweighted_graph):
     G = unweighted_graph
+    # algo cannot compute neighbors on all nodes without running into OOM
+    # this is why we will call sorensen on a subset of nodes
+    vertex_pairs = get_vertex_pairs(G)
     overlap = dask_cugraph.overlap if is_graph_distributed(G) else cugraph.overlap
-    gpubenchmark(overlap, G)
+    gpubenchmark(overlap, G, vertex_pairs)
 
 
 def bench_triangle_count(gpubenchmark, graph):
