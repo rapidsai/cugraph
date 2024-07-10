@@ -26,8 +26,6 @@ ETL code to be unchanged while still seeing significate performance
 improvements. Again this will be deprecated since networkX dispatching to nx_cugraph
 has many advantages.
 
-improvements.
-
 
 .. image:: ../images/Nx_Cg_1.png
   :width: 600

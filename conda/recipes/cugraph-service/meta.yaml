@@ -29,6 +29,7 @@ outputs:
       host:
         - pip
         - python
+        - rapids-build-backend>=0.3.1,<0.4.0.dev0
       run:
         - python
         - thriftpy2 >=0.4.15
@@ -52,6 +53,7 @@ outputs:
         - python
         - setuptools
         - wheel
+        - rapids-build-backend>=0.3.1,<0.4.0.dev0
       run:
         - {{ pin_subpackage('cugraph-service-client', exact=True) }}
         - cudf ={{ minor_version }}
