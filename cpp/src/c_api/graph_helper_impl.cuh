@@ -37,7 +37,7 @@ edge_property_t<GraphViewType, T> create_constant_edge_property(raft::handle_t c
 {
   edge_property_t<GraphViewType, T> edge_property(handle, graph_view);
 
-  cugraph::fill_edge_property(handle, graph_view, constant_value, edge_property);
+  cugraph::fill_edge_property(handle, graph_view, edge_property.mutable_view(), constant_value);
 
   return edge_property;
 }
