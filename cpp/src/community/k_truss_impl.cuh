@@ -1104,7 +1104,7 @@ k_truss(raft::handle_t const& handle,
                                             decltype(get_dataframe_buffer_begin(vertex_pair_buffer_q_r)),
                                             true,
                                             multi_gpu,
-                                            true // FIXME: Use global weak edges for validation purposes
+                                            true // FIXME: Currently using global weak edges for validation purposes
                                             >(
                 handle,
                 size_dataframe_buffer(vertex_pair_buffer_p_q_edge_q_r),
@@ -1531,7 +1531,7 @@ k_truss(raft::handle_t const& handle,
                                           decltype(get_dataframe_buffer_begin(vertex_pair_buffer_p_q_edge_p_r)),
                                           false,
                                           multi_gpu,
-                                          true // FIXME: Use global weak edges for validation purposes
+                                          true // FIXME: Currently using global weak edges for validation purposes
                                           >(
               handle,
               q_closing.size(),
@@ -1550,7 +1550,7 @@ k_truss(raft::handle_t const& handle,
                                           decltype(get_dataframe_buffer_begin(vertex_pair_buffer_p_q_edge_p_r)),
                                           false,
                                           multi_gpu,
-                                          true // FIXME: Use global weak edges for validation purposes
+                                          true // FIXME: Currently using global weak edges for validation purposes
                                           >(
               handle,
               num_edges_not_overcomp_p_q,
