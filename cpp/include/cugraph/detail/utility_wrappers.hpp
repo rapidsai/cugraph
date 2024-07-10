@@ -51,6 +51,29 @@ void uniform_random_fill(rmm::cuda_stream_view const& stream_view,
                          raft::random::RngState& rng_state);
 
 /**
+ * @brief    Fill a buffer with biased random values
+ *
+ * Fills a buffer with values based on the specified biases.
+ * The probability of selecting the value `i` is determined by
+ * `biases[i] / sum(biases)`.
+ *
+ * @tparam      value_t      type of the value to operate on
+ * @tparam      bias_t       type of the bias
+ *
+ * @param[in]   handle       RAFT handle object to encapsulate resources (e.g. CUDA stream,
+ * communicator, and handles to various CUDA libraries) to run graph algorithms.
+ * @param[in]   rng_state    The RngState instance holding pseudo-random number generator state.
+ * @param[out]  output       The random values
+ * @param[in]   biases       The biased values
+ *
+ */
+template <typename value_t, typename bias_t>
+void biased_random_fill(raft::handle_t const& handle,
+                        raft::random::RngState& rng_state,
+                        raft::device_span<value_t> output,
+                        raft::device_span<bias_t const> biases);
+
+/**
  * @brief    Fill a buffer with a constant value
  *
  * @tparam      value_t      type of the value to operate on

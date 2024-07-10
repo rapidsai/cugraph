@@ -57,6 +57,16 @@ void uniform_random_fill(rmm::cuda_stream_view const& stream_view,
   }
 }
 
+template <typename value_t, typename bias_t>
+void biased_random_fill(raft::handle_t const& handle,
+                        raft::random::RngState& rng_state,
+                        raft::device_span<value_t> output,
+                        raft::device_span<bias_t const> biases)
+{
+  CUGRAPH_EXPECTS(std::is_integral<value_t>::value);
+  raft::random::discrete(handle, rng_state, output, biases);
+}
+
 template <typename value_t>
 void scalar_fill(raft::handle_t const& handle, value_t* d_value, size_t size, value_t value)
 {

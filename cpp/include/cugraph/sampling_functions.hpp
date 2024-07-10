@@ -766,8 +766,7 @@ lookup_endpoints_from_edge_ids_and_types(
  *
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
- * @param graph_view optional Graph View object to generate NBR Sampling on, only required if
- * remove_false_negatives is true
+ * @param graph_view Graph View object to generate NBR Sampling for
  * @param rng_state RNG state
  * @param num_samples Number of negative samples to generate
  * @param src_bias Optional bias for randomly selecting source vertices.  If std::nullopt vertices
@@ -789,7 +788,7 @@ template <typename vertex_t,
           bool multi_gpu>
 std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> negative_sampling(
   raft::handle_t const& handle,
-  std::optional<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const&> graph_view,
+  graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
   raft::random::rng_state& rng_state,
   size_t num_samples,
   std::optional<raft::device_span<weight_t>> src_bias,
