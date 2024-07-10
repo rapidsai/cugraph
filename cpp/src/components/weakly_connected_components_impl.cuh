@@ -16,7 +16,7 @@
 #pragma once
 
 #include "prims/fill_edge_src_dst_property.cuh"
-#include "prims/transform_reduce_v_frontier_outgoing_e_by_dst.cuh"
+#include "prims/transform_reduce_v_frontier_outgoing_e_by_src_dst.cuh"
 #include "prims/update_edge_src_dst_property.cuh"
 #include "prims/update_v_frontier.cuh"
 #include "prims/vertex_frontier.cuh"
@@ -488,8 +488,10 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
         ? edge_dst_property_t<GraphViewType, vertex_t>(handle, level_graph_view)
         : edge_dst_property_t<GraphViewType, vertex_t>(handle);
     if constexpr (GraphViewType::is_multi_gpu) {
-      fill_edge_dst_property(
-        handle, level_graph_view, invalid_component_id<vertex_t>::value, edge_dst_components);
+      fill_edge_dst_property(handle,
+                             level_graph_view,
+                             edge_dst_components.mutable_view(),
+                             invalid_component_id<vertex_t>::value);
     }
 
     // 2.4 iterate till every vertex gets visited
@@ -534,7 +536,7 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
           thrust::get<0>(vertex_frontier.bucket(bucket_idx_cur).begin().get_iterator_tuple()),
           thrust::get<0>(vertex_frontier.bucket(bucket_idx_cur).end().get_iterator_tuple()),
           level_components,
-          edge_dst_components);
+          edge_dst_components.mutable_view());
       }
 
       auto max_pushes = GraphViewType::is_multi_gpu

@@ -16,7 +16,6 @@
  */
 #pragma once
 
-#include "prims/fill_edge_property.cuh"
 #include "prims/fill_edge_src_dst_property.cuh"
 #include "prims/per_v_transform_reduce_incoming_outgoing_e.cuh"
 #include "prims/update_edge_src_dst_property.cuh"
@@ -174,8 +173,10 @@ rmm::device_uvector<vertex_t> maximal_independent_set(
     if constexpr (multi_gpu) {
       src_rank_cache = edge_src_property_t<GraphViewType, vertex_t>(handle, graph_view);
       dst_rank_cache = edge_dst_property_t<GraphViewType, vertex_t>(handle, graph_view);
-      update_edge_src_property(handle, graph_view, temporary_ranks.begin(), src_rank_cache);
-      update_edge_dst_property(handle, graph_view, temporary_ranks.begin(), dst_rank_cache);
+      update_edge_src_property(
+        handle, graph_view, temporary_ranks.begin(), src_rank_cache.mutable_view());
+      update_edge_dst_property(
+        handle, graph_view, temporary_ranks.begin(), dst_rank_cache.mutable_view());
     }
 
     //

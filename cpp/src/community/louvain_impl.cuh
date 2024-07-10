@@ -138,8 +138,10 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> louvain(
 
       src_vertex_weights_cache =
         edge_src_property_t<graph_view_t, weight_t>(handle, current_graph_view);
-      update_edge_src_property(
-        handle, current_graph_view, vertex_weights_v.begin(), src_vertex_weights_cache);
+      update_edge_src_property(handle,
+                               current_graph_view,
+                               vertex_weights_v.begin(),
+                               src_vertex_weights_cache.mutable_view());
       vertex_weights_v.resize(0, handle.get_stream());
       vertex_weights_v.shrink_to_fit(handle.get_stream());
     }
@@ -167,10 +169,10 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> louvain(
     if constexpr (multi_gpu) {
       src_clusters_cache = edge_src_property_t<graph_view_t, vertex_t>(handle, current_graph_view);
       update_edge_src_property(
-        handle, current_graph_view, next_clusters_v.begin(), src_clusters_cache);
+        handle, current_graph_view, next_clusters_v.begin(), src_clusters_cache.mutable_view());
       dst_clusters_cache = edge_dst_property_t<graph_view_t, vertex_t>(handle, current_graph_view);
       update_edge_dst_property(
-        handle, current_graph_view, next_clusters_v.begin(), dst_clusters_cache);
+        handle, current_graph_view, next_clusters_v.begin(), dst_clusters_cache.mutable_view());
     }
 
     weight_t new_Q = detail::compute_modularity(handle,
@@ -208,9 +210,9 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> louvain(
 
       if constexpr (graph_view_t::is_multi_gpu) {
         update_edge_src_property(
-          handle, current_graph_view, next_clusters_v.begin(), src_clusters_cache);
+          handle, current_graph_view, next_clusters_v.begin(), src_clusters_cache.mutable_view());
         update_edge_dst_property(
-          handle, current_graph_view, next_clusters_v.begin(), dst_clusters_cache);
+          handle, current_graph_view, next_clusters_v.begin(), dst_clusters_cache.mutable_view());
       }
 
       std::tie(cluster_keys_v, cluster_weights_v) = detail::compute_cluster_keys_and_values(

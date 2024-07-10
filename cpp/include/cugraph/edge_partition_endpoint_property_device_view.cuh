@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2023, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -133,7 +133,7 @@ class edge_partition_endpoint_property_device_view_t {
   atomic_add(vertex_t offset, value_t val) const
   {
     auto val_offset = value_offset(offset);
-    cugraph::atomic_add(value_first_ + val_offset, val);
+    return cugraph::atomic_add(value_first_ + val_offset, val);
   }
 
   template <typename Iter = ValueIterator>
@@ -162,7 +162,7 @@ class edge_partition_endpoint_property_device_view_t {
   elementwise_atomic_min(vertex_t offset, value_t val) const
   {
     auto val_offset = value_offset(offset);
-    cugraph::elementwise_atomic_min(value_first_ + val_offset, val);
+    return cugraph::elementwise_atomic_min(value_first_ + val_offset, val);
   }
 
   template <typename Iter = ValueIterator, typename T = value_t>
@@ -173,7 +173,7 @@ class edge_partition_endpoint_property_device_view_t {
   elementwise_atomic_max(vertex_t offset, value_t val) const
   {
     auto val_offset = value_offset(offset);
-    cugraph::elementwise_atomic_max(value_first_ + val_offset, val);
+    return cugraph::elementwise_atomic_max(value_first_ + val_offset, val);
   }
 
  private:

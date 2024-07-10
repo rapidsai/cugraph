@@ -15,7 +15,6 @@
  */
 
 #include "prims/count_if_e.cuh"
-#include "prims/update_edge_src_dst_property.cuh"
 #include "utilities/base_fixture.hpp"
 #include "utilities/conversion_utilities.hpp"
 #include "utilities/device_comm_wrapper.hpp"

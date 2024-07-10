@@ -16,7 +16,7 @@
 #pragma once
 
 #include "prims/reduce_op.cuh"
-#include "prims/transform_reduce_v_frontier_outgoing_e_by_dst.cuh"
+#include "prims/transform_reduce_v_frontier_outgoing_e_by_src_dst.cuh"
 #include "prims/vertex_frontier.cuh"
 
 #include <cugraph/algorithms.hpp>
