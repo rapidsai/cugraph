@@ -150,17 +150,9 @@ class DataLoader:
         return self.__dataset
 
     def __iter__(self):
-        # TODO move to the correct device
+        # TODO move to the correct device (rapidsai/cugraph-gnn#11)
         return self.__sampler.sample(
             self.__graph,
             self.__dataset,
             batch_size=self.__batch_size,
         )
-
-        """
-        start, end, blocks = out
-
-        start = start.to(self.__device)
-        end = end.to(self.__device)
-        blocks = [b.to(self.__device) for b in blocks]
-        """
