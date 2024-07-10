@@ -273,7 +273,7 @@ class DaskDataLoader(torch.utils.data.DataLoader):
             _clean_directory(self._sampling_output_dir)
 
 
-def get_batch_id_series(n_output_rows: int, batch_size: int):
+def get_batch_id_series(n_output_rows: int, batch_size: int) -> cudf.Series :
     num_batches = (n_output_rows + batch_size - 1) // batch_size
     print(f"Number of batches = {num_batches}".format(num_batches))
     batch_ar = cp.arange(0, num_batches).repeat(batch_size)
