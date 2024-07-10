@@ -302,7 +302,7 @@ INSTANTIATE_TEST_SUITE_P(
     // enable correctness checks
     ::testing::Values(//KTruss_Usecase{4, true, true},
                       KTruss_Usecase{4, true, true}),
-    ::testing::Values(cugraph::test::File_Usecase("/raid/jnke/optimize_ktruss/datasets/test_datasets_.mtx"))));
+    ::testing::Values(cugraph::test::File_Usecase("/raid/jnke/optimize_ktruss/datasets/test_datasets.mtx"))));
 
 #if 0
 INSTANTIATE_TEST_SUITE_P(
