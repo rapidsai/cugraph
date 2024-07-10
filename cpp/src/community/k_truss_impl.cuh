@@ -43,45 +43,58 @@
 
 namespace cugraph {
 
-template <typename vertex_t, typename edge_t, typename EdgeIterator, bool is_q_r_edge, bool multi_gpu>
+template <typename vertex_t, typename edge_t, typename EdgeIterator, bool is_q_r_edge, bool multi_gpu, bool global_weak>
 // difference something. 
 edge_t remove_overcompensating_edges(raft::handle_t const& handle,
                                      size_t buffer_size,
-                                     EdgeIterator set_a_query_edges, // (p, q) edges
+                                     EdgeIterator set_a_query_edges,
                                      EdgeIterator set_b_query_edges,
-                                     // rename querry_edge_first
-                                     // rename querry_edge_last
-                                     raft::device_span<vertex_t const> set_c_weak_edges_srcs, // FIXME: rename this, no need for first
+                                     raft::device_span<vertex_t const> global_set_c_weak_edges_srcs,
+                                     raft::device_span<vertex_t const> global_set_c_weak_edges_dsts,
+                                     raft::device_span<vertex_t const> set_c_weak_edges_srcs,
                                      raft::device_span<vertex_t const> set_c_weak_edges_dsts,
-                                     std::vector<vertex_t> vertex_partition_range_lasts) // FIXME: rename this
+                                     std::vector<vertex_t> vertex_partition_range_lasts)
 {
 
   // To avoid over-compensating, check whether the 'potential_closing_edges'
-  // are within the weak edges. If yes, the was already unrolled
+  // are within the weak edges. If yes, those edges were already unrolled
 
-  // FIXME: thrust::set_difference for SG
-  // set_difference once for major or minor comm
-  // rename set_A_last and set B. finding the difference
-  // Make it more general, not k-truss oriented
+  if constexpr (global_weak) {
+    // FIXME: can use thrust::set_difference for SG
+    auto edges_not_overcomp = thrust::remove_if(
+      handle.get_thrust_policy(),
+      thrust::make_zip_iterator(set_a_query_edges,
+                                set_b_query_edges),
+      thrust::make_zip_iterator(set_a_query_edges + buffer_size,
+                                set_b_query_edges + buffer_size),
+      [set_c_weak_edges_first =
+        thrust::make_zip_iterator(global_set_c_weak_edges_srcs.begin(), global_set_c_weak_edges_dsts.begin()),
+      set_c_weak_edges_last = thrust::make_zip_iterator(global_set_c_weak_edges_srcs.end(),
+                                                global_set_c_weak_edges_dsts.end())] __device__(auto e) {
 
-  rmm::device_uvector<vertex_t> set_a_query_edges_srcs(buffer_size, handle.get_stream());
-  rmm::device_uvector<vertex_t> set_a_query_edges_dsts(buffer_size, handle.get_stream());
-  std::vector<size_t> rx_count{};
+        auto set_a_query_edge = thrust::get<0>(e);
+        if constexpr (is_q_r_edge) {
+          set_a_query_edge = thrust::make_tuple(thrust::get<1>(set_a_query_edge), thrust::get<0>(set_a_query_edge));
 
+        };
 
-  if constexpr (multi_gpu) {
+        return thrust::binary_search(
+          thrust::seq, set_c_weak_edges_first, set_c_weak_edges_last, set_a_query_edge);
+      });
 
-    
-    // FIXME: Just zip src and dst to copy at once for the edges
+    auto dist = thrust::distance(thrust::make_zip_iterator(set_a_query_edges,
+                                                          set_b_query_edges),
+                                edges_not_overcomp);
+    return dist;
+  } else {
+    rmm::device_uvector<vertex_t> set_a_query_edges_srcs(buffer_size, handle.get_stream());
+    rmm::device_uvector<vertex_t> set_a_query_edges_dsts(buffer_size, handle.get_stream());
+    std::vector<size_t> rx_count{};
+  
     thrust::copy(handle.get_thrust_policy(),
                 set_a_query_edges,
                 set_a_query_edges + buffer_size,
                 thrust::make_zip_iterator(set_a_query_edges_srcs.begin(), set_a_query_edges_dsts.begin()));
-
-    auto& comm           = handle.get_comms();
-    auto const comm_rank = comm.get_rank();
-
-
 
     // group_by_count to get the destination of each edges
     std::tie(set_a_query_edges_srcs, set_a_query_edges_dsts, std::ignore, std::ignore, std::ignore, rx_count) =
@@ -94,8 +107,8 @@ edge_t remove_overcompensating_edges(raft::handle_t const& handle,
 
     rmm::device_uvector<vertex_t> has_edge(set_a_query_edges_srcs.size(), handle.get_stream()); // type should be size_t
 
-    auto set_c_weak_edges_first = thrust::make_zip_iterator(set_c_weak_edges_srcs.begin(), set_c_weak_edges_dsts.begin());  // setBedges
-    auto set_c_weak_edges_last  = thrust::make_zip_iterator(set_c_weak_edges_srcs.end(), set_c_weak_edges_dsts.end());
+    auto set_c_weak_edges_first = thrust::make_zip_iterator(global_set_c_weak_edges_srcs.begin(), global_set_c_weak_edges_dsts.begin());  // setBedges
+    auto set_c_weak_edges_last  = thrust::make_zip_iterator(global_set_c_weak_edges_srcs.end(), global_set_c_weak_edges_dsts.end());
     auto set_a_query_edges_first = thrust::make_zip_iterator(set_a_query_edges_srcs.begin(), set_a_query_edges_dsts.begin());
 
     /*
@@ -104,10 +117,10 @@ edge_t remove_overcompensating_edges(raft::handle_t const& handle,
       ...
     )
     */
-
+   // FIXME: Use thrust::transform instead
     thrust::tabulate(
             handle.get_thrust_policy(),
-            has_edge.begin(), // FIXME: Properly reconstruct (p, r) even when there is no overcompensation ************************************
+            has_edge.begin(), // FIXME: Properly reconstruct (p, r) even when there is no overcompensation
             has_edge.end(),
             [
               set_c_weak_edges_first,
@@ -119,31 +132,32 @@ edge_t remove_overcompensating_edges(raft::handle_t const& handle,
               });
     
 
-    if (comm_rank == 1) {
-      raft::print_device_vector("has_edge_b_s_v", has_edge.data(), has_edge.size(), std::cout);
-    }
 
     std::tie(has_edge, std::ignore) =
       shuffle_values(handle.get_comms(), has_edge.begin(), rx_count, handle.get_stream());
     
+    /*
+    auto edges_not_overcomp = thrust::remove_if(
+      handle.get_thrust_policy(),
+      thrust::make_zip_iterator(set_a_query_edges,
+                                set_b_query_edges),
+      thrust::make_zip_iterator(set_a_query_edges + buffer_size,
+                                set_b_query_edges + buffer_size),
+      [has_edge = raft::device_span<vertex_t const>(has_edge.data(), has_edge.size())
+      ] __device__(auto e) {
 
-    //if (comm_rank == 0) {
-      raft::print_device_vector("has_edge_a_s_v", has_edge.data(), has_edge.size(), std::cout);
-    //}
+        auto set_a_query_edge = thrust::get<0>(e);
+        if constexpr (is_q_r_edge) {
+          set_a_query_edge = thrust::make_tuple(thrust::get<1>(set_a_query_edge), thrust::get<0>(set_a_query_edge));
 
+        };
 
+        return thrust::binary_search(
+          thrust::seq, set_c_weak_edges_first, set_c_weak_edges_last, set_a_query_edge);
+      });
+    */
 
-    if (comm_rank == 1) {
-      
-      raft::print_device_vector("set_c_weak_edges_srcs", set_c_weak_edges_srcs.data(), set_c_weak_edges_srcs.size(), std::cout);
-      raft::print_device_vector("set_c_weak_edges_dsts", set_c_weak_edges_dsts.data(), set_c_weak_edges_dsts.size(), std::cout);
-
-      raft::print_device_vector("set_a_query_edges_srcs", set_a_query_edges_srcs.data(), set_a_query_edges_srcs.size(), std::cout);
-      raft::print_device_vector("set_a_query_edges_dsts", set_a_query_edges_dsts.data(), set_a_query_edges_dsts.size(), std::cout);
-    }
-
-    // FIXME: thrust::remove_if (resize). No need for sort_by_key and upper_bound
-
+    // FIXME: use thrust::remove_if (resize). No need for sort_by_key and upper_bound
     thrust::sort_by_key(handle.get_thrust_policy(),
             has_edge.begin(),
             has_edge.end(),
@@ -159,49 +173,9 @@ edge_t remove_overcompensating_edges(raft::handle_t const& handle,
     
     // FIXME: No need to reconstruct the third array because we can zip all 3 edges of the triangle
 
-    //printf("\nnumber of potential weak edges = %d\n", has_edge.size());
-    auto dist = thrust::distance(has_edge.begin(), itr); // FIXME: Check whether -1 is necessary
-  
-    printf("\ndistance = %d\n", dist);
-
+    auto dist = thrust::distance(has_edge.begin(), itr);
     return dist;
-    //return 0;
-    
-  
 
-
-
-  } else {
-    auto edges_not_overcomp = thrust::remove_if(
-      handle.get_thrust_policy(),
-      thrust::make_zip_iterator(set_a_query_edges,
-                                set_b_query_edges),
-      thrust::make_zip_iterator(set_a_query_edges + buffer_size,
-                                set_b_query_edges + buffer_size),
-      [set_c_weak_edges_first =
-        thrust::make_zip_iterator(set_c_weak_edges_srcs.begin(), set_c_weak_edges_dsts.begin()),
-      set_c_weak_edges_last = thrust::make_zip_iterator(set_c_weak_edges_srcs.end(),
-                                                set_c_weak_edges_dsts.end())] __device__(auto e) {
-        auto potential_edge = thrust::get<0>(e);
-        auto potential_or_incoming_edge = thrust::make_tuple(thrust::get<0>(potential_edge), thrust::get<1>(potential_edge));
-        if constexpr (is_q_r_edge) {
-          potential_or_incoming_edge = thrust::make_tuple(thrust::get<1>(potential_edge), thrust::get<0>(potential_edge));
-        };
-
-        /*
-        auto itr = thrust::lower_bound(
-          thrust::seq, set_c_weak_edges_first, set_c_weak_edges_last, potential_or_incoming_edge);
-        */
-        return thrust::binary_search(
-          thrust::seq, set_c_weak_edges_first, set_c_weak_edges_last, potential_or_incoming_edge);
-      });
-
-    auto dist = thrust::distance(thrust::make_zip_iterator(set_a_query_edges,
-                                                          set_b_query_edges),
-                                edges_not_overcomp);
-
-    printf("\nlegacy - distance = %d\n", dist);
-    return dist;
   }
 }
 
@@ -230,20 +204,20 @@ struct extract_edges_and_triangle_counts {
 template <typename vertex_t>
 struct extract_edges_to_q_r {
 
-  raft::device_span<vertex_t const> vertex_q_r{};
+  raft::device_span<vertex_t const> vertex_q_r_set{};
   __device__ thrust::optional<thrust::tuple<vertex_t, vertex_t>> operator()(
   
   auto src, auto dst, thrust::nullopt_t, thrust::nullopt_t, thrust::nullopt_t) const
   {
-    auto itr_src = thrust::find(
-        thrust::seq, vertex_q_r.begin(), vertex_q_r.end(), src);
+    auto has_src = thrust::binary_search(
+        thrust::seq, vertex_q_r_set.begin(), vertex_q_r_set.end(), src);
 
-    auto itr_dst = thrust::find(
-        thrust::seq, vertex_q_r.begin(), vertex_q_r.end(), dst);
+    auto has_dst = thrust::binary_search(
+        thrust::seq, vertex_q_r_set.begin(), vertex_q_r_set.end(), dst);
 
-    if (itr_src != vertex_q_r.end() && *itr_src == src) {
+    if (has_src) {
       return thrust::optional<thrust::tuple<vertex_t, vertex_t>>{thrust::make_tuple(src, dst)};
-    } else if (itr_dst != vertex_q_r.end() && *itr_dst == dst) {
+    } else if (has_dst) {
       return thrust::optional<thrust::tuple<vertex_t, vertex_t>>{thrust::make_tuple(src, dst)};
     } else {
       return thrust::nullopt;
@@ -349,8 +323,6 @@ struct extract_q_idx_closing {
   EdgeIterator major_weak_edgelist_dsts_tag_first{};
   EdgeIterator major_weak_edgelist_dsts_tag_last{};
   raft::device_span<vertex_t const> major_weak_edgelist_srcs{};
-  raft::device_span<vertex_t const> weak_edgelist_dsts{};
-  raft::device_span<edge_t const> weak_edgelist_tags{}; // FIXME: keep this when performing chunking
 
   return_type __device__ operator()(thrust::tuple<vertex_t, edge_t> tagged_src,
                                     vertex_t dst,
@@ -567,10 +539,6 @@ accumulate_triangles_p_q_or_q_r(raft::handle_t const& handle,
   
   auto weak_edgelist_first = thrust::make_zip_iterator(weak_edgelist_srcs.begin(), weak_edgelist_dsts.begin());
 
-  RAFT_CUDA_TRY(cudaDeviceSynchronize());
-  //printf("\nin 'accumulate_triangles_p_q_or_q_r' and size = %d\n", weak_edgelist_srcs.size());
-
-  // Call nbr_intersection unroll (p, q) and (q, r) edges
   auto [intersection_offsets, intersection_indices] =
     detail::nbr_intersection(handle,
                              graph_view,
@@ -581,8 +549,6 @@ accumulate_triangles_p_q_or_q_r(raft::handle_t const& handle,
                             //do_expensive_check : FIXME
                             true);
 
-  //std::cout<< "The intersection size for (p, q) or (q, r) edges = " << intersection_indices.size() << std::endl;
-  // Generate (p, q) edges
   auto vertex_pair_buffer_p_q =
     allocate_dataframe_buffer<thrust::tuple<vertex_t, vertex_t>>(intersection_indices.size(),
                                                                   handle.get_stream());
@@ -849,7 +815,6 @@ k_truss(raft::handle_t const& handle,
     cugraph::fill_edge_property(handle, cur_graph_view, true, edge_mask);
 
     while (true) {
-
       // extract the edges that have counts less than k - 2. Those edges will be unrolled
       auto [weak_edgelist_srcs, weak_edgelist_dsts] = extract_transform_e(handle,
                                                                           cur_graph_view,
@@ -869,7 +834,7 @@ k_truss(raft::handle_t const& handle,
             thrust::sort(handle.get_thrust_policy(),
                                 weak_edgelist_first,
                                 weak_edgelist_first + weak_edgelist_srcs.size());
-      
+
       // Find intersection edges
       size_t prev_chunk_size         = 0;
       size_t num_remaining_weak_edges = weak_edgelist_srcs.size();
@@ -883,29 +848,9 @@ k_truss(raft::handle_t const& handle,
       if constexpr (multi_gpu) {
         num_chunks = host_scalar_allreduce(handle.get_comms(), num_chunks, raft::comms::op_t::SUM, handle.get_stream());
       }
-      
-      printf("\nnum_chunks = %d\n", num_chunks);
-      
-      // FIXME: In case some ranks have no weak edges to process
-      // Or simply in the for loop set i <= 0 but need to make sure the chunking process is not broken
-      /*
-      if (num_chunks == 0) {
-        num_chunks = 1;
-      }
-      */
-      
+
       for (size_t i = 0; i < num_chunks; ++i) {
-        printf("\n in for loop chunk, i = %d, num_chunks = %d\n", i, num_chunks);
         auto chunk_size = std::min(edges_to_intersect_per_iteration, num_remaining_weak_edges);
-        //RAFT_CUDA_TRY(cudaDeviceSynchronize());
-        //printf("\ntracking hang\n");
-
-        //auto x = raft::device_span<vertex_t const>(weak_edgelist_srcs.data(), weak_edgelist_srcs.size());
-        //auto x = weak_edgelist_srcs.size();
-        //RAFT_CUDA_TRY(cudaDeviceSynchronize());
-        //printf("\nafter tracking hang, size = %d\n", x);
-
-        //#if 0
         auto [vertex_pair_buffer_p_q, vertex_pair_buffer_p_r_edge_p_q, vertex_pair_buffer_q_r_edge_p_q] = accumulate_triangles_p_q_or_q_r<vertex_t, edge_t, weight_t, decltype(allocate_dataframe_buffer<thrust::tuple<vertex_t, vertex_t>>(size_t{0}, handle.get_stream())), multi_gpu>(
                     handle,
                     cur_graph_view,
@@ -914,13 +859,6 @@ k_truss(raft::handle_t const& handle,
                     prev_chunk_size,
                     chunk_size, 
                     do_expensive_check);
-        
-        //#if 0
-        //raft::print_device_vector("vertex_pair_buffer_p_q_srcs", std::get<0>(vertex_pair_buffer_p_q).data(), std::get<0>(vertex_pair_buffer_p_q).size(), std::cout);
-        //raft::print_device_vector("vertex_pair_buffer_p_q_dsts", std::get<1>(vertex_pair_buffer_p_q).data(), std::get<1>(vertex_pair_buffer_p_q).size(), std::cout);
-
-        //raft::print_device_vector("vertex_pair_buffer_p_r_edge_p_q_srcs", std::get<0>(vertex_pair_buffer_p_r_edge_p_q).data(), std::get<0>(vertex_pair_buffer_p_r_edge_p_q).size(), std::cout);
-        //raft::print_device_vector("vertex_pair_buffer_p_r_edge_p_q_dsts", std::get<1>(vertex_pair_buffer_p_r_edge_p_q).data(), std::get<1>(vertex_pair_buffer_p_r_edge_p_q).size(), std::cout);
     
         rmm::device_uvector<vertex_t> vertex_pair_buffer_p_r_edge_p_q_srcs(0, handle.get_stream());
         rmm::device_uvector<vertex_t> vertex_pair_buffer_p_r_edge_p_q_dsts(0, handle.get_stream());
@@ -955,19 +893,6 @@ k_truss(raft::handle_t const& handle,
               std::nullopt,
               cur_graph_view.vertex_partition_range_lasts());
         }
-        RAFT_CUDA_TRY(cudaDeviceSynchronize());
-        /*
-        std::cout << "Unrolling (p, q) edges" << std::endl;
-      
-        raft::print_device_vector("vertex_pair_buffer_p_q", std::get<0>(vertex_pair_buffer_p_q).data(), std::get<0>(vertex_pair_buffer_p_q).size(), std::cout);
-        raft::print_device_vector("vertex_pair_buffer_p_q", std::get<1>(vertex_pair_buffer_p_q).data(), std::get<1>(vertex_pair_buffer_p_q).size(), std::cout);
-        printf("\n");
-        raft::print_device_vector("vertex_pair_buffer_p_r_edge_p_q_srcs", vertex_pair_buffer_p_r_edge_p_q_srcs.data(), vertex_pair_buffer_p_r_edge_p_q_srcs.size(), std::cout);
-        raft::print_device_vector("vertex_pair_buffer_p_r_edge_p_q_dsts", vertex_pair_buffer_p_r_edge_p_q_dsts.data(), vertex_pair_buffer_p_r_edge_p_q_dsts.size(), std::cout);
-        printf("\n");
-        raft::print_device_vector("vertex_pair_buffer_q_r_edge_p_q_srcs", vertex_pair_buffer_q_r_edge_p_q_srcs.data(), vertex_pair_buffer_q_r_edge_p_q_srcs.size(), std::cout);
-        raft::print_device_vector("vertex_pair_buffer_q_r_edge_p_q_dsts", vertex_pair_buffer_q_r_edge_p_q_dsts.data(), vertex_pair_buffer_q_r_edge_p_q_dsts.size(), std::cout);
-        */
 
         decrease_triangle_count<vertex_t, edge_t, weight_t, multi_gpu>(
           handle,
@@ -997,27 +922,8 @@ k_truss(raft::handle_t const& handle,
         num_remaining_weak_edges -= chunk_size;
 
       }
-      
-      //#if 0
-      RAFT_CUDA_TRY(cudaDeviceSynchronize());
-      //printf("\nafter unrolling (p, q) edges\n");
-      auto [srcs_0, dsts_0, count_0] = extract_transform_e(handle,
-                                                    cur_graph_view,
-                                                    cugraph::edge_src_dummy_property_t{}.view(),
-                                                    cugraph::edge_dst_dummy_property_t{}.view(),
-                                                    //view_concat(edge_triangle_counts.view(), modified_triangle_count.view()),
-                                                    edge_triangle_counts.view(),
-                                                    extract_edges_and_triangle_counts<vertex_t, edge_t>{});
-      /*
-      raft::print_device_vector("unrolled_srcs", srcs_0.data(), srcs_0.size(), std::cout);
-      raft::print_device_vector("unrolled_dsts", dsts_0.data(), dsts_0.size(), std::cout);
-      raft::print_device_vector("unrolled_n_tr", count_0.data(), count_0.size(), std::cout);
-      */
-      
 
-
-      //#if 0
-      // Iterate over unique vertices that appear as either q or r
+      // Iterate over unique weak edges' endpoints that appear as either q or r
       rmm::device_uvector<vertex_t> unique_weak_edgelist_srcs(weak_edgelist_srcs.size(), handle.get_stream());
       rmm::device_uvector<vertex_t> unique_weak_edgelist_dsts(weak_edgelist_dsts.size(), handle.get_stream());
       
@@ -1053,110 +959,75 @@ k_truss(raft::handle_t const& handle,
       unique_weak_edgelist_srcs.resize(num_unique_weak_edgelist_srcs, handle.get_stream());
       unique_weak_edgelist_dsts.resize(num_unique_weak_edgelist_dsts, handle.get_stream());
 
-      rmm::device_uvector<vertex_t> vertex_q_r(num_unique_weak_edgelist_srcs + num_unique_weak_edgelist_dsts, handle.get_stream());
+      // Create a vertex set composed of edge endpoints that are either in the q or r set
+      rmm::device_uvector<vertex_t> vertex_q_r_set(num_unique_weak_edgelist_srcs + num_unique_weak_edgelist_dsts, handle.get_stream());
 
       auto vertex_q_r_end = thrust::set_union(handle.get_thrust_policy(),
                                         unique_weak_edgelist_srcs.begin(),
                                         unique_weak_edgelist_srcs.end(),
                                         unique_weak_edgelist_dsts.begin(),
                                         unique_weak_edgelist_dsts.end(),
-                                        vertex_q_r.begin());
+                                        vertex_q_r_set.begin());
       
-      vertex_q_r.resize(thrust::distance(vertex_q_r.begin(), vertex_q_r_end), handle.get_stream());
+      vertex_q_r_set.resize(thrust::distance(vertex_q_r_set.begin(), vertex_q_r_end), handle.get_stream());
 
-      thrust::sort(handle.get_thrust_policy(), vertex_q_r.begin(), vertex_q_r.end());
+      thrust::sort(handle.get_thrust_policy(), vertex_q_r_set.begin(), vertex_q_r_set.end());
 
       auto weak_unique_v_end =  thrust::unique(
                                       handle.get_thrust_policy(),
-                                      vertex_q_r.begin(),
-                                      vertex_q_r.end());
+                                      vertex_q_r_set.begin(),
+                                      vertex_q_r_set.end());
       
-      vertex_q_r.resize(thrust::distance(vertex_q_r.begin(), weak_unique_v_end), handle.get_stream());
-
-      // FIXME: perform all to all 'vertex_q_r'. ********************************
-      // FIXME: Might not be able to perform this in chunk for MG
-      // e.g: giving 4 weak edges where 2 belongs to the same triangle. If we were to process
-      // each of these edges in different batches, we might not be able to find a triangle
-      // Need a view of the whole graph to find triangles. But why was batching working in SG with 
-      // nbr_intersection in case 1 ?(because I already have a view of the whole graph). For
-      // case 2 we can still process the edges in batches as long as we already created the full csc graph
-      // Isn't better to just create the csc graph with all edges at this point. 
-      // Cannot create partial CSR, need the full one. Can we create ehe CSC in chunks by adding set of
-      // edges at a time?
+      vertex_q_r_set.resize(thrust::distance(vertex_q_r_set.begin(), weak_unique_v_end), handle.get_stream());
 
       if constexpr (multi_gpu) {
-        auto& comm           = handle.get_comms();
-        auto const comm_rank = comm.get_rank();  // FIXME: for debugging
-        // Get global weak_edgelist
-        // FIXME: Perform all-to-all in chunks
-        auto global_vertex_q_r = cugraph::detail::device_allgatherv(
-          handle, comm, raft::device_span<vertex_t const>(vertex_q_r.data(), vertex_q_r.size()));
+        auto& minor_comm = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
+        // Perform all-to-all in chunks across minor comm
+        auto minor_vertex_q_r_set = cugraph::detail::device_allgatherv(
+          handle, minor_comm, raft::device_span<vertex_t const>(vertex_q_r_set.data(), vertex_q_r_set.size()));
         
-        thrust::sort(handle.get_thrust_policy(), global_vertex_q_r.begin(), global_vertex_q_r.end());
+        thrust::sort(handle.get_thrust_policy(), minor_vertex_q_r_set.begin(), minor_vertex_q_r_set.end());
 
         weak_unique_v_end = thrust::unique(
                                   handle.get_thrust_policy(),
-                                  global_vertex_q_r.begin(),
-                                  global_vertex_q_r.end());
+                                  minor_vertex_q_r_set.begin(),
+                                  minor_vertex_q_r_set.end());
       
-        global_vertex_q_r.resize(thrust::distance(global_vertex_q_r.begin(), weak_unique_v_end), handle.get_stream());
+        minor_vertex_q_r_set.resize(thrust::distance(minor_vertex_q_r_set.begin(), weak_unique_v_end), handle.get_stream());
 
-        //raft::print_device_vector("1_global_vertex_q_r", global_vertex_q_r.data(), global_vertex_q_r.size(), std::cout);
-
-        // FIXME: Can be very expensive and increase peak memory
-        vertex_q_r.resize(global_vertex_q_r.size(), handle.get_stream());
+        vertex_q_r_set.resize(minor_vertex_q_r_set.size(), handle.get_stream());
     
         thrust::copy(
           handle.get_thrust_policy(),
-          global_vertex_q_r.begin(),
-          global_vertex_q_r.end(),
-          vertex_q_r.begin());
+          minor_vertex_q_r_set.begin(),
+          minor_vertex_q_r_set.end(),
+          vertex_q_r_set.begin());
       }
 
-      //raft::print_device_vector("2_vertex_q_r", vertex_q_r.data(), vertex_q_r.size(), std::cout);
-
       weak_edgelist_first = thrust::make_zip_iterator(weak_edgelist_srcs.begin(), weak_edgelist_dsts.begin()); // FIXME: is this necessary ?
-      RAFT_CUDA_TRY(cudaDeviceSynchronize());
 
-      RAFT_CUDA_TRY(cudaDeviceSynchronize());
-      //std::cout << "before extracting edges" << std::endl;
-      auto [srcs_to_q_r, dsts_to_q_r] = extract_transform_e(handle,
+      auto [srcs_in_q_r_set, dsts_in_q_r_set] = extract_transform_e(handle,
                                                 cur_graph_view,
                                                 cugraph::edge_src_dummy_property_t{}.view(),
                                                 cugraph::edge_dst_dummy_property_t{}.view(),
                                                 cugraph::edge_dummy_property_t{}.view(),
                                                 // FIXME: Lambda function instead of functor
-                                                extract_edges_to_q_r<vertex_t>{raft::device_span<vertex_t const>(vertex_q_r.data(), vertex_q_r.size())});
+                                                extract_edges_to_q_r<vertex_t>{raft::device_span<vertex_t const>(vertex_q_r_set.data(), vertex_q_r_set.size())});
       
 
-
-
-
-
-      RAFT_CUDA_TRY(cudaDeviceSynchronize());
-      /*
-      std::cout << "arrays to be shuffled" << std::endl;
-      raft::print_device_vector("vertex_q_r", vertex_q_r.data(), vertex_q_r.size(), std::cout);
-      //raft::print_device_vector("vertex_q_r", vertex_q_r.data(), vertex_q_r.size(), std::cout);
-      raft::print_device_vector("srcs_to_q_r", srcs_to_q_r.data(), srcs_to_q_r.size(), std::cout);
-      raft::print_device_vector("dsts_to_q_r", dsts_to_q_r.data(), dsts_to_q_r.size(), std::cout);
-      */
       if constexpr (multi_gpu) {
-        std::tie(dsts_to_q_r, srcs_to_q_r, std::ignore, std::ignore, std::ignore, std::ignore) =
+        std::tie(dsts_in_q_r_set, srcs_in_q_r_set, std::ignore, std::ignore, std::ignore, std::ignore) =
           detail::shuffle_ext_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning<vertex_t,
                                                                                          edge_t,
                                                                                          weight_t,
                                                                                          int32_t>(
             handle,
-            std::move(dsts_to_q_r),
-            std::move(srcs_to_q_r),
+            std::move(dsts_in_q_r_set),
+            std::move(srcs_in_q_r_set),
             std::nullopt,
             std::nullopt,
             std::nullopt);
       }
-
-      RAFT_CUDA_TRY(cudaDeviceSynchronize());
-      //printf("\ndone shuffling\n");
       
       std::optional<graph_t<vertex_t, edge_t, false, multi_gpu>> graph_q_r{std::nullopt};
       std::optional<rmm::device_uvector<vertex_t>> renumber_map_q_r{std::nullopt};
@@ -1164,8 +1035,8 @@ k_truss(raft::handle_t const& handle,
         create_graph_from_edgelist<vertex_t, edge_t, weight_t, edge_t, int32_t, false, multi_gpu>(
           handle,
           std::nullopt,
-          std::move(dsts_to_q_r),
-          std::move(srcs_to_q_r),
+          std::move(dsts_in_q_r_set),
+          std::move(srcs_in_q_r_set),
           std::nullopt,
           std::nullopt,
           std::nullopt,
@@ -1231,40 +1102,24 @@ k_truss(raft::handle_t const& handle,
       }
       prev_chunk_size         = 0;
       num_remaining_weak_edges = weak_edgelist_size;
-
-      // FIXME: No need to recompute this. It's the same value as above when unrolling (p, q) edges
-      num_chunks =
-        raft::div_rounding_up_safe(weak_edgelist_size, edges_to_intersect_per_iteration);
       
-      if (num_chunks == 0) {
-        num_chunks = 1;
+      if constexpr (multi_gpu) {
+        num_chunks = host_scalar_allreduce(handle.get_comms(), num_chunks, raft::comms::op_t::SUM, handle.get_stream());
       }
-      
-      //auto sorted_weak_edgelist_srcs = thrust::get<0>(weak_edgelist_first.get_iterator_tuple()); // FIXME: Remove this
-      //auto sorted_weak_edgelist_dsts = thrust::get<1>(weak_edgelist_first.get_iterator_tuple());
-
 
       for (size_t i = 0; i < num_chunks; ++i) {
         auto chunk_size = std::min(edges_to_intersect_per_iteration, num_remaining_weak_edges);
-  
         // Find intersection of weak edges
         auto [vertex_pair_buffer_q_r, vertex_pair_buffer_p_q_edge_q_r, vertex_pair_buffer_p_r_edge_q_r] = accumulate_triangles_p_q_or_q_r<vertex_t, edge_t, weight_t, decltype(allocate_dataframe_buffer<thrust::tuple<vertex_t, vertex_t>>(size_t{0}, handle.get_stream())), multi_gpu>(
                     handle,
                     csc_q_r_graph_view,
-                    //raft::device_span<vertex_t const>(sorted_weak_edgelist_srcs, weak_edgelist_size),
-                    //raft::device_span<vertex_t const>(sorted_weak_edgelist_dsts, weak_edgelist_size),
                     raft::device_span<vertex_t const>(renumbered_weak_edgelist_srcs.data(), renumbered_weak_edgelist_srcs.size()),
                     raft::device_span<vertex_t const>(renumbered_weak_edgelist_dsts.data(), renumbered_weak_edgelist_dsts.size()),
                     prev_chunk_size,
                     chunk_size,
                     do_expensive_check);
 
-        rmm::device_uvector<vertex_t> vertex_pair_buffer_p_q_edge_q_r_srcs(0, handle.get_stream());
-        rmm::device_uvector<vertex_t> vertex_pair_buffer_p_q_edge_q_r_dsts(0, handle.get_stream());
-        rmm::device_uvector<vertex_t> vertex_pair_buffer_p_r_edge_q_r_srcs(0, handle.get_stream());
-        rmm::device_uvector<vertex_t> vertex_pair_buffer_p_r_edge_q_r_dsts(0, handle.get_stream());
         if constexpr (multi_gpu) {
-
           // Unrenumber
           auto vertex_partition_range_lasts = std::make_optional<std::vector<vertex_t>>(
           csc_q_r_graph_view.vertex_partition_range_lasts());
@@ -1300,12 +1155,6 @@ k_truss(raft::handle_t const& handle,
             (*renumber_map_q_r).data(),
             *vertex_partition_range_lasts,
             true);
-          
-          //printf("\ndebugging (q, r) edges unrolling\n");
-
-          //raft::print_device_vector("vertex_pair_buffer_q_r_srcs_b_u", std::get<0>(vertex_pair_buffer_q_r).data(), std::get<0>(vertex_pair_buffer_q_r).size(), std::cout);
-          //raft::print_device_vector("vertex_pair_buffer_q_r_dsts_b_u", std::get<1>(vertex_pair_buffer_q_r).data(), std::get<1>(vertex_pair_buffer_q_r).size(), std::cout);
-          //printf("(q, r) edge size = %d\n", std::get<0>(vertex_pair_buffer_q_r).size());
 
           unrenumber_int_vertices<vertex_t, multi_gpu>(handle,
                                                       std::get<0>(vertex_pair_buffer_q_r).data(),
@@ -1322,63 +1171,55 @@ k_truss(raft::handle_t const& handle,
                                                       true);
         }
 
-
-        //printf("\ndebugging (q, r) edges unrolling\n");
-        //raft::print_device_vector("vertex_pair_buffer_q_r_srcs_", std::get<0>(vertex_pair_buffer_q_r).data(), std::get<0>(vertex_pair_buffer_q_r).size(), std::cout);
-        //raft::print_device_vector("vertex_pair_buffer_q_r_dsts_", std::get<1>(vertex_pair_buffer_q_r).data(), std::get<1>(vertex_pair_buffer_q_r).size(), std::cout);
-
         edge_t num_edges_not_overcomp = 0;
 
         if constexpr (multi_gpu) {
 
           // Get global weak edges
-          // FIXME: Retrieve onlu a fraction of the weak edges.
-        
           auto& comm           = handle.get_comms();
           auto const comm_rank = comm.get_rank();  // FIXME: for debugging
-          // Get global weak_edgelist
-          // FIXME: Perform all-to-all in chunks
-          auto chunk_global_weak_edgelist_srcs = cugraph::detail::device_allgatherv(
-            handle, comm, raft::device_span<vertex_t const>(weak_edgelist_srcs.data(), weak_edgelist_srcs.size()));
-          // FIXME: Perform all-to-all in chunks
-          auto chunk_global_weak_edgelist_dsts = cugraph::detail::device_allgatherv(
-            handle, comm, raft::device_span<vertex_t const>(weak_edgelist_dsts.data(), weak_edgelist_dsts.size()));
 
-          
-          //raft::print_device_vector("chunk_global_weak_edgelist_srcs", chunk_global_weak_edgelist_srcs.data(), chunk_global_weak_edgelist_srcs.size(), std::cout);
-          //raft::print_device_vector("chunk_global_weak_edgelist_dsts", chunk_global_weak_edgelist_dsts.data(), chunk_global_weak_edgelist_dsts.size(), std::cout);
-          
+          // Get global weak_edgelist
+          // FIXME: This operation is too expensive (memory) hence shuffle the weak edges instead to
+          // the appropriate GPU, check for existance as being part of the weak edge list and shuffle
+          // the result back. The operation below is only meant for validation purposes and should be
+          // remove once the statement is validated.
+          auto global_weak_edgelist_srcs = cugraph::detail::device_allgatherv(
+            handle, comm, raft::device_span<vertex_t const>(weak_edgelist_srcs.data(), weak_edgelist_srcs.size()));
+
+          auto global_weak_edgelist_dsts = cugraph::detail::device_allgatherv(
+            handle, comm, raft::device_span<vertex_t const>(weak_edgelist_dsts.data(), weak_edgelist_dsts.size()));
           
           // Sort the weak edges if they are not already
           auto chunk_global_weak_edgelist_first =
-            thrust::make_zip_iterator(chunk_global_weak_edgelist_srcs.begin(), chunk_global_weak_edgelist_dsts.begin());
+            thrust::make_zip_iterator(global_weak_edgelist_srcs.begin(), global_weak_edgelist_dsts.begin());
           thrust::sort(handle.get_thrust_policy(),
                        chunk_global_weak_edgelist_first,
-                       chunk_global_weak_edgelist_first + chunk_global_weak_edgelist_srcs.size());
-        
+                       chunk_global_weak_edgelist_first + global_weak_edgelist_srcs.size());
 
           num_edges_not_overcomp =
               remove_overcompensating_edges<vertex_t,
                                             edge_t,
                                             decltype(get_dataframe_buffer_begin(vertex_pair_buffer_q_r)),
                                             true,
-                                            false // FIXME: Set it to False for now
+                                            multi_gpu,
+                                            true // FIXME: Use global weak edges for validation purposes
                                             >(
                 handle,
                 size_dataframe_buffer(vertex_pair_buffer_p_q_edge_q_r),
                 get_dataframe_buffer_begin(vertex_pair_buffer_p_q_edge_q_r), // FIXME: cannot be a copy, needs to be the original one so overcompensatiing edges can be removed
                 get_dataframe_buffer_begin(vertex_pair_buffer_p_r_edge_q_r), // FIXME: cannot be a copy, needs to be the original one so overcompensatiing edges can be removed
-                raft::device_span<vertex_t const>(chunk_global_weak_edgelist_srcs.data(), chunk_global_weak_edgelist_srcs.size()),
-                raft::device_span<vertex_t const>(chunk_global_weak_edgelist_dsts.data(), chunk_global_weak_edgelist_dsts.size()),
+                raft::device_span<vertex_t const>(global_weak_edgelist_srcs.data(), global_weak_edgelist_srcs.size()),
+                raft::device_span<vertex_t const>(global_weak_edgelist_dsts.data(), global_weak_edgelist_dsts.size()),
+                raft::device_span<vertex_t const>(weak_edgelist_srcs.data(), weak_edgelist_srcs.size()),
+                raft::device_span<vertex_t const>(weak_edgelist_dsts.data(), weak_edgelist_dsts.size()),
                 cur_graph_view.vertex_partition_range_lasts()
              );
-          
-          //std::cout << "num (q, r) edges after removing = " << num_edges_not_overcomp << std::endl;
-          //printf("\n\n");
+
           resize_dataframe_buffer(vertex_pair_buffer_p_q_edge_q_r, num_edges_not_overcomp, handle.get_stream());
           resize_dataframe_buffer(vertex_pair_buffer_p_r_edge_q_r, num_edges_not_overcomp, handle.get_stream());
 
-          // resize initial (q, r) edges
+          // Resize initial (q, r) edges
           // Note: Once chunking is implemented, reconstruct the (q, r) edges only outside
           // FIXME: No need to reconstruct the third array because we can zip all 3 edges of the triangle
           // of the chunk's 'for loop'
@@ -1397,8 +1238,6 @@ k_truss(raft::handle_t const& handle,
               return thrust::make_tuple(thrust::get<0>(vertex_pair_buffer_p_q_edge_q_r[i]), thrust::get<0>(vertex_pair_buffer_p_r_edge_q_r[i]));
             });
 
-          
-
         } else {
 
           num_edges_not_overcomp =
@@ -1406,7 +1245,8 @@ k_truss(raft::handle_t const& handle,
                                           edge_t,
                                           decltype(get_dataframe_buffer_begin(vertex_pair_buffer_q_r)),
                                           true,
-                                          false // FIXME: Set it to False for now
+                                          multi_gpu,
+                                          false
                                           >(
               handle,
               size_dataframe_buffer(vertex_pair_buffer_p_q_edge_q_r),
@@ -1414,10 +1254,10 @@ k_truss(raft::handle_t const& handle,
               get_dataframe_buffer_begin(vertex_pair_buffer_p_r_edge_q_r), // FIXME: cannot be a copy, needs to be the original one so overcompensatiing edges can be removed
               raft::device_span<vertex_t const>(weak_edgelist_srcs.data(), weak_edgelist_srcs.size()),
               raft::device_span<vertex_t const>(weak_edgelist_dsts.data(), weak_edgelist_dsts.size()),
-              cur_graph_view.vertex_partition_range_lasts()
+              raft::device_span<vertex_t const>(weak_edgelist_srcs.data(), weak_edgelist_srcs.size()), // FIXME: Only for MG validation purposes
+              raft::device_span<vertex_t const>(weak_edgelist_dsts.data(), weak_edgelist_dsts.size()), // FIXME: Only for MG validation purposes
+              cur_graph_view.vertex_partition_range_lasts() // Not needed for SG
             );
-          
-          //std::cout << "num (q, r) edges after removing = " << num_edges_not_overcomp << std::endl;
           
           resize_dataframe_buffer(vertex_pair_buffer_p_q_edge_q_r, num_edges_not_overcomp, handle.get_stream());
           resize_dataframe_buffer(vertex_pair_buffer_p_r_edge_q_r, num_edges_not_overcomp, handle.get_stream());
@@ -1438,6 +1278,11 @@ k_truss(raft::handle_t const& handle,
               return thrust::make_tuple(thrust::get<0>(vertex_pair_buffer_p_q_edge_q_r[i]), thrust::get<0>(vertex_pair_buffer_p_r_edge_q_r[i]));
             });
         }
+
+        rmm::device_uvector<vertex_t> vertex_pair_buffer_p_q_edge_q_r_srcs(0, handle.get_stream());
+        rmm::device_uvector<vertex_t> vertex_pair_buffer_p_q_edge_q_r_dsts(0, handle.get_stream());
+        rmm::device_uvector<vertex_t> vertex_pair_buffer_p_r_edge_q_r_srcs(0, handle.get_stream());
+        rmm::device_uvector<vertex_t> vertex_pair_buffer_p_r_edge_q_r_dsts(0, handle.get_stream());
 
         if constexpr (multi_gpu) {        
           // Shuffle before updating count
@@ -1545,9 +1390,6 @@ k_truss(raft::handle_t const& handle,
       
       }
 
-
-
-      //printf("\nafter unrolling (q, r) edges\n");
       auto [srcs_1, dsts_1, count_1] = extract_transform_e(handle,
                                                     cur_graph_view,
                                                     cugraph::edge_src_dummy_property_t{}.view(),
@@ -1556,28 +1398,11 @@ k_truss(raft::handle_t const& handle,
                                                     edge_triangle_counts.view(),
                                                     extract_edges_and_triangle_counts<vertex_t, edge_t>{});
       
-      /*
-      raft::print_device_vector("unrolled_srcs", srcs_1.data(), srcs_1.size(), std::cout);
-      raft::print_device_vector("unrolled_dsts", dsts_1.data(), dsts_1.size(), std::cout);
-      raft::print_device_vector("unrolled_n_tr", count_1.data(), count_1.size(), std::cout);
-      printf("\n");
-      */
-
-      /*
-      std::cout<< "before zipping edgelist" << std::endl;
-      raft::print_device_vector("sorted_weak_edgelist_srcs", sorted_weak_edgelist_srcs, weak_edgelist_size, std::cout);
-      raft::print_device_vector("sorted_weak_edgelist_dsts", sorted_weak_edgelist_dsts, weak_edgelist_size, std::cout);
-      */
       weak_edgelist_first =
             thrust::make_zip_iterator(weak_edgelist_srcs.begin(), weak_edgelist_dsts.begin());
-      /*
-      std::cout<< "after zipping edgelist" << std::endl;
-      raft::print_device_vector("sorted_weak_edgelist_srcs", sorted_weak_edgelist_srcs, weak_edgelist_size, std::cout);
-      raft::print_device_vector("sorted_weak_edgelist_dsts", sorted_weak_edgelist_dsts, weak_edgelist_size, std::cout);
-      */
-      //#if 0
+
       // Unrolling p, r edges
-      // create pair weak_src, weak_edge_idx
+      // create pair weak_src, weak_edge_idx (unique)
       // create a dataframe buffer of size weak_edge_size
       // FIXME: No need to create a dataframe buffer. We can just zip weak_edgelist_srcs
       // with a vector counting from 0 .. 
@@ -1585,62 +1410,43 @@ k_truss(raft::handle_t const& handle,
       auto vertex_pair_buffer_p_tag =
         allocate_dataframe_buffer<thrust::tuple<vertex_t, edge_t>>(weak_edgelist_srcs.size(),
                                                                     handle.get_stream());
-      //#if 0  
-        if constexpr (multi_gpu) {
-          std::vector<vertex_t> h_num_weak_edges = {vertex_t{weak_edgelist_srcs.size()}};
-          rmm::device_uvector<vertex_t> num_weak_edges(1, handle.get_stream());
 
-          raft::update_device(num_weak_edges.data(), h_num_weak_edges.data(), h_num_weak_edges.size(), handle.get_stream());
-          
-          auto& comm = handle.get_comms();
-          auto comm_rank = comm.get_rank();
-            // Get global weak_edgelist
-          auto global_num_weak_edges = cugraph::detail::device_allgatherv(
-            handle,
-            comm,
-            raft::device_span<vertex_t const>(num_weak_edges.data(), num_weak_edges.size()));
-          
-          rmm::device_uvector<vertex_t> prefix_sum_global_num_weak_edges(global_num_weak_edges.size(), handle.get_stream());
-          thrust::inclusive_scan(handle.get_thrust_policy(),
-                          global_num_weak_edges.begin(),
-                          global_num_weak_edges.end(),
-                          prefix_sum_global_num_weak_edges.begin());
-          
-          /*
-          std::cout << "weak_edge_list size = " << weak_edgelist_srcs.size() << std::endl;
-          raft::print_device_vector("sorted_weak_edgelist_srcs", sorted_weak_edgelist_srcs, weak_edgelist_size, std::cout);
-          raft::print_device_vector("sorted_weak_edgelist_dsts", sorted_weak_edgelist_dsts, weak_edgelist_size, std::cout);
-          raft::print_device_vector("weak_edgelist_srcs", weak_edgelist_srcs.data(), weak_edgelist_srcs.size(), std::cout);
-          raft::print_device_vector("weak_edgelist_dsts", weak_edgelist_dsts.data(), weak_edgelist_dsts.size(), std::cout);
-          */
-          thrust::tabulate(handle.get_thrust_policy(),
-                        get_dataframe_buffer_begin(vertex_pair_buffer_p_tag),
-                        get_dataframe_buffer_end(vertex_pair_buffer_p_tag),
-                        [rank = comm_rank,
-                          num_weak_edges = prefix_sum_global_num_weak_edges.begin(),
-                          p = weak_edgelist_srcs.begin()] __device__(auto idx) {
-                          if (rank != 0) {
-                            auto idx_tag = idx + (num_weak_edges[rank - 1]);
-                            return thrust::make_tuple(p[idx], idx_tag);
-                          }
-                          
-                          return thrust::make_tuple(p[idx], idx);
-                        });
+      if constexpr (multi_gpu) {
+        std::vector<vertex_t> h_num_weak_edges = {vertex_t{weak_edgelist_srcs.size()}};
+        rmm::device_uvector<vertex_t> num_weak_edges(1, handle.get_stream());
+
+        raft::update_device(num_weak_edges.data(), h_num_weak_edges.data(), h_num_weak_edges.size(), handle.get_stream());
         
-        } else {
-          thrust::tabulate(
-                handle.get_thrust_policy(),
-                get_dataframe_buffer_begin(vertex_pair_buffer_p_tag),
-                get_dataframe_buffer_end(vertex_pair_buffer_p_tag),
-                [
-                  p = weak_edgelist_srcs.begin()
-                ] __device__(auto idx) {
-                  return thrust::make_tuple(p[idx], idx);
-                  });
-        }
-
-      #if 0
-      thrust::tabulate(
+        auto& comm = handle.get_comms();
+        auto const comm_rank = comm.get_rank();
+          // Get global weak_edgelist
+        auto global_num_weak_edges = cugraph::detail::device_allgatherv(
+          handle,
+          comm,
+          raft::device_span<vertex_t const>(num_weak_edges.data(), num_weak_edges.size()));
+        
+        rmm::device_uvector<vertex_t> prefix_sum_global_num_weak_edges(global_num_weak_edges.size(), handle.get_stream());
+        thrust::inclusive_scan(handle.get_thrust_policy(),
+                        global_num_weak_edges.begin(),
+                        global_num_weak_edges.end(),
+                        prefix_sum_global_num_weak_edges.begin());
+        
+        thrust::tabulate(handle.get_thrust_policy(),
+                      get_dataframe_buffer_begin(vertex_pair_buffer_p_tag),
+                      get_dataframe_buffer_end(vertex_pair_buffer_p_tag),
+                      [rank = comm_rank,
+                        num_weak_edges = prefix_sum_global_num_weak_edges.begin(),
+                        p = weak_edgelist_srcs.begin()] __device__(auto idx) {
+                        if (rank != 0) {
+                          auto idx_tag = idx + (num_weak_edges[rank - 1]);
+                          return thrust::make_tuple(p[idx], idx_tag);
+                        }
+                        
+                        return thrust::make_tuple(p[idx], idx);
+                      });
+      
+      } else {
+        thrust::tabulate(
               handle.get_thrust_policy(),
               get_dataframe_buffer_begin(vertex_pair_buffer_p_tag),
               get_dataframe_buffer_end(vertex_pair_buffer_p_tag),
@@ -1649,10 +1455,7 @@ k_truss(raft::handle_t const& handle,
               ] __device__(auto idx) {
                 return thrust::make_tuple(p[idx], idx);
                 });
-      #endif
-
-      //raft::print_device_vector("edge_srcs", std::get<0>(vertex_pair_buffer_p_tag).data(), std::get<0>(vertex_pair_buffer_p_tag).size(), std::cout);
-      //raft::print_device_vector("vertex_pair_buffer_tag", std::get<1>(vertex_pair_buffer_p_tag).data(), std::get<1>(vertex_pair_buffer_p_tag).size(), std::cout);
+      }
       
       vertex_frontier_t<vertex_t, edge_t, multi_gpu, false> vertex_frontier(handle, 1);
       rmm::device_uvector<edge_t> tag_cpy(std::get<1>(vertex_pair_buffer_p_tag).size(), handle.get_stream());
@@ -1661,13 +1464,8 @@ k_truss(raft::handle_t const& handle,
           std::get<1>(vertex_pair_buffer_p_tag).begin(),
           std::get<1>(vertex_pair_buffer_p_tag).end(),
           tag_cpy.begin());
-      //std::cout << "emptying the vertex frontier" << std::endl;
 
       if constexpr (multi_gpu) {
-        //printf("\nbefore shuffling\n");
-        //raft::print_device_vector("b_vertex_pair_buffer_src", std::get<0>(vertex_pair_buffer_p_tag).data(), std::get<0>(vertex_pair_buffer_p_tag).size(), std::cout);
-        //raft::print_device_vector("b_vertex_pair_buffer_tag", std::get<1>(vertex_pair_buffer_p_tag).data(), std::get<1>(vertex_pair_buffer_p_tag).size(), std::cout);
-
         // Shuffle vertices
         auto [p_vrtx, p_tag] =
               detail::shuffle_int_vertex_value_pairs_to_local_gpu_by_vertex_partitioning(
@@ -1676,36 +1474,23 @@ k_truss(raft::handle_t const& handle,
                 std::move(std::get<1>(vertex_pair_buffer_p_tag)),
                 cur_graph_view.vertex_partition_range_lasts());
 
-        //printf("\nafter shuffling\n");
-        raft::print_device_vector("a_vertex_pair_buffer_src", p_vrtx.data(), p_vrtx.size(), std::cout);
-        raft::print_device_vector("a_vertex_pair_buffer_tag", p_tag.data(), p_tag.size(), std::cout);
-
         
         vertex_frontier.bucket(0).insert(
         thrust::make_zip_iterator(p_vrtx.begin(), p_tag.begin()),
-        //thrust::make_zip_iterator(p_vrtx.begin() + 1, p_tag.begin() + 1)
-        //thrust::make_zip_iterator(std::get<0>(vertex_pair_buffer_p_tag).begin(), std::get<1>(vertex_pair_buffer_p_tag).begin())
         thrust::make_zip_iterator(p_vrtx.end(), p_tag.end())
         );
       } else {
         vertex_frontier.bucket(0).insert(
         thrust::make_zip_iterator(std::get<0>(vertex_pair_buffer_p_tag).begin(), std::get<1>(vertex_pair_buffer_p_tag).begin()),
-        //thrust::make_zip_iterator(std::get<0>(vertex_pair_buffer_p_tag).begin() + 10, std::get<1>(vertex_pair_buffer_p_tag).begin() + 10)
         thrust::make_zip_iterator(std::get<0>(vertex_pair_buffer_p_tag).end(), std::get<1>(vertex_pair_buffer_p_tag).end())
         );
 
       }
 
-  
-
       rmm::device_uvector<vertex_t> q(0, handle.get_stream());
       rmm::device_uvector<edge_t> idx(0, handle.get_stream());
+      auto& comm = handle.get_comms(); // FIXME: remove after debugging
 
-      //auto [q, idx] =
-      auto& comm = handle.get_comms();
-      auto comm_rank = comm.get_rank();
-      //if (comm_rank == 1) {
-      printf("\nbefore calling 'extract_transform_v_frontier_outgoing_e'\n");
       std::tie(q, idx) = 
         cugraph::extract_transform_v_frontier_outgoing_e(
           handle,
@@ -1716,12 +1501,7 @@ k_truss(raft::handle_t const& handle,
           cugraph::edge_dummy_property_t{}.view(),
           extract_q_idx<vertex_t, edge_t>{},
           true);
-      
-      std::cout << "initial q's size = " << q.size() << std::endl;
-      
-      raft::print_device_vector("q", q.data(), q.size(), std::cout);
-      raft::print_device_vector("i", idx.data(), q.size(), std::cout);
-      
+            
       vertex_frontier.bucket(0).clear();
 
       // Shuffle vertices
@@ -1734,11 +1514,8 @@ k_truss(raft::handle_t const& handle,
 
       vertex_frontier.bucket(0).insert(
       thrust::make_zip_iterator(q.begin(), idx.begin()),
-      //thrust::make_zip_iterator(q.begin() + 1, idx.begin() + 1)
       thrust::make_zip_iterator(q.end(), idx.end())
       );
-      //}
-
 
       auto vertex_pair_buffer_p_r =
             allocate_dataframe_buffer<thrust::tuple<vertex_t, vertex_t>>(0,
@@ -1758,81 +1535,30 @@ k_truss(raft::handle_t const& handle,
       // back in with the chunk global weak edgelist
 
       if constexpr (multi_gpu) {
-
-          // Get global weak edges
-          // FIXME: Retrieve onlu a fraction of the weak edges.
-        
-          auto& comm           = handle.get_comms();
-          auto const comm_rank = comm.get_rank();  // FIXME: for debugging
-          
-          auto& major_comm = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
-          auto chunk_major_weak_edgelist_srcs = cugraph::detail::device_allgatherv(
-            handle, comm, raft::device_span<vertex_t const>(weak_edgelist_srcs.data(), weak_edgelist_srcs.size()));
+          // Get minor weak edges
+          auto& minor_comm = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
+          auto minor_weak_edgelist_srcs = cugraph::detail::device_allgatherv(
+            handle, minor_comm, raft::device_span<vertex_t const>(weak_edgelist_srcs.data(), weak_edgelist_srcs.size()));
           // FIXME: Perform all-to-all in chunks
-          auto chunk_major_weak_edgelist_dsts = cugraph::detail::device_allgatherv(
-            handle, comm, raft::device_span<vertex_t const>(weak_edgelist_dsts.data(), weak_edgelist_dsts.size()));
+          auto minor_weak_edgelist_dsts = cugraph::detail::device_allgatherv(
+            handle, minor_comm, raft::device_span<vertex_t const>(weak_edgelist_dsts.data(), weak_edgelist_dsts.size()));
           
-          auto chunk_major_weak_edgelist_tags = cugraph::detail::device_allgatherv(
-            handle, comm, raft::device_span<edge_t const>(tag_cpy.data(), tag_cpy.size()));
+          auto minor_weak_edgelist_tags = cugraph::detail::device_allgatherv(
+            handle, minor_comm, raft::device_span<edge_t const>(tag_cpy.data(), tag_cpy.size()));
           
           auto major_weak_edgelist_first = 
-            thrust::make_zip_iterator(chunk_major_weak_edgelist_srcs.begin(), chunk_major_weak_edgelist_dsts.begin());
+            thrust::make_zip_iterator(minor_weak_edgelist_srcs.begin(), minor_weak_edgelist_dsts.begin());
 
           auto major_weak_edgelist_dsts_tags_first =
-            thrust::make_zip_iterator(chunk_major_weak_edgelist_dsts.begin(), chunk_major_weak_edgelist_tags.begin());
+            thrust::make_zip_iterator(minor_weak_edgelist_dsts.begin(), minor_weak_edgelist_tags.begin());
           
           thrust::sort_by_key(handle.get_thrust_policy(),
             major_weak_edgelist_dsts_tags_first,
-            major_weak_edgelist_dsts_tags_first + chunk_major_weak_edgelist_dsts.size(),
-            chunk_major_weak_edgelist_srcs.begin()
+            major_weak_edgelist_dsts_tags_first + minor_weak_edgelist_dsts.size(),
+            minor_weak_edgelist_srcs.begin()
             );
           
-          // Get global weak_edgelist
-          // FIXME: Perform all-to-all in chunks
-          auto chunk_global_weak_edgelist_srcs = cugraph::detail::device_allgatherv(
-            handle, comm, raft::device_span<vertex_t const>(weak_edgelist_srcs.data(), weak_edgelist_srcs.size()));
-          // FIXME: Perform all-to-all in chunks
-          auto chunk_global_weak_edgelist_dsts = cugraph::detail::device_allgatherv(
-            handle, comm, raft::device_span<vertex_t const>(weak_edgelist_dsts.data(), weak_edgelist_dsts.size()));
-          
-          raft::print_device_vector("weak_edgelist_tags", tag_cpy.data(), tag_cpy.size(), std::cout);
-          auto chunk_global_weak_edgelist_tags = cugraph::detail::device_allgatherv(
-            handle, comm, raft::device_span<edge_t const>(tag_cpy.data(), tag_cpy.size()));
-
-          
-          
-          // Sort the weak edges if they are not already
-          auto chunk_global_weak_edgelist_first =
-            thrust::make_zip_iterator(chunk_global_weak_edgelist_srcs.begin(), chunk_global_weak_edgelist_dsts.begin());
-          /*  
-          thrust::sort_by_key(handle.get_thrust_policy(),
-                       chunk_global_weak_edgelist_first,
-                       chunk_global_weak_edgelist_first + chunk_global_weak_edgelist_srcs.size(),
-                       chunk_global_weak_edgelist_tags.begin());
-          */
-          
-          /*
-          thrust::sort_by_key(handle.get_thrust_policy(),
-                        chunk_global_weak_edgelist_tags.begin(),
-                        chunk_global_weak_edgelist_tags.end(),
-                        chunk_global_weak_edgelist_first
-                        );
-          */
-          
-          
-          raft::print_device_vector("chunk_global_weak_edgelist_srcs", chunk_global_weak_edgelist_srcs.data(), chunk_global_weak_edgelist_srcs.size(), std::cout);
-          raft::print_device_vector("chunk_global_weak_edgelist_dsts", chunk_global_weak_edgelist_dsts.data(), chunk_global_weak_edgelist_dsts.size(), std::cout);
-          raft::print_device_vector("chunk_global_weak_edgelist_tags", chunk_global_weak_edgelist_tags.data(), chunk_global_weak_edgelist_tags.size(), std::cout);
-
-          RAFT_CUDA_TRY(cudaDeviceSynchronize());
-          printf("\nnumber of weak edges before 'extract_q_idx_closing' = %d\n", chunk_global_weak_edgelist_dsts.size());
-          auto& comm_           = handle.get_comms();
-          auto const comm_rank_ = comm.get_rank();  // FIXME: for debugging, remove after
-
-          printf("\nrank %d bucket_size = %d\n", comm_rank_, vertex_frontier.bucket(0).size());
-
-          //#if 0
-          // FIXME: Might not even need the 'idx_closing' anymore - remove it
+          // FIXME: 'idx_closing' no longer needed - remove it
           auto [q_closing, r_closing, p_closing, idx_closing] =
             cugraph::extract_transform_v_frontier_outgoing_e(
               handle,
@@ -1841,38 +1567,18 @@ k_truss(raft::handle_t const& handle,
               cugraph::edge_src_dummy_property_t{}.view(),
               cugraph::edge_dst_dummy_property_t{}.view(),
               cugraph::edge_dummy_property_t{}.view(),
-              extract_q_idx_closing<vertex_t, edge_t, decltype(chunk_global_weak_edgelist_first), multi_gpu>{
+              extract_q_idx_closing<vertex_t, edge_t, decltype(major_weak_edgelist_first), multi_gpu>{
                 major_weak_edgelist_dsts_tags_first,
-                major_weak_edgelist_dsts_tags_first + chunk_major_weak_edgelist_dsts.size(),
-                raft::device_span<vertex_t>(chunk_major_weak_edgelist_srcs.data(), chunk_major_weak_edgelist_srcs.size()),
-                raft::device_span<vertex_t>(chunk_global_weak_edgelist_dsts.data(), chunk_global_weak_edgelist_dsts.size()), // FIXME: Unused, remove afterwards
-                raft::device_span<edge_t>(chunk_global_weak_edgelist_tags.data(), chunk_global_weak_edgelist_tags.size())
+                major_weak_edgelist_dsts_tags_first + minor_weak_edgelist_dsts.size(),
+                raft::device_span<vertex_t>(minor_weak_edgelist_srcs.data(), minor_weak_edgelist_srcs.size()),
                 },
               true);
           
-          //#if 0
-          raft::print_device_vector("q_closing", q_closing.data(), q_closing.size(), std::cout);
-          raft::print_device_vector("idx_closing", idx_closing.data(), idx_closing.size(), std::cout);
-
-          std::cout << "num_closing_edges = " << q_closing.size() << std::endl;
-
-          // extract pair (p, r)
-          /*
-          auto vertex_pair_buffer_p_r =
-            allocate_dataframe_buffer<thrust::tuple<vertex_t, vertex_t>>(q_closing.size(),
-                                                                        handle.get_stream());
-          */
 
           resize_dataframe_buffer(vertex_pair_buffer_p_r,
                                    q_closing.size(),
                                    handle.get_stream());
-          /*
-          thrust::sort_by_key(handle.get_thrust_policy(),
-                        chunk_global_weak_edgelist_tags.begin(),
-                        chunk_global_weak_edgelist_tags.end(),
-                        chunk_global_weak_edgelist_first
-                        );
-          */
+
           thrust::copy(
           handle.get_thrust_policy(),
           thrust::make_zip_iterator(p_closing.begin(), r_closing.begin()),
@@ -1880,41 +1586,7 @@ k_truss(raft::handle_t const& handle,
           thrust::make_zip_iterator(
             std::get<0>(vertex_pair_buffer_p_r).begin(), std::get<1>(vertex_pair_buffer_p_r).begin())
           );
-          /*
-          auto closing_r_tag = thrust::make_zip_iterator(r_closing.begin(), idx_closing.begin());
-          thrust::tabulate(
-              handle.get_thrust_policy(),
-              get_dataframe_buffer_begin(vertex_pair_buffer_p_r),
-              get_dataframe_buffer_end(vertex_pair_buffer_p_r),
-              generate_p_r<vertex_t, edge_t, decltype(weak_edgelist_first)>{
-                //weak_edgelist_first, // FIXME: might need to use
-                //major_weak_edgelist_first,
-                //major_weak_edgelist_first + chunk_major_weak_edgelist_tags.size()
-                //chunk_global_weak_edgelist_first,
-                major_weak_edgelist_first,
-                major_weak_edgelist_dsts_tags_first,
-                major_weak_edgelist_dsts_tags_first + chunk_major_weak_edgelist_tags.size(),
-                closing_r_tag,
-                raft::device_span<edge_t const>(idx_closing.data(),
-                                                idx_closing.size()),
-                raft::device_span<edge_t const>(chunk_global_weak_edgelist_tags.data(), // FIXME: Unused
-                                                chunk_global_weak_edgelist_tags.size())
-                });
-          */
           
-          //raft::print_device_vector("check_vertex_pair_buffer_p_r_tags", chunk_major_weak_edgelist_tags.data(), chunk_major_weak_edgelist_tags.size(), std::cout);
-          
-          //raft::print_device_vector("check_vertex_pair_buffer_p_r_srcs", std::get<0>(vertex_pair_buffer_p_r).data(), std::get<0>(vertex_pair_buffer_p_r).size(), std::cout);
-          //raft::print_device_vector("check_vertex_pair_buffer_p_r_dsts", std::get<1>(vertex_pair_buffer_p_r).data(), std::get<1>(vertex_pair_buffer_p_r).size(), std::cout);
-          
-          
-          // construct pair (p, q)
-          /*
-          auto vertex_pair_buffer_p_q_edge_p_r =
-            allocate_dataframe_buffer<thrust::tuple<vertex_t, vertex_t>>(q_closing.size(),
-                                                                        handle.get_stream());
-          */
-
           resize_dataframe_buffer(vertex_pair_buffer_p_q_edge_p_r,
                                    q_closing.size(),
                                    handle.get_stream());
@@ -1927,55 +1599,10 @@ k_truss(raft::handle_t const& handle,
             std::get<0>(vertex_pair_buffer_p_q_edge_p_r).begin(), std::get<1>(vertex_pair_buffer_p_q_edge_p_r).begin())
           );
 
-          /*
-          thrust::tabulate(
-            handle.get_thrust_policy(),
-            get_dataframe_buffer_begin(vertex_pair_buffer_p_q_edge_p_r),
-            get_dataframe_buffer_end(vertex_pair_buffer_p_q_edge_p_r),
-            generate_p_q_q_r<vertex_t, edge_t, decltype(weak_edgelist_first), true>{
-              //major_weak_edgelist_first,
-              chunk_global_weak_edgelist_first,
-              raft::device_span<vertex_t const>(q_closing.data(),
-                                              q_closing.size()),
-              raft::device_span<edge_t const>(idx_closing.data(),
-                                              idx_closing.size()),
-              raft::device_span<edge_t const>(chunk_global_weak_edgelist_tags.data(),
-                                              chunk_global_weak_edgelist_tags.size())
-              });
-          */
-
-
-          std::cout << "Before remove overcompensating edges when unrolling (p, r) edges" << std::endl;
-
-          raft::print_device_vector("vertex_pair_buffer_p_q_for_p_r_srcs", std::get<0>(vertex_pair_buffer_p_q_edge_p_r).data(), std::get<0>(vertex_pair_buffer_p_q_edge_p_r).size(), std::cout);
-          raft::print_device_vector("vertex_pair_buffer_p_q_for_p_r_dsts", std::get<1>(vertex_pair_buffer_p_q_edge_p_r).data(), std::get<1>(vertex_pair_buffer_p_q_edge_p_r).size(), std::cout);
-
-          // construct pair (q, r)
-          /*
-          auto vertex_pair_buffer_q_r_edge_p_r =
-            allocate_dataframe_buffer<thrust::tuple<vertex_t, vertex_t>>(q_closing.size(),
-                                                                        handle.get_stream());
-          */
-
-          printf("\nbefore resizing = %d, after resizing = %d\n", size_dataframe_buffer(vertex_pair_buffer_q_r_edge_p_r), q_closing.size()); 
-
+      
           resize_dataframe_buffer(vertex_pair_buffer_q_r_edge_p_r,
                                    q_closing.size(),
                                    handle.get_stream());
-          /*
-          printf("\nDone resizing\n");
-          thrust::tabulate(
-            handle.get_thrust_policy(),
-            get_dataframe_buffer_begin(vertex_pair_buffer_q_r_edge_p_r),
-            get_dataframe_buffer_end(vertex_pair_buffer_q_r_edge_p_r),
-            generate_p_q_q_r<vertex_t, edge_t, decltype(weak_edgelist_first), false>{
-              chunk_global_weak_edgelist_first,
-              raft::device_span<vertex_t const>(q_closing.data(),
-                                              q_closing.size()),
-              raft::device_span<edge_t const>(idx_closing.data(),
-                                              idx_closing.size())
-              });
-          */
 
           thrust::copy(
           handle.get_thrust_policy(),
@@ -1984,82 +1611,60 @@ k_truss(raft::handle_t const& handle,
           thrust::make_zip_iterator(
             std::get<0>(vertex_pair_buffer_q_r_edge_p_r).begin(), std::get<1>(vertex_pair_buffer_q_r_edge_p_r).begin())
           );
-          
-          printf("\nDone generating 'p_q_q_r'\n");
-          raft::print_device_vector("vertex_pair_buffer_q_r_for_p_r_srcs", std::get<0>(vertex_pair_buffer_q_r_edge_p_r).data(), std::get<0>(vertex_pair_buffer_q_r_edge_p_r).size(), std::cout);
-          raft::print_device_vector("vertex_pair_buffer_q_r_for_p_r_dsts", std::get<1>(vertex_pair_buffer_q_r_edge_p_r).data(), std::get<1>(vertex_pair_buffer_q_r_edge_p_r).size(), std::cout);
-        
 
+          auto& comm           = handle.get_comms(); // FIXME: Only using global comm for testing purposes
+          // Get global weak_edgelist
+          // FIXME: Perform all-to-all in chunks
+          auto global_weak_edgelist_srcs = cugraph::detail::device_allgatherv(
+            handle, comm, raft::device_span<vertex_t const>(weak_edgelist_srcs.data(), weak_edgelist_srcs.size()));
+          // FIXME: Perform all-to-all in chunks
+          auto global_weak_edgelist_dsts = cugraph::detail::device_allgatherv(
+            handle, comm, raft::device_span<vertex_t const>(weak_edgelist_dsts.data(), weak_edgelist_dsts.size()));
 
-
-
-          std::cout << "num (p, r) edges before removing = " << q_closing.size() << std::endl;
-          //raft::print_device_vector("sorted_weak_edgelist_srcs", sorted_weak_edgelist_srcs, weak_edgelist_size, std::cout);
-          //raft::print_device_vector("sorted_weak_edgelist_dsts", sorted_weak_edgelist_dsts, weak_edgelist_size, std::cout);
-
-          // FIXME: Check if neccessary
-          /*
+          // Sort the weak edges if they are not already
           auto chunk_global_weak_edgelist_first =
-            thrust::make_zip_iterator(chunk_global_weak_edgelist_srcs.begin(), chunk_global_weak_edgelist_dsts.begin());
-          */
+            thrust::make_zip_iterator(global_weak_edgelist_srcs.begin(), global_weak_edgelist_dsts.begin());
 
-          // Resort the edges.
           thrust::sort(handle.get_thrust_policy(),
                        chunk_global_weak_edgelist_first,
-                       chunk_global_weak_edgelist_first + chunk_global_weak_edgelist_srcs.size());
-          
-          printf("\nDone sorting\n");
+                       chunk_global_weak_edgelist_first + global_weak_edgelist_srcs.size());
+
           auto num_edges_not_overcomp_p_q =
             remove_overcompensating_edges<vertex_t,
                                           edge_t,
                                           decltype(get_dataframe_buffer_begin(vertex_pair_buffer_p_q_edge_p_r)),
                                           false,
-                                          false // FIXME: Set it to False for now *******
+                                          multi_gpu,
+                                          true // FIXME: Use global weak edges for validation purposes
                                           >(
               handle,
               q_closing.size(),
               get_dataframe_buffer_begin(vertex_pair_buffer_p_q_edge_p_r), // FIXME: cannot be a copy, needs to be the original one so overcompensatiing edges can be removed
               get_dataframe_buffer_begin(vertex_pair_buffer_q_r_edge_p_r), // FIXME: cannot be a copy, needs to be the original one so overcompensatiing edges can be removed
-              raft::device_span<vertex_t const>(chunk_global_weak_edgelist_srcs.data(), chunk_global_weak_edgelist_srcs.size()),
-              raft::device_span<vertex_t const>(chunk_global_weak_edgelist_dsts.data(), chunk_global_weak_edgelist_dsts.size()),
-              //raft::device_span<vertex_t const>(weak_edgelist_srcs.data(), weak_edgelist_srcs.size()),
-              //raft::device_span<vertex_t const>(weak_edgelist_dsts.data(), weak_edgelist_dsts.size()),
+              raft::device_span<vertex_t const>(global_weak_edgelist_srcs.data(), global_weak_edgelist_srcs.size()),
+              raft::device_span<vertex_t const>(global_weak_edgelist_dsts.data(), global_weak_edgelist_dsts.size()),
+              raft::device_span<vertex_t const>(weak_edgelist_srcs.data(), weak_edgelist_srcs.size()),
+              raft::device_span<vertex_t const>(weak_edgelist_dsts.data(), weak_edgelist_dsts.size()),
               cur_graph_view.vertex_partition_range_lasts()
               );
 
-          std::cout << "1) num (p, r) edges after removing = " << num_edges_not_overcomp_p_q << std::endl;
-        
-          resize_dataframe_buffer(vertex_pair_buffer_p_q_edge_p_r, num_edges_not_overcomp_p_q, handle.get_stream());
-          resize_dataframe_buffer(vertex_pair_buffer_q_r_edge_p_r, num_edges_not_overcomp_p_q, handle.get_stream());
-
-          raft::print_device_vector("vertex_pair_buffer_p_q_for_p_r_srcs", std::get<0>(vertex_pair_buffer_p_q_edge_p_r).data(), std::get<0>(vertex_pair_buffer_p_q_edge_p_r).size(), std::cout);
-          raft::print_device_vector("vertex_pair_buffer_p_q_for_p_r_dsts", std::get<1>(vertex_pair_buffer_p_q_edge_p_r).data(), std::get<1>(vertex_pair_buffer_p_q_edge_p_r).size(), std::cout);
-
-          raft::print_device_vector("vertex_pair_buffer_q_r_for_p_r_srcs", std::get<0>(vertex_pair_buffer_q_r_edge_p_r).data(), std::get<0>(vertex_pair_buffer_q_r_edge_p_r).size(), std::cout);
-          raft::print_device_vector("vertex_pair_buffer_q_r_for_p_r_dsts", std::get<1>(vertex_pair_buffer_q_r_edge_p_r).data(), std::get<1>(vertex_pair_buffer_q_r_edge_p_r).size(), std::cout);
-
-          //break; // FIXME: Break here **************
-          std::cout << "Before remove overcompensating edges when unrolling (p, r) edges" << std::endl;
-          raft::print_device_vector("vertex_pair_buffer_p_q_for_p_r_srcs", std::get<0>(vertex_pair_buffer_p_q_edge_p_r).data(), std::get<0>(vertex_pair_buffer_p_q_edge_p_r).size(), std::cout);
-          raft::print_device_vector("vertex_pair_buffer_p_q_for_p_r_dsts", std::get<1>(vertex_pair_buffer_p_q_edge_p_r).data(), std::get<1>(vertex_pair_buffer_p_q_edge_p_r).size(), std::cout);
-
-          //break; // FIXME: Break here **************
           auto num_edges_not_overcomp_q_r =
             remove_overcompensating_edges<vertex_t,
                                           edge_t,
                                           decltype(get_dataframe_buffer_begin(vertex_pair_buffer_p_q_edge_p_r)),
                                           false,
-                                          false // FIXME: Set it to False for now
+                                          multi_gpu,
+                                          true // FIXME: Use global weak edges for validation purposes
                                           >(
               handle,
               num_edges_not_overcomp_p_q,
               get_dataframe_buffer_begin(vertex_pair_buffer_q_r_edge_p_r), // FIXME: cannot be a copy, needs to be the original one so overcompensatiing edges can be removed
               get_dataframe_buffer_begin(vertex_pair_buffer_p_q_edge_p_r), // FIXME: cannot be a copy, needs to be the original one so overcompensatiing edges can be removed
-              raft::device_span<vertex_t const>(chunk_global_weak_edgelist_srcs.data(), chunk_global_weak_edgelist_srcs.size()),
-              raft::device_span<vertex_t const>(chunk_global_weak_edgelist_dsts.data(), chunk_global_weak_edgelist_dsts.size()),
+              raft::device_span<vertex_t const>(global_weak_edgelist_srcs.data(), global_weak_edgelist_srcs.size()),
+              raft::device_span<vertex_t const>(global_weak_edgelist_dsts.data(), global_weak_edgelist_dsts.size()),
+              raft::device_span<vertex_t const>(weak_edgelist_srcs.data(), weak_edgelist_srcs.size()),
+              raft::device_span<vertex_t const>(weak_edgelist_dsts.data(), weak_edgelist_dsts.size()),
               cur_graph_view.vertex_partition_range_lasts());
-          
-          std::cout << "2) num (p, r) edges after removing = " << num_edges_not_overcomp_q_r << std::endl;
           
           resize_dataframe_buffer(vertex_pair_buffer_q_r_edge_p_r, num_edges_not_overcomp_q_r, handle.get_stream());
           resize_dataframe_buffer(vertex_pair_buffer_p_q_edge_p_r, num_edges_not_overcomp_q_r, handle.get_stream());
@@ -2077,12 +1682,6 @@ k_truss(raft::handle_t const& handle,
               ] __device__(auto i) {
                 return thrust::make_tuple(thrust::get<0>(vertex_pair_buffer_p_q_edge_p_r[i]), thrust::get<1>(vertex_pair_buffer_q_r_edge_p_r[i]));
               });
-          
-          std::cout << "after removing overcompensating edges" << std::endl;
-          raft::print_device_vector("check_vertex_pair_buffer_p_r_srcs", std::get<0>(vertex_pair_buffer_p_r).data(), std::get<0>(vertex_pair_buffer_p_r).size(), std::cout);
-          raft::print_device_vector("check_vertex_pair_buffer_p_r_dsts", std::get<1>(vertex_pair_buffer_p_r).data(), std::get<1>(vertex_pair_buffer_p_r).size(), std::cout);
-          raft::print_device_vector("vertex_pair_buffer_p_q_for_p_r_srcs", std::get<0>(vertex_pair_buffer_p_q_edge_p_r).data(), std::get<0>(vertex_pair_buffer_p_q_edge_p_r).size(), std::cout);
-          raft::print_device_vector("vertex_pair_buffer_p_q_for_p_r_dsts", std::get<1>(vertex_pair_buffer_p_q_edge_p_r).data(), std::get<1>(vertex_pair_buffer_p_q_edge_p_r).size(), std::cout);
           
         } else {
           
@@ -2168,7 +1767,8 @@ k_truss(raft::handle_t const& handle,
                                           edge_t,
                                           decltype(get_dataframe_buffer_begin(vertex_pair_buffer_p_q_edge_p_r)),
                                           false,
-                                          false // FIXME: Set it to False for now
+                                          multi_gpu,
+                                          false
                                           >(
               handle,
               q_closing.size(),
@@ -2176,6 +1776,8 @@ k_truss(raft::handle_t const& handle,
               get_dataframe_buffer_begin(vertex_pair_buffer_q_r_edge_p_r), // FIXME: cannot be a copy, needs to be the original one so overcompensatiing edges can be removed
               raft::device_span<vertex_t const>(weak_edgelist_srcs.data(), weak_edgelist_srcs.size()),
               raft::device_span<vertex_t const>(weak_edgelist_dsts.data(), weak_edgelist_dsts.size()),
+              raft::device_span<vertex_t const>(weak_edgelist_srcs.data(), weak_edgelist_srcs.size()), // FIXME: Only for MG validation purposes
+              raft::device_span<vertex_t const>(weak_edgelist_dsts.data(), weak_edgelist_dsts.size()), // FIXME: Only for MG validation purposes
               cur_graph_view.vertex_partition_range_lasts());
 
           resize_dataframe_buffer(vertex_pair_buffer_p_q_edge_p_r, num_edges_not_overcomp_p_q, handle.get_stream());
@@ -2190,7 +1792,8 @@ k_truss(raft::handle_t const& handle,
                                           edge_t,
                                           decltype(get_dataframe_buffer_begin(vertex_pair_buffer_p_q_edge_p_r)),
                                           false,
-                                          false // FIXME: Set it to False for now
+                                          multi_gpu,
+                                          false
                                           >(
               handle,
               num_edges_not_overcomp_p_q,
@@ -2198,6 +1801,8 @@ k_truss(raft::handle_t const& handle,
               get_dataframe_buffer_begin(vertex_pair_buffer_p_q_edge_p_r), // FIXME: cannot be a copy, needs to be the original one so overcompensatiing edges can be removed
               raft::device_span<vertex_t const>(weak_edgelist_srcs.data(), weak_edgelist_srcs.size()),
               raft::device_span<vertex_t const>(weak_edgelist_dsts.data(), weak_edgelist_dsts.size()),
+              raft::device_span<vertex_t const>(weak_edgelist_srcs.data(), weak_edgelist_srcs.size()), // FIXME: Only for MG validation purposes
+              raft::device_span<vertex_t const>(weak_edgelist_dsts.data(), weak_edgelist_dsts.size()), // FIXME: Only for MG validation purposes
               cur_graph_view.vertex_partition_range_lasts());
           
           resize_dataframe_buffer(vertex_pair_buffer_p_q_edge_p_r, num_edges_not_overcomp_q_r, handle.get_stream());
