@@ -12,7 +12,6 @@
 # limitations under the License.
 
 import pytest
-import os
 
 import numpy as np
 
@@ -23,39 +22,13 @@ from cugraph.utilities.utils import import_optional, MissingModule
 
 from cugraph.gnn import (
     cugraph_comms_create_unique_id,
-    cugraph_comms_init,
     cugraph_comms_shutdown,
 )
 
+from utils import init_pytorch_worker
+
 torch = import_optional("torch")
 dgl = import_optional("dgl")
-
-
-def init_pytorch_worker(rank, world_size, cugraph_id):
-    import rmm
-
-    rmm.reinitialize(
-        devices=rank,
-    )
-
-    import cupy
-
-    cupy.cuda.Device(rank).use()
-    from rmm.allocators.cupy import rmm_cupy_allocator
-
-    cupy.cuda.set_allocator(rmm_cupy_allocator)
-
-    from cugraph.testing.mg_utils import enable_spilling
-
-    enable_spilling()
-
-    torch.cuda.set_device(rank)
-
-    os.environ["MASTER_ADDR"] = "localhost"
-    os.environ["MASTER_PORT"] = "12355"
-    torch.distributed.init_process_group("nccl", rank=rank, world_size=world_size)
-
-    cugraph_comms_init(rank=rank, world_size=world_size, uid=cugraph_id, device=rank)
 
 
 def run_test_dataloader_basic_homogeneous(rank, world_size, uid):

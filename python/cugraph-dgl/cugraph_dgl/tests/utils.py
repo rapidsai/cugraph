@@ -10,7 +10,11 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
+import os
+
 from cugraph.utilities.utils import import_optional
+from cugraph.gnn import cugraph_comms_init
 
 th = import_optional("torch")
 
@@ -111,3 +115,40 @@ def assert_same_sampling_len(dgl_g, cugraph_gs, nodes, fanout, edge_dir):
     assert cugraph_o.num_edges() == dgl_o.num_edges()
     for etype in dgl_o.canonical_etypes:
         assert dgl_o.num_edges(etype) == cugraph_o.num_edges(etype)
+
+
+def init_pytorch_worker(rank, world_size, cugraph_id, init_wholegraph=False):
+    import rmm
+
+    rmm.reinitialize(
+        devices=rank,
+    )
+
+    import cupy
+
+    cupy.cuda.Device(rank).use()
+    from rmm.allocators.cupy import rmm_cupy_allocator
+
+    cupy.cuda.set_allocator(rmm_cupy_allocator)
+
+    from cugraph.testing.mg_utils import enable_spilling
+
+    enable_spilling()
+
+    th.cuda.set_device(rank)
+
+    os.environ["MASTER_ADDR"] = "localhost"
+    os.environ["MASTER_PORT"] = "12355"
+    th.distributed.init_process_group("nccl", rank=rank, world_size=world_size)
+
+    if init_wholegraph:
+        import pylibwholegraph
+
+        pylibwholegraph.torch.initialize.init(
+            rank,
+            world_size,
+            rank,
+            world_size,
+        )
+
+    cugraph_comms_init(rank=rank, world_size=world_size, uid=cugraph_id, device=rank)

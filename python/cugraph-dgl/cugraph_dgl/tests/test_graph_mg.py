@@ -11,7 +11,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import os
 
 import pytest
 
@@ -26,54 +25,20 @@ from cugraph.datasets import karate
 from cugraph.utilities.utils import import_optional, MissingModule
 
 from cugraph.gnn import (
-    cugraph_comms_init,
     cugraph_comms_shutdown,
     cugraph_comms_create_unique_id,
     cugraph_comms_get_raft_handle,
 )
 
+from utils import init_pytorch_worker
 
 pylibwholegraph = import_optional("pylibwholegraph")
 torch = import_optional("torch")
 dgl = import_optional("dgl")
 
 
-def init_pytorch_worker(rank, world_size, cugraph_id):
-    import rmm
-
-    rmm.reinitialize(
-        devices=rank,
-    )
-
-    import cupy
-
-    cupy.cuda.Device(rank).use()
-    from rmm.allocators.cupy import rmm_cupy_allocator
-
-    cupy.cuda.set_allocator(rmm_cupy_allocator)
-
-    from cugraph.testing.mg_utils import enable_spilling
-
-    enable_spilling()
-
-    torch.cuda.set_device(rank)
-
-    os.environ["MASTER_ADDR"] = "localhost"
-    os.environ["MASTER_PORT"] = "12355"
-    torch.distributed.init_process_group("nccl", rank=rank, world_size=world_size)
-
-    pylibwholegraph.torch.initialize.init(
-        rank,
-        world_size,
-        rank,
-        world_size,
-    )
-
-    cugraph_comms_init(rank=rank, world_size=world_size, uid=cugraph_id, device=rank)
-
-
 def run_test_graph_make_homogeneous_graph_mg(rank, uid, world_size, direction):
-    init_pytorch_worker(rank, world_size, uid)
+    init_pytorch_worker(rank, world_size, uid, init_wholegraph=True)
 
     df = karate.get_edgelist()
     df.src = df.src.astype("int64")
