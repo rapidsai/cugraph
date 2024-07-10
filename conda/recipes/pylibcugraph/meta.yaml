@@ -66,6 +66,7 @@ requirements:
     - pylibraft ={{ minor_version }}
     - python
     - scikit-build-core >=0.7.0
+    - rapids-build-backend>=0.3.1,<0.4.0.dev0
   run:
     - {{ pin_compatible('cuda-version', max_pin='x', min_pin='x') }}
     {% if cuda_major == "11" %}

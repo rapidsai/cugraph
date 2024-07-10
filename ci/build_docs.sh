@@ -8,7 +8,7 @@ rapids-logger "Create test conda environment"
 
 rapids-dependency-file-generator \
   --output conda \
-  --file_key docs \
+  --file-key docs \
   --matrix "cuda=${RAPIDS_CUDA_VERSION%.*};arch=$(arch);py=${RAPIDS_PY_VERSION}" | tee env.yaml
 
 rapids-mamba-retry env create --yes -f env.yaml -n docs
@@ -72,10 +72,8 @@ pushd docs/cugraph
 # type of failure well.
 python -c "import cugraph; print(f'Using cugraph: {cugraph}')"
 sphinx-build -b dirhtml source _html
-sphinx-build -b text source _text
-mkdir -p "${RAPIDS_DOCS_DIR}/cugraph/"{html,txt}
+mkdir -p "${RAPIDS_DOCS_DIR}/cugraph/html"
 mv _html/* "${RAPIDS_DOCS_DIR}/cugraph/html"
-mv _text/* "${RAPIDS_DOCS_DIR}/cugraph/txt"
 popd
 
 rapids-upload-docs
