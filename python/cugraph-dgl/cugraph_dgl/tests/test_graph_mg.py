@@ -30,7 +30,7 @@ from cugraph.gnn import (
     cugraph_comms_get_raft_handle,
 )
 
-from utils import init_pytorch_worker
+from .utils import init_pytorch_worker
 
 pylibwholegraph = import_optional("pylibwholegraph")
 torch = import_optional("torch")
@@ -75,6 +75,7 @@ def run_test_graph_make_homogeneous_graph_mg(rank, uid, world_size, direction):
         == torch.arange(global_num_nodes, dtype=torch.int64, device="cuda")
     ).all()
     ix = torch.arange(len(node_x) * rank, len(node_x) * (rank + 1), dtype=torch.int64)
+    assert graph.nodes[ix]["x"] is not None
     assert (graph.nodes[ix]["x"] == torch.as_tensor(node_x, device="cuda")).all()
 
     assert (

@@ -61,11 +61,7 @@ class HeteroEdgeDataView(MutableMapping):
                 if self._graph._has_e_emb(t, key)
             }
 
-        return (
-            self._graph._get_e_emb(self._etype, key, self._edges)
-            if self._graph._has_e_emb(self._etype, key)
-            else None
-        )
+        return self._graph._get_e_emb(self._etype, key, self._edges)
 
     def __setitem__(self, key: str, val: Union[TensorType, Dict[str, TensorType]]):
         if isinstance(self._etype, list):
@@ -166,11 +162,7 @@ class HeteroNodeDataView(MutableMapping):
                 if self._graph._has_n_emb(t, key)
             }
         else:
-            return (
-                self._graph._get_n_emb(self._ntype, key, self._nodes)
-                if self._graph._has_n_emb(self._ntype, key)
-                else None
-            )
+            return self._graph._get_n_emb(self._ntype, key, self._nodes)
 
     def __setitem__(self, key: str, val: Union[TensorType, Dict[str, TensorType]]):
         if isinstance(self._ntype, list):

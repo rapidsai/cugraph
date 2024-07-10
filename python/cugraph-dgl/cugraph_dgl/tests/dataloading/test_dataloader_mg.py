@@ -25,7 +25,7 @@ from cugraph.gnn import (
     cugraph_comms_shutdown,
 )
 
-from utils import init_pytorch_worker
+from cugraph_dgl.tests.utils import init_pytorch_worker
 
 torch = import_optional("torch")
 dgl = import_optional("dgl")

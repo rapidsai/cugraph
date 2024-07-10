@@ -52,6 +52,8 @@ def test_graph_make_homogeneous_graph(direction):
     assert (
         graph.nodes() == torch.arange(num_nodes, dtype=torch.int64, device="cuda")
     ).all()
+
+    assert graph.nodes[None]["x"] is not None
     assert (graph.nodes[None]["x"] == torch.as_tensor(node_x, device="cuda")).all()
     assert (
         graph.nodes[None]["num"]
