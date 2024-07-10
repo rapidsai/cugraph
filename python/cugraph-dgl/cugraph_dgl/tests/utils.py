@@ -1,4 +1,4 @@
-# Copyright (c) 2022-2023, NVIDIA CORPORATION.
+# Copyright (c) 2022-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -15,8 +15,8 @@ from cugraph.utilities.utils import import_optional
 th = import_optional("torch")
 
 
-def assert_same_node_feats(gs, g):
-    set(gs.ndata.keys()) == set(g.ndata.keys())
+def assert_same_node_feats_daskapi(gs, g):
+    assert set(gs.ndata.keys()) == set(g.ndata.keys())
 
     for key in g.ndata.keys():
         for ntype in g.ntypes:
@@ -27,6 +27,29 @@ def assert_same_node_feats(gs, g):
                 )
                 gs_output = gs.get_node_storage(key=key, ntype=ntype).fetch(indices)
                 equal_t = (gs_output != g_output).sum().cpu()
+                assert equal_t == 0
+
+
+def assert_same_node_feats(gs, g):
+    assert set(gs.ndata.keys()) == set(g.ndata.keys())
+    assert set(gs.ntypes) == set(g.ntypes)
+
+    for key in g.ndata.keys():
+        for ntype in g.ntypes:
+            if len(g.ntypes) <= 1 or ntype in g.ndata[key]:
+                indices = th.arange(0, g.num_nodes(ntype), dtype=g.idtype)
+
+                g_output = g.ndata[key]
+                gs_output = gs.ndata[key]
+
+                if len(g.ntypes) > 1:
+                    g_output = g_output[ntype]
+                    gs_output = gs_output[ntype]
+
+                g_output = g_output[indices]
+                gs_output = gs_output[indices]
+
+                equal_t = (gs_output != g_output).sum()
                 assert equal_t == 0
 
 
@@ -45,8 +68,8 @@ def assert_same_num_edges_etypes(gs, g):
         assert g.num_edges(etype) == gs.num_edges(etype)
 
 
-def assert_same_edge_feats(gs, g):
-    set(gs.edata.keys()) == set(g.edata.keys())
+def assert_same_edge_feats_daskapi(gs, g):
+    assert set(gs.edata.keys()) == set(g.edata.keys())
     for key in g.edata.keys():
         for etype in g.canonical_etypes:
             indices = th.arange(0, g.num_edges(etype), dtype=g.idtype).cuda()
@@ -55,6 +78,29 @@ def assert_same_edge_feats(gs, g):
                     indices, device="cuda"
                 )
                 gs_output = gs.get_edge_storage(key=key, etype=etype).fetch(indices)
+                equal_t = (gs_output != g_output).sum().cpu()
+                assert equal_t == 0
+
+
+def assert_same_edge_feats(gs, g):
+    assert set(gs.edata.keys()) == set(g.edata.keys())
+    assert set(gs.canonical_etypes) == set(g.canonical_etypes)
+    assert set(gs.etypes) == set(g.etypes)
+
+    for key in g.edata.keys():
+        for etype in g.canonical_etypes:
+            if len(g.etypes) <= 1 or etype in g.edata[key]:
+                indices = th.arange(0, g.num_edges(etype), dtype=g.idtype).cuda()
+                g_output = g.edata[key]
+                gs_output = gs.edata[key]
+
+                if len(g.etypes) > 1:
+                    g_output = g_output[etype]
+                    gs_output = gs_output[etype]
+
+                g_output = g_output[indices]
+                gs_output = gs_output[indices]
+
                 equal_t = (gs_output != g_output).sum().cpu()
                 assert equal_t == 0
 

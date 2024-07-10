@@ -11,6 +11,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import warnings
+
 from typing import Union, Optional, Dict, Tuple, List
 
 from cugraph.utilities.utils import import_optional
@@ -561,6 +563,9 @@ class Graph:
 
         return self.__graph[0]
 
+    def _has_n_emb(self, ntype: str, emb_name: str) -> bool:
+        return (ntype, emb_name) in self.__ndata_storage
+
     def _get_n_emb(
         self, ntype: str, emb_name: str, u: Union[str, TensorType]
     ) -> "torch.Tensor":
@@ -595,9 +600,21 @@ class Graph:
         if dgl.base.is_all(u):
             u = torch.arange(self.num_nodes(ntype), dtype=self.idtype, device="cpu")
 
-        return self.__ndata_storage[ntype, emb_name].fetch(
-            _cast_to_torch_tensor(u), "cuda"
-        )
+        try:
+            return self.__ndata_storage[ntype, emb_name].fetch(
+                _cast_to_torch_tensor(u), "cuda"
+            )
+        except RuntimeError as ex:
+            warnings.warn(
+                "Got error accessing data, trying again with index on device: "
+                + str(ex)
+            )
+            return self.__ndata_storage[ntype, emb_name].fetch(
+                _cast_to_torch_tensor(u).cuda(), "cuda"
+            )
+
+    def _has_e_emb(self, etype: Tuple[str, str, str], emb_name: str) -> bool:
+        return (etype, emb_name) in self.__edata_storage
 
     def _get_e_emb(
         self, etype: Tuple[str, str, str], emb_name: str, u: Union[str, TensorType]
@@ -629,9 +646,18 @@ class Graph:
         if dgl.base.is_all(u):
             u = torch.arange(self.num_edges(etype), dtype=self.idtype, device="cpu")
 
-        return self.__edata_storage[etype, emb_name].fetch(
-            _cast_to_torch_tensor(u), "cuda"
-        )
+        try:
+            return self.__edata_storage[etype, emb_name].fetch(
+                _cast_to_torch_tensor(u), "cuda"
+            )
+        except RuntimeError as ex:
+            warnings.warn(
+                "Got error accessing data, trying again with index on device: "
+                + str(ex)
+            )
+            return self.__edata_storage[etype, emb_name].fetch(
+                _cast_to_torch_tensor(u).cuda(), "cuda"
+            )
 
     def _set_n_emb(
         self, ntype: str, u: Union[str, TensorType], kv: Dict[str, TensorType]
@@ -774,7 +800,7 @@ class Graph:
         List[str]
             The list of embedding names for the given edge type.
         """
-        return [k for (t, k) in self.__ndata_storage if etype == t]
+        return [k for (t, k) in self.__edata_storage if etype == t]
 
     def all_edges(
         self,
