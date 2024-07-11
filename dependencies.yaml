@@ -571,9 +571,6 @@ dependencies:
           - *numba
           - *numpy
           - *thrift
-      - output_types: pyproject
-        packages:
-          - *cugraph
       - output_types: conda
         packages:
           - *ucx_py
@@ -583,15 +580,18 @@ dependencies:
           - matrix:
               cuda: "11.*"
             packages:
+              - *cugraph_cu11
               - cugraph-service-client-cu11==24.8.*,>=0.0.0a0
               - *ucx_py_cu11
           - matrix:
               cuda: "12.*"
             packages:
+              - *cugraph_cu12
               - cugraph-service-client-cu12==24.8.*,>=0.0.0a0
               - *ucx_py_cu12
           - matrix:
             packages:
+              - *cugraph
               - cugraph-service-client==24.8.*,>=0.0.0a0
               - *ucx_py
   test_cpp:
