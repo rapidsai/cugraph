@@ -574,7 +574,6 @@ dependencies:
       - output_types: pyproject
         packages:
           - *cugraph
-          - cugraph-service-client==24.8.*,>=0.0.0a0
       - output_types: conda
         packages:
           - *ucx_py
@@ -584,13 +583,16 @@ dependencies:
           - matrix:
               cuda: "11.*"
             packages:
+              - cugraph-service-client-cu11==24.8.*,>=0.0.0a0
               - *ucx_py_cu11
           - matrix:
               cuda: "12.*"
             packages:
+              - cugraph-service-client-cu12==24.8.*,>=0.0.0a0
               - *ucx_py_cu12
           - matrix:
             packages:
+              - cugraph-service-client==24.8.*,>=0.0.0a0
               - *ucx_py
   test_cpp:
     common:
