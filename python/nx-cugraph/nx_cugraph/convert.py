@@ -408,13 +408,18 @@ def from_networkx(
                 # Node values may be numpy or cupy arrays (useful for str, object, etc).
                 # Someday we'll let the user choose np or cp, and support edge values.
                 node_mask = np.fromiter(iter_mask, bool)
-                node_value = np.array(vals, dtype)
                 try:
-                    node_value = cp.array(node_value)
+                    node_value = np.array(vals, dtype)
                 except ValueError:
-                    pass
+                    # Handle e.g. list elements
+                    node_value = np.fromiter(vals, object)
                 else:
-                    node_mask = cp.array(node_mask)
+                    try:
+                        node_value = cp.array(node_value)
+                    except ValueError:
+                        pass
+                    else:
+                        node_mask = cp.array(node_mask)
                 node_values[node_attr] = node_value
                 node_masks[node_attr] = node_mask
                 # if vals.ndim > 1: ...
@@ -428,7 +433,12 @@ def from_networkx(
                 # Node values may be numpy or cupy arrays (useful for str, object, etc).
                 # Someday we'll let the user choose np or cp, and support edge values.
                 if dtype is None:
-                    node_value = np.array(list(iter_values))
+                    vals = list(iter_values)
+                    try:
+                        node_value = np.array(vals)
+                    except ValueError:
+                        # Handle e.g. list elements
+                        node_value = np.fromiter(vals, object)
                 else:
                     node_value = np.fromiter(iter_values, dtype)
                 try:

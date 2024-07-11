@@ -124,6 +124,7 @@ _info = {
         "path_graph",
         "petersen_graph",
         "reciprocity",
+        "relabel_nodes",
         "reverse",
         "sedgewick_maze_graph",
         "shortest_path",

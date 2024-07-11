@@ -68,6 +68,9 @@ class BackendInterface:
         louvain_different = "Louvain may be different due to RNG"
         no_string_dtype = "string edge values not currently supported"
         sssp_path_different = "sssp may choose a different valid path"
+        no_object_dtype_for_edges = (
+            "Edges don't support object dtype (lists, strings, etc.)"
+        )
 
         xfail = {
             # This is removed while strongly_connected_components() is not
@@ -91,6 +94,42 @@ class BackendInterface:
                 "test_cycles.py:TestMinimumCycleBasis."
                 "test_gh6787_and_edge_attribute_names"
             ): sssp_path_different,
+            key(
+                "test_graph_hashing.py:test_isomorphic_edge_attr"
+            ): no_object_dtype_for_edges,
+            key(
+                "test_graph_hashing.py:test_isomorphic_edge_attr_and_node_attr"
+            ): no_object_dtype_for_edges,
+            key(
+                "test_graph_hashing.py:test_isomorphic_edge_attr_subgraph_hash"
+            ): no_object_dtype_for_edges,
+            key(
+                "test_graph_hashing.py:"
+                "test_isomorphic_edge_attr_and_node_attr_subgraph_hash"
+            ): no_object_dtype_for_edges,
+            key(
+                "test_summarization.py:TestSNAPNoEdgeTypes.test_summary_graph"
+            ): no_object_dtype_for_edges,
+            key(
+                "test_summarization.py:TestSNAPUndirected.test_summary_graph"
+            ): no_object_dtype_for_edges,
+            key(
+                "test_summarization.py:TestSNAPDirected.test_summary_graph"
+            ): no_object_dtype_for_edges,
+            key("test_gexf.py:TestGEXF.test_relabel"): no_object_dtype_for_edges,
+            key(
+                "test_gml.py:TestGraph.test_parse_gml_cytoscape_bug"
+            ): no_object_dtype_for_edges,
+            key("test_gml.py:TestGraph.test_parse_gml"): no_object_dtype_for_edges,
+            key("test_gml.py:TestGraph.test_read_gml"): no_object_dtype_for_edges,
+            key("test_gml.py:TestGraph.test_data_types"): no_object_dtype_for_edges,
+            key(
+                "test_gml.py:TestPropertyLists.test_reading_graph_with_list_property"
+            ): no_object_dtype_for_edges,
+            key(
+                "test_relabel.py:"
+                "test_relabel_preserve_node_order_partial_mapping_with_copy_false"
+            ): "Node order is preserved when relabeling with partial mapping",
         }
 
         from packaging.version import parse

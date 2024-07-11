@@ -23,6 +23,9 @@ from .convert import *
 from . import convert_matrix
 from .convert_matrix import *
 
+from . import relabel
+from .relabel import *
+
 from . import generators
 from .generators import *
 

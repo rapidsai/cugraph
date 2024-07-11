@@ -48,7 +48,7 @@ def test_match_signature_and_names():
         orig_sig = inspect.signature(orig_func)
         func_sig = inspect.signature(func)
         if not func.extra_params:
-            assert orig_sig == func_sig
+            assert orig_sig == func_sig, name
         else:
             # Ignore extra parameters added to nx-cugraph algorithm
             # The key of func.extra_params may be like "max_level : int, optional",
