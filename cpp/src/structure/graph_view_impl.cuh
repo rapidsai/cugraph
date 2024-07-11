@@ -94,7 +94,8 @@ rmm::device_uvector<edge_t> compute_major_degrees(
 
   auto use_dcs = edge_partition_dcs_nzd_vertices.has_value();
 
-  rmm::device_uvector<edge_t> local_degrees(0, handle.get_stream());
+  rmm::device_uvector<edge_t> local_degrees(
+    0, handle.get_stream());  // excluding globally 0 degree vertices
   rmm::device_uvector<edge_t> degrees(0, handle.get_stream());
 
   vertex_t max_num_local_degrees{0};
@@ -104,9 +105,16 @@ rmm::device_uvector<edge_t> compute_major_degrees(
         major_comm_size, minor_comm_size, major_comm_rank, minor_comm_rank}(i);
     auto major_range_vertex_partition_size =
       partition.vertex_partition_range_size(major_range_vertex_partition_id);
-    max_num_local_degrees = std::max(max_num_local_degrees, major_range_vertex_partition_size);
+    auto segment_offset_size_per_partition =
+      edge_partition_segment_offsets.size() / static_cast<size_t>(minor_comm_size);
+    auto num_local_degrees =
+      edge_partition_segment_offsets[segment_offset_size_per_partition * i +
+                                     (segment_offset_size_per_partition - 2)];
+    max_num_local_degrees = std::max(max_num_local_degrees, num_local_degrees);
     if (i == minor_comm_rank) {
       degrees.resize(major_range_vertex_partition_size, handle.get_stream());
+      thrust::fill(
+        handle.get_thrust_policy(), degrees.begin() + num_local_degrees, degrees.end(), edge_t{0});
     }
   }
   local_degrees.resize(max_num_local_degrees, handle.get_stream());
@@ -114,20 +122,22 @@ rmm::device_uvector<edge_t> compute_major_degrees(
     auto major_range_vertex_partition_id =
       detail::compute_local_edge_partition_major_range_vertex_partition_id_t{
         major_comm_size, minor_comm_size, major_comm_rank, minor_comm_rank}(i);
-    vertex_t major_range_first{};
-    vertex_t major_range_last{};
-    std::tie(major_range_first, major_range_last) =
-      partition.vertex_partition_range(major_range_vertex_partition_id);
+    auto major_range_first =
+      partition.vertex_partition_range_first(major_range_vertex_partition_id);
+
     auto offsets = edge_partition_offsets[i];
     auto masks =
       edge_partition_masks ? thrust::make_optional((*edge_partition_masks)[i]) : thrust::nullopt;
     auto segment_offset_size_per_partition =
       edge_partition_segment_offsets.size() / static_cast<size_t>(minor_comm_size);
+    auto num_local_degrees =
+      edge_partition_segment_offsets[segment_offset_size_per_partition * i +
+                                     (segment_offset_size_per_partition - 2)];
     auto major_hypersparse_first =
       use_dcs ? major_range_first +
                   edge_partition_segment_offsets[segment_offset_size_per_partition * i +
                                                  detail::num_sparse_segments_per_vertex_partition]
-              : major_range_last;
+              : major_range_first + num_local_degrees;
     auto execution_policy = handle.get_thrust_policy();
     thrust::transform(execution_policy,
                       thrust::make_counting_iterator(vertex_t{0}),
@@ -145,7 +155,7 @@ rmm::device_uvector<edge_t> compute_major_degrees(
       auto dcs_nzd_vertices = (*edge_partition_dcs_nzd_vertices)[i];
       thrust::fill(execution_policy,
                    local_degrees.begin() + (major_hypersparse_first - major_range_first),
-                   local_degrees.begin() + (major_range_last - major_range_first),
+                   local_degrees.begin() + num_local_degrees,
                    edge_t{0});
       thrust::for_each(
         execution_policy,
@@ -169,7 +179,7 @@ rmm::device_uvector<edge_t> compute_major_degrees(
     }
     minor_comm.reduce(local_degrees.data(),
                       i == minor_comm_rank ? degrees.data() : static_cast<edge_t*>(nullptr),
-                      static_cast<size_t>(major_range_last - major_range_first),
+                      static_cast<size_t>(num_local_degrees),
                       raft::comms::op_t::SUM,
                       i,
                       handle.get_stream());
