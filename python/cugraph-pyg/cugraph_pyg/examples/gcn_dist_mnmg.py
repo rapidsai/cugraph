@@ -65,7 +65,6 @@ def init_pytorch_worker(global_rank, local_rank, world_size, cugraph_id):
     from rmm.allocators.cupy import rmm_cupy_allocator
 
     cupy.cuda.set_allocator(rmm_cupy_allocator)
-    torch.distributed.barrier()
 
     from cugraph.testing.mg_utils import enable_spilling
 
