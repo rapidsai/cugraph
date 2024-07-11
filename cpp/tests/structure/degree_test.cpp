@@ -145,10 +145,13 @@ TEST_P(Tests_Degree, CheckInt32Int32FloatTransposeTrue)
   run_current_test<int32_t, int32_t, true>(GetParam());
 }
 
-INSTANTIATE_TEST_SUITE_P(simple_test,
+INSTANTIATE_TEST_SUITE_P(file_test,
                          Tests_Degree,
-                         ::testing::Values(Degree_Usecase("test/datasets/karate.mtx"),
-                                           Degree_Usecase("test/datasets/web-Google.mtx"),
+                         ::testing::Values(Degree_Usecase("test/datasets/karate.mtx")));
+
+INSTANTIATE_TEST_SUITE_P(file_large_test,
+                         Tests_Degree,
+                         ::testing::Values(Degree_Usecase("test/datasets/web-Google.mtx"),
                                            Degree_Usecase("test/datasets/ljournal-2008.mtx"),
                                            Degree_Usecase("test/datasets/webbase-1M.mtx")));
 

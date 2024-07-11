@@ -134,15 +134,21 @@ TEST_P(Tests_Renumbering_Rmat, CheckInt32Int32FloatFloat)
   run_current_test<int32_t, int32_t, float>(std::get<0>(param), std::get<1>(param));
 }
 
+INSTANTIATE_TEST_SUITE_P(file_test,
+                         Tests_Renumbering_File,
+                         ::testing::Combine(
+                           // enable correctness checks
+                           ::testing::Values(Renumbering_Usecase{}),
+                           ::testing::Values(cugraph::test::File_Usecase("negative-vertex-id.csv"),
+                                             cugraph::test::File_Usecase("karate.csv"))));
+
 INSTANTIATE_TEST_SUITE_P(
-  file_test,
+  file_large_test,
   Tests_Renumbering_File,
   ::testing::Combine(
     // enable correctness checks
     ::testing::Values(Renumbering_Usecase{}),
-    ::testing::Values(cugraph::test::File_Usecase("negative-vertex-id.csv"),
-                      cugraph::test::File_Usecase("karate.csv"),
-                      cugraph::test::File_Usecase("test/datasets/web-Google.mtx"),
+    ::testing::Values(cugraph::test::File_Usecase("test/datasets/web-Google.mtx"),
                       cugraph::test::File_Usecase("test/datasets/ljournal-2008.mtx"),
                       cugraph::test::File_Usecase("test/datasets/webbase-1M.mtx"))));
 
