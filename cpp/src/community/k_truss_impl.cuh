@@ -1431,7 +1431,7 @@ k_truss(raft::handle_t const& handle,
       // back in with the chunk global weak edgelist
 
       if constexpr (multi_gpu) {
-          // Get minor weak edges
+          // Get major weak edges
           auto& major_comm = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
           auto major_weak_edgelist_srcs = cugraph::detail::device_allgatherv(
             handle, major_comm, raft::device_span<vertex_t const>(weak_edgelist_srcs.data(), weak_edgelist_srcs.size()));
