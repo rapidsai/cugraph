@@ -65,6 +65,7 @@ def init_pytorch_worker(global_rank, local_rank, world_size, cugraph_id):
     from rmm.allocators.cupy import rmm_cupy_allocator
 
     cupy.cuda.set_allocator(rmm_cupy_allocator)
+    torch.distributed.barrier()
 
     from cugraph.testing.mg_utils import enable_spilling
 
@@ -345,7 +346,7 @@ def parse_args():
     parser.add_argument("--dataset_root", type=str, default="dataset")
     parser.add_argument("--dataset", type=str, default="ogbn-products")
     parser.add_argument("--skip_partition", action="store_true")
-    parser.add_argument("--wg_mem_type", type=str, default="chunked")
+    parser.add_argument("--wg_mem_type", type=str, default="distributed")
 
     return parser.parse_args()
 
