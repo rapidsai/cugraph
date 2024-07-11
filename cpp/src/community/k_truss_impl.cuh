@@ -887,26 +887,26 @@ k_truss(raft::handle_t const& handle,
       vertex_q_r_set.resize(thrust::distance(vertex_q_r_set.begin(), weak_unique_v_end), handle.get_stream());
 
       if constexpr (multi_gpu) {
-        auto& minor_comm = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
+        auto& major_comm = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
         // Perform all-to-all in chunks across minor comm
-        auto minor_vertex_q_r_set = cugraph::detail::device_allgatherv(
-          handle, minor_comm, raft::device_span<vertex_t const>(vertex_q_r_set.data(), vertex_q_r_set.size()));
+        auto major_vertex_q_r_set = cugraph::detail::device_allgatherv(
+          handle, major_comm, raft::device_span<vertex_t const>(vertex_q_r_set.data(), vertex_q_r_set.size()));
         
-        thrust::sort(handle.get_thrust_policy(), minor_vertex_q_r_set.begin(), minor_vertex_q_r_set.end());
+        thrust::sort(handle.get_thrust_policy(), major_vertex_q_r_set.begin(), major_vertex_q_r_set.end());
 
         weak_unique_v_end = thrust::unique(
                                   handle.get_thrust_policy(),
-                                  minor_vertex_q_r_set.begin(),
-                                  minor_vertex_q_r_set.end());
+                                  major_vertex_q_r_set.begin(),
+                                  major_vertex_q_r_set.end());
       
-        minor_vertex_q_r_set.resize(thrust::distance(minor_vertex_q_r_set.begin(), weak_unique_v_end), handle.get_stream());
+        major_vertex_q_r_set.resize(thrust::distance(major_vertex_q_r_set.begin(), weak_unique_v_end), handle.get_stream());
 
-        vertex_q_r_set.resize(minor_vertex_q_r_set.size(), handle.get_stream());
+        vertex_q_r_set.resize(major_vertex_q_r_set.size(), handle.get_stream());
     
         thrust::copy(
           handle.get_thrust_policy(),
-          minor_vertex_q_r_set.begin(),
-          minor_vertex_q_r_set.end(),
+          major_vertex_q_r_set.begin(),
+          major_vertex_q_r_set.end(),
           vertex_q_r_set.begin());
       }
 
@@ -1432,26 +1432,26 @@ k_truss(raft::handle_t const& handle,
 
       if constexpr (multi_gpu) {
           // Get minor weak edges
-          auto& minor_comm = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
-          auto minor_weak_edgelist_srcs = cugraph::detail::device_allgatherv(
-            handle, minor_comm, raft::device_span<vertex_t const>(weak_edgelist_srcs.data(), weak_edgelist_srcs.size()));
+          auto& major_comm = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
+          auto major_weak_edgelist_srcs = cugraph::detail::device_allgatherv(
+            handle, major_comm, raft::device_span<vertex_t const>(weak_edgelist_srcs.data(), weak_edgelist_srcs.size()));
           // FIXME: Perform all-to-all in chunks
-          auto minor_weak_edgelist_dsts = cugraph::detail::device_allgatherv(
-            handle, minor_comm, raft::device_span<vertex_t const>(weak_edgelist_dsts.data(), weak_edgelist_dsts.size()));
+          auto major_weak_edgelist_dsts = cugraph::detail::device_allgatherv(
+            handle, major_comm, raft::device_span<vertex_t const>(weak_edgelist_dsts.data(), weak_edgelist_dsts.size()));
           
-          auto minor_weak_edgelist_tags = cugraph::detail::device_allgatherv(
-            handle, minor_comm, raft::device_span<edge_t const>(tag_cpy.data(), tag_cpy.size()));
+          auto major_weak_edgelist_tags = cugraph::detail::device_allgatherv(
+            handle, major_comm, raft::device_span<edge_t const>(tag_cpy.data(), tag_cpy.size()));
           
           auto major_weak_edgelist_first = 
-            thrust::make_zip_iterator(minor_weak_edgelist_srcs.begin(), minor_weak_edgelist_dsts.begin()); // FIXME: remove as it is unused
+            thrust::make_zip_iterator(major_weak_edgelist_srcs.begin(), major_weak_edgelist_dsts.begin()); // FIXME: remove as it is unused
 
           auto major_weak_edgelist_dsts_tags_first =
-            thrust::make_zip_iterator(minor_weak_edgelist_dsts.begin(), minor_weak_edgelist_tags.begin());
+            thrust::make_zip_iterator(major_weak_edgelist_dsts.begin(), major_weak_edgelist_tags.begin());
           
           thrust::sort_by_key(handle.get_thrust_policy(),
             major_weak_edgelist_dsts_tags_first,
-            major_weak_edgelist_dsts_tags_first + minor_weak_edgelist_dsts.size(),
-            minor_weak_edgelist_srcs.begin()
+            major_weak_edgelist_dsts_tags_first + major_weak_edgelist_dsts.size(),
+            major_weak_edgelist_srcs.begin()
             );
           
           // FIXME: 'idx_closing' no longer needed - remove it
@@ -1465,8 +1465,8 @@ k_truss(raft::handle_t const& handle,
               cugraph::edge_dummy_property_t{}.view(),
               extract_q_idx_closing<vertex_t, edge_t, decltype(major_weak_edgelist_first), multi_gpu>{
                 major_weak_edgelist_dsts_tags_first,
-                major_weak_edgelist_dsts_tags_first + minor_weak_edgelist_dsts.size(),
-                raft::device_span<vertex_t>(minor_weak_edgelist_srcs.data(), minor_weak_edgelist_srcs.size()),
+                major_weak_edgelist_dsts_tags_first + major_weak_edgelist_dsts.size(),
+                raft::device_span<vertex_t>(major_weak_edgelist_srcs.data(), major_weak_edgelist_srcs.size()),
                 },
               true);
           
