@@ -71,6 +71,7 @@ class BackendInterface:
         no_object_dtype_for_edges = (
             "Edges don't support object dtype (lists, strings, etc.)"
         )
+        tuple_elements_preferred = "elements are tuples instead of lists"
 
         xfail = {
             # This is removed while strongly_connected_components() is not
@@ -130,6 +131,10 @@ class BackendInterface:
                 "test_relabel.py:"
                 "test_relabel_preserve_node_order_partial_mapping_with_copy_false"
             ): "Node order is preserved when relabeling with partial mapping",
+            key(
+                "test_gml.py:"
+                "TestPropertyLists.test_reading_graph_with_single_element_list_property"
+            ): tuple_elements_preferred,
         }
 
         from packaging.version import parse

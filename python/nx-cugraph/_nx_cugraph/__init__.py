@@ -66,6 +66,7 @@ _info = {
         "complete_graph",
         "complete_multipartite_graph",
         "connected_components",
+        "convert_node_labels_to_integers",
         "core_number",
         "cubical_graph",
         "cycle_graph",

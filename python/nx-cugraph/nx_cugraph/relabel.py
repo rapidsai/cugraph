@@ -14,12 +14,14 @@ from collections import defaultdict
 
 import cupy as cp
 import networkx as nx
+import numpy as np
 
 import nx_cugraph as nxcg
 
 from .utils import _get_int_dtype, _groupby, index_dtype, networkx_algorithm
 
 __all__ = [
+    "convert_node_labels_to_integers",
     "relabel_nodes",
 ]
 
@@ -53,7 +55,7 @@ def relabel_nodes(G, mapping, copy=True):
     node_masks = G.node_masks
     if len(key_to_previd) != G._N:  # Some nodes were combined
         # Node data doesn't get merged, so use the data from the last shared index
-        int_dtype = _get_int_dtype(G._N)
+        int_dtype = _get_int_dtype(G._N - 1)
         node_indices = cp.fromiter(key_to_previd.values(), int_dtype)
         node_indices_np = node_indices.get()  # Node data may be cupy or numpy arrays
         node_values = {key: val[node_indices_np] for key, val in node_values.items()}
@@ -107,7 +109,7 @@ def relabel_nodes(G, mapping, copy=True):
                         if key in edge_masks:
                             masks_to_update[key].append((k, True))
 
-            int_dtype = _get_int_dtype(src_indices.size)
+            int_dtype = _get_int_dtype(src_indices.size - 1)
             for k, v in values_to_update.items():
                 ii, jj = zip(*v)
                 edge_val = edge_values[k]
@@ -140,3 +142,51 @@ def relabel_nodes(G, mapping, copy=True):
 @relabel_nodes._can_run
 def _(G, mapping, copy=True):
     return not G.is_multigraph()  # TODO
+
+
+@networkx_algorithm(version_added="24.08")
+def convert_node_labels_to_integers(
+    G, first_label=0, ordering="default", label_attribute=None
+):
+    if ordering not in {"default", "sorted", "increasing degree", "decreasing degree"}:
+        raise nx.NetworkXError(f"Unknown node ordering: {ordering}")
+    if isinstance(G, nx.Graph):
+        G = nxcg.from_networkx(G, preserve_all_attrs=True)
+    G = G.copy()
+    if label_attribute is not None:
+        prev_vals = G.id_to_key
+        if prev_vals is None:
+            prev_vals = cp.arange(G._N, dtype=_get_int_dtype(G._N - 1))
+        else:
+            try:
+                prev_vals = np.array(prev_vals)
+            except ValueError:
+                prev_vals = np.fromiter(prev_vals, object)
+            else:
+                try:
+                    prev_vals = cp.array(prev_vals)
+                except ValueError:
+                    pass
+        G.node_values[label_attribute] = prev_vals
+        G.node_masks.pop(label_attribute, None)
+    id_to_key = None
+    if ordering == "default" or ordering == "sorted" and G.key_to_id is None:
+        if first_label == 0:
+            G.key_to_id = None
+        else:
+            id_to_key = list(range(first_label, first_label + G._N))
+            G.key_to_id = dict(zip(id_to_key, range(G._N)))
+    elif ordering == "sorted":
+        key_to_id = G.key_to_id
+        G.key_to_id = {
+            i: key_to_id[n] for i, n in enumerate(sorted(key_to_id), first_label)
+        }
+    else:
+        pairs = sorted(
+            ((d, n) for (n, d) in G._nodearray_to_dict(G._degrees_array()).items()),
+            reverse=ordering == "decreasing degree",
+        )
+        key_to_id = G.key_to_id
+        G.key_to_id = {i: key_to_id[n] for i, (d, n) in enumerate(pairs, first_label)}
+    G._id_to_key = id_to_key
+    return G
