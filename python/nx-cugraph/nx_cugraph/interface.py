@@ -72,6 +72,9 @@ class BackendInterface:
             "Edges don't support object dtype (lists, strings, etc.)"
         )
         tuple_elements_preferred = "elements are tuples instead of lists"
+        nx_cugraph_in_test_setup = (
+            "nx-cugraph Graph is incompatible in test setup in nx versions < 3.3"
+        )
 
         xfail = {
             # This is removed while strongly_connected_components() is not
@@ -162,6 +165,19 @@ class BackendInterface:
                         "test_strongly_connected.py:"
                         "TestStronglyConnected.test_connected_raise"
                     ): "test is incompatible with pytest>=8",
+                    # NetworkX 3.3 introduced logic around functions that return graphs
+                    key(
+                        "test_vf2pp_helpers.py:TestGraphTinoutUpdating.test_updating"
+                    ): nx_cugraph_in_test_setup,
+                    key(
+                        "test_vf2pp_helpers.py:TestGraphTinoutUpdating.test_restoring"
+                    ): nx_cugraph_in_test_setup,
+                    key(
+                        "test_vf2pp_helpers.py:TestDiGraphTinoutUpdating.test_updating"
+                    ): nx_cugraph_in_test_setup,
+                    key(
+                        "test_vf2pp_helpers.py:TestDiGraphTinoutUpdating.test_restoring"
+                    ): nx_cugraph_in_test_setup,
                 }
             )
 
