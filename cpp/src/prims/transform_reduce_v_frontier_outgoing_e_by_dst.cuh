@@ -192,12 +192,8 @@ size_t compute_num_out_nbrs_from_frontier(raft::handle_t const& handle,
 
   size_t ret{0};
 
-  vertex_t const* local_frontier_vertex_first{nullptr};
-  if constexpr (std::is_same_v<key_t, vertex_t>) {
-    local_frontier_vertex_first = frontier.begin();
-  } else {
-    local_frontier_vertex_first = thrust::get<0>(frontier.begin().get_iterator_tuple());
-  }
+  auto local_frontier_vertex_first =
+    thrust_tuple_get_or_identity<decltype(frontier.begin()), 0>(frontier.begin());
 
   std::vector<size_t> local_frontier_sizes{};
   if constexpr (GraphViewType::is_multi_gpu) {
@@ -400,12 +396,9 @@ transform_reduce_v_frontier_outgoing_e_by_dst(raft::handle_t const& handle,
       d_vertex_lasts.data(), h_vertex_lasts.data(), h_vertex_lasts.size(), handle.get_stream());
     rmm::device_uvector<edge_t> d_tx_buffer_last_boundaries(d_vertex_lasts.size(),
                                                             handle.get_stream());
-    vertex_t const* dst_first{nullptr};
-    if constexpr (std::is_same_v<key_t, vertex_t>) {
-      dst_first = get_dataframe_buffer_begin(key_buffer);
-    } else {
-      dst_first = thrust::get<0>(get_dataframe_buffer_begin(key_buffer).get_iterator_tuple());
-    }
+    auto dst_first =
+      thrust_tuple_get_or_identity<decltype(get_dataframe_buffer_begin(key_buffer)), 0>(
+        get_dataframe_buffer_begin(key_buffer));
     thrust::lower_bound(handle.get_thrust_policy(),
                         dst_first,
                         dst_first + size_dataframe_buffer(key_buffer),

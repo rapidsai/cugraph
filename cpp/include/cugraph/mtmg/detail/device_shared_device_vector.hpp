@@ -25,12 +25,10 @@ namespace mtmg {
 namespace detail {
 
 /**
- * @brief  Wrap an object to be available for each GPU
+ * @brief  Manage a device vector on each GPU
  *
- * In the MTMG environment we need the ability to manage a collection of objects
- * that are associated with a particular GPU, and fetch the objects from an
- * arbitrary GPU thread.  This object will wrap any object and allow it to be
- * accessed from different threads.
+ * Uses the device_shared_wrapper to manage an rmm::device_uvector<T> on
+ * each GPU.
  */
 template <typename T>
 class device_shared_device_vector_t : public device_shared_wrapper_t<rmm::device_uvector<T>> {

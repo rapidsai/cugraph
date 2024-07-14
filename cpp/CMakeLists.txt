@@ -77,19 +77,29 @@ rapids_find_package(CUDAToolkit REQUIRED
     INSTALL_EXPORT_SET  cugraph-exports
     )
 
+if (BUILD_CUGRAPH_MTMG_TESTS)
+    if(NOT TARGET ucx::ucp)
+        find_package(ucx REQUIRED)
+    endif()
+
+    if(NOT TARGET ucxx::ucxx)
+        find_package(ucxx REQUIRED)
+    endif()
+endif()
+
 set(CUGRAPH_C_FLAGS "")
 set(CUGRAPH_CXX_FLAGS "")
 set(CUGRAPH_CUDA_FLAGS "")
 
 if(CMAKE_COMPILER_IS_GNUCXX)
-    list(APPEND CUGRAPH_CXX_FLAGS -Werror -Wno-error=deprecated-declarations)
+    list(APPEND CUGRAPH_CXX_FLAGS -Werror -Wno-error=deprecated-declarations -Wno-deprecated-declarations -DRAFT_HIDE_DEPRECATION_WARNINGS)
 endif(CMAKE_COMPILER_IS_GNUCXX)
 
 
 message("-- Building for GPU_ARCHS = ${CMAKE_CUDA_ARCHITECTURES}")
 
 list(APPEND CUGRAPH_CUDA_FLAGS --expt-extended-lambda --expt-relaxed-constexpr)
-list(APPEND CUGRAPH_CUDA_FLAGS -Werror=cross-execution-space-call -Wno-deprecated-declarations -Xptxas=--disable-warnings)
+list(APPEND CUGRAPH_CUDA_FLAGS -Werror=cross-execution-space-call -Wno-deprecated-declarations -DRAFT_HIDE_DEPRECATION_WARNINGS -Xptxas=--disable-warnings)
 list(APPEND CUGRAPH_CUDA_FLAGS -Xcompiler=-Wall,-Wno-error=sign-compare,-Wno-error=unused-but-set-variable)
 list(APPEND CUGRAPH_CUDA_FLAGS -Xfatbin=-compress-all)
 
@@ -145,11 +155,6 @@ if(USE_CUGRAPH_OPS)
   include(cmake/thirdparty/get_libcugraphops.cmake)
 endif()
 
-
-if (BUILD_CUGRAPH_MTMG_TESTS)
-  include(cmake/thirdparty/get_ucp.cmake)
-endif()
-
 if(BUILD_TESTS)
   include(${rapids-cmake-dir}/cpm/gtest.cmake)
   rapids_cpm_gtest(BUILD_STATIC)
@@ -175,6 +180,7 @@ set(CUGRAPH_SOURCES
     src/community/detail/refine_sg.cu
     src/community/detail/refine_mg.cu
     src/community/edge_triangle_count_sg.cu
+    src/community/edge_triangle_count_mg.cu
     src/community/detail/maximal_independent_moves_sg.cu
     src/community/detail/maximal_independent_moves_mg.cu
     src/detail/utility_wrappers.cu
@@ -283,9 +289,12 @@ set(CUGRAPH_SOURCES
     src/structure/symmetrize_edgelist_mg.cu
     src/community/triangle_count_sg.cu
     src/community/triangle_count_mg.cu
+    src/community/approx_weighted_matching_sg.cu
+    src/community/approx_weighted_matching_mg.cu
     src/traversal/k_hop_nbrs_sg.cu
     src/traversal/k_hop_nbrs_mg.cu
     src/mtmg/vertex_result.cu
+    src/mtmg/vertex_pairs_result.cu
 )
 
 if(USE_CUGRAPH_OPS)

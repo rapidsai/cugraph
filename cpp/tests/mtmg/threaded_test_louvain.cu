@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 #include "utilities/base_fixture.hpp"
+#include "utilities/conversion_utilities.hpp"
 #include "utilities/device_comm_wrapper.hpp"
 #include "utilities/test_graphs.hpp"
-#include "utilities/test_utilities.hpp"
 #include "utilities/thrust_wrapper.hpp"
 
 #include <cugraph/algorithms.hpp>
@@ -83,6 +83,7 @@ class Tests_Multithreaded
 
     constexpr bool renumber           = true;
     constexpr bool do_expensive_check = false;
+    constexpr bool store_transposed   = false;
 
     auto [multithreaded_usecase, input_usecase] = param;
 
@@ -111,17 +112,18 @@ class Tests_Multithreaded
       resource_manager.registered_ranks(), instance_manager_id);
 
     cugraph::mtmg::edgelist_t<vertex_t, weight_t, edge_t, edge_type_t> edgelist;
-    cugraph::mtmg::graph_t<vertex_t, edge_t, false, multi_gpu> graph;
-    cugraph::mtmg::graph_view_t<vertex_t, edge_t, false, multi_gpu> graph_view;
+    cugraph::mtmg::graph_t<vertex_t, edge_t, store_transposed, multi_gpu> graph;
+    cugraph::mtmg::graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> graph_view;
     cugraph::mtmg::vertex_result_t<vertex_t> louvain_clusters;
     std::optional<cugraph::mtmg::renumber_map_t<vertex_t>> renumber_map =
       std::make_optional<cugraph::mtmg::renumber_map_t<vertex_t>>();
 
-    auto edge_weights = multithreaded_usecase.test_weighted
-                          ? std::make_optional<cugraph::mtmg::edge_property_t<
-                              cugraph::mtmg::graph_view_t<vertex_t, edge_t, false, multi_gpu>,
-                              weight_t>>()
-                          : std::nullopt;
+    auto edge_weights =
+      multithreaded_usecase.test_weighted
+        ? std::make_optional<cugraph::mtmg::edge_property_t<
+            cugraph::mtmg::graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>,
+            weight_t>>()
+        : std::nullopt;
 
     //
     // Simulate graph creation by spawning threads to walk through the
@@ -189,15 +191,15 @@ class Tests_Multithreaded
 
         for (size_t j = i; j < h_src_v.size(); j += num_threads) {
           per_thread_edgelist.append(
-            thread_handle,
             h_src_v[j],
             h_dst_v[j],
             h_weights_v ? std::make_optional((*h_weights_v)[j]) : std::nullopt,
             std::nullopt,
-            std::nullopt);
+            std::nullopt,
+            thread_handle.get_stream());
         }
 
-        per_thread_edgelist.flush(thread_handle);
+        per_thread_edgelist.flush(thread_handle.get_stream());
       });
     }
 
@@ -220,29 +222,34 @@ class Tests_Multithreaded
         if (thread_handle.get_thread_rank() > 0) return;
 
         std::optional<cugraph::mtmg::edge_property_t<
-          cugraph::mtmg::graph_view_t<vertex_t, edge_t, false, multi_gpu>,
+          cugraph::mtmg::graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>,
           edge_t>>
           edge_ids{std::nullopt};
         std::optional<cugraph::mtmg::edge_property_t<
-          cugraph::mtmg::graph_view_t<vertex_t, edge_t, false, multi_gpu>,
+          cugraph::mtmg::graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>,
           int32_t>>
           edge_types{std::nullopt};
 
         edgelist.finalize_buffer(thread_handle);
-        edgelist.consolidate_and_shuffle(thread_handle, false);
+        edgelist.consolidate_and_shuffle(thread_handle, store_transposed);
 
-        cugraph::mtmg::
-          create_graph_from_edgelist<vertex_t, edge_t, weight_t, edge_t, int32_t, false, multi_gpu>(
-            thread_handle,
-            edgelist,
-            cugraph::graph_properties_t{is_symmetric, true},
-            renumber,
-            graph,
-            edge_weights,
-            edge_ids,
-            edge_types,
-            renumber_map,
-            do_expensive_check);
+        cugraph::mtmg::create_graph_from_edgelist<vertex_t,
+                                                  edge_t,
+                                                  weight_t,
+                                                  edge_t,
+                                                  int32_t,
+                                                  store_transposed,
+                                                  multi_gpu>(
+          thread_handle,
+          edgelist,
+          cugraph::graph_properties_t{is_symmetric, true},
+          renumber,
+          graph,
+          edge_weights,
+          edge_ids,
+          edge_types,
+          renumber_map,
+          do_expensive_check);
       });
     }
 
@@ -365,9 +372,10 @@ class Tests_Multithreaded
 
     if (multithreaded_usecase.check_correctness) {
       // Want to compare the results in computed_clusters_v with SG results
-      cugraph::graph_t<vertex_t, edge_t, false, false> sg_graph(handle);
+      cugraph::graph_t<vertex_t, edge_t, store_transposed, false> sg_graph(handle);
       std::optional<
-        cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, false, false>, weight_t>>
+        cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, store_transposed, false>,
+                                 weight_t>>
         sg_edge_weights{std::nullopt};
 
       for (int i = 0; i < num_gpus; ++i) {
@@ -376,12 +384,13 @@ class Tests_Multithreaded
             auto thread_handle = instance_manager->get_handle();
 
             if (thread_handle.get_rank() == 0) {
-              std::tie(sg_graph, sg_edge_weights, std::ignore) =
+              std::tie(sg_graph, sg_edge_weights, std::ignore, std::ignore) =
                 cugraph::test::mg_graph_to_sg_graph(
                   thread_handle.raft_handle(),
                   graph_view.get(thread_handle),
                   edge_weights ? std::make_optional(edge_weights->get(thread_handle).view())
                                : std::nullopt,
+                  std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
                   std::optional<raft::device_span<vertex_t const>>{std::nullopt},
                   false);  // create an SG graph with MG graph vertex IDs
             } else {
@@ -390,6 +399,7 @@ class Tests_Multithreaded
                 graph_view.get(thread_handle),
                 edge_weights ? std::make_optional(edge_weights->get(thread_handle).view())
                              : std::nullopt,
+                std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
                 std::optional<raft::device_span<vertex_t const>>{std::nullopt},
                 false);  // create an SG graph with MG graph vertex IDs
             }

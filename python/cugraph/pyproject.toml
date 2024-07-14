@@ -55,6 +55,7 @@ test = [
     "networkx>=2.5.1",
     "numpy>=1.23,<2.0a0",
     "pandas",
+    "pylibwholegraph==24.6.*",
     "pytest",
     "pytest-benchmark",
     "pytest-cov",

@@ -12,6 +12,7 @@
 # limitations under the License.
 
 from cugraph.structure import graph_primtypes_wrapper
+from cugraph.structure.replicate_edgelist import replicate_cudf_dataframe
 from cugraph.structure.symmetrize import symmetrize
 from cugraph.structure.number_map import NumberMap
 import cugraph.dask.common.mg_utils as mg_utils
@@ -131,7 +132,7 @@ class simpleGraphImpl:
         edge_id=None,
         edge_type=None,
         renumber=True,
-        legacy_renum_only=True,
+        legacy_renum_only=False,
         store_transposed=False,
     ):
         if legacy_renum_only:
@@ -680,16 +681,12 @@ class simpleGraphImpl:
 
     def _replicate_edgelist(self):
         client = mg_utils.get_client()
-        comms = Comms.get_comms()
 
         # FIXME: There  might be a better way to control it
         if client is None:
             return
-        work_futures = replication.replicate_cudf_dataframe(
-            self.edgelist.edgelist_df, client=client, comms=comms
-        )
 
-        self.batch_edgelists = work_futures
+        self.batch_edgelists = replicate_cudf_dataframe(self.edgelist.edgelist_df)
 
     def _replicate_adjlist(self):
         client = mg_utils.get_client()

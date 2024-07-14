@@ -199,7 +199,7 @@ class CuGraphTensorAttr:
         return cls(*args, **kwargs)
 
 
-class CuGraphStore:
+class DaskGraphStore:
     """
     Duck-typed version of PyG's GraphStore and FeatureStore.
     """
@@ -221,7 +221,7 @@ class CuGraphStore:
         order: str = "CSR",
     ):
         """
-        Constructs a new CuGraphStore from the provided
+        Constructs a new DaskGraphStore from the provided
         arguments.
 
         Parameters

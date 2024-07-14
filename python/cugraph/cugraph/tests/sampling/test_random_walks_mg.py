@@ -1,4 +1,4 @@
-# Copyright (c) 2022-2023, NVIDIA CORPORATION.
+# Copyright (c) 2022-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -182,7 +182,7 @@ def input_graph(request):
     chunksize = dcg.get_chunksize(input_data_path)
     ddf = dask_cudf.read_csv(
         input_data_path,
-        chunksize=chunksize,
+        blocksize=chunksize,
         delimiter=" ",
         names=["src", "dst", "value"],
         dtype=["int32", "int32", "float32"],
@@ -202,7 +202,7 @@ def input_graph(request):
 
 @pytest.mark.mg
 @pytest.mark.cugraph_ops
-def test_dask_mg_random_walks(dask_client, benchmark, input_graph):
+def test_dask_mg_random_walks(dask_client, input_graph):
     path_data, seeds, max_depth = calc_random_walks(input_graph)
     df_G = input_graph.input_df.compute().reset_index(drop=True)
     check_random_walks(input_graph, path_data, seeds, max_depth, df_G)

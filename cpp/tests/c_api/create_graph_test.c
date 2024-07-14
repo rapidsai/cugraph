@@ -268,6 +268,7 @@ int test_create_sg_graph_csr()
                                              NULL,
                                              NULL,
                                              NULL,
+                                             NULL,
                                              h_fan_out_view,
                                              rng_state,
                                              sampling_options,

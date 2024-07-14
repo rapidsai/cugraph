@@ -14,8 +14,9 @@
  * limitations under the License.
  */
 #include "utilities/base_fixture.hpp"
+#include "utilities/check_utilities.hpp"
+#include "utilities/conversion_utilities.hpp"
 #include "utilities/test_graphs.hpp"
-#include "utilities/test_utilities.hpp"
 #include "utilities/thrust_wrapper.hpp"
 
 #include <cugraph/algorithms.hpp>
@@ -174,15 +175,15 @@ class Tests_Multithreaded
 
         for (size_t j = starting_edge_offset; j < h_src_v.size(); j += stride) {
           per_thread_edgelist.append(
-            thread_handle,
             h_src_v[j],
             h_dst_v[j],
             h_weights_v ? std::make_optional((*h_weights_v)[j]) : std::nullopt,
             std::nullopt,
-            std::nullopt);
+            std::nullopt,
+            thread_handle.get_stream());
         }
 
-        per_thread_edgelist.flush(thread_handle);
+        per_thread_edgelist.flush(thread_handle.get_stream());
       });
     }
 

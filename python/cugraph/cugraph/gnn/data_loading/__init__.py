@@ -15,5 +15,6 @@ from cugraph.gnn.data_loading.bulk_sampler import BulkSampler
 from cugraph.gnn.data_loading.dist_sampler import (
     DistSampler,
     DistSampleWriter,
+    DistSampleReader,
     UniformNeighborSampler,
 )
