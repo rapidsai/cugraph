@@ -9,11 +9,11 @@ channels:
 - conda-forge
 - nvidia
 dependencies:
-- cugraph==24.6.*
+- cugraph==24.8.*,>=0.0.0a0
 - pandas
 - pre-commit
 - pyg>=2.5,<2.6
-- pylibcugraphops==24.6.*
+- pylibcugraphops==24.8.*,>=0.0.0a0
 - pytest
 - pytest-benchmark
 - pytest-cov

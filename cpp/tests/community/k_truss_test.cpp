@@ -224,10 +224,11 @@ class Tests_KTruss : public ::testing::TestWithParam<std::tuple<KTruss_Usecase, 
 
       if (edge_weight) {
         std::tie(d_sorted_cugraph_srcs, d_sorted_cugraph_dsts, d_sorted_cugraph_wgts) =
-          cugraph::test::sort_by_key(handle, d_cugraph_srcs, d_cugraph_dsts, *d_cugraph_wgts);
+          cugraph::test::sort_by_key<vertex_t, weight_t>(
+            handle, d_cugraph_srcs, d_cugraph_dsts, *d_cugraph_wgts);
       } else {
         std::tie(d_sorted_cugraph_srcs, d_sorted_cugraph_dsts) =
-          cugraph::test::sort(handle, d_cugraph_srcs, d_cugraph_dsts);
+          cugraph::test::sort<vertex_t>(handle, d_cugraph_srcs, d_cugraph_dsts);
       }
 
       auto h_cugraph_srcs = cugraph::test::to_host(handle, d_sorted_cugraph_srcs);

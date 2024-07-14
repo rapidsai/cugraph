@@ -133,16 +133,9 @@ extract_induced_subgraphs(
 #endif
   // 1. check input arguments
 
-  CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
-
   if (do_expensive_check) {
     size_t should_be_zero{std::numeric_limits<size_t>::max()};
-    size_t num_aggregate_subgraph_vertices{};
     raft::update_host(&should_be_zero, subgraph_offsets.data(), 1, handle.get_stream());
-    raft::update_host(&num_aggregate_subgraph_vertices,
-                      subgraph_offsets.data() + subgraph_offsets.size() - 1,
-                      1,
-                      handle.get_stream());
     handle.sync_stream();
     CUGRAPH_EXPECTS(should_be_zero == 0,
                     "Invalid input argument: subgraph_offsets[0] should be 0.");
@@ -219,17 +212,10 @@ extract_induced_subgraphs(
   dst_subgraph_vertices = raft::device_span<vertex_t const>(dst_subgraph_vertices_v.data(),
                                                             dst_subgraph_vertices_v.size());
 
-  // 3. Call extract_transform_v_frontier_e with a functor that
-  //    returns thrust::nullopt if the destination vertex has
-  //    a property of 0, return the edge if the destination
-  //    vertex has a property of 1
+  // 3. Call extract_transform_v_frontier_outgoing_e with a functor that returns thrust::nullopt if
+  // the destination vertex has a property of 0, return the edge if the destination vertex has a
+  // property of 1
   vertex_frontier_t<vertex_t, size_t, multi_gpu, false> vertex_frontier(handle, 1);
-
-  std::vector<size_t> h_subgraph_offsets(subgraph_offsets.size());
-  raft::update_host(h_subgraph_offsets.data(),
-                    subgraph_offsets.data(),
-                    subgraph_offsets.size(),
-                    handle.get_stream());
 
   graph_ids_v = detail::expand_sparse_offsets(subgraph_offsets, size_t{0}, handle.get_stream());
 

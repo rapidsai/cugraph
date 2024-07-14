@@ -300,7 +300,8 @@ class Tests_CoreNumber
       if (renumber) {
         rmm::device_uvector<edge_t> d_unrenumbered_core_numbers(size_t{0}, handle.get_stream());
         std::tie(std::ignore, d_unrenumbered_core_numbers) =
-          cugraph::test::sort_by_key(handle, *d_renumber_map_labels, d_core_numbers);
+          cugraph::test::sort_by_key<vertex_t, edge_t>(
+            handle, *d_renumber_map_labels, d_core_numbers);
         h_cugraph_core_numbers = cugraph::test::to_host(handle, d_unrenumbered_core_numbers);
       } else {
         h_cugraph_core_numbers = cugraph::test::to_host(handle, d_core_numbers);

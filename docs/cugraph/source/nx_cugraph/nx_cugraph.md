@@ -1,18 +1,17 @@
 ### nx_cugraph
 
 
-Whereas previous versions of cuGraph have included mechanisms to make it
-trivial to plug in cuGraph algorithm calls. Beginning with version 24.02, nx-cuGraph
-is now a [networkX backend](<https://networkx.org/documentation/stable/reference/utils.html#backends>).
-The user now need only [install nx-cugraph](<https://github.com/rapidsai/cugraph/blob/branch-24.06/python/nx-cugraph/README.md#install>)
-to experience GPU speedups.
+nx-cugraph is a [NetworkX
+backend](<https://networkx.org/documentation/stable/reference/utils.html#backends>) that provides GPU acceleration to many popular NetworkX algorithms.
 
-Lets look at some examples of algorithm speedups comparing CPU based NetworkX to dispatched versions run on GPU with nx_cugraph.
+By simply [installing and enabling nx-cugraph](<https://github.com/rapidsai/cugraph/blob/HEAD/python/nx-cugraph/README.md#install>), users can see significant speedup on workflows where performance is hindered by the default NetworkX implementation.  With nx-cugraph, users can have GPU-based, large-scale performance without changing their familiar and easy-to-use NetworkX code.
+
+Let's look at some examples of algorithm speedups comparing NetworkX with and without GPU acceleration using nx-cugraph.
 
 Each chart has three measurements.
-* NX - running the algorithm natively with networkX on CPU.
-* nx-cugraph - running with GPU accelerated networkX achieved by simply calling the cugraph backend. This pays the overhead of building the GPU resident object for each algorithm called. This achieves significant improvement but stil isn't compleltely optimum.
-* nx-cugraph (preconvert) - This is a bit more complicated since it involves building (precomputing) the GPU resident graph ahead and reusing it for each algorithm.
+* NX - default NetworkX, no GPU acceleration
+* nx-cugraph - GPU-accelerated NetworkX using nx-cugraph. This involves an internal conversion/transfer of graph data from CPU to GPU memory
+* nx-cugraph (preconvert) - GPU-accelerated NetworkX using nx-cugraph with the graph data pre-converted/transferred to GPU
 
 
 ![Ancestors](../images/ancestors.png)
@@ -44,7 +43,7 @@ user@machine:/# ipython bc_demo.ipy
 
 You will observe a run time of approximately 7 minutes...more or less depending on your cpu.
 
-Run the command again, this time specifiying cugraph as the NetworkX backend of choice.
+Run the command again, this time specifying cugraph as the NetworkX backend.
 ```
 user@machine:/# NETWORKX_BACKEND_PRIORITY=cugraph ipython bc_demo.ipy
 ```
@@ -52,12 +51,12 @@ This run will be much faster, typically around 20 seconds depending on your GPU.
 ```
 user@machine:/# NETWORKX_BACKEND_PRIORITY=cugraph ipython bc_demo.ipy
 ```
-There is also an option to add caching. This will dramatically help performance when running multiple algorithms on the same graph.
+There is also an option to cache the graph conversion to GPU. This can dramatically improve performance when running multiple algorithms on the same graph.
 ```
-NETWORKX_BACKEND_PRIORITY=cugraph CACHE_CONVERTED_GRAPH=True ipython bc_demo.ipy
+NETWORKX_BACKEND_PRIORITY=cugraph NETWORKX_CACHE_CONVERTED_GRAPHS=True ipython bc_demo.ipy
 ```
 
-When running Python interactively, cugraph backend can be specified as an argument in the algorithm call.
+When running Python interactively, the cugraph backend can be specified as an argument in the algorithm call.
 
 For example:
 ```
@@ -65,4 +64,4 @@ nx.betweenness_centrality(cit_patents_graph, k=k, backend="cugraph")
 ```
 
 
-The latest list of algorithms that can be dispatched to nx-cuGraph for acceleration is found [here](https://github.com/rapidsai/cugraph/blob/main/python/nx-cugraph/README.md#algorithms).
+The latest list of algorithms supported by nx-cugraph can be found [here](https://github.com/rapidsai/cugraph/blob/main/python/nx-cugraph/README.md#algorithms).
