@@ -15,6 +15,8 @@ rapids-print-env
 
 rapids-logger "Begin cpp build"
 
+mamba install rattler-build -c conda-forge
+
 RAPIDS_PACKAGE_VERSION=$(rapids-generate-version) rapids-conda-retry mambabuild conda/recipes/libcugraph
 
 rapids-upload-conda-to-s3 cpp
