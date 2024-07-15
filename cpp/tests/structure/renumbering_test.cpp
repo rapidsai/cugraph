@@ -69,10 +69,29 @@ class Tests_Renumbering
 
     rmm::device_uvector<vertex_t> src_v(0, handle.get_stream());
     rmm::device_uvector<vertex_t> dst_v(0, handle.get_stream());
-    rmm::device_uvector<vertex_t> renumber_map_labels_v(0, handle.get_stream());
 
-    std::tie(src_v, dst_v, std::ignore, std::ignore, std::ignore) =
-      input_usecase.template construct_edgelist<vertex_t, weight_t>(handle, false, false, false);
+    {
+      std::vector<rmm::device_uvector<vertex_t>> src_chunks{};
+      std::vector<rmm::device_uvector<vertex_t>> dst_chunks{};
+      std::tie(src_chunks, dst_chunks, std::ignore, std::ignore, std::ignore) =
+        input_usecase.template construct_edgelist<vertex_t, weight_t>(handle, false, false, false);
+
+      edge_t edge_count{0};
+      for (size_t i = 0; i < src_chunks.size(); ++i) {
+        edge_count += static_cast<edge_t>(src_chunks[i].size());
+      }
+      src_v.resize(edge_count, handle.get_stream());
+      dst_v.resize(src_v.size(), handle.get_stream());
+
+      edge_t offset{0};
+      for (size_t i = 0; i < src_chunks.size(); ++i) {
+        raft::copy(
+          src_v.data() + offset, src_chunks[i].data(), src_chunks[i].size(), handle.get_stream());
+        raft::copy(
+          dst_v.data() + offset, dst_chunks[i].data(), dst_chunks[i].size(), handle.get_stream());
+        offset += static_cast<edge_t>(src_chunks[i].size());
+      }
+    }
 
     if (renumbering_usecase.check_correctness) {
       h_original_src_v = cugraph::test::to_host(handle, src_v);
@@ -84,6 +103,7 @@ class Tests_Renumbering
       hr_timer.start("Renumbering");
     }
 
+    rmm::device_uvector<vertex_t> renumber_map_labels_v(0, handle.get_stream());
     std::tie(renumber_map_labels_v, std::ignore) =
       cugraph::renumber_edgelist<vertex_t, edge_t, false>(
         handle, std::nullopt, src_v.begin(), dst_v.begin(), src_v.size(), false);
