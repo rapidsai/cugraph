@@ -253,6 +253,9 @@ Below is the list of algorithms that are currently supported in nx-cugraph.
 <a href="https://networkx.org/documentation/stable/reference/classes/index.html">classes</a>
  └─ <a href="https://networkx.org/documentation/stable/reference/functions.html#module-networkx.classes.function">function</a>
      └─ <a href="https://networkx.org/documentation/stable/reference/generated/networkx.classes.function.is_negatively_weighted.html#networkx.classes.function.is_negatively_weighted">is_negatively_weighted</a>
+<a href="https://networkx.org/documentation/stable/reference/convert.html#module-networkx.convert">convert</a>
+ ├─ <a href="https://networkx.org/documentation/stable/reference/generated/networkx.convert.from_dict_of_lists.html#networkx.convert.from_dict_of_lists">from_dict_of_lists</a>
+ └─ <a href="https://networkx.org/documentation/stable/reference/generated/networkx.convert.to_dict_of_lists.html#networkx.convert.to_dict_of_lists">to_dict_of_lists</a>
 <a href="https://networkx.org/documentation/stable/reference/convert.html#module-networkx.convert_matrix">convert_matrix</a>
  ├─ <a href="https://networkx.org/documentation/stable/reference/generated/networkx.convert_matrix.from_pandas_edgelist.html#networkx.convert_matrix.from_pandas_edgelist">from_pandas_edgelist</a>
  └─ <a href="https://networkx.org/documentation/stable/reference/generated/networkx.convert_matrix.from_scipy_sparse_array.html#networkx.convert_matrix.from_scipy_sparse_array">from_scipy_sparse_array</a>
