@@ -61,7 +61,12 @@ def bidirectional_shortest_path(G, source, target):
     # TODO PERF: do bidirectional traversal in core
     G = _to_graph(G)
     if source not in G or target not in G:
-        raise nx.NodeNotFound(f"Either source {source} or target {target} is not in G")
+        if nx.__version__[:3] <= "3.3":
+            raise nx.NodeNotFound(
+                f"Either source {source} or target {target} is not in G"
+            )
+        missing = f"Source {source}" if source not in G else f"Target {target}"
+        raise nx.NodeNotFound(f"{missing} is not in G")
     return _bfs(G, source, None, "Source", return_type="path", target=target)
 
 
@@ -131,7 +136,7 @@ def _bfs(
         # return_type == "length-path"
         return {source: 0}, {source: [source]}
 
-    if cutoff is None:
+    if cutoff is None or np.isinf(cutoff):
         cutoff = -1
     src_index = source if G.key_to_id is None else G.key_to_id[source]
     distances, predecessors, node_ids = plc.bfs(
