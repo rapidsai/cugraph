@@ -160,7 +160,8 @@ class Tests_MGTransformE
     cugraph::edge_property_t<decltype(mg_graph_view), result_t> edge_value_output(*handle_,
                                                                                   mg_graph_view);
 
-    cugraph::fill_edge_property(*handle_, mg_graph_view, property_initial_value, edge_value_output);
+    cugraph::fill_edge_property(
+      *handle_, mg_graph_view, edge_value_output.mutable_view(), property_initial_value);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement

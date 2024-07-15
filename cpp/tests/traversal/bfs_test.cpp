@@ -101,7 +101,10 @@ class Tests_BFS : public ::testing::TestWithParam<std::tuple<BFS_Usecase, input_
   template <typename vertex_t, typename edge_t>
   void run_current_test(BFS_Usecase const& bfs_usecase, input_usecase_t const& input_usecase)
   {
-    constexpr bool renumber = true;
+    bool constexpr renumber         = true;
+    bool constexpr test_weighted    = false;
+    bool constexpr drop_self_loops  = false;
+    bool constexpr drop_multi_edges = false;
 
     using weight_t = float;
 
@@ -117,7 +120,7 @@ class Tests_BFS : public ::testing::TestWithParam<std::tuple<BFS_Usecase, input_
     std::optional<rmm::device_uvector<vertex_t>> d_renumber_map_labels{std::nullopt};
     std::tie(graph, std::ignore, d_renumber_map_labels) =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, false>(
-        handle, input_usecase, false, renumber);
+        handle, input_usecase, test_weighted, renumber, drop_self_loops, drop_multi_edges);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -131,6 +134,16 @@ class Tests_BFS : public ::testing::TestWithParam<std::tuple<BFS_Usecase, input_
       edge_mask =
         cugraph::test::generate<decltype(graph_view), bool>::edge_property(handle, graph_view, 2);
       graph_view.attach_edge_mask((*edge_mask).view());
+    }
+    {  // FIXME: for testing, delete
+      auto num_self_loops  = graph_view.count_self_loops(handle);
+      auto number_of_edges = graph_view.compute_number_of_edges(handle);
+      std::cout << "V=" << graph_view.number_of_vertices() << " E=" << number_of_edges
+                << " num_self_loops=" << num_self_loops;
+      if (graph_view.is_symmetric()) {
+        std::cout << " undirected E=" << ((number_of_edges - num_self_loops) / 2 + num_self_loops)
+                  << std::endl;
+      }
     }
 
     ASSERT_TRUE(static_cast<vertex_t>(bfs_usecase.source) >= 0 &&
@@ -154,7 +167,7 @@ class Tests_BFS : public ::testing::TestWithParam<std::tuple<BFS_Usecase, input_
                  d_predecessors.data(),
                  d_source.data(),
                  size_t{1},
-                 false,
+                 graph_view.is_symmetric() ? true : false,
                  std::numeric_limits<vertex_t>::max());
 
     if (cugraph::test::g_perf) {
@@ -305,10 +318,12 @@ INSTANTIATE_TEST_SUITE_P(
   Tests_BFS_Rmat,
   ::testing::Values(
     // enable correctness checks
-    std::make_tuple(BFS_Usecase{0, false},
-                    cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, false, false)),
-    std::make_tuple(BFS_Usecase{0, true},
-                    cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, false, false))));
+    std::make_tuple(
+      BFS_Usecase{0, false},
+      cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, true /* undirected */, false)),
+    std::make_tuple(
+      BFS_Usecase{0, true},
+      cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, true /* undirected */, false))));
 
 INSTANTIATE_TEST_SUITE_P(
   rmat_benchmark_test, /* note that scale & edge factor can be overridden in benchmarking (with
@@ -319,9 +334,13 @@ INSTANTIATE_TEST_SUITE_P(
   Tests_BFS_Rmat,
   ::testing::Values(
     // disable correctness checks for large graphs
-    std::make_tuple(BFS_Usecase{0, false, false},
-                    cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false)),
-    std::make_tuple(BFS_Usecase{0, true, false},
-                    cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false))));
+    std::make_tuple(
+      BFS_Usecase{0, false, false},
+      cugraph::test::Rmat_Usecase(
+        20, 16, 0.57, 0.19, 0.19, 0, true /* undirected */, false /* scramble vertex IDs */)),
+    std::make_tuple(
+      BFS_Usecase{0, true, false},
+      cugraph::test::Rmat_Usecase(
+        20, 16, 0.57, 0.19, 0.19, 0, true /* undirected */, false /* scramble vertex IDs */))));
 
 CUGRAPH_TEST_PROGRAM_MAIN()
