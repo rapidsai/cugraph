@@ -1,4 +1,4 @@
-# Copyright (c) 2022-2023, NVIDIA CORPORATION.
+# Copyright (c) 2022-2024, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -21,7 +21,10 @@ import cudf
 import cupy as cp
 from typing import Tuple
 
-from pylibcugraph import ResourceHandle, k_truss_subgraph as pylibcugraph_k_truss_subgraph
+from pylibcugraph import (
+    ResourceHandle,
+    k_truss_subgraph as pylibcugraph_k_truss_subgraph,
+)
 
 
 def _call_k_truss_subgraph(

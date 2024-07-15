@@ -77,19 +77,13 @@ def get_mg_graph(dataset, directed):
 @pytest.mark.parametrize("dataset", DATASETS)
 @pytest.mark.parametrize("is_directed", IS_DIRECTED)
 @pytest.mark.parametrize("k", K_VALUE)
-def test_mg_k_truss_subgraph(
-    dask_client, benchmark, dataset, is_directed, k
-):
+def test_mg_k_truss_subgraph(dask_client, benchmark, dataset, is_directed, k):
     # Create SG and MG Graphs
     g = get_sg_graph(dataset, is_directed)
     dg = get_mg_graph(dataset, is_directed)
 
     sg_k_truss_subgraph = cugraph.k_truss_subgraph(g, k=k)
-    result_k_truss_subgraph = benchmark(
-        dcg.k_truss_subgraph,
-        dg,
-        k
-    )
+    result_k_truss_subgraph = benchmark(dcg.k_truss_subgraph, dg, k)
 
     mg_df = result_k_truss_subgraph
 
