@@ -16,6 +16,7 @@
 
 #include "utilities/base_fixture.hpp"
 #include "utilities/conversion_utilities.hpp"
+#include "utilities/property_generator_utilities.hpp"
 #include "utilities/test_graphs.hpp"
 #include "utilities/thrust_wrapper.hpp"
 
@@ -85,6 +86,8 @@ void sssp_reference(edge_t const* offsets,
 
 struct SSSP_Usecase {
   size_t source{0};
+
+  bool edge_masking{false};
   bool check_correctness{true};
 };
 
@@ -126,6 +129,13 @@ class Tests_SSSP : public ::testing::TestWithParam<std::tuple<SSSP_Usecase, inpu
     auto edge_weight_view =
       edge_weights ? std::make_optional((*edge_weights).view()) : std::nullopt;
 
+    std::optional<cugraph::edge_property_t<decltype(graph_view), bool>> edge_mask{std::nullopt};
+    if (sssp_usecase.edge_masking) {
+      edge_mask =
+        cugraph::test::generate<decltype(graph_view), bool>::edge_property(handle, graph_view, 2);
+      graph_view.attach_edge_mask((*edge_mask).view());
+    }
+
     ASSERT_TRUE(static_cast<vertex_t>(sssp_usecase.source) >= 0 &&
                 static_cast<vertex_t>(sssp_usecase.source) < graph_view.number_of_vertices());
 
@@ -154,30 +164,16 @@ class Tests_SSSP : public ::testing::TestWithParam<std::tuple<SSSP_Usecase, inpu
     }
 
     if (sssp_usecase.check_correctness) {
-      cugraph::graph_t<vertex_t, edge_t, false, false> unrenumbered_graph(handle);
-      std::optional<
-        cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, false, false>, weight_t>>
-        unrenumbered_edge_weights{std::nullopt};
-      if (renumber) {
-        std::tie(unrenumbered_graph, unrenumbered_edge_weights, std::ignore) =
-          cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, false>(
-            handle, input_usecase, true, false);
-      }
-      auto unrenumbered_graph_view = renumber ? unrenumbered_graph.view() : graph_view;
-      auto unrenumbered_edge_weight_view =
-        renumber
-          ? (unrenumbered_edge_weights ? std::make_optional((*unrenumbered_edge_weights).view())
-                                       : std::nullopt)
-          : edge_weight_view;
-
-      auto h_offsets = cugraph::test::to_host(
-        handle, unrenumbered_graph_view.local_edge_partition_view().offsets());
-      auto h_indices = cugraph::test::to_host(
-        handle, unrenumbered_graph_view.local_edge_partition_view().indices());
-      auto h_weights = cugraph::test::to_host(
-        handle,
-        raft::device_span<weight_t const>((*unrenumbered_edge_weight_view).value_firsts()[0],
-                                          (*unrenumbered_edge_weight_view).edge_counts()[0]));
+      auto [h_offsets, h_indices, h_weights] =
+        cugraph::test::graph_to_host_csr<vertex_t, edge_t, weight_t, false, false>(
+          handle,
+          graph_view,
+          edge_weight_view,
+          d_renumber_map_labels
+            ? std::make_optional<raft::device_span<vertex_t const>>((*d_renumber_map_labels).data(),
+                                                                    (*d_renumber_map_labels).size())
+            : std::nullopt);
+      assert(h_weights.has_value());
 
       auto unrenumbered_source = static_cast<vertex_t>(sssp_usecase.source);
       if (renumber) {
@@ -185,15 +181,15 @@ class Tests_SSSP : public ::testing::TestWithParam<std::tuple<SSSP_Usecase, inpu
         unrenumbered_source        = h_renumber_map_labels[sssp_usecase.source];
       }
 
-      std::vector<weight_t> h_reference_distances(unrenumbered_graph_view.number_of_vertices());
-      std::vector<vertex_t> h_reference_predecessors(unrenumbered_graph_view.number_of_vertices());
+      std::vector<weight_t> h_reference_distances(graph_view.number_of_vertices());
+      std::vector<vertex_t> h_reference_predecessors(graph_view.number_of_vertices());
 
       sssp_reference(h_offsets.data(),
                      h_indices.data(),
-                     h_weights.data(),
+                     (*h_weights).data(),
                      h_reference_distances.data(),
                      h_reference_predecessors.data(),
-                     unrenumbered_graph_view.number_of_vertices(),
+                     graph_view.number_of_vertices(),
                      unrenumbered_source,
                      std::numeric_limits<weight_t>::max());
 
@@ -210,10 +206,12 @@ class Tests_SSSP : public ::testing::TestWithParam<std::tuple<SSSP_Usecase, inpu
 
         rmm::device_uvector<weight_t> d_unrenumbered_distances(size_t{0}, handle.get_stream());
         std::tie(std::ignore, d_unrenumbered_distances) =
-          cugraph::test::sort_by_key(handle, *d_renumber_map_labels, d_distances);
+          cugraph::test::sort_by_key<vertex_t, weight_t>(
+            handle, *d_renumber_map_labels, d_distances);
         rmm::device_uvector<vertex_t> d_unrenumbered_predecessors(size_t{0}, handle.get_stream());
         std::tie(std::ignore, d_unrenumbered_predecessors) =
-          cugraph::test::sort_by_key(handle, *d_renumber_map_labels, d_predecessors);
+          cugraph::test::sort_by_key<vertex_t, vertex_t>(
+            handle, *d_renumber_map_labels, d_predecessors);
 
         h_cugraph_distances    = cugraph::test::to_host(handle, d_unrenumbered_distances);
         h_cugraph_predecessors = cugraph::test::to_host(handle, d_unrenumbered_predecessors);
@@ -222,7 +220,7 @@ class Tests_SSSP : public ::testing::TestWithParam<std::tuple<SSSP_Usecase, inpu
         h_cugraph_predecessors = cugraph::test::to_host(handle, d_predecessors);
       }
 
-      auto max_weight_element = std::max_element(h_weights.begin(), h_weights.end());
+      auto max_weight_element = std::max_element((*h_weights).begin(), (*h_weights).end());
       auto epsilon            = *max_weight_element * weight_t{1e-6};
       auto nearly_equal = [epsilon](auto lhs, auto rhs) { return std::fabs(lhs - rhs) < epsilon; };
 
@@ -242,7 +240,7 @@ class Tests_SSSP : public ::testing::TestWithParam<std::tuple<SSSP_Usecase, inpu
           bool found{false};
           for (auto j = h_offsets[*it]; j < h_offsets[*it + 1]; ++j) {
             if (h_indices[j] == i) {
-              if (nearly_equal(pred_distance + h_weights[j], h_reference_distances[i])) {
+              if (nearly_equal(pred_distance + (*h_weights)[j], h_reference_distances[i])) {
                 found = true;
                 break;
               }
@@ -292,17 +290,25 @@ INSTANTIATE_TEST_SUITE_P(
   Tests_SSSP_File,
   // enable correctness checks
   ::testing::Values(
-    std::make_tuple(SSSP_Usecase{0}, cugraph::test::File_Usecase("test/datasets/karate.mtx")),
-    std::make_tuple(SSSP_Usecase{0}, cugraph::test::File_Usecase("test/datasets/dblp.mtx")),
-    std::make_tuple(SSSP_Usecase{1000},
+    std::make_tuple(SSSP_Usecase{0, false},
+                    cugraph::test::File_Usecase("test/datasets/karate.mtx")),
+    std::make_tuple(SSSP_Usecase{0, true}, cugraph::test::File_Usecase("test/datasets/karate.mtx")),
+    std::make_tuple(SSSP_Usecase{0, false}, cugraph::test::File_Usecase("test/datasets/dblp.mtx")),
+    std::make_tuple(SSSP_Usecase{0, true}, cugraph::test::File_Usecase("test/datasets/dblp.mtx")),
+    std::make_tuple(SSSP_Usecase{1000, false},
+                    cugraph::test::File_Usecase("test/datasets/wiki2003.mtx")),
+    std::make_tuple(SSSP_Usecase{1000, true},
                     cugraph::test::File_Usecase("test/datasets/wiki2003.mtx"))));
 
 INSTANTIATE_TEST_SUITE_P(
   rmat_small_test,
   Tests_SSSP_Rmat,
   // enable correctness checks
-  ::testing::Values(std::make_tuple(
-    SSSP_Usecase{0}, cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, false, false))));
+  ::testing::Values(
+    std::make_tuple(SSSP_Usecase{0, false},
+                    cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, false, false)),
+    std::make_tuple(SSSP_Usecase{0, true},
+                    cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, false, false))));
 
 INSTANTIATE_TEST_SUITE_P(
   rmat_benchmark_test, /* note that scale & edge factor can be overridden in benchmarking (with
@@ -313,7 +319,9 @@ INSTANTIATE_TEST_SUITE_P(
   Tests_SSSP_Rmat,
   // disable correctness checks for large graphs
   ::testing::Values(
-    std::make_tuple(SSSP_Usecase{0, false},
+    std::make_tuple(SSSP_Usecase{0, false, false},
+                    cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false)),
+    std::make_tuple(SSSP_Usecase{0, true, false},
                     cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false))));
 
 CUGRAPH_TEST_PROGRAM_MAIN()

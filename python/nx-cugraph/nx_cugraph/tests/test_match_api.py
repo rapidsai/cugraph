@@ -63,6 +63,8 @@ def test_match_signature_and_names():
             )
         if func.can_run is not nxcg.utils.decorators._default_can_run:
             assert func_sig == inspect.signature(func.can_run)
+        if func.should_run is not nxcg.utils.decorators._default_should_run:
+            assert func_sig == inspect.signature(func.should_run)
 
         # Matching function names?
         assert func.__name__ == dispatchable_func.__name__ == orig_func.__name__

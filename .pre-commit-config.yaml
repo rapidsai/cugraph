@@ -39,20 +39,10 @@ repos:
     rev: v16.0.6
     hooks:
       - id: clang-format
-        exclude: |
-          (?x)^(
-            cpp/libcugraph_etl|
-            cpp/tests/c_api
-          )
         types_or: [c, c++, cuda]
         args: ["-fallback-style=none", "-style=file", "-i"]
-  - repo: https://github.com/rapidsai/dependency-file-generator
-    rev: v1.8.0
-    hooks:
-        - id: rapids-dependency-file-generator
-          args: ["--clean"]
   - repo: https://github.com/rapidsai/pre-commit-hooks
-    rev: v0.0.3
+    rev: v0.2.0
     hooks:
       - id: verify-copyright
         files: |
@@ -63,6 +53,12 @@ repos:
               [.]flake8[.]cython$|
               meta[.]yaml$|
               setup[.]cfg$
+      - id: verify-alpha-spec
+  - repo: https://github.com/rapidsai/dependency-file-generator
+    rev: v1.13.11
+    hooks:
+        - id: rapids-dependency-file-generator
+          args: ["--clean"]
   - repo: local
     hooks:
       - id: nx-cugraph-meta-data-update
@@ -72,7 +68,7 @@ repos:
         types: [python]
         language: python
         pass_filenames: false
-        additional_dependencies: ["networkx>=3.2"]
+        additional_dependencies: ["networkx>=3.3"]
   - repo: local
     hooks:
       - id: nx-cugraph-readme-update
@@ -82,4 +78,4 @@ repos:
         types_or: [python, markdown]
         language: python
         pass_filenames: false
-        additional_dependencies: ["networkx>=3.2"]
+        additional_dependencies: ["networkx>=3.3"]

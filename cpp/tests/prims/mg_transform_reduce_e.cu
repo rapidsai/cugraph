@@ -15,7 +15,6 @@
  */
 
 #include "prims/transform_reduce_e.cuh"
-#include "prims/update_edge_src_dst_property.cuh"
 #include "result_compare.cuh"
 #include "utilities/base_fixture.hpp"
 #include "utilities/conversion_utilities.hpp"
@@ -159,13 +158,15 @@ class Tests_MGTransformReduceE
 
     if (prims_usecase.check_correctness) {
       cugraph::graph_t<vertex_t, edge_t, store_transposed, false> sg_graph(*handle_);
-      std::tie(sg_graph, std::ignore, std::ignore) = cugraph::test::mg_graph_to_sg_graph(
-        *handle_,
-        mg_graph_view,
-        std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>>{std::nullopt},
-        std::make_optional<raft::device_span<vertex_t const>>((*mg_renumber_map).data(),
-                                                              (*mg_renumber_map).size()),
-        false);
+      std::tie(sg_graph, std::ignore, std::ignore, std::ignore) =
+        cugraph::test::mg_graph_to_sg_graph(
+          *handle_,
+          mg_graph_view,
+          std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>>{std::nullopt},
+          std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
+          std::make_optional<raft::device_span<vertex_t const>>((*mg_renumber_map).data(),
+                                                                (*mg_renumber_map).size()),
+          false);
 
       if (handle_->get_comms().get_rank() == 0) {
         auto sg_graph_view = sg_graph.view();

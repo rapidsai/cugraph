@@ -98,7 +98,7 @@ rmm::device_uvector<weight_t> eigenvector_centrality(
                  old_centralities.data());
 
     update_edge_src_property(
-      handle, pull_graph_view, old_centralities.begin(), edge_src_centralities);
+      handle, pull_graph_view, old_centralities.begin(), edge_src_centralities.mutable_view());
 
     if (edge_weight_view) {
       per_v_transform_reduce_incoming_e(
@@ -180,8 +180,6 @@ rmm::device_uvector<weight_t> eigenvector_centrality(
                 "GraphViewType::vertex_type should be integral.");
   static_assert(std::is_floating_point<weight_t>::value,
                 "weight_t should be a floating-point type.");
-
-  CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
 
   CUGRAPH_EXPECTS(epsilon >= 0.0, "Invalid input argument: epsilon should be non-negative.");
   if (initial_centralities)

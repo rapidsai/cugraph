@@ -11,10 +11,10 @@ cd "$(dirname "$(realpath "${BASH_SOURCE[0]}")")"/../
 rapids-logger "Generate C++ testing dependencies"
 rapids-dependency-file-generator \
   --output conda \
-  --file_key test_cpp \
+  --file-key test_cpp \
   --matrix "cuda=${RAPIDS_CUDA_VERSION%.*};arch=$(arch)" | tee env.yaml
 
-rapids-mamba-retry env create --force -f env.yaml -n test
+rapids-mamba-retry env create --yes -f env.yaml -n test
 
 # Temporarily allow unbound variables for conda activation.
 set +u
@@ -42,6 +42,9 @@ pushd "${RAPIDS_DATASET_ROOT_DIR}"
 popd
 
 export GTEST_OUTPUT=xml:${RAPIDS_TESTS_DIR}/
+
+# Skip benchmark tests inside of CI
+export GTEST_FILTER="-*benchmark*"
 
 # Run libcugraph gtests from libcugraph-tests package
 rapids-logger "Run gtests"

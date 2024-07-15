@@ -343,6 +343,7 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
 
   rmm::device_uvector<vertex_t> majors(0, handle.get_stream());
   auto e_op_result_buffer = allocate_dataframe_buffer<T>(0, handle.get_stream());
+  std::vector<size_t> rx_offsets{};
   for (size_t i = 0; i < graph_view.number_of_local_edge_partitions(); ++i) {
     auto edge_partition =
       edge_partition_device_view_t<vertex_t, edge_t, GraphViewType::is_multi_gpu>(
@@ -356,7 +357,8 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
 
     auto edge_partition_src_value_input =
       edge_partition_src_input_device_view_t(edge_src_value_input, i);
-    auto edge_partition_e_value_input = edge_partition_e_input_device_view_t(edge_value_input, i);
+    [[maybe_unused]] auto edge_partition_e_value_input =
+      edge_partition_e_input_device_view_t(edge_value_input, i);
 
     std::optional<rmm::device_uvector<edge_t>> offsets_with_mask{std::nullopt};
     if (edge_partition_e_mask) {
@@ -452,7 +454,7 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
       rmm::device_uvector<vertex_t> unreduced_majors(max_chunk_size, handle.get_stream());
       rmm::device_uvector<vertex_t> unreduced_minor_keys(unreduced_majors.size(),
                                                          handle.get_stream());
-      auto unreduced_key_aggregated_edge_values =
+      [[maybe_unused]] auto unreduced_key_aggregated_edge_values =
         detail::allocate_optional_dataframe_buffer<optional_edge_value_buffer_value_type>(
           unreduced_majors.size(), handle.get_stream());
       rmm::device_uvector<std::byte> d_tmp_storage(0, handle.get_stream());
@@ -753,7 +755,7 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
             std::make_unique<kv_store_t<vertex_t, edge_src_value_t, true>>(
               std::move(majors),
               std::move(edge_major_values),
-              invalid_vertex_id<vertex_t>::value,
+              edge_src_value_t{},
               true,
               handle.get_stream());
         }
@@ -761,7 +763,7 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
 
       rmm::device_uvector<vertex_t> rx_majors(0, handle.get_stream());
       rmm::device_uvector<vertex_t> rx_minor_keys(0, handle.get_stream());
-      auto rx_key_aggregated_edge_values =
+      [[maybe_unused]] auto rx_key_aggregated_edge_values =
         detail::allocate_optional_dataframe_buffer<optional_edge_value_buffer_value_type>(
           0, handle.get_stream());
       auto mem_frugal_flag =
@@ -1040,6 +1042,10 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
 
       // FIXME: additional optimization is possible if reduce_op is a pure function (and reduce_op
       // can be mapped to ncclRedOp_t).
+      // FIXME: Memory footprint can grow proportional to minor_comm_size in the worst case. If
+      // reduce_op can be mapped to ncclRedOp_t, we can use ncclReduce to sovle this probelm. If
+      // reduce_op cannot be mapped to ncclRedOp_t, we need to implement our own multi-GPU reduce
+      // function.
 
       auto rx_sizes = host_scalar_gather(minor_comm, tmp_majors.size(), i, handle.get_stream());
       std::vector<size_t> rx_displs{};
@@ -1072,35 +1078,15 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
       if (static_cast<size_t>(minor_comm_rank) == i) {
         majors             = std::move(rx_majors);
         e_op_result_buffer = std::move(rx_tmp_e_op_result_buffer);
+        rx_offsets         = std::vector<size_t>(rx_sizes.size() + 1);
+        rx_offsets[0]      = 0;
+        std::inclusive_scan(rx_sizes.begin(), rx_sizes.end(), rx_offsets.begin() + 1);
       }
     } else {
       majors             = std::move(tmp_majors);
       e_op_result_buffer = std::move(tmp_e_op_result_buffer);
+      rx_offsets         = {0, majors.size()};
     }
-  }
-
-  if constexpr (GraphViewType::is_multi_gpu) {
-    thrust::sort_by_key(handle.get_thrust_policy(),
-                        majors.begin(),
-                        majors.end(),
-                        get_dataframe_buffer_begin(e_op_result_buffer));
-    auto num_uniques = thrust::count_if(handle.get_thrust_policy(),
-                                        thrust::make_counting_iterator(size_t{0}),
-                                        thrust::make_counting_iterator(majors.size()),
-                                        detail::is_first_in_run_t<vertex_t const*>{majors.data()});
-    rmm::device_uvector<vertex_t> unique_majors(num_uniques, handle.get_stream());
-    auto reduced_e_op_result_buffer =
-      allocate_dataframe_buffer<T>(unique_majors.size(), handle.get_stream());
-    thrust::reduce_by_key(handle.get_thrust_policy(),
-                          majors.begin(),
-                          majors.end(),
-                          get_dataframe_buffer_begin(e_op_result_buffer),
-                          unique_majors.begin(),
-                          get_dataframe_buffer_begin(reduced_e_op_result_buffer),
-                          thrust::equal_to<vertex_t>{},
-                          reduce_op);
-    majors             = std::move(unique_majors);
-    e_op_result_buffer = std::move(reduced_e_op_result_buffer);
   }
 
   // 2. update final results
@@ -1108,22 +1094,25 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
   thrust::fill(handle.get_thrust_policy(),
                vertex_value_output_first,
                vertex_value_output_first + graph_view.local_vertex_partition_range_size(),
-               T{});
+               init);
 
-  thrust::scatter(handle.get_thrust_policy(),
-                  get_dataframe_buffer_begin(e_op_result_buffer),
-                  get_dataframe_buffer_end(e_op_result_buffer),
-                  thrust::make_transform_iterator(
-                    majors.begin(),
-                    detail::vertex_local_offset_t<vertex_t, GraphViewType::is_multi_gpu>{
-                      graph_view.local_vertex_partition_view()}),
-                  vertex_value_output_first);
-
-  thrust::transform(handle.get_thrust_policy(),
-                    vertex_value_output_first,
-                    vertex_value_output_first + graph_view.local_vertex_partition_range_size(),
-                    vertex_value_output_first,
-                    detail::reduce_with_init_t<ReduceOp, T>{reduce_op, init});
+  auto pair_first =
+    thrust::make_zip_iterator(majors.begin(), get_dataframe_buffer_begin(e_op_result_buffer));
+  for (size_t i = 0; i < rx_offsets.size() - 1; ++i) {
+    thrust::for_each(
+      handle.get_thrust_policy(),
+      pair_first + rx_offsets[i],
+      pair_first + rx_offsets[i + 1],
+      [vertex_value_output_first,
+       reduce_op,
+       major_first = graph_view.local_vertex_partition_range_first()] __device__(auto pair) {
+        auto major        = thrust::get<0>(pair);
+        auto major_offset = major - major_first;
+        auto e_op_result  = thrust::get<1>(pair);
+        *(vertex_value_output_first + major_offset) =
+          reduce_op(*(vertex_value_output_first + major_offset), e_op_result);
+      });
+  }
 }
 
 }  // namespace cugraph

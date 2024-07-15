@@ -1,4 +1,4 @@
-# Copyright (c) 2021-2023, NVIDIA CORPORATION.
+# Copyright (c) 2021-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -75,10 +75,8 @@ def read_csv(input_csv_file, scale):
     dtypes = [vertex_t, vertex_t, "float32"]
     names = (["src", "dst", "weight"],)
 
-    chunksize = cugraph.dask.get_chunksize(input_csv_file)
     return cudf.read_csv(
         input_csv_file,
-        chunksize=chunksize,
         delimiter=" ",
         # names=names,
         dtype=dtypes,

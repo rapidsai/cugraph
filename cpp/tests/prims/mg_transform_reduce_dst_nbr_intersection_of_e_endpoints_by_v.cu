@@ -16,7 +16,6 @@
 
 #include "prims/transform_e.cuh"
 #include "prims/transform_reduce_dst_nbr_intersection_of_e_endpoints_by_v.cuh"
-#include "prims/update_edge_src_dst_property.cuh"
 #include "utilities/base_fixture.hpp"
 #include "utilities/conversion_utilities.hpp"
 #include "utilities/device_comm_wrapper.hpp"
@@ -174,13 +173,15 @@ class Tests_MGTransformReduceDstNbrIntersectionOfEEndpointsByV
           raft::device_span<edge_t const>(mg_result_buffer.data(), mg_result_buffer.size()));
 
       cugraph::graph_t<vertex_t, edge_t, false, false> sg_graph(*handle_);
-      std::tie(sg_graph, std::ignore, std::ignore) = cugraph::test::mg_graph_to_sg_graph(
-        *handle_,
-        mg_graph_view,
-        std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>>{std::nullopt},
-        std::make_optional<raft::device_span<vertex_t const>>((*mg_renumber_map).data(),
-                                                              (*mg_renumber_map).size()),
-        false);
+      std::tie(sg_graph, std::ignore, std::ignore, std::ignore) =
+        cugraph::test::mg_graph_to_sg_graph(
+          *handle_,
+          mg_graph_view,
+          std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>>{std::nullopt},
+          std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
+          std::make_optional<raft::device_span<vertex_t const>>((*mg_renumber_map).data(),
+                                                                (*mg_renumber_map).size()),
+          false);
 
       if (handle_->get_comms().get_rank() == 0) {
         auto sg_graph_view = sg_graph.view();

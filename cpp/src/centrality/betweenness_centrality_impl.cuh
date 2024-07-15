@@ -23,7 +23,7 @@
 #include "prims/per_v_transform_reduce_incoming_outgoing_e.cuh"
 #include "prims/transform_e.cuh"
 #include "prims/transform_reduce_v.cuh"
-#include "prims/transform_reduce_v_frontier_outgoing_e_by_dst.cuh"
+#include "prims/transform_reduce_v_frontier_outgoing_e_by_src_dst.cuh"
 #include "prims/update_edge_src_dst_property.cuh"
 #include "prims/update_v_frontier.cuh"
 #include "prims/vertex_frontier.cuh"
@@ -130,8 +130,8 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<edge_t>> brandes_b
   edge_t hop{0};
 
   while (true) {
-    update_edge_src_property(handle, graph_view, sigmas.begin(), src_sigmas);
-    update_edge_dst_property(handle, graph_view, distances.begin(), dst_distances);
+    update_edge_src_property(handle, graph_view, sigmas.begin(), src_sigmas.mutable_view());
+    update_edge_dst_property(handle, graph_view, distances.begin(), dst_distances.mutable_view());
 
     auto [new_frontier, new_sigma] =
       transform_reduce_v_frontier_outgoing_e_by_dst(handle,
@@ -228,12 +228,12 @@ void accumulate_vertex_results(
     handle,
     graph_view,
     thrust::make_zip_iterator(distances.begin(), sigmas.begin(), deltas.begin()),
-    src_properties);
+    src_properties.mutable_view());
   update_edge_dst_property(
     handle,
     graph_view,
     thrust::make_zip_iterator(distances.begin(), sigmas.begin(), deltas.begin()),
-    dst_properties);
+    dst_properties.mutable_view());
 
   // FIXME: To do this efficiently, I need a version of
   //   per_v_transform_reduce_outgoing_e that takes a vertex list
@@ -272,12 +272,12 @@ void accumulate_vertex_results(
       handle,
       graph_view,
       thrust::make_zip_iterator(distances.begin(), sigmas.begin(), deltas.begin()),
-      src_properties);
+      src_properties.mutable_view());
     update_edge_dst_property(
       handle,
       graph_view,
       thrust::make_zip_iterator(distances.begin(), sigmas.begin(), deltas.begin()),
-      dst_properties);
+      dst_properties.mutable_view());
 
     thrust::transform(handle.get_thrust_policy(),
                       centralities.begin(),
@@ -323,12 +323,12 @@ void accumulate_edge_results(
     handle,
     graph_view,
     thrust::make_zip_iterator(distances.begin(), sigmas.begin(), deltas.begin()),
-    src_properties);
+    src_properties.mutable_view());
   update_edge_dst_property(
     handle,
     graph_view,
     thrust::make_zip_iterator(distances.begin(), sigmas.begin(), deltas.begin()),
-    dst_properties);
+    dst_properties.mutable_view());
 
   //
   //   For now this will do a O(E) pass over all edges over the diameter
@@ -417,12 +417,12 @@ void accumulate_edge_results(
       handle,
       graph_view,
       thrust::make_zip_iterator(distances.begin(), sigmas.begin(), deltas.begin()),
-      src_properties);
+      src_properties.mutable_view());
     update_edge_dst_property(
       handle,
       graph_view,
       thrust::make_zip_iterator(distances.begin(), sigmas.begin(), deltas.begin()),
-      dst_properties);
+      dst_properties.mutable_view());
   }
 }
 
@@ -591,7 +591,15 @@ edge_betweenness_centrality(
   edge_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>, weight_t> centralities(
     handle, graph_view);
 
-  fill_edge_property(handle, graph_view, weight_t{0}, centralities, do_expensive_check);
+  if (graph_view.has_edge_mask()) {
+    auto unmasked_graph_view = graph_view;
+    unmasked_graph_view.clear_edge_mask();
+    fill_edge_property(
+      handle, unmasked_graph_view, centralities.mutable_view(), weight_t{0}, do_expensive_check);
+  } else {
+    fill_edge_property(
+      handle, graph_view, centralities.mutable_view(), weight_t{0}, do_expensive_check);
+  }
 
   size_t num_sources = thrust::distance(vertices_begin, vertices_end);
   std::vector<size_t> source_offsets{{0, num_sources}};
@@ -691,8 +699,6 @@ rmm::device_uvector<weight_t> betweenness_centrality(
   bool const include_endpoints,
   bool const do_expensive_check)
 {
-  CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
-
   if (vertices) {
     return detail::betweenness_centrality(handle,
                                           graph_view,
@@ -725,8 +731,6 @@ edge_betweenness_centrality(
   bool const normalized,
   bool const do_expensive_check)
 {
-  CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
-
   if (vertices) {
     return detail::edge_betweenness_centrality(handle,
                                                graph_view,

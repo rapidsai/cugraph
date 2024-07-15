@@ -18,6 +18,7 @@
 #include "utilities/conversion_utilities.hpp"
 #include "utilities/device_comm_wrapper.hpp"
 #include "utilities/mg_utilities.hpp"
+#include "utilities/property_generator_utilities.hpp"
 #include "utilities/test_graphs.hpp"
 #include "utilities/thrust_wrapper.hpp"
 
@@ -40,6 +41,8 @@
 
 struct TriangleCount_Usecase {
   double vertex_subset_ratio{0.0};
+
+  bool edge_masking{false};
   bool check_correctness{true};
 };
 
@@ -87,6 +90,13 @@ class Tests_MGTriangleCount
     }
 
     auto mg_graph_view = mg_graph.view();
+
+    std::optional<cugraph::edge_property_t<decltype(mg_graph_view), bool>> edge_mask{std::nullopt};
+    if (triangle_count_usecase.edge_masking) {
+      edge_mask = cugraph::test::generate<decltype(mg_graph_view), bool>::edge_property(
+        *handle_, mg_graph_view, 2);
+      mg_graph_view.attach_edge_mask((*edge_mask).view());
+    }
 
     // 2. generate a vertex subset to compute triangle counts
 
@@ -168,13 +178,15 @@ class Tests_MGTriangleCount
                                           d_mg_triangle_counts.size()));
 
       cugraph::graph_t<vertex_t, edge_t, false, false> sg_graph(*handle_);
-      std::tie(sg_graph, std::ignore, std::ignore) = cugraph::test::mg_graph_to_sg_graph(
-        *handle_,
-        mg_graph_view,
-        std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>>{std::nullopt},
-        std::make_optional<raft::device_span<vertex_t const>>((*mg_renumber_map).data(),
-                                                              (*mg_renumber_map).size()),
-        false);
+      std::tie(sg_graph, std::ignore, std::ignore, std::ignore) =
+        cugraph::test::mg_graph_to_sg_graph(
+          *handle_,
+          mg_graph_view,
+          std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>>{std::nullopt},
+          std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
+          std::make_optional<raft::device_span<vertex_t const>>((*mg_renumber_map).data(),
+                                                                (*mg_renumber_map).size()),
+          false);
 
       if (handle_->get_comms().get_rank() == int{0}) {
         // 4-2. run SG TriangleCount
@@ -253,14 +265,19 @@ INSTANTIATE_TEST_SUITE_P(
   Tests_MGTriangleCount_File,
   ::testing::Combine(
     // enable correctness checks
-    ::testing::Values(TriangleCount_Usecase{0.1}, TriangleCount_Usecase{1.0}),
+    ::testing::Values(TriangleCount_Usecase{0.1, false},
+                      TriangleCount_Usecase{0.1, true},
+                      TriangleCount_Usecase{1.0, false},
+                      TriangleCount_Usecase{1.0, true}),
     ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"),
                       cugraph::test::File_Usecase("test/datasets/dolphins.mtx"))));
 
 INSTANTIATE_TEST_SUITE_P(rmat_small_tests,
                          Tests_MGTriangleCount_Rmat,
-                         ::testing::Combine(::testing::Values(TriangleCount_Usecase{0.1},
-                                                              TriangleCount_Usecase{1.0}),
+                         ::testing::Combine(::testing::Values(TriangleCount_Usecase{0.1, false},
+                                                              TriangleCount_Usecase{0.1, true},
+                                                              TriangleCount_Usecase{1.0, false},
+                                                              TriangleCount_Usecase{1.0, true}),
                                             ::testing::Values(cugraph::test::Rmat_Usecase(
                                               10, 16, 0.57, 0.19, 0.19, 0, true, false))));
 
@@ -272,7 +289,10 @@ INSTANTIATE_TEST_SUITE_P(
                           factor (to avoid running same benchmarks more than once) */
   Tests_MGTriangleCount_Rmat,
   ::testing::Combine(
-    ::testing::Values(TriangleCount_Usecase{0.1, false}, TriangleCount_Usecase{1.0, false}),
+    ::testing::Values(TriangleCount_Usecase{0.1, false, false},
+                      TriangleCount_Usecase{0.1, true, false},
+                      TriangleCount_Usecase{1.0, false, false},
+                      TriangleCount_Usecase{1.0, true, false}),
     ::testing::Values(cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, true, false))));
 
 CUGRAPH_MG_TEST_PROGRAM_MAIN()

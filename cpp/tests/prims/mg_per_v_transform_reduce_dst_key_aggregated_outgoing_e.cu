@@ -16,7 +16,6 @@
 
 #include "prims/per_v_transform_reduce_dst_key_aggregated_outgoing_e.cuh"
 #include "prims/reduce_op.cuh"
-#include "prims/update_edge_src_dst_property.cuh"
 #include "result_compare.cuh"
 #include "utilities/base_fixture.hpp"
 #include "utilities/conversion_utilities.hpp"
@@ -297,13 +296,15 @@ class Tests_MGPerVTransformReduceDstKeyAggregatedOutgoingE
       std::optional<
         cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, false, false>, weight_t>>
         sg_edge_weights{std::nullopt};
-      std::tie(sg_graph, sg_edge_weights, std::ignore) = cugraph::test::mg_graph_to_sg_graph(
-        *handle_,
-        mg_graph_view,
-        std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>>{std::nullopt},
-        std::make_optional<raft::device_span<vertex_t const>>((*mg_renumber_map).data(),
-                                                              (*mg_renumber_map).size()),
-        false);
+      std::tie(sg_graph, sg_edge_weights, std::ignore, std::ignore) =
+        cugraph::test::mg_graph_to_sg_graph(
+          *handle_,
+          mg_graph_view,
+          std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>>{std::nullopt},
+          std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
+          std::make_optional<raft::device_span<vertex_t const>>((*mg_renumber_map).data(),
+                                                                (*mg_renumber_map).size()),
+          false);
 
       for (size_t i = 0; i < reduction_types.size(); ++i) {
         auto mg_aggregate_results =

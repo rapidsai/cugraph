@@ -213,12 +213,12 @@ shuffle_int_vertex_value_pairs_to_local_gpu_by_vertex_partitioning(
  *
  * @param[in] handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator,
  * and handles to various CUDA libraries) to run graph algorithms.
- * @param[in/out] d_edgelist_majors Vertex IDs for sources (if we are internally storing edges in
+ * @param[in,out] d_edgelist_majors Vertex IDs for sources (if we are internally storing edges in
  * the sparse 2D matrix using sources as major indices) or destinations (otherwise)
- * @param[in/out] d_edgelist_minors Vertex IDs for destinations (if we are internally storing edges
+ * @param[in,out] d_edgelist_minors Vertex IDs for destinations (if we are internally storing edges
  * in the sparse 2D matrix using sources as major indices) or sources (otherwise)
- * @param[in/out] d_edgelist_weights Optional edge weights
- * @param[in/out] d_edgelist_id_type_pairs Optional edge (ID, type) pairs
+ * @param[in,out] d_edgelist_weights Optional edge weights
+ * @param[in,out] d_edgelist_id_type_pairs Optional edge (ID, type) pairs
  * @param[in] groupby_and_count_local_partition_by_minor If set to true, groupby and count edges
  * based on (local partition ID, GPU ID) pairs (where GPU IDs are computed by applying the
  * compute_gpu_id_from_vertex_t function to the minor vertex ID). If set to false, groupby and count

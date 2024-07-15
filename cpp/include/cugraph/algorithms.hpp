@@ -23,6 +23,8 @@
 #include <cugraph/legacy/graph.hpp>
 #include <cugraph/legacy/internals.hpp>
 
+#include <rmm/resource_ref.hpp>
+
 #ifndef NO_CUGRAPH_OPS
 #include <cugraph-ops/graph/sampling.hpp>
 #endif
@@ -428,41 +430,6 @@ void connected_components(legacy::GraphCSRView<VT, ET, WT> const& graph,
                           VT* labels);
 
 /**
- * @brief     Compute k truss for a graph  ** temporary
- *
- * K Truss is the maximal subgraph of a graph which contains at least three
- * vertices where every edge is incident to at least k-2 triangles.
- *
- * This version is a temporary solution to clean up python integration through the C API.
- *
- * This version is only supported SG.
- *
- * @throws                  cugraph::logic_error with a custom message when an error
- * occurs.
- *
- * @tparam vertex_t         Type of vertex identifiers. Supported value : int (signed, 32-bit)
- * @tparam weight_t         Type of edge weights. Supported values : float or double.
- *
- * @param[in] handle        Library handle (RAFT).
- * @param[in] src           Source vertices from COO
- * @param[in] dst           Destination vertices from COO
- * @param[in] wgt           Optional edge weights from COO
- * @param[in] k             The order of the truss
- * @return                  Tuple containing extracted src, dst and optional weights for the
- * subgraph
- */
-template <typename vertex_t, typename weight_t>
-std::tuple<rmm::device_uvector<vertex_t>,
-           rmm::device_uvector<vertex_t>,
-           std::optional<rmm::device_uvector<weight_t>>>
-k_truss_subgraph(raft::handle_t const& handle,
-                 raft::device_span<vertex_t> src,
-                 raft::device_span<vertex_t> dst,
-                 std::optional<raft::device_span<weight_t>> wgt,
-                 size_t number_of_vertices,
-                 int k);
-
-/**
  * @brief      Compute Hungarian algorithm on a weighted bipartite graph
  *
  * The Hungarian algorithm computes an assigment of "jobs" to "workers".  This function accepts
@@ -575,14 +542,6 @@ std::pair<size_t, weight_t> louvain(
   vertex_t* clustering,
   size_t max_level    = 100,
   weight_t threshold  = weight_t{1e-7},
-  weight_t resolution = weight_t{1});
-
-template <typename vertex_t, typename edge_t, typename weight_t>
-std::pair<size_t, weight_t> louvain(
-  raft::handle_t const& handle,
-  legacy::GraphCSRView<vertex_t, edge_t, weight_t> const& graph_view,
-  vertex_t* clustering,
-  size_t max_level    = 100,
   weight_t resolution = weight_t{1});
 
 /**
@@ -771,38 +730,6 @@ std::pair<size_t, weight_t> leiden(
  *
  * @throws     cugraph::logic_error when an error occurs.
  *
- * @tparam vertex_t                  Type of vertex identifiers. Supported value : int (signed,
- * 32-bit)
- * @tparam edge_t                    Type of edge identifiers.  Supported value : int (signed,
- * 32-bit)
- * @tparam weight_t                  Type of edge weights. Supported values : float or double.
- *
- * @param[in]  handle                Library handle (RAFT). If a communicator is set in the handle,
- * @param[in]  graph_coo             input graph object (COO)
- * @param[in]  graph_csr             input graph object (CSR)
- * @param[in]  min_weight            The minimum weight parameter
- * @param[in]  ensemble_size         The ensemble size parameter
- * @param[out] clustering            A device pointer to array where the partitioning should be
- * written
- */
-template <typename vertex_t, typename edge_t, typename weight_t>
-void ecg(raft::handle_t const& handle,
-         legacy::GraphCSRView<vertex_t, edge_t, weight_t> const& graph,
-         weight_t min_weight,
-         vertex_t ensemble_size,
-         vertex_t* clustering);
-
-/**
- * @brief Computes the ecg clustering of the given graph.
- *
- * ECG runs truncated Louvain on an ensemble of permutations of the input graph,
- * then uses the ensemble partitions to determine weights for the input graph.
- * The final result is found by running full Louvain on the input graph using
- * the determined weights. See https://arxiv.org/abs/1809.05578 for further
- * information.
- *
- * @throws     cugraph::logic_error when an error occurs.
- *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
  * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
  * @tparam weight_t Type of edge weights. Needs to be a floating point type.
@@ -865,7 +792,7 @@ template <typename vertex_t, typename edge_t, typename weight_t>
 std::unique_ptr<legacy::GraphCOO<vertex_t, edge_t, weight_t>> minimum_spanning_tree(
   raft::handle_t const& handle,
   legacy::GraphCSRView<vertex_t, edge_t, weight_t> const& graph,
-  rmm::mr::device_memory_resource* mr = rmm::mr::get_current_device_resource());
+  rmm::device_async_resource_ref mr = rmm::mr::get_current_device_resource());
 
 namespace subgraph {
 /**
@@ -1842,7 +1769,7 @@ void weakly_connected_components(raft::handle_t const& handle,
 enum class k_core_degree_type_t { IN = 0, OUT = 1, INOUT = 2 };
 
 /**
- * @brief   Compute core numbers of individual vertices from K-core decomposition.
+ * @brief   Compute core numbers of individual vertices from K-Core decomposition.
  *
  * The input graph should not have self-loops nor multi-edges. Currently, only undirected graphs are
  * supported.
@@ -1855,11 +1782,11 @@ enum class k_core_degree_type_t { IN = 0, OUT = 1, INOUT = 2 };
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Graph view object.
  * @param core_numbers Pointer to the output core number array.
- * @param degree_type Dictate whether to compute the K-core decomposition based on in-degrees,
+ * @param degree_type Dictate whether to compute the K-Core decomposition based on in-degrees,
  * out-degrees, or in-degrees + out_degrees.
- * @param k_first Find K-cores from K = k_first. Any vertices that do not belong to k_first-core
+ * @param k_first Find K-Cores from K = k_first. Any vertices that do not belong to k_first-core
  * will have core numbers of 0.
- * @param k_last Find K-cores to K = k_last. Any vertices that belong to (k_last)-core will have
+ * @param k_last Find K-Cores to K = k_last. Any vertices that belong to (k_last)-core will have
  * their core numbers set to their degrees on k_last-core.
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  */
@@ -1873,7 +1800,7 @@ void core_number(raft::handle_t const& handle,
                  bool do_expensive_check = false);
 
 /**
- * @brief   Extract K Core of a graph
+ * @brief   Extract K-Core of a graph
  *
  * @throws     cugraph::logic_error when an error occurs.
  *
@@ -1884,7 +1811,7 @@ void core_number(raft::handle_t const& handle,
  * @param  graph_view      Graph view object.
  * @param edge_weight_view Optional view object holding edge weights for @p graph_view.
  * @param  k               Order of the core. This value must not be negative.
- * @param degree_type Optional parameter to dictate whether to compute the K-core decomposition
+ * @param degree_type Optional parameter to dictate whether to compute the K-Core decomposition
  *                    based on in-degrees, out-degrees, or in-degrees + out_degrees.  One of @p
  *                    degree_type and @p core_numbers must be specified.
  * @param  core_numbers    Optional output from core_number algorithm.  If not specified then
@@ -1904,115 +1831,6 @@ k_core(raft::handle_t const& handle,
        std::optional<k_core_degree_type_t> degree_type,
        std::optional<raft::device_span<edge_t const>> core_numbers,
        bool do_expensive_check = false);
-
-/**
- * @brief Controls how we treat prior sources in sampling
- *
- * @param DEFAULT    Add vertices encounted while sampling to the new frontier
- * @param CARRY_OVER In addition to newly encountered vertices, include vertices
- *                   used as sources in any previous frontier in the new frontier
- * @param EXCLUDE    Filter the new frontier to exclude any vertex that was
- *                   used as a source in a previous frontier
- */
-enum class prior_sources_behavior_t { DEFAULT = 0, CARRY_OVER, EXCLUDE };
-
-/**
- * @brief Uniform Neighborhood Sampling.
- *
- * This function traverses from a set of starting vertices, traversing outgoing edges and
- * randomly selects from these outgoing neighbors to extract a subgraph.
- *
- * Output from this function is a tuple of vectors (src, dst, weight, edge_id, edge_type, hop,
- * label, offsets), identifying the randomly selected edges.  src is the source vertex, dst is the
- * destination vertex, weight (optional) is the edge weight, edge_id (optional) identifies the edge
- * id, edge_type (optional) identifies the edge type, hop identifies which hop the edge was
- * encountered in.  The label output (optional) identifes the vertex label.  The offsets array
- * (optional) will be described below and is dependent upon the input parameters.
- *
- *
- * If @p starting_vertex_labels is not specified then no organization is applied to the output, the
- * label and offsets values in the return set will be std::nullopt.
- *
- * If @p starting_vertex_labels is specified and @p label_to_output_comm_rank is not specified then
- * the label output has values.  This will also result in the output being sorted by vertex label.
- * The offsets array in the return will be a CSR-style offsets array to identify the beginning of
- * each label range in the data.  `labels.size() == (offsets.size() - 1)`.
- *
- * If @p starting_vertex_labels is specified and @p label_to_output_comm_rank is specified then the
- * label output has values.  This will also result in the output being sorted by vertex label.  The
- * offsets array in the return will be a CSR-style offsets array to identify the beginning of each
- * label range in the data.  `labels.size() == (offsets.size() - 1)`.  Additionally, the data will
- * be shuffled so that all data with a particular label will be on the specified rank.
- *
- * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
- * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
- * @tparam weight_t Type of edge weights. Needs to be a floating point type.
- * @tparam edge_type_t Type of edge type. Needs to be an integral type.
- * @tparam label_t Type of label. Needs to be an integral type.
- * @tparam store_transposed Flag indicating whether sources (if false) or destinations (if
- * true) are major indices
- * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
- * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
- * handles to various CUDA libraries) to run graph algorithms.
- * @param graph_view Graph View object to generate NBR Sampling on.
- * @param edge_weight_view Optional view object holding edge weights for @p graph_view.
- * @param edge_id_view Optional view object holding edge ids for @p graph_view.
- * @param edge_type_view Optional view object holding edge types for @p graph_view.
- * @param starting_vertices Device span of starting vertex IDs for the sampling.
- * In a multi-gpu context the starting vertices should be local to this GPU.
- * @param starting_vertex_labels Optional device span of labels associted with each starting vertex
- * for the sampling.
- * @param label_to_output_comm_rank Optional tuple of device spans mapping label to a particular
- * output rank.  Element 0 of the tuple identifes the label, Element 1 of the tuple identifies the
- * output rank.  The label span must be sorted in ascending order.
- * @param fan_out Host span defining branching out (fan-out) degree per source vertex for each
- * level
- * @param rng_state A pre-initialized raft::RngState object for generating random numbers
- * @param return_hops boolean flag specifying if the hop information should be returned
- * @param prior_sources_behavior Enum type defining how to handle prior sources, (defaults to
- * DEFAULT)
- * @param dedupe_sources boolean flag, if true then if a vertex v appears as a destination in hop X
- * multiple times with the same label, it will only be passed once (for each label) as a source
- * for the next hop.  Default is false.
- * @param with_replacement boolean flag specifying if random sampling is done with replacement
- * (true); or, without replacement (false); default = true;
- * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
- * @return tuple device vectors (vertex_t source_vertex, vertex_t destination_vertex,
- * optional weight_t weight, optional edge_t edge id, optional edge_type_t edge type,
- * optional int32_t hop, optional label_t label, optional size_t offsets)
- */
-template <typename vertex_t,
-          typename edge_t,
-          typename weight_t,
-          typename edge_type_t,
-          typename label_t,
-          bool store_transposed,
-          bool multi_gpu>
-std::tuple<rmm::device_uvector<vertex_t>,
-           rmm::device_uvector<vertex_t>,
-           std::optional<rmm::device_uvector<weight_t>>,
-           std::optional<rmm::device_uvector<edge_t>>,
-           std::optional<rmm::device_uvector<edge_type_t>>,
-           std::optional<rmm::device_uvector<int32_t>>,
-           std::optional<rmm::device_uvector<label_t>>,
-           std::optional<rmm::device_uvector<size_t>>>
-uniform_neighbor_sample(
-  raft::handle_t const& handle,
-  graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
-  std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
-  std::optional<edge_property_view_t<edge_t, edge_t const*>> edge_id_view,
-  std::optional<edge_property_view_t<edge_t, edge_type_t const*>> edge_type_view,
-  raft::device_span<vertex_t const> starting_vertices,
-  std::optional<raft::device_span<label_t const>> starting_vertex_labels,
-  std::optional<std::tuple<raft::device_span<label_t const>, raft::device_span<int32_t const>>>
-    label_to_output_comm_rank,
-  raft::host_span<int32_t const> fan_out,
-  raft::random::RngState& rng_state,
-  bool return_hops,
-  bool with_replacement                           = true,
-  prior_sources_behavior_t prior_sources_behavior = prior_sources_behavior_t::DEFAULT,
-  bool dedupe_sources                             = false,
-  bool do_expensive_check                         = false);
 
 /*
  * @brief Compute triangle counts.
@@ -2040,6 +1858,50 @@ void triangle_count(raft::handle_t const& handle,
                     raft::device_span<edge_t> counts,
                     bool do_expensive_check = false);
 
+/*
+ * @brief Compute edge triangle counts.
+ *
+ * Compute edge triangle counts for the entire set of edges.
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param graph_view Graph view object.
+ *
+ * @return edge_property_t containing the edge triangle count
+ */
+template <typename vertex_t, typename edge_t, bool multi_gpu>
+edge_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>, edge_t> edge_triangle_count(
+  raft::handle_t const& handle, graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view);
+
+/*
+ * @brief Compute K-Truss.
+ *
+ * Extract the K-Truss subgraph of a graph
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param graph_view Graph view object.
+ * @param edge_weight_view Optional view object holding edge weights for @p graph_view.
+ * @param k The desired k to be used for extracting the K-Truss subgraph
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
+ * @return edge list of the K-Truss subgraph
+ */
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+std::tuple<rmm::device_uvector<vertex_t>,
+           rmm::device_uvector<vertex_t>,
+           std::optional<rmm::device_uvector<weight_t>>>
+k_truss(raft::handle_t const& handle,
+        graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+        std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
+        edge_t k,
+        bool do_expensive_check = false);
+
 /**
  * @brief     Compute Jaccard similarity coefficient
  *
@@ -2065,6 +1927,37 @@ void triangle_count(raft::handle_t const& handle,
  */
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 rmm::device_uvector<weight_t> jaccard_coefficients(
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+  std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
+  std::tuple<raft::device_span<vertex_t const>, raft::device_span<vertex_t const>> vertex_pairs,
+  bool do_expensive_check = false);
+
+/**
+ * @brief     Compute Cosine similarity coefficient
+ *
+ * Similarity is computed for every pair of vertices specified. Note that
+ * similarity algorithms expect a symmetric graph.
+ *
+ * @throws                 cugraph::logic_error when an error occurs.
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
+ * @tparam weight_t Type of edge weights. Needs to be a floating point type.
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param graph_view Graph view object.
+ * @param edge_weight_view Optional view object holding edge weights for @p graph_view. If @p
+ * edge_weight_view.has_value() == true, use the weights associated with the graph. If false, assume
+ * a weight of 1 for all edges.
+ * @param vertex_pairs tuple of device spans defining the vertex pairs to compute similarity for
+ * In a multi-gpu context each vertex pair should be local to this GPU.
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
+ * @return similarity coefficient for the corresponding @p vertex_pairs
+ */
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+rmm::device_uvector<weight_t> cosine_similarity_coefficients(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
@@ -2184,6 +2077,62 @@ template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 std::
   tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>, rmm::device_uvector<weight_t>>
   jaccard_all_pairs_coefficients(
+    raft::handle_t const& handle,
+    graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+    std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
+    std::optional<raft::device_span<vertex_t const>> vertices,
+    std::optional<size_t> topk,
+    bool do_expensive_check = false);
+
+/**
+ * @brief     Compute Consine all pairs similarity coefficient
+ *
+ * Similarity is computed for all pairs of vertices.  Note that in a sparse
+ * graph, many of the vertex pairs will have a score of zero.  We actually
+ * compute similarity only for vertices that are two hop neighbors within
+ * the graph, since vertices that are not two hop neighbors will have
+ * a score of 0.
+ *
+ * If @p vertices is specified we will compute similarity on two hop
+ * neighbors the @p vertices.  If @p vertices is not specified it will
+ * compute similarity on all two hop neighbors in the graph.
+ *
+ * If @p topk is specified only the top @p topk scoring vertex pairs
+ * will be returned, if not specified then scores for all computed vertex pairs
+ * will be returned.
+ *
+ * Note the list of two hop neighbors in the entire graph might be a large
+ * number of vertex pairs.  If the graph is dense enough it could be as large
+ * as the the number of vertices squared, which might run out of memory.
+ *
+ * @throws                 cugraph::logic_error when an error occurs.
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
+ * @tparam weight_t Type of edge weights. Needs to be a floating point type.
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param graph_view Graph view object.
+ * @param edge_weight_view Optional view object holding edge weights for @p graph_view. If @p
+ * edge_weight_view.has_value() == true, use the weights associated with the graph. If false, assume
+ * a weight of 1 for all edges.
+ * @param vertices optional device span defining the seed vertices. In a multi-gpu context the
+ * vertices should be local to this GPU.
+ * @param topk optional specification of the how many of the top scoring vertex pairs should be
+ * returned
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
+ * @return tuple containing three device vectors (v1, v2, score) of the same length.  Corresponding
+ * elements in the vectors identify a result, v1 identifying a vertex in the graph, v2 identifying
+ * one of v1's two hop neighors, and the score identifying the similarity score between v1 and v2.
+ * If @p topk was specified then the vectors will be no longer than @p topk elements.  In a
+ * multi-gpu context, if @p topk is specified all results will return on GPU rank 0, otherwise they
+ * will be returned on the local GPU for vertex v1.
+ */
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+std::
+  tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>, rmm::device_uvector<weight_t>>
+  cosine_similarity_all_pairs_coefficients(
     raft::handle_t const& handle,
     graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
     std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
@@ -2375,6 +2324,32 @@ rmm::device_uvector<vertex_t> vertex_coloring(
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   raft::random::RngState& rng_state);
 
+/*
+ * @brief Approximate Weighted Matching
+ *
+ * A matching in an undirected graph G = (V, E) is a pairing of adjacent vertices
+ * such that each vertex is matched with at most one other vertex, the objective
+ * being to match as many vertices as possible or to maximise the sum of the
+ * weights of the matched edges. Here we provide an implementation of an
+ * approximation algorithm to the weighted Maximum matching. See
+ * https://web.archive.org/web/20081031230449id_/http://www.ii.uib.no/~fredrikm/fredrik/papers/CP75.pdf
+ * for further information.
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
+ * @param[in] handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator,
+ * and handles to various CUDA libraries) to run graph algorithms.
+ * @param[in] graph_view Graph view object.
+ * @param[in] edge_weight_view View object holding edge weights for @p graph_view.
+ * @return A tuple of device vector of matched vertex ids and sum of the weights of the matched
+ * edges.
+ */
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+std::tuple<rmm::device_uvector<vertex_t>, weight_t> approximate_weighted_matching(
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+  edge_property_view_t<edge_t, weight_t const*> edge_weight_view);
 }  // namespace cugraph
 
 /**

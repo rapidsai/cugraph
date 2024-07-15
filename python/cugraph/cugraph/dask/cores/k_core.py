@@ -1,4 +1,4 @@
-# Copyright (c) 2022-2023, NVIDIA CORPORATION.
+# Copyright (c) 2022-2024, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -73,7 +73,7 @@ def k_core(input_graph, k=None, core_number=None, degree_type="bidirectional"):
         on input, output, or both directed edges, with valid values being
         "incoming", "outgoing", and "bidirectional" respectively.
 
-    core_number : cudf.DataFrame or das_cudf.DataFrame, optional (default=None)
+    core_number : cudf.DataFrame or dask_cudf.DataFrame, optional (default=None)
         Precomputed core number of the nodes of the graph G containing two
         cudf.Series of size V: the vertex identifiers and the corresponding
         core number values. If set to None, the core numbers of the nodes are
@@ -109,7 +109,7 @@ def k_core(input_graph, k=None, core_number=None, degree_type="bidirectional"):
     >>> # Download dataset from https://github.com/rapidsai/cugraph/datasets/..
     >>> chunksize = dcg.get_chunksize(datasets_path / "karate.csv")
     >>> ddf = dask_cudf.read_csv(datasets_path / "karate.csv",
-    ...                          chunksize=chunksize, delimiter=" ",
+    ...                          blocksize=chunksize, delimiter=" ",
     ...                          names=["src", "dst", "value"],
     ...                          dtype=["int32", "int32", "float32"])
     >>> dg = cugraph.Graph(directed=False)
@@ -131,31 +131,25 @@ def k_core(input_graph, k=None, core_number=None, degree_type="bidirectional"):
         core_number = dcg.core_number(input_graph)
 
     if input_graph.renumbered is True:
-
         if len(input_graph.renumber_map.implementation.col_names) > 1:
             cols = core_number.columns[:-1].to_list()
         else:
             cols = "vertex"
-
             core_number = input_graph.add_internal_vertex_id(
                 core_number, "vertex", cols
             )
-
     if not isinstance(core_number, dask_cudf.DataFrame):
         if isinstance(core_number, cudf.DataFrame):
             # convert to dask_cudf in order to distribute the edges
             core_number = dask_cudf.from_cudf(core_number, input_graph._npartitions)
-
         else:
             raise TypeError(
                 f"'core_number' must be either None or of"
                 f"type cudf/dask_cudf, got: {type(core_number)}"
             )
-
     core_number = core_number.rename(columns={"core_number": "values"})
     if k is None:
         k = core_number["values"].max().compute()
-
     core_number = get_distributed_data(core_number)
     wait(core_number)
     core_number = core_number.worker_to_parts

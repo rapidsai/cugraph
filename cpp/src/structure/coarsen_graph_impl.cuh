@@ -148,6 +148,8 @@ decompress_edge_partition_to_relabeled_and_grouped_and_coarsened_edgelist(
   edge_partition_device_view_t<vertex_t, edge_t, multi_gpu> const edge_partition,
   std::optional<detail::edge_partition_edge_property_device_view_t<edge_t, weight_t const*>>
     edge_partition_weight_view,
+  std::optional<detail::edge_partition_edge_property_device_view_t<edge_t, uint32_t const*, bool>>
+    edge_partition_e_mask,
   vertex_t const* major_label_first,
   EdgeMinorLabelInputWrapper const minor_label_input,
   std::optional<std::vector<vertex_t>> const& segment_offsets,
@@ -158,24 +160,30 @@ decompress_edge_partition_to_relabeled_and_grouped_and_coarsened_edgelist(
   // FIXME: it might be possible to directly create relabled & coarsened edgelist from the
   // compressed sparse format to save memory
 
-  rmm::device_uvector<vertex_t> edgelist_majors(edge_partition.number_of_edges(),
-                                                handle.get_stream());
+  rmm::device_uvector<vertex_t> edgelist_majors(
+    edge_partition_e_mask
+      ? detail::count_set_bits(
+          handle, (*edge_partition_e_mask).value_first(), edge_partition.number_of_edges())
+      : static_cast<size_t>(edge_partition.number_of_edges()),
+    handle.get_stream());
   rmm::device_uvector<vertex_t> edgelist_minors(edgelist_majors.size(), handle.get_stream());
   auto edgelist_weights = edge_partition_weight_view
                             ? std::make_optional<rmm::device_uvector<weight_t>>(
                                 edgelist_majors.size(), handle.get_stream())
                             : std::nullopt;
-  detail::decompress_edge_partition_to_edgelist<vertex_t, edge_t, weight_t, multi_gpu>(
+  detail::decompress_edge_partition_to_edgelist<vertex_t, edge_t, weight_t, int32_t, multi_gpu>(
     handle,
     edge_partition,
     edge_partition_weight_view,
     std::nullopt,
     std::nullopt,
+    edge_partition_e_mask,
     raft::device_span<vertex_t>(edgelist_majors.data(), edgelist_majors.size()),
     raft::device_span<vertex_t>(edgelist_minors.data(), edgelist_minors.size()),
     edgelist_weights ? std::make_optional<raft::device_span<weight_t>>((*edgelist_weights).data(),
                                                                        (*edgelist_weights).size())
                      : std::nullopt,
+    std::nullopt,
     std::nullopt,
     segment_offsets);
 
@@ -283,9 +291,9 @@ coarsen_graph(raft::handle_t const& handle,
     edge_dst_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, vertex_t>>
     edge_minor_labels(handle, graph_view);
   if constexpr (store_transposed) {
-    update_edge_src_property(handle, graph_view, labels, edge_minor_labels);
+    update_edge_src_property(handle, graph_view, labels, edge_minor_labels.mutable_view());
   } else {
-    update_edge_dst_property(handle, graph_view, labels, edge_minor_labels);
+    update_edge_dst_property(handle, graph_view, labels, edge_minor_labels.mutable_view());
   }
 
   std::vector<rmm::device_uvector<vertex_t>> coarsened_edgelist_majors{};
@@ -298,6 +306,9 @@ coarsen_graph(raft::handle_t const& handle,
   if (coarsened_edgelist_weights) {
     (*coarsened_edgelist_weights).reserve(coarsened_edgelist_majors.size());
   }
+
+  auto edge_mask_view = graph_view.edge_mask_view();
+
   for (size_t i = 0; i < graph_view.number_of_local_edge_partitions(); ++i) {
     // 1-1. locally construct coarsened edge list
 
@@ -325,6 +336,11 @@ coarsen_graph(raft::handle_t const& handle,
           ? std::make_optional<
               detail::edge_partition_edge_property_device_view_t<edge_t, weight_t const*>>(
               *edge_weight_view, i)
+          : std::nullopt,
+        edge_mask_view
+          ? std::make_optional<
+              detail::edge_partition_edge_property_device_view_t<edge_t, uint32_t const*, bool>>(
+              *edge_mask_view, i)
           : std::nullopt,
         major_labels.data(),
         edge_minor_labels.view(),
@@ -593,6 +609,8 @@ coarsen_graph(raft::handle_t const& handle,
 
   bool lower_triangular_only = graph_view.is_symmetric();
 
+  auto edge_mask_view = graph_view.edge_mask_view();
+
   auto [coarsened_edgelist_majors, coarsened_edgelist_minors, coarsened_edgelist_weights] =
     decompress_edge_partition_to_relabeled_and_grouped_and_coarsened_edgelist(
       handle,
@@ -602,6 +620,11 @@ coarsen_graph(raft::handle_t const& handle,
         ? std::make_optional<
             detail::edge_partition_edge_property_device_view_t<edge_t, weight_t const*>>(
             *edge_weight_view, 0)
+        : std::nullopt,
+      edge_mask_view
+        ? std::make_optional<
+            detail::edge_partition_edge_property_device_view_t<edge_t, uint32_t const*, bool>>(
+            *edge_mask_view, 0)
         : std::nullopt,
       labels,
       detail::edge_minor_property_view_t<vertex_t, vertex_t const*>(labels, vertex_t{0}),
@@ -732,8 +755,6 @@ coarsen_graph(raft::handle_t const& handle,
               bool renumber,
               bool do_expensive_check)
 {
-  CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
-
   return detail::coarsen_graph(
     handle, graph_view, edge_weight_view, labels, renumber, do_expensive_check);
 }

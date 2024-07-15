@@ -107,7 +107,7 @@ void katz_centrality(
     std::swap(new_katz_centralities, old_katz_centralities);
 
     update_edge_src_property(
-      handle, pull_graph_view, old_katz_centralities, edge_src_katz_centralities);
+      handle, pull_graph_view, old_katz_centralities, edge_src_katz_centralities.mutable_view());
 
     if (edge_weight_view) {
       per_v_transform_reduce_incoming_e(
@@ -207,8 +207,6 @@ void katz_centrality(raft::handle_t const& handle,
                      bool normalize,
                      bool do_expensive_check)
 {
-  CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
-
   detail::katz_centrality(handle,
                           graph_view,
                           edge_weight_view,

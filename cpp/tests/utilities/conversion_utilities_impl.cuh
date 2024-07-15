@@ -37,6 +37,100 @@
 namespace cugraph {
 namespace test {
 
+namespace {
+
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          bool input_store_transposed,
+          bool is_multi_gpu,
+          bool output_store_transposed>
+std::tuple<std::vector<edge_t>, std::vector<vertex_t>, std::optional<std::vector<weight_t>>>
+graph_to_host_compressed_sparse(
+  raft::handle_t const& handle,
+  cugraph::graph_view_t<vertex_t, edge_t, input_store_transposed, is_multi_gpu> const& graph_view,
+  std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
+  std::optional<raft::device_span<vertex_t const>> renumber_map)
+{
+  rmm::device_uvector<vertex_t> d_src(0, handle.get_stream());
+  rmm::device_uvector<vertex_t> d_dst(0, handle.get_stream());
+  std::optional<rmm::device_uvector<weight_t>> d_wgt{std::nullopt};
+
+  std::tie(d_src, d_dst, d_wgt, std::ignore, std::ignore) = cugraph::decompress_to_edgelist(
+    handle,
+    graph_view,
+    edge_weight_view,
+    std::optional<edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
+    std::optional<cugraph::edge_property_view_t<edge_t, int32_t const*>>{std::nullopt},
+    renumber_map);
+
+  if constexpr (is_multi_gpu) {
+    d_src = cugraph::test::device_gatherv(
+      handle, raft::device_span<vertex_t const>{d_src.data(), d_src.size()});
+    d_dst = cugraph::test::device_gatherv(
+      handle, raft::device_span<vertex_t const>{d_dst.data(), d_dst.size()});
+    if (d_wgt)
+      *d_wgt = cugraph::test::device_gatherv(
+        handle, raft::device_span<weight_t const>{d_wgt->data(), d_wgt->size()});
+    if (handle.get_comms().get_rank() != 0) {
+      d_src.resize(0, handle.get_stream());
+      d_src.shrink_to_fit(handle.get_stream());
+      d_dst.resize(0, handle.get_stream());
+      d_dst.shrink_to_fit(handle.get_stream());
+      if (d_wgt) {
+        (*d_wgt).resize(0, handle.get_stream());
+        (*d_wgt).shrink_to_fit(handle.get_stream());
+      }
+    }
+  }
+
+  auto total_global_mem = handle.get_device_properties().totalGlobalMem;
+  size_t element_size   = sizeof(vertex_t) * 2;
+  if (d_wgt) { element_size += sizeof(weight_t); }
+  auto constexpr mem_frugal_ratio =
+    0.25;  // if the expected temporary buffer size exceeds the mem_frugal_ratio of the
+           // total_global_mem, switch to the memory frugal approach
+  auto mem_frugal_threshold =
+    static_cast<size_t>(static_cast<double>(total_global_mem / element_size) * mem_frugal_ratio);
+
+  rmm::device_uvector<edge_t> d_offsets(0, handle.get_stream());
+
+  if (d_wgt) {
+    std::tie(d_offsets, d_dst, *d_wgt, std::ignore) =
+      detail::sort_and_compress_edgelist<vertex_t, edge_t, weight_t, output_store_transposed>(
+        std::move(d_src),
+        std::move(d_dst),
+        std::move(*d_wgt),
+        vertex_t{0},
+        std::optional<vertex_t>{std::nullopt},
+        graph_view.number_of_vertices(),
+        vertex_t{0},
+        graph_view.number_of_vertices(),
+        mem_frugal_threshold,
+        handle.get_stream());
+  } else {
+    std::tie(d_offsets, d_dst, std::ignore) =
+      detail::sort_and_compress_edgelist<vertex_t, edge_t, output_store_transposed>(
+        std::move(d_src),
+        std::move(d_dst),
+        vertex_t{0},
+        std::optional<vertex_t>{std::nullopt},
+        graph_view.number_of_vertices(),
+        vertex_t{0},
+        graph_view.number_of_vertices(),
+        mem_frugal_threshold,
+        handle.get_stream());
+  }
+
+  return std::make_tuple(
+    to_host(handle, raft::device_span<edge_t const>(d_offsets.data(), d_offsets.size())),
+    to_host(handle, raft::device_span<vertex_t const>(d_dst.data(), d_dst.size())),
+    d_wgt ? to_host(handle, raft::device_span<weight_t const>(d_wgt->data(), d_wgt->size()))
+          : std::optional<std::vector<weight_t>>(std::nullopt));
+}
+
+}  // namespace
+
 template <typename vertex_t,
           typename edge_t,
           typename weight_t,
@@ -53,11 +147,12 @@ graph_to_host_coo(
   rmm::device_uvector<vertex_t> d_dst(0, handle.get_stream());
   std::optional<rmm::device_uvector<weight_t>> d_wgt{std::nullopt};
 
-  std::tie(d_src, d_dst, d_wgt, std::ignore) = cugraph::decompress_to_edgelist(
+  std::tie(d_src, d_dst, d_wgt, std::ignore, std::ignore) = cugraph::decompress_to_edgelist(
     handle,
     graph_view,
     edge_weight_view,
     std::optional<edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
+    std::optional<cugraph::edge_property_view_t<edge_t, int32_t const*>>{std::nullopt},
     renumber_map);
 
   if constexpr (is_multi_gpu) {
@@ -113,11 +208,12 @@ graph_to_device_coo(
   rmm::device_uvector<vertex_t> d_dst(0, handle.get_stream());
   std::optional<rmm::device_uvector<weight_t>> d_wgt{std::nullopt};
 
-  std::tie(d_src, d_dst, d_wgt, std::ignore) = cugraph::decompress_to_edgelist(
+  std::tie(d_src, d_dst, d_wgt, std::ignore, std::ignore) = cugraph::decompress_to_edgelist(
     handle,
     graph_view,
     edge_weight_view,
     std::optional<edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
+    std::optional<cugraph::edge_property_view_t<edge_t, int32_t const*>>{std::nullopt},
     renumber_map);
 
   if constexpr (is_multi_gpu) {
@@ -155,103 +251,59 @@ graph_to_host_csr(
   std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
   std::optional<raft::device_span<vertex_t const>> renumber_map)
 {
-  rmm::device_uvector<vertex_t> d_src(0, handle.get_stream());
-  rmm::device_uvector<vertex_t> d_dst(0, handle.get_stream());
-  std::optional<rmm::device_uvector<weight_t>> d_wgt{std::nullopt};
+  return graph_to_host_compressed_sparse<vertex_t,
+                                         edge_t,
+                                         weight_t,
+                                         store_transposed,
+                                         is_multi_gpu,
+                                         false>(handle, graph_view, edge_weight_view, renumber_map);
+}
 
-  std::tie(d_src, d_dst, d_wgt, std::ignore) = cugraph::decompress_to_edgelist(
-    handle,
-    graph_view,
-    edge_weight_view,
-    std::optional<edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
-    renumber_map);
-
-  if constexpr (is_multi_gpu) {
-    d_src = cugraph::test::device_gatherv(
-      handle, raft::device_span<vertex_t const>{d_src.data(), d_src.size()});
-    d_dst = cugraph::test::device_gatherv(
-      handle, raft::device_span<vertex_t const>{d_dst.data(), d_dst.size()});
-    if (d_wgt)
-      *d_wgt = cugraph::test::device_gatherv(
-        handle, raft::device_span<weight_t const>{d_wgt->data(), d_wgt->size()});
-    if (handle.get_comms().get_rank() != 0) {
-      d_src.resize(0, handle.get_stream());
-      d_src.shrink_to_fit(handle.get_stream());
-      d_dst.resize(0, handle.get_stream());
-      d_dst.shrink_to_fit(handle.get_stream());
-      if (d_wgt) {
-        (*d_wgt).resize(0, handle.get_stream());
-        (*d_wgt).shrink_to_fit(handle.get_stream());
-      }
-    }
-  }
-
-  auto total_global_mem = handle.get_device_properties().totalGlobalMem;
-  size_t element_size   = sizeof(vertex_t) * 2;
-  if (d_wgt) { element_size += sizeof(weight_t); }
-  auto constexpr mem_frugal_ratio =
-    0.25;  // if the expected temporary buffer size exceeds the mem_frugal_ratio of the
-           // total_global_mem, switch to the memory frugal approach
-  auto mem_frugal_threshold =
-    static_cast<size_t>(static_cast<double>(total_global_mem / element_size) * mem_frugal_ratio);
-
-  rmm::device_uvector<edge_t> d_offsets(0, handle.get_stream());
-
-  if (d_wgt) {
-    std::tie(d_offsets, d_dst, *d_wgt, std::ignore) =
-      detail::sort_and_compress_edgelist<vertex_t, edge_t, weight_t, store_transposed>(
-        std::move(d_src),
-        std::move(d_dst),
-        std::move(*d_wgt),
-        vertex_t{0},
-        std::optional<vertex_t>{std::nullopt},
-        graph_view.number_of_vertices(),
-        vertex_t{0},
-        graph_view.number_of_vertices(),
-        mem_frugal_threshold,
-        handle.get_stream());
-  } else {
-    std::tie(d_offsets, d_dst, std::ignore) =
-      detail::sort_and_compress_edgelist<vertex_t, edge_t, store_transposed>(
-        std::move(d_src),
-        std::move(d_dst),
-        vertex_t{0},
-        std::optional<vertex_t>{std::nullopt},
-        graph_view.number_of_vertices(),
-        vertex_t{0},
-        graph_view.number_of_vertices(),
-        mem_frugal_threshold,
-        handle.get_stream());
-  }
-
-  return std::make_tuple(
-    to_host(handle, raft::device_span<edge_t const>(d_offsets.data(), d_offsets.size())),
-    to_host(handle, raft::device_span<vertex_t const>(d_dst.data(), d_dst.size())),
-    d_wgt ? to_host(handle, raft::device_span<weight_t const>(d_wgt->data(), d_wgt->size()))
-          : std::optional<std::vector<weight_t>>(std::nullopt));
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          bool store_transposed,
+          bool is_multi_gpu>
+std::tuple<std::vector<edge_t>, std::vector<vertex_t>, std::optional<std::vector<weight_t>>>
+graph_to_host_csc(
+  raft::handle_t const& handle,
+  cugraph::graph_view_t<vertex_t, edge_t, store_transposed, is_multi_gpu> const& graph_view,
+  std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
+  std::optional<raft::device_span<vertex_t const>> renumber_map)
+{
+  return graph_to_host_compressed_sparse<vertex_t,
+                                         edge_t,
+                                         weight_t,
+                                         store_transposed,
+                                         is_multi_gpu,
+                                         true>(handle, graph_view, edge_weight_view, renumber_map);
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t, bool store_transposed>
 std::tuple<
   cugraph::graph_t<vertex_t, edge_t, store_transposed, false>,
   std::optional<edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, false>, weight_t>>,
+  std::optional<edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, false>, edge_t>>,
   std::optional<rmm::device_uvector<vertex_t>>>
 mg_graph_to_sg_graph(
   raft::handle_t const& handle,
   cugraph::graph_view_t<vertex_t, edge_t, store_transposed, true> const& graph_view,
   std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
+  std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>> edge_id_view,
   std::optional<raft::device_span<vertex_t const>> renumber_map,
   bool renumber)
 {
   rmm::device_uvector<vertex_t> d_src(0, handle.get_stream());
   rmm::device_uvector<vertex_t> d_dst(0, handle.get_stream());
   std::optional<rmm::device_uvector<weight_t>> d_wgt{std::nullopt};
+  std::optional<rmm::device_uvector<edge_t>> d_edge_id{std::nullopt};
 
-  std::tie(d_src, d_dst, d_wgt, std::ignore) = cugraph::decompress_to_edgelist(
+  std::tie(d_src, d_dst, d_wgt, d_edge_id, std::ignore) = cugraph::decompress_to_edgelist(
     handle,
     graph_view,
     edge_weight_view,
-    std::optional<edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
+    edge_id_view,
+    std::optional<cugraph::edge_property_view_t<edge_t, int32_t const*>>{std::nullopt},
     renumber_map);
 
   d_src = cugraph::test::device_gatherv(
@@ -261,6 +313,9 @@ mg_graph_to_sg_graph(
   if (d_wgt)
     *d_wgt = cugraph::test::device_gatherv(
       handle, raft::device_span<weight_t const>{d_wgt->data(), d_wgt->size()});
+  if (d_edge_id)
+    *d_edge_id = cugraph::test::device_gatherv(
+      handle, raft::device_span<edge_t const>{d_edge_id->data(), d_edge_id->size()});
 
   rmm::device_uvector<vertex_t> vertices(0, handle.get_stream());
   if (renumber_map) { vertices = cugraph::test::device_gatherv(handle, *renumber_map); }
@@ -268,6 +323,8 @@ mg_graph_to_sg_graph(
   graph_t<vertex_t, edge_t, store_transposed, false> sg_graph(handle);
   std::optional<edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, false>, weight_t>>
     sg_edge_weights{std::nullopt};
+  std::optional<edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, false>, edge_t>>
+    sg_edge_ids{std::nullopt};
   std::optional<rmm::device_uvector<vertex_t>> sg_number_map;
   if (handle.get_comms().get_rank() == 0) {
     if (!renumber_map) {
@@ -276,7 +333,7 @@ mg_graph_to_sg_graph(
         handle.get_stream(), vertices.data(), vertices.size(), vertex_t{0});
     }
 
-    std::tie(sg_graph, sg_edge_weights, std::ignore, std::ignore, sg_number_map) =
+    std::tie(sg_graph, sg_edge_weights, sg_edge_ids, std::ignore, sg_number_map) =
       cugraph::create_graph_from_edgelist<vertex_t,
                                           edge_t,
                                           weight_t,
@@ -289,7 +346,7 @@ mg_graph_to_sg_graph(
         std::move(d_src),
         std::move(d_dst),
         std::move(d_wgt),
-        std::nullopt,
+        std::move(d_edge_id),
         std::nullopt,
         cugraph::graph_properties_t{graph_view.is_symmetric(), graph_view.is_multigraph()},
         renumber);
@@ -302,9 +359,16 @@ mg_graph_to_sg_graph(
       (*d_wgt).resize(0, handle.get_stream());
       (*d_wgt).shrink_to_fit(handle.get_stream());
     }
+    if (d_edge_id) {
+      (*d_edge_id).resize(0, handle.get_stream());
+      (*d_edge_id).shrink_to_fit(handle.get_stream());
+    }
   }
 
-  return std::make_tuple(std::move(sg_graph), std::move(sg_edge_weights), std::move(sg_number_map));
+  return std::make_tuple(std::move(sg_graph),
+                         std::move(sg_edge_weights),
+                         std::move(sg_edge_ids),
+                         std::move(sg_number_map));
 }
 
 template <typename vertex_t, typename value_t>
@@ -366,7 +430,8 @@ mg_vertex_property_values_to_sg_vertex_property_values(
         static_cast<vertex_t>((*sg_renumber_map).size()));
     }
 
-    std::tie(sg_vertices, sg_values) = cugraph::test::sort_by_key(handle, sg_vertices, sg_values);
+    std::tie(sg_vertices, sg_values) = cugraph::test::sort_by_key<vertex_t, value_t>(
+      handle, std::move(sg_vertices), std::move(sg_values));
 
     if (mg_vertices) {
       return std::make_tuple(std::move(sg_vertices), std::move(sg_values));

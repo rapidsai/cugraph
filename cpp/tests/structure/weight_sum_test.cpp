@@ -16,6 +16,7 @@
 
 #include "utilities/base_fixture.hpp"
 #include "utilities/conversion_utilities.hpp"
+#include "utilities/property_generator_utilities.hpp"
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/graph.hpp>
@@ -43,11 +44,11 @@ void weight_sum_reference(edge_t const* offsets,
                           weight_t const* weights,
                           weight_t* weight_sums,
                           vertex_t num_vertices,
-                          bool major)
+                          bool out_weight_sum)
 {
-  if (!major) { std::fill(weight_sums, weight_sums + num_vertices, weight_t{0.0}); }
+  if (!out_weight_sum) { std::fill(weight_sums, weight_sums + num_vertices, weight_t{0.0}); }
   for (vertex_t i = 0; i < num_vertices; ++i) {
-    if (major) {
+    if (out_weight_sum) {
       weight_sums[i] = std::reduce(weights + offsets[i], weights + offsets[i + 1], weight_t{0.0});
     } else {
       for (auto j = offsets[i]; j < offsets[i + 1]; ++j) {
@@ -106,6 +107,13 @@ class Tests_WeightSum
     auto edge_weight_view =
       edge_weights ? std::make_optional((*edge_weights).view()) : std::nullopt;
 
+    std::optional<cugraph::edge_property_t<decltype(graph_view), bool>> edge_mask{std::nullopt};
+    if (weight_sum_usecase.edge_masking) {
+      edge_mask =
+        cugraph::test::generate<decltype(graph_view), bool>::edge_property(handle, graph_view, 2);
+      graph_view.attach_edge_mask((*edge_mask).view());
+    }
+
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       hr_timer.start("Compute in-weight sums");
@@ -148,14 +156,14 @@ class Tests_WeightSum
                            (*h_weights).data(),
                            h_reference_in_weight_sums.data(),
                            graph_view.number_of_vertices(),
-                           store_transposed);
+                           false);
 
       weight_sum_reference(h_offsets.data(),
                            h_indices.data(),
                            (*h_weights).data(),
                            h_reference_out_weight_sums.data(),
                            graph_view.number_of_vertices(),
-                           !store_transposed);
+                           true);
 
       auto h_cugraph_in_weight_sums  = cugraph::test::to_host(handle, d_in_weight_sums);
       auto h_cugraph_out_weight_sums = cugraph::test::to_host(handle, d_out_weight_sums);
@@ -163,8 +171,6 @@ class Tests_WeightSum
       auto threshold_ratio     = weight_t{2.0 * 1e-4};
       auto threshold_magnitude = std::numeric_limits<weight_t>::min();
       auto nearly_equal        = [threshold_ratio, threshold_magnitude](auto lhs, auto rhs) {
-        auto ret =
-          std::abs(lhs - rhs) < std::max(std::max(lhs, rhs) * threshold_ratio, threshold_magnitude);
         return std::abs(lhs - rhs) <
                std::max(std::max(lhs, rhs) * threshold_ratio, threshold_magnitude);
       };
@@ -189,49 +195,49 @@ using Tests_WeightSum_Rmat = Tests_WeightSum<cugraph::test::Rmat_Usecase>;
 
 TEST_P(Tests_WeightSum_File, CheckInt32Int32FloatTransposeFalse)
 {
-  auto param = GetParam();
+  auto param = override_File_Usecase_with_cmd_line_arguments(GetParam());
   run_current_test<int32_t, int32_t, float, false>(std::get<0>(param), std::get<1>(param));
 }
 
 TEST_P(Tests_WeightSum_File, CheckInt32Int32FloatTransposeTrue)
 {
-  auto param = GetParam();
+  auto param = override_File_Usecase_with_cmd_line_arguments(GetParam());
   run_current_test<int32_t, int32_t, float, true>(std::get<0>(param), std::get<1>(param));
 }
 
 TEST_P(Tests_WeightSum_Rmat, CheckInt32Int32FloatTransposeFalse)
 {
-  auto param = GetParam();
+  auto param = override_Rmat_Usecase_with_cmd_line_arguments(GetParam());
   run_current_test<int32_t, int32_t, float, false>(std::get<0>(param), std::get<1>(param));
 }
 
 TEST_P(Tests_WeightSum_Rmat, CheckInt32Int32FloatTransposeTrue)
 {
-  auto param = GetParam();
+  auto param = override_Rmat_Usecase_with_cmd_line_arguments(GetParam());
   run_current_test<int32_t, int32_t, float, true>(std::get<0>(param), std::get<1>(param));
 }
 
 TEST_P(Tests_WeightSum_Rmat, CheckInt32Int64FloatTransposeFalse)
 {
-  auto param = GetParam();
+  auto param = override_Rmat_Usecase_with_cmd_line_arguments(GetParam());
   run_current_test<int32_t, int64_t, float, false>(std::get<0>(param), std::get<1>(param));
 }
 
 TEST_P(Tests_WeightSum_Rmat, CheckInt32Int64FloatTransposeTrue)
 {
-  auto param = GetParam();
+  auto param = override_Rmat_Usecase_with_cmd_line_arguments(GetParam());
   run_current_test<int32_t, int64_t, float, true>(std::get<0>(param), std::get<1>(param));
 }
 
 TEST_P(Tests_WeightSum_Rmat, CheckInt64Int64FloatTransposeFalse)
 {
-  auto param = GetParam();
+  auto param = override_Rmat_Usecase_with_cmd_line_arguments(GetParam());
   run_current_test<int64_t, int64_t, float, false>(std::get<0>(param), std::get<1>(param));
 }
 
 TEST_P(Tests_WeightSum_Rmat, CheckInt64Int64FloatTransposeTrue)
 {
-  auto param = GetParam();
+  auto param = override_Rmat_Usecase_with_cmd_line_arguments(GetParam());
   run_current_test<int64_t, int64_t, float, true>(std::get<0>(param), std::get<1>(param));
 }
 

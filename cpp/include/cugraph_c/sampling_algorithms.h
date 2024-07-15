@@ -43,7 +43,7 @@ typedef struct {
  *                              needs to be transposed
  * @param [in]  start_vertices  Array of source vertices
  * @param [in]  max_length      Maximum length of the generated path
- * @param [in]  result          Output from the node2vec call
+ * @param [out]  result         Output from the node2vec call
  * @param [out] error           Pointer to an error object storing details of any error.  Will
  *                              be populated if error code is not CUGRAPH_SUCCESS
  * @return error code
@@ -64,7 +64,7 @@ cugraph_error_code_t cugraph_uniform_random_walks(
  *                              needs to be transposed
  * @param [in]  start_vertices  Array of source vertices
  * @param [in]  max_length      Maximum length of the generated path
- * @param [in]  result          Output from the node2vec call
+ * @param [out]  result         Output from the node2vec call
  * @param [out] error           Pointer to an error object storing details of any error.  Will
  *                              be populated if error code is not CUGRAPH_SUCCESS
  * @return error code
@@ -89,7 +89,7 @@ cugraph_error_code_t cugraph_biased_random_walks(
  *                              otherwise return as a dense matrix
  * @param [in]  p               The return parameter
  * @param [in]  q               The in/out parameter
- * @param [in]  result          Output from the node2vec call
+ * @param [out]  result         Output from the node2vec call
  * @param [out] error           Pointer to an error object storing details of any error.  Will
  *                              be populated if error code is not CUGRAPH_SUCCESS
  * @return error code
@@ -117,7 +117,7 @@ cugraph_error_code_t cugraph_node2vec_random_walks(
  *                              otherwise return as a dense matrix
  * @param [in]  p            The return parameter
  * @param [in]  q            The in/out parameter
- * @param [in]  result       Output from the node2vec call
+ * @param [out]  result      Output from the node2vec call
  * @param [out] error        Pointer to an error object storing details of any error.  Will
  *                           be populated if error code is not CUGRAPH_SUCCESS
  * @return error code
@@ -238,6 +238,15 @@ cugraph_error_code_t cugraph_sampling_options_create(cugraph_sampling_options_t*
 
 /**
  * @ingroup samplingC
+ * @brief   Set flag to retain seeds (original sources)
+ *
+ * @param options - opaque pointer to the sampling options
+ * @param value - Boolean value to assign to the option
+ */
+void cugraph_sampling_set_retain_seeds(cugraph_sampling_options_t* options, bool_t value);
+
+/**
+ * @ingroup samplingC
  * @brief   Set flag to renumber results
  *
  * @param options - opaque pointer to the sampling options
@@ -335,14 +344,16 @@ void cugraph_sampling_options_free(cugraph_sampling_options_t* options);
  * output.  If specified then the all data from @p label_list[i] will be shuffled to rank @p.  This
  * cannot be specified unless @p start_vertex_labels is also specified
  * label_to_comm_rank[i].  If not specified then the output data will not be shuffled between ranks.
+ * @param [in]  label_offsets Device array of the offsets for each label in the seed list.  This
+ *                            parameter is only used with the retain_seeds option.
  * @param [in]  fanout       Host array defining the fan out at each step in the sampling algorithm.
  *                           We only support fanout values of type INT32
- * @param [in/out] rng_state State of the random number generator, updated with each call
+ * @param [in,out] rng_state State of the random number generator, updated with each call
  * @param [in]  sampling_options
  *                           Opaque pointer defining the sampling options.
  * @param [in]  do_expensive_check
  *                           A flag to run expensive checks for input arguments (if set to true)
- * @param [in]  result       Output from the uniform_neighbor_sample call
+ * @param [out]  result      Output from the uniform_neighbor_sample call
  * @param [out] error        Pointer to an error object storing details of any error.  Will
  *                           be populated if error code is not CUGRAPH_SUCCESS
  * @return error code
@@ -354,6 +365,7 @@ cugraph_error_code_t cugraph_uniform_neighbor_sample(
   const cugraph_type_erased_device_array_view_t* start_vertex_labels,
   const cugraph_type_erased_device_array_view_t* label_list,
   const cugraph_type_erased_device_array_view_t* label_to_comm_rank,
+  const cugraph_type_erased_device_array_view_t* label_offsets,
   const cugraph_type_erased_host_array_view_t* fan_out,
   cugraph_rng_state_t* rng_state,
   const cugraph_sampling_options_t* options,
@@ -587,7 +599,7 @@ cugraph_error_code_t cugraph_test_uniform_neighborhood_sample_result_create(
  *
  * @param [in]      handle        Handle for accessing resources
  * @param [in]      graph         Pointer to graph
- * @param [in/out]  rng_state     State of the random number generator, updated with each call
+ * @param [in,out]  rng_state     State of the random number generator, updated with each call
  * @param [in]      num_vertices  Number of vertices to sample
  * @param [out]     vertices      Device array view to populate label
  * @param [out]     error         Pointer to an error object storing details of

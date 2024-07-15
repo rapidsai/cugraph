@@ -42,8 +42,8 @@ requirements:
     - {{ compiler('cxx') }}
     - cmake {{ cmake_version }}
     - ninja
-    - openmpi # Required for building cpp-mgtests (multi-GPU tests)
-    - sysroot_{{ target_platform }} {{ sysroot_version }}
+    - openmpi<5.0.3 # Required for building cpp-mgtests (multi-GPU tests)
+    - {{ stdlib("c") }}
   host:
     {% if cuda_major == "11" %}
     - cudatoolkit
@@ -68,8 +68,6 @@ requirements:
     {% endif %}
     - cuda-version ={{ cuda_version }}
     - doxygen {{ doxygen_version }}
-    - gmock {{ gtest_version }}
-    - gtest {{ gtest_version }}
     - libcudf ={{ minor_version }}
     - libcugraphops ={{ minor_version }}
     - libraft ={{ minor_version }}
@@ -77,6 +75,7 @@ requirements:
     - librmm ={{ minor_version }}
     - nccl {{ nccl_version }}
     - ucx-proc=*=gpu
+    - rapids-build-backend>=0.3.1,<0.4.0.dev0
 
 outputs:
   - name: libcugraph
@@ -190,8 +189,6 @@ outputs:
         {% else %}
         - cuda-cudart
         {% endif %}
-        - gmock {{ gtest_version }}
-        - gtest {{ gtest_version }}
     about:
       home: https://rapids.ai/
       dev_url: https://github.com/rapidsai/cugraph

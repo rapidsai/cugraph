@@ -17,6 +17,7 @@
 
 #include "prims/detail/optional_dataframe_buffer.hpp"
 
+#include <cugraph/graph.hpp>
 #include <cugraph/utilities/dataframe_buffer.hpp>
 #include <cugraph/utilities/device_functors.cuh>
 
@@ -526,6 +527,7 @@ class kv_cuco_store_t {
                     std::conditional_t<!std::is_arithmetic_v<value_t>, value_t, void>>(0, stream))
   {
     allocate(capacity, invalid_key, invalid_value, stream);
+    if constexpr (!std::is_arithmetic_v<value_t>) { invalid_value_ = invalid_value; }
     capacity_ = capacity;
     size_     = 0;
   }
@@ -583,7 +585,7 @@ class kv_cuco_store_t {
         store_value_offsets.end(),
         kv_cuco_insert_and_increment_t<decltype(mutable_device_ref), KeyIterator>{
           mutable_device_ref, key_first, counter.data(), std::numeric_limits<size_t>::max()});
-      size_ += counter.value(stream);
+      size_ = counter.value(stream);
       resize_optional_dataframe_buffer<value_t>(store_values_, size_, stream);
       thrust::scatter_if(rmm::exec_policy(stream),
                          value_first,
@@ -635,7 +637,7 @@ class kv_cuco_store_t {
                                                   pred_op,
                                                   counter.data(),
                                                   std::numeric_limits<size_t>::max()});
-      size_ += counter.value(stream);
+      size_ = counter.value(stream);
       resize_optional_dataframe_buffer<value_t>(store_values_, size_, stream);
       thrust::scatter_if(rmm::exec_policy(stream),
                          value_first,
@@ -687,7 +689,7 @@ class kv_cuco_store_t {
         store_value_offsets.end(),
         kv_cuco_insert_and_increment_t<decltype(mutable_device_ref), KeyIterator>{
           mutable_device_ref, key_first, counter.data(), std::numeric_limits<size_t>::max()});
-      size_ += counter.value(stream);
+      size_ = counter.value(stream);
       resize_optional_dataframe_buffer<value_t>(store_values_, size_, stream);
       thrust::scatter_if(rmm::exec_policy(stream),
                          value_first,
@@ -823,8 +825,8 @@ class kv_cuco_store_t {
     if constexpr (std::is_arithmetic_v<value_t>) {
       cuco_store_ =
         std::make_unique<cuco_map_type>(cuco_size,
-                                        cuco::sentinel::empty_key<key_t>{invalid_key},
-                                        cuco::sentinel::empty_value<value_t>{invalid_value},
+                                        cuco::empty_key<key_t>{invalid_key},
+                                        cuco::empty_value<value_t>{invalid_value},
                                         thrust::equal_to<key_t>{},
                                         cuco::linear_probing<1,  // CG size
                                                              cuco::murmurhash3_32<key_t>>{},
@@ -835,8 +837,8 @@ class kv_cuco_store_t {
     } else {
       cuco_store_ = std::make_unique<cuco_map_type>(
         cuco_size,
-        cuco::sentinel::empty_key<key_t>{invalid_key},
-        cuco::sentinel::empty_value<size_t>{std::numeric_limits<size_t>::max()},
+        cuco::empty_key<key_t>{invalid_key},
+        cuco::empty_value<size_t>{std::numeric_limits<size_t>::max()},
         thrust::equal_to<key_t>{},
         cuco::linear_probing<1,  // CG size
                              cuco::murmurhash3_32<key_t>>{},

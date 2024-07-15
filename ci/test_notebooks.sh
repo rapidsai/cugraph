@@ -1,5 +1,5 @@
 #!/bin/bash
-# Copyright (c) 2020-2023, NVIDIA CORPORATION.
+# Copyright (c) 2020-2024, NVIDIA CORPORATION.
 
 set -Eeuo pipefail
 
@@ -8,10 +8,10 @@ set -Eeuo pipefail
 rapids-logger "Generate notebook testing dependencies"
 rapids-dependency-file-generator \
   --output conda \
-  --file_key test_notebooks \
+  --file-key test_notebooks \
   --matrix "cuda=${RAPIDS_CUDA_VERSION%.*};arch=$(arch);py=${RAPIDS_PY_VERSION}" | tee env.yaml
 
-rapids-mamba-retry env create --force -f env.yaml -n test
+rapids-mamba-retry env create --yes -f env.yaml -n test
 
 # Temporarily allow unbound variables for conda activation.
 set +u

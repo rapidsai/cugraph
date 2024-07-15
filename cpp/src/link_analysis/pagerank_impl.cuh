@@ -261,7 +261,8 @@ centrality_algorithm_metadata_t pagerank(
         return pagerank / divisor;
       });
 
-    update_edge_src_property(handle, pull_graph_view, pageranks.data(), edge_src_pageranks);
+    update_edge_src_property(
+      handle, pull_graph_view, pageranks.data(), edge_src_pageranks.mutable_view());
 
     auto unvarying_part = aggregate_personalization_vector_size == 0
                             ? (dangling_sum * alpha + static_cast<result_t>(1.0 - alpha)) /
@@ -425,8 +426,6 @@ std::tuple<rmm::device_uvector<result_t>, centrality_algorithm_metadata_t> pager
   size_t max_iterations,
   bool do_expensive_check)
 {
-  CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
-
   rmm::device_uvector<result_t> local_pageranks(graph_view.local_vertex_partition_range_size(),
                                                 handle.get_stream());
   if (!initial_pageranks) {

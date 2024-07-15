@@ -105,14 +105,16 @@ std::tuple<result_t, size_t> hits(raft::handle_t const& handle,
 
   // Initialize hubs from user input if provided
   if (has_initial_hubs_guess) {
-    update_edge_src_property(handle, graph_view, prev_hubs, prev_src_hubs);
+    update_edge_src_property(handle, graph_view, prev_hubs, prev_src_hubs.mutable_view());
   } else {
-    fill_edge_src_property(handle, graph_view, result_t{1.0} / num_vertices, prev_src_hubs);
+    fill_edge_src_property(
+      handle, graph_view, prev_src_hubs.mutable_view(), result_t{1.0} / num_vertices);
     thrust::fill(handle.get_thrust_policy(),
                  prev_hubs,
                  prev_hubs + graph_view.local_vertex_partition_range_size(),
                  result_t{1.0} / num_vertices);
   }
+
   size_t iter{0};
   while (true) {
     // Update current destination authorities property
@@ -127,7 +129,7 @@ std::tuple<result_t, size_t> hits(raft::handle_t const& handle,
       reduce_op::plus<result_t>{},
       authorities);
 
-    update_edge_dst_property(handle, graph_view, authorities, curr_dst_auth);
+    update_edge_dst_property(handle, graph_view, authorities, curr_dst_auth.mutable_view());
 
     // Update current source hubs property
     per_v_transform_reduce_outgoing_e(
@@ -165,7 +167,7 @@ std::tuple<result_t, size_t> hits(raft::handle_t const& handle,
       [] __device__(auto, auto val) { return std::abs(thrust::get<0>(val) - thrust::get<1>(val)); },
       result_t{0});
 
-    update_edge_src_property(handle, graph_view, curr_hubs, prev_src_hubs);
+    update_edge_src_property(handle, graph_view, curr_hubs, prev_src_hubs.mutable_view());
 
     // Swap pointers for the next iteration
     // After this swap call, prev_hubs has the latest value of hubs
@@ -208,8 +210,6 @@ std::tuple<result_t, size_t> hits(raft::handle_t const& handle,
                                   bool normalize,
                                   bool do_expensive_check)
 {
-  CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
-
   return detail::hits(handle,
                       graph_view,
                       hubs,

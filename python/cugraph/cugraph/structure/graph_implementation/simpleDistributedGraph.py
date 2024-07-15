@@ -285,19 +285,20 @@ class simpleDistributedGraphImpl:
                 symmetrize=not self.properties.directed,
             )
 
+        # Create a dask_cudf dataframe from the cudf series
+        # or dataframe objects obtained from symmetrization
         if isinstance(source_col, dask_cudf.Series):
-            # Create a dask_cudf dataframe from the cudf series obtained
-            # from symmetrization
-            input_ddf = source_col.to_frame()
-            input_ddf = input_ddf.rename(columns={source_col.name: source})
-            input_ddf[destination] = dest_col
+            frames = [
+                source_col.to_frame(name=source),
+                dest_col.to_frame(name=destination),
+            ]
         else:
-            # Multi column dask_cudf dataframe
-            input_ddf = dask_cudf.concat([source_col, dest_col], axis=1)
+            frames = [source_col, dest_col]
 
         if value_col is not None:
-            for vc in value_col_names:
-                input_ddf[vc] = value_col[vc]
+            frames.append(value_col[value_col_names])
+
+        input_ddf = dask_cudf.concat(frames, axis=1)
 
         self.input_df = input_ddf
 
@@ -853,6 +854,12 @@ class simpleDistributedGraphImpl:
         """
         Compute vertex pairs that are two hops apart. The resulting pairs are
         sorted before returning.
+
+        Parameters
+        ----------
+        start_vertices : Int or List (default=None)
+        Subset of vertices to compute two hop neighbors on. If None, compute
+        for all nodes.
 
         Returns
         -------
