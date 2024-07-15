@@ -16,7 +16,7 @@
 
 #pragma once
 
-#include <cugraph/algorithms.hpp>
+#include <cugraph/sampling_functions.hpp>
 
 #include <raft/random/rng_state.hpp>
 
@@ -30,6 +30,27 @@ namespace detail {
 // FIXME: Functions in this file assume that store_transposed=false,
 //    in implementation, naming and documentation.  We should review these and
 //    consider updating things to support an arbitrary value for store_transposed
+
+/**
+ * @brief Check edge bias values.
+ *
+ * Count the number of negative edge bias values & the number of vertices with the sum of their
+ * outgoing edge bias values exceeding std::numeric_limits<bias_t>::max().
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
+ * @tparam bias_t Type of edge bias values. Needs to be a floating point type.
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param graph_view Graph View object to generate neighbor sampling on.
+ * @param edge_weight_view View object holding edge bias values for @p graph_view.
+ */
+template <typename vertex_t, typename edge_t, typename bias_t, bool multi_gpu>
+std::tuple<size_t, size_t> check_edge_bias_values(
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+  edge_property_view_t<edge_t, bias_t const*> edge_bias_view);
 
 /**
  * @brief Gather edge list for specified vertices
@@ -72,7 +93,7 @@ gather_one_hop_edgelist(
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
   std::optional<edge_property_view_t<edge_t, edge_t const*>> edge_id_view,
-  std::optional<edge_property_view_t<edge_t, edge_type_t const*>> edge_edge_type_view,
+  std::optional<edge_property_view_t<edge_t, edge_type_t const*>> edge_type_view,
   raft::device_span<vertex_t const> active_majors,
   std::optional<raft::device_span<label_t const>> active_major_labels,
   bool do_expensive_check = false);
@@ -107,6 +128,7 @@ template <typename vertex_t,
           typename edge_t,
           typename weight_t,
           typename edge_type_t,
+          typename bias_t,
           typename label_t,
           bool multi_gpu>
 std::tuple<rmm::device_uvector<vertex_t>,
@@ -119,7 +141,8 @@ sample_edges(raft::handle_t const& handle,
              graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
              std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
              std::optional<edge_property_view_t<edge_t, edge_t const*>> edge_id_view,
-             std::optional<edge_property_view_t<edge_t, edge_type_t const*>> edge_edge_type_view,
+             std::optional<edge_property_view_t<edge_t, edge_type_t const*>> edge_type_view,
+             std::optional<edge_property_view_t<edge_t, bias_t const*>> edge_bias_view,
              raft::random::RngState& rng_state,
              raft::device_span<vertex_t const> active_majors,
              std::optional<raft::device_span<label_t const>> active_major_labels,

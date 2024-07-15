@@ -19,7 +19,7 @@
 #include "prims/fill_edge_src_dst_property.cuh"
 #include "prims/reduce_op.cuh"
 #include "prims/transform_reduce_e.cuh"
-#include "prims/transform_reduce_v_frontier_outgoing_e_by_dst.cuh"
+#include "prims/transform_reduce_v_frontier_outgoing_e_by_src_dst.cuh"
 #include "prims/update_edge_src_dst_property.cuh"
 #include "prims/update_v_frontier.cuh"
 #include "prims/vertex_frontier.cuh"
@@ -172,8 +172,10 @@ void sssp(raft::handle_t const& handle,
       ? edge_src_property_t<GraphViewType, weight_t>(handle, push_graph_view)
       : edge_src_property_t<GraphViewType, weight_t>(handle);
   if (GraphViewType::is_multi_gpu) {
-    fill_edge_src_property(
-      handle, push_graph_view, std::numeric_limits<weight_t>::max(), edge_src_distances);
+    fill_edge_src_property(handle,
+                           push_graph_view,
+                           edge_src_distances.mutable_view(),
+                           std::numeric_limits<weight_t>::max());
   }
 
   if (push_graph_view.in_local_vertex_partition_range_nocheck(source_vertex)) {
@@ -188,7 +190,7 @@ void sssp(raft::handle_t const& handle,
                                vertex_frontier.bucket(bucket_idx_cur_near).begin(),
                                vertex_frontier.bucket(bucket_idx_cur_near).end(),
                                distances,
-                               edge_src_distances);
+                               edge_src_distances.mutable_view());
     }
 
     auto vertex_partition = vertex_partition_device_view_t<vertex_t, GraphViewType::is_multi_gpu>(

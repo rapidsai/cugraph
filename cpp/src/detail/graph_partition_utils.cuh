@@ -50,6 +50,21 @@ struct compute_gpu_id_from_ext_vertex_t {
   }
 };
 
+template <typename edge_t>
+struct compute_gpu_id_from_ext_edge_id_t {
+  int comm_size{0};
+  int major_comm_size{0};
+  int minor_comm_size{0};
+
+  __host__ __device__ int operator()(edge_t e) const
+  {
+    cuco::detail::MurmurHash3_32<edge_t> hash_func{};
+    auto vertex_partition_id = static_cast<int>(hash_func(e) % comm_size);
+    return partition_manager::compute_global_comm_rank_from_vertex_partition_id(
+      major_comm_size, minor_comm_size, vertex_partition_id);
+  }
+};
+
 template <typename vertex_t>
 struct compute_gpu_id_from_int_vertex_t {
   raft::device_span<vertex_t const> vertex_partition_range_lasts{};

@@ -299,7 +299,7 @@ rmm::device_uvector<vertex_t> update_clustering_by_delta_modularity(
       edge_src_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>, weight_t>(handle,
                                                                                       graph_view);
     update_edge_src_property(
-      handle, graph_view, vertex_cluster_weights_v.begin(), src_cluster_weights);
+      handle, graph_view, vertex_cluster_weights_v.begin(), src_cluster_weights.mutable_view());
     vertex_cluster_weights_v.resize(0, handle.get_stream());
     vertex_cluster_weights_v.shrink_to_fit(handle.get_stream());
   } else {
@@ -367,7 +367,7 @@ rmm::device_uvector<vertex_t> update_clustering_by_delta_modularity(
                              graph_view,
                              thrust::make_zip_iterator(thrust::make_tuple(
                                old_cluster_sum_v.begin(), cluster_subtract_v.begin())),
-                             src_old_cluster_sum_subtract_pairs);
+                             src_old_cluster_sum_subtract_pairs.mutable_view());
     old_cluster_sum_v.resize(0, handle.get_stream());
     old_cluster_sum_v.shrink_to_fit(handle.get_stream());
     cluster_subtract_v.resize(0, handle.get_stream());
