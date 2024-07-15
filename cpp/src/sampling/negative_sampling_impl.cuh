@@ -16,6 +16,13 @@
 
 #pragma once
 
+#include <cugraph/detail/shuffle_wrappers.hpp>
+#include <cugraph/detail/utility_wrappers.hpp>
+#include <cugraph/sampling_functions.hpp>
+
+#include <thrust/remove.h>
+#include <thrust/unique.h>
+
 namespace cugraph {
 
 template <typename vertex_t,
@@ -25,11 +32,11 @@ template <typename vertex_t,
           bool multi_gpu>
 std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> negative_sampling(
   raft::handle_t const& handle,
+  raft::random::RngState& rng_state,
   graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
-  raft::random::rng_state& rng_state,
   size_t num_samples,
-  std::optional<raft::device_span<weight_t>> src_bias,
-  std::optional<raft::device_span<weight_t>> dst_bias,
+  std::optional<raft::device_span<weight_t const>> src_bias,
+  std::optional<raft::device_span<weight_t const>> dst_bias,
   bool remove_duplicates,
   bool remove_false_negatives,
   bool exact_number_of_samples,
@@ -54,31 +61,31 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> negativ
     rmm::device_uvector<vertex_t> batch_dst(samples_in_this_batch, handle.get_stream());
 
     if (src_bias) {
-      biased_random_fill(handle,
-                         rng_state,
-                         raft::device_span<vertex_t>{batch_src.data(), batch_src.size()},
-                         *src_bias);
+      detail::biased_random_fill(handle,
+                                 rng_state,
+                                 raft::device_span<vertex_t>{batch_src.data(), batch_src.size()},
+                                 *src_bias);
     } else {
-      uniform_random_fill(handle.get_stream(),
-                          batch_src.data(),
-                          batch_src.size(),
-                          vertex_t{0},
-                          graph_view.number_of_vertices(),
-                          rng_state);
+      detail::uniform_random_fill(handle.get_stream(),
+                                  batch_src.data(),
+                                  batch_src.size(),
+                                  vertex_t{0},
+                                  graph_view.number_of_vertices(),
+                                  rng_state);
     }
 
     if (dst_bias) {
-      biased_random_fill(handle,
-                         rng_state,
-                         raft::device_span<vertex_t>{batch_dst.data(), batch_dst.size()},
-                         *dst_bias);
+      detail::biased_random_fill(handle,
+                                 rng_state,
+                                 raft::device_span<vertex_t>{batch_dst.data(), batch_dst.size()},
+                                 *dst_bias);
     } else {
-      uniform_random_fill(handle.get_stream(),
-                          batch_dst.data(),
-                          batch_dst.size(),
-                          vertex_t{0},
-                          graph_view.number_of_vertices(),
-                          rng_state);
+      detail::uniform_random_fill(handle.get_stream(),
+                                  batch_dst.data(),
+                                  batch_dst.size(),
+                                  vertex_t{0},
+                                  graph_view.number_of_vertices(),
+                                  rng_state);
     }
 
     if constexpr (multi_gpu) {
@@ -101,8 +108,8 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> negativ
     if (remove_false_negatives) {
       auto has_edge_flags =
         graph_view.has_edge(handle,
-                            raft::device_span{batch_src.data(), batch_src.size()},
-                            raft::device_span{batch_dst.data(), batch_dst.size()},
+                            raft::device_span<vertex_t const>{batch_src.data(), batch_src.size()},
+                            raft::device_span<vertex_t const>{batch_dst.data(), batch_dst.size()},
                             do_expensive_check);
 
       auto begin_iter =
@@ -119,23 +126,25 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> negativ
       auto begin_iter = thrust::make_zip_iterator(batch_src.begin(), batch_dst.begin());
       thrust::sort(handle.get_thrust_policy(), begin_iter, begin_iter + batch_src.size());
 
-      auto new_end = thrust::unique(handle.get_thrust_policy(), begin_iter, end_iter);
+      auto new_end =
+        thrust::unique(handle.get_thrust_policy(), begin_iter, begin_iter + batch_src.size());
 
       size_t unique_size = thrust::distance(begin_iter, new_end);
 
       if (src.size() > 0) {
-        new_end = thrust::remove_if(
-          handle.get_thrust_policy(),
-          begin_iter,
-          begin_iter + unique_size,
-          [local_src = raft::device_span{src.data(), src.size()},
-           local_dst = raft::device_span{dst.data(), dst.size()}] __device__(auto tuple) {
-            return thrust::binary_search(
-              thrust::seq,
-              thrust::make_zip_iterator(local_src.begin(), local_dst.begin()),
-              thrust::make_zip_iterator(local_src.end(), local_dst.end()),
-              tuple);
-          });
+        new_end =
+          thrust::remove_if(handle.get_thrust_policy(),
+                            begin_iter,
+                            begin_iter + unique_size,
+                            [local_src = raft::device_span<vertex_t const>{src.data(), src.size()},
+                             local_dst = raft::device_span<vertex_t const>{
+                               dst.data(), dst.size()}] __device__(auto tuple) {
+                              return thrust::binary_search(
+                                thrust::seq,
+                                thrust::make_zip_iterator(local_src.begin(), local_dst.begin()),
+                                thrust::make_zip_iterator(local_src.end(), local_dst.end()),
+                                tuple);
+                            });
 
         unique_size = thrust::distance(begin_iter, new_end);
       }
@@ -154,9 +163,17 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> negativ
                    thrust::make_zip_iterator(batch_src.begin(), batch_dst.begin()),
                    thrust::make_zip_iterator(batch_src.end(), batch_dst.end()),
                    thrust::make_zip_iterator(src.begin(), dst.begin()) + current_end);
+
+      auto begin_iter = thrust::make_zip_iterator(src.begin(), dst.begin());
+      thrust::sort(handle.get_thrust_policy(), begin_iter, begin_iter + src.size());
     } else {
       src = std::move(batch_src);
       dst = std::move(batch_dst);
+
+      if (!remove_duplicates) {
+        auto begin_iter = thrust::make_zip_iterator(src.begin(), dst.begin());
+        thrust::sort(handle.get_thrust_policy(), begin_iter, begin_iter + src.size());
+      }
     }
 
     if (exact_number_of_samples) {

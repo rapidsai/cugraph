@@ -778,6 +778,7 @@ lookup_endpoints_from_edge_ids_and_types(
  * the graph
  * @param exact_number_of_samples If true, repeat generation until we get the exact number of
  * negative samples
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  *
  * @return tuple containing source vertex ids and destination vertex ids for the negative samples
  */
@@ -788,13 +789,14 @@ template <typename vertex_t,
           bool multi_gpu>
 std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> negative_sampling(
   raft::handle_t const& handle,
+  raft::random::RngState& rng_state,
   graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
-  raft::random::rng_state& rng_state,
   size_t num_samples,
-  std::optional<raft::device_span<weight_t>> src_bias,
-  std::optional<raft::device_span<weight_t>> dst_bias,
+  std::optional<raft::device_span<weight_t const>> src_bias,
+  std::optional<raft::device_span<weight_t const>> dst_bias,
   bool remove_duplicates,
   bool remove_false_negatives,
-  bool exact_number_of_samples);
+  bool exact_number_of_samples,
+  bool do_expensive_check);
 
 }  // namespace cugraph

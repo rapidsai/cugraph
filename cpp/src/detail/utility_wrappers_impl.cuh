@@ -63,8 +63,12 @@ void biased_random_fill(raft::handle_t const& handle,
                         raft::device_span<value_t> output,
                         raft::device_span<bias_t const> biases)
 {
-  CUGRAPH_EXPECTS(std::is_integral<value_t>::value);
-  raft::random::discrete(handle, rng_state, output, biases);
+  CUGRAPH_EXPECTS(std::is_integral<value_t>::value,
+                  "biased_random_fill can only output integral values");
+  raft::random::discrete(handle,
+                         rng_state,
+                         raft::make_device_vector_view(output.data(), output.size()),
+                         raft::make_device_vector_view(biases.data(), biases.size()));
 }
 
 template <typename value_t>

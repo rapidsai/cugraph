@@ -331,6 +331,9 @@ set(CUGRAPH_SOURCES
     src/sampling/neighbor_sampling_sg_v32_e64.cpp
     src/sampling/neighbor_sampling_sg_v32_e32.cpp
     src/sampling/neighbor_sampling_sg_v64_e64.cpp
+    src/sampling/negative_sampling_sg_v32_e64.cu
+    src/sampling/negative_sampling_sg_v32_e32.cu
+    src/sampling/negative_sampling_sg_v64_e64.cu
     src/sampling/renumber_sampled_edgelist_sg_v64_e64.cu
     src/sampling/renumber_sampled_edgelist_sg_v32_e32.cu
     src/sampling/sampling_post_processing_sg_v64_e64.cu
