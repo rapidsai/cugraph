@@ -35,6 +35,74 @@ namespace test {
 
 namespace detail {
 
+template <typename vertex_t, typename weight_t>
+std::tuple<rmm::device_uvector<vertex_t>,
+           rmm::device_uvector<vertex_t>,
+           std::optional<rmm::device_uvector<weight_t>>>
+concatenate_edge_chunks(raft::handle_t const& handle,
+                        std::vector<rmm::device_uvector<vertex_t>>&& src_chunks,
+                        std::vector<rmm::device_uvector<vertex_t>>&& dst_chunks,
+                        std::optional<std::vector<rmm::device_uvector<weight_t>>> weight_chunks)
+{
+  if (src_chunks.size() == 1) {
+    return std::make_tuple(std::move(src_chunks[0]),
+                           std::move(dst_chunks[0]),
+                           weight_chunks ? std::make_optional<rmm::device_uvector<weight_t>>(
+                                             std::move((*weight_chunks)[0]))
+                                         : std::nullopt);
+  } else {
+    size_t edge_count{0};
+    for (size_t i = 0; i < src_chunks.size(); ++i) {
+      edge_count += src_chunks[i].size();
+    }
+
+    rmm::device_uvector<vertex_t> srcs(edge_count, handle.get_stream());
+    {
+      size_t offset{0};
+      for (size_t i = 0; i < src_chunks.size(); ++i) {
+        raft::copy(
+          srcs.data() + offset, src_chunks[i].data(), src_chunks[i].size(), handle.get_stream());
+        offset += src_chunks[i].size();
+        src_chunks[i].resize(0, handle.get_stream());
+        src_chunks[i].shrink_to_fit(handle.get_stream());
+      }
+      src_chunks.clear();
+    }
+
+    rmm::device_uvector<vertex_t> dsts(edge_count, handle.get_stream());
+    {
+      size_t offset{0};
+      for (size_t i = 0; i < dst_chunks.size(); ++i) {
+        raft::copy(
+          dsts.data() + offset, dst_chunks[i].data(), dst_chunks[i].size(), handle.get_stream());
+        offset += dst_chunks[i].size();
+        dst_chunks[i].resize(0, handle.get_stream());
+        dst_chunks[i].shrink_to_fit(handle.get_stream());
+      }
+      dst_chunks.clear();
+    }
+
+    auto weights = weight_chunks ? std::make_optional<rmm::device_uvector<weight_t>>(
+                                     edge_count, handle.get_stream())
+                                 : std::nullopt;
+    if (weights) {
+      size_t offset{0};
+      for (size_t i = 0; i < (*weight_chunks).size(); ++i) {
+        raft::copy((*weights).data() + offset,
+                   (*weight_chunks)[i].data(),
+                   (*weight_chunks)[i].size(),
+                   handle.get_stream());
+        offset += (*weight_chunks)[i].size();
+        (*weight_chunks)[i].resize(0, handle.get_stream());
+        (*weight_chunks)[i].shrink_to_fit(handle.get_stream());
+      }
+      (*weight_chunks).clear();
+    }
+
+    return std::make_tuple(std::move(srcs), std::move(dsts), std::move(weights));
+  }
+}
+
 class TranslateGraph_Usecase {
  public:
   TranslateGraph_Usecase() = delete;

@@ -144,9 +144,22 @@ class Tests_Multithreaded
     instance_manager->reset_threads();
 
     // Load SG edge list
-    auto [d_src_v, d_dst_v, d_weights_v, d_vertices_v, is_symmetric] =
-      input_usecase.template construct_edgelist<vertex_t, weight_t>(
-        handle, test_weighted, store_transposed, false);
+    rmm::device_uvector<vertex_t> d_src_v(0, handle.get_stream());
+    rmm::device_uvector<vertex_t> d_dst_v(0, handle.get_stream());
+    std::optional<rmm::device_uvector<weight_t>> d_weights_v{std::nullopt};
+    std::optional<rmm::device_uvector<vertex_t>> d_vertices_v{std::nullopt};
+    bool is_symmetric{};
+    {
+      std::vector<rmm::device_uvector<vertex_t>> src_chunks{};
+      std::vector<rmm::device_uvector<vertex_t>> dst_chunks{};
+      std::optional<std::vector<rmm::device_uvector<weight_t>>> weight_chunks{std::nullopt};
+      std::tie(src_chunks, dst_chunks, weight_chunks, d_vertices_v, is_symmetric) =
+        input_usecase.template construct_edgelist<vertex_t, weight_t>(
+          handle, test_weighted, store_transposed, false);
+
+      std::tie(d_src_v, d_dst_v, d_weights_v) = cugraph::test::detail::concatenate_edge_chunks(
+        handle, std::move(src_chunks), std::move(dst_chunks), std::move(weight_chunks));
+    }
 
     rmm::device_uvector<vertex_t> d_unique_vertices(2 * d_src_v.size(), handle.get_stream());
     thrust::copy(

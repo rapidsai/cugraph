@@ -76,21 +76,9 @@ class Tests_Renumbering
       std::tie(src_chunks, dst_chunks, std::ignore, std::ignore, std::ignore) =
         input_usecase.template construct_edgelist<vertex_t, weight_t>(handle, false, false, false);
 
-      edge_t edge_count{0};
-      for (size_t i = 0; i < src_chunks.size(); ++i) {
-        edge_count += static_cast<edge_t>(src_chunks[i].size());
-      }
-      src_v.resize(edge_count, handle.get_stream());
-      dst_v.resize(src_v.size(), handle.get_stream());
-
-      edge_t offset{0};
-      for (size_t i = 0; i < src_chunks.size(); ++i) {
-        raft::copy(
-          src_v.data() + offset, src_chunks[i].data(), src_chunks[i].size(), handle.get_stream());
-        raft::copy(
-          dst_v.data() + offset, dst_chunks[i].data(), dst_chunks[i].size(), handle.get_stream());
-        offset += static_cast<edge_t>(src_chunks[i].size());
-      }
+      std::tie(src_v, dst_v, std::ignore) =
+        cugraph::test::detail::concatenate_edge_chunks<vertex_t, weight_t>(
+          handle, std::move(src_chunks), std::move(dst_chunks), std::nullopt);
     }
 
     if (renumbering_usecase.check_correctness) {
