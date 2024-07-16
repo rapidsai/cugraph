@@ -206,7 +206,7 @@ def all_pairs_dijkstra(G, cutoff=None, weight="weight", *, dtype=None):
 
 
 @all_pairs_dijkstra._can_run
-def _(G, source, target=None, cutoff=None, weight="weight", *, dtype=None):
+def _(G, cutoff=None, weight="weight", *, dtype=None):
     return not callable(weight)
 
 
@@ -220,7 +220,7 @@ def all_pairs_dijkstra_path_length(G, cutoff=None, weight="weight", *, dtype=Non
 
 
 @all_pairs_dijkstra_path_length._can_run
-def _(G, source, target=None, cutoff=None, weight="weight", *, dtype=None):
+def _(G, cutoff=None, weight="weight", *, dtype=None):
     return not callable(weight)
 
 
