@@ -92,6 +92,29 @@ class edge_bucket_t {
   {
   }
 
+  template <typename tag_type = tag_t, std::enable_if_t<std::is_same_v<tag_type, void>>* = nullptr>
+  edge_bucket_t(raft::handle_t const& handle,
+                rmm::device_uvector<vertex_t>&& srcs,
+                rmm::device_uvector<vertex_t>&& dsts)
+    : handle_ptr_(&handle),
+      majors_(std::move(src_major ? srcs : dsts)),
+      minors_(std::move(src_major ? dsts : srcs)),
+      tags_(std::byte{0})
+  {
+  }
+
+  template <typename tag_type = tag_t, std::enable_if_t<!std::is_same_v<tag_type, void>>* = nullptr>
+  edge_bucket_t(raft::handle_t const& handle,
+                rmm::device_uvector<vertex_t>&& srcs,
+                rmm::device_uvector<vertex_t>&& dsts,
+                rmm::device_uvector<tag_t>&& tags)
+    : handle_ptr_(&handle),
+      majors_(std::move(src_major ? srcs : dsts)),
+      minors_(std::move(src_major ? dsts : srcs)),
+      tags_(std::move(tags))
+  {
+  }
+
   /**
    * @ brief insert an edge to the bucket
    *

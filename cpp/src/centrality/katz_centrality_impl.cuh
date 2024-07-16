@@ -107,7 +107,7 @@ void katz_centrality(
     std::swap(new_katz_centralities, old_katz_centralities);
 
     update_edge_src_property(
-      handle, pull_graph_view, old_katz_centralities, edge_src_katz_centralities);
+      handle, pull_graph_view, old_katz_centralities, edge_src_katz_centralities.mutable_view());
 
     if (edge_weight_view) {
       per_v_transform_reduce_incoming_e(
