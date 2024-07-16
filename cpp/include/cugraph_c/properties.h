@@ -131,7 +131,7 @@ void cugraph_edge_property_free(cugraph_edge_property_t* p);
  *
  * @param [in]  p    Pointer to the vertex_property_view object
  */
-void cugraph_vertex_property__viewfree(cugraph_vertex_property__viewt* p);
+void cugraph_vertex_property_view_free(cugraph_vertex_property__viewt* p);
 
 /**
  * @brief    Destroy a edge_property_view object
@@ -139,9 +139,8 @@ void cugraph_vertex_property__viewfree(cugraph_vertex_property__viewt* p);
  * @param [in]  p    Pointer to the edge_property_view object
  */
 void cugraph_edge_property_view_free(cugraph_edge_property_view_t* p);
+#endif
 
 #ifdef __cplusplus
 }
-#endif
-
 #endif
