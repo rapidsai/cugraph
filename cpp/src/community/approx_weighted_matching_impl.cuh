@@ -50,9 +50,11 @@ std::tuple<rmm::device_uvector<vertex_t>, weight_t> approximate_weighted_matchin
   if (current_graph_view.has_edge_mask()) { current_graph_view.clear_edge_mask(); }
 
   cugraph::edge_property_t<graph_view_t, bool> edge_masks_even(handle, current_graph_view);
-  cugraph::fill_edge_property(handle, current_graph_view, bool{false}, edge_masks_even);
+  cugraph::fill_edge_property(
+    handle, current_graph_view, edge_masks_even.mutable_view(), bool{false});
   cugraph::edge_property_t<graph_view_t, bool> edge_masks_odd(handle, current_graph_view);
-  cugraph::fill_edge_property(handle, current_graph_view, bool{false}, edge_masks_odd);
+  cugraph::fill_edge_property(
+    handle, current_graph_view, edge_masks_odd.mutable_view(), bool{false});
 
   if (graph_view.has_edge_mask()) {
     current_graph_view.attach_edge_mask(*(graph_view.edge_mask_view()));
@@ -99,7 +101,8 @@ std::tuple<rmm::device_uvector<vertex_t>, weight_t> approximate_weighted_matchin
   if constexpr (graph_view_t::is_multi_gpu) {
     src_key_cache = edge_src_property_t<graph_view_t, vertex_t>(handle, current_graph_view);
 
-    update_edge_src_property(handle, current_graph_view, local_vertices.begin(), src_key_cache);
+    update_edge_src_property(
+      handle, current_graph_view, local_vertices.begin(), src_key_cache.mutable_view());
 
     src_match_flags = cugraph::edge_src_property_t<graph_view_t, bool>(handle, current_graph_view);
     dst_match_flags = cugraph::edge_dst_property_t<graph_view_t, bool>(handle, current_graph_view);
@@ -296,9 +299,9 @@ std::tuple<rmm::device_uvector<vertex_t>, weight_t> approximate_weighted_matchin
 
     if constexpr (graph_view_t::is_multi_gpu) {
       cugraph::update_edge_src_property(
-        handle, current_graph_view, is_vertex_matched.begin(), src_match_flags);
+        handle, current_graph_view, is_vertex_matched.begin(), src_match_flags.mutable_view());
       cugraph::update_edge_dst_property(
-        handle, current_graph_view, is_vertex_matched.begin(), dst_match_flags);
+        handle, current_graph_view, is_vertex_matched.begin(), dst_match_flags.mutable_view());
     }
 
     if (loop_counter % 2 == 0) {
@@ -330,7 +333,8 @@ std::tuple<rmm::device_uvector<vertex_t>, weight_t> approximate_weighted_matchin
       }
 
       if (current_graph_view.has_edge_mask()) current_graph_view.clear_edge_mask();
-      cugraph::fill_edge_property(handle, current_graph_view, bool{false}, edge_masks_even);
+      cugraph::fill_edge_property(
+        handle, current_graph_view, edge_masks_even.mutable_view(), bool{false});
       current_graph_view.attach_edge_mask(edge_masks_odd.view());
     } else {
       if constexpr (graph_view_t::is_multi_gpu) {
@@ -361,7 +365,8 @@ std::tuple<rmm::device_uvector<vertex_t>, weight_t> approximate_weighted_matchin
       }
 
       if (current_graph_view.has_edge_mask()) current_graph_view.clear_edge_mask();
-      cugraph::fill_edge_property(handle, current_graph_view, bool{false}, edge_masks_odd);
+      cugraph::fill_edge_property(
+        handle, current_graph_view, edge_masks_odd.mutable_view(), bool{false});
       current_graph_view.attach_edge_mask(edge_masks_even.view());
     }
 

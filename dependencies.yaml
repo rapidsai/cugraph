@@ -3,7 +3,7 @@ files:
   all:
     output: [conda]
     matrix:
-      cuda: ["11.8", "12.2"]
+      cuda: ["11.8", "12.5"]
       arch: [x86_64]
     includes:
       - checks
@@ -353,6 +353,10 @@ dependencies:
               cuda: "12.2"
             packages:
               - cuda-version=12.2
+          - matrix:
+              cuda: "12.5"
+            packages:
+              - cuda-version=12.5
   cuda:
     specific:
       - output_types: [conda]
@@ -376,7 +380,7 @@ dependencies:
     common:
       - output_types: [conda, pyproject]
         packages:
-          - &cmake_ver cmake>=3.26.4
+          - &cmake_ver cmake>=3.26.4,!=3.30.0
           - ninja
   cpp_build:
     common:

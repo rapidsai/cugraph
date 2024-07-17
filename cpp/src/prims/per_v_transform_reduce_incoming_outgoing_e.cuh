@@ -660,7 +660,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
         auto const major_comm_rank = major_comm.get_rank();
         minor_init                 = (major_comm_rank == 0) ? init : ReduceOp::identity_element;
       }
-      fill_edge_minor_property(handle, graph_view, minor_init, minor_tmp_buffer->mutable_view());
+      fill_edge_minor_property(handle, graph_view, minor_tmp_buffer->mutable_view(), minor_init);
     } else {
       thrust::fill(handle.get_thrust_policy(),
                    vertex_value_output_first,

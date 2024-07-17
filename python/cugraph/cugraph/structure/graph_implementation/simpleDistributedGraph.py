@@ -855,6 +855,12 @@ class simpleDistributedGraphImpl:
         Compute vertex pairs that are two hops apart. The resulting pairs are
         sorted before returning.
 
+        Parameters
+        ----------
+        start_vertices : Int or List (default=None)
+        Subset of vertices to compute two hop neighbors on. If None, compute
+        for all nodes.
+
         Returns
         -------
         df : cudf.DataFrame
@@ -885,9 +891,9 @@ class simpleDistributedGraphImpl:
         if start_vertices is not None:
             if self.renumbered:
                 start_vertices = self.renumber_map.to_internal_vertex_id(start_vertices)
-                start_vertices_type = self.edgelist.edgelist_df.dtypes[0]
+                start_vertices_type = self.edgelist.edgelist_df.dtypes.iloc[0]
             else:
-                start_vertices_type = self.input_df.dtypes[0]
+                start_vertices_type = self.input_df.dtypes.iloc[0]
 
             start_vertices = start_vertices.astype(start_vertices_type)
 

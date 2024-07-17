@@ -67,7 +67,7 @@ regex = "(?P<value>.*)"
 build-backend = "scikit_build_core.build"
 dependencies-file = "../../dependencies.yaml"
 requires = [
-    "cmake>=3.26.4",
+    "cmake>=3.26.4,!=3.30.0",
     "ninja",
     "pylibraft==24.8.*,>=0.0.0a0",
     "rmm==24.8.*,>=0.0.0a0",

@@ -43,6 +43,9 @@ popd
 
 export GTEST_OUTPUT=xml:${RAPIDS_TESTS_DIR}/
 
+# Skip benchmark tests inside of CI
+export GTEST_FILTER="-*benchmark*"
+
 # Run libcugraph gtests from libcugraph-tests package
 rapids-logger "Run gtests"
 ./ci/run_ctests.sh -j10 && EXITCODE=$? || EXITCODE=$?;
