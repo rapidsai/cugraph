@@ -40,12 +40,33 @@ from pylibcugraph._cugraph_c.array cimport (
     cugraph_type_erased_device_array_t,
 )
 
+from pylibcugraph._cugraph_c.properties cimport (
+    cugraph_edge_property_view_t,
+)
+
 cdef extern from "cugraph_c/sampling_algorithms.h":
     ###########################################################################
 
     cdef cugraph_error_code_t cugraph_uniform_neighbor_sample(
         const cugraph_resource_handle_t* handle,
         cugraph_graph_t* graph,
+        const cugraph_type_erased_device_array_view_t* start_vertices,
+        const cugraph_type_erased_device_array_view_t* start_vertex_labels,
+        const cugraph_type_erased_device_array_view_t* label_list,
+        const cugraph_type_erased_device_array_view_t* label_to_comm_rank,
+        const cugraph_type_erased_device_array_view_t* label_offsets,
+        const cugraph_type_erased_host_array_view_t* fan_out,
+        cugraph_rng_state_t* rng_state,
+        const cugraph_sampling_options_t* options,
+        bool_t do_expensive_check,
+        cugraph_sample_result_t** result,
+        cugraph_error_t** error
+    )
+
+    cdef cugraph_error_code_t cugraph_biased_neighbor_sample(
+        const cugraph_resource_handle_t* handle,
+        cugraph_graph_t* graph,
+        const cugraph_edge_property_view_t* edge_biases,
         const cugraph_type_erased_device_array_view_t* start_vertices,
         const cugraph_type_erased_device_array_view_t* start_vertex_labels,
         const cugraph_type_erased_device_array_view_t* label_list,

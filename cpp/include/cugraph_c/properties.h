@@ -55,13 +55,14 @@ typedef struct {
 /**
  * @brief     Create a vertex property
  *
- * @param [in]  handle      Handle for accessing resources
- * @param [in]  graph       Pointer to graph.
- * @param [in]  vertex_ids  Device array of vertex ids
- * @param [in]  property    Device array of vertex property
- * @param [out] result      Pointer to the location to store the pointer to the vertex property object
- * @param [out] error       Pointer to an error object storing details of any error.  Will
- *                          be populated if error code is not CUGRAPH_SUCCESS
+ * @param [in]  handle            Handle for accessing resources
+ * @param [in]  graph             Pointer to graph.
+ * @param [in]  vertex_ids        Device array of vertex ids
+ * @param [in]  property          Device array of vertex property
+ * @param [in]  default_property  Device array of vertex property
+ * @param [out] result            Pointer to the location to store the pointer to the vertex property object
+ * @param [out] error             Pointer to an error object storing details of any error.  Will
+ *                                be populated if error code is not CUGRAPH_SUCCESS
  * @return error code
  */
 cugraph_error_code_t cugraph_vertex_property_create(
@@ -69,20 +70,22 @@ cugraph_error_code_t cugraph_vertex_property_create(
   const cugraph_graph_t * graph,
   const cugraph_type_erased_device_array_t* vertex_ids,
   const cugraph_type_erased_device_array_t* properties,
+  const cugraph_type_erased_scalar_t* default_property,
   cugraph_vertex_property_t** result,
   cugraph_error_t** error);
 
 /**
- * @brief     Create a edge property
+ * @brief     Create an edge property
  *
- * @param [in]  handle           Handle for accessing resources
- * @param [in]  graph            Pointer to graph.
- * @param [in]  lookup_container Lookup map
- * @param [in]  edge_ids         Device array of edge ids
- * @param [in]  property         Device array of edge property
- * @param [out] result           Pointer to the location to store the pointer to the edge property object
- * @param [out] error            Pointer to an error object storing details of any error.  Will
- *                               be populated if error code is not CUGRAPH_SUCCESS
+ * @param [in]  handle            Handle for accessing resources
+ * @param [in]  graph             Pointer to graph.
+ * @param [in]  lookup_container  Lookup map
+ * @param [in]  edge_ids          Device array of edge ids
+ * @param [in]  property          Device array of edge property
+ * @param [in]  default_property  Device array of vertex property
+ * @param [out] result            Pointer to the location to store the pointer to the edge property object
+ * @param [out] error             Pointer to an error object storing details of any error.  Will
+ *                                be populated if error code is not CUGRAPH_SUCCESS
  * @return error code
  */
 cugraph_error_code_t cugraph_edge_property_create(
@@ -91,7 +94,51 @@ cugraph_error_code_t cugraph_edge_property_create(
   const cugraph_lookup_container_t* lookup_container,
   const cugraph_type_erased_device_array_t* edge_ids,
   const cugraph_type_erased_device_array_t* properties,
+  const cugraph_type_erased_scalar_t* default_property,
   cugraph_edge_property_t** result,
+  cugraph_error_t** error);
+
+/**
+ * @brief     Update an existing vertex property
+ *
+ * @param [in]  handle            Handle for accessing resources
+ * @param [in]  graph             Pointer to graph.
+ * @param [in]  vertex_ids        Device array of vertex ids to update
+ * @param [in]  property          Device array of vertex properties to update
+ * @param [in/out] result         Pointer to the vertex property object to update
+ * @param [out] error             Pointer to an error object storing details of any error.  Will
+ *                                be populated if error code is not CUGRAPH_SUCCESS
+ * @return error code
+ */
+cugraph_error_code_t cugraph_vertex_property_update(
+  const cugraph_resource_handle_t* handle,
+  const cugraph_graph_t * graph,
+  const cugraph_type_erased_device_array_t* vertex_ids,
+  const cugraph_type_erased_device_array_t* properties,
+  const cugraph_type_erased_scalar_t* default_property,
+  cugraph_vertex_property_view_t* result,
+  cugraph_error_t** error);
+
+/**
+ * @brief     Update an existing edge property
+ *
+ * @param [in]  handle            Handle for accessing resources
+ * @param [in]  graph             Pointer to graph.
+ * @param [in]  lookup_container  Lookup map
+ * @param [in]  edge_ids          Device array of edge ids to update
+ * @param [in]  property          Device array of edge properties to update
+ * @param [in/out] result         Pointer to the edge property object to update
+ * @param [out] error             Pointer to an error object storing details of any error.  Will
+ *                                be populated if error code is not CUGRAPH_SUCCESS
+ * @return error code
+ */
+cugraph_error_code_t cugraph_edge_property_create(
+  const cugraph_resource_handle_t* handle,
+  const cugraph_graph_t * graph,
+  const cugraph_lookup_container_t* lookup_container,
+  const cugraph_type_erased_device_array_t* edge_ids,
+  const cugraph_type_erased_device_array_t* properties,
+  cugraph_edge_property_view_t* result,
   cugraph_error_t** error);
 
 /**
