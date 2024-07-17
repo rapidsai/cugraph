@@ -269,7 +269,7 @@ TEST_P(Tests_EigenvectorCentrality_Rmat, CheckInt64Int64FloatFloat)
 }
 
 INSTANTIATE_TEST_SUITE_P(
-  file_test_pass,
+  file_test_test,
   Tests_EigenvectorCentrality_File,
   ::testing::Combine(
     // enable correctness checks
@@ -280,7 +280,7 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"))));
 
 INSTANTIATE_TEST_SUITE_P(
-  file_large_pass,
+  file_large_test,
   Tests_EigenvectorCentrality_File,
   ::testing::Combine(
     // enable correctness checks
