@@ -335,13 +335,12 @@ def bench_sssp(gpubenchmark, graph):
 
     sssp = dask_cugraph.sssp if is_graph_distributed(graph) else cugraph.sssp
 
-    src_col = graph.edgelist.edgelist_df["src"]
-    if isinstance(graph, dask_cudf.Series):
-        start = src_col.compute().iloc[0]
-    else:
-        start = src_col.iloc[0]
+    start_col = graph.select_random_vertices(num_vertices=1)
+    if is_graph_distributed(graph):
+        start_col = start_col.compute()
 
-    # breakpoint() # check if start exists
+    start = start_col.to_arrow().to_pylist()[0]
+
     gpubenchmark(sssp, graph, start)
 
 
