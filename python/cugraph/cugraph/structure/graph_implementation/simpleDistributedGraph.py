@@ -891,9 +891,9 @@ class simpleDistributedGraphImpl:
         if start_vertices is not None:
             if self.renumbered:
                 start_vertices = self.renumber_map.to_internal_vertex_id(start_vertices)
-                start_vertices_type = self.edgelist.edgelist_df.dtypes[0]
+                start_vertices_type = self.edgelist.edgelist_df.dtypes.iloc[0]
             else:
-                start_vertices_type = self.input_df.dtypes[0]
+                start_vertices_type = self.input_df.dtypes.iloc[0]
 
             start_vertices = start_vertices.astype(start_vertices_type)
 
