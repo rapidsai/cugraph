@@ -492,7 +492,7 @@ ConfigureTest(BIASED_NEIGHBOR_SAMPLING_TEST sampling/biased_neighbor_sampling.cp
 ConfigureTest(SAMPLING_POST_PROCESSING_TEST sampling/sampling_post_processing_test.cu)
 
 ###################################################################################################
-# - NEGATVIE SAMPLING tests --------------------------------------------------------------------
+# - NEGATIVE SAMPLING tests --------------------------------------------------------------------
 ConfigureTest(NEGATIVE_SAMPLING_TEST sampling/negative_sampling.cu)
 
 ###################################################################################################
@@ -744,6 +744,11 @@ if(BUILD_CUGRAPH_MG_TESTS)
     ###############################################################################################
     # - MG BIASED NBR SAMPLING tests --------------------------------------------------------------
     ConfigureTestMG(MG_BIASED_NEIGHBOR_SAMPLING_TEST sampling/mg_biased_neighbor_sampling.cpp)
+
+    ###################################################################################################
+    # - NEGATIVE SAMPLING tests --------------------------------------------------------------------
+    ConfigureTestMG(MG_NEGATIVE_SAMPLING_TEST sampling/mg_negative_sampling.cu)
+
 
     ###############################################################################################
     # - MG RANDOM_WALKS tests ---------------------------------------------------------------------
