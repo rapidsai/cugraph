@@ -1,4 +1,4 @@
-# Copyright (c) 2021-2023, NVIDIA CORPORATION.
+# Copyright (c) 2021-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -58,8 +58,7 @@ def dask_client_non_p2p():
     # DASK_WORKER_DEVICES env vars and use them when creating a client if
     # set. start_dask_client will also initialize the Comms singleton.
     dask_client, dask_cluster = start_dask_client(
-        worker_class=IncreasedCloseTimeoutNanny,
-        p2p=False 
+        worker_class=IncreasedCloseTimeoutNanny, p2p=False
     )
 
     yield dask_client

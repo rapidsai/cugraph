@@ -1,4 +1,4 @@
-# Copyright (c) 2022-2023, NVIDIA CORPORATION.
+# Copyright (c) 2022-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -35,7 +35,7 @@ def start_dask_client(
     jit_unspill=False,
     worker_class=None,
     device_memory_limit=0.8,
-    p2p=True
+    p2p=True,
 ):
     """
     Creates a new dask client, and possibly also a cluster, and returns them as
@@ -96,7 +96,7 @@ def start_dask_client(
         dask_cuda.LocalCUDACluster for details. This parameter is ignored if
         the env var SCHEDULER_FILE is set which implies the dask cluster has
         already been created.
-    
+
     p2p : bool, optional (default=True)
         Initialize UCX endpoints if True.
     """
