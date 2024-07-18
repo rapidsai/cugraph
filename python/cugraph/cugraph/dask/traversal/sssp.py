@@ -110,12 +110,6 @@ def sssp(input_graph, source, cutoff=None, check_source=True):
 
     client = default_client()
 
-    if not isinstance(source, int):
-        raise ValueError(
-            f"Invalid source type. 'Source' must be an interger "
-            f"but was given a {type(source)}"
-        )
-
     def check_valid_vertex(G, source):
         is_valid_vertex = G.has_node(source)
         if not is_valid_vertex:
