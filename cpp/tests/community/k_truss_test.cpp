@@ -245,19 +245,13 @@ class Tests_KTruss : public ::testing::TestWithParam<std::tuple<KTruss_Usecase, 
 
       ASSERT_TRUE(
         std::equal(h_cugraph_dsts.begin(), h_cugraph_dsts.end(), h_reference_dsts.begin()));
-      printf("\n**************final results***************\n");
-      //raft::print_host_vector("h_cugraph_srcs", h_cugraph_srcs.data(), h_cugraph_srcs.size(), std::cout);
-      //raft::print_host_vector("h_cugraph_dsts", h_cugraph_dsts.data(), h_cugraph_dsts.size(), std::cout);
 
       if (edge_weight) {
         auto h_cugraph_wgts  = cugraph::test::to_host(handle, d_sorted_cugraph_wgts);
-        //raft::print_host_vector("h_cugraph_wgts", h_cugraph_wgts.data(), h_cugraph_wgts.size(), std::cout);
-        //raft::print_host_vector("h_reference_wgts", (*h_reference_wgts).data(), (*h_reference_wgts).size(), std::cout);
         auto compare_functor = host_nearly_equal<weight_t>{
           weight_t{1e-3},
           weight_t{(weight_t{1} / static_cast<weight_t>((h_cugraph_wgts).size())) *
                    weight_t{1e-3}}};
-        
         EXPECT_TRUE(std::equal((h_cugraph_wgts).begin(),
                                (h_cugraph_wgts).end(),
                                (*h_reference_wgts).begin(),
@@ -268,14 +262,14 @@ class Tests_KTruss : public ::testing::TestWithParam<std::tuple<KTruss_Usecase, 
 };
 
 using Tests_KTruss_File = Tests_KTruss<cugraph::test::File_Usecase>;
-//using Tests_KTruss_Rmat = Tests_KTruss<cugraph::test::Rmat_Usecase>;
+using Tests_KTruss_Rmat = Tests_KTruss<cugraph::test::Rmat_Usecase>;
 
 TEST_P(Tests_KTruss_File, CheckInt32Int32Float)
 {
   run_current_test<int32_t, int32_t, float>(
     override_File_Usecase_with_cmd_line_arguments(GetParam()));
 }
-#if 0
+
 TEST_P(Tests_KTruss_File, CheckInt64Int64Float)
 {
   run_current_test<int64_t, int64_t, float>(
@@ -293,25 +287,14 @@ TEST_P(Tests_KTruss_Rmat, CheckInt64Int64Float)
   run_current_test<int64_t, int64_t, float>(
     override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
 }
-#endif
 
 INSTANTIATE_TEST_SUITE_P(
   simple_test,
   Tests_KTruss_File,
   ::testing::Combine(
     // enable correctness checks
-    ::testing::Values(//KTruss_Usecase{4, true, true},
-                      KTruss_Usecase{4, true, true}),
-    ::testing::Values(cugraph::test::File_Usecase("/raid/jnke/optimize_ktruss/datasets/test_datasets.mtx"))));
-
-#if 0
-INSTANTIATE_TEST_SUITE_P(
-  simple_test,
-  Tests_KTruss_File,
-  ::testing::Combine(
-    // enable correctness checks
-    ::testing::Values(KTruss_Usecase{5, true, true},
-                      KTruss_Usecase{4, true, true},
+    ::testing::Values(KTruss_Usecase{5, true, false},
+                      KTruss_Usecase{4, true, false},
                       KTruss_Usecase{9, true, true},
                       KTruss_Usecase{7, true, true}),
     ::testing::Values(cugraph::test::File_Usecase("test/datasets/netscience.mtx"),
@@ -320,8 +303,8 @@ INSTANTIATE_TEST_SUITE_P(
 INSTANTIATE_TEST_SUITE_P(rmat_small_test,
                          Tests_KTruss_Rmat,
                          // enable correctness checks
-                         ::testing::Combine(::testing::Values(KTruss_Usecase{5, true, true},
-                                                              KTruss_Usecase{4, true, true},
+                         ::testing::Combine(::testing::Values(KTruss_Usecase{5, false, true},
+                                                              KTruss_Usecase{4, false, true},
                                                               KTruss_Usecase{9, true, true},
                                                               KTruss_Usecase{7, true, true}),
                                             ::testing::Values(cugraph::test::Rmat_Usecase(
@@ -337,8 +320,7 @@ INSTANTIATE_TEST_SUITE_P(
   // disable correctness checks for large graphs
   // FIXME: High memory footprint. Perform nbr_intersection in chunks.
   ::testing::Combine(
-    ::testing::Values(KTruss_Usecase{4, false, false}),
-    ::testing::Values(cugraph::test::Rmat_Usecase(18, 16, 0.57, 0.19, 0.19, 0, true, false))));
-#endif
+    ::testing::Values(KTruss_Usecase{12, false, false}),
+    ::testing::Values(cugraph::test::Rmat_Usecase(14, 16, 0.57, 0.19, 0.19, 0, true, false))));
 
 CUGRAPH_TEST_PROGRAM_MAIN()
