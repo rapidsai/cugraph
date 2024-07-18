@@ -62,8 +62,7 @@ class Tests_MGKTruss
 
   // Compare the results of running KTruss on multiple GPUs to that of a single-GPU run
   template <typename vertex_t, typename edge_t>
-  void run_current_test(KTruss_Usecase const& k_truss_usecase,
-                        input_usecase_t const& input_usecase)
+  void run_current_test(KTruss_Usecase const& k_truss_usecase, input_usecase_t const& input_usecase)
   {
     using weight_t = float;
 
@@ -105,21 +104,18 @@ class Tests_MGKTruss
       hr_timer.start("MG KTruss");
     }
 
-    auto mg_edge_weight_view = edge_weight ? std::make_optional((*edge_weight).view()) : std::nullopt;
+    auto mg_edge_weight_view =
+      edge_weight ? std::make_optional((*edge_weight).view()) : std::nullopt;
     auto [d_cugraph_srcs, d_cugraph_dsts, d_cugraph_wgts] =
       cugraph::k_truss<vertex_t, edge_t, weight_t, true>(
-        *handle_,
-        mg_graph_view,
-        mg_edge_weight_view,
-        k_truss_usecase.k_,
-        false);
+        *handle_, mg_graph_view, mg_edge_weight_view, k_truss_usecase.k_, false);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle_->get_comms().barrier();
       hr_timer.stop();
       hr_timer.display_and_clear(std::cout);
-    }  
+    }
 
     // 3. Compare SG & MG results
 
@@ -132,33 +128,34 @@ class Tests_MGKTruss
         mg_graph_view.vertex_partition_range_lasts());
 
       cugraph::unrenumber_int_vertices<vertex_t, true>(
-          *handle_,
-          d_cugraph_dsts.data(),
-          d_cugraph_dsts.size(),
-          (*mg_renumber_map).data(),
-          mg_graph_view.vertex_partition_range_lasts());
+        *handle_,
+        d_cugraph_dsts.data(),
+        d_cugraph_dsts.size(),
+        (*mg_renumber_map).data(),
+        mg_graph_view.vertex_partition_range_lasts());
 
       auto global_d_cugraph_srcs = cugraph::test::device_gatherv(
         *handle_, raft::device_span<vertex_t const>(d_cugraph_srcs.data(), d_cugraph_srcs.size()));
-    
+
       auto global_d_cugraph_dsts = cugraph::test::device_gatherv(
-          *handle_, raft::device_span<vertex_t const>(d_cugraph_dsts.data(), d_cugraph_srcs.size()));
-      
+        *handle_, raft::device_span<vertex_t const>(d_cugraph_dsts.data(), d_cugraph_srcs.size()));
+
       rmm::device_uvector<vertex_t> d_sorted_cugraph_srcs{0, handle_->get_stream()};
       rmm::device_uvector<vertex_t> d_sorted_cugraph_dsts{0, handle_->get_stream()};
       rmm::device_uvector<weight_t> d_sorted_cugraph_wgts{0, handle_->get_stream()};
-      
+
       if (edge_weight) {
         auto global_d_cugraph_wgts = cugraph::test::device_gatherv(
-          *handle_, raft::device_span<weight_t const>((*d_cugraph_wgts).data(), (*d_cugraph_wgts).size()));
-        
+          *handle_,
+          raft::device_span<weight_t const>((*d_cugraph_wgts).data(), (*d_cugraph_wgts).size()));
+
         std::tie(d_sorted_cugraph_srcs, d_sorted_cugraph_dsts, d_sorted_cugraph_wgts) =
-            cugraph::test::sort_by_key<vertex_t, weight_t>(
-              *handle_, global_d_cugraph_srcs, global_d_cugraph_dsts, global_d_cugraph_wgts);
+          cugraph::test::sort_by_key<vertex_t, weight_t>(
+            *handle_, global_d_cugraph_srcs, global_d_cugraph_dsts, global_d_cugraph_wgts);
 
       } else {
         std::tie(d_sorted_cugraph_srcs, d_sorted_cugraph_dsts) =
-            cugraph::test::sort<vertex_t>(*handle_, global_d_cugraph_srcs, global_d_cugraph_dsts);
+          cugraph::test::sort<vertex_t>(*handle_, global_d_cugraph_srcs, global_d_cugraph_dsts);
       }
 
       // 3-1. Convert to SG graph
@@ -171,9 +168,9 @@ class Tests_MGKTruss
           std::make_optional<raft::device_span<vertex_t const>>((*mg_renumber_map).data(),
                                                                 (*mg_renumber_map).size()),
           false);
-  
 
-      auto sg_edge_weight_view = sg_edge_weights ? std::make_optional((*sg_edge_weights).view()) : std::nullopt;
+      auto sg_edge_weight_view =
+        sg_edge_weights ? std::make_optional((*sg_edge_weights).view()) : std::nullopt;
 
       if (handle_->get_comms().get_rank() == int{0}) {
         auto sg_graph_view = sg_graph.view();
@@ -181,58 +178,45 @@ class Tests_MGKTruss
         // 3-2. Run SG KTruss
         auto [ref_d_cugraph_srcs, ref_d_cugraph_dsts, ref_d_cugraph_wgts] =
           cugraph::k_truss<vertex_t, edge_t, weight_t, false>(
-            *handle_,
-            sg_graph_view,
-            sg_edge_weight_view,
-            k_truss_usecase.k_,
-            false);
+            *handle_, sg_graph_view, sg_edge_weight_view, k_truss_usecase.k_, false);
 
         rmm::device_uvector<vertex_t> d_sorted_ref_cugraph_srcs{0, handle_->get_stream()};
         rmm::device_uvector<vertex_t> d_sorted_ref_cugraph_dsts{0, handle_->get_stream()};
         rmm::device_uvector<weight_t> d_sorted_ref_cugraph_wgts{0, handle_->get_stream()};
-      
-        if (edge_weight) {          
-          std::tie(d_sorted_ref_cugraph_srcs, d_sorted_ref_cugraph_dsts, d_sorted_ref_cugraph_wgts) =
-              cugraph::test::sort_by_key<vertex_t, weight_t>(
-                *handle_, ref_d_cugraph_srcs, ref_d_cugraph_dsts, *ref_d_cugraph_wgts);
+
+        if (edge_weight) {
+          std::tie(
+            d_sorted_ref_cugraph_srcs, d_sorted_ref_cugraph_dsts, d_sorted_ref_cugraph_wgts) =
+            cugraph::test::sort_by_key<vertex_t, weight_t>(
+              *handle_, ref_d_cugraph_srcs, ref_d_cugraph_dsts, *ref_d_cugraph_wgts);
 
         } else {
           std::tie(d_sorted_ref_cugraph_srcs, d_sorted_ref_cugraph_dsts) =
-              cugraph::test::sort<vertex_t>(
-                *handle_, ref_d_cugraph_srcs, ref_d_cugraph_dsts);
+            cugraph::test::sort<vertex_t>(*handle_, ref_d_cugraph_srcs, ref_d_cugraph_dsts);
         }
 
         // 3-3. Compare
-        auto h_cugraph_srcs = cugraph::test::to_host(*handle_, d_sorted_cugraph_srcs);
-        auto h_cugraph_dsts = cugraph::test::to_host(*handle_, d_sorted_cugraph_dsts);
-        auto ref_h_cugraph_srcs =
-          cugraph::test::to_host(*handle_, d_sorted_ref_cugraph_srcs);
-        auto ref_h_cugraph_dsts =
-          cugraph::test::to_host(*handle_, d_sorted_ref_cugraph_dsts);
-          
-        ASSERT_TRUE(std::equal(h_cugraph_srcs.begin(),
-                               h_cugraph_srcs.end(),
-                               ref_h_cugraph_srcs.begin()));
-        
-        ASSERT_TRUE(std::equal(h_cugraph_dsts.begin(),
-                               h_cugraph_dsts.end(),
-                               ref_h_cugraph_dsts.begin()));
-        
-        if (edge_weight) { 
-          auto ref_h_cugraph_wgts =
-            cugraph::test::to_host(*handle_, d_sorted_ref_cugraph_wgts);
-          
-          auto h_cugraph_wgts =
-            cugraph::test::to_host(*handle_, d_sorted_cugraph_wgts);
-          
-          ASSERT_TRUE(std::equal(h_cugraph_wgts.begin(),
-                                 h_cugraph_wgts.end(),
-                                 ref_h_cugraph_wgts.begin()));
+        auto h_cugraph_srcs     = cugraph::test::to_host(*handle_, d_sorted_cugraph_srcs);
+        auto h_cugraph_dsts     = cugraph::test::to_host(*handle_, d_sorted_cugraph_dsts);
+        auto ref_h_cugraph_srcs = cugraph::test::to_host(*handle_, d_sorted_ref_cugraph_srcs);
+        auto ref_h_cugraph_dsts = cugraph::test::to_host(*handle_, d_sorted_ref_cugraph_dsts);
+
+        ASSERT_TRUE(
+          std::equal(h_cugraph_srcs.begin(), h_cugraph_srcs.end(), ref_h_cugraph_srcs.begin()));
+
+        ASSERT_TRUE(
+          std::equal(h_cugraph_dsts.begin(), h_cugraph_dsts.end(), ref_h_cugraph_dsts.begin()));
+
+        if (edge_weight) {
+          auto ref_h_cugraph_wgts = cugraph::test::to_host(*handle_, d_sorted_ref_cugraph_wgts);
+
+          auto h_cugraph_wgts = cugraph::test::to_host(*handle_, d_sorted_cugraph_wgts);
+
+          ASSERT_TRUE(
+            std::equal(h_cugraph_wgts.begin(), h_cugraph_wgts.end(), ref_h_cugraph_wgts.begin()));
         }
-        
       }
     }
-
   }
 
  private:
@@ -243,7 +227,7 @@ template <typename input_usecase_t>
 std::unique_ptr<raft::handle_t> Tests_MGKTruss<input_usecase_t>::handle_ = nullptr;
 
 using Tests_MGKTruss_File = Tests_MGKTruss<cugraph::test::File_Usecase>;
-//using Tests_MGKTruss_Rmat = Tests_MGKTruss<cugraph::test::Rmat_Usecase>;
+using Tests_MGKTruss_Rmat = Tests_MGKTruss<cugraph::test::Rmat_Usecase>;
 
 TEST_P(Tests_MGKTruss_File, CheckInt32Int32)
 {
@@ -277,12 +261,9 @@ INSTANTIATE_TEST_SUITE_P(
   Tests_MGKTruss_File,
   ::testing::Combine(
     // enable correctness checks
-    ::testing::Values(KTruss_Usecase{4, false, false, true},
-                      KTruss_Usecase{5, true, false, true}
-                      ),
+    ::testing::Values(KTruss_Usecase{4, false, false, true}, KTruss_Usecase{5, true, false, true}),
     ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"),
-                      cugraph::test::File_Usecase("test/datasets/dolphins.mtx")
-      )));
+                      cugraph::test::File_Usecase("test/datasets/dolphins.mtx"))));
 
 INSTANTIATE_TEST_SUITE_P(
   rmat_small_tests,
@@ -290,7 +271,6 @@ INSTANTIATE_TEST_SUITE_P(
   ::testing::Combine(
     ::testing::Values(KTruss_Usecase{8, false, false, false}),
     ::testing::Values(cugraph::test::Rmat_Usecase(20, 16, 0.57, 0.19, 0.19, 0, true, false))));
-
 
 INSTANTIATE_TEST_SUITE_P(
   rmat_benchmark_test, /* note that scale & edge factor can be overridden in benchmarking (with
