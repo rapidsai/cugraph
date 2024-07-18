@@ -347,6 +347,7 @@ struct extract_q_idx {
   }
 };
 
+// FIXME: Remove multi_gpu as it is not used.
 template <typename vertex_t, typename edge_t, typename EdgeIterator, bool multi_gpu>
 struct extract_q_idx_closing {
   using return_type = thrust::optional<thrust::tuple<vertex_t, vertex_t, vertex_t, edge_t>>;
@@ -682,11 +683,6 @@ k_truss(raft::handle_t const& handle,
         true);
 
     modified_graph_view = (*modified_graph).view();
-    /*
-    edge_weight_view =
-      edge_weight ? std::make_optional((*edge_weight).view())
-                  : std::optional<edge_property_view_t<edge_t, weight_t const*>>{std::nullopt};
-    */
 
     if (renumber_map) {  // collapse renumber_map
       unrenumber_int_vertices<vertex_t, multi_gpu>(handle,
@@ -799,6 +795,7 @@ k_truss(raft::handle_t const& handle,
                                                                           // FIXME: Replace by lambda function
                                                                           extract_weak_edges<vertex_t, edge_t>{k});
 
+      
       auto num_weak_edges = weak_edgelist_srcs.size();
       if constexpr (multi_gpu) {
         num_weak_edges = host_scalar_allreduce(handle.get_comms(), num_weak_edges, raft::comms::op_t::SUM, handle.get_stream());
@@ -1599,7 +1596,7 @@ k_truss(raft::handle_t const& handle,
                                           decltype(get_dataframe_buffer_begin(vertex_pair_buffer_p_q_edge_p_r)),
                                           false,
                                           multi_gpu,
-                                          false // FIXME: Currently using global weak edges for validation purposes
+                                          true // FIXME: Currently using global weak edges for validation purposes
                                           >(
               handle,
               q_closing.size(),
@@ -1663,9 +1660,18 @@ k_truss(raft::handle_t const& handle,
         } else {
           
           // FIXME: refactor SG to use r_closing
+          
           auto weak_edgelist_dsts_tags_first = thrust::make_zip_iterator(
             weak_edgelist_dsts.begin(), std::get<1>(vertex_pair_buffer_p_tag).begin()
           );
+          
+          thrust::sort_by_key(handle.get_thrust_policy(),
+            weak_edgelist_dsts_tags_first,
+            weak_edgelist_dsts_tags_first + weak_edgelist_dsts.size(),
+            //major_weak_edgelist_srcs.begin()
+            weak_edgelist_srcs.begin()
+            );
+          
           auto [q_closing, r_closing, p_closing, idx_closing] =
             cugraph::extract_transform_v_frontier_outgoing_e(
               handle,
@@ -1719,6 +1725,12 @@ k_truss(raft::handle_t const& handle,
           thrust::make_zip_iterator(
             std::get<0>(vertex_pair_buffer_q_r_edge_p_r).begin(), std::get<1>(vertex_pair_buffer_q_r_edge_p_r).begin())
           );
+
+          // weak_edgelist_first
+          thrust::sort(handle.get_thrust_policy(),
+            weak_edgelist_first,
+            weak_edgelist_first + weak_edgelist_dsts.size()
+            );
 
           auto num_edges_not_overcomp_p_q =
             remove_overcompensating_edges<vertex_t,
@@ -1895,7 +1907,6 @@ k_truss(raft::handle_t const& handle,
           },
           edge_mask.mutable_view(),
           false);
-      
 
       cur_graph_view.attach_edge_mask(edge_mask.view());
     }
