@@ -274,7 +274,7 @@ TEST_P(Tests_InducedSubgraph_Rmat, CheckInt32Int32FloatTransposeTrue)
 #endif
 
 INSTANTIATE_TEST_SUITE_P(
-  karate_test,
+  file_test,
   Tests_InducedSubgraph_File,
   ::testing::Combine(
     ::testing::Values(InducedSubgraph_Usecase{std::vector<size_t>{0}, false, false},
@@ -294,7 +294,7 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"))));
 
 INSTANTIATE_TEST_SUITE_P(
-  web_google_test,
+  web_google_large_test,
   Tests_InducedSubgraph_File,
   ::testing::Combine(
     ::testing::Values(InducedSubgraph_Usecase{std::vector<size_t>{250, 130, 15}, false, false},
@@ -304,7 +304,7 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::Values(cugraph::test::File_Usecase("test/datasets/web-Google.mtx"))));
 
 INSTANTIATE_TEST_SUITE_P(
-  ljournal_2008_test,
+  ljournal_2008_large_test,
   Tests_InducedSubgraph_File,
   ::testing::Combine(
     ::testing::Values(InducedSubgraph_Usecase{std::vector<size_t>{9130, 1200, 300}, false, false},
@@ -314,7 +314,7 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::Values(cugraph::test::File_Usecase("test/datasets/ljournal-2008.mtx"))));
 
 INSTANTIATE_TEST_SUITE_P(
-  webbase_1M_test,
+  webbase_1M_large_test,
   Tests_InducedSubgraph_File,
   ::testing::Combine(
     ::testing::Values(InducedSubgraph_Usecase{std::vector<size_t>{700}, false, false},
