@@ -297,8 +297,22 @@ TEST_P(Tests_MGPageRank_Rmat, CheckInt64Int64FloatFloat)
     std::get<0>(param), override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
 
+INSTANTIATE_TEST_SUITE_P(file_tests,
+                         Tests_MGPageRank_File,
+                         ::testing::Combine(
+                           // enable correctness checks
+                           ::testing::Values(PageRank_Usecase{0.0, false, false},
+                                             PageRank_Usecase{0.0, false, true},
+                                             PageRank_Usecase{0.0, true, false},
+                                             PageRank_Usecase{0.0, true, true},
+                                             PageRank_Usecase{0.5, false, false},
+                                             PageRank_Usecase{0.5, false, true},
+                                             PageRank_Usecase{0.5, true, false},
+                                             PageRank_Usecase{0.5, true, true}),
+                           ::testing::Values(cugraph::test::File_Usecase("karate.csv"))));
+
 INSTANTIATE_TEST_SUITE_P(
-  file_tests,
+  file_large_tests,
   Tests_MGPageRank_File,
   ::testing::Combine(
     // enable correctness checks
@@ -310,8 +324,7 @@ INSTANTIATE_TEST_SUITE_P(
                       PageRank_Usecase{0.5, false, true},
                       PageRank_Usecase{0.5, true, false},
                       PageRank_Usecase{0.5, true, true}),
-    ::testing::Values(cugraph::test::File_Usecase("karate.csv"),
-                      cugraph::test::File_Usecase("test/datasets/web-Google.mtx"),
+    ::testing::Values(cugraph::test::File_Usecase("test/datasets/web-Google.mtx"),
                       cugraph::test::File_Usecase("test/datasets/ljournal-2008.mtx"),
                       cugraph::test::File_Usecase("test/datasets/webbase-1M.mtx"))));
 

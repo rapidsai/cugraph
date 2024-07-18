@@ -218,7 +218,7 @@ TEST_P(Tests_EdgeBetweennessCentrality_Rmat, CheckInt64Int64FloatFloat)
 }
 
 INSTANTIATE_TEST_SUITE_P(
-  file_test_pass,
+  file_test,
   Tests_EdgeBetweennessCentrality_File,
   ::testing::Combine(
     // enable correctness checks
@@ -230,8 +230,22 @@ INSTANTIATE_TEST_SUITE_P(
                       EdgeBetweennessCentrality_Usecase{20, true, false, true},
                       EdgeBetweennessCentrality_Usecase{20, true, true, false},
                       EdgeBetweennessCentrality_Usecase{20, true, true, true}),
-    ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"),
-                      cugraph::test::File_Usecase("test/datasets/web-Google.mtx"),
+    ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"))));
+
+INSTANTIATE_TEST_SUITE_P(
+  file_large_test,
+  Tests_EdgeBetweennessCentrality_File,
+  ::testing::Combine(
+    // enable correctness checks
+    ::testing::Values(EdgeBetweennessCentrality_Usecase{20, false, false, false},
+                      EdgeBetweennessCentrality_Usecase{20, false, false, true},
+                      EdgeBetweennessCentrality_Usecase{20, false, true, false},
+                      EdgeBetweennessCentrality_Usecase{20, false, true, true},
+                      EdgeBetweennessCentrality_Usecase{20, true, false, false},
+                      EdgeBetweennessCentrality_Usecase{20, true, false, true},
+                      EdgeBetweennessCentrality_Usecase{20, true, true, false},
+                      EdgeBetweennessCentrality_Usecase{20, true, true, true}),
+    ::testing::Values(cugraph::test::File_Usecase("test/datasets/web-Google.mtx"),
                       cugraph::test::File_Usecase("test/datasets/webbase-1M.mtx"))));
 
 INSTANTIATE_TEST_SUITE_P(

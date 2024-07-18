@@ -163,8 +163,10 @@ rmm::device_uvector<vertex_t> maximal_independent_moves(
     if constexpr (multi_gpu) {
       src_rank_cache = edge_src_property_t<GraphViewType, vertex_t>(handle, graph_view);
       dst_rank_cache = edge_dst_property_t<GraphViewType, vertex_t>(handle, graph_view);
-      update_edge_src_property(handle, graph_view, temporary_ranks.begin(), src_rank_cache);
-      update_edge_dst_property(handle, graph_view, temporary_ranks.begin(), dst_rank_cache);
+      update_edge_src_property(
+        handle, graph_view, temporary_ranks.begin(), src_rank_cache.mutable_view());
+      update_edge_dst_property(
+        handle, graph_view, temporary_ranks.begin(), dst_rank_cache.mutable_view());
     }
 
     //
