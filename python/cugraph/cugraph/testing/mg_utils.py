@@ -97,7 +97,7 @@ def start_dask_client(
         the env var SCHEDULER_FILE is set which implies the dask cluster has
         already been created.
     
-    p2p : bool, optional (default=False)
+    p2p : bool, optional (default=True)
         Initialize UCX endpoints if True.
     """
     dask_scheduler_file = os.environ.get("SCHEDULER_FILE")
