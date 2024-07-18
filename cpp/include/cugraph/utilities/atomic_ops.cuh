@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2023, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,6 +15,7 @@
  */
 #pragma once
 
+#include <cugraph/utilities/packed_bool_utils.hpp>
 #include <cugraph/utilities/thrust_tuple_utils.hpp>
 
 #include <raft/util/device_atomics.cuh>
@@ -112,7 +113,7 @@ __device__
                    T>
   atomic_and(Iterator iter, T value)
 {
-  detail::thrust_tuple_atomic_and(
+  return detail::thrust_tuple_atomic_and(
     iter, value, std::make_index_sequence<thrust::tuple_size<T>::value>{});
 }
 
@@ -140,7 +141,7 @@ __device__
                    T>
   atomic_or(Iterator iter, T value)
 {
-  detail::thrust_tuple_atomic_or(
+  return detail::thrust_tuple_atomic_or(
     iter, value, std::make_index_sequence<thrust::tuple_size<T>::value>{});
 }
 
@@ -155,22 +156,22 @@ template <typename Iterator, typename T>
 __device__
   std::enable_if_t<std::is_arithmetic_v<T> &&
                      std::is_same_v<typename thrust::iterator_traits<Iterator>::value_type, T>,
-                   void>
+                   T>
   atomic_add(Iterator iter, T value)
 {
-  atomicAdd(&(thrust::raw_reference_cast(*iter)), value);
+  return atomicAdd(&(thrust::raw_reference_cast(*iter)), value);
 }
 
 template <typename Iterator, typename T>
 __device__
   std::enable_if_t<is_thrust_tuple<typename thrust::iterator_traits<Iterator>::value_type>::value &&
                      is_thrust_tuple<T>::value,
-                   void>
+                   T>
   atomic_add(Iterator iter, T value)
 {
   static_assert(thrust::tuple_size<typename thrust::iterator_traits<Iterator>::value_type>::value ==
                 thrust::tuple_size<T>::value);
-  detail::thrust_tuple_atomic_add(
+  return detail::thrust_tuple_atomic_add(
     iter, value, std::make_index_sequence<thrust::tuple_size<T>::value>{});
 }
 
@@ -191,7 +192,7 @@ __device__
                    T>
   elementwise_atomic_cas(Iterator iter, T compare, T value)
 {
-  detail::thrust_tuple_elementwise_atomic_cas(
+  return detail::thrust_tuple_elementwise_atomic_cas(
     iter, compare, value, std::make_index_sequence<thrust::tuple_size<T>::value>{});
 }
 
@@ -206,22 +207,22 @@ template <typename Iterator, typename T>
 __device__
   std::enable_if_t<std::is_same<typename thrust::iterator_traits<Iterator>::value_type, T>::value &&
                      std::is_arithmetic<T>::value,
-                   void>
+                   T>
   elementwise_atomic_min(Iterator iter, T const& value)
 {
-  atomicMin(&(thrust::raw_reference_cast(*iter)), value);
+  return atomicMin(&(thrust::raw_reference_cast(*iter)), value);
 }
 
 template <typename Iterator, typename T>
 __device__
   std::enable_if_t<is_thrust_tuple<typename thrust::iterator_traits<Iterator>::value_type>::value &&
                      is_thrust_tuple<T>::value,
-                   void>
+                   T>
   elementwise_atomic_min(Iterator iter, T const& value)
 {
   static_assert(thrust::tuple_size<typename thrust::iterator_traits<Iterator>::value_type>::value ==
                 thrust::tuple_size<T>::value);
-  detail::thrust_tuple_elementwise_atomic_min(
+  return detail::thrust_tuple_elementwise_atomic_min(
     iter, value, std::make_index_sequence<thrust::tuple_size<T>::value>{});
 }
 
@@ -236,23 +237,35 @@ template <typename Iterator, typename T>
 __device__
   std::enable_if_t<std::is_same<typename thrust::iterator_traits<Iterator>::value_type, T>::value &&
                      std::is_arithmetic<T>::value,
-                   void>
+                   T>
   elementwise_atomic_max(Iterator iter, T const& value)
 {
-  atomicMax(&(thrust::raw_reference_cast(*iter)), value);
+  return atomicMax(&(thrust::raw_reference_cast(*iter)), value);
 }
 
 template <typename Iterator, typename T>
 __device__
   std::enable_if_t<is_thrust_tuple<typename thrust::iterator_traits<Iterator>::value_type>::value &&
                      is_thrust_tuple<T>::value,
-                   void>
+                   T>
   elementwise_atomic_max(Iterator iter, T const& value)
 {
   static_assert(thrust::tuple_size<typename thrust::iterator_traits<Iterator>::value_type>::value ==
                 thrust::tuple_size<T>::value);
-  detail::thrust_tuple_elementwise_atomic_max(
+  return detail::thrust_tuple_elementwise_atomic_max(
     iter, value, std::make_index_sequence<thrust::tuple_size<T>::value>{});
+}
+
+template <typename Iterator, typename T>
+__device__ void packed_bool_atomic_set(Iterator iter, T offset, bool val)
+{
+  auto packed_output_offset = packed_bool_offset(offset);
+  auto packed_output_mask   = packed_bool_mask(offset);
+  if (val) {
+    atomicOr(iter + packed_output_offset, packed_output_mask);
+  } else {
+    atomicAnd(iter + packed_output_offset, ~packed_output_mask);
+  }
 }
 
 }  // namespace cugraph
