@@ -52,6 +52,7 @@ def dask_client():
     stop_dask_client(dask_client, dask_cluster)
 
 
+# FIXME: Add tests leveraging this fixture
 @pytest.fixture(scope="module")
 def dask_client_non_p2p():
     # start_dask_client will check for the SCHEDULER_FILE and
