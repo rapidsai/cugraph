@@ -35,6 +35,7 @@ def start_dask_client(
     jit_unspill=False,
     worker_class=None,
     device_memory_limit=0.8,
+    p2p=True
 ):
     """
     Creates a new dask client, and possibly also a cluster, and returns them as
@@ -95,6 +96,9 @@ def start_dask_client(
         dask_cuda.LocalCUDACluster for details. This parameter is ignored if
         the env var SCHEDULER_FILE is set which implies the dask cluster has
         already been created.
+    
+    p2p : bool, optional (default=False)
+        Initialize UCX endpoints if True.
     """
     dask_scheduler_file = os.environ.get("SCHEDULER_FILE")
     dask_local_directory = os.getenv("DASK_LOCAL_DIRECTORY")
@@ -164,7 +168,7 @@ def start_dask_client(
         # FIXME: use proper logging, INFO or DEBUG level
         print("\nDask client/cluster created using LocalCUDACluster")
 
-    Comms.initialize(p2p=True)
+    Comms.initialize(p2p=p2p)
 
     return (client, cluster)
 
