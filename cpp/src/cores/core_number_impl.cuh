@@ -16,7 +16,7 @@
 #pragma once
 
 #include "prims/reduce_v.cuh"
-#include "prims/transform_reduce_v_frontier_outgoing_e_by_dst.cuh"
+#include "prims/transform_reduce_v_frontier_outgoing_e_by_src_dst.cuh"
 #include "prims/update_edge_src_dst_property.cuh"
 #include "prims/update_v_frontier.cuh"
 #include "prims/vertex_frontier.cuh"
@@ -177,7 +177,7 @@ void core_number(raft::handle_t const& handle,
 
   edge_dst_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>, edge_t> dst_core_numbers(
     handle, graph_view);
-  update_edge_dst_property(handle, graph_view, core_numbers, dst_core_numbers);
+  update_edge_dst_property(handle, graph_view, core_numbers, dst_core_numbers.mutable_view());
 
   auto k = std::max(k_first, size_t{2});  // degree 0|1 vertices belong to 0|1-core
   if (graph_view.is_symmetric() && (degree_type == k_core_degree_type_t::INOUT) &&
@@ -267,7 +267,7 @@ void core_number(raft::handle_t const& handle,
                                  vertex_frontier.bucket(bucket_idx_next).begin(),
                                  vertex_frontier.bucket(bucket_idx_next).end(),
                                  core_numbers,
-                                 dst_core_numbers);
+                                 dst_core_numbers.mutable_view());
 
         vertex_frontier.bucket(bucket_idx_next)
           .resize(static_cast<size_t>(thrust::distance(

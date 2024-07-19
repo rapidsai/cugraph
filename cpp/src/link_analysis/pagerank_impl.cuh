@@ -261,7 +261,8 @@ centrality_algorithm_metadata_t pagerank(
         return pagerank / divisor;
       });
 
-    update_edge_src_property(handle, pull_graph_view, pageranks.data(), edge_src_pageranks);
+    update_edge_src_property(
+      handle, pull_graph_view, pageranks.data(), edge_src_pageranks.mutable_view());
 
     auto unvarying_part = aggregate_personalization_vector_size == 0
                             ? (dangling_sum * alpha + static_cast<result_t>(1.0 - alpha)) /

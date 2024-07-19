@@ -278,8 +278,17 @@ INSTANTIATE_TEST_SUITE_P(
                       Uniform_Neighbor_Sampling_Usecase{{4, 10}, 128, false, true},
                       Uniform_Neighbor_Sampling_Usecase{{4, 10}, 128, true, false},
                       Uniform_Neighbor_Sampling_Usecase{{4, 10}, 128, true, true}),
-    ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"),
-                      cugraph::test::File_Usecase("test/datasets/web-Google.mtx"),
+    ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"))));
+
+INSTANTIATE_TEST_SUITE_P(
+  file_large_test,
+  Tests_Uniform_Neighbor_Sampling_File,
+  ::testing::Combine(
+    ::testing::Values(Uniform_Neighbor_Sampling_Usecase{{4, 10}, 128, false, false},
+                      Uniform_Neighbor_Sampling_Usecase{{4, 10}, 128, false, true},
+                      Uniform_Neighbor_Sampling_Usecase{{4, 10}, 128, true, false},
+                      Uniform_Neighbor_Sampling_Usecase{{4, 10}, 128, true, true}),
+    ::testing::Values(cugraph::test::File_Usecase("test/datasets/web-Google.mtx"),
                       cugraph::test::File_Usecase("test/datasets/ljournal-2008.mtx"),
                       cugraph::test::File_Usecase("test/datasets/webbase-1M.mtx"))));
 

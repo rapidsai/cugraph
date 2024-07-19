@@ -64,6 +64,11 @@ class Tests_MGBFS : public ::testing::TestWithParam<std::tuple<BFS_Usecase, inpu
   {
     using weight_t = float;
 
+    bool constexpr renumber         = true;
+    bool constexpr test_weighted    = false;
+    bool constexpr drop_self_loops  = false;
+    bool constexpr drop_multi_edges = false;
+
     HighResTimer hr_timer{};
 
     // 1. create MG graph
@@ -78,7 +83,7 @@ class Tests_MGBFS : public ::testing::TestWithParam<std::tuple<BFS_Usecase, inpu
     std::optional<rmm::device_uvector<vertex_t>> mg_renumber_map{std::nullopt};
     std::tie(mg_graph, std::ignore, mg_renumber_map) =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, true>(
-        *handle_, input_usecase, false, true);
+        *handle_, input_usecase, test_weighted, renumber, drop_self_loops, drop_multi_edges);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -94,6 +99,16 @@ class Tests_MGBFS : public ::testing::TestWithParam<std::tuple<BFS_Usecase, inpu
       edge_mask = cugraph::test::generate<decltype(mg_graph_view), bool>::edge_property(
         *handle_, mg_graph_view, 2);
       mg_graph_view.attach_edge_mask((*edge_mask).view());
+    }
+    {  // FIXME: for testing, delete
+      auto num_self_loops  = mg_graph_view.count_self_loops(*handle_);
+      auto number_of_edges = mg_graph_view.compute_number_of_edges(*handle_);
+      std::cout << "V=" << mg_graph_view.number_of_vertices() << " E=" << number_of_edges
+                << " num_self_loops=" << num_self_loops;
+      if (mg_graph_view.is_symmetric()) {
+        std::cout << " undirected E=" << ((number_of_edges - num_self_loops) / 2 + num_self_loops)
+                  << std::endl;
+      }
     }
 
     ASSERT_TRUE(static_cast<vertex_t>(bfs_usecase.source) >= 0 &&
@@ -124,7 +139,7 @@ class Tests_MGBFS : public ::testing::TestWithParam<std::tuple<BFS_Usecase, inpu
                  d_mg_predecessors.data(),
                  d_mg_source ? (*d_mg_source).data() : static_cast<vertex_t const*>(nullptr),
                  d_mg_source ? size_t{1} : size_t{0},
-                 false,
+                 mg_graph_view.is_symmetric() ? true : false,
                  std::numeric_limits<vertex_t>::max());
 
     if (cugraph::test::g_perf) {
@@ -299,8 +314,15 @@ INSTANTIATE_TEST_SUITE_P(
   ::testing::Combine(
     // enable correctness checks
     ::testing::Values(BFS_Usecase{0, false}, BFS_Usecase{0, true}),
-    ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"),
-                      cugraph::test::File_Usecase("test/datasets/web-Google.mtx"),
+    ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"))));
+
+INSTANTIATE_TEST_SUITE_P(
+  file_large_test,
+  Tests_MGBFS_File,
+  ::testing::Combine(
+    // enable correctness checks
+    ::testing::Values(BFS_Usecase{0, false}, BFS_Usecase{0, true}),
+    ::testing::Values(cugraph::test::File_Usecase("test/datasets/web-Google.mtx"),
                       cugraph::test::File_Usecase("test/datasets/ljournal-2008.mtx"),
                       cugraph::test::File_Usecase("test/datasets/webbase-1M.mtx"))));
 
@@ -323,9 +345,13 @@ INSTANTIATE_TEST_SUITE_P(
   Tests_MGBFS_Rmat,
   ::testing::Values(
     // disable correctness checks for large graphs
-    std::make_tuple(BFS_Usecase{0, false, false},
-                    cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false)),
-    std::make_tuple(BFS_Usecase{0, true, false},
-                    cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false))));
+    std::make_tuple(
+      BFS_Usecase{0, false, false},
+      cugraph::test::Rmat_Usecase(
+        20, 16, 0.57, 0.19, 0.19, 0, true /* undirected */, false /* scramble vertex IDs */)),
+    std::make_tuple(
+      BFS_Usecase{0, true, false},
+      cugraph::test::Rmat_Usecase(
+        20, 16, 0.57, 0.19, 0.19, 0, true /* undirected */, false /* scramble vertex IDs */))));
 
 CUGRAPH_MG_TEST_PROGRAM_MAIN()
