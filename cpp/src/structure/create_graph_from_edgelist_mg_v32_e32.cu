@@ -30,7 +30,7 @@ template std::tuple<
   std::optional<rmm::device_uvector<int32_t>>>
 create_graph_from_edgelist<int32_t, int32_t, float, int32_t, int32_t, false, true>(
   raft::handle_t const& handle,
-  std::optional<rmm::device_uvector<int32_t>>&& vertex_span,
+  std::optional<rmm::device_uvector<int32_t>>&& vertices,
   rmm::device_uvector<int32_t>&& edgelist_srcs,
   rmm::device_uvector<int32_t>&& edgelist_dsts,
   std::optional<rmm::device_uvector<float>>&& edgelist_weights,
@@ -51,7 +51,7 @@ template std::tuple<
   std::optional<rmm::device_uvector<int32_t>>>
 create_graph_from_edgelist<int32_t, int32_t, float, int32_t, int32_t, true, true>(
   raft::handle_t const& handle,
-  std::optional<rmm::device_uvector<int32_t>>&& vertex_span,
+  std::optional<rmm::device_uvector<int32_t>>&& vertices,
   rmm::device_uvector<int32_t>&& edgelist_srcs,
   rmm::device_uvector<int32_t>&& edgelist_dsts,
   std::optional<rmm::device_uvector<float>>&& edgelist_weights,
@@ -72,7 +72,7 @@ template std::tuple<
   std::optional<rmm::device_uvector<int32_t>>>
 create_graph_from_edgelist<int32_t, int32_t, double, int32_t, int32_t, false, true>(
   raft::handle_t const& handle,
-  std::optional<rmm::device_uvector<int32_t>>&& vertex_span,
+  std::optional<rmm::device_uvector<int32_t>>&& vertices,
   rmm::device_uvector<int32_t>&& edgelist_srcs,
   rmm::device_uvector<int32_t>&& edgelist_dsts,
   std::optional<rmm::device_uvector<double>>&& edgelist_weights,
@@ -93,12 +93,96 @@ template std::tuple<
   std::optional<rmm::device_uvector<int32_t>>>
 create_graph_from_edgelist<int32_t, int32_t, double, int32_t, int32_t, true, true>(
   raft::handle_t const& handle,
-  std::optional<rmm::device_uvector<int32_t>>&& vertex_span,
+  std::optional<rmm::device_uvector<int32_t>>&& vertices,
   rmm::device_uvector<int32_t>&& edgelist_srcs,
   rmm::device_uvector<int32_t>&& edgelist_dsts,
   std::optional<rmm::device_uvector<double>>&& edgelist_weights,
   std::optional<rmm::device_uvector<int32_t>>&& edgelist_edge_ids,
   std::optional<rmm::device_uvector<int32_t>>&& edgelist_edge_types,
+  graph_properties_t graph_properties,
+  bool renumber,
+  bool do_expensive_check);
+
+template std::tuple<
+  cugraph::graph_t<int32_t, int32_t, false, true>,
+  std::optional<
+    cugraph::edge_property_t<cugraph::graph_view_t<int32_t, int32_t, false, true>, float>>,
+  std::optional<
+    cugraph::edge_property_t<cugraph::graph_view_t<int32_t, int32_t, false, true>, int32_t>>,
+  std::optional<
+    cugraph::edge_property_t<cugraph::graph_view_t<int32_t, int32_t, false, true>, int32_t>>,
+  std::optional<rmm::device_uvector<int32_t>>>
+create_graph_from_edgelist<int32_t, int32_t, float, int32_t, int32_t, false, true>(
+  raft::handle_t const& handle,
+  std::optional<rmm::device_uvector<int32_t>>&& vertices,
+  std::vector<rmm::device_uvector<int32_t>>&& edgelist_srcs,
+  std::vector<rmm::device_uvector<int32_t>>&& edgelist_dsts,
+  std::optional<std::vector<rmm::device_uvector<float>>>&& edgelist_weights,
+  std::optional<std::vector<rmm::device_uvector<int32_t>>>&& edgelist_edge_ids,
+  std::optional<std::vector<rmm::device_uvector<int32_t>>>&& edgelist_edge_types,
+  graph_properties_t graph_properties,
+  bool renumber,
+  bool do_expensive_check);
+
+template std::tuple<
+  cugraph::graph_t<int32_t, int32_t, true, true>,
+  std::optional<
+    cugraph::edge_property_t<cugraph::graph_view_t<int32_t, int32_t, true, true>, float>>,
+  std::optional<
+    cugraph::edge_property_t<cugraph::graph_view_t<int32_t, int32_t, true, true>, int32_t>>,
+  std::optional<
+    cugraph::edge_property_t<cugraph::graph_view_t<int32_t, int32_t, true, true>, int32_t>>,
+  std::optional<rmm::device_uvector<int32_t>>>
+create_graph_from_edgelist<int32_t, int32_t, float, int32_t, int32_t, true, true>(
+  raft::handle_t const& handle,
+  std::optional<rmm::device_uvector<int32_t>>&& vertices,
+  std::vector<rmm::device_uvector<int32_t>>&& edgelist_srcs,
+  std::vector<rmm::device_uvector<int32_t>>&& edgelist_dsts,
+  std::optional<std::vector<rmm::device_uvector<float>>>&& edgelist_weights,
+  std::optional<std::vector<rmm::device_uvector<int32_t>>>&& edgelist_edge_ids,
+  std::optional<std::vector<rmm::device_uvector<int32_t>>>&& edgelist_edge_types,
+  graph_properties_t graph_properties,
+  bool renumber,
+  bool do_expensive_check);
+
+template std::tuple<
+  cugraph::graph_t<int32_t, int32_t, false, true>,
+  std::optional<
+    cugraph::edge_property_t<cugraph::graph_view_t<int32_t, int32_t, false, true>, double>>,
+  std::optional<
+    cugraph::edge_property_t<cugraph::graph_view_t<int32_t, int32_t, false, true>, int32_t>>,
+  std::optional<
+    cugraph::edge_property_t<cugraph::graph_view_t<int32_t, int32_t, false, true>, int32_t>>,
+  std::optional<rmm::device_uvector<int32_t>>>
+create_graph_from_edgelist<int32_t, int32_t, double, int32_t, int32_t, false, true>(
+  raft::handle_t const& handle,
+  std::optional<rmm::device_uvector<int32_t>>&& vertices,
+  std::vector<rmm::device_uvector<int32_t>>&& edgelist_srcs,
+  std::vector<rmm::device_uvector<int32_t>>&& edgelist_dsts,
+  std::optional<std::vector<rmm::device_uvector<double>>>&& edgelist_weights,
+  std::optional<std::vector<rmm::device_uvector<int32_t>>>&& edgelist_edge_ids,
+  std::optional<std::vector<rmm::device_uvector<int32_t>>>&& edgelist_edge_types,
+  graph_properties_t graph_properties,
+  bool renumber,
+  bool do_expensive_check);
+
+template std::tuple<
+  cugraph::graph_t<int32_t, int32_t, true, true>,
+  std::optional<
+    cugraph::edge_property_t<cugraph::graph_view_t<int32_t, int32_t, true, true>, double>>,
+  std::optional<
+    cugraph::edge_property_t<cugraph::graph_view_t<int32_t, int32_t, true, true>, int32_t>>,
+  std::optional<
+    cugraph::edge_property_t<cugraph::graph_view_t<int32_t, int32_t, true, true>, int32_t>>,
+  std::optional<rmm::device_uvector<int32_t>>>
+create_graph_from_edgelist<int32_t, int32_t, double, int32_t, int32_t, true, true>(
+  raft::handle_t const& handle,
+  std::optional<rmm::device_uvector<int32_t>>&& vertices,
+  std::vector<rmm::device_uvector<int32_t>>&& edgelist_srcs,
+  std::vector<rmm::device_uvector<int32_t>>&& edgelist_dsts,
+  std::optional<std::vector<rmm::device_uvector<double>>>&& edgelist_weights,
+  std::optional<std::vector<rmm::device_uvector<int32_t>>>&& edgelist_edge_ids,
+  std::optional<std::vector<rmm::device_uvector<int32_t>>>&& edgelist_edge_types,
   graph_properties_t graph_properties,
   bool renumber,
   bool do_expensive_check);
