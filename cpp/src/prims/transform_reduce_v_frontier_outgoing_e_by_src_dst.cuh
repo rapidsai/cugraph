@@ -178,6 +178,10 @@ auto sort_and_reduce_buffer_elements(
   return std::make_tuple(std::move(key_buffer), std::move(payload_buffer));
 }
 
+#if 1  // FIXME: delete
+#define TRANSFORM_REDUCE_PERFORMANCE_MEASUREMENT
+#endif
+
 template <bool reduce_by_src,
           typename GraphViewType,
           typename VertexFrontierBucketType,
@@ -218,6 +222,10 @@ transform_reduce_v_frontier_outgoing_e_by_src_dst(raft::handle_t const& handle,
 
   // 1. fill the buffer
 
+#if TRANSFORM_REDUCE_PERFORMANCE_MEASUREMENT  // FIXME: delete
+  RAFT_CUDA_TRY(cudaDeviceSynchronize());
+  auto time0 = std::chrono::steady_clock::now();
+#endif
   detail::transform_reduce_v_frontier_call_e_op_t<reduce_by_src,
                                                   key_t,
                                                   payload_t,
@@ -240,12 +248,20 @@ transform_reduce_v_frontier_outgoing_e_by_src_dst(raft::handle_t const& handle,
       edge_value_input,
       e_op_wrapper,
       do_expensive_check);
+#if TRANSFORM_REDUCE_PERFORMANCE_MEASUREMENT  // FIXME: delete
+  RAFT_CUDA_TRY(cudaDeviceSynchronize());
+  auto time1 = std::chrono::steady_clock::now();
+#endif
 
   // 2. reduce the buffer
 
   std::tie(key_buffer, payload_buffer) =
     detail::sort_and_reduce_buffer_elements<key_t, payload_t, ReduceOp>(
       handle, std::move(key_buffer), std::move(payload_buffer), reduce_op);
+#if TRANSFORM_REDUCE_PERFORMANCE_MEASUREMENT  // FIXME: delete
+  RAFT_CUDA_TRY(cudaDeviceSynchronize());
+  auto time2 = std::chrono::steady_clock::now();
+#endif
   if constexpr (GraphViewType::is_multi_gpu) {
     // FIXME: this step is unnecessary if major_comm_size== 1
     auto& comm                 = handle.get_comms();
@@ -315,6 +331,15 @@ transform_reduce_v_frontier_outgoing_e_by_src_dst(raft::handle_t const& handle,
       detail::sort_and_reduce_buffer_elements<key_t, payload_t, ReduceOp>(
         handle, std::move(key_buffer), std::move(payload_buffer), reduce_op);
   }
+#if TRANSFORM_REDUCE_PERFORMANCE_MEASUREMENT  // FIXME: delete
+  RAFT_CUDA_TRY(cudaDeviceSynchronize());
+  auto time3                         = std::chrono::steady_clock::now();
+  std::chrono::duration<double> dur0 = time1 - time0;
+  std::chrono::duration<double> dur1 = time2 - time1;
+  std::chrono::duration<double> dur2 = time3 - time2;
+  std::cout << "\tprim took (" << dur0.count() << "," << dur1.count() << "," << dur2.count() << ")"
+            << std::endl;
+#endif
 
   if constexpr (!std::is_same_v<payload_t, void>) {
     return std::make_tuple(std::move(key_buffer), std::move(payload_buffer));
