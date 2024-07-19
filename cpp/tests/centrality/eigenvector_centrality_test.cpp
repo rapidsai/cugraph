@@ -269,7 +269,7 @@ TEST_P(Tests_EigenvectorCentrality_Rmat, CheckInt64Int64FloatFloat)
 }
 
 INSTANTIATE_TEST_SUITE_P(
-  file_test_pass,
+  file_test_test,
   Tests_EigenvectorCentrality_File,
   ::testing::Combine(
     // enable correctness checks
@@ -277,8 +277,18 @@ INSTANTIATE_TEST_SUITE_P(
                       EigenvectorCentrality_Usecase{500, false, true},
                       EigenvectorCentrality_Usecase{500, true, false},
                       EigenvectorCentrality_Usecase{500, true, true}),
-    ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"),
-                      cugraph::test::File_Usecase("test/datasets/web-Google.mtx"),
+    ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"))));
+
+INSTANTIATE_TEST_SUITE_P(
+  file_large_test,
+  Tests_EigenvectorCentrality_File,
+  ::testing::Combine(
+    // enable correctness checks
+    ::testing::Values(EigenvectorCentrality_Usecase{500, false, false},
+                      EigenvectorCentrality_Usecase{500, false, true},
+                      EigenvectorCentrality_Usecase{500, true, false},
+                      EigenvectorCentrality_Usecase{500, true, true}),
+    ::testing::Values(cugraph::test::File_Usecase("test/datasets/web-Google.mtx"),
                       cugraph::test::File_Usecase("test/datasets/ljournal-2008.mtx"),
                       cugraph::test::File_Usecase("test/datasets/webbase-1M.mtx"))));
 

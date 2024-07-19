@@ -1668,8 +1668,6 @@ create_graph_from_edgelist_impl(
       "Invalid input arguments: edgelist_edge_types.has_value() is true, "
       "edgelist_srcs[i].size() != (*edgelist_edge_types)[i].size().");
   }
-  CUGRAPH_EXPECTS(renumber,
-                  "Invalid input arguments: renumber should be true if multi_gpu is true.");
 
   std::vector<edge_t> chunk_edge_counts(edgelist_srcs.size());
   for (size_t i = 0; i < edgelist_srcs.size(); ++i) {

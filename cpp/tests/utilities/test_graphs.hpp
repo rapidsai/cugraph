@@ -691,20 +691,27 @@ construct_graph(raft::handle_t const& handle,
   }
 
   if (drop_multi_edges) {
-    for (size_t i = 0; i < edge_src_chunks.size(); ++i) {
-      std::optional<rmm::device_uvector<weight_t>> tmp_weights{std::nullopt};
-      std::tie(edge_src_chunks[i], edge_dst_chunks[i], tmp_weights, std::ignore, std::ignore) =
-        cugraph::remove_multi_edges<vertex_t, edge_t, weight_t, int32_t>(
-          handle,
-          std::move(edge_src_chunks[i]),
-          std::move(edge_dst_chunks[i]),
-          edge_weight_chunks
-            ? std::make_optional<rmm::device_uvector<weight_t>>(std::move((*edge_weight_chunks)[i]))
-            : std::nullopt,
-          std::nullopt,
-          std::nullopt,
-          is_symmetric ? true /* keep minimum weight edges to maintain symmetry */ : false);
-      if (tmp_weights) { (*edge_weight_chunks)[i] = std::move(*tmp_weights); }
+    auto [srcs, dsts, weights] = detail::concatenate_edge_chunks(handle,
+                                                                 std::move(edge_src_chunks),
+                                                                 std::move(edge_dst_chunks),
+                                                                 std::move(edge_weight_chunks));
+    std::tie(srcs, dsts, weights, std::ignore, std::ignore) =
+      cugraph::remove_multi_edges<vertex_t, edge_t, weight_t, int32_t>(
+        handle,
+        std::move(srcs),
+        std::move(dsts),
+        std::move(weights),
+        std::nullopt,
+        std::nullopt,
+        is_symmetric ? true /* keep minimum weight edges to maintain symmetry */ : false);
+    edge_src_chunks = std::vector<rmm::device_uvector<vertex_t>>{};
+    edge_src_chunks.push_back(std::move(srcs));
+    edge_dst_chunks = std::vector<rmm::device_uvector<vertex_t>>{};
+    edge_dst_chunks.push_back(std::move(dsts));
+    edge_weight_chunks = std::nullopt;
+    if (weights) {
+      edge_weight_chunks = std::vector<rmm::device_uvector<weight_t>>{};
+      (*edge_weight_chunks).push_back(std::move(*weights));
     }
   }
 
