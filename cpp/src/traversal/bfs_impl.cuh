@@ -89,7 +89,7 @@ struct bottomup_e_op_t {
 namespace detail {
 
 #if 1  // FIXME: delete
-#define BFS_PERFORMANCE_MEASUREMENT
+#define BFS_PERFORMANCE_MEASUREMENT 1
 #endif
 
 template <typename GraphViewType, typename PredecessorIterator>

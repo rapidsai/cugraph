@@ -579,7 +579,7 @@ __global__ static void extract_transform_v_frontier_e_high_degree(
   }
 }
 
-#define EXTRACT_PERFORMANCE_MEASUREMENT
+#define EXTRACT_PERFORMANCE_MEASUREMENT 1
 
 template <bool incoming,  // iterate over incoming edges (incoming == true) or outgoing edges
                           // (incoming == false)

@@ -179,7 +179,7 @@ auto sort_and_reduce_buffer_elements(
 }
 
 #if 1  // FIXME: delete
-#define TRANSFORM_REDUCE_PERFORMANCE_MEASUREMENT
+#define TRANSFORM_REDUCE_PERFORMANCE_MEASUREMENT 1
 #endif
 
 template <bool reduce_by_src,
