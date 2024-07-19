@@ -579,6 +579,8 @@ __global__ static void extract_transform_v_frontier_e_high_degree(
   }
 }
 
+#define EXTRACT_PERFORMANCE_MEASUREMENT
+
 template <bool incoming,  // iterate over incoming edges (incoming == true) or outgoing edges
                           // (incoming == false)
           bool max_one_e_per_frontier_key,  // extract maximum one edge per key in the input
@@ -605,6 +607,10 @@ extract_transform_v_frontier_e(raft::handle_t const& handle,
                                EdgeOp e_op,
                                bool do_expensive_check = false)
 {
+#if EXTRACT_PERFORMANCE_MEASUREMENT  // FIXME: delete
+  RAFT_CUDA_TRY(cudaDeviceSynchronize());
+  auto time0 = std::chrono::steady_clock::now();
+#endif
   using vertex_t       = typename GraphViewType::vertex_type;
   using edge_t         = typename GraphViewType::edge_type;
   using key_t          = typename VertexFrontierBucketType::key_type;
@@ -673,6 +679,8 @@ extract_transform_v_frontier_e(raft::handle_t const& handle,
                     "Invalid input argument: frontier includes out-of-range keys.");
   }
 
+  // 1. pre-process frontier data
+
   auto frontier_key_first = frontier.begin();
   auto frontier_key_last  = frontier.end();
   auto frontier_keys      = allocate_dataframe_buffer<key_t>(size_t{0}, handle.get_stream());
@@ -689,13 +697,32 @@ extract_transform_v_frontier_e(raft::handle_t const& handle,
     frontier_key_last  = get_dataframe_buffer_end(frontier_keys);
   }
 
-  // 1. fill the buffers
+  {  // drop zero degree vertices
+    size_t partition_idx{0};
+    if constexpr (GraphViewType::is_multi_gpu) {
+      auto& minor_comm = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
+      partition_idx    = static_cast<size_t>(minor_comm.get_rank());
+    }
+    auto segment_offsets = graph_view.local_edge_partition_segment_offsets(partition_idx);
 
-  auto key_buffer =
-    allocate_optional_dataframe_buffer<output_key_t>(size_t{0}, handle.get_stream());
-  auto value_buffer =
-    allocate_optional_dataframe_buffer<output_value_t>(size_t{0}, handle.get_stream());
-  rmm::device_scalar<size_t> buffer_idx(size_t{0}, handle.get_stream());
+    if (segment_offsets) {
+      auto v_threshold =
+        graph_view.local_vertex_partition_range_first() + *((*segment_offsets).rbegin() + 1);
+      if constexpr (std::is_same_v<key_t, vertex_t>) {
+        frontier_key_last = thrust::lower_bound(
+          handle.get_thrust_policy(), frontier_key_first, frontier_key_last, v_threshold);
+      } else {
+        key_t key_threshold{};
+        thrust::get<0>(key_threshold) = v_threshold;
+        frontier_key_last             = thrust::lower_bound(
+          handle.get_thrust_policy(),
+          frontier_key_first,
+          frontier_key_last,
+          key_threshold,
+          [] __device__(auto lhs, auto rhs) { return thrust::get<0>(lhs) < thrust::get<0>(rhs); });
+      }
+    }
+  }
 
   std::vector<size_t> local_frontier_sizes{};
   if constexpr (GraphViewType::is_multi_gpu) {
@@ -709,9 +736,107 @@ extract_transform_v_frontier_e(raft::handle_t const& handle,
       static_cast<vertex_t>(thrust::distance(frontier_key_first, frontier_key_last)))};
   }
 
+  // update frontier bitmap (used to reduce broadcast bandwidth size)
+
+  std::conditional_t<GraphViewType::is_multi_gpu && std::is_same_v<key_t, vertex_t>,
+                     std::optional<rmm::device_uvector<uint32_t>>,
+                     std::byte /* dummy */>
+    frontier_bitmap{};
+  std::conditional_t<GraphViewType::is_multi_gpu && std::is_same_v<key_t, vertex_t>,
+                     std::vector<bool>,
+                     std::byte /* dummy */>
+    use_bitmap_flags{};
+  if constexpr (GraphViewType::is_multi_gpu && std::is_same_v<key_t, vertex_t>) {
+    auto& minor_comm           = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
+    auto const minor_comm_size = minor_comm.get_size();
+
+    frontier_bitmap = std::nullopt;
+    if (minor_comm_size > 1) {
+      auto const minor_comm_rank = minor_comm.get_rank();
+
+      auto threshold_ratio = 8.0 /* tuning parameter */ / static_cast<double>(sizeof(vertex_t) * 8);
+      use_bitmap_flags     = std::vector<bool>(minor_comm_size, false);
+
+      size_t this_bool_size{0};
+      if constexpr (VertexFrontierBucketType::is_sorted_unique) {
+        for (size_t i = 0; i < graph_view.number_of_local_edge_partitions(); ++i) {
+          auto edge_partition =
+            edge_partition_device_view_t<vertex_t, edge_t, GraphViewType::is_multi_gpu>(
+              graph_view.local_edge_partition_view(i));
+          auto segment_offsets = graph_view.local_edge_partition_segment_offsets(i);
+          auto bool_size       = segment_offsets ? *((*segment_offsets).rbegin() + 1)
+                                                 : edge_partition.major_range_size();
+          if (i == static_cast<size_t>(minor_comm_rank)) { this_bool_size = bool_size; }
+          if (local_frontier_sizes[i] > static_cast<size_t>(bool_size * threshold_ratio)) {
+            use_bitmap_flags[i] = true;
+          }
+        }
+      } else {
+        auto segment_offsets =
+          graph_view.local_edge_partition_segment_offsets(static_cast<size_t>(minor_comm_rank));
+        auto bool_size = segment_offsets ? *((*segment_offsets).rbegin() + 1)
+                                         : graph_view.local_vertex_partition_range_size();
+        this_bool_size = bool_size;
+        bool use_bitmap_flag{false};
+        if (local_frontier_sizes[minor_comm_rank] >
+            static_cast<size_t>(bool_size * threshold_ratio)) {
+          auto num_uniques = static_cast<size_t>(thrust::count_if(
+            handle.get_thrust_policy(),
+            thrust::make_counting_iterator(size_t{0}),
+            thrust::make_counting_iterator(local_frontier_sizes[minor_comm_rank]),
+            cugraph::detail::is_first_in_run_t<decltype(frontier_key_first)>{frontier_key_first}));
+          if (num_uniques == local_frontier_sizes[minor_comm_rank]) { use_bitmap_flag = true; }
+        }
+        auto tmp_flags = host_scalar_allgather(
+          minor_comm, use_bitmap_flag ? uint8_t{1} : uint8_t{0}, handle.get_stream());
+        std::transform(tmp_flags.begin(),
+                       tmp_flags.end(),
+                       use_bitmap_flags.begin(),
+                       [] __device__(uint8_t flag) { return flag == 1; });
+      }
+
+      if (use_bitmap_flags[minor_comm_rank]) {
+        frontier_bitmap =
+          rmm::device_uvector<uint32_t>(packed_bool_size(this_bool_size), handle.get_stream());
+        thrust::fill(handle.get_thrust_policy(),
+                     (*frontier_bitmap).begin(),
+                     (*frontier_bitmap).end(),
+                     packed_bool_empty_mask());
+        thrust::for_each(
+          handle.get_thrust_policy(),
+          frontier_key_first,
+          frontier_key_last,
+          [bitmap =
+             raft::device_span<uint32_t>((*frontier_bitmap).data(), (*frontier_bitmap).size()),
+           v_first = graph_view.local_vertex_partition_range_first()] __device__(vertex_t v) {
+            auto v_offset = v - v_first;
+            cuda::atomic_ref<uint32_t, cuda::thread_scope_device> word(
+              bitmap[packed_bool_offset(v_offset)]);
+            word.fetch_or(cugraph::packed_bool_mask(v_offset), cuda::std::memory_order_relaxed);
+          });
+      }
+    }
+  }
+
+  // 2. fill the buffers
+
+  auto key_buffer =
+    allocate_optional_dataframe_buffer<output_key_t>(size_t{0}, handle.get_stream());
+  auto value_buffer =
+    allocate_optional_dataframe_buffer<output_value_t>(size_t{0}, handle.get_stream());
+  rmm::device_scalar<size_t> buffer_idx(size_t{0}, handle.get_stream());
+
   auto edge_mask_view = graph_view.edge_mask_view();
 
+#if EXTRACT_PERFORMANCE_MEASUREMENT  // FIXME: delete
+  RAFT_CUDA_TRY(cudaDeviceSynchronize());
+  auto time1 = std::chrono::steady_clock::now();
+#endif
   for (size_t i = 0; i < graph_view.number_of_local_edge_partitions(); ++i) {
+#if EXTRACT_PERFORMANCE_MEASUREMENT  // FIXME: delete
+    RAFT_CUDA_TRY(cudaDeviceSynchronize());
+    auto subtime0 = std::chrono::steady_clock::now();
+#endif
     auto edge_partition =
       edge_partition_device_view_t<vertex_t, edge_t, GraphViewType::is_multi_gpu>(
         graph_view.local_edge_partition_view(i));
@@ -724,27 +849,73 @@ extract_transform_v_frontier_e(raft::handle_t const& handle,
 
     auto edge_partition_frontier_key_buffer =
       allocate_dataframe_buffer<key_t>(size_t{0}, handle.get_stream());
-    vertex_t edge_partition_frontier_size  = static_cast<vertex_t>(local_frontier_sizes[i]);
+    vertex_t edge_partition_frontier_size = static_cast<vertex_t>(local_frontier_sizes[i]);
+    auto segment_offsets                  = graph_view.local_edge_partition_segment_offsets(i);
+
     auto edge_partition_frontier_key_first = frontier_key_first;
     auto edge_partition_frontier_key_last  = frontier_key_last;
     if constexpr (GraphViewType::is_multi_gpu) {
       auto& minor_comm = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
-      auto const minor_comm_rank = minor_comm.get_rank();
+      auto const minor_comm_size = minor_comm.get_size();
+      if (minor_comm_size > 1) {
+        auto const minor_comm_rank = minor_comm.get_rank();
 
-      resize_dataframe_buffer(
-        edge_partition_frontier_key_buffer, edge_partition_frontier_size, handle.get_stream());
+        resize_dataframe_buffer(
+          edge_partition_frontier_key_buffer, edge_partition_frontier_size, handle.get_stream());
 
-      device_bcast(minor_comm,
-                   frontier_key_first,
-                   get_dataframe_buffer_begin(edge_partition_frontier_key_buffer),
-                   edge_partition_frontier_size,
-                   static_cast<int>(i),
-                   handle.get_stream());
+        if constexpr (std::is_same_v<key_t, vertex_t>) {
+          if (use_bitmap_flags[i]) {
+            auto bool_size = segment_offsets ? *((*segment_offsets).rbegin() + 1)
+                                             : edge_partition.major_range_size();
+            rmm::device_uvector<uint32_t> edge_partition_bitmap(packed_bool_size(bool_size),
+                                                                handle.get_stream());
+            device_bcast(minor_comm,
+                         (*frontier_bitmap).data(),
+                         edge_partition_bitmap.data(),
+                         edge_partition_bitmap.size(),
+                         static_cast<int>(i),
+                         handle.get_stream());
+            auto it = thrust::copy_if(
+              handle.get_thrust_policy(),
+              thrust::make_counting_iterator(edge_partition.major_range_first()),
+              thrust::make_counting_iterator(edge_partition.major_range_first()) + bool_size,
+              thrust::make_transform_iterator(
+                thrust::make_counting_iterator(vertex_t{0}),
+                cuda::proclaim_return_type<bool>(
+                  [bitmap = raft::device_span<uint32_t>(
+                     edge_partition_bitmap.data(),
+                     edge_partition_bitmap.size())] __device__(vertex_t v_offset) {
+                    return ((bitmap[packed_bool_offset(v_offset)] & packed_bool_mask(v_offset)) !=
+                            packed_bool_empty_mask());
+                  })),
+              get_dataframe_buffer_begin(edge_partition_frontier_key_buffer),
+              thrust::identity<bool>{});
+            std::cout << "size="
+                      << thrust::distance(
+                           get_dataframe_buffer_begin(edge_partition_frontier_key_buffer), it)
+                      << std::endl;
+          } else {
+            device_bcast(minor_comm,
+                         frontier_key_first,
+                         get_dataframe_buffer_begin(edge_partition_frontier_key_buffer),
+                         edge_partition_frontier_size,
+                         static_cast<int>(i),
+                         handle.get_stream());
+          }
+        } else {
+          device_bcast(minor_comm,
+                       frontier_key_first,
+                       get_dataframe_buffer_begin(edge_partition_frontier_key_buffer),
+                       edge_partition_frontier_size,
+                       static_cast<int>(i),
+                       handle.get_stream());
+        }
 
-      edge_partition_frontier_key_first =
-        get_dataframe_buffer_begin(edge_partition_frontier_key_buffer);
-      edge_partition_frontier_key_last =
-        get_dataframe_buffer_end(edge_partition_frontier_key_buffer);
+        edge_partition_frontier_key_first =
+          get_dataframe_buffer_begin(edge_partition_frontier_key_buffer);
+        edge_partition_frontier_key_last =
+          get_dataframe_buffer_end(edge_partition_frontier_key_buffer);
+      }
     }
 
     auto edge_partition_frontier_major_first =
@@ -754,9 +925,8 @@ extract_transform_v_frontier_e(raft::handle_t const& handle,
       thrust_tuple_get_or_identity<decltype(edge_partition_frontier_key_last), 0>(
         edge_partition_frontier_key_last);
 
-    auto segment_offsets = graph_view.local_edge_partition_segment_offsets(i);
-    auto max_pushes      = max_one_e_per_frontier_key ? edge_partition_frontier_size
-                                                      : edge_partition.compute_number_of_edges(
+    auto max_pushes = max_one_e_per_frontier_key ? edge_partition_frontier_size
+                                                 : edge_partition.compute_number_of_edges(
                                                      edge_partition_frontier_major_first,
                                                      edge_partition_frontier_major_last,
                                                      handle.get_stream());
@@ -780,6 +950,10 @@ extract_transform_v_frontier_e(raft::handle_t const& handle,
     }
     auto edge_partition_e_value_input = edge_partition_e_input_device_view_t(edge_value_input, i);
 
+#if EXTRACT_PERFORMANCE_MEASUREMENT  // FIXME: delete
+    RAFT_CUDA_TRY(cudaDeviceSynchronize());
+    auto subtime1 = std::chrono::steady_clock::now();
+#endif
     if (segment_offsets) {
       static_assert(num_sparse_segments_per_vertex_partition == 3);
       std::vector<vertex_t> h_thresholds(num_sparse_segments_per_vertex_partition +
@@ -905,9 +1079,21 @@ extract_transform_v_frontier_e(raft::handle_t const& handle,
             e_op);
       }
     }
+#if EXTRACT_PERFORMANCE_MEASUREMENT  // FIXME: delete
+    RAFT_CUDA_TRY(cudaDeviceSynchronize());
+    auto subtime2                         = std::chrono::steady_clock::now();
+    std::chrono::duration<double> subdur0 = subtime1 - subtime0;
+    std::chrono::duration<double> subdur1 = subtime2 - subtime1;
+    std::cout << "\t\t\tdetail::extract i=" << i << " took (" << subdur0.count() << ","
+              << subdur1.count() << ")" << std::endl;
+#endif
   }
+#if EXTRACT_PERFORMANCE_MEASUREMENT  // FIXME: delete
+  RAFT_CUDA_TRY(cudaDeviceSynchronize());
+  auto time2 = std::chrono::steady_clock::now();
+#endif
 
-  // 2. resize and return the buffers
+  // 3. resize and return the buffers
 
   auto new_buffer_size = buffer_idx.value(handle.get_stream());
 
@@ -917,6 +1103,15 @@ extract_transform_v_frontier_e(raft::handle_t const& handle,
   resize_optional_dataframe_buffer<output_value_t>(
     value_buffer, new_buffer_size, handle.get_stream());
   shrink_to_fit_optional_dataframe_buffer<output_value_t>(value_buffer, handle.get_stream());
+#if EXTRACT_PERFORMANCE_MEASUREMENT  // FIXME: delete
+  RAFT_CUDA_TRY(cudaDeviceSynchronize());
+  auto time3                         = std::chrono::steady_clock::now();
+  std::chrono::duration<double> dur0 = time1 - time0;
+  std::chrono::duration<double> dur1 = time2 - time1;
+  std::chrono::duration<double> dur2 = time3 - time2;
+  std::cout << "\t\tdetail::extract took (" << dur0.count() << "," << dur1.count() << ","
+            << dur2.count() << ")" << std::endl;
+#endif
 
   return std::make_tuple(std::move(key_buffer), std::move(value_buffer));
 }
