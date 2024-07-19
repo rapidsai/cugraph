@@ -1,4 +1,4 @@
 #!/bin/bash
 # Copyright (c) 2022, NVIDIA CORPORATION.
 
-cmake --install cpp/libcugraph_etl/build
+cp -r ${PREFIX}/tmp/install/libcugraph_etl/* ${PREFIX}/

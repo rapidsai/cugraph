@@ -1,9 +1,5 @@
 # Copyright (c) 2018-2024, NVIDIA CORPORATION.
 # Notes:
-# - nccl package on rapidsai-nightly causes problems because rattler-build uses strict channel priority - rattler-build uses strict channel priority and it does not appear to be configurable, see https://github.com/prefix-dev/rattler-build/issues/343, so we need to make it work.
-# - Various bits of string interpolation in the top variables don't seem to work yet. Still need to figure out how to achieve the same effect
-# - Need to include git in the build env because the host git doesn't appear to be visible.
-# - I'm not yet sure how you handle multiple outputs where one of them does all the building for reuse by other jobs downstream
 # - Try using secrets instead of env
 
 context:
@@ -19,23 +15,114 @@ recipe:
 source:
   path: ../../..
 
-build:
-  script:
-    env:
-      AWS_ACCESS_KEY_ID: ${{ env.get("AWS_ACCESS_KEY_ID") }}
-      AWS_SECRET_ACCESS_KEY: ${{ env.get("AWS_SECRET_ACCESS_KEY") }}
-      AWS_SESSION_TOKEN: ${{ env.get("AWS_SESSION_TOKEN") }}
-      CMAKE_C_COMPILER_LAUNCHER: ${{ env.get("CMAKE_C_COMPILER_LAUNCHER") }}
-      CMAKE_CUDA_COMPILER_LAUNCHER: ${{ env.get("CMAKE_CUDA_COMPILER_LAUNCHER") }}
-      CMAKE_CXX_COMPILER_LAUNCHER: ${{ env.get("CMAKE_CXX_COMPILER_LAUNCHER") }}
-      CMAKE_GENERATOR: ${{ env.get("CMAKE_GENERATOR") }}
-      PARALLEL_LEVEL: ${{ env.get("PARALLEL_LEVEL") }}
-      SCCACHE_BUCKET: ${{ env.get("SCCACHE_BUCKET") }}
-      SCCACHE_IDLE_TIMEOUT: ${{ env.get("SCCACHE_IDLE_TIMEOUT") }}
-      SCCACHE_REGION: ${{ env.get("SCCACHE_REGION") }}
-      SCCACHE_S3_KEY_PREFIX: ${{ "libcugraph-linux64" if linux64 else "libcugraph-aarch64" if aarch64 }}
-      SCCACHE_S3_USE_SSL: ${{ env.get("SCCACHE_S3_USE_SSL") }}
-      SCCACHE_S3_NO_CREDENTIALS: ${{ env.get("SCCACHE_S3_NO_CREDENTIALS") }}
+# The cache section is hidden behind the `--experimental` CLI flag. It allows doing some common work into a directory that is copied back into each output. We can leverage that functionality to do the equivalent of a single top-level build followed by just installing components into each subpackage.
+cache:
+  build:
+    script: 
+      file: build.sh
+      env:
+        AWS_ACCESS_KEY_ID: ${{ env.get("AWS_ACCESS_KEY_ID") }}
+        AWS_SECRET_ACCESS_KEY: ${{ env.get("AWS_SECRET_ACCESS_KEY") }}
+        AWS_SESSION_TOKEN: ${{ env.get("AWS_SESSION_TOKEN") }}
+        CMAKE_C_COMPILER_LAUNCHER: ${{ env.get("CMAKE_C_COMPILER_LAUNCHER") }}
+        CMAKE_CUDA_COMPILER_LAUNCHER: ${{ env.get("CMAKE_CUDA_COMPILER_LAUNCHER") }}
+        CMAKE_CXX_COMPILER_LAUNCHER: ${{ env.get("CMAKE_CXX_COMPILER_LAUNCHER") }}
+        CMAKE_GENERATOR: ${{ env.get("CMAKE_GENERATOR") }}
+        PARALLEL_LEVEL: ${{ env.get("PARALLEL_LEVEL") }}
+        SCCACHE_BUCKET: ${{ env.get("SCCACHE_BUCKET") }}
+        SCCACHE_IDLE_TIMEOUT: ${{ env.get("SCCACHE_IDLE_TIMEOUT") }}
+        SCCACHE_REGION: ${{ env.get("SCCACHE_REGION") }}
+        SCCACHE_S3_KEY_PREFIX: ${{ "libcugraph-linux64" if linux64 else "libcugraph-aarch64" if aarch64 }}
+        SCCACHE_S3_USE_SSL: ${{ env.get("SCCACHE_S3_USE_SSL") }}
+        SCCACHE_S3_NO_CREDENTIALS: ${{ env.get("SCCACHE_S3_NO_CREDENTIALS") }}
+    number: ${{ GIT_DESCRIBE_NUMBER }}
+    string: cuda${{ cuda_major }}_${{ date_string }}_${{ GIT_DESCRIBE_HASH }}_${{ GIT_DESCRIBE_NUMBER }}
+  requirements:
+    ignore_run_exports:
+      from_package:
+        - if: cuda_major == "11"
+          then:
+            - ${{ compiler('cuda11') }}
+          else:
+            - ${{ compiler('cuda') }}
+            - cuda-cudart-dev
+    build:
+      - ${{ compiler('c') }}
+      - if: cuda_major == "11"
+        then:
+          - ${{ compiler('cuda11') }} ${{ cuda_version }}
+        else:
+          - ${{ compiler('cuda') }}
+      - cuda-version =${{ cuda_version }}
+      - ${{ compiler('cxx') }}
+      - cmake ${{ cmake_version }}
+      - ninja
+      - git
+      - openmpi<5.0.3 # Required for building cpp-mgtests (multi-GPU tests)
+      - ${{ stdlib("c") }}
+    host:
+      - if: cuda_major == "11"
+        then:
+          - cudatoolkit
+          - cuda-nvtx =${{ cuda_version }}
+          - cuda-profiler-api ${{ cuda11_cuda_profiler_api_host_version }}
+          - libcublas ${{ cuda11_libcublas_host_version }}
+          - libcublas-dev ${{ cuda11_libcublas_host_version }}
+          - libcurand ${{ cuda11_libcurand_host_version }}
+          - libcurand-dev ${{ cuda11_libcurand_host_version }}
+          - libcusolver ${{ cuda11_libcusolver_host_version }}
+          - libcusolver-dev ${{ cuda11_libcusolver_host_version }}
+          - libcusparse ${{ cuda11_libcusparse_host_version }}
+          - libcusparse-dev ${{ cuda11_libcusparse_host_version }}
+        else:
+          - cuda-nvtx-dev
+          - cuda-profiler-api
+          - cuda-cudart-dev
+          - libcublas-dev
+          - libcurand-dev
+          - libcusolver-dev
+          - libcusparse-dev
+      - cuda-version =${{ cuda_version }}
+      - doxygen ${{ doxygen_version }}
+      - libcudf =${{ minor_version }}
+      - libcugraphops =${{ minor_version }}
+      - libraft =${{ minor_version }}
+      - libraft-headers =${{ minor_version }}
+      - librmm =${{ minor_version }}
+      # rattler-build uses strict channel priority and it is not yet
+      # configurable (https://github.com/prefix-dev/rattler-build/issues/343).
+      # However, it does support specifying that a package should come from a
+      # specific channel. We can therefore specify that we want nccl from
+      # conda-forge and then have rapidsai be the higher priority channel. We
+      # could equivalently swap the order of the channels and force librmm to
+      # come from the rapidsai/rapidsai-nightly channel, but that seems a bit
+      # trickier.
+      - conda-forge::nccl ${{ nccl_version }}
+      - ucx-proc=*=gpu
+      - rapids-build-backend>=0.3.1,<0.4.0.dev0
+    run:
+      - ${{ pin_compatible('cuda-version', upper_bound='x', lower_bound='x') }}
+      - if: cuda_major == "11"
+        then:
+          - cuda-profiler-api ${{ cuda11_cuda_profiler_api_run_version }}
+          - cudatoolkit
+          - libcublas ${{ cuda11_libcublas_run_version }}
+          - libcurand ${{ cuda11_libcurand_run_version }}
+          - libcusolver ${{ cuda11_libcusolver_run_version }}
+          - libcusparse ${{ cuda11_libcusparse_run_version }}
+        else:
+          - cuda-profiler-api
+          - cuda-cudart
+          - libcublas
+          - libcurand
+          - libcusolver
+          - libcusparse
+      - libcugraphops =${{ minor_version }}
+      - libraft =${{ minor_version }}
+      - libraft-headers =${{ minor_version }}
+      - librmm =${{ minor_version }}
+      - conda-forge::nccl ${{ nccl_version }}
+      - ucx-proc=*=gpu
 
 outputs:
   - package:
@@ -44,6 +131,9 @@ outputs:
       script: install_libcugraph.sh
       number: ${{ GIT_DESCRIBE_NUMBER }}
       string: cuda${{ cuda_major }}_${{ date_string }}_${{ GIT_DESCRIBE_HASH }}_${{ GIT_DESCRIBE_NUMBER }}
+      files:
+        exclude:
+          - tmp/*
     requirements:
       ignore_run_exports:
         from_package:
@@ -64,6 +154,7 @@ outputs:
         - ${{ compiler('cxx') }}
         - cmake ${{ cmake_version }}
         - ninja
+        # - Need to include git in the build env because the host git doesn't appear to be visible.
         - git
         - openmpi<5.0.3 # Required for building cpp-mgtests (multi-GPU tests)
         - ${{ stdlib("c") }}
@@ -126,7 +217,7 @@ outputs:
       homepage: https://rapids.ai/
       repository: https://github.com/rapidsai/cugraph
       license: Apache-2.0
-      license_file: ../../../LICENSE
+      license_file: LICENSE
       summary: libcugraph library
   - package:
       name: libcugraph_etl
@@ -134,6 +225,9 @@ outputs:
       script: install_libcugraph_etl.sh
       number: ${{ GIT_DESCRIBE_NUMBER }}
       string: cuda${{ cuda_major }}_${{ date_string }}_${{ GIT_DESCRIBE_HASH }}_${{ GIT_DESCRIBE_NUMBER }}
+      files:
+        exclude:
+          - tmp/*
     requirements:
       ignore_run_exports:
         from_package:
@@ -202,7 +296,7 @@ outputs:
       homepage: https://rapids.ai/
       repository: https://github.com/rapidsai/cugraph
       license: Apache-2.0
-      license_file: ../../../LICENSE
+      license_file: LICENSE
       summary: libcugraph_etl library
   - package:
       name: libcugraph-tests
@@ -210,6 +304,9 @@ outputs:
       script: install_libcugraph_tests.sh
       number: ${{ GIT_DESCRIBE_NUMBER }}
       string: cuda${{ cuda_major }}_${{ date_string }}_${{ GIT_DESCRIBE_HASH }}_${{ GIT_DESCRIBE_NUMBER }}
+      files:
+        exclude:
+          - tmp/*
     requirements:
       ignore_run_exports:
         from_package:
@@ -277,5 +374,5 @@ outputs:
       homepage: https://rapids.ai/
       repository: https://github.com/rapidsai/cugraph
       license: Apache-2.0
-      license_file: ../../../LICENSE
+      license_file: LICENSE
       summary: libcugraph test & benchmark executables
