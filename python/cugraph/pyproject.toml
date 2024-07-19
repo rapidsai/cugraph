@@ -1,7 +1,6 @@
 # Copyright (c) 2022, NVIDIA CORPORATION.
 
 [build-system]
-
 requires = [
     "cython>=3.0.0",
     "rapids-build-backend>=0.3.1,<0.4.0.dev0",
