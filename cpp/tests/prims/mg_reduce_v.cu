@@ -314,12 +314,18 @@ TEST_P(Tests_MGReduceV_Rmat, CheckInt64Int64FloatTransposeTrue)
 INSTANTIATE_TEST_SUITE_P(
   file_test,
   Tests_MGReduceV_File,
+  ::testing::Combine(::testing::Values(Prims_Usecase{true}),
+                     ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"))));
+
+INSTANTIATE_TEST_SUITE_P(
+  file_large_test,
+  Tests_MGReduceV_File,
   ::testing::Combine(
     ::testing::Values(Prims_Usecase{true}),
-    ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"),
-                      cugraph::test::File_Usecase("test/datasets/web-Google.mtx"),
+    ::testing::Values(cugraph::test::File_Usecase("test/datasets/web-Google.mtx"),
                       cugraph::test::File_Usecase("test/datasets/ljournal-2008.mtx"),
                       cugraph::test::File_Usecase("test/datasets/webbase-1M.mtx"))));
+
 INSTANTIATE_TEST_SUITE_P(rmat_small_test,
                          Tests_MGReduceV_Rmat,
                          ::testing::Combine(::testing::Values(Prims_Usecase{true}),
