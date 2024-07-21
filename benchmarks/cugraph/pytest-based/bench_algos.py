@@ -330,8 +330,17 @@ def bench_bfs(gpubenchmark, graph):
 
 
 def bench_sssp(gpubenchmark, graph):
+    if not graph.is_weighted():
+        pytest.skip("Skipping: Unweighted Graphs are not supported by SSSP")
+
     sssp = dask_cugraph.sssp if is_graph_distributed(graph) else cugraph.sssp
-    start = graph.edgelist.edgelist_df["src"][0]
+
+    start_col = graph.select_random_vertices(num_vertices=1)
+    if is_graph_distributed(graph):
+        start_col = start_col.compute()
+
+    start = start_col.to_arrow().to_pylist()[0]
+
     gpubenchmark(sssp, graph, start)
 
 

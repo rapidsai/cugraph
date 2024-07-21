@@ -313,13 +313,21 @@ TEST_P(Tests_MGBiased_Neighbor_Sampling_Rmat, CheckInt64Int64Float)
 INSTANTIATE_TEST_SUITE_P(
   file_test,
   Tests_MGBiased_Neighbor_Sampling_File,
+  ::testing::Combine(::testing::Values(Biased_Neighbor_Sampling_Usecase{{4, 10}, 128, false, false},
+                                       Biased_Neighbor_Sampling_Usecase{{4, 10}, 128, false, true},
+                                       Biased_Neighbor_Sampling_Usecase{{4, 10}, 128, true, false},
+                                       Biased_Neighbor_Sampling_Usecase{{4, 10}, 128, true, true}),
+                     ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"))));
+
+INSTANTIATE_TEST_SUITE_P(
+  file_large_test,
+  Tests_MGBiased_Neighbor_Sampling_File,
   ::testing::Combine(
     ::testing::Values(Biased_Neighbor_Sampling_Usecase{{4, 10}, 128, false, false},
                       Biased_Neighbor_Sampling_Usecase{{4, 10}, 128, false, true},
                       Biased_Neighbor_Sampling_Usecase{{4, 10}, 128, true, false},
                       Biased_Neighbor_Sampling_Usecase{{4, 10}, 128, true, true}),
-    ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"),
-                      cugraph::test::File_Usecase("test/datasets/web-Google.mtx"),
+    ::testing::Values(cugraph::test::File_Usecase("test/datasets/web-Google.mtx"),
                       cugraph::test::File_Usecase("test/datasets/ljournal-2008.mtx"),
                       cugraph::test::File_Usecase("test/datasets/webbase-1M.mtx"))));
 

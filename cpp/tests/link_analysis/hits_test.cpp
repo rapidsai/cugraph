@@ -338,10 +338,20 @@ INSTANTIATE_TEST_SUITE_P(
                       Hits_Usecase{true, false, true},
                       Hits_Usecase{true, true, true}),
     ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"),
-                      cugraph::test::File_Usecase("test/datasets/web-Google.mtx"),
-                      cugraph::test::File_Usecase("test/datasets/ljournal-2008.mtx"),
-                      cugraph::test::File_Usecase("test/datasets/webbase-1M.mtx"),
                       cugraph::test::File_Usecase("test/datasets/dolphins.mtx"))));
+
+INSTANTIATE_TEST_SUITE_P(
+  file_large_test,
+  Tests_Hits_File,
+  ::testing::Combine(
+    // enable correctness checks
+    ::testing::Values(Hits_Usecase{false, false, true},
+                      Hits_Usecase{false, true, true},
+                      Hits_Usecase{true, false, true},
+                      Hits_Usecase{true, true, true}),
+    ::testing::Values(cugraph::test::File_Usecase("test/datasets/web-Google.mtx"),
+                      cugraph::test::File_Usecase("test/datasets/ljournal-2008.mtx"),
+                      cugraph::test::File_Usecase("test/datasets/webbase-1M.mtx"))));
 
 INSTANTIATE_TEST_SUITE_P(rmat_small_test,
                          Tests_Hits_Rmat,
