@@ -72,9 +72,9 @@ __device__ void push_buffer_element(BufferKeyOutputIterator buffer_key_output_fi
                                     e_op_result_t e_op_result)
 {
   using output_key_t =
-    typename optional_dataframe_buffer_value_type_t<BufferKeyOutputIterator>::value;
+    typename optional_dataframe_buffer_iterator_value_type_t<BufferKeyOutputIterator>::value;
   using output_value_t =
-    typename optional_dataframe_buffer_value_type_t<BufferValueOutputIterator>::value;
+    typename optional_dataframe_buffer_iterator_value_type_t<BufferValueOutputIterator>::value;
 
   assert(e_op_result.has_value());
 
@@ -595,9 +595,8 @@ template <bool incoming,  // iterate over incoming edges (incoming == true) or o
           typename EdgeDstValueInputWrapper,
           typename EdgeValueInputWrapper,
           typename EdgeOp>
-std::tuple<
-  decltype(allocate_optional_dataframe_buffer<OutputKeyT>(size_t{0}, rmm::cuda_stream_view{})),
-  decltype(allocate_optional_dataframe_buffer<OutputValueT>(size_t{0}, rmm::cuda_stream_view{}))>
+std::tuple<optional_dataframe_buffer_type_t<OutputKeyT>,
+           optional_dataframe_buffer_type_t<OutputValueT>>
 extract_transform_v_frontier_e(raft::handle_t const& handle,
                                GraphViewType const& graph_view,
                                VertexFrontierBucketType const& frontier,
@@ -820,11 +819,10 @@ extract_transform_v_frontier_e(raft::handle_t const& handle,
 
   // 2. fill the buffers
 
-  auto key_buffer =
-    allocate_optional_dataframe_buffer<output_key_t>(size_t{0}, handle.get_stream());
-  auto value_buffer =
-    allocate_optional_dataframe_buffer<output_value_t>(size_t{0}, handle.get_stream());
-  rmm::device_scalar<size_t> buffer_idx(size_t{0}, handle.get_stream());
+  std::vector<optional_dataframe_buffer_type_t<output_key_t>> key_buffers{};
+  std::vector<optional_dataframe_buffer_type_t<output_value_t>> value_buffers{};
+  key_buffers.reserve(graph_view.number_of_local_edge_partitions());
+  value_buffers.reserve(graph_view.number_of_local_edge_partitions());
 
   auto edge_mask_view = graph_view.edge_mask_view();
 
@@ -931,11 +929,11 @@ extract_transform_v_frontier_e(raft::handle_t const& handle,
                                                      edge_partition_frontier_major_last,
                                                      handle.get_stream());
 
-    auto new_buffer_size = buffer_idx.value(handle.get_stream()) + max_pushes;
-    resize_optional_dataframe_buffer<output_key_t>(
-      key_buffer, new_buffer_size, handle.get_stream());
-    resize_optional_dataframe_buffer<output_value_t>(
-      value_buffer, new_buffer_size, handle.get_stream());
+    auto tmp_key_buffer =
+      allocate_optional_dataframe_buffer<output_key_t>(max_pushes, handle.get_stream());
+    auto tmp_value_buffer =
+      allocate_optional_dataframe_buffer<output_value_t>(max_pushes, handle.get_stream());
+    rmm::device_scalar<size_t> tmp_buffer_idx(size_t{0}, handle.get_stream());
 
     edge_partition_src_input_device_view_t edge_partition_src_value_input{};
     edge_partition_dst_input_device_view_t edge_partition_dst_value_input{};
@@ -993,9 +991,9 @@ extract_transform_v_frontier_e(raft::handle_t const& handle,
             edge_partition_dst_value_input,
             edge_partition_e_value_input,
             edge_partition_e_mask,
-            get_optional_dataframe_buffer_begin<output_key_t>(key_buffer),
-            get_optional_dataframe_buffer_begin<output_value_t>(value_buffer),
-            buffer_idx.data(),
+            get_optional_dataframe_buffer_begin<output_key_t>(tmp_key_buffer),
+            get_optional_dataframe_buffer_begin<output_value_t>(tmp_value_buffer),
+            tmp_buffer_idx.data(),
             e_op);
       }
       if (h_offsets[1] - h_offsets[0] > 0) {
@@ -1011,9 +1009,9 @@ extract_transform_v_frontier_e(raft::handle_t const& handle,
             edge_partition_dst_value_input,
             edge_partition_e_value_input,
             edge_partition_e_mask,
-            get_optional_dataframe_buffer_begin<output_key_t>(key_buffer),
-            get_optional_dataframe_buffer_begin<output_value_t>(value_buffer),
-            buffer_idx.data(),
+            get_optional_dataframe_buffer_begin<output_key_t>(tmp_key_buffer),
+            get_optional_dataframe_buffer_begin<output_value_t>(tmp_value_buffer),
+            tmp_buffer_idx.data(),
             e_op);
       }
       if (h_offsets[2] - h_offsets[1] > 0) {
@@ -1031,9 +1029,9 @@ extract_transform_v_frontier_e(raft::handle_t const& handle,
             edge_partition_dst_value_input,
             edge_partition_e_value_input,
             edge_partition_e_mask,
-            get_optional_dataframe_buffer_begin<output_key_t>(key_buffer),
-            get_optional_dataframe_buffer_begin<output_value_t>(value_buffer),
-            buffer_idx.data(),
+            get_optional_dataframe_buffer_begin<output_key_t>(tmp_key_buffer),
+            get_optional_dataframe_buffer_begin<output_value_t>(tmp_value_buffer),
+            tmp_buffer_idx.data(),
             e_op);
       }
       if (edge_partition.dcs_nzd_vertex_count() && (h_offsets[3] - h_offsets[2] > 0)) {
@@ -1051,9 +1049,9 @@ extract_transform_v_frontier_e(raft::handle_t const& handle,
             edge_partition_dst_value_input,
             edge_partition_e_value_input,
             edge_partition_e_mask,
-            get_optional_dataframe_buffer_begin<output_key_t>(key_buffer),
-            get_optional_dataframe_buffer_begin<output_value_t>(value_buffer),
-            buffer_idx.data(),
+            get_optional_dataframe_buffer_begin<output_key_t>(tmp_key_buffer),
+            get_optional_dataframe_buffer_begin<output_value_t>(tmp_value_buffer),
+            tmp_buffer_idx.data(),
             e_op);
       }
     } else {
@@ -1073,19 +1071,38 @@ extract_transform_v_frontier_e(raft::handle_t const& handle,
             edge_partition_dst_value_input,
             edge_partition_e_value_input,
             edge_partition_e_mask,
-            get_optional_dataframe_buffer_begin<output_key_t>(key_buffer),
-            get_optional_dataframe_buffer_begin<output_value_t>(value_buffer),
-            buffer_idx.data(),
+            get_optional_dataframe_buffer_begin<output_key_t>(tmp_key_buffer),
+            get_optional_dataframe_buffer_begin<output_value_t>(tmp_value_buffer),
+            tmp_buffer_idx.data(),
             e_op);
       }
     }
 #if EXTRACT_PERFORMANCE_MEASUREMENT  // FIXME: delete
     RAFT_CUDA_TRY(cudaDeviceSynchronize());
-    auto subtime2                         = std::chrono::steady_clock::now();
+    auto subtime2 = std::chrono::steady_clock::now();
+#endif
+
+    auto tmp_buffer_size = tmp_buffer_idx.value(handle.get_stream());
+
+    resize_optional_dataframe_buffer<output_key_t>(
+      tmp_key_buffer, tmp_buffer_size, handle.get_stream());
+    shrink_to_fit_optional_dataframe_buffer<output_key_t>(tmp_key_buffer, handle.get_stream());
+
+    resize_optional_dataframe_buffer<output_value_t>(
+      tmp_value_buffer, tmp_buffer_size, handle.get_stream());
+    shrink_to_fit_optional_dataframe_buffer<output_value_t>(tmp_value_buffer, handle.get_stream());
+
+    key_buffers.push_back(std::move(tmp_key_buffer));
+    value_buffers.push_back(std::move(tmp_value_buffer));
+
+#if EXTRACT_PERFORMANCE_MEASUREMENT  // FIXME: delete
+    RAFT_CUDA_TRY(cudaDeviceSynchronize());
+    auto subtime3                         = std::chrono::steady_clock::now();
     std::chrono::duration<double> subdur0 = subtime1 - subtime0;
     std::chrono::duration<double> subdur1 = subtime2 - subtime1;
+    std::chrono::duration<double> subdur2 = subtime3 - subtime2;
     std::cout << "\t\t\tdetail::extract i=" << i << " took (" << subdur0.count() << ","
-              << subdur1.count() << ")" << std::endl;
+              << subdur1.count() << "," << subdur2.count() << ")" << std::endl;
 #endif
   }
 #if EXTRACT_PERFORMANCE_MEASUREMENT  // FIXME: delete
@@ -1093,16 +1110,49 @@ extract_transform_v_frontier_e(raft::handle_t const& handle,
   auto time2 = std::chrono::steady_clock::now();
 #endif
 
-  // 3. resize and return the buffers
+  // 3. concatenate and return the buffers
 
-  auto new_buffer_size = buffer_idx.value(handle.get_stream());
+  auto key_buffer   = allocate_optional_dataframe_buffer<output_key_t>(0, handle.get_stream());
+  auto value_buffer = allocate_optional_dataframe_buffer<output_value_t>(0, handle.get_stream());
+  if (key_buffers.size() == 0) {
+    key_buffer   = std::move(key_buffers[0]);
+    value_buffer = std::move(value_buffers[0]);
+  } else {
+    std::vector<size_t> buffer_sizes(key_buffers.size());
+    static_assert(!std::is_same_v<output_key_t, void> || !std::is_same_v<output_value_t, void>);
+    for (size_t i = 0; i < key_buffers.size(); ++i) {
+      if constexpr (!std::is_same_v<key_t, void>) {
+        buffer_sizes[i] = size_optional_dataframe_buffer<output_key_t>(key_buffers[i]);
+      } else {
+        buffer_sizes[i] = size_optional_dataframe_buffer<output_value_t>(value_buffers[i]);
+      }
+    }
+    auto buffer_size = std::reduce(buffer_sizes.begin(), buffer_sizes.end());
+    resize_optional_dataframe_buffer<output_key_t>(key_buffer, buffer_size, handle.get_stream());
+    resize_optional_dataframe_buffer<output_value_t>(
+      value_buffer, buffer_size, handle.get_stream());
+    std::vector<size_t> buffer_displacements(buffer_sizes.size());
+    std::exclusive_scan(
+      buffer_sizes.begin(), buffer_sizes.end(), buffer_displacements.begin(), size_t{0});
+    for (size_t i = 0; i < key_buffers.size(); ++i) {
+      if constexpr (!std::is_same_v<output_key_t, void>) {
+        thrust::copy(
+          handle.get_thrust_policy(),
+          get_optional_dataframe_buffer_cbegin<output_key_t>(key_buffers[i]),
+          get_optional_dataframe_buffer_cend<output_key_t>(key_buffers[i]),
+          get_optional_dataframe_buffer_begin<output_key_t>(key_buffer) + buffer_displacements[i]);
+      }
 
-  resize_optional_dataframe_buffer<output_key_t>(key_buffer, new_buffer_size, handle.get_stream());
-  shrink_to_fit_optional_dataframe_buffer<output_key_t>(key_buffer, handle.get_stream());
+      if constexpr (!std::is_same_v<output_value_t, void>) {
+        thrust::copy(handle.get_thrust_policy(),
+                     get_optional_dataframe_buffer_cbegin<output_value_t>(value_buffers[i]),
+                     get_optional_dataframe_buffer_cend<output_value_t>(value_buffers[i]),
+                     get_optional_dataframe_buffer_begin<output_value_t>(value_buffer) +
+                       buffer_displacements[i]);
+      }
+    }
+  }
 
-  resize_optional_dataframe_buffer<output_value_t>(
-    value_buffer, new_buffer_size, handle.get_stream());
-  shrink_to_fit_optional_dataframe_buffer<output_value_t>(value_buffer, handle.get_stream());
 #if EXTRACT_PERFORMANCE_MEASUREMENT  // FIXME: delete
   RAFT_CUDA_TRY(cudaDeviceSynchronize());
   auto time3                         = std::chrono::steady_clock::now();
