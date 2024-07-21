@@ -18,6 +18,7 @@
 
 #include <cugraph_c/error.h>
 #include <cugraph_c/graph.h>
+#include <cugraph_c/properties.h>
 #include <cugraph_c/random.h>
 #include <cugraph_c/resource_handle.h>
 
@@ -361,6 +362,65 @@ void cugraph_sampling_options_free(cugraph_sampling_options_t* options);
 cugraph_error_code_t cugraph_uniform_neighbor_sample(
   const cugraph_resource_handle_t* handle,
   cugraph_graph_t* graph,
+  const cugraph_type_erased_device_array_view_t* start_vertices,
+  const cugraph_type_erased_device_array_view_t* start_vertex_labels,
+  const cugraph_type_erased_device_array_view_t* label_list,
+  const cugraph_type_erased_device_array_view_t* label_to_comm_rank,
+  const cugraph_type_erased_device_array_view_t* label_offsets,
+  const cugraph_type_erased_host_array_view_t* fan_out,
+  cugraph_rng_state_t* rng_state,
+  const cugraph_sampling_options_t* options,
+  bool_t do_expensive_check,
+  cugraph_sample_result_t** result,
+  cugraph_error_t** error);
+
+/**
+ * @brief     Biased Neighborhood Sampling
+ *
+ * Returns a sample of the neighborhood around specified start vertices.  Optionally, each
+ * start vertex can be associated with a label, allowing the caller to specify multiple batches
+ * of sampling requests in the same function call - which should improve GPU utilization.
+ *
+ * If label is NULL then all start vertices will be considered part of the same batch and the
+ * return value will not have a label column.
+ *
+ * @param [in]  handle       Handle for accessing resources
+ * @param [in]  graph        Pointer to graph.  NOTE: Graph might be modified if the storage
+ *                           needs to be transposed
+ * @param [in]  edge_biases  Device array of edge biases to use for sampling.  If NULL
+ * use the edge weight as the bias.  NOTE: This is a placeholder for future capability, the
+ * value for edge_biases should always be set to NULL at the moment.
+ * @param [in]  start_vertices Device array of start vertices for the sampling
+ * @param [in]  start_vertex_labels  Device array of start vertex labels for the sampling.  The
+ * labels associated with each start vertex will be included in the output associated with results
+ * that were derived from that start vertex.  We only support label of type INT32. If label is
+ * NULL, the return data will not be labeled.
+ * @param [in]  label_list Device array of the labels included in @p start_vertex_labels.  If
+ * @p label_to_comm_rank is not specified this parameter is ignored.  If specified, label_list
+ * must be sorted in ascending order.
+ * @param [in]  label_to_comm_rank Device array identifying which comm rank the output for a
+ * particular label should be shuffled in the output.  If not specifed the data is not organized in
+ * output.  If specified then the all data from @p label_list[i] will be shuffled to rank @p.  This
+ * cannot be specified unless @p start_vertex_labels is also specified
+ * label_to_comm_rank[i].  If not specified then the output data will not be shuffled between ranks.
+ * @param [in]  label_offsets Device array of the offsets for each label in the seed list.  This
+ *                            parameter is only used with the retain_seeds option.
+ * @param [in]  fanout       Host array defining the fan out at each step in the sampling algorithm.
+ *                           We only support fanout values of type INT32
+ * @param [in,out] rng_state State of the random number generator, updated with each call
+ * @param [in]  sampling_options
+ *                           Opaque pointer defining the sampling options.
+ * @param [in]  do_expensive_check
+ *                           A flag to run expensive checks for input arguments (if set to true)
+ * @param [out]  result      Output from the uniform_neighbor_sample call
+ * @param [out] error        Pointer to an error object storing details of any error.  Will
+ *                           be populated if error code is not CUGRAPH_SUCCESS
+ * @return error code
+ */
+cugraph_error_code_t cugraph_biased_neighbor_sample(
+  const cugraph_resource_handle_t* handle,
+  cugraph_graph_t* graph,
+  const cugraph_edge_property_view_t* edge_biases,
   const cugraph_type_erased_device_array_view_t* start_vertices,
   const cugraph_type_erased_device_array_view_t* start_vertex_labels,
   const cugraph_type_erased_device_array_view_t* label_list,

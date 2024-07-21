@@ -345,7 +345,7 @@ def parse_args():
     parser.add_argument("--dataset_root", type=str, default="dataset")
     parser.add_argument("--dataset", type=str, default="ogbn-products")
     parser.add_argument("--skip_partition", action="store_true")
-    parser.add_argument("--wg_mem_type", type=str, default="chunked")
+    parser.add_argument("--wg_mem_type", type=str, default="distributed")
 
     return parser.parse_args()
 

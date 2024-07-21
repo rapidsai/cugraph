@@ -32,7 +32,7 @@ outputs:
         - rapids-build-backend>=0.3.1,<0.4.0.dev0
       run:
         - python
-        - thriftpy2 >=0.4.15
+        - thriftpy2 >=0.4.15,!=0.5.0,!=0.5.1
 
   - name: cugraph-service-server
     version: {{ version }}
@@ -65,7 +65,7 @@ outputs:
         - numpy >=1.23,<2.0a0
         - python
         - rapids-dask-dependency ={{ minor_version }}
-        - thriftpy2 >=0.4.15
+        - thriftpy2 >=0.4.15,!=0.5.0,!=0.5.1
         - ucx-py {{ ucx_py_version }}
 
 tests:
