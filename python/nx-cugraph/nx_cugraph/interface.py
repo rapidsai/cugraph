@@ -138,6 +138,41 @@ class BackendInterface:
                 "test_gml.py:"
                 "TestPropertyLists.test_reading_graph_with_single_element_list_property"
             ): tuple_elements_preferred,
+            key(
+                "test_relabel.py:"
+                "TestRelabel.test_relabel_multidigraph_inout_merge_nodes"
+            ): no_string_dtype,
+            key(
+                "test_relabel.py:TestRelabel.test_relabel_multigraph_merge_inplace"
+            ): no_string_dtype,
+            key(
+                "test_relabel.py:TestRelabel.test_relabel_multidigraph_merge_inplace"
+            ): no_string_dtype,
+            key(
+                "test_relabel.py:TestRelabel.test_relabel_multidigraph_inout_copy"
+            ): no_string_dtype,
+            key(
+                "test_relabel.py:TestRelabel.test_relabel_multigraph_merge_copy"
+            ): no_string_dtype,
+            key(
+                "test_relabel.py:TestRelabel.test_relabel_multidigraph_merge_copy"
+            ): no_string_dtype,
+            key(
+                "test_relabel.py:TestRelabel.test_relabel_multigraph_nonnumeric_key"
+            ): no_string_dtype,
+            key("test_contraction.py:test_multigraph_path"): no_object_dtype_for_edges,
+            key(
+                "test_contraction.py:test_directed_multigraph_path"
+            ): no_object_dtype_for_edges,
+            key(
+                "test_contraction.py:test_multigraph_blockmodel"
+            ): no_object_dtype_for_edges,
+            key(
+                "test_summarization.py:TestSNAPUndirectedMulti.test_summary_graph"
+            ): no_string_dtype,
+            key(
+                "test_summarization.py:TestSNAPDirectedMulti.test_summary_graph"
+            ): no_string_dtype,
         }
 
         from packaging.version import parse
