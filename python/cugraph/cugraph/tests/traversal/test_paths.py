@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2023, NVIDIA CORPORATION.
+# Copyright (c) 2019-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -205,8 +205,11 @@ def test_shortest_path_length_no_path(graphs):
 def test_shortest_path_length_no_target(graphs, load_traversal_results):
     cugraph_G, cupy_df = graphs
 
-    cugraph_path_1_to_all = cugraph.shortest_path_length(
-        cugraph_G, 1).sort_values("vertex").reset_index(drop=True)
+    cugraph_path_1_to_all = (
+        cugraph.shortest_path_length(cugraph_G, 1)
+        .sort_values("vertex")
+        .reset_index(drop=True)
+    )
     golden_path_1_to_all = get_resultset(
         resultset_name="traversal",
         algo="shortest_path_length",
@@ -223,7 +226,8 @@ def test_shortest_path_length_no_target(graphs, load_traversal_results):
         cugraph_path_1_to_all["distance"],
         cupy_path_1_to_all["distance"],
         check_names=False,
-        check_dtype=False,)
+        check_dtype=False,
+    )
 
     # results for vertex 8 and 9 are not returned
     assert cugraph_path_1_to_all.shape[0] == len(golden_path_1_to_all) + 2
