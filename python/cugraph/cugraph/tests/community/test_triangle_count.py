@@ -122,25 +122,15 @@ def test_triangles_int64(input_combo):
 @pytest.mark.sg
 def test_triangles_no_weights(input_combo):
     G_weighted = input_combo["Gnx"]
-    count_legacy = (
-        cugraph.triangle_count(G_weighted)
-        .sort_values("vertex")
-        .reset_index(drop=True)
-        .rename(columns={"counts": "exp_cugraph_counts"})
-    )
+    count_triangles_nx_graph = cugraph.triangle_count(G_weighted)["counts"].sum()
 
     graph_file = input_combo["graph_file"]
     G = graph_file.get_graph(ignore_weights=True)
 
     assert G.is_weighted() is False
-    triangle_count = (
-        cugraph.triangle_count(G)
-        .sort_values("vertex")
-        .reset_index(drop=True)
-        .rename(columns={"counts": "exp_cugraph_counts"})
-    )
-    cugraph_exp_triangle_results = triangle_count["exp_cugraph_counts"].sum()
-    assert cugraph_exp_triangle_results == count_legacy
+    count_triangles = cugraph.triangle_count(G)["counts"].sum()
+
+    assert count_triangles_nx_graph == count_triangles
 
 
 @pytest.mark.sg
