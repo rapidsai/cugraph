@@ -873,7 +873,7 @@ extract_transform_v_frontier_e(raft::handle_t const& handle,
                          edge_partition_bitmap.size(),
                          static_cast<int>(i),
                          handle.get_stream());
-            auto it = thrust::copy_if(
+            thrust::copy_if(
               handle.get_thrust_policy(),
               thrust::make_counting_iterator(edge_partition.major_range_first()),
               thrust::make_counting_iterator(edge_partition.major_range_first()) + bool_size,
@@ -888,10 +888,6 @@ extract_transform_v_frontier_e(raft::handle_t const& handle,
                   })),
               get_dataframe_buffer_begin(edge_partition_frontier_key_buffer),
               thrust::identity<bool>{});
-            std::cout << "size="
-                      << thrust::distance(
-                           get_dataframe_buffer_begin(edge_partition_frontier_key_buffer), it)
-                      << std::endl;
           } else {
             device_bcast(minor_comm,
                          frontier_key_first,
