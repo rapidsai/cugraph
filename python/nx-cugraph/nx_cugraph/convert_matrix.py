@@ -111,19 +111,28 @@ def from_pandas_edgelist(
             }
         kwargs["edge_values"] = edge_values
 
-        if graph_class.is_multigraph() and edge_key is not None:
-            try:
-                edge_keys = df[edge_key].to_list()
-            except (KeyError, TypeError) as exc:
-                raise nx.NetworkXError(
-                    f"Invalid edge_key argument: {edge_key}"
-                ) from exc
-            if not graph_class.is_directed():
-                # Symmetrize the edges
-                edge_keys = cp.hstack(
-                    (edge_keys, edge_keys[mask] if mask is not None else edge_keys)
-                )
-            kwargs["edge_keys"] = edge_keys
+    if (
+        graph_class.is_multigraph()
+        and edge_key is not None
+        and (
+            # In nx <= 3.3, `edge_key` was ignored if `edge_attr` is None
+            edge_attr is not None
+            or nx.__version__[:3] > "3.3"
+        )
+    ):
+        try:
+            edge_keys = df[edge_key].to_list()
+        except (KeyError, TypeError) as exc:
+            raise nx.NetworkXError(f"Invalid edge_key argument: {edge_key}") from exc
+        if not graph_class.is_directed():
+            # Symmetrize the edges; remember, `edge_keys` is a list!
+            if mask is None:
+                edge_keys *= 2
+            else:
+                edge_keys += [
+                    key for keep, key in zip(mask.tolist(), edge_keys) if keep
+                ]
+        kwargs["edge_keys"] = edge_keys
 
     G = graph_class.from_coo(N, src_indices, dst_indices, **kwargs)
     if inplace:
