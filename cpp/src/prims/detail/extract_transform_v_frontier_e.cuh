@@ -590,7 +590,7 @@ template <bool incoming,  // iterate over incoming edges (incoming == true) or o
           typename OutputKeyT,
           typename OutputValueT,
           typename GraphViewType,
-          typename VertexFrontierBucketType,
+          typename KeyBucketType,
           typename EdgeSrcValueInputWrapper,
           typename EdgeDstValueInputWrapper,
           typename EdgeValueInputWrapper,
@@ -599,7 +599,7 @@ std::tuple<optional_dataframe_buffer_type_t<OutputKeyT>,
            optional_dataframe_buffer_type_t<OutputValueT>>
 extract_transform_v_frontier_e(raft::handle_t const& handle,
                                GraphViewType const& graph_view,
-                               VertexFrontierBucketType const& frontier,
+                               KeyBucketType const& frontier,
                                EdgeSrcValueInputWrapper edge_src_value_input,
                                EdgeDstValueInputWrapper edge_dst_value_input,
                                EdgeValueInputWrapper edge_value_input,
@@ -612,7 +612,7 @@ extract_transform_v_frontier_e(raft::handle_t const& handle,
 #endif
   using vertex_t       = typename GraphViewType::vertex_type;
   using edge_t         = typename GraphViewType::edge_type;
-  using key_t          = typename VertexFrontierBucketType::key_type;
+  using key_t          = typename KeyBucketType::key_type;
   using output_key_t   = OutputKeyT;
   using output_value_t = OutputValueT;
 
@@ -683,7 +683,7 @@ extract_transform_v_frontier_e(raft::handle_t const& handle,
   auto frontier_key_first = frontier.begin();
   auto frontier_key_last  = frontier.end();
   auto frontier_keys      = allocate_dataframe_buffer<key_t>(size_t{0}, handle.get_stream());
-  if constexpr (!VertexFrontierBucketType::is_sorted_unique) {
+  if constexpr (!KeyBucketType::is_sorted_unique) {
     resize_dataframe_buffer(frontier_keys, frontier.size(), handle.get_stream());
     thrust::copy(handle.get_thrust_policy(),
                  frontier_key_first,
@@ -757,7 +757,7 @@ extract_transform_v_frontier_e(raft::handle_t const& handle,
       use_bitmap_flags     = std::vector<bool>(minor_comm_size, false);
 
       size_t this_bool_size{0};
-      if constexpr (VertexFrontierBucketType::is_sorted_unique) {
+      if constexpr (KeyBucketType::is_sorted_unique) {
         for (size_t i = 0; i < graph_view.number_of_local_edge_partitions(); ++i) {
           auto edge_partition =
             edge_partition_device_view_t<vertex_t, edge_t, GraphViewType::is_multi_gpu>(

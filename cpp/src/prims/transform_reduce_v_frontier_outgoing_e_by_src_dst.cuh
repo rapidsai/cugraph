@@ -184,7 +184,7 @@ auto sort_and_reduce_buffer_elements(
 
 template <bool reduce_by_src,
           typename GraphViewType,
-          typename VertexFrontierBucketType,
+          typename KeyBucketType,
           typename EdgeSrcValueInputWrapper,
           typename EdgeDstValueInputWrapper,
           typename EdgeValueInputWrapper,
@@ -192,15 +192,14 @@ template <bool reduce_by_src,
           typename ReduceOp>
 std::conditional_t<
   !std::is_same_v<typename ReduceOp::value_type, void>,
-  std::tuple<decltype(allocate_dataframe_buffer<typename VertexFrontierBucketType::key_type>(
+  std::tuple<decltype(allocate_dataframe_buffer<typename KeyBucketType::key_type>(
                0, rmm::cuda_stream_view{})),
              decltype(detail::allocate_optional_dataframe_buffer<typename ReduceOp::value_type>(
                0, rmm::cuda_stream_view{}))>,
-  decltype(allocate_dataframe_buffer<typename VertexFrontierBucketType::key_type>(
-    0, rmm::cuda_stream_view{}))>
+  decltype(allocate_dataframe_buffer<typename KeyBucketType::key_type>(0, rmm::cuda_stream_view{}))>
 transform_reduce_v_frontier_outgoing_e_by_src_dst(raft::handle_t const& handle,
                                                   GraphViewType const& graph_view,
-                                                  VertexFrontierBucketType const& frontier,
+                                                  KeyBucketType const& frontier,
                                                   EdgeSrcValueInputWrapper edge_src_value_input,
                                                   EdgeDstValueInputWrapper edge_dst_value_input,
                                                   EdgeValueInputWrapper edge_value_input,
@@ -213,7 +212,7 @@ transform_reduce_v_frontier_outgoing_e_by_src_dst(raft::handle_t const& handle,
 
   using vertex_t  = typename GraphViewType::vertex_type;
   using edge_t    = typename GraphViewType::edge_type;
-  using key_t     = typename VertexFrontierBucketType::key_type;
+  using key_t     = typename KeyBucketType::key_type;
   using payload_t = typename ReduceOp::value_type;
 
   if (do_expensive_check) {
@@ -350,17 +349,17 @@ transform_reduce_v_frontier_outgoing_e_by_src_dst(raft::handle_t const& handle,
 
 }  // namespace detail
 
-template <typename GraphViewType, typename VertexFrontierBucketType>
+template <typename GraphViewType, typename KeyBucketType>
 size_t compute_num_out_nbrs_from_frontier(raft::handle_t const& handle,
                                           GraphViewType const& graph_view,
-                                          VertexFrontierBucketType const& frontier)
+                                          KeyBucketType const& frontier)
 {
   static_assert(!GraphViewType::is_storage_transposed,
                 "GraphViewType should support the push model.");
 
   using vertex_t = typename GraphViewType::vertex_type;
   using edge_t   = typename GraphViewType::edge_type;
-  using key_t    = typename VertexFrontierBucketType::key_type;
+  using key_t    = typename KeyBucketType::key_type;
 
   size_t ret{0};
 
@@ -436,11 +435,11 @@ size_t compute_num_out_nbrs_from_frontier(raft::handle_t const& handle,
  * outputs by (tagged-)source ID.
  *
  * Edge functor outputs are thrust::optional objects and invalid if thrust::nullopt. Vertices are
- * assumed to be tagged if VertexFrontierBucketType::key_type is a tuple of a vertex type and a tag
- * type (VertexFrontierBucketType::key_type is identical to a vertex type otherwise).
+ * assumed to be tagged if KeyBucketType::key_type is a tuple of a vertex type and a tag
+ * type (KeyBucketType::key_type is identical to a vertex type otherwise).
  *
  * @tparam GraphViewType Type of the passed non-owning graph object.
- * @tparam VertexFrontierBucketType Type of the vertex frontier bucket class which abstracts the
+ * @tparam KeyBucketType Type of the vertex frontier bucket class which abstracts the
  * current (tagged-)vertex frontier.
  * @tparam EdgeSrcValueInputWrapper Type of the wrapper for edge source property values.
  * @tparam EdgeDstValueInputWrapper Type of the wrapper for edge destination property values.
@@ -450,7 +449,7 @@ size_t compute_num_out_nbrs_from_frontier(raft::handle_t const& handle,
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Non-owning graph object.
- * @param frontier VertexFrontierBucketType class object for the current vertex frontier.
+ * @param frontier KeyBucketType class object for the current vertex frontier.
  * @param edge_src_value_input Wrapper used to access source input property values (for the edge
  * sources assigned to this process in multi-GPU). Use either cugraph::edge_src_property_t::view()
  * (if @p e_op needs to access source property values) or cugraph::edge_src_dummy_property_t::view()
@@ -484,7 +483,7 @@ size_t compute_num_out_nbrs_from_frontier(raft::handle_t const& handle,
  * using a vertex ID as the primary key and a tag (if relevant) as the secondary key.
  */
 template <typename GraphViewType,
-          typename VertexFrontierBucketType,
+          typename KeyBucketType,
           typename EdgeSrcValueInputWrapper,
           typename EdgeDstValueInputWrapper,
           typename EdgeValueInputWrapper,
@@ -492,15 +491,14 @@ template <typename GraphViewType,
           typename ReduceOp>
 std::conditional_t<
   !std::is_same_v<typename ReduceOp::value_type, void>,
-  std::tuple<decltype(allocate_dataframe_buffer<typename VertexFrontierBucketType::key_type>(
+  std::tuple<decltype(allocate_dataframe_buffer<typename KeyBucketType::key_type>(
                0, rmm::cuda_stream_view{})),
              decltype(detail::allocate_optional_dataframe_buffer<typename ReduceOp::value_type>(
                0, rmm::cuda_stream_view{}))>,
-  decltype(allocate_dataframe_buffer<typename VertexFrontierBucketType::key_type>(
-    0, rmm::cuda_stream_view{}))>
+  decltype(allocate_dataframe_buffer<typename KeyBucketType::key_type>(0, rmm::cuda_stream_view{}))>
 transform_reduce_v_frontier_outgoing_e_by_src(raft::handle_t const& handle,
                                               GraphViewType const& graph_view,
-                                              VertexFrontierBucketType const& frontier,
+                                              KeyBucketType const& frontier,
                                               EdgeSrcValueInputWrapper edge_src_value_input,
                                               EdgeDstValueInputWrapper edge_dst_value_input,
                                               EdgeValueInputWrapper edge_value_input,
@@ -524,11 +522,11 @@ transform_reduce_v_frontier_outgoing_e_by_src(raft::handle_t const& handle,
  * outputs by (tagged-)destination ID.
  *
  * Edge functor outputs are thrust::optional objects and invalid if thrust::nullopt. Vertices are
- * assumed to be tagged if VertexFrontierBucketType::key_type is a tuple of a vertex type and a tag
- * type (VertexFrontierBucketType::key_type is identical to a vertex type otherwise).
+ * assumed to be tagged if KeyBucketType::key_type is a tuple of a vertex type and a tag
+ * type (KeyBucketType::key_type is identical to a vertex type otherwise).
  *
  * @tparam GraphViewType Type of the passed non-owning graph object.
- * @tparam VertexFrontierBucketType Type of the vertex frontier bucket class which abstracts the
+ * @tparam KeyBucketType Type of the vertex frontier bucket class which abstracts the
  * current (tagged-)vertex frontier.
  * @tparam EdgeSrcValueInputWrapper Type of the wrapper for edge source property values.
  * @tparam EdgeDstValueInputWrapper Type of the wrapper for edge destination property values.
@@ -538,7 +536,7 @@ transform_reduce_v_frontier_outgoing_e_by_src(raft::handle_t const& handle,
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Non-owning graph object.
- * @param frontier VertexFrontierBucketType class object for the current vertex frontier.
+ * @param frontier KeyBucketType class object for the current vertex frontier.
  * @param edge_src_value_input Wrapper used to access source input property values (for the edge
  * sources assigned to this process in multi-GPU). Use either cugraph::edge_src_property_t::view()
  * (if @p e_op needs to access source property values) or cugraph::edge_src_dummy_property_t::view()
@@ -572,7 +570,7 @@ transform_reduce_v_frontier_outgoing_e_by_src(raft::handle_t const& handle,
  * using a vertex ID as the primary key and a tag (if relevant) as the secondary key.
  */
 template <typename GraphViewType,
-          typename VertexFrontierBucketType,
+          typename KeyBucketType,
           typename EdgeSrcValueInputWrapper,
           typename EdgeDstValueInputWrapper,
           typename EdgeValueInputWrapper,
@@ -580,15 +578,14 @@ template <typename GraphViewType,
           typename ReduceOp>
 std::conditional_t<
   !std::is_same_v<typename ReduceOp::value_type, void>,
-  std::tuple<decltype(allocate_dataframe_buffer<typename VertexFrontierBucketType::key_type>(
+  std::tuple<decltype(allocate_dataframe_buffer<typename KeyBucketType::key_type>(
                0, rmm::cuda_stream_view{})),
              decltype(detail::allocate_optional_dataframe_buffer<typename ReduceOp::value_type>(
                0, rmm::cuda_stream_view{}))>,
-  decltype(allocate_dataframe_buffer<typename VertexFrontierBucketType::key_type>(
-    0, rmm::cuda_stream_view{}))>
+  decltype(allocate_dataframe_buffer<typename KeyBucketType::key_type>(0, rmm::cuda_stream_view{}))>
 transform_reduce_v_frontier_outgoing_e_by_dst(raft::handle_t const& handle,
                                               GraphViewType const& graph_view,
-                                              VertexFrontierBucketType const& frontier,
+                                              KeyBucketType const& frontier,
                                               EdgeSrcValueInputWrapper edge_src_value_input,
                                               EdgeDstValueInputWrapper edge_dst_value_input,
                                               EdgeValueInputWrapper edge_value_input,

@@ -64,13 +64,13 @@ namespace cugraph {
  * @return Dataframe buffer object storing extracted and accumulated valid @p e_op return values.
  */
 template <typename GraphViewType,
-          typename VertexFrontierBucketType,
+          typename KeyBucketType,
           typename EdgeSrcValueInputWrapper,
           typename EdgeDstValueInputWrapper,
           typename EdgeValueInputWrapper,
           typename EdgeOp>
 decltype(allocate_dataframe_buffer<
-         typename detail::edge_op_result_type<typename VertexFrontierBucketType::key_type,
+         typename detail::edge_op_result_type<typename KeyBucketType::key_type,
                                               typename GraphViewType::vertex_type,
                                               typename EdgeSrcValueInputWrapper::value_type,
                                               typename EdgeDstValueInputWrapper::value_type,
@@ -79,7 +79,7 @@ decltype(allocate_dataframe_buffer<
                                                                          rmm::cuda_stream_view{}))
 extract_transform_v_frontier_outgoing_e(raft::handle_t const& handle,
                                         GraphViewType const& graph_view,
-                                        VertexFrontierBucketType const& frontier,
+                                        KeyBucketType const& frontier,
                                         EdgeSrcValueInputWrapper edge_src_value_input,
                                         EdgeDstValueInputWrapper edge_dst_value_input,
                                         EdgeValueInputWrapper edge_value_input,
@@ -89,7 +89,7 @@ extract_transform_v_frontier_outgoing_e(raft::handle_t const& handle,
   static_assert(!GraphViewType::is_storage_transposed);
 
   using e_op_result_t =
-    typename detail::edge_op_result_type<typename VertexFrontierBucketType::key_type,
+    typename detail::edge_op_result_type<typename KeyBucketType::key_type,
                                          typename GraphViewType::vertex_type,
                                          typename EdgeSrcValueInputWrapper::value_type,
                                          typename EdgeDstValueInputWrapper::value_type,
