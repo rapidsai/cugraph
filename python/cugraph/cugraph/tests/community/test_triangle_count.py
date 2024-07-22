@@ -112,8 +112,8 @@ def test_triangles_int64(input_combo):
     G.edgelist.edgelist_df = G.edgelist.edgelist_df.astype(
         {"src": "int64", "dst": "int64"}
     )
-
     count_int64 = cugraph.triangle_count(G)["counts"].sum()
+
     assert G.edgelist.edgelist_df["src"].dtype == "int64"
     assert G.edgelist.edgelist_df["dst"].dtype == "int64"
     assert count_int32 == count_int64
