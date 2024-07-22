@@ -22,6 +22,7 @@ import cudf
 import cupy
 import cugraph
 from cugraph.testing import get_resultset, load_resultset
+from cudf.testing.testing import assert_series_equal
 from cupyx.scipy.sparse import coo_matrix as cupy_coo_matrix
 
 
@@ -204,7 +205,8 @@ def test_shortest_path_length_no_path(graphs):
 def test_shortest_path_length_no_target(graphs, load_traversal_results):
     cugraph_G, cupy_df = graphs
 
-    cugraph_path_1_to_all = cugraph.shortest_path_length(cugraph_G, 1)
+    cugraph_path_1_to_all = cugraph.shortest_path_length(
+        cugraph_G, 1).sort_values("vertex").reset_index(drop=True)
     golden_path_1_to_all = get_resultset(
         resultset_name="traversal",
         algo="shortest_path_length",
@@ -217,7 +219,11 @@ def test_shortest_path_length_no_target(graphs, load_traversal_results):
 
     # Cast networkx graph on cugraph vertex column type from str to int.
     # SSSP preserves vertex type, convert for comparison
-    assert cugraph_path_1_to_all == cupy_path_1_to_all
+    assert_series_equal(
+        cugraph_path_1_to_all["distance"],
+        cupy_path_1_to_all["distance"],
+        check_names=False,
+        check_dtype=False,)
 
     # results for vertex 8 and 9 are not returned
     assert cugraph_path_1_to_all.shape[0] == len(golden_path_1_to_all) + 2
