@@ -575,13 +575,12 @@ k_truss(raft::handle_t const& handle,
         bool do_expensive_check)
 {
   // 1. Check input arguments.
-
-  CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
-
+  
   CUGRAPH_EXPECTS(graph_view.is_symmetric(),
                   "Invalid input arguments: K-truss currently supports undirected graphs only.");
   CUGRAPH_EXPECTS(!graph_view.is_multigraph(),
                   "Invalid input arguments: K-truss currently does not support multi-graphs.");
+
 
   if (do_expensive_check) {
     // nothing to do
@@ -651,16 +650,15 @@ k_truss(raft::handle_t const& handle,
                                      std::make_optional(core_number_span));
 
     if constexpr (multi_gpu) {
-      std::tie(srcs, dsts, std::ignore, std::ignore, std::ignore, std::ignore) =
+      std::tie(srcs, dsts, wgts, std::ignore, std::ignore, std::ignore) =
         detail::shuffle_ext_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning<vertex_t,
                                                                                        edge_t,
                                                                                        weight_t,
                                                                                        int32_t>(
-          handle, std::move(srcs), std::move(dsts), std::nullopt, std::nullopt, std::nullopt);
+          handle, std::move(srcs), std::move(dsts), std::move(wgts), std::nullopt, std::nullopt);
     }
 
     std::optional<rmm::device_uvector<vertex_t>> tmp_renumber_map{std::nullopt};
-
     std::tie(*modified_graph, edge_weight, std::ignore, std::ignore, tmp_renumber_map) =
       create_graph_from_edgelist<vertex_t, edge_t, weight_t, edge_t, int32_t, false, multi_gpu>(
         handle,
@@ -777,7 +775,7 @@ k_truss(raft::handle_t const& handle,
       edge_triangle_count<vertex_t, edge_t, multi_gpu>(handle, cur_graph_view);
 
     cugraph::edge_property_t<decltype(cur_graph_view), bool> edge_mask(handle, cur_graph_view);
-    cugraph::fill_edge_property(handle, cur_graph_view, true, edge_mask);
+    cugraph::fill_edge_property(handle, cur_graph_view, edge_mask.mutable_view(), bool{true});
 
     while (true) {
       // extract the edges that have counts less than k - 2. Those edges will be unrolled

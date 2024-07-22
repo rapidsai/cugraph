@@ -261,7 +261,7 @@ INSTANTIATE_TEST_SUITE_P(
   Tests_MGKTruss_File,
   ::testing::Combine(
     // enable correctness checks
-    ::testing::Values(KTruss_Usecase{4, false, false, true}, KTruss_Usecase{5, true, false, true}),
+    ::testing::Values(KTruss_Usecase{4, false, true, true}, KTruss_Usecase{5, true, true, true}),
     ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"),
                       cugraph::test::File_Usecase("test/datasets/dolphins.mtx"))));
 

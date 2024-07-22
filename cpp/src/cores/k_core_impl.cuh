@@ -37,7 +37,6 @@ k_core(raft::handle_t const& handle,
        std::optional<raft::device_span<edge_t const>> core_numbers,
        bool do_expensive_check)
 {
-  CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
 
   rmm::device_uvector<edge_t> computed_core_numbers(0, handle.get_stream());
 
