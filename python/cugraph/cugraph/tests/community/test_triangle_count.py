@@ -105,7 +105,7 @@ def test_triangles(input_combo):
 @pytest.mark.sg
 def test_triangles_int64(input_combo):
     Gnx = input_combo["Gnx"]
-    count_legacy_32 = cugraph.triangle_count(Gnx)
+    count_int32 = cugraph.triangle_count(Gnx)["counts"].sum()
 
     graph_file = input_combo["graph_file"]
     G = graph_file.get_graph()
@@ -113,16 +113,10 @@ def test_triangles_int64(input_combo):
         {"src": "int64", "dst": "int64"}
     )
 
-    count_exp_64 = (
-        cugraph.triangle_count(G)
-        .sort_values("vertex")
-        .reset_index(drop=True)
-        .rename(columns={"counts": "exp_cugraph_counts"})
-    )
-    cugraph_exp_triangle_results = count_exp_64["exp_cugraph_counts"].sum()
+    count_int64 = cugraph.triangle_count(G)["counts"].sum()
     assert G.edgelist.edgelist_df["src"].dtype == "int64"
     assert G.edgelist.edgelist_df["dst"].dtype == "int64"
-    assert cugraph_exp_triangle_results == count_legacy_32
+    assert count_int32 == count_int64
 
 
 @pytest.mark.sg
