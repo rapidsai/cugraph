@@ -1627,7 +1627,7 @@ k_truss(raft::handle_t const& handle,
             cugraph::edge_src_dummy_property_t{}.view(),
             cugraph::edge_dst_dummy_property_t{}.view(),
             cugraph::edge_dummy_property_t{}.view(),
-            extract_q_idx_closing<vertex_t, edge_t, decltype(major_weak_edgelist_first), multi_gpu>{
+            extract_q_idx_closing<vertex_t, edge_t, decltype(major_weak_edgelist_dsts_tags_first), multi_gpu>{
               major_weak_edgelist_dsts_tags_first,
               major_weak_edgelist_dsts_tags_first + major_weak_edgelist_dsts.size(),
               raft::device_span<vertex_t>(major_weak_edgelist_srcs.data(),
@@ -1787,7 +1787,7 @@ k_truss(raft::handle_t const& handle,
             cugraph::edge_src_dummy_property_t{}.view(),
             cugraph::edge_dst_dummy_property_t{}.view(),
             cugraph::edge_dummy_property_t{}.view(),
-            extract_q_idx_closing<vertex_t, edge_t, decltype(weak_edgelist_first), multi_gpu>{
+            extract_q_idx_closing<vertex_t, edge_t, decltype(weak_edgelist_dsts_tags_first), multi_gpu>{
               weak_edgelist_dsts_tags_first,
               weak_edgelist_dsts_tags_first + weak_edgelist_dsts.size(),
               raft::device_span<vertex_t>(weak_edgelist_srcs.data(), weak_edgelist_srcs.size()),
