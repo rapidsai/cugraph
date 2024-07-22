@@ -1,5 +1,5 @@
 #!/bin/bash
-# Copyright (c) 2022-2023, NVIDIA CORPORATION.
+# Copyright (c) 2022-2024, NVIDIA CORPORATION.
 
 for component in testing testing_c testing_mg; do
     cp -r ${PREFIX}/tmp/install/libcugraph_components/* ${PREFIX}/

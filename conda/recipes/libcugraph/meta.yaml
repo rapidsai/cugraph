@@ -18,7 +18,7 @@ source:
 # The cache section is hidden behind the `--experimental` CLI flag. It allows doing some common work into a directory that is copied back into each output. We can leverage that functionality to do the equivalent of a single top-level build followed by just installing components into each subpackage.
 cache:
   build:
-    script: 
+    script:
       file: build.sh
       env:
         AWS_ACCESS_KEY_ID: ${{ env.get("AWS_ACCESS_KEY_ID") }}
