@@ -4,4 +4,5 @@
 for component in testing testing_c testing_mg; do
     cp -r ${PREFIX}/tmp/install/libcugraph_components/* ${PREFIX}/
 done
-cp -r ${PREFIX}/tmp/install/libcugraph_etl_components/testing//* ${PREFIX}/
+# This is a nonexistent component that we've been installing for no reason...
+#cp -r ${PREFIX}/tmp/install/libcugraph_etl_components/testing/* ${PREFIX}/

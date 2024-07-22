@@ -251,6 +251,9 @@ outputs:
         - openmpi<5.0.3 # Required for building cpp-mgtests (multi-GPU tests)
         - ${{ stdlib("c") }}
       host:
+        # Until https://github.com/prefix-dev/rattler-build/issues/977 is
+        # resolved we'll have to ignore a lot of these run exports on every
+        # output.
         - if: cuda_major == "11"
           then:
             - cudatoolkit

@@ -18,19 +18,22 @@ rapids-logger "Begin cpp build"
 # TODO: Upstream this to the image.
 mamba install rattler-build -c conda-forge
 
+# Notes on the comments in the command below (some things like file renamings
+# should be done before merging):
+# - rattler-build uses recipe.yaml by default, not meta.yaml.
+# - rattler-build uses variants.yaml by default, not conda_build_config.yaml
+# - rattler-build does not respect .condarc, so channels and the output dir
+#   must be explicitly specified
+# - The multi-output cache is currently an experimental feature.
+#   (https://prefix-dev.github.io/rattler-build/dev/multiple_output_cache/)
+# - By default rattler-build adds a timestamp that defeats sccache caching,
+#   which --no-build-id turns off
 RAPIDS_PACKAGE_VERSION=$(rapids-generate-version) rattler-build build \
-    # rattler-build uses recipe.yaml, not meta.yaml
     --recipe conda/recipes/libcugraph/meta.yaml \
-    # rattler-build uses variants.yaml, not conda_build_config.yaml
     --variant-config conda/recipes/libcugraph/conda_build_config.yaml \
-    # rattler-build does not respect .condarc, so channels and the output dir
-    # must be explicitly specified
     -c rapidsai-nightly -c conda-forge \
-    --output-dir ${RAPIDS_CONDA_BLD_OUTPUT_DIR}
-    # The multi-output cache is currently an experimental feature.
-    # (https://prefix-dev.github.io/rattler-build/dev/multiple_output_cache/)
-    --experimental
-    # By default rattler-build adds a timestamp that defeats sccache caching.
+    --output-dir ${RAPIDS_CONDA_BLD_OUTPUT_DIR} \
+    --experimental \
     --no-build-id
 
 echo "sccache stats:"
