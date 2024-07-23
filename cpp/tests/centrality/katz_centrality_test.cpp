@@ -281,8 +281,18 @@ INSTANTIATE_TEST_SUITE_P(
                       KatzCentrality_Usecase{false, true},
                       KatzCentrality_Usecase{true, false},
                       KatzCentrality_Usecase{true, true}),
-    ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"),
-                      cugraph::test::File_Usecase("test/datasets/web-Google.mtx"),
+    ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"))));
+
+INSTANTIATE_TEST_SUITE_P(
+  file_large_test,
+  Tests_KatzCentrality_File,
+  ::testing::Combine(
+    // enable correctness checks
+    ::testing::Values(KatzCentrality_Usecase{false, false},
+                      KatzCentrality_Usecase{false, true},
+                      KatzCentrality_Usecase{true, false},
+                      KatzCentrality_Usecase{true, true}),
+    ::testing::Values(cugraph::test::File_Usecase("test/datasets/web-Google.mtx"),
                       cugraph::test::File_Usecase("test/datasets/ljournal-2008.mtx"),
                       cugraph::test::File_Usecase("test/datasets/webbase-1M.mtx"))));
 
