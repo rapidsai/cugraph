@@ -40,6 +40,10 @@ from pylibcugraph._cugraph_c.array cimport (
     cugraph_type_erased_device_array_t,
 )
 
+from pylibcugraph._cugraph_c.coo cimport (
+    cugraph_coo_t,
+)
+
 cdef extern from "cugraph_c/sampling_algorithms.h":
     ###########################################################################
 
@@ -81,4 +85,22 @@ cdef extern from "cugraph_c/sampling_algorithms.h":
             size_t num_vertices,
             cugraph_type_erased_device_array_t** vertices,
             cugraph_error_t** error
+        )
+
+    # negative sampling
+    cdef cugraph_error_code_t \
+        cugraph_negative_sampling(
+            const cugraph_resource_handle_t* handle,
+            cugraph_rng_state_t* rng_state,
+            cugraph_graph_t* graph,
+            size_t num_samples,
+            const cugraph_type_erased_device_array_view_t* vertices,
+            const cugraph_type_erased_device_array_view_t* src_bias,
+            const cugraph_type_erased_device_array_view_t* dst_bias,
+            bool_t remove_duplicates,
+            bool_t remove_false_negatives,
+            bool_t exact_number_of_samples,
+            bool_t do_expensive_check,
+            cugraph_coo_t **result,
+            cugraph_error_t **error
         )
