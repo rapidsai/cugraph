@@ -256,24 +256,36 @@ INSTANTIATE_TEST_SUITE_P(
 #endif
 
 INSTANTIATE_TEST_SUITE_P(
-  simple_test,
+  file_test,
+  Tests_BiasedRandomWalks_File,
+  ::testing::Combine(::testing::Values(BiasedRandomWalks_Usecase{false, 0, true},
+                                       BiasedRandomWalks_Usecase{true, 0, true}),
+                     ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"))));
+
+INSTANTIATE_TEST_SUITE_P(
+  file_test,
+  Tests_Node2VecRandomWalks_File,
+  ::testing::Combine(::testing::Values(Node2VecRandomWalks_Usecase{4, 8, false, 0, true},
+                                       Node2VecRandomWalks_Usecase{4, 8, true, 0, true}),
+                     ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"))));
+
+INSTANTIATE_TEST_SUITE_P(
+  file_large_test,
   Tests_BiasedRandomWalks_File,
   ::testing::Combine(
     ::testing::Values(BiasedRandomWalks_Usecase{false, 0, true},
                       BiasedRandomWalks_Usecase{true, 0, true}),
-    ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"),
-                      cugraph::test::File_Usecase("test/datasets/web-Google.mtx"),
+    ::testing::Values(cugraph::test::File_Usecase("test/datasets/web-Google.mtx"),
                       cugraph::test::File_Usecase("test/datasets/ljournal-2008.mtx"),
                       cugraph::test::File_Usecase("test/datasets/webbase-1M.mtx"))));
 
 INSTANTIATE_TEST_SUITE_P(
-  simple_test,
+  file_large_test,
   Tests_Node2VecRandomWalks_File,
   ::testing::Combine(
     ::testing::Values(Node2VecRandomWalks_Usecase{4, 8, false, 0, true},
                       Node2VecRandomWalks_Usecase{4, 8, true, 0, true}),
-    ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"),
-                      cugraph::test::File_Usecase("test/datasets/web-Google.mtx"),
+    ::testing::Values(cugraph::test::File_Usecase("test/datasets/web-Google.mtx"),
                       cugraph::test::File_Usecase("test/datasets/ljournal-2008.mtx"),
                       cugraph::test::File_Usecase("test/datasets/webbase-1M.mtx"))));
 

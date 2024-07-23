@@ -468,10 +468,15 @@ TEST_P(Tests_MGExtractTransformVFrontierOutgoingE_Rmat, CheckInt64Int64FloatInt3
 INSTANTIATE_TEST_SUITE_P(
   file_test,
   Tests_MGExtractTransformVFrontierOutgoingE_File,
+  ::testing::Combine(::testing::Values(Prims_Usecase{false, true}, Prims_Usecase{true, true}),
+                     ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"))));
+
+INSTANTIATE_TEST_SUITE_P(
+  file_large_test,
+  Tests_MGExtractTransformVFrontierOutgoingE_File,
   ::testing::Combine(
     ::testing::Values(Prims_Usecase{false, true}, Prims_Usecase{true, true}),
-    ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"),
-                      cugraph::test::File_Usecase("test/datasets/web-Google.mtx"),
+    ::testing::Values(cugraph::test::File_Usecase("test/datasets/web-Google.mtx"),
                       cugraph::test::File_Usecase("test/datasets/ljournal-2008.mtx"),
                       cugraph::test::File_Usecase("test/datasets/webbase-1M.mtx"))));
 

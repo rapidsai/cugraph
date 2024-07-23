@@ -69,7 +69,7 @@ class Tests_MGWeightedMatching
 
     constexpr bool multi_gpu = true;
 
-    bool test_weighted    = false;
+    bool test_weighted    = true;
     bool renumber         = true;
     bool drop_self_loops  = false;
     bool drop_multi_edges = false;
