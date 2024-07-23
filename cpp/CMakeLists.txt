@@ -658,7 +658,7 @@ add_library(cugraph_c
         src/c_api/lookup_src_dst.cpp
         src/c_api/louvain.cpp
         src/c_api/triangle_count.cpp
-        src/c_api/uniform_neighbor_sampling.cpp
+        src/c_api/neighbor_sampling.cpp
         src/c_api/negative_sampling.cpp
         src/c_api/labeling_result.cpp
         src/c_api/weakly_connected_components.cpp
