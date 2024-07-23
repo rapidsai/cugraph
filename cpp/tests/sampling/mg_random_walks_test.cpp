@@ -74,7 +74,6 @@ struct BiasedRandomWalks_Usecase {
       handle, graph_view, *edge_weight_view, start_vertices, max_depth, rng_state);
   }
 
-  // FIXME: Not currently implemented
   bool expect_throw() { return !test_weighted; }
 };
 
@@ -105,8 +104,7 @@ struct Node2VecRandomWalks_Usecase {
                                           rng_state);
   }
 
-  // FIXME: Not currently implemented
-  bool expect_throw() { return true; }
+  bool expect_throw() { return false; }
 };
 
 template <typename tuple_t>
