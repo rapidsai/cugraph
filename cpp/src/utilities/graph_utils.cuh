@@ -374,7 +374,7 @@ void HT_matrix_csc_coo(const IndexType n,
 }
 
 template <typename offsets_t, typename index_t>
-__attribute__((visibility("hidden"))) __global__ void offsets_to_indices_kernel(
+static __global__ void offsets_to_indices_kernel(
   const offsets_t* offsets, index_t v, index_t* indices)
 {
   auto tid{threadIdx.x};
