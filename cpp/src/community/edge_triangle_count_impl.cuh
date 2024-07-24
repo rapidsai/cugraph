@@ -136,7 +136,7 @@ edge_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>, edge_t> edge_t
   auto edge_first = thrust::make_zip_iterator(edgelist_srcs.begin(), edgelist_dsts.begin());
 
   size_t edges_to_intersect_per_iteration =
-    static_cast<size_t>(handle.get_device_properties().multiProcessorCount) * (1 << 17);
+    static_cast<size_t>(handle.get_device_properties().multiProcessorCount) * (1 << 13);
 
   auto num_chunks =
     raft::div_rounding_up_safe(edgelist_srcs.size(), edges_to_intersect_per_iteration);
