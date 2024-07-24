@@ -30,6 +30,11 @@ __all__ = [
 @networkx_algorithm(version_added="24.08")
 def relabel_nodes(G, mapping, copy=True):
     if isinstance(G, nx.Graph):
+        if not copy:
+            raise RuntimeError(
+                "Using `copy=False` is invalid when using a NetworkX graph "
+                "as input to `nx_cugraph.relabel_nodes`"
+            )
         G = nxcg.from_networkx(G, preserve_all_attrs=True)
     it = range(G._N) if G.key_to_id is None else G.id_to_key
     if callable(mapping):

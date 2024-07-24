@@ -52,3 +52,12 @@ def test_relabel_multigraph(create_using):
     Hnx = nx.relabel_nodes(G, {2: 3, 1: 3, 0: 3})
     Hcg = nxcg.relabel_nodes(G, {2: 3, 1: 3, 0: 3})
     assert_graphs_equal(Hnx, Hcg)
+
+
+def test_relabel_nx_input():
+    G = nx.complete_graph(3)
+    with pytest.raises(RuntimeError, match="Using `copy=False` is invalid"):
+        nxcg.relabel_nodes(G, {0: 1}, copy=False)
+    Hnx = nx.relabel_nodes(G, {0: 1}, copy=True)
+    Hcg = nxcg.relabel_nodes(G, {0: 1}, copy=True)
+    assert_graphs_equal(Hnx, Hcg)
