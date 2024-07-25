@@ -34,6 +34,8 @@ def from_pandas_edgelist(
     edge_key=None,
 ):
     """cudf.DataFrame inputs also supported; value columns with str is unsuppported."""
+    # This function never shares ownership of the underlying arrays of the DataFrame
+    # columns. We will perform a copy if necessary even if given e.g. a cudf.DataFrame.
     graph_class, inplace = _create_using_class(create_using)
     # Try to be optimal whether using pandas, cudf, or cudf.pandas
     src_series = df[source]
@@ -77,6 +79,7 @@ def from_pandas_edgelist(
         src_indices = cp.asarray(np_or_cp.searchsorted(nodes, src_array), index_dtype)
         dst_indices = cp.asarray(np_or_cp.searchsorted(nodes, dst_array), index_dtype)
     else:
+        # Copy if necessary so we don't share ownership of input arrays.
         if is_src_copied:
             src_indices = src_array
         else:
