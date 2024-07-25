@@ -905,7 +905,7 @@ dependencies:
           - cupy>=12.0.0
     # NOTE: This is intentionally not broken into groups by a 'cuda_suffixed' selector like
     #       other packages with -cu{nn}x suffixes in this file.
-    #       All RAPIDS wheel builds (incl. in devcontainers) expect cupy to be suffixed.
+    #       All RAPIDS wheel builds (including in devcontainers) expect cupy to be suffixed.
     specific:
       - output_types: [requirements, pyproject]
         matrices:
