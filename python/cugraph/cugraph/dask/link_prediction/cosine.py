@@ -123,7 +123,7 @@ def cosine(input_graph, vertex_pair=None, use_weight=False):
     Returns
     -------
     result : dask_cudf.DataFrame
-        GPU distributed data frame containing 2 dask_cudf.Series
+        GPU distributed data frame containing 3 dask_cudf.Series
 
         ddf['first']: dask_cudf.Series
             The first vertex ID of each pair (will be identical to first if specified).
@@ -248,7 +248,7 @@ def all_pairs_cosine(
     Returns
     -------
     result : dask_cudf.DataFrame
-        GPU distributed data frame containing 2 dask_cudf.Series
+        GPU distributed data frame containing 3 dask_cudf.Series
 
         ddf['first']: dask_cudf.Series
             The first vertex ID of each pair (will be identical to first if specified).
