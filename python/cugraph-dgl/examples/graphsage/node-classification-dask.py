@@ -19,7 +19,6 @@
 import warnings
 import time
 import cugraph_dgl
-import cugraph_dgl.dataloading
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -81,13 +80,8 @@ class SAGE(nn.Module):
             all_node_ids, device=device
         )
 
-        if isinstance(g, cugraph_dgl.Graph):
-            sampler = cugraph_dgl.sampling.NeighborSampler(-1)
-            loader_cls = cugraph_dgl.dataloading.FutureDataLoader
-        else:
-            sampler = MultiLayerFullNeighborSampler(1, prefetch_node_feats=["feat"])
-            loader_cls = DataLoader
-        dataloader = loader_cls(
+        sampler = MultiLayerFullNeighborSampler(1, prefetch_node_feats=["feat"])
+        dataloader = DataLoader(
             g,
             torch.arange(g.num_nodes()).to(g.device),
             sampler,
@@ -164,13 +158,8 @@ def train(args, device, g, dataset, model):
     use_uva = args.mode == "mixed"
     batch_size = 1024
     fanouts = [5, 10, 15]
-    if isinstance(g, cugraph_dgl.Graph):
-        sampler = cugraph_dgl.dataloading.NeighborSampler(fanouts)
-        loader_cls = cugraph_dgl.dataloading.FutureDataLoader
-    else:
-        sampler = NeighborSampler(fanouts)
-        loader_cls = DataLoader
-    train_dataloader = loader_cls(
+    sampler = NeighborSampler(fanouts)
+    train_dataloader = DataLoader(
         g,
         train_idx,
         sampler,
@@ -181,7 +170,7 @@ def train(args, device, g, dataset, model):
         num_workers=0,
         use_uva=use_uva,
     )
-    val_dataloader = loader_cls(
+    val_dataloader = DataLoader(
         g,
         val_idx,
         sampler,
@@ -209,6 +198,7 @@ def train(args, device, g, dataset, model):
 
             print(x.shape, input_nodes.shape, y.shape, output_nodes.shape)
             print([b.num_nodes() for b in blocks])
+
             y_hat = model(blocks, x)
             loss = F.cross_entropy(y_hat, y)
             opt.zero_grad()
@@ -252,7 +242,7 @@ if __name__ == "__main__":
     g = dataset[0]
     g = dgl.add_self_loop(g)
     if args.mode == "gpu_cugraph_dgl":
-        g = cugraph_dgl.cugraph_dgl_graph_from_heterograph(g.to("cuda"))
+        g = cugraph_dgl.cugraph_storage_from_heterograph(g.to("cuda"))
         del dataset.g
 
     else:
@@ -262,9 +252,13 @@ if __name__ == "__main__":
     )
 
     # create GraphSAGE model
-    feat_shape = g.ndata["feat"].shape[1]
+    feat_shape = (
+        g.get_node_storage(key="feat", ntype="_N")
+        .fetch(torch.LongTensor([0]).to(device), device=device)
+        .shape[1]
+    )
     print(feat_shape)
-
+    # no ndata in cugraph storage object
     in_size = feat_shape
     out_size = dataset.num_classes
     model = SAGE(in_size, 256, out_size).to(device)
