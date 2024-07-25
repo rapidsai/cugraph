@@ -106,7 +106,7 @@ def cosine(input_graph, vertex_pair=None, use_weight=False):
         directed edge in both direction. The adjacency list will be computed if
         not already present.
 
-        This implementation only supports undirected, unweighted Graph.
+        This implementation only supports undirected, non-multi Graphs.
 
     vertex_pair : cudf.DataFrame, optional (default=None)
         A GPU dataframe consisting of two columns representing pairs of
