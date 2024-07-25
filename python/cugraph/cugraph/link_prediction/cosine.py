@@ -65,6 +65,11 @@ def cosine(
     """
     Compute the Cosine similarity between each pair of vertices connected by
     an edge, or between arbitrary pairs of vertices specified by the user.
+    The Cosine similarity is defined between two sets as the ratio of their
+    intersection's volume over the square root of their volume's product.
+    In the context of graphs, the neighborhood of a vertex is seen as a set.
+    The Cosine similarity weight of each edge represents the strength of connection
+    between vertices based on the relative similarity of their neighbors.
 
     cugraph.cosine, in the absence of a specified vertex pair list, will
     compute the two_hop_neighbors of the entire graph to construct a vertex pair
@@ -244,6 +249,11 @@ def all_pairs_cosine(
 ):
     """
     Compute the All Pairs Cosine similarity between all pairs of vertices specified.
+    The Cosine similarity weight of each edge represents the strength of connection
+    between vertices based on the relative similarity of their neighbors.
+    The All Pairs Cosine similarity is defined between two sets as the ratio of their
+    intersection's volume over the square root of their volume's product.
+    In the context of graphs, the neighborhood of a vertex is seen as a set.
     The Cosine similarity weight of each edge represents the strength of connection
     between vertices based on the relative similarity of their neighbors.
 

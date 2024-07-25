@@ -67,7 +67,7 @@ def sorensen(
     Compute the Sorensen coefficient between each pair of vertices connected by
     an edge, or between arbitrary pairs of vertices specified by the user.
     Sorensen coefficient is defined between two sets as the ratio of twice the
-    volume of their intersection divided by the volume of each set.
+    volume of their intersection over the volume of each set.
     If first is specified but second is not, or vice versa, an exception will
     be thrown.
 
@@ -280,10 +280,10 @@ def all_pairs_sorensen(
     topk: int = None,
 ):
     """
-    Compute All Pairs the Sorensen coefficient between each pair of vertices connected
+    Compute the All Pairs Sorensen coefficient between each pair of vertices connected
     by an edge, or between arbitrary pairs of vertices specified by the user.
     Sorensen coefficient is defined between two sets as the ratio of twice the
-    volume of their intersection divided by the volume of each set.
+    volume of their intersection over the volume of each set.
     If first is specified but second is not, or vice versa, an exception will
     be thrown.
 

@@ -83,7 +83,7 @@ def sorensen(input_graph, vertex_pair=None, use_weight=False):
     Compute the Sorensen coefficient between each pair of vertices connected by
     an edge, or between arbitrary pairs of vertices specified by the user.
     Sorensen coefficient is defined between two sets as the ratio of twice the
-    volume of their intersection divided by the volume of each set.
+    volume of their intersection over the volume of each set.
     If first is specified but second is not, or vice versa, an exception will
     be thrown.
 
@@ -202,7 +202,7 @@ def all_pairs_sorensen(
     """
     Compute the All Pairs Sorensen similarity between all pairs of vertices specified.
     All pairs Sorensen coefficient is defined between two sets as the ratio of twice the
-    volume of their intersection divided by the volume of each set. In the context
+    volume of their intersection over the volume of each set. In the context
     of graphs, the neighborhood of a vertex is seen as a set. The Sorensen
     similarity weight of each edge represents the strength of connection
     between vertices based on the relative similarity of their neighbors.

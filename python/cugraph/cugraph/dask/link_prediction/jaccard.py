@@ -84,7 +84,7 @@ def jaccard(input_graph, vertex_pair=None, use_weight=False):
     Compute the Jaccard similarity between each pair of vertices connected by
     an edge, or between arbitrary pairs of vertices specified by the user.
     Jaccard similarity is defined between two sets as the ratio of the volume
-    of their intersection divided by the volume of their union. In the context
+    of their intersection over the volume of their union. In the context
     of graphs, the neighborhood of a vertex is seen as a set. The Jaccard
     similarity weight of each edge represents the strength of connection
     between vertices based on the relative similarity of their neighbors.
@@ -204,7 +204,7 @@ def all_pairs_jaccard(
     """
     Compute the All Pairs Jaccard similarity between all pairs of vertices specified.
     All pairs Jaccard similarity is defined between two sets as the ratio of the volume
-    of their intersection divided by the volume of their union. In the context
+    of their intersection over the volume of their union. In the context
     of graphs, the neighborhood of a vertex is seen as a set. The Jaccard
     similarity weight of each edge represents the strength of connection
     between vertices based on the relative similarity of their neighbors.

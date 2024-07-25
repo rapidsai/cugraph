@@ -83,7 +83,7 @@ def overlap(input_graph, vertex_pair=None, use_weight=False):
     Compute the Overlap Coefficient between each pair of vertices connected by
     an edge, or between arbitrary pairs of vertices specified by the user.
     Overlap Coefficient is defined between two sets as the ratio of the volume
-    of their intersection divided by the smaller of their two volumes. In the
+    of their intersection over the smaller of their two volumes. In the
     context of graphs, the neighborhood of a vertex is seen as a set. The
     Overlap Coefficient weight of each edge represents the strength of
     connection between vertices based on the relative similarity of their
@@ -206,7 +206,7 @@ def all_pairs_overlap(
     """
     Compute the All Pairs Overlap similarity between all pairs of vertices specified.
     All pairs Overlap Coefficient is defined between two sets as the ratio of the volume
-    of their intersection divided by the smaller of their two volumes. In the context
+    of their intersection over the smaller of their two volumes. In the context
     of graphs, the neighborhood of a vertex is seen as a set. The Overlap
     similarity weight of each edge represents the strength of connection
     between vertices based on the relative similarity of their neighbors.
