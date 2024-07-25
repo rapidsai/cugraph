@@ -78,7 +78,7 @@ class Tests_MGKTruss
 
     auto [mg_graph, edge_weight, mg_renumber_map] =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, true>(
-        *handle_, input_usecase, k_truss_usecase.test_weighted_, true, true, true);
+        *handle_, input_usecase, k_truss_usecase.test_weighted_, true, false, true);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -226,7 +226,14 @@ class Tests_MGKTruss
 template <typename input_usecase_t>
 std::unique_ptr<raft::handle_t> Tests_MGKTruss<input_usecase_t>::handle_ = nullptr;
 
+using Tests_MGKTruss_File = Tests_MGKTruss<cugraph::test::File_Usecase>;
 using Tests_MGKTruss_Rmat = Tests_MGKTruss<cugraph::test::Rmat_Usecase>;
+
+TEST_P(Tests_MGKTruss_File, CheckInt32Int32)
+{
+  auto param = GetParam();
+  run_current_test<int32_t, int32_t>(std::get<0>(param), std::get<1>(param));
+}
 
 TEST_P(Tests_MGKTruss_Rmat, CheckInt32Int32)
 {
@@ -234,6 +241,36 @@ TEST_P(Tests_MGKTruss_Rmat, CheckInt32Int32)
   run_current_test<int32_t, int32_t>(
     std::get<0>(param), override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
+
+TEST_P(Tests_MGKTruss_Rmat, CheckInt32Int64)
+{
+  auto param = GetParam();
+  run_current_test<int32_t, int64_t>(
+    std::get<0>(param), override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
+}
+
+TEST_P(Tests_MGKTruss_Rmat, CheckInt64Int64)
+{
+  auto param = GetParam();
+  run_current_test<int64_t, int64_t>(
+    std::get<0>(param), override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
+}
+
+INSTANTIATE_TEST_SUITE_P(
+  file_tests,
+  Tests_MGKTruss_File,
+  ::testing::Combine(
+    // enable correctness checks
+    ::testing::Values(KTruss_Usecase{4, false, true, true}, KTruss_Usecase{5, true, true, true}),
+    ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"),
+                      cugraph::test::File_Usecase("test/datasets/dolphins.mtx"))));
+
+INSTANTIATE_TEST_SUITE_P(
+  rmat_small_tests,
+  Tests_MGKTruss_Rmat,
+  ::testing::Combine(
+    ::testing::Values(KTruss_Usecase{4, false, false, false}),
+    ::testing::Values(cugraph::test::Rmat_Usecase(20, 16, 0.57, 0.19, 0.19, 0, true, false))));
 
 INSTANTIATE_TEST_SUITE_P(
   rmat_benchmark_test, /* note that scale & edge factor can be overridden in benchmarking (with
@@ -243,7 +280,8 @@ INSTANTIATE_TEST_SUITE_P(
                           factor (to avoid running same benchmarks more than once) */
   Tests_MGKTruss_Rmat,
   ::testing::Combine(
-    ::testing::Values(KTruss_Usecase{3, false, false, false}),
-    ::testing::Values(cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, true, false))));
+    ::testing::Values(KTruss_Usecase{4, false, false, false},
+                      KTruss_Usecase{5, false, false, false}),
+    ::testing::Values(cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, true, false))));
 
 CUGRAPH_MG_TEST_PROGRAM_MAIN()
