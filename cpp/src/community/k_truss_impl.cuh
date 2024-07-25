@@ -41,7 +41,6 @@
 #include <thrust/transform.h>
 #include <thrust/tuple.h>
 
-
 namespace cugraph {
 
 namespace {
@@ -105,12 +104,11 @@ k_truss(raft::handle_t const& handle,
         bool do_expensive_check)
 {
   // 1. Check input arguments.
-  
+
   CUGRAPH_EXPECTS(graph_view.is_symmetric(),
                   "Invalid input arguments: K-truss currently supports undirected graphs only.");
   CUGRAPH_EXPECTS(!graph_view.is_multigraph(),
                   "Invalid input arguments: K-truss currently does not support multi-graphs.");
-
 
   if (do_expensive_check) {
     // nothing to do
@@ -156,7 +154,7 @@ k_truss(raft::handle_t const& handle,
   }
 
   // 2. Find (k-1)-core and exclude edges that do not belong to (k-1)-core
-  
+
   {
     auto cur_graph_view = modified_graph_view ? *modified_graph_view : graph_view;
 
@@ -217,7 +215,6 @@ k_truss(raft::handle_t const& handle,
   // 3. Keep only the edges from a low-degree vertex to a high-degree vertex.
 
   {
-
     auto cur_graph_view = modified_graph_view ? *modified_graph_view : graph_view;
 
     auto vertex_partition_range_lasts =
@@ -291,7 +288,6 @@ k_truss(raft::handle_t const& handle,
                                                    *vertex_partition_range_lasts);
     }
     renumber_map = std::move(tmp_renumber_map);
-
   }
 
   // 4. Compute triangle count using nbr_intersection and unroll weak edges
@@ -305,16 +301,15 @@ k_truss(raft::handle_t const& handle,
 
     cugraph::edge_property_t<decltype(cur_graph_view), bool> edge_mask(handle, cur_graph_view);
     cugraph::fill_edge_property(handle, cur_graph_view, edge_mask.mutable_view(), bool{true});
-  
+
     while (true) {
-      
       auto edge_triangle_counts =
         edge_triangle_count<vertex_t, edge_t, multi_gpu>(handle, cur_graph_view);
 
       // Mask all the edges that have k - 2 count
 
       auto prev_number_of_edges = cur_graph_view.compute_number_of_edges(handle);
-      
+
       cugraph::transform_e(
         handle,
         cur_graph_view,
@@ -329,12 +324,9 @@ k_truss(raft::handle_t const& handle,
 
       cur_graph_view.attach_edge_mask(edge_mask.view());
 
-      if (prev_number_of_edges == cur_graph_view.compute_number_of_edges(handle)) {
-        break;
-      }
-
+      if (prev_number_of_edges == cur_graph_view.compute_number_of_edges(handle)) { break; }
     }
-    
+
     rmm::device_uvector<vertex_t> edgelist_srcs(0, handle.get_stream());
     rmm::device_uvector<vertex_t> edgelist_dsts(0, handle.get_stream());
     std::optional<rmm::device_uvector<weight_t>> edgelist_wgts{std::nullopt};
