@@ -87,7 +87,7 @@ shuffle_ext_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning(
  * (exclusive) vertex ID.
  *
  * @return Tuple of vectors storing shuffled major vertices, minor vertices and optional weights,
- * edge ids and edge types
+ * edge ids and edge types and rx counts
  */
 template <typename vertex_t, typename edge_t, typename weight_t, typename edge_type_id_t>
 std::tuple<rmm::device_uvector<vertex_t>,
