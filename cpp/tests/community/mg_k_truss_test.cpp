@@ -42,7 +42,6 @@
 struct KTruss_Usecase {
   int32_t k_{3};
   bool test_weighted_{false};
-  // FIXME: test edge mask
   bool edge_masking_{false};
   bool check_correctness_{true};
 };
