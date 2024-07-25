@@ -593,7 +593,7 @@ def _create_homogeneous_blocks_from_csc(
 
         blocks = []
         seednodes_range = None
-        for mfg in mfgs:
+        for mfg in reversed(mfgs):
             block_mfg = _create_homogeneous_dgl_block_from_tensor_d(
                 {
                     "sources": mfg.src_ids(),
