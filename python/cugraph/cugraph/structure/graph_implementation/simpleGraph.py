@@ -255,7 +255,7 @@ class simpleGraphImpl:
             elif elist[source].dtype not in [np.int32, np.int64] or elist[
                 destination
             ].dtype not in [np.int32, np.int64]:
-                if elist[destination.dtype] in [np.uint32, np.uint64]:
+                if elist[destination].dtype in [np.uint32, np.uint64]:
                     raise ValueError(
                         "Unsigned integers are not supported as vertex ids."
                         "  Either convert to signed integers or set renumber=True"
