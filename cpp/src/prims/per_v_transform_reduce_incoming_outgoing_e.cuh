@@ -66,6 +66,25 @@ namespace detail {
 
 int32_t constexpr per_v_transform_reduce_e_kernel_block_size = 512;
 
+template <typename Iterator, typename default_t, typename Enable = void>
+struct iterator_value_type_or_default_t;
+
+template <typename Iterator, typename default_t>
+struct iterator_value_type_or_default_t<Iterator,
+                                        default_t,
+                                        std::enable_if_t<std::is_same_v<Iterator, void*>>> {
+  using value_type = default_t;  // if Iterator is invalid (void*), value_type = default_t
+};
+
+template <typename Iterator, typename default_t>
+struct iterator_value_type_or_default_t<Iterator,
+                                        default_t,
+                                        std::enable_if_t<!std::is_same_v<Iterator, void*>>> {
+  using value_type = typename thrust::iterator_traits<
+    Iterator>::value_type;  // if iterator is valid, value_type = typename
+                            // thrust::iterator_traits<Iterator>::value_type
+};
+
 template <typename vertex_t,
           typename edge_t,
           bool multi_gpu,
@@ -172,6 +191,7 @@ __device__ void update_result_value_output(
 
 template <bool update_major,
           typename GraphViewType,
+          typename OptionalKeyIterator,  // invalid if void*
           typename EdgePartitionSrcValueInputWrapper,
           typename EdgePartitionDstValueInputWrapper,
           typename EdgePartitionEdgeValueInputWrapper,
@@ -187,6 +207,8 @@ __global__ static void per_v_transform_reduce_e_hypersparse(
   edge_partition_device_view_t<typename GraphViewType::vertex_type,
                                typename GraphViewType::edge_type,
                                GraphViewType::is_multi_gpu> edge_partition,
+  OptionalKeyIterator key_first,
+  OptionalKeyIterator key_last,
   EdgePartitionSrcValueInputWrapper edge_partition_src_value_input,
   EdgePartitionDstValueInputWrapper edge_partition_dst_value_input,
   EdgePartitionEdgeValueInputWrapper edge_partition_e_value_input,
@@ -199,67 +221,91 @@ __global__ static void per_v_transform_reduce_e_hypersparse(
   static_assert(update_major || reduce_op::has_compatible_raft_comms_op_v<
                                   ReduceOp>);  // atomic_reduce is defined only when
                                                // has_compatible_raft_comms_op_t<ReduceOp> is true
+  static_assert(update_major || std::is_same_v<OptionalKeyIterator, void*>);
 
   using vertex_t = typename GraphViewType::vertex_type;
   using edge_t   = typename GraphViewType::edge_type;
+  using key_t =
+    typename iterator_value_type_or_default_t<OptionalKeyIterator, vertex_t>::value_type;
 
   auto const tid          = threadIdx.x + blockIdx.x * blockDim.x;
   auto major_start_offset = static_cast<size_t>(*(edge_partition.major_hypersparse_first()) -
-                                                edge_partition.major_range_first());
+                                                edge_partition.major_range_first());  // SK
   auto idx                = static_cast<size_t>(tid);
 
-  auto dcs_nzd_vertex_count = *(edge_partition.dcs_nzd_vertex_count());
+  size_t key_count{};
+  if constexpr (std::is_same_v<OptionalKeyIterator, void*>) {
+    key_count = *(edge_partition.dcs_nzd_vertex_count());
+  } else {
+    key_count = static_cast<size_t>(thrust::distance(key_first, key_last));
+  }
 
-  while (idx < static_cast<size_t>(dcs_nzd_vertex_count)) {
-    auto major =
-      *(edge_partition.major_from_major_hypersparse_idx_nocheck(static_cast<vertex_t>(idx)));
-    auto major_offset = edge_partition.major_offset_from_major_nocheck(major);
-    auto major_idx =
-      major_start_offset + idx;  // major_offset != major_idx in the hypersparse region
-    vertex_t const* indices{nullptr};
-    edge_t edge_offset{};
-    edge_t local_degree{};
-    thrust::tie(indices, edge_offset, local_degree) =
-      edge_partition.local_edges(static_cast<vertex_t>(major_idx));
-
-    auto call_e_op = call_e_op_t<GraphViewType,
-                                 vertex_t,
-                                 EdgePartitionSrcValueInputWrapper,
-                                 EdgePartitionDstValueInputWrapper,
-                                 EdgePartitionEdgeValueInputWrapper,
-                                 EdgeOp>{edge_partition,
-                                         edge_partition_src_value_input,
-                                         edge_partition_dst_value_input,
-                                         edge_partition_e_value_input,
-                                         e_op,
-                                         major,
-                                         major_offset,
-                                         indices,
-                                         edge_offset};
-
-    if (edge_partition_e_mask) {
-      update_result_value_output<update_major>(
-        edge_partition,
-        indices,
-        local_degree,
-        call_e_op,
-        init,
-        reduce_op,
-        [&edge_partition_e_mask, edge_offset] __device__(edge_t i) {
-          return (*edge_partition_e_mask).get(edge_offset + i);
-        },
-        major - *(edge_partition).major_hypersparse_first(),
-        result_value_output);
+  while (idx < key_count) {
+    key_t key{};
+    vertex_t major{};
+    thrust::optional<vertex_t> major_idx{};
+    if constexpr (std::is_same_v<OptionalKeyIterator, void*>) {
+      key = *(edge_partition.major_from_major_hypersparse_idx_nocheck(static_cast<vertex_t>(idx)));
+      major     = key;
+      major_idx = major_start_offset + idx;  // major_offset != major_idx in the hypersparse region
     } else {
-      update_result_value_output<update_major>(edge_partition,
-                                               indices,
-                                               local_degree,
-                                               call_e_op,
-                                               init,
-                                               reduce_op,
-                                               pred_op::const_true<edge_t>{},
-                                               major - *(edge_partition).major_hypersparse_first(),
-                                               result_value_output);
+      key       = *(key_first + idx);
+      major     = thrust_tuple_get_or_identity<key_t, 0>(key);
+      major_idx = edge_partition.major_idx_from_major_nocheck(major);
+    }
+
+    size_t output_idx = std::is_same_v<OptionalKeyIterator, void>
+                          ? (major - *(edge_partition).major_hypersparse_first())
+                          : idx;
+    if (major_idx) {
+      auto major_offset = edge_partition.major_offset_from_major_nocheck(major);
+      vertex_t const* indices{nullptr};
+      edge_t edge_offset{};
+      edge_t local_degree{};
+      thrust::tie(indices, edge_offset, local_degree) =
+        edge_partition.local_edges(static_cast<vertex_t>(*major_idx));
+
+      auto call_e_op = call_e_op_t<GraphViewType,
+                                   key_t,
+                                   EdgePartitionSrcValueInputWrapper,
+                                   EdgePartitionDstValueInputWrapper,
+                                   EdgePartitionEdgeValueInputWrapper,
+                                   EdgeOp>{edge_partition,
+                                           edge_partition_src_value_input,
+                                           edge_partition_dst_value_input,
+                                           edge_partition_e_value_input,
+                                           e_op,
+                                           key,
+                                           major_offset,
+                                           indices,
+                                           edge_offset};
+
+      if (edge_partition_e_mask) {
+        update_result_value_output<update_major>(
+          edge_partition,
+          indices,
+          local_degree,
+          call_e_op,
+          init,
+          reduce_op,
+          [&edge_partition_e_mask, edge_offset] __device__(edge_t i) {
+            return (*edge_partition_e_mask).get(edge_offset + i);
+          },
+          output_idx,
+          result_value_output);
+      } else {
+        update_result_value_output<update_major>(edge_partition,
+                                                 indices,
+                                                 local_degree,
+                                                 call_e_op,
+                                                 init,
+                                                 reduce_op,
+                                                 pred_op::const_true<edge_t>{},
+                                                 output_idx,
+                                                 result_value_output);
+      }
+    } else {
+      if constexpr (update_major) { *(result_value_output + output_idx) = init; }
     }
     idx += gridDim.x * blockDim.x;
   }
@@ -267,6 +313,7 @@ __global__ static void per_v_transform_reduce_e_hypersparse(
 
 template <bool update_major,
           typename GraphViewType,
+          typename KeyIterator,
           typename EdgePartitionSrcValueInputWrapper,
           typename EdgePartitionDstValueInputWrapper,
           typename EdgePartitionEdgeValueInputWrapper,
@@ -282,8 +329,8 @@ __global__ static void per_v_transform_reduce_e_low_degree(
   edge_partition_device_view_t<typename GraphViewType::vertex_type,
                                typename GraphViewType::edge_type,
                                GraphViewType::is_multi_gpu> edge_partition,
-  typename GraphViewType::vertex_type major_range_first,
-  typename GraphViewType::vertex_type major_range_last,
+  KeyIterator key_first,
+  KeyIterator key_last,
   EdgePartitionSrcValueInputWrapper edge_partition_src_value_input,
   EdgePartitionDstValueInputWrapper edge_partition_dst_value_input,
   EdgePartitionEdgeValueInputWrapper edge_partition_e_value_input,
@@ -299,15 +346,16 @@ __global__ static void per_v_transform_reduce_e_low_degree(
 
   using vertex_t = typename GraphViewType::vertex_type;
   using edge_t   = typename GraphViewType::edge_type;
+  using key_t    = typename thrust::iterator_traits<KeyIterator>::value_type;
 
   auto const tid = threadIdx.x + blockIdx.x * blockDim.x;
-  auto major_start_offset =
-    static_cast<size_t>(major_range_first - edge_partition.major_range_first());
-  auto idx = static_cast<size_t>(tid);
+  auto idx       = static_cast<size_t>(tid);
 
-  while (idx < static_cast<size_t>(major_range_last - major_range_first)) {
-    auto major_offset = static_cast<vertex_t>(major_start_offset + idx);
-    auto major        = edge_partition.major_from_major_offset_nocheck(major_offset);
+  while (idx < static_cast<size_t>(thrust::distance(key_first, key_last))) {
+    auto key   = *(key_first + idx);
+    auto major = thrust_tuple_get_or_identity<key_t, 0>(key);
+
+    auto major_offset = edge_partition.major_offset_from_major_nocheck(major);
     vertex_t const* indices{nullptr};
     edge_t edge_offset{};
     edge_t local_degree{};
@@ -315,7 +363,7 @@ __global__ static void per_v_transform_reduce_e_low_degree(
       edge_partition.local_edges(static_cast<vertex_t>(major_offset));
 
     auto call_e_op = call_e_op_t<GraphViewType,
-                                 vertex_t,
+                                 key_t,
                                  EdgePartitionSrcValueInputWrapper,
                                  EdgePartitionDstValueInputWrapper,
                                  EdgePartitionEdgeValueInputWrapper,
@@ -324,7 +372,7 @@ __global__ static void per_v_transform_reduce_e_low_degree(
                                          edge_partition_dst_value_input,
                                          edge_partition_e_value_input,
                                          e_op,
-                                         major,
+                                         key,
                                          major_offset,
                                          indices,
                                          edge_offset};
@@ -359,6 +407,7 @@ __global__ static void per_v_transform_reduce_e_low_degree(
 
 template <bool update_major,
           typename GraphViewType,
+          typename KeyIterator,
           typename EdgePartitionSrcValueInputWrapper,
           typename EdgePartitionDstValueInputWrapper,
           typename EdgePartitionEdgeValueInputWrapper,
@@ -374,8 +423,8 @@ __global__ static void per_v_transform_reduce_e_mid_degree(
   edge_partition_device_view_t<typename GraphViewType::vertex_type,
                                typename GraphViewType::edge_type,
                                GraphViewType::is_multi_gpu> edge_partition,
-  typename GraphViewType::vertex_type major_range_first,
-  typename GraphViewType::vertex_type major_range_last,
+  KeyIterator key_first,
+  KeyIterator key_last,
   EdgePartitionSrcValueInputWrapper edge_partition_src_value_input,
   EdgePartitionDstValueInputWrapper edge_partition_dst_value_input,
   EdgePartitionEdgeValueInputWrapper edge_partition_e_value_input,
@@ -395,13 +444,12 @@ __global__ static void per_v_transform_reduce_e_mid_degree(
   using vertex_t      = typename GraphViewType::vertex_type;
   using edge_t        = typename GraphViewType::edge_type;
   using e_op_result_t = T;
+  using key_t         = typename thrust::iterator_traits<KeyIterator>::value_type;
 
   auto const tid = threadIdx.x + blockIdx.x * blockDim.x;
   static_assert(per_v_transform_reduce_e_kernel_block_size % raft::warp_size() == 0);
   auto const lane_id = tid % raft::warp_size();
-  auto major_start_offset =
-    static_cast<size_t>(major_range_first - edge_partition.major_range_first());
-  auto idx = static_cast<size_t>(tid / raft::warp_size());
+  auto idx           = static_cast<size_t>(tid / raft::warp_size());
 
   using WarpReduce = cub::WarpReduce<
     std::conditional_t<std::is_same_v<ReduceOp, reduce_op::any<T>>, int32_t, e_op_result_t>>;
@@ -410,16 +458,18 @@ __global__ static void per_v_transform_reduce_e_mid_degree(
       temp_storage[update_major ? (per_v_transform_reduce_e_kernel_block_size / raft::warp_size())
                                 : int32_t{1} /* dummy */];
 
-  while (idx < static_cast<size_t>(major_range_last - major_range_first)) {
-    auto major_offset = static_cast<vertex_t>(major_start_offset + idx);
-    auto major        = edge_partition.major_from_major_offset_nocheck(major_offset);
+  while (idx < static_cast<size_t>(thrust::distance(key_first, key_last))) {
+    auto key   = *(key_first + idx);
+    auto major = thrust_tuple_get_or_identity<key_t, 0>(key);
+
+    auto major_offset = edge_partition.major_offset_from_major_nocheck(major);
     vertex_t const* indices{nullptr};
     edge_t edge_offset{};
     edge_t local_degree{};
     thrust::tie(indices, edge_offset, local_degree) = edge_partition.local_edges(major_offset);
 
     auto call_e_op = call_e_op_t<GraphViewType,
-                                 vertex_t,
+                                 key_t,
                                  EdgePartitionSrcValueInputWrapper,
                                  EdgePartitionDstValueInputWrapper,
                                  EdgePartitionEdgeValueInputWrapper,
@@ -428,7 +478,7 @@ __global__ static void per_v_transform_reduce_e_mid_degree(
                                          edge_partition_dst_value_input,
                                          edge_partition_e_value_input,
                                          e_op,
-                                         major,
+                                         key,
                                          major_offset,
                                          indices,
                                          edge_offset};
@@ -527,6 +577,7 @@ __global__ static void per_v_transform_reduce_e_mid_degree(
 
 template <bool update_major,
           typename GraphViewType,
+          typename KeyIterator,
           typename EdgePartitionSrcValueInputWrapper,
           typename EdgePartitionDstValueInputWrapper,
           typename EdgePartitionEdgeValueInputWrapper,
@@ -542,8 +593,8 @@ __global__ static void per_v_transform_reduce_e_high_degree(
   edge_partition_device_view_t<typename GraphViewType::vertex_type,
                                typename GraphViewType::edge_type,
                                GraphViewType::is_multi_gpu> edge_partition,
-  typename GraphViewType::vertex_type major_range_first,
-  typename GraphViewType::vertex_type major_range_last,
+  KeyIterator key_first,
+  KeyIterator key_last,
   EdgePartitionSrcValueInputWrapper edge_partition_src_value_input,
   EdgePartitionDstValueInputWrapper edge_partition_dst_value_input,
   EdgePartitionEdgeValueInputWrapper edge_partition_e_value_input,
@@ -563,9 +614,8 @@ __global__ static void per_v_transform_reduce_e_high_degree(
   using vertex_t      = typename GraphViewType::vertex_type;
   using edge_t        = typename GraphViewType::edge_type;
   using e_op_result_t = T;
+  using key_t         = typename thrust::iterator_traits<KeyIterator>::value_type;
 
-  auto major_start_offset =
-    static_cast<size_t>(major_range_first - edge_partition.major_range_first());
   auto idx = static_cast<size_t>(blockIdx.x);
 
   using BlockReduce = cub::BlockReduce<
@@ -580,16 +630,18 @@ __global__ static void per_v_transform_reduce_e_high_degree(
                        std::byte /* dummy */>
       output_thread_id;
 
-  while (idx < static_cast<size_t>(major_range_last - major_range_first)) {
-    auto major_offset = static_cast<vertex_t>(major_start_offset + idx);
-    auto major        = edge_partition.major_from_major_offset_nocheck(major_offset);
+  while (idx < static_cast<size_t>(thrust::distance(key_first, key_last))) {
+    auto key   = *(key_first + idx);
+    auto major = thrust_tuple_get_or_identity<key_t, 0>(key);
+
+    auto major_offset = edge_partition.major_offset_from_major_nocheck(major);
     vertex_t const* indices{nullptr};
     edge_t edge_offset{};
     edge_t local_degree{};
     thrust::tie(indices, edge_offset, local_degree) = edge_partition.local_edges(major_offset);
 
     auto call_e_op = call_e_op_t<GraphViewType,
-                                 vertex_t,
+                                 key_t,
                                  EdgePartitionSrcValueInputWrapper,
                                  EdgePartitionDstValueInputWrapper,
                                  EdgePartitionEdgeValueInputWrapper,
@@ -598,7 +650,7 @@ __global__ static void per_v_transform_reduce_e_high_degree(
                                          edge_partition_dst_value_input,
                                          edge_partition_e_value_input,
                                          e_op,
-                                         major,
+                                         key,
                                          major_offset,
                                          indices,
                                          edge_offset};
@@ -1230,6 +1282,8 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
           detail::per_v_transform_reduce_e_hypersparse<update_major, GraphViewType>
             <<<update_grid.num_blocks, update_grid.block_size, 0, exec_stream>>>(
               edge_partition,
+              static_cast<void*>(nullptr),
+              static_cast<void*>(nullptr),
               edge_partition_src_value_input,
               edge_partition_dst_value_input,
               edge_partition_e_value_input,
@@ -1253,8 +1307,10 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
         detail::per_v_transform_reduce_e_low_degree<update_major, GraphViewType>
           <<<update_grid.num_blocks, update_grid.block_size, 0, exec_stream>>>(
             edge_partition,
-            edge_partition.major_range_first() + (*segment_offsets)[2],
-            edge_partition.major_range_first() + (*segment_offsets)[3],
+            thrust::make_counting_iterator(edge_partition.major_range_first() +
+                                           (*segment_offsets)[2]),
+            thrust::make_counting_iterator(edge_partition.major_range_first() +
+                                           (*segment_offsets)[3]),
             edge_partition_src_value_input,
             edge_partition_dst_value_input,
             edge_partition_e_value_input,
@@ -1277,8 +1333,10 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
         detail::per_v_transform_reduce_e_mid_degree<update_major, GraphViewType>
           <<<update_grid.num_blocks, update_grid.block_size, 0, exec_stream>>>(
             edge_partition,
-            edge_partition.major_range_first() + (*segment_offsets)[1],
-            edge_partition.major_range_first() + (*segment_offsets)[2],
+            thrust::make_counting_iterator(edge_partition.major_range_first() +
+                                           (*segment_offsets)[1]),
+            thrust::make_counting_iterator(edge_partition.major_range_first() +
+                                           (*segment_offsets)[2]),
             edge_partition_src_value_input,
             edge_partition_dst_value_input,
             edge_partition_e_value_input,
@@ -1300,8 +1358,9 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
         detail::per_v_transform_reduce_e_high_degree<update_major, GraphViewType>
           <<<update_grid.num_blocks, update_grid.block_size, 0, exec_stream>>>(
             edge_partition,
-            edge_partition.major_range_first(),
-            edge_partition.major_range_first() + (*segment_offsets)[1],
+            thrust::make_counting_iterator(edge_partition.major_range_first()),
+            thrust::make_counting_iterator(edge_partition.major_range_first() +
+                                           (*segment_offsets)[1]),
             edge_partition_src_value_input,
             edge_partition_dst_value_input,
             edge_partition_e_value_input,
@@ -1320,8 +1379,10 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
         detail::per_v_transform_reduce_e_low_degree<update_major, GraphViewType>
           <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
             edge_partition,
-            edge_partition.major_range_first(),
-            edge_partition.major_range_last(),
+            thrust::make_counting_iterator(edge_partition.major_range_first() +
+                                           (*segment_offsets)[2]),
+            thrust::make_counting_iterator(edge_partition.major_range_first() +
+                                           (*segment_offsets)[3]),
             edge_partition_src_value_input,
             edge_partition_dst_value_input,
             edge_partition_e_value_input,
