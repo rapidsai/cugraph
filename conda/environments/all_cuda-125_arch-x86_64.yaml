@@ -76,7 +76,7 @@ dependencies:
 - sphinx-markdown-tables
 - sphinx<6
 - sphinxcontrib-websupport
-- thriftpy2!=0.5.0,!=0.5.1
+- thriftpy2<=0.5.0
 - ucx-proc=*=gpu
 - ucx-py==0.40.*,>=0.0.0a0
 - wget
