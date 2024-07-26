@@ -303,6 +303,8 @@ k_truss(raft::handle_t const& handle,
     cugraph::fill_edge_property(handle, cur_graph_view, edge_mask.mutable_view(), bool{true});
 
     while (true) {
+      // FIXME: This approach is very expensive when invalidating only few edges per iteration
+      // and should be address.
       auto edge_triangle_counts =
         edge_triangle_count<vertex_t, edge_t, multi_gpu>(handle, cur_graph_view);
 
