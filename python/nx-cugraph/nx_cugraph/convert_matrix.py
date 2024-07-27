@@ -24,7 +24,9 @@ __all__ = [
 
 
 # Value columns with string dtype is not supported
-@networkx_algorithm(is_incomplete=True, version_added="23.12")
+@networkx_algorithm(is_incomplete=True,
+                    returns_networkx_compatible_graph=True,
+                    version_added="23.12")
 def from_pandas_edgelist(
     df,
     source="source",

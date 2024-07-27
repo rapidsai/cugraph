@@ -15,6 +15,7 @@ from __future__ import annotations
 import operator as op
 from copy import deepcopy
 from typing import TYPE_CHECKING
+from functools import cached_property
 
 import cupy as cp
 import networkx as nx
@@ -45,7 +46,7 @@ __all__ = ["Graph"]
 networkx_api = nxcg.utils.decorators.networkx_class(nx.Graph)
 
 
-class Graph:
+class Graph(nx.Graph):
     # Tell networkx to dispatch calls with this object to nx-cugraph
     __networkx_backend__: ClassVar[str] = "cugraph"  # nx >=3.2
     __networkx_plugin__: ClassVar[str] = "cugraph"  # nx <3.2
@@ -53,6 +54,22 @@ class Graph:
     # networkx properties
     graph: dict
     graph_attr_dict_factory: ClassVar[type] = dict
+    __networkx_cache__: dict = {}
+
+    # Define cached_property properties to support usage as a networkx.Graph
+    # instance.  These will use __networkx_cache__ to save a one-time
+    # conversion, then return the corresponding networkx.Graph attribute.
+    @cached_property
+    def _adj(self):
+        if (G := self.__networkx_cache__.get("networkx")) is None:
+            G = self.__networkx_cache__.setdefault("networkx", nxcg.to_networkx(self))
+        return G._adj
+
+    @cached_property
+    def _node(self):
+        if (G := self.__networkx_cache__.get("networkx")) is None:
+            G = self.__networkx_cache__.setdefault("networkx", nxcg.to_networkx(self))
+        return G._node
 
     # Not networkx properties
     # We store edge data in COO format with {src,dst}_indices and edge_values.

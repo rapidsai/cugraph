@@ -45,6 +45,7 @@ class networkx_algorithm:
     is_incomplete: bool
     is_different: bool
     _plc_names: set[str] | None
+    returns_networkx_compatible_graph: bool
 
     def __new__(
         cls,
@@ -60,6 +61,8 @@ class networkx_algorithm:
         is_incomplete: bool = False,  # See self.extra_doc for details if True
         is_different: bool = False,  # See self.extra_doc for details if True
         _plc: str | set[str] | None = None,  # Hidden from user, may be removed someday
+        # True if function returns G where isinstance(G, nx.Graph) == True
+        returns_networkx_compatible_graph: bool = False,
     ):
         if func is None:
             return partial(
@@ -71,6 +74,7 @@ class networkx_algorithm:
                 is_incomplete=is_incomplete,
                 is_different=is_different,
                 _plc=_plc,
+                returns_networkx_compatible_graph=returns_networkx_compatible_graph,
             )
         instance = object.__new__(cls)
         if nodes_or_number is not None and nx.__version__[:3] > "3.2":
@@ -100,6 +104,7 @@ class networkx_algorithm:
         instance.version_added = version_added
         instance.is_incomplete = is_incomplete
         instance.is_different = is_different
+        instance.returns_networkx_compatible_graph = returns_networkx_compatible_graph
         # The docstring on our function is added to the NetworkX docstring.
         instance.extra_doc = (
             dedent(func.__doc__.lstrip("\n").rstrip()) if func.__doc__ else None

@@ -14,6 +14,7 @@ from __future__ import annotations
 
 from copy import deepcopy
 from typing import TYPE_CHECKING
+from functools import cached_property
 
 import cupy as cp
 import networkx as nx
@@ -33,6 +34,22 @@ networkx_api = nxcg.utils.decorators.networkx_class(nx.DiGraph)
 
 
 class DiGraph(Graph):
+
+    # Define cached_property properties to support usage as a networkx.DiGraph
+    # instance.  These will use __networkx_cache__ to save a one-time
+    # conversion, then return the corresponding networkx.DiGraph attribute.
+    @cached_property
+    def _succ(self):
+        if (G := self.__networkx_cache__.get("networkx")) is None:
+            G = self.__networkx_cache__.setdefault("networkx", nxcg.to_networkx(self))
+        return G._succ
+
+    @cached_property
+    def _pred(self):
+        if (G := self.__networkx_cache__.get("networkx")) is None:
+            G = self.__networkx_cache__.setdefault("networkx", nxcg.to_networkx(self))
+        return G._pred
+
     #################
     # Class methods #
     #################
