@@ -18,6 +18,7 @@
 #include "prims/detail/optional_dataframe_buffer.hpp"
 #include "prims/detail/prim_functors.cuh"
 #include "prims/property_op_utils.cuh"
+#include "prims/vertex_frontier.cuh"
 
 #include <cugraph/edge_partition_device_view.cuh>
 #include <cugraph/edge_partition_edge_property_device_view.cuh>
@@ -658,6 +659,9 @@ extract_transform_v_frontier_e(raft::handle_t const& handle,
                                                          thrust::optional<output_key_t>,
                                                          thrust::optional<output_value_t>>>>);
 
+  constexpr bool use_bitmap = GraphViewType::is_multi_gpu && std::is_same_v<key_t, vertex_t> &&
+                              KeyBucketType::is_sorted_unique;
+
   if (do_expensive_check) {
     auto frontier_vertex_first =
       thrust_tuple_get_or_identity<decltype(frontier.begin()), 0>(frontier.begin());
@@ -705,21 +709,11 @@ extract_transform_v_frontier_e(raft::handle_t const& handle,
     auto segment_offsets = graph_view.local_edge_partition_segment_offsets(partition_idx);
 
     if (segment_offsets) {
-      auto v_threshold =
-        graph_view.local_vertex_partition_range_first() + *((*segment_offsets).rbegin() + 1);
-      if constexpr (std::is_same_v<key_t, vertex_t>) {
-        frontier_key_last = thrust::lower_bound(
-          handle.get_thrust_policy(), frontier_key_first, frontier_key_last, v_threshold);
-      } else {
-        key_t key_threshold{};
-        thrust::get<0>(key_threshold) = v_threshold;
-        frontier_key_last             = thrust::lower_bound(
-          handle.get_thrust_policy(),
-          frontier_key_first,
-          frontier_key_last,
-          key_threshold,
-          [] __device__(auto lhs, auto rhs) { return thrust::get<0>(lhs) < thrust::get<0>(rhs); });
-      }
+      frontier_key_last = compute_key_lower_bound(
+        frontier_key_first,
+        frontier_key_last,
+        graph_view.local_vertex_partition_range_first() + *((*segment_offsets).rbegin() + 1),
+        handle.get_stream());
     }
   }
 
@@ -737,84 +731,25 @@ extract_transform_v_frontier_e(raft::handle_t const& handle,
 
   // update frontier bitmap (used to reduce broadcast bandwidth size)
 
-  std::conditional_t<GraphViewType::is_multi_gpu && std::is_same_v<key_t, vertex_t>,
-                     std::optional<rmm::device_uvector<uint32_t>>,
-                     std::byte /* dummy */>
-    frontier_bitmap{};
-  std::conditional_t<GraphViewType::is_multi_gpu && std::is_same_v<key_t, vertex_t>,
-                     std::vector<bool>,
-                     std::byte /* dummy */>
-    use_bitmap_flags{};
-  if constexpr (GraphViewType::is_multi_gpu && std::is_same_v<key_t, vertex_t>) {
+  std::
+    conditional_t<use_bitmap, std::optional<rmm::device_uvector<uint32_t>>, std::byte /* dummy */>
+      frontier_bitmap{};
+  std::conditional_t<use_bitmap, std::vector<bool>, std::byte /* dummy */> use_bitmap_flags{};
+  if constexpr (use_bitmap) {
     auto& minor_comm           = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
-    auto const minor_comm_size = minor_comm.get_size();
+    auto const minor_comm_rank = minor_comm.get_rank();
+    auto segment_offsets =
+      graph_view.local_edge_partition_segment_offsets(static_cast<size_t>(minor_comm_rank));
+    size_t bool_size = segment_offsets ? *((*segment_offsets).rbegin() + 1)
+                                       : graph_view.local_vertex_partition_range_size();
 
-    frontier_bitmap = std::nullopt;
-    if (minor_comm_size > 1) {
-      auto const minor_comm_rank = minor_comm.get_rank();
-
-      auto threshold_ratio = 8.0 /* tuning parameter */ / static_cast<double>(sizeof(vertex_t) * 8);
-      use_bitmap_flags     = std::vector<bool>(minor_comm_size, false);
-
-      size_t this_bool_size{0};
-      if constexpr (KeyBucketType::is_sorted_unique) {
-        for (size_t i = 0; i < graph_view.number_of_local_edge_partitions(); ++i) {
-          auto edge_partition =
-            edge_partition_device_view_t<vertex_t, edge_t, GraphViewType::is_multi_gpu>(
-              graph_view.local_edge_partition_view(i));
-          auto segment_offsets = graph_view.local_edge_partition_segment_offsets(i);
-          auto bool_size       = segment_offsets ? *((*segment_offsets).rbegin() + 1)
-                                                 : edge_partition.major_range_size();
-          if (i == static_cast<size_t>(minor_comm_rank)) { this_bool_size = bool_size; }
-          if (local_frontier_sizes[i] > static_cast<size_t>(bool_size * threshold_ratio)) {
-            use_bitmap_flags[i] = true;
-          }
-        }
-      } else {
-        auto segment_offsets =
-          graph_view.local_edge_partition_segment_offsets(static_cast<size_t>(minor_comm_rank));
-        auto bool_size = segment_offsets ? *((*segment_offsets).rbegin() + 1)
-                                         : graph_view.local_vertex_partition_range_size();
-        this_bool_size = bool_size;
-        bool use_bitmap_flag{false};
-        if (local_frontier_sizes[minor_comm_rank] >
-            static_cast<size_t>(bool_size * threshold_ratio)) {
-          auto num_uniques = static_cast<size_t>(thrust::count_if(
-            handle.get_thrust_policy(),
-            thrust::make_counting_iterator(size_t{0}),
-            thrust::make_counting_iterator(local_frontier_sizes[minor_comm_rank]),
-            cugraph::detail::is_first_in_run_t<decltype(frontier_key_first)>{frontier_key_first}));
-          if (num_uniques == local_frontier_sizes[minor_comm_rank]) { use_bitmap_flag = true; }
-        }
-        auto tmp_flags = host_scalar_allgather(
-          minor_comm, use_bitmap_flag ? uint8_t{1} : uint8_t{0}, handle.get_stream());
-        std::transform(tmp_flags.begin(),
-                       tmp_flags.end(),
-                       use_bitmap_flags.begin(),
-                       [] __device__(uint8_t flag) { return flag == 1; });
-      }
-
-      if (use_bitmap_flags[minor_comm_rank]) {
-        frontier_bitmap =
-          rmm::device_uvector<uint32_t>(packed_bool_size(this_bool_size), handle.get_stream());
-        thrust::fill(handle.get_thrust_policy(),
-                     (*frontier_bitmap).begin(),
-                     (*frontier_bitmap).end(),
-                     packed_bool_empty_mask());
-        thrust::for_each(
-          handle.get_thrust_policy(),
-          frontier_key_first,
-          frontier_key_last,
-          [bitmap =
-             raft::device_span<uint32_t>((*frontier_bitmap).data(), (*frontier_bitmap).size()),
-           v_first = graph_view.local_vertex_partition_range_first()] __device__(vertex_t v) {
-            auto v_offset = v - v_first;
-            cuda::atomic_ref<uint32_t, cuda::thread_scope_device> word(
-              bitmap[packed_bool_offset(v_offset)]);
-            word.fetch_or(cugraph::packed_bool_mask(v_offset), cuda::std::memory_order_relaxed);
-          });
-      }
-    }
+    std::tie(frontier_bitmap, use_bitmap_flags) =
+      compute_vertex_list_bitmap_info(minor_comm,
+                                      frontier_key_first,
+                                      frontier_key_last,
+                                      graph_view.local_vertex_partition_range_first(),
+                                      graph_view.local_vertex_partition_range_first() + bool_size,
+                                      handle.get_stream());
   }
 
   // 2. fill the buffers
@@ -845,13 +780,12 @@ extract_transform_v_frontier_e(raft::handle_t const& handle,
             *edge_mask_view, i)
         : thrust::nullopt;
 
-    auto edge_partition_frontier_key_buffer =
-      allocate_dataframe_buffer<key_t>(size_t{0}, handle.get_stream());
-    vertex_t edge_partition_frontier_size = static_cast<vertex_t>(local_frontier_sizes[i]);
-    auto segment_offsets                  = graph_view.local_edge_partition_segment_offsets(i);
+    auto segment_offsets = graph_view.local_edge_partition_segment_offsets(i);
 
     auto edge_partition_frontier_key_first = frontier_key_first;
     auto edge_partition_frontier_key_last  = frontier_key_last;
+    auto edge_partition_frontier_key_buffer =
+      allocate_dataframe_buffer<key_t>(size_t{0}, handle.get_stream());
     if constexpr (GraphViewType::is_multi_gpu) {
       auto& minor_comm = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
       auto const minor_comm_size = minor_comm.get_size();
@@ -859,48 +793,32 @@ extract_transform_v_frontier_e(raft::handle_t const& handle,
         auto const minor_comm_rank = minor_comm.get_rank();
 
         resize_dataframe_buffer(
-          edge_partition_frontier_key_buffer, edge_partition_frontier_size, handle.get_stream());
+          edge_partition_frontier_key_buffer, local_frontier_sizes[i], handle.get_stream());
 
-        if constexpr (std::is_same_v<key_t, vertex_t>) {
+        if constexpr (use_bitmap) {
+          std::variant<raft::device_span<uint32_t const>, decltype(frontier_key_first)> v_list{};
           if (use_bitmap_flags[i]) {
-            auto bool_size = segment_offsets ? *((*segment_offsets).rbegin() + 1)
-                                             : edge_partition.major_range_size();
-            rmm::device_uvector<uint32_t> edge_partition_bitmap(packed_bool_size(bool_size),
-                                                                handle.get_stream());
-            device_bcast(minor_comm,
-                         (*frontier_bitmap).data(),
-                         edge_partition_bitmap.data(),
-                         edge_partition_bitmap.size(),
-                         static_cast<int>(i),
-                         handle.get_stream());
-            thrust::copy_if(
-              handle.get_thrust_policy(),
-              thrust::make_counting_iterator(edge_partition.major_range_first()),
-              thrust::make_counting_iterator(edge_partition.major_range_first()) + bool_size,
-              thrust::make_transform_iterator(
-                thrust::make_counting_iterator(vertex_t{0}),
-                cuda::proclaim_return_type<bool>(
-                  [bitmap = raft::device_span<uint32_t>(
-                     edge_partition_bitmap.data(),
-                     edge_partition_bitmap.size())] __device__(vertex_t v_offset) {
-                    return ((bitmap[packed_bool_offset(v_offset)] & packed_bool_mask(v_offset)) !=
-                            packed_bool_empty_mask());
-                  })),
-              get_dataframe_buffer_begin(edge_partition_frontier_key_buffer),
-              thrust::identity<bool>{});
+            v_list = raft::device_span<uint32_t const>((*frontier_bitmap).data(),
+                                                       (*frontier_bitmap).size());
           } else {
-            device_bcast(minor_comm,
-                         frontier_key_first,
-                         get_dataframe_buffer_begin(edge_partition_frontier_key_buffer),
-                         edge_partition_frontier_size,
-                         static_cast<int>(i),
-                         handle.get_stream());
+            v_list = frontier_key_first;
           }
+          auto bool_size = segment_offsets ? *((*segment_offsets).rbegin() + 1)
+                                           : edge_partition.major_range_size();
+          device_bcast_vertex_list(
+            minor_comm,
+            v_list,
+            get_dataframe_buffer_begin(edge_partition_frontier_key_buffer),
+            edge_partition.major_range_first(),
+            edge_partition.major_range_first() + bool_size,
+            static_cast<size_t>(thrust::distance(frontier_key_first, frontier_key_last)),
+            static_cast<int>(i),
+            handle.get_stream());
         } else {
           device_bcast(minor_comm,
                        frontier_key_first,
                        get_dataframe_buffer_begin(edge_partition_frontier_key_buffer),
-                       edge_partition_frontier_size,
+                       local_frontier_sizes[i],
                        static_cast<int>(i),
                        handle.get_stream());
         }
@@ -919,7 +837,7 @@ extract_transform_v_frontier_e(raft::handle_t const& handle,
       thrust_tuple_get_or_identity<decltype(edge_partition_frontier_key_last), 0>(
         edge_partition_frontier_key_last);
 
-    auto max_pushes = max_one_e_per_frontier_key ? edge_partition_frontier_size
+    auto max_pushes = max_one_e_per_frontier_key ? local_frontier_sizes[i]
                                                  : edge_partition.compute_number_of_edges(
                                                      edge_partition_frontier_major_first,
                                                      edge_partition_frontier_major_last,
@@ -949,28 +867,14 @@ extract_transform_v_frontier_e(raft::handle_t const& handle,
     auto subtime1 = std::chrono::steady_clock::now();
 #endif
     if (segment_offsets) {
-      static_assert(num_sparse_segments_per_vertex_partition == 3);
-      std::vector<vertex_t> h_thresholds(num_sparse_segments_per_vertex_partition +
-                                         (graph_view.use_dcs() ? 1 : 0) - 1);
-      h_thresholds[0] = edge_partition.major_range_first() + (*segment_offsets)[1];
-      h_thresholds[1] = edge_partition.major_range_first() + (*segment_offsets)[2];
-      if (graph_view.use_dcs()) {
-        h_thresholds[2] = edge_partition.major_range_first() + (*segment_offsets)[3];
-      }
-      rmm::device_uvector<vertex_t> d_thresholds(h_thresholds.size(), handle.get_stream());
-      raft::update_device(
-        d_thresholds.data(), h_thresholds.data(), h_thresholds.size(), handle.get_stream());
-      rmm::device_uvector<vertex_t> d_offsets(d_thresholds.size(), handle.get_stream());
-      thrust::lower_bound(handle.get_thrust_policy(),
-                          edge_partition_frontier_major_first,
-                          edge_partition_frontier_major_last,
-                          d_thresholds.begin(),
-                          d_thresholds.end(),
-                          d_offsets.begin());
-      std::vector<vertex_t> h_offsets(d_offsets.size());
-      raft::update_host(h_offsets.data(), d_offsets.data(), d_offsets.size(), handle.get_stream());
-      RAFT_CUDA_TRY(cudaStreamSynchronize(handle.get_stream()));
-      h_offsets.push_back(edge_partition_frontier_size);
+      auto h_offsets = compute_key_segment_offsets(
+        edge_partition_frontier_major_first,
+        edge_partition_frontier_major_last,
+        raft::host_span<vertex_t const>((*segment_offsets).data(), (*segment_offsets).size()),
+        edge_partition.major_range_first(),
+        graph_view.use_dcs(),
+        handle.get_stream());
+
       // FIXME: we may further improve performance by 1) concurrently running kernels on different
       // segments; 2) individually tuning block sizes for different segments; and 3) adding one
       // more segment for very high degree vertices and running segmented reduction
@@ -1051,8 +955,8 @@ extract_transform_v_frontier_e(raft::handle_t const& handle,
             e_op);
       }
     } else {
-      if (edge_partition_frontier_size > 0) {
-        raft::grid_1d_thread_t update_grid(edge_partition_frontier_size,
+      if (local_frontier_sizes[i] > 0) {
+        raft::grid_1d_thread_t update_grid(local_frontier_sizes[i],
                                            extract_transform_v_frontier_e_kernel_block_size,
                                            handle.get_device_properties().maxGridSize[0]);
 

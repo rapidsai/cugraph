@@ -15,10 +15,12 @@
  */
 #pragma once
 
+#include <cugraph/utilities/device_comm.hpp>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/host_scalar_comm.hpp>
 
 #include <raft/core/handle.hpp>
+#include <raft/core/host_span.hpp>
 #include <raft/util/cudart_utils.hpp>
 
 #include <rmm/device_scalar.hpp>
@@ -47,6 +49,172 @@
 #include <vector>
 
 namespace cugraph {
+
+template <typename vertex_t, typename KeyIterator>
+KeyIterator compute_key_lower_bound(KeyIterator sorted_unique_key_first,
+                                    KeyIterator sorted_unique_key_last,
+                                    vertex_t v_threshold,
+                                    rmm::cuda_stream_view stream_view)
+{
+  using key_t = typename thrust::iterator_traits<KeyIterator>::value_type;
+
+  if constexpr (std::is_same_v<key_t, vertex_t>) {
+    return thrust::lower_bound(
+      rmm::exec_policy(stream_view), sorted_unique_key_first, sorted_unique_key_last, v_threshold);
+  } else {
+    key_t k_threshold{};
+    if constexpr (std::is_same_v<key_t, vertex_t>) {
+      k_threshold = v_threshold;
+    } else {
+      thrust::get<0>(k_threshold) = v_threshold;
+    }
+    return thrust::lower_bound(
+      rmm::exec_policy(stream_view),
+      sorted_unique_key_first,
+      sorted_unique_key_last,
+      k_threshold,
+      [] __device__(auto lhs, auto rhs) { return thrust::get<0>(lhs) < thrust::get<0>(rhs); });
+  }
+}
+
+template <typename vertex_t, typename KeyIterator>
+std::vector<size_t> compute_key_segment_offsets(KeyIterator sorted_key_first,
+                                                KeyIterator sorted_key_last,
+                                                raft::host_span<vertex_t const> segment_offsets,
+                                                vertex_t vertex_range_first,
+                                                bool use_dcs,
+                                                rmm::cuda_stream_view stream_view)
+{
+  using key_t = typename thrust::iterator_traits<KeyIterator>::value_type;
+
+  assert(segment_offsets.size() == 6 /* high, mid, low, hypersparse, zero + 1 */);
+  std::vector<vertex_t> h_thresholds(use_dcs ? 3 : 2);
+  h_thresholds[0] = vertex_range_first + segment_offsets[1];  // high, mid boundary
+  h_thresholds[1] = vertex_range_first + segment_offsets[2];  // mid, low boundary
+  if (use_dcs) { h_thresholds[2] = vertex_range_first + segment_offsets[3]; }  // low, hypersparse boundary
+
+  rmm::device_uvector<vertex_t> d_thresholds(h_thresholds.size(), stream_view);
+  raft::update_device(d_thresholds.data(), h_thresholds.data(), h_thresholds.size(), stream_view);
+
+  rmm::device_uvector<size_t> d_offsets(d_thresholds.size(), stream_view);
+  if constexpr (std::is_same_v<key_t, vertex_t>) {
+    thrust::lower_bound(rmm::exec_policy(stream_view),
+                        sorted_key_first,
+                        sorted_key_last,
+                        d_thresholds.begin(),
+                        d_thresholds.end(),
+                        d_offsets.begin());
+  } else {
+    auto sorted_vertex_first =
+      thrust::make_transform_iterator(sorted_key_first, thrust_tuple_get<key_t, 0>{});
+    thrust::lower_bound(rmm::exec_policy(stream_view),
+                        sorted_vertex_first,
+                        sorted_vertex_first + thrust::distance(sorted_key_first, sorted_key_last),
+                        d_thresholds.begin(),
+                        d_thresholds.end(),
+                        d_offsets.begin());
+  }
+
+  std::vector<size_t> h_offsets(d_offsets.size());
+  raft::update_host(h_offsets.data(), d_offsets.data(), d_offsets.size(), stream_view);
+  RAFT_CUDA_TRY(cudaStreamSynchronize(stream_view));
+  h_offsets.push_back(static_cast<size_t>(thrust::distance(sorted_key_first, sorted_key_last)));
+
+  return h_offsets;
+}
+
+template <typename VertexIterator>
+std::tuple<std::optional<rmm::device_uvector<uint32_t>>, std::vector<bool>>
+compute_vertex_list_bitmap_info(
+  raft::comms::comms_t const& comm,
+  VertexIterator sorted_unique_vertex_first,
+  VertexIterator sorted_unique_vertex_last,
+  typename thrust::iterator_traits<VertexIterator>::value_type vertex_range_first,
+  typename thrust::iterator_traits<VertexIterator>::value_type vertex_range_last,
+  rmm::cuda_stream_view stream_view)
+{
+  using vertex_t = typename thrust::iterator_traits<VertexIterator>::value_type;
+
+  constexpr double threshold_ratio =
+    8.0 /* tuning parameter */ / static_cast<double>(sizeof(vertex_t) * 8);
+
+  std::optional<rmm::device_uvector<uint32_t>> bitmap{std::nullopt};
+  std::vector<bool> use_bitmap_flags{};
+
+  if (comm.get_size() > 1) {
+    auto v_list_size = static_cast<vertex_t>(
+      thrust::distance(sorted_unique_vertex_first, sorted_unique_vertex_last));
+    auto bool_size = vertex_range_last - vertex_range_first;
+
+    if (v_list_size > static_cast<vertex_t>(bool_size * threshold_ratio)) {
+      bitmap = rmm::device_uvector<uint32_t>(packed_bool_size(bool_size), stream_view);
+      thrust::fill(rmm::exec_policy(stream_view),
+                   (*bitmap).begin(),
+                   (*bitmap).end(),
+                   packed_bool_empty_mask());
+      thrust::for_each(rmm::exec_policy(stream_view),
+                       sorted_unique_vertex_first,
+                       sorted_unique_vertex_last,
+                       [bitmap  = raft::device_span<uint32_t>((*bitmap).data(), (*bitmap).size()),
+                        v_first = vertex_range_first] __device__(vertex_t v) {
+                         auto v_offset = v - v_first;
+                         cuda::atomic_ref<uint32_t, cuda::thread_scope_device> word(
+                           bitmap[packed_bool_offset(v_offset)]);
+                         word.fetch_or(cugraph::packed_bool_mask(v_offset),
+                                       cuda::std::memory_order_relaxed);
+                       });
+    }
+
+    auto tmp_flags = host_scalar_allgather(comm, bitmap ? uint8_t{1} : uint8_t{0}, stream_view);
+    use_bitmap_flags.resize(tmp_flags.size());
+    std::transform(
+      tmp_flags.begin(), tmp_flags.end(), use_bitmap_flags.begin(), [](uint8_t tmp_flag) {
+        return (tmp_flag == uint8_t{1});
+      });
+  } else {
+    use_bitmap_flags = {false};
+  }
+
+  return std::make_tuple(std::move(bitmap), std::move(use_bitmap_flags));
+}
+
+template <typename InputVertexIterator, typename OutputVertexIterator>
+void device_bcast_vertex_list(
+  raft::comms::comms_t const& comm,
+  std::variant<raft::device_span<uint32_t const>, InputVertexIterator> v_list,
+  OutputVertexIterator output_v_first,
+  typename thrust::iterator_traits<InputVertexIterator>::value_type vertex_range_first,
+  typename thrust::iterator_traits<InputVertexIterator>::value_type vertex_range_last,
+  size_t v_list_size,
+  int root,
+  rmm::cuda_stream_view stream_view)
+{
+  using vertex_t = typename thrust::iterator_traits<InputVertexIterator>::value_type;
+
+  static_assert(
+    std::is_same_v<typename thrust::iterator_traits<OutputVertexIterator>::value_type, vertex_t>);
+
+  if (v_list.index() == 0) {  // bitmap
+    rmm::device_uvector<uint32_t> tmp_bitmap(std::get<0>(v_list).size(), stream_view);
+    device_bcast(
+      comm, std::get<0>(v_list).data(), tmp_bitmap.data(), tmp_bitmap.size(), root, stream_view);
+    thrust::copy_if(rmm::exec_policy(stream_view),
+                    thrust::make_counting_iterator(vertex_range_first),
+                    thrust::make_counting_iterator(vertex_range_last),
+                    thrust::make_transform_iterator(
+                      thrust::make_counting_iterator(vertex_t{0}),
+                      cuda::proclaim_return_type<bool>(
+                        [bitmap = raft::device_span<uint32_t const>(
+                           tmp_bitmap.data(), tmp_bitmap.size())] __device__(vertex_t v_offset) {
+                          return ((bitmap[packed_bool_offset(v_offset)] &
+                                   packed_bool_mask(v_offset)) != packed_bool_empty_mask());
+                        })),
+                    output_v_first,
+                    thrust::identity<bool>{});
+  } else {
+    device_bcast(comm, std::get<1>(v_list), output_v_first, v_list_size, root, stream_view);
+  }
+}
 
 // key type is either vertex_t (tag_t == void) or thrust::tuple<vertex_t, tag_t> (tag_t != void)
 // if sorted_unique is true, stores unique key objects in the sorted (non-descending) order.

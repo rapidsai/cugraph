@@ -16,11 +16,13 @@
 #pragma once
 
 #include "detail/graph_partition_utils.cuh"
+#include "prims/detail/optional_dataframe_buffer.hpp"
 #include "prims/detail/prim_functors.cuh"
 #include "prims/fill_edge_src_dst_property.cuh"
 #include "prims/pred_op.cuh"
 #include "prims/property_op_utils.cuh"
 #include "prims/reduce_op.cuh"
+#include "prims/vertex_frontier.cuh"
 
 #include <cugraph/edge_partition_device_view.cuh>
 #include <cugraph/edge_partition_edge_property_device_view.cuh>
@@ -218,45 +220,45 @@ __global__ static void per_v_transform_reduce_e_hypersparse(
   T init /* relevant only if update_major == true */,
   ReduceOp reduce_op)
 {
+  constexpr bool use_input_key = !std::is_same_v<OptionalKeyIterator, void*>;
+
   static_assert(update_major || reduce_op::has_compatible_raft_comms_op_v<
                                   ReduceOp>);  // atomic_reduce is defined only when
                                                // has_compatible_raft_comms_op_t<ReduceOp> is true
-  static_assert(update_major || std::is_same_v<OptionalKeyIterator, void*>);
+  static_assert(update_major || !use_input_key);
 
   using vertex_t = typename GraphViewType::vertex_type;
   using edge_t   = typename GraphViewType::edge_type;
   using key_t =
     typename iterator_value_type_or_default_t<OptionalKeyIterator, vertex_t>::value_type;
 
-  auto const tid          = threadIdx.x + blockIdx.x * blockDim.x;
-  auto major_start_offset = static_cast<size_t>(*(edge_partition.major_hypersparse_first()) -
-                                                edge_partition.major_range_first());  // SK
-  auto idx                = static_cast<size_t>(tid);
+  auto const tid = threadIdx.x + blockIdx.x * blockDim.x;
+  auto idx       = static_cast<size_t>(tid);
 
   size_t key_count{};
-  if constexpr (std::is_same_v<OptionalKeyIterator, void*>) {
-    key_count = *(edge_partition.dcs_nzd_vertex_count());
-  } else {
+  if constexpr (use_input_key) {
     key_count = static_cast<size_t>(thrust::distance(key_first, key_last));
+  } else {
+    key_count = *(edge_partition.dcs_nzd_vertex_count());
   }
 
   while (idx < key_count) {
     key_t key{};
     vertex_t major{};
     thrust::optional<vertex_t> major_idx{};
-    if constexpr (std::is_same_v<OptionalKeyIterator, void*>) {
-      key = *(edge_partition.major_from_major_hypersparse_idx_nocheck(static_cast<vertex_t>(idx)));
-      major     = key;
-      major_idx = major_start_offset + idx;  // major_offset != major_idx in the hypersparse region
-    } else {
+    if constexpr (use_input_key) {
       key       = *(key_first + idx);
       major     = thrust_tuple_get_or_identity<key_t, 0>(key);
       major_idx = edge_partition.major_idx_from_major_nocheck(major);
+    } else {
+      key = *(edge_partition.major_from_major_hypersparse_idx_nocheck(static_cast<vertex_t>(idx)));
+      major                   = key;
+      auto major_start_offset = static_cast<size_t>(*(edge_partition.major_hypersparse_first()) -
+                                                    edge_partition.major_range_first());
+      major_idx = major_start_offset + idx;  // major_offset != major_idx in the hypersparse region
     }
 
-    size_t output_idx = std::is_same_v<OptionalKeyIterator, void>
-                          ? (major - *(edge_partition).major_hypersparse_first())
-                          : idx;
+    size_t output_idx = use_input_key ? idx : (major - *(edge_partition).major_hypersparse_first());
     if (major_idx) {
       auto major_offset = edge_partition.major_offset_from_major_nocheck(major);
       vertex_t const* indices{nullptr};
@@ -959,6 +961,7 @@ void gather_offset_value_pairs_and_update_vertex_value_output(
 template <bool incoming,  // iterate over incoming edges (incoming == true) or outgoing edges
                           // (incoming == false)
           typename GraphViewType,
+          typename OptionalKeyIterator,  // invalid if void*
           typename EdgeSrcValueInputWrapper,
           typename EdgeDstValueInputWrapper,
           typename EdgeValueInputWrapper,
@@ -968,6 +971,8 @@ template <bool incoming,  // iterate over incoming edges (incoming == true) or o
           typename VertexValueOutputIterator>
 void per_v_transform_reduce_e(raft::handle_t const& handle,
                               GraphViewType const& graph_view,
+                              OptionalKeyIterator sorted_unique_key_first,
+                              OptionalKeyIterator sorted_unique_key_last,
                               EdgeSrcValueInputWrapper edge_src_value_input,
                               EdgeDstValueInputWrapper edge_dst_value_input,
                               EdgeValueInputWrapper edge_value_input,
@@ -976,8 +981,10 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
                               ReduceOp reduce_op,
                               VertexValueOutputIterator vertex_value_output_first)
 {
-  constexpr auto update_major = (incoming == GraphViewType::is_storage_transposed);
+  constexpr bool update_major  = (incoming == GraphViewType::is_storage_transposed);
+  constexpr bool use_input_key = !std::is_same_v<OptionalKeyIterator, void*>;
 
+  static_assert(update_major || !use_input_key);
   static_assert(
     ReduceOp::pure_function &&
     ((reduce_op::has_compatible_raft_comms_op_v<ReduceOp> &&
@@ -987,10 +994,10 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
                                                        // reduction, we may need to take a less
                                                        // efficient code path
 
-  [[maybe_unused]] constexpr auto max_segments =
-    detail::num_sparse_segments_per_vertex_partition + size_t{1};
   using vertex_t = typename GraphViewType::vertex_type;
   using edge_t   = typename GraphViewType::edge_type;
+  using key_t =
+    typename iterator_value_type_or_default_t<OptionalKeyIterator, vertex_t>::value_type;
 
   using edge_partition_src_input_device_view_t = std::conditional_t<
     std::is_same_v<typename EdgeSrcValueInputWrapper::value_type, thrust::nullopt_t>,
@@ -1015,6 +1022,71 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
       typename EdgeValueInputWrapper::value_type>>;
 
   static_assert(is_arithmetic_or_thrust_tuple_of_arithmetic<T>::value);
+
+  constexpr bool use_bitmap = GraphViewType::is_multi_gpu &&
+                              !std::is_same_v<OptionalKeyIterator, void*> &&
+                              std::is_same_v<key_t, vertex_t>;
+
+  [[maybe_unused]] constexpr auto max_segments =
+    detail::num_sparse_segments_per_vertex_partition + size_t{1};
+
+  // 1. prepare key list
+
+  auto sorted_unique_nzd_key_last = sorted_unique_key_last;
+  if constexpr (use_input_key) {
+    size_t partition_idx = 0;
+    if constexpr (GraphViewType::is_multi_gpu) {
+      auto& minor_comm = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
+      auto const minor_comm_rank = minor_comm.get_rank();
+      partition_idx              = static_cast<size_t>(minor_comm_rank);
+    }
+    auto segment_offsets = graph_view.local_edge_partition_segment_offsets(partition_idx);
+    if (segment_offsets) {
+      auto sorted_uniue_nzd_key_last = compute_key_lower_bound(
+        sorted_unique_key_first,
+        sorted_unique_key_last,
+        graph_view.local_vertex_partition_range_first() + ((*segment_offsets).rbegin() + 1),
+        handle.get_stream());
+    }
+  }
+
+  std::conditional_t<use_input_key, std::vector<size_t>, std::byte /* dummy */>
+    local_key_list_sizes{};
+  if constexpr (use_input_key) {
+    if constexpr (GraphViewType::is_multi_gpu) {
+      auto& minor_comm     = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
+      local_key_list_sizes = host_scalar_allgather(
+        minor_comm,
+        static_cast<size_t>(thrust::distance(sorted_unique_key_first, sorted_unique_nzd_key_last)),
+        handle.get_stream());
+    } else {
+      local_key_list_sizes = std::vector<size_t>{
+        static_cast<size_t>(thrust::distance(sorted_unique_key_first, sorted_unique_nzd_key_last))};
+    }
+  }
+
+  std::
+    conditional_t<use_bitmap, std::optional<rmm::device_uvector<uint32_t>>, std::byte /* dummy */>
+      key_list_bitmap{};
+  std::conditional_t<use_bitmap, std::vector<bool>, std::byte /* dummy */> use_bitmap_flags{};
+  if constexpr (use_bitmap) {
+    auto& minor_comm           = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
+    auto const minor_comm_rank = minor_comm.get_rank();
+    auto segment_offsets =
+      graph_view.local_edge_partition_segment_offsets(static_cast<size_t>(minor_comm_rank));
+    size_t bool_size = segment_offsets ? *((*segment_offsets).rbegin() + 1)
+                                       : graph_view.local_vertex_partition_range_size();
+
+    std::tie(key_list_bitmap, use_bitmap_flags) =
+      compute_vertex_list_bitmap_info(minor_comm,
+                                      sorted_unique_key_first,
+                                      sorted_unique_nzd_key_last,
+                                      graph_view.local_vertex_partition_range_first(),
+                                      graph_view.local_vertex_partition_range_first() + bool_size,
+                                      handle.get_stream());
+  }
+
+  // 2. compute subgroup_size, set-up temporary buffers & stream pool, and initialize
 
   [[maybe_unused]] std::conditional_t<update_major && std::is_same_v<ReduceOp, reduce_op::any<T>>,
                                       int,
@@ -1046,19 +1118,28 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
                          decltype(minor_tmp_buffer->mutable_view().value_first())>,
                        void /* dummy */>;
 
-  if constexpr (update_major) {
-    size_t partition_idx = 0;
-    if constexpr (GraphViewType::is_multi_gpu) {
-      auto& minor_comm = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
-      auto const minor_comm_rank = minor_comm.get_rank();
-      partition_idx              = static_cast<size_t>(minor_comm_rank);
-    }
-    auto segment_offsets = graph_view.local_edge_partition_segment_offsets(partition_idx);
-    if (segment_offsets) {  // no vertices in the zero degree segment are visited
+  if constexpr (update_major) {  // no vertices in the zero degree segment are visited
+    if constexpr (use_input_key) {
       thrust::fill(handle.get_thrust_policy(),
-                   vertex_value_output_first + *((*segment_offsets).rbegin() + 1),
-                   vertex_value_output_first + *((*segment_offsets).rbegin()),
+                   vertex_value_output_first +
+                     thrust::distance(sorted_unique_key_first, sorted_unique_nzd_key_last),
+                   vertex_value_output_first +
+                     thrust::distance(sorted_unique_key_first, sorted_unique_key_last),
                    init);
+    } else {
+      size_t partition_idx = 0;
+      if constexpr (GraphViewType::is_multi_gpu) {
+        auto& minor_comm = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
+        auto const minor_comm_rank = minor_comm.get_rank();
+        partition_idx              = static_cast<size_t>(minor_comm_rank);
+      }
+      auto segment_offsets = graph_view.local_edge_partition_segment_offsets(partition_idx);
+      if (segment_offsets) {
+        thrust::fill(handle.get_thrust_policy(),
+                     vertex_value_output_first + *((*segment_offsets).rbegin() + 1),
+                     vertex_value_output_first + *((*segment_offsets).rbegin()),
+                     init);
+      }
     }
   } else {
     if constexpr (GraphViewType::is_multi_gpu) {
@@ -1094,8 +1175,9 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
 
       // memory footprint vs parallelism trade-off
       // peak memory requirement per loop is
-      // update_major ? V / comm_size * sizeof(T) : 0
+      // update_major ? (use_input_key ? aggregate key list size : V) / comm_size * sizeof(T) : 0
       // and limit memory requirement to (E / comm_size) * sizeof(vertex_t)
+      // FIXME: should we consider edge_partition_key_buffer as well?
 
       size_t num_streams =
         std::min(static_cast<size_t>(minor_comm_size) * max_segments,
@@ -1108,18 +1190,37 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
         } else {
           value_size = sizeof(T);
         }
+        size_t key_size{0};
+        if constexpr (use_input_key) {
+          if constexpr (std::is_same_v<key_t, vertex_t>) {
+            key_size = sizeof(vertex_t);
+          } else {
+            key_size = sizeof(thrust::tuple_element<0, key_t>::type) +
+                       sizeof(thrust::tuple_element<1, key_t>::type);
+          }
+        }
 
-        auto avg_vertex_degree =
-          graph_view.number_of_vertices() > 0
-            ? (static_cast<double>(graph_view.compute_number_of_edges(handle)) /
-               static_cast<double>(graph_view.number_of_vertices()))
-            : double{0.0};
+        auto num_edges = graph_view.compute_number_of_edges(handle);
 
-        num_streams =
-          std::min(static_cast<size_t>(avg_vertex_degree * (static_cast<double>(sizeof(vertex_t)) /
-                                                            static_cast<double>(value_size))) *
-                     max_segments,
-                   num_streams);
+        size_t aggregate_major_range_size{};
+        if constexpr (use_input_key) {
+          aggregate_major_range_size =
+            host_scalar_allreduce(handle.get_comms(),
+                                  static_cast<size_t>(thrust::distance(sorted_unique_key_first,
+                                                                       sorted_unique_nzd_key_last)),
+                                  raft::comms::op_t::SUM,
+                                  handle.get_stream());
+        } else {
+          aggregate_major_range_size = graph_view.number_of_vertices();
+        }
+        num_streams = std::min(
+          static_cast<size_t>(
+            (aggregate_major_range_size > 0
+               ? (static_cast<double>(num_edges) / static_cast<double>(aggregate_major_range_size))
+               : double{0}) *
+            (static_cast<double>(sizeof(vertex_t)) / static_cast<double>(value_size + key_size))) *
+            max_segments,
+          num_streams);
       }
 
       if (num_streams >= max_segments) {
@@ -1136,15 +1237,19 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
     std::vector<size_t> major_tmp_buffer_sizes(graph_view.number_of_local_edge_partitions(),
                                                size_t{0});
     for (size_t i = 0; i < graph_view.number_of_local_edge_partitions(); ++i) {
-      auto segment_offsets = graph_view.local_edge_partition_segment_offsets(i);
-      if (segment_offsets) {
-        major_tmp_buffer_sizes[i] =
-          *((*segment_offsets).rbegin() + 1);  // exclude the zero degree segment
+      if constexpr (use_input_key) {
+        major_tmp_buffer_sizes = local_key_list_sizes;
       } else {
-        if constexpr (GraphViewType::is_storage_transposed) {
-          major_tmp_buffer_sizes[i] = graph_view.local_edge_partition_dst_range_size(i);
+        auto segment_offsets = graph_view.local_edge_partition_segment_offsets(i);
+        if (segment_offsets) {
+          major_tmp_buffer_sizes[i] =
+            *((*segment_offsets).rbegin() + 1);  // exclude the zero degree segment
         } else {
-          major_tmp_buffer_sizes[i] = graph_view.local_edge_partition_src_range_size(i);
+          if constexpr (GraphViewType::is_storage_transposed) {
+            major_tmp_buffer_sizes[i] = graph_view.local_edge_partition_dst_range_size(i);
+          } else {
+            major_tmp_buffer_sizes[i] = graph_view.local_edge_partition_src_range_size(i);
+          }
         }
       }
     }
@@ -1192,6 +1297,8 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
 
   if (stream_pool_indices) { handle.sync_stream(); }
 
+  // 3. proces local edge partitions
+
   auto edge_mask_view = graph_view.edge_mask_view();
 
   for (size_t i = 0; i < graph_view.number_of_local_edge_partitions(); ++i) {
@@ -1219,6 +1326,76 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
         major_init = init;
       }
     }
+
+    auto segment_offsets = graph_view.local_edge_partition_segment_offsets(i);
+    auto loop_stream =
+      stream_pool_indices
+        ? handle.get_stream_from_stream_pool((i * max_segments) % (*stream_pool_indices).size())
+        : handle.get_stream();
+
+    auto edge_partition_key_first  = sorted_unique_key_first;
+    auto edge_partition_key_last   = sorted_unique_nzd_key_last;
+    auto edge_partition_key_buffer = allocate_optional_dataframe_buffer<
+      std::conditional_t<GraphViewType::is_multi_gpu && use_input_key, key_t, void>>(0,
+                                                                                     loop_stream);
+    std::conditional_t<use_input_key, std::optional<std::vector<size_t>>, std::byte /* dummy */>
+      key_segment_offsets{};
+    if constexpr (use_input_key) {
+      if constexpr (GraphViewType::is_multi_gpu) {
+        auto& minor_comm = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
+        auto const minor_comm_size = minor_comm.get_size();
+        if (minor_comm_size > 1) {
+          auto const minor_comm_rank = minor_comm.get_rank();
+
+          resize_optional_dataframe_buffer(
+            edge_partition_key_buffer, local_key_list_sizes[i], loop_stream);
+
+          if constexpr (use_bitmap) {
+            std::variant<raft::device_span<uint32_t const>, decltype(sorted_unique_key_first)>
+              v_list{};
+            if (use_bitmap_flags[i]) {
+              v_list = raft::device_span<uint32_t const>((*key_list_bitmap).data(),
+                                                         (*key_list_bitmap).size());
+            } else {
+              v_list = sorted_unique_key_first;
+            }
+            auto bool_size = segment_offsets ? *((*segment_offsets).rbegin() + 1)
+                                             : edge_partition.major_range_size();
+            device_bcast_vertex_list(minor_comm,
+                                     v_list,
+                                     get_dataframe_buffer_begin(edge_partition_key_buffer),
+                                     edge_partition.major_range_first(),
+                                     edge_partition.major_range_first() + bool_size,
+                                     static_cast<size_t>(thrust::distance(
+                                       sorted_unique_key_first, sorted_unique_nzd_key_last)),
+                                     static_cast<int>(i),
+                                     loop_stream);
+          } else {
+            device_bcast(minor_comm,
+                         sorted_unique_key_first,
+                         get_dataframe_buffer_begin(edge_partition_key_buffer),
+                         local_key_list_sizes[i],
+                         static_cast<int>(i),
+                         loop_stream);
+          }
+
+          edge_partition_key_first = get_dataframe_buffer_begin(edge_partition_key_buffer);
+          edge_partition_key_last  = get_dataframe_buffer_end(edge_partition_key_buffer);
+        }
+      }
+      if (segment_offsets) {
+        key_segment_offsets = compute_key_segment_offsets(
+          edge_partition_key_first,
+          edge_partition_key_last,
+          raft::host_span<vertex_t const>((*segment_offsets).data(), (*segment_offsets).size()),
+          edge_partition.major_range_first(),
+          graph_view.use_dcs(),
+          loop_stream);
+      } else {
+        key_segment_offsets = std::nullopt;
+      }
+    }
+    RAFT_CUDA_TRY(cudaStreamSynchronize(loop_stream));
 
     edge_partition_src_input_device_view_t edge_partition_src_value_input{};
     edge_partition_dst_input_device_view_t edge_partition_dst_value_input{};
@@ -1252,38 +1429,65 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
       output_buffer = vertex_value_output_first;
     }
 
-    auto segment_offsets = graph_view.local_edge_partition_segment_offsets(i);
+    using segment_key_iterator_t =
+      std::conditional_t<use_input_key,
+                         decltype(edge_partition_key_first),
+                         decltype(thrust::make_counting_iterator(vertex_t{0}))>;
+
     if (segment_offsets) {
       static_assert(detail::num_sparse_segments_per_vertex_partition == 3);
+
+      std::vector<size_t> h_offsets{};
+      if constexpr (use_input_key) {
+        h_offsets = (*key_segment_offsets);
+      } else {
+        h_offsets.resize((*segment_offsets).size());
+        std::transform((*segment_offsets).begin(),
+                       (*segment_offsets).end(),
+                       h_offsets.begin(),
+                       [](vertex_t offset) { return static_cast<size_t>(offset); });
+      }
 
       // FIXME: we may further improve performance by 1) individually tuning block sizes for
       // different segments; and 2) adding one more segment for very high degree vertices and
       // running segmented reduction
-      if ((*segment_offsets)[4] - (*segment_offsets)[3] > 0) {
+      if (edge_partition.dcs_nzd_vertex_count()) {
         auto exec_stream =
           stream_pool_indices
             ? handle.get_stream_from_stream_pool((i * max_segments) % (*stream_pool_indices).size())
             : handle.get_stream();
 
-        if constexpr (update_major) {  // this is necessary as we don't visit every vertex in the
-                                       // hypersparse segment
+        if constexpr (update_major && !use_input_key) {  // this is necessary as we don't visit
+                                                         // every vertex in the hypersparse segment
           thrust::fill(rmm::exec_policy(exec_stream),
-                       output_buffer + (*segment_offsets)[3],
-                       output_buffer + (*segment_offsets)[4],
+                       output_buffer + h_offsets[3],
+                       output_buffer + h_offsets[4],
                        major_init);
         }
 
-        if (*(edge_partition.dcs_nzd_vertex_count()) > 0) {
-          raft::grid_1d_thread_t update_grid(*(edge_partition.dcs_nzd_vertex_count()),
+        auto segment_size = use_input_key
+                              ? (h_offsets[4] - h_offsets[3])
+                              : static_cast<size_t>(*(edge_partition.dcs_nzd_vertex_count()));
+        if (segment_size > 0) {
+          raft::grid_1d_thread_t update_grid(segment_size,
                                              detail::per_v_transform_reduce_e_kernel_block_size,
                                              handle.get_device_properties().maxGridSize[0]);
           auto segment_output_buffer = output_buffer;
-          if constexpr (update_major) { segment_output_buffer += (*segment_offsets)[3]; }
+          if constexpr (update_major) { segment_output_buffer += h_offsets[3]; }
+          auto segment_key_first = edge_partition_key_first;
+          auto segment_key_last  = edge_partition_key_last;
+          if constexpr (use_input_key) {
+            segment_key_first += h_offsets[3];
+            segment_key_last += h_offsets[4];
+          } else {
+            assert(segment_key_first == nullptr);
+            assert(segment_key_last == nullptr);
+          }
           detail::per_v_transform_reduce_e_hypersparse<update_major, GraphViewType>
             <<<update_grid.num_blocks, update_grid.block_size, 0, exec_stream>>>(
               edge_partition,
-              static_cast<void*>(nullptr),
-              static_cast<void*>(nullptr),
+              segment_key_first,
+              segment_key_last,
               edge_partition_src_value_input,
               edge_partition_dst_value_input,
               edge_partition_e_value_input,
@@ -1294,23 +1498,29 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
               reduce_op);
         }
       }
-      if ((*segment_offsets)[3] - (*segment_offsets)[2] > 0) {
+      if (h_offsets[3] - h_offsets[2]) {
         auto exec_stream = stream_pool_indices
                              ? handle.get_stream_from_stream_pool((i * max_segments + 1) %
                                                                   (*stream_pool_indices).size())
                              : handle.get_stream();
-        raft::grid_1d_thread_t update_grid((*segment_offsets)[3] - (*segment_offsets)[2],
+        raft::grid_1d_thread_t update_grid(h_offsets[3] - h_offsets[2],
                                            detail::per_v_transform_reduce_e_kernel_block_size,
                                            handle.get_device_properties().maxGridSize[0]);
         auto segment_output_buffer = output_buffer;
-        if constexpr (update_major) { segment_output_buffer += (*segment_offsets)[2]; }
+        if constexpr (update_major) { segment_output_buffer += h_offsets[2]; }
+        segment_key_iterator_t segment_key_first{};
+        if constexpr (use_input_key) {
+          segment_key_first = edge_partition_key_first;
+        } else {
+          segment_key_first = thrust::make_counting_iterator(edge_partition.major_range_first());
+        }
+        segment_key_first += h_offsets[2];
+        auto num_keys = h_offsets[3] - h_offsets[2];
         detail::per_v_transform_reduce_e_low_degree<update_major, GraphViewType>
           <<<update_grid.num_blocks, update_grid.block_size, 0, exec_stream>>>(
             edge_partition,
-            thrust::make_counting_iterator(edge_partition.major_range_first() +
-                                           (*segment_offsets)[2]),
-            thrust::make_counting_iterator(edge_partition.major_range_first() +
-                                           (*segment_offsets)[3]),
+            segment_key_first,
+            segment_key_first + (h_offsets[3] - h_offsets[2]),
             edge_partition_src_value_input,
             edge_partition_dst_value_input,
             edge_partition_e_value_input,
@@ -1320,23 +1530,28 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
             major_init,
             reduce_op);
       }
-      if ((*segment_offsets)[2] - (*segment_offsets)[1] > 0) {
+      if (h_offsets[2] - h_offsets[1] > 0) {
         auto exec_stream = stream_pool_indices
                              ? handle.get_stream_from_stream_pool((i * max_segments + 2) %
                                                                   (*stream_pool_indices).size())
                              : handle.get_stream();
-        raft::grid_1d_warp_t update_grid((*segment_offsets)[2] - (*segment_offsets)[1],
+        raft::grid_1d_warp_t update_grid(h_offsets[2] - h_offsets[1],
                                          detail::per_v_transform_reduce_e_kernel_block_size,
                                          handle.get_device_properties().maxGridSize[0]);
         auto segment_output_buffer = output_buffer;
-        if constexpr (update_major) { segment_output_buffer += (*segment_offsets)[1]; }
+        if constexpr (update_major) { segment_output_buffer += h_offsets[1]; }
+        segment_key_iterator_t segment_key_first{};
+        if constexpr (use_input_key) {
+          segment_key_first = edge_partition_key_first;
+        } else {
+          segment_key_first = thrust::make_counting_iterator(edge_partition.major_range_first());
+        }
+        segment_key_first += h_offsets[1];
         detail::per_v_transform_reduce_e_mid_degree<update_major, GraphViewType>
           <<<update_grid.num_blocks, update_grid.block_size, 0, exec_stream>>>(
             edge_partition,
-            thrust::make_counting_iterator(edge_partition.major_range_first() +
-                                           (*segment_offsets)[1]),
-            thrust::make_counting_iterator(edge_partition.major_range_first() +
-                                           (*segment_offsets)[2]),
+            segment_key_first,
+            segment_key_first + (h_offsets[2] - h_offsets[1]),
             edge_partition_src_value_input,
             edge_partition_dst_value_input,
             edge_partition_e_value_input,
@@ -1347,20 +1562,25 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
             ReduceOp::identity_element,
             reduce_op);
       }
-      if ((*segment_offsets)[1] > 0) {
+      if (h_offsets[1] > 0) {
         auto exec_stream = stream_pool_indices
                              ? handle.get_stream_from_stream_pool((i * max_segments + 3) %
                                                                   (*stream_pool_indices).size())
                              : handle.get_stream();
-        raft::grid_1d_block_t update_grid((*segment_offsets)[1],
+        raft::grid_1d_block_t update_grid(h_offsets[1],
                                           detail::per_v_transform_reduce_e_kernel_block_size,
                                           handle.get_device_properties().maxGridSize[0]);
+        segment_key_iterator_t segment_key_first{};
+        if constexpr (use_input_key) {
+          segment_key_first = edge_partition_key_first;
+        } else {
+          segment_key_first = thrust::make_counting_iterator(edge_partition.major_range_first());
+        }
         detail::per_v_transform_reduce_e_high_degree<update_major, GraphViewType>
           <<<update_grid.num_blocks, update_grid.block_size, 0, exec_stream>>>(
             edge_partition,
-            thrust::make_counting_iterator(edge_partition.major_range_first()),
-            thrust::make_counting_iterator(edge_partition.major_range_first() +
-                                           (*segment_offsets)[1]),
+            segment_key_first,
+            segment_key_first + h_offsets[1],
             edge_partition_src_value_input,
             edge_partition_dst_value_input,
             edge_partition_e_value_input,
@@ -1372,17 +1592,29 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
             reduce_op);
       }
     } else {
+      size_t num_keys{};
+      if constexpr (use_input_key) {
+        num_keys =
+          static_cast<size_t>(thrust::distance(edge_partition_key_first, edge_partition_key_last));
+      } else {
+        num_keys = static_cast<size_t>(edge_partition.major_range_size());
+      }
+
       if (edge_partition.major_range_size() > 0) {
-        raft::grid_1d_thread_t update_grid(edge_partition.major_range_size(),
+        raft::grid_1d_thread_t update_grid(num_keys,
                                            detail::per_v_transform_reduce_e_kernel_block_size,
                                            handle.get_device_properties().maxGridSize[0]);
+        segment_key_iterator_t segment_key_first{};
+        if constexpr (use_input_key) {
+          segment_key_first = edge_partition_key_first;
+        } else {
+          segment_key_first = thrust::make_counting_iterator(edge_partition.major_range_first());
+        }
         detail::per_v_transform_reduce_e_low_degree<update_major, GraphViewType>
           <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
             edge_partition,
-            thrust::make_counting_iterator(edge_partition.major_range_first() +
-                                           (*segment_offsets)[2]),
-            thrust::make_counting_iterator(edge_partition.major_range_first() +
-                                           (*segment_offsets)[3]),
+            segment_key_first,
+            segment_key_first + num_keys,
             edge_partition_src_value_input,
             edge_partition_dst_value_input,
             edge_partition_e_value_input,
@@ -1539,6 +1771,8 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
   }
 
   if (stream_pool_indices) { handle.sync_stream_pool(*stream_pool_indices); }
+
+  // 4. communication
 
   if constexpr (update_major && std::is_same_v<ReduceOp, reduce_op::any<T>>) {
     auto& minor_comm           = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
@@ -1770,6 +2004,8 @@ void per_v_transform_reduce_incoming_e(raft::handle_t const& handle,
 
   detail::per_v_transform_reduce_e<incoming>(handle,
                                              graph_view,
+                                             static_cast<void*>(nullptr),
+                                             static_cast<void*>(nullptr),
                                              edge_src_value_input,
                                              edge_dst_value_input,
                                              edge_value_input,
@@ -1861,6 +2097,8 @@ void per_v_transform_reduce_incoming_e(raft::handle_t const& handle,
 
   detail::per_v_transform_reduce_e<incoming>(handle,
                                              graph_view,
+                                             key_list.begin(),
+                                             key_list.end(),
                                              edge_src_value_input,
                                              edge_dst_value_input,
                                              edge_value_input,
@@ -1944,6 +2182,8 @@ void per_v_transform_reduce_outgoing_e(raft::handle_t const& handle,
 
   detail::per_v_transform_reduce_e<incoming>(handle,
                                              graph_view,
+                                             static_cast<void*>(nullptr),
+                                             static_cast<void*>(nullptr),
                                              edge_src_value_input,
                                              edge_dst_value_input,
                                              edge_value_input,
@@ -2026,6 +2266,7 @@ void per_v_transform_reduce_outgoing_e(raft::handle_t const& handle,
                                        bool do_expensive_check = false)
 {
   static_assert(!GraphViewType::is_storage_transposed);
+  static_assert(KeyBucketType::is_sorted_unique);
 
   if (do_expensive_check) {
     // currently, nothing to do
@@ -2035,6 +2276,8 @@ void per_v_transform_reduce_outgoing_e(raft::handle_t const& handle,
 
   detail::per_v_transform_reduce_e<incoming>(handle,
                                              graph_view,
+                                             key_list.begin(),
+                                             key_list.end(),
                                              edge_src_value_input,
                                              edge_dst_value_input,
                                              edge_value_input,
