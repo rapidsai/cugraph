@@ -29,29 +29,28 @@ typedef float weight_t;
  * Simple check of creating a graph from a COO on device memory.
  */
 int generic_k_truss_test(const cugraph_resource_handle_t* handle,
-                                  vertex_t* h_src,
-                                  vertex_t* h_dst,
-                                  weight_t* h_wgt,
-                                  size_t num_edges,
-                                  size_t num_results,
-                                  size_t k,
-                                  bool_t store_transposed,
-                                  vertex_t* h_result_src,
-                                  vertex_t* h_result_dst,
-                                  weight_t* h_result_wgt
-                                  )
+                         vertex_t* h_src,
+                         vertex_t* h_dst,
+                         weight_t* h_wgt,
+                         size_t num_edges,
+                         size_t num_results,
+                         size_t k,
+                         bool_t store_transposed,
+                         vertex_t* h_result_src,
+                         vertex_t* h_result_dst,
+                         weight_t* h_result_wgt)
 {
   int test_ret_value = 0;
 
   cugraph_error_code_t ret_code = CUGRAPH_SUCCESS;
   cugraph_error_t* ret_error;
 
-  cugraph_graph_t* graph                                          = NULL;
+  cugraph_graph_t* graph = NULL;
 
   cugraph_induced_subgraph_result_t* result = NULL;
 
-  data_type_id_t vertex_tid    = INT32;
-  data_type_id_t size_t_tid    = SIZE_T;
+  data_type_id_t vertex_tid = INT32;
+  data_type_id_t size_t_tid = SIZE_T;
 
   ret_code = create_mg_test_graph(
     handle, h_src, h_dst, h_wgt, num_edges, store_transposed, TRUE, &graph, &ret_error);
@@ -59,24 +58,17 @@ int generic_k_truss_test(const cugraph_resource_handle_t* handle,
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "create_test_graph failed.");
   TEST_ALWAYS_ASSERT(ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
 
-
-  ret_code = cugraph_k_truss_subgraph(handle,
-                                      graph,
-                                      k,
-                                      FALSE,
-                                      &result,
-                                      &ret_error);
-TEST_ALWAYS_ASSERT(ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
-  TEST_ASSERT(
-    test_ret_value, ret_code == CUGRAPH_SUCCESS, "cugraph_k_truss failed.");
+  ret_code = cugraph_k_truss_subgraph(handle, graph, k, FALSE, &result, &ret_error);
+  TEST_ALWAYS_ASSERT(ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "cugraph_k_truss failed.");
 
   cugraph_type_erased_device_array_view_t* k_truss_src;
   cugraph_type_erased_device_array_view_t* k_truss_dst;
   cugraph_type_erased_device_array_view_t* k_truss_wgt;
 
-  k_truss_src           = cugraph_induced_subgraph_get_sources(result);
-  k_truss_dst           = cugraph_induced_subgraph_get_destinations(result);
-  k_truss_wgt           = cugraph_induced_subgraph_get_edge_weights(result);
+  k_truss_src = cugraph_induced_subgraph_get_sources(result);
+  k_truss_dst = cugraph_induced_subgraph_get_destinations(result);
+  k_truss_wgt = cugraph_induced_subgraph_get_edge_weights(result);
 
   size_t k_truss_size = cugraph_type_erased_device_array_view_size(k_truss_src);
 
@@ -106,7 +98,6 @@ TEST_ALWAYS_ASSERT(ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error)
     TEST_ASSERT(test_ret_value, found, "k_truss subgraph has an edge that doesn't match");
   }
 
-
   cugraph_induced_subgraph_result_free(result);
   cugraph_mg_graph_free(graph);
   cugraph_error_free(ret_error);
@@ -115,18 +106,19 @@ TEST_ALWAYS_ASSERT(ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error)
 
 int test_k_truss_subgraph(const cugraph_resource_handle_t* handle)
 {
-  size_t num_edges            = 14;
-  size_t num_vertices         = 7;
-  size_t num_results          = 6;
-  size_t k                    = 3;
+  size_t num_edges    = 14;
+  size_t num_vertices = 7;
+  size_t num_results  = 6;
+  size_t k            = 3;
 
-  vertex_t h_src[]               = {0, 0, 0, 1, 1, 1, 1, 1, 2, 2, 3, 4, 5, 6};
-  vertex_t h_dst[]               = {1, 2, 5, 0, 2, 3, 4, 6, 0, 1, 1, 1, 0, 1};
-  weight_t h_wgt[]               = {1.2f, 1.3f, 1.6f, 1.2f, 2.3f, 2.4f, 2.5f, 2.7f, 1.3f, 2.3f, 2.4f, 2.5f, 1.6f, 2.7f};
+  vertex_t h_src[] = {0, 0, 0, 1, 1, 1, 1, 1, 2, 2, 3, 4, 5, 6};
+  vertex_t h_dst[] = {1, 2, 5, 0, 2, 3, 4, 6, 0, 1, 1, 1, 0, 1};
+  weight_t h_wgt[] = {
+    1.2f, 1.3f, 1.6f, 1.2f, 2.3f, 2.4f, 2.5f, 2.7f, 1.3f, 2.3f, 2.4f, 2.5f, 1.6f, 2.7f};
 
-  vertex_t h_result_src[]        = {0, 2, 2, 1, 1, 0};
-  vertex_t h_result_dst[]        = {1, 1, 0, 0, 2, 2};
-  weight_t h_result_wgt[]        = {1.2f, 2.3f, 1.3f, 1.2f, 2.3f, 1.3f};
+  vertex_t h_result_src[] = {0, 2, 2, 1, 1, 0};
+  vertex_t h_result_dst[] = {1, 1, 0, 0, 2, 2};
+  weight_t h_result_wgt[] = {1.2f, 2.3f, 1.3f, 1.2f, 2.3f, 1.3f};
 
   return generic_k_truss_test(handle,
                               h_src,
@@ -138,8 +130,7 @@ int test_k_truss_subgraph(const cugraph_resource_handle_t* handle)
                               FALSE,
                               h_result_src,
                               h_result_dst,
-                              h_result_wgt
-                              );
+                              h_result_wgt);
 }
 
 /******************************************************************************/
