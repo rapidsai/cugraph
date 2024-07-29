@@ -13,18 +13,18 @@
 # limitations under the License.
 #
 
-from dask.distributed import wait, default_client
+from typing import Tuple
 
-import cugraph.dask.comms.comms as Comms
-import dask_cudf
 import cudf
 import cupy as cp
-from typing import Tuple
+from dask.distributed import wait, default_client
+import dask_cudf
 
 from pylibcugraph import (
     ResourceHandle,
     k_truss_subgraph as pylibcugraph_k_truss_subgraph,
 )
+import cugraph.dask.comms.comms as Comms
 
 
 def _call_k_truss_subgraph(

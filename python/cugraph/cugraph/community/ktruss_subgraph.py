@@ -11,18 +11,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from cugraph.structure.graph_classes import Graph
 from typing import Union
+
+import warnings
+import cudf
+from pylibcugraph import k_truss_subgraph as pylibcugraph_k_truss_subgraph
+from pylibcugraph import ResourceHandle
+from cugraph.structure.graph_classes import Graph
 from cugraph.utilities import (
     ensure_cugraph_obj_for_nx,
     cugraph_to_nx,
 )
-
-from pylibcugraph import k_truss_subgraph as pylibcugraph_k_truss_subgraph
-from pylibcugraph import ResourceHandle
-import warnings
-
-import cudf
 from cugraph.utilities.utils import import_optional
 
 # FIXME: the networkx.Graph type used in the type annotation for
