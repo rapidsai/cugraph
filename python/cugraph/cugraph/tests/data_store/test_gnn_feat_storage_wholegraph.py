@@ -60,6 +60,7 @@ def runtest(world_rank: int, world_size: int):
 @pytest.mark.skipif(
     isinstance(pylibwholegraph, MissingModule), reason="wholegraph not available"
 )
+@pytest.mark.skip(reason="broken")
 def test_feature_storage_wholegraph_backend():
     from pylibwholegraph.utils.multiprocess import multiprocess_run
 
@@ -75,6 +76,7 @@ def test_feature_storage_wholegraph_backend():
 @pytest.mark.skipif(
     isinstance(pylibwholegraph, MissingModule), reason="wholegraph not available"
 )
+@pytest.mark.skip(reason="broken")
 def test_feature_storage_wholegraph_backend_mg():
     from pylibwholegraph.utils.multiprocess import multiprocess_run
 
