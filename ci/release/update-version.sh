@@ -69,7 +69,6 @@ DEPENDENCIES=(
   pyraft
   raft-dask
   rmm
-  ucx-py
   rapids-dask-dependency
 )
 for FILE in dependencies.yaml conda/environments/*.yaml python/cugraph-{pyg,dgl}/conda/*.yaml; do
