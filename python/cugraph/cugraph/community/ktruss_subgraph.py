@@ -22,7 +22,6 @@ from pylibcugraph import k_truss_subgraph as pylibcugraph_k_truss_subgraph
 from pylibcugraph import ResourceHandle
 import warnings
 
-from numba import cuda
 import cudf
 from cugraph.utilities.utils import import_optional
 
