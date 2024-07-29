@@ -1,4 +1,4 @@
-# Copyright (c) 2022-2024, NVIDIA CORPORATION.
+# Copyright (c) 2024, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -59,11 +59,11 @@ def k_truss_subgraph(input_graph, k: int) -> dask_cudf.DataFrame:
     """
     Returns the K-Truss subgraph of a graph for a specific k.
 
-    The k-truss of a graph is a subgraph where each edge is part of at least
-    (k−2) triangles. K-trusses are used for finding tighlty knit groups of
-    vertices in a graph. A k-truss is a relaxation of a k-clique in the graph
-    and was define in [1]. Finding cliques is computationally demanding and
-    finding the maximal k-clique is known to be NP-Hard.
+    The k-truss of a graph is a subgraph where each edge is incident to at
+    least (k−2) triangles. K-trusses are used for finding tighlty knit groups
+    of vertices in a graph. A k-truss is a relaxation of a k-clique in the graph.
+    Finding cliques is computationally demanding and finding the maximal
+    k-clique is known to be NP-Hard.
 
     Parameters
     ----------
@@ -79,8 +79,8 @@ def k_truss_subgraph(input_graph, k: int) -> dask_cudf.DataFrame:
     Returns
     -------
     k_truss_edge_lists : dask_cudf.DataFrame
-        Distributed GPU data frame containing all sources identifiers,
-        destination identifiers, edge weights belonging to the Truss
+        Distributed GPU data frame containing all source identifiers,
+        destination identifiers, and edge weights belonging to the truss
     """
     if input_graph.is_directed():
         raise ValueError("input graph must be undirected")
