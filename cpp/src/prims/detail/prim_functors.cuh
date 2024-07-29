@@ -21,6 +21,23 @@ namespace cugraph {
 
 namespace detail {
 
+template <typename key_t,
+          typename vertex_t,
+          typename src_value_t,
+          typename dst_value_t,
+          typename e_value_t,
+          bool store_transposed>
+struct const_true_e_op_t {
+  __device__ auto operator()(std::conditional_t<store_transposed, vertex_t, key_t> key_or_src,
+                             std::conditional_t<store_transposed, key_t, vertex_t> key_or_dst,
+                             src_value_t,
+                             dst_value_t,
+                             e_value_t) const
+  {
+    return true;
+  }
+};
+
 template <typename GraphViewType,
           typename key_t,
           typename EdgePartitionSrcValueInputWrapper,
@@ -69,6 +86,11 @@ struct call_e_op_t {
                 edge_partition_dst_value_input.get(dst_offset),
                 edge_partition_e_value_input.get(edge_offset + i));
   }
+};
+
+template <typename edge_t>
+struct call_const_true_e_op_t {
+  __device__ auto operator()(edge_t i) const { return true; }
 };
 
 template <typename GraphViewType,

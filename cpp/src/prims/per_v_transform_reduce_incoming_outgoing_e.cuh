@@ -19,7 +19,6 @@
 #include "prims/detail/optional_dataframe_buffer.hpp"
 #include "prims/detail/prim_functors.cuh"
 #include "prims/fill_edge_src_dst_property.cuh"
-#include "prims/pred_op.cuh"
 #include "prims/property_op_utils.cuh"
 #include "prims/reduce_op.cuh"
 #include "prims/vertex_frontier.cuh"
@@ -139,7 +138,7 @@ __device__ void update_result_value_output(
 {
   if constexpr (update_major) {
     result_t val{};
-    if constexpr (std::is_same_v<PredOp, pred_op::const_true<edge_t>>) {
+    if constexpr (std::is_same_v<PredOp, call_const_true_e_op_t<edge_t>>) {
       if constexpr (std::is_same_v<ReduceOp,
                                    reduce_op::any<result_t>>) {  // init is selected only when no
                                                                  // edges return a valid value
@@ -204,6 +203,7 @@ template <bool update_major,
           ,
           typename EdgeOp,
           typename ReduceOp,
+          typename PredOp,
           typename T>
 __global__ static void per_v_transform_reduce_e_hypersparse(
   edge_partition_device_view_t<typename GraphViewType::vertex_type,
@@ -218,10 +218,10 @@ __global__ static void per_v_transform_reduce_e_hypersparse(
   ResultValueOutputIteratorOrWrapper result_value_output,
   EdgeOp e_op,
   T init /* relevant only if update_major == true */,
-  ReduceOp reduce_op)
+  ReduceOp reduce_op,
+  PredOp pred_op)
 {
   constexpr bool use_input_key = !std::is_same_v<OptionalKeyIterator, void*>;
-
   static_assert(update_major || reduce_op::has_compatible_raft_comms_op_v<
                                   ReduceOp>);  // atomic_reduce is defined only when
                                                // has_compatible_raft_comms_op_t<ReduceOp> is true
@@ -231,6 +231,23 @@ __global__ static void per_v_transform_reduce_e_hypersparse(
   using edge_t   = typename GraphViewType::edge_type;
   using key_t =
     typename iterator_value_type_or_default_t<OptionalKeyIterator, vertex_t>::value_type;
+
+  constexpr bool const_true_pred_op =
+    std::is_same_v<PredOp,
+                   const_true_e_op_t<key_t,
+                                     vertex_t,
+                                     typename EdgePartitionSrcValueInputWrapper::value_type,
+                                     typename EdgePartitionDstValueInputWrapper::value_type,
+                                     typename EdgePartitionEdgeValueInputWrapper::value_type,
+                                     GraphViewType::is_storage_transposed>>;
+  using call_pred_op_t = std::conditional_t<const_true_pred_op,
+                                            call_const_true_e_op_t<edge_t>,
+                                            call_e_op_t<GraphViewType,
+                                                        key_t,
+                                                        EdgePartitionSrcValueInputWrapper,
+                                                        EdgePartitionDstValueInputWrapper,
+                                                        EdgePartitionEdgeValueInputWrapper,
+                                                        PredOp>>;
 
   auto const tid = threadIdx.x + blockIdx.x * blockDim.x;
   auto idx       = static_cast<size_t>(tid);
@@ -282,6 +299,19 @@ __global__ static void per_v_transform_reduce_e_hypersparse(
                                            indices,
                                            edge_offset};
 
+      call_pred_op_t call_pred_op{};
+      if constexpr (!const_true_pred_op) {
+        call_pred_op = call_pred_op_t{edge_partition,
+                                      edge_partition_src_value_input,
+                                      edge_partition_dst_value_input,
+                                      edge_partition_e_value_input,
+                                      pred_op,
+                                      key,
+                                      major_offset,
+                                      indices,
+                                      edge_offset};
+      }
+
       if (edge_partition_e_mask) {
         update_result_value_output<update_major>(
           edge_partition,
@@ -290,8 +320,12 @@ __global__ static void per_v_transform_reduce_e_hypersparse(
           call_e_op,
           init,
           reduce_op,
-          [&edge_partition_e_mask, edge_offset] __device__(edge_t i) {
-            return (*edge_partition_e_mask).get(edge_offset + i);
+          [&edge_partition_e_mask, &call_pred_op, edge_offset] __device__(edge_t i) {
+            if ((*edge_partition_e_mask).get(edge_offset + i)) {
+              return call_pred_op(edge_offset + i);
+            } else {
+              return false;
+            }
           },
           output_idx,
           result_value_output);
@@ -302,7 +336,7 @@ __global__ static void per_v_transform_reduce_e_hypersparse(
                                                  call_e_op,
                                                  init,
                                                  reduce_op,
-                                                 pred_op::const_true<edge_t>{},
+                                                 call_pred_op,
                                                  output_idx,
                                                  result_value_output);
       }
@@ -326,6 +360,7 @@ template <bool update_major,
           ,
           typename EdgeOp,
           typename ReduceOp,
+          typename PredOp,
           typename T>
 __global__ static void per_v_transform_reduce_e_low_degree(
   edge_partition_device_view_t<typename GraphViewType::vertex_type,
@@ -340,7 +375,8 @@ __global__ static void per_v_transform_reduce_e_low_degree(
   ResultValueOutputIteratorOrWrapper result_value_output,
   EdgeOp e_op,
   T init /* relevant only if update_major == true */,
-  ReduceOp reduce_op)
+  ReduceOp reduce_op,
+  PredOp pred_op)
 {
   static_assert(update_major || reduce_op::has_compatible_raft_comms_op_v<
                                   ReduceOp>);  // atomic_reduce is defined only when
@@ -350,8 +386,24 @@ __global__ static void per_v_transform_reduce_e_low_degree(
   using edge_t   = typename GraphViewType::edge_type;
   using key_t    = typename thrust::iterator_traits<KeyIterator>::value_type;
 
-  auto const tid = threadIdx.x + blockIdx.x * blockDim.x;
-  auto idx       = static_cast<size_t>(tid);
+  constexpr bool const_true_pred_op =
+    std::is_same_v<PredOp,
+                   const_true_e_op_t<key_t,
+                                     vertex_t,
+                                     typename EdgePartitionSrcValueInputWrapper::value_type,
+                                     typename EdgePartitionDstValueInputWrapper::value_type,
+                                     typename EdgePartitionEdgeValueInputWrapper::value_type,
+                                     GraphViewType::is_storage_transposed>>;
+  using call_pred_op_t = std::conditional_t<const_true_pred_op,
+                                            call_const_true_e_op_t<edge_t>,
+                                            call_e_op_t<GraphViewType,
+                                                        key_t,
+                                                        EdgePartitionSrcValueInputWrapper,
+                                                        EdgePartitionDstValueInputWrapper,
+                                                        EdgePartitionEdgeValueInputWrapper,
+                                                        PredOp>>;
+  auto const tid       = threadIdx.x + blockIdx.x * blockDim.x;
+  auto idx             = static_cast<size_t>(tid);
 
   while (idx < static_cast<size_t>(thrust::distance(key_first, key_last))) {
     auto key   = *(key_first + idx);
@@ -379,6 +431,19 @@ __global__ static void per_v_transform_reduce_e_low_degree(
                                          indices,
                                          edge_offset};
 
+    call_pred_op_t call_pred_op{};
+    if constexpr (!const_true_pred_op) {
+      call_pred_op = call_pred_op_t{edge_partition,
+                                    edge_partition_src_value_input,
+                                    edge_partition_dst_value_input,
+                                    edge_partition_e_value_input,
+                                    pred_op,
+                                    key,
+                                    major_offset,
+                                    indices,
+                                    edge_offset};
+    }
+
     if (edge_partition_e_mask) {
       update_result_value_output<update_major>(
         edge_partition,
@@ -387,8 +452,12 @@ __global__ static void per_v_transform_reduce_e_low_degree(
         call_e_op,
         init,
         reduce_op,
-        [&edge_partition_e_mask, edge_offset] __device__(edge_t i) {
-          return (*edge_partition_e_mask).get(edge_offset + i);
+        [&edge_partition_e_mask, &call_pred_op, edge_offset] __device__(edge_t i) {
+          if ((*edge_partition_e_mask).get(edge_offset + i)) {
+            return call_pred_op(edge_offset + i);
+          } else {
+            return false;
+          }
         },
         idx,
         result_value_output);
@@ -399,7 +468,7 @@ __global__ static void per_v_transform_reduce_e_low_degree(
                                                call_e_op,
                                                init,
                                                reduce_op,
-                                               pred_op::const_true<edge_t>{},
+                                               call_pred_op,
                                                idx,
                                                result_value_output);
     }
@@ -420,6 +489,7 @@ template <bool update_major,
           ,
           typename EdgeOp,
           typename ReduceOp,
+          typename PredOp,
           typename T>
 __global__ static void per_v_transform_reduce_e_mid_degree(
   edge_partition_device_view_t<typename GraphViewType::vertex_type,
@@ -437,7 +507,8 @@ __global__ static void per_v_transform_reduce_e_mid_degree(
   T identity_element /* relevant only if update_major == true && !std::is_same_v<ReduceOp,
                         reduce_op::any<T>> */
   ,
-  ReduceOp reduce_op)
+  ReduceOp reduce_op,
+  PredOp pred_op)
 {
   static_assert(update_major || reduce_op::has_compatible_raft_comms_op_v<
                                   ReduceOp>);  // atomic_reduce is defined only when
@@ -447,6 +518,23 @@ __global__ static void per_v_transform_reduce_e_mid_degree(
   using edge_t        = typename GraphViewType::edge_type;
   using e_op_result_t = T;
   using key_t         = typename thrust::iterator_traits<KeyIterator>::value_type;
+
+  constexpr bool const_true_pred_op =
+    std::is_same_v<PredOp,
+                   const_true_e_op_t<key_t,
+                                     vertex_t,
+                                     typename EdgePartitionSrcValueInputWrapper::value_type,
+                                     typename EdgePartitionDstValueInputWrapper::value_type,
+                                     typename EdgePartitionEdgeValueInputWrapper::value_type,
+                                     GraphViewType::is_storage_transposed>>;
+  using call_pred_op_t = std::conditional_t<const_true_pred_op,
+                                            call_const_true_e_op_t<edge_t>,
+                                            call_e_op_t<GraphViewType,
+                                                        key_t,
+                                                        EdgePartitionSrcValueInputWrapper,
+                                                        EdgePartitionDstValueInputWrapper,
+                                                        EdgePartitionEdgeValueInputWrapper,
+                                                        PredOp>>;
 
   auto const tid = threadIdx.x + blockIdx.x * blockDim.x;
   static_assert(per_v_transform_reduce_e_kernel_block_size % raft::warp_size() == 0);
@@ -485,6 +573,19 @@ __global__ static void per_v_transform_reduce_e_mid_degree(
                                          indices,
                                          edge_offset};
 
+    call_pred_op_t call_pred_op{};
+    if constexpr (!const_true_pred_op) {
+      call_pred_op = call_pred_op_t{edge_partition,
+                                    edge_partition_src_value_input,
+                                    edge_partition_dst_value_input,
+                                    edge_partition_e_value_input,
+                                    pred_op,
+                                    key,
+                                    major_offset,
+                                    indices,
+                                    edge_offset};
+    }
+
     [[maybe_unused]] std::conditional_t<update_major, T, std::byte /* dummy */>
       reduced_e_op_result{};
     [[maybe_unused]] std::conditional_t<update_major && std::is_same_v<ReduceOp, reduce_op::any<T>>,
@@ -503,8 +604,8 @@ __global__ static void per_v_transform_reduce_e_mid_degree(
           raft::warp_size();
         for (size_t i = lane_id; i < rounded_up_local_degree; i += raft::warp_size()) {
           thrust::optional<T> e_op_result{thrust::nullopt};
-          if (i < static_cast<size_t>(local_degree) &&
-              (*edge_partition_e_mask).get(edge_offset + i)) {
+          if ((i < static_cast<size_t>(local_degree)) &&
+              (*edge_partition_e_mask).get(edge_offset + i) && call_pred_op(edge_offset + i)) {
             e_op_result = call_e_op(i);
           }
           first_valid_lane_id = WarpReduce(temp_storage[threadIdx.x / raft::warp_size()])
@@ -515,7 +616,7 @@ __global__ static void per_v_transform_reduce_e_mid_degree(
         }
       } else {
         for (edge_t i = lane_id; i < local_degree; i += raft::warp_size()) {
-          if ((*edge_partition_e_mask).get(edge_offset + i)) {
+          if ((*edge_partition_e_mask).get(edge_offset + i) & call_pred_op(edge_offset + i)) {
             auto e_op_result = call_e_op(i);
             if constexpr (update_major) {
               reduced_e_op_result = reduce_op(reduced_e_op_result, e_op_result);
@@ -537,7 +638,9 @@ __global__ static void per_v_transform_reduce_e_mid_degree(
           raft::warp_size();
         for (size_t i = lane_id; i < rounded_up_local_degree; i += raft::warp_size()) {
           thrust::optional<T> e_op_result{thrust::nullopt};
-          if (i < static_cast<size_t>(local_degree)) { e_op_result = call_e_op(i); }
+          if (i < static_cast<size_t>(local_degree) && call_pred_op(i)) {
+            e_op_result = call_e_op(i);
+          }
           first_valid_lane_id = WarpReduce(temp_storage[threadIdx.x / raft::warp_size()])
                                   .Reduce(e_op_result ? lane_id : raft::warp_size(), cub::Min());
           first_valid_lane_id = __shfl_sync(raft::warp_full_mask(), first_valid_lane_id, int{0});
@@ -546,15 +649,17 @@ __global__ static void per_v_transform_reduce_e_mid_degree(
         }
       } else {
         for (edge_t i = lane_id; i < local_degree; i += raft::warp_size()) {
-          auto e_op_result = call_e_op(i);
-          if constexpr (update_major) {
-            reduced_e_op_result = reduce_op(reduced_e_op_result, e_op_result);
-          } else {
-            auto minor_offset = edge_partition.minor_offset_from_minor_nocheck(indices[i]);
-            if constexpr (GraphViewType::is_multi_gpu) {
-              reduce_op::atomic_reduce<ReduceOp>(result_value_output, minor_offset, e_op_result);
+          if (call_pred_op(i)) {
+            auto e_op_result = call_e_op(i);
+            if constexpr (update_major) {
+              reduced_e_op_result = reduce_op(reduced_e_op_result, e_op_result);
             } else {
-              reduce_op::atomic_reduce<ReduceOp>(result_value_output + minor_offset, e_op_result);
+              auto minor_offset = edge_partition.minor_offset_from_minor_nocheck(indices[i]);
+              if constexpr (GraphViewType::is_multi_gpu) {
+                reduce_op::atomic_reduce<ReduceOp>(result_value_output, minor_offset, e_op_result);
+              } else {
+                reduce_op::atomic_reduce<ReduceOp>(result_value_output + minor_offset, e_op_result);
+              }
             }
           }
         }
@@ -590,6 +695,7 @@ template <bool update_major,
           ,
           typename EdgeOp,
           typename ReduceOp,
+          typename PredOp,
           typename T>
 __global__ static void per_v_transform_reduce_e_high_degree(
   edge_partition_device_view_t<typename GraphViewType::vertex_type,
@@ -607,7 +713,8 @@ __global__ static void per_v_transform_reduce_e_high_degree(
   T identity_element /* relevant only if update_major == true && !std::is_same_v<ReduceOp,
                         reduce_op::any<T>> */
   ,
-  ReduceOp reduce_op)
+  ReduceOp reduce_op,
+  PredOp pred_op)
 {
   static_assert(update_major || reduce_op::has_compatible_raft_comms_op_v<
                                   ReduceOp>);  // atomic_reduce is defined only when
@@ -617,6 +724,23 @@ __global__ static void per_v_transform_reduce_e_high_degree(
   using edge_t        = typename GraphViewType::edge_type;
   using e_op_result_t = T;
   using key_t         = typename thrust::iterator_traits<KeyIterator>::value_type;
+
+  constexpr bool const_true_pred_op =
+    std::is_same_v<PredOp,
+                   const_true_e_op_t<key_t,
+                                     vertex_t,
+                                     typename EdgePartitionSrcValueInputWrapper::value_type,
+                                     typename EdgePartitionDstValueInputWrapper::value_type,
+                                     typename EdgePartitionEdgeValueInputWrapper::value_type,
+                                     GraphViewType::is_storage_transposed>>;
+  using call_pred_op_t = std::conditional_t<const_true_pred_op,
+                                            call_const_true_e_op_t<edge_t>,
+                                            call_e_op_t<GraphViewType,
+                                                        key_t,
+                                                        EdgePartitionSrcValueInputWrapper,
+                                                        EdgePartitionDstValueInputWrapper,
+                                                        EdgePartitionEdgeValueInputWrapper,
+                                                        PredOp>>;
 
   auto idx = static_cast<size_t>(blockIdx.x);
 
@@ -657,6 +781,19 @@ __global__ static void per_v_transform_reduce_e_high_degree(
                                          indices,
                                          edge_offset};
 
+    call_pred_op_t call_pred_op{};
+    if constexpr (!const_true_pred_op) {
+      call_pred_op = call_pred_op_t{edge_partition,
+                                    edge_partition_src_value_input,
+                                    edge_partition_dst_value_input,
+                                    edge_partition_e_value_input,
+                                    pred_op,
+                                    key,
+                                    major_offset,
+                                    indices,
+                                    edge_offset};
+    }
+
     [[maybe_unused]] std::conditional_t<update_major, T, std::byte /* dummy */>
       reduced_e_op_result{};
     [[maybe_unused]] std::conditional_t<update_major && std::is_same_v<ReduceOp, reduce_op::any<T>>,
@@ -678,8 +815,8 @@ __global__ static void per_v_transform_reduce_e_high_degree(
           per_v_transform_reduce_e_kernel_block_size;
         for (size_t i = threadIdx.x; i < rounded_up_local_degree; i += blockDim.x) {
           thrust::optional<T> e_op_result{thrust::nullopt};
-          if (i < static_cast<size_t>(local_degree) &&
-              ((*edge_partition_e_mask).get_(edge_offset + i))) {
+          if ((i < static_cast<size_t>(local_degree)) &&
+              (*edge_partition_e_mask).get_(edge_offset + i) && call_pred_op(edge_offset + i)) {
             e_op_result = call_e_op(i);
           }
           first_valid_thread_id =
@@ -694,7 +831,7 @@ __global__ static void per_v_transform_reduce_e_high_degree(
         }
       } else {
         for (edge_t i = threadIdx.x; i < local_degree; i += blockDim.x) {
-          if ((*edge_partition_e_mask).get(edge_offset + i)) {
+          if ((*edge_partition_e_mask).get(edge_offset + i) && call_pred_op(edge_offset + i)) {
             auto e_op_result = call_e_op(i);
             if constexpr (update_major) {
               reduced_e_op_result = reduce_op(reduced_e_op_result, e_op_result);
@@ -717,7 +854,9 @@ __global__ static void per_v_transform_reduce_e_high_degree(
           per_v_transform_reduce_e_kernel_block_size;
         for (size_t i = threadIdx.x; i < rounded_up_local_degree; i += blockDim.x) {
           thrust::optional<T> e_op_result{thrust::nullopt};
-          if (i < static_cast<size_t>(local_degree)) { e_op_result = call_e_op(i); }
+          if ((i < static_cast<size_t>(local_degree)) && call_pred_op(i)) {
+            e_op_result = call_e_op(i);
+          }
           first_valid_thread_id =
             BlockReduce(temp_storage)
               .Reduce(e_op_result ? threadIdx.x : per_v_transform_reduce_e_kernel_block_size,
@@ -729,15 +868,17 @@ __global__ static void per_v_transform_reduce_e_high_degree(
         }
       } else {
         for (edge_t i = threadIdx.x; i < local_degree; i += blockDim.x) {
-          auto e_op_result = call_e_op(i);
-          if constexpr (update_major) {
-            reduced_e_op_result = reduce_op(reduced_e_op_result, e_op_result);
-          } else {
-            auto minor_offset = edge_partition.minor_offset_from_minor_nocheck(indices[i]);
-            if constexpr (GraphViewType::is_multi_gpu) {
-              reduce_op::atomic_reduce<ReduceOp>(result_value_output, minor_offset, e_op_result);
+          if (call_pred_op(i)) {
+            auto e_op_result = call_e_op(i);
+            if constexpr (update_major) {
+              reduced_e_op_result = reduce_op(reduced_e_op_result, e_op_result);
             } else {
-              reduce_op::atomic_reduce<ReduceOp>(result_value_output + minor_offset, e_op_result);
+              auto minor_offset = edge_partition.minor_offset_from_minor_nocheck(indices[i]);
+              if constexpr (GraphViewType::is_multi_gpu) {
+                reduce_op::atomic_reduce<ReduceOp>(result_value_output, minor_offset, e_op_result);
+              } else {
+                reduce_op::atomic_reduce<ReduceOp>(result_value_output + minor_offset, e_op_result);
+              }
             }
           }
         }
@@ -967,6 +1108,7 @@ template <bool incoming,  // iterate over incoming edges (incoming == true) or o
           typename EdgeValueInputWrapper,
           typename EdgeOp,
           typename ReduceOp,
+          typename PredOp,
           typename T,
           typename VertexValueOutputIterator>
 void per_v_transform_reduce_e(raft::handle_t const& handle,
@@ -979,6 +1121,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
                               EdgeOp e_op,
                               T init,
                               ReduceOp reduce_op,
+                              PredOp pred_op,
                               VertexValueOutputIterator vertex_value_output_first)
 {
   constexpr bool update_major  = (incoming == GraphViewType::is_storage_transposed);
@@ -1495,7 +1638,8 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
               segment_output_buffer,
               e_op,
               major_init,
-              reduce_op);
+              reduce_op,
+              pred_op);
         }
       }
       if (h_offsets[3] - h_offsets[2]) {
@@ -1528,7 +1672,8 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
             segment_output_buffer,
             e_op,
             major_init,
-            reduce_op);
+            reduce_op,
+            pred_op);
       }
       if (h_offsets[2] - h_offsets[1] > 0) {
         auto exec_stream = stream_pool_indices
@@ -1560,7 +1705,8 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
             e_op,
             major_init,
             ReduceOp::identity_element,
-            reduce_op);
+            reduce_op,
+            pred_op);
       }
       if (h_offsets[1] > 0) {
         auto exec_stream = stream_pool_indices
@@ -1589,7 +1735,8 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
             e_op,
             major_init,
             ReduceOp::identity_element,
-            reduce_op);
+            reduce_op,
+            pred_op);
       }
     } else {
       size_t num_keys{};
@@ -1622,7 +1769,8 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
             output_buffer,
             e_op,
             major_init,
-            reduce_op);
+            reduce_op,
+            pred_op);
       }
     }
 
@@ -2002,17 +2150,24 @@ void per_v_transform_reduce_incoming_e(raft::handle_t const& handle,
 
   constexpr bool incoming = true;
 
-  detail::per_v_transform_reduce_e<incoming>(handle,
-                                             graph_view,
-                                             static_cast<void*>(nullptr),
-                                             static_cast<void*>(nullptr),
-                                             edge_src_value_input,
-                                             edge_dst_value_input,
-                                             edge_value_input,
-                                             e_op,
-                                             init,
-                                             reduce_op,
-                                             vertex_value_output_first);
+  detail::per_v_transform_reduce_e<incoming>(
+    handle,
+    graph_view,
+    static_cast<void*>(nullptr),
+    static_cast<void*>(nullptr),
+    edge_src_value_input,
+    edge_dst_value_input,
+    edge_value_input,
+    e_op,
+    init,
+    reduce_op,
+    detail::const_true_e_op_t<typename GraphViewType::vertex_type,
+                              typename GraphViewType::vertex_type,
+                              typename EdgeSrcValueInputWrapper::value_type,
+                              typename EdgeDstValueInputWrapper::value_type,
+                              typename EdgeValueInputWrapper::value_type,
+                              GraphViewType::is_storage_transposed>{},
+    vertex_value_output_first);
 }
 
 /**
@@ -2095,17 +2250,24 @@ void per_v_transform_reduce_incoming_e(raft::handle_t const& handle,
 
   constexpr bool incoming = true;
 
-  detail::per_v_transform_reduce_e<incoming>(handle,
-                                             graph_view,
-                                             key_list.begin(),
-                                             key_list.end(),
-                                             edge_src_value_input,
-                                             edge_dst_value_input,
-                                             edge_value_input,
-                                             e_op,
-                                             init,
-                                             reduce_op,
-                                             vertex_value_output_first);
+  detail::per_v_transform_reduce_e<incoming>(
+    handle,
+    graph_view,
+    key_list.begin(),
+    key_list.end(),
+    edge_src_value_input,
+    edge_dst_value_input,
+    edge_value_input,
+    e_op,
+    init,
+    reduce_op,
+    detail::const_true_e_op_t<typename KeyBucketType::key_type,
+                              typename GraphViewType::vertex_type,
+                              typename EdgeSrcValueInputWrapper::value_type,
+                              typename EdgeDstValueInputWrapper::value_type,
+                              typename EdgeValueInputWrapper::value_type,
+                              GraphViewType::is_storage_transposed>{},
+    vertex_value_output_first);
 }
 
 /**
@@ -2180,17 +2342,24 @@ void per_v_transform_reduce_outgoing_e(raft::handle_t const& handle,
 
   constexpr bool incoming = false;
 
-  detail::per_v_transform_reduce_e<incoming>(handle,
-                                             graph_view,
-                                             static_cast<void*>(nullptr),
-                                             static_cast<void*>(nullptr),
-                                             edge_src_value_input,
-                                             edge_dst_value_input,
-                                             edge_value_input,
-                                             e_op,
-                                             init,
-                                             reduce_op,
-                                             vertex_value_output_first);
+  detail::per_v_transform_reduce_e<incoming>(
+    handle,
+    graph_view,
+    static_cast<void*>(nullptr),
+    static_cast<void*>(nullptr),
+    edge_src_value_input,
+    edge_dst_value_input,
+    edge_value_input,
+    e_op,
+    init,
+    reduce_op,
+    detail::const_true_e_op_t<typename GraphViewType::vertex_type,
+                              typename GraphViewType::vertex_type,
+                              typename EdgeSrcValueInputWrapper::value_type,
+                              typename EdgeDstValueInputWrapper::value_type,
+                              typename EdgeValueInputWrapper::value_type,
+                              GraphViewType::is_storage_transposed>{},
+    vertex_value_output_first);
 }
 
 /**
@@ -2274,17 +2443,24 @@ void per_v_transform_reduce_outgoing_e(raft::handle_t const& handle,
 
   constexpr bool incoming = false;
 
-  detail::per_v_transform_reduce_e<incoming>(handle,
-                                             graph_view,
-                                             key_list.begin(),
-                                             key_list.end(),
-                                             edge_src_value_input,
-                                             edge_dst_value_input,
-                                             edge_value_input,
-                                             e_op,
-                                             init,
-                                             reduce_op,
-                                             vertex_value_output_first);
+  detail::per_v_transform_reduce_e<incoming>(
+    handle,
+    graph_view,
+    key_list.begin(),
+    key_list.end(),
+    edge_src_value_input,
+    edge_dst_value_input,
+    edge_value_input,
+    e_op,
+    init,
+    reduce_op,
+    detail::const_true_e_op_t<typename KeyBucketType::key_type,
+                              typename GraphViewType::vertex_type,
+                              typename EdgeSrcValueInputWrapper::value_type,
+                              typename EdgeDstValueInputWrapper::value_type,
+                              typename EdgeValueInputWrapper::value_type,
+                              GraphViewType::is_storage_transposed>{},
+    vertex_value_output_first);
 }
 
 }  // namespace cugraph
