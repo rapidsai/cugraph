@@ -18,8 +18,7 @@ import pytest
 import cugraph
 import cugraph.dask as dcg
 from cudf.testing.testing import assert_frame_equal
-from cugraph.dask.common.mg_utils import is_single_gpu
-from cugraph.datasets import karate, dolphins, email_Eu_core
+from cugraph.datasets import karate, dolphins, netscience
 
 
 # =============================================================================
@@ -36,7 +35,7 @@ def setup_function():
 # =============================================================================
 
 
-DATASETS = [karate, dolphins, email_Eu_core]
+DATASETS = [karate, dolphins, netscience]
 IS_DIRECTED = [True, False]
 K_VALUE = [4, 6, 8]
 
@@ -73,31 +72,34 @@ def get_mg_graph(dataset, directed):
 
 
 @pytest.mark.mg
-@pytest.mark.skipif(is_single_gpu(), reason="skipping MG testing on Single GPU system")
 @pytest.mark.parametrize("dataset", DATASETS)
 @pytest.mark.parametrize("is_directed", IS_DIRECTED)
 @pytest.mark.parametrize("k", K_VALUE)
-def test_mg_k_truss_subgraph(dask_client, benchmark, dataset, is_directed, k):
+def test_mg_ktruss_subgraph(dask_client, benchmark, dataset, is_directed, k):
     # Create SG and MG Graphs
     g = get_sg_graph(dataset, is_directed)
     dg = get_mg_graph(dataset, is_directed)
 
-    sg_k_truss_subgraph = cugraph.k_truss_subgraph(g, k=k)
-    result_k_truss_subgraph = benchmark(dcg.k_truss_subgraph, dg, k)
-
-    mg_df = result_k_truss_subgraph
-
-    if len(mg_df) != 0 and len(sg_k_truss_subgraph.input_df) != 0:
-        # FIXME: 'edges()' or 'view_edgelist()' takes half the edges out if
-        # 'directed=False'.
-        sg_result = sg_k_truss_subgraph.input_df
-
-        sg_df = sg_result.sort_values(["src", "dst"]).reset_index(drop=True)
-        mg_df = mg_df.compute().sort_values(["src", "dst"]).reset_index(drop=True)
-
-        assert_frame_equal(sg_df, mg_df, check_dtype=False, check_like=True)
-
+    if is_directed:
+        with pytest.raises(ValueError):
+            result_ktruss_subgraph = benchmark(dcg.ktruss_subgraph, dg, k)
     else:
-        # There is no edge left when extracting the K-Truss
-        assert len(sg_k_truss_subgraph.input_df) == 0
-        assert len(mg_df) == 0
+        sg_ktruss_subgraph = cugraph.ktruss_subgraph(g, k=k)
+        result_ktruss_subgraph = benchmark(dcg.ktruss_subgraph, dg, k)
+
+        mg_df = result_ktruss_subgraph
+
+        if len(mg_df) != 0 and len(sg_ktruss_subgraph.input_df) != 0:
+            # FIXME: 'edges()' or 'view_edgelist()' takes half the edges out if
+            # 'directed=False'.
+            sg_result = sg_ktruss_subgraph.input_df
+
+            sg_df = sg_result.sort_values(["src", "dst"]).reset_index(drop=True)
+            mg_df = mg_df.compute().sort_values(["src", "dst"]).reset_index(drop=True)
+
+            assert_frame_equal(sg_df, mg_df, check_dtype=False, check_like=True)
+
+        else:
+            # There is no edge left when extracting the K-Truss
+            assert len(sg_ktruss_subgraph.input_df) == 0
+            assert len(mg_df) == 0
