@@ -1573,7 +1573,7 @@ uniform_sample_and_compute_local_nbr_indices(
   size_t K,
   bool with_replacement)
 {
-  using edge_t   = typename GraphViewType::edge_type;
+  using edge_t = typename GraphViewType::edge_type;
 #ifndef NO_CUGRAPH_OPS
   assert(cugraph::invalid_edge_id_v<edge_t> == cugraph::ops::graph::INVALID_ID<edge_t>);
 
