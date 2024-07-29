@@ -66,7 +66,6 @@ def runtest(rank: int, world_size: int):
 @pytest.mark.skipif(
     isinstance(pylibwholegraph, MissingModule), reason="wholegraph not available"
 )
-@pytest.mark.skip(reason="broken")
 def test_feature_storage_wholegraph_backend():
     world_size = torch.cuda.device_count()
     print("gpu count:", world_size)
@@ -82,7 +81,6 @@ def test_feature_storage_wholegraph_backend():
 @pytest.mark.skipif(
     isinstance(pylibwholegraph, MissingModule), reason="wholegraph not available"
 )
-@pytest.mark.skip(reason="broken")
 def test_feature_storage_wholegraph_backend_mg():
     world_size = torch.cuda.device_count()
     print("gpu count:", world_size)
