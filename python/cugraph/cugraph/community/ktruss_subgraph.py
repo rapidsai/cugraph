@@ -13,7 +13,6 @@
 
 from typing import Union
 
-import warnings
 import cudf
 from pylibcugraph import k_truss_subgraph as pylibcugraph_k_truss_subgraph
 from pylibcugraph import ResourceHandle
