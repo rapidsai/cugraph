@@ -277,8 +277,18 @@ INSTANTIATE_TEST_SUITE_P(
                       KHopNbrs_Usecase{1024, 2, true},
                       KHopNbrs_Usecase{1024, 1, false},
                       KHopNbrs_Usecase{1024, 1, true}),
-    ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"),
-                      cugraph::test::File_Usecase("test/datasets/web-Google.mtx"),
+    ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"))));
+
+INSTANTIATE_TEST_SUITE_P(
+  file_large_test,
+  Tests_MGKHopNbrs_File,
+  ::testing::Combine(
+    // enable correctness checks
+    ::testing::Values(KHopNbrs_Usecase{1024, 2, false},
+                      KHopNbrs_Usecase{1024, 2, true},
+                      KHopNbrs_Usecase{1024, 1, false},
+                      KHopNbrs_Usecase{1024, 1, true}),
+    ::testing::Values(cugraph::test::File_Usecase("test/datasets/web-Google.mtx"),
                       cugraph::test::File_Usecase("test/datasets/ljournal-2008.mtx"),
                       cugraph::test::File_Usecase("test/datasets/webbase-1M.mtx"))));
 
