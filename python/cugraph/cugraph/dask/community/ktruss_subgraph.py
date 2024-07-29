@@ -80,7 +80,7 @@ def ktruss_subgraph(input_graph, k: int) -> dask_cudf.DataFrame:
     -------
     k_truss_edge_lists : dask_cudf.DataFrame
         Distributed GPU data frame containing all source identifiers,
-        destination identifiers, and edge weights belonging to the truss
+        destination identifiers, and edge weights belonging to the truss.
     """
     if input_graph.is_directed():
         raise ValueError("input graph must be undirected")
