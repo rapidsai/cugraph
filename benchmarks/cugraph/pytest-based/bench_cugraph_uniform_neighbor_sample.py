@@ -119,7 +119,6 @@ def create_mg_graph(graph_data):
         # enable_rdmacm=False,
         protocol="ucx",
         rmm_pool_size="28GB",
-        # dask_worker_devices=visible_devices,
     )
     rmm.reinitialize(pool_allocator=True)
 
