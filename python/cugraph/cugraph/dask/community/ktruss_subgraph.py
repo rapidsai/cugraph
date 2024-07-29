@@ -43,7 +43,7 @@ def _call_k_truss_subgraph(
 
 
 def convert_to_cudf(cp_arrays: cp.ndarray) -> cudf.DataFrame:
-    cp_src, cp_dst, cp_weight = cp_arrays
+    cp_src, cp_dst, cp_weight, _ = cp_arrays
 
     df = cudf.DataFrame()
     if cp_src is not None:
@@ -55,7 +55,7 @@ def convert_to_cudf(cp_arrays: cp.ndarray) -> cudf.DataFrame:
     return df
 
 
-def k_truss_subgraph(input_graph, k: int) -> dask_cudf.DataFrame:
+def ktruss_subgraph(input_graph, k: int) -> dask_cudf.DataFrame:
     """
     Returns the K-Truss subgraph of a graph for a specific k.
 
