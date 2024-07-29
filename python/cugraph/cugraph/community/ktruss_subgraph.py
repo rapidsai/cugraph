@@ -134,12 +134,6 @@ def ktruss_subgraph(
     k : int
         The desired k to be used for extracting the k-truss subgraph.
 
-    use_weights : bool, optional (default=True)
-        Whether the output should contain the edge weights if G has them.
-
-        Deprecated: If 'weights' were passed at the graph creation, they will
-        be used.
-
     Returns
     -------
     G_truss : cuGraph.Graph
@@ -155,14 +149,6 @@ def ktruss_subgraph(
     KTrussSubgraph = Graph()
     if G.is_directed():
         raise ValueError("input graph must be undirected")
-
-    if use_weights:
-        warning_msg = (
-            "The use_weights flag is deprecated "
-            "and will be removed in the next release. if weights "
-            "were passed at the graph creation, they will be used."
-        )
-        warnings.warn(warning_msg, FutureWarning)
 
     sources, destinations, edge_weights, _ = pylibcugraph_k_truss_subgraph(
         resource_handle=ResourceHandle(),
