@@ -28,7 +28,7 @@ concurrency:
 jobs:
   cpp-build:
     secrets: inherit
-    uses: rapidsai/shared-workflows/.github/workflows/conda-cpp-build.yaml@cuda-12.5.1
+    uses: rapidsai/shared-workflows/.github/workflows/conda-cpp-build.yaml@branch-24.08
     with:
       build_type: ${{ inputs.build_type || 'branch' }}
       branch: ${{ inputs.branch }}
@@ -38,7 +38,7 @@ jobs:
   python-build:
     needs: [cpp-build]
     secrets: inherit
-    uses: rapidsai/shared-workflows/.github/workflows/conda-python-build.yaml@cuda-12.5.1
+    uses: rapidsai/shared-workflows/.github/workflows/conda-python-build.yaml@branch-24.08
     with:
       build_type: ${{ inputs.build_type || 'branch' }}
       branch: ${{ inputs.branch }}
@@ -47,7 +47,7 @@ jobs:
   upload-conda:
     needs: [cpp-build, python-build]
     secrets: inherit
-    uses: rapidsai/shared-workflows/.github/workflows/conda-upload-packages.yaml@cuda-12.5.1
+    uses: rapidsai/shared-workflows/.github/workflows/conda-upload-packages.yaml@branch-24.08
     with:
       build_type: ${{ inputs.build_type || 'branch' }}
       branch: ${{ inputs.branch }}
@@ -57,7 +57,7 @@ jobs:
     if: github.ref_type == 'branch'
     needs: python-build
     secrets: inherit
-    uses: rapidsai/shared-workflows/.github/workflows/custom-job.yaml@cuda-12.5.1
+    uses: rapidsai/shared-workflows/.github/workflows/custom-job.yaml@branch-24.08
     with:
       arch: "amd64"
       branch: ${{ inputs.branch }}
@@ -69,7 +69,7 @@ jobs:
       sha: ${{ inputs.sha }}
   wheel-build-pylibcugraph:
     secrets: inherit
-    uses: rapidsai/shared-workflows/.github/workflows/wheels-build.yaml@cuda-12.5.1
+    uses: rapidsai/shared-workflows/.github/workflows/wheels-build.yaml@branch-24.08
     with:
       build_type: ${{ inputs.build_type || 'branch' }}
       branch: ${{ inputs.branch }}
@@ -83,7 +83,7 @@ jobs:
   wheel-publish-pylibcugraph:
     needs: wheel-build-pylibcugraph
     secrets: inherit
-    uses: rapidsai/shared-workflows/.github/workflows/wheels-publish.yaml@cuda-12.5.1
+    uses: rapidsai/shared-workflows/.github/workflows/wheels-publish.yaml@branch-24.08
     with:
       build_type: ${{ inputs.build_type || 'branch' }}
       branch: ${{ inputs.branch }}
@@ -93,7 +93,7 @@ jobs:
   wheel-build-cugraph:
     needs: wheel-publish-pylibcugraph
     secrets: inherit
-    uses: rapidsai/shared-workflows/.github/workflows/wheels-build.yaml@cuda-12.5.1
+    uses: rapidsai/shared-workflows/.github/workflows/wheels-build.yaml@branch-24.08
     with:
       build_type: ${{ inputs.build_type || 'branch' }}
       branch: ${{ inputs.branch }}
@@ -106,7 +106,7 @@ jobs:
   wheel-publish-cugraph:
     needs: wheel-build-cugraph
     secrets: inherit
-    uses: rapidsai/shared-workflows/.github/workflows/wheels-publish.yaml@cuda-12.5.1
+    uses: rapidsai/shared-workflows/.github/workflows/wheels-publish.yaml@branch-24.08
     with:
       build_type: ${{ inputs.build_type || 'branch' }}
       branch: ${{ inputs.branch }}
@@ -116,7 +116,7 @@ jobs:
   wheel-build-nx-cugraph:
     needs: wheel-publish-pylibcugraph
     secrets: inherit
-    uses: rapidsai/shared-workflows/.github/workflows/wheels-build.yaml@cuda-12.5.1
+    uses: rapidsai/shared-workflows/.github/workflows/wheels-build.yaml@branch-24.08
     with:
       build_type: ${{ inputs.build_type || 'branch' }}
       branch: ${{ inputs.branch }}
@@ -126,7 +126,7 @@ jobs:
   wheel-publish-nx-cugraph:
     needs: wheel-build-nx-cugraph
     secrets: inherit
-    uses: rapidsai/shared-workflows/.github/workflows/wheels-publish.yaml@cuda-12.5.1
+    uses: rapidsai/shared-workflows/.github/workflows/wheels-publish.yaml@branch-24.08
     with:
       build_type: ${{ inputs.build_type || 'branch' }}
       branch: ${{ inputs.branch }}
@@ -136,7 +136,7 @@ jobs:
   wheel-build-cugraph-dgl:
     needs: wheel-publish-cugraph
     secrets: inherit
-    uses: rapidsai/shared-workflows/.github/workflows/wheels-build.yaml@cuda-12.5.1
+    uses: rapidsai/shared-workflows/.github/workflows/wheels-build.yaml@branch-24.08
     with:
       build_type: ${{ inputs.build_type || 'branch' }}
       branch: ${{ inputs.branch }}
@@ -146,7 +146,7 @@ jobs:
   wheel-publish-cugraph-dgl:
     needs: wheel-build-cugraph-dgl
     secrets: inherit
-    uses: rapidsai/shared-workflows/.github/workflows/wheels-publish.yaml@cuda-12.5.1
+    uses: rapidsai/shared-workflows/.github/workflows/wheels-publish.yaml@branch-24.08
     with:
       build_type: ${{ inputs.build_type || 'branch' }}
       branch: ${{ inputs.branch }}
@@ -156,7 +156,7 @@ jobs:
   wheel-build-cugraph-pyg:
     needs: wheel-publish-cugraph
     secrets: inherit
-    uses: rapidsai/shared-workflows/.github/workflows/wheels-build.yaml@cuda-12.5.1
+    uses: rapidsai/shared-workflows/.github/workflows/wheels-build.yaml@branch-24.08
     with:
       build_type: ${{ inputs.build_type || 'branch' }}
       branch: ${{ inputs.branch }}
@@ -166,7 +166,7 @@ jobs:
   wheel-publish-cugraph-pyg:
     needs: wheel-build-cugraph-pyg
     secrets: inherit
-    uses: rapidsai/shared-workflows/.github/workflows/wheels-publish.yaml@cuda-12.5.1
+    uses: rapidsai/shared-workflows/.github/workflows/wheels-publish.yaml@branch-24.08
     with:
       build_type: ${{ inputs.build_type || 'branch' }}
       branch: ${{ inputs.branch }}
@@ -175,7 +175,7 @@ jobs:
       package-name: cugraph-pyg
   wheel-build-cugraph-equivariant:
     secrets: inherit
-    uses: rapidsai/shared-workflows/.github/workflows/wheels-build.yaml@cuda-12.5.1
+    uses: rapidsai/shared-workflows/.github/workflows/wheels-build.yaml@branch-24.08
     with:
       build_type: ${{ inputs.build_type || 'branch' }}
       branch: ${{ inputs.branch }}
@@ -185,7 +185,7 @@ jobs:
   wheel-publish-cugraph-equivariant:
     needs: wheel-build-cugraph-equivariant
     secrets: inherit
-    uses: rapidsai/shared-workflows/.github/workflows/wheels-publish.yaml@cuda-12.5.1
+    uses: rapidsai/shared-workflows/.github/workflows/wheels-publish.yaml@branch-24.08
     with:
       build_type: ${{ inputs.build_type || 'branch' }}
       branch: ${{ inputs.branch }}
