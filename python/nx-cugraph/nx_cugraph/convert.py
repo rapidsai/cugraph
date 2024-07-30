@@ -411,13 +411,21 @@ def from_networkx(
                 # Node values may be numpy or cupy arrays (useful for str, object, etc).
                 # Someday we'll let the user choose np or cp, and support edge values.
                 node_mask = np.fromiter(iter_mask, bool)
-                node_value = np.array(vals, dtype)
                 try:
-                    node_value = cp.array(node_value)
+                    node_value = np.array(vals, dtype)
                 except ValueError:
-                    pass
+                    # Handle e.g. list elements
+                    if dtype is None or dtype == object:
+                        node_value = np.fromiter(vals, object)
+                    else:
+                        raise
                 else:
-                    node_mask = cp.array(node_mask)
+                    try:
+                        node_value = cp.array(node_value)
+                    except ValueError:
+                        pass
+                    else:
+                        node_mask = cp.array(node_mask)
                 node_values[node_attr] = node_value
                 node_masks[node_attr] = node_mask
                 # if vals.ndim > 1: ...
@@ -431,7 +439,12 @@ def from_networkx(
                 # Node values may be numpy or cupy arrays (useful for str, object, etc).
                 # Someday we'll let the user choose np or cp, and support edge values.
                 if dtype is None:
-                    node_value = np.array(list(iter_values))
+                    vals = list(iter_values)
+                    try:
+                        node_value = np.array(vals)
+                    except ValueError:
+                        # Handle e.g. list elements
+                        node_value = np.fromiter(vals, object)
                 else:
                     node_value = np.fromiter(iter_values, dtype)
                 try:
@@ -477,6 +490,23 @@ def from_networkx(
     return rv
 
 
+def _to_tuples(ndim, L):
+    if ndim > 2:
+        L = list(map(_to_tuples.__get__(ndim - 1), L))
+    return list(map(tuple, L))
+
+
+def _array_to_tuples(a):
+    """Like ``a.tolist()``, but nested structures are tuples instead of lists.
+
+    This is only different from ``a.tolist()`` if ``a.ndim > 1``. It is used to
+    try to return tuples instead of lists for e.g. node values.
+    """
+    if a.ndim > 1:
+        return _to_tuples(a.ndim, a.tolist())
+    return a.tolist()
+
+
 def _iter_attr_dicts(
     values: dict[AttrKey, any_ndarray[EdgeValue | NodeValue]],
     masks: dict[AttrKey, any_ndarray[bool]],
@@ -485,7 +515,7 @@ def _iter_attr_dicts(
     if full_attrs:
         full_dicts = (
             dict(zip(full_attrs, vals))
-            for vals in zip(*(values[attr].tolist() for attr in full_attrs))
+            for vals in zip(*(_array_to_tuples(values[attr]) for attr in full_attrs))
         )
     partial_attrs = list(values.keys() & masks.keys())
     if partial_attrs:
