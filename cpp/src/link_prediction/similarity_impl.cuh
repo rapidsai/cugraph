@@ -408,7 +408,7 @@ all_pairs_similarity(raft::handle_t const& handle,
           // shuffle vertex pairs
           auto vertex_partition_range_lasts = graph_view.vertex_partition_range_lasts();
 
-          std::tie(v1, v2, std::ignore, std::ignore, std::ignore) =
+          std::tie(v1, v2, std::ignore, std::ignore, std::ignore, std::ignore) =
             detail::shuffle_int_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning<vertex_t,
                                                                                            edge_t,
                                                                                            weight_t,
@@ -599,7 +599,7 @@ all_pairs_similarity(raft::handle_t const& handle,
       // shuffle vertex pairs
       auto vertex_partition_range_lasts = graph_view.vertex_partition_range_lasts();
 
-      std::tie(v1, v2, std::ignore, std::ignore, std::ignore) =
+      std::tie(v1, v2, std::ignore, std::ignore, std::ignore, std::ignore) =
         detail::shuffle_int_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning<vertex_t,
                                                                                        edge_t,
                                                                                        weight_t,

@@ -108,7 +108,7 @@ class Tests_MGSimilarity
     auto d_v1 = cugraph::test::to_device(*handle_, h_v1);
     auto d_v2 = std::move(two_hop_nbrs);
 
-    std::tie(d_v1, d_v2, std::ignore, std::ignore, std::ignore) =
+    std::tie(d_v1, d_v2, std::ignore, std::ignore, std::ignore, std::ignore) =
       cugraph::detail::shuffle_int_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning<
         vertex_t,
         edge_t,

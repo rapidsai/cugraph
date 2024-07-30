@@ -49,3 +49,4 @@ include = [
 build-backend = "setuptools.build_meta"
 dependencies-file = "../../../dependencies.yaml"
 disable-cuda = true
+matrix-entry = "cuda_suffixed=true"
