@@ -51,7 +51,7 @@ class WholeFeatureStore(
         location: str(optional, default='cpu')
             The location ('cpu' or 'cuda') where data is stored.
         """
-        self.__wg_comm = wgth.get_local_node_communicator()
+        self.__wg_comm = wgth.get_global_communicator()
 
         if len(tensor.shape) > 2:
             raise ValueError("Only 1-D or 2-D tensors are supported by WholeGraph.")
