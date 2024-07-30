@@ -75,6 +75,7 @@ requirements:
     - cuda-cudart
     {% endif %}
     - libcugraph ={{ version }}
+    - pylibraft ={{ minor_version }}
     - python
 
 tests:
