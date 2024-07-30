@@ -42,7 +42,8 @@ std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<weight_t>>,
            std::optional<rmm::device_uvector<edge_t>>,
-           std::optional<rmm::device_uvector<edge_type_t>>>
+           std::optional<rmm::device_uvector<edge_type_t>>,
+           std::vector<size_t>>
 shuffle_vertex_pairs_with_values_by_gpu_id_impl(
   raft::handle_t const& handle,
   rmm::device_uvector<vertex_t>&& majors,
@@ -178,25 +179,27 @@ shuffle_vertex_pairs_with_values_by_gpu_id_impl(
                     handle.get_stream());
   handle.sync_stream();
 
+  std::vector<size_t> rx_counts{};
+
   if (mem_frugal_flag) {  // trade-off potential parallelism to lower peak memory
-    std::tie(majors, std::ignore) =
+    std::tie(majors, rx_counts) =
       shuffle_values(comm, majors.begin(), h_tx_value_counts, handle.get_stream());
 
-    std::tie(minors, std::ignore) =
+    std::tie(minors, rx_counts) =
       shuffle_values(comm, minors.begin(), h_tx_value_counts, handle.get_stream());
 
     if (weights) {
-      std::tie(weights, std::ignore) =
+      std::tie(weights, rx_counts) =
         shuffle_values(comm, (*weights).begin(), h_tx_value_counts, handle.get_stream());
     }
 
     if (edge_ids) {
-      std::tie(edge_ids, std::ignore) =
+      std::tie(edge_ids, rx_counts) =
         shuffle_values(comm, (*edge_ids).begin(), h_tx_value_counts, handle.get_stream());
     }
 
     if (edge_types) {
-      std::tie(edge_types, std::ignore) =
+      std::tie(edge_types, rx_counts) =
         shuffle_values(comm, (*edge_types).begin(), h_tx_value_counts, handle.get_stream());
     }
   } else {
@@ -204,7 +207,7 @@ shuffle_vertex_pairs_with_values_by_gpu_id_impl(
       if (edge_ids) {
         if (edge_types) {
           std::forward_as_tuple(std::tie(majors, minors, weights, edge_ids, edge_types),
-                                std::ignore) =
+                                rx_counts) =
             shuffle_values(comm,
                            thrust::make_zip_iterator(majors.begin(),
                                                      minors.begin(),
@@ -214,7 +217,7 @@ shuffle_vertex_pairs_with_values_by_gpu_id_impl(
                            h_tx_value_counts,
                            handle.get_stream());
         } else {
-          std::forward_as_tuple(std::tie(majors, minors, weights, edge_ids), std::ignore) =
+          std::forward_as_tuple(std::tie(majors, minors, weights, edge_ids), rx_counts) =
             shuffle_values(comm,
                            thrust::make_zip_iterator(
                              majors.begin(), minors.begin(), weights->begin(), edge_ids->begin()),
@@ -223,14 +226,14 @@ shuffle_vertex_pairs_with_values_by_gpu_id_impl(
         }
       } else {
         if (edge_types) {
-          std::forward_as_tuple(std::tie(majors, minors, weights, edge_types), std::ignore) =
+          std::forward_as_tuple(std::tie(majors, minors, weights, edge_types), rx_counts) =
             shuffle_values(comm,
                            thrust::make_zip_iterator(
                              majors.begin(), minors.begin(), weights->begin(), edge_types->begin()),
                            h_tx_value_counts,
                            handle.get_stream());
         } else {
-          std::forward_as_tuple(std::tie(majors, minors, weights), std::ignore) = shuffle_values(
+          std::forward_as_tuple(std::tie(majors, minors, weights), rx_counts) = shuffle_values(
             comm,
             thrust::make_zip_iterator(majors.begin(), minors.begin(), weights->begin()),
             h_tx_value_counts,
@@ -240,7 +243,7 @@ shuffle_vertex_pairs_with_values_by_gpu_id_impl(
     } else {
       if (edge_ids) {
         if (edge_types) {
-          std::forward_as_tuple(std::tie(majors, minors, edge_ids, edge_types), std::ignore) =
+          std::forward_as_tuple(std::tie(majors, minors, edge_ids, edge_types), rx_counts) =
             shuffle_values(
               comm,
               thrust::make_zip_iterator(
@@ -248,7 +251,7 @@ shuffle_vertex_pairs_with_values_by_gpu_id_impl(
               h_tx_value_counts,
               handle.get_stream());
         } else {
-          std::forward_as_tuple(std::tie(majors, minors, edge_ids), std::ignore) = shuffle_values(
+          std::forward_as_tuple(std::tie(majors, minors, edge_ids), rx_counts) = shuffle_values(
             comm,
             thrust::make_zip_iterator(majors.begin(), minors.begin(), edge_ids->begin()),
             h_tx_value_counts,
@@ -256,13 +259,13 @@ shuffle_vertex_pairs_with_values_by_gpu_id_impl(
         }
       } else {
         if (edge_types) {
-          std::forward_as_tuple(std::tie(majors, minors, edge_types), std::ignore) = shuffle_values(
+          std::forward_as_tuple(std::tie(majors, minors, edge_types), rx_counts) = shuffle_values(
             comm,
             thrust::make_zip_iterator(majors.begin(), minors.begin(), edge_types->begin()),
             h_tx_value_counts,
             handle.get_stream());
         } else {
-          std::forward_as_tuple(std::tie(majors, minors), std::ignore) =
+          std::forward_as_tuple(std::tie(majors, minors), rx_counts) =
             shuffle_values(comm,
                            thrust::make_zip_iterator(majors.begin(), minors.begin()),
                            h_tx_value_counts,
@@ -276,7 +279,8 @@ shuffle_vertex_pairs_with_values_by_gpu_id_impl(
                          std::move(minors),
                          std::move(weights),
                          std::move(edge_ids),
-                         std::move(edge_types));
+                         std::move(edge_types),
+                         std::move(rx_counts));
 }
 
 }  // namespace
@@ -288,7 +292,8 @@ std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<weight_t>>,
            std::optional<rmm::device_uvector<edge_t>>,
-           std::optional<rmm::device_uvector<edge_type_t>>>
+           std::optional<rmm::device_uvector<edge_type_t>>,
+           std::vector<size_t>>
 shuffle_ext_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning(
   raft::handle_t const& handle,
   rmm::device_uvector<vertex_t>&& majors,
@@ -320,7 +325,8 @@ std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<weight_t>>,
            std::optional<rmm::device_uvector<edge_t>>,
-           std::optional<rmm::device_uvector<edge_type_t>>>
+           std::optional<rmm::device_uvector<edge_type_t>>,
+           std::vector<size_t>>
 shuffle_int_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning(
   raft::handle_t const& handle,
   rmm::device_uvector<vertex_t>&& majors,
@@ -366,7 +372,8 @@ std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<weight_t>>,
            std::optional<rmm::device_uvector<edge_t>>,
-           std::optional<rmm::device_uvector<edge_type_t>>>
+           std::optional<rmm::device_uvector<edge_type_t>>,
+           std::vector<size_t>>
 shuffle_external_edges(raft::handle_t const& handle,
                        rmm::device_uvector<vertex_t>&& edge_srcs,
                        rmm::device_uvector<vertex_t>&& edge_dsts,

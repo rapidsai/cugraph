@@ -43,7 +43,7 @@ def has_path(G, source, target):
 def shortest_path(
     G, source=None, target=None, weight=None, method="dijkstra", *, dtype=None
 ):
-    """Negative weights are not yet supported, and method is ununsed."""
+    """Negative weights are not yet supported."""
     if method not in {"dijkstra", "bellman-ford"}:
         raise ValueError(f"method not supported: {method}")
     if weight is None:
@@ -53,9 +53,9 @@ def shortest_path(
             # All pairs
             if method == "unweighted":
                 paths = nxcg.all_pairs_shortest_path(G)
-            else:
-                # method == "dijkstra":
-                # method == 'bellman-ford':
+            elif method == "dijkstra":
+                paths = nxcg.all_pairs_dijkstra_path(G, weight=weight, dtype=dtype)
+            else:  # method == 'bellman-ford':
                 paths = nxcg.all_pairs_bellman_ford_path(G, weight=weight, dtype=dtype)
             if nx.__version__[:3] <= "3.4":
                 paths = dict(paths)
@@ -75,9 +75,11 @@ def shortest_path(
         # From source
         if method == "unweighted":
             paths = nxcg.single_source_shortest_path(G, source)
-        else:
-            # method == "dijkstra":
-            # method == 'bellman-ford':
+        elif method == "dijkstra":
+            paths = nxcg.single_source_dijkstra_path(
+                G, source, weight=weight, dtype=dtype
+            )
+        else:  # method == 'bellman-ford':
             paths = nxcg.single_source_bellman_ford_path(
                 G, source, weight=weight, dtype=dtype
             )
@@ -106,7 +108,7 @@ def _(G, source=None, target=None, weight=None, method="dijkstra", *, dtype=None
 def shortest_path_length(
     G, source=None, target=None, weight=None, method="dijkstra", *, dtype=None
 ):
-    """Negative weights are not yet supported, and method is ununsed."""
+    """Negative weights are not yet supported."""
     if method not in {"dijkstra", "bellman-ford"}:
         raise ValueError(f"method not supported: {method}")
     if weight is None:
@@ -116,9 +118,11 @@ def shortest_path_length(
             # All pairs
             if method == "unweighted":
                 lengths = nxcg.all_pairs_shortest_path_length(G)
-            else:
-                # method == "dijkstra":
-                # method == 'bellman-ford':
+            elif method == "dijkstra":
+                lengths = nxcg.all_pairs_dijkstra_path_length(
+                    G, weight=weight, dtype=dtype
+                )
+            else:  # method == 'bellman-ford':
                 lengths = nxcg.all_pairs_bellman_ford_path_length(
                     G, weight=weight, dtype=dtype
                 )
@@ -127,9 +131,11 @@ def shortest_path_length(
             lengths = nxcg.single_target_shortest_path_length(G, target)
             if nx.__version__[:3] <= "3.4":
                 lengths = dict(lengths)
-        else:
-            # method == "dijkstra":
-            # method == 'bellman-ford':
+        elif method == "dijkstra":
+            lengths = nxcg.single_source_dijkstra_path_length(
+                G, target, weight=weight, dtype=dtype
+            )
+        else:  # method == 'bellman-ford':
             lengths = nxcg.single_source_bellman_ford_path_length(
                 G, target, weight=weight, dtype=dtype
             )
@@ -137,21 +143,21 @@ def shortest_path_length(
         # From source
         if method == "unweighted":
             lengths = nxcg.single_source_shortest_path_length(G, source)
-        else:
-            # method == "dijkstra":
-            # method == 'bellman-ford':
-            lengths = dict(
-                nxcg.single_source_bellman_ford_path_length(
-                    G, source, weight=weight, dtype=dtype
-                )
+        elif method == "dijkstra":
+            lengths = nxcg.single_source_dijkstra_path_length(
+                G, source, weight=weight, dtype=dtype
+            )
+        else:  # method == 'bellman-ford':
+            lengths = nxcg.single_source_bellman_ford_path_length(
+                G, source, weight=weight, dtype=dtype
             )
     # From source to target
     elif method == "unweighted":
         G = _to_graph(G)
         lengths = _bfs(G, source, None, "Source", return_type="length", target=target)
-    else:
-        # method == "dijkstra":
-        # method == 'bellman-ford':
+    elif method == "dijkstra":
+        lengths = nxcg.dijkstra_path_length(G, source, target, weight, dtype=dtype)
+    else:  # method == 'bellman-ford':
         lengths = nxcg.bellman_ford_path_length(G, source, target, weight, dtype=dtype)
     return lengths
 
