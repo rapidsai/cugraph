@@ -271,7 +271,7 @@ class GraphStore(
             torch.tensor(
                 [self.__edge_indices[et].shape[1] for et in sorted_keys],
                 device="cuda",
-                dtype=torch.int32,
+                dtype=torch.int64,
             )
         )
 
