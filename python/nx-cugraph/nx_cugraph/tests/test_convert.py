@@ -1,4 +1,4 @@
-# Copyright (c) 2023, NVIDIA CORPORATION.
+# Copyright (c) 2023-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -13,9 +13,12 @@
 import cupy as cp
 import networkx as nx
 import pytest
+from packaging.version import parse
 
 import nx_cugraph as nxcg
 from nx_cugraph import interface
+
+nxver = parse(nx.__version__)
 
 
 @pytest.mark.parametrize(
@@ -224,3 +227,48 @@ def test_multigraph(graph_class):
     H = nxcg.to_networkx(Gcg)
     assert type(G) is type(H)
     assert nx.utils.graphs_equal(G, H)
+
+
+def test_to_dict_of_lists():
+    G = nx.MultiGraph()
+    G.add_edge("a", "b")
+    G.add_edge("a", "c")
+    G.add_edge("a", "b")
+    expected = nx.to_dict_of_lists(G)
+    result = nxcg.to_dict_of_lists(G)
+    assert expected == result
+    expected = nx.to_dict_of_lists(G, nodelist=["a", "b"])
+    result = nxcg.to_dict_of_lists(G, nodelist=["a", "b"])
+    assert expected == result
+    with pytest.raises(nx.NetworkXError, match="The node d is not in the graph"):
+        nx.to_dict_of_lists(G, nodelist=["a", "d"])
+    with pytest.raises(nx.NetworkXError, match="The node d is not in the graph"):
+        nxcg.to_dict_of_lists(G, nodelist=["a", "d"])
+    G.add_node("d")  # No edges
+    expected = nx.to_dict_of_lists(G)
+    result = nxcg.to_dict_of_lists(G)
+    assert expected == result
+    expected = nx.to_dict_of_lists(G, nodelist=["a", "d"])
+    result = nxcg.to_dict_of_lists(G, nodelist=["a", "d"])
+    assert expected == result
+    # Now try with default node ids
+    G = nx.DiGraph()
+    G.add_edge(0, 1)
+    G.add_edge(0, 2)
+    expected = nx.to_dict_of_lists(G)
+    result = nxcg.to_dict_of_lists(G)
+    assert expected == result
+    expected = nx.to_dict_of_lists(G, nodelist=[0, 1])
+    result = nxcg.to_dict_of_lists(G, nodelist=[0, 1])
+    assert expected == result
+    with pytest.raises(nx.NetworkXError, match="The node 3 is not in the digraph"):
+        nx.to_dict_of_lists(G, nodelist=[0, 3])
+    with pytest.raises(nx.NetworkXError, match="The node 3 is not in the digraph"):
+        nxcg.to_dict_of_lists(G, nodelist=[0, 3])
+    G.add_node(3)  # No edges
+    expected = nx.to_dict_of_lists(G)
+    result = nxcg.to_dict_of_lists(G)
+    assert expected == result
+    expected = nx.to_dict_of_lists(G, nodelist=[0, 3])
+    result = nxcg.to_dict_of_lists(G, nodelist=[0, 3])
+    assert expected == result
