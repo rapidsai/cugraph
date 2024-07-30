@@ -15,7 +15,7 @@ import networkx as nx
 import numpy as np
 
 from .generators._utils import _create_using_class
-from .utils import index_dtype, networkx_algorithm
+from .utils import _cp_iscopied_asarray, index_dtype, networkx_algorithm
 
 __all__ = [
     "from_pandas_edgelist",
@@ -34,16 +34,30 @@ def from_pandas_edgelist(
     edge_key=None,
 ):
     """cudf.DataFrame inputs also supported; value columns with str is unsuppported."""
+    # This function never shares ownership of the underlying arrays of the DataFrame
+    # columns. We will perform a copy if necessary even if given e.g. a cudf.DataFrame.
     graph_class, inplace = _create_using_class(create_using)
     # Try to be optimal whether using pandas, cudf, or cudf.pandas
-    src_array = df[source].to_numpy()
-    dst_array = df[target].to_numpy()
+    src_series = df[source]
+    dst_series = df[target]
     try:
         # Optimistically try to use cupy, but fall back to numpy if necessary
-        src_array = cp.asarray(src_array)
-        dst_array = cp.asarray(dst_array)
+        src_array = src_series.to_cupy()
+        dst_array = dst_series.to_cupy()
+    except (AttributeError, TypeError, ValueError, NotImplementedError):
+        src_array = src_series.to_numpy()
+        dst_array = dst_series.to_numpy()
+    try:
+        # Minimize unnecessary data copies by tracking whether we copy or not
+        is_src_copied, src_array = _cp_iscopied_asarray(
+            src_array, orig_object=src_series
+        )
+        is_dst_copied, dst_array = _cp_iscopied_asarray(
+            dst_array, orig_object=dst_series
+        )
         np_or_cp = cp
     except ValueError:
+        is_src_copied = is_dst_copied = False
         src_array = np.asarray(src_array)
         dst_array = np.asarray(dst_array)
         np_or_cp = np
@@ -65,8 +79,15 @@ def from_pandas_edgelist(
         src_indices = cp.asarray(np_or_cp.searchsorted(nodes, src_array), index_dtype)
         dst_indices = cp.asarray(np_or_cp.searchsorted(nodes, dst_array), index_dtype)
     else:
-        src_indices = cp.array(src_array)
-        dst_indices = cp.array(dst_array)
+        # Copy if necessary so we don't share ownership of input arrays.
+        if is_src_copied:
+            src_indices = src_array
+        else:
+            src_indices = cp.array(src_array)
+        if is_dst_copied:
+            dst_indices = dst_array
+        else:
+            dst_indices = cp.array(dst_array)
 
     if not graph_class.is_directed():
         # Symmetrize the edges
