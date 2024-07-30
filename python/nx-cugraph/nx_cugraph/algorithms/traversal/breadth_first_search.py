@@ -57,23 +57,41 @@ def _bfs(G, source, *, depth_limit=None, reverse=False):
     return distances[mask], predecessors[mask], node_ids[mask]
 
 
-@networkx_algorithm(is_incomplete=True, version_added="24.02", _plc="bfs")
-def generic_bfs_edges(G, source, neighbors=None, depth_limit=None, sort_neighbors=None):
-    """`neighbors` and `sort_neighbors` parameters are not yet supported."""
-    if neighbors is not None:
-        raise NotImplementedError(
-            "neighbors argument in generic_bfs_edges is not currently supported"
-        )
-    if sort_neighbors is not None:
-        raise NotImplementedError(
-            "sort_neighbors argument in generic_bfs_edges is not currently supported"
-        )
-    return bfs_edges(G, source, depth_limit=depth_limit)
+if nx.__version__[:3] <= "3.3":
 
+    @networkx_algorithm(is_incomplete=True, version_added="24.02", _plc="bfs")
+    def generic_bfs_edges(
+        G, source, neighbors=None, depth_limit=None, sort_neighbors=None
+    ):
+        """`neighbors` and `sort_neighbors` parameters are not yet supported."""
+        if neighbors is not None:
+            raise NotImplementedError(
+                "neighbors argument in generic_bfs_edges is not currently supported"
+            )
+        if sort_neighbors is not None:
+            raise NotImplementedError(
+                "sort_neighbors argument in generic_bfs_edges is not supported"
+            )
+        return bfs_edges(G, source, depth_limit=depth_limit)
 
-@generic_bfs_edges._can_run
-def _(G, source, neighbors=None, depth_limit=None, sort_neighbors=None):
-    return neighbors is None and sort_neighbors is None
+    @generic_bfs_edges._can_run
+    def _(G, source, neighbors=None, depth_limit=None, sort_neighbors=None):
+        return neighbors is None and sort_neighbors is None
+
+else:
+
+    @networkx_algorithm(is_incomplete=True, version_added="24.02", _plc="bfs")
+    def generic_bfs_edges(G, source, neighbors=None, depth_limit=None):
+        """`neighbors` parameter is not yet supported."""
+        if neighbors is not None:
+            raise NotImplementedError(
+                "neighbors argument in generic_bfs_edges is not currently supported"
+            )
+        return bfs_edges(G, source, depth_limit=depth_limit)
+
+    @generic_bfs_edges._can_run
+    def _(G, source, neighbors=None, depth_limit=None):
+        return neighbors is None
 
 
 @networkx_algorithm(is_incomplete=True, version_added="24.02", _plc="bfs")
