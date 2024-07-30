@@ -45,6 +45,7 @@ __all__ = [
     "_get_int_dtype",
     "_get_float_dtype",
     "_dtype_param",
+    "_cp_iscopied_asarray",
 ]
 
 # This may switch to np.uint32 at some point
@@ -206,3 +207,34 @@ def _get_float_dtype(
             f"Dtype {dtype} cannot be safely promoted to float32 or float64"
         )
     return rv
+
+
+def _cp_iscopied_asarray(a, *args, orig_object=None, **kwargs):
+    """Like ``cp.asarray``, but also returns whether the input was copied.
+
+    Use this to avoid unnecessary copies. If given, ``orig_object`` will
+    also be inspected to determine if it was copied.
+
+    >>> is_copied, a = _cp_iscopied_asarray([1, 2, 3])
+    >>> is_copied
+    True
+    >>> a
+    array([1, 2, 3])
+    >>> _cp_iscopied_asarray(a)
+    (False, array([1, 2, 3]))
+    """
+    arr = cp.asarray(a, *args, **kwargs)
+    ptr = arr.__cuda_array_interface__["data"][0]
+    if (
+        hasattr(a, "__cuda_array_interface__")
+        and a.__cuda_array_interface__["data"][0] == ptr
+        and (
+            orig_object is None
+            or hasattr(orig_object, "__cuda_array_interface__")
+            and orig_object.__cuda_array_interface__["data"][0] == ptr
+        )
+        # Should we also check device_id?
+        # and getattr(getattr(a, "data", None), "device_id", None) == arr.data.device_id
+    ):
+        return False, arr
+    return True, arr
