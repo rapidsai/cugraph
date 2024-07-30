@@ -35,7 +35,8 @@ template std::tuple<rmm::device_uvector<int32_t>,
                     rmm::device_uvector<int32_t>,
                     std::optional<rmm::device_uvector<float>>,
                     std::optional<rmm::device_uvector<int64_t>>,
-                    std::optional<rmm::device_uvector<int32_t>>>
+                    std::optional<rmm::device_uvector<int32_t>>,
+                    std::vector<size_t>>
 shuffle_ext_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning(
   raft::handle_t const& handle,
   rmm::device_uvector<int32_t>&& majors,
@@ -48,7 +49,8 @@ template std::tuple<rmm::device_uvector<int32_t>,
                     rmm::device_uvector<int32_t>,
                     std::optional<rmm::device_uvector<double>>,
                     std::optional<rmm::device_uvector<int64_t>>,
-                    std::optional<rmm::device_uvector<int32_t>>>
+                    std::optional<rmm::device_uvector<int32_t>>,
+                    std::vector<size_t>>
 shuffle_ext_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning(
   raft::handle_t const& handle,
   rmm::device_uvector<int32_t>&& majors,
@@ -61,7 +63,8 @@ template std::tuple<rmm::device_uvector<int32_t>,
                     rmm::device_uvector<int32_t>,
                     std::optional<rmm::device_uvector<float>>,
                     std::optional<rmm::device_uvector<int64_t>>,
-                    std::optional<rmm::device_uvector<int32_t>>>
+                    std::optional<rmm::device_uvector<int32_t>>,
+                    std::vector<size_t>>
 shuffle_int_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning(
   raft::handle_t const& handle,
   rmm::device_uvector<int32_t>&& majors,
@@ -75,7 +78,8 @@ template std::tuple<rmm::device_uvector<int32_t>,
                     rmm::device_uvector<int32_t>,
                     std::optional<rmm::device_uvector<double>>,
                     std::optional<rmm::device_uvector<int64_t>>,
-                    std::optional<rmm::device_uvector<int32_t>>>
+                    std::optional<rmm::device_uvector<int32_t>>,
+                    std::vector<size_t>>
 shuffle_int_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning(
   raft::handle_t const& handle,
   rmm::device_uvector<int32_t>&& majors,
@@ -91,7 +95,8 @@ template std::tuple<rmm::device_uvector<int32_t>,
                     rmm::device_uvector<int32_t>,
                     std::optional<rmm::device_uvector<float>>,
                     std::optional<rmm::device_uvector<int64_t>>,
-                    std::optional<rmm::device_uvector<int32_t>>>
+                    std::optional<rmm::device_uvector<int32_t>>,
+                    std::vector<size_t>>
 shuffle_external_edges(raft::handle_t const& handle,
                        rmm::device_uvector<int32_t>&& majors,
                        rmm::device_uvector<int32_t>&& minors,
@@ -103,7 +108,8 @@ template std::tuple<rmm::device_uvector<int32_t>,
                     rmm::device_uvector<int32_t>,
                     std::optional<rmm::device_uvector<double>>,
                     std::optional<rmm::device_uvector<int64_t>>,
-                    std::optional<rmm::device_uvector<int32_t>>>
+                    std::optional<rmm::device_uvector<int32_t>>,
+                    std::vector<size_t>>
 shuffle_external_edges(raft::handle_t const& handle,
                        rmm::device_uvector<int32_t>&& majors,
                        rmm::device_uvector<int32_t>&& minors,

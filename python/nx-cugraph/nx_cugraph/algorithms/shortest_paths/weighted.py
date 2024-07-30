@@ -25,6 +25,14 @@ from nx_cugraph.utils import (
 from .unweighted import _bfs
 
 __all__ = [
+    "dijkstra_path",
+    "dijkstra_path_length",
+    "single_source_dijkstra",
+    "single_source_dijkstra_path",
+    "single_source_dijkstra_path_length",
+    "all_pairs_dijkstra",
+    "all_pairs_dijkstra_path",
+    "all_pairs_dijkstra_path_length",
     "bellman_ford_path",
     "bellman_ford_path_length",
     "single_source_bellman_ford",
@@ -44,12 +52,22 @@ def _add_doc(func):
     return func
 
 
-@networkx_algorithm(extra_params=_dtype_param, version_added="24.04", _plc="sssp")
-@_add_doc
-def bellman_ford_path(G, source, target, weight="weight", *, dtype=None):
+@networkx_algorithm(extra_params=_dtype_param, version_added="24.08", _plc="sssp")
+def dijkstra_path(G, source, target, weight="weight", *, dtype=None):
     G = _to_graph(G, weight, 1, np.float32)
     dtype = _get_float_dtype(dtype, graph=G, weight=weight)
     return _sssp(G, source, weight, target, return_type="path", dtype=dtype)
+
+
+@dijkstra_path._can_run
+def _(G, source, target, weight="weight", *, dtype=None):
+    return not callable(weight)
+
+
+@networkx_algorithm(extra_params=_dtype_param, version_added="24.04", _plc="sssp")
+@_add_doc
+def bellman_ford_path(G, source, target, weight="weight", *, dtype=None):
+    return dijkstra_path(G, source, target, weight=weight, dtype=dtype)
 
 
 @bellman_ford_path._can_run
@@ -61,12 +79,22 @@ def _(G, source, target, weight="weight", *, dtype=None):
     )
 
 
-@networkx_algorithm(extra_params=_dtype_param, version_added="24.04", _plc="sssp")
-@_add_doc
-def bellman_ford_path_length(G, source, target, weight="weight", *, dtype=None):
+@networkx_algorithm(extra_params=_dtype_param, version_added="24.08", _plc="sssp")
+def dijkstra_path_length(G, source, target, weight="weight", *, dtype=None):
     G = _to_graph(G, weight, 1, np.float32)
     dtype = _get_float_dtype(dtype, graph=G, weight=weight)
     return _sssp(G, source, weight, target, return_type="length", dtype=dtype)
+
+
+@dijkstra_path._can_run
+def _(G, source, target, weight="weight", *, dtype=None):
+    return not callable(weight)
+
+
+@networkx_algorithm(extra_params=_dtype_param, version_added="24.04", _plc="sssp")
+@_add_doc
+def bellman_ford_path_length(G, source, target, weight="weight", *, dtype=None):
+    return dijkstra_path_length(G, source, target, weight=weight, dtype=dtype)
 
 
 @bellman_ford_path_length._can_run
@@ -78,12 +106,22 @@ def _(G, source, target, weight="weight", *, dtype=None):
     )
 
 
+@networkx_algorithm(extra_params=_dtype_param, version_added="24.08", _plc="sssp")
+def single_source_dijkstra_path(G, source, cutoff=None, weight="weight", *, dtype=None):
+    G = _to_graph(G, weight, 1, np.float32)
+    dtype = _get_float_dtype(dtype, graph=G, weight=weight)
+    return _sssp(G, source, weight, return_type="path", dtype=dtype, cutoff=cutoff)
+
+
+@single_source_dijkstra_path._can_run
+def _(G, source, cutoff=None, weight="weight", *, dtype=None):
+    return not callable(weight)
+
+
 @networkx_algorithm(extra_params=_dtype_param, version_added="24.04", _plc="sssp")
 @_add_doc
 def single_source_bellman_ford_path(G, source, weight="weight", *, dtype=None):
-    G = _to_graph(G, weight, 1, np.float32)
-    dtype = _get_float_dtype(dtype, graph=G, weight=weight)
-    return _sssp(G, source, weight, return_type="path", dtype=dtype)
+    return single_source_dijkstra_path(G, source, weight=weight, dtype=dtype)
 
 
 @single_source_bellman_ford_path._can_run
@@ -95,12 +133,24 @@ def _(G, source, weight="weight", *, dtype=None):
     )
 
 
+@networkx_algorithm(extra_params=_dtype_param, version_added="24.08", _plc="sssp")
+def single_source_dijkstra_path_length(
+    G, source, cutoff=None, weight="weight", *, dtype=None
+):
+    G = _to_graph(G, weight, 1, np.float32)
+    dtype = _get_float_dtype(dtype, graph=G, weight=weight)
+    return _sssp(G, source, weight, return_type="length", dtype=dtype, cutoff=cutoff)
+
+
+@single_source_dijkstra_path_length._can_run
+def _(G, source, cutoff=None, weight="weight", *, dtype=None):
+    return not callable(weight)
+
+
 @networkx_algorithm(extra_params=_dtype_param, version_added="24.04", _plc="sssp")
 @_add_doc
 def single_source_bellman_ford_path_length(G, source, weight="weight", *, dtype=None):
-    G = _to_graph(G, weight, 1, np.float32)
-    dtype = _get_float_dtype(dtype, graph=G, weight=weight)
-    return _sssp(G, source, weight, return_type="length", dtype=dtype)
+    return single_source_dijkstra_path_length(G, source, weight=weight, dtype=dtype)
 
 
 @single_source_bellman_ford_path_length._can_run
@@ -112,12 +162,26 @@ def _(G, source, weight="weight", *, dtype=None):
     )
 
 
+@networkx_algorithm(extra_params=_dtype_param, version_added="24.08", _plc="sssp")
+def single_source_dijkstra(
+    G, source, target=None, cutoff=None, weight="weight", *, dtype=None
+):
+    G = _to_graph(G, weight, 1, np.float32)
+    dtype = _get_float_dtype(dtype, graph=G, weight=weight)
+    return _sssp(
+        G, source, weight, target, return_type="length-path", dtype=dtype, cutoff=cutoff
+    )
+
+
+@single_source_dijkstra._can_run
+def _(G, source, target=None, cutoff=None, weight="weight", *, dtype=None):
+    return not callable(weight)
+
+
 @networkx_algorithm(extra_params=_dtype_param, version_added="24.04", _plc="sssp")
 @_add_doc
 def single_source_bellman_ford(G, source, target=None, weight="weight", *, dtype=None):
-    G = _to_graph(G, weight, 1, np.float32)
-    dtype = _get_float_dtype(dtype, graph=G, weight=weight)
-    return _sssp(G, source, weight, target, return_type="length-path", dtype=dtype)
+    return single_source_dijkstra(G, source, target=target, weight=weight, dtype=dtype)
 
 
 @single_source_bellman_ford._can_run
@@ -129,14 +193,41 @@ def _(G, source, target=None, weight="weight", *, dtype=None):
     )
 
 
-@networkx_algorithm(extra_params=_dtype_param, version_added="24.04", _plc="sssp")
-@_add_doc
-def all_pairs_bellman_ford_path_length(G, weight="weight", *, dtype=None):
+@networkx_algorithm(extra_params=_dtype_param, version_added="24.08", _plc="sssp")
+def all_pairs_dijkstra(G, cutoff=None, weight="weight", *, dtype=None):
     # TODO PERF: batched bfs to compute many at once
     G = _to_graph(G, weight, 1, np.float32)
     dtype = _get_float_dtype(dtype, graph=G, weight=weight)
     for n in G:
-        yield (n, _sssp(G, n, weight, return_type="length", dtype=dtype))
+        yield (
+            n,
+            _sssp(G, n, weight, return_type="length-path", dtype=dtype, cutoff=cutoff),
+        )
+
+
+@all_pairs_dijkstra._can_run
+def _(G, cutoff=None, weight="weight", *, dtype=None):
+    return not callable(weight)
+
+
+@networkx_algorithm(extra_params=_dtype_param, version_added="24.08", _plc="sssp")
+def all_pairs_dijkstra_path_length(G, cutoff=None, weight="weight", *, dtype=None):
+    # TODO PERF: batched bfs to compute many at once
+    G = _to_graph(G, weight, 1, np.float32)
+    dtype = _get_float_dtype(dtype, graph=G, weight=weight)
+    for n in G:
+        yield (n, _sssp(G, n, weight, return_type="length", dtype=dtype, cutoff=cutoff))
+
+
+@all_pairs_dijkstra_path_length._can_run
+def _(G, cutoff=None, weight="weight", *, dtype=None):
+    return not callable(weight)
+
+
+@networkx_algorithm(extra_params=_dtype_param, version_added="24.04", _plc="sssp")
+@_add_doc
+def all_pairs_bellman_ford_path_length(G, weight="weight", *, dtype=None):
+    return all_pairs_dijkstra_path_length(G, weight=weight, dtype=None)
 
 
 @all_pairs_bellman_ford_path_length._can_run
@@ -148,14 +239,24 @@ def _(G, weight="weight", *, dtype=None):
     )
 
 
-@networkx_algorithm(extra_params=_dtype_param, version_added="24.04", _plc="sssp")
-@_add_doc
-def all_pairs_bellman_ford_path(G, weight="weight", *, dtype=None):
+@networkx_algorithm(extra_params=_dtype_param, version_added="24.08", _plc="sssp")
+def all_pairs_dijkstra_path(G, cutoff=None, weight="weight", *, dtype=None):
     # TODO PERF: batched bfs to compute many at once
     G = _to_graph(G, weight, 1, np.float32)
     dtype = _get_float_dtype(dtype, graph=G, weight=weight)
     for n in G:
-        yield (n, _sssp(G, n, weight, return_type="path", dtype=dtype))
+        yield (n, _sssp(G, n, weight, return_type="path", dtype=dtype, cutoff=cutoff))
+
+
+@all_pairs_dijkstra_path._can_run
+def _(G, cutoff=None, weight="weight", *, dtype=None):
+    return not callable(weight)
+
+
+@networkx_algorithm(extra_params=_dtype_param, version_added="24.04", _plc="sssp")
+@_add_doc
+def all_pairs_bellman_ford_path(G, weight="weight", *, dtype=None):
+    return all_pairs_dijkstra_path(G, weight=weight, dtype=None)
 
 
 @all_pairs_bellman_ford_path._can_run
@@ -167,7 +268,17 @@ def _(G, weight="weight", *, dtype=None):
     )
 
 
-def _sssp(G, source, weight, target=None, *, return_type, dtype, reverse_path=False):
+def _sssp(
+    G,
+    source,
+    weight,
+    target=None,
+    *,
+    return_type,
+    dtype,
+    reverse_path=False,
+    cutoff=None,
+):
     """SSSP for weighted shortest paths.
 
     Parameters
@@ -201,7 +312,7 @@ def _sssp(G, source, weight, target=None, *, return_type, dtype, reverse_path=Fa
 
     if weight not in G.edge_values:
         # No edge values, so use BFS instead
-        return _bfs(G, source, None, "Source", return_type=return_type, target=target)
+        return _bfs(G, source, cutoff, "Source", return_type=return_type, target=target)
 
     # Check for negative values since we don't support negative cycles
     edge_vals = G.edge_values[weight]
@@ -217,7 +328,7 @@ def _sssp(G, source, weight, target=None, *, return_type, dtype, reverse_path=Fa
         return _bfs(
             G,
             source,
-            None,
+            None if cutoff is None else cutoff / edge_val,
             "Source",
             return_type=return_type,
             target=target,
@@ -226,11 +337,16 @@ def _sssp(G, source, weight, target=None, *, return_type, dtype, reverse_path=Fa
         )
 
     src_index = source if G.key_to_id is None else G.key_to_id[source]
+    if cutoff is None:
+        cutoff = np.inf
+    else:
+        cutoff = np.nextafter(cutoff, np.inf, dtype=np.float64)
+
     node_ids, distances, predecessors = plc.sssp(
         resource_handle=plc.ResourceHandle(),
         graph=G._get_plc_graph(weight, 1, dtype),
         source=src_index,
-        cutoff=np.inf,
+        cutoff=cutoff,
         compute_predecessors=True,  # TODO: False is not yet supported
         # compute_predecessors=return_type != "length",
         do_expensive_check=False,
