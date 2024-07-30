@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import itertools
 import operator as op
-from collections import Counter
+from collections import Counter, defaultdict
 from collections.abc import Mapping
 from typing import TYPE_CHECKING
 
@@ -24,7 +24,8 @@ import numpy as np
 
 import nx_cugraph as nxcg
 
-from .utils import index_dtype
+from .utils import index_dtype, networkx_algorithm
+from .utils.misc import pairwise
 
 if TYPE_CHECKING:  # pragma: no cover
     from nx_cugraph.typing import AttrKey, Dtype, EdgeValue, NodeValue, any_ndarray
@@ -32,6 +33,8 @@ if TYPE_CHECKING:  # pragma: no cover
 __all__ = [
     "from_networkx",
     "to_networkx",
+    "from_dict_of_lists",
+    "to_dict_of_lists",
 ]
 
 concat = itertools.chain.from_iterable
@@ -653,3 +656,98 @@ def _to_undirected_graph(
         )
     # TODO: handle cugraph.Graph
     raise TypeError
+
+
+@networkx_algorithm(version_added="24.08")
+def from_dict_of_lists(d, create_using=None):
+    from .generators._utils import _create_using_class
+
+    graph_class, inplace = _create_using_class(create_using)
+    key_to_id = defaultdict(itertools.count().__next__)
+    src_indices = cp.array(
+        # cp.repeat is slow to use here, so use numpy instead
+        np.repeat(
+            np.fromiter(map(key_to_id.__getitem__, d), index_dtype),
+            np.fromiter(map(len, d.values()), index_dtype),
+        )
+    )
+    dst_indices = cp.fromiter(
+        map(key_to_id.__getitem__, concat(d.values())), index_dtype
+    )
+    # Initialize as directed first them symmetrize if undirected.
+    G = graph_class.to_directed_class().from_coo(
+        len(key_to_id),
+        src_indices,
+        dst_indices,
+        key_to_id=key_to_id,
+    )
+    if not graph_class.is_directed():
+        G = G.to_undirected()
+    if inplace:
+        return create_using._become(G)
+    return G
+
+
+@networkx_algorithm(version_added="24.08")
+def to_dict_of_lists(G, nodelist=None):
+    G = _to_graph(G)
+    src_indices = G.src_indices
+    dst_indices = G.dst_indices
+    if nodelist is not None:
+        try:
+            node_ids = G._nodekeys_to_nodearray(nodelist)
+        except KeyError as exc:
+            gname = "digraph" if G.is_directed() else "graph"
+            raise nx.NetworkXError(
+                f"The node {exc.args[0]} is not in the {gname}."
+            ) from exc
+        mask = cp.isin(src_indices, node_ids) & cp.isin(dst_indices, node_ids)
+        src_indices = src_indices[mask]
+        dst_indices = dst_indices[mask]
+    # Sort indices so we can use `cp.unique` to determine boundaries.
+    # This is like exporting to DCSR.
+    if G.is_multigraph():
+        stacked = cp.unique(cp.vstack((src_indices, dst_indices)), axis=1)
+        src_indices = stacked[0]
+        dst_indices = stacked[1]
+    else:
+        stacked = cp.vstack((dst_indices, src_indices))
+        indices = cp.lexsort(stacked)
+        src_indices = src_indices[indices]
+        dst_indices = dst_indices[indices]
+    compressed_srcs, left_bounds = cp.unique(src_indices, return_index=True)
+    # Ensure we include isolate nodes in the result (and in proper order)
+    rv = None
+    if nodelist is not None:
+        if compressed_srcs.size != len(nodelist):
+            if G.key_to_id is None:
+                # `G._nodekeys_to_nodearray` does not check for valid node keys.
+                container = range(G._N)
+                for key in nodelist:
+                    if key not in container:
+                        gname = "digraph" if G.is_directed() else "graph"
+                        raise nx.NetworkXError(f"The node {key} is not in the {gname}.")
+            rv = {key: [] for key in nodelist}
+    elif compressed_srcs.size != G._N:
+        rv = {key: [] for key in G}
+    # We use `boundaries` like this in `_groupby` too
+    boundaries = pairwise(itertools.chain(left_bounds.tolist(), [src_indices.size]))
+    dst_indices = dst_indices.tolist()
+    if G.key_to_id is None:
+        it = zip(compressed_srcs.tolist(), boundaries)
+        if rv is None:
+            return {src: dst_indices[start:end] for src, (start, end) in it}
+        rv.update((src, dst_indices[start:end]) for src, (start, end) in it)
+        return rv
+    to_key = G.id_to_key.__getitem__
+    it = zip(compressed_srcs.tolist(), boundaries)
+    if rv is None:
+        return {
+            to_key(src): list(map(to_key, dst_indices[start:end]))
+            for src, (start, end) in it
+        }
+    rv.update(
+        (to_key(src), list(map(to_key, dst_indices[start:end])))
+        for src, (start, end) in it
+    )
+    return rv
