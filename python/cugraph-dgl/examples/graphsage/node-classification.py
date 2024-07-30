@@ -207,8 +207,6 @@ def train(args, device, g, dataset, model):
                 x = g.ndata["feat"][input_nodes]
                 y = g.ndata["label"][output_nodes]
 
-            print(x.shape, input_nodes.shape, y.shape, output_nodes.shape)
-            print([b.num_nodes() for b in blocks])
             y_hat = model(blocks, x)
             loss = F.cross_entropy(y_hat, y)
             opt.zero_grad()

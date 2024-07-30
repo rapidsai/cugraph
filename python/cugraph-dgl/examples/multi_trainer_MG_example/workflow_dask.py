@@ -204,6 +204,10 @@ def run_workflow(rank, devices, scheduler_address):
     n_epochs = 10
     total_st = time.time()
     opt = torch.optim.Adam(model.parameters(), lr=0.01)
+
+    gs.ndata["feat"] = gs.ndata["feat"].to("cuda")
+    gs.ndata["label"] = gs.ndata["label"].to("cuda")
+    
     train_model(model, gs, opt, dataloader, n_epochs, rank, valid_idx)
     torch.distributed.barrier()
     total_et = time.time()
