@@ -123,6 +123,7 @@ class Tests_MGHasEdgeAndComputeMultiplicity
              store_transposed ? d_mg_edge_srcs : d_mg_edge_dsts,
              std::ignore,
              std::ignore,
+             std::ignore,
              std::ignore) =
       cugraph::detail::shuffle_int_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning<
         vertex_t,
