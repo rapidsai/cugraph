@@ -77,6 +77,7 @@ requirements:
     - libcugraph ={{ version }}
     - pylibraft ={{ minor_version }}
     - python
+    - rmm ={{ minor_version }}
 
 tests:
   requirements:
