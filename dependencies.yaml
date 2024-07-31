@@ -506,12 +506,12 @@ dependencies:
               cuda: "11.*"
               cuda_suffixed: "true"
             packages:
-              - &ucx_py_cu11 ucx-py-cu11==24.10.*,>=0.0.0a0
+              - &ucx_py_cu11 ucx-py-cu11==0.40.*,>=0.0.0a0
           - matrix:
               cuda: "12.*"
               cuda_suffixed: "true"
             packages:
-              - &ucx_py_cu12 ucx-py-cu12==24.10.*,>=0.0.0a0
+              - &ucx_py_cu12 ucx-py-cu12==0.40.*,>=0.0.0a0
           - matrix:
             packages:
               - *ucx_py_unsuffixed
