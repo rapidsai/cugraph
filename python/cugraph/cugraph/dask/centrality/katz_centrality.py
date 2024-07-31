@@ -162,7 +162,7 @@ def katz_centrality(
     do_expensive_check = False
 
     initial_hubs_guess_values = None
-    if nstart:
+    if nstart is not None:
         if input_graph.renumbered:
             if len(input_graph.renumber_map.implementation.col_names) > 1:
                 cols = nstart.columns[:-1].to_list()

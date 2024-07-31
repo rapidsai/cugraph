@@ -26,7 +26,7 @@ typedef int32_t vertex_t;
 typedef int32_t edge_t;
 typedef float weight_t;
 
-typedef enum { JACCARD, SORENSEN, OVERLAP } similarity_t;
+typedef enum { JACCARD, SORENSEN, OVERLAP, COSINE } similarity_t;
 
 int generic_similarity_test(vertex_t* h_src,
                             vertex_t* h_dst,
@@ -99,6 +99,10 @@ int generic_similarity_test(vertex_t* h_src,
       break;
     case OVERLAP:
       ret_code = cugraph_overlap_coefficients(
+        handle, graph, vertex_pairs, use_weight, FALSE, &result, &ret_error);
+      break;
+    case COSINE:
+      ret_code = cugraph_cosine_similarity_coefficients(
         handle, graph, vertex_pairs, use_weight, FALSE, &result, &ret_error);
       break;
   }
@@ -177,6 +181,10 @@ int generic_all_pairs_similarity_test(vertex_t* h_src,
       break;
     case OVERLAP:
       ret_code = cugraph_all_pairs_overlap_coefficients(
+        handle, graph, vertices_view, use_weight, topk, FALSE, &result, &ret_error);
+      break;
+    case COSINE:
+      ret_code = cugraph_all_pairs_cosine_similarity_coefficients(
         handle, graph, vertices_view, use_weight, topk, FALSE, &result, &ret_error);
       break;
   }
@@ -333,7 +341,7 @@ int test_weighted_sorensen()
 
   vertex_t h_first[]  = {0, 0, 1};
   vertex_t h_second[] = {1, 2, 3};
-  weight_t h_result[] = {0.526316, 0.344828, 0.000000};
+  weight_t h_result[] = {0.526316, 0.344828, 0.0};
 
   return generic_similarity_test(h_src,
                                  h_dst,
@@ -389,7 +397,7 @@ int test_weighted_overlap()
 
   vertex_t h_first[]  = {0, 0, 1};
   vertex_t h_second[] = {1, 2, 3};
-  weight_t h_result[] = {0.714286, 0.416667, 0.000000};
+  weight_t h_result[] = {0.714286, 0.416667, 0.0};
 
   return generic_similarity_test(h_src,
                                  h_dst,
@@ -403,6 +411,62 @@ int test_weighted_overlap()
                                  FALSE,
                                  TRUE,
                                  OVERLAP);
+}
+
+int test_cosine()
+{
+  size_t num_edges    = 16;
+  size_t num_vertices = 6;
+  size_t num_pairs    = 10;
+
+  vertex_t h_src[]    = {0, 1, 1, 2, 2, 2, 3, 4, 1, 3, 4, 0, 1, 3, 5, 5};
+  vertex_t h_dst[]    = {1, 3, 4, 0, 1, 3, 5, 5, 0, 1, 1, 2, 2, 2, 3, 4};
+  weight_t h_wgt[]    = {0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
+  vertex_t h_first[]  = {0, 0, 0, 1, 1, 1, 2, 2, 2, 3};
+  vertex_t h_second[] = {1, 3, 4, 2, 3, 5, 3, 4, 5, 4};
+  weight_t h_result[] = {1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
+
+  return generic_similarity_test(h_src,
+                                 h_dst,
+                                 h_wgt,
+                                 h_first,
+                                 h_second,
+                                 h_result,
+                                 num_vertices,
+                                 num_edges,
+                                 num_pairs,
+                                 FALSE,
+                                 FALSE,
+                                 COSINE);
+}
+
+int test_weighted_cosine()
+{
+  size_t num_edges    = 16;
+  size_t num_vertices = 7;
+  size_t num_pairs    = 2;
+
+  vertex_t h_src[] = {0, 1, 2, 0, 1, 2, 3, 3, 3, 4, 4, 4, 0, 5, 2, 6};
+  vertex_t h_dst[] = {3, 3, 3, 4, 4, 4, 0, 1, 2, 0, 1, 2, 5, 0, 6, 2};
+  weight_t h_wgt[] = {
+    0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 3.5, 4.0, 4.0};
+
+  vertex_t h_first[]  = {0, 0};
+  vertex_t h_second[] = {1, 2};
+  weight_t h_result[] = {0.990830, 0.976187};
+
+  return generic_similarity_test(h_src,
+                                 h_dst,
+                                 h_wgt,
+                                 h_first,
+                                 h_second,
+                                 h_result,
+                                 num_vertices,
+                                 num_edges,
+                                 num_pairs,
+                                 FALSE,
+                                 TRUE,
+                                 COSINE);
 }
 
 int test_all_pairs_jaccard()
@@ -631,6 +695,67 @@ int test_weighted_all_pairs_overlap()
                                            OVERLAP);
 }
 
+int test_all_pairs_cosine()
+{
+  size_t num_edges    = 16;
+  size_t num_vertices = 6;
+  size_t num_pairs    = 22;
+
+  vertex_t h_src[]    = {0, 1, 1, 2, 2, 2, 3, 4, 1, 3, 4, 0, 1, 3, 5, 5};
+  vertex_t h_dst[]    = {1, 3, 4, 0, 1, 3, 5, 5, 0, 1, 1, 2, 2, 2, 3, 4};
+  weight_t h_wgt[]    = {0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
+  vertex_t h_first[]  = {0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 5, 5};
+  vertex_t h_second[] = {1, 2, 3, 4, 0, 2, 3, 5, 0, 1, 3, 4, 5, 0, 1, 2, 4, 0, 2, 3, 1, 2};
+  weight_t h_result[] = {0.5, 0.5,      1.0,      0.5, 0.5, 0.666667, 0.333333, 1.0,
+                         0.5, 0.666667, 0.333333, 0.5, 0.5, 1.0,      0.333333, 0.333333,
+                         1.0, 0.5,      0.5,      1.0, 1.0, 0.5};
+
+  return generic_all_pairs_similarity_test(h_src,
+                                           h_dst,
+                                           h_wgt,
+                                           h_first,
+                                           h_second,
+                                           h_result,
+                                           num_vertices,
+                                           num_edges,
+                                           num_pairs,
+                                           FALSE,
+                                           FALSE,
+                                           SIZE_MAX,
+                                           COSINE);
+}
+
+int test_weighted_all_pairs_cosine_topk()
+{
+  size_t num_edges    = 16;
+  size_t num_vertices = 7;
+  size_t num_pairs    = 6;
+  size_t topk         = 6;
+
+  vertex_t h_src[] = {0, 1, 2, 0, 1, 2, 3, 3, 3, 4, 4, 4, 0, 5, 2, 6};
+  vertex_t h_dst[] = {3, 3, 3, 4, 4, 4, 0, 1, 2, 0, 1, 2, 5, 0, 6, 2};
+  weight_t h_wgt[] = {
+    0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 3.5, 4.0, 4.0};
+
+  vertex_t h_first[]  = {0, 1, 1, 2, 3, 4};
+  vertex_t h_second[] = {1, 0, 2, 1, 4, 3};
+  weight_t h_result[] = {0.0, 0.0, 1.0, 1.0, 1.0, 1.0};
+
+  return generic_all_pairs_similarity_test(h_src,
+                                           h_dst,
+                                           h_wgt,
+                                           h_first,
+                                           h_second,
+                                           h_result,
+                                           num_vertices,
+                                           num_edges,
+                                           num_pairs,
+                                           FALSE,
+                                           TRUE,
+                                           topk,
+                                           COSINE);
+}
+
 int test_all_pairs_jaccard_topk()
 {
   size_t num_edges    = 16;
@@ -812,28 +937,110 @@ int test_weighted_all_pairs_overlap_topk()
                                            OVERLAP);
 }
 
+int test_all_pairs_cosine_topk()
+{
+  size_t num_edges    = 16;
+  size_t num_vertices = 6;
+  size_t topk         = 6;
+  size_t num_pairs    = 6;
+
+  vertex_t h_src[]    = {0, 1, 1, 2, 2, 2, 3, 4, 1, 3, 4, 0, 1, 3, 5, 5};
+  vertex_t h_dst[]    = {1, 3, 4, 0, 1, 3, 5, 5, 0, 1, 1, 2, 2, 2, 3, 4};
+  weight_t h_wgt[]    = {0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
+  vertex_t h_first[]  = {0, 1, 3, 3, 4, 5};
+  vertex_t h_second[] = {3, 5, 0, 4, 3, 1};
+  weight_t h_result[] = {1.000000, 1.000000, 1.000000, 1.000000, 1.000000, 1.000000};
+
+  return generic_all_pairs_similarity_test(h_src,
+                                           h_dst,
+                                           h_wgt,
+                                           h_first,
+                                           h_second,
+                                           h_result,
+                                           num_vertices,
+                                           num_edges,
+                                           num_pairs,
+                                           FALSE,
+                                           FALSE,
+                                           topk,
+                                           COSINE);
+}
+
+int test_weighted_all_pairs_cosine()
+{
+  size_t num_edges    = 16;
+  size_t num_vertices = 7;
+  size_t num_pairs    = 16;
+
+  vertex_t h_src[] = {0, 1, 2, 0, 1, 2, 3, 3, 3, 4, 4, 4, 0, 5, 2, 6};
+  vertex_t h_dst[] = {3, 3, 3, 4, 4, 4, 0, 1, 2, 0, 1, 2, 5, 0, 6, 2};
+  weight_t h_wgt[] = {
+    0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 3.5, 4.0, 4.0};
+
+  vertex_t h_first[]  = {0, 0, 1, 1, 2, 2, 3, 3, 3, 4, 4, 4, 5, 5, 6, 6};
+  vertex_t h_second[] = {1, 2, 0, 2, 0, 1, 4, 5, 6, 3, 5, 6, 3, 4, 3, 4};
+  weight_t h_result[] = {0.714286,
+                         0.416667,
+                         0.714286,
+                         1,
+                         0.416667,
+                         1,
+                         1,
+                         0.166667,
+                         0.5,
+                         1,
+                         0.571429,
+                         0.75,
+                         0.166667,
+                         0.571429,
+                         0.5,
+                         0.75};
+
+  return generic_all_pairs_similarity_test(h_src,
+                                           h_dst,
+                                           h_wgt,
+                                           h_first,
+                                           h_second,
+                                           h_result,
+                                           num_vertices,
+                                           num_edges,
+                                           num_pairs,
+                                           FALSE,
+                                           TRUE,
+                                           SIZE_MAX,
+                                           COSINE);
+}
+
 /******************************************************************************/
 
 int main(int argc, char** argv)
 {
   int result = 0;
+
   result |= RUN_TEST(test_jaccard);
   result |= RUN_TEST(test_sorensen);
   result |= RUN_TEST(test_overlap);
+  result |= RUN_TEST(test_cosine);
   result |= RUN_TEST(test_weighted_jaccard);
   result |= RUN_TEST(test_weighted_sorensen);
   result |= RUN_TEST(test_weighted_overlap);
+  result |= RUN_TEST(test_weighted_cosine);
   result |= RUN_TEST(test_all_pairs_jaccard);
   result |= RUN_TEST(test_all_pairs_sorensen);
   result |= RUN_TEST(test_all_pairs_overlap);
+  result |= RUN_TEST(test_all_pairs_cosine);
   result |= RUN_TEST(test_weighted_all_pairs_jaccard);
   result |= RUN_TEST(test_weighted_all_pairs_sorensen);
   result |= RUN_TEST(test_weighted_all_pairs_overlap);
+  result |= RUN_TEST(test_weighted_all_pairs_cosine);
   result |= RUN_TEST(test_all_pairs_jaccard_topk);
   result |= RUN_TEST(test_all_pairs_sorensen_topk);
   result |= RUN_TEST(test_all_pairs_overlap_topk);
+  result |= RUN_TEST(test_all_pairs_cosine_topk);
   result |= RUN_TEST(test_weighted_all_pairs_jaccard_topk);
   result |= RUN_TEST(test_weighted_all_pairs_sorensen_topk);
   result |= RUN_TEST(test_weighted_all_pairs_overlap_topk);
+  result |= RUN_TEST(test_weighted_all_pairs_cosine_topk);
+
   return result;
 }

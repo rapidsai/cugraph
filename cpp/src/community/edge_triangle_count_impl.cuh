@@ -250,7 +250,7 @@ edge_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>, edge_t> edge_t
                          handle.get_stream());
 
       // There are still multiple copies here but is it worth sorting and reducing again?
-      std::tie(pair_srcs, pair_dsts, std::ignore, pair_count, std::ignore) =
+      std::tie(pair_srcs, pair_dsts, std::ignore, pair_count, std::ignore, std::ignore) =
         shuffle_int_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning<vertex_t,
                                                                                edge_t,
                                                                                weight_t,
