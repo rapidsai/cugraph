@@ -415,6 +415,12 @@ class MultiGraph(Graph):
         key_to_id = self.key_to_id
         id_to_key = None if key_to_id is None else self._id_to_key
         edge_keys = self.edge_keys
+        if self.__networkx_cache__ is None:
+            __networkx_cache__ = None
+        elif not reverse and cls is self.__class__:
+            __networkx_cache__ = self.__networkx_cache__
+        else:
+            __networkx_cache__ = {}
         if not as_view:
             src_indices = src_indices.copy()
             dst_indices = dst_indices.copy()
@@ -429,6 +435,8 @@ class MultiGraph(Graph):
                     id_to_key = id_to_key.copy()
             if edge_keys is not None:
                 edge_keys = edge_keys.copy()
+            if __networkx_cache__ is not None:
+                __networkx_cache__ = __networkx_cache__.copy()
         if reverse:
             src_indices, dst_indices = dst_indices, src_indices
         rv = cls.from_coo(
@@ -448,6 +456,7 @@ class MultiGraph(Graph):
             rv.graph = self.graph
         else:
             rv.graph.update(deepcopy(self.graph))
+        rv.__networkx_cache__ = __networkx_cache__
         return rv
 
     def _sort_edge_indices(self, primary="src"):

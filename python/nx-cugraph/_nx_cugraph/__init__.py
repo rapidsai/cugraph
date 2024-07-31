@@ -69,6 +69,7 @@ _info = {
         "complete_graph",
         "complete_multipartite_graph",
         "connected_components",
+        "convert_node_labels_to_integers",
         "core_number",
         "cubical_graph",
         "cycle_graph",
@@ -130,6 +131,7 @@ _info = {
         "path_graph",
         "petersen_graph",
         "reciprocity",
+        "relabel_nodes",
         "reverse",
         "sedgewick_maze_graph",
         "shortest_path",
@@ -292,6 +294,27 @@ def get_info():
     for key in info_keys:
         del d[key]
     return d
+
+
+def _check_networkx_version():
+    import warnings
+
+    import networkx as nx
+
+    version_major, version_minor = nx.__version__.split(".")[:2]
+    if version_major != "3":
+        warnings.warn(
+            f"nx-cugraph version {__version__} is only known to work with networkx "
+            f"versions 3.x, but networkx {nx.__version__} is installed. "
+            "Perhaps try upgrading your Python environment.",
+            UserWarning,
+            stacklevel=2,
+        )
+    if len(version_minor) > 1:
+        raise RuntimeWarning(
+            f"nx-cugraph version {__version__} does not work with networkx version "
+            f"{nx.__version__}. Please upgrade (or fix) your Python environment."
+        )
 
 
 if __name__ == "__main__":

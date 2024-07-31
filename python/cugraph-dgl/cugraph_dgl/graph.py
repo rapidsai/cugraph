@@ -569,7 +569,7 @@ class Graph:
 
     def _get_n_emb(
         self, ntype: Union[str, None], emb_name: str, u: Union[str, TensorType]
-    ) -> Union["torch.Tensor", "cugraph_dgl.view.EmbeddingView"]:
+    ) -> Union["torch.Tensor", "EmbeddingView"]:
         """
         Gets the embedding of a single node type.
         Unlike DGL, this function takes the string node
@@ -599,10 +599,14 @@ class Graph:
                 raise ValueError("Must provide the node type for a heterogeneous graph")
 
         if dgl.base.is_all(u):
-            return EmbeddingView(self.__ndata_storage[ntype, emb_name], self.num_nodes(ntype))
+            return EmbeddingView(
+                self.__ndata_storage[ntype, emb_name], self.num_nodes(ntype)
+            )
 
         try:
-            print(u,)
+            print(
+                u,
+            )
             return self.__ndata_storage[ntype, emb_name].fetch(
                 _cast_to_torch_tensor(u), "cuda"
             )

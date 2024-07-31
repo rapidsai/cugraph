@@ -77,19 +77,17 @@ class SAGE(nn.Module):
     def inference(self, g, device, batch_size):
         """Conduct layer-wise inference to get all the node embeddings."""
         all_node_ids = torch.arange(0, g.num_nodes()).to(device)
-        feat = g.get_node_storage(key="feat", ntype="_N").fetch(
-            all_node_ids, device=device
-        )
+        feat = g.ndata["feat"][all_node_ids].to(device)
 
         if isinstance(g, cugraph_dgl.Graph):
-            sampler = cugraph_dgl.sampling.NeighborSampler(-1)
+            sampler = cugraph_dgl.dataloading.NeighborSampler([-1])
             loader_cls = cugraph_dgl.dataloading.FutureDataLoader
         else:
             sampler = MultiLayerFullNeighborSampler(1, prefetch_node_feats=["feat"])
             loader_cls = DataLoader
         dataloader = loader_cls(
             g,
-            torch.arange(g.num_nodes()).to(g.device),
+            torch.arange(g.num_nodes()).to(device),
             sampler,
             device=device,
             batch_size=batch_size,

@@ -35,11 +35,14 @@ from pylibcugraph._cugraph_c.graph_functions cimport (
 
 
 cdef extern from "cugraph_c/similarity_algorithms.h":
+
     ###########################################################################
-    #"""
     ctypedef struct cugraph_similarity_result_t:
         pass
-    #"""
+
+    cdef cugraph_vertex_pairs_t* \
+        cugraph_similarity_result_get_vertex_pairs(
+            cugraph_similarity_result_t* result);
 
     cdef cugraph_type_erased_device_array_view_t* \
         cugraph_similarity_result_get_similarity(
@@ -65,6 +68,20 @@ cdef extern from "cugraph_c/similarity_algorithms.h":
         )
 
     ###########################################################################
+    # all-pairs jaccard coefficients
+    cdef cugraph_error_code_t \
+        cugraph_all_pairs_jaccard_coefficients(
+            const cugraph_resource_handle_t* handle,
+            cugraph_graph_t* graph,
+            const cugraph_type_erased_device_array_view_t* vertices,
+            bool_t use_weight,
+            size_t topk,
+            bool_t do_expensive_check,
+            cugraph_similarity_result_t** result,
+            cugraph_error_t** error
+        )
+
+    ###########################################################################
     # sorensen coefficients
     cdef cugraph_error_code_t \
         cugraph_sorensen_coefficients(
@@ -78,6 +95,20 @@ cdef extern from "cugraph_c/similarity_algorithms.h":
         )
 
     ###########################################################################
+    # all-pairs sorensen coefficients
+    cdef cugraph_error_code_t \
+        cugraph_all_pairs_sorensen_coefficients(
+            const cugraph_resource_handle_t* handle,
+            cugraph_graph_t* graph,
+            const cugraph_type_erased_device_array_view_t* vertices,
+            bool_t use_weight,
+            size_t topk,
+            bool_t do_expensive_check,
+            cugraph_similarity_result_t** result,
+            cugraph_error_t** error
+        )
+
+    ###########################################################################
     # overlap coefficients
     cdef cugraph_error_code_t \
         cugraph_overlap_coefficients(
@@ -85,6 +116,47 @@ cdef extern from "cugraph_c/similarity_algorithms.h":
             cugraph_graph_t* graph,
             const cugraph_vertex_pairs_t* vertex_pairs,
             bool_t use_weight,
+            bool_t do_expensive_check,
+            cugraph_similarity_result_t** result,
+            cugraph_error_t** error
+        )
+
+    ###########################################################################
+    # all-pairs overlap coefficients
+    cdef cugraph_error_code_t \
+        cugraph_all_pairs_overlap_coefficients(
+            const cugraph_resource_handle_t* handle,
+            cugraph_graph_t* graph,
+            const cugraph_type_erased_device_array_view_t* vertices,
+            bool_t use_weight,
+            size_t topk,
+            bool_t do_expensive_check,
+            cugraph_similarity_result_t** result,
+            cugraph_error_t** error
+        )
+
+    ###########################################################################
+    # cosine coefficients
+    cdef cugraph_error_code_t \
+        cugraph_cosine_similarity_coefficients(
+            const cugraph_resource_handle_t* handle,
+            cugraph_graph_t* graph,
+            const cugraph_vertex_pairs_t* vertex_pairs,
+            bool_t use_weight,
+            bool_t do_expensive_check,
+            cugraph_similarity_result_t** result,
+            cugraph_error_t** error
+        )
+
+    ###########################################################################
+    # all-pairs cosine coefficients
+    cdef cugraph_error_code_t \
+        cugraph_all_pairs_cosine_similarity_coefficients(
+            const cugraph_resource_handle_t* handle,
+            cugraph_graph_t* graph,
+            const cugraph_type_erased_device_array_view_t* vertices,
+            bool_t use_weight,
+            size_t topk,
             bool_t do_expensive_check,
             cugraph_similarity_result_t** result,
             cugraph_error_t** error

@@ -22,6 +22,7 @@ from typing import Union, Iterable
 
 from pylibcugraph import (
     overlap_coefficients as pylibcugraph_overlap_coefficients,
+    all_pairs_overlap_coefficients as pylibcugraph_all_pairs_overlap_coefficients,
 )
 from pylibcugraph import ResourceHandle
 
@@ -151,7 +152,7 @@ def overlap(
     Compute the Overlap Coefficient between each pair of vertices connected by
     an edge, or between arbitrary pairs of vertices specified by the user.
     Overlap Coefficient is defined between two sets as the ratio of the volume
-    of their intersection divided by the smaller of their two volumes. In the
+    of their intersection over the smaller of their two volumes. In the
     context of graphs, the neighborhood of a vertex is seen as a set. The
     Overlap Coefficient weight of each edge represents the strength of
     connection between vertices based on the relative similarity of their
@@ -266,6 +267,124 @@ def overlap(
         vertex_pair = vertex_pair.rename(
             columns={src_col_name: "first", dst_col_name: "second"}
         )
+
+    df = vertex_pair
+    df["overlap_coeff"] = cudf.Series(overlap_coeff)
+
+    return df
+
+
+def all_pairs_overlap(
+    input_graph: Graph,
+    vertices: cudf.Series = None,
+    use_weight: bool = False,
+    topk: int = None,
+):
+    """
+    Compute the All Pairs Overlap Coefficient between each pair of vertices connected
+    by an edge, or between arbitrary pairs of vertices specified by the user.
+    Overlap Coefficient is defined between two sets as the ratio of the volume
+    of their intersection over the smaller of their two volumes. In the
+    context of graphs, the neighborhood of a vertex is seen as a set. The
+    Overlap Coefficient weight of each edge represents the strength of
+    connection between vertices based on the relative similarity of their
+    neighbors.
+
+    cugraph.all_pairs_overlap, in the absence of specified vertices, will
+    compute the two_hop_neighbors of the entire graph to construct a vertex pair
+    list and will return the overlap coefficient for all the vertex pairs in the graph.
+    This is not advisable as the vertex_pairs can grow exponentially with respect to
+    the size of the datasets.
+
+    If the topk parameter is specified then the result will only contain the top k
+    highest scoring results.
+
+    Parameters
+    ----------
+    input_graph : cugraph.Graph
+        cuGraph Graph instance, should contain the connectivity information
+        as an edge list. The graph should be undirected where an undirected
+        edge is represented by a directed edge in both direction.The adjacency
+        list will be computed if not already present.
+
+        This implementation only supports undirected, non-multi Graphs.
+
+    vertices : int or list or cudf.Series or cudf.DataFrame, optional (default=None)
+        A GPU Series containing the input vertex list.  If the vertex list is not
+        provided then the current implementation computes the overlap coefficient for
+        all adjacent vertices in the graph.
+
+    use_weight : bool, optional (default=False)
+        Flag to indicate whether to compute weighted overlap (if use_weight==True)
+        or un-weighted overlap (if use_weight==False).
+        'input_graph' must be weighted if 'use_weight=True'.
+
+    topk : int, optional (default=None)
+        Specify the number of answers to return otherwise returns the entire
+        solution
+
+    Returns
+    -------
+    df  : cudf.DataFrame
+        GPU data frame of size E (the default) or the size of the given pairs
+        (first, second) containing the Overlap weights. The ordering is
+        relative to the adjacency list, or that given by the specified vertex
+        pairs.
+
+        df['first'] : cudf.Series
+            The first vertex ID of each pair (will be identical to first if specified).
+        df['second'] : cudf.Series
+            The second vertex ID of each pair (will be identical to second if
+            specified).
+        df['overlap_coeff'] : cudf.Series
+            The computed Overlap coefficient between the first and the second
+            vertex ID.
+
+    Examples
+    --------
+    >>> from cugraph.datasets import karate
+    >>> from cugraph import all_pairs_overlap
+    >>> input_graph = karate.get_graph(download=True, ignore_weights=True)
+    >>> df = all_pairs_overlap(input_graph)
+
+    """
+    if input_graph.is_directed():
+        raise ValueError("Input must be an undirected Graph.")
+
+    if vertices is not None:
+
+        if isinstance(vertices, int):
+            vertices = [vertices]
+
+        if isinstance(vertices, list):
+            vertices = cudf.Series(
+                vertices,
+                dtype=input_graph.edgelist.edgelist_df[input_graph.srcCol].dtype,
+            )
+
+        if input_graph.renumbered is True:
+            if isinstance(vertices, cudf.DataFrame):
+                vertices = input_graph.lookup_internal_vertex_id(
+                    vertices, vertices.columns
+                )
+            else:
+                vertices = input_graph.lookup_internal_vertex_id(vertices)
+
+    first, second, overlap_coeff = pylibcugraph_all_pairs_overlap_coefficients(
+        resource_handle=ResourceHandle(),
+        graph=input_graph._plc_graph,
+        vertices=vertices,
+        use_weight=use_weight,
+        topk=topk,
+        do_expensive_check=False,
+    )
+    vertex_pair = cudf.DataFrame()
+    vertex_pair["first"] = first
+    vertex_pair["second"] = second
+
+    if input_graph.renumbered:
+        vertex_pair = input_graph.unrenumber(vertex_pair, "first", preserve_order=True)
+        vertex_pair = input_graph.unrenumber(vertex_pair, "second", preserve_order=True)
 
     df = vertex_pair
     df["overlap_coeff"] = cudf.Series(overlap_coeff)

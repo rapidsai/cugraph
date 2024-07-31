@@ -32,13 +32,13 @@ class EmbeddingView:
     def __init__(self, storage: "dgl.storages.base.FeatureStorage", ld: int):
         self.__ld = ld
         self.__storage = storage
-    
+
     def __getitem__(self, u: TensorType) -> "torch.Tensor":
         u = _cast_to_torch_tensor(u)
         try:
-           return self.__storage.fetch(
-            u,
-            'cuda',
+            return self.__storage.fetch(
+                u,
+                "cuda",
             )
         except RuntimeError as ex:
             warnings.warn(
@@ -47,15 +47,15 @@ class EmbeddingView:
             )
             return self.__storage.fetch(
                 u.cuda(),
-                'cuda',
+                "cuda",
             )
-    
+
     @property
     def shape(self) -> "torch.Size":
         try:
-            f = self.__storage.fetch(torch.tensor([0]), 'cpu')
+            f = self.__storage.fetch(torch.tensor([0]), "cpu")
         except RuntimeError:
-            f = self.__storage.fetch(torch.tensor([0],device='cuda'), 'cuda')
+            f = self.__storage.fetch(torch.tensor([0], device="cuda"), "cuda")
         sz = [s for s in f.shape]
         sz[0] = self.__ld
         return torch.Size(tuple(sz))

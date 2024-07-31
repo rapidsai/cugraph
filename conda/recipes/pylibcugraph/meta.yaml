@@ -75,7 +75,9 @@ requirements:
     - cuda-cudart
     {% endif %}
     - libcugraph ={{ version }}
+    - pylibraft ={{ minor_version }}
     - python
+    - rmm ={{ minor_version }}
 
 tests:
   requirements:
