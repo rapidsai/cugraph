@@ -51,6 +51,7 @@ dependencies:
 - packaging>=21
 - pandas
 - pre-commit
+- pydantic
 - pydata-sphinx-theme
 - pylibcugraphops==24.8.*,>=0.0.0a0
 - pylibraft==24.8.*,>=0.0.0a0
@@ -77,6 +78,7 @@ dependencies:
 - sphinx<6
 - sphinxcontrib-websupport
 - thriftpy2!=0.5.0,!=0.5.1
+- torchdata
 - ucx-proc=*=gpu
 - ucx-py==0.39.*,>=0.0.0a0
 - wget

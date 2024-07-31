@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2024, NVIDIA CORPORATION.
+# Copyright (c) 2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -11,17 +11,30 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import os
+from typing import List, Union, Tuple
+from cugraph.utilities.utils import import_optional
 
-# to prevent rapids context being created when importing cugraph_dgl
-os.environ["RAPIDS_NO_INITIALIZE"] = "1"
-from cugraph_dgl.graph import Graph
-from cugraph_dgl.cugraph_storage import CuGraphStorage
-from cugraph_dgl.convert import (
-    cugraph_storage_from_heterograph,
-    cugraph_dgl_graph_from_heterograph,
-)
-import cugraph_dgl.dataloading
-import cugraph_dgl.nn
+from cugraph_dgl.nn import SparseGraph
 
-from cugraph_dgl._version import __git_commit__, __version__
+import pandas
+import numpy
+import cupy
+import cudf
+
+torch = import_optional("torch")
+dgl = import_optional("dgl")
+
+TensorType = Union[
+    "torch.Tensor",
+    "cupy.ndarray",
+    "numpy.ndarray",
+    "cudf.Series",
+    "pandas.Series",
+    List[int],
+]
+
+DGLSamplerOutput = Tuple[
+    "torch.Tensor",
+    "torch.Tensor",
+    List[Union["dgl.Block", SparseGraph]],
+]

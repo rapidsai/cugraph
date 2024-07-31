@@ -1,4 +1,4 @@
-# Copyright (c) 2023, NVIDIA CORPORATION.
+# Copyright (c) 2023-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -14,6 +14,8 @@
 from typing import Optional, Tuple, Union
 
 from cugraph.utilities.utils import import_optional
+
+import cugraph_dgl
 
 torch = import_optional("torch")
 ops_torch = import_optional("pylibcugraphops.pytorch")
@@ -254,6 +256,27 @@ class SparseGraph(object):
             f"num_dst_nodes={self._num_dst_nodes}, "
             f"num_edges={self._src_ids.size(0)}, formats={self._formats})"
         )
+
+    def to(self, device: Union[torch.device, str, int]) -> "cugraph_dgl.nn.SparseGraph":
+        sg = SparseGraph(
+            src_ids=None if self._src_ids is None else self._src_ids.to(device),
+            dst_ids=None if self._dst_ids is None else self._dst_ids.to(device),
+            csrc_ids=None if self._csrc_ids is None else self._csrc_ids.to(device),
+            cdst_ids=None if self._cdst_ids is None else self._cdst_ids.to(device),
+            values=None if self._values is None else self._values.to(device),
+            is_sorted=self._is_sorted,
+            formats=self._formats,
+            reduce_memory=self._reduce_memory,
+        )
+
+        sg._perm_coo2csc = (
+            None if self._perm_coo2csc is None else self._perm_coo2csc.to(device)
+        )
+        sg._perm_csc2csr = (
+            None if self._perm_csc2csr is None else self._perm_csc2csr.to(device)
+        )
+
+        return sg
 
 
 class BaseConv(torch.nn.Module):
