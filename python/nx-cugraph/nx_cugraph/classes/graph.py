@@ -56,21 +56,6 @@ class Graph(nx.Graph):
     graph_attr_dict_factory: ClassVar[type] = dict
     __networkx_cache__: dict = {}
 
-    # Define cached_property properties to support usage as a networkx.Graph
-    # instance.  These will use __networkx_cache__ to save a one-time
-    # conversion, then return the corresponding networkx.Graph attribute.
-    @cached_property
-    def _adj(self):
-        if (G := self.__networkx_cache__.get("networkx")) is None:
-            G = self.__networkx_cache__.setdefault("networkx", nxcg.to_networkx(self))
-        return G._adj
-
-    @cached_property
-    def _node(self):
-        if (G := self.__networkx_cache__.get("networkx")) is None:
-            G = self.__networkx_cache__.setdefault("networkx", nxcg.to_networkx(self))
-        return G._node
-
     # Not networkx properties
     # We store edge data in COO format with {src,dst}_indices and edge_values.
     src_indices: cp.ndarray[IndexValue]
@@ -364,6 +349,20 @@ class Graph(nx.Graph):
     # Properties #
     ##############
 
+    # Define cached_property properties to support usage as a networkx.Graph
+    # instance by maintaining a networkx.Graph copy of the graph.
+    @cached_property
+    def _adj(self):
+        if (G := self.__networkx_cache__.get("networkx")) is None:
+            G = self.__networkx_cache__.setdefault("networkx", nxcg.to_networkx(self))
+        return G._adj
+
+    @cached_property
+    def _node(self):
+        if (G := self.__networkx_cache__.get("networkx")) is None:
+            G = self.__networkx_cache__.setdefault("networkx", nxcg.to_networkx(self))
+        return G._node
+
     @property
     def edge_dtypes(self) -> dict[AttrKey, Dtype]:
         return {key: val.dtype for key, val in self.edge_values.items()}
@@ -413,37 +412,73 @@ class Graph(nx.Graph):
     # NetworkX graph methods #
     ##########################
 
+    # Many networkx.Graph methods simply pass-thru to the NetworkX cached
+    # instance, then update self to stay in sync.
     @networkx_api
-    def add_nodes_from(self, nodes_for_adding: Iterable[NodeKey], **attr) -> None:
-        if self._N != 0:
-            raise NotImplementedError(
-                "add_nodes_from is not implemented for graph that already has nodes."
-            )
-        G = self.to_networkx_class()()
+    def add_node(self, node_for_adding, **attr):
+        G = self._get_cached_nx_graph()
+        G.add_node(node_for_adding, **attr)
+        self._update_from_nx(G)
+
+    @networkx_api
+    def add_nodes_from(self, nodes_for_adding, **attr):
+        G = self._get_cached_nx_graph()
         G.add_nodes_from(nodes_for_adding, **attr)
-        G = nxcg.from_networkx(G, preserve_node_attrs=True)
-        self._become(G)
+        self._update_from_nx(G)
+
+    @networkx_api
+    def remove_node(self, n):
+        G = self._get_cached_nx_graph()
+        G.remove_node(n)
+        self._update_from_nx(G)
+
+    @networkx_api
+    def remove_nodes_from(self, nodes):
+        G = self._get_cached_nx_graph()
+        G.remove_nodes_from(nodes)
+        self._update_from_nx(G)
+
+    @networkx_api
+    def add_edge(self, u_of_edge, v_of_edge, **attr):
+        G = self._get_cached_nx_graph()
+        G.add_edge(u_of_edge, v_of_edge, **attr)
+        self._update_from_nx(G)
+
+    @networkx_api
+    def add_edges_from(self, ebunch_to_add, **attr):
+        G = self._get_cached_nx_graph()
+        G.add_edges_from(ebunch_to_add, **attr)
+        self._update_from_nx(G)
+
+    @networkx_api
+    def add_weighted_edges_from(self, ebunch_to_add, weight="weight", **attr):
+        G = self._get_cached_nx_graph()
+        G.add_weighted_edges_from(ebunch_to_add, weight, **attr)
+        self._update_from_nx(G)
+
+    @networkx_api
+    def remove_edge(self, u, v):
+        G = self._get_cached_nx_graph()
+        G.remove_edge(u, v)
+        self._update_from_nx(G)
+
+    @networkx_api
+    def remove_edges_from(self, ebunch):
+        G = self._get_cached_nx_graph()
+        G.remove_edges_from(ebunch)
+        self._update_from_nx(G)
 
     @networkx_api
     def clear(self) -> None:
-        self.edge_values.clear()
-        self.edge_masks.clear()
-        self.node_values.clear()
-        self.node_masks.clear()
-        self.graph.clear()
-        self.src_indices = cp.empty(0, self.src_indices.dtype)
-        self.dst_indices = cp.empty(0, self.dst_indices.dtype)
-        self._N = 0
-        self._node_ids = None
-        self.key_to_id = None
-        self._id_to_key = None
+        G = self._get_cached_nx_graph()
+        G.clear()
+        self._update_from_nx(G)
 
     @networkx_api
     def clear_edges(self) -> None:
-        self.edge_values.clear()
-        self.edge_masks.clear()
-        self.src_indices = cp.empty(0, self.src_indices.dtype)
-        self.dst_indices = cp.empty(0, self.dst_indices.dtype)
+        G = self._get_cached_nx_graph()
+        G.clear_edges()
+        self._update_from_nx(G)
 
     @networkx_api
     def copy(self, as_view: bool = False) -> Graph:
@@ -731,7 +766,7 @@ class Graph(nx.Graph):
             raise TypeError(
                 "Attempting to update graph inplace with graph of different type!"
             )
-        self.clear()
+        self._clear()
         edge_values = self.edge_values
         edge_masks = self.edge_masks
         node_values = self.node_values
@@ -749,6 +784,19 @@ class Graph(nx.Graph):
         self.node_masks = node_masks
         self.graph = graph
         return self
+
+    def _clear(self):
+        self.edge_values.clear()
+        self.edge_masks.clear()
+        self.node_values.clear()
+        self.node_masks.clear()
+        self.graph.clear()
+        self.src_indices = cp.empty(0, self.src_indices.dtype)
+        self.dst_indices = cp.empty(0, self.dst_indices.dtype)
+        self._N = 0
+        self._node_ids = None
+        self.key_to_id = None
+        self._id_to_key = None
 
     def _degrees_array(self, *, ignore_selfloops=False):
         src_indices = self.src_indices
@@ -860,3 +908,15 @@ class Graph(nx.Graph):
         if dtype is None:
             return cp.array(list(val_iter))
         return cp.fromiter(val_iter, dtype)
+
+    def _update_from_nx(self, Gnx):
+        # FIXME: This will result in a GPU memory spike where GPU memory must
+        # be a minimum of 2X graph size.
+        Gcg = nxcg.from_networkx(
+            Gnx, preserve_all_attrs=True, preserve_graph_attrs=True)
+        self._become(Gcg)
+
+    def _get_cached_nx_graph(self):
+        if (Gnx := self.__networkx_cache__.get("networkx")) is None:
+            Gnx = self.__networkx_cache__.setdefault("networkx", nxcg.to_networkx(self))
+        return Gnx
