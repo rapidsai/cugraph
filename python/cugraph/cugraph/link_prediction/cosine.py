@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2024, NVIDIA CORPORATION.
+# Copyright (c) 2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -21,8 +21,8 @@ import warnings
 from typing import Union, Iterable
 
 from pylibcugraph import (
-    jaccard_coefficients as pylibcugraph_jaccard_coefficients,
-    all_pairs_jaccard_coefficients as pylibcugraph_all_pairs_jaccard_coefficients,
+    cosine_coefficients as pylibcugraph_cosine_coefficients,
+    all_pairs_cosine_coefficients as pylibcugraph_all_pairs_cosine_coefficients,
 )
 from pylibcugraph import ResourceHandle
 
@@ -47,7 +47,7 @@ def ensure_valid_dtype(input_graph, vertex_pair):
         or vertex_pair_dtypes.iloc[1] != vertex_dtype
     ):
         warning_msg = (
-            "Jaccard requires 'vertex_pair' to match the graph's 'vertex' type. "
+            "Cosine requires 'vertex_pair' to match the graph's 'vertex' type. "
             f"input graph's vertex type is: {vertex_dtype} and got "
             f"'vertex_pair' of type: {vertex_pair_dtypes}."
         )
@@ -57,23 +57,23 @@ def ensure_valid_dtype(input_graph, vertex_pair):
     return vertex_pair
 
 
-def jaccard(
+def cosine(
     input_graph: Graph,
     vertex_pair: cudf.DataFrame = None,
     use_weight: bool = False,
 ):
     """
-    Compute the Jaccard similarity between each pair of vertices connected by
+    Compute the Cosine similarity between each pair of vertices connected by
     an edge, or between arbitrary pairs of vertices specified by the user.
-    Jaccard similarity is defined between two sets as the ratio of the volume
-    of their intersection over the volume of their union. In the context
-    of graphs, the neighborhood of a vertex is seen as a set. The Jaccard
-    similarity weight of each edge represents the strength of connection
+    The Cosine similarity is defined between two sets as the ratio of their
+    intersection's volume over the square root of their volume's product.
+    In the context of graphs, the neighborhood of a vertex is seen as a set.
+    The Cosine similarity weight of each edge represents the strength of connection
     between vertices based on the relative similarity of their neighbors.
 
-    cugraph.jaccard, in the absence of a specified vertex pair list, will
+    cugraph.cosine, in the absence of a specified vertex pair list, will
     compute the two_hop_neighbors of the entire graph to construct a vertex pair
-    list and will return the jaccard coefficient for those vertex pairs. This is
+    list and will return the cosine coefficient for those vertex pairs. This is
     not advisable as the vertex_pairs can grow exponentially with respect to the
     size of the datasets.
 
@@ -89,21 +89,21 @@ def jaccard(
 
     vertex_pair : cudf.DataFrame, optional (default=None)
         A GPU dataframe consisting of two columns representing pairs of
-        vertices. If provided, the jaccard coefficient is computed for the
+        vertices. If provided, the cosine coefficient is computed for the
         given vertex pairs.  If the vertex_pair is not provided then the
-        current implementation computes the jaccard coefficient for all
+        current implementation computes the cosine coefficient for all
         adjacent vertices in the graph.
 
     use_weight : bool, optional (default=False)
-        Flag to indicate whether to compute weighted jaccard (if use_weight==True)
-        or un-weighted jaccard (if use_weight==False).
+        Flag to indicate whether to compute weighted cosine (if use_weight==True)
+        or un-weighted cosine (if use_weight==False).
         'input_graph' must be weighted if 'use_weight=True'.
 
     Returns
     -------
     df  : cudf.DataFrame
         GPU data frame of size E (the default) or the size of the given pairs
-        (first, second) containing the Jaccard weights. The ordering is
+        (first, second) containing the Cosine weights. The ordering is
         relative to the adjacency list, or that given by the specified vertex
         pairs.
 
@@ -112,16 +112,16 @@ def jaccard(
         df['second'] : cudf.Series
             The second vertex ID of each pair (will be identical to second if
             specified).
-        df['jaccard_coeff'] : cudf.Series
-            The computed Jaccard coefficient between the first and the second
+        df['cosine_coeff'] : cudf.Series
+            The computed Cosine coefficient between the first and the second
             vertex ID.
 
     Examples
     --------
     >>> from cugraph.datasets import karate
-    >>> from cugraph import jaccard
+    >>> from cugraph import cosine
     >>> input_graph = karate.get_graph(download=True, ignore_weights=True)
-    >>> df = jaccard(input_graph)
+    >>> df = cosine(input_graph)
 
     """
     if input_graph.is_directed():
@@ -144,7 +144,7 @@ def jaccard(
     elif vertex_pair is not None:
         raise ValueError("vertex_pair must be a cudf Dataframe")
 
-    first, second, jaccard_coeff = pylibcugraph_jaccard_coefficients(
+    first, second, cosine_coeff = pylibcugraph_cosine_coefficients(
         resource_handle=ResourceHandle(),
         graph=input_graph._plc_graph,
         first=first,
@@ -168,17 +168,17 @@ def jaccard(
         )
 
     df = vertex_pair
-    df["jaccard_coeff"] = cudf.Series(jaccard_coeff)
+    df["cosine_coeff"] = cudf.Series(cosine_coeff)
 
     return df
 
 
-def jaccard_coefficient(
+def cosine_coefficient(
     G: Union[Graph, "networkx.Graph"],
     ebunch: Union[cudf.DataFrame, Iterable[Union[int, str, float]]] = None,
 ):
     """
-    For NetworkX Compatability.  See `jaccard`
+    Note: No NetworkX equivalent.
 
     Parameters
     ----------
@@ -203,7 +203,7 @@ def jaccard_coefficient(
     -------
     df  : cudf.DataFrame
         GPU data frame of size E (the default) or the size of the given pairs
-        (first, second) containing the Jaccard weights. The ordering is
+        (first, second) containing the Cosine weights. The ordering is
         relative to the adjacency list, or that given by the specified vertex
         pairs.
 
@@ -212,16 +212,16 @@ def jaccard_coefficient(
         df['second'] : cudf.Series
             the second vertex ID of each pair (will be identical to second if
             specified).
-        df['jaccard_coeff'] : cudf.Series
-            The computed Jaccard coefficient between the first and the second
+        df['cosine_coeff'] : cudf.Series
+            The computed Cosine coefficient between the first and the second
             vertex ID.
 
     Examples
     --------
     >>> from cugraph.datasets import karate
-    >>> from cugraph import jaccard_coefficient
+    >>> from cugraph import cosine_coefficient
     >>> G = karate.get_graph(download=True)
-    >>> df = jaccard_coefficient(G)
+    >>> df = cosine_coefficient(G)
 
     """
     vertex_pair = None
@@ -231,33 +231,35 @@ def jaccard_coefficient(
     if isNx is True and ebunch is not None:
         vertex_pair = cudf.DataFrame(ebunch)
 
-    df = jaccard(G, vertex_pair)
+    df = cosine(G, vertex_pair)
 
     if isNx is True:
         df = df_edge_score_to_dictionary(
-            df, k="jaccard_coeff", src="first", dst="second"
+            df, k="cosine_coeff", src="first", dst="second"
         )
 
     return df
 
 
-def all_pairs_jaccard(
+def all_pairs_cosine(
     input_graph: Graph,
     vertices: cudf.Series = None,
     use_weight: bool = False,
     topk: int = None,
 ):
     """
-    Compute the All Pairs Jaccard similarity between all pairs of vertices specified.
-    All pairs Jaccard similarity is defined between two sets as the ratio of the volume
-    of their intersection over the volume of their union. In the context
-    of graphs, the neighborhood of a vertex is seen as a set. The Jaccard
-    similarity weight of each edge represents the strength of connection
+    Compute the All Pairs Cosine similarity between all pairs of vertices specified.
+    The Cosine similarity weight of each edge represents the strength of connection
+    between vertices based on the relative similarity of their neighbors.
+    The All Pairs Cosine similarity is defined between two sets as the ratio of their
+    intersection's volume over the square root of their volume's product.
+    In the context of graphs, the neighborhood of a vertex is seen as a set.
+    The Cosine similarity weight of each edge represents the strength of connection
     between vertices based on the relative similarity of their neighbors.
 
-    cugraph.all_pairs_jaccard, in the absence of specified vertices, will
+    cugraph.all_pairs_cosine, in the absence of specified vertices, will
     compute the two_hop_neighbors of the entire graph to construct a vertex pair
-    list and will return the jaccard coefficient for all the vertex pairs in the graph.
+    list and will return the cosine coefficient for all the vertex pairs in the graph.
     This is not advisable as the vertex_pairs can grow exponentially with respect to
     the size of the datasets.
 
@@ -276,12 +278,12 @@ def all_pairs_jaccard(
 
     vertices : int or list or cudf.Series or cudf.DataFrame, optional (default=None)
         A GPU Series containing the input vertex list.  If the vertex list is not
-        provided then the current implementation computes the jaccard coefficient for
+        provided then the current implementation computes the cosine coefficient for
         all adjacent vertices in the graph.
 
     use_weight : bool, optional (default=False)
-        Flag to indicate whether to compute weighted jaccard (if use_weight==True)
-        or un-weighted jaccard (if use_weight==False).
+        Flag to indicate whether to compute weighted cosine (if use_weight==True)
+        or un-weighted cosine (if use_weight==False).
         'input_graph' must be weighted if 'use_weight=True'.
 
     topk : int, optional (default=None)
@@ -292,7 +294,7 @@ def all_pairs_jaccard(
     -------
     df  : cudf.DataFrame
         GPU data frame of size E (the default) or the size of the given pairs
-        (first, second) containing the Jaccard weights. The ordering is
+        (first, second) containing the Cosine weights. The ordering is
         relative to the adjacency list, or that given by the specified vertex
         pairs.
 
@@ -301,16 +303,16 @@ def all_pairs_jaccard(
         df['second'] : cudf.Series
             The second vertex ID of each pair (will be identical to second if
             specified).
-        df['jaccard_coeff'] : cudf.Series
-            The computed Jaccard coefficient between the first and the second
+        df['cosine_coeff'] : cudf.Series
+            The computed Cosine coefficient between the first and the second
             vertex ID.
 
     Examples
     --------
     >>> from cugraph.datasets import karate
-    >>> from cugraph import all_pairs_jaccard
+    >>> from cugraph import all_pairs_cosine
     >>> input_graph = karate.get_graph(download=True, ignore_weights=True)
-    >>> df = all_pairs_jaccard(input_graph)
+    >>> df = all_pairs_cosine(input_graph)
 
     """
     if input_graph.is_directed():
@@ -335,7 +337,7 @@ def all_pairs_jaccard(
             else:
                 vertices = input_graph.lookup_internal_vertex_id(vertices)
 
-    first, second, jaccard_coeff = pylibcugraph_all_pairs_jaccard_coefficients(
+    first, second, cosine_coeff = pylibcugraph_all_pairs_cosine_coefficients(
         resource_handle=ResourceHandle(),
         graph=input_graph._plc_graph,
         vertices=vertices,
@@ -352,6 +354,6 @@ def all_pairs_jaccard(
         vertex_pair = input_graph.unrenumber(vertex_pair, "second", preserve_order=True)
 
     df = vertex_pair
-    df["jaccard_coeff"] = cudf.Series(jaccard_coeff)
+    df["cosine_coeff"] = cudf.Series(cosine_coeff)
 
     return df
