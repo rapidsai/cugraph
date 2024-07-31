@@ -1,4 +1,4 @@
-# Copyright (c) 2023-2024, NVIDIA CORPORATION.
+# Copyright (c) 2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -10,29 +10,31 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from networkx.exception import *
 
-from . import utils
+from typing import List, Union, Tuple
+from cugraph.utilities.utils import import_optional
 
-from . import classes
-from .classes import *
+from cugraph_dgl.nn import SparseGraph
 
-from . import convert
-from .convert import *
+import pandas
+import numpy
+import cupy
+import cudf
 
-from . import convert_matrix
-from .convert_matrix import *
+torch = import_optional("torch")
+dgl = import_optional("dgl")
 
-from . import relabel
-from .relabel import *
+TensorType = Union[
+    "torch.Tensor",
+    "cupy.ndarray",
+    "numpy.ndarray",
+    "cudf.Series",
+    "pandas.Series",
+    List[int],
+]
 
-from . import generators
-from .generators import *
-
-from . import algorithms
-from .algorithms import *
-
-from _nx_cugraph._version import __git_commit__, __version__
-from _nx_cugraph import _check_networkx_version
-
-_check_networkx_version()
+DGLSamplerOutput = Tuple[
+    "torch.Tensor",
+    "torch.Tensor",
+    List[Union["dgl.Block", SparseGraph]],
+]
