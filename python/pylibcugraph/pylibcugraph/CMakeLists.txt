@@ -39,6 +39,7 @@ set(cython_sources
     jaccard_coefficients.pyx
     sorensen_coefficients.pyx
     overlap_coefficients.pyx
+    cosine_coefficients.pyx
     katz_centrality.pyx
     leiden.pyx
     louvain.pyx
@@ -58,6 +59,10 @@ set(cython_sources
     weakly_connected_components.pyx
     replicate_edgelist.pyx
     degrees.pyx
+    all_pairs_jaccard_coefficients.pyx
+    all_pairs_sorensen_coefficients.pyx
+    all_pairs_overlap_coefficients.pyx
+    all_pairs_cosine_coefficients.pyx
 )
 set(linked_libraries cugraph::cugraph;cugraph::cugraph_c)
 

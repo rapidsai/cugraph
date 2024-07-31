@@ -83,8 +83,8 @@ def input_combo(request):
 @pytest.fixture(scope="module")
 def input_expected_output(input_combo):
     """
-    This fixture returns the inputs and expected results from the Jaccard algo.
-    (based on cuGraph Jaccard) which can be used for validation.
+    This fixture returns the inputs and expected results from the Cosine algo.
+    (based on cuGraph Cosine) which can be used for validation.
     """
 
     input_data_path = input_combo["graph_file"]
@@ -105,14 +105,14 @@ def input_expected_output(input_combo):
         vertex_pair = None
 
     input_combo["vertex_pair"] = vertex_pair
-    sg_cugraph_jaccard = cugraph.jaccard(
+    sg_cugraph_cosine = cugraph.cosine(
         G, input_combo["vertex_pair"], use_weight=is_weighted
     )
     # Save the results back to the input_combo dictionary to prevent redundant
     # cuGraph runs. Other tests using the input_combo fixture will look for
     # them, and if not present they will have to re-run the same cuGraph call.
 
-    input_combo["sg_cugraph_results"] = sg_cugraph_jaccard
+    input_combo["sg_cugraph_results"] = sg_cugraph_cosine
     chunksize = dcg.get_chunksize(input_data_path)
     ddf = dask_cudf.read_csv(
         input_data_path,
@@ -140,8 +140,8 @@ def input_expected_output(input_combo):
 @pytest.fixture(scope="module")
 def input_expected_output_all_pairs(input_combo):
     """
-    This fixture returns the inputs and expected results from the Jaccard algo.
-    (based on cuGraph Jaccard) which can be used for validation.
+    This fixture returns the inputs and expected results from the Cosine algo.
+    (based on cuGraph Cosine) which can be used for validation.
     """
 
     input_data_path = input_combo["graph_file"]
@@ -152,12 +152,6 @@ def input_expected_output_all_pairs(input_combo):
     G = utils.generate_cugraph_graph_from_file(
         input_data_path, directed=directed, edgevals=is_weighted
     )
-
-    if has_topk:
-        topk = 5
-    else:
-        topk = None
-
     if has_vertices:
         # Sample random vertices from the graph and compute the two_hop_neighbors
         # with those seeds
@@ -166,13 +160,16 @@ def input_expected_output_all_pairs(input_combo):
 
     else:
         vertices = None
-        # If no start_vertices are passed, all_pairs similarity runs OOM
-        topk = 10
+
+    if has_topk:
+        topk = 5
+    else:
+        topk = None
 
     input_combo["vertices"] = vertices
+    print("vertices ", vertices, " is_weighted = ", is_weighted)
     input_combo["topk"] = topk
-    print("vertices ", vertices)
-    sg_cugraph_all_pairs_jaccard = cugraph.all_pairs_jaccard(
+    sg_cugraph_all_pairs_cosine = cugraph.all_pairs_cosine(
         G,
         vertices=input_combo["vertices"],
         topk=input_combo["topk"],
@@ -182,7 +179,7 @@ def input_expected_output_all_pairs(input_combo):
     # cuGraph runs. Other tests using the input_combo fixture will look for
     # them, and if not present they will have to re-run the same cuGraph call.
 
-    input_combo["sg_cugraph_results"] = sg_cugraph_all_pairs_jaccard
+    input_combo["sg_cugraph_results"] = sg_cugraph_all_pairs_cosine
     chunksize = dcg.get_chunksize(input_data_path)
     ddf = dask_cudf.read_csv(
         input_data_path,
@@ -213,20 +210,20 @@ def input_expected_output_all_pairs(input_combo):
 
 
 @pytest.mark.mg
-def test_dask_mg_jaccard(dask_client, benchmark, input_expected_output):
+def test_dask_mg_cosine(dask_client, benchmark, input_expected_output):
 
     dg = input_expected_output["MGGraph"]
     use_weight = input_expected_output["is_weighted"]
 
-    result_jaccard = benchmark(
-        dcg.jaccard, dg, input_expected_output["vertex_pair"], use_weight=use_weight
+    result_cosine = benchmark(
+        dcg.cosine, dg, input_expected_output["vertex_pair"], use_weight=use_weight
     )
 
-    result_jaccard = (
-        result_jaccard.compute()
+    result_cosine = (
+        result_cosine.compute()
         .sort_values(["first", "second"])
         .reset_index(drop=True)
-        .rename(columns={"jaccard_coeff": "mg_cugraph_jaccard_coeff"})
+        .rename(columns={"cosine_coeff": "mg_cugraph_cosine_coeff"})
     )
 
     expected_output = (
@@ -235,23 +232,23 @@ def test_dask_mg_jaccard(dask_client, benchmark, input_expected_output):
         .reset_index(drop=True)
     )
 
-    # Update the dask cugraph Jaccard results with sg cugraph results for easy
+    # Update the dask cugraph Cosine results with sg cugraph results for easy
     # comparison using cuDF DataFrame methods.
-    result_jaccard["sg_cugraph_jaccard_coeff"] = expected_output["jaccard_coeff"]
+    result_cosine["sg_cugraph_cosine_coeff"] = expected_output["cosine_coeff"]
 
-    jaccard_coeff_diffs1 = result_jaccard.query(
-        "mg_cugraph_jaccard_coeff - sg_cugraph_jaccard_coeff > 0.00001"
+    cosine_coeff_diffs1 = result_cosine.query(
+        "mg_cugraph_cosine_coeff - sg_cugraph_cosine_coeff > 0.00001"
     )
-    jaccard_coeff_diffs2 = result_jaccard.query(
-        "mg_cugraph_jaccard_coeff - sg_cugraph_jaccard_coeff < -0.00001"
+    cosine_coeff_diffs2 = result_cosine.query(
+        "mg_cugraph_cosine_coeff - sg_cugraph_cosine_coeff < -0.00001"
     )
 
-    assert len(jaccard_coeff_diffs1) == 0
-    assert len(jaccard_coeff_diffs2) == 0
+    assert len(cosine_coeff_diffs1) == 0
+    assert len(cosine_coeff_diffs2) == 0
 
 
 @pytest.mark.mg
-def test_dask_mg_all_pairs_jaccard(
+def test_dask_mg_all_pairs_cosine(
     dask_client, benchmark, input_expected_output_all_pairs
 ):
 
@@ -259,19 +256,19 @@ def test_dask_mg_all_pairs_jaccard(
 
     use_weight = input_expected_output_all_pairs["is_weighted"]
 
-    result_jaccard = benchmark(
-        dcg.all_pairs_jaccard,
+    result_cosine = benchmark(
+        dcg.all_pairs_cosine,
         dg,
         vertices=input_expected_output_all_pairs["vertices"],
         topk=input_expected_output_all_pairs["topk"],
         use_weight=use_weight,
     )
 
-    result_jaccard = (
-        result_jaccard.compute()
+    result_cosine = (
+        result_cosine.compute()
         .sort_values(["first", "second"])
         .reset_index(drop=True)
-        .rename(columns={"jaccard_coeff": "mg_cugraph_jaccard_coeff"})
+        .rename(columns={"cosine_coeff": "mg_cugraph_cosine_coeff"})
     )
 
     expected_output = (
@@ -280,16 +277,16 @@ def test_dask_mg_all_pairs_jaccard(
         .reset_index(drop=True)
     )
 
-    # Update the dask cugraph Jaccard results with sg cugraph results for easy
+    # Update the dask cugraph Cosine results with sg cugraph results for easy
     # comparison using cuDF DataFrame methods.
-    result_jaccard["sg_cugraph_jaccard_coeff"] = expected_output["jaccard_coeff"]
+    result_cosine["sg_cugraph_cosine_coeff"] = expected_output["cosine_coeff"]
 
-    jaccard_coeff_diffs1 = result_jaccard.query(
-        "mg_cugraph_jaccard_coeff - sg_cugraph_jaccard_coeff > 0.00001"
+    cosine_coeff_diffs1 = result_cosine.query(
+        "mg_cugraph_cosine_coeff - sg_cugraph_cosine_coeff > 0.00001"
     )
-    jaccard_coeff_diffs2 = result_jaccard.query(
-        "mg_cugraph_jaccard_coeff - sg_cugraph_jaccard_coeff < -0.00001"
+    cosine_coeff_diffs2 = result_cosine.query(
+        "mg_cugraph_cosine_coeff - sg_cugraph_cosine_coeff < -0.00001"
     )
 
-    assert len(jaccard_coeff_diffs1) == 0
-    assert len(jaccard_coeff_diffs2) == 0
+    assert len(cosine_coeff_diffs1) == 0
+    assert len(cosine_coeff_diffs2) == 0

@@ -212,6 +212,22 @@ struct all_pairs_similarity_functor : public cugraph::c_api::abstract_functor {
                                    : std::nullopt,
                          topk_ != SIZE_MAX ? std::make_optional(topk_) : std::nullopt);
 
+      cugraph::unrenumber_int_vertices<vertex_t, multi_gpu>(
+        handle_,
+        v1.data(),
+        v1.size(),
+        number_map->data(),
+        graph_view.vertex_partition_range_lasts(),
+        false);
+
+      cugraph::unrenumber_int_vertices<vertex_t, multi_gpu>(
+        handle_,
+        v2.data(),
+        v2.size(),
+        number_map->data(),
+        graph_view.vertex_partition_range_lasts(),
+        false);
+
       result_ = new cugraph::c_api::cugraph_similarity_result_t{
         new cugraph::c_api::cugraph_type_erased_device_array_t(similarity_coefficients,
                                                                graph_->weight_type_),
@@ -274,6 +290,33 @@ struct sorensen_functor {
   }
 };
 
+struct cosine_functor {
+  template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+  rmm::device_uvector<weight_t> operator()(
+    raft::handle_t const& handle,
+    cugraph::graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+    std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
+    std::tuple<raft::device_span<vertex_t const>, raft::device_span<vertex_t const>> vertex_pairs)
+  {
+    return cugraph::cosine_similarity_coefficients(
+      handle, graph_view, edge_weight_view, vertex_pairs);
+  }
+
+  template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+  std::tuple<rmm::device_uvector<vertex_t>,
+             rmm::device_uvector<vertex_t>,
+             rmm::device_uvector<weight_t>>
+  operator()(raft::handle_t const& handle,
+             cugraph::graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+             std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
+             std::optional<raft::device_span<vertex_t const>> vertices,
+             std::optional<size_t> topk)
+  {
+    return cugraph::cosine_similarity_all_pairs_coefficients(
+      handle, graph_view, edge_weight_view, vertices, topk);
+  }
+};
+
 struct overlap_functor {
   template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
   rmm::device_uvector<weight_t> operator()(
@@ -296,6 +339,33 @@ struct overlap_functor {
              std::optional<size_t> topk)
   {
     return cugraph::overlap_all_pairs_coefficients(
+      handle, graph_view, edge_weight_view, vertices, topk);
+  }
+};
+
+struct cosine_similarity_functor {
+  template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+  rmm::device_uvector<weight_t> operator()(
+    raft::handle_t const& handle,
+    cugraph::graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+    std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
+    std::tuple<raft::device_span<vertex_t const>, raft::device_span<vertex_t const>> vertex_pairs)
+  {
+    return cugraph::cosine_similarity_coefficients(
+      handle, graph_view, edge_weight_view, vertex_pairs);
+  }
+
+  template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+  std::tuple<rmm::device_uvector<vertex_t>,
+             rmm::device_uvector<vertex_t>,
+             rmm::device_uvector<weight_t>>
+  operator()(raft::handle_t const& handle,
+             cugraph::graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+             std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
+             std::optional<raft::device_span<vertex_t const>> vertices,
+             std::optional<size_t> topk)
+  {
+    return cugraph::cosine_similarity_all_pairs_coefficients(
       handle, graph_view, edge_weight_view, vertices, topk);
   }
 };
@@ -391,6 +461,28 @@ extern "C" cugraph_error_code_t cugraph_overlap_coefficients(
   return cugraph::c_api::run_algorithm(graph, functor, result, error);
 }
 
+extern "C" cugraph_error_code_t cugraph_cosine_similarity_coefficients(
+  const cugraph_resource_handle_t* handle,
+  cugraph_graph_t* graph,
+  const cugraph_vertex_pairs_t* vertex_pairs,
+  bool_t use_weight,
+  bool_t do_expensive_check,
+  cugraph_similarity_result_t** result,
+  cugraph_error_t** error)
+{
+  if (use_weight) {
+    CAPI_EXPECTS(
+      reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph)->edge_weights_ != nullptr,
+      CUGRAPH_INVALID_INPUT,
+      "use_weight is true but edge weights are not provided.",
+      *error);
+  }
+  similarity_functor functor(
+    handle, graph, vertex_pairs, cosine_similarity_functor{}, use_weight, do_expensive_check);
+
+  return cugraph::c_api::run_algorithm(graph, functor, result, error);
+}
+
 extern "C" cugraph_error_code_t cugraph_all_pairs_jaccard_coefficients(
   const cugraph_resource_handle_t* handle,
   cugraph_graph_t* graph,
@@ -438,6 +530,29 @@ extern "C" cugraph_error_code_t cugraph_all_pairs_sorensen_coefficients(
 }
 
 extern "C" cugraph_error_code_t cugraph_all_pairs_overlap_coefficients(
+  const cugraph_resource_handle_t* handle,
+  cugraph_graph_t* graph,
+  const cugraph_type_erased_device_array_view_t* vertices,
+  bool_t use_weight,
+  size_t topk,
+  bool_t do_expensive_check,
+  cugraph_similarity_result_t** result,
+  cugraph_error_t** error)
+{
+  if (use_weight) {
+    CAPI_EXPECTS(
+      reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph)->edge_weights_ != nullptr,
+      CUGRAPH_INVALID_INPUT,
+      "use_weight is true but edge weights are not provided.",
+      *error);
+  }
+  all_pairs_similarity_functor functor(
+    handle, graph, vertices, overlap_functor{}, use_weight, topk, do_expensive_check);
+
+  return cugraph::c_api::run_algorithm(graph, functor, result, error);
+}
+
+extern "C" cugraph_error_code_t cugraph_all_pairs_cosine_similarity_coefficients(
   const cugraph_resource_handle_t* handle,
   cugraph_graph_t* graph,
   const cugraph_type_erased_device_array_view_t* vertices,

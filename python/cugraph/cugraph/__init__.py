@@ -76,10 +76,16 @@ from cugraph.link_analysis import pagerank, hits
 from cugraph.link_prediction import (
     jaccard,
     jaccard_coefficient,
+    all_pairs_jaccard,
     overlap,
     overlap_coefficient,
+    all_pairs_overlap,
     sorensen,
     sorensen_coefficient,
+    all_pairs_sorensen,
+    cosine,
+    cosine_coefficient,
+    all_pairs_cosine,
 )
 
 from cugraph.traversal import (
