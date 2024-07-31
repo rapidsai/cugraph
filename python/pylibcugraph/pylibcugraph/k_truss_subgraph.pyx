@@ -65,7 +65,7 @@ def k_truss_subgraph(ResourceHandle resource_handle,
         Handle to the underlying device resources needed for referencing data
         and running algorithms.
 
-    graph : SGGraph
+    graph : SGGraph or MGGraph
         The input graph.
 
     k: size_t

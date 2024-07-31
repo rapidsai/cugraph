@@ -173,11 +173,19 @@ Below is the list of algorithms that are currently supported in nx-cugraph.
  └─ <a href="https://networkx.org/documentation/stable/reference/algorithms/shortest_paths.html#module-networkx.algorithms.shortest_paths.weighted">weighted</a>
      ├─ <a href="https://networkx.org/documentation/stable/reference/algorithms/generated/networkx.algorithms.shortest_paths.weighted.all_pairs_bellman_ford_path.html#networkx.algorithms.shortest_paths.weighted.all_pairs_bellman_ford_path">all_pairs_bellman_ford_path</a>
      ├─ <a href="https://networkx.org/documentation/stable/reference/algorithms/generated/networkx.algorithms.shortest_paths.weighted.all_pairs_bellman_ford_path_length.html#networkx.algorithms.shortest_paths.weighted.all_pairs_bellman_ford_path_length">all_pairs_bellman_ford_path_length</a>
+     ├─ <a href="https://networkx.org/documentation/stable/reference/algorithms/generated/networkx.algorithms.shortest_paths.weighted.all_pairs_dijkstra.html#networkx.algorithms.shortest_paths.weighted.all_pairs_dijkstra">all_pairs_dijkstra</a>
+     ├─ <a href="https://networkx.org/documentation/stable/reference/algorithms/generated/networkx.algorithms.shortest_paths.weighted.all_pairs_dijkstra_path.html#networkx.algorithms.shortest_paths.weighted.all_pairs_dijkstra_path">all_pairs_dijkstra_path</a>
+     ├─ <a href="https://networkx.org/documentation/stable/reference/algorithms/generated/networkx.algorithms.shortest_paths.weighted.all_pairs_dijkstra_path_length.html#networkx.algorithms.shortest_paths.weighted.all_pairs_dijkstra_path_length">all_pairs_dijkstra_path_length</a>
      ├─ <a href="https://networkx.org/documentation/stable/reference/algorithms/generated/networkx.algorithms.shortest_paths.weighted.bellman_ford_path.html#networkx.algorithms.shortest_paths.weighted.bellman_ford_path">bellman_ford_path</a>
      ├─ <a href="https://networkx.org/documentation/stable/reference/algorithms/generated/networkx.algorithms.shortest_paths.weighted.bellman_ford_path_length.html#networkx.algorithms.shortest_paths.weighted.bellman_ford_path_length">bellman_ford_path_length</a>
+     ├─ <a href="https://networkx.org/documentation/stable/reference/algorithms/generated/networkx.algorithms.shortest_paths.weighted.dijkstra_path.html#networkx.algorithms.shortest_paths.weighted.dijkstra_path">dijkstra_path</a>
+     ├─ <a href="https://networkx.org/documentation/stable/reference/algorithms/generated/networkx.algorithms.shortest_paths.weighted.dijkstra_path_length.html#networkx.algorithms.shortest_paths.weighted.dijkstra_path_length">dijkstra_path_length</a>
      ├─ <a href="https://networkx.org/documentation/stable/reference/algorithms/generated/networkx.algorithms.shortest_paths.weighted.single_source_bellman_ford.html#networkx.algorithms.shortest_paths.weighted.single_source_bellman_ford">single_source_bellman_ford</a>
      ├─ <a href="https://networkx.org/documentation/stable/reference/algorithms/generated/networkx.algorithms.shortest_paths.weighted.single_source_bellman_ford_path.html#networkx.algorithms.shortest_paths.weighted.single_source_bellman_ford_path">single_source_bellman_ford_path</a>
-     └─ <a href="https://networkx.org/documentation/stable/reference/algorithms/generated/networkx.algorithms.shortest_paths.weighted.single_source_bellman_ford_path_length.html#networkx.algorithms.shortest_paths.weighted.single_source_bellman_ford_path_length">single_source_bellman_ford_path_length</a>
+     ├─ <a href="https://networkx.org/documentation/stable/reference/algorithms/generated/networkx.algorithms.shortest_paths.weighted.single_source_bellman_ford_path_length.html#networkx.algorithms.shortest_paths.weighted.single_source_bellman_ford_path_length">single_source_bellman_ford_path_length</a>
+     ├─ <a href="https://networkx.org/documentation/stable/reference/algorithms/generated/networkx.algorithms.shortest_paths.weighted.single_source_dijkstra.html#networkx.algorithms.shortest_paths.weighted.single_source_dijkstra">single_source_dijkstra</a>
+     ├─ <a href="https://networkx.org/documentation/stable/reference/algorithms/generated/networkx.algorithms.shortest_paths.weighted.single_source_dijkstra_path.html#networkx.algorithms.shortest_paths.weighted.single_source_dijkstra_path">single_source_dijkstra_path</a>
+     └─ <a href="https://networkx.org/documentation/stable/reference/algorithms/generated/networkx.algorithms.shortest_paths.weighted.single_source_dijkstra_path_length.html#networkx.algorithms.shortest_paths.weighted.single_source_dijkstra_path_length">single_source_dijkstra_path_length</a>
 <a href="https://networkx.org/documentation/stable/reference/algorithms/traversal.html">traversal</a>
  └─ <a href="https://networkx.org/documentation/stable/reference/algorithms/traversal.html#module-networkx.algorithms.traversal.breadth_first_search">breadth_first_search</a>
      ├─ <a href="https://networkx.org/documentation/stable/reference/algorithms/generated/networkx.algorithms.traversal.breadth_first_search.bfs_edges.html#networkx.algorithms.traversal.breadth_first_search.bfs_edges">bfs_edges</a>
@@ -253,9 +261,15 @@ Below is the list of algorithms that are currently supported in nx-cugraph.
 <a href="https://networkx.org/documentation/stable/reference/classes/index.html">classes</a>
  └─ <a href="https://networkx.org/documentation/stable/reference/functions.html#module-networkx.classes.function">function</a>
      └─ <a href="https://networkx.org/documentation/stable/reference/generated/networkx.classes.function.is_negatively_weighted.html#networkx.classes.function.is_negatively_weighted">is_negatively_weighted</a>
+<a href="https://networkx.org/documentation/stable/reference/convert.html#module-networkx.convert">convert</a>
+ ├─ <a href="https://networkx.org/documentation/stable/reference/generated/networkx.convert.from_dict_of_lists.html#networkx.convert.from_dict_of_lists">from_dict_of_lists</a>
+ └─ <a href="https://networkx.org/documentation/stable/reference/generated/networkx.convert.to_dict_of_lists.html#networkx.convert.to_dict_of_lists">to_dict_of_lists</a>
 <a href="https://networkx.org/documentation/stable/reference/convert.html#module-networkx.convert_matrix">convert_matrix</a>
  ├─ <a href="https://networkx.org/documentation/stable/reference/generated/networkx.convert_matrix.from_pandas_edgelist.html#networkx.convert_matrix.from_pandas_edgelist">from_pandas_edgelist</a>
  └─ <a href="https://networkx.org/documentation/stable/reference/generated/networkx.convert_matrix.from_scipy_sparse_array.html#networkx.convert_matrix.from_scipy_sparse_array">from_scipy_sparse_array</a>
+<a href="https://networkx.org/documentation/stable/reference/relabel.html#module-networkx.relabel">relabel</a>
+ ├─ <a href="https://networkx.org/documentation/stable/reference/generated/networkx.relabel.convert_node_labels_to_integers.html#networkx.relabel.convert_node_labels_to_integers">convert_node_labels_to_integers</a>
+ └─ <a href="https://networkx.org/documentation/stable/reference/generated/networkx.relabel.relabel_nodes.html#networkx.relabel.relabel_nodes">relabel_nodes</a>
 </pre>
 
 To request nx-cugraph backend support for a NetworkX API that is not listed
