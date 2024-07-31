@@ -28,6 +28,7 @@
 #include <cuco/static_set.cuh>
 
 #include <algorithm>
+#include <cstddef>
 #include <memory>
 #include <optional>
 #include <type_traits>
