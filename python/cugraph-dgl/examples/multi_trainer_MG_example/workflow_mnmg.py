@@ -276,7 +276,7 @@ if __name__ == "__main__":
         meta_path = os.path.join(args.dataset_root, args.dataset + "_meta.json")
 
         if not args.skip_partition and global_rank == 0:
-            partition_data(*load_dgl_dataset(args.dataset_root, args.dataset))
+            partition_data(*load_dgl_dataset(args.dataset_root, args.dataset), edge_path, feature_path, label_path, meta_path)
         torch.distributed.barrier()
 
         print("loading partitions...")
