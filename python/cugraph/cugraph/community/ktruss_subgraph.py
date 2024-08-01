@@ -11,19 +11,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from cugraph.structure.graph_classes import Graph
 from typing import Union
+
+import cudf
+from pylibcugraph import k_truss_subgraph as pylibcugraph_k_truss_subgraph
+from pylibcugraph import ResourceHandle
+from cugraph.structure.graph_classes import Graph
 from cugraph.utilities import (
     ensure_cugraph_obj_for_nx,
     cugraph_to_nx,
 )
-
-from pylibcugraph import k_truss_subgraph as pylibcugraph_k_truss_subgraph
-from pylibcugraph import ResourceHandle
-import warnings
-
-from numba import cuda
-import cudf
 from cugraph.utilities.utils import import_optional
 
 # FIXME: the networkx.Graph type used in the type annotation for
@@ -34,37 +31,17 @@ from cugraph.utilities.utils import import_optional
 networkx = import_optional("networkx")
 
 
-# FIXME: special case for ktruss on CUDA 11.4: an 11.4 bug causes ktruss to
-# crash in that environment. Allow ktruss to import on non-11.4 systems, but
-# raise an exception if ktruss is directly imported on 11.4.
-def _ensure_compatible_cuda_version():
-    try:
-        cuda_version = cuda.runtime.get_version()
-    except cuda.cudadrv.runtime.CudaRuntimeAPIError:
-        cuda_version = "n/a"
-
-    unsupported_cuda_version = (11, 4)
-
-    if cuda_version == unsupported_cuda_version:
-        ver_string = ".".join([str(n) for n in unsupported_cuda_version])
-        raise NotImplementedError(
-            "k_truss is not currently supported in CUDA" f" {ver_string} environments."
-        )
-
-
 def k_truss(
     G: Union[Graph, "networkx.Graph"], k: int
 ) -> Union[Graph, "networkx.Graph"]:
     """
     Returns the K-Truss subgraph of a graph for a specific k.
 
-    NOTE: this function is currently not available on CUDA 11.4 systems.
-
-    The k-truss of a graph is a subgraph where each edge is part of at least
-    (k−2) triangles. K-trusses are used for finding tighlty knit groups of
-    vertices in a graph. A k-truss is a relaxation of a k-clique in the graph
-    and was define in [1]. Finding cliques is computationally demanding and
-    finding the maximal k-clique is known to be NP-Hard.
+    The k-truss of a graph is a subgraph where each edge is incident to at
+    least (k−2) triangles. K-trusses are used for finding tighlty knit groups
+    of vertices in a graph. A k-truss is a relaxation of a k-clique in the graph.
+    Finding cliques is computationally demanding and finding the maximal
+    k-clique is known to be NP-Hard.
 
     Parameters
     ----------
@@ -89,9 +66,6 @@ def k_truss(
     >>> k_subgraph = cugraph.k_truss(G, 3)
 
     """
-
-    _ensure_compatible_cuda_version()
-
     G, isNx = ensure_cugraph_obj_for_nx(G)
 
     if isNx is True:
@@ -159,12 +133,6 @@ def ktruss_subgraph(
     k : int
         The desired k to be used for extracting the k-truss subgraph.
 
-    use_weights : bool, optional (default=True)
-        Whether the output should contain the edge weights if G has them.
-
-        Deprecated: If 'weights' were passed at the graph creation, they will
-        be used.
-
     Returns
     -------
     G_truss : cuGraph.Graph
@@ -177,19 +145,9 @@ def ktruss_subgraph(
     >>> k_subgraph = cugraph.ktruss_subgraph(G, 3, use_weights=False)
     """
 
-    _ensure_compatible_cuda_version()
-
     KTrussSubgraph = Graph()
     if G.is_directed():
         raise ValueError("input graph must be undirected")
-
-    if use_weights:
-        warning_msg = (
-            "The use_weights flag is deprecated "
-            "and will be removed in the next release. if weights "
-            "were passed at the graph creation, they will be used."
-        )
-        warnings.warn(warning_msg, FutureWarning)
 
     sources, destinations, edge_weights, _ = pylibcugraph_k_truss_subgraph(
         resource_handle=ResourceHandle(),

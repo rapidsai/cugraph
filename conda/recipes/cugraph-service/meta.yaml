@@ -30,6 +30,7 @@ outputs:
         - pip
         - python
         - rapids-build-backend>=0.3.1,<0.4.0.dev0
+        - setuptools>=61.0.0
       run:
         - python
         - thriftpy2 >=0.4.15,!=0.5.0,!=0.5.1
@@ -51,7 +52,7 @@ outputs:
       host:
         - pip
         - python
-        - setuptools
+        - setuptools>=61.0.0
         - wheel
         - rapids-build-backend>=0.3.1,<0.4.0.dev0
       run:
