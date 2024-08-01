@@ -13,7 +13,6 @@
 
 import dgl
 import torch
-import pandas
 import time
 import tempfile
 import argparse
@@ -124,10 +123,12 @@ def partition_data(
     )
 
     nix = torch.arange(g.num_nodes())
-    ndata = pandas.DataFrame({k: g.ndata[k][nix] for k in g.ndata.keys()})
     for (r, f) in enumerate(torch.tensor_split(nix, world_size)):
-        rank_path = os.path.join(feature_path, f"rank={r}_feat.parquet")
-        ndata.iloc[f].to_parquet(rank_path)
+        feat_path = os.path.join(feature_path, f"rank={r}_feat.pt")
+        torch.save(g.ndata["feat"][f], feat_path)
+
+        label_f_path = os.path.join(feature_path, f"rank={r}_label.pt")
+        torch.save(g.ndata["label"][f], label_f_path)
 
     # Split and save labels
     os.makedirs(
@@ -167,10 +168,9 @@ def load_partitioned_data(rank, edge_path, feature_path, label_path, meta_path):
         )
 
     # Load features
-    ndata_df = pandas.read_parquet(
-        os.path.join(feature_path, f"rank={rank}_feat.parquet")
-    )
-    ndata = {col: torch.as_tensor(s.values) for col, s in ndata_df.items()}
+    feat_t = torch.load(os.path.join(feature_path, f"rank={rank}_feat.pt"))
+    label_f_t = torch.load(os.path.join(feature_path, f"rank={rank}_label.pt"))
+    ndata = {"feat": feat_t, "label": label_f_t}
     g.add_nodes(meta["num_nodes"], data=ndata)
 
     # Load edge index
@@ -191,6 +191,7 @@ def create_dataloader(gs, train_idx, device, temp_dir, stage):
         directory=temp_path,
         batches_per_partition=10,
     )
+
     dataloader = cugraph_dgl.dataloading.FutureDataLoader(
         gs,
         train_idx,
@@ -276,7 +277,13 @@ if __name__ == "__main__":
         meta_path = os.path.join(args.dataset_root, args.dataset + "_meta.json")
 
         if not args.skip_partition and global_rank == 0:
-            partition_data(*load_dgl_dataset(args.dataset_root, args.dataset), edge_path, feature_path, label_path, meta_path)
+            partition_data(
+                *load_dgl_dataset(args.dataset_root, args.dataset),
+                edge_path,
+                feature_path,
+                label_path,
+                meta_path,
+            )
         torch.distributed.barrier()
 
         print("loading partitions...")

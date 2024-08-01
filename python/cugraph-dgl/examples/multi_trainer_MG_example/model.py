@@ -1,4 +1,4 @@
-# Copyright (c) 2023, NVIDIA CORPORATION.
+# Copyright (c) 2023-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -58,9 +58,8 @@ class Sage(nn.Module):
         # The nodes on each layer are of course splitted in batches.
 
         all_node_ids = torch.arange(0, g.num_nodes()).to(device)
-        feat = g.get_node_storage(key="feat", ntype="_N").fetch(
-            all_node_ids, device=device
-        )
+        feat = g.ndata["feat"][all_node_ids].to(device)
+
         sampler = dgl.dataloading.MultiLayerFullNeighborSampler(
             1, prefetch_node_feats=["feat"]
         )
