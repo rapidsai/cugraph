@@ -63,7 +63,7 @@ class NeighborLoader(NodeLoader):
         neighbor_sampler: Optional["torch_geometric.sampler.NeighborSampler"] = None,
         directed: bool = True,  # Deprecated.
         batch_size: int = 16,
-        directory: str = None,
+        directory: Optional[str] = None,
         batches_per_partition=256,
         format: str = "parquet",
         compression: Optional[str] = None,
@@ -174,8 +174,6 @@ class NeighborLoader(NodeLoader):
             raise ValueError("Passing a neighbor sampler is currently unsupported")
         if time_attr is not None:
             raise ValueError("Temporal sampling is currently unsupported")
-        if weight_attr is not None:
-            raise ValueError("Biased sampling is currently unsupported")
         if is_sorted:
             warnings.warn("The 'is_sorted' argument is ignored by cuGraph.")
         if not isinstance(data, (list, tuple)) or not isinstance(
@@ -201,6 +199,8 @@ class NeighborLoader(NodeLoader):
         )
 
         feature_store, graph_store = data
+        if weight_attr is not None:
+            graph_store._set_weight_attr(feature_store, weight_attr)
         sampler = BaseSampler(
             UniformNeighborSampler(
                 graph_store._graph,
