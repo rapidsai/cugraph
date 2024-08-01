@@ -169,7 +169,7 @@ class WholeFeatureStore(
 
         self.__features = {}
 
-        self.__wg_comm = wgth.get_local_node_communicator()
+        self.__wg_comm = wgth.get_global_communicator()
         self.__wg_type = memory_type
         self.__wg_location = location
 

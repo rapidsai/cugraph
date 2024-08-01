@@ -20,7 +20,6 @@ import numpy as np
 import cugraph
 from cugraph.testing import utils
 from cugraph.datasets import polbooks, karate_asymmetric
-from numba import cuda
 
 
 # =============================================================================
@@ -67,32 +66,7 @@ def compare_k_truss(k_truss_cugraph, k, ground_truth_file):
     return True
 
 
-__cuda_version = cuda.runtime.get_version()
-__unsupported_cuda_version = (11, 4)
-
-
-# FIXME: remove when ktruss is supported on CUDA 11.4
 @pytest.mark.sg
-def test_unsupported_cuda_version():
-    """
-    Ensures the proper exception is raised when ktruss is called in an
-    unsupported env, and not when called in a supported env.
-    """
-    k = 5
-
-    G = polbooks.get_graph(download=True)
-    if __cuda_version == __unsupported_cuda_version:
-        with pytest.raises(NotImplementedError):
-            cugraph.k_truss(G, k)
-    else:
-        cugraph.k_truss(G, k)
-
-
-@pytest.mark.sg
-@pytest.mark.skipif(
-    (__cuda_version == __unsupported_cuda_version),
-    reason="skipping on unsupported CUDA " f"{__unsupported_cuda_version} environment.",
-)
 @pytest.mark.parametrize("_, nx_ground_truth", utils.DATASETS_KTRUSS)
 def test_ktruss_subgraph_Graph(_, nx_ground_truth):
 
@@ -104,10 +78,6 @@ def test_ktruss_subgraph_Graph(_, nx_ground_truth):
 
 
 @pytest.mark.sg
-@pytest.mark.skipif(
-    (__cuda_version == __unsupported_cuda_version),
-    reason="skipping on unsupported CUDA " f"{__unsupported_cuda_version} environment.",
-)
 def test_ktruss_subgraph_Graph_nx():
     k = 5
     dataset_path = polbooks.get_path()
@@ -122,10 +92,6 @@ def test_ktruss_subgraph_Graph_nx():
 
 
 @pytest.mark.sg
-@pytest.mark.skipif(
-    (__cuda_version == __unsupported_cuda_version),
-    reason="skipping on unsupported CUDA " f"{__unsupported_cuda_version} environment.",
-)
 def test_ktruss_subgraph_directed_Graph():
     k = 5
     edgevals = True
