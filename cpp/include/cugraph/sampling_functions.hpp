@@ -535,13 +535,13 @@ renumber_and_sort_sampled_edgelist(
  * edgelist_srcs.size() if valid).
  * @param edgelist_hops An optional vector storing edge list hop numbers (size = @p
  * edgelist_srcs.size() if valid). @p edgelist_hops should be valid if @p num_hops >= 2.
- * @param edgelist_label_offsets An optional pointer to the array storing label offsets to the input
- * edges (size = @p num_labels + 1). @p edgelist_label_offsets should be valid if @p num_labels
- * >= 2.
  * @param seed_vertices An optional pointer to the array storing seed vertices in hop 0.
  * @param seed_vertex_label_offsets An optional pointer to the array storing label offsets to the
  * seed vertices (size = @p num_labels + 1). @p seed_vertex_label_offsets should be valid if @p
  * num_labels >= 2 and @p seed_vertices is valid and invalid otherwise.
+ * @param edgelist_label_offsets An optional pointer to the array storing label offsets to the input
+ * edges (size = @p num_labels + 1). @p edgelist_label_offsets should be valid if @p num_labels
+ * >= 2.
  * @param vertex_type offsets A pointer to the array storing vertex type offsets for the entire
  * vertex ID range (array size = @p num_vertex_types + 1). For example, if the array stores [0, 100,
  * 200], vertex IDs [0, 100) has vertex type 0 and vertex IDs [100, 200) has vertex type 1.
@@ -580,9 +580,10 @@ std::tuple<
   std::optional<rmm::device_uvector<edge_id_t>>,  // edge IDs
   std::optional<rmm::device_uvector<size_t>>,     // (label, edge type, hop) offsets to the edges
   rmm::device_uvector<vertex_t>,                  // vertex renumber map
-  rmm::device_uvector<size_t>,  // (label, type) offsets to the vertex renumber map
+  rmm::device_uvector<size_t>,  // (label, vertex type) offsets to the vertex renumber map
   std::optional<rmm::device_uvector<edge_id_t>>,  // edge ID renumber map
-  std::optional<rmm::device_uvector<size_t>>>  // (label, type) offsets to the edge ID renumber map
+  std::optional<
+    rmm::device_uvector<size_t>>>  // (label, edge type) offsets to the edge ID renumber map
 heterogeneous_renumber_and_sort_sampled_edgelist(
   raft::handle_t const& handle,
   rmm::device_uvector<vertex_t>&& edgelist_srcs,
@@ -591,10 +592,9 @@ heterogeneous_renumber_and_sort_sampled_edgelist(
   std::optional<rmm::device_uvector<edge_id_t>>&& edgelist_edge_ids,
   std::optional<rmm::device_uvector<edge_type_t>>&& edgelist_edge_types,
   std::optional<rmm::device_uvector<int32_t>>&& edgelist_hops,
-  std::optional<raft::device_span<size_t const>> edgelist_label_offsets,
   std::optional<raft::device_span<vertex_t const>> seed_vertices,
   std::optional<raft::device_span<size_t const>> seed_vertex_label_offsets,
-  std::tuple<vertex_t, vertx_t> local_vertex_range,
+  std::optional<raft::device_span<size_t const>> edgelist_label_offsets,
   raft::device_span<vertex_t const> vertex_type_offsets,
   size_t num_labels,
   size_t num_hops,
