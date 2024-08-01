@@ -199,8 +199,10 @@ class NeighborLoader(NodeLoader):
         )
 
         feature_store, graph_store = data
+
         if weight_attr is not None:
             graph_store._set_weight_attr(feature_store, weight_attr)
+
         sampler = BaseSampler(
             UniformNeighborSampler(
                 graph_store._graph,

@@ -671,7 +671,7 @@ class DistSampler:
         return self.__retain_original_seeds
 
 
-class UniformNeighborSampler(DistSampler):
+class NeighborSampler(DistSampler):
     # Number of vertices in the output minibatch, based
     # on benchmarking.
     BASE_VERTICES_PER_BYTE = 0.1107662486009992
@@ -693,6 +693,7 @@ class UniformNeighborSampler(DistSampler):
         compression: str = "COO",
         compress_per_hop: bool = False,
         with_replacement: bool = False,
+        biased: bool = False,
     ):
         self.__fanout = fanout
         self.__prior_sources_behavior = prior_sources_behavior
@@ -700,6 +701,16 @@ class UniformNeighborSampler(DistSampler):
         self.__compress_per_hop = compress_per_hop
         self.__compression = compression
         self.__with_replacement = with_replacement
+
+        # It is currently required that graphs are weighted for biased
+        # sampling.  So setting the function here is safe.  In the future,
+        # if libcugraph allows setting a new attribute, this API might
+        # change.
+        self.__func = (
+            pylibcugraph.biased_neighbor_sample
+            if biased
+            else pylibcugraph.uniform_neighbor_sample
+        )
 
         super().__init__(
             graph,
@@ -713,14 +724,12 @@ class UniformNeighborSampler(DistSampler):
 
         if local_seeds_per_call is None:
             if len([x for x in self.__fanout if x <= 0]) > 0:
-                return UniformNeighborSampler.UNKNOWN_VERTICES_DEFAULT
+                return NeighborSampler.UNKNOWN_VERTICES_DEFAULT
 
             total_memory = torch.cuda.get_device_properties(0).total_memory
             fanout_prod = reduce(lambda x, y: x * y, self.__fanout)
             return int(
-                UniformNeighborSampler.BASE_VERTICES_PER_BYTE
-                * total_memory
-                / fanout_prod
+                NeighborSampler.BASE_VERTICES_PER_BYTE * total_memory / fanout_prod
             )
 
         return local_seeds_per_call
@@ -755,7 +764,7 @@ class UniformNeighborSampler(DistSampler):
             else:
                 label_offsets = None
 
-            sampling_results_dict = pylibcugraph.uniform_neighbor_sample(
+            sampling_results_dict = self.__func(
                 self._resource_handle,
                 self._graph,
                 start_list=cupy.asarray(seeds),
@@ -795,7 +804,7 @@ class UniformNeighborSampler(DistSampler):
             else:
                 label_offsets = None
 
-            sampling_results_dict = pylibcugraph.uniform_neighbor_sample(
+            sampling_results_dict = self.__func(
                 self._resource_handle,
                 self._graph,
                 start_list=cupy.asarray(seeds),
