@@ -52,27 +52,32 @@ def test_neighbor_loader():
         assert isinstance(batch, torch_geometric.data.Data)
         assert (feature_store["person", "feat"][batch.n_id] == batch.feat).all()
 
+
 @pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
 @pytest.mark.sg
 def test_neighbor_loader_biased():
-    eix = torch.tensor([
-        [3, 4, 5],
-        [0, 1, 2],
-    ])
+    eix = torch.tensor(
+        [
+            [3, 4, 5],
+            [0, 1, 2],
+        ]
+    )
 
     graph_store = GraphStore()
-    graph_store.put_edge_index(eix, ('person', 'knows', 'person'), 'coo')
+    graph_store.put_edge_index(eix, ("person", "knows", "person"), "coo")
 
     feature_store = TensorDictFeatureStore()
-    feature_store['person', 'feat'] = torch.randint(128, (6, 12))
-    feature_store[('person','knows','person'), 'bias'] = torch.tensor([0, 12, 14], dtype=torch.float32)
+    feature_store["person", "feat"] = torch.randint(128, (6, 12))
+    feature_store[("person", "knows", "person"), "bias"] = torch.tensor(
+        [0, 12, 14], dtype=torch.float32
+    )
 
     loader = NeighborLoader(
         (feature_store, graph_store),
         [1],
         input_nodes=torch.tensor([0, 1, 2], dtype=torch.int64),
         batch_size=3,
-        weight_attr='bias',
+        weight_attr="bias",
     )
 
     out = list(iter(loader))

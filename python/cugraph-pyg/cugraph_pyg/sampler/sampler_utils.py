@@ -406,14 +406,14 @@ def _sampler_output_from_sampling_results_heterogeneous(
 
 
 def filter_cugraph_pyg_store(
-                feature_store,
-                graph_store,
-                node,
-                row,
-                col,
-                edge,
-                clx,
-            ) -> "torch_geometric.data.Data":
+    feature_store,
+    graph_store,
+    node,
+    row,
+    col,
+    edge,
+    clx,
+) -> "torch_geometric.data.Data":
     data = torch_geometric.data.Data()
 
     data.edge_index = torch.stack([row, col], dim=0)
@@ -429,4 +429,3 @@ def filter_cugraph_pyg_store(
         data[attr.attr_name] = tensors[i]
 
     return data
-    
