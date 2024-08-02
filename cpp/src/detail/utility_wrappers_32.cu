@@ -68,6 +68,23 @@ template void sequence_fill(rmm::cuda_stream_view const& stream_view,
                             size_t size,
                             int32_t start_value);
 
+template void sequence_fill(rmm::cuda_stream_view const& stream_view,
+                            uint32_t* d_value,
+                            size_t size,
+                            uint32_t start_value);
+
+template void stride_fill(rmm::cuda_stream_view const& stream_view,
+                          int32_t* d_value,
+                          size_t size,
+                          int32_t start_value,
+                          int32_t stride);
+
+template void stride_fill(rmm::cuda_stream_view const& stream_view,
+                          uint32_t* d_value,
+                          size_t size,
+                          uint32_t start_value,
+                          uint32_t stride);
+
 template int32_t compute_maximum_vertex_id(rmm::cuda_stream_view const& stream_view,
                                            int32_t const* d_edgelist_srcs,
                                            int32_t const* d_edgelist_dsts,
