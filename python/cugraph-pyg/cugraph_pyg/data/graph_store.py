@@ -331,6 +331,7 @@ class GraphStore(
             start_offsets = torch.zeros(
                 (len(sorted_keys),), dtype=torch.int64, device="cuda"
             )
+            num_edges_all_t = num_edges_t.reshape((1, num_edges_t.numel()))
 
         edge_id_array = torch.concat(
             [

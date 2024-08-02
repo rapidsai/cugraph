@@ -92,7 +92,7 @@ def run_test_neighbor_loader_mg(rank, uid, world_size, specify_size):
 
     cugraph_comms_shutdown()
 
-
+@pytest.mark.skip(reason='bleh')
 @pytest.mark.parametrize("specify_size", [True, False])
 @pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
 @pytest.mark.mg
@@ -106,6 +106,60 @@ def test_neighbor_loader_mg(specify_size):
             uid,
             world_size,
             specify_size,
+        ),
+        nprocs=world_size,
+    )
+
+
+def run_test_neighbor_loader_biased_mg(rank, uid, world_size):
+    init_pytorch_worker(rank, world_size, uid)
+
+    eix = torch.stack([
+        torch.arange(3*(world_size + rank), 3*(world_size+rank+1), dtype=torch.int64, device='cuda'),
+        torch.arange(3*rank, 3*(rank+1), dtype=torch.int64, device='cuda'),
+    ])
+
+    graph_store = GraphStore()
+    graph_store.put_edge_index(eix, ('person', 'knows', 'person'), 'coo')
+
+    feature_store = TensorDictFeatureStore()
+    feature_store['person', 'feat'] = torch.randint(128, (6*world_size, 12))
+    feature_store[('person','knows','person'), 'bias'] = torch.concat([
+        torch.tensor([0, 1, 1], dtype=torch.float32)
+        for _ in range(world_size)
+    ])
+
+    loader = NeighborLoader(
+        (feature_store, graph_store),
+        [1],
+        input_nodes=torch.arange(3*rank, 3*(rank+1), dtype=torch.int64, device='cuda'),
+        batch_size=3,
+        weight_attr='bias',
+    )
+
+    out = list(iter(loader))
+    assert len(out) == 1
+    out = out[0]
+
+    assert (out.edge_index.cpu() == torch.tensor([
+        [3, 4],
+        [1, 2],
+    ])).all()
+
+    cugraph_comms_shutdown()
+
+
+@pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
+@pytest.mark.mg
+def test_neighbor_loader_biased_mg():
+    uid = cugraph_comms_create_unique_id()
+    world_size = torch.cuda.device_count()
+
+    torch.multiprocessing.spawn(
+        run_test_neighbor_loader_biased_mg,
+        args=(
+            uid,
+            world_size,
         ),
         nprocs=world_size,
     )

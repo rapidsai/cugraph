@@ -20,7 +20,7 @@ import cugraph_pyg
 from cugraph_pyg.loader import NodeLoader
 from cugraph_pyg.sampler import BaseSampler
 
-from cugraph.gnn import UniformNeighborSampler, DistSampleWriter
+from cugraph.gnn import NeighborSampler, DistSampleWriter
 from cugraph.utilities.utils import import_optional
 
 torch_geometric = import_optional("torch_geometric")
@@ -201,10 +201,10 @@ class NeighborLoader(NodeLoader):
         feature_store, graph_store = data
 
         if weight_attr is not None:
-            graph_store._set_weight_attr(feature_store, weight_attr)
+            graph_store._set_weight_attr((feature_store, weight_attr))
 
         sampler = BaseSampler(
-            UniformNeighborSampler(
+            NeighborSampler(
                 graph_store._graph,
                 writer,
                 retain_original_seeds=True,
@@ -215,6 +215,7 @@ class NeighborLoader(NodeLoader):
                 compress_per_hop=False,
                 with_replacement=replace,
                 local_seeds_per_call=local_seeds_per_call,
+                biased=(weight_attr is not None),
             ),
             (feature_store, graph_store),
             batch_size=batch_size,

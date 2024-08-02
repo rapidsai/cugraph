@@ -16,6 +16,8 @@ from typing import Optional, Iterator, Union, Dict, Tuple
 from cugraph.utilities.utils import import_optional
 from cugraph.gnn import DistSampler, DistSampleReader
 
+from .sampler_utils import filter_cugraph_pyg_store
+
 torch = import_optional("torch")
 torch_geometric = import_optional("torch_geometric")
 
@@ -65,6 +67,17 @@ class SampleIterator:
                     next_sample.col, next_sample.edge.numel()
                 )
 
+            data = filter_cugraph_pyg_store(
+                self.__feature_store,
+                self.__graph_store,
+                next_sample.node,
+                next_sample.row,
+                col,
+                next_sample.edge,
+                None,
+            )
+            """
+            # TODO Re-enable this once PyG resolves the issue with edge features
             data = torch_geometric.loader.utils.filter_custom_store(
                 self.__feature_store,
                 self.__graph_store,
@@ -74,6 +87,7 @@ class SampleIterator:
                 next_sample.edge,
                 None,
             )
+            """
 
             if "n_id" not in data:
                 data.n_id = next_sample.node
@@ -250,7 +264,7 @@ class HomogeneousSampleReader(SampleReader):
             node=renumber_map.cpu(),
             row=minors,
             col=major_offsets,
-            edge=edge_id,
+            edge=edge_id.cpu(),
             batch=renumber_map[:num_seeds],
             num_sampled_nodes=num_sampled_nodes.cpu(),
             num_sampled_edges=num_sampled_edges.cpu(),
