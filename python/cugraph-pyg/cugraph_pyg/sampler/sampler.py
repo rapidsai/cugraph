@@ -78,7 +78,8 @@ class SampleIterator:
             )
 
             """
-            # TODO Re-enable this once PyG resolves the issue with edge features
+            # TODO Re-enable this once PyG resolves
+            # the issue with edge features (9566)
             data = torch_geometric.loader.utils.filter_custom_store(
                 self.__feature_store,
                 self.__graph_store,
