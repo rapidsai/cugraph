@@ -67,7 +67,6 @@ class SampleIterator:
                     next_sample.col, next_sample.edge.numel()
                 )
 
-            print(next_sample.node)
             data = filter_cugraph_pyg_store(
                 self.__feature_store,
                 self.__graph_store,
