@@ -86,7 +86,7 @@ def biased_neighbor_sample(ResourceHandle resource_handle,
                             *,
                             bool_t with_replacement,
                             bool_t do_expensive_check,
-                            with_edge_properties=False,
+                            with_edge_properties=True,
                             batch_id_list=None,
                             label_list=None,
                             label_to_output_comm_rank=None,
@@ -130,9 +130,9 @@ def biased_neighbor_sample(ResourceHandle resource_handle,
         validitity, at the expense of increased run time.
 
     with_edge_properties: bool
-        If True, returns the edge properties of each edges along with the
-        edges themselves.  Will result in an error if the provided graph
-        does not have edge properties.
+        This argument is present for compatibility with
+        uniform_neighbor_sample.  Only the 'True' option is accepted.
+        All edge properties in the graph are returned.
 
     batch_id_list: list[int32] (Optional)
         List of int32 batch ids that is returned with each edge.  Optional
@@ -213,6 +213,9 @@ def biased_neighbor_sample(ResourceHandle resource_handle,
     """
     if biases is not None:
         raise ValueError("The biases parameter is currently unsupported")
+
+    if not with_edge_properties:
+        raise ValueError("with_edge_properties=False is not supported by biased_neighbor_sample")
 
     cdef cugraph_resource_handle_t* c_resource_handle_ptr = (
         resource_handle.c_resource_handle_ptr
@@ -396,74 +399,50 @@ def biased_neighbor_sample(ResourceHandle resource_handle,
     # Get cupy "views" of the individual arrays to return. These each increment
     # the refcount on the SamplingResult instance which will keep the data alive
     # until all references are removed and the GC runs.
-    # TODO Return everything that isn't null in release 23.12
-    if with_edge_properties:
-        cupy_majors = result.get_majors()
-        cupy_major_offsets = result.get_major_offsets()
-        cupy_minors = result.get_minors()
-        cupy_edge_weights = result.get_edge_weights()
-        cupy_edge_ids = result.get_edge_ids()
-        cupy_edge_types = result.get_edge_types()
-        cupy_batch_ids = result.get_batch_ids()
-        cupy_label_hop_offsets = result.get_label_hop_offsets()
+    cupy_majors = result.get_majors()
+    cupy_major_offsets = result.get_major_offsets()
+    cupy_minors = result.get_minors()
+    cupy_edge_weights = result.get_edge_weights()
+    cupy_edge_ids = result.get_edge_ids()
+    cupy_edge_types = result.get_edge_types()
+    cupy_batch_ids = result.get_batch_ids()
+    cupy_label_hop_offsets = result.get_label_hop_offsets()
 
-        if renumber:
-            cupy_renumber_map = result.get_renumber_map()
-            cupy_renumber_map_offsets = result.get_renumber_map_offsets()
-            # TODO drop the placeholder for hop ids in release 23.12
-            if return_dict:
-                return {
-                    'major_offsets': cupy_major_offsets,
-                    'majors': cupy_majors,
-                    'minors': cupy_minors,
-                    'weight': cupy_edge_weights,
-                    'edge_id': cupy_edge_ids,
-                    'edge_type': cupy_edge_types,
-                    'batch_id': cupy_batch_ids,
-                    'label_hop_offsets': cupy_label_hop_offsets,
-                    'hop_id': None,
-                    'renumber_map': cupy_renumber_map,
-                    'renumber_map_offsets': cupy_renumber_map_offsets
-                }
-            else:
-                cupy_majors = cupy_major_offsets if cupy_majors is None else cupy_majors
-                return (cupy_majors, cupy_minors, cupy_edge_weights, cupy_edge_ids, cupy_edge_types, cupy_batch_ids, cupy_label_hop_offsets, None, cupy_renumber_map, cupy_renumber_map_offsets)
-        else:
-            cupy_hop_ids = result.get_hop_ids() # FIXME remove this
-            if return_dict:
-                return {
-                    'major_offsets': cupy_major_offsets,
-                    'majors': cupy_majors,
-                    'minors': cupy_minors,
-                    'weight': cupy_edge_weights,
-                    'edge_id': cupy_edge_ids,
-                    'edge_type': cupy_edge_types,
-                    'batch_id': cupy_batch_ids,
-                    'label_hop_offsets': cupy_label_hop_offsets,
-                    'hop_id': cupy_hop_ids,
-                }
-            else:
-                cupy_majors = cupy_major_offsets if cupy_majors is None else cupy_majors
-                return (cupy_majors, cupy_minors, cupy_edge_weights, cupy_edge_ids, cupy_edge_types, cupy_batch_ids, cupy_label_hop_offsets, cupy_hop_ids)
-
-    else:
-        # TODO this is deprecated, remove it in release 23.12
-        warnings.warn(
-            "Calling uniform_neighbor_sample with the 'with_edge_properties' argument is deprecated."
-            " Starting in release 23.12, this argument will be removed in favor of behaving like the "
-            "with_edge_properties=True option, returning whatever properties are in the graph.",
-            FutureWarning,
-        )
-
-        cupy_sources = result.get_sources()
-        cupy_destinations = result.get_destinations()
-        cupy_indices = result.get_indices()
-
+    if renumber:
+        cupy_renumber_map = result.get_renumber_map()
+        cupy_renumber_map_offsets = result.get_renumber_map_offsets()
+        # TODO drop the placeholder for hop ids in release 23.12
         if return_dict:
             return {
-                'sources': cupy_sources,
-                'destinations': cupy_destinations,
-                'indices': cupy_indices
+                'major_offsets': cupy_major_offsets,
+                'majors': cupy_majors,
+                'minors': cupy_minors,
+                'weight': cupy_edge_weights,
+                'edge_id': cupy_edge_ids,
+                'edge_type': cupy_edge_types,
+                'batch_id': cupy_batch_ids,
+                'label_hop_offsets': cupy_label_hop_offsets,
+                'hop_id': None,
+                'renumber_map': cupy_renumber_map,
+                'renumber_map_offsets': cupy_renumber_map_offsets
             }
         else:
-            return (cupy_sources, cupy_destinations, cupy_indices)
+            cupy_majors = cupy_major_offsets if cupy_majors is None else cupy_majors
+            return (cupy_majors, cupy_minors, cupy_edge_weights, cupy_edge_ids, cupy_edge_types, cupy_batch_ids, cupy_label_hop_offsets, None, cupy_renumber_map, cupy_renumber_map_offsets)
+    else:
+        cupy_hop_ids = result.get_hop_ids() # FIXME remove this
+        if return_dict:
+            return {
+                'major_offsets': cupy_major_offsets,
+                'majors': cupy_majors,
+                'minors': cupy_minors,
+                'weight': cupy_edge_weights,
+                'edge_id': cupy_edge_ids,
+                'edge_type': cupy_edge_types,
+                'batch_id': cupy_batch_ids,
+                'label_hop_offsets': cupy_label_hop_offsets,
+                'hop_id': cupy_hop_ids,
+            }
+        else:
+            cupy_majors = cupy_major_offsets if cupy_majors is None else cupy_majors
+            return (cupy_majors, cupy_minors, cupy_edge_weights, cupy_edge_ids, cupy_edge_types, cupy_batch_ids, cupy_label_hop_offsets, cupy_hop_ids)
