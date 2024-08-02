@@ -118,7 +118,7 @@ def train_model(model, g, opt, train_dataloader, num_epochs, rank, val_nid):
     for epoch in range(num_epochs):
         total_loss = 0
         for _, (input_nodes, output_nodes, blocks) in enumerate(train_dataloader):
-            x = g.ndata["feat"][input_nodes]
+            x = g.ndata["feat"][input_nodes].to(torch.float64)
             y = g.ndata["label"][output_nodes]
             y_hat = model(blocks, x)
             y = y.squeeze(1)
