@@ -1,4 +1,4 @@
-# Copyright (c) 2023, NVIDIA CORPORATION.
+# Copyright (c) 2023-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -53,6 +53,7 @@ def initalize_pytorch_worker(dev_id):
     )
 
     from cugraph.testing.mg_utils import enable_spilling
+
     enable_spilling()
 
     torch.cuda.set_device(dev_id)
@@ -60,10 +61,13 @@ def initalize_pytorch_worker(dev_id):
     print("device_id", dev_id, flush=True)
 
 
-def load_dgl_dataset(dataset_name="ogbn-products"):
+def load_dgl_dataset(
+    dataset_name="ogbn-products",
+    dataset_root=None,
+):
     from ogb.nodeproppred import DglNodePropPredDataset
 
-    dataset = DglNodePropPredDataset(name=dataset_name)
+    dataset = DglNodePropPredDataset(name=dataset_name, root=dataset_root)
     split_idx = dataset.get_idx_split()
     train_idx, valid_idx, test_idx = (
         split_idx["train"],
@@ -87,25 +91,19 @@ def load_dgl_dataset(dataset_name="ogbn-products"):
     return g, train_idx, valid_idx, test_idx, dataset.num_classes
 
 
-def create_cugraph_graphstore_from_dgl_dataset(
-    dataset, rank, world_size
-):
+def create_cugraph_graphstore_from_dgl_dataset(dataset, rank, world_size):
     (g, train_idx, valid_idx, test_idx, num_classes) = dataset
     # Partition the data
-    cg = cugraph_dgl.Graph(is_multi_gpu=True,  ndata_storage='wholegraph', edata_storage='wholegraph')
-    
+    cg = cugraph_dgl.Graph(
+        is_multi_gpu=True, ndata_storage="wholegraph", edata_storage="wholegraph"
+    )
+
     nix = torch.tensor_split(torch.arange(g.num_nodes()), world_size)[rank]
-    ndata = {
-        k: g.ndata[k][nix].cuda()
-        for k in g.ndata.keys()
-    }
+    ndata = {k: g.ndata[k][nix].cuda() for k in g.ndata.keys()}
 
     eix = torch.tensor_split(torch.arange(g.num_edges()), world_size)[rank]
-    src, dst = g.all_edges(form='uv', order='eid')
-    edata = {
-        k: g.edata[k][eix].cuda()
-        for k in g.edata.keys()
-    }
+    src, dst = g.all_edges(form="uv", order="eid")
+    edata = {k: g.edata[k][eix].cuda() for k in g.edata.keys()}
 
     cg.add_nodes(g.num_nodes(), data=ndata)
     cg.add_edges(
@@ -114,16 +112,26 @@ def create_cugraph_graphstore_from_dgl_dataset(
         data=edata,
     )
 
-    return (cg, torch.tensor_split(train_idx, world_size)[rank].to(torch.int64), torch.tensor_split(valid_idx, world_size)[rank].to(torch.int64), torch.tensor_split(test_idx, world_size)[rank].to(torch.int64), num_classes)
+    return (
+        cg,
+        torch.tensor_split(train_idx, world_size)[rank].to(torch.int64),
+        torch.tensor_split(valid_idx, world_size)[rank].to(torch.int64),
+        torch.tensor_split(test_idx, world_size)[rank].to(torch.int64),
+        num_classes,
+    )
 
 
 def create_dataloader(gs, train_idx, device, temp_dir, stage):
     import cugraph_dgl
 
-    temp_path = os.path.join(temp_dir, f'{stage}_{device}')
+    temp_path = os.path.join(temp_dir, f"{stage}_{device}")
     os.mkdir(temp_path)
 
-    sampler = cugraph_dgl.dataloading.NeighborSampler([10, 20], directory=temp_path, batches_per_partition=10,)
+    sampler = cugraph_dgl.dataloading.NeighborSampler(
+        [10, 20],
+        directory=temp_path,
+        batches_per_partition=10,
+    )
     dataloader = cugraph_dgl.dataloading.FutureDataLoader(
         gs,
         train_idx,
@@ -171,14 +179,16 @@ def run_workflow(rank, world_size, cugraph_id, dataset, temp_dir):
         test_idx,
         num_classes,
     ) = create_cugraph_graphstore_from_dgl_dataset(
-        dataset, rank, world_size,
+        dataset,
+        rank,
+        world_size,
     )
     del dataset
 
     torch.distributed.barrier()
     print(f"Loading graph to worker {rank} is complete", flush=True)
 
-    dataloader = create_dataloader(gs, train_idx, device, temp_dir, 'train')
+    dataloader = create_dataloader(gs, train_idx, device, temp_dir, "train")
     print("Dataloader Creation Complete", flush=True)
     num_feats = gs.ndata["feat"].shape[1]
     hid_size = 256
@@ -201,26 +211,30 @@ def run_workflow(rank, world_size, cugraph_id, dataset, temp_dir):
         f"measured by worker = {rank}",
     )
 
+    torch.cuda.synchronize()
     wm_finalize()
     cugraph_comms_shutdown()
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('--dataset', type=str, default='ogbn-products')
+    parser.add_argument("--dataset_root", type=str, default="dataset")
+    parser.add_argument("--tempdir_root", type=str, default=None)
+    parser.add_argument("--dataset", type=str, default="ogbn-products")
     args = parser.parse_args()
 
     from rmm.allocators.torch import rmm_torch_allocator
+
     torch.cuda.memory.change_current_allocator(rmm_torch_allocator)
 
     # Create the uid needed for cuGraph comms
     cugraph_id = cugraph_comms_create_unique_id()
 
-    ds = load_dgl_dataset(args.dataset)
+    ds = load_dgl_dataset(args.dataset, args.dataset_root)
 
     world_size = torch.cuda.device_count()
 
-    with tempfile.TemporaryDirectory() as directory:
+    with tempfile.TemporaryDirectory(dir=args.tempdir_root) as directory:
         torch.multiprocessing.spawn(
             run_workflow,
             args=(world_size, cugraph_id, ds, directory),

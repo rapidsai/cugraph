@@ -17,6 +17,7 @@
 
 # Ignore Warning
 import warnings
+import tempfile
 import time
 import cugraph_dgl
 import cugraph_dgl.dataloading
@@ -154,7 +155,7 @@ def layerwise_infer(device, graph, nid, model, batch_size):
         return MF.accuracy(pred, label, task="multiclass", num_classes=num_classes)
 
 
-def train(args, device, g, dataset, model):
+def train(args, device, g, dataset, model, directory):
     # create sampler & dataloader
     train_idx = dataset.train_idx.to(device)
     val_idx = dataset.val_idx.to(device)
@@ -163,7 +164,7 @@ def train(args, device, g, dataset, model):
     batch_size = 1024
     fanouts = [5, 10, 15]
     if isinstance(g, cugraph_dgl.Graph):
-        sampler = cugraph_dgl.dataloading.NeighborSampler(fanouts)
+        sampler = cugraph_dgl.dataloading.NeighborSampler(fanouts, directory=directory)
         loader_cls = cugraph_dgl.dataloading.FutureDataLoader
     else:
         sampler = NeighborSampler(fanouts)
@@ -235,6 +236,8 @@ if __name__ == "__main__":
         " 'gpu_dgl' for pure-GPU training, "
         " 'gpu_cugraph_dgl' for pure-GPU training.",
     )
+    parser.add_argument("--dataset_root", type=str, default="dataset")
+    parser.add_argument("--tempdir_root", type=str, default=None)
     args = parser.parse_args()
     if not torch.cuda.is_available():
         args.mode = "cpu"
@@ -244,7 +247,9 @@ if __name__ == "__main__":
 
     # load and preprocess dataset
     print("Loading data")
-    dataset = AsNodePredDataset(DglNodePropPredDataset("ogbn-products"))
+    dataset = AsNodePredDataset(
+        DglNodePropPredDataset("ogbn-products", root=args.dataset_root)
+    )
     g = dataset[0]
     g = dgl.add_self_loop(g)
     if args.mode == "gpu_cugraph_dgl":
@@ -267,7 +272,8 @@ if __name__ == "__main__":
 
     # model training
     print("Training...")
-    train(args, device, g, dataset, model)
+    with tempfile.TemporaryDirectory(dir=args.tempdir_root) as directory:
+        train(args, device, g, dataset, model, directory)
 
     # test the model
     print("Testing...")
