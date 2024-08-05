@@ -624,12 +624,17 @@ class DistSampler:
 
         # Make a call to sample_batches for each call group
         for i, current_seeds in enumerate(nodes_call_groups):
+            max_batches = int(ceil(len(current_seeds) / batches_per_call))
+
+            local_start_id = batch_id_start + i * batches_per_call
             current_batches = torch.arange(
-                batch_id_start + i * batches_per_call,
-                batch_id_start + (i + 1) * batches_per_call,
+                local_start_id,
+                local_start_id + max_batches,
                 device="cuda",
                 dtype=torch.int32,
             )
+
+            print(current_batches.shape, batch_size, len(current_seeds), flush=True)
 
             current_batches = current_batches.repeat_interleave(batch_size)[
                 : len(current_seeds)

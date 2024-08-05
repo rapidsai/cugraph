@@ -27,6 +27,8 @@ from cugraph.gnn import (
     cugraph_comms_create_unique_id,
 )
 
+os.environ["RAPIDS_NO_INITIALIZE"] = "1"
+
 torch = import_optional("torch")
 torch_geometric = import_optional("torch_geometric")
 
@@ -36,6 +38,7 @@ def init_pytorch_worker(rank, world_size, cugraph_id):
 
     rmm.reinitialize(
         devices=rank,
+        pool_allocator=False,
     )
 
     import cupy
@@ -93,7 +96,6 @@ def run_test_neighbor_loader_mg(rank, uid, world_size, specify_size):
     cugraph_comms_shutdown()
 
 
-@pytest.mark.skip(reason="bleh")
 @pytest.mark.parametrize("specify_size", [True, False])
 @pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
 @pytest.mark.mg
