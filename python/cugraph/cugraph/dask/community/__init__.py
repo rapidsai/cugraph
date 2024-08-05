@@ -1,4 +1,4 @@
-# Copyright (c) 2020-2023, NVIDIA CORPORATION.
+# Copyright (c) 2020-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -15,3 +15,4 @@ from .louvain import louvain
 from .triangle_count import triangle_count
 from .induced_subgraph import induced_subgraph
 from .leiden import leiden
+from .ktruss_subgraph import ktruss_subgraph
