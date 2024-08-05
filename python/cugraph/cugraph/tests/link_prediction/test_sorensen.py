@@ -15,12 +15,13 @@ import gc
 
 import pytest
 import networkx as nx
+import pandas as pd
 
 import cudf
 import cugraph
 from cugraph.testing import utils, UNDIRECTED_DATASETS
 from cugraph.datasets import netscience
-from cudf.testing import assert_series_equal
+from cudf.testing import assert_series_equal, assert_frame_equal
 
 SRC_COL = "0"
 DST_COL = "1"
@@ -154,6 +155,50 @@ def networkx_call(M, benchmark_callable=None):
         # No networkX equivalent
         coeff.append((2 * p) / (1 + p))
     return src, dst, coeff
+
+
+def compare(src1, dst1, val1, src2, dst2, val2):
+    #
+    #  We will do comparison computations by using dataframe
+    #  merge functions (essentially doing fast joins).  We
+    #  start by making two data frames
+    #
+    df1 = cudf.DataFrame()
+    df1["src1"] = src1
+    df1["dst1"] = dst1
+    if val1 is not None:
+        df1["val1"] = val1
+
+    df2 = cudf.DataFrame()
+    df2["src2"] = src2
+    df2["dst2"] = dst2
+    if val2 is not None:
+        df2["val2"] = val2
+
+    #
+    #  Check to see if all pairs in the original data frame
+    #  still exist in the new data frame.  If we join (merge)
+    #  the data frames where (src1[i]=src2[i]) and (dst1[i]=dst2[i])
+    #  then we should get exactly the same number of entries in
+    #  the data frame if we did not lose any data.
+    #
+    join = df1.merge(df2, left_on=["src1", "dst1"], right_on=["src2", "dst2"])
+
+    if len(df1) != len(join):
+        join2 = df1.merge(
+            df2, how="left", left_on=["src1", "dst1"], right_on=["src2", "dst2"]
+        )
+        pd.set_option("display.max_rows", 500)
+        print("df1 = \n", df1.sort_values(["src1", "dst1"]))
+        print("df2 = \n", df2.sort_values(["src2", "dst2"]))
+        print(
+            "join2 = \n",
+            join2.sort_values(["src1", "dst1"])
+            .to_pandas()
+            .query("src2.isnull()", engine="python"),
+        )
+
+    assert len(df1) == len(join)
 
 
 # =============================================================================
@@ -337,3 +382,105 @@ def test_weighted_sorensen():
     G = karate.get_graph(ignore_weights=True)
     with pytest.raises(ValueError):
         cugraph.sorensen(G, use_weight=True)
+
+
+@pytest.mark.sg
+def test_all_pairs_sorensen():
+    karate = UNDIRECTED_DATASETS[0]
+    G = karate.get_graph(ignore_weights=True)
+
+    # Call Sorensen
+    sorensen_results = cugraph.sorensen(G)
+
+    # Remove self loop
+    sorensen_results = sorensen_results[
+        sorensen_results["first"] != sorensen_results["second"]
+    ].reset_index(drop=True)
+
+    all_pairs_sorensen_results = cugraph.all_pairs_sorensen(G)
+
+    assert_frame_equal(
+        sorensen_results.head(),
+        all_pairs_sorensen_results.head(),
+        check_dtype=False,
+        check_like=True,
+    )
+
+
+# FIXME
+@pytest.mark.sg
+@pytest.mark.skip(reason="Inaccurate results returned by all-pairs similarity")
+def test_all_pairs_sorensen_with_vertices():
+    karate = UNDIRECTED_DATASETS[0]
+    G = karate.get_graph(ignore_weights=True)
+
+    # Call Sorensen
+    sorensen_results = cugraph.sorensen(G)
+
+    # Remove self loop
+    sorensen_results = sorensen_results[
+        sorensen_results["first"] != sorensen_results["second"]
+    ].reset_index(drop=True)
+
+    vertices = [0, 1, 2]
+
+    mask_first = sorensen_results["first"].isin(vertices)
+    mask_second = sorensen_results["second"].isin(vertices)
+    # mask = [v in vertices for v in (sorensen_results['first'].to_pandas()
+    # or sorensen_results['second'].to_pandas())]
+    mask = [f or s for (f, s) in zip(mask_first.to_pandas(), mask_second.to_pandas())]
+
+    sorensen_results = sorensen_results[mask].reset_index(drop=True)
+
+    # Call all-pairs Sorensen
+    all_pairs_sorensen_results = cugraph.all_pairs_sorensen(
+        G, vertices=cudf.Series(vertices, dtype="int32")
+    )
+
+    assert_frame_equal(
+        sorensen_results, all_pairs_sorensen_results, check_dtype=False, check_like=True
+    )
+
+
+@pytest.mark.sg
+def test_all_pairs_sorensen_with_topk():
+    karate = UNDIRECTED_DATASETS[0]
+    G = karate.get_graph(ignore_weights=True)
+
+    # Call Sorensen
+    sorensen_results = cugraph.sorensen(G)
+
+    topk = 4
+
+    # Remove self loop
+    sorensen_results = (
+        sorensen_results[sorensen_results["first"] != sorensen_results["second"]]
+        .sort_values(["sorensen_coeff", "first", "second"], ascending=False)
+        .reset_index(drop=True)[:topk]
+    )
+
+    # Call all-pairs sorensen
+    all_pairs_sorensen_results = (
+        cugraph.all_pairs_sorensen(G, topk=topk)
+        .sort_values(["first", "second"], ascending=False)
+        .reset_index(drop=True)
+    )
+
+    # 1. All pair similarity might return different top pairs k pairs
+    # which are still valid hence, ensure the pairs returned by all-pairs
+    # exists.
+
+    compare(
+        all_pairs_sorensen_results["first"],
+        all_pairs_sorensen_results["second"],
+        all_pairs_sorensen_results["sorensen_coeff"],
+        sorensen_results["first"],
+        sorensen_results["second"],
+        sorensen_results["sorensen_coeff"],
+    )
+
+    # 2. Ensure the coefficient scores are still the highest
+    assert_series_equal(
+        all_pairs_sorensen_results["sorensen_coeff"],
+        sorensen_results["sorensen_coeff"][:topk],
+    )

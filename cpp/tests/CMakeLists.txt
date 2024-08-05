@@ -504,7 +504,7 @@ ConfigureTest(CORE_NUMBER_TEST cores/core_number_test.cpp)
 ConfigureTest(K_CORE_TEST cores/k_core_test.cpp)
 
 ###################################################################################################
-# - K-truss tests ---------------------------------------------------------------------------------
+# - K-truss tests --------------------------------------------------------------------------
 ConfigureTest(K_TRUSS_TEST community/k_truss_test.cpp)
 
 ###################################################################################################
@@ -622,6 +622,10 @@ if(BUILD_CUGRAPH_MG_TESTS)
     ###############################################################################################
     # - MG EDGE TRIANGLE COUNT tests --------------------------------------------------------------
     ConfigureTestMG(MG_EDGE_TRIANGLE_COUNT_TEST community/mg_edge_triangle_count_test.cpp)
+
+    ###############################################################################################
+    # - MG K-TRUSS tests --------------------------------------------------------------------------
+    ConfigureTestMG(MG_K_TRUSS_TEST community/mg_k_truss_test.cpp)
 
     ###############################################################################################
     # - MG WEAKLY CONNECTED COMPONENTS tests ------------------------------------------------------
@@ -793,6 +797,7 @@ if(BUILD_CUGRAPH_MG_TESTS)
     ConfigureCTestMG(MG_CAPI_COUNT_MULTI_EDGES c_api/mg_count_multi_edges_test.c)
     ConfigureCTestMG(MG_CAPI_EGONET_TEST c_api/mg_egonet_test.c)
     ConfigureCTestMG(MG_CAPI_TWO_HOP_NEIGHBORS_TEST c_api/mg_two_hop_neighbors_test.c)
+    ConfigureCTestMG(MG_CAPI_K_TRUSS c_api/mg_k_truss_test.c)
 
     rapids_test_install_relocatable(INSTALL_COMPONENT_SET testing_mg DESTINATION bin/gtests/libcugraph_mg)
 

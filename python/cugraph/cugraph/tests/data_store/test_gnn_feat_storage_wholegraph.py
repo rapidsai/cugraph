@@ -1,4 +1,4 @@
-# Copyright (c) 2023, NVIDIA CORPORATION.
+# Copyright (c) 2023-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -13,6 +13,7 @@
 
 import pytest
 import numpy as np
+import os
 
 from cugraph.gnn import FeatureStore
 
@@ -21,18 +22,23 @@ from cugraph.utilities.utils import import_optional, MissingModule
 pylibwholegraph = import_optional("pylibwholegraph")
 wmb = import_optional("pylibwholegraph.binding.wholememory_binding")
 torch = import_optional("torch")
+wgth = import_optional("pylibwholegraph.torch")
 
 
-def runtest(world_rank: int, world_size: int):
-    from pylibwholegraph.torch.initialize import init_torch_env_and_create_wm_comm
+def runtest(rank: int, world_size: int):
+    torch.cuda.set_device(rank)
 
-    wm_comm, _ = init_torch_env_and_create_wm_comm(
-        world_rank,
+    os.environ["MASTER_ADDR"] = "localhost"
+    os.environ["MASTER_PORT"] = "12355"
+    torch.distributed.init_process_group("nccl", rank=rank, world_size=world_size)
+
+    pylibwholegraph.torch.initialize.init(
+        rank,
         world_size,
-        world_rank,
+        rank,
         world_size,
     )
-    wm_comm = wm_comm.wmb_comm
+    wm_comm = wgth.get_global_communicator()
 
     generator = np.random.default_rng(62)
     arr = (
@@ -52,7 +58,7 @@ def runtest(world_rank: int, world_size: int):
     expected = arr[indices_to_fetch]
     np.testing.assert_array_equal(output_fs.cpu().numpy(), expected)
 
-    wmb.finalize()
+    pylibwholegraph.torch.initialize.finalize()
 
 
 @pytest.mark.sg
@@ -61,13 +67,13 @@ def runtest(world_rank: int, world_size: int):
     isinstance(pylibwholegraph, MissingModule), reason="wholegraph not available"
 )
 def test_feature_storage_wholegraph_backend():
-    from pylibwholegraph.utils.multiprocess import multiprocess_run
+    world_size = torch.cuda.device_count()
+    print("gpu count:", world_size)
+    assert world_size > 0
 
-    gpu_count = wmb.fork_get_gpu_count()
-    print("gpu count:", gpu_count)
-    assert gpu_count > 0
+    print("ignoring gpu count and running on 1 GPU only")
 
-    multiprocess_run(1, runtest)
+    torch.multiprocessing.spawn(runtest, args=(1,), nprocs=1)
 
 
 @pytest.mark.mg
@@ -76,10 +82,8 @@ def test_feature_storage_wholegraph_backend():
     isinstance(pylibwholegraph, MissingModule), reason="wholegraph not available"
 )
 def test_feature_storage_wholegraph_backend_mg():
-    from pylibwholegraph.utils.multiprocess import multiprocess_run
+    world_size = torch.cuda.device_count()
+    print("gpu count:", world_size)
+    assert world_size > 0
 
-    gpu_count = wmb.fork_get_gpu_count()
-    print("gpu count:", gpu_count)
-    assert gpu_count > 0
-
-    multiprocess_run(gpu_count, runtest)
+    torch.multiprocessing.spawn(runtest, args=(world_size,), nprocs=world_size)

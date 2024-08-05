@@ -251,7 +251,8 @@ class per_device_edgelist_t {
              store_transposed ? src_[0] : dst_[0],
              tmp_wgt,
              tmp_edge_id,
-             tmp_edge_type) =
+             tmp_edge_type,
+             std::ignore) =
       cugraph::detail::shuffle_ext_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning(
         handle.raft_handle(),
         store_transposed ? std::move(dst_[0]) : std::move(src_[0]),
