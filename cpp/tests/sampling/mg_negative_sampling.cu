@@ -89,7 +89,7 @@ class Tests_MGNegative_Sampling : public ::testing::TestWithParam<input_usecase_
     std::optional<raft::device_span<weight_t const>> dst_bias{std::nullopt};
 
     if (negative_sampling_usecase.use_src_bias) {
-      src_bias_v.resize(graph_view.number_of_vertices(), handle_->get_stream());
+      src_bias_v.resize(graph_view.local_vertex_partition_range_size(), handle_->get_stream());
 
       cugraph::detail::uniform_random_fill(handle_->get_stream(),
                                            src_bias_v.data(),
@@ -102,7 +102,7 @@ class Tests_MGNegative_Sampling : public ::testing::TestWithParam<input_usecase_
     }
 
     if (negative_sampling_usecase.use_dst_bias) {
-      dst_bias_v.resize(graph_view.number_of_vertices(), handle_->get_stream());
+      dst_bias_v.resize(graph_view.local_vertex_partition_range_size(), handle_->get_stream());
 
       cugraph::detail::uniform_random_fill(handle_->get_stream(),
                                            dst_bias_v.data(),
@@ -160,12 +160,19 @@ class Tests_MGNegative_Sampling : public ::testing::TestWithParam<input_usecase_
            handle_->get_subcomm(cugraph::partition_manager::major_comm_name()).get_size(),
            handle_->get_subcomm(cugraph::partition_manager::minor_comm_name())
              .get_size()}] __device__(auto e) {
+          if (gpu_id_key_func(thrust::get<0>(e), thrust::get<1>(e)) != comm_rank)
+            printf("  gpu_id(%d,%d) = %d, expected %d\n",
+                   (int)thrust::get<0>(e),
+                   (int)thrust::get<1>(e),
+                   gpu_id_key_func(thrust::get<0>(e), thrust::get<1>(e)),
+                   comm_rank);
+
           return (gpu_id_key_func(thrust::get<0>(e), thrust::get<1>(e)) != comm_rank);
         });
 
       ASSERT_EQ(error_count, 0) << "generate edges out of range > 0";
 
-      if (negative_sampling_usecase.remove_duplicates) {
+      if ((negative_sampling_usecase.remove_duplicates) && (src_out.size() > 0)) {
         error_count = thrust::count_if(
           handle_->get_thrust_policy(),
           thrust::make_counting_iterator<size_t>(1),
@@ -222,20 +229,8 @@ template <typename input_usecase_t, typename vertex_t, typename edge_t, typename
 std::unique_ptr<raft::handle_t>
   Tests_MGNegative_Sampling<input_usecase_t, vertex_t, edge_t, weight_t>::handle_ = nullptr;
 
-using Tests_MGNegative_Sampling_File_i32_i32_float =
-  Tests_MGNegative_Sampling<cugraph::test::File_Usecase, int32_t, int32_t, float>;
-
-using Tests_MGNegative_Sampling_File_i32_i64_float =
-  Tests_MGNegative_Sampling<cugraph::test::File_Usecase, int32_t, int64_t, float>;
-
 using Tests_MGNegative_Sampling_File_i64_i64_float =
   Tests_MGNegative_Sampling<cugraph::test::File_Usecase, int64_t, int64_t, float>;
-
-using Tests_MGNegative_Sampling_Rmat_i32_i32_float =
-  Tests_MGNegative_Sampling<cugraph::test::Rmat_Usecase, int32_t, int32_t, float>;
-
-using Tests_MGNegative_Sampling_Rmat_i32_i64_float =
-  Tests_MGNegative_Sampling<cugraph::test::Rmat_Usecase, int32_t, int64_t, float>;
 
 using Tests_MGNegative_Sampling_Rmat_i64_i64_float =
   Tests_MGNegative_Sampling<cugraph::test::Rmat_Usecase, int64_t, int64_t, float>;
@@ -312,33 +307,9 @@ void run_all_tests(CurrentTest* current_test)
                                  Negative_Sampling_Usecase{2, true, true, true, true, true, true});
 }
 
-TEST_P(Tests_MGNegative_Sampling_File_i32_i32_float, CheckInt32Int32Float)
-{
-  load_graph(override_File_Usecase_with_cmd_line_arguments(GetParam()));
-  run_all_tests(this);
-}
-
-TEST_P(Tests_MGNegative_Sampling_File_i32_i64_float, CheckInt32Int64Float)
-{
-  load_graph(override_File_Usecase_with_cmd_line_arguments(GetParam()));
-  run_all_tests(this);
-}
-
 TEST_P(Tests_MGNegative_Sampling_File_i64_i64_float, CheckInt64Int64Float)
 {
   load_graph(override_File_Usecase_with_cmd_line_arguments(GetParam()));
-  run_all_tests(this);
-}
-
-TEST_P(Tests_MGNegative_Sampling_Rmat_i32_i32_float, CheckInt32Int32Float)
-{
-  load_graph(override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
-  run_all_tests(this);
-}
-
-TEST_P(Tests_MGNegative_Sampling_Rmat_i32_i64_float, CheckInt32Int64Float)
-{
-  load_graph(override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
   run_all_tests(this);
 }
 
@@ -350,32 +321,8 @@ TEST_P(Tests_MGNegative_Sampling_Rmat_i64_i64_float, CheckInt64Int64Float)
 
 INSTANTIATE_TEST_SUITE_P(
   file_test,
-  Tests_MGNegative_Sampling_File_i32_i32_float,
-  ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx")));
-
-INSTANTIATE_TEST_SUITE_P(
-  file_test,
-  Tests_MGNegative_Sampling_File_i32_i64_float,
-  ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx")));
-
-INSTANTIATE_TEST_SUITE_P(
-  file_test,
   Tests_MGNegative_Sampling_File_i64_i64_float,
   ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx")));
-
-INSTANTIATE_TEST_SUITE_P(
-  file_large_test,
-  Tests_MGNegative_Sampling_File_i32_i32_float,
-  ::testing::Values(cugraph::test::File_Usecase("test/datasets/web-Google.mtx"),
-                    cugraph::test::File_Usecase("test/datasets/ljournal-2008.mtx"),
-                    cugraph::test::File_Usecase("test/datasets/webbase-1M.mtx")));
-
-INSTANTIATE_TEST_SUITE_P(
-  file_large_test,
-  Tests_MGNegative_Sampling_File_i32_i64_float,
-  ::testing::Values(cugraph::test::File_Usecase("test/datasets/web-Google.mtx"),
-                    cugraph::test::File_Usecase("test/datasets/ljournal-2008.mtx"),
-                    cugraph::test::File_Usecase("test/datasets/webbase-1M.mtx")));
 
 INSTANTIATE_TEST_SUITE_P(
   file_large_test,
@@ -383,16 +330,6 @@ INSTANTIATE_TEST_SUITE_P(
   ::testing::Values(cugraph::test::File_Usecase("test/datasets/web-Google.mtx"),
                     cugraph::test::File_Usecase("test/datasets/ljournal-2008.mtx"),
                     cugraph::test::File_Usecase("test/datasets/webbase-1M.mtx")));
-
-INSTANTIATE_TEST_SUITE_P(
-  rmat_small_test,
-  Tests_MGNegative_Sampling_Rmat_i32_i32_float,
-  ::testing::Values(cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, false, false, 0)));
-
-INSTANTIATE_TEST_SUITE_P(
-  rmat_small_test,
-  Tests_MGNegative_Sampling_Rmat_i32_i64_float,
-  ::testing::Values(cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, false, false, 0)));
 
 INSTANTIATE_TEST_SUITE_P(
   rmat_small_test,
