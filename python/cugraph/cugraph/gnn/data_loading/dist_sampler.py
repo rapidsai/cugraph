@@ -634,8 +634,6 @@ class DistSampler:
                 dtype=torch.int32,
             )
 
-            print(current_batches.shape, batch_size, len(current_seeds), flush=True)
-
             current_batches = current_batches.repeat_interleave(batch_size)[
                 : len(current_seeds)
             ]

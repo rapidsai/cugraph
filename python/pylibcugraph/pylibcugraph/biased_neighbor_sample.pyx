@@ -118,7 +118,7 @@ def biased_neighbor_sample(ResourceHandle resource_handle,
         Device array containing the list of starting vertices for sampling.
 
     h_fan_out: numpy array type
-        Device array containing the brancing out (fan-out) degrees per
+        Host array containing the brancing out (fan-out) degrees per
         starting vertex for each hop level.
 
     with_replacement: bool

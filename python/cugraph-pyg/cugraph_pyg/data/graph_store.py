@@ -62,11 +62,11 @@ class GraphStore(
         self.__handle = None
         self.__is_multi_gpu = is_multi_gpu
 
-        self.__invalidate_graph()
+        self.__clear_graph()
 
         super().__init__()
 
-    def __invalidate_graph(self):
+    def __clear_graph(self):
         self.__graph = None
         self.__vertex_offsets = None
         self.__weight_attr = None
@@ -94,7 +94,7 @@ class GraphStore(
         self.__sizes[edge_attr.edge_type] = edge_attr.size
 
         # invalidate the graph
-        self.__invalidate_graph()
+        self.__clear_graph()
         return True
 
     def _get_edge_index(
@@ -113,7 +113,7 @@ class GraphStore(
         del self.__edge_indices[edge_attr.edge_type]
 
         # invalidate the graph
-        self.__invalidate_graph()
+        self.__clear_graph()
         return True
 
     def get_all_edge_attrs(self) -> List["torch_geometric.data.EdgeAttr"]:
@@ -241,7 +241,7 @@ class GraphStore(
 
     def _set_weight_attr(self, attr: Tuple["torch_geometric.data.FeatureStore", str]):
         if attr != self.__weight_attr:
-            self.__invalidate_graph()
+            self.__clear_graph()
             self.__weight_attr = attr
 
     def __get_weight_tensor(
