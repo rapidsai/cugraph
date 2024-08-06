@@ -312,7 +312,7 @@ class Graph:
         self.__graph = None
         self.__vertex_offsets = None
 
-    def num_nodes(self, ntype: str = None) -> int:
+    def num_nodes(self, ntype: Optional[str] = None) -> int:
         """
         Returns the number of nodes of ntype, or if ntype is not provided,
         the total number of nodes in the graph.
@@ -322,7 +322,7 @@ class Graph:
 
         return self.__num_nodes_dict[ntype]
 
-    def number_of_nodes(self, ntype: str = None) -> int:
+    def number_of_nodes(self, ntype: Optional[str] = None) -> int:
         """
         Alias for num_nodes.
         """
@@ -508,7 +508,9 @@ class Graph:
         return self.__handle
 
     def _graph(
-        self, direction: str
+        self,
+        direction: str,
+        prob_attr: Optional[str] = None,
     ) -> Union[pylibcugraph.SGGraph, pylibcugraph.MGGraph]:
         """
         Gets the pylibcugraph Graph object with edges pointing in the given direction
@@ -522,8 +524,12 @@ class Graph:
             is_multigraph=True, is_symmetric=False
         )
 
-        if self.__graph is not None and self.__graph[1] != direction:
-            self.__graph = None
+        if self.__graph is not None:
+            if (
+                self.__graph["direction"] != direction
+                or self.__graph["prob_attr"] != prob_attr
+            ):
+                self.__graph = None
 
         if self.__graph is None:
             src_col, dst_col = ("src", "dst") if direction == "out" else ("dst", "src")
@@ -536,33 +542,38 @@ class Graph:
                 vertices_array = cupy.arange(self.num_nodes(), dtype="int64")
                 vertices_array = cupy.array_split(vertices_array, world_size)[rank]
 
-                self.__graph = (
-                    pylibcugraph.MGGraph(
-                        self._resource_handle,
-                        graph_properties,
-                        [cupy.asarray(edgelist_dict[src_col]).astype("int64")],
-                        [cupy.asarray(edgelist_dict[dst_col]).astype("int64")],
-                        vertices_array=[vertices_array],
-                        edge_id_array=[cupy.asarray(edgelist_dict["eid"])],
-                        edge_type_array=[cupy.asarray(edgelist_dict["etp"])],
-                    ),
-                    direction,
-                )
-            else:
-                self.__graph = (
-                    pylibcugraph.SGGraph(
-                        self._resource_handle,
-                        graph_properties,
-                        cupy.asarray(edgelist_dict[src_col]).astype("int64"),
-                        cupy.asarray(edgelist_dict[dst_col]).astype("int64"),
-                        vertices_array=cupy.arange(self.num_nodes(), dtype="int64"),
-                        edge_id_array=cupy.asarray(edgelist_dict["eid"]),
-                        edge_type_array=cupy.asarray(edgelist_dict["etp"]),
-                    ),
-                    direction,
+                # FIXME this is invalid for a heterogeneous graph
+                weights = (
+                    None
+                    if prob_attr is None
+                    else cupy.asarray(self.ndata[prob_attr][edgelist_dict["eid"]])
                 )
 
-        return self.__graph[0]
+                graph = pylibcugraph.MGGraph(
+                    self._resource_handle,
+                    graph_properties,
+                    [cupy.asarray(edgelist_dict[src_col]).astype("int64")],
+                    [cupy.asarray(edgelist_dict[dst_col]).astype("int64")],
+                    vertices_array=[vertices_array],
+                    edge_id_array=[cupy.asarray(edgelist_dict["eid"])],
+                    edge_type_array=[cupy.asarray(edgelist_dict["etp"])],
+                    weight_array=weights,
+                )
+            else:
+                graph = pylibcugraph.SGGraph(
+                    self._resource_handle,
+                    graph_properties,
+                    cupy.asarray(edgelist_dict[src_col]).astype("int64"),
+                    cupy.asarray(edgelist_dict[dst_col]).astype("int64"),
+                    vertices_array=cupy.arange(self.num_nodes(), dtype="int64"),
+                    edge_id_array=cupy.asarray(edgelist_dict["eid"]),
+                    edge_type_array=cupy.asarray(edgelist_dict["etp"]),
+                    weights_array=weights,
+                )
+
+        self.__graph = {"graph": graph, "direction": direction, "prob_attr": prob_attr}
+
+        return self.__graph["graph"]
 
     def _has_n_emb(self, ntype: str, emb_name: str) -> bool:
         return (ntype, emb_name) in self.__ndata_storage
