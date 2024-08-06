@@ -214,7 +214,8 @@ class Tests_KatzCentrality
         rmm::device_uvector<result_t> d_unrenumbered_katz_centralities(size_t{0},
                                                                        handle.get_stream());
         std::tie(std::ignore, d_unrenumbered_katz_centralities) =
-          cugraph::test::sort_by_key(handle, *d_renumber_map_labels, d_katz_centralities);
+          cugraph::test::sort_by_key<vertex_t, result_t>(
+            handle, *d_renumber_map_labels, d_katz_centralities);
         h_cugraph_katz_centralities =
           cugraph::test::to_host(handle, d_unrenumbered_katz_centralities);
       } else {
@@ -280,8 +281,18 @@ INSTANTIATE_TEST_SUITE_P(
                       KatzCentrality_Usecase{false, true},
                       KatzCentrality_Usecase{true, false},
                       KatzCentrality_Usecase{true, true}),
-    ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"),
-                      cugraph::test::File_Usecase("test/datasets/web-Google.mtx"),
+    ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"))));
+
+INSTANTIATE_TEST_SUITE_P(
+  file_large_test,
+  Tests_KatzCentrality_File,
+  ::testing::Combine(
+    // enable correctness checks
+    ::testing::Values(KatzCentrality_Usecase{false, false},
+                      KatzCentrality_Usecase{false, true},
+                      KatzCentrality_Usecase{true, false},
+                      KatzCentrality_Usecase{true, true}),
+    ::testing::Values(cugraph::test::File_Usecase("test/datasets/web-Google.mtx"),
                       cugraph::test::File_Usecase("test/datasets/ljournal-2008.mtx"),
                       cugraph::test::File_Usecase("test/datasets/webbase-1M.mtx"))));
 

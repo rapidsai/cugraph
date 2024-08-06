@@ -22,6 +22,7 @@ from typing import Union, Iterable
 
 from pylibcugraph import (
     sorensen_coefficients as pylibcugraph_sorensen_coefficients,
+    all_pairs_sorensen_coefficients as pylibcugraph_all_pairs_sorensen_coefficients,
 )
 from pylibcugraph import ResourceHandle
 
@@ -66,7 +67,7 @@ def sorensen(
     Compute the Sorensen coefficient between each pair of vertices connected by
     an edge, or between arbitrary pairs of vertices specified by the user.
     Sorensen coefficient is defined between two sets as the ratio of twice the
-    volume of their intersection divided by the volume of each set.
+    volume of their intersection over the volume of each set.
     If first is specified but second is not, or vice versa, an exception will
     be thrown.
 
@@ -209,8 +210,8 @@ def sorensen_coefficient(
         vertices or iterable of 2-tuples (u, v) where u and v are nodes in
         the graph.
 
-        If provided, the Overlap coefficient is computed for the given vertex
-        pairs. Otherwise, the current implementation computes the overlap
+        If provided, the Sorensen coefficient is computed for the given vertex
+        pairs. Otherwise, the current implementation computes the sorensen
         coefficient for all adjacent vertices in the graph.
 
     do_expensive_check : bool, optional (default=False)
@@ -268,5 +269,121 @@ def sorensen_coefficient(
         df = df_edge_score_to_dictionary(
             df, k="sorensen_coeff", src="first", dst="second"
         )
+
+    return df
+
+
+def all_pairs_sorensen(
+    input_graph: Graph,
+    vertices: cudf.Series = None,
+    use_weight: bool = False,
+    topk: int = None,
+):
+    """
+    Compute the All Pairs Sorensen coefficient between each pair of vertices connected
+    by an edge, or between arbitrary pairs of vertices specified by the user.
+    Sorensen coefficient is defined between two sets as the ratio of twice the
+    volume of their intersection over the volume of each set.
+    If first is specified but second is not, or vice versa, an exception will
+    be thrown.
+
+    cugraph.all_pairs_sorensen, in the absence of specified vertices, will
+    compute the two_hop_neighbors of the entire graph to construct a vertex pair
+    list and will return the sorensen coefficient for all the vertex pairs in the graph.
+    This is not advisable as the vertex_pairs can grow exponentially with respect to
+    the size of the datasets.
+
+    If the topk parameter is specified then the result will only contain the top k
+    highest scoring results.
+
+    Parameters
+    ----------
+    input_graph : cugraph.Graph
+        cuGraph Graph instance, should contain the connectivity information
+        as an edge list. The graph should be undirected where an undirected
+        edge is represented by a directed edge in both direction.The adjacency
+        list will be computed if not already present.
+
+        This implementation only supports undirected, non-multi Graphs.
+
+    vertices : int or list or cudf.Series or cudf.DataFrame, optional (default=None)
+        A GPU Series containing the input vertex list.  If the vertex list is not
+        provided then the current implementation computes the sorensen coefficient for
+        all adjacent vertices in the graph.
+
+    use_weight : bool, optional (default=False)
+        Flag to indicate whether to compute weighted sorensen (if use_weight==True)
+        or un-weighted sorensen (if use_weight==False).
+        'input_graph' must be weighted if 'use_weight=True'.
+
+    topk : int, optional (default=None)
+        Specify the number of answers to return otherwise returns the entire
+        solution
+
+    Returns
+    -------
+    df  : cudf.DataFrame
+        GPU data frame of size E (the default) or the size of the given pairs
+        (first, second) containing the Sorensen weights. The ordering is
+        relative to the adjacency list, or that given by the specified vertex
+        pairs.
+
+        df['first'] : cudf.Series
+            The first vertex ID of each pair (will be identical to first if specified).
+        df['second'] : cudf.Series
+            The second vertex ID of each pair (will be identical to second if
+            specified).
+        df['sorensen_coeff'] : cudf.Series
+            The computed Sorensen coefficient between the first and the second
+            vertex ID.
+
+    Examples
+    --------
+    >>> from cugraph.datasets import karate
+    >>> from cugraph import all_pairs_sorensen
+    >>> input_graph = karate.get_graph(download=True, ignore_weights=True)
+    >>> df = all_pairs_sorensen(input_graph)
+
+    """
+    if input_graph.is_directed():
+        raise ValueError("Input must be an undirected Graph.")
+
+    if vertices is not None:
+
+        if isinstance(vertices, int):
+            vertices = [vertices]
+
+        if isinstance(vertices, list):
+            vertices = cudf.Series(
+                vertices,
+                dtype=input_graph.edgelist.edgelist_df[input_graph.srcCol].dtype,
+            )
+
+        if input_graph.renumbered is True:
+            if isinstance(vertices, cudf.DataFrame):
+                vertices = input_graph.lookup_internal_vertex_id(
+                    vertices, vertices.columns
+                )
+            else:
+                vertices = input_graph.lookup_internal_vertex_id(vertices)
+
+    first, second, sorensen_coeff = pylibcugraph_all_pairs_sorensen_coefficients(
+        resource_handle=ResourceHandle(),
+        graph=input_graph._plc_graph,
+        vertices=vertices,
+        use_weight=use_weight,
+        topk=topk,
+        do_expensive_check=False,
+    )
+    vertex_pair = cudf.DataFrame()
+    vertex_pair["first"] = first
+    vertex_pair["second"] = second
+
+    if input_graph.renumbered:
+        vertex_pair = input_graph.unrenumber(vertex_pair, "first", preserve_order=True)
+        vertex_pair = input_graph.unrenumber(vertex_pair, "second", preserve_order=True)
+
+    df = vertex_pair
+    df["sorensen_coeff"] = cudf.Series(sorensen_coeff)
 
     return df

@@ -9,11 +9,11 @@ channels:
 - conda-forge
 - nvidia
 dependencies:
-- cugraph==24.8.*
+- cugraph==24.10.*,>=0.0.0a0
 - dgl>=1.1.0.cu*
 - pandas
 - pre-commit
-- pylibcugraphops==24.8.*
+- pylibcugraphops==24.10.*,>=0.0.0a0
 - pytest
 - pytest-benchmark
 - pytest-cov
@@ -21,4 +21,5 @@ dependencies:
 - pytorch-cuda==11.8
 - pytorch>=2.0
 - scipy
+- tensordict>=0.1.2
 name: cugraph_dgl_dev_cuda-118

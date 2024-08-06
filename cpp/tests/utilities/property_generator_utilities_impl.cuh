@@ -88,8 +88,10 @@ generate<GraphViewType, property_t>::src_property(raft::handle_t const& handle,
 {
   auto output_property =
     cugraph::edge_src_property_t<GraphViewType, property_t>(handle, graph_view);
-  update_edge_src_property(
-    handle, graph_view, cugraph::get_dataframe_buffer_begin(property), output_property);
+  update_edge_src_property(handle,
+                           graph_view,
+                           cugraph::get_dataframe_buffer_begin(property),
+                           output_property.mutable_view());
   return output_property;
 }
 
@@ -101,8 +103,10 @@ generate<GraphViewType, property_t>::dst_property(raft::handle_t const& handle,
 {
   auto output_property =
     cugraph::edge_dst_property_t<GraphViewType, property_t>(handle, graph_view);
-  update_edge_dst_property(
-    handle, graph_view, cugraph::get_dataframe_buffer_begin(property), output_property);
+  update_edge_dst_property(handle,
+                           graph_view,
+                           cugraph::get_dataframe_buffer_begin(property),
+                           output_property.mutable_view());
   return output_property;
 }
 

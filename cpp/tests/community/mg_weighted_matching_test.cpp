@@ -107,9 +107,22 @@ class Tests_MGWeightedMatching
     rmm::device_uvector<vertex_t> mg_partners(0, handle_->get_stream());
     weight_t mg_matching_weights;
 
+    if (cugraph::test::g_perf) {
+      RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      handle_->get_comms().barrier();
+      hr_timer.start("MG Approximate Weighted Matching");
+    }
+
     std::forward_as_tuple(mg_partners, mg_matching_weights) =
       cugraph::approximate_weighted_matching<vertex_t, edge_t, weight_t, multi_gpu>(
         *handle_, mg_graph_view, (*mg_edge_weights).view());
+
+    if (cugraph::test::g_perf) {
+      RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      handle_->get_comms().barrier();
+      hr_timer.stop();
+      hr_timer.display_and_clear(std::cout);
+    }
 
     if (weighted_matching_usecase.check_correctness) {
       auto h_mg_partners = cugraph::test::to_host(*handle_, mg_partners);

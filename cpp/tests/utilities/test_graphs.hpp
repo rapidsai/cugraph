@@ -35,51 +35,72 @@ namespace test {
 
 namespace detail {
 
-template <typename T>
-std::optional<rmm::device_uvector<T>> try_allocate(raft::handle_t const& handle, size_t size)
+template <typename vertex_t, typename weight_t>
+std::tuple<rmm::device_uvector<vertex_t>,
+           rmm::device_uvector<vertex_t>,
+           std::optional<rmm::device_uvector<weight_t>>>
+concatenate_edge_chunks(raft::handle_t const& handle,
+                        std::vector<rmm::device_uvector<vertex_t>>&& src_chunks,
+                        std::vector<rmm::device_uvector<vertex_t>>&& dst_chunks,
+                        std::optional<std::vector<rmm::device_uvector<weight_t>>> weight_chunks)
 {
-  try {
-    return std::make_optional<rmm::device_uvector<T>>(size, handle.get_stream());
-  } catch (std::exception const& e) {
-    return std::nullopt;
-  }
-}
-
-// use host memory as temporary buffer if memroy allocation on device fails
-template <typename T>
-rmm::device_uvector<T> concatenate(raft::handle_t const& handle,
-                                   std::vector<rmm::device_uvector<T>>&& inputs)
-{
-  size_t tot_count{0};
-  for (size_t i = 0; i < inputs.size(); ++i) {
-    tot_count += inputs[i].size();
-  }
-
-  auto output = try_allocate<T>(handle, tot_count);
-  if (output) {
-    size_t offset{0};
-    for (size_t i = 0; i < inputs.size(); ++i) {
-      raft::copy(
-        (*output).data() + offset, inputs[i].data(), inputs[i].size(), handle.get_stream());
-      offset += inputs[i].size();
-    }
-    inputs.clear();
-    inputs.shrink_to_fit();
+  if (src_chunks.size() == 1) {
+    return std::make_tuple(std::move(src_chunks[0]),
+                           std::move(dst_chunks[0]),
+                           weight_chunks ? std::make_optional<rmm::device_uvector<weight_t>>(
+                                             std::move((*weight_chunks)[0]))
+                                         : std::nullopt);
   } else {
-    std::vector<T> h_buffer(tot_count);
-    size_t offset{0};
-    for (size_t i = 0; i < inputs.size(); ++i) {
-      raft::update_host(
-        h_buffer.data() + offset, inputs[i].data(), inputs[i].size(), handle.get_stream());
-      offset += inputs[i].size();
+    size_t edge_count{0};
+    for (size_t i = 0; i < src_chunks.size(); ++i) {
+      edge_count += src_chunks[i].size();
     }
-    inputs.clear();
-    inputs.shrink_to_fit();
-    output = rmm::device_uvector<T>(tot_count, handle.get_stream());
-    raft::update_device((*output).data(), h_buffer.data(), h_buffer.size(), handle.get_stream());
-  }
 
-  return std::move(*output);
+    rmm::device_uvector<vertex_t> srcs(edge_count, handle.get_stream());
+    {
+      size_t offset{0};
+      for (size_t i = 0; i < src_chunks.size(); ++i) {
+        raft::copy(
+          srcs.data() + offset, src_chunks[i].data(), src_chunks[i].size(), handle.get_stream());
+        offset += src_chunks[i].size();
+        src_chunks[i].resize(0, handle.get_stream());
+        src_chunks[i].shrink_to_fit(handle.get_stream());
+      }
+      src_chunks.clear();
+    }
+
+    rmm::device_uvector<vertex_t> dsts(edge_count, handle.get_stream());
+    {
+      size_t offset{0};
+      for (size_t i = 0; i < dst_chunks.size(); ++i) {
+        raft::copy(
+          dsts.data() + offset, dst_chunks[i].data(), dst_chunks[i].size(), handle.get_stream());
+        offset += dst_chunks[i].size();
+        dst_chunks[i].resize(0, handle.get_stream());
+        dst_chunks[i].shrink_to_fit(handle.get_stream());
+      }
+      dst_chunks.clear();
+    }
+
+    auto weights = weight_chunks ? std::make_optional<rmm::device_uvector<weight_t>>(
+                                     edge_count, handle.get_stream())
+                                 : std::nullopt;
+    if (weights) {
+      size_t offset{0};
+      for (size_t i = 0; i < (*weight_chunks).size(); ++i) {
+        raft::copy((*weights).data() + offset,
+                   (*weight_chunks)[i].data(),
+                   (*weight_chunks)[i].size(),
+                   handle.get_stream());
+        offset += (*weight_chunks)[i].size();
+        (*weight_chunks)[i].resize(0, handle.get_stream());
+        (*weight_chunks)[i].shrink_to_fit(handle.get_stream());
+      }
+      (*weight_chunks).clear();
+    }
+
+    return std::make_tuple(std::move(srcs), std::move(dsts), std::move(weights));
+  }
 }
 
 class TranslateGraph_Usecase {
@@ -131,9 +152,9 @@ class File_Usecase : public detail::TranslateGraph_Usecase {
   }
 
   template <typename vertex_t, typename weight_t>
-  std::tuple<rmm::device_uvector<vertex_t>,
-             rmm::device_uvector<vertex_t>,
-             std::optional<rmm::device_uvector<weight_t>>,
+  std::tuple<std::vector<rmm::device_uvector<vertex_t>>,
+             std::vector<rmm::device_uvector<vertex_t>>,
+             std::optional<std::vector<rmm::device_uvector<weight_t>>>,
              std::optional<rmm::device_uvector<vertex_t>>,
              bool>
   construct_edgelist(raft::handle_t const& handle,
@@ -159,8 +180,20 @@ class File_Usecase : public detail::TranslateGraph_Usecase {
     translate(handle, srcs, dsts);
     if (vertices) { translate(handle, *vertices); }
 
-    return std::make_tuple(
-      std::move(srcs), std::move(dsts), std::move(weights), std::move(vertices), is_symmetric);
+    std::vector<rmm::device_uvector<vertex_t>> edge_src_chunks{};
+    edge_src_chunks.push_back(std::move(srcs));
+    std::vector<rmm::device_uvector<vertex_t>> edge_dst_chunks{};
+    edge_dst_chunks.push_back(std::move(dsts));
+    std::optional<std::vector<rmm::device_uvector<weight_t>>> edge_weight_chunks{std::nullopt};
+    if (weights) {
+      edge_weight_chunks = std::vector<rmm::device_uvector<weight_t>>{};
+      (*edge_weight_chunks).push_back(std::move(*weights));
+    }
+    return std::make_tuple(std::move(edge_src_chunks),
+                           std::move(edge_dst_chunks),
+                           std::move(edge_weight_chunks),
+                           std::move(vertices),
+                           is_symmetric);
   }
 
  private:
@@ -193,9 +226,9 @@ class Rmat_Usecase : public detail::TranslateGraph_Usecase {
   }
 
   template <typename vertex_t, typename weight_t>
-  std::tuple<rmm::device_uvector<vertex_t>,
-             rmm::device_uvector<vertex_t>,
-             std::optional<rmm::device_uvector<weight_t>>,
+  std::tuple<std::vector<rmm::device_uvector<vertex_t>>,
+             std::vector<rmm::device_uvector<vertex_t>>,
+             std::optional<std::vector<rmm::device_uvector<weight_t>>>,
              std::optional<rmm::device_uvector<vertex_t>>,
              bool>
   construct_edgelist(raft::handle_t const& handle,
@@ -213,7 +246,7 @@ class Rmat_Usecase : public detail::TranslateGraph_Usecase {
     // cuMemAddressReserve
     // (https://developer.nvidia.com/blog/introducing-low-level-gpu-virtual-memory-management), we
     // can reduce the temporary memory requirement to (1 / num_partitions) * (original data size)
-    size_t constexpr num_partitions_per_gpu = 2;
+    size_t constexpr num_partitions_per_gpu = 4;
     size_t num_partitions =
       num_partitions_per_gpu * static_cast<size_t>(multi_gpu ? handle.get_comms().get_size() : 1);
 
@@ -253,14 +286,14 @@ class Rmat_Usecase : public detail::TranslateGraph_Usecase {
     raft::random::RngState rng_state{
       base_seed_ + static_cast<uint64_t>(multi_gpu ? handle.get_comms().get_rank() : 0)};
 
-    std::vector<rmm::device_uvector<vertex_t>> src_partitions{};
-    std::vector<rmm::device_uvector<vertex_t>> dst_partitions{};
-    auto weight_partitions = test_weighted
-                               ? std::make_optional<std::vector<rmm::device_uvector<weight_t>>>()
-                               : std::nullopt;
-    src_partitions.reserve(num_partitions_per_gpu);
-    dst_partitions.reserve(num_partitions_per_gpu);
-    if (weight_partitions) { (*weight_partitions).reserve(num_partitions_per_gpu); }
+    std::vector<rmm::device_uvector<vertex_t>> edge_src_chunks{};
+    std::vector<rmm::device_uvector<vertex_t>> edge_dst_chunks{};
+    auto edge_weight_chunks = test_weighted
+                                ? std::make_optional<std::vector<rmm::device_uvector<weight_t>>>()
+                                : std::nullopt;
+    edge_src_chunks.reserve(num_partitions_per_gpu);
+    edge_dst_chunks.reserve(num_partitions_per_gpu);
+    if (edge_weight_chunks) { (*edge_weight_chunks).reserve(num_partitions_per_gpu); }
     for (size_t i = 0; i < num_partitions_per_gpu; ++i) {
       auto [tmp_src_v, tmp_dst_v] =
         cugraph::generate_rmat_edgelist<vertex_t>(handle,
@@ -277,7 +310,7 @@ class Rmat_Usecase : public detail::TranslateGraph_Usecase {
       }
 
       std::optional<rmm::device_uvector<weight_t>> tmp_weights_v{std::nullopt};
-      if (weight_partitions) {
+      if (edge_weight_chunks) {
         tmp_weights_v =
           std::make_optional<rmm::device_uvector<weight_t>>(tmp_src_v.size(), handle.get_stream());
 
@@ -302,6 +335,7 @@ class Rmat_Usecase : public detail::TranslateGraph_Usecase {
                  store_transposed ? tmp_src_v : tmp_dst_v,
                  tmp_weights_v,
                  std::ignore,
+                 std::ignore,
                  std::ignore) =
           cugraph::detail::shuffle_ext_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning<
             vertex_t,
@@ -315,27 +349,9 @@ class Rmat_Usecase : public detail::TranslateGraph_Usecase {
                      std::nullopt);
       }
 
-      src_partitions.push_back(std::move(tmp_src_v));
-      dst_partitions.push_back(std::move(tmp_dst_v));
-      if (weight_partitions) { (*weight_partitions).push_back(std::move(*tmp_weights_v)); }
-    }
-
-    size_t tot_edge_counts{0};
-    for (size_t i = 0; i < src_partitions.size(); ++i) {
-      tot_edge_counts += src_partitions[i].size();
-    }
-
-    // detail::concatenate uses a host buffer to store input vectors if initial device memory
-    // allocation for the return vector fails. This does not improve peak memory usage and is not
-    // helpful with the rmm_mode = cuda. However, if rmm_mode = pool, memory allocation can fail
-    // even when the aggregate free memory size far exceeds the requested size. This heuristic is
-    // helpful in this case.
-
-    auto src_v = detail::concatenate(handle, std::move(src_partitions));
-    auto dst_v = detail::concatenate(handle, std::move(dst_partitions));
-    std::optional<rmm::device_uvector<weight_t>> weight_v{std::nullopt};
-    if (weight_partitions) {
-      weight_v = detail::concatenate(handle, std::move(*weight_partitions));
+      edge_src_chunks.push_back(std::move(tmp_src_v));
+      edge_dst_chunks.push_back(std::move(tmp_dst_v));
+      if (edge_weight_chunks) { (*edge_weight_chunks).push_back(std::move(*tmp_weights_v)); }
     }
 
     // 3. generate vertices
@@ -364,8 +380,11 @@ class Rmat_Usecase : public detail::TranslateGraph_Usecase {
         handle, std::move(vertex_v));
     }
 
-    return std::make_tuple(
-      std::move(src_v), std::move(dst_v), std::move(weight_v), std::move(vertex_v), undirected_);
+    return std::make_tuple(std::move(edge_src_chunks),
+                           std::move(edge_dst_chunks),
+                           std::move(edge_weight_chunks),
+                           std::move(vertex_v),
+                           undirected_);
   }
 
   void set_scale(size_t scale) { scale_ = scale; }
@@ -388,17 +407,15 @@ class PathGraph_Usecase {
  public:
   PathGraph_Usecase() = delete;
 
-  PathGraph_Usecase(std::vector<std::tuple<size_t, size_t>> parms,
-                    bool weighted = false,
-                    bool scramble = false)
-    : parms_(parms), weighted_(weighted)
+  PathGraph_Usecase(std::vector<std::tuple<size_t, size_t>> parms, bool scramble = false)
+    : parms_(parms)
   {
   }
 
   template <typename vertex_t, typename weight_t>
-  std::tuple<rmm::device_uvector<vertex_t>,
-             rmm::device_uvector<vertex_t>,
-             std::optional<rmm::device_uvector<weight_t>>,
+  std::tuple<std::vector<rmm::device_uvector<vertex_t>>,
+             std::vector<rmm::device_uvector<vertex_t>>,
+             std::optional<std::vector<rmm::device_uvector<weight_t>>>,
              std::optional<rmm::device_uvector<vertex_t>>,
              bool>
   construct_edgelist(raft::handle_t const& handle,
@@ -415,21 +432,44 @@ class PathGraph_Usecase {
                              static_cast<vertex_t>(std::get<1>(p)));
     });
 
-    auto [src_v, dst_v] = cugraph::generate_path_graph_edgelist<vertex_t>(handle, converted_parms);
-    std::tie(src_v, dst_v, std::ignore) =
+    auto [srcs, dsts] = cugraph::generate_path_graph_edgelist<vertex_t>(handle, converted_parms);
+
+    raft::random::RngState rng_state{
+      base_seed_ + static_cast<uint64_t>(multi_gpu ? handle.get_comms().get_rank() : 0)};
+
+    std::optional<rmm::device_uvector<weight_t>> weights{std::nullopt};
+    if (test_weighted) {
+      weights = std::make_optional<rmm::device_uvector<weight_t>>(srcs.size(), handle.get_stream());
+
+      cugraph::detail::uniform_random_fill(handle.get_stream(),
+                                           weights->data(),
+                                           weights->size(),
+                                           weight_t{0.0},
+                                           weight_t{1.0},
+                                           rng_state);
+    }
+
+    std::tie(srcs, dsts, weights) =
       cugraph::symmetrize_edgelist_from_triangular<vertex_t, weight_t>(
-        handle, std::move(src_v), std::move(dst_v), std::nullopt);
+        handle, std::move(srcs), std::move(dsts), std::move(weights));
 
     rmm::device_uvector<vertex_t> d_vertices(num_vertices_, handle.get_stream());
     cugraph::detail::sequence_fill(
       handle.get_stream(), d_vertices.data(), num_vertices_, vertex_t{0});
     handle.sync_stream();
 
-    return std::make_tuple(std::move(src_v),
-                           std::move(dst_v),
-                           test_weighted ? std::make_optional<rmm::device_uvector<weight_t>>(
-                                             src_v.size(), handle.get_stream())
-                                         : std::nullopt,
+    std::vector<rmm::device_uvector<vertex_t>> edge_src_chunks{};
+    edge_src_chunks.push_back(std::move(srcs));
+    std::vector<rmm::device_uvector<vertex_t>> edge_dst_chunks{};
+    edge_dst_chunks.push_back(std::move(dsts));
+    std::optional<std::vector<rmm::device_uvector<weight_t>>> edge_weight_chunks{std::nullopt};
+    if (weights) {
+      edge_weight_chunks = std::vector<rmm::device_uvector<weight_t>>{};
+      (*edge_weight_chunks).push_back(std::move(*weights));
+    }
+    return std::make_tuple(std::move(edge_src_chunks),
+                           std::move(edge_dst_chunks),
+                           std::move(edge_weight_chunks),
                            std::move(d_vertices),
                            symmetric);
   }
@@ -437,7 +477,7 @@ class PathGraph_Usecase {
  private:
   std::vector<std::tuple<size_t, size_t>> parms_{};
   size_t num_vertices_{0};
-  bool weighted_{false};
+  uint64_t base_seed_{};
 };
 
 class Mesh2DGraph_Usecase {
@@ -450,9 +490,9 @@ class Mesh2DGraph_Usecase {
   }
 
   template <typename vertex_t, typename weight_t>
-  std::tuple<rmm::device_uvector<vertex_t>,
-             rmm::device_uvector<vertex_t>,
-             std::optional<rmm::device_uvector<weight_t>>,
+  std::tuple<std::vector<rmm::device_uvector<vertex_t>>,
+             std::vector<rmm::device_uvector<vertex_t>>,
+             std::optional<std::vector<rmm::device_uvector<weight_t>>>,
              std::optional<rmm::device_uvector<vertex_t>>,
              bool>
   construct_edgelist(raft::handle_t const& handle,
@@ -476,9 +516,9 @@ class Mesh3DGraph_Usecase {
   }
 
   template <typename vertex_t, typename weight_t>
-  std::tuple<rmm::device_uvector<vertex_t>,
-             rmm::device_uvector<vertex_t>,
-             std::optional<rmm::device_uvector<weight_t>>,
+  std::tuple<std::vector<rmm::device_uvector<vertex_t>>,
+             std::vector<rmm::device_uvector<vertex_t>>,
+             std::optional<std::vector<rmm::device_uvector<weight_t>>>,
              std::optional<rmm::device_uvector<vertex_t>>,
              bool>
   construct_edgelist(raft::handle_t const& handle,
@@ -501,9 +541,9 @@ class CompleteGraph_Usecase {
   }
 
   template <typename vertex_t, typename weight_t>
-  std::tuple<rmm::device_uvector<vertex_t>,
-             rmm::device_uvector<vertex_t>,
-             std::optional<rmm::device_uvector<weight_t>>,
+  std::tuple<std::vector<rmm::device_uvector<vertex_t>>,
+             std::vector<rmm::device_uvector<vertex_t>>,
+             std::optional<std::vector<rmm::device_uvector<weight_t>>>,
              std::optional<rmm::device_uvector<vertex_t>>,
              bool>
   construct_edgelist(raft::handle_t const& handle,
@@ -573,10 +613,10 @@ class CombinedGenerator_Usecase {
   CombinedGenerator_Usecase(generator_tuple_t const& tuple) : generator_tuple_(tuple) {}
 
   template <typename vertex_t, typename weight_t>
-  std::tuple<rmm::device_uvector<vertex_t>,
-             rmm::device_uvector<vertex_t>,
-             std::optional<rmm::device_uvector<weight_t>>,
-             rmm::device_uvector<vertex_t>,
+  std::tuple<std::vector<rmm::device_uvector<vertex_t>>,
+             std::vector<rmm::device_uvector<vertex_t>>,
+             std::optional<std::vector<rmm::device_uvector<weight_t>>>,
+             std::optional<rmm::device_uvector<vertex_t>>,
              vertex_t,
              bool>
   construct_edgelist(raft::handle_t const& handle,
@@ -593,6 +633,13 @@ class CombinedGenerator_Usecase {
     // Need to combine elements.  We have a vector of tuples, we want to combine
     //  the elements of each component of the tuple
     CUGRAPH_FAIL("not implemented");
+
+    std::vector<rmm::device_uvector<vertex_t>> edge_src_chunks{};
+    edge_src_chunks.push_back(rmm::device_uvector<vertex_t>(0, handle.get_stream()));
+    std::vector<rmm::device_uvector<vertex_t>> edge_dst_chunks{};
+    edge_dst_chunks.push_back(rmm::device_uvector<vertex_t>(0, handle.get_stream()));
+    return std::make_tuple(
+      std::move(edge_src_chunks), std::move(edge_dst_chunks), std::nullopt, std::nullopt, false);
   }
 
  private:
@@ -617,32 +664,56 @@ construct_graph(raft::handle_t const& handle,
                 bool drop_self_loops  = false,
                 bool drop_multi_edges = false)
 {
-  auto [d_src_v, d_dst_v, d_weights_v, d_vertices_v, is_symmetric] =
+  auto [edge_src_chunks, edge_dst_chunks, edge_weight_chunks, d_vertices_v, is_symmetric] =
     input_usecase.template construct_edgelist<vertex_t, weight_t>(
       handle, test_weighted, store_transposed, multi_gpu);
 
-  CUGRAPH_EXPECTS(d_src_v.size() <= static_cast<size_t>(std::numeric_limits<edge_t>::max()),
+  size_t num_edges{0};
+  for (size_t i = 0; i < edge_src_chunks.size(); ++i) {
+    num_edges += edge_src_chunks[i].size();
+  }
+  CUGRAPH_EXPECTS(num_edges <= static_cast<size_t>(std::numeric_limits<edge_t>::max()),
                   "Invalid template parameter: edge_t overflow.");
   if (drop_self_loops) {
-    std::tie(d_src_v, d_dst_v, d_weights_v, std::ignore, std::ignore) =
-      cugraph::remove_self_loops<vertex_t, edge_t, weight_t, int32_t>(handle,
-                                                                      std::move(d_src_v),
-                                                                      std::move(d_dst_v),
-                                                                      std::move(d_weights_v),
-                                                                      std::nullopt,
-                                                                      std::nullopt);
+    for (size_t i = 0; i < edge_src_chunks.size(); ++i) {
+      std::optional<rmm::device_uvector<weight_t>> tmp_weights{std::nullopt};
+      std::tie(edge_src_chunks[i], edge_dst_chunks[i], tmp_weights, std::ignore, std::ignore) =
+        cugraph::remove_self_loops<vertex_t, edge_t, weight_t, int32_t>(
+          handle,
+          std::move(edge_src_chunks[i]),
+          std::move(edge_dst_chunks[i]),
+          edge_weight_chunks
+            ? std::make_optional<rmm::device_uvector<weight_t>>(std::move((*edge_weight_chunks)[i]))
+            : std::nullopt,
+          std::nullopt,
+          std::nullopt);
+      if (tmp_weights) { (*edge_weight_chunks)[i] = std::move(*tmp_weights); }
+    }
   }
 
   if (drop_multi_edges) {
-    std::tie(d_src_v, d_dst_v, d_weights_v, std::ignore, std::ignore) =
+    auto [srcs, dsts, weights] = detail::concatenate_edge_chunks(handle,
+                                                                 std::move(edge_src_chunks),
+                                                                 std::move(edge_dst_chunks),
+                                                                 std::move(edge_weight_chunks));
+    std::tie(srcs, dsts, weights, std::ignore, std::ignore) =
       cugraph::remove_multi_edges<vertex_t, edge_t, weight_t, int32_t>(
         handle,
-        std::move(d_src_v),
-        std::move(d_dst_v),
-        std::move(d_weights_v),
+        std::move(srcs),
+        std::move(dsts),
+        std::move(weights),
         std::nullopt,
         std::nullopt,
         is_symmetric ? true /* keep minimum weight edges to maintain symmetry */ : false);
+    edge_src_chunks = std::vector<rmm::device_uvector<vertex_t>>{};
+    edge_src_chunks.push_back(std::move(srcs));
+    edge_dst_chunks = std::vector<rmm::device_uvector<vertex_t>>{};
+    edge_dst_chunks.push_back(std::move(dsts));
+    edge_weight_chunks = std::nullopt;
+    if (weights) {
+      edge_weight_chunks = std::vector<rmm::device_uvector<weight_t>>{};
+      (*edge_weight_chunks).push_back(std::move(*weights));
+    }
   }
 
   graph_t<vertex_t, edge_t, store_transposed, multi_gpu> graph(handle);
@@ -650,23 +721,43 @@ construct_graph(raft::handle_t const& handle,
     edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, weight_t>>
     edge_weights{std::nullopt};
   std::optional<rmm::device_uvector<vertex_t>> renumber_map{std::nullopt};
-  std::tie(graph, edge_weights, std::ignore, std::ignore, renumber_map) =
-    cugraph::create_graph_from_edgelist<vertex_t,
-                                        edge_t,
-                                        weight_t,
-                                        edge_t,
-                                        int32_t,
-                                        store_transposed,
-                                        multi_gpu>(
-      handle,
-      std::move(d_vertices_v),
-      std::move(d_src_v),
-      std::move(d_dst_v),
-      std::move(d_weights_v),
-      std::nullopt,
-      std::nullopt,
-      cugraph::graph_properties_t{is_symmetric, drop_multi_edges ? false : true},
-      renumber);
+  if (edge_src_chunks.size() == 1) {
+    std::tie(graph, edge_weights, std::ignore, std::ignore, renumber_map) =
+      cugraph::create_graph_from_edgelist<vertex_t,
+                                          edge_t,
+                                          weight_t,
+                                          edge_t,
+                                          int32_t,
+                                          store_transposed,
+                                          multi_gpu>(
+        handle,
+        std::move(d_vertices_v),
+        std::move(edge_src_chunks[0]),
+        std::move(edge_dst_chunks[0]),
+        edge_weight_chunks ? std::make_optional(std::move((*edge_weight_chunks)[0])) : std::nullopt,
+        std::nullopt,
+        std::nullopt,
+        cugraph::graph_properties_t{is_symmetric, drop_multi_edges ? false : true},
+        renumber);
+  } else {
+    std::tie(graph, edge_weights, std::ignore, std::ignore, renumber_map) =
+      cugraph::create_graph_from_edgelist<vertex_t,
+                                          edge_t,
+                                          weight_t,
+                                          edge_t,
+                                          int32_t,
+                                          store_transposed,
+                                          multi_gpu>(
+        handle,
+        std::move(d_vertices_v),
+        std::move(edge_src_chunks),
+        std::move(edge_dst_chunks),
+        std::move(edge_weight_chunks),
+        std::nullopt,
+        std::nullopt,
+        cugraph::graph_properties_t{is_symmetric, drop_multi_edges ? false : true},
+        renumber);
+  }
 
   return std::make_tuple(std::move(graph), std::move(edge_weights), std::move(renumber_map));
 }

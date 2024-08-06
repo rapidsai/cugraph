@@ -106,7 +106,7 @@ class Tests_MGSimilarity
     auto d_v1 = cugraph::test::to_device(*handle_, h_v1);
     auto d_v2 = std::move(two_hop_nbrs);
 
-    std::tie(d_v1, d_v2, std::ignore, std::ignore, std::ignore) =
+    std::tie(d_v1, d_v2, std::ignore, std::ignore, std::ignore, std::ignore) =
       cugraph::detail::shuffle_int_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning<
         vertex_t,
         edge_t,
@@ -250,6 +250,34 @@ TEST_P(Tests_MGSimilarity_Rmat, CheckInt64Int64FloatOverlap)
 {
   run_current_test<int64_t, int64_t, float>(
     override_Rmat_Usecase_with_cmd_line_arguments(GetParam()), cugraph::test::test_overlap_t{});
+}
+
+TEST_P(Tests_MGSimilarity_File, CheckInt32Int32FloatFloatCosine)
+{
+  auto param = GetParam();
+  run_current_test<int32_t, int32_t, float>(
+    override_File_Usecase_with_cmd_line_arguments(GetParam()), cugraph::test::test_cosine_t{});
+}
+
+TEST_P(Tests_MGSimilarity_Rmat, CheckInt32Int32FloatFloatCosine)
+{
+  auto param = GetParam();
+  run_current_test<int32_t, int32_t, float>(
+    override_Rmat_Usecase_with_cmd_line_arguments(GetParam()), cugraph::test::test_cosine_t{});
+}
+
+TEST_P(Tests_MGSimilarity_Rmat, CheckInt32Int64FloatFloatCosine)
+{
+  auto param = GetParam();
+  run_current_test<int32_t, int64_t, float>(
+    override_Rmat_Usecase_with_cmd_line_arguments(GetParam()), cugraph::test::test_cosine_t{});
+}
+
+TEST_P(Tests_MGSimilarity_Rmat, CheckInt64Int64FloatFloatCosine)
+{
+  auto param = GetParam();
+  run_current_test<int64_t, int64_t, float>(
+    override_Rmat_Usecase_with_cmd_line_arguments(GetParam()), cugraph::test::test_cosine_t{});
 }
 
 INSTANTIATE_TEST_SUITE_P(

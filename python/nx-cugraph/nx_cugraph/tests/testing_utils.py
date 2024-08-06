@@ -18,10 +18,10 @@ import nx_cugraph as nxcg
 def assert_graphs_equal(Gnx, Gcg):
     assert isinstance(Gnx, nx.Graph)
     assert isinstance(Gcg, nxcg.Graph)
-    assert Gnx.number_of_nodes() == Gcg.number_of_nodes()
-    assert Gnx.number_of_edges() == Gcg.number_of_edges()
-    assert Gnx.is_directed() == Gcg.is_directed()
-    assert Gnx.is_multigraph() == Gcg.is_multigraph()
+    assert (a := Gnx.number_of_nodes()) == (b := Gcg.number_of_nodes()), (a, b)
+    assert (a := Gnx.number_of_edges()) == (b := Gcg.number_of_edges()), (a, b)
+    assert (a := Gnx.is_directed()) == (b := Gcg.is_directed()), (a, b)
+    assert (a := Gnx.is_multigraph()) == (b := Gcg.is_multigraph()), (a, b)
     G = nxcg.to_networkx(Gcg)
     rv = nx.utils.graphs_equal(G, Gnx)
     if not rv:

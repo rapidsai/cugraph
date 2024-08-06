@@ -22,6 +22,7 @@
 #include <cugraph/edge_partition_device_view.cuh>
 #include <cugraph/edge_partition_edge_property_device_view.cuh>
 #include <cugraph/edge_partition_endpoint_property_device_view.cuh>
+#include <cugraph/graph.hpp>
 #include <cugraph/partition_manager.hpp>
 #include <cugraph/utilities/dataframe_buffer.hpp>
 #include <cugraph/utilities/host_scalar_comm.hpp>
@@ -153,6 +154,8 @@ struct transform_local_nbr_indices_t {
                   edge_partition_e_value_input.get(edge_offset + local_nbr_idx));
     } else if (invalid_value) {
       return *invalid_value;
+    } else {
+      return T{};
     }
   }
 };
@@ -204,10 +207,13 @@ struct return_value_compute_offset_t {
 template <bool incoming,
           typename GraphViewType,
           typename VertexFrontierBucketType,
+          typename EdgeBiasSrcValueInputWrapper,
+          typename EdgeBiasDstValueInputWrapper,
+          typename EdgeBiasValueInputWrapper,
+          typename EdgeBiasOp,
           typename EdgeSrcValueInputWrapper,
           typename EdgeDstValueInputWrapper,
           typename EdgeValueInputWrapper,
-          typename EdgeBiasOp,
           typename EdgeOp,
           typename T>
 std::tuple<std::optional<rmm::device_uvector<size_t>>,
@@ -215,10 +221,13 @@ std::tuple<std::optional<rmm::device_uvector<size_t>>,
 per_v_random_select_transform_e(raft::handle_t const& handle,
                                 GraphViewType const& graph_view,
                                 VertexFrontierBucketType const& frontier,
+                                EdgeBiasSrcValueInputWrapper edge_bias_src_value_input,
+                                EdgeBiasDstValueInputWrapper edge_bias_dst_value_input,
+                                EdgeBiasValueInputWrapper edge_bias_value_input,
+                                EdgeBiasOp e_bias_op,
                                 EdgeSrcValueInputWrapper edge_src_value_input,
                                 EdgeDstValueInputWrapper edge_dst_value_input,
                                 EdgeValueInputWrapper edge_value_input,
-                                EdgeBiasOp e_bias_op,
                                 EdgeOp e_op,
                                 raft::random::RngState& rng_state,
                                 size_t K,
@@ -227,11 +236,10 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
                                 bool do_expensive_check)
 {
 #ifndef NO_CUGRAPH_OPS
-  using vertex_t = typename GraphViewType::vertex_type;
-  using edge_t   = typename GraphViewType::edge_type;
-  using key_t    = typename VertexFrontierBucketType::key_type;
-  using key_buffer_t =
-    decltype(allocate_dataframe_buffer<key_t>(size_t{0}, rmm::cuda_stream_view{}));
+  using vertex_t     = typename GraphViewType::vertex_type;
+  using edge_t       = typename GraphViewType::edge_type;
+  using key_t        = typename VertexFrontierBucketType::key_type;
+  using key_buffer_t = dataframe_buffer_type_t<key_t>;
 
   using edge_partition_src_input_device_view_t = std::conditional_t<
     std::is_same_v<typename EdgeSrcValueInputWrapper::value_type, thrust::nullopt_t>,
@@ -313,13 +321,12 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
 
   // 1. aggregate frontier
 
-  auto aggregate_local_frontier =
-    (minor_comm_size > 1)
-      ? std::make_optional<key_buffer_t>(
-          local_frontier_displacements.back() + local_frontier_sizes.back(), handle.get_stream())
-      : std::nullopt;
+  std::optional<key_buffer_t> aggregate_local_frontier{std::nullopt};
   if (minor_comm_size > 1) {
     auto& minor_comm = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
+
+    aggregate_local_frontier = allocate_dataframe_buffer<key_t>(
+      local_frontier_displacements.back() + local_frontier_sizes.back(), handle.get_stream());
     device_allgatherv(minor_comm,
                       frontier.begin(),
                       get_dataframe_buffer_begin(*aggregate_local_frontier),
@@ -336,9 +343,9 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
   std::vector<size_t> local_frontier_sample_offsets{};
   if constexpr (std::is_same_v<EdgeBiasOp,
                                constant_e_bias_op_t<GraphViewType,
-                                                    EdgeSrcValueInputWrapper,
-                                                    EdgeDstValueInputWrapper,
-                                                    EdgeValueInputWrapper,
+                                                    EdgeBiasSrcValueInputWrapper,
+                                                    EdgeBiasDstValueInputWrapper,
+                                                    EdgeBiasValueInputWrapper,
                                                     key_t>>) {
     std::tie(sample_local_nbr_indices, sample_key_indices, local_frontier_sample_offsets) =
       uniform_sample_and_compute_local_nbr_indices(
@@ -358,9 +365,9 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
         graph_view,
         (minor_comm_size > 1) ? get_dataframe_buffer_begin(*aggregate_local_frontier)
                               : frontier.begin(),
-        edge_src_value_input,
-        edge_dst_value_input,
-        edge_value_input,
+        edge_bias_src_value_input,
+        edge_bias_dst_value_input,
+        edge_bias_value_input,
         e_bias_op,
         local_frontier_displacements,
         local_frontier_sizes,
@@ -431,7 +438,7 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
           edge_partition_dst_value_input,
           edge_partition_e_value_input,
           e_op,
-          cugraph::invalid_idx<edge_t>::value,
+          cugraph::invalid_edge_id_v<edge_t>,
           to_thrust_optional(invalid_value),
           K});
     } else {
@@ -455,7 +462,7 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
                                          edge_partition_dst_value_input,
                                          edge_partition_e_value_input,
                                          e_op,
-                                         cugraph::invalid_idx<edge_t>::value,
+                                         cugraph::invalid_edge_id_v<edge_t>,
                                          to_thrust_optional(invalid_value),
                                          K});
     }
@@ -555,7 +562,7 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
         count_valids_t<edge_t>{raft::device_span<edge_t const>(sample_local_nbr_indices.data(),
                                                                sample_local_nbr_indices.size()),
                                K,
-                               cugraph::invalid_idx<edge_t>::value});
+                               cugraph::invalid_edge_id_v<edge_t>});
       (*sample_offsets).set_element_to_zero_async(size_t{0}, handle.get_stream());
       auto typecasted_sample_count_first =
         thrust::make_transform_iterator(sample_counts.begin(), typecast_t<int32_t, size_t>{});
@@ -572,7 +579,7 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
         thrust::remove_if(handle.get_thrust_policy(),
                           pair_first,
                           pair_first + sample_local_nbr_indices.size(),
-                          check_invalid_t<edge_t, T>{cugraph::invalid_idx<edge_t>::value});
+                          check_invalid_t<edge_t, T>{cugraph::invalid_edge_id_v<edge_t>});
       sample_local_nbr_indices.resize(0, handle.get_stream());
       sample_local_nbr_indices.shrink_to_fit(handle.get_stream());
 
@@ -586,7 +593,7 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
 #else
   CUGRAPH_FAIL("unimplemented.");
   return std::make_tuple(std::nullopt,
-                         allocate_dataframe_buffer<t>(size_t{0}, rmm::cuda_stream_view{}));
+                         allocate_dataframe_buffer<T>(size_t{0}, rmm::cuda_stream_view{}));
 #endif
 }
 
@@ -651,10 +658,13 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
  */
 template <typename GraphViewType,
           typename VertexFrontierBucketType,
+          typename EdgeBiasSrcValueInputWrapper,
+          typename EdgeBiasDstValueInputWrapper,
+          typename EdgeBiasValueInputWrapper,
+          typename EdgeBiasOp,
           typename EdgeSrcValueInputWrapper,
           typename EdgeDstValueInputWrapper,
           typename EdgeValueInputWrapper,
-          typename EdgeBiasOp,
           typename EdgeOp,
           typename T>
 std::tuple<std::optional<rmm::device_uvector<size_t>>,
@@ -662,10 +672,13 @@ std::tuple<std::optional<rmm::device_uvector<size_t>>,
 per_v_random_select_transform_outgoing_e(raft::handle_t const& handle,
                                          GraphViewType const& graph_view,
                                          VertexFrontierBucketType const& frontier,
+                                         EdgeBiasSrcValueInputWrapper edge_bias_src_value_input,
+                                         EdgeBiasDstValueInputWrapper edge_bias_dst_value_input,
+                                         EdgeBiasValueInputWrapper edge_bias_value_input,
+                                         EdgeBiasOp e_bias_op,
                                          EdgeSrcValueInputWrapper edge_src_value_input,
                                          EdgeDstValueInputWrapper edge_dst_value_input,
                                          EdgeValueInputWrapper edge_value_input,
-                                         EdgeBiasOp e_bias_op,
                                          EdgeOp e_op,
                                          raft::random::RngState& rng_state,
                                          size_t K,
@@ -676,10 +689,13 @@ per_v_random_select_transform_outgoing_e(raft::handle_t const& handle,
   return detail::per_v_random_select_transform_e<false>(handle,
                                                         graph_view,
                                                         frontier,
+                                                        edge_bias_src_value_input,
+                                                        edge_bias_dst_value_input,
+                                                        edge_bias_value_input,
+                                                        e_bias_op,
                                                         edge_src_value_input,
                                                         edge_dst_value_input,
                                                         edge_value_input,
-                                                        e_bias_op,
                                                         e_op,
                                                         rng_state,
                                                         K,
@@ -766,14 +782,17 @@ per_v_random_select_transform_outgoing_e(raft::handle_t const& handle,
     handle,
     graph_view,
     frontier,
+    edge_src_dummy_property_t{}.view(),
+    edge_dst_dummy_property_t{}.view(),
+    edge_dummy_property_t{}.view(),
+    detail::constant_e_bias_op_t<GraphViewType,
+                                 detail::edge_endpoint_dummy_property_view_t,
+                                 detail::edge_endpoint_dummy_property_view_t,
+                                 edge_dummy_property_view_t,
+                                 typename VertexFrontierBucketType::key_type>{},
     edge_src_value_input,
     edge_dst_value_input,
     edge_value_input,
-    detail::constant_e_bias_op_t<GraphViewType,
-                                 EdgeSrcValueInputWrapper,
-                                 EdgeDstValueInputWrapper,
-                                 EdgeValueInputWrapper,
-                                 typename VertexFrontierBucketType::key_type>{},
     e_op,
     rng_state,
     K,

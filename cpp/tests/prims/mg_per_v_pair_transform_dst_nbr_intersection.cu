@@ -16,7 +16,6 @@
 
 #include "prims/per_v_pair_transform_dst_nbr_intersection.cuh"
 #include "prims/transform_e.cuh"
-#include "prims/update_edge_src_dst_property.cuh"
 #include "utilities/base_fixture.hpp"
 #include "utilities/conversion_utilities.hpp"
 #include "utilities/device_comm_wrapper.hpp"
@@ -148,6 +147,7 @@ class Tests_MGPerVPairTransformDstNbrIntersection
     auto h_vertex_partition_range_lasts = mg_graph_view.vertex_partition_range_lasts();
     std::tie(std::get<0>(mg_vertex_pair_buffer),
              std::get<1>(mg_vertex_pair_buffer),
+             std::ignore,
              std::ignore,
              std::ignore,
              std::ignore) =
