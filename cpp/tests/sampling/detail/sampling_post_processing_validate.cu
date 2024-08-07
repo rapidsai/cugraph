@@ -91,119 +91,164 @@ bool compare_edgelist(raft::handle_t const& handle,
                       raft::device_span<vertex_t const> org_edgelist_srcs,
                       raft::device_span<vertex_t const> org_edgelist_dsts,
                       std::optional<raft::device_span<weight_t const>> org_edgelist_weights,
+                      std::optional<raft::device_span<size_t const>> org_edgelist_label_offsets,
                       raft::device_span<vertex_t const> renumbered_edgelist_srcs,
                       raft::device_span<vertex_t const> renumbered_edgelist_dsts,
                       std::optional<raft::device_span<weight_t const>> renumbered_edgelist_weights,
-                      std::optional<raft::device_span<vertex_t const>> renumber_map)
+                      std::optional<raft::device_span<vertex_t const>> renumber_map,
+                      std::optional<raft::device_span<size_t const>> renumber_map_label_offsets,
+                      size_t num_labels)
 {
   if (org_edgelist_srcs.size() != renumbered_edgelist_srcs.size()) { return false; }
 
-  rmm::device_uvector<vertex_t> sorted_org_edgelist_srcs(org_edgelist_srcs.size(),
-                                                         handle.get_stream());
-  thrust::copy(handle.get_thrust_policy(),
-               org_edgelist_srcs.begin(),
-               org_edgelist_srcs.end(),
-               sorted_org_edgelist_srcs.begin());
-  rmm::device_uvector<vertex_t> sorted_org_edgelist_dsts(org_edgelist_dsts.size(),
-                                                         handle.get_stream());
-  thrust::copy(handle.get_thrust_policy(),
-               org_edgelist_dsts.begin(),
-               org_edgelist_dsts.end(),
-               sorted_org_edgelist_dsts.begin());
-  auto sorted_org_edgelist_weights = org_edgelist_weights
-                                       ? std::make_optional<rmm::device_uvector<weight_t>>(
-                                           (*org_edgelist_weights).size(), handle.get_stream())
-                                       : std::nullopt;
-  if (sorted_org_edgelist_weights) {
+  for (size_t i = 0; i < num_labels; ++i) {
+    size_t label_start_offset{0};
+    size_t label_end_offset = org_edgelist_srcs.size();
+    if (org_edgelist_label_offsets) {
+      raft::update_host(&label_start_offset,
+                        (*org_edgelist_label_offsets).data() + i,
+                        size_t{1},
+                        handle.get_stream());
+      raft::update_host(&label_end_offset,
+                        (*org_edgelist_label_offsets).data() + i + 1,
+                        size_t{1},
+                        handle.get_stream());
+      handle.sync_stream();
+    }
+
+    rmm::device_uvector<vertex_t> this_label_sorted_org_edgelist_srcs(
+      label_end_offset - label_start_offset, handle.get_stream());
     thrust::copy(handle.get_thrust_policy(),
-                 (*org_edgelist_weights).begin(),
-                 (*org_edgelist_weights).end(),
-                 (*sorted_org_edgelist_weights).begin());
-  }
-
-  if (sorted_org_edgelist_weights) {
-    auto sorted_org_edge_first = thrust::make_zip_iterator(sorted_org_edgelist_srcs.begin(),
-                                                           sorted_org_edgelist_dsts.begin(),
-                                                           (*sorted_org_edgelist_weights).begin());
-    thrust::sort(handle.get_thrust_policy(),
-                 sorted_org_edge_first,
-                 sorted_org_edge_first + sorted_org_edgelist_srcs.size());
-  } else {
-    auto sorted_org_edge_first =
-      thrust::make_zip_iterator(sorted_org_edgelist_srcs.begin(), sorted_org_edgelist_dsts.begin());
-    thrust::sort(handle.get_thrust_policy(),
-                 sorted_org_edge_first,
-                 sorted_org_edge_first + sorted_org_edgelist_srcs.size());
-  }
-
-  rmm::device_uvector<vertex_t> sorted_unrenumbered_edgelist_srcs(renumbered_edgelist_srcs.size(),
-                                                                  handle.get_stream());
-  thrust::copy(handle.get_thrust_policy(),
-               renumbered_edgelist_srcs.begin(),
-               renumbered_edgelist_srcs.end(),
-               sorted_unrenumbered_edgelist_srcs.begin());
-  rmm::device_uvector<vertex_t> sorted_unrenumbered_edgelist_dsts(renumbered_edgelist_dsts.size(),
-                                                                  handle.get_stream());
-  thrust::copy(handle.get_thrust_policy(),
-               renumbered_edgelist_dsts.begin(),
-               renumbered_edgelist_dsts.end(),
-               sorted_unrenumbered_edgelist_dsts.begin());
-  auto sorted_unrenumbered_edgelist_weights =
-    renumbered_edgelist_weights ? std::make_optional<rmm::device_uvector<weight_t>>(
-                                    (*renumbered_edgelist_weights).size(), handle.get_stream())
-                                : std::nullopt;
-  if (sorted_unrenumbered_edgelist_weights) {
+                 org_edgelist_srcs.begin() + label_start_offset,
+                 org_edgelist_srcs.begin() + label_end_offset,
+                 this_label_sorted_org_edgelist_srcs.begin());
+    rmm::device_uvector<vertex_t> this_label_sorted_org_edgelist_dsts(org_edgelist_dsts.size(),
+                                                                      handle.get_stream());
     thrust::copy(handle.get_thrust_policy(),
-                 (*renumbered_edgelist_weights).begin(),
-                 (*renumbered_edgelist_weights).end(),
-                 (*sorted_unrenumbered_edgelist_weights).begin());
-  }
+                 org_edgelist_dsts.begin() + label_start_offset,
+                 org_edgelist_dsts.begin() + label_end_offset,
+                 this_label_sorted_org_edgelist_dsts.begin());
+    auto this_label_sorted_org_edgelist_weights =
+      org_edgelist_weights ? std::make_optional<rmm::device_uvector<weight_t>>(
+                               label_end_offset - label_start_offset, handle.get_stream())
+                           : std::nullopt;
+    if (this_label_sorted_org_edgelist_weights) {
+      thrust::copy(handle.get_thrust_policy(),
+                   (*org_edgelist_weights).begin() + label_start_offset,
+                   (*org_edgelist_weights).begin() + label_end_offset,
+                   (*this_label_sorted_org_edgelist_weights).begin());
+    }
 
-  if (renumber_map) {
-    cugraph::unrenumber_int_vertices<vertex_t, false>(
-      handle,
-      sorted_unrenumbered_edgelist_srcs.data(),
-      sorted_unrenumbered_edgelist_srcs.size(),
-      (*renumber_map).data(),
-      std::vector<vertex_t>{static_cast<vertex_t>((*renumber_map).size())});
-    cugraph::unrenumber_int_vertices<vertex_t, false>(
-      handle,
-      sorted_unrenumbered_edgelist_dsts.data(),
-      sorted_unrenumbered_edgelist_dsts.size(),
-      (*renumber_map).data(),
-      std::vector<vertex_t>{static_cast<vertex_t>((*renumber_map).size())});
-  }
+    if (this_label_sorted_org_edgelist_weights) {
+      auto sorted_org_edge_first =
+        thrust::make_zip_iterator(this_label_sorted_org_edgelist_srcs.begin(),
+                                  this_label_sorted_org_edgelist_dsts.begin(),
+                                  (*this_label_sorted_org_edgelist_weights).begin());
+      thrust::sort(handle.get_thrust_policy(),
+                   sorted_org_edge_first,
+                   sorted_org_edge_first + this_label_sorted_org_edgelist_srcs.size());
+    } else {
+      auto sorted_org_edge_first = thrust::make_zip_iterator(
+        this_label_sorted_org_edgelist_srcs.begin(), this_label_sorted_org_edgelist_dsts.begin());
+      thrust::sort(handle.get_thrust_policy(),
+                   sorted_org_edge_first,
+                   sorted_org_edge_first + this_label_sorted_org_edgelist_srcs.size());
+    }
 
-  if (sorted_unrenumbered_edgelist_weights) {
-    auto sorted_unrenumbered_edge_first =
-      thrust::make_zip_iterator(sorted_unrenumbered_edgelist_srcs.begin(),
-                                sorted_unrenumbered_edgelist_dsts.begin(),
-                                (*sorted_unrenumbered_edgelist_weights).begin());
-    thrust::sort(handle.get_thrust_policy(),
-                 sorted_unrenumbered_edge_first,
-                 sorted_unrenumbered_edge_first + sorted_unrenumbered_edgelist_srcs.size());
+    rmm::device_uvector<vertex_t> this_label_sorted_unrenumbered_edgelist_srcs(
+      label_end_offset - label_start_offset, handle.get_stream());
+    thrust::copy(handle.get_thrust_policy(),
+                 renumbered_edgelist_srcs.begin() + label_start_offset,
+                 renumbered_edgelist_srcs.begin() + label_end_offset,
+                 this_label_sorted_unrenumbered_edgelist_srcs.begin());
+    rmm::device_uvector<vertex_t> this_label_sorted_unrenumbered_edgelist_dsts(
+      label_end_offset - label_start_offset, handle.get_stream());
+    thrust::copy(handle.get_thrust_policy(),
+                 renumbered_edgelist_dsts.begin() + label_start_offset,
+                 renumbered_edgelist_dsts.begin() + label_end_offset,
+                 this_label_sorted_unrenumbered_edgelist_dsts.begin());
+    auto this_label_sorted_unrenumbered_edgelist_weights =
+      renumbered_edgelist_weights ? std::make_optional<rmm::device_uvector<weight_t>>(
+                                      label_end_offset - label_start_offset, handle.get_stream())
+                                  : std::nullopt;
+    if (this_label_sorted_unrenumbered_edgelist_weights) {
+      thrust::copy(handle.get_thrust_policy(),
+                   (*renumbered_edgelist_weights).begin() + label_start_offset,
+                   (*renumbered_edgelist_weights).begin() + label_end_offset,
+                   (*this_label_sorted_unrenumbered_edgelist_weights).begin());
+    }
 
-    auto sorted_org_edge_first = thrust::make_zip_iterator(sorted_org_edgelist_srcs.begin(),
-                                                           sorted_org_edgelist_dsts.begin(),
-                                                           (*sorted_org_edgelist_weights).begin());
-    return thrust::equal(handle.get_thrust_policy(),
+    if (renumber_map) {
+      size_t renumber_map_label_start_offset{0};
+      size_t renumber_map_label_end_offset = (*renumber_map).size();
+      if (renumber_map_label_offsets) {
+        raft::update_host(&renumber_map_label_start_offset,
+                          (*renumber_map_label_offsets).data() + i,
+                          size_t{1},
+                          handle.get_stream());
+        raft::update_host(&renumber_map_label_end_offset,
+                          (*renumber_map_label_offsets).data() + i + 1,
+                          size_t{1},
+                          handle.get_stream());
+        handle.sync_stream();
+      }
+      cugraph::unrenumber_int_vertices<vertex_t, false>(
+        handle,
+        this_label_sorted_unrenumbered_edgelist_srcs.data(),
+        this_label_sorted_unrenumbered_edgelist_srcs.size(),
+        (*renumber_map).data() + renumber_map_label_start_offset,
+        std::vector<vertex_t>{
+          static_cast<vertex_t>(renumber_map_label_end_offset - renumber_map_label_start_offset)});
+      cugraph::unrenumber_int_vertices<vertex_t, false>(
+        handle,
+        this_label_sorted_unrenumbered_edgelist_dsts.data(),
+        this_label_sorted_unrenumbered_edgelist_dsts.size(),
+        (*renumber_map).data() + renumber_map_label_start_offset,
+        std::vector<vertex_t>{
+          static_cast<vertex_t>(renumber_map_label_end_offset - renumber_map_label_start_offset)});
+    }
+
+    if (this_label_sorted_unrenumbered_edgelist_weights) {
+      auto sorted_unrenumbered_edge_first =
+        thrust::make_zip_iterator(this_label_sorted_unrenumbered_edgelist_srcs.begin(),
+                                  this_label_sorted_unrenumbered_edgelist_dsts.begin(),
+                                  (*this_label_sorted_unrenumbered_edgelist_weights).begin());
+      thrust::sort(
+        handle.get_thrust_policy(),
+        sorted_unrenumbered_edge_first,
+        sorted_unrenumbered_edge_first + this_label_sorted_unrenumbered_edgelist_srcs.size());
+
+      auto sorted_org_edge_first =
+        thrust::make_zip_iterator(this_label_sorted_org_edgelist_srcs.begin(),
+                                  this_label_sorted_org_edgelist_dsts.begin(),
+                                  (*this_label_sorted_org_edgelist_weights).begin());
+      if (!thrust::equal(handle.get_thrust_policy(),
                          sorted_org_edge_first,
-                         sorted_org_edge_first + sorted_org_edgelist_srcs.size(),
-                         sorted_unrenumbered_edge_first);
-  } else {
-    auto sorted_unrenumbered_edge_first = thrust::make_zip_iterator(
-      sorted_unrenumbered_edgelist_srcs.begin(), sorted_unrenumbered_edgelist_dsts.begin());
-    thrust::sort(handle.get_thrust_policy(),
-                 sorted_unrenumbered_edge_first,
-                 sorted_unrenumbered_edge_first + sorted_unrenumbered_edgelist_srcs.size());
+                         sorted_org_edge_first + this_label_sorted_org_edgelist_srcs.size(),
+                         sorted_unrenumbered_edge_first)) {
+        return false;
+      }
+    } else {
+      auto sorted_unrenumbered_edge_first =
+        thrust::make_zip_iterator(this_label_sorted_unrenumbered_edgelist_srcs.begin(),
+                                  this_label_sorted_unrenumbered_edgelist_dsts.begin());
+      thrust::sort(
+        handle.get_thrust_policy(),
+        sorted_unrenumbered_edge_first,
+        sorted_unrenumbered_edge_first + this_label_sorted_unrenumbered_edgelist_srcs.size());
 
-    auto sorted_org_edge_first =
-      thrust::make_zip_iterator(sorted_org_edgelist_srcs.begin(), sorted_org_edgelist_dsts.begin());
-    return thrust::equal(handle.get_thrust_policy(),
+      auto sorted_org_edge_first = thrust::make_zip_iterator(
+        this_label_sorted_org_edgelist_srcs.begin(), this_label_sorted_org_edgelist_dsts.begin());
+      if (!thrust::equal(handle.get_thrust_policy(),
                          sorted_org_edge_first,
-                         sorted_org_edge_first + sorted_org_edgelist_srcs.size(),
-                         sorted_unrenumbered_edge_first);
+                         sorted_org_edge_first + this_label_sorted_org_edgelist_srcs.size(),
+                         sorted_unrenumbered_edge_first)) {
+        return false;
+      }
+    }
   }
+
+  return true;
 }
 
 template bool compare_edgelist(
@@ -211,43 +256,55 @@ template bool compare_edgelist(
   raft::device_span<int32_t const> org_edgelist_srcs,
   raft::device_span<int32_t const> org_edgelist_dsts,
   std::optional<raft::device_span<float const>> org_edgelist_weights,
+  std::optional<raft::device_span<size_t const>> org_edgelist_label_offsets,
   raft::device_span<int32_t const> renumbered_edgelist_srcs,
   raft::device_span<int32_t const> renumbered_edgelist_dsts,
   std::optional<raft::device_span<float const>> renumbered_edgelist_weights,
-  std::optional<raft::device_span<int32_t const>> renumber_map);
+  std::optional<raft::device_span<int32_t const>> renumber_map,
+  std::optional<raft::device_span<size_t const>> renumber_map_label_offsets,
+  size_t num_labels);
 
 template bool compare_edgelist(
   raft::handle_t const& handle,
   raft::device_span<int32_t const> org_edgelist_srcs,
   raft::device_span<int32_t const> org_edgelist_dsts,
   std::optional<raft::device_span<double const>> org_edgelist_weights,
+  std::optional<raft::device_span<size_t const>> org_edgelist_label_offsets,
   raft::device_span<int32_t const> renumbered_edgelist_srcs,
   raft::device_span<int32_t const> renumbered_edgelist_dsts,
   std::optional<raft::device_span<double const>> renumbered_edgelist_weights,
-  std::optional<raft::device_span<int32_t const>> renumber_map);
+  std::optional<raft::device_span<int32_t const>> renumber_map,
+  std::optional<raft::device_span<size_t const>> renumber_map_label_offsets,
+  size_t num_labels);
 
 template bool compare_edgelist(
   raft::handle_t const& handle,
   raft::device_span<int64_t const> org_edgelist_srcs,
   raft::device_span<int64_t const> org_edgelist_dsts,
   std::optional<raft::device_span<float const>> org_edgelist_weights,
+  std::optional<raft::device_span<size_t const>> org_edgelist_label_offsets,
   raft::device_span<int64_t const> renumbered_edgelist_srcs,
   raft::device_span<int64_t const> renumbered_edgelist_dsts,
   std::optional<raft::device_span<float const>> renumbered_edgelist_weights,
-  std::optional<raft::device_span<int64_t const>> renumber_map);
+  std::optional<raft::device_span<int64_t const>> renumber_map,
+  std::optional<raft::device_span<size_t const>> renumber_map_label_offsets,
+  size_t num_labels);
 
 template bool compare_edgelist(
   raft::handle_t const& handle,
   raft::device_span<int64_t const> org_edgelist_srcs,
   raft::device_span<int64_t const> org_edgelist_dsts,
   std::optional<raft::device_span<double const>> org_edgelist_weights,
+  std::optional<raft::device_span<size_t const>> org_edgelist_label_offsets,
   raft::device_span<int64_t const> renumbered_edgelist_srcs,
   raft::device_span<int64_t const> renumbered_edgelist_dsts,
   std::optional<raft::device_span<double const>> renumbered_edgelist_weights,
-  std::optional<raft::device_span<int64_t const>> renumber_map);
+  std::optional<raft::device_span<int64_t const>> renumber_map,
+  std::optional<raft::device_span<size_t const>> renumber_map_label_offsets,
+  size_t num_labels);
 
-// unrenumber the renumbered edge list and check whether the original & unrenumbered edge lists are
-// identical
+// unrenumber the renumbered edge list and check whether the original & unrenumbered edge lists
+// are identical
 template <typename vertex_t, typename weight_t, typename edge_id_t, typename edge_type_t>
 bool compare_heterogeneous_edgelist(
   raft::handle_t const& handle,
@@ -715,10 +772,6 @@ bool compare_heterogeneous_edgelist(
                 unrenumbered_edge_id = (*unrenumbered_edge_ids)[unrenumbered_idx];
               }
 
-              if (org_edge_id != unrenumbered_edge_id) {
-                     (int)org_edge_id,
-                     (int)unrenumbered_edge_id);
-              }
               return org_edge_id == unrenumbered_edge_id;
             })) {
         return false;

@@ -331,6 +331,37 @@ class Tests_SamplingPostProcessing
             << "Renumbered and sorted edge list is not properly sorted.";
         }
 
+        ASSERT_TRUE(compare_edgelist(
+          handle,
+          raft::device_span<vertex_t const>(org_edgelist_srcs.data(), org_edgelist_srcs.size()),
+          raft::device_span<vertex_t const>(org_edgelist_dsts.data(), org_edgelist_dsts.size()),
+          org_edgelist_weights ? std::make_optional<raft::device_span<weight_t const>>(
+                                   (*org_edgelist_weights).data(), (*org_edgelist_weights).size())
+                               : std::nullopt,
+          org_edgelist_label_offsets
+            ? std::make_optional<raft::device_span<size_t const>>(
+                (*org_edgelist_label_offsets).data(), (*org_edgelist_label_offsets).size())
+            : std::nullopt,
+          raft::device_span<vertex_t const>(renumbered_and_sorted_edgelist_srcs.data(),
+                                            renumbered_and_sorted_edgelist_srcs.size()),
+          raft::device_span<vertex_t const>(renumbered_and_sorted_edgelist_dsts.data(),
+                                            renumbered_and_sorted_edgelist_dsts.size()),
+          renumbered_and_sorted_edgelist_weights
+            ? std::make_optional<raft::device_span<weight_t const>>(
+                (*renumbered_and_sorted_edgelist_weights).data(),
+                (*renumbered_and_sorted_edgelist_weights).size())
+            : std::nullopt,
+          std::make_optional<raft::device_span<vertex_t const>>(
+            renumbered_and_sorted_renumber_map.data(), renumbered_and_sorted_renumber_map.size()),
+          renumbered_and_sorted_renumber_map_label_offsets
+            ? std::make_optional<raft::device_span<size_t const>>(
+                (*renumbered_and_sorted_renumber_map_label_offsets).data(),
+                (*renumbered_and_sorted_renumber_map_label_offsets).size())
+            : std::nullopt,
+          sampling_post_processing_usecase.num_labels))
+          << "Unrenumbering the renumbered and sorted edge list does not recover the original "
+             "edgelist.";
+
         for (size_t i = 0; i < sampling_post_processing_usecase.num_labels; ++i) {
           size_t starting_vertex_start_offset =
             starting_vertex_label_offsets
@@ -372,19 +403,6 @@ class Tests_SamplingPostProcessing
                                      edgelist_end_offset - edgelist_start_offset)
                                  : std::nullopt;
 
-          auto this_label_output_edgelist_srcs = raft::device_span<vertex_t const>(
-            renumbered_and_sorted_edgelist_srcs.data() + edgelist_start_offset,
-            edgelist_end_offset - edgelist_start_offset);
-          auto this_label_output_edgelist_dsts = raft::device_span<vertex_t const>(
-            renumbered_and_sorted_edgelist_dsts.data() + edgelist_start_offset,
-            edgelist_end_offset - edgelist_start_offset);
-          auto this_label_output_edgelist_weights =
-            renumbered_and_sorted_edgelist_weights
-              ? std::make_optional<raft::device_span<weight_t const>>(
-                  (*renumbered_and_sorted_edgelist_weights).data() + edgelist_start_offset,
-                  edgelist_end_offset - edgelist_start_offset)
-              : std::nullopt;
-
           size_t renumber_map_start_offset =
             renumbered_and_sorted_renumber_map_label_offsets
               ? (*renumbered_and_sorted_renumber_map_label_offsets).element(i, handle.get_stream())
@@ -396,19 +414,6 @@ class Tests_SamplingPostProcessing
           auto this_label_output_renumber_map = raft::device_span<vertex_t const>(
             renumbered_and_sorted_renumber_map.data() + renumber_map_start_offset,
             renumber_map_end_offset - renumber_map_start_offset);
-
-          // check whether renumbering recovers the original edge list
-
-          ASSERT_TRUE(compare_edgelist(handle,
-                                       this_label_org_edgelist_srcs,
-                                       this_label_org_edgelist_dsts,
-                                       this_label_org_edgelist_weights,
-                                       this_label_output_edgelist_srcs,
-                                       this_label_output_edgelist_dsts,
-                                       this_label_output_edgelist_weights,
-                                       std::make_optional(this_label_output_renumber_map)))
-            << "Unrenumbering the renumbered and sorted edge list does not recover the original "
-               "edgelist.";
 
           // Check the invariants in renumber_map
 
@@ -558,6 +563,128 @@ class Tests_SamplingPostProcessing
             << "Renumbered and compressed renumber map label offset array is invalid";
         }
 
+        // check whether renumbering recovers the original edge list
+
+        rmm::device_uvector<vertex_t> output_edgelist_srcs(0, handle.get_stream());
+        rmm::device_uvector<vertex_t> output_edgelist_dsts(0, handle.get_stream());
+        auto output_edgelist_weights =
+          renumbered_and_compressed_edgelist_weights
+            ? std::make_optional<rmm::device_uvector<weight_t>>(0, handle.get_stream())
+            : std::nullopt;
+        output_edgelist_srcs.reserve(org_edgelist_srcs.size(), handle.get_stream());
+        output_edgelist_dsts.reserve(org_edgelist_srcs.capacity(), handle.get_stream());
+        if (output_edgelist_weights) {
+          (*output_edgelist_weights).reserve(org_edgelist_srcs.capacity(), handle.get_stream());
+        }
+
+        for (size_t i = 0; i < sampling_post_processing_usecase.num_labels; ++i) {
+          auto num_hops = sampling_post_processing_usecase.fanouts.size();
+          for (size_t j = 0; j < num_hops; ++j) {
+            auto offset_start_offset = renumbered_and_compressed_offset_label_hop_offsets
+                                         ? (*renumbered_and_compressed_offset_label_hop_offsets)
+                                             .element(i * num_hops + j, handle.get_stream())
+                                         : size_t{0};
+            auto offset_end_offset   = renumbered_and_compressed_offset_label_hop_offsets
+                                         ? ((*renumbered_and_compressed_offset_label_hop_offsets)
+                                            .element(i * num_hops + j + 1, handle.get_stream()) +
+                                          1)
+                                         : renumbered_and_compressed_offsets.size();
+
+            auto base_v =
+              (!sampling_post_processing_usecase.doubly_compress &&
+               !sampling_post_processing_usecase.compress_per_hop && (j > 0))
+                ? static_cast<vertex_t>(offset_start_offset -
+                                        (*renumbered_and_compressed_offset_label_hop_offsets)
+                                          .element(i * num_hops, handle.get_stream()))
+                : vertex_t{0};
+
+            raft::device_span<size_t const> d_offsets(
+              renumbered_and_compressed_offsets.data() + offset_start_offset,
+              offset_end_offset - offset_start_offset);
+            std::vector<size_t> h_offsets(d_offsets.size());
+            raft::update_host(
+              h_offsets.data(), d_offsets.data(), h_offsets.size(), handle.get_stream());
+            handle.sync_stream();
+
+            auto old_size = output_edgelist_srcs.size();
+            output_edgelist_srcs.resize(old_size + (h_offsets.back() - h_offsets[0]),
+                                        handle.get_stream());
+            output_edgelist_dsts.resize(output_edgelist_srcs.size(), handle.get_stream());
+            if (output_edgelist_weights) {
+              (*output_edgelist_weights).resize(output_edgelist_srcs.size(), handle.get_stream());
+            }
+            if (renumbered_and_compressed_nzd_vertices) {
+              cugraph::test::expand_hypersparse_offsets(
+                handle,
+                raft::device_span<size_t const>(d_offsets.data(), d_offsets.size()),
+                raft::device_span<vertex_t const>(
+                  (*renumbered_and_compressed_nzd_vertices).data() + offset_start_offset,
+                  (offset_end_offset - offset_start_offset) - 1),
+                raft::device_span<vertex_t>(
+                  (sampling_post_processing_usecase.src_is_major ? output_edgelist_srcs.data()
+                                                                 : output_edgelist_dsts.data()) +
+                    old_size,
+                  h_offsets.back() - h_offsets[0]),
+                h_offsets[0]);
+            } else {
+              cugraph::test::expand_sparse_offsets(
+                handle,
+                raft::device_span<size_t const>(d_offsets.data(), d_offsets.size()),
+                raft::device_span<vertex_t>(
+                  (sampling_post_processing_usecase.src_is_major ? output_edgelist_srcs.data()
+                                                                 : output_edgelist_dsts.data()) +
+                    old_size,
+                  h_offsets.back() - h_offsets[0]),
+                h_offsets[0],
+                base_v);
+            }
+            raft::copy(
+              (sampling_post_processing_usecase.src_is_major ? output_edgelist_dsts.begin()
+                                                             : output_edgelist_srcs.begin()) +
+                old_size,
+              renumbered_and_compressed_edgelist_minors.begin() + h_offsets[0],
+              h_offsets.back() - h_offsets[0],
+              handle.get_stream());
+            if (output_edgelist_weights) {
+              raft::copy((*output_edgelist_weights).begin() + old_size,
+                         (*renumbered_and_compressed_edgelist_weights).begin() + h_offsets[0],
+                         h_offsets.back() - h_offsets[0],
+                         handle.get_stream());
+            }
+          }
+        }
+
+        ASSERT_TRUE(compare_edgelist(
+          handle,
+          raft::device_span<vertex_t const>(org_edgelist_srcs.data(), org_edgelist_srcs.size()),
+          raft::device_span<vertex_t const>(org_edgelist_dsts.data(), org_edgelist_dsts.size()),
+          org_edgelist_weights ? std::make_optional<raft::device_span<weight_t const>>(
+                                   (*org_edgelist_weights).data(), (*org_edgelist_weights).size())
+                               : std::nullopt,
+          org_edgelist_label_offsets
+            ? std::make_optional(raft::device_span<size_t const>(
+                (*org_edgelist_label_offsets).data(), (*org_edgelist_label_offsets).size()))
+            : std::nullopt,
+          raft::device_span<vertex_t const>(output_edgelist_srcs.data(),
+                                            output_edgelist_srcs.size()),
+          raft::device_span<vertex_t const>(output_edgelist_dsts.data(),
+                                            output_edgelist_dsts.size()),
+          output_edgelist_weights
+            ? std::make_optional<raft::device_span<weight_t const>>(
+                (*output_edgelist_weights).data(), (*output_edgelist_weights).size())
+            : std::nullopt,
+          std::make_optional<raft::device_span<vertex_t const>>(
+            renumbered_and_compressed_renumber_map.data(),
+            renumbered_and_compressed_renumber_map.size()),
+          renumbered_and_compressed_renumber_map_label_offsets
+            ? std::make_optional<raft::device_span<size_t const>>(
+                (*renumbered_and_compressed_renumber_map_label_offsets).data(),
+                (*renumbered_and_compressed_renumber_map_label_offsets).size())
+            : std::nullopt,
+          sampling_post_processing_usecase.num_labels))
+          << "Unrenumbering the renumbered and sorted edge list does not recover the original "
+             "edgelist.";
+
         for (size_t i = 0; i < sampling_post_processing_usecase.num_labels; ++i) {
           size_t starting_vertex_start_offset =
             starting_vertex_label_offsets
@@ -599,100 +726,6 @@ class Tests_SamplingPostProcessing
                                      edgelist_end_offset - edgelist_start_offset)
                                  : std::nullopt;
 
-          rmm::device_uvector<vertex_t> this_label_output_edgelist_srcs(0, handle.get_stream());
-          rmm::device_uvector<vertex_t> this_label_output_edgelist_dsts(0, handle.get_stream());
-          auto this_label_output_edgelist_weights =
-            renumbered_and_compressed_edgelist_weights
-              ? std::make_optional<rmm::device_uvector<weight_t>>(0, handle.get_stream())
-              : std::nullopt;
-          this_label_output_edgelist_srcs.reserve(edgelist_end_offset - edgelist_start_offset,
-                                                  handle.get_stream());
-          this_label_output_edgelist_dsts.reserve(edgelist_end_offset - edgelist_start_offset,
-                                                  handle.get_stream());
-          if (this_label_output_edgelist_weights) {
-            (*this_label_output_edgelist_weights)
-              .reserve(edgelist_end_offset - edgelist_start_offset, handle.get_stream());
-          }
-
-          // decompress
-
-          auto num_hops = sampling_post_processing_usecase.fanouts.size();
-          for (size_t j = 0; j < num_hops; ++j) {
-            auto offset_start_offset = renumbered_and_compressed_offset_label_hop_offsets
-                                         ? (*renumbered_and_compressed_offset_label_hop_offsets)
-                                             .element(i * num_hops + j, handle.get_stream())
-                                         : size_t{0};
-            auto offset_end_offset   = renumbered_and_compressed_offset_label_hop_offsets
-                                         ? ((*renumbered_and_compressed_offset_label_hop_offsets)
-                                            .element(i * num_hops + j + 1, handle.get_stream()) +
-                                          1)
-                                         : renumbered_and_compressed_offsets.size();
-
-            auto base_v =
-              (!sampling_post_processing_usecase.doubly_compress &&
-               !sampling_post_processing_usecase.compress_per_hop && (j > 0))
-                ? static_cast<vertex_t>(offset_start_offset -
-                                        (*renumbered_and_compressed_offset_label_hop_offsets)
-                                          .element(i * num_hops, handle.get_stream()))
-                : vertex_t{0};
-
-            raft::device_span<size_t const> d_offsets(
-              renumbered_and_compressed_offsets.data() + offset_start_offset,
-              offset_end_offset - offset_start_offset);
-            std::vector<size_t> h_offsets(d_offsets.size());
-            raft::update_host(
-              h_offsets.data(), d_offsets.data(), h_offsets.size(), handle.get_stream());
-            handle.sync_stream();
-
-            auto old_size = this_label_output_edgelist_srcs.size();
-            this_label_output_edgelist_srcs.resize(old_size + (h_offsets.back() - h_offsets[0]),
-                                                   handle.get_stream());
-            this_label_output_edgelist_dsts.resize(this_label_output_edgelist_srcs.size(),
-                                                   handle.get_stream());
-            if (this_label_output_edgelist_weights) {
-              (*this_label_output_edgelist_weights)
-                .resize(this_label_output_edgelist_srcs.size(), handle.get_stream());
-            }
-            if (renumbered_and_compressed_nzd_vertices) {
-              cugraph::test::expand_hypersparse_offsets(
-                handle,
-                raft::device_span<size_t const>(d_offsets.data(), d_offsets.size()),
-                raft::device_span<vertex_t const>(
-                  (*renumbered_and_compressed_nzd_vertices).data() + offset_start_offset,
-                  (offset_end_offset - offset_start_offset) - 1),
-                raft::device_span<vertex_t>((sampling_post_processing_usecase.src_is_major
-                                               ? this_label_output_edgelist_srcs.data()
-                                               : this_label_output_edgelist_dsts.data()) +
-                                              old_size,
-                                            h_offsets.back() - h_offsets[0]),
-                h_offsets[0]);
-            } else {
-              cugraph::test::expand_sparse_offsets(
-                handle,
-                raft::device_span<size_t const>(d_offsets.data(), d_offsets.size()),
-                raft::device_span<vertex_t>((sampling_post_processing_usecase.src_is_major
-                                               ? this_label_output_edgelist_srcs.data()
-                                               : this_label_output_edgelist_dsts.data()) +
-                                              old_size,
-                                            h_offsets.back() - h_offsets[0]),
-                h_offsets[0],
-                base_v);
-            }
-            raft::copy((sampling_post_processing_usecase.src_is_major
-                          ? this_label_output_edgelist_dsts.begin()
-                          : this_label_output_edgelist_srcs.begin()) +
-                         old_size,
-                       renumbered_and_compressed_edgelist_minors.begin() + h_offsets[0],
-                       h_offsets.back() - h_offsets[0],
-                       handle.get_stream());
-            if (this_label_output_edgelist_weights) {
-              raft::copy((*this_label_output_edgelist_weights).begin() + old_size,
-                         (*renumbered_and_compressed_edgelist_weights).begin() + h_offsets[0],
-                         h_offsets.back() - h_offsets[0],
-                         handle.get_stream());
-            }
-          }
-
           size_t renumber_map_start_offset =
             renumbered_and_compressed_renumber_map_label_offsets
               ? (*renumbered_and_compressed_renumber_map_label_offsets)
@@ -706,26 +739,6 @@ class Tests_SamplingPostProcessing
           auto this_label_output_renumber_map = raft::device_span<vertex_t const>(
             renumbered_and_compressed_renumber_map.data() + renumber_map_start_offset,
             renumber_map_end_offset - renumber_map_start_offset);
-
-          // check whether renumbering recovers the original edge list
-
-          ASSERT_TRUE(compare_edgelist(
-            handle,
-            this_label_org_edgelist_srcs,
-            this_label_org_edgelist_dsts,
-            this_label_org_edgelist_weights,
-            raft::device_span<vertex_t const>(this_label_output_edgelist_srcs.data(),
-                                              this_label_output_edgelist_srcs.size()),
-            raft::device_span<vertex_t const>(this_label_output_edgelist_dsts.data(),
-                                              this_label_output_edgelist_dsts.size()),
-            this_label_output_edgelist_weights
-              ? std::make_optional<raft::device_span<weight_t const>>(
-                  (*this_label_output_edgelist_weights).data(),
-                  (*this_label_output_edgelist_weights).size())
-              : std::nullopt,
-            std::make_optional(this_label_output_renumber_map)))
-            << "Unrenumbering the renumbered and sorted edge list does not recover the original "
-               "edgelist.";
 
           // Check the invariants in renumber_map
 
@@ -831,6 +844,32 @@ class Tests_SamplingPostProcessing
             << "Sorted edge list (label, hop) offset array is invalid.";
         }
 
+        // check whether renumbering recovers the original edge list
+
+        ASSERT_TRUE(compare_edgelist(
+          handle,
+          raft::device_span<vertex_t const>(org_edgelist_srcs.data(), org_edgelist_srcs.size()),
+          raft::device_span<vertex_t const>(org_edgelist_dsts.data(), org_edgelist_dsts.size()),
+          org_edgelist_weights ? std::make_optional<raft::device_span<weight_t const>>(
+                                   (*org_edgelist_weights).data(), (*org_edgelist_weights).size())
+                               : std::nullopt,
+          org_edgelist_label_offsets
+            ? std::make_optional(raft::device_span<size_t const>(
+                (*org_edgelist_label_offsets).data(), (*org_edgelist_label_offsets).size()))
+            : std::nullopt,
+          raft::device_span<vertex_t const>(sorted_edgelist_srcs.data(),
+                                            sorted_edgelist_srcs.size()),
+          raft::device_span<vertex_t const>(sorted_edgelist_dsts.data(),
+                                            sorted_edgelist_dsts.size()),
+          sorted_edgelist_weights
+            ? std::make_optional<raft::device_span<weight_t const>>(
+                (*sorted_edgelist_weights).data(), (*sorted_edgelist_weights).size())
+            : std::nullopt,
+          std::optional<raft::device_span<vertex_t const>>{std::nullopt},
+          std::optional<raft::device_span<size_t const>>{std::nullopt},
+          sampling_post_processing_usecase.num_labels))
+          << "Sorted edge list does not coincide with the original edgelist.";
+
         for (size_t i = 0; i < sampling_post_processing_usecase.num_labels; ++i) {
           size_t edgelist_start_offset =
             org_edgelist_label_offsets
@@ -910,19 +949,6 @@ class Tests_SamplingPostProcessing
                                                 this_label_output_edgelist_minors.size())))
               << "Sorted edge list is not properly sorted.";
           }
-
-          // check whether renumbering recovers the original edge list
-
-          ASSERT_TRUE(
-            compare_edgelist(handle,
-                             this_label_org_edgelist_srcs,
-                             this_label_org_edgelist_dsts,
-                             this_label_org_edgelist_weights,
-                             this_label_output_edgelist_srcs,
-                             this_label_output_edgelist_dsts,
-                             this_label_output_edgelist_weights,
-                             std::optional<raft::device_span<vertex_t const>>{std::nullopt}))
-            << "Sorted edge list does not coincide with the original edgelist.";
         }
       }
     }

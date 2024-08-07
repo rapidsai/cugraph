@@ -37,13 +37,16 @@ bool compare_edgelist(raft::handle_t const& handle,
                       raft::device_span<vertex_t const> org_edgelist_srcs,
                       raft::device_span<vertex_t const> org_edgelist_dsts,
                       std::optional<raft::device_span<weight_t const>> org_edgelist_weights,
+                      std::optional<raft::device_span<size_t const>> org_edgelist_label_offsets,
                       raft::device_span<vertex_t const> renumbered_edgelist_srcs,
                       raft::device_span<vertex_t const> renumbered_edgelist_dsts,
                       std::optional<raft::device_span<weight_t const>> renumbered_edgelist_weights,
-                      std::optional<raft::device_span<vertex_t const>> renumber_map);
+                      std::optional<raft::device_span<vertex_t const>> renumber_map,
+                      std::optional<raft::device_span<size_t const>> renumber_map_label_offsets,
+                      size_t num_labels);
 
-// unrenumber the renumbered edge list and check whether the original & unrenumbered edge lists are
-// identical
+// unrenumber the renumbered edge list and check whether the original & unrenumbered edge lists
+// are identical
 template <typename vertex_t, typename weight_t, typename edge_id_t, typename edge_type_t>
 bool compare_heterogeneous_edgelist(
   raft::handle_t const& handle,
