@@ -176,9 +176,9 @@ void check_input_edges(raft::handle_t const& handle,
                        size_t num_labels,
                        size_t num_hops,
                        size_t num_vertex_types,
+                       std::optional<size_t> num_edge_types,
                        bool do_expensive_check)
 {
-  // FIXME: check edgelist_edge_types element values are within [0, num_edge_types)
   CUGRAPH_EXPECTS(
     edgelist_majors.size() == edgelist_minors.size(),
     "Invalid input arguments: edgelist_srcs.size() and edgelist_dsts.size() should coincide.");
@@ -282,6 +282,27 @@ void check_input_edges(raft::handle_t const& handle,
         "*edgelist_label_offsets and edgelist_(srcs|dsts).size() should coincide.");
     }
 
+    if (edgelist_edge_types && num_edge_types) {
+      CUGRAPH_EXPECTS(
+        thrust::count_if(handle.get_thrust_policy(),
+                         (*edgelist_edge_types).begin(),
+                         (*edgelist_edge_types).end(),
+                         [num_edge_types = static_cast<edge_type_t>(*num_edge_types)] __device__(
+                           edge_type_t edge_type) { return edge_type >= num_edge_types; }) == 0,
+        "Invalid input arguments: edgelist_edge_type is valid but contains out-of-range edge type "
+        "values.");
+      if constexpr (std::is_signed_v<edge_type_t>) {
+        CUGRAPH_EXPECTS(thrust::count_if(handle.get_thrust_policy(),
+                                         (*edgelist_edge_types).begin(),
+                                         (*edgelist_edge_types).end(),
+                                         [] __device__(edge_type_t edge_type) {
+                                           return edge_type < edge_type_t{0};
+                                         }) == 0,
+                        "Invalid input arguments: edgelist_edge_type is valid but contains "
+                        "negative edge type values.");
+      }
+    }
+
     if (vertex_type_offsets) {
       CUGRAPH_EXPECTS(
         thrust::is_sorted(
@@ -316,6 +337,117 @@ void check_input_edges(raft::handle_t const& handle,
         "Invalid input arguments: if vertex_type_offsets is valid, the last element of "
         "*vertex_type_offsets should be larger than the maximum vertex ID in edgelist_majors & "
         "edgelist_minors.");
+
+      rmm::device_uvector<vertex_t> tmp_majors(edgelist_majors.size(), handle.get_stream());
+      rmm::device_uvector<vertex_t> tmp_minors(edgelist_minors.size(), handle.get_stream());
+      thrust::copy(handle.get_thrust_policy(),
+                   edgelist_majors.begin(),
+                   edgelist_majors.end(),
+                   tmp_majors.begin());
+      thrust::copy(handle.get_thrust_policy(),
+                   edgelist_minors.begin(),
+                   edgelist_minors.end(),
+                   tmp_minors.begin());
+      if (edgelist_edge_types) {
+        rmm::device_uvector<edge_type_t> tmp_edge_types((*edgelist_edge_types).size(),
+                                                        handle.get_stream());
+        thrust::copy(handle.get_thrust_policy(),
+                     (*edgelist_edge_types).begin(),
+                     (*edgelist_edge_types).end(),
+                     tmp_edge_types.begin());
+        auto triplet_first =
+          thrust::make_zip_iterator(tmp_edge_types.begin(), tmp_majors.begin(), tmp_minors.begin());
+        thrust::sort(handle.get_thrust_policy(), triplet_first, triplet_first + tmp_majors.size());
+        CUGRAPH_EXPECTS(
+          thrust::count_if(
+            handle.get_thrust_policy(),
+            thrust::make_counting_iterator(size_t{0}),
+            thrust::make_counting_iterator(tmp_majors.size()),
+            [vertex_type_offsets = *vertex_type_offsets, triplet_first] __device__(size_t i) {
+              if (i > 0) {
+                auto prev = *(triplet_first + i - 1);
+                auto cur  = *(triplet_first + i);
+                if (thrust::get<0>(prev) == thrust::get<0>(cur)) {  // same edge type
+                  auto prev_major_v_type =
+                    thrust::distance(vertex_type_offsets.begin() + 1,
+                                     thrust::upper_bound(thrust::seq,
+                                                         vertex_type_offsets.begin() + 1,
+                                                         vertex_type_offsets.end(),
+                                                         thrust::get<1>(prev)));
+                  auto cur_major_v_type =
+                    thrust::distance(vertex_type_offsets.begin() + 1,
+                                     thrust::upper_bound(thrust::seq,
+                                                         vertex_type_offsets.begin() + 1,
+                                                         vertex_type_offsets.end(),
+                                                         thrust::get<1>(cur)));
+                  if (prev_major_v_type != cur_major_v_type) { return true; }
+                  auto prev_minor_v_type =
+                    thrust::distance(vertex_type_offsets.begin() + 1,
+                                     thrust::upper_bound(thrust::seq,
+                                                         vertex_type_offsets.begin() + 1,
+                                                         vertex_type_offsets.end(),
+                                                         thrust::get<2>(prev)));
+                  auto cur_minor_v_type =
+                    thrust::distance(vertex_type_offsets.begin() + 1,
+                                     thrust::upper_bound(thrust::seq,
+                                                         vertex_type_offsets.begin() + 1,
+                                                         vertex_type_offsets.end(),
+                                                         thrust::get<2>(cur)));
+                  if (prev_minor_v_type != cur_minor_v_type) { return true; }
+                }
+              }
+              return false;
+            }) == 0,
+          "Invalid input arguments: if vertex_type_offsets and edgelist_edge_types are valid, the "
+          "entire set of input edge source vertices for each edge type should have an identical "
+          "vertex type, and the entire set of input edge destination vertices for each type should "
+          "have an identical vertex type.");
+      } else {
+        auto pair_first = thrust::make_zip_iterator(tmp_majors.begin(), tmp_minors.begin());
+        thrust::sort(handle.get_thrust_policy(), pair_first, pair_first + tmp_majors.size());
+        CUGRAPH_EXPECTS(
+          thrust::count_if(
+            handle.get_thrust_policy(),
+            thrust::make_counting_iterator(size_t{0}),
+            thrust::make_counting_iterator(tmp_majors.size()),
+            [vertex_type_offsets = *vertex_type_offsets, pair_first] __device__(size_t i) {
+              if (i > 0) {
+                auto prev = *(pair_first + i - 1);
+                auto cur  = *(pair_first + i);
+                auto prev_src_v_type =
+                  thrust::distance(vertex_type_offsets.begin() + 1,
+                                   thrust::upper_bound(thrust::seq,
+                                                       vertex_type_offsets.begin() + 1,
+                                                       vertex_type_offsets.end(),
+                                                       thrust::get<0>(prev)));
+                auto cur_src_v_type =
+                  thrust::distance(vertex_type_offsets.begin() + 1,
+                                   thrust::upper_bound(thrust::seq,
+                                                       vertex_type_offsets.begin() + 1,
+                                                       vertex_type_offsets.end(),
+                                                       thrust::get<0>(cur)));
+                if (prev_src_v_type != cur_src_v_type) { return true; }
+                auto prev_dst_v_type =
+                  thrust::distance(vertex_type_offsets.begin() + 1,
+                                   thrust::upper_bound(thrust::seq,
+                                                       vertex_type_offsets.begin() + 1,
+                                                       vertex_type_offsets.end(),
+                                                       thrust::get<1>(prev)));
+                auto cur_dst_v_type =
+                  thrust::distance(vertex_type_offsets.begin() + 1,
+                                   thrust::upper_bound(thrust::seq,
+                                                       vertex_type_offsets.begin() + 1,
+                                                       vertex_type_offsets.end(),
+                                                       thrust::get<1>(cur)));
+                if (prev_dst_v_type != cur_dst_v_type) { return true; }
+              }
+              return false;
+            }) == 0,
+          "Invalid input arguments: if vertex_type_offsets is valid (but "
+          "edgelist_edge_types is invalid), the entire set of input edge source "
+          "vertices should have an identical vertex type, and the entire set of "
+          "input edge destination vertices should have an identical vertex type.");
+      }
     }
 
     if (seed_vertices) {
@@ -2486,6 +2618,7 @@ renumber_and_compress_sampled_edgelist(
                                                             num_labels,
                                                             num_hops,
                                                             size_t{1},
+                                                            std::optional<size_t>{std::nullopt},
                                                             do_expensive_check);
 
   CUGRAPH_EXPECTS(
@@ -3124,6 +3257,7 @@ renumber_and_sort_sampled_edgelist(
                                                             num_labels,
                                                             num_hops,
                                                             size_t{1},
+                                                            std::optional<size_t>{std::nullopt},
                                                             do_expensive_check);
 
   // 2. renumber
@@ -3293,6 +3427,7 @@ heterogeneous_renumber_and_sort_sampled_edgelist(
                                                             num_labels,
                                                             num_hops,
                                                             num_vertex_types,
+                                                            std::optional<size_t>{num_edge_types},
                                                             do_expensive_check);
 
   // 2. renumber
@@ -3493,6 +3628,7 @@ sort_sampled_edgelist(raft::handle_t const& handle,
                                                             num_labels,
                                                             num_hops,
                                                             size_t{1},
+                                                            std::optional<size_t>{std::nullopt},
                                                             do_expensive_check);
 
   // 2. sort by ((l), (h), major, minor)
