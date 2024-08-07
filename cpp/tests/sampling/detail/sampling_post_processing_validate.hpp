@@ -76,8 +76,14 @@ template <typename vertex_t>
 bool check_vertex_renumber_map_invariants(
   raft::handle_t const& handle,
   std::optional<raft::device_span<vertex_t const>> starting_vertices,
+  std::optional<raft::device_span<size_t const>> starting_vertex_label_offsets,
   raft::device_span<vertex_t const> org_edgelist_srcs,
   raft::device_span<vertex_t const> org_edgelist_dsts,
   std::optional<raft::device_span<int32_t const>> org_edgelist_hops,
+  std::optional<raft::device_span<size_t const>> org_edgelist_label_offsets,
   raft::device_span<vertex_t const> renumber_map,
+  std::optional<raft::device_span<size_t const>> renumber_map_label_type_offsets,
+  std::optional<raft::device_span<vertex_t const>> vertex_type_offsets,
+  size_t num_labels,
+  size_t num_vertex_types,
   bool src_is_major);

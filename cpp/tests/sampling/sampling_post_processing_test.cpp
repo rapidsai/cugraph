@@ -362,74 +362,39 @@ class Tests_SamplingPostProcessing
           << "Unrenumbering the renumbered and sorted edge list does not recover the original "
              "edgelist.";
 
-        for (size_t i = 0; i < sampling_post_processing_usecase.num_labels; ++i) {
-          size_t starting_vertex_start_offset =
-            starting_vertex_label_offsets
-              ? (*starting_vertex_label_offsets).element(i, handle.get_stream())
-              : size_t{0};
-          size_t starting_vertex_end_offset =
-            starting_vertex_label_offsets
-              ? (*starting_vertex_label_offsets).element(i + 1, handle.get_stream())
-              : starting_vertices.size();
+        // Check the invariants in renumber_map
 
-          size_t edgelist_start_offset =
-            org_edgelist_label_offsets
-              ? (*org_edgelist_label_offsets).element(i, handle.get_stream())
-              : size_t{0};
-          size_t edgelist_end_offset =
-            org_edgelist_label_offsets
-              ? (*org_edgelist_label_offsets).element(i + 1, handle.get_stream())
-              : org_edgelist_srcs.size();
-          if (edgelist_start_offset == edgelist_end_offset) continue;
-
-          auto this_label_starting_vertices = raft::device_span<vertex_t const>(
-            starting_vertices.data() + starting_vertex_start_offset,
-            starting_vertex_end_offset - starting_vertex_start_offset);
-
-          auto this_label_org_edgelist_srcs =
-            raft::device_span<vertex_t const>(org_edgelist_srcs.data() + edgelist_start_offset,
-                                              edgelist_end_offset - edgelist_start_offset);
-          auto this_label_org_edgelist_dsts =
-            raft::device_span<vertex_t const>(org_edgelist_dsts.data() + edgelist_start_offset,
-                                              edgelist_end_offset - edgelist_start_offset);
-          auto this_label_org_edgelist_hops =
-            org_edgelist_hops ? std::make_optional<raft::device_span<int32_t const>>(
-                                  (*org_edgelist_hops).data() + edgelist_start_offset,
-                                  edgelist_end_offset - edgelist_start_offset)
-                              : std::nullopt;
-          auto this_label_org_edgelist_weights =
-            org_edgelist_weights ? std::make_optional<raft::device_span<weight_t const>>(
-                                     (*org_edgelist_weights).data() + edgelist_start_offset,
-                                     edgelist_end_offset - edgelist_start_offset)
-                                 : std::nullopt;
-
-          size_t renumber_map_start_offset =
-            renumbered_and_sorted_renumber_map_label_offsets
-              ? (*renumbered_and_sorted_renumber_map_label_offsets).element(i, handle.get_stream())
-              : size_t{0};
-          size_t renumber_map_end_offset      = renumbered_and_sorted_renumber_map_label_offsets
-                                                  ? (*renumbered_and_sorted_renumber_map_label_offsets)
-                                                 .element(i + 1, handle.get_stream())
-                                                  : renumbered_and_sorted_renumber_map.size();
-          auto this_label_output_renumber_map = raft::device_span<vertex_t const>(
-            renumbered_and_sorted_renumber_map.data() + renumber_map_start_offset,
-            renumber_map_end_offset - renumber_map_start_offset);
-
-          // Check the invariants in renumber_map
-
-          ASSERT_TRUE(check_vertex_renumber_map_invariants(
-            handle,
-            sampling_post_processing_usecase.renumber_with_seeds
-              ? std::make_optional<raft::device_span<vertex_t const>>(
-                  this_label_starting_vertices.data(), this_label_starting_vertices.size())
-              : std::nullopt,
-            this_label_org_edgelist_srcs,
-            this_label_org_edgelist_dsts,
-            this_label_org_edgelist_hops,
-            this_label_output_renumber_map,
-            sampling_post_processing_usecase.src_is_major))
-            << "Renumbered and sorted output renumber map violates invariants.";
-        }
+        ASSERT_TRUE(check_vertex_renumber_map_invariants<vertex_t>(
+          handle,
+          sampling_post_processing_usecase.renumber_with_seeds
+            ? std::make_optional<raft::device_span<vertex_t const>>(starting_vertices.data(),
+                                                                    starting_vertices.size())
+            : std::nullopt,
+          (sampling_post_processing_usecase.renumber_with_seeds && starting_vertex_label_offsets)
+            ? std::make_optional<raft::device_span<size_t const>>(
+                (*starting_vertex_label_offsets).data(), (*starting_vertex_label_offsets).size())
+            : std::nullopt,
+          raft::device_span<vertex_t const>(org_edgelist_srcs.data(), org_edgelist_srcs.size()),
+          raft::device_span<vertex_t const>(org_edgelist_dsts.data(), org_edgelist_dsts.size()),
+          org_edgelist_hops ? std::make_optional<raft::device_span<int32_t const>>(
+                                (*org_edgelist_hops).data(), (*org_edgelist_hops).size())
+                            : std::nullopt,
+          org_edgelist_label_offsets
+            ? std::make_optional<raft::device_span<size_t const>>(
+                (*org_edgelist_label_offsets).data(), (*org_edgelist_label_offsets).size())
+            : std::nullopt,
+          raft::device_span<vertex_t const>(renumbered_and_sorted_renumber_map.data(),
+                                            renumbered_and_sorted_renumber_map.size()),
+          renumbered_and_sorted_renumber_map_label_offsets
+            ? std::make_optional<raft::device_span<size_t const>>(
+                (*renumbered_and_sorted_renumber_map_label_offsets).data(),
+                (*renumbered_and_sorted_renumber_map_label_offsets).size())
+            : std::nullopt,
+          std::nullopt,
+          sampling_post_processing_usecase.num_labels,
+          1,
+          sampling_post_processing_usecase.src_is_major))
+          << "Renumbered and sorted output renumber map violates invariants.";
       }
     }
 
@@ -685,76 +650,39 @@ class Tests_SamplingPostProcessing
           << "Unrenumbering the renumbered and sorted edge list does not recover the original "
              "edgelist.";
 
-        for (size_t i = 0; i < sampling_post_processing_usecase.num_labels; ++i) {
-          size_t starting_vertex_start_offset =
-            starting_vertex_label_offsets
-              ? (*starting_vertex_label_offsets).element(i, handle.get_stream())
-              : size_t{0};
-          size_t starting_vertex_end_offset =
-            starting_vertex_label_offsets
-              ? (*starting_vertex_label_offsets).element(i + 1, handle.get_stream())
-              : starting_vertices.size();
+        // Check the invariants in renumber_map
 
-          size_t edgelist_start_offset =
-            org_edgelist_label_offsets
-              ? (*org_edgelist_label_offsets).element(i, handle.get_stream())
-              : size_t{0};
-          size_t edgelist_end_offset =
-            org_edgelist_label_offsets
-              ? (*org_edgelist_label_offsets).element(i + 1, handle.get_stream())
-              : org_edgelist_srcs.size();
-          if (edgelist_start_offset == edgelist_end_offset) continue;
-
-          auto this_label_starting_vertices = raft::device_span<vertex_t const>(
-            starting_vertices.data() + starting_vertex_start_offset,
-            starting_vertex_end_offset - starting_vertex_start_offset);
-
-          auto this_label_org_edgelist_srcs =
-            raft::device_span<vertex_t const>(org_edgelist_srcs.data() + edgelist_start_offset,
-                                              edgelist_end_offset - edgelist_start_offset);
-          auto this_label_org_edgelist_dsts =
-            raft::device_span<vertex_t const>(org_edgelist_dsts.data() + edgelist_start_offset,
-                                              edgelist_end_offset - edgelist_start_offset);
-          auto this_label_org_edgelist_hops =
-            org_edgelist_hops ? std::make_optional<raft::device_span<int32_t const>>(
-                                  (*org_edgelist_hops).data() + edgelist_start_offset,
-                                  edgelist_end_offset - edgelist_start_offset)
-                              : std::nullopt;
-          auto this_label_org_edgelist_weights =
-            org_edgelist_weights ? std::make_optional<raft::device_span<weight_t const>>(
-                                     (*org_edgelist_weights).data() + edgelist_start_offset,
-                                     edgelist_end_offset - edgelist_start_offset)
-                                 : std::nullopt;
-
-          size_t renumber_map_start_offset =
-            renumbered_and_compressed_renumber_map_label_offsets
-              ? (*renumbered_and_compressed_renumber_map_label_offsets)
-                  .element(i, handle.get_stream())
-              : size_t{0};
-          size_t renumber_map_end_offset =
-            renumbered_and_compressed_renumber_map_label_offsets
-              ? (*renumbered_and_compressed_renumber_map_label_offsets)
-                  .element(i + 1, handle.get_stream())
-              : renumbered_and_compressed_renumber_map.size();
-          auto this_label_output_renumber_map = raft::device_span<vertex_t const>(
-            renumbered_and_compressed_renumber_map.data() + renumber_map_start_offset,
-            renumber_map_end_offset - renumber_map_start_offset);
-
-          // Check the invariants in renumber_map
-
-          ASSERT_TRUE(check_vertex_renumber_map_invariants(
-            handle,
-            sampling_post_processing_usecase.renumber_with_seeds
-              ? std::make_optional<raft::device_span<vertex_t const>>(
-                  this_label_starting_vertices.data(), this_label_starting_vertices.size())
-              : std::nullopt,
-            this_label_org_edgelist_srcs,
-            this_label_org_edgelist_dsts,
-            this_label_org_edgelist_hops,
-            this_label_output_renumber_map,
-            sampling_post_processing_usecase.src_is_major))
-            << "Renumbered and sorted output renumber map violates invariants.";
-        }
+        ASSERT_TRUE(check_vertex_renumber_map_invariants<vertex_t>(
+          handle,
+          sampling_post_processing_usecase.renumber_with_seeds
+            ? std::make_optional<raft::device_span<vertex_t const>>(starting_vertices.data(),
+                                                                    starting_vertices.size())
+            : std::nullopt,
+          (sampling_post_processing_usecase.renumber_with_seeds && starting_vertex_label_offsets)
+            ? std::make_optional<raft::device_span<size_t const>>(
+                (*starting_vertex_label_offsets).data(), (*starting_vertex_label_offsets).size())
+            : std::nullopt,
+          raft::device_span<vertex_t const>(org_edgelist_srcs.data(), org_edgelist_srcs.size()),
+          raft::device_span<vertex_t const>(org_edgelist_dsts.data(), org_edgelist_dsts.size()),
+          org_edgelist_hops ? std::make_optional<raft::device_span<int32_t const>>(
+                                (*org_edgelist_hops).data(), (*org_edgelist_hops).size())
+                            : std::nullopt,
+          org_edgelist_label_offsets
+            ? std::make_optional(raft::device_span<size_t const>(
+                (*org_edgelist_label_offsets).data(), (*org_edgelist_label_offsets).size()))
+            : std::nullopt,
+          raft::device_span<vertex_t const>(renumbered_and_compressed_renumber_map.data(),
+                                            renumbered_and_compressed_renumber_map.size()),
+          renumbered_and_compressed_renumber_map_label_offsets
+            ? std::make_optional<raft::device_span<size_t const>>(
+                (*renumbered_and_compressed_renumber_map_label_offsets).data(),
+                (*renumbered_and_compressed_renumber_map_label_offsets).size())
+            : std::nullopt,
+          std::nullopt,
+          sampling_post_processing_usecase.num_labels,
+          1,
+          sampling_post_processing_usecase.src_is_major))
+          << "Renumbered and sorted output renumber map violates invariants.";
       }
     }
 

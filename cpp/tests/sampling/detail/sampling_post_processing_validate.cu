@@ -930,10 +930,16 @@ template <typename vertex_t>
 bool check_vertex_renumber_map_invariants(
   raft::handle_t const& handle,
   std::optional<raft::device_span<vertex_t const>> starting_vertices,
+  std::optional<raft::device_span<size_t const>> starting_vertex_label_offsets,
   raft::device_span<vertex_t const> org_edgelist_srcs,
   raft::device_span<vertex_t const> org_edgelist_dsts,
   std::optional<raft::device_span<int32_t const>> org_edgelist_hops,
+  std::optional<raft::device_span<size_t const>> org_edgelist_label_offsets,
   raft::device_span<vertex_t const> renumber_map,
+  std::optional<raft::device_span<size_t const>> renumber_map_label_type_offsets,
+  std::optional<raft::device_span<vertex_t const>> vertex_type_offsets,
+  size_t num_labels,
+  size_t num_vertex_types,
   bool src_is_major)
 {
   // Check the invariants in renumber_map
@@ -943,262 +949,481 @@ bool check_vertex_renumber_map_invariants(
   auto org_edgelist_majors = src_is_major ? org_edgelist_srcs : org_edgelist_dsts;
   auto org_edgelist_minors = src_is_major ? org_edgelist_dsts : org_edgelist_srcs;
 
-  rmm::device_uvector<vertex_t> unique_majors(org_edgelist_majors.size(), handle.get_stream());
-  thrust::copy(handle.get_thrust_policy(),
-               org_edgelist_majors.begin(),
-               org_edgelist_majors.end(),
-               unique_majors.begin());
-  if (starting_vertices) {
-    auto old_size = unique_majors.size();
-    unique_majors.resize(old_size + (*starting_vertices).size(), handle.get_stream());
-    thrust::copy(handle.get_thrust_policy(),
-                 (*starting_vertices).begin(),
-                 (*starting_vertices).end(),
-                 unique_majors.begin() + old_size);
-  }
-
-  std::optional<rmm::device_uvector<int32_t>> unique_major_hops =
-    org_edgelist_hops ? std::make_optional<rmm::device_uvector<int32_t>>(
-                          (*org_edgelist_hops).size(), handle.get_stream())
-                      : std::nullopt;
-  if (org_edgelist_hops) {
-    thrust::copy(handle.get_thrust_policy(),
-                 (*org_edgelist_hops).begin(),
-                 (*org_edgelist_hops).end(),
-                 (*unique_major_hops).begin());
-    if (starting_vertices) {
-      auto old_size = (*unique_major_hops).size();
-      (*unique_major_hops).resize(old_size + (*starting_vertices).size(), handle.get_stream());
-      thrust::fill(handle.get_thrust_policy(),
-                   (*unique_major_hops).begin() + old_size,
-                   (*unique_major_hops).end(),
-                   int32_t{0});
+  for (size_t i = 0; i < num_labels; ++i) {
+    size_t label_start_offset{0};
+    auto label_end_offset = org_edgelist_majors.size();
+    if (org_edgelist_label_offsets) {
+      raft::update_host(&label_start_offset,
+                        (*org_edgelist_label_offsets).data() + i,
+                        size_t{1},
+                        handle.get_stream());
+      raft::update_host(&label_end_offset,
+                        (*org_edgelist_label_offsets).data() + i + 1,
+                        size_t{1},
+                        handle.get_stream());
+      handle.sync_stream();
     }
 
-    auto pair_first =
-      thrust::make_zip_iterator(unique_majors.begin(), (*unique_major_hops).begin());
-    thrust::sort(handle.get_thrust_policy(), pair_first, pair_first + unique_majors.size());
-    unique_majors.resize(
-      thrust::distance(unique_majors.begin(),
-                       thrust::get<0>(thrust::unique_by_key(handle.get_thrust_policy(),
-                                                            unique_majors.begin(),
-                                                            unique_majors.end(),
-                                                            (*unique_major_hops).begin()))),
-      handle.get_stream());
-    (*unique_major_hops).resize(unique_majors.size(), handle.get_stream());
-  } else {
-    thrust::sort(handle.get_thrust_policy(), unique_majors.begin(), unique_majors.end());
-    unique_majors.resize(
-      thrust::distance(
-        unique_majors.begin(),
-        thrust::unique(handle.get_thrust_policy(), unique_majors.begin(), unique_majors.end())),
-      handle.get_stream());
-  }
+    // compute (unique major, min_hop) pairs
 
-  rmm::device_uvector<vertex_t> unique_minors(org_edgelist_minors.size(), handle.get_stream());
-  thrust::copy(handle.get_thrust_policy(),
-               org_edgelist_minors.begin(),
-               org_edgelist_minors.end(),
-               unique_minors.begin());
-  std::optional<rmm::device_uvector<int32_t>> unique_minor_hops =
-    org_edgelist_hops ? std::make_optional<rmm::device_uvector<int32_t>>(
-                          (*org_edgelist_hops).size(), handle.get_stream())
-                      : std::nullopt;
-  if (org_edgelist_hops) {
+    rmm::device_uvector<vertex_t> this_label_unique_majors(label_end_offset - label_start_offset,
+                                                           handle.get_stream());
     thrust::copy(handle.get_thrust_policy(),
-                 (*org_edgelist_hops).begin(),
-                 (*org_edgelist_hops).end(),
-                 (*unique_minor_hops).begin());
+                 org_edgelist_majors.begin() + label_start_offset,
+                 org_edgelist_majors.begin() + label_end_offset,
+                 this_label_unique_majors.begin());
+    if (starting_vertices) {
+      size_t starting_vertex_label_start_offset{0};
+      auto starting_vertex_label_end_offset = (*starting_vertices).size();
+      if (starting_vertex_label_offsets) {
+        raft::update_host(&starting_vertex_label_start_offset,
+                          (*starting_vertex_label_offsets).data() + i,
+                          size_t{1},
+                          handle.get_stream());
+        raft::update_host(&starting_vertex_label_end_offset,
+                          (*starting_vertex_label_offsets).data() + i + 1,
+                          size_t{1},
+                          handle.get_stream());
+        handle.sync_stream();
+      }
 
-    auto pair_first =
-      thrust::make_zip_iterator(unique_minors.begin(), (*unique_minor_hops).begin());
-    thrust::sort(handle.get_thrust_policy(), pair_first, pair_first + unique_minors.size());
-    unique_minors.resize(
-      thrust::distance(unique_minors.begin(),
-                       thrust::get<0>(thrust::unique_by_key(handle.get_thrust_policy(),
-                                                            unique_minors.begin(),
-                                                            unique_minors.end(),
-                                                            (*unique_minor_hops).begin()))),
-      handle.get_stream());
-    (*unique_minor_hops).resize(unique_minors.size(), handle.get_stream());
-  } else {
-    thrust::sort(handle.get_thrust_policy(), unique_minors.begin(), unique_minors.end());
-    unique_minors.resize(
-      thrust::distance(
-        unique_minors.begin(),
-        thrust::unique(handle.get_thrust_policy(), unique_minors.begin(), unique_minors.end())),
-      handle.get_stream());
+      auto old_size = this_label_unique_majors.size();
+      this_label_unique_majors.resize(
+        old_size + starting_vertex_label_end_offset - starting_vertex_label_start_offset,
+        handle.get_stream());
+      thrust::copy(handle.get_thrust_policy(),
+                   (*starting_vertices).begin() + starting_vertex_label_start_offset,
+                   (*starting_vertices).begin() + starting_vertex_label_end_offset,
+                   this_label_unique_majors.begin() + old_size);
+    }
+
+    std::optional<rmm::device_uvector<int32_t>> this_label_unique_major_hops =
+      org_edgelist_hops ? std::make_optional<rmm::device_uvector<int32_t>>(
+                            label_end_offset - label_start_offset, handle.get_stream())
+                        : std::nullopt;
+    if (org_edgelist_hops) {
+      thrust::copy(handle.get_thrust_policy(),
+                   (*org_edgelist_hops).begin() + label_start_offset,
+                   (*org_edgelist_hops).begin() + label_end_offset,
+                   (*this_label_unique_major_hops).begin());
+      if (starting_vertices) {
+        auto old_size = (*this_label_unique_major_hops).size();
+        (*this_label_unique_major_hops)
+          .resize(this_label_unique_majors.size(), handle.get_stream());
+        thrust::fill(handle.get_thrust_policy(),
+                     (*this_label_unique_major_hops).begin() + old_size,
+                     (*this_label_unique_major_hops).end(),
+                     int32_t{0});
+      }
+
+      auto pair_first = thrust::make_zip_iterator(this_label_unique_majors.begin(),
+                                                  (*this_label_unique_major_hops).begin());
+      thrust::sort(
+        handle.get_thrust_policy(), pair_first, pair_first + this_label_unique_majors.size());
+      this_label_unique_majors.resize(thrust::distance(this_label_unique_majors.begin(),
+                                                       thrust::get<0>(thrust::unique_by_key(
+                                                         handle.get_thrust_policy(),
+                                                         this_label_unique_majors.begin(),
+                                                         this_label_unique_majors.end(),
+                                                         (*this_label_unique_major_hops).begin()))),
+                                      handle.get_stream());
+      (*this_label_unique_major_hops).resize(this_label_unique_majors.size(), handle.get_stream());
+    } else {
+      thrust::sort(handle.get_thrust_policy(),
+                   this_label_unique_majors.begin(),
+                   this_label_unique_majors.end());
+      this_label_unique_majors.resize(
+        thrust::distance(this_label_unique_majors.begin(),
+                         thrust::unique(handle.get_thrust_policy(),
+                                        this_label_unique_majors.begin(),
+                                        this_label_unique_majors.end())),
+        handle.get_stream());
+    }
+
+    // compute (unique minor, min_hop) pairs
+
+    rmm::device_uvector<vertex_t> this_label_unique_minors(label_end_offset - label_start_offset,
+                                                           handle.get_stream());
+    thrust::copy(handle.get_thrust_policy(),
+                 org_edgelist_minors.begin() + label_start_offset,
+                 org_edgelist_minors.begin() + label_end_offset,
+                 this_label_unique_minors.begin());
+    std::optional<rmm::device_uvector<int32_t>> this_label_unique_minor_hops =
+      org_edgelist_hops ? std::make_optional<rmm::device_uvector<int32_t>>(
+                            label_end_offset - label_start_offset, handle.get_stream())
+                        : std::nullopt;
+    if (org_edgelist_hops) {
+      thrust::copy(handle.get_thrust_policy(),
+                   (*org_edgelist_hops).begin() + label_start_offset,
+                   (*org_edgelist_hops).begin() + label_end_offset,
+                   (*this_label_unique_minor_hops).begin());
+
+      auto pair_first = thrust::make_zip_iterator(this_label_unique_minors.begin(),
+                                                  (*this_label_unique_minor_hops).begin());
+      thrust::sort(
+        handle.get_thrust_policy(), pair_first, pair_first + this_label_unique_minors.size());
+      this_label_unique_minors.resize(thrust::distance(this_label_unique_minors.begin(),
+                                                       thrust::get<0>(thrust::unique_by_key(
+                                                         handle.get_thrust_policy(),
+                                                         this_label_unique_minors.begin(),
+                                                         this_label_unique_minors.end(),
+                                                         (*this_label_unique_minor_hops).begin()))),
+                                      handle.get_stream());
+      (*this_label_unique_minor_hops).resize(this_label_unique_minors.size(), handle.get_stream());
+    } else {
+      thrust::sort(handle.get_thrust_policy(),
+                   this_label_unique_minors.begin(),
+                   this_label_unique_minors.end());
+      this_label_unique_minors.resize(
+        thrust::distance(this_label_unique_minors.begin(),
+                         thrust::unique(handle.get_thrust_policy(),
+                                        this_label_unique_minors.begin(),
+                                        this_label_unique_minors.end())),
+        handle.get_stream());
+    }
+
+    for (size_t j = 0; j < num_vertex_types; ++j) {
+      size_t renumber_map_type_start_offset{0};
+      auto renumber_map_type_end_offset = renumber_map.size();
+      if (renumber_map_label_type_offsets) {
+        raft::update_host(&renumber_map_type_start_offset,
+                          (*renumber_map_label_type_offsets).data() + i * num_vertex_types + j,
+                          size_t{1},
+                          handle.get_stream());
+        raft::update_host(&renumber_map_type_end_offset,
+                          (*renumber_map_label_type_offsets).data() + i * num_vertex_types + j + 1,
+                          size_t{1},
+                          handle.get_stream());
+        handle.sync_stream();
+      }
+
+      rmm::device_uvector<vertex_t> this_type_sorted_org_vertices(
+        renumber_map_type_end_offset - renumber_map_type_start_offset, handle.get_stream());
+      rmm::device_uvector<vertex_t> this_type_matching_renumbered_vertices(
+        this_type_sorted_org_vertices.size(), handle.get_stream());
+      thrust::copy(handle.get_thrust_policy(),
+                   renumber_map.begin() + renumber_map_type_start_offset,
+                   renumber_map.begin() + renumber_map_type_end_offset,
+                   this_type_sorted_org_vertices.begin());
+      thrust::sequence(handle.get_thrust_policy(),
+                       this_type_matching_renumbered_vertices.begin(),
+                       this_type_matching_renumbered_vertices.end(),
+                       vertex_t{0});
+      thrust::sort_by_key(handle.get_thrust_policy(),
+                          this_type_sorted_org_vertices.begin(),
+                          this_type_sorted_org_vertices.end(),
+                          this_type_matching_renumbered_vertices.begin());
+
+      rmm::device_uvector<vertex_t> this_type_unique_majors(this_label_unique_majors.size(),
+                                                            handle.get_stream());
+      auto this_type_unique_major_hops =
+        this_label_unique_major_hops
+          ? std::make_optional<rmm::device_uvector<int32_t>>((*this_label_unique_major_hops).size(),
+                                                             handle.get_stream())
+          : std::nullopt;
+      rmm::device_uvector<vertex_t> this_type_unique_minors(this_label_unique_minors.size(),
+                                                            handle.get_stream());
+      auto this_type_unique_minor_hops =
+        this_label_unique_minor_hops
+          ? std::make_optional<rmm::device_uvector<int32_t>>((*this_label_unique_minor_hops).size(),
+                                                             handle.get_stream())
+          : std::nullopt;
+
+      if (org_edgelist_hops) {
+        if (vertex_type_offsets) {
+          auto input_pair_first  = thrust::make_zip_iterator(this_label_unique_majors.begin(),
+                                                            (*this_label_unique_major_hops).begin());
+          auto output_pair_first = thrust::make_zip_iterator(this_type_unique_majors.begin(),
+                                                             (*this_type_unique_major_hops).begin());
+          this_type_unique_majors.resize(
+            thrust::distance(
+              output_pair_first,
+              thrust::copy_if(handle.get_thrust_policy(),
+                              input_pair_first,
+                              input_pair_first + this_label_unique_majors.size(),
+                              output_pair_first,
+                              [vertex_type_offsets = *vertex_type_offsets,
+                               vertex_type         = j] __device__(auto pair) {
+                                return static_cast<size_t>(thrust::distance(
+                                         vertex_type_offsets.begin() + 1,
+                                         thrust::upper_bound(thrust::seq,
+                                                             vertex_type_offsets.begin() + 1,
+                                                             vertex_type_offsets.end(),
+                                                             thrust::get<0>(pair)))) == vertex_type;
+                              })),
+            handle.get_stream());
+          (*this_type_unique_major_hops).resize(this_type_unique_majors.size(), handle.get_stream());
+
+          input_pair_first  = thrust::make_zip_iterator(this_label_unique_minors.begin(),
+                                                       (*this_label_unique_minor_hops).begin());
+          output_pair_first = thrust::make_zip_iterator(this_type_unique_minors.begin(),
+                                                        (*this_type_unique_minor_hops).begin());
+          this_type_unique_minors.resize(
+            thrust::distance(
+              output_pair_first,
+              thrust::copy_if(handle.get_thrust_policy(),
+                              input_pair_first,
+                              input_pair_first + this_label_unique_minors.size(),
+                              output_pair_first,
+                              [vertex_type_offsets = *vertex_type_offsets,
+                               vertex_type         = j] __device__(auto pair) {
+                                return static_cast<size_t>(thrust::distance(
+                                         vertex_type_offsets.begin() + 1,
+                                         thrust::upper_bound(thrust::seq,
+                                                             vertex_type_offsets.begin() + 1,
+                                                             vertex_type_offsets.end(),
+                                                             thrust::get<0>(pair)))) == vertex_type;
+                              })),
+            handle.get_stream());
+          (*this_type_unique_minor_hops).resize(this_type_unique_minors.size(), handle.get_stream());
+        } else {
+          auto input_pair_first = thrust::make_zip_iterator(this_label_unique_majors.begin(),
+                                                            (*this_label_unique_major_hops).begin());
+          thrust::copy(handle.get_thrust_policy(),
+                       input_pair_first,
+                       input_pair_first + this_label_unique_majors.size(),
+                       thrust::make_zip_iterator(this_type_unique_majors.begin(),
+                                                 (*this_type_unique_major_hops).begin()));
+          input_pair_first = thrust::make_zip_iterator(this_label_unique_minors.begin(),
+                                                       (*this_label_unique_minor_hops).begin());
+          thrust::copy(handle.get_thrust_policy(),
+                       input_pair_first,
+                       input_pair_first + this_label_unique_minors.size(),
+                       thrust::make_zip_iterator(this_type_unique_minors.begin(),
+                                                 (*this_type_unique_minor_hops).begin()));
+        }
+
+        rmm::device_uvector<vertex_t> merged_vertices(
+          this_type_unique_majors.size() + this_type_unique_minors.size(), handle.get_stream());
+        rmm::device_uvector<int32_t> merged_hops(merged_vertices.size(), handle.get_stream());
+        rmm::device_uvector<int8_t> merged_flags(merged_vertices.size(), handle.get_stream());
+
+        auto major_triplet_first =
+          thrust::make_zip_iterator(this_type_unique_majors.begin(),
+                                    (*this_type_unique_major_hops).begin(),
+                                    thrust::make_constant_iterator(int8_t{0}));
+        auto minor_triplet_first =
+          thrust::make_zip_iterator(this_type_unique_minors.begin(),
+                                    (*this_type_unique_minor_hops).begin(),
+                                    thrust::make_constant_iterator(int8_t{1}));
+        thrust::merge(handle.get_thrust_policy(),
+                      major_triplet_first,
+                      major_triplet_first + this_label_unique_majors.size(),
+                      minor_triplet_first,
+                      minor_triplet_first + this_label_unique_minors.size(),
+                      thrust::make_zip_iterator(
+                        merged_vertices.begin(), merged_hops.begin(), merged_flags.begin()));
+        merged_vertices.resize(
+          thrust::distance(
+            merged_vertices.begin(),
+            thrust::get<0>(thrust::unique_by_key(
+              handle.get_thrust_policy(),
+              merged_vertices.begin(),
+              merged_vertices.end(),
+              thrust::make_zip_iterator(merged_hops.begin(), merged_flags.begin())))),
+          handle.get_stream());
+        merged_hops.resize(merged_vertices.size(), handle.get_stream());
+        merged_flags.resize(merged_vertices.size(), handle.get_stream());
+
+        auto sort_key_first = thrust::make_zip_iterator(merged_hops.begin(), merged_flags.begin());
+        thrust::sort_by_key(handle.get_thrust_policy(),
+                            sort_key_first,
+                            sort_key_first + merged_hops.size(),
+                            merged_vertices.begin());
+
+        auto num_unique_keys = thrust::count_if(
+          handle.get_thrust_policy(),
+          thrust::make_counting_iterator(size_t{0}),
+          thrust::make_counting_iterator(merged_hops.size()),
+          cugraph::detail::is_first_in_run_t<decltype(sort_key_first)>{sort_key_first});
+        rmm::device_uvector<vertex_t> min_vertices(num_unique_keys, handle.get_stream());
+        rmm::device_uvector<vertex_t> max_vertices(num_unique_keys, handle.get_stream());
+
+        auto renumbered_merged_vertex_first = thrust::make_transform_iterator(
+          merged_vertices.begin(),
+          cuda::proclaim_return_type<vertex_t>(
+            [this_type_sorted_org_vertices = raft::device_span<vertex_t const>(
+               this_type_sorted_org_vertices.data(), this_type_sorted_org_vertices.size()),
+             this_type_matching_renumbered_vertices = raft::device_span<vertex_t const>(
+               this_type_matching_renumbered_vertices.data(),
+               this_type_matching_renumbered_vertices.size())] __device__(vertex_t major) {
+              auto it = thrust::lower_bound(thrust::seq,
+                                            this_type_sorted_org_vertices.begin(),
+                                            this_type_sorted_org_vertices.end(),
+                                            major);
+              return this_type_matching_renumbered_vertices[thrust::distance(
+                this_type_sorted_org_vertices.begin(), it)];
+            }));
+
+        thrust::reduce_by_key(handle.get_thrust_policy(),
+                              sort_key_first,
+                              sort_key_first + merged_hops.size(),
+                              renumbered_merged_vertex_first,
+                              thrust::make_discard_iterator(),
+                              min_vertices.begin(),
+                              thrust::equal_to<thrust::tuple<int32_t, int8_t>>{},
+                              thrust::minimum<vertex_t>{});
+        thrust::reduce_by_key(handle.get_thrust_policy(),
+                              sort_key_first,
+                              sort_key_first + merged_hops.size(),
+                              renumbered_merged_vertex_first,
+                              thrust::make_discard_iterator(),
+                              max_vertices.begin(),
+                              thrust::equal_to<thrust::tuple<int32_t, int8_t>>{},
+                              thrust::maximum<vertex_t>{});
+
+        auto num_violations =
+          thrust::count_if(handle.get_thrust_policy(),
+                           thrust::make_counting_iterator(size_t{1}),
+                           thrust::make_counting_iterator(min_vertices.size()),
+                           [min_vertices = raft::device_span<vertex_t const>(min_vertices.data(),
+                                                                             min_vertices.size()),
+                            max_vertices = raft::device_span<vertex_t const>(
+                              max_vertices.data(), max_vertices.size())] __device__(size_t i) {
+                             return min_vertices[i] <= max_vertices[i - 1];
+                           });
+
+        if (num_violations != 0) { return false; }
+      } else {
+        if (vertex_type_offsets) {
+          this_type_unique_majors.resize(
+            thrust::distance(
+              this_type_unique_majors.begin(),
+              thrust::copy_if(
+                this_label_unique_majors.begin(),
+                this_label_unique_majors.end(),
+                this_type_unique_majors.begin(),
+                [vertex_type_offsets = *vertex_type_offsets, vertex_type = j] __device__(auto v) {
+                  return static_cast<size_t>(
+                           thrust::distance(vertex_type_offsets.begin() + 1,
+                                            thrust::upper_bound(thrust::seq,
+                                                                vertex_type_offsets.begin() + 1,
+                                                                vertex_type_offsets.end(),
+                                                                v))) == vertex_type;
+                })),
+            handle.get_stream());
+
+          this_type_unique_minors.resize(
+            thrust::distance(
+              this_type_unique_minors.begin(),
+              thrust::copy_if(
+                handle.get_thrust_policy(),
+                this_label_unique_minors.begin(),
+                this_label_unique_minors.end(),
+                this_type_unique_minors.begin(),
+                [vertex_type_offsets = *vertex_type_offsets, vertex_type = j] __device__(auto v) {
+                  return static_cast<size_t>(
+                           thrust::distance(vertex_type_offsets.begin() + 1,
+                                            thrust::upper_bound(thrust::seq,
+                                                                vertex_type_offsets.begin() + 1,
+                                                                vertex_type_offsets.end(),
+                                                                v))) == vertex_type;
+                })),
+            handle.get_stream());
+          (*this_type_unique_minor_hops).resize(this_type_unique_minors.size(), handle.get_stream());
+        } else {
+          thrust::copy(handle.get_thrust_policy(),
+                       this_label_unique_majors.begin(),
+                       this_label_unique_majors.end(),
+                       this_type_unique_majors.begin());
+          thrust::copy(handle.get_thrust_policy(),
+                       this_label_unique_minors.begin(),
+                       this_label_unique_minors.end(),
+                       this_type_unique_minors.begin());
+        }
+
+        this_type_unique_minors.resize(
+          thrust::distance(
+            this_type_unique_minors.begin(),
+            thrust::remove_if(handle.get_thrust_policy(),
+                              this_type_unique_minors.begin(),
+                              this_type_unique_minors.end(),
+                              [sorted_unique_majors = raft::device_span<vertex_t const>(
+                                 this_type_unique_majors.data(),
+                                 this_type_unique_majors.size())] __device__(auto minor) {
+                                return thrust::binary_search(thrust::seq,
+                                                             sorted_unique_majors.begin(),
+                                                             sorted_unique_majors.end(),
+                                                             minor);
+                              })),
+          handle.get_stream());
+
+        auto max_major_renumbered_vertex = thrust::transform_reduce(
+          handle.get_thrust_policy(),
+          this_type_unique_majors.begin(),
+          this_type_unique_majors.end(),
+          cuda::proclaim_return_type<vertex_t>(
+            [this_type_sorted_org_vertices = raft::device_span<vertex_t const>(
+               this_type_sorted_org_vertices.data(), this_type_sorted_org_vertices.size()),
+             this_type_matching_renumbered_vertices = raft::device_span<vertex_t const>(
+               this_type_matching_renumbered_vertices.data(),
+               this_type_matching_renumbered_vertices.size())] __device__(vertex_t major)
+              -> vertex_t {
+              auto it = thrust::lower_bound(thrust::seq,
+                                            this_type_sorted_org_vertices.begin(),
+                                            this_type_sorted_org_vertices.end(),
+                                            major);
+              return this_type_matching_renumbered_vertices[thrust::distance(
+                this_type_sorted_org_vertices.begin(), it)];
+            }),
+          std::numeric_limits<vertex_t>::lowest(),
+          thrust::maximum<vertex_t>{});
+
+        auto min_minor_renumbered_vertex = thrust::transform_reduce(
+          handle.get_thrust_policy(),
+          this_type_unique_minors.begin(),
+          this_type_unique_minors.end(),
+          cuda::proclaim_return_type<vertex_t>(
+            [this_type_sorted_org_vertices = raft::device_span<vertex_t const>(
+               this_type_sorted_org_vertices.data(), this_type_sorted_org_vertices.size()),
+             this_type_matching_renumbered_vertices = raft::device_span<vertex_t const>(
+               this_type_matching_renumbered_vertices.data(),
+               this_type_matching_renumbered_vertices.size())] __device__(vertex_t minor)
+              -> vertex_t {
+              auto it = thrust::lower_bound(thrust::seq,
+                                            this_type_sorted_org_vertices.begin(),
+                                            this_type_sorted_org_vertices.end(),
+                                            minor);
+              return this_type_matching_renumbered_vertices[thrust::distance(
+                this_type_sorted_org_vertices.begin(), it)];
+            }),
+          std::numeric_limits<vertex_t>::max(),
+          thrust::minimum<vertex_t>{});
+
+        if (max_major_renumbered_vertex >= min_minor_renumbered_vertex) { return false; }
+      }
+    }
   }
 
-  rmm::device_uvector<vertex_t> sorted_org_vertices(renumber_map.size(), handle.get_stream());
-  rmm::device_uvector<vertex_t> matching_renumbered_vertices(sorted_org_vertices.size(),
-                                                             handle.get_stream());
-  thrust::copy(handle.get_thrust_policy(),
-               renumber_map.begin(),
-               renumber_map.end(),
-               sorted_org_vertices.begin());
-  thrust::sequence(handle.get_thrust_policy(),
-                   matching_renumbered_vertices.begin(),
-                   matching_renumbered_vertices.end(),
-                   vertex_t{0});
-  thrust::sort_by_key(handle.get_thrust_policy(),
-                      sorted_org_vertices.begin(),
-                      sorted_org_vertices.end(),
-                      matching_renumbered_vertices.begin());
-
-  if (org_edgelist_hops) {
-    rmm::device_uvector<vertex_t> merged_vertices(unique_majors.size() + unique_minors.size(),
-                                                  handle.get_stream());
-    rmm::device_uvector<int32_t> merged_hops(merged_vertices.size(), handle.get_stream());
-    rmm::device_uvector<int8_t> merged_flags(merged_vertices.size(), handle.get_stream());
-
-    auto major_triplet_first = thrust::make_zip_iterator(unique_majors.begin(),
-                                                         (*unique_major_hops).begin(),
-                                                         thrust::make_constant_iterator(int8_t{0}));
-    auto minor_triplet_first = thrust::make_zip_iterator(unique_minors.begin(),
-                                                         (*unique_minor_hops).begin(),
-                                                         thrust::make_constant_iterator(int8_t{1}));
-    thrust::merge(handle.get_thrust_policy(),
-                  major_triplet_first,
-                  major_triplet_first + unique_majors.size(),
-                  minor_triplet_first,
-                  minor_triplet_first + unique_minors.size(),
-                  thrust::make_zip_iterator(
-                    merged_vertices.begin(), merged_hops.begin(), merged_flags.begin()));
-    merged_vertices.resize(
-      thrust::distance(merged_vertices.begin(),
-                       thrust::get<0>(thrust::unique_by_key(
-                         handle.get_thrust_policy(),
-                         merged_vertices.begin(),
-                         merged_vertices.end(),
-                         thrust::make_zip_iterator(merged_hops.begin(), merged_flags.begin())))),
-      handle.get_stream());
-    merged_hops.resize(merged_vertices.size(), handle.get_stream());
-    merged_flags.resize(merged_vertices.size(), handle.get_stream());
-
-    auto sort_key_first = thrust::make_zip_iterator(merged_hops.begin(), merged_flags.begin());
-    thrust::sort_by_key(handle.get_thrust_policy(),
-                        sort_key_first,
-                        sort_key_first + merged_hops.size(),
-                        merged_vertices.begin());
-
-    auto num_unique_keys = thrust::count_if(
-      handle.get_thrust_policy(),
-      thrust::make_counting_iterator(size_t{0}),
-      thrust::make_counting_iterator(merged_hops.size()),
-      cugraph::detail::is_first_in_run_t<decltype(sort_key_first)>{sort_key_first});
-    rmm::device_uvector<vertex_t> min_vertices(num_unique_keys, handle.get_stream());
-    rmm::device_uvector<vertex_t> max_vertices(num_unique_keys, handle.get_stream());
-
-    auto renumbered_merged_vertex_first = thrust::make_transform_iterator(
-      merged_vertices.begin(),
-      cuda::proclaim_return_type<vertex_t>(
-        [sorted_org_vertices = raft::device_span<vertex_t const>(sorted_org_vertices.data(),
-                                                                 sorted_org_vertices.size()),
-         matching_renumbered_vertices = raft::device_span<vertex_t const>(
-           matching_renumbered_vertices.data(),
-           matching_renumbered_vertices.size())] __device__(vertex_t major) {
-          auto it = thrust::lower_bound(
-            thrust::seq, sorted_org_vertices.begin(), sorted_org_vertices.end(), major);
-          return matching_renumbered_vertices[thrust::distance(sorted_org_vertices.begin(), it)];
-        }));
-
-    thrust::reduce_by_key(handle.get_thrust_policy(),
-                          sort_key_first,
-                          sort_key_first + merged_hops.size(),
-                          renumbered_merged_vertex_first,
-                          thrust::make_discard_iterator(),
-                          min_vertices.begin(),
-                          thrust::equal_to<thrust::tuple<int32_t, int8_t>>{},
-                          thrust::minimum<vertex_t>{});
-    thrust::reduce_by_key(handle.get_thrust_policy(),
-                          sort_key_first,
-                          sort_key_first + merged_hops.size(),
-                          renumbered_merged_vertex_first,
-                          thrust::make_discard_iterator(),
-                          max_vertices.begin(),
-                          thrust::equal_to<thrust::tuple<int32_t, int8_t>>{},
-                          thrust::maximum<vertex_t>{});
-
-    auto num_violations = thrust::count_if(
-      handle.get_thrust_policy(),
-      thrust::make_counting_iterator(size_t{1}),
-      thrust::make_counting_iterator(min_vertices.size()),
-      [min_vertices = raft::device_span<vertex_t const>(min_vertices.data(), min_vertices.size()),
-       max_vertices = raft::device_span<vertex_t const>(max_vertices.data(),
-                                                        max_vertices.size())] __device__(size_t i) {
-        return min_vertices[i] <= max_vertices[i - 1];
-      });
-
-    return (num_violations == 0);
-  } else {
-    unique_minors.resize(
-      thrust::distance(
-        unique_minors.begin(),
-        thrust::remove_if(handle.get_thrust_policy(),
-                          unique_minors.begin(),
-                          unique_minors.end(),
-                          [sorted_unique_majors = raft::device_span<vertex_t const>(
-                             unique_majors.data(), unique_majors.size())] __device__(auto minor) {
-                            return thrust::binary_search(thrust::seq,
-                                                         sorted_unique_majors.begin(),
-                                                         sorted_unique_majors.end(),
-                                                         minor);
-                          })),
-      handle.get_stream());
-
-    auto max_major_renumbered_vertex = thrust::transform_reduce(
-      handle.get_thrust_policy(),
-      unique_majors.begin(),
-      unique_majors.end(),
-      cuda::proclaim_return_type<vertex_t>(
-        [sorted_org_vertices = raft::device_span<vertex_t const>(sorted_org_vertices.data(),
-                                                                 sorted_org_vertices.size()),
-         matching_renumbered_vertices = raft::device_span<vertex_t const>(
-           matching_renumbered_vertices.data(),
-           matching_renumbered_vertices.size())] __device__(vertex_t major) -> vertex_t {
-          auto it = thrust::lower_bound(
-            thrust::seq, sorted_org_vertices.begin(), sorted_org_vertices.end(), major);
-          return matching_renumbered_vertices[thrust::distance(sorted_org_vertices.begin(), it)];
-        }),
-      std::numeric_limits<vertex_t>::lowest(),
-      thrust::maximum<vertex_t>{});
-
-    auto min_minor_renumbered_vertex = thrust::transform_reduce(
-      handle.get_thrust_policy(),
-      unique_minors.begin(),
-      unique_minors.end(),
-      cuda::proclaim_return_type<vertex_t>(
-        [sorted_org_vertices = raft::device_span<vertex_t const>(sorted_org_vertices.data(),
-                                                                 sorted_org_vertices.size()),
-         matching_renumbered_vertices = raft::device_span<vertex_t const>(
-           matching_renumbered_vertices.data(),
-           matching_renumbered_vertices.size())] __device__(vertex_t minor) -> vertex_t {
-          auto it = thrust::lower_bound(
-            thrust::seq, sorted_org_vertices.begin(), sorted_org_vertices.end(), minor);
-          return matching_renumbered_vertices[thrust::distance(sorted_org_vertices.begin(), it)];
-        }),
-      std::numeric_limits<vertex_t>::max(),
-      thrust::minimum<vertex_t>{});
-
-    return (max_major_renumbered_vertex < min_minor_renumbered_vertex);
-  }
+  return true;
 }
 
 template bool check_vertex_renumber_map_invariants(
   raft::handle_t const& handle,
   std::optional<raft::device_span<int32_t const>> starting_vertices,
+  std::optional<raft::device_span<size_t const>> starting_vertex_label_offsets,
   raft::device_span<int32_t const> org_edgelist_srcs,
   raft::device_span<int32_t const> org_edgelist_dsts,
   std::optional<raft::device_span<int32_t const>> org_edgelist_hops,
+  std::optional<raft::device_span<size_t const>> org_edgelist_label_offsets,
   raft::device_span<int32_t const> renumber_map,
+  std::optional<raft::device_span<size_t const>> renumber_map_label_type_offsets,
+  std::optional<raft::device_span<int32_t const>> vertex_type_offsets,
+  size_t num_labels,
+  size_t num_vertex_types,
   bool src_is_major);
 
 template bool check_vertex_renumber_map_invariants(
   raft::handle_t const& handle,
   std::optional<raft::device_span<int64_t const>> starting_vertices,
+  std::optional<raft::device_span<size_t const>> starting_vertex_label_offsets,
   raft::device_span<int64_t const> org_edgelist_srcs,
   raft::device_span<int64_t const> org_edgelist_dsts,
   std::optional<raft::device_span<int32_t const>> org_edgelist_hops,
+  std::optional<raft::device_span<size_t const>> org_edgelist_label_offsets,
   raft::device_span<int64_t const> renumber_map,
+  std::optional<raft::device_span<size_t const>> renumber_map_label_type_offsets,
+  std::optional<raft::device_span<int64_t const>> vertex_type_offsets,
+  size_t num_labels,
+  size_t num_vertex_types,
   bool src_is_major);
