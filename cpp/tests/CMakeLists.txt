@@ -489,6 +489,11 @@ ConfigureTest(BIASED_NEIGHBOR_SAMPLING_TEST sampling/biased_neighbor_sampling.cp
 ConfigureTest(SAMPLING_POST_PROCESSING_TEST sampling/sampling_post_processing_test.cpp)
 
 ###################################################################################################
+# - SAMPLING_HETEROGENEOUS_POST_PROCESSING tests --------------------------------------------------
+ConfigureTest(SAMPLING_HETEROGENEOUS_POST_PROCESSING_TEST
+              sampling/sampling_heterogeneous_post_processing_test.cpp)
+
+###################################################################################################
 # - Renumber tests --------------------------------------------------------------------------------
 ConfigureTest(RENUMBERING_TEST structure/renumbering_test.cpp)
 
@@ -577,7 +582,8 @@ if(BUILD_CUGRAPH_MG_TESTS)
     ###############################################################################################
     # - MG BETWEENNESS CENTRALITY tests -----------------------------------------------------------
     ConfigureTestMG(MG_BETWEENNESS_CENTRALITY_TEST centrality/mg_betweenness_centrality_test.cpp)
-    ConfigureTestMG(MG_EDGE_BETWEENNESS_CENTRALITY_TEST centrality/mg_edge_betweenness_centrality_test.cpp)
+    ConfigureTestMG(MG_EDGE_BETWEENNESS_CENTRALITY_TEST
+                    centrality/mg_edge_betweenness_centrality_test.cpp)
 
     ###############################################################################################
     # - MG BFS tests ------------------------------------------------------------------------------
