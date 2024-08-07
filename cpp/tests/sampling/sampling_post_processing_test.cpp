@@ -58,7 +58,7 @@ class Tests_SamplingPostProcessing
   {
     using label_t     = int32_t;
     using weight_t    = float;
-    using edge_id_t   = vertex_t;
+    using edge_id_t   = edge_t;
     using edge_type_t = int32_t;
 
     bool constexpr store_transposed = false;
@@ -288,6 +288,49 @@ class Tests_SamplingPostProcessing
             << "Renumbered and sorted renumber map label offset array is invalid.";
         }
 
+        // check whether the edges are properly sorted
+
+        auto renumbered_and_sorted_edgelist_majors =
+          sampling_post_processing_usecase.src_is_major
+            ? raft::device_span<vertex_t const>(renumbered_and_sorted_edgelist_srcs.data(),
+                                                renumbered_and_sorted_edgelist_srcs.size())
+            : raft::device_span<vertex_t const>(renumbered_and_sorted_edgelist_dsts.data(),
+                                                renumbered_and_sorted_edgelist_dsts.size());
+        auto renumbered_and_sorted_edgelist_minors =
+          sampling_post_processing_usecase.src_is_major
+            ? raft::device_span<vertex_t const>(renumbered_and_sorted_edgelist_dsts.data(),
+                                                renumbered_and_sorted_edgelist_dsts.size())
+            : raft::device_span<vertex_t const>(renumbered_and_sorted_edgelist_srcs.data(),
+                                                renumbered_and_sorted_edgelist_srcs.size());
+
+        if (renumbered_and_sorted_edgelist_label_hop_offsets) {
+          for (size_t i = 0; i < sampling_post_processing_usecase.num_labels *
+                                   sampling_post_processing_usecase.fanouts.size();
+               ++i) {
+            auto hop_start_offset =
+              (*renumbered_and_sorted_edgelist_label_hop_offsets).element(i, handle.get_stream());
+            auto hop_end_offset = (*renumbered_and_sorted_edgelist_label_hop_offsets)
+                                    .element(i + 1, handle.get_stream());
+            ASSERT_TRUE(check_edgelist_is_sorted(
+              handle,
+              raft::device_span<vertex_t const>(
+                renumbered_and_sorted_edgelist_majors.data() + hop_start_offset,
+                hop_end_offset - hop_start_offset),
+              raft::device_span<vertex_t const>(
+                renumbered_and_sorted_edgelist_minors.data() + hop_start_offset,
+                hop_end_offset - hop_start_offset)))
+              << "Renumbered and sorted edge list is not properly sorted.";
+          }
+        } else {
+          ASSERT_TRUE(check_edgelist_is_sorted(
+            handle,
+            raft::device_span<vertex_t const>(renumbered_and_sorted_edgelist_majors.data(),
+                                              renumbered_and_sorted_edgelist_majors.size()),
+            raft::device_span<vertex_t const>(renumbered_and_sorted_edgelist_minors.data(),
+                                              renumbered_and_sorted_edgelist_minors.size())))
+            << "Renumbered and sorted edge list is not properly sorted.";
+        }
+
         for (size_t i = 0; i < sampling_post_processing_usecase.num_labels; ++i) {
           size_t starting_vertex_start_offset =
             starting_vertex_label_offsets
@@ -353,46 +396,6 @@ class Tests_SamplingPostProcessing
           auto this_label_output_renumber_map = raft::device_span<vertex_t const>(
             renumbered_and_sorted_renumber_map.data() + renumber_map_start_offset,
             renumber_map_end_offset - renumber_map_start_offset);
-
-          // check whether the edges are properly sorted
-
-          auto this_label_output_edgelist_majors = sampling_post_processing_usecase.src_is_major
-                                                     ? this_label_output_edgelist_srcs
-                                                     : this_label_output_edgelist_dsts;
-          auto this_label_output_edgelist_minors = sampling_post_processing_usecase.src_is_major
-                                                     ? this_label_output_edgelist_dsts
-                                                     : this_label_output_edgelist_srcs;
-
-          if (this_label_org_edgelist_hops) {
-            auto num_hops = sampling_post_processing_usecase.fanouts.size();
-            for (size_t j = 0; j < num_hops; ++j) {
-              auto hop_start_offset = (*renumbered_and_sorted_edgelist_label_hop_offsets)
-                                        .element(i * num_hops + j, handle.get_stream()) -
-                                      (*renumbered_and_sorted_edgelist_label_hop_offsets)
-                                        .element(i * num_hops, handle.get_stream());
-              auto hop_end_offset = (*renumbered_and_sorted_edgelist_label_hop_offsets)
-                                      .element(i * num_hops + j + 1, handle.get_stream()) -
-                                    (*renumbered_and_sorted_edgelist_label_hop_offsets)
-                                      .element(i * num_hops, handle.get_stream());
-              ASSERT_TRUE(check_edgelist_is_sorted(
-                handle,
-                raft::device_span<vertex_t const>(
-                  this_label_output_edgelist_majors.data() + hop_start_offset,
-                  hop_end_offset - hop_start_offset),
-                raft::device_span<vertex_t const>(
-                  this_label_output_edgelist_minors.data() + hop_start_offset,
-                  hop_end_offset - hop_start_offset)))
-                << "Renumbered and sorted edge list is not properly sorted.";
-            }
-          } else {
-            ASSERT_TRUE(check_edgelist_is_sorted(
-              handle,
-              raft::device_span<vertex_t const>(this_label_output_edgelist_majors.data(),
-                                                this_label_output_edgelist_majors.size()),
-              raft::device_span<vertex_t const>(this_label_output_edgelist_minors.data(),
-                                                this_label_output_edgelist_minors.size())))
-              << "Renumbered and sorted edge list is not properly sorted.";
-          }
 
           // check whether renumbering recovers the original edge list
 
