@@ -130,6 +130,40 @@ generate<GraphViewType, property_t>::edge_property(raft::handle_t const& handle,
 
 template <typename GraphViewType, typename property_t>
 cugraph::edge_property_t<GraphViewType, property_t>
+generate<GraphViewType, property_t>::edge_property_by_src_dst_types(
+  raft::handle_t const& handle,
+  GraphViewType const& graph_view,
+  raft::device_span<typename GraphViewType::vertex_type const> vertex_type_offsets,
+  int32_t hash_bin_count)
+{
+  auto output_property = cugraph::edge_property_t<GraphViewType, property_t>(handle, graph_view);
+
+  cugraph::transform_e(
+    handle,
+    graph_view,
+    cugraph::edge_src_dummy_property_t{}.view(),
+    cugraph::edge_dst_dummy_property_t{}.view(),
+    cugraph::edge_dummy_property_t{}.view(),
+    [vertex_type_offsets, hash_bin_count] __device__(auto src, auto dst, auto, auto, auto) {
+      auto src_v_type = thrust::distance(
+        vertex_type_offsets.begin() + 1,
+        thrust::upper_bound(
+          thrust::seq, vertex_type_offsets.begin() + 1, vertex_type_offsets.end(), src));
+      auto dst_v_type = thrust::distance(
+        vertex_type_offsets.begin() + 1,
+        thrust::upper_bound(
+          thrust::seq, vertex_type_offsets.begin() + 1, vertex_type_offsets.end(), dst));
+      auto num_v_types = vertex_type_offsets.size() - 1;
+      return detail::make_property_value<property_t>((src_v_type * num_v_types + dst_v_type) %
+                                                     hash_bin_count);
+    },
+    output_property.mutable_view());
+
+  return output_property;
+}
+
+template <typename GraphViewType, typename property_t>
+cugraph::edge_property_t<GraphViewType, property_t>
 generate<GraphViewType, property_t>::unique_edge_property(raft::handle_t const& handle,
                                                           GraphViewType const& graph_view)
 {

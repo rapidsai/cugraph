@@ -64,6 +64,12 @@ struct generate {
   static cugraph::edge_property_t<GraphViewType, property_t> edge_property(
     raft::handle_t const& handle, GraphViewType const& graph_view, int32_t hash_bin_count);
 
+  static cugraph::edge_property_t<GraphViewType, property_t> edge_property_by_src_dst_types(
+    raft::handle_t const& handle,
+    GraphViewType const& graph_view,
+    raft::device_span<typename GraphViewType::vertex_type const> vertex_type_offsets,
+    int32_t hash_bin_count);
+
   // generate unqiue edge property values (in [0, # edges in the graph) if property_t is an integer
   // type, this function requires std::numeric_limits<property_t>::max() to be no smaller than the
   // number of edges in the input graph).
