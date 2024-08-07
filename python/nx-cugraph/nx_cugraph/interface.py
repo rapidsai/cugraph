@@ -68,6 +68,13 @@ class BackendInterface:
         louvain_different = "Louvain may be different due to RNG"
         no_string_dtype = "string edge values not currently supported"
         sssp_path_different = "sssp may choose a different valid path"
+        no_object_dtype_for_edges = (
+            "Edges don't support object dtype (lists, strings, etc.)"
+        )
+        tuple_elements_preferred = "elements are tuples instead of lists"
+        nx_cugraph_in_test_setup = (
+            "nx-cugraph Graph is incompatible in test setup in nx versions < 3.3"
+        )
 
         xfail = {
             # This is removed while strongly_connected_components() is not
@@ -91,6 +98,81 @@ class BackendInterface:
                 "test_cycles.py:TestMinimumCycleBasis."
                 "test_gh6787_and_edge_attribute_names"
             ): sssp_path_different,
+            key(
+                "test_graph_hashing.py:test_isomorphic_edge_attr"
+            ): no_object_dtype_for_edges,
+            key(
+                "test_graph_hashing.py:test_isomorphic_edge_attr_and_node_attr"
+            ): no_object_dtype_for_edges,
+            key(
+                "test_graph_hashing.py:test_isomorphic_edge_attr_subgraph_hash"
+            ): no_object_dtype_for_edges,
+            key(
+                "test_graph_hashing.py:"
+                "test_isomorphic_edge_attr_and_node_attr_subgraph_hash"
+            ): no_object_dtype_for_edges,
+            key(
+                "test_summarization.py:TestSNAPNoEdgeTypes.test_summary_graph"
+            ): no_object_dtype_for_edges,
+            key(
+                "test_summarization.py:TestSNAPUndirected.test_summary_graph"
+            ): no_object_dtype_for_edges,
+            key(
+                "test_summarization.py:TestSNAPDirected.test_summary_graph"
+            ): no_object_dtype_for_edges,
+            key("test_gexf.py:TestGEXF.test_relabel"): no_object_dtype_for_edges,
+            key(
+                "test_gml.py:TestGraph.test_parse_gml_cytoscape_bug"
+            ): no_object_dtype_for_edges,
+            key("test_gml.py:TestGraph.test_parse_gml"): no_object_dtype_for_edges,
+            key("test_gml.py:TestGraph.test_read_gml"): no_object_dtype_for_edges,
+            key("test_gml.py:TestGraph.test_data_types"): no_object_dtype_for_edges,
+            key(
+                "test_gml.py:TestPropertyLists.test_reading_graph_with_list_property"
+            ): no_object_dtype_for_edges,
+            key(
+                "test_relabel.py:"
+                "test_relabel_preserve_node_order_partial_mapping_with_copy_false"
+            ): "Node order is preserved when relabeling with partial mapping",
+            key(
+                "test_gml.py:"
+                "TestPropertyLists.test_reading_graph_with_single_element_list_property"
+            ): tuple_elements_preferred,
+            key(
+                "test_relabel.py:"
+                "TestRelabel.test_relabel_multidigraph_inout_merge_nodes"
+            ): no_string_dtype,
+            key(
+                "test_relabel.py:TestRelabel.test_relabel_multigraph_merge_inplace"
+            ): no_string_dtype,
+            key(
+                "test_relabel.py:TestRelabel.test_relabel_multidigraph_merge_inplace"
+            ): no_string_dtype,
+            key(
+                "test_relabel.py:TestRelabel.test_relabel_multidigraph_inout_copy"
+            ): no_string_dtype,
+            key(
+                "test_relabel.py:TestRelabel.test_relabel_multigraph_merge_copy"
+            ): no_string_dtype,
+            key(
+                "test_relabel.py:TestRelabel.test_relabel_multidigraph_merge_copy"
+            ): no_string_dtype,
+            key(
+                "test_relabel.py:TestRelabel.test_relabel_multigraph_nonnumeric_key"
+            ): no_string_dtype,
+            key("test_contraction.py:test_multigraph_path"): no_object_dtype_for_edges,
+            key(
+                "test_contraction.py:test_directed_multigraph_path"
+            ): no_object_dtype_for_edges,
+            key(
+                "test_contraction.py:test_multigraph_blockmodel"
+            ): no_object_dtype_for_edges,
+            key(
+                "test_summarization.py:TestSNAPUndirectedMulti.test_summary_graph"
+            ): no_string_dtype,
+            key(
+                "test_summarization.py:TestSNAPDirectedMulti.test_summary_graph"
+            ): no_string_dtype,
         }
 
         from packaging.version import parse
@@ -118,6 +200,19 @@ class BackendInterface:
                         "test_strongly_connected.py:"
                         "TestStronglyConnected.test_connected_raise"
                     ): "test is incompatible with pytest>=8",
+                    # NetworkX 3.3 introduced logic around functions that return graphs
+                    key(
+                        "test_vf2pp_helpers.py:TestGraphTinoutUpdating.test_updating"
+                    ): nx_cugraph_in_test_setup,
+                    key(
+                        "test_vf2pp_helpers.py:TestGraphTinoutUpdating.test_restoring"
+                    ): nx_cugraph_in_test_setup,
+                    key(
+                        "test_vf2pp_helpers.py:TestDiGraphTinoutUpdating.test_updating"
+                    ): nx_cugraph_in_test_setup,
+                    key(
+                        "test_vf2pp_helpers.py:TestDiGraphTinoutUpdating.test_restoring"
+                    ): nx_cugraph_in_test_setup,
                 }
             )
 
