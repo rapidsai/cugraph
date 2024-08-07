@@ -535,19 +535,22 @@ class Graph:
             src_col, dst_col = ("src", "dst") if direction == "out" else ("dst", "src")
             edgelist_dict = self.__get_edgelist()
 
+            # FIXME this is invalid for a heterogeneous graph
+            # FIXME this should be part of the edgelist
+            weights = (
+                None
+                if prob_attr is None
+                else cupy.asarray(self.edata[prob_attr][edgelist_dict["eid"].cpu()])
+            )
+            weights = cupy.array([1,1,2,0,0,0,2,1], dtype='float32')
+            print(weights)
+
             if self.is_multi_gpu:
                 rank = torch.distributed.get_rank()
                 world_size = torch.distributed.get_world_size()
 
                 vertices_array = cupy.arange(self.num_nodes(), dtype="int64")
                 vertices_array = cupy.array_split(vertices_array, world_size)[rank]
-
-                # FIXME this is invalid for a heterogeneous graph
-                weights = (
-                    None
-                    if prob_attr is None
-                    else cupy.asarray(self.ndata[prob_attr][edgelist_dict["eid"]])
-                )
 
                 graph = pylibcugraph.MGGraph(
                     self._resource_handle,
@@ -557,7 +560,7 @@ class Graph:
                     vertices_array=[vertices_array],
                     edge_id_array=[cupy.asarray(edgelist_dict["eid"])],
                     edge_type_array=[cupy.asarray(edgelist_dict["etp"])],
-                    weight_array=weights,
+                    weight_array=[weights],
                 )
             else:
                 graph = pylibcugraph.SGGraph(
@@ -568,7 +571,7 @@ class Graph:
                     vertices_array=cupy.arange(self.num_nodes(), dtype="int64"),
                     edge_id_array=cupy.asarray(edgelist_dict["eid"]),
                     edge_type_array=cupy.asarray(edgelist_dict["etp"]),
-                    weights_array=weights,
+                    weight_array=weights,
                 )
 
         self.__graph = {"graph": graph, "direction": direction, "prob_attr": prob_attr}
