@@ -542,8 +542,7 @@ class Graph:
                 if prob_attr is None
                 else cupy.asarray(self.edata[prob_attr][edgelist_dict["eid"].cpu()])
             )
-            weights = cupy.array([1,1,2,0,0,0,2,1], dtype='float32')
-            print(weights)
+            weights = cupy.array([1, 1, 2, 0, 0, 0, 2, 1], dtype="float32")
 
             if self.is_multi_gpu:
                 rank = torch.distributed.get_rank()
@@ -618,9 +617,6 @@ class Graph:
             )
 
         try:
-            print(
-                u,
-            )
             return self.__ndata_storage[ntype, emb_name].fetch(
                 _cast_to_torch_tensor(u), "cuda"
             )
