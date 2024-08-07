@@ -480,6 +480,8 @@ class Graph:
             else:
                 weights = self.edata[prob_attr][edge_id_array_per_type[0]]
 
+        # Safe to move this to cuda because the consumer will always
+        # move it to cuda if it isn't already there.
         edge_id_array = torch.concat(edge_id_array_per_type).cuda()
 
         edgelist_dict = {
