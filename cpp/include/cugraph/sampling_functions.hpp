@@ -476,7 +476,7 @@ renumber_and_sort_sampled_edgelist(
  * 1. If @p edgelist_hops is valid, we can consider (vertex ID, hop, flag=major) triplets for each
  * vertex ID in edge majors (@p edgelist_srcs if @p src_is_major is true, @p edgelist_dsts if false)
  * and (vertex ID, hop, flag=minor) triplets for each vertex ID in edge minors. From these triplets,
- * we can find the minimum (hop, flag) pairs for every unique vertex ID (hop is the primary key and
+ * we can find the minimum (hop, flag) pair for every unique vertex ID (hop is the primary key and
  * flag is the secondary key, flag=major is considered smaller than flag=minor if hop numbers are
  * same). Vertex IDs with smaller (hop, flag) pairs precede vertex IDs with larger (hop, flag) pairs
  * in renumbering (if their vertex types are same, vertices with different types are renumbered
@@ -495,11 +495,15 @@ renumber_and_sort_sampled_edgelist(
  * Edge IDs are renumbered fulfilling the following requirements (This is relevant only when @p
  * edgelist_edge_ids.has_value() is true).
  *
- * 1. If @p edgelist_edge_types.has_value() is true, unique (edge type, edge ID) pairs are
- * renumbered to consecutive integers starting from 0 for each edge type. If @p
- * edgelist_edge_types.has_value() is false (every edge has the same type), unique edge IDs are
- * renumbered to consecutive inetgers starting from 0.
- * 2. If edgelist_label_offsets.has_value() is true, edge lists for different labels will be
+ * 1. If @p edgelist_hops is valid, we can consider (edge ID, hop) pairs. From these pairs, we can
+ * find the minimum hop value for every unique edge ID. Edge IDs with smaller hop values precede
+ * edge IDs with larger hop values in renumbering (if their edge types are same, edges with
+ * different edge types are renumbered separately). Ordering can be arbitrary among the edge IDs
+ * with the same (edge type, hop) pairs.
+ * 2. If @p edgelist_edge_hops.has_value() is false, unique edge IDs (for each edge type is @p
+ * edgelist_edge_types.has_value() is true) are mapped to consecutive integers starting from 0. The
+ * ordering can be arbitrary.
+ * 3. If edgelist_label_offsets.has_value() is true, edge lists for different labels will be
  * renumbered separately.
  *
  * The renumbered edges are sorted based on the following rules.
