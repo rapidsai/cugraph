@@ -1,4 +1,4 @@
 #!/bin/bash
-# Copyright (c) 2022, NVIDIA CORPORATION.
+# Copyright (c) 2022-2024, NVIDIA CORPORATION.
 
-cmake --install cpp/build
+cp -r ${PREFIX}/tmp/install/libcugraph/* ${PREFIX}/
