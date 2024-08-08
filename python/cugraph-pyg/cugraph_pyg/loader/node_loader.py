@@ -17,6 +17,7 @@ import cugraph_pyg
 from typing import Union, Tuple, Callable, Optional
 
 from cugraph.utilities.utils import import_optional
+from .loader_utils import scatter
 
 torch_geometric = import_optional("torch_geometric")
 torch = import_optional("torch")
@@ -50,6 +51,7 @@ class NodeLoader:
         batch_size: int = 1,
         shuffle: bool = False,
         drop_last: bool = False,
+        global_shuffle: bool = True,
         **kwargs,
     ):
         """
@@ -74,7 +76,17 @@ class NodeLoader:
                 always return a Data or HeteroData object.
             input_id: OptTensor
                 See torch_geometric.loader.NodeLoader.
-
+            batch_size: int
+                The size of each batch.
+            shuffle: bool
+                Whether to shuffle data into random batches.
+            drop_last: bool
+                Whether to drop remaining inputs that can't form a full
+                batch.
+            global_shuffle: bool
+                (cuGraph-PyG only) Whether or not to shuffle globally.
+                It might make sense to turn this off if comms are slow,
+                but there may be a penalty to accuracy.
         """
         if not isinstance(data, (list, tuple)) or not isinstance(
             data[1], cugraph_pyg.data.GraphStore
@@ -125,7 +137,39 @@ class NodeLoader:
         self.__shuffle = shuffle
         self.__drop_last = drop_last
 
-    def __iter__(self):
+    def __get_input(self):
+        _, graph_store = self.__data
+        if graph_store.is_multi_gpu and self.__shuffle and self.__global_shuffle:
+            rank = torch.distributed.get_rank()
+            world_size = torch.distributed.get_world_size()
+            scatter_perm = torch.tensor_split(
+                torch.randperm(
+                    self.__input_data.node.numel(), device="cpu", dtype=torch.int64
+                ),
+                world_size,
+            )
+
+            new_node = scatter(self.__input_data.node, scatter_perm, rank, world_size)
+            local_perm = torch.randperm(new_node.numel())
+            if self.__drop_last:
+                d = local_perm.numel() % self.__batch_size
+                local_perm = local_perm[:-d]
+
+            return torch_geometric.loader.node_loader.NodeSamplerInput(
+                input_id=None
+                if self.__input_data.input_id is None
+                else scatter(
+                    self.__input_data.input_id, scatter_perm, rank, world_size
+                )[local_perm],
+                time=None
+                if self.__input_data.time is None
+                else scatter(self.__input_data.time, scatter_perm, rank, world_size)[
+                    local_perm
+                ],
+                node=new_node[local_perm],
+                input_type=self.__input_data.input_type,
+            )
+
         if self.__shuffle:
             perm = torch.randperm(self.__input_data.node.numel())
         else:
@@ -135,7 +179,7 @@ class NodeLoader:
             d = perm.numel() % self.__batch_size
             perm = perm[:-d]
 
-        input_data = torch_geometric.loader.node_loader.NodeSamplerInput(
+        return torch_geometric.loader.node_loader.NodeSamplerInput(
             input_id=None
             if self.__input_data.input_id is None
             else self.__input_data.input_id[perm],
@@ -146,6 +190,7 @@ class NodeLoader:
             input_type=self.__input_data.input_type,
         )
 
+    def __iter__(self):
         return cugraph_pyg.sampler.SampleIterator(
-            self.__data, self.__node_sampler.sample_from_nodes(input_data)
+            self.__data, self.__node_sampler.sample_from_nodes(self.__get_input())
         )
