@@ -26,7 +26,7 @@ repos:
       - id: mixed-line-ending
       - id: trailing-whitespace
   - repo: https://github.com/abravalheri/validate-pyproject
-    rev: v0.17
+    rev: v0.18
     hooks:
       - id: validate-pyproject
         name: Validate pyproject.toml
@@ -40,7 +40,7 @@ repos:
     hooks:
       - id: isort
   - repo: https://github.com/asottile/pyupgrade
-    rev: v3.15.2
+    rev: v3.16.0
     hooks:
       - id: pyupgrade
         args: [--py39-plus]
@@ -50,18 +50,18 @@ repos:
       - id: black
       # - id: black-jupyter
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.4.4
+    rev: v0.5.4
     hooks:
       - id: ruff
         args: [--fix-only, --show-fixes]  # --unsafe-fixes]
   - repo: https://github.com/PyCQA/flake8
-    rev: 7.0.0
+    rev: 7.1.0
     hooks:
       - id: flake8
-        args: ['--per-file-ignores=_nx_cugraph/__init__.py:E501', '--extend-ignore=SIM105']  # Why is this necessary?
+        args: ['--per-file-ignores=_nx_cugraph/__init__.py:E501', '--extend-ignore=B020,SIM105']  # Why is this necessary?
         additional_dependencies: &flake8_dependencies
           # These versions need updated manually
-          - flake8==7.0.0
+          - flake8==7.1.0
           - flake8-bugbear==24.4.26
           - flake8-simplify==0.21.0
   - repo: https://github.com/asottile/yesqa
@@ -70,14 +70,14 @@ repos:
       - id: yesqa
         additional_dependencies: *flake8_dependencies
   - repo: https://github.com/codespell-project/codespell
-    rev: v2.2.6
+    rev: v2.3.0
     hooks:
       - id: codespell
         types_or: [python, rst, markdown]
         additional_dependencies: [tomli]
         files: ^(nx_cugraph|docs)/
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.4.4
+    rev: v0.5.4
     hooks:
       - id: ruff
   - repo: https://github.com/pre-commit/pre-commit-hooks

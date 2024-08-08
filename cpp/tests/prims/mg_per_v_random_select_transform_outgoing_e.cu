@@ -49,11 +49,12 @@
 
 #include <random>
 
-template <typename vertex_t, typename weight_t, typename property_t>
+template <typename vertex_t, typename bias_t>
 struct e_bias_op_t {
-  __device__ weight_t operator()(vertex_t, vertex_t, property_t, property_t, weight_t w) const
+  __device__ bias_t
+  operator()(vertex_t, vertex_t, thrust::nullopt_t, thrust::nullopt_t, bias_t bias) const
   {
-    return w;
+    return bias;
   }
 };
 
@@ -216,10 +217,13 @@ class Tests_MGPerVRandomSelectTransformOutgoingE
                                            *handle_,
                                            mg_graph_view,
                                            mg_vertex_frontier.bucket(bucket_idx_cur),
+                                           cugraph::edge_src_dummy_property_t{}.view(),
+                                           cugraph::edge_dst_dummy_property_t{}.view(),
+                                           *mg_edge_weight_view,
+                                           e_bias_op_t<vertex_t, weight_t>{},
                                            mg_src_prop.view(),
                                            mg_dst_prop.view(),
                                            *mg_edge_weight_view,
-                                           e_bias_op_t<vertex_t, weight_t, property_t>{},
                                            e_op_t<vertex_t, weight_t, property_t>{},
                                            rng_state,
                                            prims_usecase.K,
@@ -559,8 +563,29 @@ INSTANTIATE_TEST_SUITE_P(
                       Prims_Usecase{size_t{1000}, size_t{4}, true, true, false, true},
                       Prims_Usecase{size_t{1000}, size_t{4}, true, true, true, false},
                       Prims_Usecase{size_t{1000}, size_t{4}, true, true, true, true}),
-    ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"),
-                      cugraph::test::File_Usecase("test/datasets/web-Google.mtx"),
+    ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"))));
+
+INSTANTIATE_TEST_SUITE_P(
+  file_large_test,
+  Tests_MGPerVRandomSelectTransformOutgoingE_File,
+  ::testing::Combine(
+    ::testing::Values(Prims_Usecase{size_t{1000}, size_t{4}, false, false, false, false},
+                      Prims_Usecase{size_t{1000}, size_t{4}, false, false, false, true},
+                      Prims_Usecase{size_t{1000}, size_t{4}, false, false, true, false},
+                      Prims_Usecase{size_t{1000}, size_t{4}, false, false, true, true},
+                      Prims_Usecase{size_t{1000}, size_t{4}, false, true, false, false},
+                      Prims_Usecase{size_t{1000}, size_t{4}, false, true, false, true},
+                      Prims_Usecase{size_t{1000}, size_t{4}, false, true, true, false},
+                      Prims_Usecase{size_t{1000}, size_t{4}, false, true, true, true},
+                      Prims_Usecase{size_t{1000}, size_t{4}, true, false, false, false},
+                      Prims_Usecase{size_t{1000}, size_t{4}, true, false, false, true},
+                      Prims_Usecase{size_t{1000}, size_t{4}, true, false, true, false},
+                      Prims_Usecase{size_t{1000}, size_t{4}, true, false, true, true},
+                      Prims_Usecase{size_t{1000}, size_t{4}, true, true, false, false},
+                      Prims_Usecase{size_t{1000}, size_t{4}, true, true, false, true},
+                      Prims_Usecase{size_t{1000}, size_t{4}, true, true, true, false},
+                      Prims_Usecase{size_t{1000}, size_t{4}, true, true, true, true}),
+    ::testing::Values(cugraph::test::File_Usecase("test/datasets/web-Google.mtx"),
                       cugraph::test::File_Usecase("test/datasets/ljournal-2008.mtx"),
                       cugraph::test::File_Usecase("test/datasets/webbase-1M.mtx"))));
 

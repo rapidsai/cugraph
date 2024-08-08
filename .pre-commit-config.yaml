@@ -41,13 +41,8 @@ repos:
       - id: clang-format
         types_or: [c, c++, cuda]
         args: ["-fallback-style=none", "-style=file", "-i"]
-  - repo: https://github.com/rapidsai/dependency-file-generator
-    rev: v1.8.0
-    hooks:
-        - id: rapids-dependency-file-generator
-          args: ["--clean"]
   - repo: https://github.com/rapidsai/pre-commit-hooks
-    rev: v0.0.3
+    rev: v0.2.0
     hooks:
       - id: verify-copyright
         files: |
@@ -58,6 +53,13 @@ repos:
               [.]flake8[.]cython$|
               meta[.]yaml$|
               setup[.]cfg$
+      - id: verify-alpha-spec
+        args: ["--fix", "--mode=release"]
+  - repo: https://github.com/rapidsai/dependency-file-generator
+    rev: v1.13.11
+    hooks:
+        - id: rapids-dependency-file-generator
+          args: ["--clean"]
   - repo: local
     hooks:
       - id: nx-cugraph-meta-data-update

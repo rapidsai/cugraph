@@ -1,4 +1,4 @@
-# Copyright (c) 2023, NVIDIA CORPORATION.
+# Copyright (c) 2023-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -10,10 +10,11 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import cupy as cp
 import numpy as np
 import pytest
 
-from nx_cugraph.utils import _get_int_dtype
+from nx_cugraph.utils import _cp_iscopied_asarray, _get_int_dtype
 
 
 def test_get_int_dtype():
@@ -85,3 +86,20 @@ def test_get_int_dtype():
         _get_int_dtype(7, signed=True, unsigned=True)
     assert _get_int_dtype(7, signed=True, unsigned=False) == np.int8
     assert _get_int_dtype(7, signed=False, unsigned=True) == np.uint8
+
+
+def test_cp_iscopied_asarray():
+    # We don't yet run doctest, so do simple copy/paste test here.
+    #
+    # >>> is_copied, a = _cp_iscopied_asarray([1, 2, 3])
+    # >>> is_copied
+    # True
+    # >>> a
+    # array([1, 2, 3])
+    # >>> _cp_iscopied_asarray(a)
+    # (False, array([1, 2, 3]))
+    is_copied, a = _cp_iscopied_asarray([1, 2, 3])
+    assert is_copied is True
+    assert isinstance(a, cp.ndarray)
+    assert repr(a) == "array([1, 2, 3])"
+    assert _cp_iscopied_asarray(a)[0] is False

@@ -145,9 +145,9 @@ class Tests_MGMaximalIndependentSet
         dst_inclusion_cache =
           cugraph::edge_dst_property_t<GraphViewType, vertex_t>(*handle_, mg_graph_view);
         update_edge_src_property(
-          *handle_, mg_graph_view, inclusiong_flags.begin(), src_inclusion_cache);
+          *handle_, mg_graph_view, inclusiong_flags.begin(), src_inclusion_cache.mutable_view());
         update_edge_dst_property(
-          *handle_, mg_graph_view, inclusiong_flags.begin(), dst_inclusion_cache);
+          *handle_, mg_graph_view, inclusiong_flags.begin(), dst_inclusion_cache.mutable_view());
       }
 
       per_v_transform_reduce_outgoing_e(

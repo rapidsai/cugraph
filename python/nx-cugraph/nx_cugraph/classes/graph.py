@@ -50,6 +50,10 @@ class Graph:
     __networkx_backend__: ClassVar[str] = "cugraph"  # nx >=3.2
     __networkx_plugin__: ClassVar[str] = "cugraph"  # nx <3.2
 
+    # Allow networkx dispatch machinery to cache conversions.
+    # This means we should clear the cache if we ever mutate the object!
+    __networkx_cache__: dict | None
+
     # networkx properties
     graph: dict
     graph_attr_dict_factory: ClassVar[type] = dict
@@ -108,6 +112,7 @@ class Graph:
         **attr,
     ) -> Graph:
         new_graph = object.__new__(cls)
+        new_graph.__networkx_cache__ = {}
         new_graph.src_indices = src_indices
         new_graph.dst_indices = dst_indices
         new_graph.edge_values = {} if edge_values is None else dict(edge_values)
@@ -124,13 +129,13 @@ class Graph:
         # Easy and fast sanity checks
         if size != new_graph.dst_indices.size:
             raise ValueError
-        for attr in ["edge_values", "edge_masks"]:
-            if datadict := getattr(new_graph, attr):
+        for edge_attr in ["edge_values", "edge_masks"]:
+            if datadict := getattr(new_graph, edge_attr):
                 for key, val in datadict.items():
                     if val.shape[0] != size:
                         raise ValueError(key)
-        for attr in ["node_values", "node_masks"]:
-            if datadict := getattr(new_graph, attr):
+        for node_attr in ["node_values", "node_masks"]:
+            if datadict := getattr(new_graph, node_attr):
                 for key, val in datadict.items():
                     if val.shape[0] != N:
                         raise ValueError(key)
@@ -420,6 +425,8 @@ class Graph:
         self._node_ids = None
         self.key_to_id = None
         self._id_to_key = None
+        if cache := self.__networkx_cache__:
+            cache.clear()
 
     @networkx_api
     def clear_edges(self) -> None:
@@ -427,6 +434,8 @@ class Graph:
         self.edge_masks.clear()
         self.src_indices = cp.empty(0, self.src_indices.dtype)
         self.dst_indices = cp.empty(0, self.dst_indices.dtype)
+        if cache := self.__networkx_cache__:
+            cache.clear()
 
     @networkx_api
     def copy(self, as_view: bool = False) -> Graph:
@@ -553,6 +562,12 @@ class Graph:
         node_masks = self.node_masks
         key_to_id = self.key_to_id
         id_to_key = None if key_to_id is None else self._id_to_key
+        if self.__networkx_cache__ is None:
+            __networkx_cache__ = None
+        elif not reverse and cls is self.__class__:
+            __networkx_cache__ = self.__networkx_cache__
+        else:
+            __networkx_cache__ = {}
         if not as_view:
             src_indices = src_indices.copy()
             dst_indices = dst_indices.copy()
@@ -564,6 +579,8 @@ class Graph:
                 key_to_id = key_to_id.copy()
                 if id_to_key is not None:
                     id_to_key = id_to_key.copy()
+            if __networkx_cache__ is not None:
+                __networkx_cache__ = __networkx_cache__.copy()
         if reverse:
             src_indices, dst_indices = dst_indices, src_indices
         rv = cls.from_coo(
@@ -581,6 +598,7 @@ class Graph:
             rv.graph = self.graph
         else:
             rv.graph.update(deepcopy(self.graph))
+        rv.__networkx_cache__ = __networkx_cache__
         return rv
 
     def _get_plc_graph(
@@ -719,18 +737,26 @@ class Graph:
         edge_masks = self.edge_masks
         node_values = self.node_values
         node_masks = self.node_masks
+        __networkx_cache__ = self.__networkx_cache__
         graph = self.graph
         edge_values.update(other.edge_values)
         edge_masks.update(other.edge_masks)
         node_values.update(other.node_values)
         node_masks.update(other.node_masks)
         graph.update(other.graph)
+        if other.__networkx_cache__ is None:
+            __networkx_cache__ = None
+        else:
+            if __networkx_cache__ is None:
+                __networkx_cache__ = {}
+            __networkx_cache__.update(other.__networkx_cache__)
         self.__dict__.update(other.__dict__)
         self.edge_values = edge_values
         self.edge_masks = edge_masks
         self.node_values = node_values
         self.node_masks = node_masks
         self.graph = graph
+        self.__networkx_cache__ = __networkx_cache__
         return self
 
     def _degrees_array(self, *, ignore_selfloops=False):

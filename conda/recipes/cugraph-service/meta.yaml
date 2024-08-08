@@ -29,9 +29,11 @@ outputs:
       host:
         - pip
         - python
+        - rapids-build-backend>=0.3.1,<0.4.0.dev0
+        - setuptools>=61.0.0
       run:
         - python
-        - thriftpy2 >=0.4.15
+        - thriftpy2 >=0.4.15,!=0.5.0,!=0.5.1
 
   - name: cugraph-service-server
     version: {{ version }}
@@ -50,8 +52,9 @@ outputs:
       host:
         - pip
         - python
-        - setuptools
+        - setuptools>=61.0.0
         - wheel
+        - rapids-build-backend>=0.3.1,<0.4.0.dev0
       run:
         - {{ pin_subpackage('cugraph-service-client', exact=True) }}
         - cudf ={{ minor_version }}
@@ -63,7 +66,7 @@ outputs:
         - numpy >=1.23,<2.0a0
         - python
         - rapids-dask-dependency ={{ minor_version }}
-        - thriftpy2 >=0.4.15
+        - thriftpy2 >=0.4.15,!=0.5.0,!=0.5.1
         - ucx-py {{ ucx_py_version }}
 
 tests:

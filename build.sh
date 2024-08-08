@@ -87,19 +87,13 @@ HELP="$0 [<target> ...] [<flag> ...]
 "
 LIBCUGRAPH_BUILD_DIR=${LIBCUGRAPH_BUILD_DIR:=${REPODIR}/cpp/build}
 LIBCUGRAPH_ETL_BUILD_DIR=${LIBCUGRAPH_ETL_BUILD_DIR:=${REPODIR}/cpp/libcugraph_etl/build}
-PYLIBCUGRAPH_BUILD_DIR=${REPODIR}/python/pylibcugraph/_skbuild
-CUGRAPH_BUILD_DIR=${REPODIR}/python/cugraph/_skbuild
 CUGRAPH_SERVICE_BUILD_DIRS="${REPODIR}/python/cugraph-service/server/build
                             ${REPODIR}/python/cugraph-service/client/build
 "
 CUGRAPH_DGL_BUILD_DIR=${REPODIR}/python/cugraph-dgl/build
 
-# All python build dirs using _skbuild are handled by cleanPythonDir, but
-# adding them here for completeness
 BUILD_DIRS="${LIBCUGRAPH_BUILD_DIR}
             ${LIBCUGRAPH_ETL_BUILD_DIR}
-            ${PYLIBCUGRAPH_BUILD_DIR}
-            ${CUGRAPH_BUILD_DIR}
             ${CUGRAPH_SERVICE_BUILD_DIRS}
             ${CUGRAPH_DGL_BUILD_DIR}
 "
@@ -115,7 +109,7 @@ BUILD_CPP_MTMG_TESTS=OFF
 BUILD_ALL_GPU_ARCH=0
 BUILD_WITH_CUGRAPHOPS=ON
 CMAKE_GENERATOR_OPTION="-G Ninja"
-PYTHON_ARGS_FOR_INSTALL="-m pip install --no-build-isolation --no-deps"
+PYTHON_ARGS_FOR_INSTALL="-m pip install --no-build-isolation --no-deps --config-settings rapidsai.disable-cuda=true"
 
 # Set defaults for vars that may not have been defined externally
 #  FIXME: if PREFIX is not set, check CONDA_PREFIX, but there is no fallback
@@ -136,7 +130,7 @@ function cleanPythonDir {
     pushd $1 > /dev/null
     rm -rf dist dask-worker-space cugraph/raft *.egg-info
     find . -type d -name __pycache__ -print | xargs rm -rf
-    find . -type d -name _skbuild -print | xargs rm -rf
+    find . -type d -name build -print | xargs rm -rf
     find . -type d -name dist -print | xargs rm -rf
     find . -type f -name "*.cpp" -delete
     find . -type f -name "*.cpython*.so" -delete

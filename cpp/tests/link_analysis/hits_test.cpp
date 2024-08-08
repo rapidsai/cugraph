@@ -255,7 +255,8 @@ class Tests_Hits : public ::testing::TestWithParam<std::tuple<Hits_Usecase, inpu
         if (renumber) {
           rmm::device_uvector<weight_t> d_unrenumbered_initial_random_hubs(0, handle.get_stream());
           std::tie(std::ignore, d_unrenumbered_initial_random_hubs) =
-            cugraph::test::sort_by_key(handle, *d_renumber_map_labels, *d_initial_random_hubs);
+            cugraph::test::sort_by_key<vertex_t, weight_t>(
+              handle, *d_renumber_map_labels, *d_initial_random_hubs);
           h_initial_random_hubs =
             cugraph::test::to_host(handle, d_unrenumbered_initial_random_hubs);
         } else {
@@ -277,7 +278,7 @@ class Tests_Hits : public ::testing::TestWithParam<std::tuple<Hits_Usecase, inpu
       if (renumber) {
         rmm::device_uvector<weight_t> d_unrenumbered_hubs(size_t{0}, handle.get_stream());
         std::tie(std::ignore, d_unrenumbered_hubs) =
-          cugraph::test::sort_by_key(handle, *d_renumber_map_labels, d_hubs);
+          cugraph::test::sort_by_key<vertex_t, weight_t>(handle, *d_renumber_map_labels, d_hubs);
         h_cugraph_hits = cugraph::test::to_host(handle, d_unrenumbered_hubs);
       } else {
         h_cugraph_hits = cugraph::test::to_host(handle, d_hubs);
@@ -337,10 +338,20 @@ INSTANTIATE_TEST_SUITE_P(
                       Hits_Usecase{true, false, true},
                       Hits_Usecase{true, true, true}),
     ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"),
-                      cugraph::test::File_Usecase("test/datasets/web-Google.mtx"),
-                      cugraph::test::File_Usecase("test/datasets/ljournal-2008.mtx"),
-                      cugraph::test::File_Usecase("test/datasets/webbase-1M.mtx"),
                       cugraph::test::File_Usecase("test/datasets/dolphins.mtx"))));
+
+INSTANTIATE_TEST_SUITE_P(
+  file_large_test,
+  Tests_Hits_File,
+  ::testing::Combine(
+    // enable correctness checks
+    ::testing::Values(Hits_Usecase{false, false, true},
+                      Hits_Usecase{false, true, true},
+                      Hits_Usecase{true, false, true},
+                      Hits_Usecase{true, true, true}),
+    ::testing::Values(cugraph::test::File_Usecase("test/datasets/web-Google.mtx"),
+                      cugraph::test::File_Usecase("test/datasets/ljournal-2008.mtx"),
+                      cugraph::test::File_Usecase("test/datasets/webbase-1M.mtx"))));
 
 INSTANTIATE_TEST_SUITE_P(rmat_small_test,
                          Tests_Hits_Rmat,

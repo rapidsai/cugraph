@@ -39,12 +39,23 @@ class GraphStore(
     else torch_geometric.data.GraphStore
 ):
     """
-    This object uses lazy graph creation.  Users can repeatedly call
-    put_edge_index, and the tensors won't be converted into a cuGraph
-    graph until one is needed (i.e. when creating a loader).
+    cuGraph-backed PyG GraphStore implementation that distributes
+    the graph across workers.  This object uses lazy graph creation.
+    Users can repeatedly call put_edge_index, and the tensors won't
+    be converted into a cuGraph graph until one is needed
+    (i.e. when creating a loader). Supports
+    single-node/single-GPU, single-node/multi-GPU, and
+    multi-node/multi-GPU graph storage.
+
+    Each worker should have a slice of the graph locally, and
+    call put_edge_index with its slice.
     """
 
     def __init__(self, is_multi_gpu: bool = False):
+        """
+        Constructs a new, empty GraphStore object.  This object
+        represents one slice of a graph on particular worker.
+        """
         self.__edge_indices = tensordict.TensorDict({}, batch_size=(2,))
         self.__sizes = {}
         self.__graph = None
@@ -260,7 +271,7 @@ class GraphStore(
             torch.tensor(
                 [self.__edge_indices[et].shape[1] for et in sorted_keys],
                 device="cuda",
-                dtype=torch.int32,
+                dtype=torch.int64,
             )
         )
 

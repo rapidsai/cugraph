@@ -1,4 +1,4 @@
-# Copyright (c) 2021-2023, NVIDIA CORPORATION.
+# Copyright (c) 2021-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -14,6 +14,9 @@
 #!/bin/bash
 set -e
 set -o pipefail
+
+# Ensure we're in the cugraph/datasets dir
+cd "$( cd "$( dirname "$(realpath -m "${BASH_SOURCE[0]}")" )" && pwd )";
 
 # Update this to add/remove/change a dataset, using the following format:
 #
@@ -99,28 +102,19 @@ DESTDIRS=($(echo "$DATASET_DATA"|awk '{if (NR%4 == 0) print $0}'))  # extract 4t
 echo Downloading ...
 
 # Download all tarfiles to a tmp dir
-rm -rf tmp
-mkdir tmp
+mkdir -p tmp
 cd tmp
 for url in ${URLS[*]}; do
-   time wget --progress=dot:giga ${url}
+   time wget -N --progress=dot:giga ${url}
 done
 cd ..
 
-# Setup the destination dirs, removing any existing ones first!
-for index in ${!DESTDIRS[*]}; do
-    rm -rf ${DESTDIRS[$index]}
-done
-for index in ${!DESTDIRS[*]}; do
-    mkdir -p ${DESTDIRS[$index]}
-done
+# create the destination dirs
+mkdir -p "${DESTDIRS[@]}"
 
 # Iterate over the arrays and untar the nth tarfile to the nth dest directory.
 # The tarfile name is derived from the download url.
 echo Decompressing ...
 for index in ${!DESTDIRS[*]}; do
-    tfname=$(basename ${URLS[$index]})
-    tar xvzf tmp/${tfname} -C ${DESTDIRS[$index]}
-done
-
-rm -rf tmp
+    echo "tmp/$(basename "${URLS[$index]}") -C ${DESTDIRS[$index]}" | tr '\n' '\0'
+done | xargs -0 -t -r -n1 -P$(nproc --all) sh -c 'tar -xzvf $0 --overwrite'

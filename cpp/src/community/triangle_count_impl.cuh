@@ -172,7 +172,14 @@ void triangle_count(raft::handle_t const& handle,
     }
   }
 
-  if (vertices.has_value() && ((*vertices).size() == 0)) { return; }
+  if (vertices.has_value()) {
+    auto aggregate_vertex_count =
+      multi_gpu
+        ? host_scalar_allreduce(
+            handle.get_comms(), (*vertices).size(), raft::comms::op_t::SUM, handle.get_stream())
+        : (*vertices).size();
+    if (aggregate_vertex_count == 0) { return; }
+  }
 
   auto cur_graph_view = graph_view;
 
@@ -187,7 +194,8 @@ void triangle_count(raft::handle_t const& handle,
   if (vertices) {
     cugraph::edge_property_t<decltype(cur_graph_view), bool> within_two_hop_edge_mask(
       handle, cur_graph_view);
-    cugraph::fill_edge_property(handle, unmasked_cur_graph_view, false, within_two_hop_edge_mask);
+    cugraph::fill_edge_property(
+      handle, unmasked_cur_graph_view, within_two_hop_edge_mask.mutable_view(), false);
 
     rmm::device_uvector<vertex_t> unique_vertices((*vertices).size(), handle.get_stream());
     thrust::copy(
@@ -315,10 +323,14 @@ void triangle_count(raft::handle_t const& handle,
       handle, cur_graph_view);
     edge_dst_property_t<decltype(cur_graph_view), bool> edge_dst_within_two_hop_flags(
       handle, cur_graph_view);
-    update_edge_src_property(
-      handle, cur_graph_view, within_two_hop_flags.begin(), edge_src_within_two_hop_flags);
-    update_edge_dst_property(
-      handle, cur_graph_view, within_two_hop_flags.begin(), edge_dst_within_two_hop_flags);
+    update_edge_src_property(handle,
+                             cur_graph_view,
+                             within_two_hop_flags.begin(),
+                             edge_src_within_two_hop_flags.mutable_view());
+    update_edge_dst_property(handle,
+                             cur_graph_view,
+                             within_two_hop_flags.begin(),
+                             edge_dst_within_two_hop_flags.mutable_view());
 
     transform_e(
       handle,
@@ -341,7 +353,8 @@ void triangle_count(raft::handle_t const& handle,
   {
     cugraph::edge_property_t<decltype(cur_graph_view), bool> self_loop_edge_mask(handle,
                                                                                  cur_graph_view);
-    cugraph::fill_edge_property(handle, unmasked_cur_graph_view, false, self_loop_edge_mask);
+    cugraph::fill_edge_property(
+      handle, unmasked_cur_graph_view, self_loop_edge_mask.mutable_view(), false);
 
     transform_e(
       handle,
@@ -362,7 +375,8 @@ void triangle_count(raft::handle_t const& handle,
   {
     cugraph::edge_property_t<decltype(cur_graph_view), bool> in_two_core_edge_mask(handle,
                                                                                    cur_graph_view);
-    cugraph::fill_edge_property(handle, unmasked_cur_graph_view, false, in_two_core_edge_mask);
+    cugraph::fill_edge_property(
+      handle, unmasked_cur_graph_view, in_two_core_edge_mask.mutable_view(), false);
 
     rmm::device_uvector<edge_t> core_numbers(cur_graph_view.number_of_vertices(),
                                              handle.get_stream());
@@ -381,9 +395,9 @@ void triangle_count(raft::handle_t const& handle,
                  in_two_core_first + core_numbers.size(),
                  in_two_core_flags.begin());
     update_edge_src_property(
-      handle, cur_graph_view, in_two_core_flags.begin(), edge_src_in_two_cores);
+      handle, cur_graph_view, in_two_core_flags.begin(), edge_src_in_two_cores.mutable_view());
     update_edge_dst_property(
-      handle, cur_graph_view, in_two_core_flags.begin(), edge_dst_in_two_cores);
+      handle, cur_graph_view, in_two_core_flags.begin(), edge_dst_in_two_cores.mutable_view());
 
     transform_e(
       handle,
@@ -413,8 +427,10 @@ void triangle_count(raft::handle_t const& handle,
                                                                                cur_graph_view);
     edge_dst_property_t<decltype(cur_graph_view), edge_t> edge_dst_out_degrees(handle,
                                                                                cur_graph_view);
-    update_edge_src_property(handle, cur_graph_view, out_degrees.begin(), edge_src_out_degrees);
-    update_edge_dst_property(handle, cur_graph_view, out_degrees.begin(), edge_dst_out_degrees);
+    update_edge_src_property(
+      handle, cur_graph_view, out_degrees.begin(), edge_src_out_degrees.mutable_view());
+    update_edge_dst_property(
+      handle, cur_graph_view, out_degrees.begin(), edge_dst_out_degrees.mutable_view());
     auto [srcs, dsts] = extract_transform_e(handle,
                                             cur_graph_view,
                                             edge_src_out_degrees.view(),
@@ -423,7 +439,7 @@ void triangle_count(raft::handle_t const& handle,
                                             extract_low_to_high_degree_edges_t<vertex_t, edge_t>{});
 
     if constexpr (multi_gpu) {
-      std::tie(srcs, dsts, std::ignore, std::ignore, std::ignore) =
+      std::tie(srcs, dsts, std::ignore, std::ignore, std::ignore, std::ignore) =
         detail::shuffle_ext_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning<vertex_t,
                                                                                        edge_t,
                                                                                        weight_t,

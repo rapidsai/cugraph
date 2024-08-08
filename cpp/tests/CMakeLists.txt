@@ -45,6 +45,7 @@ add_library(cugraphtestutil STATIC
             cores/k_core_validate.cu
             structure/induced_subgraph_validate.cu
             sampling/random_walks_check_sg.cu
+            sampling/detail/nbr_sampling_validate.cu
             ../../thirdparty/mmio/mmio.c)
 
 target_compile_options(cugraphtestutil
@@ -326,12 +327,8 @@ ConfigureTest(LOUVAIN_TEST community/louvain_test.cpp)
 ConfigureTest(LEIDEN_TEST community/leiden_test.cpp)
 
 ###################################################################################################
-# - WEIGHTED MATCHING tests ----------------------------------------------------------------------------------
+# - WEIGHTED MATCHING tests -----------------------------------------------------------------------
 ConfigureTest(WEIGHTED_MATCHING_TEST community/weighted_matching_test.cpp)
-
-###################################################################################################
-# - Legacy ECG tests -------------------------------------------------------------------------------------
-ConfigureTest(LEGACY_ECG_TEST community/legacy_ecg_test.cpp)
 
 ###################################################################################################
 # - Balanced cut clustering tests -----------------------------------------------------------------
@@ -455,13 +452,13 @@ ConfigureTest(EDGE_BETWEENNESS_CENTRALITY_TEST centrality/edge_betweenness_centr
 # - WEAKLY CONNECTED COMPONENTS tests -------------------------------------------------------------
 ConfigureTest(WEAKLY_CONNECTED_COMPONENTS_TEST components/weakly_connected_components_test.cpp)
 
-###############################################################################################
-# - MIS tests ------------------------------------------------------------------------------
+###################################################################################################
+# - MIS tests -------------------------------------------------------------------------------------
 ConfigureTest(MIS_TEST components/mis_test.cu)
 target_include_directories(MIS_TEST PRIVATE "${CUGRAPH_SOURCE_DIR}/src")
 
-###############################################################################################
-# - VERTEX COLORING tests -------------------------------------------------------------------
+###################################################################################################
+# - VERTEX COLORING tests ----------------------------------------------------------------------
 ConfigureTest(VERTEX_COLORING_TEST components/vertex_coloring_test.cu)
 target_include_directories(VERTEX_COLORING_TEST PRIVATE "${CUGRAPH_SOURCE_DIR}/src")
 
@@ -470,7 +467,7 @@ target_include_directories(VERTEX_COLORING_TEST PRIVATE "${CUGRAPH_SOURCE_DIR}/s
 ConfigureTest(SIMILARITY_TEST link_prediction/similarity_test.cu)
 
 ###################################################################################################
-# - WEIGHTED_SIMILARITY tests ------------------------------------------------------------------------------
+# - WEIGHTED_SIMILARITY tests ---------------------------------------------------------------------
 ConfigureTest(WEIGHTED_SIMILARITY_TEST link_prediction/weighted_similarity_test.cpp)
 
 ###################################################################################################
@@ -479,8 +476,12 @@ ConfigureTest(WEIGHTED_SIMILARITY_TEST link_prediction/weighted_similarity_test.
 ConfigureTest(RANDOM_WALKS_TEST sampling/sg_random_walks_test.cpp)
 
 ###################################################################################################
-# - NBR SAMPLING tests ----------------------------------------------------------------------------
-ConfigureTest(UNIFORM_NEIGHBOR_SAMPLING_TEST sampling/sg_uniform_neighbor_sampling.cu)
+# - UNIFORM NBR SAMPLING tests --------------------------------------------------------------------
+ConfigureTest(UNIFORM_NEIGHBOR_SAMPLING_TEST sampling/uniform_neighbor_sampling.cpp)
+
+###################################################################################################
+# - BIASED NBR SAMPLING tests ---------------------------------------------------------------------
+ConfigureTest(BIASED_NEIGHBOR_SAMPLING_TEST sampling/biased_neighbor_sampling.cpp)
 
 ###################################################################################################
 # - SAMPLING_POST_PROCESSING tests ----------------------------------------------------------------
@@ -498,7 +499,7 @@ ConfigureTest(CORE_NUMBER_TEST cores/core_number_test.cpp)
 # - Core Number tests -----------------------------------------------------------------------------
 ConfigureTest(K_CORE_TEST cores/k_core_test.cpp)
 
-###############################################################################################
+###################################################################################################
 # - K-truss tests --------------------------------------------------------------------------
 ConfigureTest(K_TRUSS_TEST community/k_truss_test.cpp)
 
@@ -507,9 +508,12 @@ ConfigureTest(K_TRUSS_TEST community/k_truss_test.cpp)
 ConfigureTest(TRIANGLE_COUNT_TEST community/triangle_count_test.cpp)
 
 ###################################################################################################
-# - Edge Triangle Count tests --------------------------------------------------------------------------
+# - Edge Triangle Count tests ---------------------------------------------------------------------
 ConfigureTest(EDGE_TRIANGLE_COUNT_TEST community/edge_triangle_count_test.cpp)
 
+###################################################################################################
+# - EDGE SOURCE DESTINATION LOOKUP tests ----------------------------------------------------------
+ConfigureTest(LOOKUP_SRC_DST_TEST lookup/lookup_src_dst_test.cpp)
 
 ###################################################################################################
 # - K-hop Neighbors tests -------------------------------------------------------------------------
@@ -596,7 +600,7 @@ if(BUILD_CUGRAPH_MG_TESTS)
     ConfigureTestMG(MG_LEIDEN_TEST community/mg_leiden_test.cpp)
 
     ###############################################################################################
-    # - MG WEIGHTED MATCHING tests --------------------------------------------------------------------------
+    # - MG WEIGHTED MATCHING tests ----------------------------------------------------------------
     ConfigureTestMG(MG_WEIGHTED_MATCHING_TEST community/mg_weighted_matching_test.cpp)
 
     ###############################################################################################
@@ -612,13 +616,21 @@ if(BUILD_CUGRAPH_MG_TESTS)
     ConfigureTestMG(MG_EGONET_TEST community/mg_egonet_test.cu)
 
     ###############################################################################################
-    # - MG EDGE TRIANGLE COUNT tests --------------------------------------------------------------------------
+    # - MG EDGE TRIANGLE COUNT tests --------------------------------------------------------------
     ConfigureTestMG(MG_EDGE_TRIANGLE_COUNT_TEST community/mg_edge_triangle_count_test.cpp)
+
+    ###############################################################################################
+    # - MG K-TRUSS tests --------------------------------------------------------------------------
+    ConfigureTestMG(MG_K_TRUSS_TEST community/mg_k_truss_test.cpp)
 
     ###############################################################################################
     # - MG WEAKLY CONNECTED COMPONENTS tests ------------------------------------------------------
     ConfigureTestMG(MG_WEAKLY_CONNECTED_COMPONENTS_TEST
                     components/mg_weakly_connected_components_test.cpp)
+
+    ###############################################################################################
+    # - MG EDGE SOURCE DESTINATION LOOKUP tests ---------------------------------------------------
+    ConfigureTestMG(MG_LOOKUP_SRC_DST_TEST lookup/mg_lookup_src_dst_test.cpp)
 
     ###############################################################################################
     # - MG MIS tests ------------------------------------------------------------------------------
@@ -653,9 +665,9 @@ if(BUILD_CUGRAPH_MG_TESTS)
     ConfigureTestMG(MG_COUNT_IF_V_TEST prims/mg_count_if_v.cu)
 
     ###############################################################################################
-    # - MG PRIMS TRANSFORM_REDUCE_V_FRONTIER_OUTGOING_E_BY_DST tests ------------------------------
-    ConfigureTestMG(MG_TRANSFORM_REDUCE_V_FRONTIER_OUTGOING_E_BY_DST_TEST
-                    prims/mg_transform_reduce_v_frontier_outgoing_e_by_dst.cu)
+    # - MG PRIMS TRANSFORM_REDUCE_V_FRONTIER_OUTGOING_E_BY_SRC_DST tests --------------------------
+    ConfigureTestMG(MG_TRANSFORM_REDUCE_V_FRONTIER_OUTGOING_E_BY_SRC_DST_TEST
+                    prims/mg_transform_reduce_v_frontier_outgoing_e_by_src_dst.cu)
 
     ###############################################################################################
     # - MG PRIMS REDUCE_V tests -------------------------------------------------------------------
@@ -722,15 +734,19 @@ if(BUILD_CUGRAPH_MG_TESTS)
                     prims/mg_per_v_pair_transform_dst_nbr_weighted_intersection.cu)
 
     ###############################################################################################
-    # - MG NBR SAMPLING tests ---------------------------------------------------------------------
-    ConfigureTestMG(MG_UNIFORM_NEIGHBOR_SAMPLING_TEST sampling/mg_uniform_neighbor_sampling.cu)
+    # - MG UNIFORM NBR SAMPLING tests -------------------------------------------------------------
+    ConfigureTestMG(MG_UNIFORM_NEIGHBOR_SAMPLING_TEST sampling/mg_uniform_neighbor_sampling.cpp)
+
+    ###############################################################################################
+    # - MG BIASED NBR SAMPLING tests --------------------------------------------------------------
+    ConfigureTestMG(MG_BIASED_NEIGHBOR_SAMPLING_TEST sampling/mg_biased_neighbor_sampling.cpp)
 
     ###############################################################################################
     # - MG RANDOM_WALKS tests ---------------------------------------------------------------------
     ConfigureTestMG(MG_RANDOM_WALKS_TEST sampling/mg_random_walks_test.cpp)
 
     ###############################################################################################
-    # - MG WEIGHTED_SIMILARITY tests -----------------------------------------------------------------------
+    # - MG WEIGHTED_SIMILARITY tests --------------------------------------------------------------
     ConfigureTestMG(MG_WEIGHTED_SIMILARITY_TEST link_prediction/mg_weighted_similarity_test.cpp)
 
     ###############################################################################################
@@ -756,6 +772,8 @@ if(BUILD_CUGRAPH_MG_TESTS)
     ConfigureCTestMG(MG_CAPI_EDGE_BETWEENNESS_CENTRALITY_TEST c_api/mg_edge_betweenness_centrality_test.c)
     ConfigureCTestMG(MG_CAPI_HITS_TEST c_api/mg_hits_test.c)
     ConfigureCTestMG(MG_CAPI_UNIFORM_NEIGHBOR_SAMPLE_TEST c_api/mg_uniform_neighbor_sample_test.c)
+    ConfigureCTestMG(MG_CAPI_BIASED_NEIGHBOR_SAMPLE_TEST c_api/mg_biased_neighbor_sample_test.c)
+    ConfigureCTestMG(MG_CAPI_LOOKUP_SRC_DST_TEST c_api/mg_lookup_src_dst_test.c)
     ConfigureCTestMG(MG_CAPI_RANDOM_WALKS_TEST c_api/mg_random_walks_test.c)
     ConfigureCTestMG(MG_CAPI_TRIANGLE_COUNT_TEST c_api/mg_triangle_count_test.c)
     ConfigureCTestMG(MG_CAPI_LOUVAIN_TEST c_api/mg_louvain_test.c)
@@ -769,6 +787,7 @@ if(BUILD_CUGRAPH_MG_TESTS)
     ConfigureCTestMG(MG_CAPI_COUNT_MULTI_EDGES c_api/mg_count_multi_edges_test.c)
     ConfigureCTestMG(MG_CAPI_EGONET_TEST c_api/mg_egonet_test.c)
     ConfigureCTestMG(MG_CAPI_TWO_HOP_NEIGHBORS_TEST c_api/mg_two_hop_neighbors_test.c)
+    ConfigureCTestMG(MG_CAPI_K_TRUSS c_api/mg_k_truss_test.c)
 
     rapids_test_install_relocatable(INSTALL_COMPONENT_SET testing_mg DESTINATION bin/gtests/libcugraph_mg)
 
@@ -792,6 +811,7 @@ ConfigureCTest(CAPI_NODE2VEC_TEST c_api/node2vec_test.c)
 ConfigureCTest(CAPI_WEAKLY_CONNECTED_COMPONENTS_TEST c_api/weakly_connected_components_test.c)
 ConfigureCTest(CAPI_STRONGLY_CONNECTED_COMPONENTS_TEST c_api/strongly_connected_components_test.c)
 ConfigureCTest(CAPI_UNIFORM_NEIGHBOR_SAMPLE_TEST c_api/uniform_neighbor_sample_test.c)
+ConfigureCTest(CAPI_BIASED_NEIGHBOR_SAMPLE_TEST c_api/biased_neighbor_sample_test.c)
 ConfigureCTest(CAPI_RANDOM_WALKS_TEST c_api/sg_random_walks_test.c)
 ConfigureCTest(CAPI_TRIANGLE_COUNT_TEST c_api/triangle_count_test.c)
 ConfigureCTest(CAPI_LOUVAIN_TEST c_api/louvain_test.c)
@@ -805,7 +825,6 @@ ConfigureCTest(CAPI_ECG_TEST c_api/ecg_test.c)
 # xref: https://github.com/rapidsai/raft/issues/2186                        #
 #############################################################################
 # ConfigureCTest(CAPI_LEGACY_SPECTRAL_TEST c_api/legacy_spectral_test.c)
-ConfigureCTest(CAPI_LEGACY_ECG_TEST c_api/legacy_ecg_test.c)
 ConfigureCTest(CAPI_CORE_NUMBER_TEST c_api/core_number_test.c)
 ConfigureCTest(CAPI_SIMILARITY_TEST c_api/similarity_test.c)
 ConfigureCTest(CAPI_K_CORE_TEST c_api/k_core_test.c)

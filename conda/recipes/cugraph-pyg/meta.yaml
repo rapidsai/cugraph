@@ -24,7 +24,8 @@ requirements:
   host:
     - cython >=3.0.0
     - python
-    - scikit-build-core >=0.7.0
+    - rapids-build-backend>=0.3.1,<0.4.0.dev0
+    - setuptools>=61.0.0
   run:
     - rapids-dask-dependency ={{ minor_version }}
     - numba >=0.57

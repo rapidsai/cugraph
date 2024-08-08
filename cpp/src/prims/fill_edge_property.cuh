@@ -33,11 +33,11 @@ namespace cugraph {
 
 namespace detail {
 
-template <typename GraphViewType, typename T, typename EdgePropertyOutputWrapper>
+template <typename GraphViewType, typename EdgePropertyOutputWrapper, typename T>
 void fill_edge_property(raft::handle_t const& handle,
                         GraphViewType const& graph_view,
-                        T input,
-                        EdgePropertyOutputWrapper edge_property_output)
+                        EdgePropertyOutputWrapper edge_property_output,
+                        T input)
 {
   static_assert(std::is_same_v<T, typename EdgePropertyOutputWrapper::value_type>);
 
@@ -123,27 +123,28 @@ void fill_edge_property(raft::handle_t const& handle,
  * @brief Fill graph edge property values to the input value.
  *
  * @tparam GraphViewType Type of the passed non-owning graph object.
+ * @tparam EdgeValueOutputWrapper Type of the wrapper for output edge property values.
  * @tparam T Type of the edge property values.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Non-owning graph object.
+ * @param edge_property_output edge_property_view_t class object to store edge property values (for
+ * the edges assigned to this process in multi-GPU).
  * @param input Edge property values will be set to @p input.
- * @param edge_property_output edge_property_t class object to store edge property values (for the
- * edges assigned to this process in multi-GPU).
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  */
-template <typename GraphViewType, typename T>
+template <typename GraphViewType, typename EdgeValueOutputWrapper, typename T>
 void fill_edge_property(raft::handle_t const& handle,
                         GraphViewType const& graph_view,
+                        EdgeValueOutputWrapper edge_property_output,
                         T input,
-                        edge_property_t<GraphViewType, T>& edge_property_output,
                         bool do_expensive_check = false)
 {
   if (do_expensive_check) {
     // currently, nothing to do
   }
 
-  detail::fill_edge_property(handle, graph_view, input, edge_property_output.mutable_view());
+  detail::fill_edge_property(handle, graph_view, edge_property_output, input);
 }
 
 }  // namespace cugraph

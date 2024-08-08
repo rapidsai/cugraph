@@ -15,8 +15,12 @@
  */
 #pragma once
 
+#include <cugraph/graph_view.hpp>
+#include <cugraph/src_dst_lookup_container.hpp>
+
 #include <raft/core/device_span.hpp>
 #include <raft/core/handle.hpp>
+#include <raft/random/rng_state.hpp>
 
 #include <rmm/device_uvector.hpp>
 
@@ -24,6 +28,217 @@
 #include <tuple>
 
 namespace cugraph {
+
+/**
+ * @brief Controls how we treat prior sources in sampling
+ *
+ * @param DEFAULT    Add vertices encountered while sampling to the new frontier
+ * @param CARRY_OVER In addition to newly encountered vertices, include vertices
+ *                   used as sources in any previous frontier in the new frontier
+ * @param EXCLUDE    Filter the new frontier to exclude any vertex that was
+ *                   used as a source in a previous frontier
+ */
+enum class prior_sources_behavior_t { DEFAULT = 0, CARRY_OVER, EXCLUDE };
+
+/**
+ * @brief Uniform Neighborhood Sampling.
+ *
+ * This function traverses from a set of starting vertices, traversing outgoing edges and
+ * randomly selects from these outgoing neighbors to extract a subgraph.
+ *
+ * Output from this function is a tuple of vectors (src, dst, weight, edge_id, edge_type, hop,
+ * label, offsets), identifying the randomly selected edges.  src is the source vertex, dst is the
+ * destination vertex, weight (optional) is the edge weight, edge_id (optional) identifies the edge
+ * id, edge_type (optional) identifies the edge type, hop identifies which hop the edge was
+ * encountered in.  The label output (optional) identifes the vertex label.  The offsets array
+ * (optional) will be described below and is dependent upon the input parameters.
+ *
+ * If @p starting_vertex_labels is not specified then no organization is applied to the output, the
+ * label and offsets values in the return set will be std::nullopt.
+ *
+ * If @p starting_vertex_labels is specified and @p label_to_output_comm_rank is not specified then
+ * the label output has values.  This will also result in the output being sorted by vertex label.
+ * The offsets array in the return will be a CSR-style offsets array to identify the beginning of
+ * each label range in the data.  `labels.size() == (offsets.size() - 1)`.
+ *
+ * If @p starting_vertex_labels is specified and @p label_to_output_comm_rank is specified then the
+ * label output has values.  This will also result in the output being sorted by vertex label.  The
+ * offsets array in the return will be a CSR-style offsets array to identify the beginning of each
+ * label range in the data.  `labels.size() == (offsets.size() - 1)`.  Additionally, the data will
+ * be shuffled so that all data with a particular label will be on the specified rank.
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
+ * @tparam weight_t Type of edge weights. Needs to be a floating point type.
+ * @tparam edge_type_t Type of edge type. Needs to be an integral type.
+ * @tparam label_t Type of label. Needs to be an integral type.
+ * @tparam store_transposed Flag indicating whether sources (if false) or destinations (if
+ * true) are major indices
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param graph_view Graph View object to generate NBR Sampling on.
+ * @param edge_weight_view Optional view object holding edge weights for @p graph_view.
+ * @param edge_id_view Optional view object holding edge ids for @p graph_view.
+ * @param edge_type_view Optional view object holding edge types for @p graph_view.
+ * @param starting_vertices Device span of starting vertex IDs for the sampling.
+ * In a multi-gpu context the starting vertices should be local to this GPU.
+ * @param starting_vertex_labels Optional device span of labels associted with each starting vertex
+ * for the sampling.
+ * @param label_to_output_comm_rank Optional tuple of device spans mapping label to a particular
+ * output rank.  Element 0 of the tuple identifes the label, Element 1 of the tuple identifies the
+ * output rank.  The label span must be sorted in ascending order.
+ * @param fan_out Host span defining branching out (fan-out) degree per source vertex for each
+ * level
+ * @param rng_state A pre-initialized raft::RngState object for generating random numbers
+ * @param return_hops boolean flag specifying if the hop information should be returned
+ * @param prior_sources_behavior Enum type defining how to handle prior sources, (defaults to
+ * DEFAULT)
+ * @param dedupe_sources boolean flag, if true then if a vertex v appears as a destination in hop X
+ * multiple times with the same label, it will only be passed once (for each label) as a source
+ * for the next hop.  Default is false.
+ * @param with_replacement boolean flag specifying if random sampling is done with replacement
+ * (true); or, without replacement (false); default = true;
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
+ * @return tuple device vectors (vertex_t source_vertex, vertex_t destination_vertex,
+ * optional weight_t weight, optional edge_t edge id, optional edge_type_t edge type,
+ * optional int32_t hop, optional label_t label, optional size_t offsets)
+ */
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          typename edge_type_t,
+          typename label_t,
+          bool store_transposed,
+          bool multi_gpu>
+std::tuple<rmm::device_uvector<vertex_t>,
+           rmm::device_uvector<vertex_t>,
+           std::optional<rmm::device_uvector<weight_t>>,
+           std::optional<rmm::device_uvector<edge_t>>,
+           std::optional<rmm::device_uvector<edge_type_t>>,
+           std::optional<rmm::device_uvector<int32_t>>,
+           std::optional<rmm::device_uvector<label_t>>,
+           std::optional<rmm::device_uvector<size_t>>>
+uniform_neighbor_sample(
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
+  std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
+  std::optional<edge_property_view_t<edge_t, edge_t const*>> edge_id_view,
+  std::optional<edge_property_view_t<edge_t, edge_type_t const*>> edge_type_view,
+  raft::device_span<vertex_t const> starting_vertices,
+  std::optional<raft::device_span<label_t const>> starting_vertex_labels,
+  std::optional<std::tuple<raft::device_span<label_t const>, raft::device_span<int32_t const>>>
+    label_to_output_comm_rank,
+  raft::host_span<int32_t const> fan_out,
+  raft::random::RngState& rng_state,
+  bool return_hops,
+  bool with_replacement                           = true,
+  prior_sources_behavior_t prior_sources_behavior = prior_sources_behavior_t::DEFAULT,
+  bool dedupe_sources                             = false,
+  bool do_expensive_check                         = false);
+
+/**
+ * @brief Biased Neighborhood Sampling.
+ *
+ * This function traverses from a set of starting vertices, traversing outgoing edges and
+ * randomly selects (with edge biases) from these outgoing neighbors to extract a subgraph.
+ *
+ * Output from this function is a tuple of vectors (src, dst, weight, edge_id, edge_type, hop,
+ * label, offsets), identifying the randomly selected edges.  src is the source vertex, dst is the
+ * destination vertex, weight (optional) is the edge weight, edge_id (optional) identifies the edge
+ * id, edge_type (optional) identifies the edge type, hop identifies which hop the edge was
+ * encountered in.  The label output (optional) identifes the vertex label.  The offsets array
+ * (optional) will be described below and is dependent upon the input parameters.
+ *
+ * If @p starting_vertex_labels is not specified then no organization is applied to the output, the
+ * label and offsets values in the return set will be std::nullopt.
+ *
+ * If @p starting_vertex_labels is specified and @p label_to_output_comm_rank is not specified then
+ * the label output has values.  This will also result in the output being sorted by vertex label.
+ * The offsets array in the return will be a CSR-style offsets array to identify the beginning of
+ * each label range in the data.  `labels.size() == (offsets.size() - 1)`.
+ *
+ * If @p starting_vertex_labels is specified and @p label_to_output_comm_rank is specified then the
+ * label output has values.  This will also result in the output being sorted by vertex label.  The
+ * offsets array in the return will be a CSR-style offsets array to identify the beginning of each
+ * label range in the data.  `labels.size() == (offsets.size() - 1)`.  Additionally, the data will
+ * be shuffled so that all data with a particular label will be on the specified rank.
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
+ * @tparam weight_t Type of edge weights. Needs to be a floating point type.
+ * @tparam edge_type_t Type of edge type. Needs to be an integral type.
+ * @tparam label_t Type of label. Needs to be an integral type.
+ * @tparam store_transposed Flag indicating whether sources (if false) or destinations (if
+ * true) are major indices
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param graph_view Graph View object to generate NBR Sampling on.
+ * @param edge_weight_view Optional view object holding edge weights for @p graph_view.
+ * @param edge_id_view Optional view object holding edge ids for @p graph_view.
+ * @param edge_type_view Optional view object holding edge types for @p graph_view.
+ * @param edge_bias_view View object holding edge biases (to be used in biased sampling) for @p
+ * graph_view. Bias values should be non-negative and the sum of edge bias values from any vertex
+ * should not exceed std::numeric_limits<bias_t>::max(). 0 bias value indicates that the
+ * corresponding edge can never be selected.
+ * @param starting_vertices Device span of starting vertex IDs for the sampling.
+ * In a multi-gpu context the starting vertices should be local to this GPU.
+ * @param starting_vertex_labels Optional device span of labels associted with each starting vertex
+ * for the sampling.
+ * @param label_to_output_comm_rank Optional tuple of device spans mapping label to a particular
+ * output rank.  Element 0 of the tuple identifes the label, Element 1 of the tuple identifies the
+ * output rank.  The label span must be sorted in ascending order.
+ * @param fan_out Host span defining branching out (fan-out) degree per source vertex for each
+ * level
+ * @param rng_state A pre-initialized raft::RngState object for generating random numbers
+ * @param return_hops boolean flag specifying if the hop information should be returned
+ * @param prior_sources_behavior Enum type defining how to handle prior sources, (defaults to
+ * DEFAULT)
+ * @param dedupe_sources boolean flag, if true then if a vertex v appears as a destination in hop X
+ * multiple times with the same label, it will only be passed once (for each label) as a source
+ * for the next hop.  Default is false.
+ * @param with_replacement boolean flag specifying if random sampling is done with replacement
+ * (true); or, without replacement (false); default = true;
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
+ * @return tuple device vectors (vertex_t source_vertex, vertex_t destination_vertex,
+ * optional weight_t weight, optional edge_t edge id, optional edge_type_t edge type,
+ * optional int32_t hop, optional label_t label, optional size_t offsets)
+ */
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          typename edge_type_t,
+          typename bias_t,
+          typename label_t,
+          bool store_transposed,
+          bool multi_gpu>
+std::tuple<rmm::device_uvector<vertex_t>,
+           rmm::device_uvector<vertex_t>,
+           std::optional<rmm::device_uvector<weight_t>>,
+           std::optional<rmm::device_uvector<edge_t>>,
+           std::optional<rmm::device_uvector<edge_type_t>>,
+           std::optional<rmm::device_uvector<int32_t>>,
+           std::optional<rmm::device_uvector<label_t>>,
+           std::optional<rmm::device_uvector<size_t>>>
+biased_neighbor_sample(
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
+  std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
+  std::optional<edge_property_view_t<edge_t, edge_t const*>> edge_id_view,
+  std::optional<edge_property_view_t<edge_t, edge_type_t const*>> edge_type_view,
+  edge_property_view_t<edge_t, bias_t const*> edge_bias_view,
+  raft::device_span<vertex_t const> starting_vertices,
+  std::optional<raft::device_span<label_t const>> starting_vertex_labels,
+  std::optional<std::tuple<raft::device_span<label_t const>, raft::device_span<int32_t const>>>
+    label_to_output_comm_rank,
+  raft::host_span<int32_t const> fan_out,
+  raft::random::RngState& rng_state,
+  bool return_hops,
+  bool with_replacement                           = true,
+  prior_sources_behavior_t prior_sources_behavior = prior_sources_behavior_t::DEFAULT,
+  bool dedupe_sources                             = false,
+  bool do_expensive_check                         = false);
 
 /*
  * @brief renumber sampled edge list and compress to the (D)CSR|(D)CSC format.
@@ -251,6 +466,138 @@ renumber_and_sort_sampled_edgelist(
   bool do_expensive_check = false);
 
 /*
+ * @brief renumber sampled edge list (vertex & edge IDs) per vertex/edge type and sort the
+ * renumbered edges.
+ *
+ * This function renumbers sampling function (e.g. uniform_neighbor_sample) output edge
+ * source/destination vertex IDs fulfilling the following requirements. Assume major = source if @p
+ * src_is_major is true, major = destination if @p src_is_major is false.
+ *
+ * 1. If @p edgelist_hops is valid, we can consider (vertex ID, hop, flag=major) triplets for each
+ * vertex ID in edge majors (@p edgelist_srcs if @p src_is_major is true, @p edgelist_dsts if false)
+ * and (vertex ID, hop, flag=minor) triplets for each vertex ID in edge minors. From these triplets,
+ * we can find the minimum (hop, flag) pairs for every unique vertex ID (hop is the primary key and
+ * flag is the secondary key, flag=major is considered smaller than flag=minor if hop numbers are
+ * same). Vertex IDs with smaller (hop, flag) pairs precede vertex IDs with larger (hop, flag) pairs
+ * in renumbering (if their vertex types are same, vertices with different types are renumbered
+ * separately). Ordering can be arbitrary among the vertices with the same (vertex type, hop, flag)
+ * triplets. If @p seed_vertices.has-value() is true, we assume (hop=0, flag=major) for every vertex
+ * in @p *seed_vertices in renumbering (this is relevant when there are seed vertices with no
+ * neighbors).
+ * 2. If @p edgelist_hops is invalid, unique vertex IDs in edge majors precede vertex IDs that
+ * appear only in edge minors. If @p seed_vertices.has_value() is true, vertices in @p
+ * *seed_vertices precede vertex IDs that appear only in edge minors as well.
+ * 3. Vertices with different types will be renumbered separately. Unique vertex IDs for each vertex
+ * type are mapped to consecutive integers starting from 0.
+ * 4. If edgelist_label_offsets.has_value() is true, edge lists for different labels will be
+ * renumbered separately.
+ *
+ * Edge IDs are renumbered fulfilling the following requirements (This is relevant only when @p
+ * edgelist_edge_ids.has_value() is true).
+ *
+ * 1. If @p edgelist_edge_types.has_value() is true, unique (edge type, edge ID) pairs are
+ * renumbered to consecutive integers starting from 0 for each edge type. If @p
+ * edgelist_edge_types.has_value() is true, unique edge IDs are renumbered to consecutive inetgers
+ * starting from 0.
+ * 2. If edgelist_label_offsets.has_value() is true, edge lists for different labels will be
+ * renumbered separately.
+ *
+ * The renumbered edges are sorted based on the following rules.
+ *
+ * 1. If @p src_is_major is true, use ((edge type), (hop), src, dst) as the key in sorting. If @p
+ * src_is_major is false, use ((edge type), (hop), dst, src) instead. edge type is used only if @p
+ * edgelist_edge_types.has_value() is true. hop is used only if @p edgelist_hops.has_value() is
+ * true.
+ * 2. Edges in each label are sorted independently if @p edgelist_label_offsets.has_value() is true.
+ *
+ * This function is single-GPU only (we are not aware of any practical multi-GPU use cases).
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam weight_t Type of edge weight.  Needs to be floating point type
+ * @tparam edge_id_t Type of edge id.  Needs to be an integral type
+ * @tparam edge_type_t Type of edge type.  Needs to be an integral type, currently only int32_t is
+ * supported
+ * @param  handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param edgelist_srcs A vector storing edgelist source vertices.
+ * @param edgelist_dsts A vector storing edgelist destination vertices (size = @p
+ * edgelist_srcs.size()).
+ * @param edgelist_weights An optional vector storing edgelist weights (size = @p
+ * edgelist_srcs.size() if valid).
+ * @param edgelist_edge_ids An optional vector storing edgelist edge IDs (size = @p
+ * edgelist_srcs.size() if valid).
+ * @param edgelist_edge_types An optional vector storing edgelist edge types (size = @p
+ * edgelist_srcs.size() if valid).
+ * @param edgelist_hops An optional vector storing edge list hop numbers (size = @p
+ * edgelist_srcs.size() if valid). @p edgelist_hops should be valid if @p num_hops >= 2.
+ * @param edgelist_label_offsets An optional pointer to the array storing label offsets to the input
+ * edges (size = @p num_labels + 1). @p edgelist_label_offsets should be valid if @p num_labels
+ * >= 2.
+ * @param seed_vertices An optional pointer to the array storing seed vertices in hop 0.
+ * @param seed_vertex_label_offsets An optional pointer to the array storing label offsets to the
+ * seed vertices (size = @p num_labels + 1). @p seed_vertex_label_offsets should be valid if @p
+ * num_labels >= 2 and @p seed_vertices is valid and invalid otherwise.
+ * ext_vertices A pointer to the array storing external vertex IDs for the local internal vertices.
+ * The local internal vertex range can be obatined bgy invoking a graph_view_t object's
+ * local_vertex_partition_range() function. ext_vertex_type offsets A pointer to the array storing
+ * vertex type offsets for the entire external vertex ID range (array size = @p num_vertex_types +
+ * 1). For example, if the array stores [0, 100, 200], external vertex IDs [0, 100) has vertex type
+ * 0 and external vertex IDs [100, 200) has vertex type 1.
+ * @param num_labels Number of labels. Labels are considered if @p num_labels >=2 and ignored if @p
+ * num_labels = 1.
+ * @param num_hops Number of hops. Hop numbers are considered if @p num_hops >=2 and ignored if @p
+ * num_hops = 1.
+ * @param num_vertex_types Number of vertex types.
+ * @param num_edge_types Number of edge types.
+ * @param src_is_major A flag to determine whether to use the source or destination as the
+ * major key in renumbering and sorting.
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
+ * @return Tuple of vectors storing edge sources, edge destinations, optional edge weights (valid
+ * only if @p edgelist_weights.has_value() is true), optional edge IDs (valid only if @p
+ * edgelist_edge_ids.has_value() is true), optional edge types (valid only if @p
+ * edgelist_edge_types.has_value() is true), optional (label, hop) offset values to the renumbered
+ * and sorted edges (size = @p num_labels * @p num_hops + 1, valid only when @p
+ * edgelist_hops.has_value() or @p edgelist_label_offsetes.has_value() is true), renumber_map to
+ * query original vertices (size = # unique or aggregate # unique vertices for each label), and
+ * label offsets to the renumber map (size = @p num_labels + 1, valid only if @p
+ * edgelist_label_offsets.has_value() is true).
+ */
+template <typename vertex_t,
+          typename weight_t,
+          typename edge_id_t,
+          typename edge_type_t>
+std::tuple<
+  rmm::device_uvector<vertex_t>,                    // srcs
+  rmm::device_uvector<vertex_t>,                    // dsts
+  std::optional<rmm::device_uvector<weight_t>>,     // weights
+  std::optional<rmm::device_uvector<edge_id_t>>,    // edge IDs
+  std::optional<rmm::device_uvector<edge_type_t>>,  // edge types
+  std::optional<rmm::device_uvector<size_t>>,       // (label, edge type, hop) offsets to the edges
+  rmm::device_uvector<vertex_t>,                    // vertex renumber map
+  std::optional<rmm::device_uvector<size_t>>,  // (label, type) offsets to the vertex renumber map
+  std::optional<rmm::device_uvector<edge_id_t>>,  // edge ID renumber map
+  std::optional<rmm::device_uvector<size_t>>>  // (label, type) offsets to the edge ID renumber map
+heterogeneous_renumber_and_sort_sampled_edgelist(
+  raft::handle_t const& handle,
+  rmm::device_uvector<vertex_t>&& edgelist_srcs,
+  rmm::device_uvector<vertex_t>&& edgelist_dsts,
+  std::optional<rmm::device_uvector<weight_t>>&& edgelist_weights,
+  std::optional<rmm::device_uvector<edge_id_t>>&& edgelist_edge_ids,
+  std::optional<rmm::device_uvector<edge_type_t>>&& edgelist_edge_types,
+  std::optional<rmm::device_uvector<int32_t>>&& edgelist_hops,
+  std::optional<raft::device_span<size_t const>> edgelist_label_offsets,
+  std::optional<raft::device_span<vertex_t const>> seed_vertices,
+  std::optional<raft::device_span<size_t const>> seed_vertex_label_offsets,
+  raft::device_span<vertex_t const> ext_vertices,
+  raft::device_span<vertex_t const> ext_vertex_type_offsets,
+  size_t num_labels,
+  size_t num_hops,
+  size_t num_vertex_types,
+  size_t num_edge_types,
+  bool src_is_major       = true,
+  bool do_expensive_check = false);
+
+/*
  * @brief sort sampled edge list.
  *
  * Sampled edges are sorted based on the following rules.
@@ -317,5 +664,83 @@ sort_sampled_edgelist(raft::handle_t const& handle,
                       size_t num_hops,
                       bool src_is_major       = true,
                       bool do_expensive_check = false);
+/*
+ * @brief Build map to lookup source and destination using edge id and type
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
+ * @tparam edge_type_t Type of edge types. Needs to be an integral type.
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param graph_view Graph view object.
+ * @param edge_id_view View object holding edge ids of the edges of the graph pointed @p graph_view
+ * @param edge_type_view View object holding edge types of the edges of the graph pointed @p
+ * graph_view
+ * @return An object of type cugraph::lookup_container_t that encapsulates edge id and type to
+ * source and destination lookup map.
+ */
+template <typename vertex_t, typename edge_t, typename edge_type_t, bool multi_gpu>
+lookup_container_t<edge_t, edge_type_t, vertex_t> build_edge_id_and_type_to_src_dst_lookup_map(
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+  edge_property_view_t<edge_t, edge_t const*> edge_id_view,
+  edge_property_view_t<edge_t, edge_type_t const*> edge_type_view);
+
+/*
+ * @brief Lookup edge sources and destinations using edge ids and a single edge type.
+ * Use this function to lookup endpoints of edges belonging to the same edge type.
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
+ * @tparam edge_type_t Type of edge types. Needs to be an integral type.
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param lookup_container Object of type cugraph::lookup_container_t that encapsulates edge id and
+ * type to source and destination lookup map.
+ * @param edge_ids_to_lookup Device span of edge ids to lookup
+ * @param edge_type_to_lookup Type of the edges corresponding to edge ids in @p edge_ids_to_lookup
+ * @return A tuple of device vector containing edge sources and destinations for edge ids
+ * in @p edge_ids_to_lookup and edge type @. If an edge id in @p edge_ids_to_lookup or
+ * edge type @edge_type_to_lookup is not found, the corresponding entry in the device vectors of
+ * the returned tuple will contain cugraph::invalid_vertex_id<vertex_t>.
+ */
+template <typename vertex_t, typename edge_t, typename edge_type_t, bool multi_gpu>
+std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>>
+lookup_endpoints_from_edge_ids_and_single_type(
+  raft::handle_t const& handle,
+  lookup_container_t<edge_t, edge_type_t, vertex_t> const& lookup_container,
+  raft::device_span<edge_t const> edge_ids_to_lookup,
+  edge_type_t edge_type_to_lookup);
+
+/*
+ * @brief Lookup edge sources and destinations using edge ids and edge types.
+ * Use this function to lookup endpoints of edges belonging to different edge types.
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
+ * @tparam edge_type_t Type of edge types. Needs to be an integral type.
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param lookup_container Object of type cugraph::lookup_container_t that encapsulates edge id and
+ * type to source and destination lookup map.
+ * @param edge_ids_to_lookup Device span of edge ids to lookup
+ * @param edge_types_to_lookup Device span of edge types corresponding to the edge ids
+ * in @p edge_ids_to_lookup
+ * @return A tuple of device vector containing edge sources and destinations for the edge ids
+ * in @p edge_ids_to_lookup and the edge types in @p edge_types_to_lookup. If an edge id in
+ * @p edge_ids_to_lookup or edge type in @p edge_types_to_lookup is not found, the
+ * corresponding entry in the device vectors of the returned tuple will contain
+ * cugraph::invalid_vertex_id<vertex_t>.
+ */
+template <typename vertex_t, typename edge_t, typename edge_type_t, bool multi_gpu>
+std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>>
+lookup_endpoints_from_edge_ids_and_types(
+  raft::handle_t const& handle,
+  lookup_container_t<edge_t, edge_type_t, vertex_t> const& lookup_container,
+  raft::device_span<edge_t const> edge_ids_to_lookup,
+  raft::device_span<edge_type_t const> edge_types_to_lookup);
 
 }  // namespace cugraph

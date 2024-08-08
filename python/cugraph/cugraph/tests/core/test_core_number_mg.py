@@ -70,6 +70,7 @@ def test_sg_core_number(dask_client, dataset, degree_type, benchmark):
 @pytest.mark.parametrize("dataset", DATASETS)
 @pytest.mark.parametrize("degree_type", DEGREE_TYPE)
 def test_core_number(dask_client, dataset, degree_type, benchmark):
+    dataset.get_dask_edgelist(download=True)  # reload with MG edgelist
     dg = dataset.get_dask_graph(create_using=cugraph.Graph(directed=False))
 
     result_core_number = benchmark(dcg.core_number, dg, degree_type)

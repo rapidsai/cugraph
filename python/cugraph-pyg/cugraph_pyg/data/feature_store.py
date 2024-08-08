@@ -36,6 +36,9 @@ class TensorDictFeatureStore(
     """
 
     def __init__(self):
+        """
+        Constructs an empty TensorDictFeatureStore.
+        """
         super().__init__()
 
         self.__features = {}
@@ -141,15 +144,24 @@ class WholeFeatureStore(
     distributed, and avoids data replication across workers.
 
     Data should be sliced before being passed into this feature store.
-    That means each worker should have its own partition.
+    That means each worker should have its own partition and put_tensor
+    should be called for each worker's local partition.  When calling
+    get_tensor, multi_get_tensor, etc., the entire tensor can be accessed
+    regardless of what worker's partition the desired slice of the tensor
+    is on.
     """
 
     def __init__(self, memory_type="distributed", location="cpu"):
         """
+        Constructs an empty WholeFeatureStore.
+
         Parameters
         ----------
         memory_type: str (optional, default='distributed')
-            The memory type of this store.
+            The memory type of this store.  Options are
+            'distributed', 'chunked', and 'continuous'.
+            For more information consult the WholeGraph
+            documentation.
         location: str(optional, default='cpu')
             The location ('cpu' or 'cuda') where data is stored.
         """
@@ -157,7 +169,7 @@ class WholeFeatureStore(
 
         self.__features = {}
 
-        self.__wg_comm = wgth.get_local_node_communicator()
+        self.__wg_comm = wgth.get_global_communicator()
         self.__wg_type = memory_type
         self.__wg_location = location
 

@@ -160,7 +160,8 @@ class Tests_MGTransformE
     cugraph::edge_property_t<decltype(mg_graph_view), result_t> edge_value_output(*handle_,
                                                                                   mg_graph_view);
 
-    cugraph::fill_edge_property(*handle_, mg_graph_view, property_initial_value, edge_value_output);
+    cugraph::fill_edge_property(
+      *handle_, mg_graph_view, edge_value_output.mutable_view(), property_initial_value);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -447,13 +448,21 @@ TEST_P(Tests_MGTransformE_Rmat, CheckInt64Int64FloatBoolTransposeTrue)
 INSTANTIATE_TEST_SUITE_P(
   file_test,
   Tests_MGTransformE_File,
+  ::testing::Combine(::testing::Values(Prims_Usecase{false, false, true},
+                                       Prims_Usecase{false, true, true},
+                                       Prims_Usecase{true, false, true},
+                                       Prims_Usecase{true, true, true}),
+                     ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"))));
+
+INSTANTIATE_TEST_SUITE_P(
+  file_large_test,
+  Tests_MGTransformE_File,
   ::testing::Combine(
     ::testing::Values(Prims_Usecase{false, false, true},
                       Prims_Usecase{false, true, true},
                       Prims_Usecase{true, false, true},
                       Prims_Usecase{true, true, true}),
-    ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"),
-                      cugraph::test::File_Usecase("test/datasets/web-Google.mtx"),
+    ::testing::Values(cugraph::test::File_Usecase("test/datasets/web-Google.mtx"),
                       cugraph::test::File_Usecase("test/datasets/ljournal-2008.mtx"),
                       cugraph::test::File_Usecase("test/datasets/webbase-1M.mtx"))));
 

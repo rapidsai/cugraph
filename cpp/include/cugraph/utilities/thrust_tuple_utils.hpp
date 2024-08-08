@@ -113,6 +113,19 @@ struct is_thrust_tuple_of_arithmetic<thrust::tuple<Ts...>> {
   static constexpr bool value = (... && is_valid<Ts>);
 };
 
+template <typename TupleType>
+struct is_thrust_tuple_of_integral : std::false_type {};
+
+template <typename... Ts>
+struct is_thrust_tuple_of_integral<thrust::tuple<Ts...>> {
+ private:
+  template <typename T>
+  static constexpr bool is_valid = std::is_integral_v<T> || std::is_same_v<T, thrust::null_type>;
+
+ public:
+  static constexpr bool value = (... && is_valid<Ts>);
+};
+
 template <typename T>
 struct is_std_tuple : std::false_type {};
 

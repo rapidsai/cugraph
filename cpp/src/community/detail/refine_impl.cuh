@@ -262,12 +262,16 @@ refine_clustering(
     // Update cluster weight, weighted degree and cut for edge sources
     src_louvain_cluster_weight_cache =
       edge_src_property_t<GraphViewType, weight_t>(handle, graph_view);
-    update_edge_src_property(
-      handle, graph_view, vertex_louvain_cluster_weights.begin(), src_louvain_cluster_weight_cache);
+    update_edge_src_property(handle,
+                             graph_view,
+                             vertex_louvain_cluster_weights.begin(),
+                             src_louvain_cluster_weight_cache.mutable_view());
 
     src_cut_to_louvain_cache = edge_src_property_t<GraphViewType, weight_t>(handle, graph_view);
-    update_edge_src_property(
-      handle, graph_view, weighted_cut_of_vertices_to_louvain.begin(), src_cut_to_louvain_cache);
+    update_edge_src_property(handle,
+                             graph_view,
+                             weighted_cut_of_vertices_to_louvain.begin(),
+                             src_cut_to_louvain_cache.mutable_view());
 
     vertex_louvain_cluster_weights.resize(0, handle.get_stream());
     vertex_louvain_cluster_weights.shrink_to_fit(handle.get_stream());
@@ -329,15 +333,15 @@ refine_clustering(
         edge_src_property_t<GraphViewType, uint8_t>(handle, graph_view);
 
       update_edge_src_property(
-        handle, graph_view, leiden_assignment.begin(), src_leiden_assignment_cache);
+        handle, graph_view, leiden_assignment.begin(), src_leiden_assignment_cache.mutable_view());
 
       update_edge_dst_property(
-        handle, graph_view, leiden_assignment.begin(), dst_leiden_assignment_cache);
+        handle, graph_view, leiden_assignment.begin(), dst_leiden_assignment_cache.mutable_view());
 
       update_edge_src_property(handle,
                                graph_view,
                                singleton_and_connected_flags.begin(),
-                               src_singleton_and_connected_flag_cache);
+                               src_singleton_and_connected_flag_cache.mutable_view());
     }
 
     auto src_input_property_values =
@@ -622,6 +626,7 @@ refine_clustering(
       std::tie(store_transposed ? d_dsts : d_srcs,
                store_transposed ? d_srcs : d_dsts,
                d_weights,
+               std::ignore,
                std::ignore,
                std::ignore) =
         cugraph::detail::shuffle_ext_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning<
