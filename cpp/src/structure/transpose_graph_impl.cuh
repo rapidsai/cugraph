@@ -96,6 +96,7 @@ transpose_graph_impl(
            store_transposed ? edgelist_dsts : edgelist_srcs,
            edgelist_weights,
            std::ignore,
+           std::ignore,
            std::ignore) =
     detail::shuffle_ext_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning<vertex_t,
                                                                                    edge_t,

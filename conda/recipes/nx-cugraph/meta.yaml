@@ -22,6 +22,7 @@ requirements:
   host:
     - python
     - rapids-build-backend>=0.3.1,<0.4.0.dev0
+    - setuptools>=61.0.0
   run:
     - pylibcugraph ={{ version }}
     - networkx >=3.0

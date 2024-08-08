@@ -51,5 +51,10 @@ def reverse(G, copy=True):
     if not G.is_directed():
         raise nx.NetworkXError("Cannot reverse an undirected graph.")
     if isinstance(G, nx.Graph):
+        if not copy:
+            raise RuntimeError(
+                "Using `copy=False` is invalid when using a NetworkX graph "
+                "as input to `nx_cugraph.reverse`"
+            )
         G = nxcg.from_networkx(G, preserve_all_attrs=True)
     return G.reverse(copy=copy)
