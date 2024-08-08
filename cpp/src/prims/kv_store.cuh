@@ -820,7 +820,7 @@ class kv_cuco_store_t {
       static_cast<size_t>(static_cast<double>(num_keys) / load_factor),
       static_cast<size_t>(num_keys) + 1);  // cuco::static_map requires at least one empty slot
 
-    auto stream_adapter = rmm::mr::make_stream_allocator_adaptor(
+    auto stream_adapter = rmm::mr::stream_allocator_adaptor(
       rmm::mr::polymorphic_allocator<std::byte>(rmm::mr::get_current_device_resource()), stream);
     if constexpr (std::is_arithmetic_v<value_t>) {
       cuco_store_ =

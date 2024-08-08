@@ -23,6 +23,7 @@ from .community.louvain import louvain
 from .community.triangle_count import triangle_count
 from .community.egonet import ego_graph
 from .community.induced_subgraph import induced_subgraph
+from .community.ktruss_subgraph import ktruss_subgraph
 from .centrality.katz_centrality import katz_centrality
 from .components.connectivity import weakly_connected_components
 from .sampling.uniform_neighbor_sample import uniform_neighbor_sample
@@ -33,8 +34,13 @@ from .centrality.betweenness_centrality import betweenness_centrality
 from .centrality.betweenness_centrality import edge_betweenness_centrality
 from .cores.k_core import k_core
 from .link_prediction.jaccard import jaccard
+from .link_prediction.jaccard import all_pairs_jaccard
 from .link_prediction.sorensen import sorensen
+from .link_prediction.sorensen import all_pairs_sorensen
 from .link_prediction.overlap import overlap
+from .link_prediction.overlap import all_pairs_overlap
+from .link_prediction.cosine import cosine
+from .link_prediction.cosine import all_pairs_cosine
 from .community.leiden import leiden
 
 # Avoid "p2p" shuffling in dask for now

@@ -42,6 +42,9 @@ _info = {
         # BEGIN: functions
         "all_pairs_bellman_ford_path",
         "all_pairs_bellman_ford_path_length",
+        "all_pairs_dijkstra",
+        "all_pairs_dijkstra_path",
+        "all_pairs_dijkstra_path_length",
         "all_pairs_shortest_path",
         "all_pairs_shortest_path_length",
         "ancestors",
@@ -66,6 +69,7 @@ _info = {
         "complete_graph",
         "complete_multipartite_graph",
         "connected_components",
+        "convert_node_labels_to_integers",
         "core_number",
         "cubical_graph",
         "cycle_graph",
@@ -75,12 +79,15 @@ _info = {
         "descendants",
         "descendants_at_distance",
         "diamond_graph",
+        "dijkstra_path",
+        "dijkstra_path_length",
         "dodecahedral_graph",
         "edge_betweenness_centrality",
         "ego_graph",
         "eigenvector_centrality",
         "empty_graph",
         "florentine_families_graph",
+        "from_dict_of_lists",
         "from_pandas_edgelist",
         "from_scipy_sparse_array",
         "frucht_graph",
@@ -124,6 +131,7 @@ _info = {
         "path_graph",
         "petersen_graph",
         "reciprocity",
+        "relabel_nodes",
         "reverse",
         "sedgewick_maze_graph",
         "shortest_path",
@@ -131,6 +139,9 @@ _info = {
         "single_source_bellman_ford",
         "single_source_bellman_ford_path",
         "single_source_bellman_ford_path_length",
+        "single_source_dijkstra",
+        "single_source_dijkstra_path",
+        "single_source_dijkstra_path_length",
         "single_source_shortest_path",
         "single_source_shortest_path_length",
         "single_target_shortest_path",
@@ -138,6 +149,7 @@ _info = {
         "star_graph",
         "tadpole_graph",
         "tetrahedral_graph",
+        "to_dict_of_lists",
         "transitivity",
         "triangles",
         "trivial_graph",
@@ -171,8 +183,8 @@ _info = {
         "katz_centrality": "`nstart` isn't used (but is checked), and `normalized=False` is not supported.",
         "louvain_communities": "`seed` parameter is currently ignored, and self-loops are not yet supported.",
         "pagerank": "`dangling` parameter is not supported, but it is checked for validity.",
-        "shortest_path": "Negative weights are not yet supported, and method is ununsed.",
-        "shortest_path_length": "Negative weights are not yet supported, and method is ununsed.",
+        "shortest_path": "Negative weights are not yet supported.",
+        "shortest_path_length": "Negative weights are not yet supported.",
         "single_source_bellman_ford": "Negative cycles are not yet supported. ``NotImplementedError`` will be raised if there are negative edge weights. We plan to support negative edge weights soon. Also, callable ``weight`` argument is not supported.",
         "single_source_bellman_ford_path": "Negative cycles are not yet supported. ``NotImplementedError`` will be raised if there are negative edge weights. We plan to support negative edge weights soon. Also, callable ``weight`` argument is not supported.",
         "single_source_bellman_ford_path_length": "Negative cycles are not yet supported. ``NotImplementedError`` will be raised if there are negative edge weights. We plan to support negative edge weights soon. Also, callable ``weight`` argument is not supported.",
@@ -187,10 +199,25 @@ _info = {
         "all_pairs_bellman_ford_path_length": {
             "dtype : dtype or None, optional": "The data type (np.float32, np.float64, or None) to use for the edge weights in the algorithm. If None, then dtype is determined by the edge values.",
         },
+        "all_pairs_dijkstra": {
+            "dtype : dtype or None, optional": "The data type (np.float32, np.float64, or None) to use for the edge weights in the algorithm. If None, then dtype is determined by the edge values.",
+        },
+        "all_pairs_dijkstra_path": {
+            "dtype : dtype or None, optional": "The data type (np.float32, np.float64, or None) to use for the edge weights in the algorithm. If None, then dtype is determined by the edge values.",
+        },
+        "all_pairs_dijkstra_path_length": {
+            "dtype : dtype or None, optional": "The data type (np.float32, np.float64, or None) to use for the edge weights in the algorithm. If None, then dtype is determined by the edge values.",
+        },
         "bellman_ford_path": {
             "dtype : dtype or None, optional": "The data type (np.float32, np.float64, or None) to use for the edge weights in the algorithm. If None, then dtype is determined by the edge values.",
         },
         "bellman_ford_path_length": {
+            "dtype : dtype or None, optional": "The data type (np.float32, np.float64, or None) to use for the edge weights in the algorithm. If None, then dtype is determined by the edge values.",
+        },
+        "dijkstra_path": {
+            "dtype : dtype or None, optional": "The data type (np.float32, np.float64, or None) to use for the edge weights in the algorithm. If None, then dtype is determined by the edge values.",
+        },
+        "dijkstra_path_length": {
             "dtype : dtype or None, optional": "The data type (np.float32, np.float64, or None) to use for the edge weights in the algorithm. If None, then dtype is determined by the edge values.",
         },
         "ego_graph": {
@@ -227,6 +254,15 @@ _info = {
         "single_source_bellman_ford_path_length": {
             "dtype : dtype or None, optional": "The data type (np.float32, np.float64, or None) to use for the edge weights in the algorithm. If None, then dtype is determined by the edge values.",
         },
+        "single_source_dijkstra": {
+            "dtype : dtype or None, optional": "The data type (np.float32, np.float64, or None) to use for the edge weights in the algorithm. If None, then dtype is determined by the edge values.",
+        },
+        "single_source_dijkstra_path": {
+            "dtype : dtype or None, optional": "The data type (np.float32, np.float64, or None) to use for the edge weights in the algorithm. If None, then dtype is determined by the edge values.",
+        },
+        "single_source_dijkstra_path_length": {
+            "dtype : dtype or None, optional": "The data type (np.float32, np.float64, or None) to use for the edge weights in the algorithm. If None, then dtype is determined by the edge values.",
+        },
         # END: additional_parameters
     },
 }
@@ -258,6 +294,27 @@ def get_info():
     for key in info_keys:
         del d[key]
     return d
+
+
+def _check_networkx_version():
+    import warnings
+
+    import networkx as nx
+
+    version_major, version_minor = nx.__version__.split(".")[:2]
+    if version_major != "3":
+        warnings.warn(
+            f"nx-cugraph version {__version__} is only known to work with networkx "
+            f"versions 3.x, but networkx {nx.__version__} is installed. "
+            "Perhaps try upgrading your Python environment.",
+            UserWarning,
+            stacklevel=2,
+        )
+    if len(version_minor) > 1:
+        raise RuntimeWarning(
+            f"nx-cugraph version {__version__} does not work with networkx version "
+            f"{nx.__version__}. Please upgrade (or fix) your Python environment."
+        )
 
 
 if __name__ == "__main__":

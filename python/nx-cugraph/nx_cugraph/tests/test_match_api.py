@@ -48,7 +48,7 @@ def test_match_signature_and_names():
         orig_sig = inspect.signature(orig_func)
         func_sig = inspect.signature(func)
         if not func.extra_params:
-            assert orig_sig == func_sig
+            assert orig_sig == func_sig, name
         else:
             # Ignore extra parameters added to nx-cugraph algorithm
             # The key of func.extra_params may be like "max_level : int, optional",
@@ -60,14 +60,14 @@ def test_match_signature_and_names():
                     for name, p in func_sig.parameters.items()
                     if name not in extra_params
                 ]
-            )
+            ), name
         if func.can_run is not nxcg.utils.decorators._default_can_run:
-            assert func_sig == inspect.signature(func.can_run)
+            assert func_sig == inspect.signature(func.can_run), name
         if func.should_run is not nxcg.utils.decorators._default_should_run:
-            assert func_sig == inspect.signature(func.should_run)
+            assert func_sig == inspect.signature(func.should_run), name
 
         # Matching function names?
-        assert func.__name__ == dispatchable_func.__name__ == orig_func.__name__
+        assert func.__name__ == dispatchable_func.__name__ == orig_func.__name__, name
 
         # Matching dispatch names?
         # nx version >=3.2 uses name, version >=3.0,<3.2 uses dispatchname
@@ -75,14 +75,14 @@ def test_match_signature_and_names():
             dispatchname = dispatchable_func.dispatchname
         else:
             dispatchname = dispatchable_func.name
-        assert func.name == dispatchname
+        assert func.name == dispatchname, name
 
         # Matching modules (i.e., where function defined)?
         assert (
             "networkx." + func.__module__.split(".", 1)[1]
             == dispatchable_func.__module__
             == orig_func.__module__
-        )
+        ), name
 
         # Matching package layout (i.e., which modules have the function)?
         nxcg_path = func.__module__

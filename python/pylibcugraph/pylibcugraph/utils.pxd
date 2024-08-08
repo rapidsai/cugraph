@@ -1,4 +1,4 @@
-# Copyright (c) 2022, NVIDIA CORPORATION.
+# Copyright (c) 2022-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -57,3 +57,6 @@ cdef cugraph_type_erased_device_array_view_t* \
 cdef create_cupy_array_view_for_device_ptr(
     cugraph_type_erased_device_array_view_t* device_array_view_ptr,
     owning_py_object)
+
+cdef extern from "stdint.h":
+    size_t SIZE_MAX
