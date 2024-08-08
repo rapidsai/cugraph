@@ -527,7 +527,38 @@ class Tests_SamplingHeterogeneousPostProcessing
           sampling_heterogeneous_post_processing_usecase.num_labels,
           sampling_heterogeneous_post_processing_usecase.num_vertex_types,
           sampling_heterogeneous_post_processing_usecase.src_is_major))
-          << "Renumbered and sorted output renumber map violates invariants.";
+          << "Renumbered and sorted output vertex renumber map violates invariants.";
+
+        // Check the invariants in edge renumber_map
+
+        if (org_edgelist_edge_ids) {
+          ASSERT_TRUE(check_edge_id_renumber_map_invariants(
+            handle,
+            raft::device_span<edge_id_t const>((*org_edgelist_edge_ids).data(),
+                                               (*org_edgelist_edge_ids).size()),
+            org_edgelist_edge_types
+              ? std::make_optional<raft::device_span<edge_type_t const>>(
+                  (*org_edgelist_edge_types).data(), (*org_edgelist_edge_types).size())
+              : std::nullopt,
+            org_edgelist_hops ? std::make_optional<raft::device_span<int32_t const>>(
+                                  (*org_edgelist_hops).data(), (*org_edgelist_hops).size())
+                              : std::nullopt,
+            org_edgelist_label_offsets
+              ? std::make_optional<raft::device_span<size_t const>>(
+                  (*org_edgelist_label_offsets).data(), (*org_edgelist_label_offsets).size())
+              : std::nullopt,
+            raft::device_span<edge_id_t const>(
+              (*renumbered_and_sorted_edge_id_renumber_map).data(),
+              (*renumbered_and_sorted_edge_id_renumber_map).size()),
+            renumbered_and_sorted_edge_id_renumber_map_label_type_offsets
+              ? std::make_optional<raft::device_span<size_t const>>(
+                  (*renumbered_and_sorted_edge_id_renumber_map_label_type_offsets).data(),
+                  (*renumbered_and_sorted_edge_id_renumber_map_label_type_offsets).size())
+              : std::nullopt,
+            sampling_heterogeneous_post_processing_usecase.num_labels,
+            num_edge_types))
+            << "Renumbered and sorted output edge ID renumber map violates invariants.";
+        }
       }
     }
   }
