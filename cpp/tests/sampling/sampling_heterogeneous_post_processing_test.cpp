@@ -341,8 +341,7 @@ class Tests_SamplingHeterogeneousPostProcessing
           sampling_heterogeneous_post_processing_usecase.fanouts.size(),
           sampling_heterogeneous_post_processing_usecase.num_vertex_types,
           num_edge_types,
-          sampling_heterogeneous_post_processing_usecase.src_is_major,
-          true);
+          sampling_heterogeneous_post_processing_usecase.src_is_major);
 
       if (cugraph::test::g_perf) {
         RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
