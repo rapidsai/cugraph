@@ -87,3 +87,15 @@ bool check_vertex_renumber_map_invariants(
   size_t num_labels,
   size_t num_vertex_types,
   bool src_is_major);
+
+template <typename edge_id_t, typename edge_type_t>
+bool check_edge_id_renumber_map_invariants(
+  raft::handle_t const& handle,
+  raft::device_span<edge_id_t const> org_edgelist_edge_ids,
+  std::optional<raft::device_span<edge_type_t const>> org_edgelist_edge_types,
+  std::optional<raft::device_span<int32_t const>> org_edgelist_hops,
+  std::optional<raft::device_span<size_t const>> org_edgelist_label_offsets,
+  raft::device_span<edge_id_t const> renumber_map,
+  std::optional<raft::device_span<size_t const>> renumber_map_label_type_offsets,
+  size_t num_labels,
+  size_t num_edge_types);
