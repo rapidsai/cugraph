@@ -178,19 +178,6 @@ heterogeneous_renumber_and_sort_sampled_edgelist(
   bool src_is_major,
   bool do_expensive_check);
 
-
-
-
-
-
-
-
-
-
-
-
-
-
 template std::tuple<rmm::device_uvector<int32_t>,
                     rmm::device_uvector<int32_t>,
                     std::optional<rmm::device_uvector<float>>,
