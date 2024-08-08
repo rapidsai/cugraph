@@ -136,6 +136,7 @@ class NodeLoader:
         self.__batch_size = batch_size
         self.__shuffle = shuffle
         self.__drop_last = drop_last
+        self.__global_shuffle = global_shuffle
 
     def __get_input(self):
         _, graph_store = self.__data
