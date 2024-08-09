@@ -638,11 +638,6 @@ class DistSampler:
                 : len(current_seeds)
             ]
 
-            print(
-                current_seeds,
-                current_batches,
-                flush=True,
-            )
             minibatch_dict = self.sample_batches(
                 seeds=current_seeds,
                 batch_ids=current_batches,
@@ -781,8 +776,8 @@ class NeighborSampler(DistSampler):
                 label_to_output_comm_rank=cupy.asarray(label_to_output_comm_rank),
                 h_fan_out=np.array(self.__fanout, dtype="int32"),
                 with_replacement=self.__with_replacement,
-                do_expensive_check=True,
-                with_edge_properties=False,
+                do_expensive_check=False,
+                with_edge_properties=True,
                 random_state=random_state + rank,
                 prior_sources_behavior=self.__prior_sources_behavior,
                 deduplicate_sources=self.__deduplicate_sources,
