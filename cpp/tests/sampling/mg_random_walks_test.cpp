@@ -47,7 +47,7 @@ struct UniformRandomWalks_Usecase {
     raft::random::RngState rng_state(static_cast<uint64_t>(handle.get_comms().get_rank()));
 
     return cugraph::uniform_random_walks(
-      handle, graph_view, edge_weight_view, start_vertices, max_depth, rng_state);
+      handle, rng_state, graph_view, edge_weight_view, start_vertices, max_depth);
   }
 
   bool expect_throw() { return false; }
@@ -71,7 +71,7 @@ struct BiasedRandomWalks_Usecase {
     raft::random::RngState rng_state(static_cast<uint64_t>(handle.get_comms().get_rank()));
 
     return cugraph::biased_random_walks(
-      handle, graph_view, *edge_weight_view, start_vertices, max_depth, rng_state);
+      handle, rng_state, graph_view, *edge_weight_view, start_vertices, max_depth);
   }
 
   bool expect_throw() { return !test_weighted; }
@@ -95,13 +95,13 @@ struct Node2VecRandomWalks_Usecase {
     raft::random::RngState rng_state(static_cast<uint64_t>(handle.get_comms().get_rank()));
 
     return cugraph::node2vec_random_walks(handle,
+                                          rng_state,
                                           graph_view,
                                           edge_weight_view,
                                           start_vertices,
                                           max_depth,
                                           static_cast<weight_t>(p),
-                                          static_cast<weight_t>(q),
-                                          rng_state);
+                                          static_cast<weight_t>(q));
   }
 
   bool expect_throw() { return false; }

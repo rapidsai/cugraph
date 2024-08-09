@@ -154,10 +154,11 @@ namespace {
 
 struct uniform_random_walks_functor : public cugraph::c_api::abstract_functor {
   raft::handle_t const& handle_;
+  //  FIXME: rng_state_ should be passed as a parameter
+  cugraph::c_api::cugraph_rng_state_t* rng_state_{nullptr};
   cugraph::c_api::cugraph_graph_t* graph_{nullptr};
   cugraph::c_api::cugraph_type_erased_device_array_view_t const* start_vertices_{nullptr};
   size_t max_length_{0};
-  cugraph::c_api::cugraph_rng_state_t* rng_state_{nullptr};
   cugraph::c_api::cugraph_random_walk_result_t* result_{nullptr};
 
   uniform_random_walks_functor(cugraph_resource_handle_t const* handle,
@@ -223,13 +224,17 @@ struct uniform_random_walks_functor : public cugraph::c_api::abstract_functor {
         graph_view.local_vertex_partition_range_last(),
         false);
 
+      //  FIXME: remove once rng_state passed as parameter
+      rng_state_ = reinterpret_cast<cugraph::c_api::cugraph_rng_state_t*>(
+      new cugraph::c_api::cugraph_rng_state_t{raft::random::RngState{0}});
+
       auto [paths, weights] = cugraph::uniform_random_walks(
         handle_,
+        rng_state_->rng_state_,
         graph_view,
         (edge_weights != nullptr) ? std::make_optional(edge_weights->view()) : std::nullopt,
         raft::device_span<vertex_t const>{start_vertices.data(), start_vertices.size()},
-        max_length_,
-        rng_state_->rng_state_);
+        max_length_);
 
       //
       // Need to unrenumber the vertices in the resulting paths
@@ -256,11 +261,12 @@ struct uniform_random_walks_functor : public cugraph::c_api::abstract_functor {
 
 struct biased_random_walks_functor : public cugraph::c_api::abstract_functor {
   raft::handle_t const& handle_;
+  //  FIXME: rng_state_ should be passed as a parameter
+  cugraph::c_api::cugraph_rng_state_t* rng_state_{nullptr};
   cugraph::c_api::cugraph_graph_t* graph_{nullptr};
   cugraph::c_api::cugraph_type_erased_device_array_view_t const* start_vertices_{nullptr};
   size_t max_length_{0};
   cugraph::c_api::cugraph_random_walk_result_t* result_{nullptr};
-  cugraph::c_api::cugraph_rng_state_t* rng_state_{nullptr};
 
   biased_random_walks_functor(cugraph_resource_handle_t const* handle,
                               cugraph_graph_t* graph,
@@ -327,13 +333,17 @@ struct biased_random_walks_functor : public cugraph::c_api::abstract_functor {
         graph_view.local_vertex_partition_range_last(),
         false);
 
+      //  FIXME: remove once rng_state passed as parameter
+      rng_state_ = reinterpret_cast<cugraph::c_api::cugraph_rng_state_t*>(
+      new cugraph::c_api::cugraph_rng_state_t{raft::random::RngState{0}});
+
       auto [paths, weights] = cugraph::biased_random_walks(
         handle_,
+        rng_state_->rng_state_,
         graph_view,
         edge_weights->view(),
         raft::device_span<vertex_t const>{start_vertices.data(), start_vertices.size()},
-        max_length_,
-        rng_state_->rng_state_);
+        max_length_);
 
       //
       // Need to unrenumber the vertices in the resulting paths
@@ -355,12 +365,13 @@ struct biased_random_walks_functor : public cugraph::c_api::abstract_functor {
 
 struct node2vec_random_walks_functor : public cugraph::c_api::abstract_functor {
   raft::handle_t const& handle_;
+  //  FIXME: rng_state_ should be passed as a parameter
+  cugraph::c_api::cugraph_rng_state_t* rng_state_{nullptr};
   cugraph::c_api::cugraph_graph_t* graph_{nullptr};
   cugraph::c_api::cugraph_type_erased_device_array_view_t const* start_vertices_{nullptr};
   size_t max_length_{0};
   double p_{0};
   double q_{0};
-  cugraph::c_api::cugraph_rng_state_t* rng_state_{nullptr};
   cugraph::c_api::cugraph_random_walk_result_t* result_{nullptr};
 
   node2vec_random_walks_functor(cugraph_resource_handle_t const* handle,
@@ -432,15 +443,19 @@ struct node2vec_random_walks_functor : public cugraph::c_api::abstract_functor {
         graph_view.local_vertex_partition_range_last(),
         false);
 
+      //  FIXME: remove once rng_state passed as parameter
+      rng_state_ = reinterpret_cast<cugraph::c_api::cugraph_rng_state_t*>(
+      new cugraph::c_api::cugraph_rng_state_t{raft::random::RngState{0}});
+
       auto [paths, weights] = cugraph::node2vec_random_walks(
         handle_,
+        rng_state_->rng_state_,
         graph_view,
         (edge_weights != nullptr) ? std::make_optional(edge_weights->view()) : std::nullopt,
         raft::device_span<vertex_t const>{start_vertices.data(), start_vertices.size()},
         max_length_,
         static_cast<weight_t>(p_),
-        static_cast<weight_t>(q_),
-        rng_state_->rng_state_);
+        static_cast<weight_t>(q_));
 
       // FIXME:  Need to fix invalid_vtx issue here.  We can't unrenumber max_vertex_id+1
       // properly...
