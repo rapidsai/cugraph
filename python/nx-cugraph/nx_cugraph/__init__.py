@@ -23,6 +23,9 @@ from .convert import *
 from . import convert_matrix
 from .convert_matrix import *
 
+from . import relabel
+from .relabel import *
+
 from . import generators
 from .generators import *
 
@@ -30,3 +33,6 @@ from . import algorithms
 from .algorithms import *
 
 from _nx_cugraph._version import __git_commit__, __version__
+from _nx_cugraph import _check_networkx_version
+
+_check_networkx_version()

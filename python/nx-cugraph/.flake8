@@ -1,9 +1,10 @@
-# Copyright (c) 2023, NVIDIA CORPORATION.
+# Copyright (c) 2023-2024, NVIDIA CORPORATION.
 
 [flake8]
 max-line-length = 88
 inline-quotes = "
 extend-ignore =
+    B020,
     E203,
     SIM105,
     SIM401,
