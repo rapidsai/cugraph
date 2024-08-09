@@ -54,16 +54,6 @@ template void uniform_random_fill(rmm::cuda_stream_view const& stream_view,
                                   float max_value,
                                   raft::random::RngState& rng_state);
 
-template void biased_random_fill(raft::handle_t const& handle,
-                                 raft::random::RngState& rng_state,
-                                 raft::device_span<int32_t> output,
-                                 raft::device_span<float const> biases);
-
-template void biased_random_fill(raft::handle_t const& handle,
-                                 raft::random::RngState& rng_state,
-                                 raft::device_span<int32_t> output,
-                                 raft::device_span<double const> biases);
-
 template void scalar_fill(raft::handle_t const& handle,
                           int32_t* d_value,
                           size_t size,
