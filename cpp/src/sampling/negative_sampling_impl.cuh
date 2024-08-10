@@ -280,11 +280,11 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> negativ
 
   while (samples_in_this_batch > 0) {
     if constexpr (multi_gpu) {
-      size_t num_gpus = handle.get_comms().get_size();
-      size_t rank     = handle.get_comms().get_rank();
+      size_t comm_size = handle.get_comms().get_size();
+      size_t comm_rank = handle.get_comms().get_rank();
 
-      samples_in_this_batch =
-        (samples_in_this_batch / num_gpus) + (rank < (samples_in_this_batch % num_gpus) ? 1 : 0);
+      samples_in_this_batch = (samples_in_this_batch / comm_size) +
+                              (comm_rank < (samples_in_this_batch % comm_size) ? 1 : 0);
     }
 
     auto batch_src = create_local_samples(
@@ -292,20 +292,22 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> negativ
     auto batch_dst = create_local_samples(
       handle, rng_state, graph_view, normalized_dst_biases, gpu_dst_biases, samples_in_this_batch);
 
-    auto vertex_partition_range_lasts = graph_view.vertex_partition_range_lasts();
+    if constexpr (multi_gpu) {
+      auto vertex_partition_range_lasts = graph_view.vertex_partition_range_lasts();
 
-    std::tie(batch_src, batch_dst, std::ignore, std::ignore, std::ignore, std::ignore) =
-      detail::shuffle_int_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning<vertex_t,
-                                                                                     edge_t,
-                                                                                     weight_t,
-                                                                                     int32_t>(
-        handle,
-        std::move(batch_src),
-        std::move(batch_dst),
-        std::nullopt,
-        std::nullopt,
-        std::nullopt,
-        vertex_partition_range_lasts);
+      std::tie(batch_src, batch_dst, std::ignore, std::ignore, std::ignore, std::ignore) =
+        detail::shuffle_int_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning<vertex_t,
+                                                                                       edge_t,
+                                                                                       weight_t,
+                                                                                       int32_t>(
+          handle,
+          std::move(batch_src),
+          std::move(batch_dst),
+          std::nullopt,
+          std::nullopt,
+          std::nullopt,
+          vertex_partition_range_lasts);
+    }
 
     if (remove_existing_edges) {
       auto has_edge_flags =
@@ -314,12 +316,13 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> negativ
                             raft::device_span<vertex_t const>{batch_dst.data(), batch_dst.size()},
                             do_expensive_check);
 
-      auto begin_iter =
-        thrust::make_zip_iterator(batch_src.begin(), batch_dst.begin(), has_edge_flags.begin());
-      auto new_end = thrust::remove_if(handle.get_thrust_policy(),
+      auto begin_iter = thrust::make_zip_iterator(batch_src.begin(), batch_dst.begin());
+      auto new_end    = thrust::remove_if(handle.get_thrust_policy(),
                                        begin_iter,
                                        begin_iter + batch_src.size(),
-                                       [] __device__(auto tuple) { return thrust::get<2>(tuple); });
+                                       has_edge_flags.begin(),
+                                       thrust::identity<bool>());
+
       batch_src.resize(thrust::distance(begin_iter, new_end), handle.get_stream());
       batch_dst.resize(thrust::distance(begin_iter, new_end), handle.get_stream());
     }
@@ -331,13 +334,14 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> negativ
       auto new_end =
         thrust::unique(handle.get_thrust_policy(), begin_iter, begin_iter + batch_src.size());
 
-      size_t unique_size = thrust::distance(begin_iter, new_end);
+      batch_src.resize(thrust::distance(begin_iter, new_end), handle.get_stream());
+      batch_dst.resize(thrust::distance(begin_iter, new_end), handle.get_stream());
 
       if (src.size() > 0) {
         new_end =
           thrust::remove_if(handle.get_thrust_policy(),
                             begin_iter,
-                            begin_iter + unique_size,
+                            begin_iter + batch_src.size(),
                             [local_src = raft::device_span<vertex_t const>{src.data(), src.size()},
                              local_dst = raft::device_span<vertex_t const>{
                                dst.data(), dst.size()}] __device__(auto tuple) {
@@ -348,14 +352,25 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> negativ
                                 tuple);
                             });
 
-        unique_size = thrust::distance(begin_iter, new_end);
+        size_t unique_size = thrust::distance(begin_iter, new_end);
+
+        rmm::device_uvector<vertex_t> new_src(src.size() + unique_size, handle.get_stream());
+        rmm::device_uvector<vertex_t> new_dst(dst.size() + unique_size, handle.get_stream());
+
+        thrust::merge(handle.get_thrust_policy(),
+                      begin_iter,
+                      begin_iter + unique_size,
+                      thrust::make_zip_iterator(src.begin(), dst.begin()),
+                      thrust::make_zip_iterator(src.end(), dst.end()),
+                      thrust::make_zip_iterator(new_src.begin(), new_dst.begin()));
+
+        src = std::move(new_src);
+        dst = std::move(new_dst);
+      } else {
+        src = std::move(batch_src);
+        dst = std::move(batch_dst);
       }
-
-      batch_src.resize(unique_size, handle.get_stream());
-      batch_dst.resize(unique_size, handle.get_stream());
-    }
-
-    if (src.size() > 0) {
+    } else if (src.size() > 0) {
       size_t current_end = src.size();
 
       src.resize(src.size() + batch_src.size(), handle.get_stream());
@@ -365,17 +380,9 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> negativ
                    thrust::make_zip_iterator(batch_src.begin(), batch_dst.begin()),
                    thrust::make_zip_iterator(batch_src.end(), batch_dst.end()),
                    thrust::make_zip_iterator(src.begin(), dst.begin()) + current_end);
-
-      auto begin_iter = thrust::make_zip_iterator(src.begin(), dst.begin());
-      thrust::sort(handle.get_thrust_policy(), begin_iter, begin_iter + src.size());
     } else {
       src = std::move(batch_src);
       dst = std::move(batch_dst);
-
-      if (!remove_duplicates) {
-        auto begin_iter = thrust::make_zip_iterator(src.begin(), dst.begin());
-        thrust::sort(handle.get_thrust_policy(), begin_iter, begin_iter + src.size());
-      }
     }
 
     if (exact_number_of_samples) {

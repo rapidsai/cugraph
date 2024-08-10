@@ -30,7 +30,7 @@ struct Negative_Sampling_Usecase {
   bool use_src_bias{false};
   bool use_dst_bias{false};
   bool remove_duplicates{false};
-  bool remove_false_negatives{false};
+  bool remove_existing_edges{false};
   bool exact_number_of_samples{false};
   bool check_correctness{true};
 };
@@ -127,7 +127,7 @@ class Tests_MGNegative_Sampling : public ::testing::TestWithParam<input_usecase_
                                  src_bias,
                                  dst_bias,
                                  negative_sampling_usecase.remove_duplicates,
-                                 negative_sampling_usecase.remove_false_negatives,
+                                 negative_sampling_usecase.remove_existing_edges,
                                  negative_sampling_usecase.exact_number_of_samples,
                                  do_expensive_check);
 
@@ -173,17 +173,28 @@ class Tests_MGNegative_Sampling : public ::testing::TestWithParam<input_usecase_
       ASSERT_EQ(error_count, 0) << "generate edges out of range > 0";
 
       if ((negative_sampling_usecase.remove_duplicates) && (src_out.size() > 0)) {
+#if 0
+        raft::print_device_vector("SRC", src_out.data(), src_out.size(), std::cout);
+        raft::print_device_vector("DST", dst_out.data(), dst_out.size(), std::cout);
+#endif
+
         error_count = thrust::count_if(
           handle_->get_thrust_policy(),
           thrust::make_counting_iterator<size_t>(1),
           thrust::make_counting_iterator<size_t>(src_out.size()),
           [src = src_out.data(), dst = dst_out.data()] __device__(size_t index) {
+            if ((src[index - 1] == src[index]) && (dst[index - 1] == dst[index]))
+              printf("  (%d,%d) : (%d, %d) are duplicates\n",
+                     (int)src[index - 1],
+                     (int)dst[index - 1],
+                     (int)src[index],
+                     (int)dst[index]);
             return (src[index - 1] == src[index]) && (dst[index - 1] == dst[index]);
           });
         ASSERT_EQ(error_count, 0) << "Remove duplicates specified, found duplicate entries";
       }
 
-      if (negative_sampling_usecase.remove_false_negatives) {
+      if (negative_sampling_usecase.remove_existing_edges) {
         rmm::device_uvector<vertex_t> graph_src(0, handle_->get_stream());
         rmm::device_uvector<vertex_t> graph_dst(0, handle_->get_stream());
 
@@ -203,7 +214,7 @@ class Tests_MGNegative_Sampling : public ::testing::TestWithParam<input_usecase_
                                          tuple);
           });
 
-        ASSERT_EQ(error_count, 0) << "Remove false negatives specified, found false negatives";
+        ASSERT_EQ(error_count, 0) << "Remove existing edges specified, found existing edges";
       }
 
       if (negative_sampling_usecase.exact_number_of_samples) {
