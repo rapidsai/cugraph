@@ -320,6 +320,49 @@ void cugraph_sampling_set_dedupe_sources(cugraph_sampling_options_t* options, bo
 void cugraph_sampling_options_free(cugraph_sampling_options_t* options);
 
 /**
+ * @brief     Opaque neighborhood sampling heterogeneous fanout type
+ */
+// FIXME: internal representation should be tuple instead of pairs - Make it more generic (tuple)
+// cugraph_device_tuple_t, host_device_tuple_t,
+//dictionary, key and array
+// translate dictionary to a tuple. Add to the draft PR the PLC layer.
+// Concatenate to build the 3 arrays from the PLC layer
+/// mimic 
+typedef struct {
+  int32_t align_;
+} cugraph_sample_heterogeneous_fanout_t;
+
+/**
+ * @brief       Create heterogeneous fanout
+ *
+ * Input data will be stored in the heterogenous_fanout.
+ *
+ * @param [in]  handle         Handle for accessing resources
+ * @param [in]  graph          Pointer to graph
+ * @param [in]  edge_type_size Type erased array of edge type size
+ * @param [in]  fanout         Type erased array of fanout values
+ * @param [out] heterogeneous_fanout Opaque pointer to fanout_t
+ * @param [out] error          Pointer to an error object storing details of any error.  Will
+ *                             be populated if error code is not CUGRAPH_SUCCESS
+ * @return error code
+ */
+cugraph_error_code_t cugraph_create_heterogeneous_fanout(
+  const cugraph_resource_handle_t* handle,
+  cugraph_graph_t* graph,
+  const cugraph_type_erased_host_array_view_t* edge_type_size,
+  const cugraph_type_erased_host_array_view_t* fanout,
+  cugraph_sample_heterogeneous_fanout_t** heterogeneous_fanout,
+  cugraph_error_t** error);
+
+/**
+ * @brief     Free edge type and fanout pairs
+ *
+ * @param [in]    heterogeneous_fanout The edge type size and fanout values
+ */
+void cugraph_heterogeneous_fanout_free(
+  cugraph_sample_heterogeneous_fanout_t* heterogeneous_fanout);
+
+/**
  * @brief     Uniform Neighborhood Sampling
  *
  * Returns a sample of the neighborhood around specified start vertices.  Optionally, each
@@ -368,6 +411,7 @@ cugraph_error_code_t cugraph_uniform_neighbor_sample(
   const cugraph_type_erased_device_array_view_t* label_to_comm_rank,
   const cugraph_type_erased_device_array_view_t* label_offsets,
   const cugraph_type_erased_host_array_view_t* fan_out,
+  const cugraph_sample_heterogeneous_fanout_t* heterogeneous_fanout,
   cugraph_rng_state_t* rng_state,
   const cugraph_sampling_options_t* options,
   bool_t do_expensive_check,
@@ -667,12 +711,15 @@ cugraph_error_code_t cugraph_test_uniform_neighborhood_sample_result_create(
  *                                not CUGRAPH_SUCCESS
  * @return error code
  */
+
+
 cugraph_error_code_t cugraph_select_random_vertices(const cugraph_resource_handle_t* handle,
                                                     const cugraph_graph_t* graph,
                                                     cugraph_rng_state_t* rng_state,
                                                     size_t num_vertices,
                                                     cugraph_type_erased_device_array_t** vertices,
                                                     cugraph_error_t** error);
+
 
 #ifdef __cplusplus
 }

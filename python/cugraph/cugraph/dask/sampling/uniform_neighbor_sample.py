@@ -13,6 +13,7 @@
 # limitations under the License.
 
 from __future__ import annotations
+from itertools import chain
 
 import warnings
 
@@ -377,9 +378,10 @@ def uniform_neighbor_sample(
     start_list : int, list, cudf.Series, or dask_cudf.Series (int32 or int64)
         a list of starting vertices for sampling
 
-    fanout_vals : list
+    fanout_vals : list (int32) or dict
         List of branching out (fan-out) degrees per starting vertex for each
-        hop level.
+        hop level or dictionary of edge type and fanout values for
+        heterogeneous fanout type.
 
     with_replacement: bool, optional (default=True)
         Flag to specify if the random sampling is done with replacement
@@ -612,6 +614,15 @@ def uniform_neighbor_sample(
         fanout_vals = fanout_vals.get().astype("int32")
     elif isinstance(fanout_vals, cudf.Series):
         fanout_vals = fanout_vals.values_host.astype("int32")
+    elif isinstance(fanout_vals, dict):
+        # FIXME: Add expensive check to ensure all dict values are lists
+        # Convert to a tuple of sequence (edge type size and fanout values)
+        edge_type_size = []
+        [edge_type_size.append(len(s)) for s in list(fanout_vals.values())]
+        edge_type_fanout_vals = list(chain.from_iterable(list(fanout_vals.values())))
+        fanout_vals = (
+            numpy.asarray(edge_type_size, dtype="int32"),
+            numpy.asarray(edge_type_fanout_vals, dtype="int32"))
     else:
         raise TypeError("fanout_vals must be a sequence, " f"got: {type(fanout_vals)}")
 

@@ -59,7 +59,9 @@ neighbor_sample_impl(
   std::optional<raft::device_span<label_t const>> this_frontier_vertex_labels,
   std::optional<std::tuple<raft::device_span<label_t const>, raft::device_span<int32_t const>>>
     label_to_output_comm_rank,
-  raft::host_span<int32_t const> fan_out,
+  std::optional<raft::host_span<int32_t const>> fan_out,
+  std::optional<std::tuple<raft::host_span<int32_t const>, raft::host_span<int32_t const>>> heterogeneous_fan_out,
+  //raft::host_span<int32_t const> fan_out,
   bool return_hops,
   bool with_replacement,
   prior_sources_behavior_t prior_sources_behavior,
@@ -75,11 +77,24 @@ neighbor_sample_impl(
 #else
   static_assert(std::is_floating_point_v<bias_t>);
 
-  CUGRAPH_EXPECTS(fan_out.size() > 0, "Invalid input argument: number of levels must be non-zero.");
-  CUGRAPH_EXPECTS(
-    fan_out.size() <= static_cast<size_t>(std::numeric_limits<int32_t>::max()),
+  if (fan_out) {
+    CUGRAPH_EXPECTS((*fan_out).size() > 0, "Invalid input argument: number of levels must be non-zero.");
+    CUGRAPH_EXPECTS(
+    (*fan_out).size() <= static_cast<size_t>(std::numeric_limits<int32_t>::max()),
     "Invalid input argument: number of levels should not overflow int32_t");  // as we use int32_t
                                                                               // to store hops
+  } else {    
+    CUGRAPH_EXPECTS(std::accumulate(
+      std::get<0>(*heterogeneous_fan_out).begin(),
+      std::get<0>(*heterogeneous_fan_out).end(), 0) == std::get<1>(*heterogeneous_fan_out).size() && std::get<1>(*heterogeneous_fan_out).size() != 0,
+        "Invalid input argument: number of levels and size must match and should be non zero.");
+    
+    CUGRAPH_EXPECTS(
+      std::get<0>(*heterogeneous_fan_out).size() <= static_cast<size_t>(std::numeric_limits<int32_t>::max())
+        && std::get<1>(*heterogeneous_fan_out).size() <= static_cast<size_t>(std::numeric_limits<int32_t>::max()),
+      "Invalid input argument: number of levels should not overflow int32_t");  // as we use int32_t
+                                                                                // to store hops
+  }
 
   if constexpr (!multi_gpu) {
     CUGRAPH_EXPECTS(!label_to_output_comm_rank,
@@ -123,12 +138,12 @@ neighbor_sample_impl(
     this_frontier_vertex_labels ? std::make_optional(std::vector<rmm::device_uvector<label_t>>{})
                                 : std::nullopt;
 
-  level_result_src_vectors.reserve(fan_out.size());
-  level_result_dst_vectors.reserve(fan_out.size());
-  if (level_result_weight_vectors) { (*level_result_weight_vectors).reserve(fan_out.size()); }
-  if (level_result_edge_id_vectors) { (*level_result_edge_id_vectors).reserve(fan_out.size()); }
-  if (level_result_edge_type_vectors) { (*level_result_edge_type_vectors).reserve(fan_out.size()); }
-  if (level_result_label_vectors) { (*level_result_label_vectors).reserve(fan_out.size()); }
+  level_result_src_vectors.reserve((*fan_out).size());
+  level_result_dst_vectors.reserve((*fan_out).size());
+  if (level_result_weight_vectors) { (*level_result_weight_vectors).reserve((*fan_out).size()); }
+  if (level_result_edge_id_vectors) { (*level_result_edge_id_vectors).reserve((*fan_out).size()); }
+  if (level_result_edge_type_vectors) { (*level_result_edge_type_vectors).reserve((*fan_out).size()); }
+  if (level_result_label_vectors) { (*level_result_label_vectors).reserve((*fan_out).size()); }
 
   rmm::device_uvector<vertex_t> frontier_vertices(0, handle.get_stream());
   auto frontier_vertex_labels =
@@ -150,7 +165,7 @@ neighbor_sample_impl(
 
   std::vector<size_t> level_sizes{};
   int32_t hop{0};
-  for (auto&& k_level : fan_out) {
+  for (auto&& k_level : (*fan_out)) {
     rmm::device_uvector<vertex_t> srcs(0, handle.get_stream());
     rmm::device_uvector<vertex_t> dsts(0, handle.get_stream());
     std::optional<rmm::device_uvector<weight_t>> weights{std::nullopt};
@@ -192,7 +207,7 @@ neighbor_sample_impl(
     if (labels) { (*level_result_label_vectors).push_back(std::move(*labels)); }
 
     ++hop;
-    if (hop < fan_out.size()) {
+    if (hop < (*fan_out).size()) {
       // FIXME:  We should modify vertex_partition_range_lasts to return a raft::host_span
       //  rather than making a copy.
       auto vertex_partition_range_lasts = graph_view.vertex_partition_range_lasts();
@@ -304,7 +319,7 @@ neighbor_sample_impl(
   if (return_hops) {
     result_hops   = rmm::device_uvector<int32_t>(result_size, handle.get_stream());
     output_offset = 0;
-    for (size_t i = 0; i < fan_out.size(); ++i) {
+    for (size_t i = 0; i < (*fan_out).size(); ++i) {
       scalar_fill(
         handle, result_hops->data() + output_offset, level_sizes[i], static_cast<int32_t>(i));
       output_offset += level_sizes[i];
@@ -366,7 +381,9 @@ uniform_neighbor_sample(
   std::optional<raft::device_span<label_t const>> starting_vertex_labels,
   std::optional<std::tuple<raft::device_span<label_t const>, raft::device_span<int32_t const>>>
     label_to_output_comm_rank,
-  raft::host_span<int32_t const> fan_out,
+  std::optional<raft::host_span<int32_t const>> fan_out,
+  std::optional<std::tuple<raft::host_span<int32_t const>, raft::host_span<int32_t const>>> heterogeneous_fan_out,
+  //raft::host_span<int32_t const> fan_out,
   raft::random::RngState& rng_state,
   bool return_hops,
   bool with_replacement,
@@ -386,6 +403,7 @@ uniform_neighbor_sample(
     starting_vertex_labels,
     label_to_output_comm_rank,
     fan_out,
+    heterogeneous_fan_out,
     return_hops,
     with_replacement,
     prior_sources_behavior,
@@ -440,6 +458,7 @@ biased_neighbor_sample(
     starting_vertex_labels,
     label_to_output_comm_rank,
     fan_out,
+    std::nullopt,
     return_hops,
     with_replacement,
     prior_sources_behavior,

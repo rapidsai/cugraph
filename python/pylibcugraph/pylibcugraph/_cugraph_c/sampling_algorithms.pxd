@@ -56,6 +56,7 @@ cdef extern from "cugraph_c/sampling_algorithms.h":
         const cugraph_type_erased_device_array_view_t* label_to_comm_rank,
         const cugraph_type_erased_device_array_view_t* label_offsets,
         const cugraph_type_erased_host_array_view_t* fan_out,
+        const cugraph_sample_heterogeneous_fanout_t* heterogeneous_fanout,
         cugraph_rng_state_t* rng_state,
         const cugraph_sampling_options_t* options,
         bool_t do_expensive_check,
@@ -103,3 +104,20 @@ cdef extern from "cugraph_c/sampling_algorithms.h":
             cugraph_type_erased_device_array_t** vertices,
             cugraph_error_t** error
         )
+    
+    ctypedef struct cugraph_sample_heterogeneous_fanout_t:
+        pass
+    
+    cdef cugraph_error_code_t \
+        cugraph_create_heterogeneous_fanout(
+            const cugraph_resource_handle_t* handle,
+            cugraph_graph_t* graph,
+            const cugraph_type_erased_host_array_view_t* edge_type_size,
+            const cugraph_type_erased_host_array_view_t* fanout,
+            cugraph_sample_heterogeneous_fanout_t** heterogeneous_fanout,
+            cugraph_error_t** error
+        )
+
+    cdef void \
+        cugraph_heterogeneous_fanout_free(
+            cugraph_sample_heterogeneous_fanout_t* heterogeneous_fanout);

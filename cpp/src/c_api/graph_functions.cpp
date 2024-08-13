@@ -84,7 +84,7 @@ struct create_vertex_pairs_functor : public cugraph::c_api::abstract_functor {
                               std::nullopt,
                               std::nullopt);
       }
-
+      // std::tuple (template)
       result_ = new cugraph::c_api::cugraph_vertex_pairs_t{
         new cugraph::c_api::cugraph_type_erased_device_array_t(first_copy, graph_->vertex_type_),
         new cugraph::c_api::cugraph_type_erased_device_array_t(second_copy, graph_->vertex_type_)};
