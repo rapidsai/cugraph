@@ -798,22 +798,24 @@ extract_transform_v_frontier_e(raft::handle_t const& handle,
         if constexpr (use_bitmap) {
           std::variant<raft::device_span<uint32_t const>, decltype(frontier_key_first)> v_list{};
           if (use_bitmap_flags[i]) {
-            v_list = raft::device_span<uint32_t const>((*frontier_bitmap).data(),
-                                                       (*frontier_bitmap).size());
+            v_list = (static_cast<int>(i) == minor_comm_rank)
+                       ? raft::device_span<uint32_t const>((*frontier_bitmap).data(),
+                                                           (*frontier_bitmap).size())
+                       : raft::device_span<uint32_t const>(static_cast<uint32_t const*>(nullptr),
+                                                           size_t{0});
           } else {
             v_list = frontier_key_first;
           }
           auto bool_size = segment_offsets ? *((*segment_offsets).rbegin() + 1)
                                            : edge_partition.major_range_size();
-          device_bcast_vertex_list(
-            minor_comm,
-            v_list,
-            get_dataframe_buffer_begin(edge_partition_frontier_key_buffer),
-            edge_partition.major_range_first(),
-            edge_partition.major_range_first() + bool_size,
-            static_cast<size_t>(thrust::distance(frontier_key_first, frontier_key_last)),
-            static_cast<int>(i),
-            handle.get_stream());
+          device_bcast_vertex_list(minor_comm,
+                                   v_list,
+                                   get_dataframe_buffer_begin(edge_partition_frontier_key_buffer),
+                                   edge_partition.major_range_first(),
+                                   edge_partition.major_range_first() + bool_size,
+                                   local_frontier_sizes[i],
+                                   static_cast<int>(i),
+                                   handle.get_stream());
         } else {
           device_bcast(minor_comm,
                        frontier_key_first,
@@ -872,38 +874,19 @@ extract_transform_v_frontier_e(raft::handle_t const& handle,
         edge_partition_frontier_major_last,
         raft::host_span<vertex_t const>((*segment_offsets).data(), (*segment_offsets).size()),
         edge_partition.major_range_first(),
-        graph_view.use_dcs(),
         handle.get_stream());
 
       // FIXME: we may further improve performance by 1) concurrently running kernels on different
       // segments; 2) individually tuning block sizes for different segments; and 3) adding one
       // more segment for very high degree vertices and running segmented reduction
-      if (h_offsets[0] > 0) {
-        raft::grid_1d_block_t update_grid(h_offsets[0],
+      if (h_offsets[1] > 0) {
+        raft::grid_1d_block_t update_grid(h_offsets[1],
                                           extract_transform_v_frontier_e_kernel_block_size,
                                           handle.get_device_properties().maxGridSize[0]);
         extract_transform_v_frontier_e_high_degree<max_one_e_per_frontier_key, GraphViewType>
           <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
             edge_partition,
             edge_partition_frontier_key_first,
-            edge_partition_frontier_key_first + h_offsets[0],
-            edge_partition_src_value_input,
-            edge_partition_dst_value_input,
-            edge_partition_e_value_input,
-            edge_partition_e_mask,
-            get_optional_dataframe_buffer_begin<output_key_t>(tmp_key_buffer),
-            get_optional_dataframe_buffer_begin<output_value_t>(tmp_value_buffer),
-            tmp_buffer_idx.data(),
-            e_op);
-      }
-      if (h_offsets[1] - h_offsets[0] > 0) {
-        raft::grid_1d_warp_t update_grid(h_offsets[1] - h_offsets[0],
-                                         extract_transform_v_frontier_e_kernel_block_size,
-                                         handle.get_device_properties().maxGridSize[0]);
-        extract_transform_v_frontier_e_mid_degree<max_one_e_per_frontier_key, GraphViewType>
-          <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
-            edge_partition,
-            edge_partition_frontier_key_first + h_offsets[0],
             edge_partition_frontier_key_first + h_offsets[1],
             edge_partition_src_value_input,
             edge_partition_dst_value_input,
@@ -915,12 +898,10 @@ extract_transform_v_frontier_e(raft::handle_t const& handle,
             e_op);
       }
       if (h_offsets[2] - h_offsets[1] > 0) {
-        raft::grid_1d_thread_t update_grid(h_offsets[2] - h_offsets[1],
-                                           extract_transform_v_frontier_e_kernel_block_size,
-                                           handle.get_device_properties().maxGridSize[0]);
-        extract_transform_v_frontier_e_hypersparse_or_low_degree<false,
-                                                                 max_one_e_per_frontier_key,
-                                                                 GraphViewType>
+        raft::grid_1d_warp_t update_grid(h_offsets[2] - h_offsets[1],
+                                         extract_transform_v_frontier_e_kernel_block_size,
+                                         handle.get_device_properties().maxGridSize[0]);
+        extract_transform_v_frontier_e_mid_degree<max_one_e_per_frontier_key, GraphViewType>
           <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
             edge_partition,
             edge_partition_frontier_key_first + h_offsets[1],
@@ -934,8 +915,28 @@ extract_transform_v_frontier_e(raft::handle_t const& handle,
             tmp_buffer_idx.data(),
             e_op);
       }
-      if (edge_partition.dcs_nzd_vertex_count() && (h_offsets[3] - h_offsets[2] > 0)) {
+      if (h_offsets[3] - h_offsets[2] > 0) {
         raft::grid_1d_thread_t update_grid(h_offsets[3] - h_offsets[2],
+                                           extract_transform_v_frontier_e_kernel_block_size,
+                                           handle.get_device_properties().maxGridSize[0]);
+        extract_transform_v_frontier_e_hypersparse_or_low_degree<false,
+                                                                 max_one_e_per_frontier_key,
+                                                                 GraphViewType>
+          <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
+            edge_partition,
+            edge_partition_frontier_key_first + h_offsets[2],
+            edge_partition_frontier_key_first + h_offsets[3],
+            edge_partition_src_value_input,
+            edge_partition_dst_value_input,
+            edge_partition_e_value_input,
+            edge_partition_e_mask,
+            get_optional_dataframe_buffer_begin<output_key_t>(tmp_key_buffer),
+            get_optional_dataframe_buffer_begin<output_value_t>(tmp_value_buffer),
+            tmp_buffer_idx.data(),
+            e_op);
+      }
+      if (edge_partition.dcs_nzd_vertex_count() && (h_offsets[4] - h_offsets[3] > 0)) {
+        raft::grid_1d_thread_t update_grid(h_offsets[4] - h_offsets[3],
                                            extract_transform_v_frontier_e_kernel_block_size,
                                            handle.get_device_properties().maxGridSize[0]);
         extract_transform_v_frontier_e_hypersparse_or_low_degree<true,
@@ -943,8 +944,8 @@ extract_transform_v_frontier_e(raft::handle_t const& handle,
                                                                  GraphViewType>
           <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
             edge_partition,
-            edge_partition_frontier_key_first + h_offsets[2],
             edge_partition_frontier_key_first + h_offsets[3],
+            edge_partition_frontier_key_first + h_offsets[4],
             edge_partition_src_value_input,
             edge_partition_dst_value_input,
             edge_partition_e_value_input,

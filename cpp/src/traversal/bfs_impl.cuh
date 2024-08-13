@@ -18,6 +18,7 @@
 #include "prims/fill_edge_src_dst_property.cuh"
 #include "prims/reduce_op.cuh"
 #include "prims/transform_reduce_v_frontier_outgoing_e_by_src_dst.cuh"
+#include "prims/per_v_transform_reduce_if_incoming_outgoing_e.cuh"
 #include "prims/update_v_frontier.cuh"
 #include "prims/vertex_frontier.cuh"
 
@@ -69,18 +70,25 @@ struct topdown_e_op_t {
   }
 };
 
-template <typename vertex_t, bool multi_gpu>
+template <typename vertex_t>
 struct bottomup_e_op_t {
-  detail::edge_partition_endpoint_property_device_view_t<vertex_t, uint32_t*, bool>
+  __device__ vertex_t operator()(
+    vertex_t src, vertex_t dst, thrust::nullopt_t, thrust::nullopt_t, thrust::nullopt_t) const
+  {
+    return dst;
+  }
+};
+
+template <typename vertex_t, bool multi_gpu>
+struct bottomup_pred_op_t {
+  detail::edge_partition_endpoint_property_device_view_t<vertex_t, uint32_t const*, bool>
     prev_visited_flags{};  // visited in the previous iterations
   vertex_t dst_first{};
 
-  __device__ thrust::optional<vertex_t> operator()(
+  __device__ bool operator()(
     vertex_t src, vertex_t dst, thrust::nullopt_t, thrust::nullopt_t, thrust::nullopt_t) const
   {
-    auto dst_offset = dst - dst_first;
-    auto old        = prev_visited_flags.get(dst_offset);
-    return old ? thrust::optional<vertex_t>{dst} : thrust::nullopt;
+    return prev_visited_flags.get(dst - dst_first);
   }
 };
 
@@ -270,6 +278,7 @@ void bfs(raft::handle_t const& handle,
 #if BFS_PERFORMANCE_MEASUREMENT  // FIXME: delete
       RAFT_CUDA_TRY(cudaDeviceSynchronize());
       auto topdown0 = std::chrono::steady_clock::now();
+      std::cout << "topdown0 " << std::endl;
 #endif
       topdown_e_op_t<vertex_t, GraphViewType::is_multi_gpu> e_op{};
       e_op.prev_visited_flags =
@@ -431,25 +440,52 @@ void bfs(raft::handle_t const& handle,
                 << "," << dur2.count() << "," << dur3.count() << "," << dur4.count() << ","
                 << dur5.count() << ") s." << std::endl;
 #endif
-    } else {                 // bottom up
+    } else {                     // bottom up
 #if BFS_PERFORMANCE_MEASUREMENT  // FIXME: delete
       RAFT_CUDA_TRY(cudaDeviceSynchronize());
       auto bottomup0 = std::chrono::steady_clock::now();
 #endif
-      bottomup_e_op_t<vertex_t, GraphViewType::is_multi_gpu> e_op{};
-      e_op.prev_visited_flags =
-        detail::edge_partition_endpoint_property_device_view_t<vertex_t, uint32_t*, bool>(
-          prev_dst_visited_flags.mutable_view());
-      e_op.dst_first = graph_view.local_edge_partition_dst_range_first();
-      auto [new_frontier_vertex_buffer, predecessor_buffer] =
-        transform_reduce_v_frontier_outgoing_e_by_src(handle,
-                                                      graph_view,
-                                                      vertex_frontier.bucket(bucket_idx_cur),
-                                                      edge_src_dummy_property_t{}.view(),
-                                                      edge_dst_dummy_property_t{}.view(),
-                                                      edge_dummy_property_t{}.view(),
-                                                      e_op,
-                                                      reduce_op::any<vertex_t>());
+      bottomup_e_op_t<vertex_t> e_op{};
+      bottomup_pred_op_t<vertex_t, GraphViewType::is_multi_gpu> pred_op{};
+      pred_op.prev_visited_flags =
+        detail::edge_partition_endpoint_property_device_view_t<vertex_t, uint32_t const*, bool>(
+          prev_dst_visited_flags.view());
+      pred_op.dst_first = graph_view.local_edge_partition_dst_range_first();
+
+      rmm::device_uvector<vertex_t> predecessor_buffer(
+        vertex_frontier.bucket(bucket_idx_cur).size(), handle.get_stream());
+      per_v_transform_reduce_if_outgoing_e(handle,
+                                           graph_view,
+                                           vertex_frontier.bucket(bucket_idx_cur),
+                                           edge_src_dummy_property_t{}.view(),
+                                           edge_dst_dummy_property_t{}.view(),
+                                           edge_dummy_property_t{}.view(),
+                                           e_op,
+                                           invalid_vertex,
+                                           reduce_op::any<vertex_t>(),
+                                           pred_op,
+                                           predecessor_buffer.begin(), true);
+
+      rmm::device_uvector<vertex_t> new_frontier_vertex_buffer(
+        thrust::count_if(handle.get_thrust_policy(),
+                         predecessor_buffer.begin(),
+                         predecessor_buffer.end(),
+                         detail::is_not_equal_t<vertex_t>{invalid_vertex}),
+        handle.get_stream());
+      {
+        rmm::device_uvector<vertex_t> tmp_predecessor_buffer(new_frontier_vertex_buffer.size(),
+                                                             handle.get_stream());
+        auto pair_first = thrust::make_zip_iterator(vertex_frontier.bucket(bucket_idx_cur).cbegin(),
+                                                    predecessor_buffer.begin());
+        thrust::copy_if(
+          handle.get_thrust_policy(),
+          pair_first,
+          pair_first + vertex_frontier.bucket(bucket_idx_cur).size(),
+          thrust::make_zip_iterator(new_frontier_vertex_buffer.begin(),
+                                    tmp_predecessor_buffer.begin()),
+          cuda::proclaim_return_type<bool>([] __device__(auto pair) { return thrust::get<1>(pair) != invalid_vertex; }));
+        predecessor_buffer = std::move(tmp_predecessor_buffer);
+      }
 #if BFS_PERFORMANCE_MEASUREMENT  // FIXME: delete
       RAFT_CUDA_TRY(cudaDeviceSynchronize());
       auto bottomup1 = std::chrono::steady_clock::now();
