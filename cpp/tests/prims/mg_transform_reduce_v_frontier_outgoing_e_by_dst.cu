@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#include "prims/transform_reduce_v_frontier_outgoing_e_by_src_dst.cuh"
+#include "prims/transform_reduce_v_frontier_outgoing_e_by_dst.cuh"
 #include "prims/vertex_frontier.cuh"
 #include "utilities/base_fixture.hpp"
 #include "utilities/conversion_utilities.hpp"
@@ -203,48 +203,7 @@ class Tests_MGTransformReduceVFrontierOutgoingEBySrcDst
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle_->get_comms().barrier();
-      hr_timer.start("MG transform_reduce_v_frontier_outgoing_e_by_src");
-    }
-
-    auto mg_reduce_by_src_new_frontier_key_buffer =
-      cugraph::allocate_dataframe_buffer<key_t>(0, handle_->get_stream());
-    [[maybe_unused]] auto mg_reduce_by_src_payload_buffer =
-      cugraph::detail::allocate_optional_dataframe_buffer<payload_t>(0, handle_->get_stream());
-
-    if constexpr (std::is_same_v<payload_t, void>) {
-      mg_reduce_by_src_new_frontier_key_buffer =
-        cugraph::transform_reduce_v_frontier_outgoing_e_by_src(
-          *handle_,
-          mg_graph_view,
-          mg_vertex_frontier.bucket(bucket_idx_cur),
-          mg_src_prop.view(),
-          mg_dst_prop.view(),
-          cugraph::edge_dummy_property_t{}.view(),
-          e_op_t<key_t, vertex_t, property_t, payload_t>{},
-          cugraph::reduce_op::null{});
-    } else {
-      std::tie(mg_reduce_by_src_new_frontier_key_buffer, mg_reduce_by_src_payload_buffer) =
-        cugraph::transform_reduce_v_frontier_outgoing_e_by_src(
-          *handle_,
-          mg_graph_view,
-          mg_vertex_frontier.bucket(bucket_idx_cur),
-          mg_src_prop.view(),
-          mg_dst_prop.view(),
-          cugraph::edge_dummy_property_t{}.view(),
-          e_op_t<key_t, vertex_t, property_t, payload_t>{},
-          cugraph::reduce_op::plus<payload_t>{});
-    }
-
-    if (cugraph::test::g_perf) {
-      RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
-      handle_->get_comms().barrier();
-      hr_timer.stop();
-      hr_timer.display_and_clear(std::cout);
-    }
-    if (cugraph::test::g_perf) {
-      RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
-      handle_->get_comms().barrier();
-      hr_timer.start("MG transform_reduce_v_frontier_outgoing_e_by_src");
+      hr_timer.start("MG transform_reduce_v_frontier_outgoing_e_by_dst");
     }
 
     auto mg_reduce_by_dst_new_frontier_key_buffer =
@@ -286,56 +245,6 @@ class Tests_MGTransformReduceVFrontierOutgoingEBySrcDst
     // 3. compare SG & MG results
 
     if (prims_usecase.check_correctness) {
-      if constexpr (std::is_same_v<key_t, vertex_t>) {
-        cugraph::unrenumber_int_vertices<vertex_t, true>(
-          *handle_,
-          mg_reduce_by_src_new_frontier_key_buffer.begin(),
-          mg_reduce_by_src_new_frontier_key_buffer.size(),
-          (*mg_renumber_map).data(),
-          mg_graph_view.vertex_partition_range_lasts());
-
-        cugraph::unrenumber_int_vertices<vertex_t, true>(
-          *handle_,
-          mg_reduce_by_dst_new_frontier_key_buffer.begin(),
-          mg_reduce_by_dst_new_frontier_key_buffer.size(),
-          (*mg_renumber_map).data(),
-          mg_graph_view.vertex_partition_range_lasts());
-      } else {
-        cugraph::unrenumber_int_vertices<vertex_t, true>(
-          *handle_,
-          std::get<0>(mg_reduce_by_src_new_frontier_key_buffer).begin(),
-          std::get<0>(mg_reduce_by_src_new_frontier_key_buffer).size(),
-          (*mg_renumber_map).data(),
-          mg_graph_view.vertex_partition_range_lasts());
-
-        cugraph::unrenumber_int_vertices<vertex_t, true>(
-          *handle_,
-          std::get<0>(mg_reduce_by_dst_new_frontier_key_buffer).begin(),
-          std::get<0>(mg_reduce_by_dst_new_frontier_key_buffer).size(),
-          (*mg_renumber_map).data(),
-          mg_graph_view.vertex_partition_range_lasts());
-      }
-
-      auto mg_reduce_by_src_aggregate_new_frontier_key_buffer =
-        cugraph::allocate_dataframe_buffer<key_t>(0, handle_->get_stream());
-      if constexpr (std::is_same_v<key_t, vertex_t>) {
-        mg_reduce_by_src_aggregate_new_frontier_key_buffer =
-          cugraph::test::device_gatherv(*handle_,
-                                        mg_reduce_by_src_new_frontier_key_buffer.data(),
-                                        mg_reduce_by_src_new_frontier_key_buffer.size());
-      } else {
-        std::get<0>(mg_reduce_by_src_aggregate_new_frontier_key_buffer) =
-          cugraph::test::device_gatherv(
-            *handle_,
-            std::get<0>(mg_reduce_by_src_new_frontier_key_buffer).data(),
-            std::get<0>(mg_reduce_by_src_new_frontier_key_buffer).size());
-        std::get<1>(mg_reduce_by_src_aggregate_new_frontier_key_buffer) =
-          cugraph::test::device_gatherv(
-            *handle_,
-            std::get<1>(mg_reduce_by_src_new_frontier_key_buffer).data(),
-            std::get<1>(mg_reduce_by_src_new_frontier_key_buffer).size());
-      }
-
       auto mg_reduce_by_dst_aggregate_new_frontier_key_buffer =
         cugraph::allocate_dataframe_buffer<key_t>(0, handle_->get_stream());
       if constexpr (std::is_same_v<key_t, vertex_t>) {
@@ -354,26 +263,6 @@ class Tests_MGTransformReduceVFrontierOutgoingEBySrcDst
             *handle_,
             std::get<1>(mg_reduce_by_dst_new_frontier_key_buffer).data(),
             std::get<1>(mg_reduce_by_dst_new_frontier_key_buffer).size());
-      }
-
-      [[maybe_unused]] auto mg_reduce_by_src_aggregate_payload_buffer =
-        cugraph::detail::allocate_optional_dataframe_buffer<payload_t>(0, handle_->get_stream());
-      if constexpr (!std::is_same_v<payload_t, void>) {
-        if constexpr (std::is_arithmetic_v<payload_t>) {
-          mg_reduce_by_src_aggregate_payload_buffer =
-            cugraph::test::device_gatherv(*handle_,
-                                          mg_reduce_by_src_payload_buffer.data(),
-                                          mg_reduce_by_src_payload_buffer.size());
-        } else {
-          std::get<0>(mg_reduce_by_src_aggregate_payload_buffer) =
-            cugraph::test::device_gatherv(*handle_,
-                                          std::get<0>(mg_reduce_by_src_payload_buffer).data(),
-                                          std::get<0>(mg_reduce_by_src_payload_buffer).size());
-          std::get<1>(mg_reduce_by_src_aggregate_payload_buffer) =
-            cugraph::test::device_gatherv(*handle_,
-                                          std::get<1>(mg_reduce_by_src_payload_buffer).data(),
-                                          std::get<1>(mg_reduce_by_src_payload_buffer).size());
-        }
       }
 
       [[maybe_unused]] auto mg_reduce_by_dst_aggregate_payload_buffer =
@@ -411,20 +300,9 @@ class Tests_MGTransformReduceVFrontierOutgoingEBySrcDst
         if constexpr (std::is_same_v<payload_t, void>) {
           thrust::sort(
             handle_->get_thrust_policy(),
-            cugraph::get_dataframe_buffer_begin(mg_reduce_by_src_aggregate_new_frontier_key_buffer),
-            cugraph::get_dataframe_buffer_end(mg_reduce_by_src_aggregate_new_frontier_key_buffer));
-
-          thrust::sort(
-            handle_->get_thrust_policy(),
             cugraph::get_dataframe_buffer_begin(mg_reduce_by_dst_aggregate_new_frontier_key_buffer),
             cugraph::get_dataframe_buffer_end(mg_reduce_by_dst_aggregate_new_frontier_key_buffer));
         } else {
-          thrust::sort_by_key(
-            handle_->get_thrust_policy(),
-            cugraph::get_dataframe_buffer_begin(mg_reduce_by_src_aggregate_new_frontier_key_buffer),
-            cugraph::get_dataframe_buffer_end(mg_reduce_by_src_aggregate_new_frontier_key_buffer),
-            cugraph::get_dataframe_buffer_begin(mg_reduce_by_src_aggregate_payload_buffer));
-
           thrust::sort_by_key(
             handle_->get_thrust_policy(),
             cugraph::get_dataframe_buffer_begin(mg_reduce_by_dst_aggregate_new_frontier_key_buffer),
@@ -471,34 +349,6 @@ class Tests_MGTransformReduceVFrontierOutgoingEBySrcDst
           .insert(cugraph::get_dataframe_buffer_begin(sg_key_buffer),
                   cugraph::get_dataframe_buffer_end(sg_key_buffer));
 
-        auto sg_reduce_by_src_new_frontier_key_buffer =
-          cugraph::allocate_dataframe_buffer<key_t>(0, handle_->get_stream());
-        [[maybe_unused]] auto sg_reduce_by_src_payload_buffer =
-          cugraph::detail::allocate_optional_dataframe_buffer<payload_t>(0, handle_->get_stream());
-        if constexpr (std::is_same_v<payload_t, void>) {
-          sg_reduce_by_src_new_frontier_key_buffer =
-            cugraph::transform_reduce_v_frontier_outgoing_e_by_src(
-              *handle_,
-              sg_graph_view,
-              sg_vertex_frontier.bucket(bucket_idx_cur),
-              sg_src_prop.view(),
-              sg_dst_prop.view(),
-              cugraph::edge_dummy_property_t{}.view(),
-              e_op_t<key_t, vertex_t, property_t, payload_t>{},
-              cugraph::reduce_op::null{});
-        } else {
-          std::tie(sg_reduce_by_src_new_frontier_key_buffer, sg_reduce_by_src_payload_buffer) =
-            cugraph::transform_reduce_v_frontier_outgoing_e_by_src(
-              *handle_,
-              sg_graph_view,
-              sg_vertex_frontier.bucket(bucket_idx_cur),
-              sg_src_prop.view(),
-              sg_dst_prop.view(),
-              cugraph::edge_dummy_property_t{}.view(),
-              e_op_t<key_t, vertex_t, property_t, payload_t>{},
-              cugraph::reduce_op::plus<payload_t>{});
-        }
-
         auto sg_reduce_by_dst_new_frontier_key_buffer =
           cugraph::allocate_dataframe_buffer<key_t>(0, handle_->get_stream());
         [[maybe_unused]] auto sg_reduce_by_dst_payload_buffer =
@@ -530,20 +380,9 @@ class Tests_MGTransformReduceVFrontierOutgoingEBySrcDst
         if constexpr (std::is_same_v<payload_t, void>) {
           thrust::sort(
             handle_->get_thrust_policy(),
-            cugraph::get_dataframe_buffer_begin(sg_reduce_by_src_new_frontier_key_buffer),
-            cugraph::get_dataframe_buffer_end(sg_reduce_by_src_new_frontier_key_buffer));
-
-          thrust::sort(
-            handle_->get_thrust_policy(),
             cugraph::get_dataframe_buffer_begin(sg_reduce_by_dst_new_frontier_key_buffer),
             cugraph::get_dataframe_buffer_end(sg_reduce_by_dst_new_frontier_key_buffer));
         } else {
-          thrust::sort_by_key(
-            handle_->get_thrust_policy(),
-            cugraph::get_dataframe_buffer_begin(sg_reduce_by_src_new_frontier_key_buffer),
-            cugraph::get_dataframe_buffer_end(sg_reduce_by_src_new_frontier_key_buffer),
-            cugraph::get_dataframe_buffer_begin(sg_reduce_by_src_payload_buffer));
-
           thrust::sort_by_key(
             handle_->get_thrust_policy(),
             cugraph::get_dataframe_buffer_begin(sg_reduce_by_dst_new_frontier_key_buffer),
@@ -551,14 +390,7 @@ class Tests_MGTransformReduceVFrontierOutgoingEBySrcDst
             cugraph::get_dataframe_buffer_begin(sg_reduce_by_dst_payload_buffer));
         }
 
-        bool key_passed = thrust::equal(
-          handle_->get_thrust_policy(),
-          cugraph::get_dataframe_buffer_begin(sg_reduce_by_src_new_frontier_key_buffer),
-          cugraph::get_dataframe_buffer_end(sg_reduce_by_src_new_frontier_key_buffer),
-          cugraph::get_dataframe_buffer_begin(mg_reduce_by_src_aggregate_new_frontier_key_buffer));
-        ASSERT_TRUE(key_passed);
-
-        key_passed = thrust::equal(
+        auto key_passed = thrust::equal(
           handle_->get_thrust_policy(),
           cugraph::get_dataframe_buffer_begin(sg_reduce_by_dst_new_frontier_key_buffer),
           cugraph::get_dataframe_buffer_end(sg_reduce_by_dst_new_frontier_key_buffer),
@@ -567,13 +399,6 @@ class Tests_MGTransformReduceVFrontierOutgoingEBySrcDst
 
         if constexpr (!std::is_same_v<payload_t, void>) {
           bool payload_passed = thrust::equal(
-            handle_->get_thrust_policy(),
-            cugraph::get_dataframe_buffer_begin(sg_reduce_by_src_payload_buffer),
-            cugraph::get_dataframe_buffer_begin(sg_reduce_by_src_payload_buffer),
-            cugraph::get_dataframe_buffer_end(mg_reduce_by_src_aggregate_payload_buffer));
-          ASSERT_TRUE(payload_passed);
-
-          payload_passed = thrust::equal(
             handle_->get_thrust_policy(),
             cugraph::get_dataframe_buffer_begin(sg_reduce_by_dst_payload_buffer),
             cugraph::get_dataframe_buffer_begin(sg_reduce_by_dst_payload_buffer),

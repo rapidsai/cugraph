@@ -16,9 +16,9 @@
 #pragma once
 
 #include "prims/fill_edge_src_dst_property.cuh"
-#include "prims/reduce_op.cuh"
-#include "prims/transform_reduce_v_frontier_outgoing_e_by_src_dst.cuh"
 #include "prims/per_v_transform_reduce_if_incoming_outgoing_e.cuh"
+#include "prims/reduce_op.cuh"
+#include "prims/transform_reduce_v_frontier_outgoing_e_by_dst.cuh"
 #include "prims/update_v_frontier.cuh"
 #include "prims/vertex_frontier.cuh"
 
@@ -290,14 +290,15 @@ void bfs(raft::handle_t const& handle,
       e_op.dst_first = graph_view.local_edge_partition_dst_range_first();
 
       auto [new_frontier_vertex_buffer, predecessor_buffer] =
-        transform_reduce_v_frontier_outgoing_e_by_dst(handle,
-                                                      graph_view,
-                                                      vertex_frontier.bucket(bucket_idx_cur),
-                                                      edge_src_dummy_property_t{}.view(),
-                                                      edge_dst_dummy_property_t{}.view(),
-                                                      edge_dummy_property_t{}.view(),
-                                                      e_op,
-                                                      reduce_op::any<vertex_t>());
+        cugraph::transform_reduce_v_frontier_outgoing_e_by_dst(
+          handle,
+          graph_view,
+          vertex_frontier.bucket(bucket_idx_cur),
+          edge_src_dummy_property_t{}.view(),
+          edge_dst_dummy_property_t{}.view(),
+          edge_dummy_property_t{}.view(),
+          e_op,
+          reduce_op::any<vertex_t>());
 #if BFS_PERFORMANCE_MEASUREMENT  // FIXME: delete
       RAFT_CUDA_TRY(cudaDeviceSynchronize());
       auto topdown1 = std::chrono::steady_clock::now();
@@ -464,7 +465,8 @@ void bfs(raft::handle_t const& handle,
                                            invalid_vertex,
                                            reduce_op::any<vertex_t>(),
                                            pred_op,
-                                           predecessor_buffer.begin(), true);
+                                           predecessor_buffer.begin(),
+                                           true);
 
       rmm::device_uvector<vertex_t> new_frontier_vertex_buffer(
         thrust::count_if(handle.get_thrust_policy(),
@@ -477,13 +479,14 @@ void bfs(raft::handle_t const& handle,
                                                              handle.get_stream());
         auto pair_first = thrust::make_zip_iterator(vertex_frontier.bucket(bucket_idx_cur).cbegin(),
                                                     predecessor_buffer.begin());
-        thrust::copy_if(
-          handle.get_thrust_policy(),
-          pair_first,
-          pair_first + vertex_frontier.bucket(bucket_idx_cur).size(),
-          thrust::make_zip_iterator(new_frontier_vertex_buffer.begin(),
-                                    tmp_predecessor_buffer.begin()),
-          cuda::proclaim_return_type<bool>([] __device__(auto pair) { return thrust::get<1>(pair) != invalid_vertex; }));
+        thrust::copy_if(handle.get_thrust_policy(),
+                        pair_first,
+                        pair_first + vertex_frontier.bucket(bucket_idx_cur).size(),
+                        thrust::make_zip_iterator(new_frontier_vertex_buffer.begin(),
+                                                  tmp_predecessor_buffer.begin()),
+                        cuda::proclaim_return_type<bool>([] __device__(auto pair) {
+                          return thrust::get<1>(pair) != invalid_vertex;
+                        }));
         predecessor_buffer = std::move(tmp_predecessor_buffer);
       }
 #if BFS_PERFORMANCE_MEASUREMENT  // FIXME: delete

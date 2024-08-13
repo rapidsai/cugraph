@@ -100,14 +100,14 @@ extract_transform_v_frontier_outgoing_e(raft::handle_t const& handle,
 
   auto value_buffer = allocate_dataframe_buffer<payload_t>(size_t{0}, handle.get_stream());
   std::tie(std::ignore, value_buffer) =
-    detail::extract_transform_v_frontier_e<false, false, void, payload_t>(handle,
-                                                                          graph_view,
-                                                                          frontier,
-                                                                          edge_src_value_input,
-                                                                          edge_dst_value_input,
-                                                                          edge_value_input,
-                                                                          e_op,
-                                                                          do_expensive_check);
+    detail::extract_transform_v_frontier_e<false, void, payload_t>(handle,
+                                                                   graph_view,
+                                                                   frontier,
+                                                                   edge_src_value_input,
+                                                                   edge_dst_value_input,
+                                                                   edge_value_input,
+                                                                   e_op,
+                                                                   do_expensive_check);
 
   return value_buffer;
 }

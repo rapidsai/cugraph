@@ -1305,6 +1305,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
       // peak memory requirement per loop is
       // update_major ? (use_input_key ? aggregate key list size : V) / comm_size * sizeof(T) : 0
       // and limit memory requirement to (E / comm_size) * sizeof(vertex_t)
+      // FIXME: should we consider edge_partition_key_buffer as well?
 
       size_t num_streams =
         std::min(static_cast<size_t>(minor_comm_size) * max_segments,

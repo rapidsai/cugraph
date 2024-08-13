@@ -119,7 +119,6 @@ __device__ void warp_push_buffer_elements(
 }
 
 template <bool hypersparse,
-          bool max_one_e_per_frontier_key,
           typename GraphViewType,
           typename KeyIterator,
           typename EdgePartitionSrcValueInputWrapper,
@@ -167,18 +166,12 @@ __global__ static void extract_transform_v_frontier_e_hypersparse_or_low_degree(
 
   cuda::atomic_ref<size_t, cuda::thread_scope_device> buffer_idx(*buffer_idx_ptr);
 
-  int32_t constexpr shared_array_size = max_one_e_per_frontier_key
-                                          ? int32_t{1} /* dummy */
-                                          : extract_transform_v_frontier_e_kernel_block_size;
-  __shared__ std::conditional_t<max_one_e_per_frontier_key, std::byte /* dummy */, edge_t>
-    warp_local_degree_inclusive_sums[shared_array_size];
-  __shared__ std::conditional_t<max_one_e_per_frontier_key, std::byte /* dummy */, edge_t>
-    warp_key_local_edge_offsets[shared_array_size];
+  __shared__ edge_t
+    warp_local_degree_inclusive_sums[extract_transform_v_frontier_e_kernel_block_size];
+  __shared__ edge_t warp_key_local_edge_offsets[extract_transform_v_frontier_e_kernel_block_size];
 
   using WarpScan = cub::WarpScan<edge_t, raft::warp_size()>;
-  __shared__ std::
-    conditional_t<max_one_e_per_frontier_key, std::byte /* dummy */, typename WarpScan::TempStorage>
-      temp_storage;
+  __shared__ typename WarpScan::TempStorage temp_storage;
 
   auto indices = edge_partition.indices();
 
@@ -217,98 +210,74 @@ __global__ static void extract_transform_v_frontier_e_hypersparse_or_low_degree(
       }
     }
 
-    if constexpr (max_one_e_per_frontier_key) {
-      // each thread processes one frontier key, exits if any edge returns a valid output
+    auto min_key_idx = static_cast<vertex_t>(idx - (idx % raft::warp_size()));  // inclusive
+    auto max_key_idx =
+      static_cast<vertex_t>(std::min(static_cast<size_t>(min_key_idx) + raft::warp_size(),
+                                     static_cast<size_t>(num_keys)));  // exclusive
 
-      e_op_result_t e_op_result{thrust::nullopt};
-      auto key = *(key_first + idx);
+    // update warp_local_degree_inclusive_sums & warp_key_local_edge_offsets
 
-      if (edge_partition_e_mask) {
-        for (edge_t i = 0; i < local_degree; ++i) {
-          if ((*edge_partition_e_mask).get(edge_offset + i)) {
-            e_op_result = call_e_op(key, edge_offset + i);
-            if (e_op_result) { break; }
-          }
-        }
-      } else {
-        for (edge_t i = 0; i < local_degree; ++i) {
-          e_op_result = call_e_op(key, edge_offset + i);
-          if (e_op_result) { break; }
-        }
-      }
-      warp_push_buffer_elements(
-        buffer_key_output_first, buffer_value_output_first, buffer_idx, lane_id, e_op_result);
-    } else {
-      auto min_key_idx = static_cast<vertex_t>(idx - (idx % raft::warp_size()));  // inclusive
-      auto max_key_idx =
-        static_cast<vertex_t>(std::min(static_cast<size_t>(min_key_idx) + raft::warp_size(),
-                                       static_cast<size_t>(num_keys)));  // exclusive
+    warp_key_local_edge_offsets[threadIdx.x] = edge_offset;
+    WarpScan(temp_storage)
+      .InclusiveSum(local_degree, warp_local_degree_inclusive_sums[threadIdx.x]);
+    __syncwarp();
 
-      // update warp_local_degree_inclusive_sums & warp_key_local_edge_offsets
+    // all the threads in a warp collectively process local edges for the keys in [key_first +
+    // min_key_idx, key_first + max_key_idx)
 
-      warp_key_local_edge_offsets[threadIdx.x] = edge_offset;
-      WarpScan(temp_storage)
-        .InclusiveSum(local_degree, warp_local_degree_inclusive_sums[threadIdx.x]);
-      __syncwarp();
+    auto num_edges_this_warp = warp_local_degree_inclusive_sums[warp_id * raft::warp_size() +
+                                                                (max_key_idx - min_key_idx) - 1];
+    auto rounded_up_num_edges_this_warp =
+      ((static_cast<size_t>(num_edges_this_warp) + (raft::warp_size() - 1)) / raft::warp_size()) *
+      raft::warp_size();
 
-      // all the threads in a warp collectively process local edges for the keys in [key_first +
-      // min_key_idx, key_first + max_key_idx)
+    auto this_warp_inclusive_sum_first =
+      warp_local_degree_inclusive_sums + warp_id * raft::warp_size();
+    auto this_warp_inclusive_sum_last = this_warp_inclusive_sum_first + (max_key_idx - min_key_idx);
 
-      auto num_edges_this_warp = warp_local_degree_inclusive_sums[warp_id * raft::warp_size() +
-                                                                  (max_key_idx - min_key_idx) - 1];
-      auto rounded_up_num_edges_this_warp =
-        ((static_cast<size_t>(num_edges_this_warp) + (raft::warp_size() - 1)) / raft::warp_size()) *
-        raft::warp_size();
+    if (edge_partition_e_mask) {
+      for (size_t i = lane_id; i < rounded_up_num_edges_this_warp; i += raft::warp_size()) {
+        e_op_result_t e_op_result{thrust::nullopt};
 
-      auto this_warp_inclusive_sum_first =
-        warp_local_degree_inclusive_sums + warp_id * raft::warp_size();
-      auto this_warp_inclusive_sum_last =
-        this_warp_inclusive_sum_first + (max_key_idx - min_key_idx);
-
-      if (edge_partition_e_mask) {
-        for (size_t i = lane_id; i < rounded_up_num_edges_this_warp; i += raft::warp_size()) {
-          e_op_result_t e_op_result{thrust::nullopt};
-
-          if (i < static_cast<size_t>(num_edges_this_warp)) {
-            auto key_idx_this_warp = static_cast<vertex_t>(thrust::distance(
-              this_warp_inclusive_sum_first,
-              thrust::upper_bound(
-                thrust::seq, this_warp_inclusive_sum_first, this_warp_inclusive_sum_last, i)));
-            auto local_edge_offset =
-              warp_key_local_edge_offsets[warp_id * raft::warp_size() + key_idx_this_warp] +
-              static_cast<edge_t>(i - ((key_idx_this_warp == 0) ? edge_t{0}
-                                                                : *(this_warp_inclusive_sum_first +
-                                                                    (key_idx_this_warp - 1))));
-            if ((*edge_partition_e_mask).get(local_edge_offset)) {
-              auto key    = *(key_first + (min_key_idx + key_idx_this_warp));
-              e_op_result = call_e_op(key, local_edge_offset);
-            }
-          }
-
-          warp_push_buffer_elements(
-            buffer_key_output_first, buffer_value_output_first, buffer_idx, lane_id, e_op_result);
-        }
-      } else {
-        for (size_t i = lane_id; i < rounded_up_num_edges_this_warp; i += raft::warp_size()) {
-          e_op_result_t e_op_result{thrust::nullopt};
-
-          if (i < static_cast<size_t>(num_edges_this_warp)) {
-            auto key_idx_this_warp = static_cast<vertex_t>(thrust::distance(
-              this_warp_inclusive_sum_first,
-              thrust::upper_bound(
-                thrust::seq, this_warp_inclusive_sum_first, this_warp_inclusive_sum_last, i)));
-            auto local_edge_offset =
-              warp_key_local_edge_offsets[warp_id * raft::warp_size() + key_idx_this_warp] +
-              static_cast<edge_t>(i - ((key_idx_this_warp == 0) ? edge_t{0}
-                                                                : *(this_warp_inclusive_sum_first +
-                                                                    (key_idx_this_warp - 1))));
+        if (i < static_cast<size_t>(num_edges_this_warp)) {
+          auto key_idx_this_warp = static_cast<vertex_t>(thrust::distance(
+            this_warp_inclusive_sum_first,
+            thrust::upper_bound(
+              thrust::seq, this_warp_inclusive_sum_first, this_warp_inclusive_sum_last, i)));
+          auto local_edge_offset =
+            warp_key_local_edge_offsets[warp_id * raft::warp_size() + key_idx_this_warp] +
+            static_cast<edge_t>(i - ((key_idx_this_warp == 0) ? edge_t{0}
+                                                              : *(this_warp_inclusive_sum_first +
+                                                                  (key_idx_this_warp - 1))));
+          if ((*edge_partition_e_mask).get(local_edge_offset)) {
             auto key    = *(key_first + (min_key_idx + key_idx_this_warp));
             e_op_result = call_e_op(key, local_edge_offset);
           }
-
-          warp_push_buffer_elements(
-            buffer_key_output_first, buffer_value_output_first, buffer_idx, lane_id, e_op_result);
         }
+
+        warp_push_buffer_elements(
+          buffer_key_output_first, buffer_value_output_first, buffer_idx, lane_id, e_op_result);
+      }
+    } else {
+      for (size_t i = lane_id; i < rounded_up_num_edges_this_warp; i += raft::warp_size()) {
+        e_op_result_t e_op_result{thrust::nullopt};
+
+        if (i < static_cast<size_t>(num_edges_this_warp)) {
+          auto key_idx_this_warp = static_cast<vertex_t>(thrust::distance(
+            this_warp_inclusive_sum_first,
+            thrust::upper_bound(
+              thrust::seq, this_warp_inclusive_sum_first, this_warp_inclusive_sum_last, i)));
+          auto local_edge_offset =
+            warp_key_local_edge_offsets[warp_id * raft::warp_size() + key_idx_this_warp] +
+            static_cast<edge_t>(i - ((key_idx_this_warp == 0) ? edge_t{0}
+                                                              : *(this_warp_inclusive_sum_first +
+                                                                  (key_idx_this_warp - 1))));
+          auto key    = *(key_first + (min_key_idx + key_idx_this_warp));
+          e_op_result = call_e_op(key, local_edge_offset);
+        }
+
+        warp_push_buffer_elements(
+          buffer_key_output_first, buffer_value_output_first, buffer_idx, lane_id, e_op_result);
       }
     }
 
@@ -316,8 +285,7 @@ __global__ static void extract_transform_v_frontier_e_hypersparse_or_low_degree(
   }
 }
 
-template <bool max_one_e_per_frontier_key,
-          typename GraphViewType,
+template <typename GraphViewType,
           typename KeyIterator,
           typename EdgePartitionSrcValueInputWrapper,
           typename EdgePartitionDstValueInputWrapper,
@@ -360,14 +328,6 @@ __global__ static void extract_transform_v_frontier_e_mid_degree(
 
   cuda::atomic_ref<size_t, cuda::thread_scope_device> buffer_idx(*buffer_idx_ptr);
 
-  using WarpReduce = cub::WarpReduce<int32_t>;
-  __shared__ std::conditional_t<max_one_e_per_frontier_key,
-                                typename WarpReduce::TempStorage,
-                                std::byte /* dummy */>
-    temp_storage[max_one_e_per_frontier_key
-                   ? (extract_transform_v_frontier_e_kernel_block_size / raft::warp_size())
-                   : int32_t{1} /* dummy */];
-
   while (idx < static_cast<size_t>(thrust::distance(key_first, key_last))) {
     auto key          = *(key_first + idx);
     auto major        = thrust_tuple_get_or_identity<key_t, 0>(key);
@@ -404,42 +364,16 @@ __global__ static void extract_transform_v_frontier_e_mid_degree(
           e_op_result = call_e_op(i);
         }
 
-        if constexpr (max_one_e_per_frontier_key) {
-          auto first_valid_lane_id =
-            WarpReduce(temp_storage[threadIdx.x / raft::warp_size()])
-              .Reduce(e_op_result ? lane_id : raft::warp_size(), cub::Min());
-          first_valid_lane_id = __shfl_sync(raft::warp_full_mask(), first_valid_lane_id, int{0});
-          if (lane_id == first_valid_lane_id) {
-            auto push_idx = buffer_idx.fetch_add(1, cuda::std::memory_order_relaxed);
-            push_buffer_element(
-              buffer_key_output_first, buffer_value_output_first, push_idx, e_op_result);
-          }
-          if (first_valid_lane_id != raft::warp_size()) { break; }
-        } else {
-          warp_push_buffer_elements(
-            buffer_key_output_first, buffer_value_output_first, buffer_idx, lane_id, e_op_result);
-        }
+        warp_push_buffer_elements(
+          buffer_key_output_first, buffer_value_output_first, buffer_idx, lane_id, e_op_result);
       }
     } else {
       for (size_t i = lane_id; i < rounded_up_local_out_degree; i += raft::warp_size()) {
         e_op_result_t e_op_result{thrust::nullopt};
         if (i < static_cast<size_t>(local_out_degree)) { e_op_result = call_e_op(i); }
 
-        if constexpr (max_one_e_per_frontier_key) {
-          auto first_valid_lane_id =
-            WarpReduce(temp_storage[threadIdx.x / raft::warp_size()])
-              .Reduce(e_op_result ? lane_id : raft::warp_size(), cub::Min());
-          first_valid_lane_id = __shfl_sync(raft::warp_full_mask(), first_valid_lane_id, int{0});
-          if (lane_id == first_valid_lane_id) {
-            auto push_buffer_idx = buffer_idx.fetch_add(1, cuda::std::memory_order_relaxed);
-            push_buffer_element(
-              buffer_key_output_first, buffer_value_output_first, push_buffer_idx, e_op_result);
-          }
-          if (first_valid_lane_id != raft::warp_size()) { break; }
-        } else {
-          warp_push_buffer_elements(
-            buffer_key_output_first, buffer_value_output_first, buffer_idx, lane_id, e_op_result);
-        }
+        warp_push_buffer_elements(
+          buffer_key_output_first, buffer_value_output_first, buffer_idx, lane_id, e_op_result);
       }
     }
 
@@ -447,8 +381,7 @@ __global__ static void extract_transform_v_frontier_e_mid_degree(
   }
 }
 
-template <bool max_one_e_per_frontier_key,
-          typename GraphViewType,
+template <typename GraphViewType,
           typename KeyIterator,
           typename EdgePartitionSrcValueInputWrapper,
           typename EdgePartitionDstValueInputWrapper,
@@ -489,13 +422,6 @@ __global__ static void extract_transform_v_frontier_e_high_degree(
 
   cuda::atomic_ref<size_t, cuda::thread_scope_device> buffer_idx(*buffer_idx_ptr);
 
-  using BlockReduce = cub::BlockReduce<int32_t, extract_transform_v_frontier_e_kernel_block_size>;
-  __shared__ std::conditional_t<max_one_e_per_frontier_key,
-                                typename BlockReduce::TempStorage,
-                                std::byte /* dummy */>
-    temp_storage;
-  __shared__ int32_t output_thread_id;
-
   while (idx < static_cast<size_t>(thrust::distance(key_first, key_last))) {
     auto key          = *(key_first + idx);
     auto major        = thrust_tuple_get_or_identity<key_t, 0>(key);
@@ -533,46 +459,16 @@ __global__ static void extract_transform_v_frontier_e_high_degree(
           e_op_result = call_e_op(i);
         }
 
-        if constexpr (max_one_e_per_frontier_key) {
-          auto first_valid_thread_id =
-            BlockReduce(temp_storage)
-              .Reduce(e_op_result ? threadIdx.x : extract_transform_v_frontier_e_kernel_block_size,
-                      cub::Min());
-          if (threadIdx.x == 0) { output_thread_id = first_valid_thread_id; }
-          __syncthreads();
-          if (threadIdx.x == output_thread_id) {
-            auto push_buffer_idx = buffer_idx.fetch_add(1, cuda::std::memory_order_relaxed);
-            push_buffer_element(
-              buffer_key_output_first, buffer_value_output_first, push_buffer_idx, e_op_result);
-          }
-          if (output_thread_id != extract_transform_v_frontier_e_kernel_block_size) { break; }
-        } else {
-          warp_push_buffer_elements(
-            buffer_key_output_first, buffer_value_output_first, buffer_idx, lane_id, e_op_result);
-        }
+        warp_push_buffer_elements(
+          buffer_key_output_first, buffer_value_output_first, buffer_idx, lane_id, e_op_result);
       }
     } else {
       for (size_t i = threadIdx.x; i < rounded_up_local_out_degree; i += blockDim.x) {
         e_op_result_t e_op_result{thrust::nullopt};
         if (i < static_cast<size_t>(local_out_degree)) { e_op_result = call_e_op(i); }
 
-        if constexpr (max_one_e_per_frontier_key) {
-          auto first_valid_thread_id =
-            BlockReduce(temp_storage)
-              .Reduce(e_op_result ? threadIdx.x : extract_transform_v_frontier_e_kernel_block_size,
-                      cub::Min());
-          if (threadIdx.x == 0) { output_thread_id = first_valid_thread_id; }
-          __syncthreads();
-          if (threadIdx.x == output_thread_id) {
-            auto push_buffer_idx = buffer_idx.fetch_add(1, cuda::std::memory_order_relaxed);
-            push_buffer_element(
-              buffer_key_output_first, buffer_value_output_first, push_buffer_idx, e_op_result);
-          }
-          if (output_thread_id != extract_transform_v_frontier_e_kernel_block_size) { break; }
-        } else {
-          warp_push_buffer_elements(
-            buffer_key_output_first, buffer_value_output_first, buffer_idx, lane_id, e_op_result);
-        }
+        warp_push_buffer_elements(
+          buffer_key_output_first, buffer_value_output_first, buffer_idx, lane_id, e_op_result);
       }
     }
 
@@ -584,10 +480,6 @@ __global__ static void extract_transform_v_frontier_e_high_degree(
 
 template <bool incoming,  // iterate over incoming edges (incoming == true) or outgoing edges
                           // (incoming == false)
-          bool max_one_e_per_frontier_key,  // extract maximum one edge per key in the input
-                                            // frontier (if multiple e_op calls return valid output
-                                            // values, all but one will be discarded (the remaining
-                                            // one will be arbitrarily selected)
           typename OutputKeyT,
           typename OutputValueT,
           typename GraphViewType,
@@ -839,11 +731,8 @@ extract_transform_v_frontier_e(raft::handle_t const& handle,
       thrust_tuple_get_or_identity<decltype(edge_partition_frontier_key_last), 0>(
         edge_partition_frontier_key_last);
 
-    auto max_pushes = max_one_e_per_frontier_key ? local_frontier_sizes[i]
-                                                 : edge_partition.compute_number_of_edges(
-                                                     edge_partition_frontier_major_first,
-                                                     edge_partition_frontier_major_last,
-                                                     handle.get_stream());
+    auto max_pushes = edge_partition.compute_number_of_edges(
+      edge_partition_frontier_major_first, edge_partition_frontier_major_last, handle.get_stream());
 
     auto tmp_key_buffer =
       allocate_optional_dataframe_buffer<output_key_t>(max_pushes, handle.get_stream());
@@ -883,7 +772,7 @@ extract_transform_v_frontier_e(raft::handle_t const& handle,
         raft::grid_1d_block_t update_grid(h_offsets[1],
                                           extract_transform_v_frontier_e_kernel_block_size,
                                           handle.get_device_properties().maxGridSize[0]);
-        extract_transform_v_frontier_e_high_degree<max_one_e_per_frontier_key, GraphViewType>
+        extract_transform_v_frontier_e_high_degree<GraphViewType>
           <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
             edge_partition,
             edge_partition_frontier_key_first,
@@ -901,7 +790,7 @@ extract_transform_v_frontier_e(raft::handle_t const& handle,
         raft::grid_1d_warp_t update_grid(h_offsets[2] - h_offsets[1],
                                          extract_transform_v_frontier_e_kernel_block_size,
                                          handle.get_device_properties().maxGridSize[0]);
-        extract_transform_v_frontier_e_mid_degree<max_one_e_per_frontier_key, GraphViewType>
+        extract_transform_v_frontier_e_mid_degree<GraphViewType>
           <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
             edge_partition,
             edge_partition_frontier_key_first + h_offsets[1],
@@ -919,9 +808,7 @@ extract_transform_v_frontier_e(raft::handle_t const& handle,
         raft::grid_1d_thread_t update_grid(h_offsets[3] - h_offsets[2],
                                            extract_transform_v_frontier_e_kernel_block_size,
                                            handle.get_device_properties().maxGridSize[0]);
-        extract_transform_v_frontier_e_hypersparse_or_low_degree<false,
-                                                                 max_one_e_per_frontier_key,
-                                                                 GraphViewType>
+        extract_transform_v_frontier_e_hypersparse_or_low_degree<false, GraphViewType>
           <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
             edge_partition,
             edge_partition_frontier_key_first + h_offsets[2],
@@ -939,9 +826,7 @@ extract_transform_v_frontier_e(raft::handle_t const& handle,
         raft::grid_1d_thread_t update_grid(h_offsets[4] - h_offsets[3],
                                            extract_transform_v_frontier_e_kernel_block_size,
                                            handle.get_device_properties().maxGridSize[0]);
-        extract_transform_v_frontier_e_hypersparse_or_low_degree<true,
-                                                                 max_one_e_per_frontier_key,
-                                                                 GraphViewType>
+        extract_transform_v_frontier_e_hypersparse_or_low_degree<true, GraphViewType>
           <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
             edge_partition,
             edge_partition_frontier_key_first + h_offsets[3],
@@ -961,9 +846,7 @@ extract_transform_v_frontier_e(raft::handle_t const& handle,
                                            extract_transform_v_frontier_e_kernel_block_size,
                                            handle.get_device_properties().maxGridSize[0]);
 
-        extract_transform_v_frontier_e_hypersparse_or_low_degree<false,
-                                                                 max_one_e_per_frontier_key,
-                                                                 GraphViewType>
+        extract_transform_v_frontier_e_hypersparse_or_low_degree<false, GraphViewType>
           <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
             edge_partition,
             edge_partition_frontier_key_first,
