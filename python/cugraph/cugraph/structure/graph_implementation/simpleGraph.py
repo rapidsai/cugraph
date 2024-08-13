@@ -255,6 +255,13 @@ class simpleGraphImpl:
             elif elist[source].dtype not in [np.int32, np.int64] or elist[
                 destination
             ].dtype not in [np.int32, np.int64]:
+                if elist[destination].dtype in [np.uint32, np.uint64] or elist[
+                    source
+                ].dtype in [np.uint32, np.uint64]:
+                    raise ValueError(
+                        "Unsigned integers are not supported as vertex ids."
+                        "  Either convert to signed integers or set renumber=True"
+                    )
                 raise ValueError("set renumber to True for non integer columns ids")
 
         # The dataframe will be symmetrized iff the graph is undirected
