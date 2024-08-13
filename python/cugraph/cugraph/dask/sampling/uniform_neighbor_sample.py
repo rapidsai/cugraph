@@ -1,4 +1,4 @@
-# Copyright (c) 2022-2023, NVIDIA CORPORATION.
+# Copyright (c) 2022-2024, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -622,7 +622,8 @@ def uniform_neighbor_sample(
         edge_type_fanout_vals = list(chain.from_iterable(list(fanout_vals.values())))
         fanout_vals = (
             numpy.asarray(edge_type_size, dtype="int32"),
-            numpy.asarray(edge_type_fanout_vals, dtype="int32"))
+            numpy.asarray(edge_type_fanout_vals, dtype="int32"),
+        )
     else:
         raise TypeError("fanout_vals must be a sequence, " f"got: {type(fanout_vals)}")
 

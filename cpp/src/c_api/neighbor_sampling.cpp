@@ -14,13 +14,14 @@
  * limitations under the License.
  */
 
+#include "c_api/neighbor_sampling.hpp"  // FIXME: Remove this and instead use std::tuple
+
 #include "c_api/abstract_functor.hpp"
 #include "c_api/graph.hpp"
 #include "c_api/properties.hpp"
 #include "c_api/random.hpp"
 #include "c_api/resource_handle.hpp"
 #include "c_api/utils.hpp"
-#include "c_api/neighbor_sampling.hpp" // FIXME: Remove this and instead use std::tuple
 
 #include <cugraph_c/algorithms.h>
 #include <cugraph_c/sampling_algorithms.h>
@@ -113,7 +114,8 @@ struct uniform_neighbor_sampling_functor : public cugraph::c_api::abstract_funct
       fan_out_(
         reinterpret_cast<cugraph::c_api::cugraph_type_erased_host_array_view_t const*>(fan_out)),
       heterogeneous_fan_out_(
-        reinterpret_cast<cugraph::c_api::cugraph_sample_heterogeneous_fanout_t const*>(heterogeneous_fan_out)),
+        reinterpret_cast<cugraph::c_api::cugraph_sample_heterogeneous_fanout_t const*>(
+          heterogeneous_fan_out)),
       rng_state_(reinterpret_cast<cugraph::c_api::cugraph_rng_state_t*>(rng_state)),
       options_(options),
       do_expensive_check_(do_expensive_check)
@@ -221,16 +223,16 @@ struct uniform_neighbor_sampling_functor : public cugraph::c_api::abstract_funct
                 raft::device_span<label_t const>{label_to_comm_rank_->as_type<label_t>(),
                                                  label_to_comm_rank_->size_}))
             : std::nullopt,
-          (fan_out_ != nullptr)
-            ? std::make_optional<raft::host_span<const int>>(fan_out_->as_type<const int>(), fan_out_->size_)
-            : std::nullopt,
-    
+          (fan_out_ != nullptr) ? std::make_optional<raft::host_span<const int>>(
+                                    fan_out_->as_type<const int>(), fan_out_->size_)
+                                : std::nullopt,
+
           (heterogeneous_fan_out_ != nullptr)
             ? std::make_optional(std::make_tuple(
-              raft::host_span<const int>{heterogeneous_fan_out_->edge_type_id->as_type<int>(),
-                                         heterogeneous_fan_out_->edge_type_id->size_},
-              raft::host_span<const int>{heterogeneous_fan_out_->fanout->as_type<int>(),
-                                         heterogeneous_fan_out_->fanout->size_}))
+                raft::host_span<const int>{heterogeneous_fan_out_->edge_type_id->as_type<int>(),
+                                           heterogeneous_fan_out_->edge_type_id->size_},
+                raft::host_span<const int>{heterogeneous_fan_out_->fanout->as_type<int>(),
+                                           heterogeneous_fan_out_->fanout->size_}))
             : std::nullopt,
           rng_state_->rng_state_,
           options_.return_hops_,
@@ -769,58 +771,61 @@ struct biased_neighbor_sampling_functor : public cugraph::c_api::abstract_functo
   }
 };
 
-  struct create_heterogeneous_fanout_functor : public cugraph::c_api::abstract_functor {
-    raft::handle_t const& handle_;
-    cugraph::c_api::cugraph_graph_t* graph_;
-    cugraph::c_api::cugraph_type_erased_host_array_view_t const* edge_type_size_;
-    cugraph::c_api::cugraph_type_erased_host_array_view_t const* fanout_;
-    // FIXME: This type doesn't exist: instead create an 'std::tuple<cugraph_type_erased_host_array_t*>'
-    cugraph::c_api::cugraph_sample_heterogeneous_fanout_t* result_{};
+struct create_heterogeneous_fanout_functor : public cugraph::c_api::abstract_functor {
+  raft::handle_t const& handle_;
+  cugraph::c_api::cugraph_graph_t* graph_;
+  cugraph::c_api::cugraph_type_erased_host_array_view_t const* edge_type_size_;
+  cugraph::c_api::cugraph_type_erased_host_array_view_t const* fanout_;
+  // FIXME: This type doesn't exist: instead create an
+  // 'std::tuple<cugraph_type_erased_host_array_t*>'
+  cugraph::c_api::cugraph_sample_heterogeneous_fanout_t* result_{};
 
-    create_heterogeneous_fanout_functor(::cugraph_resource_handle_t const* handle,
-                                ::cugraph_graph_t* graph,
-                                ::cugraph_type_erased_host_array_view_t const* edge_type_size,
-                                ::cugraph_type_erased_host_array_view_t const* fanout)
-      : abstract_functor(),
-        handle_(*reinterpret_cast<cugraph::c_api::cugraph_resource_handle_t const*>(handle)->handle_),
-        graph_(reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph)),
-        edge_type_size_(
-          reinterpret_cast<cugraph::c_api::cugraph_type_erased_host_array_view_t const*>(edge_type_size)),
-        fanout_(
-          reinterpret_cast<cugraph::c_api::cugraph_type_erased_host_array_view_t const*>(fanout))
-    {
-    }
+  create_heterogeneous_fanout_functor(::cugraph_resource_handle_t const* handle,
+                                      ::cugraph_graph_t* graph,
+                                      ::cugraph_type_erased_host_array_view_t const* edge_type_size,
+                                      ::cugraph_type_erased_host_array_view_t const* fanout)
+    : abstract_functor(),
+      handle_(*reinterpret_cast<cugraph::c_api::cugraph_resource_handle_t const*>(handle)->handle_),
+      graph_(reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph)),
+      edge_type_size_(
+        reinterpret_cast<cugraph::c_api::cugraph_type_erased_host_array_view_t const*>(
+          edge_type_size)),
+      fanout_(
+        reinterpret_cast<cugraph::c_api::cugraph_type_erased_host_array_view_t const*>(fanout))
+  {
+  }
 
-    template <typename vertex_t,
-              typename edge_t,
-              typename weight_t,
-              typename edge_type_type_t,
-              bool store_transposed,
-              bool multi_gpu>
-    void operator()()
-    {
-      // FIXME: Remove this check as it is not necessary
-      if constexpr (!cugraph::is_candidate<vertex_t, edge_t, weight_t>::value) {
-        unsupported();
-      } else {
-        std::vector<int32_t> edge_type_size_copy{(int32_t) edge_type_size_->size_};
-        std::vector<int32_t> fanout_copy{(int32_t) fanout_->size_};
-      
-        raft::copy(
-          edge_type_size_copy.data(), edge_type_size_->as_type<int32_t>(), edge_type_size_->size_, handle_.get_stream());
-      
-        raft::copy(
-          fanout_copy.data(), fanout_->as_type<int32_t>(), fanout_->size_, handle_.get_stream());
-        
-        // std::tuple (template)
-        // result_ = new std::tuple <template type of 2 cugraph_type_erased_host_array_t>
-        result_ = new cugraph::c_api::cugraph_sample_heterogeneous_fanout_t{
-          new cugraph::c_api::cugraph_type_erased_host_array_t(edge_type_size_copy, INT32),
-          new cugraph::c_api::cugraph_type_erased_host_array_t(fanout_copy, INT32)};
-        
-      }
+  template <typename vertex_t,
+            typename edge_t,
+            typename weight_t,
+            typename edge_type_type_t,
+            bool store_transposed,
+            bool multi_gpu>
+  void operator()()
+  {
+    // FIXME: Remove this check as it is not necessary
+    if constexpr (!cugraph::is_candidate<vertex_t, edge_t, weight_t>::value) {
+      unsupported();
+    } else {
+      std::vector<int32_t> edge_type_size_copy{(int32_t)edge_type_size_->size_};
+      std::vector<int32_t> fanout_copy{(int32_t)fanout_->size_};
+
+      raft::copy(edge_type_size_copy.data(),
+                 edge_type_size_->as_type<int32_t>(),
+                 edge_type_size_->size_,
+                 handle_.get_stream());
+
+      raft::copy(
+        fanout_copy.data(), fanout_->as_type<int32_t>(), fanout_->size_, handle_.get_stream());
+
+      // std::tuple (template)
+      // result_ = new std::tuple <template type of 2 cugraph_type_erased_host_array_t>
+      result_ = new cugraph::c_api::cugraph_sample_heterogeneous_fanout_t{
+        new cugraph::c_api::cugraph_type_erased_host_array_t(edge_type_size_copy, INT32),
+        new cugraph::c_api::cugraph_type_erased_host_array_t(fanout_copy, INT32)};
     }
-  };
+  }
+};
 }  // namespace
 
 extern "C" cugraph_error_code_t cugraph_sampling_options_create(
@@ -1454,8 +1459,6 @@ cugraph_error_code_t cugraph_biased_neighbor_sample(
   return cugraph::c_api::run_algorithm(graph, functor, result, error);
 }
 
-
-
 extern "C" cugraph_error_code_t cugraph_create_heterogeneous_fanout(
   const cugraph_resource_handle_t* handle,
   cugraph_graph_t* graph,
@@ -1464,7 +1467,7 @@ extern "C" cugraph_error_code_t cugraph_create_heterogeneous_fanout(
   cugraph_sample_heterogeneous_fanout_t** heterogeneous_fanout,
   cugraph_error_t** error)
 {
-  create_heterogeneous_fanout_functor functor(handle, graph, edge_type_size, fanout);  
+  create_heterogeneous_fanout_functor functor(handle, graph, edge_type_size, fanout);
 
   return cugraph::c_api::run_algorithm(graph, functor, heterogeneous_fanout, error);
 }

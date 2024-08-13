@@ -60,8 +60,9 @@ neighbor_sample_impl(
   std::optional<std::tuple<raft::device_span<label_t const>, raft::device_span<int32_t const>>>
     label_to_output_comm_rank,
   std::optional<raft::host_span<int32_t const>> fan_out,
-  std::optional<std::tuple<raft::host_span<int32_t const>, raft::host_span<int32_t const>>> heterogeneous_fan_out,
-  //raft::host_span<int32_t const> fan_out,
+  std::optional<std::tuple<raft::host_span<int32_t const>, raft::host_span<int32_t const>>>
+    heterogeneous_fan_out,
+  // raft::host_span<int32_t const> fan_out,
   bool return_hops,
   bool with_replacement,
   prior_sources_behavior_t prior_sources_behavior,
@@ -78,20 +79,25 @@ neighbor_sample_impl(
   static_assert(std::is_floating_point_v<bias_t>);
 
   if (fan_out) {
-    CUGRAPH_EXPECTS((*fan_out).size() > 0, "Invalid input argument: number of levels must be non-zero.");
+    CUGRAPH_EXPECTS((*fan_out).size() > 0,
+                    "Invalid input argument: number of levels must be non-zero.");
     CUGRAPH_EXPECTS(
-    (*fan_out).size() <= static_cast<size_t>(std::numeric_limits<int32_t>::max()),
-    "Invalid input argument: number of levels should not overflow int32_t");  // as we use int32_t
-                                                                              // to store hops
-  } else {    
-    CUGRAPH_EXPECTS(std::accumulate(
-      std::get<0>(*heterogeneous_fan_out).begin(),
-      std::get<0>(*heterogeneous_fan_out).end(), 0) == std::get<1>(*heterogeneous_fan_out).size() && std::get<1>(*heterogeneous_fan_out).size() != 0,
-        "Invalid input argument: number of levels and size must match and should be non zero.");
-    
+      (*fan_out).size() <= static_cast<size_t>(std::numeric_limits<int32_t>::max()),
+      "Invalid input argument: number of levels should not overflow int32_t");  // as we use int32_t
+                                                                                // to store hops
+  } else {
     CUGRAPH_EXPECTS(
-      std::get<0>(*heterogeneous_fan_out).size() <= static_cast<size_t>(std::numeric_limits<int32_t>::max())
-        && std::get<1>(*heterogeneous_fan_out).size() <= static_cast<size_t>(std::numeric_limits<int32_t>::max()),
+      std::accumulate(std::get<0>(*heterogeneous_fan_out).begin(),
+                      std::get<0>(*heterogeneous_fan_out).end(),
+                      0) == std::get<1>(*heterogeneous_fan_out).size() &&
+        std::get<1>(*heterogeneous_fan_out).size() != 0,
+      "Invalid input argument: number of levels and size must match and should be non zero.");
+
+    CUGRAPH_EXPECTS(
+      std::get<0>(*heterogeneous_fan_out).size() <=
+          static_cast<size_t>(std::numeric_limits<int32_t>::max()) &&
+        std::get<1>(*heterogeneous_fan_out).size() <=
+          static_cast<size_t>(std::numeric_limits<int32_t>::max()),
       "Invalid input argument: number of levels should not overflow int32_t");  // as we use int32_t
                                                                                 // to store hops
   }
@@ -142,7 +148,9 @@ neighbor_sample_impl(
   level_result_dst_vectors.reserve((*fan_out).size());
   if (level_result_weight_vectors) { (*level_result_weight_vectors).reserve((*fan_out).size()); }
   if (level_result_edge_id_vectors) { (*level_result_edge_id_vectors).reserve((*fan_out).size()); }
-  if (level_result_edge_type_vectors) { (*level_result_edge_type_vectors).reserve((*fan_out).size()); }
+  if (level_result_edge_type_vectors) {
+    (*level_result_edge_type_vectors).reserve((*fan_out).size());
+  }
   if (level_result_label_vectors) { (*level_result_label_vectors).reserve((*fan_out).size()); }
 
   rmm::device_uvector<vertex_t> frontier_vertices(0, handle.get_stream());
@@ -382,8 +390,9 @@ uniform_neighbor_sample(
   std::optional<std::tuple<raft::device_span<label_t const>, raft::device_span<int32_t const>>>
     label_to_output_comm_rank,
   std::optional<raft::host_span<int32_t const>> fan_out,
-  std::optional<std::tuple<raft::host_span<int32_t const>, raft::host_span<int32_t const>>> heterogeneous_fan_out,
-  //raft::host_span<int32_t const> fan_out,
+  std::optional<std::tuple<raft::host_span<int32_t const>, raft::host_span<int32_t const>>>
+    heterogeneous_fan_out,
+  // raft::host_span<int32_t const> fan_out,
   raft::random::RngState& rng_state,
   bool return_hops,
   bool with_replacement,

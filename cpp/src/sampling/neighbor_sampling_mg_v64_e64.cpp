@@ -40,7 +40,8 @@ uniform_neighbor_sample(
   std::optional<std::tuple<raft::device_span<int32_t const>, raft::device_span<int32_t const>>>
     label_to_output_comm_rank,
   std::optional<raft::host_span<int32_t const>> fan_out,
-  std::optional<std::tuple<raft::host_span<int32_t const>, raft::host_span<int32_t const>>> heterogeneous_fan_out,
+  std::optional<std::tuple<raft::host_span<int32_t const>, raft::host_span<int32_t const>>>
+    heterogeneous_fan_out,
   raft::random::RngState& rng_state,
   bool return_hops,
   bool with_replacement,
@@ -67,7 +68,8 @@ uniform_neighbor_sample(
   std::optional<std::tuple<raft::device_span<int32_t const>, raft::device_span<int32_t const>>>
     label_to_output_comm_rank,
   std::optional<raft::host_span<int32_t const>> fan_out,
-  std::optional<std::tuple<raft::host_span<int32_t const>, raft::host_span<int32_t const>>> heterogeneous_fan_out,
+  std::optional<std::tuple<raft::host_span<int32_t const>, raft::host_span<int32_t const>>>
+    heterogeneous_fan_out,
   raft::random::RngState& rng_state,
   bool return_hops,
   bool with_replacement,
@@ -94,7 +96,7 @@ biased_neighbor_sample(
   std::optional<raft::device_span<int32_t const>> starting_vertex_labels,
   std::optional<std::tuple<raft::device_span<int32_t const>, raft::device_span<int32_t const>>>
     label_to_output_comm_rank,
-  //std::optional<raft::host_span<int32_t const>> fan_out,
+  // std::optional<raft::host_span<int32_t const>> fan_out,
   raft::host_span<int32_t const> fan_out,
   raft::random::RngState& rng_state,
   bool return_hops,
@@ -122,7 +124,7 @@ biased_neighbor_sample(
   std::optional<raft::device_span<int32_t const>> starting_vertex_labels,
   std::optional<std::tuple<raft::device_span<int32_t const>, raft::device_span<int32_t const>>>
     label_to_output_comm_rank,
-  //std::optional<raft::host_span<int32_t const>> fan_out,
+  // std::optional<raft::host_span<int32_t const>> fan_out,
   raft::host_span<int32_t const> fan_out,
   raft::random::RngState& rng_state,
   bool return_hops,

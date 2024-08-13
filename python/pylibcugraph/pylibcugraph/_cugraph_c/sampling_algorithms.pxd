@@ -104,10 +104,10 @@ cdef extern from "cugraph_c/sampling_algorithms.h":
             cugraph_type_erased_device_array_t** vertices,
             cugraph_error_t** error
         )
-    
+
     ctypedef struct cugraph_sample_heterogeneous_fanout_t:
         pass
-    
+
     cdef cugraph_error_code_t \
         cugraph_create_heterogeneous_fanout(
             const cugraph_resource_handle_t* handle,

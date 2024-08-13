@@ -324,9 +324,13 @@ def uniform_neighbor_sample(
         edge_type_fanout_vals = list(chain.from_iterable(list(fanout_vals.values())))
         fanout_vals = (
             numpy.asarray(edge_type_size, dtype="int32"),
-            numpy.asarray(edge_type_fanout_vals, dtype="int32"))
+            numpy.asarray(edge_type_fanout_vals, dtype="int32"),
+        )
     else:
-        raise TypeError("fanout_vals must be a sequence or a dictionary, " f"got: {type(fanout_vals)}")
+        raise TypeError(
+            "fanout_vals must be a sequence or a dictionary, "
+            f"got: {type(fanout_vals)}"
+        )
 
     if "weights" in G.edgelist.edgelist_df:
         weight_t = G.edgelist.edgelist_df["weights"].dtype

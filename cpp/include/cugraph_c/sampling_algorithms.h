@@ -324,10 +324,10 @@ void cugraph_sampling_options_free(cugraph_sampling_options_t* options);
  */
 // FIXME: internal representation should be tuple instead of pairs - Make it more generic (tuple)
 // cugraph_device_tuple_t, host_device_tuple_t,
-//dictionary, key and array
+// dictionary, key and array
 // translate dictionary to a tuple. Add to the draft PR the PLC layer.
 // Concatenate to build the 3 arrays from the PLC layer
-/// mimic 
+/// mimic
 typedef struct {
   int32_t align_;
 } cugraph_sample_heterogeneous_fanout_t;
@@ -359,8 +359,7 @@ cugraph_error_code_t cugraph_create_heterogeneous_fanout(
  *
  * @param [in]    heterogeneous_fanout The edge type size and fanout values
  */
-void cugraph_heterogeneous_fanout_free(
-  cugraph_sample_heterogeneous_fanout_t* heterogeneous_fanout);
+void cugraph_heterogeneous_fanout_free(cugraph_sample_heterogeneous_fanout_t* heterogeneous_fanout);
 
 /**
  * @brief     Uniform Neighborhood Sampling
@@ -712,14 +711,12 @@ cugraph_error_code_t cugraph_test_uniform_neighborhood_sample_result_create(
  * @return error code
  */
 
-
 cugraph_error_code_t cugraph_select_random_vertices(const cugraph_resource_handle_t* handle,
                                                     const cugraph_graph_t* graph,
                                                     cugraph_rng_state_t* rng_state,
                                                     size_t num_vertices,
                                                     cugraph_type_erased_device_array_t** vertices,
                                                     cugraph_error_t** error);
-
 
 #ifdef __cplusplus
 }

@@ -238,7 +238,7 @@ def uniform_neighbor_sample(ResourceHandle resource_handle,
         assert_AI_type(h_fan_out, "h_fan_out")
         ai_fan_out_ptr = \
             h_fan_out.__array_interface__["data"][0]
-        
+
         fan_out_ptr = \
             cugraph_type_erased_host_array_view_create(
                 <void*>ai_fan_out_ptr,
@@ -257,13 +257,13 @@ def uniform_neighbor_sample(ResourceHandle resource_handle,
                 <void*>ai_fan_out_size_ptr,
                 len(h_fan_out[0]),
                 get_c_type_from_numpy_type(h_fan_out[0].dtype))
-    
+
         fan_out_values_ptr = \
             cugraph_type_erased_host_array_view_create(
                 <void*>ai_fan_out_values_ptr,
                 len(h_fan_out[1]),
                 get_c_type_from_numpy_type(h_fan_out[1].dtype))
-        
+
         error_code = cugraph_create_heterogeneous_fanout(
             c_resource_handle_ptr,
             c_graph_ptr,

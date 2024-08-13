@@ -130,7 +130,8 @@ uniform_neighbor_sample(
   std::optional<std::tuple<raft::device_span<label_t const>, raft::device_span<int32_t const>>>
     label_to_output_comm_rank,
   std::optional<raft::host_span<int32_t const>> fan_out,
-  std::optional<std::tuple<raft::host_span<int32_t const>, raft::host_span<int32_t const>>> heterogeneous_fan_out,
+  std::optional<std::tuple<raft::host_span<int32_t const>, raft::host_span<int32_t const>>>
+    heterogeneous_fan_out,
   raft::random::RngState& rng_state,
   bool return_hops,
   bool with_replacement                           = true,
@@ -211,7 +212,7 @@ uniform_neighbor_sample(
  * optional int32_t hop, optional label_t label, optional size_t offsets)
  */
 
-// tuple with 3 elements. 1 - edge_type, 2- host span of size_t, 3 - fanout vector 
+// tuple with 3 elements. 1 - edge_type, 2- host span of size_t, 3 - fanout vector
 template <typename vertex_t,
           typename edge_t,
           typename weight_t,
