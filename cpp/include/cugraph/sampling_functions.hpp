@@ -749,12 +749,12 @@ lookup_endpoints_from_edge_ids_and_types(
  * This function generates negative samples for graph.
  *
  * Negative sampling is done by generating a random graph according to the specified
- * parameters and optionally removing the false negatives.
+ * parameters and optionally removing samples that represent actual edges in the graph
  *
  * Sampling occurs by creating a list of source vertex ids from biased samping
  * of the source vertex space, and destination vertex ids from biased sampling of the
  * destination vertex space, and using this as the putative list of edges.  We
- * then can optionally remove duplicates and remove false negatives to generate
+ * then can optionally remove duplicates and remove actual edges in the graph to generate
  * the final list.  If necessary we will repeat the process to end with a resulting
  * edge list of the appropriate size.
  *

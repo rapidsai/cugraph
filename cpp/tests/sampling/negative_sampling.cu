@@ -29,7 +29,7 @@ struct Negative_Sampling_Usecase {
   bool use_src_bias{false};
   bool use_dst_bias{false};
   bool remove_duplicates{false};
-  bool remove_false_negatives{false};
+  bool remove_existing_edges{false};
   bool exact_number_of_samples{false};
   bool check_correctness{true};
 };
@@ -127,7 +127,7 @@ class Tests_Negative_Sampling : public ::testing::TestWithParam<input_usecase_t>
                                  src_bias,
                                  dst_bias,
                                  negative_sampling_usecase.remove_duplicates,
-                                 negative_sampling_usecase.remove_false_negatives,
+                                 negative_sampling_usecase.remove_existing_edges,
                                  negative_sampling_usecase.exact_number_of_samples,
                                  do_expensive_check);
 
@@ -175,7 +175,7 @@ class Tests_Negative_Sampling : public ::testing::TestWithParam<input_usecase_t>
         ASSERT_EQ(count, 0) << "Remove duplicates specified, found duplicate entries";
       }
 
-      if (negative_sampling_usecase.remove_false_negatives) {
+      if (negative_sampling_usecase.remove_existing_edges) {
         rmm::device_uvector<vertex_t> graph_src(0, handle.get_stream());
         rmm::device_uvector<vertex_t> graph_dst(0, handle.get_stream());
 
@@ -187,15 +187,36 @@ class Tests_Negative_Sampling : public ::testing::TestWithParam<input_usecase_t>
           handle.get_thrust_policy(),
           thrust::make_zip_iterator(src_out.begin(), dst_out.begin()),
           thrust::make_zip_iterator(src_out.end(), dst_out.end()),
-          [src = graph_src.data(), dst = graph_dst.data(), size = graph_dst.size()] __device__(
-            auto tuple) {
-            return thrust::binary_search(thrust::seq,
-                                         thrust::make_zip_iterator(src, dst),
-                                         thrust::make_zip_iterator(src, dst) + size,
-                                         tuple);
-          });
+          cuda::proclaim_return_type<size_t>(
+            [src = raft::device_span<vertex_t const>{graph_src.data(), graph_src.size()},
+             dst = raft::device_span<vertex_t const>{graph_dst.data(),
+                                                     graph_dst.size()}] __device__(auto tuple) {
+#if 0
+              // FIXME: This fails on rocky linux CUDA 11.8, works on CUDA 12
+              return thrust::binary_search(thrust::seq,
+                                           thrust::make_zip_iterator(src.begin(), dst.begin()),
+                                           thrust::make_zip_iterator(src.end(), dst.end()),
+                                           tuple) ? size_t{1} : size_t{0};
+#else
+              auto lb = thrust::distance(
+                src.begin(),
+                thrust::lower_bound(thrust::seq, src.begin(), src.end(), thrust::get<0>(tuple)));
+              auto ub = thrust::distance(
+                src.begin(),
+                thrust::upper_bound(thrust::seq, src.begin(), src.end(), thrust::get<0>(tuple)));
 
-        ASSERT_EQ(count, 0) << "Remove false negatives specified, found false negatives";
+              if (src.data()[lb] == thrust::get<0>(tuple)) {
+                return thrust::binary_search(
+                         thrust::seq, dst.begin() + lb, dst.begin() + ub, thrust::get<1>(tuple))
+                         ? size_t{1}
+                         : size_t{0};
+              } else {
+                return size_t{0};
+              }
+#endif
+            }));
+
+        ASSERT_EQ(count, 0) << "Remove existing edges specified, found existing edges";
       }
 
       if (negative_sampling_usecase.exact_number_of_samples) {

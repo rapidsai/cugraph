@@ -328,41 +328,34 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> negativ
     }
 
     if (remove_duplicates) {
-      auto begin_iter = thrust::make_zip_iterator(batch_src.begin(), batch_dst.begin());
-      thrust::sort(handle.get_thrust_policy(), begin_iter, begin_iter + batch_src.size());
+      thrust::sort(handle.get_thrust_policy(),
+                   thrust::make_zip_iterator(batch_src.begin(), batch_dst.begin()),
+                   thrust::make_zip_iterator(batch_src.end(), batch_dst.end()));
 
-      auto new_end =
-        thrust::unique(handle.get_thrust_policy(), begin_iter, begin_iter + batch_src.size());
+      auto new_end = thrust::unique(handle.get_thrust_policy(),
+                                    thrust::make_zip_iterator(batch_src.begin(), batch_dst.begin()),
+                                    thrust::make_zip_iterator(batch_src.end(), batch_dst.end()));
 
-      batch_src.resize(thrust::distance(begin_iter, new_end), handle.get_stream());
-      batch_dst.resize(thrust::distance(begin_iter, new_end), handle.get_stream());
+      size_t new_size =
+        thrust::distance(thrust::make_zip_iterator(batch_src.begin(), batch_dst.begin()), new_end);
 
       if (src.size() > 0) {
-        new_end =
-          thrust::remove_if(handle.get_thrust_policy(),
-                            begin_iter,
-                            begin_iter + batch_src.size(),
-                            [local_src = raft::device_span<vertex_t const>{src.data(), src.size()},
-                             local_dst = raft::device_span<vertex_t const>{
-                               dst.data(), dst.size()}] __device__(auto tuple) {
-                              return thrust::binary_search(
-                                thrust::seq,
-                                thrust::make_zip_iterator(local_src.begin(), local_dst.begin()),
-                                thrust::make_zip_iterator(local_src.end(), local_dst.end()),
-                                tuple);
-                            });
-
-        size_t unique_size = thrust::distance(begin_iter, new_end);
-
-        rmm::device_uvector<vertex_t> new_src(src.size() + unique_size, handle.get_stream());
-        rmm::device_uvector<vertex_t> new_dst(dst.size() + unique_size, handle.get_stream());
+        rmm::device_uvector<vertex_t> new_src(src.size() + new_size, handle.get_stream());
+        rmm::device_uvector<vertex_t> new_dst(dst.size() + new_size, handle.get_stream());
 
         thrust::merge(handle.get_thrust_policy(),
-                      begin_iter,
-                      begin_iter + unique_size,
+                      thrust::make_zip_iterator(batch_src.begin(), batch_dst.begin()),
+                      new_end,
                       thrust::make_zip_iterator(src.begin(), dst.begin()),
                       thrust::make_zip_iterator(src.end(), dst.end()),
                       thrust::make_zip_iterator(new_src.begin(), new_dst.begin()));
+
+        new_end = thrust::unique(handle.get_thrust_policy(),
+                                 thrust::make_zip_iterator(new_src.begin(), new_dst.begin()),
+                                 thrust::make_zip_iterator(new_src.end(), new_dst.end()));
+
+        new_size =
+          thrust::distance(thrust::make_zip_iterator(new_src.begin(), new_dst.begin()), new_end);
 
         src = std::move(new_src);
         dst = std::move(new_dst);
@@ -370,6 +363,9 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> negativ
         src = std::move(batch_src);
         dst = std::move(batch_dst);
       }
+
+      src.resize(new_size, handle.get_stream());
+      dst.resize(new_size, handle.get_stream());
     } else if (src.size() > 0) {
       size_t current_end = src.size();
 
@@ -400,6 +396,9 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> negativ
       samples_in_this_batch = 0;
     }
   }
+
+  src.shrink_to_fit(handle.get_stream());
+  dst.shrink_to_fit(handle.get_stream());
 
   return std::make_tuple(std::move(src), std::move(dst));
 }

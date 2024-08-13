@@ -29,7 +29,7 @@ template std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<int32_t>> 
   std::optional<raft::device_span<float const>> src_bias,
   std::optional<raft::device_span<float const>> dst_bias,
   bool remove_duplicates,
-  bool remove_false_negatives,
+  bool remove_existing_edges,
   bool exact_number_of_samples,
   bool do_expensive_check);
 
@@ -41,7 +41,7 @@ template std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<int32_t>> 
   std::optional<raft::device_span<double const>> src_bias,
   std::optional<raft::device_span<double const>> dst_bias,
   bool remove_duplicates,
-  bool remove_false_negatives,
+  bool remove_existing_edges,
   bool exact_number_of_samples,
   bool do_expensive_check);
 
