@@ -17,6 +17,7 @@
 #include <cugraph/legacy/graph.hpp>
 #include <cugraph/utilities/error.hpp>
 
+#include <raft/core/device_span.hpp>
 #include <raft/util/device_atomics.cuh>
 
 #include <rmm/exec_policy.hpp>
@@ -74,6 +75,35 @@ void GraphViewBase<VT, ET, WT>::get_vertex_identifiers(VT* identifiers) const
                    thrust::device_pointer_cast(identifiers + number_of_vertices),
                    VT{0});
   RAFT_CHECK_CUDA(nullptr);
+}
+
+// FIXME: Need to get rid of this function... still used in python
+template <typename VT, typename ET, typename WT>
+void GraphCompressedSparseBaseView<VT, ET, WT>::get_source_indices(VT* src_indices) const
+{
+  CUGRAPH_EXPECTS(offsets != nullptr, "No graph specified");
+  rmm::cuda_stream_view stream_view;
+
+  raft::device_span<VT> indices_span(src_indices, GraphViewBase<VT, ET, WT>::number_of_vertices);
+
+  if (indices_span.size() > 0) {
+    thrust::fill(rmm::exec_policy(stream_view), indices_span.begin(), indices_span.end(), VT{0});
+
+    thrust::for_each(rmm::exec_policy(stream_view),
+                     offsets + 1,
+                     offsets + GraphViewBase<VT, ET, WT>::number_of_vertices,
+                     [indices_span] __device__(ET offset) {
+                       if (offset < static_cast<ET>(indices_span.size())) {
+                         cuda::atomic_ref<VT, cuda::thread_scope_device> atomic_counter(
+                           indices_span.data()[offset]);
+                         atomic_counter.fetch_add(VT{1}, cuda::std::memory_order_relaxed);
+                       }
+                     });
+    thrust::inclusive_scan(rmm::exec_policy(stream_view),
+                           indices_span.begin(),
+                           indices_span.end(),
+                           indices_span.begin());
+  }
 }
 
 template <typename VT, typename ET, typename WT>

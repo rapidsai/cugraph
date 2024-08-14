@@ -188,6 +188,15 @@ class GraphCompressedSparseBaseView : public GraphViewBase<vertex_t, edge_t, wei
   vertex_t* indices{nullptr};  ///< CSR indices
 
   /**
+   * @brief      Fill the identifiers in the array with the source vertex
+   * identifiers
+   *
+   * @param[out]    src_indices      Pointer to device memory to store the
+   * source vertex identifiers
+   */
+  void get_source_indices(vertex_t* src_indices) const;
+
+  /**
    * @brief     Computes degree(in, out, in+out) of all the nodes of a Graph
    *
    * @throws     cugraph::logic_error when an error occurs.
