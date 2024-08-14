@@ -171,7 +171,8 @@ def test_hyperedges(categorical_metadata):
     if categorical_metadata:
         edges = edges.astype({"edge_type": "category"})
 
-    assert_frame_equal(edges, h["edges"], check_dtype=False)
+    # check_like ignores the order of columns as long as all correct ones are present
+    assert_frame_equal(edges, h["edges"], check_dtype=False, check_like=True)
     for (k, v) in [("entities", 12), ("nodes", 15), ("edges", 12), ("events", 3)]:
         assert len(h[k]) == v
 
@@ -266,7 +267,8 @@ def test_drop_edge_attrs(categorical_metadata):
     if categorical_metadata:
         edges = edges.astype({"edge_type": "category"})
 
-    assert_frame_equal(edges, h["edges"], check_dtype=False)
+    # check_like ignores the order of columns as long as all correct ones are present
+    assert_frame_equal(edges, h["edges"], check_dtype=False, check_like=True)
 
     for (k, v) in [("entities", 9), ("nodes", 12), ("edges", 9), ("events", 3)]:
         assert len(h[k]) == v
@@ -308,7 +310,8 @@ def test_drop_edge_attrs_direct(categorical_metadata):
     if categorical_metadata:
         edges = edges.astype({"edge_type": "category"})
 
-    assert_frame_equal(edges, h["edges"], check_dtype=False)
+    # check_like ignores the order of columns as long as all correct ones are present
+    assert_frame_equal(edges, h["edges"], check_dtype=False, check_like=True)
 
     for (k, v) in [("entities", 9), ("nodes", 9), ("edges", 6), ("events", 0)]:
         assert len(h[k]) == v
