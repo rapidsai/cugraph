@@ -14,8 +14,6 @@
  * limitations under the License.
  */
 
-#include "utilities/graph_utils.cuh"
-
 #include <cugraph/legacy/graph.hpp>
 #include <cugraph/utilities/error.hpp>
 
@@ -23,8 +21,10 @@
 
 #include <rmm/exec_policy.hpp>
 
+#include <thrust/execution_policy.h>
 #include <thrust/for_each.h>
 #include <thrust/iterator/counting_iterator.h>
+#include <thrust/sequence.h>
 
 namespace {
 
@@ -69,15 +69,11 @@ namespace legacy {
 template <typename VT, typename ET, typename WT>
 void GraphViewBase<VT, ET, WT>::get_vertex_identifiers(VT* identifiers) const
 {
-  cugraph::detail::sequence<VT>(number_of_vertices, identifiers);
-}
-
-template <typename VT, typename ET, typename WT>
-void GraphCompressedSparseBaseView<VT, ET, WT>::get_source_indices(VT* src_indices) const
-{
-  CUGRAPH_EXPECTS(offsets != nullptr, "No graph specified");
-  cugraph::detail::offsets_to_indices<ET, VT>(
-    offsets, GraphViewBase<VT, ET, WT>::number_of_vertices, src_indices);
+  thrust::sequence(thrust::device,
+                   thrust::device_pointer_cast(identifiers),
+                   thrust::device_pointer_cast(identifiers + number_of_vertices),
+                   VT{0});
+  RAFT_CHECK_CUDA(nullptr);
 }
 
 template <typename VT, typename ET, typename WT>
@@ -151,7 +147,5 @@ void GraphCompressedSparseBaseView<VT, ET, WT>::degree(ET* degree, DegreeDirecti
 
 }  // namespace legacy
 }  // namespace cugraph
-
-#include "utilities/eidir_graph_utils.hpp"
 
 #include <cugraph/legacy/eidir_graph.hpp>
