@@ -17,6 +17,7 @@
 #include "utilities/base_fixture.hpp"
 #include "utilities/conversion_utilities.hpp"
 #include "utilities/property_generator_utilities.hpp"
+#include "utilities/validation_utilities.hpp"
 
 #include <cugraph/sampling_functions.hpp>
 #include <cugraph/utilities/high_res_timer.hpp>
@@ -140,38 +141,30 @@ class Tests_Negative_Sampling : public ::testing::TestWithParam<input_usecase_t>
     if (negative_sampling_usecase.check_correctness) {
       ASSERT_EQ(src_out.size(), dst_out.size()) << "Result size (src, dst) mismatch";
 
+      cugraph::test::sort(handle,
+                          raft::device_span<vertex_t>{src_out.data(), src_out.size()},
+                          raft::device_span<vertex_t>{dst_out.data(), dst_out.size()});
+
       auto vertex_partition = cugraph::vertex_partition_device_view_t<vertex_t, false>(
         graph_view.local_vertex_partition_view());
 
-      size_t count =
-        thrust::count_if(handle.get_thrust_policy(),
-                         src_out.begin(),
-                         src_out.end(),
-                         [vertex_partition] __device__(auto val) {
-                           return !(vertex_partition.is_valid_vertex(val) &&
-                                    vertex_partition.in_local_vertex_partition_range_nocheck(val));
-                         });
-
+      size_t count = cugraph::test::count_invalid_vertices(
+        handle,
+        raft::device_span<vertex_t const>{src_out.data(), src_out.size()},
+        vertex_partition);
       ASSERT_EQ(count, 0) << "Source vertices out of range > 0";
 
-      count =
-        thrust::count_if(handle.get_thrust_policy(),
-                         dst_out.begin(),
-                         dst_out.end(),
-                         [vertex_partition] __device__(auto val) {
-                           return !(vertex_partition.is_valid_vertex(val) &&
-                                    vertex_partition.in_local_vertex_partition_range_nocheck(val));
-                         });
+      count = cugraph::test::count_invalid_vertices(
+        handle,
+        raft::device_span<vertex_t const>{dst_out.data(), dst_out.size()},
+        vertex_partition);
       ASSERT_EQ(count, 0) << "Dest vertices out of range > 0";
 
       if (negative_sampling_usecase.remove_duplicates) {
-        count = thrust::count_if(
-          handle.get_thrust_policy(),
-          thrust::make_counting_iterator<size_t>(1),
-          thrust::make_counting_iterator<size_t>(src_out.size()),
-          [src = src_out.data(), dst = dst_out.data()] __device__(size_t index) {
-            return (src[index - 1] == src[index]) && (dst[index - 1] == dst[index]);
-          });
+        count = cugraph::test::count_duplicate_vertex_pairs_sorted<vertex_t, false>(
+          handle,
+          raft::device_span<vertex_t const>{src_out.data(), src_out.size()},
+          raft::device_span<vertex_t const>{dst_out.data(), dst_out.size()});
         ASSERT_EQ(count, 0) << "Remove duplicates specified, found duplicate entries";
       }
 
@@ -183,38 +176,18 @@ class Tests_Negative_Sampling : public ::testing::TestWithParam<input_usecase_t>
           cugraph::decompress_to_edgelist<vertex_t, edge_t, float, int, false, false>(
             handle, graph_view, std::nullopt, std::nullopt, std::nullopt, std::nullopt);
 
-        count = thrust::count_if(
-          handle.get_thrust_policy(),
-          thrust::make_zip_iterator(src_out.begin(), dst_out.begin()),
-          thrust::make_zip_iterator(src_out.end(), dst_out.end()),
-          cuda::proclaim_return_type<size_t>(
-            [src = raft::device_span<vertex_t const>{graph_src.data(), graph_src.size()},
-             dst = raft::device_span<vertex_t const>{graph_dst.data(),
-                                                     graph_dst.size()}] __device__(auto tuple) {
-#if 0
-              // FIXME: This fails on rocky linux CUDA 11.8, works on CUDA 12
-              return thrust::binary_search(thrust::seq,
-                                           thrust::make_zip_iterator(src.begin(), dst.begin()),
-                                           thrust::make_zip_iterator(src.end(), dst.end()),
-                                           tuple) ? size_t{1} : size_t{0};
-#else
-              auto lb = thrust::distance(
-                src.begin(),
-                thrust::lower_bound(thrust::seq, src.begin(), src.end(), thrust::get<0>(tuple)));
-              auto ub = thrust::distance(
-                src.begin(),
-                thrust::upper_bound(thrust::seq, src.begin(), src.end(), thrust::get<0>(tuple)));
-
-              if (src.data()[lb] == thrust::get<0>(tuple)) {
-                return thrust::binary_search(
-                         thrust::seq, dst.begin() + lb, dst.begin() + ub, thrust::get<1>(tuple))
-                         ? size_t{1}
-                         : size_t{0};
-              } else {
-                return size_t{0};
-              }
-#endif
-            }));
+        count = cugraph::test::count_intersection<vertex_t, edge_t, weight_t, int32_t, false>(
+          handle,
+          raft::device_span<vertex_t const>{graph_src.data(), graph_src.size()},
+          raft::device_span<vertex_t const>{graph_dst.data(), graph_dst.size()},
+          std::nullopt,
+          std::nullopt,
+          std::nullopt,
+          raft::device_span<vertex_t const>{src_out.data(), src_out.size()},
+          raft::device_span<vertex_t const>{dst_out.data(), dst_out.size()},
+          std::nullopt,
+          std::nullopt,
+          std::nullopt);
 
         ASSERT_EQ(count, 0) << "Remove existing edges specified, found existing edges";
       }

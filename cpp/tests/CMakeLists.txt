@@ -39,6 +39,7 @@ add_library(cugraphtestutil STATIC
             utilities/misc_utilities.cpp
             utilities/conversion_utilities_sg.cu
             utilities/debug_utilities_sg.cpp
+            utilities/validation_utilities.cu
             link_prediction/similarity_compare.cpp
             centrality/betweenness_centrality_validate.cu
             community/egonet_validate.cu
