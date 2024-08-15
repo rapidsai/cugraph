@@ -329,6 +329,7 @@ void fill_edge_minor_property(raft::handle_t const& handle,
         graph_view.local_edge_partition_view(size_t{0}));
     auto edge_partition_keys = edge_minor_property_output.keys();
     for (int i = 0; i < major_comm_size; ++i) {
+      // FIXME: we can optionally use bitmap for this broadcast
       // FIXME: these broadcast operations can be placed between ncclGroupStart() and
       // ncclGroupEnd()
       device_bcast(

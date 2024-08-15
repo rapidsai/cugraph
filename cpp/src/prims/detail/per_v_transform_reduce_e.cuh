@@ -943,6 +943,8 @@ rmm::device_uvector<bool> compute_keep_flags(
   // more than one, the GPU with (comm_rank == root) has the highest priority, the GPUs in the same
   // DGX node should be the next)
 
+  // FIXME: for high & mid, it will be mostly local... should I do this? Or ask for just missing
+  // ones???
   rmm::device_uvector<priority_t> priorities(thrust::distance(value_first, value_last),
                                              stream_view);
   thrust::tabulate(
@@ -1074,6 +1076,7 @@ void gather_offset_value_pairs_and_update_vertex_value_output(
   shrink_to_fit_dataframe_buffer(values, stream_view);
 
   if (comm_rank == root) {
+    // FIXME: this scatter can sequentialize GPU operations...
     thrust::scatter(rmm::exec_policy(stream_view),
                     get_dataframe_buffer_begin(rx_values),
                     get_dataframe_buffer_end(rx_values),
@@ -1081,6 +1084,8 @@ void gather_offset_value_pairs_and_update_vertex_value_output(
                     vertex_value_output_first);
   }
 }
+
+#define PER_V_PERFORMANCE_MEASUREMENT 1
 
 template <bool incoming,  // iterate over incoming edges (incoming == true) or outgoing edges
                           // (incoming == false)
@@ -1107,6 +1112,10 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
                               PredOp pred_op,
                               VertexValueOutputIterator vertex_value_output_first)
 {
+#if PER_V_PERFORMANCE_MEASUREMENT  // FIXME: delete
+  RAFT_CUDA_TRY(cudaDeviceSynchronize());
+  auto time0 = std::chrono::steady_clock::now();
+#endif
   constexpr bool update_major  = (incoming == GraphViewType::is_storage_transposed);
   constexpr bool use_input_key = !std::is_same_v<OptionalKeyIterator, void*>;
 
@@ -1149,14 +1158,33 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
 
   static_assert(is_arithmetic_or_thrust_tuple_of_arithmetic<T>::value);
 
-  constexpr bool use_bitmap = GraphViewType::is_multi_gpu &&
+  constexpr bool try_bitmap = GraphViewType::is_multi_gpu &&
                               !std::is_same_v<OptionalKeyIterator, void*> &&
                               std::is_same_v<key_t, vertex_t>;
 
   [[maybe_unused]] constexpr auto max_segments =
     detail::num_sparse_segments_per_vertex_partition + size_t{1};
 
-  // 1. prepare key list
+  /* 1. compute subgroup_size */
+
+  [[maybe_unused]] std::conditional_t<GraphViewType::is_multi_gpu && update_major &&
+                                        std::is_same_v<ReduceOp, reduce_op::any<T>>,
+                                      int,
+                                      std::byte /* dummy */>
+    subgroup_size{};
+  if constexpr (GraphViewType::is_multi_gpu && update_major &&
+                std::is_same_v<ReduceOp, reduce_op::any<T>>) {
+    auto& minor_comm           = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
+    auto const minor_comm_size = minor_comm.get_size();
+
+    int num_gpus_per_node{};
+    RAFT_CUDA_TRY(cudaGetDeviceCount(&num_gpus_per_node));
+    subgroup_size = partition_manager::map_major_comm_to_gpu_row_comm
+                      ? std::max(num_gpus_per_node / minor_comm_size, int{1})
+                      : std::min(minor_comm_size, num_gpus_per_node);
+  }
+
+  // 2. prepare key list
 
   auto sorted_unique_nzd_key_last = sorted_unique_key_last;
   if constexpr (use_input_key) {
@@ -1176,119 +1204,59 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
     }
   }
 
+  // 3. compute optional bitmap info
+
+  std::
+    conditional_t<try_bitmap, std::optional<rmm::device_uvector<uint32_t>>, std::byte /* dummy */>
+      key_list_bitmap{};
+  if constexpr (try_bitmap) {
+    auto& minor_comm           = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
+    auto const minor_comm_size = minor_comm.get_size();
+    if (minor_comm_size > 1) {
+      auto const minor_comm_rank = minor_comm.get_rank();
+      auto segment_offsets =
+        graph_view.local_edge_partition_segment_offsets(static_cast<size_t>(minor_comm_rank));
+      size_t bool_size = segment_offsets ? *((*segment_offsets).rbegin() + 1)
+                                         : graph_view.local_vertex_partition_range_size();
+
+      key_list_bitmap =
+        compute_vertex_list_bitmap_info(sorted_unique_key_first,
+                                        sorted_unique_nzd_key_last,
+                                        graph_view.local_vertex_partition_range_first(),
+                                        graph_view.local_vertex_partition_range_first() + bool_size,
+                                        handle.get_stream());
+    }
+  }
+
+  // 4. collect local_key_list_sizes & use_bitmap_flags
+
   std::conditional_t<use_input_key, std::vector<size_t>, std::byte /* dummy */>
     local_key_list_sizes{};
-  if constexpr (use_input_key) {
-    if constexpr (GraphViewType::is_multi_gpu) {
-      auto& minor_comm     = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
+  std::conditional_t<try_bitmap, std::vector<bool>, std::byte /* dummy */> use_bitmap_flags{};
+  if constexpr (GraphViewType::is_multi_gpu) {
+    auto& minor_comm = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
+    if constexpr (use_input_key) {
       local_key_list_sizes = host_scalar_allgather(
         minor_comm,
         static_cast<size_t>(thrust::distance(sorted_unique_key_first, sorted_unique_nzd_key_last)),
         handle.get_stream());
-    } else {
+    }
+    if constexpr (try_bitmap) {
+      auto tmp_flags = host_scalar_allgather(
+        minor_comm, key_list_bitmap ? uint8_t{1} : uint8_t{0}, handle.get_stream());
+      use_bitmap_flags.resize(tmp_flags.size());
+      std::transform(tmp_flags.begin(), tmp_flags.end(), use_bitmap_flags.begin(), [](auto flag) {
+        return flag == uint8_t{1};
+      });
+    }
+  } else {
+    if constexpr (use_input_key) {
       local_key_list_sizes = std::vector<size_t>{
         static_cast<size_t>(thrust::distance(sorted_unique_key_first, sorted_unique_nzd_key_last))};
     }
   }
 
-  std::
-    conditional_t<use_bitmap, std::optional<rmm::device_uvector<uint32_t>>, std::byte /* dummy */>
-      key_list_bitmap{};
-  std::conditional_t<use_bitmap, std::vector<bool>, std::byte /* dummy */> use_bitmap_flags{};
-  if constexpr (use_bitmap) {
-    auto& minor_comm           = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
-    auto const minor_comm_rank = minor_comm.get_rank();
-    auto segment_offsets =
-      graph_view.local_edge_partition_segment_offsets(static_cast<size_t>(minor_comm_rank));
-    size_t bool_size = segment_offsets ? *((*segment_offsets).rbegin() + 1)
-                                       : graph_view.local_vertex_partition_range_size();
-
-    std::tie(key_list_bitmap, use_bitmap_flags) =
-      compute_vertex_list_bitmap_info(minor_comm,
-                                      sorted_unique_key_first,
-                                      sorted_unique_nzd_key_last,
-                                      graph_view.local_vertex_partition_range_first(),
-                                      graph_view.local_vertex_partition_range_first() + bool_size,
-                                      handle.get_stream());
-  }
-
-  // 2. compute subgroup_size, set-up temporary buffers & stream pool, and initialize
-
-  [[maybe_unused]] std::conditional_t<GraphViewType::is_multi_gpu && update_major &&
-                                        std::is_same_v<ReduceOp, reduce_op::any<T>>,
-                                      int,
-                                      std::byte /* dummy */>
-    subgroup_size{};
-  if constexpr (GraphViewType::is_multi_gpu && update_major &&
-                std::is_same_v<ReduceOp, reduce_op::any<T>>) {
-    auto& minor_comm           = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
-    auto const minor_comm_size = minor_comm.get_size();
-
-    int num_gpus_per_node{};
-    RAFT_CUDA_TRY(cudaGetDeviceCount(&num_gpus_per_node));
-    subgroup_size = partition_manager::map_major_comm_to_gpu_row_comm
-                      ? std::max(num_gpus_per_node / minor_comm_size, int{1})
-                      : std::min(minor_comm_size, num_gpus_per_node);
-  }
-
-  using minor_tmp_buffer_type = std::conditional_t<GraphViewType::is_storage_transposed,
-                                                   edge_src_property_t<GraphViewType, T>,
-                                                   edge_dst_property_t<GraphViewType, T>>;
-  [[maybe_unused]] std::unique_ptr<minor_tmp_buffer_type> minor_tmp_buffer{};
-  if constexpr (GraphViewType::is_multi_gpu && !update_major) {
-    minor_tmp_buffer = std::make_unique<minor_tmp_buffer_type>(handle, graph_view);
-  }
-
-  using edge_partition_minor_output_device_view_t =
-    std::conditional_t<GraphViewType::is_multi_gpu && !update_major,
-                       detail::edge_partition_endpoint_property_device_view_t<
-                         vertex_t,
-                         decltype(minor_tmp_buffer->mutable_view().value_first())>,
-                       void /* dummy */>;
-
-  if constexpr (update_major) {  // no vertices in the zero degree segment are visited
-    if constexpr (use_input_key) {
-      thrust::fill(handle.get_thrust_policy(),
-                   vertex_value_output_first +
-                     thrust::distance(sorted_unique_key_first, sorted_unique_nzd_key_last),
-                   vertex_value_output_first +
-                     thrust::distance(sorted_unique_key_first, sorted_unique_key_last),
-                   init);
-    } else {
-      size_t partition_idx = 0;
-      if constexpr (GraphViewType::is_multi_gpu) {
-        auto& minor_comm = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
-        auto const minor_comm_rank = minor_comm.get_rank();
-        partition_idx              = static_cast<size_t>(minor_comm_rank);
-      }
-      auto segment_offsets = graph_view.local_edge_partition_segment_offsets(partition_idx);
-      if (segment_offsets) {
-        thrust::fill(handle.get_thrust_policy(),
-                     vertex_value_output_first + *((*segment_offsets).rbegin() + 1),
-                     vertex_value_output_first + *((*segment_offsets).rbegin()),
-                     init);
-      }
-    }
-  } else {
-    if constexpr (GraphViewType::is_multi_gpu) {
-      auto minor_init = init;
-      auto view       = minor_tmp_buffer->view();
-      if (view.keys()) {  // defer applying the initial value to the end as minor_tmp_buffer may
-                          // not store values for the entire minor range
-        minor_init = ReduceOp::identity_element;
-      } else {
-        auto& major_comm = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
-        auto const major_comm_rank = major_comm.get_rank();
-        minor_init                 = (major_comm_rank == 0) ? init : ReduceOp::identity_element;
-      }
-      fill_edge_minor_property(handle, graph_view, minor_tmp_buffer->mutable_view(), minor_init);
-    } else {
-      thrust::fill(handle.get_thrust_policy(),
-                   vertex_value_output_first,
-                   vertex_value_output_first + graph_view.local_vertex_partition_range_size(),
-                   init);
-    }
-  }
+  // 5. set-up stream pool
 
   std::optional<std::vector<size_t>> stream_pool_indices{std::nullopt};
   if constexpr (GraphViewType::is_multi_gpu) {
@@ -1305,7 +1273,6 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
       // peak memory requirement per loop is
       // update_major ? (use_input_key ? aggregate key list size : V) / comm_size * sizeof(T) : 0
       // and limit memory requirement to (E / comm_size) * sizeof(vertex_t)
-      // FIXME: should we consider edge_partition_key_buffer as well?
 
       size_t num_streams =
         std::min(static_cast<size_t>(minor_comm_size) * max_segments,
@@ -1359,6 +1326,23 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
       }
     }
   }
+
+  // 6. set-up temporary buffers
+
+  using minor_tmp_buffer_type = std::conditional_t<GraphViewType::is_storage_transposed,
+                                                   edge_src_property_t<GraphViewType, T>,
+                                                   edge_dst_property_t<GraphViewType, T>>;
+  [[maybe_unused]] std::unique_ptr<minor_tmp_buffer_type> minor_tmp_buffer{};
+  if constexpr (GraphViewType::is_multi_gpu && !update_major) {
+    minor_tmp_buffer = std::make_unique<minor_tmp_buffer_type>(handle, graph_view);
+  }
+
+  using edge_partition_minor_output_device_view_t =
+    std::conditional_t<GraphViewType::is_multi_gpu && !update_major,
+                       detail::edge_partition_endpoint_property_device_view_t<
+                         vertex_t,
+                         decltype(minor_tmp_buffer->mutable_view().value_first())>,
+                       void /* dummy */>;
 
   std::vector<dataframe_buffer_type_t<T>> major_tmp_buffers{};
   if constexpr (GraphViewType::is_multi_gpu && update_major) {
@@ -1423,11 +1407,53 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
     }
   }
 
-  if (stream_pool_indices) { handle.sync_stream(); }
+  // 7. initialize
 
-  // 3. proces local edge partitions
+  if constexpr (update_major) {  // no vertices in the zero degree segment are visited
+    if constexpr (use_input_key) {
+      thrust::fill(handle.get_thrust_policy(),
+                   vertex_value_output_first +
+                     thrust::distance(sorted_unique_key_first, sorted_unique_nzd_key_last),
+                   vertex_value_output_first +
+                     thrust::distance(sorted_unique_key_first, sorted_unique_key_last),
+                   init);
+    } else {
+      size_t partition_idx = 0;
+      if constexpr (GraphViewType::is_multi_gpu) {
+        auto& minor_comm = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
+        auto const minor_comm_rank = minor_comm.get_rank();
+        partition_idx              = static_cast<size_t>(minor_comm_rank);
+      }
+      auto segment_offsets = graph_view.local_edge_partition_segment_offsets(partition_idx);
+      if (segment_offsets) {
+        thrust::fill(handle.get_thrust_policy(),
+                     vertex_value_output_first + *((*segment_offsets).rbegin() + 1),
+                     vertex_value_output_first + *((*segment_offsets).rbegin()),
+                     init);
+      }
+    }
+  } else {
+    if constexpr (GraphViewType::is_multi_gpu) {
+      auto minor_init = init;
+      auto view       = minor_tmp_buffer->view();
+      if (view.keys()) {  // defer applying the initial value to the end as minor_tmp_buffer may
+                          // not store values for the entire minor range
+        minor_init = ReduceOp::identity_element;
+      } else {
+        auto& major_comm = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
+        auto const major_comm_rank = major_comm.get_rank();
+        minor_init                 = (major_comm_rank == 0) ? init : ReduceOp::identity_element;
+      }
+      fill_edge_minor_property(handle, graph_view, minor_tmp_buffer->mutable_view(), minor_init);
+    } else {
+      thrust::fill(handle.get_thrust_policy(),
+                   vertex_value_output_first,
+                   vertex_value_output_first + graph_view.local_vertex_partition_range_size(),
+                   init);
+    }
+  }
 
-  auto edge_mask_view = graph_view.edge_mask_view();
+  // 8. create key_segment_offset_vectors
 
   std::conditional_t<GraphViewType::is_multi_gpu && update_major &&
                        std::is_same_v<ReduceOp, reduce_op::any<T>>,
@@ -1445,7 +1471,21 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
     }
   }
 
+  if (stream_pool_indices) { handle.sync_stream(); }
+
+  // 9. proces local edge partitions
+
+  auto edge_mask_view = graph_view.edge_mask_view();
+
+#if PER_V_PERFORMANCE_MEASUREMENT  // FIXME: delete
+  RAFT_CUDA_TRY(cudaDeviceSynchronize());
+  auto time1 = std::chrono::steady_clock::now();
+#endif
   for (size_t i = 0; i < graph_view.number_of_local_edge_partitions(); ++i) {
+#if PER_V_PERFORMANCE_MEASUREMENT  // FIXME: delete
+    RAFT_CUDA_TRY(cudaDeviceSynchronize());
+    auto subtime0 = std::chrono::steady_clock::now();
+#endif
     auto edge_partition =
       edge_partition_device_view_t<vertex_t, edge_t, GraphViewType::is_multi_gpu>(
         graph_view.local_edge_partition_view(i));
@@ -1489,6 +1529,10 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
     auto edge_partition_key_buffer = allocate_optional_dataframe_buffer<
       std::conditional_t<GraphViewType::is_multi_gpu && use_input_key, key_t, void>>(0,
                                                                                      loop_stream);
+#if PER_V_PERFORMANCE_MEASUREMENT  // FIXME: delete
+    RAFT_CUDA_TRY(cudaDeviceSynchronize());
+    auto subtime1 = std::chrono::steady_clock::now();
+#endif
     if constexpr (GraphViewType::is_multi_gpu && use_input_key) {
       auto& minor_comm = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
       auto const minor_comm_size = minor_comm.get_size();
@@ -1498,7 +1542,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
         resize_optional_dataframe_buffer<key_t>(
           edge_partition_key_buffer, local_key_list_sizes[i], loop_stream);
 
-        if constexpr (use_bitmap) {
+        if constexpr (try_bitmap) {
           std::variant<raft::device_span<uint32_t const>, decltype(sorted_unique_key_first)>
             v_list{};
           if (use_bitmap_flags[i]) {
@@ -1533,6 +1577,10 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
         edge_partition_key_last  = get_dataframe_buffer_end(edge_partition_key_buffer);
       }
     }
+#if PER_V_PERFORMANCE_MEASUREMENT  // FIXME: delete
+    RAFT_CUDA_TRY(cudaDeviceSynchronize());
+    auto subtime2 = std::chrono::steady_clock::now();
+#endif
 
     std::optional<std::vector<size_t>> key_segment_offsets{std::nullopt};
     if (segment_offsets) {
@@ -1550,10 +1598,12 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
                        (*key_segment_offsets).begin(),
                        [](vertex_t offset) { return static_cast<size_t>(offset); });
       }
-    } else {
-      key_segment_offsets = std::nullopt;
     }
     RAFT_CUDA_TRY(cudaStreamSynchronize(loop_stream));
+#if PER_V_PERFORMANCE_MEASUREMENT  // FIXME: delete
+    RAFT_CUDA_TRY(cudaDeviceSynchronize());
+    auto subtime3 = std::chrono::steady_clock::now();
+#endif
 
     edge_partition_src_input_device_view_t edge_partition_src_value_input{};
     edge_partition_dst_input_device_view_t edge_partition_dst_value_input{};
@@ -1592,6 +1642,10 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
                          decltype(edge_partition_key_first),
                          decltype(thrust::make_counting_iterator(vertex_t{0}))>;
 
+#if PER_V_PERFORMANCE_MEASUREMENT  // FIXME: delete
+    RAFT_CUDA_TRY(cudaDeviceSynchronize());
+    auto subtime4 = std::chrono::steady_clock::now();
+#endif
     if (key_segment_offsets) {
       static_assert(detail::num_sparse_segments_per_vertex_partition == 3);
 
@@ -1663,7 +1717,6 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
           segment_key_first = thrust::make_counting_iterator(edge_partition.major_range_first());
         }
         segment_key_first += (*key_segment_offsets)[2];
-        auto num_keys = (*key_segment_offsets)[3] - (*key_segment_offsets)[2];
         detail::per_v_transform_reduce_e_low_degree<update_major, GraphViewType>
           <<<update_grid.num_blocks, update_grid.block_size, 0, exec_stream>>>(
             edge_partition,
@@ -1777,6 +1830,10 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
             pred_op);
       }
     }
+#if PER_V_PERFORMANCE_MEASUREMENT  // FIXME: delete
+    RAFT_CUDA_TRY(cudaDeviceSynchronize());
+    auto subtime5 = std::chrono::steady_clock::now();
+#endif
 
     if constexpr (GraphViewType::is_multi_gpu && update_major) {
       auto& minor_comm = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
@@ -1936,9 +1993,26 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
                                 // as *segment_offsets do not necessarily coincide
                                 // in different edge partitions).
     }
+#if PER_V_PERFORMANCE_MEASUREMENT  // FIXME: delete
+    RAFT_CUDA_TRY(cudaDeviceSynchronize());
+    auto subtime6                         = std::chrono::steady_clock::now();
+    std::chrono::duration<double> subdur0 = subtime1 - subtime0;
+    std::chrono::duration<double> subdur1 = subtime2 - subtime1;
+    std::chrono::duration<double> subdur2 = subtime3 - subtime2;
+    std::chrono::duration<double> subdur3 = subtime4 - subtime3;
+    std::chrono::duration<double> subdur4 = subtime5 - subtime4;
+    std::chrono::duration<double> subdur5 = subtime6 - subtime5;
+    std::cout << "\t\t\tdetail::per_v i=" << i << " took (" << subdur0.count() << ","
+              << subdur1.count() << "," << subdur2.count() << "," << subdur3.count() << ","
+              << subdur4.count() << "," << subdur5.count() << ")" << std::endl;
+#endif
   }
+#if PER_V_PERFORMANCE_MEASUREMENT  // FIXME: delete
+  RAFT_CUDA_TRY(cudaDeviceSynchronize());
+  auto time2 = std::chrono::steady_clock::now();
+#endif
 
-  // 4. communication
+  // 10. communication
 
   if constexpr (GraphViewType::is_multi_gpu && update_major &&
                 std::is_same_v<ReduceOp, reduce_op::any<T>>) {
@@ -2013,6 +2087,10 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
       }
     }
   }
+#if PER_V_PERFORMANCE_MEASUREMENT  // FIXME: delete
+  RAFT_CUDA_TRY(cudaDeviceSynchronize());
+  auto time3 = std::chrono::steady_clock::now();
+#endif
 
   if (stream_pool_indices) { handle.sync_stream_pool(*stream_pool_indices); }
 
@@ -2102,6 +2180,16 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
       }
     }
   }
+#if PER_V_PERFORMANCE_MEASUREMENT  // FIXME: delete
+  RAFT_CUDA_TRY(cudaDeviceSynchronize());
+  auto time4                         = std::chrono::steady_clock::now();
+  std::chrono::duration<double> dur0 = time1 - time0;
+  std::chrono::duration<double> dur1 = time2 - time1;
+  std::chrono::duration<double> dur2 = time3 - time2;
+  std::chrono::duration<double> dur3 = time4 - time3;
+  std::cout << "\t\tdetail::per_v took (" << dur0.count() << "," << dur1.count() << ","
+            << dur2.count() << ")" << std::endl;
+#endif
 }
 
 }  // namespace detail

@@ -119,9 +119,7 @@ std::vector<size_t> compute_key_segment_offsets(KeyIterator sorted_key_first,
 }
 
 template <typename VertexIterator>
-std::tuple<std::optional<rmm::device_uvector<uint32_t>>, std::vector<bool>>
-compute_vertex_list_bitmap_info(
-  raft::comms::comms_t const& comm,
+std::optional<rmm::device_uvector<uint32_t>> compute_vertex_list_bitmap_info(
   VertexIterator sorted_unique_vertex_first,
   VertexIterator sorted_unique_vertex_last,
   typename thrust::iterator_traits<VertexIterator>::value_type vertex_range_first,
@@ -134,43 +132,29 @@ compute_vertex_list_bitmap_info(
     8.0 /* tuning parameter */ / static_cast<double>(sizeof(vertex_t) * 8);
 
   std::optional<rmm::device_uvector<uint32_t>> bitmap{std::nullopt};
-  std::vector<bool> use_bitmap_flags{};
 
-  if (comm.get_size() > 1) {
-    auto v_list_size = static_cast<vertex_t>(
-      thrust::distance(sorted_unique_vertex_first, sorted_unique_vertex_last));
-    auto bool_size = vertex_range_last - vertex_range_first;
+  auto v_list_size =
+    static_cast<vertex_t>(thrust::distance(sorted_unique_vertex_first, sorted_unique_vertex_last));
+  auto bool_size = vertex_range_last - vertex_range_first;
 
-    if (v_list_size > static_cast<vertex_t>(bool_size * threshold_ratio)) {
-      bitmap = rmm::device_uvector<uint32_t>(packed_bool_size(bool_size), stream_view);
-      thrust::fill(rmm::exec_policy(stream_view),
-                   (*bitmap).begin(),
-                   (*bitmap).end(),
-                   packed_bool_empty_mask());
-      thrust::for_each(rmm::exec_policy(stream_view),
-                       sorted_unique_vertex_first,
-                       sorted_unique_vertex_last,
-                       [bitmap  = raft::device_span<uint32_t>((*bitmap).data(), (*bitmap).size()),
-                        v_first = vertex_range_first] __device__(vertex_t v) {
-                         auto v_offset = v - v_first;
-                         cuda::atomic_ref<uint32_t, cuda::thread_scope_device> word(
-                           bitmap[packed_bool_offset(v_offset)]);
-                         word.fetch_or(cugraph::packed_bool_mask(v_offset),
-                                       cuda::std::memory_order_relaxed);
-                       });
-    }
-
-    auto tmp_flags = host_scalar_allgather(comm, bitmap ? uint8_t{1} : uint8_t{0}, stream_view);
-    use_bitmap_flags.resize(tmp_flags.size());
-    std::transform(
-      tmp_flags.begin(), tmp_flags.end(), use_bitmap_flags.begin(), [](uint8_t tmp_flag) {
-        return (tmp_flag == uint8_t{1});
-      });
-  } else {
-    use_bitmap_flags = {false};
+  if (v_list_size > static_cast<vertex_t>(bool_size * threshold_ratio)) {
+    bitmap = rmm::device_uvector<uint32_t>(packed_bool_size(bool_size), stream_view);
+    thrust::fill(
+      rmm::exec_policy(stream_view), (*bitmap).begin(), (*bitmap).end(), packed_bool_empty_mask());
+    thrust::for_each(rmm::exec_policy(stream_view),
+                     sorted_unique_vertex_first,
+                     sorted_unique_vertex_last,
+                     [bitmap  = raft::device_span<uint32_t>((*bitmap).data(), (*bitmap).size()),
+                      v_first = vertex_range_first] __device__(vertex_t v) {
+                       auto v_offset = v - v_first;
+                       cuda::atomic_ref<uint32_t, cuda::thread_scope_device> word(
+                         bitmap[packed_bool_offset(v_offset)]);
+                       word.fetch_or(cugraph::packed_bool_mask(v_offset),
+                                     cuda::std::memory_order_relaxed);
+                     });
   }
 
-  return std::make_tuple(std::move(bitmap), std::move(use_bitmap_flags));
+  return bitmap;
 }
 
 template <typename InputVertexIterator, typename OutputVertexIterator>
