@@ -50,49 +50,53 @@ std::tuple<std::optional<rmm::device_uvector<weight_t>>,
            std::optional<rmm::device_uvector<weight_t>>>
 normalize_biases(raft::handle_t const& handle,
                  graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
-                 std::optional<raft::device_span<weight_t const>> biases)
+                 raft::device_span<weight_t const> biases)
 {
   std::optional<rmm::device_uvector<weight_t>> normalized_biases{std::nullopt};
   std::optional<rmm::device_uvector<weight_t>> gpu_biases{std::nullopt};
 
-  if (biases) {
-    // Need to normalize the biases
-    normalized_biases =
-      std::make_optional<rmm::device_uvector<weight_t>>(biases->size(), handle.get_stream());
+  // Need to normalize the biases
+  normalized_biases =
+    std::make_optional<rmm::device_uvector<weight_t>>(biases.size(), handle.get_stream());
 
-    weight_t sum =
-      thrust::reduce(handle.get_thrust_policy(), biases->begin(), biases->end(), weight_t{0});
+  weight_t sum =
+    thrust::reduce(handle.get_thrust_policy(), biases.begin(), biases.end(), weight_t{0});
 
-    weight_t aggregate_sum{sum};
+  thrust::transform(handle.get_thrust_policy(),
+                    biases.begin(),
+                    biases.end(),
+                    normalized_biases->begin(),
+                    divider_t<weight_t>{sum});
 
-    if constexpr (multi_gpu) {
-      aggregate_sum =
-        host_scalar_allreduce(handle.get_comms(), sum, raft::comms::op_t::SUM, handle.get_stream());
-    }
+  thrust::inclusive_scan(handle.get_thrust_policy(),
+                         normalized_biases->begin(),
+                         normalized_biases->end(),
+                         normalized_biases->begin());
+
+  if constexpr (multi_gpu) {
+    // rmm::device_scalar<weight_t> d_sum((sum / aggregate_sum), handle.get_stream());
+    rmm::device_scalar<weight_t> d_sum(sum, handle.get_stream());
+
+    gpu_biases = cugraph::device_allgatherv(
+      handle, handle.get_comms(), raft::device_span<weight_t const>{d_sum.data(), d_sum.size()});
+
+    weight_t aggregate_sum = thrust::reduce(
+      handle.get_thrust_policy(), gpu_biases->begin(), gpu_biases->end(), weight_t{0});
 
     thrust::transform(handle.get_thrust_policy(),
-                      biases->begin(),
-                      biases->end(),
-                      normalized_biases->begin(),
-                      divider_t<weight_t>{sum});
+                      gpu_biases->begin(),
+                      gpu_biases->end(),
+                      gpu_biases->begin(),
+                      divider_t<weight_t>{aggregate_sum});
 
-    thrust::inclusive_scan(handle.get_thrust_policy(),
-                           normalized_biases->begin(),
-                           normalized_biases->end(),
-                           normalized_biases->begin());
+    thrust::inclusive_scan(
+      handle.get_thrust_policy(), gpu_biases->begin(), gpu_biases->end(), gpu_biases->begin());
 
-    if constexpr (multi_gpu) {
-      rmm::device_scalar<weight_t> d_sum((sum / aggregate_sum), handle.get_stream());
-      gpu_biases = cugraph::device_allgatherv(
-        handle, handle.get_comms(), raft::device_span<weight_t const>{d_sum.data(), d_sum.size()});
-
-      thrust::inclusive_scan(
-        handle.get_thrust_policy(), gpu_biases->begin(), gpu_biases->end(), gpu_biases->begin());
-
-      weight_t force_to_one{1.1};
-      raft::update_device(
-        gpu_biases->data() + gpu_biases->size() - 1, &force_to_one, 1, handle.get_stream());
-    }
+#if 0
+    weight_t force_to_one{1.1};
+    raft::update_device(
+      gpu_biases->data() + gpu_biases->size() - 1, &force_to_one, 1, handle.get_stream());
+#endif
   }
 
   return std::make_tuple(std::move(normalized_biases), std::move(gpu_biases));
@@ -122,11 +126,7 @@ rmm::device_uvector<vertex_t> create_local_samples(
     if constexpr (multi_gpu) {
       // Determine how many vertices are generated on each GPU
       auto const comm_size = handle.get_comms().get_size();
-      auto const rank      = handle.get_comms().get_rank();
-      auto& major_comm     = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
-      auto const major_comm_size = major_comm.get_size();
-      auto& minor_comm = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
-      auto const minor_comm_size = minor_comm.get_size();
+      auto const comm_rank = handle.get_comms().get_rank();
 
       sample_count_from_each_gpu.resize(comm_size);
 
@@ -158,29 +158,18 @@ rmm::device_uvector<vertex_t> create_local_samples(
       thrust::adjacent_difference(
         handle.get_thrust_policy(), gpu_counts.begin(), gpu_counts.end(), gpu_counts.begin());
 
-      // all_gpu_counts[i][j] will be how many vertices need to be generated on GPU j to be sent to
-      // GPU i
-      auto all_gpu_counts = cugraph::device_allgatherv(
-        handle,
-        handle.get_comms(),
-        raft::device_span<size_t const>{gpu_counts.data(), gpu_counts.size()});
+      std::vector<size_t> tx_counts(gpu_counts.size());
+      std::fill(tx_counts.begin(), tx_counts.end(), size_t{1});
 
-      auto begin_iter = thrust::make_transform_iterator(
-        thrust::make_counting_iterator<size_t>(0),
-        cuda::proclaim_return_type<size_t>(
-          [rank, stride = comm_size, counts = all_gpu_counts.data()] __device__(size_t idx) {
-            return counts[idx * stride + rank];
-          }));
+      rmm::device_uvector<size_t> d_sample_count_from_each_gpu(0, handle.get_stream());
 
-      samples_to_generate =
-        thrust::reduce(handle.get_thrust_policy(), begin_iter, begin_iter + comm_size, size_t{0});
+      std::tie(d_sample_count_from_each_gpu, std::ignore) =
+        shuffle_values(handle.get_comms(), gpu_counts.begin(), tx_counts, handle.get_stream());
 
-      rmm::device_uvector<size_t> d_sample_count_from_each_gpu(comm_size, handle.get_stream());
-
-      thrust::copy(handle.get_thrust_policy(),
-                   begin_iter,
-                   begin_iter + comm_size,
-                   d_sample_count_from_each_gpu.begin());
+      samples_to_generate = thrust::reduce(handle.get_thrust_policy(),
+                                           d_sample_count_from_each_gpu.begin(),
+                                           d_sample_count_from_each_gpu.end(),
+                                           size_t{0});
 
       raft::update_host(sample_count_from_each_gpu.data(),
                         d_sample_count_from_each_gpu.data(),
@@ -273,18 +262,29 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> negativ
 
   // Normalize the biases and (for MG) determine how the biases are
   // distributed across the GPUs.
-  auto [normalized_src_biases, gpu_src_biases] =
-    detail::normalize_biases(handle, graph_view, src_biases);
-  auto [normalized_dst_biases, gpu_dst_biases] =
-    detail::normalize_biases(handle, graph_view, dst_biases);
+  std::optional<rmm::device_uvector<weight_t>> normalized_src_biases{std::nullopt};
+  std::optional<rmm::device_uvector<weight_t>> gpu_src_biases{std::nullopt};
+  std::optional<rmm::device_uvector<weight_t>> normalized_dst_biases{std::nullopt};
+  std::optional<rmm::device_uvector<weight_t>> gpu_dst_biases{std::nullopt};
+
+  if (src_biases)
+    std::tie(normalized_src_biases, gpu_src_biases) =
+      detail::normalize_biases(handle, graph_view, *src_biases);
+
+  if (dst_biases)
+    std::tie(normalized_dst_biases, gpu_dst_biases) =
+      detail::normalize_biases(handle, graph_view, *dst_biases);
 
   while (samples_in_this_batch > 0) {
     if constexpr (multi_gpu) {
-      size_t comm_size = handle.get_comms().get_size();
-      size_t comm_rank = handle.get_comms().get_rank();
+      auto const comm_size = handle.get_comms().get_size();
+      auto const comm_rank = handle.get_comms().get_rank();
 
-      samples_in_this_batch = (samples_in_this_batch / comm_size) +
-                              (comm_rank < (samples_in_this_batch % comm_size) ? 1 : 0);
+      samples_in_this_batch =
+        (samples_in_this_batch / static_cast<size_t>(comm_size)) +
+        (static_cast<size_t>(comm_rank) < (samples_in_this_batch % static_cast<size_t>(comm_size))
+           ? 1
+           : 0);
     }
 
     auto batch_src = create_local_samples(
