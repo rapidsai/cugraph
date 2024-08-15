@@ -2039,7 +2039,7 @@ biased_sample_and_compute_local_nbr_indices(
         zero_bias_frontier_indices.resize(zero_bias_count_inclusive_sums.back(),
                                           handle.get_stream());
         zero_bias_frontier_indices.shrink_to_fit(handle.get_stream());
-        zero_bias_local_nbr_indices.resize(frontier_indices.size(), handle.get_stream());
+        zero_bias_local_nbr_indices.resize(zero_bias_frontier_indices.size(), handle.get_stream());
         zero_bias_local_nbr_indices.shrink_to_fit(handle.get_stream());
         std::vector<size_t> zero_bias_counts(zero_bias_count_inclusive_sums.size());
         std::adjacent_difference(zero_bias_count_inclusive_sums.begin(),
