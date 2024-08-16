@@ -452,14 +452,23 @@ struct node2vec_selector {
           cugraph::edge_src_dummy_property_t{}.view(),
           cugraph::edge_dst_dummy_property_t{}.view(),
           *edge_weight_view,
-          node2vec_random_walk_e_bias_op_t<vertex_t, weight_t, weight_t>{
-            p_, 
-            q_, 
-            raft::device_span<size_t const>(aggregate_offsets.data(), aggregate_offsets.size()), 
-            raft::device_span<vertex_t const>(aggregate_indices.data(), aggregate_indices.size()), 
-            raft::device_span<vertex_t const>(aggregate_currents.data(), aggregate_currents.size()), 
-            raft::device_span<vertex_t const>(aggregate_previous.data(), aggregate_previous.size())
-          },
+          GraphViewType::is_multi_gpu 
+            ? node2vec_random_walk_e_bias_op_t<vertex_t, weight_t, weight_t>{
+                p_, 
+                q_, 
+                raft::device_span<size_t const>(aggregate_offsets.data(), aggregate_offsets.size()), 
+                raft::device_span<vertex_t const>(aggregate_indices.data(), aggregate_indices.size()), 
+                raft::device_span<vertex_t const>(aggregate_currents.data(), aggregate_currents.size()), 
+                raft::device_span<vertex_t const>(aggregate_previous.data(), aggregate_previous.size())
+            }
+            : node2vec_random_walk_e_bias_op_t<vertex_t, weight_t, weight_t>{
+                p_, 
+                q_, 
+                raft::device_span<size_t const>(intersection_offsets.data(), intersection_offsets.size()), 
+                raft::device_span<vertex_t const>(intersection_indices.data(), intersection_indices.size()), 
+                raft::device_span<vertex_t const>(current_vertices.data(), current_vertices.size()), 
+                raft::device_span<vertex_t const>((*previous_vertices).data(), (*previous_vertices).size())
+            },
           cugraph::edge_src_dummy_property_t{}.view(),
           cugraph::edge_dst_dummy_property_t{}.view(),
           *edge_weight_view,
@@ -480,14 +489,23 @@ struct node2vec_selector {
         cugraph::edge_src_dummy_property_t{}.view(),
         cugraph::edge_dst_dummy_property_t{}.view(),
         cugraph::edge_dummy_property_t{}.view(),
-        node2vec_random_walk_e_bias_op_t<vertex_t, weight_t, void>{
-          p_, 
-          q_, 
-          raft::device_span<size_t const>(aggregate_offsets.data(), aggregate_offsets.size()), 
-          raft::device_span<vertex_t const>(aggregate_indices.data(), aggregate_indices.size()), 
-          raft::device_span<vertex_t const>(aggregate_currents.data(), aggregate_currents.size()), 
-          raft::device_span<vertex_t const>(aggregate_previous.data(), aggregate_previous.size())
-        },
+        GraphViewType::is_multi_gpu 
+            ? node2vec_random_walk_e_bias_op_t<vertex_t, weight_t, weight_t>{
+                p_, 
+                q_, 
+                raft::device_span<size_t const>(aggregate_offsets.data(), aggregate_offsets.size()), 
+                raft::device_span<vertex_t const>(aggregate_indices.data(), aggregate_indices.size()), 
+                raft::device_span<vertex_t const>(aggregate_currents.data(), aggregate_currents.size()), 
+                raft::device_span<vertex_t const>(aggregate_previous.data(), aggregate_previous.size())
+            }
+            : node2vec_random_walk_e_bias_op_t<vertex_t, weight_t, weight_t>{
+                p_, 
+                q_, 
+                raft::device_span<size_t const>(intersection_offsets.data(), intersection_offsets.size()), 
+                raft::device_span<vertex_t const>(intersection_indices.data(), intersection_indices.size()), 
+                raft::device_span<vertex_t const>(current_vertices.data(), current_vertices.size()), 
+                raft::device_span<vertex_t const>((*previous_vertices).data(), (*previous_vertices).size())
+            },
         cugraph::edge_src_dummy_property_t{}.view(),
         cugraph::edge_dst_dummy_property_t{}.view(),
         cugraph::edge_dummy_property_t{}.view(),
