@@ -90,6 +90,34 @@ struct dataframe_buffer_type {
 template <typename T>
 using dataframe_buffer_type_t = typename dataframe_buffer_type<T>::type;
 
+template <typename T>
+struct dataframe_buffer_iterator_type {
+  using type = typename rmm::device_uvector<T>::iterator;
+};
+
+template <typename... Ts>
+struct dataframe_buffer_iterator_type<thrust::tuple<Ts...>> {
+  using type = thrust::zip_iterator<thrust::tuple<typename rmm::device_uvector<Ts>::iterator...>>;
+};
+
+template <typename T>
+using dataframe_buffer_iterator_type_t = typename dataframe_buffer_iterator_type<T>::type;
+
+template <typename T>
+struct dataframe_buffer_const_iterator_type {
+  using type = typename rmm::device_uvector<T>::const_iterator;
+};
+
+template <typename... Ts>
+struct dataframe_buffer_const_iterator_type<thrust::tuple<Ts...>> {
+  using type =
+    thrust::zip_iterator<thrust::tuple<typename rmm::device_uvector<Ts>::const_iterator...>>;
+};
+
+template <typename T>
+using dataframe_buffer_const_iterator_type_t =
+  typename dataframe_buffer_const_iterator_type<T>::type;
+
 template <typename BufferType>
 void reserve_dataframe_buffer(BufferType& buffer,
                               size_t new_buffer_capacity,
