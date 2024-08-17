@@ -748,7 +748,7 @@ if(BUILD_CUGRAPH_MG_TESTS)
 
     ###################################################################################################
     # - NEGATIVE SAMPLING tests --------------------------------------------------------------------
-    ConfigureTestMG(MG_NEGATIVE_SAMPLING_TEST sampling/mg_negative_sampling.cu)
+    ConfigureTestMG(MG_NEGATIVE_SAMPLING_TEST sampling/mg_negative_sampling.cpp)
 
 
     ###############################################################################################
