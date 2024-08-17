@@ -21,7 +21,6 @@
 
 #include <cugraph/sampling_functions.hpp>
 #include <cugraph/utilities/high_res_timer.hpp>
-#include <cugraph/vertex_partition_device_view.cuh>
 
 #include <gtest/gtest.h>
 
@@ -145,19 +144,16 @@ class Tests_Negative_Sampling : public ::testing::TestWithParam<input_usecase_t>
                           raft::device_span<vertex_t>{src_out.data(), src_out.size()},
                           raft::device_span<vertex_t>{dst_out.data(), dst_out.size()});
 
-      auto vertex_partition = cugraph::vertex_partition_device_view_t<vertex_t, false>(
-        graph_view.local_vertex_partition_view());
-
       size_t error_count = cugraph::test::count_invalid_vertices(
         handle,
         raft::device_span<vertex_t const>{src_out.data(), src_out.size()},
-        vertex_partition);
+        graph_view.local_vertex_partition_view());
       ASSERT_EQ(error_count, 0) << "Source vertices out of range > 0";
 
       error_count = cugraph::test::count_invalid_vertices(
         handle,
         raft::device_span<vertex_t const>{dst_out.data(), dst_out.size()},
-        vertex_partition);
+        graph_view.local_vertex_partition_view());
       ASSERT_EQ(error_count, 0) << "Dest vertices out of range > 0";
 
       if (negative_sampling_usecase.remove_duplicates) {

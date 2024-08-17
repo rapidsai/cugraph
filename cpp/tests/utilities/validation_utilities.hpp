@@ -16,7 +16,7 @@
 
 #pragma once
 
-#include <cugraph/vertex_partition_device_view.cuh>
+#include <cugraph/vertex_partition_view.hpp>
 
 #include <raft/core/device_span.hpp>
 #include <raft/core/handle.hpp>
@@ -26,7 +26,7 @@ template <typename vertex_t, bool multi_gpu>
 size_t count_invalid_vertices(
   raft::handle_t const& handle,
   raft::device_span<vertex_t const> vertices,
-  cugraph::vertex_partition_device_view_t<vertex_t, multi_gpu> const& vertex_partition);
+  cugraph::vertex_partition_view_t<vertex_t, multi_gpu> const& vertex_partition);
 
 template <typename vertex_t>
 size_t count_duplicate_vertex_pairs_sorted(raft::handle_t const& handle,

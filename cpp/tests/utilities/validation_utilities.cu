@@ -17,7 +17,6 @@
 #include "detail/graph_partition_utils.cuh"
 #include "utilities/validation_utilities.hpp"
 
-// TODO:  Shouldn't use this in the interface...
 #include <cugraph/vertex_partition_device_view.cuh>
 
 #include <thrust/count.h>
@@ -31,15 +30,17 @@ template <typename vertex_t, bool multi_gpu>
 size_t count_invalid_vertices(
   raft::handle_t const& handle,
   raft::device_span<vertex_t const> vertices,
-  cugraph::vertex_partition_device_view_t<vertex_t, multi_gpu> const& vertex_partition)
+  cugraph::vertex_partition_view_t<vertex_t, multi_gpu> const& vertex_partition_view)
 {
-  return thrust::count_if(handle.get_thrust_policy(),
-                          vertices.begin(),
-                          vertices.end(),
-                          [vertex_partition] __device__(auto val) {
-                            return !(vertex_partition.is_valid_vertex(val) &&
-                                     vertex_partition.in_local_vertex_partition_range_nocheck(val));
-                          });
+  return thrust::count_if(
+    handle.get_thrust_policy(),
+    vertices.begin(),
+    vertices.end(),
+    [vertex_partition = cugraph::vertex_partition_device_view_t<vertex_t, multi_gpu>{
+       vertex_partition_view}] __device__(auto val) {
+      return !(vertex_partition.is_valid_vertex(val) &&
+               vertex_partition.in_local_vertex_partition_range_nocheck(val));
+    });
 }
 
 template <typename vertex_t>
@@ -147,13 +148,6 @@ size_t count_edges_on_wrong_int_gpu(raft::handle_t const& handle,
        handle.get_subcomm(cugraph::partition_manager::major_comm_name()).get_size(),
        handle.get_subcomm(cugraph::partition_manager::minor_comm_name())
          .get_size()}] __device__(auto e) {
-      if (gpu_id_key_func(thrust::get<0>(e), thrust::get<1>(e)) != comm_rank)
-        printf("  gpu_id(%d,%d) = %d, expected %d\n",
-               (int)thrust::get<0>(e),
-               (int)thrust::get<1>(e),
-               gpu_id_key_func(thrust::get<0>(e), thrust::get<1>(e)),
-               comm_rank);
-
       return (gpu_id_key_func(thrust::get<0>(e), thrust::get<1>(e)) != comm_rank);
     });
 }
@@ -162,12 +156,12 @@ size_t count_edges_on_wrong_int_gpu(raft::handle_t const& handle,
 template size_t count_invalid_vertices(
   raft::handle_t const& handle,
   raft::device_span<int32_t const> vertices,
-  cugraph::vertex_partition_device_view_t<int32_t, false> const& vertex_partition);
+  cugraph::vertex_partition_view_t<int32_t, false> const& vertex_partition_view);
 
 template size_t count_invalid_vertices(
   raft::handle_t const& handle,
   raft::device_span<int64_t const> vertices,
-  cugraph::vertex_partition_device_view_t<int64_t, false> const& vertex_partition);
+  cugraph::vertex_partition_view_t<int64_t, false> const& vertex_partition_view);
 
 template size_t count_duplicate_vertex_pairs_sorted(raft::handle_t const& handle,
                                                     raft::device_span<int32_t const> src,
