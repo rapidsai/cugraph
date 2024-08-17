@@ -14,14 +14,13 @@
  * limitations under the License.
  */
 
-#include "detail/graph_partition_utils.cuh"
 #include "utilities/base_fixture.hpp"
 #include "utilities/conversion_utilities.hpp"
 #include "utilities/property_generator_utilities.hpp"
+#include "utilities/validation_utilities.hpp"
 
 #include <cugraph/sampling_functions.hpp>
 #include <cugraph/utilities/high_res_timer.hpp>
-#include <cugraph/vertex_partition_device_view.cuh>
 
 #include <gtest/gtest.h>
 
@@ -140,6 +139,11 @@ class Tests_MGNegative_Sampling : public ::testing::TestWithParam<input_usecase_
     if (negative_sampling_usecase.check_correctness) {
       ASSERT_EQ(src_out.size(), dst_out.size()) << "Result size (src, dst) mismatch";
 
+      cugraph::test::sort(*handle_,
+                          raft::device_span<vertex_t>{src_out.data(), src_out.size()},
+                          raft::device_span<vertex_t>{dst_out.data(), dst_out.size()});
+
+      // TODO:  Move this to validation_utilities...
       auto h_vertex_partition_range_lasts = graph_view.vertex_partition_range_lasts();
       rmm::device_uvector<vertex_t> d_vertex_partition_range_lasts(
         h_vertex_partition_range_lasts.size(), handle_->get_stream());
@@ -148,49 +152,20 @@ class Tests_MGNegative_Sampling : public ::testing::TestWithParam<input_usecase_
                           h_vertex_partition_range_lasts.size(),
                           handle_->get_stream());
 
-      size_t error_count = thrust::count_if(
-        handle_->get_thrust_policy(),
-        thrust::make_zip_iterator(src_out.begin(), dst_out.begin()),
-        thrust::make_zip_iterator(src_out.end(), dst_out.end()),
-        [comm_rank       = handle_->get_comms().get_rank(),
-         gpu_id_key_func = cugraph::detail::compute_gpu_id_from_int_edge_endpoints_t<vertex_t>{
-           raft::device_span<vertex_t const>{d_vertex_partition_range_lasts.data(),
-                                             d_vertex_partition_range_lasts.size()},
-           handle_->get_comms().get_size(),
-           handle_->get_subcomm(cugraph::partition_manager::major_comm_name()).get_size(),
-           handle_->get_subcomm(cugraph::partition_manager::minor_comm_name())
-             .get_size()}] __device__(auto e) {
-          if (gpu_id_key_func(thrust::get<0>(e), thrust::get<1>(e)) != comm_rank)
-            printf("  gpu_id(%d,%d) = %d, expected %d\n",
-                   (int)thrust::get<0>(e),
-                   (int)thrust::get<1>(e),
-                   gpu_id_key_func(thrust::get<0>(e), thrust::get<1>(e)),
-                   comm_rank);
-
-          return (gpu_id_key_func(thrust::get<0>(e), thrust::get<1>(e)) != comm_rank);
-        });
+      size_t error_count = cugraph::test::count_edges_on_wrong_int_gpu(
+        *handle_,
+        raft::device_span<vertex_t const>{src_out.data(), src_out.size()},
+        raft::device_span<vertex_t const>{dst_out.data(), dst_out.size()},
+        raft::device_span<vertex_t const>{d_vertex_partition_range_lasts.data(),
+                                          d_vertex_partition_range_lasts.size()});
 
       ASSERT_EQ(error_count, 0) << "generate edges out of range > 0";
 
       if ((negative_sampling_usecase.remove_duplicates) && (src_out.size() > 0)) {
-#if 0
-        raft::print_device_vector("SRC", src_out.data(), src_out.size(), std::cout);
-        raft::print_device_vector("DST", dst_out.data(), dst_out.size(), std::cout);
-#endif
-
-        error_count = thrust::count_if(
-          handle_->get_thrust_policy(),
-          thrust::make_counting_iterator<size_t>(1),
-          thrust::make_counting_iterator<size_t>(src_out.size()),
-          [src = src_out.data(), dst = dst_out.data()] __device__(size_t index) {
-            if ((src[index - 1] == src[index]) && (dst[index - 1] == dst[index]))
-              printf("  (%d,%d) : (%d, %d) are duplicates\n",
-                     (int)src[index - 1],
-                     (int)dst[index - 1],
-                     (int)src[index],
-                     (int)dst[index]);
-            return (src[index - 1] == src[index]) && (dst[index - 1] == dst[index]);
-          });
+        error_count = cugraph::test::count_duplicate_vertex_pairs_sorted(
+          *handle_,
+          raft::device_span<vertex_t const>{src_out.data(), src_out.size()},
+          raft::device_span<vertex_t const>{dst_out.data(), dst_out.size()});
         ASSERT_EQ(error_count, 0) << "Remove duplicates specified, found duplicate entries";
       }
 
@@ -202,18 +177,18 @@ class Tests_MGNegative_Sampling : public ::testing::TestWithParam<input_usecase_
           cugraph::decompress_to_edgelist<vertex_t, edge_t, float, int, false, true>(
             *handle_, graph_view, std::nullopt, std::nullopt, std::nullopt, std::nullopt);
 
-        error_count = thrust::count_if(
-          handle_->get_thrust_policy(),
-          thrust::make_zip_iterator(src_out.begin(), dst_out.begin()),
-          thrust::make_zip_iterator(src_out.end(), dst_out.end()),
-          [src = graph_src.data(), dst = graph_dst.data(), size = graph_dst.size()] __device__(
-            auto tuple) {
-            return thrust::binary_search(thrust::seq,
-                                         thrust::make_zip_iterator(src, dst),
-                                         thrust::make_zip_iterator(src, dst) + size,
-                                         tuple);
-          });
-
+        error_count = cugraph::test::count_intersection<vertex_t, edge_t, weight_t, int32_t>(
+          *handle_,
+          raft::device_span<vertex_t const>{graph_src.data(), graph_src.size()},
+          raft::device_span<vertex_t const>{graph_dst.data(), graph_dst.size()},
+          std::nullopt,
+          std::nullopt,
+          std::nullopt,
+          raft::device_span<vertex_t const>{src_out.data(), src_out.size()},
+          raft::device_span<vertex_t const>{dst_out.data(), dst_out.size()},
+          std::nullopt,
+          std::nullopt,
+          std::nullopt);
         ASSERT_EQ(error_count, 0) << "Remove existing edges specified, found existing edges";
       }
 

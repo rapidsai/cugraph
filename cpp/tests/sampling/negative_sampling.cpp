@@ -148,24 +148,24 @@ class Tests_Negative_Sampling : public ::testing::TestWithParam<input_usecase_t>
       auto vertex_partition = cugraph::vertex_partition_device_view_t<vertex_t, false>(
         graph_view.local_vertex_partition_view());
 
-      size_t count = cugraph::test::count_invalid_vertices(
+      size_t error_count = cugraph::test::count_invalid_vertices(
         handle,
         raft::device_span<vertex_t const>{src_out.data(), src_out.size()},
         vertex_partition);
-      ASSERT_EQ(count, 0) << "Source vertices out of range > 0";
+      ASSERT_EQ(error_count, 0) << "Source vertices out of range > 0";
 
-      count = cugraph::test::count_invalid_vertices(
+      error_count = cugraph::test::count_invalid_vertices(
         handle,
         raft::device_span<vertex_t const>{dst_out.data(), dst_out.size()},
         vertex_partition);
-      ASSERT_EQ(count, 0) << "Dest vertices out of range > 0";
+      ASSERT_EQ(error_count, 0) << "Dest vertices out of range > 0";
 
       if (negative_sampling_usecase.remove_duplicates) {
-        count = cugraph::test::count_duplicate_vertex_pairs_sorted<vertex_t, false>(
+        error_count = cugraph::test::count_duplicate_vertex_pairs_sorted(
           handle,
           raft::device_span<vertex_t const>{src_out.data(), src_out.size()},
           raft::device_span<vertex_t const>{dst_out.data(), dst_out.size()});
-        ASSERT_EQ(count, 0) << "Remove duplicates specified, found duplicate entries";
+        ASSERT_EQ(error_count, 0) << "Remove duplicates specified, found duplicate entries";
       }
 
       if (negative_sampling_usecase.remove_existing_edges) {
@@ -176,7 +176,7 @@ class Tests_Negative_Sampling : public ::testing::TestWithParam<input_usecase_t>
           cugraph::decompress_to_edgelist<vertex_t, edge_t, float, int, false, false>(
             handle, graph_view, std::nullopt, std::nullopt, std::nullopt, std::nullopt);
 
-        count = cugraph::test::count_intersection<vertex_t, edge_t, weight_t, int32_t, false>(
+        error_count = cugraph::test::count_intersection<vertex_t, edge_t, weight_t, int32_t>(
           handle,
           raft::device_span<vertex_t const>{graph_src.data(), graph_src.size()},
           raft::device_span<vertex_t const>{graph_dst.data(), graph_dst.size()},
@@ -189,7 +189,7 @@ class Tests_Negative_Sampling : public ::testing::TestWithParam<input_usecase_t>
           std::nullopt,
           std::nullopt);
 
-        ASSERT_EQ(count, 0) << "Remove existing edges specified, found existing edges";
+        ASSERT_EQ(error_count, 0) << "Remove existing edges specified, found existing edges";
       }
 
       if (negative_sampling_usecase.exact_number_of_samples) {

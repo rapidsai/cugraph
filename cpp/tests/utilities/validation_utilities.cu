@@ -14,7 +14,11 @@
  * limitations under the License.
  */
 
+#include "detail/graph_partition_utils.cuh"
 #include "utilities/validation_utilities.hpp"
+
+// TODO:  Shouldn't use this in the interface...
+#include <cugraph/vertex_partition_device_view.cuh>
 
 #include <thrust/count.h>
 #include <thrust/iterator/discard_iterator.h>
@@ -38,7 +42,7 @@ size_t count_invalid_vertices(
                           });
 }
 
-template <typename vertex_t, bool multi_gpu>
+template <typename vertex_t>
 size_t count_duplicate_vertex_pairs_sorted(raft::handle_t const& handle,
                                            raft::device_span<vertex_t const> src,
                                            raft::device_span<vertex_t const> dst)
@@ -62,11 +66,7 @@ void sort(raft::handle_t const& handle,
                thrust::make_zip_iterator(srcs.end(), dsts.end()));
 }
 
-template <typename vertex_t,
-          typename edge_t,
-          typename weight_t,
-          typename edge_type_t,
-          bool multi_gpu>
+template <typename vertex_t, typename edge_t, typename weight_t, typename edge_type_t>
 size_t count_intersection(raft::handle_t const& handle,
                           raft::device_span<vertex_t const> srcs1,
                           raft::device_span<vertex_t const> dsts1,
@@ -130,6 +130,34 @@ size_t count_intersection(raft::handle_t const& handle,
 #endif
 }
 
+template <typename vertex_t>
+size_t count_edges_on_wrong_int_gpu(raft::handle_t const& handle,
+                                    raft::device_span<vertex_t const> srcs,
+                                    raft::device_span<vertex_t const> dsts,
+                                    raft::device_span<vertex_t const> vertex_partition_range_lasts)
+{
+  return thrust::count_if(
+    handle.get_thrust_policy(),
+    thrust::make_zip_iterator(srcs.begin(), dsts.begin()),
+    thrust::make_zip_iterator(srcs.end(), dsts.end()),
+    [comm_rank       = handle.get_comms().get_rank(),
+     gpu_id_key_func = cugraph::detail::compute_gpu_id_from_int_edge_endpoints_t<vertex_t>{
+       vertex_partition_range_lasts,
+       handle.get_comms().get_size(),
+       handle.get_subcomm(cugraph::partition_manager::major_comm_name()).get_size(),
+       handle.get_subcomm(cugraph::partition_manager::minor_comm_name())
+         .get_size()}] __device__(auto e) {
+      if (gpu_id_key_func(thrust::get<0>(e), thrust::get<1>(e)) != comm_rank)
+        printf("  gpu_id(%d,%d) = %d, expected %d\n",
+               (int)thrust::get<0>(e),
+               (int)thrust::get<1>(e),
+               gpu_id_key_func(thrust::get<0>(e), thrust::get<1>(e)),
+               comm_rank);
+
+      return (gpu_id_key_func(thrust::get<0>(e), thrust::get<1>(e)) != comm_rank);
+    });
+}
+
 // TODO: Split SG from MG?
 template size_t count_invalid_vertices(
   raft::handle_t const& handle,
@@ -141,15 +169,13 @@ template size_t count_invalid_vertices(
   raft::device_span<int64_t const> vertices,
   cugraph::vertex_partition_device_view_t<int64_t, false> const& vertex_partition);
 
-template size_t count_duplicate_vertex_pairs_sorted<int32_t, false>(
-  raft::handle_t const& handle,
-  raft::device_span<int32_t const> src,
-  raft::device_span<int32_t const> dst);
+template size_t count_duplicate_vertex_pairs_sorted(raft::handle_t const& handle,
+                                                    raft::device_span<int32_t const> src,
+                                                    raft::device_span<int32_t const> dst);
 
-template size_t count_duplicate_vertex_pairs_sorted<int64_t, false>(
-  raft::handle_t const& handle,
-  raft::device_span<int64_t const> src,
-  raft::device_span<int64_t const> dst);
+template size_t count_duplicate_vertex_pairs_sorted(raft::handle_t const& handle,
+                                                    raft::device_span<int64_t const> src,
+                                                    raft::device_span<int64_t const> dst);
 
 template void sort(raft::handle_t const& handle,
                    raft::device_span<int32_t> srcs,
@@ -158,82 +184,88 @@ template void sort(raft::handle_t const& handle,
                    raft::device_span<int64_t> srcs,
                    raft::device_span<int64_t> dsts);
 
-template size_t count_intersection<int32_t, int32_t, float, int32_t, false>(
-  raft::handle_t const& handle,
-  raft::device_span<int32_t const> srcs1,
-  raft::device_span<int32_t const> dsts1,
-  std::optional<raft::device_span<float const>> wgts1,
-  std::optional<raft::device_span<int32_t const>> edge_ids1,
-  std::optional<raft::device_span<int32_t const>> edge_types1,
-  raft::device_span<int32_t const> srcs2,
-  raft::device_span<int32_t const> dsts2,
-  std::optional<raft::device_span<float const>> wgts2,
-  std::optional<raft::device_span<int32_t const>> edge_ids2,
-  std::optional<raft::device_span<int32_t const>> edge_types2);
+template size_t count_intersection(raft::handle_t const& handle,
+                                   raft::device_span<int32_t const> srcs1,
+                                   raft::device_span<int32_t const> dsts1,
+                                   std::optional<raft::device_span<float const>> wgts1,
+                                   std::optional<raft::device_span<int32_t const>> edge_ids1,
+                                   std::optional<raft::device_span<int32_t const>> edge_types1,
+                                   raft::device_span<int32_t const> srcs2,
+                                   raft::device_span<int32_t const> dsts2,
+                                   std::optional<raft::device_span<float const>> wgts2,
+                                   std::optional<raft::device_span<int32_t const>> edge_ids2,
+                                   std::optional<raft::device_span<int32_t const>> edge_types2);
 
-template size_t count_intersection<int32_t, int64_t, float, int32_t, false>(
-  raft::handle_t const& handle,
-  raft::device_span<int32_t const> srcs1,
-  raft::device_span<int32_t const> dsts1,
-  std::optional<raft::device_span<float const>> wgts1,
-  std::optional<raft::device_span<int64_t const>> edge_ids1,
-  std::optional<raft::device_span<int32_t const>> edge_types1,
-  raft::device_span<int32_t const> srcs2,
-  raft::device_span<int32_t const> dsts2,
-  std::optional<raft::device_span<float const>> wgts2,
-  std::optional<raft::device_span<int64_t const>> edge_ids2,
-  std::optional<raft::device_span<int32_t const>> edge_types2);
+template size_t count_intersection(raft::handle_t const& handle,
+                                   raft::device_span<int32_t const> srcs1,
+                                   raft::device_span<int32_t const> dsts1,
+                                   std::optional<raft::device_span<float const>> wgts1,
+                                   std::optional<raft::device_span<int64_t const>> edge_ids1,
+                                   std::optional<raft::device_span<int32_t const>> edge_types1,
+                                   raft::device_span<int32_t const> srcs2,
+                                   raft::device_span<int32_t const> dsts2,
+                                   std::optional<raft::device_span<float const>> wgts2,
+                                   std::optional<raft::device_span<int64_t const>> edge_ids2,
+                                   std::optional<raft::device_span<int32_t const>> edge_types2);
 
-template size_t count_intersection<int64_t, int64_t, float, int32_t, false>(
-  raft::handle_t const& handle,
-  raft::device_span<int64_t const> srcs1,
-  raft::device_span<int64_t const> dsts1,
-  std::optional<raft::device_span<float const>> wgts1,
-  std::optional<raft::device_span<int64_t const>> edge_ids1,
-  std::optional<raft::device_span<int32_t const>> edge_types1,
-  raft::device_span<int64_t const> srcs2,
-  raft::device_span<int64_t const> dsts2,
-  std::optional<raft::device_span<float const>> wgts2,
-  std::optional<raft::device_span<int64_t const>> edge_ids2,
-  std::optional<raft::device_span<int32_t const>> edge_types2);
+template size_t count_intersection(raft::handle_t const& handle,
+                                   raft::device_span<int64_t const> srcs1,
+                                   raft::device_span<int64_t const> dsts1,
+                                   std::optional<raft::device_span<float const>> wgts1,
+                                   std::optional<raft::device_span<int64_t const>> edge_ids1,
+                                   std::optional<raft::device_span<int32_t const>> edge_types1,
+                                   raft::device_span<int64_t const> srcs2,
+                                   raft::device_span<int64_t const> dsts2,
+                                   std::optional<raft::device_span<float const>> wgts2,
+                                   std::optional<raft::device_span<int64_t const>> edge_ids2,
+                                   std::optional<raft::device_span<int32_t const>> edge_types2);
 
-template size_t count_intersection<int32_t, int32_t, double, int32_t, false>(
-  raft::handle_t const& handle,
-  raft::device_span<int32_t const> srcs1,
-  raft::device_span<int32_t const> dsts1,
-  std::optional<raft::device_span<double const>> wgts1,
-  std::optional<raft::device_span<int32_t const>> edge_ids1,
-  std::optional<raft::device_span<int32_t const>> edge_types1,
-  raft::device_span<int32_t const> srcs2,
-  raft::device_span<int32_t const> dsts2,
-  std::optional<raft::device_span<double const>> wgts2,
-  std::optional<raft::device_span<int32_t const>> edge_ids2,
-  std::optional<raft::device_span<int32_t const>> edge_types2);
+template size_t count_intersection(raft::handle_t const& handle,
+                                   raft::device_span<int32_t const> srcs1,
+                                   raft::device_span<int32_t const> dsts1,
+                                   std::optional<raft::device_span<double const>> wgts1,
+                                   std::optional<raft::device_span<int32_t const>> edge_ids1,
+                                   std::optional<raft::device_span<int32_t const>> edge_types1,
+                                   raft::device_span<int32_t const> srcs2,
+                                   raft::device_span<int32_t const> dsts2,
+                                   std::optional<raft::device_span<double const>> wgts2,
+                                   std::optional<raft::device_span<int32_t const>> edge_ids2,
+                                   std::optional<raft::device_span<int32_t const>> edge_types2);
 
-template size_t count_intersection<int32_t, int64_t, double, int32_t, false>(
-  raft::handle_t const& handle,
-  raft::device_span<int32_t const> srcs1,
-  raft::device_span<int32_t const> dsts1,
-  std::optional<raft::device_span<double const>> wgts1,
-  std::optional<raft::device_span<int64_t const>> edge_ids1,
-  std::optional<raft::device_span<int32_t const>> edge_types1,
-  raft::device_span<int32_t const> srcs2,
-  raft::device_span<int32_t const> dsts2,
-  std::optional<raft::device_span<double const>> wgts2,
-  std::optional<raft::device_span<int64_t const>> edge_ids2,
-  std::optional<raft::device_span<int32_t const>> edge_types2);
+template size_t count_intersection(raft::handle_t const& handle,
+                                   raft::device_span<int32_t const> srcs1,
+                                   raft::device_span<int32_t const> dsts1,
+                                   std::optional<raft::device_span<double const>> wgts1,
+                                   std::optional<raft::device_span<int64_t const>> edge_ids1,
+                                   std::optional<raft::device_span<int32_t const>> edge_types1,
+                                   raft::device_span<int32_t const> srcs2,
+                                   raft::device_span<int32_t const> dsts2,
+                                   std::optional<raft::device_span<double const>> wgts2,
+                                   std::optional<raft::device_span<int64_t const>> edge_ids2,
+                                   std::optional<raft::device_span<int32_t const>> edge_types2);
 
-template size_t count_intersection<int64_t, int64_t, double, int32_t, false>(
+template size_t count_intersection(raft::handle_t const& handle,
+                                   raft::device_span<int64_t const> srcs1,
+                                   raft::device_span<int64_t const> dsts1,
+                                   std::optional<raft::device_span<double const>> wgts1,
+                                   std::optional<raft::device_span<int64_t const>> edge_ids1,
+                                   std::optional<raft::device_span<int32_t const>> edge_types1,
+                                   raft::device_span<int64_t const> srcs2,
+                                   raft::device_span<int64_t const> dsts2,
+                                   std::optional<raft::device_span<double const>> wgts2,
+                                   std::optional<raft::device_span<int64_t const>> edge_ids2,
+                                   std::optional<raft::device_span<int32_t const>> edge_types2);
+
+template size_t count_edges_on_wrong_int_gpu(
   raft::handle_t const& handle,
-  raft::device_span<int64_t const> srcs1,
-  raft::device_span<int64_t const> dsts1,
-  std::optional<raft::device_span<double const>> wgts1,
-  std::optional<raft::device_span<int64_t const>> edge_ids1,
-  std::optional<raft::device_span<int32_t const>> edge_types1,
-  raft::device_span<int64_t const> srcs2,
-  raft::device_span<int64_t const> dsts2,
-  std::optional<raft::device_span<double const>> wgts2,
-  std::optional<raft::device_span<int64_t const>> edge_ids2,
-  std::optional<raft::device_span<int32_t const>> edge_types2);
+  raft::device_span<int32_t const> srcs,
+  raft::device_span<int32_t const> dsts,
+  raft::device_span<int32_t const> vertex_partition_range_lasts);
+
+template size_t count_edges_on_wrong_int_gpu(
+  raft::handle_t const& handle,
+  raft::device_span<int64_t const> srcs,
+  raft::device_span<int64_t const> dsts,
+  raft::device_span<int64_t const> vertex_partition_range_lasts);
 
 }  // namespace cugraph::test

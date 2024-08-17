@@ -28,7 +28,7 @@ size_t count_invalid_vertices(
   raft::device_span<vertex_t const> vertices,
   cugraph::vertex_partition_device_view_t<vertex_t, multi_gpu> const& vertex_partition);
 
-template <typename vertex_t, bool multi_gpu>
+template <typename vertex_t>
 size_t count_duplicate_vertex_pairs_sorted(raft::handle_t const& handle,
                                            raft::device_span<vertex_t const> src,
                                            raft::device_span<vertex_t const> dst);
@@ -38,11 +38,7 @@ void sort(raft::handle_t const& handle,
           raft::device_span<vertex_t> srcs,
           raft::device_span<vertex_t> dsts);
 
-template <typename vertex_t,
-          typename edge_t,
-          typename weight_t,
-          typename edge_type_t,
-          bool multi_gpu>
+template <typename vertex_t, typename edge_t, typename weight_t, typename edge_type_t>
 size_t count_intersection(raft::handle_t const& handle,
                           raft::device_span<vertex_t const> srcs1,
                           raft::device_span<vertex_t const> dsts1,
@@ -54,5 +50,11 @@ size_t count_intersection(raft::handle_t const& handle,
                           std::optional<raft::device_span<weight_t const>> wgts2,
                           std::optional<raft::device_span<edge_t const>> edge_ids2,
                           std::optional<raft::device_span<edge_type_t const>> edge_types2);
+
+template <typename vertex_t>
+size_t count_edges_on_wrong_int_gpu(raft::handle_t const& handle,
+                                    raft::device_span<vertex_t const> srcs,
+                                    raft::device_span<vertex_t const> dsts,
+                                    raft::device_span<vertex_t const> vertex_partition_range_lasts);
 
 }  // namespace cugraph::test
