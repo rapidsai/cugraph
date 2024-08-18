@@ -233,7 +233,8 @@ class Rmat_Usecase : public detail::TranslateGraph_Usecase {
   construct_edgelist(raft::handle_t const& handle,
                      bool test_weighted,
                      bool store_transposed,
-                     bool multi_gpu) const
+                     bool multi_gpu,
+                     bool shuffle = true) const
   {
     CUGRAPH_EXPECTS(
       (size_t{1} << scale_) <= static_cast<size_t>(std::numeric_limits<vertex_t>::max()),
@@ -329,7 +330,7 @@ class Rmat_Usecase : public detail::TranslateGraph_Usecase {
             handle, std::move(tmp_src_v), std::move(tmp_dst_v), std::move(tmp_weights_v));
       }
 
-      if (multi_gpu) {
+      if (multi_gpu && shuffle) {
         std::tie(store_transposed ? tmp_dst_v : tmp_src_v,
                  store_transposed ? tmp_src_v : tmp_dst_v,
                  tmp_weights_v,
@@ -374,7 +375,7 @@ class Rmat_Usecase : public detail::TranslateGraph_Usecase {
 
     translate(handle, vertex_v);
 
-    if (multi_gpu) {
+    if (multi_gpu && shuffle) {
       vertex_v = cugraph::detail::shuffle_ext_vertices_to_local_gpu_by_vertex_partitioning(
         handle, std::move(vertex_v));
     }
