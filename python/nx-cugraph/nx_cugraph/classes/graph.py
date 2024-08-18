@@ -51,10 +51,12 @@ class Graph(nx.Graph):
     __networkx_backend__: ClassVar[str] = "cugraph"  # nx >=3.2
     __networkx_plugin__: ClassVar[str] = "cugraph"  # nx <3.2
 
+    # Allow networkx dispatch machinery to cache conversions.
+    __networkx_cache__: dict | None
+
     # networkx properties
     graph: dict
     graph_attr_dict_factory: ClassVar[type] = dict
-    __networkx_cache__: dict = {}
 
     # Not networkx properties
     # We store edge data in COO format with {src,dst}_indices and edge_values.
@@ -110,6 +112,7 @@ class Graph(nx.Graph):
         **attr,
     ) -> Graph:
         new_graph = object.__new__(cls)
+        new_graph.__networkx_cache__ = {}
         new_graph.src_indices = src_indices
         new_graph.dst_indices = dst_indices
         new_graph.edge_values = {} if edge_values is None else dict(edge_values)
@@ -605,6 +608,12 @@ class Graph(nx.Graph):
         node_masks = self.node_masks
         key_to_id = self.key_to_id
         id_to_key = None if key_to_id is None else self._id_to_key
+        if self.__networkx_cache__ is None:
+            __networkx_cache__ = None
+        elif not reverse and cls is self.__class__:
+            __networkx_cache__ = self.__networkx_cache__
+        else:
+            __networkx_cache__ = {}
         if not as_view:
             src_indices = src_indices.copy()
             dst_indices = dst_indices.copy()
@@ -616,6 +625,8 @@ class Graph(nx.Graph):
                 key_to_id = key_to_id.copy()
                 if id_to_key is not None:
                     id_to_key = id_to_key.copy()
+            if __networkx_cache__ is not None:
+                __networkx_cache__ = __networkx_cache__.copy()
         if reverse:
             src_indices, dst_indices = dst_indices, src_indices
         rv = cls.from_coo(
@@ -633,6 +644,7 @@ class Graph(nx.Graph):
             rv.graph = self.graph
         else:
             rv.graph.update(deepcopy(self.graph))
+        rv.__networkx_cache__ = __networkx_cache__
         return rv
 
     def _get_plc_graph(
@@ -771,18 +783,26 @@ class Graph(nx.Graph):
         edge_masks = self.edge_masks
         node_values = self.node_values
         node_masks = self.node_masks
+        __networkx_cache__ = self.__networkx_cache__
         graph = self.graph
         edge_values.update(other.edge_values)
         edge_masks.update(other.edge_masks)
         node_values.update(other.node_values)
         node_masks.update(other.node_masks)
         graph.update(other.graph)
+        if other.__networkx_cache__ is None:
+            __networkx_cache__ = None
+        else:
+            if __networkx_cache__ is None:
+                __networkx_cache__ = {}
+            __networkx_cache__.update(other.__networkx_cache__)
         self.__dict__.update(other.__dict__)
         self.edge_values = edge_values
         self.edge_masks = edge_masks
         self.node_values = node_values
         self.node_masks = node_masks
         self.graph = graph
+        self.__networkx_cache__ = __networkx_cache__
         return self
 
     def _clear(self):

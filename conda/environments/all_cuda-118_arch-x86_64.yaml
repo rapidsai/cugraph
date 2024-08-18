@@ -46,6 +46,7 @@ dependencies:
 - packaging>=21
 - pandas
 - pre-commit
+- pydantic
 - pydata-sphinx-theme
 - pylibcugraphops==24.10.*,>=0.0.0a0
 - pylibraft==24.10.*,>=0.0.0a0
@@ -63,7 +64,7 @@ dependencies:
 - recommonmark
 - requests
 - rmm==24.10.*,>=0.0.0a0
-- scikit-build-core>=0.7.0
+- scikit-build-core>=0.10.0
 - scikit-learn>=0.23.1
 - scipy
 - setuptools>=61.0.0
@@ -72,6 +73,7 @@ dependencies:
 - sphinx<6
 - sphinxcontrib-websupport
 - thriftpy2!=0.5.0,!=0.5.1
+- torchdata
 - ucx-proc=*=gpu
 - ucx-py==0.40.*,>=0.0.0a0
 - wget

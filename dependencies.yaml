@@ -474,10 +474,10 @@ dependencies:
           - cython>=3.0.0
       - output_types: conda
         packages:
-          - scikit-build-core>=0.7.0
+          - scikit-build-core>=0.10.0
       - output_types: [pyproject, requirements]
         packages:
-          - scikit-build-core[pyproject]>=0.7.0
+          - scikit-build-core[pyproject]>=0.10.0
   python_run_cugraph:
     common:
       - output_types: [conda, pyproject]
@@ -659,6 +659,7 @@ dependencies:
           - *cugraph_unsuffixed
           - pytorch>=2.0
           - pytorch-cuda==11.8
+          - &tensordict tensordict>=0.1.2
           - dgl>=1.1.0.cu*
   cugraph_pyg_dev:
     common:
@@ -667,7 +668,7 @@ dependencies:
           - *cugraph_unsuffixed
           - pytorch>=2.0
           - pytorch-cuda==11.8
-          - &tensordict tensordict>=0.1.2
+          - *tensordict
           - pyg>=2.5,<2.6
 
   depends_on_pytorch:
@@ -675,6 +676,8 @@ dependencies:
       - output_types: [conda]
         packages:
           - &pytorch_unsuffixed pytorch>=2.0,<2.2.0a0
+          - torchdata
+          - pydantic
 
     specific:
       - output_types: [requirements]

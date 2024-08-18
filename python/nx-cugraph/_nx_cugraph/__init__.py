@@ -296,6 +296,32 @@ def get_info():
     return d
 
 
+def _check_networkx_version():
+    import warnings
+    import re
+
+    import networkx as nx
+
+    version_major, version_minor = nx.__version__.split(".")[:2]
+    if version_major != "3":
+        warnings.warn(
+            f"nx-cugraph version {__version__} is only known to work with networkx "
+            f"versions 3.x, but networkx {nx.__version__} is installed. "
+            "Perhaps try upgrading your Python environment.",
+            UserWarning,
+            stacklevel=2,
+        )
+
+    # Allow single-digit minor versions, e.g. 3.4 and release candidates, e.g. 3.4rc0
+    pattern = r"^\d(rc\d+)?$"
+
+    if not re.match(pattern, version_minor):
+        raise RuntimeWarning(
+            f"nx-cugraph version {__version__} does not work with networkx version "
+            f"{nx.__version__}. Please upgrade (or fix) your Python environment."
+        )
+
+
 if __name__ == "__main__":
     from pathlib import Path
 
