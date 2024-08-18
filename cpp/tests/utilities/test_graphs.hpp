@@ -24,7 +24,6 @@
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_generators.hpp>
-#include <cugraph/legacy/functions.hpp>  // legacy coo_to_csr
 
 #include <raft/random/rng_state.hpp>
 
@@ -762,39 +761,5 @@ construct_graph(raft::handle_t const& handle,
   return std::make_tuple(std::move(graph), std::move(edge_weights), std::move(renumber_map));
 }
 
-namespace legacy {
-
-template <typename vertex_t, typename edge_t, typename weight_t, typename input_usecase_t>
-std::unique_ptr<cugraph::legacy::GraphCSR<vertex_t, edge_t, weight_t>> construct_graph_csr(
-  raft::handle_t const& handle, input_usecase_t const& input_usecase, bool test_weighted)
-{
-  auto [d_src_v, d_dst_v, d_weight_v, d_vertices_v, is_symmetric] =
-    input_usecase.template construct_edgelist<vertex_t, weight_t>(
-      handle, test_weighted, false, false);
-  vertex_t num_vertices{};  // assuming that vertex IDs are non-negative consecutive integers
-  if (d_vertices_v) {
-    num_vertices =
-      max_element(
-        handle, raft::device_span<vertex_t const>((*d_vertices_v).data(), (*d_vertices_v).size())) +
-      1;
-  } else {
-    num_vertices =
-      std::max(
-        max_element(handle, raft::device_span<vertex_t const>(d_src_v.data(), d_src_v.size())),
-        max_element(handle, raft::device_span<vertex_t const>(d_dst_v.data(), d_dst_v.size()))) +
-      1;
-  }
-
-  cugraph::legacy::GraphCOOView<vertex_t, edge_t, weight_t> cooview(
-    d_src_v.data(),
-    d_dst_v.data(),
-    d_weight_v ? d_weight_v->data() : nullptr,
-    num_vertices,
-    static_cast<edge_t>(d_src_v.size()));
-
-  return cugraph::coo_to_csr(cooview);
-}
-
-}  // namespace legacy
 }  // namespace test
 }  // namespace cugraph
