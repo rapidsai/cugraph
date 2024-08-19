@@ -580,14 +580,16 @@ def _create_direct_edges(
 
 
 def _str_scalar_to_category(size, val):
-    return cudf.core.column.build_categorical_column(
-        categories=cudf.core.column.as_column([val], dtype="str"),
-        codes=cudf.core.column.as_column(0, length=size, dtype=np.int32),
-        mask=None,
+    return cudf.core.column.CategoricalColumn(
+        data=None,
         size=size,
+        dtype=cudf.CategoricalDtype(
+            categories=cudf.core.column.as_column([val], dtype="str"), ordered=False
+        ),
+        mask=None,
         offset=0,
         null_count=0,
-        ordered=False,
+        children=cudf.core.column.as_column(0, length=size, dtype=np.int32),
     )
 
 
