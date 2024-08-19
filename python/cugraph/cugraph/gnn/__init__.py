@@ -13,11 +13,13 @@
 
 from .feature_storage.feat_storage import FeatureStore
 from .data_loading.bulk_sampler import BulkSampler
-from .data_loading.dist_sampler import (
+from .data_loading import (
     DistSampler,
     DistSampleWriter,
     DistSampleReader,
+    NeighborSampler,
     UniformNeighborSampler,
+    BiasedNeighborSampler,
 )
 from .comms.cugraph_nccl_comms import (
     cugraph_comms_init,
