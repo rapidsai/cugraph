@@ -27,7 +27,7 @@ requirements:
     - cugraph ={{ version }}
     - dgl >=1.1.0.cu*
     - numba >=0.57
-    - numpy >=1.23,<2.0a0
+    - numpy >=1.23,<3
     - pylibcugraphops ={{ minor_version }}
     - tensordict >=0.1.2
     - python
