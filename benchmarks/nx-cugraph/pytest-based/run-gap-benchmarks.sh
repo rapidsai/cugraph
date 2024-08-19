@@ -1,14 +1,23 @@
 #!/bin/bash
-#
 # Copyright (c) 2024, NVIDIA CORPORATION.
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
 #
-# Runs benchmarks for the 24.02 algos.
-# Pass either a or b or both. This is useful for separating batches of runs on different GPUs:
-# CUDA_VISIBLE_DEVICES=1 run-2402.sh b
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 
+
+# location to store datasets used for benchmarking
 export RAPIDS_DATASET_ROOT_DIR=/datasets/cugraph
 mkdir -p logs
 
+# list of algos, datasets, and back-ends to use in combinations
 algos="
     pagerank
     betweenness_centrality
@@ -18,7 +27,6 @@ algos="
     triangles
     bfs_predecessors
 "
-
 datasets="
    netscience
    email_Eu_core
@@ -26,7 +34,6 @@ datasets="
    hollywood
    soc-livejournal
 "
-
 # None backend is default networkx
 # cugraph-preconvert backend is nx-cugraph
 backends="

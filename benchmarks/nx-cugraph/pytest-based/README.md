@@ -1,0 +1,44 @@
+## `nx-cugraph` Benchmarks
+
+### Overview
+
+This directory contains a set of scripts designed to benchmark NetworkX with the `nx-cugraph` backend and deliver a report that summarizes the speed-up and runtime deltas over default NetworkX.
+
+Our current benchmarks provide the following datasets:
+
+| Dataset     | Nodes | Edges | Directed |
+| --------    | ------- | ------- | ------- |
+| netscience  | 1,461    | 5,484 | Yes |
+| email-Eu-core  | 1,005    | 25,571 | Yes |
+| cit-Patents  | 3,774,768    | 16,518,948 | Yes |
+| hollywood  | 1,139,905    | 57,515,616 | No |
+| soc-LiveJournal1  | 4,847,571    | 68,993,773 | Yes |
+
+
+
+### Scripts
+
+#### 1. `run-gap-benchmarks.sh`
+This script allows users to run selected algorithms across multiple datasets and backends. All results are stored inside a sub-directory (`logs/`) and named based on the combination of params for that benchmark.
+
+**Usage:** 
+  ```bash
+  bash run-gap-benchmarks.sh  # edit this script directly
+  ```
+
+#### 2. `get_graph_bench_dataset.py`
+This script downloads the specified dataset using `cugraph.datasets`.
+
+**Usage:** 
+  ```bash
+  python get_graph_bench_dataset.py [dataset]
+  ```
+
+#### 3. `create_results_summary_page.py`
+This script is designed to be run after `run-gap-benchmarks.sh` in order to generate an HTML page displaying a results table.
+
+**Usage:** 
+  ```bash
+  python create_results_summary_page.py > report.html
+  ```
+
