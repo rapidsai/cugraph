@@ -83,6 +83,18 @@ normalize_biases(raft::handle_t const& handle,
     weight_t aggregate_sum = thrust::reduce(
       handle.get_thrust_policy(), gpu_biases->begin(), gpu_biases->end(), weight_t{0});
 
+    // FIXME: https://github.com/rapidsai/raft/issues/2400 results in the possibility
+    // that 1 can appear as a random floating point value.  We're going to use
+    // thrust::upper_bound to assign random values to GPUs, we need the value 1.0 to
+    // be part of the upper-most range.  We'll compute the last non-zero value in the
+    // gpu_biases array here and below we will fill it with a value larger than 1.0
+    size_t trailing_zeros = thrust::distance(
+      thrust::make_reverse_iterator(gpu_biases->end()),
+      thrust::find_if(handle.get_thrust_policy(),
+                      thrust::make_reverse_iterator(gpu_biases->end()),
+                      thrust::make_reverse_iterator(gpu_biases->begin()),
+                      [] __device__(weight_t bias) { return bias > weight_t{0}; }));
+
     thrust::transform(handle.get_thrust_policy(),
                       gpu_biases->begin(),
                       gpu_biases->end(),
@@ -92,11 +104,11 @@ normalize_biases(raft::handle_t const& handle,
     thrust::inclusive_scan(
       handle.get_thrust_policy(), gpu_biases->begin(), gpu_biases->end(), gpu_biases->begin());
 
-#if 0
-    weight_t force_to_one{1.1};
-    raft::update_device(
-      gpu_biases->data() + gpu_biases->size() - 1, &force_to_one, 1, handle.get_stream());
-#endif
+    // FIXME: conclusion of above.  Using 1.1 since it is > 1.0 and easy to type
+    thrust::copy_n(handle.get_thrust_policy(),
+                   thrust::make_constant_iterator<weight_t>(1.1),
+                   trailing_zeros + 1,
+                   gpu_biases->begin() + gpu_biases->size() - trailing_zeros - 1);
   }
 
   return std::make_tuple(std::move(normalized_biases), std::move(gpu_biases));
