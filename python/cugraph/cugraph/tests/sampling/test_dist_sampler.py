@@ -78,11 +78,13 @@ def test_dist_sampler_simple(
     )
 
     recovered_samples = cudf.read_parquet(samples_path)
+    print(recovered_samples)
     original_el = karate.get_edgelist()
 
     for b in range(len(seeds) // batch_size):
         el_start = recovered_samples.label_hop_offsets.iloc[b * len(fanout)]
         el_end = recovered_samples.label_hop_offsets.iloc[(b + 1) * len(fanout)]
+        print(el_start, el_end)
         src = recovered_samples.majors.iloc[el_start:el_end]
         dst = recovered_samples.minors.iloc[el_start:el_end]
         edge_id = recovered_samples.edge_id.iloc[el_start:el_end]
