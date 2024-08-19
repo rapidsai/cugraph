@@ -1889,7 +1889,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
                           ? *((*segment_offsets).rbegin() + 1) /* exclude the zero degree segment */
                           : edge_partition.major_range_size();
         }
-        major_output_buffers.emplace_back(buffer_size, loop_stream);
+        major_output_buffers.push_back(allocate_dataframe_buffer<T>(buffer_size, loop_stream));
       }
     }
     if (stream_pool_indices) { handle.sync_stream_pool(*stream_pool_indices); }

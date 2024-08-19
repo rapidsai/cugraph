@@ -211,6 +211,7 @@ void bfs(raft::handle_t const& handle,
   std::optional<rmm::device_uvector<edge_t>> out_degrees{std::nullopt};
   std::optional<rmm::device_uvector<vertex_t>> nzd_unvisited_vertices{std::nullopt};
   if (direction_optimizing) {
+    // FIXME: if this becomes the main performance bottleneck, we may just approximate this.
     out_degrees            = graph_view.compute_out_degrees(handle);
     nzd_unvisited_vertices = rmm::device_uvector<vertex_t>(
       graph_view.local_vertex_partition_range_size(), handle.get_stream());
