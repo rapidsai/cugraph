@@ -84,7 +84,7 @@ void GraphCompressedSparseBaseView<VT, ET, WT>::get_source_indices(VT* src_indic
   CUGRAPH_EXPECTS(offsets != nullptr, "No graph specified");
   rmm::cuda_stream_view stream_view;
 
-  raft::device_span<VT> indices_span(src_indices, GraphViewBase<VT, ET, WT>::number_of_vertices);
+  raft::device_span<VT> indices_span(src_indices, GraphViewBase<VT, ET, WT>::number_of_edges);
 
   if (indices_span.size() > 0) {
     thrust::fill(rmm::exec_policy(stream_view), indices_span.begin(), indices_span.end(), VT{0});
