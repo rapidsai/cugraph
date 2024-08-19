@@ -20,7 +20,7 @@ import cugraph_pyg
 from cugraph_pyg.loader import NodeLoader
 from cugraph_pyg.sampler import BaseSampler
 
-from cugraph.gnn import UniformNeighborSampler, DistSampleWriter
+from cugraph.gnn import NeighborSampler, DistSampleWriter
 from cugraph.utilities.utils import import_optional
 
 torch_geometric = import_optional("torch_geometric")
@@ -63,7 +63,7 @@ class NeighborLoader(NodeLoader):
         neighbor_sampler: Optional["torch_geometric.sampler.NeighborSampler"] = None,
         directed: bool = True,  # Deprecated.
         batch_size: int = 16,
-        directory: str = None,
+        directory: Optional[str] = None,
         batches_per_partition=256,
         format: str = "parquet",
         compression: Optional[str] = None,
@@ -174,8 +174,6 @@ class NeighborLoader(NodeLoader):
             raise ValueError("Passing a neighbor sampler is currently unsupported")
         if time_attr is not None:
             raise ValueError("Temporal sampling is currently unsupported")
-        if weight_attr is not None:
-            raise ValueError("Biased sampling is currently unsupported")
         if is_sorted:
             warnings.warn("The 'is_sorted' argument is ignored by cuGraph.")
         if not isinstance(data, (list, tuple)) or not isinstance(
@@ -201,8 +199,12 @@ class NeighborLoader(NodeLoader):
         )
 
         feature_store, graph_store = data
+
+        if weight_attr is not None:
+            graph_store._set_weight_attr((feature_store, weight_attr))
+
         sampler = BaseSampler(
-            UniformNeighborSampler(
+            NeighborSampler(
                 graph_store._graph,
                 writer,
                 retain_original_seeds=True,
@@ -213,6 +215,7 @@ class NeighborLoader(NodeLoader):
                 compress_per_hop=False,
                 with_replacement=replace,
                 local_seeds_per_call=local_seeds_per_call,
+                biased=(weight_attr is not None),
             ),
             (feature_store, graph_store),
             batch_size=batch_size,
