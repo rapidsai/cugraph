@@ -1160,7 +1160,8 @@ void per_v_transform_reduce_e_edge_partition(
         auto segment_key_last  = edge_partition_key_last;
         if constexpr (use_input_key) {
           segment_key_first += (*key_segment_offsets)[3];
-          segment_key_last += (*key_segment_offsets)[4];
+          segment_key_last =
+            segment_key_first + ((*key_segment_offsets)[4] - (*key_segment_offsets)[3]);
         } else {
           assert(segment_key_first == nullptr);
           assert(segment_key_last == nullptr);
