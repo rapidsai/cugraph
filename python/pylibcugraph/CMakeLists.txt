@@ -74,7 +74,6 @@ if (NOT cugraph_FOUND)
   if(NOT CUDA_STATIC_MATH_LIBRARIES AND USE_CUDA_MATH_WHEELS)
     set(rpaths
       "$ORIGIN/../nvidia/cublas/lib"
-      "$ORIGIN/../nvidia/cufft/lib"
       "$ORIGIN/../nvidia/curand/lib"
       "$ORIGIN/../nvidia/cusolver/lib"
       "$ORIGIN/../nvidia/cusparse/lib"
