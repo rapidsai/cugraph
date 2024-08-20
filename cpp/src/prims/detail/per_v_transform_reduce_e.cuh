@@ -875,22 +875,23 @@ __global__ static void per_v_transform_reduce_e_high_degree(
   }
 }
 
-template <typename vertex_t>
-__host__ __device__ int rank_to_priority(
+template <typename vertex_t, typename priority_t>
+__host__ __device__ priority_t rank_to_priority(
   int rank,
   int root,
   int subgroup_size /* faster interconnect within a subgroup */,
   int comm_size,
   vertex_t offset /* to evenly distribute traffic */)
 {
+  assert(comm_size <= std::numeric_limits<priority_t>::max());
   if (rank == root) {  // no need for communication (priority 0)
-    return int{0};
+    return priority_t{0};
   } else if (rank / subgroup_size ==
              root / subgroup_size) {  // intra-subgroup communication is sufficient (priorities in
                                       // [1, subgroup_size)
     int modulo     = subgroup_size - 1;
     auto rank_dist = (rank + subgroup_size - root) % subgroup_size;
-    return 1 + ((rank_dist - 1) + (offset % modulo)) % modulo;
+    return static_cast<priority_t>(1 + ((rank_dist - 1) + (offset % modulo)) % modulo);
   } else {  // inter-subgroup communication is necessary (priorities in [subgroup_size, comm_size)
     int modulo = comm_size - subgroup_size;
     auto subgroup_dist =
@@ -898,27 +899,27 @@ __host__ __device__ int rank_to_priority(
       (comm_size / subgroup_size);
     auto intra_subgroup_rank_dist =
       ((rank % subgroup_size) + subgroup_size - (root % subgroup_size)) % subgroup_size;
-    return subgroup_size +
+    return static_cast<priority_t>(subgroup_size +
            ((subgroup_dist * subgroup_size + intra_subgroup_rank_dist - subgroup_size) +
             (offset % modulo)) %
-             modulo;
+             modulo);
   }
 }
 
-template <typename vertex_t>
+template <typename vertex_t, typename priority_t>
 __host__ __device__ int priority_to_rank(
-  int priority,
+  priority_t priority,
   int root,
   int subgroup_size /* faster interconnect within a subgroup */,
   int comm_size,
   vertex_t offset /* to evenly distribute traffict */)
 {
-  if (priority == int{0}) {
+  if (priority == priority_t{0}) {
     return root;
-  } else if (priority < subgroup_size) {
+  } else if (priority < static_cast<priority_t>(subgroup_size)) {
     int modulo     = subgroup_size - 1;
     auto rank_dist = 1 + (priority - 1 + modulo - (offset % modulo)) % modulo;
-    return (root + rank_dist) % subgroup_size;
+    return (root - (root % subgroup_size)) + ((root + rank_dist) % subgroup_size);
   } else {
     int modulo = comm_size - subgroup_size;
     auto rank_dist =
@@ -963,7 +964,7 @@ std::optional<rmm::device_uvector<bool>> compute_keep_flags(
       [value_first, root, subgroup_size, init, comm_rank, comm_size] __device__(auto offset) {
         auto val = *(value_first + offset);
         return (val != init)
-                 ? rank_to_priority(
+                 ? rank_to_priority<vertex_t, priority_t>(
                      comm_rank, root, subgroup_size, comm_size, static_cast<vertex_t>(offset))
                  : std::numeric_limits<priority_t>::max();  // lowest priority
       });
@@ -987,8 +988,8 @@ std::optional<rmm::device_uvector<bool>> compute_keep_flags(
                       [root, subgroup_size, comm_rank, comm_size] __device__(auto pair) {
                         auto offset   = thrust::get<0>(pair);
                         auto priority = thrust::get<1>(pair);
-                        auto rank =
-                          priority_to_rank(priority, root, subgroup_size, comm_size, offset);
+                        auto rank = (priority == std::numeric_limits<priority_t>::max()) ? comm_size :
+                          priority_to_rank<vertex_t, priority_t>(priority, root, subgroup_size, comm_size, offset);
                         return (rank == comm_rank);
                       });
   }
@@ -1054,6 +1055,7 @@ gather_offset_value_pairs(raft::comms::comms_t const& comm,
     std::exclusive_scan(rx_sizes.begin(), rx_sizes.end(), rx_displs.begin(), size_t{0});
   }
 
+  // FIXME: should we gatherv offsets? Can't we figure this out from priorities???
   // FIXME: calling the following two device_gatherv within device_group_start() and
   // device_group_end() improves performance (approx. 5%)
   // FIXME: or we can implement this in All-to-All after iteration over every edge partition
