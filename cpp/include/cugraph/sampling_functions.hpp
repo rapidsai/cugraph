@@ -423,6 +423,7 @@ biased_neighbor_sample(
  * optional weight_t weight, optional edge_t edge id, optional edge_type_t edge type,
  * optional int32_t hop, optional label_t label, optional size_t offsets)
  */
+// FIXME: Add flag for bias=True/False
 template <typename vertex_t,
           typename edge_t,
           typename weight_t,
@@ -451,7 +452,6 @@ neighbor_sample(
   std::optional<raft::device_span<label_t const>> starting_vertex_labels,
   std::optional<std::tuple<raft::device_span<label_t const>, raft::device_span<int32_t const>>>
     label_to_output_comm_rank,
-  // FIXME: replace 2 optional fan_out type by a std::variant instead
   std::optional<raft::host_span<int32_t const>> fan_out,
   std::optional<std::tuple<raft::host_span<int32_t const>, raft::host_span<int32_t const>>>
     heterogeneous_fan_out,

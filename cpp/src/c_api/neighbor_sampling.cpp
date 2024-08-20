@@ -66,363 +66,9 @@ struct cugraph_sample_result_t {
 
 namespace {
 
-struct uniform_neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
+struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
   raft::handle_t const& handle_;
-  cugraph::c_api::cugraph_graph_t* graph_{nullptr};
-  cugraph::c_api::cugraph_type_erased_device_array_view_t const* start_vertices_{nullptr};
-  cugraph::c_api::cugraph_type_erased_device_array_view_t const* start_vertex_labels_{nullptr};
-  cugraph::c_api::cugraph_type_erased_device_array_view_t const* label_list_{nullptr};
-  cugraph::c_api::cugraph_type_erased_device_array_view_t const* label_to_comm_rank_{nullptr};
-  cugraph::c_api::cugraph_type_erased_device_array_view_t const* label_offsets_{nullptr};
-  cugraph::c_api::cugraph_type_erased_host_array_view_t const* fan_out_{nullptr};
-  cugraph::c_api::cugraph_sample_heterogeneous_fanout_t const* heterogeneous_fan_out_{nullptr};
   cugraph::c_api::cugraph_rng_state_t* rng_state_{nullptr};
-  cugraph::c_api::cugraph_sampling_options_t options_{};
-  bool do_expensive_check_{false};
-  cugraph::c_api::cugraph_sample_result_t* result_{nullptr};
-
-  uniform_neighbor_sampling_functor(
-    cugraph_resource_handle_t const* handle,
-    cugraph_graph_t* graph,
-    cugraph_type_erased_device_array_view_t const* start_vertices,
-    cugraph_type_erased_device_array_view_t const* start_vertex_labels,
-    cugraph_type_erased_device_array_view_t const* label_list,
-    cugraph_type_erased_device_array_view_t const* label_to_comm_rank,
-    cugraph_type_erased_device_array_view_t const* label_offsets,
-    cugraph_type_erased_host_array_view_t const* fan_out,
-    cugraph_sample_heterogeneous_fanout_t const* heterogeneous_fan_out,
-    cugraph_rng_state_t* rng_state,
-    cugraph::c_api::cugraph_sampling_options_t options,
-    bool do_expensive_check)
-    : abstract_functor(),
-      handle_(*reinterpret_cast<cugraph::c_api::cugraph_resource_handle_t const*>(handle)->handle_),
-      graph_(reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph)),
-      start_vertices_(
-        reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(
-          start_vertices)),
-      start_vertex_labels_(
-        reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(
-          start_vertex_labels)),
-      label_list_(reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(
-        label_list)),
-      label_to_comm_rank_(
-        reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(
-          label_to_comm_rank)),
-      label_offsets_(
-        reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(
-          label_offsets)),
-      fan_out_(
-        reinterpret_cast<cugraph::c_api::cugraph_type_erased_host_array_view_t const*>(fan_out)),
-      heterogeneous_fan_out_(
-        reinterpret_cast<cugraph::c_api::cugraph_sample_heterogeneous_fanout_t const*>(
-          heterogeneous_fan_out)),
-      rng_state_(reinterpret_cast<cugraph::c_api::cugraph_rng_state_t*>(rng_state)),
-      options_(options),
-      do_expensive_check_(do_expensive_check)
-  {
-  }
-
-  template <typename vertex_t,
-            typename edge_t,
-            typename weight_t,
-            typename edge_type_t,
-            bool store_transposed,
-            bool multi_gpu>
-  void operator()()
-  {
-    using label_t = int32_t;
-
-    // FIXME: Think about how to handle SG vice MG
-    if constexpr (!cugraph::is_candidate<vertex_t, edge_t, weight_t>::value) {
-      unsupported();
-    } else {
-      // uniform_nbr_sample expects store_transposed == false
-      if constexpr (store_transposed) {
-        error_code_ = cugraph::c_api::
-          transpose_storage<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(
-            handle_, graph_, error_.get());
-        if (error_code_ != CUGRAPH_SUCCESS) return;
-      }
-
-      auto graph =
-        reinterpret_cast<cugraph::graph_t<vertex_t, edge_t, false, multi_gpu>*>(graph_->graph_);
-
-      auto graph_view = graph->view();
-
-      auto edge_weights = reinterpret_cast<
-        cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, true, multi_gpu>,
-                                 weight_t>*>(graph_->edge_weights_);
-
-      auto edge_ids = reinterpret_cast<
-        cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, true, multi_gpu>,
-                                 edge_t>*>(graph_->edge_ids_);
-
-      auto edge_types = reinterpret_cast<
-        cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, true, multi_gpu>,
-                                 edge_type_t>*>(graph_->edge_types_);
-
-      auto number_map = reinterpret_cast<rmm::device_uvector<vertex_t>*>(graph_->number_map_);
-
-      rmm::device_uvector<vertex_t> start_vertices(start_vertices_->size_, handle_.get_stream());
-      raft::copy(start_vertices.data(),
-                 start_vertices_->as_type<vertex_t>(),
-                 start_vertices.size(),
-                 handle_.get_stream());
-
-      std::optional<rmm::device_uvector<label_t>> start_vertex_labels{std::nullopt};
-
-      if (start_vertex_labels_ != nullptr) {
-        start_vertex_labels =
-          rmm::device_uvector<label_t>{start_vertex_labels_->size_, handle_.get_stream()};
-        raft::copy(start_vertex_labels->data(),
-                   start_vertex_labels_->as_type<label_t>(),
-                   start_vertex_labels_->size_,
-                   handle_.get_stream());
-      }
-
-      if constexpr (multi_gpu) {
-        if (start_vertex_labels) {
-          std::tie(start_vertices, *start_vertex_labels) =
-            cugraph::detail::shuffle_ext_vertex_value_pairs_to_local_gpu_by_vertex_partitioning(
-              handle_, std::move(start_vertices), std::move(*start_vertex_labels));
-        } else {
-          start_vertices =
-            cugraph::detail::shuffle_ext_vertices_to_local_gpu_by_vertex_partitioning(
-              handle_, std::move(start_vertices));
-        }
-      }
-
-      //
-      // Need to renumber start_vertices
-      //
-      cugraph::renumber_local_ext_vertices<vertex_t, multi_gpu>(
-        handle_,
-        start_vertices.data(),
-        start_vertices.size(),
-        number_map->data(),
-        graph_view.local_vertex_partition_range_first(),
-        graph_view.local_vertex_partition_range_last(),
-        do_expensive_check_);
-
-      auto&& [src, dst, wgt, edge_id, edge_type, hop, edge_label, offsets] =
-        cugraph::uniform_neighbor_sample(
-          handle_,
-          graph_view,
-          (edge_weights != nullptr) ? std::make_optional(edge_weights->view()) : std::nullopt,
-          (edge_ids != nullptr) ? std::make_optional(edge_ids->view()) : std::nullopt,
-          (edge_types != nullptr) ? std::make_optional(edge_types->view()) : std::nullopt,
-          raft::device_span<vertex_t const>{start_vertices.data(), start_vertices.size()},
-          (start_vertex_labels_ != nullptr)
-            ? std::make_optional<raft::device_span<label_t const>>(start_vertex_labels->data(),
-                                                                   start_vertex_labels->size())
-            : std::nullopt,
-          (label_list_ != nullptr)
-            ? std::make_optional(std::make_tuple(
-                raft::device_span<label_t const>{label_list_->as_type<label_t>(),
-                                                 label_list_->size_},
-                raft::device_span<label_t const>{label_to_comm_rank_->as_type<label_t>(),
-                                                 label_to_comm_rank_->size_}))
-            : std::nullopt,
-          (fan_out_ != nullptr) ? std::make_optional<raft::host_span<const int>>(
-                                    fan_out_->as_type<const int>(), fan_out_->size_)
-                                : std::nullopt,
-
-          (heterogeneous_fan_out_ != nullptr)
-            ? std::make_optional(std::make_tuple(
-                raft::host_span<const int>{heterogeneous_fan_out_->edge_type_id->as_type<int>(),
-                                           heterogeneous_fan_out_->edge_type_id->size_},
-                raft::host_span<const int>{heterogeneous_fan_out_->fanout->as_type<int>(),
-                                           heterogeneous_fan_out_->fanout->size_}))
-            : std::nullopt,
-          rng_state_->rng_state_,
-          options_.return_hops_,
-          options_.with_replacement_,
-          options_.prior_sources_behavior_,
-          options_.dedupe_sources_,
-          do_expensive_check_);
-
-      std::vector<vertex_t> vertex_partition_lasts = graph_view.vertex_partition_range_lasts();
-
-      cugraph::unrenumber_int_vertices<vertex_t, multi_gpu>(handle_,
-                                                            src.data(),
-                                                            src.size(),
-                                                            number_map->data(),
-                                                            vertex_partition_lasts,
-                                                            do_expensive_check_);
-
-      cugraph::unrenumber_int_vertices<vertex_t, multi_gpu>(handle_,
-                                                            dst.data(),
-                                                            dst.size(),
-                                                            number_map->data(),
-                                                            vertex_partition_lasts,
-                                                            do_expensive_check_);
-
-      std::optional<rmm::device_uvector<vertex_t>> majors{std::nullopt};
-      rmm::device_uvector<vertex_t> minors(0, handle_.get_stream());
-      std::optional<rmm::device_uvector<size_t>> major_offsets{std::nullopt};
-
-      std::optional<rmm::device_uvector<size_t>> label_hop_offsets{std::nullopt};
-
-      std::optional<rmm::device_uvector<vertex_t>> renumber_map{std::nullopt};
-      std::optional<rmm::device_uvector<size_t>> renumber_map_offsets{std::nullopt};
-
-      bool src_is_major = (options_.compression_type_ == cugraph_compression_type_t::CSR) ||
-                          (options_.compression_type_ == cugraph_compression_type_t::DCSR) ||
-                          (options_.compression_type_ == cugraph_compression_type_t::COO);
-
-      if (options_.renumber_results_) {
-        if (options_.compression_type_ == cugraph_compression_type_t::COO) {
-          // COO
-
-          rmm::device_uvector<vertex_t> output_majors(0, handle_.get_stream());
-          rmm::device_uvector<vertex_t> output_renumber_map(0, handle_.get_stream());
-          std::tie(output_majors,
-                   minors,
-                   wgt,
-                   edge_id,
-                   edge_type,
-                   label_hop_offsets,
-                   output_renumber_map,
-                   renumber_map_offsets) =
-            cugraph::renumber_and_sort_sampled_edgelist<vertex_t>(
-              handle_,
-              std::move(src),
-              std::move(dst),
-              std::move(wgt),
-              std::move(edge_id),
-              std::move(edge_type),
-              std::move(hop),
-              options_.retain_seeds_
-                ? std::make_optional(raft::device_span<vertex_t const>{
-                    start_vertices_->as_type<vertex_t>(), start_vertices_->size_})
-                : std::nullopt,
-              options_.retain_seeds_ ? std::make_optional(raft::device_span<size_t const>{
-                                         label_offsets_->as_type<size_t>(), label_offsets_->size_})
-                                     : std::nullopt,
-              offsets ? std::make_optional(
-                          raft::device_span<size_t const>{offsets->data(), offsets->size()})
-                      : std::nullopt,
-              edge_label ? edge_label->size() : size_t{1},
-              hop ? fan_out_->size_ : size_t{1},
-              src_is_major,
-              do_expensive_check_);
-
-          majors.emplace(std::move(output_majors));
-          renumber_map.emplace(std::move(output_renumber_map));
-        } else {
-          // (D)CSC, (D)CSR
-
-          bool doubly_compress = (options_.compression_type_ == cugraph_compression_type_t::DCSR) ||
-                                 (options_.compression_type_ == cugraph_compression_type_t::DCSC);
-
-          rmm::device_uvector<size_t> output_major_offsets(0, handle_.get_stream());
-          rmm::device_uvector<vertex_t> output_renumber_map(0, handle_.get_stream());
-          std::tie(majors,
-                   output_major_offsets,
-                   minors,
-                   wgt,
-                   edge_id,
-                   edge_type,
-                   label_hop_offsets,
-                   output_renumber_map,
-                   renumber_map_offsets) =
-            cugraph::renumber_and_compress_sampled_edgelist<vertex_t>(
-              handle_,
-              std::move(src),
-              std::move(dst),
-              std::move(wgt),
-              std::move(edge_id),
-              std::move(edge_type),
-              std::move(hop),
-              options_.retain_seeds_
-                ? std::make_optional(raft::device_span<vertex_t const>{
-                    start_vertices_->as_type<vertex_t>(), start_vertices_->size_})
-                : std::nullopt,
-              options_.retain_seeds_ ? std::make_optional(raft::device_span<size_t const>{
-                                         label_offsets_->as_type<size_t>(), label_offsets_->size_})
-                                     : std::nullopt,
-              offsets ? std::make_optional(
-                          raft::device_span<size_t const>{offsets->data(), offsets->size()})
-                      : std::nullopt,
-              edge_label ? edge_label->size() : size_t{1},
-              hop ? fan_out_->size_ : size_t{1},
-              src_is_major,
-              options_.compress_per_hop_,
-              doubly_compress,
-              do_expensive_check_);
-
-          renumber_map.emplace(std::move(output_renumber_map));
-          major_offsets.emplace(std::move(output_major_offsets));
-        }
-
-        // These are now represented by label_hop_offsets
-        hop.reset();
-        offsets.reset();
-      } else {
-        if (options_.compression_type_ != cugraph_compression_type_t::COO) {
-          CUGRAPH_FAIL("Can only use COO format if not renumbering");
-        }
-
-        std::tie(src, dst, wgt, edge_id, edge_type, label_hop_offsets) =
-          cugraph::sort_sampled_edgelist(handle_,
-                                         std::move(src),
-                                         std::move(dst),
-                                         std::move(wgt),
-                                         std::move(edge_id),
-                                         std::move(edge_type),
-                                         std::move(hop),
-                                         offsets
-                                           ? std::make_optional(raft::device_span<size_t const>{
-                                               offsets->data(), offsets->size()})
-                                           : std::nullopt,
-                                         edge_label ? edge_label->size() : size_t{1},
-                                         hop ? fan_out_->size_ : size_t{1},
-                                         src_is_major,
-                                         do_expensive_check_);
-
-        majors.emplace(std::move(src));
-        minors = std::move(dst);
-
-        hop.reset();
-        offsets.reset();
-      }
-
-      result_ = new cugraph::c_api::cugraph_sample_result_t{
-        (major_offsets)
-          ? new cugraph::c_api::cugraph_type_erased_device_array_t(*major_offsets, SIZE_T)
-          : nullptr,
-        (majors)
-          ? new cugraph::c_api::cugraph_type_erased_device_array_t(*majors, graph_->vertex_type_)
-          : nullptr,
-        new cugraph::c_api::cugraph_type_erased_device_array_t(minors, graph_->vertex_type_),
-        (edge_id)
-          ? new cugraph::c_api::cugraph_type_erased_device_array_t(*edge_id, graph_->edge_type_)
-          : nullptr,
-        (edge_type) ? new cugraph::c_api::cugraph_type_erased_device_array_t(
-                        *edge_type, graph_->edge_type_id_type_)
-                    : nullptr,
-        (wgt) ? new cugraph::c_api::cugraph_type_erased_device_array_t(*wgt, graph_->weight_type_)
-              : nullptr,
-        (hop) ? new cugraph::c_api::cugraph_type_erased_device_array_t(*hop, INT32)
-              : nullptr,  // FIXME get rid of this
-        (label_hop_offsets)
-          ? new cugraph::c_api::cugraph_type_erased_device_array_t(*label_hop_offsets, SIZE_T)
-          : nullptr,
-        (edge_label)
-          ? new cugraph::c_api::cugraph_type_erased_device_array_t(edge_label.value(), INT32)
-          : nullptr,
-        (renumber_map) ? new cugraph::c_api::cugraph_type_erased_device_array_t(
-                           renumber_map.value(), graph_->vertex_type_)
-                       : nullptr,
-        (renumber_map_offsets) ? new cugraph::c_api::cugraph_type_erased_device_array_t(
-                                   renumber_map_offsets.value(), SIZE_T)
-                               : nullptr};
-    }
-  }
-};
-
-struct biased_neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
-  raft::handle_t const& handle_;
   cugraph::c_api::cugraph_graph_t* graph_{nullptr};
   cugraph::c_api::cugraph_edge_property_view_t const* edge_biases_{nullptr};
   cugraph::c_api::cugraph_type_erased_device_array_view_t const* start_vertices_{nullptr};
@@ -431,13 +77,14 @@ struct biased_neighbor_sampling_functor : public cugraph::c_api::abstract_functo
   cugraph::c_api::cugraph_type_erased_device_array_view_t const* label_to_comm_rank_{nullptr};
   cugraph::c_api::cugraph_type_erased_device_array_view_t const* label_offsets_{nullptr};
   cugraph::c_api::cugraph_type_erased_host_array_view_t const* fan_out_{nullptr};
-  cugraph::c_api::cugraph_rng_state_t* rng_state_{nullptr};
+  cugraph::c_api::cugraph_sample_heterogeneous_fanout_t const* heterogeneous_fan_out_{nullptr};
   cugraph::c_api::cugraph_sampling_options_t options_{};
   bool do_expensive_check_{false};
   cugraph::c_api::cugraph_sample_result_t* result_{nullptr};
 
-  biased_neighbor_sampling_functor(
+  neighbor_sampling_functor(
     cugraph_resource_handle_t const* handle,
+    cugraph_rng_state_t* rng_state,
     cugraph_graph_t* graph,
     cugraph_edge_property_view_t const* edge_biases,
     cugraph_type_erased_device_array_view_t const* start_vertices,
@@ -446,11 +93,12 @@ struct biased_neighbor_sampling_functor : public cugraph::c_api::abstract_functo
     cugraph_type_erased_device_array_view_t const* label_to_comm_rank,
     cugraph_type_erased_device_array_view_t const* label_offsets,
     cugraph_type_erased_host_array_view_t const* fan_out,
-    cugraph_rng_state_t* rng_state,
+    cugraph_sample_heterogeneous_fanout_t const* heterogeneous_fan_out,
     cugraph::c_api::cugraph_sampling_options_t options,
     bool do_expensive_check)
     : abstract_functor(),
       handle_(*reinterpret_cast<cugraph::c_api::cugraph_resource_handle_t const*>(handle)->handle_),
+      rng_state_(reinterpret_cast<cugraph::c_api::cugraph_rng_state_t*>(rng_state)),
       graph_(reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph)),
       edge_biases_(
         reinterpret_cast<cugraph::c_api::cugraph_edge_property_view_t const*>(edge_biases)),
@@ -470,7 +118,9 @@ struct biased_neighbor_sampling_functor : public cugraph::c_api::abstract_functo
           label_offsets)),
       fan_out_(
         reinterpret_cast<cugraph::c_api::cugraph_type_erased_host_array_view_t const*>(fan_out)),
-      rng_state_(reinterpret_cast<cugraph::c_api::cugraph_rng_state_t*>(rng_state)),
+      heterogeneous_fan_out_(
+        reinterpret_cast<cugraph::c_api::cugraph_sample_heterogeneous_fanout_t const*>(
+          heterogeneous_fan_out)),
       options_(options),
       do_expensive_check_(do_expensive_check)
   {
@@ -564,13 +214,16 @@ struct biased_neighbor_sampling_functor : public cugraph::c_api::abstract_functo
         do_expensive_check_);
 
       auto&& [src, dst, wgt, edge_id, edge_type, hop, edge_label, offsets] =
-        cugraph::biased_neighbor_sample(
+        cugraph::neighbor_sample(
           handle_,
+          rng_state_->rng_state_,
           graph_view,
           (edge_weights != nullptr) ? std::make_optional(edge_weights->view()) : std::nullopt,
           (edge_ids != nullptr) ? std::make_optional(edge_ids->view()) : std::nullopt,
           (edge_types != nullptr) ? std::make_optional(edge_types->view()) : std::nullopt,
-          (edge_biases != nullptr) ? *edge_biases : edge_weights->view(),
+          // FIXME: add bias flag to differentiate between bias and uniform neighbor sample
+          // bias ? ((edge_biases != nullptr) ? std::make_optional(*edge_biases) : std::make_optional(edge_weights->view())) : std::nullopt ***
+          (edge_biases != nullptr) ? std::make_optional(*edge_biases) : std::make_optional(edge_weights->view()),
           raft::device_span<vertex_t const>{start_vertices.data(), start_vertices.size()},
           (start_vertex_labels_ != nullptr)
             ? std::make_optional<raft::device_span<label_t const>>(start_vertex_labels->data(),
@@ -583,8 +236,17 @@ struct biased_neighbor_sampling_functor : public cugraph::c_api::abstract_functo
                 raft::device_span<label_t const>{label_to_comm_rank_->as_type<label_t>(),
                                                  label_to_comm_rank_->size_}))
             : std::nullopt,
-          raft::host_span<const int>(fan_out_->as_type<const int>(), fan_out_->size_),
-          rng_state_->rng_state_,
+          (fan_out_ != nullptr) ? std::make_optional<raft::host_span<const int>>(
+                                    fan_out_->as_type<const int>(), fan_out_->size_)
+                                : std::nullopt,
+
+          (heterogeneous_fan_out_ != nullptr)
+            ? std::make_optional(std::make_tuple(
+                raft::host_span<const int>{heterogeneous_fan_out_->edge_type_id->as_type<int>(),
+                                           heterogeneous_fan_out_->edge_type_id->size_},
+                raft::host_span<const int>{heterogeneous_fan_out_->fanout->as_type<int>(),
+                                           heterogeneous_fan_out_->fanout->size_}))
+            : std::nullopt,
           options_.return_hops_,
           options_.with_replacement_,
           options_.prior_sources_behavior_,
@@ -770,6 +432,7 @@ struct biased_neighbor_sampling_functor : public cugraph::c_api::abstract_functo
     }
   }
 };
+
 
 struct create_heterogeneous_fanout_functor : public cugraph::c_api::abstract_functor {
   raft::handle_t const& handle_;
@@ -1366,18 +1029,93 @@ cugraph_error_code_t cugraph_uniform_neighbor_sample(
     "fan_out should be of type int",
     *error);
 
-  uniform_neighbor_sampling_functor functor{handle,
-                                            graph,
-                                            start_vertices,
-                                            start_vertex_labels,
-                                            label_list,
-                                            label_to_comm_rank,
-                                            label_offsets,
-                                            fan_out,
-                                            heterogeneous_fanout,
-                                            rng_state,
-                                            std::move(options_cpp),
-                                            do_expensive_check};
+  neighbor_sampling_functor functor{handle,
+                                    rng_state,
+                                    graph,
+                                    nullptr,
+                                    start_vertices,
+                                    start_vertex_labels,
+                                    label_list,
+                                    label_to_comm_rank,
+                                    label_offsets,
+                                    fan_out,
+                                    heterogeneous_fanout,
+                                    std::move(options_cpp),
+                                    do_expensive_check};
+  return cugraph::c_api::run_algorithm(graph, functor, result, error);
+}
+
+// FIXME: Add flag for bias=True/False
+cugraph_error_code_t cugraph_neighbor_sample(
+  const cugraph_resource_handle_t* handle,
+  cugraph_rng_state_t* rng_state,
+  cugraph_graph_t* graph,
+  const cugraph_edge_property_view_t* edge_biases,
+  const cugraph_type_erased_device_array_view_t* start_vertices,
+  const cugraph_type_erased_device_array_view_t* start_vertex_labels,
+  const cugraph_type_erased_device_array_view_t* label_list,
+  const cugraph_type_erased_device_array_view_t* label_to_comm_rank,
+  const cugraph_type_erased_device_array_view_t* label_offsets,
+  const cugraph_type_erased_host_array_view_t* fan_out,
+  const cugraph_sample_heterogeneous_fanout_t* heterogeneous_fanout,
+  const cugraph_sampling_options_t* options,
+  bool_t do_expensive_check,
+  cugraph_sample_result_t** result,
+  cugraph_error_t** error)
+{
+  auto options_cpp = *reinterpret_cast<cugraph::c_api::cugraph_sampling_options_t const*>(options);
+
+  CAPI_EXPECTS((!options_cpp.retain_seeds_) || (label_offsets != nullptr),
+               CUGRAPH_INVALID_INPUT,
+               "must specify label_offsets if retain_seeds is true",
+               *error);
+
+  CAPI_EXPECTS((start_vertex_labels == nullptr) ||
+                 (reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(
+                    start_vertex_labels)
+                    ->type_ == INT32),
+               CUGRAPH_INVALID_INPUT,
+               "start_vertex_labels should be of type int",
+               *error);
+
+  CAPI_EXPECTS((label_to_comm_rank == nullptr) || (start_vertex_labels != nullptr),
+               CUGRAPH_INVALID_INPUT,
+               "cannot specify label_to_comm_rank unless start_vertex_labels is also specified",
+               *error);
+
+  CAPI_EXPECTS((label_to_comm_rank == nullptr) || (label_list != nullptr),
+               CUGRAPH_INVALID_INPUT,
+               "cannot specify label_to_comm_rank unless label_list is also specified",
+               *error);
+
+  CAPI_EXPECTS(reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph)->vertex_type_ ==
+                 reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(
+                   start_vertices)
+                   ->type_,
+               CUGRAPH_INVALID_INPUT,
+               "vertex type of graph and start_vertices must match",
+               *error);
+
+  CAPI_EXPECTS(
+    reinterpret_cast<cugraph::c_api::cugraph_type_erased_host_array_view_t const*>(fan_out)
+        ->type_ == INT32,
+    CUGRAPH_INVALID_INPUT,
+    "fan_out should be of type int",
+    *error);
+
+  neighbor_sampling_functor functor{handle,
+                                    rng_state,
+                                    graph,
+                                    edge_biases,
+                                    start_vertices,
+                                    start_vertex_labels,
+                                    label_list,
+                                    label_to_comm_rank,
+                                    label_offsets,
+                                    fan_out,
+                                    heterogeneous_fanout,
+                                    std::move(options_cpp),
+                                    do_expensive_check};
   return cugraph::c_api::run_algorithm(graph, functor, result, error);
 }
 
@@ -1399,6 +1137,7 @@ cugraph_error_code_t cugraph_biased_neighbor_sample(
 {
   auto options_cpp = *reinterpret_cast<cugraph::c_api::cugraph_sampling_options_t const*>(options);
 
+  // FIXME: Check if bias = True before checking the statement below
   CAPI_EXPECTS(
     (edge_biases != nullptr) ||
       (reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph)->edge_weights_ != nullptr),
@@ -1444,18 +1183,19 @@ cugraph_error_code_t cugraph_biased_neighbor_sample(
     "fan_out should be of type int",
     *error);
 
-  biased_neighbor_sampling_functor functor{handle,
-                                           graph,
-                                           edge_biases,
-                                           start_vertices,
-                                           start_vertex_labels,
-                                           label_list,
-                                           label_to_comm_rank,
-                                           label_offsets,
-                                           fan_out,
-                                           rng_state,
-                                           std::move(options_cpp),
-                                           do_expensive_check};
+  neighbor_sampling_functor functor{handle,
+                                    rng_state,
+                                    graph,
+                                    edge_biases,
+                                    start_vertices,
+                                    start_vertex_labels,
+                                    label_list,
+                                    label_to_comm_rank,
+                                    label_offsets,
+                                    fan_out,
+                                    nullptr,
+                                    std::move(options_cpp),
+                                    do_expensive_check};
   return cugraph::c_api::run_algorithm(graph, functor, result, error);
 }
 
