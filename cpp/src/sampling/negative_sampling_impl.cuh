@@ -74,7 +74,6 @@ normalize_biases(raft::handle_t const& handle,
                          normalized_biases->begin());
 
   if constexpr (multi_gpu) {
-    // rmm::device_scalar<weight_t> d_sum((sum / aggregate_sum), handle.get_stream());
     rmm::device_scalar<weight_t> d_sum(sum, handle.get_stream());
 
     gpu_biases = cugraph::device_allgatherv(
@@ -258,9 +257,9 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> negativ
   raft::handle_t const& handle,
   raft::random::RngState& rng_state,
   graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
-  size_t num_samples,
   std::optional<raft::device_span<weight_t const>> src_biases,
   std::optional<raft::device_span<weight_t const>> dst_biases,
+  size_t num_samples,
   bool remove_duplicates,
   bool remove_existing_edges,
   bool exact_number_of_samples,

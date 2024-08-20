@@ -768,13 +768,13 @@ lookup_endpoints_from_edge_ids_and_types(
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Graph View object to generate NBR Sampling for
  * @param rng_state RNG state
- * @param num_samples Number of negative samples to generate
  * @param src_biases Optional bias for randomly selecting source vertices.  If std::nullopt vertices
  * will be selected uniformly.  In multi-GPU environment the biases should be partitioned based
  * on the vertex partitions.
  * @param dst_biases Optional bias for randomly selecting destination vertices.  If std::nullopt
  * vertices will be selected uniformly.  In multi-GPU environment the biases should be partitioned
  * based on the vertex partitions.
+ * @param num_samples Number of negative samples to generate
  * @param remove_duplicates If true, remove duplicate samples
  * @param remove_existing_edges If true, remove samples that are actually edges in the graph
  * @param exact_number_of_samples If true, repeat generation until we get the exact number of
@@ -792,9 +792,9 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> negativ
   raft::handle_t const& handle,
   raft::random::RngState& rng_state,
   graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
-  size_t num_samples,
   std::optional<raft::device_span<weight_t const>> src_biases,
   std::optional<raft::device_span<weight_t const>> dst_biases,
+  size_t num_samples,
   bool remove_duplicates,
   bool remove_existing_edges,
   bool exact_number_of_samples,

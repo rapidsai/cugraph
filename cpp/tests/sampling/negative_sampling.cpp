@@ -31,6 +31,7 @@ struct Negative_Sampling_Usecase {
   bool remove_duplicates{false};
   bool remove_existing_edges{false};
   bool exact_number_of_samples{false};
+  bool edge_masking{false};
   bool check_correctness{true};
 };
 
@@ -40,7 +41,7 @@ class Tests_Negative_Sampling : public ::testing::TestWithParam<input_usecase_t>
   using graph_t      = cugraph::graph_t<vertex_t, edge_t, false, false>;
   using graph_view_t = cugraph::graph_view_t<vertex_t, edge_t, false, false>;
 
-  Tests_Negative_Sampling() : graph(raft::handle_t{}) {}
+  Tests_Negative_Sampling() : graph_(raft::handle_t{}) {}
 
   static void SetUpTestCase() {}
   static void TearDownTestCase() {}
@@ -56,7 +57,7 @@ class Tests_Negative_Sampling : public ::testing::TestWithParam<input_usecase_t>
       hr_timer.start("Construct graph");
     }
 
-    std::tie(graph, edge_weights, renumber_map_labels) =
+    std::tie(graph_, edge_weights_, renumber_map_labels_) =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, false>(
         handle, param, true, true);
 
@@ -65,6 +66,9 @@ class Tests_Negative_Sampling : public ::testing::TestWithParam<input_usecase_t>
       hr_timer.stop();
       hr_timer.display_and_clear(std::cout);
     }
+
+    edge_mask_ =
+      cugraph::test::generate<graph_view_t, bool>::edge_property(handle, graph_.view(), 2);
   }
 
   virtual void SetUp() {}
@@ -78,9 +82,12 @@ class Tests_Negative_Sampling : public ::testing::TestWithParam<input_usecase_t>
     raft::handle_t handle{};
     HighResTimer hr_timer{};
 
-    auto graph_view = graph.view();
+    auto graph_view = graph_.view();
 
-    size_t num_samples = graph_view.number_of_edges() * negative_sampling_usecase.sample_multiplier;
+    if (negative_sampling_usecase.edge_masking) { graph_view.attach_edge_mask(edge_mask_->view()); }
+
+    size_t num_samples =
+      graph_view.compute_number_of_edges(handle) * negative_sampling_usecase.sample_multiplier;
 
     rmm::device_uvector<weight_t> src_bias_v(0, handle.get_stream());
     rmm::device_uvector<weight_t> dst_bias_v(0, handle.get_stream());
@@ -123,9 +130,9 @@ class Tests_Negative_Sampling : public ::testing::TestWithParam<input_usecase_t>
       cugraph::negative_sampling(handle,
                                  rng_state,
                                  graph_view,
-                                 num_samples,
                                  src_bias,
                                  dst_bias,
+                                 num_samples,
                                  negative_sampling_usecase.remove_duplicates,
                                  negative_sampling_usecase.remove_existing_edges,
                                  negative_sampling_usecase.exact_number_of_samples,
@@ -197,9 +204,10 @@ class Tests_Negative_Sampling : public ::testing::TestWithParam<input_usecase_t>
   }
 
  private:
-  graph_t graph;
-  std::optional<cugraph::edge_property_t<graph_view_t, weight_t>> edge_weights{std::nullopt};
-  std::optional<rmm::device_uvector<vertex_t>> renumber_map_labels{std::nullopt};
+  graph_t graph_;
+  std::optional<cugraph::edge_property_t<graph_view_t, weight_t>> edge_weights_{std::nullopt};
+  std::optional<cugraph::edge_property_t<graph_view_t, bool>> edge_mask_{std::nullopt};
+  std::optional<rmm::device_uvector<vertex_t>> renumber_map_labels_{std::nullopt};
 };
 
 using Tests_Negative_Sampling_File_i32_i32_float =
@@ -225,70 +233,20 @@ void run_all_tests(CurrentTest* current_test)
 {
   raft::random::RngState rng_state{0};
 
-  current_test->run_current_test(
-    rng_state, Negative_Sampling_Usecase{2, false, false, false, false, false, true});
-  current_test->run_current_test(
-    rng_state, Negative_Sampling_Usecase{2, true, false, false, false, false, true});
-  current_test->run_current_test(
-    rng_state, Negative_Sampling_Usecase{2, false, true, false, false, false, true});
-  current_test->run_current_test(
-    rng_state, Negative_Sampling_Usecase{2, true, true, false, false, false, true});
-  current_test->run_current_test(
-    rng_state, Negative_Sampling_Usecase{2, false, false, true, false, false, true});
-  current_test->run_current_test(
-    rng_state, Negative_Sampling_Usecase{2, true, false, true, false, false, true});
-  current_test->run_current_test(
-    rng_state, Negative_Sampling_Usecase{2, false, true, true, false, false, true});
-  current_test->run_current_test(
-    rng_state, Negative_Sampling_Usecase{2, true, true, true, false, false, true});
-  current_test->run_current_test(
-    rng_state, Negative_Sampling_Usecase{2, false, false, false, true, false, true});
-  current_test->run_current_test(
-    rng_state, Negative_Sampling_Usecase{2, true, false, false, true, false, true});
-  current_test->run_current_test(
-    rng_state, Negative_Sampling_Usecase{2, false, true, false, true, false, true});
-  current_test->run_current_test(
-    rng_state, Negative_Sampling_Usecase{2, true, true, false, true, false, true});
-  current_test->run_current_test(
-    rng_state, Negative_Sampling_Usecase{2, false, false, true, true, false, true});
-  current_test->run_current_test(
-    rng_state, Negative_Sampling_Usecase{2, true, false, true, true, false, true});
-  current_test->run_current_test(
-    rng_state, Negative_Sampling_Usecase{2, false, true, true, true, false, true});
-  current_test->run_current_test(rng_state,
-                                 Negative_Sampling_Usecase{2, true, true, true, true, false, true});
-  current_test->run_current_test(
-    rng_state, Negative_Sampling_Usecase{2, false, false, false, false, true, true});
-  current_test->run_current_test(
-    rng_state, Negative_Sampling_Usecase{2, true, false, false, false, true, true});
-  current_test->run_current_test(
-    rng_state, Negative_Sampling_Usecase{2, false, true, false, false, true, true});
-  current_test->run_current_test(
-    rng_state, Negative_Sampling_Usecase{2, true, true, false, false, true, true});
-  current_test->run_current_test(
-    rng_state, Negative_Sampling_Usecase{2, false, false, true, false, true, true});
-  current_test->run_current_test(
-    rng_state, Negative_Sampling_Usecase{2, true, false, true, false, true, true});
-  current_test->run_current_test(
-    rng_state, Negative_Sampling_Usecase{2, false, true, true, false, true, true});
-  current_test->run_current_test(rng_state,
-                                 Negative_Sampling_Usecase{2, true, true, true, false, true, true});
-  current_test->run_current_test(
-    rng_state, Negative_Sampling_Usecase{2, false, false, false, true, true, true});
-  current_test->run_current_test(
-    rng_state, Negative_Sampling_Usecase{2, true, false, false, true, true, true});
-  current_test->run_current_test(
-    rng_state, Negative_Sampling_Usecase{2, false, true, false, true, true, true});
-  current_test->run_current_test(rng_state,
-                                 Negative_Sampling_Usecase{2, true, true, false, true, true, true});
-  current_test->run_current_test(
-    rng_state, Negative_Sampling_Usecase{2, false, false, true, true, true, true});
-  current_test->run_current_test(rng_state,
-                                 Negative_Sampling_Usecase{2, true, false, true, true, true, true});
-  current_test->run_current_test(rng_state,
-                                 Negative_Sampling_Usecase{2, false, true, true, true, true, true});
-  current_test->run_current_test(rng_state,
-                                 Negative_Sampling_Usecase{2, true, true, true, true, true, true});
+  for (bool use_src_bias : {false, true})
+    for (bool use_dst_bias : {false, true})
+      for (bool remove_duplicates : {false, true})
+        for (bool remove_existing_edges : {false, true})
+          for (bool exact_number_of_samples : {false, true})
+            for (bool edge_masking : {false, true})
+              current_test->run_current_test(rng_state,
+                                             Negative_Sampling_Usecase{2,
+                                                                       use_src_bias,
+                                                                       use_dst_bias,
+                                                                       remove_duplicates,
+                                                                       remove_existing_edges,
+                                                                       exact_number_of_samples,
+                                                                       edge_masking});
 }
 
 TEST_P(Tests_Negative_Sampling_File_i32_i32_float, CheckInt32Int32Float)

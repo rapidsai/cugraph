@@ -36,10 +36,10 @@ struct negative_sampling_functor : public cugraph::c_api::abstract_functor {
   raft::handle_t const& handle_;
   cugraph::c_api::cugraph_rng_state_t* rng_state_{nullptr};
   cugraph::c_api::cugraph_graph_t* graph_{nullptr};
-  size_t num_samples_;
   cugraph::c_api::cugraph_type_erased_device_array_view_t const* vertices_{nullptr};
   cugraph::c_api::cugraph_type_erased_device_array_view_t const* src_biases_{nullptr};
   cugraph::c_api::cugraph_type_erased_device_array_view_t const* dst_biases_{nullptr};
+  size_t num_samples_;
   bool remove_duplicates_{false};
   bool remove_existing_edges_{false};
   bool exact_number_of_samples_{false};
@@ -49,10 +49,10 @@ struct negative_sampling_functor : public cugraph::c_api::abstract_functor {
   negative_sampling_functor(const cugraph_resource_handle_t* handle,
                             cugraph_rng_state_t* rng_state,
                             cugraph_graph_t* graph,
-                            size_t num_samples,
                             const cugraph_type_erased_device_array_view_t* vertices,
                             const cugraph_type_erased_device_array_view_t* src_biases,
                             const cugraph_type_erased_device_array_view_t* dst_biases,
+                            size_t num_samples,
                             bool_t remove_duplicates,
                             bool_t remove_existing_edges,
                             bool_t exact_number_of_samples,
@@ -61,13 +61,13 @@ struct negative_sampling_functor : public cugraph::c_api::abstract_functor {
       handle_(*reinterpret_cast<cugraph::c_api::cugraph_resource_handle_t const*>(handle)->handle_),
       rng_state_(reinterpret_cast<cugraph::c_api::cugraph_rng_state_t*>(rng_state)),
       graph_(reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph)),
-      num_samples_(num_samples),
       vertices_(
         reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(vertices)),
       src_biases_(reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(
         src_biases)),
       dst_biases_(reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(
         dst_biases)),
+      num_samples_(num_samples),
       remove_duplicates_(remove_duplicates),
       remove_existing_edges_(remove_existing_edges),
       exact_number_of_samples_(exact_number_of_samples),
@@ -87,7 +87,7 @@ struct negative_sampling_functor : public cugraph::c_api::abstract_functor {
     if constexpr (!cugraph::is_candidate<vertex_t, edge_t, weight_t>::value) {
       unsupported();
     } else {
-      // uniform_nbr_sample expects store_transposed == false
+      // negative_sampling expects store_transposed == false
       if constexpr (store_transposed) {
         error_code_ = cugraph::c_api::
           transpose_storage<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(
@@ -156,13 +156,13 @@ struct negative_sampling_functor : public cugraph::c_api::abstract_functor {
         handle_,
         rng_state_->rng_state_,
         graph_view,
-        num_samples_,
         (src_biases_ != nullptr) ? std::make_optional(raft::device_span<weight_t const>{
                                      src_biases.data(), src_biases.size()})
                                  : std::nullopt,
         (dst_biases_ != nullptr) ? std::make_optional(raft::device_span<weight_t const>{
                                      dst_biases.data(), dst_biases.size()})
                                  : std::nullopt,
+        num_samples_,
         remove_duplicates_,
         remove_existing_edges_,
         exact_number_of_samples_,
@@ -202,10 +202,10 @@ cugraph_error_code_t cugraph_negative_sampling(
   const cugraph_resource_handle_t* handle,
   cugraph_rng_state_t* rng_state,
   cugraph_graph_t* graph,
-  size_t num_samples,
   const cugraph_type_erased_device_array_view_t* vertices,
   const cugraph_type_erased_device_array_view_t* src_biases,
   const cugraph_type_erased_device_array_view_t* dst_biases,
+  size_t num_samples,
   bool_t remove_duplicates,
   bool_t remove_existing_edges,
   bool_t exact_number_of_samples,
@@ -216,10 +216,10 @@ cugraph_error_code_t cugraph_negative_sampling(
   negative_sampling_functor functor{handle,
                                     rng_state,
                                     graph,
-                                    num_samples,
                                     vertices,
                                     src_biases,
                                     dst_biases,
+                                    num_samples,
                                     remove_duplicates,
                                     remove_existing_edges,
                                     exact_number_of_samples,
