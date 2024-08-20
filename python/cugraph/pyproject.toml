@@ -29,7 +29,7 @@ dependencies = [
     "dask-cudf==24.10.*,>=0.0.0a0",
     "fsspec[http]>=0.6.0",
     "numba>=0.57",
-    "numpy>=1.23,<3",
+    "numpy>=1.23,<3.0a0",
     "pylibcugraph==24.10.*,>=0.0.0a0",
     "raft-dask==24.10.*,>=0.0.0a0",
     "rapids-dask-dependency==24.10.*,>=0.0.0a0",
@@ -47,7 +47,7 @@ classifiers = [
 [project.optional-dependencies]
 test = [
     "networkx>=2.5.1",
-    "numpy>=1.23,<3",
+    "numpy>=1.23,<3.0a0",
     "pandas",
     "pylibwholegraph==24.10.*,>=0.0.0a0",
     "pytest",

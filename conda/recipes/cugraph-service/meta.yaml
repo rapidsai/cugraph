@@ -63,7 +63,7 @@ outputs:
         - dask-cuda ={{ minor_version }}
         - dask-cudf ={{ minor_version }}
         - numba >=0.57
-        - numpy >=1.23,<3
+        - numpy >=1.23,<3.0a0
         - python
         - rapids-dask-dependency ={{ minor_version }}
         - thriftpy2 >=0.4.15,!=0.5.0,!=0.5.1
