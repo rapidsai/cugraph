@@ -38,6 +38,10 @@ nvidia-smi
 # RAPIDS_DATASET_ROOT_DIR is used by test scripts
 export RAPIDS_DATASET_ROOT_DIR="$(realpath datasets)"
 
+echo "DEBUGGING, ${RAPIDS_DATASET_ROOT_DIR}"
+ls -l $RAPIDS_DATASET_ROOT_DIR
+echo "END DEBUGGING"
+
 export GTEST_OUTPUT=xml:${RAPIDS_TESTS_DIR}/
 
 # Skip benchmark tests inside of CI
