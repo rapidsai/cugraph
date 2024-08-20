@@ -476,4 +476,75 @@ biased_neighbor_sample(
     do_expensive_check);
 }
 
+
+
+
+
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          typename edge_type_t,
+          typename bias_t,
+          typename label_t,
+          bool store_transposed,
+          bool multi_gpu>
+std::tuple<rmm::device_uvector<vertex_t>,
+           rmm::device_uvector<vertex_t>,
+           std::optional<rmm::device_uvector<weight_t>>,
+           std::optional<rmm::device_uvector<edge_t>>,
+           std::optional<rmm::device_uvector<edge_type_t>>,
+           std::optional<rmm::device_uvector<int32_t>>,
+           std::optional<rmm::device_uvector<label_t>>,
+           std::optional<rmm::device_uvector<size_t>>>
+neighbor_sample(
+  raft::handle_t const& handle,
+  raft::random::RngState& rng_state,
+  graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
+  std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
+  std::optional<edge_property_view_t<edge_t, edge_t const*>> edge_id_view,
+  std::optional<edge_property_view_t<edge_t, edge_type_t const*>> edge_type_view,
+  std::optional<edge_property_view_t<edge_t, bias_t const*>> edge_bias_view,
+  raft::device_span<vertex_t const> starting_vertices,
+  std::optional<raft::device_span<label_t const>> starting_vertex_labels,
+  std::optional<std::tuple<raft::device_span<label_t const>, raft::device_span<int32_t const>>>
+    label_to_output_comm_rank,
+  std::optional<raft::host_span<int32_t const>> fan_out,
+  std::optional<std::tuple<raft::host_span<int32_t const>, raft::host_span<int32_t const>>>
+    heterogeneous_fan_out,
+  bool return_hops,
+  bool with_replacement,
+  prior_sources_behavior_t prior_sources_behavior,
+  bool dedupe_sources,
+  bool do_expensive_check)
+{
+  return detail::neighbor_sample_impl<vertex_t, edge_t, weight_t, edge_type_t, bias_t>(
+    handle,
+    graph_view,
+    edge_weight_view,
+    edge_id_view,
+    edge_type_view,
+    edge_bias_view,
+    starting_vertices,
+    starting_vertex_labels,
+    label_to_output_comm_rank,
+    fan_out,
+    heterogeneous_fan_out,
+    return_hops,
+    with_replacement,
+    prior_sources_behavior,
+    dedupe_sources,
+    rng_state,
+    do_expensive_check);
+}
+
+
+
+
+
+
+
+
+
+
+
 }  // namespace cugraph
