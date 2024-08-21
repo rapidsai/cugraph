@@ -346,7 +346,7 @@ typedef struct {
  *
  * @param [in]  handle         Handle for accessing resources
  * @param [in]  graph          Pointer to graph
- * @param [in]  edge_type_offsets Type erased array of edge type size
+ * @param [in]  edge_type_offsets Type erased array of edge type offsets
  * @param [in]  fanout         Type erased array of fanout values
  * @param [out] heterogeneous_fanout Opaque pointer to fanout_t
  * @param [out] error          Pointer to an error object storing details of any error.  Will

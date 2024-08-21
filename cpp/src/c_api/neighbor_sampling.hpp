@@ -22,7 +22,7 @@ namespace cugraph {
 namespace c_api {
 
 struct cugraph_sample_heterogeneous_fanout_t {
-  cugraph_type_erased_host_array_t* edge_type_id;
+  cugraph_type_erased_host_array_t* edge_type_offsets;
   cugraph_type_erased_host_array_t* fanout;
 };
 

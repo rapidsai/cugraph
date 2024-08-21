@@ -245,8 +245,8 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
 
           (heterogeneous_fan_out_ != nullptr)
             ? std::make_optional(std::make_tuple(
-                raft::host_span<const int>{heterogeneous_fan_out_->edge_type_id->as_type<int>(),
-                                           heterogeneous_fan_out_->edge_type_id->size_},
+                raft::host_span<const int>{heterogeneous_fan_out_->edge_type_offsets->as_type<int>(),
+                                           heterogeneous_fan_out_->edge_type_offsets->size_},
                 raft::host_span<const int>{heterogeneous_fan_out_->fanout->as_type<int>(),
                                            heterogeneous_fan_out_->fanout->size_}))
             : std::nullopt,
