@@ -336,10 +336,17 @@ typedef struct {
  * @brief       Create heterogeneous fanout
  *
  * Input data will be stored in the heterogenous_fanout.
+ * 
+ * The fanout is going to be a CSR structure, the edge_type_offsets will define which range
+ * of the fanout array is associated with each edge type, the fanout will be the values of
+ * fanout for that hop/type. So for edge type k, fanout[edge_type_offsets[k]] will identify
+ * the fanout for hop 0 for edge type k.  fanout[edge_type_offsets[k] +1] will identify the
+ * fanout for hop 1, etc. edge_type_offsets[k+1] will mark the beginning of the fanout
+ * array for type k+1 (and the end of the fanout array for type k.
  *
  * @param [in]  handle         Handle for accessing resources
  * @param [in]  graph          Pointer to graph
- * @param [in]  edge_type_size Type erased array of edge type size
+ * @param [in]  edge_type_offsets Type erased array of edge type size
  * @param [in]  fanout         Type erased array of fanout values
  * @param [out] heterogeneous_fanout Opaque pointer to fanout_t
  * @param [out] error          Pointer to an error object storing details of any error.  Will
@@ -349,7 +356,7 @@ typedef struct {
 cugraph_error_code_t cugraph_create_heterogeneous_fanout(
   const cugraph_resource_handle_t* handle,
   cugraph_graph_t* graph,
-  const cugraph_type_erased_host_array_view_t* edge_type_size,
+  const cugraph_type_erased_host_array_view_t* edge_type_offsets,
   const cugraph_type_erased_host_array_view_t* fanout,
   cugraph_sample_heterogeneous_fanout_t** heterogeneous_fanout,
   cugraph_error_t** error);

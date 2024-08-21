@@ -131,7 +131,7 @@ cdef extern from "cugraph_c/sampling_algorithms.h":
         cugraph_create_heterogeneous_fanout(
             const cugraph_resource_handle_t* handle,
             cugraph_graph_t* graph,
-            const cugraph_type_erased_host_array_view_t* edge_type_size,
+            const cugraph_type_erased_host_array_view_t* edge_type_offsets,
             const cugraph_type_erased_host_array_view_t* fanout,
             cugraph_sample_heterogeneous_fanout_t** heterogeneous_fanout,
             cugraph_error_t** error
