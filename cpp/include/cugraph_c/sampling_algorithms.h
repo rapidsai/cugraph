@@ -16,6 +16,7 @@
 
 #pragma once
 
+#include <cugraph_c/coo.h>
 #include <cugraph_c/error.h>
 #include <cugraph_c/graph.h>
 #include <cugraph_c/properties.h>
@@ -673,6 +674,57 @@ cugraph_error_code_t cugraph_select_random_vertices(const cugraph_resource_handl
                                                     size_t num_vertices,
                                                     cugraph_type_erased_device_array_t** vertices,
                                                     cugraph_error_t** error);
+
+/**
+ * @ingroup samplingC
+ * @brief Perform negative sampling
+ *
+ * Negative sampling generates a COO structure defining edges according to the specified parameters
+ *
+ * @param [in]     handle                  Handle for accessing resources
+ * @param [in,out] rng_state               State of the random number generator, updated with each
+ *                                         call
+ * @param [in]     graph                   Pointer to graph
+ * @param [in]     vertices                Vertex ids for the source biases.  If @p src_bias and
+ *                                         @p dst_bias are not specified this is ignored.  If
+ *                                         @p vertices is specified then vertices[i] is the vertex
+ *                                         id of src_biases[i] and dst_biases[i].  If @p vertices
+ *                                         is not specified then i is the vertex id if src_biases[i]
+ *                                         and dst_biases[i]
+ * @param [in]     src_biases              Bias for selecting source vertices.  If NULL, do uniform
+ *                                         sampling, if provided probability of vertex i will be
+ *                                         src_bias[i] / (sum of all source biases)
+ * @param [in]     dst_biases              Bias for selecting destination vertices.  If NULL, do
+ *                                         uniform sampling, if provided probability of vertex i
+ *                                         will be dst_bias[i] / (sum of all destination biases)
+ * @param [in]     num_samples             Number of negative samples to generate
+ * @param [in]     remove_duplicates       If true, remove duplicates from sampled edges
+ * @param [in]     remove_existing_edges   If true, remove sampled edges that actually exist in
+ *                                         the graph
+ * @param [in]     exact_number_of_samples If true, result should contain exactly @p num_samples. If
+ *                                         false the code will generate @p num_samples and then do
+ *                                         any filtering as specified
+ * @param [in]     do_expensive_check      A flag to run expensive checks for input arguments (if
+ *                                         set to true)
+ * @param [out]    result                  Opaque pointer to generated coo list
+ * @param [out]    error                   Pointer to an error object storing details of any error.
+ *                                         Will be populated if error code is not CUGRAPH_SUCCESS
+ * @return error code
+ */
+cugraph_error_code_t cugraph_negative_sampling(
+  const cugraph_resource_handle_t* handle,
+  cugraph_rng_state_t* rng_state,
+  cugraph_graph_t* graph,
+  const cugraph_type_erased_device_array_view_t* vertices,
+  const cugraph_type_erased_device_array_view_t* src_biases,
+  const cugraph_type_erased_device_array_view_t* dst_biases,
+  size_t num_samples,
+  bool_t remove_duplicates,
+  bool_t remove_existing_edges,
+  bool_t exact_number_of_samples,
+  bool_t do_expensive_check,
+  cugraph_coo_t** result,
+  cugraph_error_t** error);
 
 #ifdef __cplusplus
 }
