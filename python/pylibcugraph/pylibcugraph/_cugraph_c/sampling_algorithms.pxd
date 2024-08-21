@@ -56,7 +56,6 @@ cdef extern from "cugraph_c/sampling_algorithms.h":
         const cugraph_type_erased_device_array_view_t* label_to_comm_rank,
         const cugraph_type_erased_device_array_view_t* label_offsets,
         const cugraph_type_erased_host_array_view_t* fan_out,
-        const cugraph_sample_heterogeneous_fanout_t* heterogeneous_fanout,
         cugraph_rng_state_t* rng_state,
         const cugraph_sampling_options_t* options,
         bool_t do_expensive_check,

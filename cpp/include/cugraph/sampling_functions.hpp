@@ -42,7 +42,8 @@ enum class prior_sources_behavior_t { DEFAULT = 0, CARRY_OVER, EXCLUDE };
 
 /**
  * @brief Uniform Neighborhood Sampling.
- * # FIXME: Reset all changes to uniform neighborhood sampling
+ * 
+ * @deprecated  This API will be deleted, use neighbor_sample instead
  *
  * This function traverses from a set of starting vertices, traversing outgoing edges and
  * randomly selects from these outgoing neighbors to extract a subgraph.
@@ -131,8 +132,6 @@ uniform_neighbor_sample(
   std::optional<std::tuple<raft::device_span<label_t const>, raft::device_span<int32_t const>>>
     label_to_output_comm_rank,
   std::optional<raft::host_span<int32_t const>> fan_out,
-  std::optional<std::tuple<raft::host_span<int32_t const>, raft::host_span<int32_t const>>>
-    heterogeneous_fan_out,
   raft::random::RngState& rng_state,
   bool return_hops,
   bool with_replacement                           = true,
@@ -142,6 +141,8 @@ uniform_neighbor_sample(
 
 /**
  * @brief Biased Neighborhood Sampling.
+ * 
+ * @deprecated  This API will be deleted, use neighbor_sample instead
  *
  * This function traverses from a set of starting vertices, traversing outgoing edges and
  * randomly selects (with edge biases) from these outgoing neighbors to extract a subgraph.

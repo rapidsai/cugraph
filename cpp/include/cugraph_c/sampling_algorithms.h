@@ -370,6 +370,8 @@ void cugraph_heterogeneous_fanout_free(cugraph_sample_heterogeneous_fanout_t* he
 
 /**
  * @brief     Uniform Neighborhood Sampling
+ * 
+ * @deprecated  This API will be deleted, use cugraph_neighbor_sample instead
  *
  * Returns a sample of the neighborhood around specified start vertices.  Optionally, each
  * start vertex can be associated with a label, allowing the caller to specify multiple batches
@@ -417,7 +419,6 @@ cugraph_error_code_t cugraph_uniform_neighbor_sample(
   const cugraph_type_erased_device_array_view_t* label_to_comm_rank,
   const cugraph_type_erased_device_array_view_t* label_offsets,
   const cugraph_type_erased_host_array_view_t* fan_out,
-  const cugraph_sample_heterogeneous_fanout_t* heterogeneous_fanout,
   cugraph_rng_state_t* rng_state,
   const cugraph_sampling_options_t* options,
   bool_t do_expensive_check,
@@ -426,6 +427,8 @@ cugraph_error_code_t cugraph_uniform_neighbor_sample(
 
 /**
  * @brief     Biased Neighborhood Sampling
+ * 
+ * @deprecated  This API will be deleted, use cugraph_neighbor_sample instead
  *
  * Returns a sample of the neighborhood around specified start vertices.  Optionally, each
  * start vertex can be associated with a label, allowing the caller to specify multiple batches

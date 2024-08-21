@@ -121,9 +121,11 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
           label_offsets)),
       fan_out_(
         reinterpret_cast<cugraph::c_api::cugraph_type_erased_host_array_view_t const*>(fan_out)),
+
       heterogeneous_fan_out_(
         reinterpret_cast<cugraph::c_api::cugraph_sample_heterogeneous_fanout_t const*>(
           heterogeneous_fan_out)),
+  
       options_(options),
       do_expensive_check_(do_expensive_check)
   {
@@ -215,6 +217,9 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
         graph_view.local_vertex_partition_range_first(),
         graph_view.local_vertex_partition_range_last(),
         do_expensive_check_);
+      
+      // FIXME: Consolidate 'fan_out_' and 'heterogeneous_fan_out_' into one
+      // argument with std::variant
 
       auto&& [src, dst, wgt, edge_id, edge_type, hop, edge_label, offsets] =
         cugraph::neighbor_sample(
@@ -224,9 +229,7 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
           (edge_weights != nullptr) ? std::make_optional(edge_weights->view()) : std::nullopt,
           (edge_ids != nullptr) ? std::make_optional(edge_ids->view()) : std::nullopt,
           (edge_types != nullptr) ? std::make_optional(edge_types->view()) : std::nullopt,
-          // FIXME: add bias flag to differentiate between bias and uniform neighbor sample
           is_biased_ ? ((edge_biases != nullptr) ? std::make_optional(*edge_biases) : std::make_optional(edge_weights->view())) : std::nullopt,
-          //(edge_biases != nullptr) ? std::make_optional(*edge_biases) : std::make_optional(edge_weights->view()),
           raft::device_span<vertex_t const>{start_vertices.data(), start_vertices.size()},
           (start_vertex_labels_ != nullptr)
             ? std::make_optional<raft::device_span<label_t const>>(start_vertex_labels->data(),
@@ -242,7 +245,7 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
           (fan_out_ != nullptr) ? std::make_optional<raft::host_span<const int>>(
                                     fan_out_->as_type<const int>(), fan_out_->size_)
                                 : std::nullopt,
-
+          /*
           (heterogeneous_fan_out_ != nullptr)
             ? std::make_optional(std::make_tuple(
                 raft::host_span<const int>{heterogeneous_fan_out_->edge_type_offsets->as_type<int>(),
@@ -250,6 +253,8 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
                 raft::host_span<const int>{heterogeneous_fan_out_->fanout->as_type<int>(),
                                            heterogeneous_fan_out_->fanout->size_}))
             : std::nullopt,
+          */
+          std::nullopt,
           options_.return_hops_,
           options_.with_replacement_,
           options_.prior_sources_behavior_,
@@ -442,10 +447,7 @@ struct create_heterogeneous_fanout_functor : public cugraph::c_api::abstract_fun
   cugraph::c_api::cugraph_graph_t* graph_;
   cugraph::c_api::cugraph_type_erased_host_array_view_t const* edge_type_offsets_;
   cugraph::c_api::cugraph_type_erased_host_array_view_t const* fanout_;
-  // FIXME: This type doesn't exist: instead create an
-  // 'std::tuple<cugraph_type_erased_host_array_t*>'
   cugraph::c_api::cugraph_sample_heterogeneous_fanout_t* result_{};
-
   create_heterogeneous_fanout_functor(::cugraph_resource_handle_t const* handle,
                                       ::cugraph_graph_t* graph,
                                       ::cugraph_type_erased_host_array_view_t const* edge_type_offsets,
@@ -484,11 +486,14 @@ struct create_heterogeneous_fanout_functor : public cugraph::c_api::abstract_fun
       raft::copy(
         fanout_copy.data(), fanout_->as_type<int32_t>(), fanout_->size_, handle_.get_stream());
 
-      // std::tuple (template)
-      // result_ = new std::tuple <template type of 2 cugraph_type_erased_host_array_t>
-      result_ = new cugraph::c_api::cugraph_sample_heterogeneous_fanout_t{
+      auto result_tuple = std::make_tuple(
         new cugraph::c_api::cugraph_type_erased_host_array_t(edge_type_offsets_copy, INT32),
-        new cugraph::c_api::cugraph_type_erased_host_array_t(fanout_copy, INT32)};
+        new cugraph::c_api::cugraph_type_erased_host_array_t(fanout_copy, INT32)
+      );
+
+      result_ = &result_tuple;
+  
+
     }
   }
 };
@@ -985,7 +990,6 @@ cugraph_error_code_t cugraph_uniform_neighbor_sample(
   const cugraph_type_erased_device_array_view_t* label_to_comm_rank,
   const cugraph_type_erased_device_array_view_t* label_offsets,
   const cugraph_type_erased_host_array_view_t* fan_out,
-  const cugraph_sample_heterogeneous_fanout_t* heterogeneous_fanout,
   cugraph_rng_state_t* rng_state,
   const cugraph_sampling_options_t* options,
   bool_t do_expensive_check,
@@ -1045,7 +1049,7 @@ cugraph_error_code_t cugraph_uniform_neighbor_sample(
                                     label_to_comm_rank,
                                     label_offsets,
                                     fan_out,
-                                    heterogeneous_fanout,
+                                    nullptr,
                                     std::move(options_cpp),
                                     do_expensive_check};
   return cugraph::c_api::run_algorithm(graph, functor, result, error);
@@ -1072,6 +1076,15 @@ cugraph_error_code_t cugraph_neighbor_sample(
 {
   auto options_cpp = *reinterpret_cast<cugraph::c_api::cugraph_sampling_options_t const*>(options);
 
+  if (is_biased) {
+    CAPI_EXPECTS(
+      (edge_biases != nullptr) ||
+        (reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph)->edge_weights_ != nullptr),
+      CUGRAPH_INVALID_INPUT,
+      "edge_biases is required if the graph is not weighted",
+      *error);
+  }
+  
   CAPI_EXPECTS((!options_cpp.retain_seeds_) || (label_offsets != nullptr),
                CUGRAPH_INVALID_INPUT,
                "must specify label_offsets if retain_seeds is true",
@@ -1145,7 +1158,6 @@ cugraph_error_code_t cugraph_biased_neighbor_sample(
 {
   auto options_cpp = *reinterpret_cast<cugraph::c_api::cugraph_sampling_options_t const*>(options);
 
-  // FIXME: Check if bias = True before checking the statement below
   CAPI_EXPECTS(
     (edge_biases != nullptr) ||
       (reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph)->edge_weights_ != nullptr),
