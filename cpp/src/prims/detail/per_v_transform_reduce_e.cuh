@@ -956,16 +956,19 @@ __host__ __device__ int priority_to_rank(
   }
 }
 
+// return selected ranks if root.
+// otherwise, it is sufficient to just return bool flags indiciating whether this rank's values are
+// selected or not.
 template <typename vertex_t, typename priority_t, typename ValueIterator>
-std::optional<rmm::device_uvector<bool>> compute_keep_flags(
-  raft::comms::comms_t const& comm,
-  ValueIterator value_first,
-  ValueIterator value_last,
-  int root,
-  int subgroup_size /* faster interconnect within a subgroup */,
-  typename thrust::iterator_traits<ValueIterator>::value_type init,
-  bool ignore_local_values,
-  rmm::cuda_stream_view stream_view)
+std::variant<rmm::device_uvector<int> /* root */, std::optional<rmm::device_uvector<bool>>>
+compute_selected_ranks(raft::comms::comms_t const& comm,
+                       ValueIterator value_first,
+                       ValueIterator value_last,
+                       int root,
+                       int subgroup_size /* faster interconnect within a subgroup */,
+                       typename thrust::iterator_traits<ValueIterator>::value_type init,
+                       bool ignore_local_values,
+                       rmm::cuda_stream_view stream_view)
 {
   auto const comm_rank = comm.get_rank();
   auto const comm_size = comm.get_size();
@@ -1001,15 +1004,14 @@ std::optional<rmm::device_uvector<bool>> compute_keep_flags(
                    raft::comms::op_t::MIN,
                    stream_view);
 
-  std::optional<rmm::device_uvector<bool>> keep_flags{std::nullopt};
-  if (!ignore_local_values) {
-    keep_flags = rmm::device_uvector<bool>(priorities.size(), stream_view);
+  if (comm_rank == root) {
+    rmm::device_uvector<int> selected_ranks(priorities.size(), stream_view);
     auto offset_priority_pair_first =
       thrust::make_zip_iterator(thrust::make_counting_iterator(vertex_t{0}), priorities.begin());
     thrust::transform(rmm::exec_policy(stream_view),
                       offset_priority_pair_first,
                       offset_priority_pair_first + priorities.size(),
-                      (*keep_flags).begin(),
+                      selected_ranks.begin(),
                       [root, subgroup_size, comm_rank, comm_size] __device__(auto pair) {
                         auto offset   = thrust::get<0>(pair);
                         auto priority = thrust::get<1>(pair);
@@ -1017,11 +1019,31 @@ std::optional<rmm::device_uvector<bool>> compute_keep_flags(
                                           ? comm_size
                                           : priority_to_rank<vertex_t, priority_t>(
                                           priority, root, subgroup_size, comm_size, offset);
-                        return (rank == comm_rank);
+                        return rank;
                       });
+    return selected_ranks;
+  } else {
+    std::optional<rmm::device_uvector<bool>> keep_flags{std::nullopt};
+    if (!ignore_local_values) {
+      keep_flags = rmm::device_uvector<bool>(priorities.size(), stream_view);
+      auto offset_priority_pair_first =
+        thrust::make_zip_iterator(thrust::make_counting_iterator(vertex_t{0}), priorities.begin());
+      thrust::transform(rmm::exec_policy(stream_view),
+                        offset_priority_pair_first,
+                        offset_priority_pair_first + priorities.size(),
+                        (*keep_flags).begin(),
+                        [root, subgroup_size, comm_rank, comm_size] __device__(auto pair) {
+                          auto offset   = thrust::get<0>(pair);
+                          auto priority = thrust::get<1>(pair);
+                          auto rank     = (priority == std::numeric_limits<priority_t>::max())
+                                            ? comm_size
+                                            : priority_to_rank<vertex_t, priority_t>(
+                                            priority, root, subgroup_size, comm_size, offset);
+                          return (rank == comm_rank);
+                        });
+    }
+    return keep_flags;
   }
-
-  return keep_flags;
 }
 
 template <typename vertex_t, typename ValueIterator>
@@ -1041,64 +1063,62 @@ gather_offset_value_pairs(raft::comms::comms_t const& comm,
   auto const comm_rank = comm.get_rank();
   auto const comm_size = comm.get_size();
 
-  std::optional<rmm::device_uvector<bool>> keep_flags{std::nullopt};
+  std::variant<rmm::device_uvector<int>, std::optional<rmm::device_uvector<bool>>>
+    selected_ranks_or_flags{std::nullopt};
   if (comm_size <= std::numeric_limits<uint8_t>::max()) {  // priority == uint8_t
-    keep_flags = compute_keep_flags<vertex_t, uint8_t>(
+    selected_ranks_or_flags = compute_selected_ranks<vertex_t, uint8_t>(
       comm, value_first, value_last, root, subgroup_size, init, ignore_local_values, stream_view);
   }
 #if 0  // FIXME: this should be enabled (currently, raft does not support allreduce on uint16_t).
   else if (comm_size <= std::numeric_limits<uint16_t>::max()) {  // priority == uint16_t
-    keep_flags = compute_keep_flags<vertex_t, uint16_t>(
-      comm, value_first, value_last, root, subgroup_size, init, stream_view);
+    selected_ranks_or_flags = compute_selected_ranks<vertex_t, uint16_t>(
+      comm, value_first, value_last, root, subgroup_size, init, ignore_local_values, stream_view);
   }
 #endif
   else {  // priority_t == uint32_t
-    keep_flags = compute_keep_flags<vertex_t, uint32_t>(
+    selected_ranks_or_flags = compute_selected_ranks<vertex_t, uint32_t>(
       comm, value_first, value_last, root, subgroup_size, init, ignore_local_values, stream_view);
   }
 
-  rmm::device_uvector<vertex_t> offsets(0, stream_view);
   auto values = allocate_dataframe_buffer<value_t>(0, stream_view);
-  if (keep_flags) {
-    auto copy_size = thrust::count(
-      rmm::exec_policy(stream_view), (*keep_flags).begin(), (*keep_flags).end(), true);
-
-    offsets.resize(copy_size, stream_view);
-    resize_dataframe_buffer(values, copy_size, stream_view);
-    auto offset_value_pair_first =
-      thrust::make_zip_iterator(thrust::make_counting_iterator(vertex_t{0}), value_first);
-    thrust::copy_if(rmm::exec_policy(stream_view),
-                    offset_value_pair_first,
-                    offset_value_pair_first + (*keep_flags).size(),
-                    (*keep_flags).begin(),
-                    thrust::make_zip_iterator(offsets.begin(), get_dataframe_buffer_begin(values)),
-                    thrust::identity<bool>{});
+  if (comm_rank == root) {
+    assert(selected_ranks_or_flags.index() == 0);
+    auto const& selected_ranks = std::get<0>(selected_ranks_or_flags);
+    if (!ignore_local_values) {
+      auto copy_size = thrust::count(
+        rmm::exec_policy(stream_view), selected_ranks.begin(), selected_ranks.end(), comm_rank);
+      resize_dataframe_buffer(values, copy_size, stream_view);
+      thrust::copy_if(
+        rmm::exec_policy(stream_view),
+        value_first,
+        value_first + selected_ranks.size(),
+        selected_ranks.begin(),
+        get_dataframe_buffer_begin(values),
+        is_equal_t<int>{comm_rank});
+    }
+  } else {
+    assert(selected_ranks_or_flags.index() == 1);
+    auto const& selected_flags = std::get<1>(selected_ranks_or_flags);
+    if (selected_flags) {
+      auto copy_size = thrust::count(
+        rmm::exec_policy(stream_view), (*selected_flags).begin(), (*selected_flags).end(), true);
+      resize_dataframe_buffer(values, copy_size, stream_view);
+      thrust::copy_if(
+        rmm::exec_policy(stream_view),
+        value_first,
+        value_first + (*selected_flags).size(),
+        (*selected_flags).begin(),
+        get_dataframe_buffer_begin(values),
+        thrust::identity<bool>{});
+    }
   }
 
-  auto rx_sizes = host_scalar_gather(comm, offsets.size(), root, stream_view);
+  auto rx_sizes = host_scalar_gather(comm, size_dataframe_buffer(values), root, stream_view);
   std::vector<size_t> rx_displs{};
   if (comm_rank == root) {
     rx_displs.resize(rx_sizes.size());
     std::exclusive_scan(rx_sizes.begin(), rx_sizes.end(), rx_displs.begin(), size_t{0});
   }
-
-  // FIXME: should we gatherv offsets? Can't we figure this out from priorities???
-  // FIXME: calling the following two device_gatherv within device_group_start() and
-  // device_group_end() improves performance (approx. 5%)
-  // FIXME: or we can implement this in All-to-All after iteration over every edge partition
-  // FIXME: we may consdier optionally sending offsets in bitmaps
-  rmm::device_uvector<vertex_t> rx_offsets(
-    comm_rank == root ? (rx_displs.back() + rx_sizes.back()) : size_t{0}, stream_view);
-  device_gatherv(comm,
-                 offsets.begin(),
-                 rx_offsets.begin(),
-                 offsets.size(),
-                 rx_sizes,
-                 rx_displs,
-                 root,
-                 stream_view);
-  offsets.resize(0, stream_view);
-  offsets.shrink_to_fit(stream_view);
 
   auto rx_values = allocate_dataframe_buffer<value_t>(
     comm_rank == root ? (rx_displs.back() + rx_sizes.back()) : size_t{0}, stream_view);
@@ -1112,6 +1132,15 @@ gather_offset_value_pairs(raft::comms::comms_t const& comm,
                  stream_view);
   resize_dataframe_buffer(values, 0, stream_view);
   shrink_to_fit_dataframe_buffer(values, stream_view);
+
+  rmm::device_uvector<vertex_t> rx_offsets(0, stream_view);
+  if (comm_rank == root) {
+    auto& selected_ranks = std::get<0>(selected_ranks_or_flags);
+    rx_offsets.resize(selected_ranks.size(), stream_view);
+    thrust::sequence(rmm::exec_policy(stream_view), rx_offsets.begin(), rx_offsets.end(), vertex_t{0});
+    thrust::stable_sort_by_key(rmm::exec_policy(stream_view), selected_ranks.begin(), selected_ranks.end(), rx_offsets.begin());
+    rx_offsets.resize(rx_displs.back() + rx_sizes.back(), stream_view);
+  }
 
   return std::make_tuple(std::move(rx_offsets), std::move(rx_values));
 }
