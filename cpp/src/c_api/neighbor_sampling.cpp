@@ -70,6 +70,7 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
   raft::handle_t const& handle_;
   cugraph::c_api::cugraph_rng_state_t* rng_state_{nullptr};
   cugraph::c_api::cugraph_graph_t* graph_{nullptr};
+  bool is_biased_{false};
   cugraph::c_api::cugraph_edge_property_view_t const* edge_biases_{nullptr};
   cugraph::c_api::cugraph_type_erased_device_array_view_t const* start_vertices_{nullptr};
   cugraph::c_api::cugraph_type_erased_device_array_view_t const* start_vertex_labels_{nullptr};
@@ -86,6 +87,7 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
     cugraph_resource_handle_t const* handle,
     cugraph_rng_state_t* rng_state,
     cugraph_graph_t* graph,
+    bool is_biased,
     cugraph_edge_property_view_t const* edge_biases,
     cugraph_type_erased_device_array_view_t const* start_vertices,
     cugraph_type_erased_device_array_view_t const* start_vertex_labels,
@@ -100,6 +102,7 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
       handle_(*reinterpret_cast<cugraph::c_api::cugraph_resource_handle_t const*>(handle)->handle_),
       rng_state_(reinterpret_cast<cugraph::c_api::cugraph_rng_state_t*>(rng_state)),
       graph_(reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph)),
+      is_biased_(is_biased),
       edge_biases_(
         reinterpret_cast<cugraph::c_api::cugraph_edge_property_view_t const*>(edge_biases)),
       start_vertices_(
@@ -222,8 +225,8 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
           (edge_ids != nullptr) ? std::make_optional(edge_ids->view()) : std::nullopt,
           (edge_types != nullptr) ? std::make_optional(edge_types->view()) : std::nullopt,
           // FIXME: add bias flag to differentiate between bias and uniform neighbor sample
-          // bias ? ((edge_biases != nullptr) ? std::make_optional(*edge_biases) : std::make_optional(edge_weights->view())) : std::nullopt ***
-          (edge_biases != nullptr) ? std::make_optional(*edge_biases) : std::make_optional(edge_weights->view()),
+          is_biased_ ? ((edge_biases != nullptr) ? std::make_optional(*edge_biases) : std::make_optional(edge_weights->view())) : std::nullopt,
+          //(edge_biases != nullptr) ? std::make_optional(*edge_biases) : std::make_optional(edge_weights->view()),
           raft::device_span<vertex_t const>{start_vertices.data(), start_vertices.size()},
           (start_vertex_labels_ != nullptr)
             ? std::make_optional<raft::device_span<label_t const>>(start_vertex_labels->data(),
@@ -1028,10 +1031,13 @@ cugraph_error_code_t cugraph_uniform_neighbor_sample(
     CUGRAPH_INVALID_INPUT,
     "fan_out should be of type int",
     *error);
+  
+  bool is_biased = false;
 
   neighbor_sampling_functor functor{handle,
                                     rng_state,
                                     graph,
+                                    is_biased,
                                     nullptr,
                                     start_vertices,
                                     start_vertex_labels,
@@ -1050,6 +1056,7 @@ cugraph_error_code_t cugraph_neighbor_sample(
   const cugraph_resource_handle_t* handle,
   cugraph_rng_state_t* rng_state,
   cugraph_graph_t* graph,
+  bool_t is_biased,
   const cugraph_edge_property_view_t* edge_biases,
   const cugraph_type_erased_device_array_view_t* start_vertices,
   const cugraph_type_erased_device_array_view_t* start_vertex_labels,
@@ -1106,6 +1113,7 @@ cugraph_error_code_t cugraph_neighbor_sample(
   neighbor_sampling_functor functor{handle,
                                     rng_state,
                                     graph,
+                                    is_biased,
                                     edge_biases,
                                     start_vertices,
                                     start_vertex_labels,
@@ -1183,9 +1191,12 @@ cugraph_error_code_t cugraph_biased_neighbor_sample(
     "fan_out should be of type int",
     *error);
 
+  bool is_biased = true;
+
   neighbor_sampling_functor functor{handle,
                                     rng_state,
                                     graph,
+                                    is_biased,
                                     edge_biases,
                                     start_vertices,
                                     start_vertex_labels,

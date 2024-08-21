@@ -88,6 +88,7 @@ def neighbor_sample(ResourceHandle resource_handle,
                     _GPUGraph input_graph,
                     start_list,
                     h_fan_out,
+                    bool_t is_biased,
                     bool_t with_replacement,
                     bool_t do_expensive_check,
                     with_edge_properties=False,
@@ -125,11 +126,13 @@ def neighbor_sample(ResourceHandle resource_handle,
         Device array containing the list of starting vertices for sampling.
 
     edge_biases: FIXE: update this - Create edge_biases of type
-    'cugraph_edge_property_view_t'
+    'cugraph_edge_property_view_t' - edge biases not yet supported.
 
     h_fan_out: numpy array type or tuple of numpy array type
         Device array containing the brancing out (fan-out) degrees per
         starting vertex for each hop level.
+    
+    is_biased: bool # FIXME: Update docstrings
 
     with_replacement: bool
         If true, sampling procedure is done with replacement (the same vertex
@@ -406,6 +409,7 @@ def neighbor_sample(ResourceHandle resource_handle,
         c_resource_handle_ptr,
         rng_state_ptr,
         c_graph_ptr,
+        is_biased,
         <cugraph_edge_property_view_t*>NULL, # FIXME: Add support for biased neighbor sampling
         start_ptr,
         batch_id_ptr,
