@@ -471,30 +471,24 @@ struct create_heterogeneous_fanout_functor : public cugraph::c_api::abstract_fun
             bool multi_gpu>
   void operator()()
   {
-    // FIXME: Remove this check as it is not necessary
-    if constexpr (!cugraph::is_candidate<vertex_t, edge_t, weight_t>::value) {
-      unsupported();
-    } else {
-      std::vector<int32_t> edge_type_offsets_copy{(int32_t)edge_type_offsets_->size_};
-      std::vector<int32_t> fanout_copy{(int32_t)fanout_->size_};
 
-      raft::copy(edge_type_offsets_copy.data(),
-                 edge_type_offsets_->as_type<int32_t>(),
-                 edge_type_offsets_->size_,
-                 handle_.get_stream());
+    std::vector<int32_t> edge_type_offsets_copy{(int32_t)edge_type_offsets_->size_};
+    std::vector<int32_t> fanout_copy{(int32_t)fanout_->size_};
 
-      raft::copy(
-        fanout_copy.data(), fanout_->as_type<int32_t>(), fanout_->size_, handle_.get_stream());
+    raft::copy(edge_type_offsets_copy.data(),
+                edge_type_offsets_->as_type<int32_t>(),
+                edge_type_offsets_->size_,
+                handle_.get_stream());
 
-      auto result_tuple = std::make_tuple(
-        new cugraph::c_api::cugraph_type_erased_host_array_t(edge_type_offsets_copy, INT32),
-        new cugraph::c_api::cugraph_type_erased_host_array_t(fanout_copy, INT32)
-      );
+    raft::copy(
+      fanout_copy.data(), fanout_->as_type<int32_t>(), fanout_->size_, handle_.get_stream());
 
-      result_ = &result_tuple;
-  
+    auto result_tuple = std::make_tuple(
+      new cugraph::c_api::cugraph_type_erased_host_array_t(edge_type_offsets_copy, INT32),
+      new cugraph::c_api::cugraph_type_erased_host_array_t(fanout_copy, INT32)
+    );
 
-    }
+    result_ = &result_tuple;
   }
 };
 }  // namespace
