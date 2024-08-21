@@ -85,17 +85,12 @@ neighbor_sample_impl(
       "Invalid input argument: number of levels should not overflow int32_t");  // as we use int32_t
                                                                                 // to store hops
   } else {
-    /*
-    FIXME: Since we are dealing with offsets and size, just check that the last element of the 
-    first host array == size of the second array.
 
     CUGRAPH_EXPECTS(
-      std::accumulate(std::get<0>(*heterogeneous_fan_out).begin(),
-                      std::get<0>(*heterogeneous_fan_out).end(),
-                      0) == std::get<1>(*heterogeneous_fan_out).size() &&
+      std::get<0>(*heterogeneous_fan_out).back() == std::get<1>(*heterogeneous_fan_out).size() &&
         std::get<1>(*heterogeneous_fan_out).size() != 0,
       "Invalid input argument: number of levels and size must match and should be non zero.");
-    */
+    
 
     CUGRAPH_EXPECTS(
       std::get<0>(*heterogeneous_fan_out).size() <=
