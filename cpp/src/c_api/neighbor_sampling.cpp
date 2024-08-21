@@ -220,11 +220,6 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
       
       // FIXME: Consolidate 'fan_out_' and 'heterogeneous_fan_out_' into one
       // argument with std::variant
-
-      //cugraph_type_erased_host_array_t* x = std::get<0>(heterogeneous_fan_out_);
-
-      //cugraph::c_api::cugraph_type_erased_host_array_t* x = std::get<0>(*heterogeneous_fan_out_);
-
       auto&& [src, dst, wgt, edge_id, edge_type, hop, edge_label, offsets] =
         cugraph::neighbor_sample(
           handle_,
