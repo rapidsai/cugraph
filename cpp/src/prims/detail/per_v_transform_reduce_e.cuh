@@ -876,12 +876,12 @@ __global__ static void per_v_transform_reduce_e_high_degree(
 }
 
 template <typename vertex_t, typename priority_t>
-__host__ __device__ priority_t rank_to_priority(
-  int rank,
-  int root,
-  int subgroup_size /* faster interconnect within a subgroup */,
-  int comm_size,
-  vertex_t offset /* to evenly distribute traffic */)
+__host__ __device__ priority_t
+rank_to_priority(int rank,
+                 int root,
+                 int subgroup_size /* faster interconnect within a subgroup */,
+                 int comm_size,
+                 vertex_t offset /* to evenly distribute traffic */)
 {
   assert(comm_size <= std::numeric_limits<priority_t>::max());
   if (rank == root) {  // no need for communication (priority 0)
@@ -889,20 +889,21 @@ __host__ __device__ priority_t rank_to_priority(
   } else if (rank / subgroup_size ==
              root / subgroup_size) {  // intra-subgroup communication is sufficient (priorities in
                                       // [1, subgroup_size)
-    int modulo     = subgroup_size - 1;
     auto rank_dist = (rank + subgroup_size - root) % subgroup_size;
+    assert((rank_dist > 0) && (rank_dist < subgroup_size));
+    int modulo = subgroup_size - 1;
     return static_cast<priority_t>(1 + ((rank_dist - 1) + (offset % modulo)) % modulo);
   } else {  // inter-subgroup communication is necessary (priorities in [subgroup_size, comm_size)
-    int modulo = comm_size - subgroup_size;
     auto subgroup_dist =
       ((rank / subgroup_size) + (comm_size / subgroup_size) - (root / subgroup_size)) %
       (comm_size / subgroup_size);
     auto intra_subgroup_rank_dist =
       ((rank % subgroup_size) + subgroup_size - (root % subgroup_size)) % subgroup_size;
+    auto rank_dist = subgroup_dist * subgroup_size + intra_subgroup_rank_dist;
+    int modulo     = comm_size - subgroup_size;
+    assert((rankd_dist >= subgroup_size) && (rank_dist < (comm_size - (root % subgroup_size));
     return static_cast<priority_t>(subgroup_size +
-           ((subgroup_dist * subgroup_size + intra_subgroup_rank_dist - subgroup_size) +
-            (offset % modulo)) %
-             modulo);
+                                   ((rank_dist - subgroup_size) + (offset % modulo)) % modulo);
   }
 }
 
@@ -919,15 +920,17 @@ __host__ __device__ int priority_to_rank(
   } else if (priority < static_cast<priority_t>(subgroup_size)) {
     int modulo     = subgroup_size - 1;
     auto rank_dist = 1 + (priority - 1 + modulo - (offset % modulo)) % modulo;
+    assert((rank_dist >= 1) && (rank_dist < subgroup_size));
     return (root - (root % subgroup_size)) + ((root + rank_dist) % subgroup_size);
   } else {
     int modulo = comm_size - subgroup_size;
     auto rank_dist =
       subgroup_size + (priority - subgroup_size + modulo - (offset % modulo)) % modulo;
+    assert((rank_dist >= subgroup_size) && (rank_dist < comm_size));
     auto subgroup_dist            = rank_dist / subgroup_size;
     auto intra_subgroup_rank_dist = rank_dist % subgroup_size;
-    return ((root / subgroup_size + subgroup_dist) % (comm_size / subgroup_size)) * subgroup_size +
-           (root % subgroup_size + intra_subgroup_rank_dist) % subgroup_size;
+    return ((root / subgroup_size) * subgroup_size) + subgroup_dist * subgroup_size +
+           (root + intra_subgroup_rank_dist) % subgroup_size;
   }
 }
 
@@ -988,8 +991,10 @@ std::optional<rmm::device_uvector<bool>> compute_keep_flags(
                       [root, subgroup_size, comm_rank, comm_size] __device__(auto pair) {
                         auto offset   = thrust::get<0>(pair);
                         auto priority = thrust::get<1>(pair);
-                        auto rank = (priority == std::numeric_limits<priority_t>::max()) ? comm_size :
-                          priority_to_rank<vertex_t, priority_t>(priority, root, subgroup_size, comm_size, offset);
+                        auto rank     = (priority == std::numeric_limits<priority_t>::max())
+                                          ? comm_size
+                                          : priority_to_rank<vertex_t, priority_t>(
+                                          priority, root, subgroup_size, comm_size, offset);
                         return (rank == comm_rank);
                       });
   }
@@ -1596,14 +1601,22 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
     subgroup_size{};
   if constexpr (GraphViewType::is_multi_gpu && update_major &&
                 std::is_same_v<ReduceOp, reduce_op::any<T>>) {
-    auto& minor_comm           = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
-    auto const minor_comm_size = minor_comm.get_size();
+    auto& comm           = handle.get_comms();
+    auto const comm_size = comm.get_size();
 
     int num_gpus_per_node{};
     RAFT_CUDA_TRY(cudaGetDeviceCount(&num_gpus_per_node));
-    subgroup_size = partition_manager::map_major_comm_to_gpu_row_comm
-                      ? std::max(num_gpus_per_node / minor_comm_size, int{1})
-                      : std::min(minor_comm_size, num_gpus_per_node);
+    if (comm_size <= num_gpus_per_node) {
+      subgroup_size = comm_size;
+    } else {
+      auto& major_comm = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
+      auto const major_comm_size = major_comm.get_size();
+      auto& minor_comm = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
+      auto const minor_comm_size = minor_comm.get_size();
+      subgroup_size              = partition_manager::map_major_comm_to_gpu_row_comm
+                                     ? std::max(num_gpus_per_node / major_comm_size, int{1})
+                                     : std::min(minor_comm_size, num_gpus_per_node);
+    }
   }
 
   // 5. compute optional bitmap info
