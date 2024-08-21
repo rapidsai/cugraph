@@ -125,6 +125,15 @@ struct cugraph_type_erased_host_array_t {
     std::copy(vec.begin(), vec.end(), reinterpret_cast<T*>(data_.get()));
   }
 
+  cugraph_type_erased_host_array_t(cugraph_type_erased_host_array_view_t const* view_p)
+    : data_(std::make_unique<std::byte[]>(view_p->num_bytes_)),
+      size_(view_p->size_),
+      num_bytes_(view_p->num_bytes_),
+      type_(view_p->type_)
+  {
+    std::copy(view_p->data_, view_p->data_ + num_bytes_, data_.get());
+  }
+
   template <typename T>
   T* as_type()
   {
