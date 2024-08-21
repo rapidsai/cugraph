@@ -204,6 +204,10 @@ void bfs(raft::handle_t const& handle,
   thrust::fill(handle.get_thrust_policy(), output_first, output_first + n_sources, vertex_t{0});
 
   // 3. update meta data for direction optimizing BFS
+#if BFS_PERFORMANCE_MEASUREMENT  // FIXME: delete
+  RAFT_CUDA_TRY(cudaDeviceSynchronize());
+  auto prep1 = std::chrono::steady_clock::now();
+#endif
 
   constexpr edge_t direction_optimizing_alpha  = 14;
   constexpr vertex_t direction_optimizing_beta = 24;
@@ -237,6 +241,10 @@ void bfs(raft::handle_t const& handle,
   }
 
   // 4. initialize BFS frontier
+#if BFS_PERFORMANCE_MEASUREMENT  // FIXME: delete
+  RAFT_CUDA_TRY(cudaDeviceSynchronize());
+  auto prep2 = std::chrono::steady_clock::now();
+#endif
 
   constexpr size_t bucket_idx_cur  = 0;
   constexpr size_t bucket_idx_next = 1;
@@ -254,6 +262,10 @@ void bfs(raft::handle_t const& handle,
     handle, graph_view);  // this may mark some vertices visited in previous iterations as unvisited
                           // (but this is OK as we check prev_dst_visited_flags first)
   fill_edge_dst_property(handle, graph_view, dst_visited_flags.mutable_view(), false);
+#if BFS_PERFORMANCE_MEASUREMENT  // FIXME: delete
+  RAFT_CUDA_TRY(cudaDeviceSynchronize());
+  auto prep3 = std::chrono::steady_clock::now();
+#endif
 
   fill_edge_dst_property(handle,
                          graph_view,
@@ -263,9 +275,13 @@ void bfs(raft::handle_t const& handle,
                          true);
 #if BFS_PERFORMANCE_MEASUREMENT  // FIXME: delete
   RAFT_CUDA_TRY(cudaDeviceSynchronize());
-  auto prep1                        = std::chrono::steady_clock::now();
-  std::chrono::duration<double> dur = prep1 - prep0;
-  std::cout << "prep took " << dur.count() << " s." << std::endl;
+  auto prep4                        = std::chrono::steady_clock::now();
+  std::chrono::duration<double> dur0 = prep1 - prep0;
+  std::chrono::duration<double> dur1 = prep2 - prep1;
+  std::chrono::duration<double> dur2 = prep3 - prep2;
+  std::chrono::duration<double> dur3 = prep4 - prep3;
+  std::chrono::duration<double> dur = prep4 - prep0;
+  std::cout << "prep (init,meta,vf,fill) took " << dur.count() << " (" << dur0.count() << "," << dur1.count() << "," << dur2.count() << "," << dur3.count() << ") s." << std::endl;
 #endif
 
   // 4. BFS iteration
@@ -334,7 +350,7 @@ void bfs(raft::handle_t const& handle,
         std::chrono::duration<double> dur1 = topdown2 - topdown1;
         std::chrono::duration<double> dur2 = topdown3 - topdown2;
         std::chrono::duration<double> dur  = topdown3 - topdown0;
-        std::cout << "topdown took " << dur.count() << " (" << dur0.count() << "," << dur1.count()
+        std::cout << "topdown (prim,vf,host) took " << dur.count() << " (" << dur0.count() << "," << dur1.count()
                   << "," << dur2.count() << ") s." << std::endl;
 #endif
         break;
@@ -439,7 +455,7 @@ void bfs(raft::handle_t const& handle,
       std::chrono::duration<double> dur4 = topdown5 - topdown4;
       std::chrono::duration<double> dur5 = topdown6 - topdown5;
       std::chrono::duration<double> dur  = topdown6 - topdown0;
-      std::cout << "topdown took " << dur.count() << " (" << dur0.count() << "," << dur1.count()
+      std::cout << "topdown (prim,vf,host,fill,dir,vf) took " << dur.count() << " (" << dur0.count() << "," << dur1.count()
                 << "," << dur2.count() << "," << dur3.count() << "," << dur4.count() << ","
                 << dur5.count() << ") s." << std::endl;
 #endif
@@ -533,7 +549,7 @@ void bfs(raft::handle_t const& handle,
         std::chrono::duration<double> dur0 = bottomup1 - bottomup0;
         std::chrono::duration<double> dur1 = bottomup2 - bottomup1;
         std::chrono::duration<double> dur  = bottomup2 - bottomup0;
-        std::cout << "bottomup took " << dur.count() << " (" << dur0.count() << "," << dur1.count()
+        std::cout << "bottomup (prim+,host) took " << dur.count() << " (" << dur0.count() << "," << dur1.count()
                   << ") s." << std::endl;
 #endif
         break;
@@ -589,7 +605,7 @@ void bfs(raft::handle_t const& handle,
       std::chrono::duration<double> dur3 = bottomup4 - bottomup3;
       std::chrono::duration<double> dur4 = bottomup5 - bottomup4;
       std::chrono::duration<double> dur  = bottomup5 - bottomup0;
-      std::cout << "bottomup took " << dur.count() << " (" << dur0.count() << "," << dur1.count()
+      std::cout << "bottomup (prim+,host,fill,dir,vf) took " << dur.count() << " (" << dur0.count() << "," << dur1.count()
                 << "," << dur2.count() << "," << dur3.count() << "," << dur4.count() << ") s."
                 << std::endl;
 #endif
