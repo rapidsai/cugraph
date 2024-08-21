@@ -16,6 +16,7 @@
 #pragma once
 
 #include "detail/graph_partition_utils.cuh"
+#include "from_cugraph_ops/sampling.hpp"
 
 #include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
@@ -29,10 +30,6 @@
 
 #include <rmm/device_scalar.hpp>
 #include <rmm/device_uvector.hpp>
-
-#ifndef NO_CUGRAPH_OPS
-#include <cugraph-ops/graph/sampling.hpp>
-#endif
 
 #include <thrust/functional.h>
 #include <thrust/gather.h>
