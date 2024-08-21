@@ -18,8 +18,6 @@
 //
 #pragma once
 
-#include "utilities/graph_utils.cuh"
-
 #include <cugraph/api_helpers.hpp>
 #include <cugraph/graph.hpp>
 
