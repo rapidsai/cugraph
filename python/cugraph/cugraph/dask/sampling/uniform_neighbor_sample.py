@@ -14,6 +14,8 @@
 
 from __future__ import annotations
 from itertools import chain
+import collections
+from itertools import accumulate
 
 import warnings
 
@@ -617,9 +619,16 @@ def uniform_neighbor_sample(
     elif isinstance(fanout_vals, dict):
         # FIXME: Add expensive check to ensure all dict values are lists
         # Convert to a tuple of sequence (edge type size and fanout values)
+
+        fanout_vals = {2:[1], 3:[4, 5], 1:[6, 7], 0:[8, 9, 10]}
+        fanout_vals = collections.OrderedDict(sorted(fanout_vals.items()))
+
         edge_type_offsets = []
         [edge_type_offsets.append(len(s)) for s in list(fanout_vals.values())]
+
+        edge_type_offsets = list(accumulate(edge_type_offsets))
         edge_type_fanout_vals = list(chain.from_iterable(list(fanout_vals.values())))
+
         fanout_vals = (
             numpy.asarray(edge_type_offsets, dtype="int32"),
             numpy.asarray(edge_type_fanout_vals, dtype="int32"),
