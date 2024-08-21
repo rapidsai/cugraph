@@ -883,27 +883,37 @@ rank_to_priority(int rank,
                  int comm_size,
                  vertex_t offset /* to evenly distribute traffic */)
 {
-  assert(comm_size <= std::numeric_limits<priority_t>::max());
-  if (rank == root) {  // no need for communication (priority 0)
+  using cast_t =
+    std::conditional_t<std::is_same_v<priority_t, uint8_t>,
+                       int16_t,
+                       std::conditional_t<std::is_same_v<priority_t, uint16_t>,
+                                          int32_t,
+                                          int64_t>>;  // to prevent overflow (assuming that
+                                                      // comm_size <=
+                                                      // std::numeric_limits<priority_t>::max())
+  if (rank == root) {                                 // no need for communication (priority 0)
     return priority_t{0};
   } else if (rank / subgroup_size ==
              root / subgroup_size) {  // intra-subgroup communication is sufficient (priorities in
                                       // [1, subgroup_size)
-    auto rank_dist = (rank + subgroup_size - root) % subgroup_size;
-    assert((rank_dist > 0) && (rank_dist < subgroup_size));
+    auto rank_dist =
+      static_cast<int>(((static_cast<cast_t>(rank) + subgroup_size) - root) % subgroup_size);
     int modulo = subgroup_size - 1;
-    return static_cast<priority_t>(1 + ((rank_dist - 1) + (offset % modulo)) % modulo);
+    return static_cast<priority_t>(1 + (static_cast<cast_t>(rank_dist - 1) + (offset % modulo)) %
+                                         modulo);
   } else {  // inter-subgroup communication is necessary (priorities in [subgroup_size, comm_size)
     auto subgroup_dist =
-      ((rank / subgroup_size) + (comm_size / subgroup_size) - (root / subgroup_size)) %
-      (comm_size / subgroup_size);
-    auto intra_subgroup_rank_dist =
-      ((rank % subgroup_size) + subgroup_size - (root % subgroup_size)) % subgroup_size;
+      static_cast<int>(((static_cast<cast_t>(rank / subgroup_size) + (comm_size / subgroup_size)) -
+                        (root / subgroup_size)) %
+                       (comm_size / subgroup_size));
+    auto intra_subgroup_rank_dist = static_cast<int>(
+      ((static_cast<cast_t>(rank % subgroup_size) + subgroup_size) - (root % subgroup_size)) %
+      subgroup_size);
     auto rank_dist = subgroup_dist * subgroup_size + intra_subgroup_rank_dist;
     int modulo     = comm_size - subgroup_size;
-    assert((rankd_dist >= subgroup_size) && (rank_dist < (comm_size - (root % subgroup_size));
-    return static_cast<priority_t>(subgroup_size +
-                                   ((rank_dist - subgroup_size) + (offset % modulo)) % modulo);
+    return static_cast<priority_t>(
+      subgroup_size +
+      (static_cast<cast_t>(rank_dist - subgroup_size) + (offset % modulo)) % modulo);
   }
 }
 
@@ -915,22 +925,34 @@ __host__ __device__ int priority_to_rank(
   int comm_size,
   vertex_t offset /* to evenly distribute traffict */)
 {
+  using cast_t =
+    std::conditional_t<std::is_same_v<priority_t, uint8_t>,
+                       int16_t,
+                       std::conditional_t<std::is_same_v<priority_t, uint16_t>,
+                                          int32_t,
+                                          int64_t>>;  // to prevent overflow (assuming that
+                                                      // comm_size <=
+                                                      // std::numeric_limits<priority_t>::max())
   if (priority == priority_t{0}) {
     return root;
   } else if (priority < static_cast<priority_t>(subgroup_size)) {
     int modulo     = subgroup_size - 1;
-    auto rank_dist = 1 + (priority - 1 + modulo - (offset % modulo)) % modulo;
-    assert((rank_dist >= 1) && (rank_dist < subgroup_size));
-    return (root - (root % subgroup_size)) + ((root + rank_dist) % subgroup_size);
+    auto rank_dist = static_cast<int>(
+      1 + ((static_cast<cast_t>(priority - 1) + modulo) - (offset % modulo)) % modulo);
+    return static_cast<int>((root - (root % subgroup_size)) +
+                            ((static_cast<cast_t>(root) + rank_dist) % subgroup_size));
   } else {
-    int modulo = comm_size - subgroup_size;
-    auto rank_dist =
-      subgroup_size + (priority - subgroup_size + modulo - (offset % modulo)) % modulo;
-    assert((rank_dist >= subgroup_size) && (rank_dist < comm_size));
+    int modulo     = comm_size - subgroup_size;
+    auto rank_dist = static_cast<int>(
+      subgroup_size +
+      ((static_cast<cast_t>(priority) - subgroup_size) + (modulo - (offset % modulo))) % modulo);
     auto subgroup_dist            = rank_dist / subgroup_size;
     auto intra_subgroup_rank_dist = rank_dist % subgroup_size;
-    return ((root / subgroup_size) * subgroup_size) + subgroup_dist * subgroup_size +
-           (root + intra_subgroup_rank_dist) % subgroup_size;
+    return static_cast<int>(
+      ((static_cast<cast_t>((root / subgroup_size) * subgroup_size) +
+        subgroup_dist * subgroup_size) +
+       (static_cast<cast_t>(root) + intra_subgroup_rank_dist) % subgroup_size) %
+      comm_size);
   }
 }
 
