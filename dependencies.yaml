@@ -135,7 +135,7 @@ files:
     extras:
       table: project
     includes:
-      - cuda
+      - cuda_wheels
       - depends_on_rmm
       - depends_on_pylibraft
   py_test_pylibcugraph:
@@ -377,10 +377,13 @@ dependencies:
             packages:
               - cudatoolkit
               - cuda-nvtx
+  cuda_wheels:
+    specific:
       - output_types: pyproject
         matrices:
           - matrix:
               cuda: "12.*"
+              use_cuda_wheels: "true"
             packages:
               - nvidia-cublas-cu12
               - nvidia-curand-cu12
@@ -388,7 +391,15 @@ dependencies:
               - nvidia-cusparse-cu12
           - matrix:
               cuda: "11.*"
+              use_cuda_wheels: "true"
             packages:
+          # if use_cuda_wheels=false is provided, do not add dependencies on any CUDA wheels
+          # (e.g. for DLFW and pip devcontainers)
+          - matrix:
+              use_cuda_wheels: "false"
+            packages:
+          # if no matching matrix selectors passed, list the unsuffixed packages
+          # (just as a source of documentation, as this populates pyproject.toml in source control)
           - matrix:
             packages:
               - nvidia-cublas
