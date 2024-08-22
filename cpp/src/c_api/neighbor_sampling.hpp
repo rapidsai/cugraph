@@ -17,7 +17,6 @@
 #pragma once
 
 #include "c_api/array.hpp"
-// FIXME: Remove this file
 namespace cugraph {
 namespace c_api {
 

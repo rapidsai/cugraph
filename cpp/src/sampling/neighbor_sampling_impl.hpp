@@ -388,10 +388,7 @@ uniform_neighbor_sample(
   std::optional<raft::device_span<label_t const>> starting_vertex_labels,
   std::optional<std::tuple<raft::device_span<label_t const>, raft::device_span<int32_t const>>>
     label_to_output_comm_rank,
-  std::optional<raft::host_span<int32_t const>> fan_out,
-  std::optional<std::tuple<raft::host_span<int32_t const>, raft::host_span<int32_t const>>>
-    heterogeneous_fan_out,
-  // raft::host_span<int32_t const> fan_out,
+  raft::host_span<int32_t const> fan_out,
   raft::random::RngState& rng_state,
   bool return_hops,
   bool with_replacement,
@@ -410,8 +407,8 @@ uniform_neighbor_sample(
     starting_vertices,
     starting_vertex_labels,
     label_to_output_comm_rank,
-    fan_out,
-    heterogeneous_fan_out,
+    std::make_optional(fan_out),
+    std::nullopt,
     return_hops,
     with_replacement,
     prior_sources_behavior,
