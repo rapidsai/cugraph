@@ -23,6 +23,7 @@ import nx_cugraph as nxcg
 
 from ..utils import index_dtype
 from .graph import Graph
+from .zero import ZeroMultiGraph
 
 if TYPE_CHECKING:
     from nx_cugraph.typing import (
@@ -80,6 +81,7 @@ class MultiGraph(Graph):
         key_to_id: dict[NodeKey, IndexValue] | None = None,
         id_to_key: list[NodeKey] | None = None,
         edge_keys: list[EdgeKey] | None = None,
+        zero: bool | None = None,
         **attr,
     ) -> MultiGraph:
         new_graph = super().from_coo(
@@ -92,6 +94,7 @@ class MultiGraph(Graph):
             node_masks,
             key_to_id=key_to_id,
             id_to_key=id_to_key,
+            zero=False,
             **attr,
         )
         new_graph.edge_indices = edge_indices
@@ -102,6 +105,8 @@ class MultiGraph(Graph):
             and len(new_graph.edge_keys) != src_indices.size
         ):
             raise ValueError
+        if zero or zero is None and nx.config.backends.cugraph.zero:
+            new_graph = new_graph.to_zero()
         return new_graph
 
     @classmethod
@@ -118,6 +123,7 @@ class MultiGraph(Graph):
         key_to_id: dict[NodeKey, IndexValue] | None = None,
         id_to_key: list[NodeKey] | None = None,
         edge_keys: list[EdgeKey] | None = None,
+        zero: bool | None = None,
         **attr,
     ) -> MultiGraph:
         N = indptr.size - 1
@@ -137,6 +143,7 @@ class MultiGraph(Graph):
             key_to_id=key_to_id,
             id_to_key=id_to_key,
             edge_keys=edge_keys,
+            zero=zero,
             **attr,
         )
 
@@ -154,6 +161,7 @@ class MultiGraph(Graph):
         key_to_id: dict[NodeKey, IndexValue] | None = None,
         id_to_key: list[NodeKey] | None = None,
         edge_keys: list[EdgeKey] | None = None,
+        zero: bool | None = None,
         **attr,
     ) -> MultiGraph:
         N = indptr.size - 1
@@ -173,6 +181,7 @@ class MultiGraph(Graph):
             key_to_id=key_to_id,
             id_to_key=id_to_key,
             edge_keys=edge_keys,
+            zero=zero,
             **attr,
         )
 
@@ -192,6 +201,7 @@ class MultiGraph(Graph):
         key_to_id: dict[NodeKey, IndexValue] | None = None,
         id_to_key: list[NodeKey] | None = None,
         edge_keys: list[EdgeKey] | None = None,
+        zero: bool | None = None,
         **attr,
     ) -> MultiGraph:
         src_indices = cp.array(
@@ -210,6 +220,7 @@ class MultiGraph(Graph):
             key_to_id=key_to_id,
             id_to_key=id_to_key,
             edge_keys=edge_keys,
+            zero=zero,
             **attr,
         )
 
@@ -229,6 +240,7 @@ class MultiGraph(Graph):
         key_to_id: dict[NodeKey, IndexValue] | None = None,
         id_to_key: list[NodeKey] | None = None,
         edge_keys: list[EdgeKey] | None = None,
+        zero: bool | None = None,
         **attr,
     ) -> Graph:
         dst_indices = cp.array(
@@ -247,6 +259,7 @@ class MultiGraph(Graph):
             key_to_id=key_to_id,
             id_to_key=id_to_key,
             edge_keys=edge_keys,
+            zero=zero,
             **attr,
         )
 
@@ -261,6 +274,8 @@ class MultiGraph(Graph):
         else:
             new_graph = super().__new__(cls, incoming_graph_data)
         new_graph.graph.update(attr)
+        # if nx.config.backends.cugraph.zero:
+        #     new_graph = new_graph.to_zero()  # XXX
         return new_graph
 
     #################
@@ -290,6 +305,10 @@ class MultiGraph(Graph):
     @networkx_api
     def to_undirected_class(cls) -> type[MultiGraph]:
         return MultiGraph
+
+    @classmethod
+    def to_zero_class(cls) -> type[ZeroMultiGraph]:
+        return ZeroMultiGraph
 
     ##########################
     # NetworkX graph methods #
@@ -451,6 +470,7 @@ class MultiGraph(Graph):
             key_to_id=key_to_id,
             id_to_key=id_to_key,
             edge_keys=edge_keys,
+            zero=False,
         )
         if as_view:
             rv.graph = self.graph

@@ -23,6 +23,7 @@ __all__ = ["complement", "reverse"]
 
 @networkx_algorithm(version_added="24.02")
 def complement(G):
+    zero = isinstance(G, nxcg.ZeroGraph)
     G = _to_graph(G)
     N = G._N
     # Upcast to int64 so indices don't overflow.
@@ -43,6 +44,7 @@ def complement(G):
         src_indices.astype(index_dtype),
         dst_indices.astype(index_dtype),
         key_to_id=G.key_to_id,
+        zero=zero,
     )
 
 
@@ -51,10 +53,16 @@ def reverse(G, copy=True):
     if not G.is_directed():
         raise nx.NetworkXError("Cannot reverse an undirected graph.")
     if isinstance(G, nx.Graph):
-        if not copy:
+        zero = isinstance(G, nxcg.ZeroGraph)
+        if not copy and not zero:
             raise RuntimeError(
                 "Using `copy=False` is invalid when using a NetworkX graph "
                 "as input to `nx_cugraph.reverse`"
             )
         G = nxcg.from_networkx(G, preserve_all_attrs=True)
-    return G.reverse(copy=copy)
+    else:
+        zero = False
+    rv = G.reverse(copy=copy)
+    if zero:
+        return rv.to_zero()
+    return rv

@@ -30,12 +30,20 @@ __all__ = [
 @networkx_algorithm(version_added="24.08")
 def relabel_nodes(G, mapping, copy=True):
     if isinstance(G, nx.Graph):
-        if not copy:
+        zero = isinstance(G, nxcg.ZeroGraph)
+        if not copy and not zero:
             raise RuntimeError(
                 "Using `copy=False` is invalid when using a NetworkX graph "
                 "as input to `nx_cugraph.relabel_nodes`"
             )
-        G = nxcg.from_networkx(G, preserve_all_attrs=True)
+        try:
+            G = nxcg.from_networkx(G, preserve_all_attrs=True)
+        except Exception as exc:
+            # XXX: this diaper pattern may be generally useful for 'zero'; what's best?
+            raise NotImplementedError("TODO") from exc
+    else:
+        zero = False
+
     it = range(G._N) if G.key_to_id is None else G.id_to_key
     if callable(mapping):
         previd_to_key = [mapping(node) for node in it]
@@ -225,12 +233,17 @@ def relabel_nodes(G, mapping, copy=True):
         node_masks=node_masks,
         id_to_key=newid_to_key,
         key_to_id=key_to_newid,
+        zero=False,  # XXX TODO: figure out `create_using=` w/ zero graphs
         **extra_kwargs,
     )
     rv.graph.update(G.graph)
     if not copy:
         G._become(rv)
+        if zero:
+            return rv.to_zero()  # TODO: update original graph
         return G
+    if zero:
+        return rv.to_zero()
     return rv
 
 
@@ -241,7 +254,10 @@ def convert_node_labels_to_integers(
     if ordering not in {"default", "sorted", "increasing degree", "decreasing degree"}:
         raise nx.NetworkXError(f"Unknown node ordering: {ordering}")
     if isinstance(G, nx.Graph):
+        zero = isinstance(G, nxcg.ZeroGraph)
         G = nxcg.from_networkx(G, preserve_all_attrs=True)
+    else:
+        zero = False
     G = G.copy()
     if label_attribute is not None:
         prev_vals = G.id_to_key
@@ -279,4 +295,6 @@ def convert_node_labels_to_integers(
         key_to_id = G.key_to_id
         G.key_to_id = {i: key_to_id[n] for i, (d, n) in enumerate(pairs, first_label)}
     G._id_to_key = id_to_key
+    if zero:
+        return G.to_zero()
     return G

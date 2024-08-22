@@ -24,6 +24,7 @@ import numpy as np
 
 import nx_cugraph as nxcg
 
+from .classes.zero import ZeroGraph
 from .utils import index_dtype, networkx_algorithm
 from .utils.misc import pairwise
 
@@ -74,6 +75,7 @@ def from_networkx(
     as_directed: bool = False,
     name: str | None = None,
     graph_name: str | None = None,
+    zero: bool | None = False,
 ) -> nxcg.Graph:
     """Convert a networkx graph to nx_cugraph graph; can convert all attributes.
 
@@ -145,6 +147,13 @@ def from_networkx(
             graph = G
         else:
             raise TypeError(f"Expected networkx.Graph; got {type(graph)}")
+    elif isinstance(graph, ZeroGraph):
+        if zero or zero is None and nx.config.backends.cugraph.zero:
+            return graph
+        if graph._is_on_gpu:
+            return graph._cugraph
+        if not graph._is_on_cpu:
+            raise RuntimeError("TODO")
 
     if preserve_all_attrs:
         preserve_edge_attrs = True
@@ -165,7 +174,12 @@ def from_networkx(
         else:
             node_attrs = {node_attrs: None}
 
-    if graph.__class__ in {nx.Graph, nx.DiGraph, nx.MultiGraph, nx.MultiDiGraph}:
+    if graph.__class__ in {
+        nx.Graph,
+        nx.DiGraph,
+        nx.MultiGraph,
+        nx.MultiDiGraph,
+    } or isinstance(graph, ZeroGraph):
         # This is a NetworkX private attribute, but is much faster to use
         adj = graph._adj
     else:
@@ -469,6 +483,7 @@ def from_networkx(
             node_masks,
             key_to_id=key_to_id,
             edge_keys=edge_keys,
+            zero=zero,
         )
     else:
         if graph.is_directed() or as_directed:
@@ -484,6 +499,7 @@ def from_networkx(
             node_values,
             node_masks,
             key_to_id=key_to_id,
+            zero=zero,
         )
     if preserve_graph_attrs:
         rv.graph.update(graph.graph)  # deepcopy?
@@ -557,6 +573,10 @@ def to_networkx(G: nxcg.Graph, *, sort_edges: bool = False) -> nx.Graph:
     --------
     from_networkx : The opposite; convert networkx graph to nx_cugraph graph
     """
+    if isinstance(G, ZeroGraph):
+        # ZeroGraphs are already NetworkX graphs :)
+        # return G  # XXX: need to test
+        G = G._cugraph
     rv = G.to_networkx_class()()
     id_to_key = G.id_to_key
     if sort_edges:

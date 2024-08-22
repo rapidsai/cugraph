@@ -22,6 +22,7 @@ or
 
 $ python _nx_cugraph/__init__.py
 """
+import os
 
 from _nx_cugraph._version import __version__
 
@@ -293,12 +294,16 @@ def get_info():
 
     for key in info_keys:
         del d[key]
+
+    d["default_config"] = {
+        "zero": os.environ.get("NX_CUGRAPH_ZERO", "true").strip().lower() == "true",
+    }
     return d
 
 
 def _check_networkx_version():
-    import warnings
     import re
+    import warnings
 
     import networkx as nx
 

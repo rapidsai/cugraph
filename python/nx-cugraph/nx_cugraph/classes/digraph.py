@@ -23,6 +23,7 @@ import nx_cugraph as nxcg
 
 from ..utils import index_dtype
 from .graph import Graph
+from .zero import ZeroDiGraph
 
 if TYPE_CHECKING:  # pragma: no cover
     from nx_cugraph.typing import AttrKey
@@ -45,6 +46,10 @@ class DiGraph(Graph):
     @classmethod
     def to_networkx_class(cls) -> type[nx.DiGraph]:
         return nx.DiGraph
+
+    @classmethod
+    def to_zero_class(cls) -> type[ZeroDiGraph]:
+        return ZeroDiGraph
 
     @networkx_api
     def size(self, weight: AttrKey | None = None) -> int:
@@ -162,6 +167,7 @@ class DiGraph(Graph):
             node_masks,
             key_to_id=key_to_id,
             id_to_key=id_to_key,
+            zero=False,
         )
         if as_view:
             rv.graph = self.graph

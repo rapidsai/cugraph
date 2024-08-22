@@ -32,7 +32,15 @@ from .generators import *
 from . import algorithms
 from .algorithms import *
 
+from .interface import BackendInterface
+
 from _nx_cugraph._version import __git_commit__, __version__
 from _nx_cugraph import _check_networkx_version
 
 _check_networkx_version()
+
+BackendInterface.Graph = classes.ZeroGraph
+BackendInterface.DiGraph = classes.ZeroDiGraph
+BackendInterface.MultiGraph = classes.ZeroMultiGraph
+BackendInterface.MultiDiGraph = classes.ZeroMultiDiGraph
+del BackendInterface

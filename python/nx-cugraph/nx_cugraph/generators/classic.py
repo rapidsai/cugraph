@@ -102,6 +102,8 @@ def complete_graph(n, create_using=None):
 @networkx_algorithm(version_added="23.12")
 def complete_multipartite_graph(*subset_sizes):
     if not subset_sizes:
+        if nx.config.backends.cugraph.zero:
+            return nxcg.ZeroGraph()
         return nxcg.Graph()
     try:
         subset_sizes = [_ensure_int(size) for size in subset_sizes]

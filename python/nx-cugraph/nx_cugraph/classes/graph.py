@@ -24,6 +24,7 @@ import pylibcugraph as plc
 import nx_cugraph as nxcg
 
 from ..utils import index_dtype
+from .zero import ZeroGraph
 
 if TYPE_CHECKING:  # pragma: no cover
     from collections.abc import Iterable, Iterator
@@ -109,6 +110,7 @@ class Graph:
         *,
         key_to_id: dict[NodeKey, IndexValue] | None = None,
         id_to_key: list[NodeKey] | None = None,
+        zero: bool | None = None,
         **attr,
     ) -> Graph:
         new_graph = object.__new__(cls)
@@ -173,7 +175,8 @@ class Graph:
         isolates = nxcg.algorithms.isolate._isolates(new_graph)
         if len(isolates) > 0:
             new_graph._node_ids = cp.arange(new_graph._N, dtype=index_dtype)
-
+        if zero or zero is None and nx.config.backends.cugraph.zero:
+            new_graph = new_graph.to_zero()
         return new_graph
 
     @classmethod
@@ -188,6 +191,7 @@ class Graph:
         *,
         key_to_id: dict[NodeKey, IndexValue] | None = None,
         id_to_key: list[NodeKey] | None = None,
+        zero: bool | None = None,
         **attr,
     ) -> Graph:
         N = indptr.size - 1
@@ -205,6 +209,7 @@ class Graph:
             node_masks,
             key_to_id=key_to_id,
             id_to_key=id_to_key,
+            zero=zero,
             **attr,
         )
 
@@ -220,6 +225,7 @@ class Graph:
         *,
         key_to_id: dict[NodeKey, IndexValue] | None = None,
         id_to_key: list[NodeKey] | None = None,
+        zero: bool | None = None,
         **attr,
     ) -> Graph:
         N = indptr.size - 1
@@ -237,6 +243,7 @@ class Graph:
             node_masks,
             key_to_id=key_to_id,
             id_to_key=id_to_key,
+            zero=zero,
             **attr,
         )
 
@@ -254,6 +261,7 @@ class Graph:
         *,
         key_to_id: dict[NodeKey, IndexValue] | None = None,
         id_to_key: list[NodeKey] | None = None,
+        zero: bool | None = None,
         **attr,
     ) -> Graph:
         src_indices = cp.array(
@@ -270,6 +278,7 @@ class Graph:
             node_masks,
             key_to_id=key_to_id,
             id_to_key=id_to_key,
+            zero=zero,
             **attr,
         )
 
@@ -287,6 +296,7 @@ class Graph:
         *,
         key_to_id: dict[NodeKey, IndexValue] | None = None,
         id_to_key: list[NodeKey] | None = None,
+        zero: bool | None = None,
         **attr,
     ) -> Graph:
         dst_indices = cp.array(
@@ -303,13 +313,14 @@ class Graph:
             node_masks,
             key_to_id=key_to_id,
             id_to_key=id_to_key,
+            zero=zero,
             **attr,
         )
 
     def __new__(cls, incoming_graph_data=None, **attr) -> Graph:
         if incoming_graph_data is None:
             new_graph = cls.from_coo(
-                0, cp.empty(0, index_dtype), cp.empty(0, index_dtype)
+                0, cp.empty(0, index_dtype), cp.empty(0, index_dtype), zero=False
             )
         elif incoming_graph_data.__class__ is cls:
             new_graph = incoming_graph_data.copy()
@@ -318,6 +329,7 @@ class Graph:
         else:
             raise NotImplementedError
         new_graph.graph.update(attr)
+        # XXX: we could return ZeroGraph here, but let's not for now
         return new_graph
 
     #################
@@ -347,6 +359,10 @@ class Graph:
     @networkx_api
     def to_undirected_class(cls) -> type[Graph]:
         return Graph
+
+    @classmethod
+    def to_zero_class(cls) -> type[ZeroGraph]:
+        return ZeroGraph
 
     ##############
     # Properties #
@@ -542,6 +558,11 @@ class Graph:
         # Does deep copy in networkx
         return self._copy(as_view, self.to_undirected_class())
 
+    def to_zero(self) -> ZeroGraph:
+        rv = self.to_zero_class()()
+        rv._cugraph = self
+        return rv
+
     # Not implemented...
     # adj, adjacency, add_edge, add_edges_from, add_node,
     # add_nodes_from, add_weighted_edges_from, degree,
@@ -593,6 +614,7 @@ class Graph:
             node_masks,
             key_to_id=key_to_id,
             id_to_key=id_to_key,
+            zero=False,
         )
         if as_view:
             rv.graph = self.graph

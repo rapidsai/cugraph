@@ -132,6 +132,7 @@ def bfs_tree(G, source, reverse=False, depth_limit=None, sort_neighbors=None):
         raise NotImplementedError(
             "sort_neighbors argument in bfs_tree is not currently supported"
         )
+    zero = isinstance(G, nxcg.ZeroGraph)
     G = _check_G_and_source(G, source)
     if depth_limit is not None and depth_limit < 1:
         return nxcg.DiGraph.from_coo(
@@ -139,6 +140,7 @@ def bfs_tree(G, source, reverse=False, depth_limit=None, sort_neighbors=None):
             cp.array([], dtype=index_dtype),
             cp.array([], dtype=index_dtype),
             id_to_key=[source],
+            zero=zero,
         )
 
     distances, predecessors, node_ids = _bfs(
@@ -153,6 +155,7 @@ def bfs_tree(G, source, reverse=False, depth_limit=None, sort_neighbors=None):
             cp.array([], dtype=index_dtype),
             cp.array([], dtype=index_dtype),
             id_to_key=[source],
+            zero=zero,
         )
     # TODO: create renumbering helper function(s)
     unique_node_ids = cp.unique(cp.hstack((predecessors, node_ids)))
@@ -175,6 +178,7 @@ def bfs_tree(G, source, reverse=False, depth_limit=None, sort_neighbors=None):
         src_indices,
         dst_indices,
         key_to_id=key_to_id,
+        zero=zero,
     )
 
 

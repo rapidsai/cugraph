@@ -18,6 +18,7 @@ import nx_cugraph as nxcg
 
 from .digraph import DiGraph
 from .multigraph import MultiGraph
+from .zero import ZeroMultiDiGraph
 
 __all__ = ["MultiDiGraph"]
 
@@ -33,6 +34,10 @@ class MultiDiGraph(MultiGraph, DiGraph):
     @classmethod
     def to_networkx_class(cls) -> type[nx.MultiDiGraph]:
         return nx.MultiDiGraph
+
+    @classmethod
+    def to_zero_class(cls) -> type[ZeroMultiDiGraph]:
+        return ZeroMultiDiGraph
 
     ##########################
     # NetworkX graph methods #

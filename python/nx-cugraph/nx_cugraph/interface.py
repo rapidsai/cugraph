@@ -32,7 +32,16 @@ class BackendInterface:
                     "edge_attrs and weight arguments should not both be given"
                 )
             edge_attrs = {weight: 1}
-        return nxcg.from_networkx(graph, *args, edge_attrs=edge_attrs, **kwargs)
+        try:
+            return nxcg.from_networkx(
+                graph,
+                *args,
+                edge_attrs=edge_attrs,
+                zero=nx.config.backends.cugraph.zero,
+                **kwargs,
+            )
+        except Exception as exc:
+            raise NotImplementedError from exc
 
     @staticmethod
     def convert_to_nx(obj, *, name: str | None = None):
