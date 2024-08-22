@@ -16,6 +16,7 @@
 #pragma once
 
 #include "detail/graph_partition_utils.cuh"
+#include "prims/detail/multi_stream_utils.cuh"
 #include "prims/detail/optional_dataframe_buffer.hpp"
 #include "prims/detail/prim_functors.cuh"
 #include "prims/fill_edge_src_dst_property.cuh"
@@ -38,7 +39,6 @@
 #include <raft/core/handle.hpp>
 #include <raft/core/host_span.hpp>
 #include <raft/util/cudart_utils.hpp>
-#include <raft/util/integer_utils.hpp>
 
 #include <rmm/exec_policy.hpp>
 
@@ -1088,13 +1088,12 @@ gather_offset_value_pairs(raft::comms::comms_t const& comm,
       auto copy_size = thrust::count(
         rmm::exec_policy(stream_view), selected_ranks.begin(), selected_ranks.end(), comm_rank);
       resize_dataframe_buffer(values, copy_size, stream_view);
-      thrust::copy_if(
-        rmm::exec_policy(stream_view),
-        value_first,
-        value_first + selected_ranks.size(),
-        selected_ranks.begin(),
-        get_dataframe_buffer_begin(values),
-        is_equal_t<int>{comm_rank});
+      thrust::copy_if(rmm::exec_policy(stream_view),
+                      value_first,
+                      value_first + selected_ranks.size(),
+                      selected_ranks.begin(),
+                      get_dataframe_buffer_begin(values),
+                      is_equal_t<int>{comm_rank});
     }
   } else {
     assert(selected_ranks_or_flags.index() == 1);
@@ -1103,13 +1102,12 @@ gather_offset_value_pairs(raft::comms::comms_t const& comm,
       auto copy_size = thrust::count(
         rmm::exec_policy(stream_view), (*selected_flags).begin(), (*selected_flags).end(), true);
       resize_dataframe_buffer(values, copy_size, stream_view);
-      thrust::copy_if(
-        rmm::exec_policy(stream_view),
-        value_first,
-        value_first + (*selected_flags).size(),
-        (*selected_flags).begin(),
-        get_dataframe_buffer_begin(values),
-        thrust::identity<bool>{});
+      thrust::copy_if(rmm::exec_policy(stream_view),
+                      value_first,
+                      value_first + (*selected_flags).size(),
+                      (*selected_flags).begin(),
+                      get_dataframe_buffer_begin(values),
+                      thrust::identity<bool>{});
     }
   }
 
@@ -1137,8 +1135,12 @@ gather_offset_value_pairs(raft::comms::comms_t const& comm,
   if (comm_rank == root) {
     auto& selected_ranks = std::get<0>(selected_ranks_or_flags);
     rx_offsets.resize(selected_ranks.size(), stream_view);
-    thrust::sequence(rmm::exec_policy(stream_view), rx_offsets.begin(), rx_offsets.end(), vertex_t{0});
-    thrust::stable_sort_by_key(rmm::exec_policy(stream_view), selected_ranks.begin(), selected_ranks.end(), rx_offsets.begin());
+    thrust::sequence(
+      rmm::exec_policy(stream_view), rx_offsets.begin(), rx_offsets.end(), vertex_t{0});
+    thrust::stable_sort_by_key(rmm::exec_policy(stream_view),
+                               selected_ranks.begin(),
+                               selected_ranks.end(),
+                               rx_offsets.begin());
     rx_offsets.resize(rx_displs.back() + rx_sizes.back(), stream_view);
   }
 
@@ -1729,42 +1731,33 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
   std::optional<std::vector<size_t>> stream_pool_indices{std::nullopt};
   if constexpr (GraphViewType::is_multi_gpu) {
     if (local_vertex_partition_segment_offsets && (handle.get_stream_pool_size() >= max_segments)) {
-      auto& minor_comm = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
-      auto const minor_comm_size = minor_comm.get_size();
+      auto& comm           = handle.get_comms();
+      auto const comm_size = comm.get_size();
 
-      // memory footprint vs parallelism trade-off
-      // peak memory requirement per loop is
-      // update_major ? (use_input_key ? aggregate key list size : V) / comm_size * sizeof(T) : 0
-      // and limit memory requirement to (E / comm_size) * sizeof(vertex_t)
-      // FIXME: what about offsets & values?
-
-      size_t num_streams =
-        std::min(static_cast<size_t>(minor_comm_size) * max_segments,
-                 raft::round_down_safe(handle.get_stream_pool_size(), max_segments));
+      auto max_tmp_buffer_size =
+        static_cast<size_t>(graph_view.compute_number_of_edges(handle) / comm_size) *
+        sizeof(vertex_t);
+      size_t approx_tmp_buffer_size_per_edge_partition{0};
       if constexpr (update_major) {
-        size_t value_size{0};
-        if constexpr (is_thrust_tuple_of_arithmetic<T>::value) {
-          auto elem_sizes = compute_thrust_tuple_element_sizes<T>{}();
-          value_size      = std::reduce(elem_sizes.begin(), elem_sizes.end());
-        } else {
-          value_size = sizeof(T);
-        }
         size_t key_size{0};
         if constexpr (use_input_key) {
-          if constexpr (std::is_same_v<key_t, vertex_t>) {
-            key_size = sizeof(vertex_t);
+          if constexpr (std::is_arithmetic_v<key_t>) {
+            key_size = sizeof(key_t);
           } else {
-            key_size = sizeof(thrust::tuple_element<0, key_t>::type) +
-                       sizeof(thrust::tuple_element<1, key_t>::type);
+            key_size = sum_thrust_tuple_element_sizes<key_t>();
           }
         }
-
-        auto num_edges = graph_view.compute_number_of_edges(handle);
+        size_t value_size{0};
+        if constexpr (std::is_arithmetic_v<key_t>) {
+          value_size = sizeof(T);
+        } else {
+          value_size = sum_thrust_tuple_element_sizes<T>();
+        }
 
         size_t aggregate_major_range_size{};
         if constexpr (use_input_key) {
           aggregate_major_range_size =
-            host_scalar_allreduce(handle.get_comms(),
+            host_scalar_allreduce(comm,
                                   static_cast<size_t>(thrust::distance(sorted_unique_key_first,
                                                                        sorted_unique_nzd_key_last)),
                                   raft::comms::op_t::SUM,
@@ -1772,21 +1765,15 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
         } else {
           aggregate_major_range_size = graph_view.number_of_vertices();
         }
-        num_streams = std::min(
-          static_cast<size_t>(
-            (aggregate_major_range_size > 0
-               ? (static_cast<double>(num_edges) / static_cast<double>(aggregate_major_range_size))
-               : double{0}) *
-            (static_cast<double>(sizeof(vertex_t)) / static_cast<double>(value_size + key_size))) *
-            max_segments,
-          num_streams);
+        approx_tmp_buffer_size_per_edge_partition =
+          (aggregate_major_range_size / comm_size) * (key_size + value_size);
       }
 
-      if (num_streams >= max_segments) {
-        assert((num_streams % max_segments) == 0);
-        stream_pool_indices = std::vector<size_t>(num_streams);
-        std::iota((*stream_pool_indices).begin(), (*stream_pool_indices).end(), size_t{0});
-      }
+      stream_pool_indices = init_stream_pool_indices(handle,
+                                                     max_tmp_buffer_size,
+                                                     approx_tmp_buffer_size_per_edge_partition,
+                                                     graph_view.number_of_local_edge_partitions(),
+                                                     max_segments);
     }
   }
 
@@ -1856,7 +1843,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
       std::min(num_concurrent_loops, graph_view.number_of_local_edge_partitions() - i);
 
     std::conditional_t<GraphViewType::is_multi_gpu && use_input_key,
-                       std::vector<dataframe_buffer_type_t<T>>,
+                       std::vector<dataframe_buffer_type_t<key_t>>,
                        std::byte /* dummy */>
       edge_partition_key_buffers{};
     if constexpr (GraphViewType::is_multi_gpu && use_input_key) {

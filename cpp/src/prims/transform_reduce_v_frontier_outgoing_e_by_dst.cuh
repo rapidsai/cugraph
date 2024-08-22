@@ -319,8 +319,8 @@ transform_reduce_v_frontier_outgoing_e_by_dst(raft::handle_t const& handle,
   std::chrono::duration<double> dur0 = time1 - time0;
   std::chrono::duration<double> dur1 = time2 - time1;
   std::chrono::duration<double> dur2 = time3 - time2;
-  std::cout << "\tprim took (" << dur0.count() << "," << dur1.count() << "," << dur2.count() << ")"
-            << std::endl;
+  std::cout << "\tprim (fill,lreduce,greduce) took (" << dur0.count() << "," << dur1.count() << ","
+            << dur2.count() << ")" << std::endl;
 #endif
 
   if constexpr (!std::is_same_v<payload_t, void>) {
