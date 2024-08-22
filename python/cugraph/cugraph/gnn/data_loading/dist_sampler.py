@@ -236,6 +236,8 @@ class DistSampler:
         random_state: int,
         assume_equal_input_size: bool,
     ) -> Union[None, Iterator[Tuple[Dict[str, "torch.Tensor"], int, int]]]:
+        torch = import_optional("torch")
+
         current_batches = torch.arange(
             batch_id_start + call_id * batches_per_call,
             batch_id_start
