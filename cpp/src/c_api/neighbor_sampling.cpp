@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#include "c_api/neighbor_sampling.hpp"  // FIXME: Remove this and instead use std::tuple
+#include "c_api/neighbor_sampling.hpp"
 
 #include "c_api/abstract_functor.hpp"
 #include "c_api/graph.hpp"
@@ -996,7 +996,6 @@ cugraph_error_code_t cugraph_uniform_neighbor_sample(
   return cugraph::c_api::run_algorithm(graph, functor, result, error);
 }
 
-// FIXME: Add flag for bias=True/False
 cugraph_error_code_t cugraph_neighbor_sample(
   const cugraph_resource_handle_t* handle,
   cugraph_rng_state_t* rng_state,
