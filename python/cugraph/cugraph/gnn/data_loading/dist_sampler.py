@@ -11,8 +11,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import os
-import re
 import warnings
 from math import ceil
 from functools import reduce
@@ -27,15 +25,12 @@ from typing import Union, List, Dict, Tuple, Iterator, Optional
 from cugraph.utilities.utils import import_optional, MissingModule
 from cugraph.gnn.comms import cugraph_comms_get_raft_handle
 
-from cugraph.gnn.data_loading.bulk_sampler_io import create_df_from_disjoint_arrays
+
 from cugraph.gnn.data_loading.dist_io import BufferedSampleReader
+from cugraph.gnn.data_loading.dist_io import DistSampleWriter
 
 torch = MissingModule("torch")
 TensorType = Union["torch.Tensor", cupy.ndarray, cudf.Series]
-
-
-
-
 
 
 class DistSampler:
@@ -76,7 +71,6 @@ class DistSampler:
         self.__local_seeds_per_call = local_seeds_per_call
         self.__handle = None
         self.__retain_original_seeds = retain_original_seeds
-        
 
     def sample_batches(
         self,
@@ -238,9 +232,9 @@ class DistSampler:
         current_seeds: "torch.Tensor",
         batch_id_start: int,
         batch_size: int,
-        batches_per_call:int,
-        random_state:int,
-        assume_equal_input_size:bool,
+        batches_per_call: int,
+        random_state: int,
+        assume_equal_input_size: bool,
     ) -> Union[None, Iterator[Tuple[Dict[str, "torch.Tensor"], int, int]]]:
         current_batches = torch.arange(
             batch_id_start + call_id * batches_per_call,
@@ -262,11 +256,9 @@ class DistSampler:
             random_state=random_state,
             assume_equal_input_size=assume_equal_input_size,
         )
-        
+
         if self.__writer is None:
-            return iter([
-                (minibatch_dict,current_batches[0], current_batches[-1])
-            ])
+            return iter([(minibatch_dict, current_batches[0], current_batches[-1])])
         else:
             self.__writer.write_minibatches(minibatch_dict)
             return None
@@ -329,18 +321,18 @@ class DistSampler:
                 * (int(num_call_groups) - len(nodes_call_groups))
             )
 
-        sample_args = (batch_id_start,
-                    batch_size,
-                    batches_per_call,
-                    random_state,
-                    input_size_is_equal,)
+        sample_args = (
+            batch_id_start,
+            batch_size,
+            batches_per_call,
+            random_state,
+            input_size_is_equal,
+        )
 
         if self.__writer is None:
             # Buffered sampling
             return BufferedSampleReader(
-                nodes_call_groups,
-                self.__sample_from_nodes_func,
-                *sample_args
+                nodes_call_groups, self.__sample_from_nodes_func, *sample_args
             )
         else:
             # Unbuffered sampling

@@ -152,7 +152,9 @@ class SampleReader:
     Iterator that processes results from the cuGraph distributed sampler.
     """
 
-    def __init__(self, base_reader: Iterator[Tuple[Dict[str, "torch.Tensor"], int, int]]):
+    def __init__(
+        self, base_reader: Iterator[Tuple[Dict[str, "torch.Tensor"], int, int]]
+    ):
         """
         Constructs a new SampleReader.
 
@@ -202,7 +204,9 @@ class HomogeneousSampleReader(SampleReader):
     produced by the cuGraph distributed sampler.
     """
 
-    def __init__(self, base_reader: Iterator[Tuple[Dict[str, "torch.Tensor"], int, int]]):
+    def __init__(
+        self, base_reader: Iterator[Tuple[Dict[str, "torch.Tensor"], int, int]]
+    ):
         """
         Constructs a new HomogeneousSampleReader
 

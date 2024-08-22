@@ -195,9 +195,7 @@ class NeighborSampler(Sampler):
         if g.is_homogeneous:
             indices = torch.concat(list(indices))
             reader = ds.sample_from_nodes(indices, batch_size=batch_size)
-            return HomogeneousSampleReader(
-                reader, self.output_format, self.edge_dir
-            )
+            return HomogeneousSampleReader(reader, self.output_format, self.edge_dir)
 
         raise ValueError(
             "Sampling heterogeneous graphs is currently"

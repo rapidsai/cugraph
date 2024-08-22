@@ -15,15 +15,18 @@ import os
 
 from math import ceil
 
-import cupy
-import cudf
 
-from cugraph.utilities.utils import import_optional, MissingModule
+import cupy
+
+from cugraph.utilities.utils import MissingModule
 from cugraph.gnn.data_loading.dist_io import DistSampleReader
 
-from typing import Iterator, Tuple, Dict, Optional
+from cugraph.gnn.data_loading.bulk_sampler_io import create_df_from_disjoint_arrays
 
-torch = MissingModule('torch')
+from typing import Iterator, Tuple, Dict
+
+torch = MissingModule("torch")
+
 
 class DistSampleWriter:
     def __init__(

@@ -14,6 +14,7 @@
 import cugraph_dgl.dataloading
 import pytest
 
+
 import cugraph_dgl
 
 from cugraph.datasets import karate

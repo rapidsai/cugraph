@@ -12,12 +12,18 @@
 # limitations under the License.
 
 
-from typing import Callable, Iterator, Tuple, Dict
+import os
+import re
 
-from cugraph.utilities.utils import MissingModule
+import cudf
+
+from typing import Callable, Iterator, Tuple, Dict, Optional
+
+from cugraph.utilities.utils import import_optional, MissingModule
 
 # Prevent PyTorch from being imported and causing an OOM error
-torch = MissingModule('torch')
+torch = MissingModule("torch")
+
 
 class DistSampleReader:
     def __init__(
@@ -90,12 +96,17 @@ class DistSampleReader:
         raise StopIteration
 
 
-
 class BufferedSampleReader:
-    def __init__(self, nodes_call_groups: list["torch.Tensor"], sample_fn:Callable[..., Iterator[Tuple[Dict[str, "torch.Tensor"], int, int]]], *args, **kwargs):
+    def __init__(
+        self,
+        nodes_call_groups: list["torch.Tensor"],
+        sample_fn: Callable[..., Iterator[Tuple[Dict[str, "torch.Tensor"], int, int]]],
+        *args,
+        **kwargs,
+    ):
         self.__sample_args = args
         self.__sample_kwargs = kwargs
-        
+
         self.__nodes_call_groups = iter(nodes_call_groups)
         self.__sample_fn = sample_fn
         self.__current_call_id = 0
@@ -111,21 +122,20 @@ class BufferedSampleReader:
                 out = next(self.__current_reader)
             except StopIteration:
                 new_reader = True
-        
+
         if new_reader:
             # Will trigger StopIteration if there are no more call groups
             self.__current_reader = self.__sample_fn(
                 self.__current_call_id,
                 next(self.__nodes_call_groups),
                 *self.__sample_args,
-                **self.__sample_kwargs
+                **self.__sample_kwargs,
             )
 
             self.__current_call_id += 1
             out = next(self.__current_reader)
-        
-        return out
 
+        return out
 
     def __iter__(self) -> Iterator[Tuple[Dict[str, "torch.Tensor"], int, int]]:
         return self

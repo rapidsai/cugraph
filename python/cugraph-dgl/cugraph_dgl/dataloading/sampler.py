@@ -32,7 +32,11 @@ class SampleReader:
     Iterator that processes results from the cuGraph distributed sampler.
     """
 
-    def __init__(self, base_reader: Iterator[Tuple[Dict[str, "torch.Tensor"], int, int]], output_format: str = "dgl.Block"):
+    def __init__(
+        self,
+        base_reader: Iterator[Tuple[Dict[str, "torch.Tensor"], int, int]],
+        output_format: str = "dgl.Block",
+    ):
         """
         Constructs a new SampleReader.
 
