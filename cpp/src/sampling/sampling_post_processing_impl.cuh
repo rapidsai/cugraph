@@ -235,12 +235,6 @@ void check_input_edges(raft::handle_t const& handle,
     CUGRAPH_EXPECTS(
       num_labels == 0,
       "Invalid input arguments: num_labels should be 0 if the input edge list is empty.");
-    CUGRAPH_EXPECTS(
-      num_hops == 0,
-      "Invalid input arguments: num_hops should be 0 if the input edge list is empty.");
-    CUGRAPH_EXPECTS(
-      num_vertex_types == 0,
-      "Invalid input arguments: num_vertex_types should be 0 if the input edge list is empty.");
   }
 
   CUGRAPH_EXPECTS((!seed_vertices.has_value() && !seed_vertex_label_offsets.has_value()) ||
