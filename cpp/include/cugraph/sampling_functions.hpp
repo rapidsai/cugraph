@@ -516,7 +516,7 @@ renumber_and_sort_sampled_edgelist(
  *
  * This function assumes that there is a single edge source vertex type and a single edge
  * destination vertex type for each edge. If @p edgelist_edge_types.has_value() is false (i.e. there
- * is only one edge type), there shouldb be only one edge source vertex type and only one edge
+ * is only one edge type), there should be only one edge source vertex type and only one edge
  * destination vertex type; the source & destination vertex types may or may not coincide.
  *
  * This function is single-GPU only (we are not aware of any practical multi-GPU use cases).
