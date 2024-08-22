@@ -89,7 +89,7 @@ matrix-entry = "cuda_suffixed=true"
 
 [tool.black]
 line-length = 88
-target-version = ["py310", "py310", "py311"]
+target-version = ["py310", "py311"]
 
 [tool.isort]
 sections = ["FUTURE", "STDLIB", "THIRDPARTY", "FIRSTPARTY", "LOCALFOLDER"]
