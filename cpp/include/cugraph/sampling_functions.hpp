@@ -250,6 +250,8 @@ biased_neighbor_sample(
  *
  * This function traverses from a set of starting vertices, traversing outgoing edges and
  * randomly selects (with edge biases or not) from these outgoing neighbors to extract a subgraph.
+ * When branching out to select outgoing neighbors, either fan_out or heterogeneous_fan_out must
+ * be provided but not both.
  *
  * Output from this function is a tuple of vectors (src, dst, weight, edge_id, edge_type, hop,
  * label, offsets), identifying the randomly selected edges.  src is the source vertex, dst is the
@@ -290,7 +292,8 @@ biased_neighbor_sample(
  * @param edge_bias_view Optional view object holding edge biases (to be used in biased sampling) for @p
  * graph_view. Bias values should be non-negative and the sum of edge bias values from any vertex
  * should not exceed std::numeric_limits<bias_t>::max(). 0 bias value indicates that the
- * corresponding edge can never be selected.
+ * corresponding edge can never be selected. passing std::nullopt as the edge biases will result in
+ * uniform sampling.
  * @param starting_vertices Device span of starting vertex IDs for the sampling.
  * In a multi-gpu context the starting vertices should be local to this GPU.
  * @param starting_vertex_labels Optional device span of labels associted with each starting vertex
@@ -299,11 +302,13 @@ biased_neighbor_sample(
  * output rank.  Element 0 of the tuple identifes the label, Element 1 of the tuple identifies the
  * output rank.  The label span must be sorted in ascending order.
  * @param fan_out Host span defining branching out (fan-out) degree per source vertex for each
- * level
+ * level. When fan_out is provided, the sampling method uses the same fanout value for each type.
  * @param heterogeneous_fan_out Tuple of host spans defining branching out (fan-out) degree per
  * source vertex for each level in CSR style format. The first element of the tuple is the offset
  * array per edge type id and the second element correspond to the fanout values.
- * @param return_hops boolean flag specifying if the hop information should be returned
+ * When heterogeneous_fan_out is provided, different fan_out values can be used for each edge type.
+ * The fan-out offsets size must be proportional to the number of edge types and fan_out values.
+ * @param return_hops boolean flag specifying if the hop information should be returned. 
  * @param prior_sources_behavior Enum type defining how to handle prior sources, (defaults to
  * DEFAULT)
  * @param dedupe_sources boolean flag, if true then if a vertex v appears as a destination in hop X
