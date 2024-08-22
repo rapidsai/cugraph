@@ -67,7 +67,6 @@ cdef extern from "cugraph_c/sampling_algorithms.h":
         const cugraph_resource_handle_t* handle,
         cugraph_rng_state_t* rng_state,
         cugraph_graph_t* graph,
-        bool_t is_biased,
         const cugraph_edge_property_view_t* edge_biases,
         const cugraph_type_erased_device_array_view_t* start_vertices,
         const cugraph_type_erased_device_array_view_t* start_vertex_labels,
@@ -77,6 +76,7 @@ cdef extern from "cugraph_c/sampling_algorithms.h":
         const cugraph_type_erased_host_array_view_t* fan_out,
         const cugraph_sample_heterogeneous_fanout_t* heterogeneous_fanout,
         const cugraph_sampling_options_t* options,
+        bool_t is_biased,
         bool_t do_expensive_check,
         cugraph_sample_result_t** result,
         cugraph_error_t** error

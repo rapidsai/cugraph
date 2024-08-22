@@ -70,7 +70,6 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
   raft::handle_t const& handle_;
   cugraph::c_api::cugraph_rng_state_t* rng_state_{nullptr};
   cugraph::c_api::cugraph_graph_t* graph_{nullptr};
-  bool is_biased_{false};
   cugraph::c_api::cugraph_edge_property_view_t const* edge_biases_{nullptr};
   cugraph::c_api::cugraph_type_erased_device_array_view_t const* start_vertices_{nullptr};
   cugraph::c_api::cugraph_type_erased_device_array_view_t const* start_vertex_labels_{nullptr};
@@ -80,6 +79,7 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
   cugraph::c_api::cugraph_type_erased_host_array_view_t const* fan_out_{nullptr};
   cugraph::c_api::cugraph_sample_heterogeneous_fanout_t const* heterogeneous_fan_out_{nullptr};
   cugraph::c_api::cugraph_sampling_options_t options_{};
+  bool is_biased_{false};
   bool do_expensive_check_{false};
   cugraph::c_api::cugraph_sample_result_t* result_{nullptr};
 
@@ -87,7 +87,6 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
     cugraph_resource_handle_t const* handle,
     cugraph_rng_state_t* rng_state,
     cugraph_graph_t* graph,
-    bool is_biased,
     cugraph_edge_property_view_t const* edge_biases,
     cugraph_type_erased_device_array_view_t const* start_vertices,
     cugraph_type_erased_device_array_view_t const* start_vertex_labels,
@@ -97,12 +96,12 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
     cugraph_type_erased_host_array_view_t const* fan_out,
     cugraph_sample_heterogeneous_fanout_t const* heterogeneous_fan_out,
     cugraph::c_api::cugraph_sampling_options_t options,
+    bool is_biased,
     bool do_expensive_check)
     : abstract_functor(),
       handle_(*reinterpret_cast<cugraph::c_api::cugraph_resource_handle_t const*>(handle)->handle_),
       rng_state_(reinterpret_cast<cugraph::c_api::cugraph_rng_state_t*>(rng_state)),
       graph_(reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph)),
-      is_biased_(is_biased),
       edge_biases_(
         reinterpret_cast<cugraph::c_api::cugraph_edge_property_view_t const*>(edge_biases)),
       start_vertices_(
@@ -127,6 +126,7 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
           heterogeneous_fan_out)),
   
       options_(options),
+      is_biased_(is_biased),
       do_expensive_check_(do_expensive_check)
   {
   }
@@ -982,7 +982,6 @@ cugraph_error_code_t cugraph_uniform_neighbor_sample(
   neighbor_sampling_functor functor{handle,
                                     rng_state,
                                     graph,
-                                    is_biased,
                                     nullptr,
                                     start_vertices,
                                     start_vertex_labels,
@@ -992,6 +991,7 @@ cugraph_error_code_t cugraph_uniform_neighbor_sample(
                                     fan_out,
                                     nullptr,
                                     std::move(options_cpp),
+                                    is_biased,
                                     do_expensive_check};
   return cugraph::c_api::run_algorithm(graph, functor, result, error);
 }
@@ -1001,7 +1001,6 @@ cugraph_error_code_t cugraph_neighbor_sample(
   const cugraph_resource_handle_t* handle,
   cugraph_rng_state_t* rng_state,
   cugraph_graph_t* graph,
-  bool_t is_biased,
   const cugraph_edge_property_view_t* edge_biases,
   const cugraph_type_erased_device_array_view_t* start_vertices,
   const cugraph_type_erased_device_array_view_t* start_vertex_labels,
@@ -1011,6 +1010,7 @@ cugraph_error_code_t cugraph_neighbor_sample(
   const cugraph_type_erased_host_array_view_t* fan_out,
   const cugraph_sample_heterogeneous_fanout_t* heterogeneous_fanout,
   const cugraph_sampling_options_t* options,
+  bool_t is_biased,
   bool_t do_expensive_check,
   cugraph_sample_result_t** result,
   cugraph_error_t** error)
@@ -1067,7 +1067,6 @@ cugraph_error_code_t cugraph_neighbor_sample(
   neighbor_sampling_functor functor{handle,
                                     rng_state,
                                     graph,
-                                    is_biased,
                                     edge_biases,
                                     start_vertices,
                                     start_vertex_labels,
@@ -1077,6 +1076,7 @@ cugraph_error_code_t cugraph_neighbor_sample(
                                     fan_out,
                                     heterogeneous_fanout,
                                     std::move(options_cpp),
+                                    is_biased,
                                     do_expensive_check};
   return cugraph::c_api::run_algorithm(graph, functor, result, error);
 }
@@ -1149,7 +1149,6 @@ cugraph_error_code_t cugraph_biased_neighbor_sample(
   neighbor_sampling_functor functor{handle,
                                     rng_state,
                                     graph,
-                                    is_biased,
                                     edge_biases,
                                     start_vertices,
                                     start_vertex_labels,
@@ -1159,6 +1158,7 @@ cugraph_error_code_t cugraph_biased_neighbor_sample(
                                     fan_out,
                                     nullptr,
                                     std::move(options_cpp),
+                                    is_biased,
                                     do_expensive_check};
   return cugraph::c_api::run_algorithm(graph, functor, result, error);
 }

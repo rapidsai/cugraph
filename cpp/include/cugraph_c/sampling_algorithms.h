@@ -526,6 +526,9 @@ cugraph_error_code_t cugraph_biased_neighbor_sample(
  * We only support type INT32 for both the offsets and the fanout values array.
  * @param [in]  sampling_options
  *                           Opaque pointer defining the sampling options.
+ * @param [in]  is_biased
+ *                           A flag specifying whether to run biased neighborhood sampling
+ *                           (if set to true) or uniform neighbor sampling.
  * @param [in]  do_expensive_check
  *                           A flag to run expensive checks for input arguments (if set to true)
  * @param [out]  result      Output from the uniform_neighbor_sample call
@@ -537,7 +540,6 @@ cugraph_error_code_t cugraph_neighbor_sample(
   const cugraph_resource_handle_t* handle,
   cugraph_rng_state_t* rng_state,
   cugraph_graph_t* graph,
-  bool_t is_biased,
   const cugraph_edge_property_view_t* edge_biases,
   const cugraph_type_erased_device_array_view_t* start_vertices,
   const cugraph_type_erased_device_array_view_t* start_vertex_labels,
@@ -547,6 +549,7 @@ cugraph_error_code_t cugraph_neighbor_sample(
   const cugraph_type_erased_host_array_view_t* fan_out,
   const cugraph_sample_heterogeneous_fanout_t* heterogeneous_fanout,
   const cugraph_sampling_options_t* options,
+  bool_t is_biased,
   bool_t do_expensive_check,
   cugraph_sample_result_t** result,
   cugraph_error_t** error);
