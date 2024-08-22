@@ -713,14 +713,14 @@ extract_transform_v_frontier_e(raft::handle_t const& handle,
       if constexpr (std::is_arithmetic_v<key_t>) {
         key_size = sizeof(key_t);
       } else {
-        key_size = sum_thrust_tuple_element_sizes<key_t>();
+        key_size = cugraph::sum_thrust_tuple_element_sizes<key_t>();
       }
       size_t output_key_size{0};
       if constexpr (!std::is_same_v<output_key_t, void>) {
         if constexpr (std::is_arithmetic_v<output_key_t>) {
           output_key_size = sizeof(output_key_t);
         } else {
-          output_key_size = sum_thrust_tuple_element_sizes<output_key_t>();
+          output_key_size = cugraph::sum_thrust_tuple_element_sizes<output_key_t>();
         }
       }
       size_t output_value_size{0};
@@ -728,7 +728,7 @@ extract_transform_v_frontier_e(raft::handle_t const& handle,
         if constexpr (std::is_arithmetic_v<output_value_t>) {
           output_value_size = sizeof(output_value_t);
         } else {
-          output_value_size = sum_thrust_tuple_element_sizes<output_value_t>();
+          output_value_size = cugraph::sum_thrust_tuple_element_sizes<output_value_t>();
         }
       }
       auto approx_tmp_buffer_size_per_edge_partition =
