@@ -39,6 +39,7 @@ add_library(cugraphtestutil STATIC
             utilities/misc_utilities.cpp
             utilities/conversion_utilities_sg.cu
             utilities/debug_utilities_sg.cpp
+            utilities/validation_utilities.cu
             link_prediction/similarity_compare.cpp
             centrality/betweenness_centrality_validate.cu
             community/egonet_validate.cu
@@ -488,6 +489,10 @@ ConfigureTest(BIASED_NEIGHBOR_SAMPLING_TEST sampling/biased_neighbor_sampling.cp
 ConfigureTest(SAMPLING_POST_PROCESSING_TEST sampling/sampling_post_processing_test.cu)
 
 ###################################################################################################
+# - NEGATIVE SAMPLING tests --------------------------------------------------------------------
+ConfigureTest(NEGATIVE_SAMPLING_TEST sampling/negative_sampling.cpp)
+
+###################################################################################################
 # - Renumber tests --------------------------------------------------------------------------------
 ConfigureTest(RENUMBERING_TEST structure/renumbering_test.cpp)
 
@@ -741,6 +746,11 @@ if(BUILD_CUGRAPH_MG_TESTS)
     # - MG BIASED NBR SAMPLING tests --------------------------------------------------------------
     ConfigureTestMG(MG_BIASED_NEIGHBOR_SAMPLING_TEST sampling/mg_biased_neighbor_sampling.cpp)
 
+    ###################################################################################################
+    # - NEGATIVE SAMPLING tests --------------------------------------------------------------------
+    ConfigureTestMG(MG_NEGATIVE_SAMPLING_TEST sampling/mg_negative_sampling.cpp)
+
+
     ###############################################################################################
     # - MG RANDOM_WALKS tests ---------------------------------------------------------------------
     ConfigureTestMG(MG_RANDOM_WALKS_TEST sampling/mg_random_walks_test.cpp)
@@ -773,6 +783,7 @@ if(BUILD_CUGRAPH_MG_TESTS)
     ConfigureCTestMG(MG_CAPI_HITS_TEST c_api/mg_hits_test.c)
     ConfigureCTestMG(MG_CAPI_UNIFORM_NEIGHBOR_SAMPLE_TEST c_api/mg_uniform_neighbor_sample_test.c)
     ConfigureCTestMG(MG_CAPI_BIASED_NEIGHBOR_SAMPLE_TEST c_api/mg_biased_neighbor_sample_test.c)
+    ConfigureCTestMG(MG_CAPI_NEGATIVE_SAMPLING_TEST c_api/mg_negative_sampling_test.c)
     ConfigureCTestMG(MG_CAPI_LOOKUP_SRC_DST_TEST c_api/mg_lookup_src_dst_test.c)
     ConfigureCTestMG(MG_CAPI_RANDOM_WALKS_TEST c_api/mg_random_walks_test.c)
     ConfigureCTestMG(MG_CAPI_TRIANGLE_COUNT_TEST c_api/mg_triangle_count_test.c)
@@ -812,6 +823,7 @@ ConfigureCTest(CAPI_WEAKLY_CONNECTED_COMPONENTS_TEST c_api/weakly_connected_comp
 ConfigureCTest(CAPI_STRONGLY_CONNECTED_COMPONENTS_TEST c_api/strongly_connected_components_test.c)
 ConfigureCTest(CAPI_UNIFORM_NEIGHBOR_SAMPLE_TEST c_api/uniform_neighbor_sample_test.c)
 ConfigureCTest(CAPI_BIASED_NEIGHBOR_SAMPLE_TEST c_api/biased_neighbor_sample_test.c)
+ConfigureCTest(CAPI_NEGATIVE_SAMPLING_TEST c_api/negative_sampling_test.c)
 ConfigureCTest(CAPI_RANDOM_WALKS_TEST c_api/sg_random_walks_test.c)
 ConfigureCTest(CAPI_TRIANGLE_COUNT_TEST c_api/triangle_count_test.c)
 ConfigureCTest(CAPI_LOUVAIN_TEST c_api/louvain_test.c)
