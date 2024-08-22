@@ -708,9 +708,32 @@ extract_transform_v_frontier_e(raft::handle_t const& handle,
         handle.get_stream());
       auto aggregate_max_pushes = host_scalar_allreduce(
         comm, max_push_counts[partition_idx], raft::comms::op_t::SUM, handle.get_stream());
+
+      size_t key_size{0};
+      if constexpr (std::is_arithmetic_v<key_t>) {
+        key_size = sizeof(key_t);
+      } else {
+        key_size = sum_thrust_tuple_element_sizes<key_t>();
+      }
+      size_t output_key_size{0};
+      if constexpr (!std::is_same_v<output_key_t, void>) {
+        if constexpr (std::is_arithmetic_v<output_key_t>) {
+          output_key_size = sizeof(output_key_t);
+        } else {
+          output_key_size = sum_thrust_tuple_element_sizes<output_key_t>();
+        }
+      }
+      size_t output_value_size{0};
+      if constexpr (!std::is_same_v<output_value_t, void>) {
+        if constexpr (std::is_arithmetic_v<output_value_t>) {
+          output_value_size = sizeof(output_value_t);
+        } else {
+          output_value_size = sum_thrust_tuple_element_sizes<output_value_t>();
+        }
+      }
       auto approx_tmp_buffer_size_per_edge_partition =
-        (aggregate_major_range_size / comm_size) * sizeof(key_t) +
-        (aggregate_max_pushes / comm_size) * (sizeof(output_key_t) + sizeof(output_value_t));
+        (aggregate_major_range_size / comm_size) * key_size +
+        (aggregate_max_pushes / comm_size) * (output_key_size + output_value_size);
 
       stream_pool_indices = init_stream_pool_indices(handle,
                                                      max_tmp_buffer_size,
@@ -752,9 +775,9 @@ extract_transform_v_frontier_e(raft::handle_t const& handle,
     if constexpr (GraphViewType::is_multi_gpu) { edge_partition_key_buffers.reserve(loop_count); }
     std::vector<std::optional<std::vector<size_t>>> key_segment_offset_vectors{};
     key_segment_offset_vectors.reserve(loop_count);
-    std::vector<dataframe_buffer_type_t<output_key_t>> output_key_buffers{};
+    std::vector<optional_dataframe_buffer_type_t<output_key_t>> output_key_buffers{};
     output_key_buffers.reserve(loop_count);
-    std::vector<dataframe_buffer_type_t<output_value_t>> output_value_buffers{};
+    std::vector<optional_dataframe_buffer_type_t<output_value_t>> output_value_buffers{};
     output_value_buffers.reserve(loop_count);
     std::vector<rmm::device_scalar<size_t>> output_buffer_idx_scalars{};
     output_buffer_idx_scalars.reserve(loop_count);
