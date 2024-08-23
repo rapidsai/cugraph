@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 #include "c_api/array.hpp"
+#include "c_api/coo.hpp"
 #include "c_api/error.hpp"
 #include "c_api/random.hpp"
 #include "c_api/resource_handle.hpp"
@@ -25,24 +26,6 @@
 #include <cugraph/utilities/host_scalar_comm.hpp>
 
 #include <raft/core/handle.hpp>
-
-namespace cugraph {
-namespace c_api {
-
-struct cugraph_coo_t {
-  std::unique_ptr<cugraph_type_erased_device_array_t> src_{};
-  std::unique_ptr<cugraph_type_erased_device_array_t> dst_{};
-  std::unique_ptr<cugraph_type_erased_device_array_t> wgt_{};
-  std::unique_ptr<cugraph_type_erased_device_array_t> id_{};
-  std::unique_ptr<cugraph_type_erased_device_array_t> type_{};
-};
-
-struct cugraph_coo_list_t {
-  std::vector<std::unique_ptr<cugraph_coo_t>> list_;
-};
-
-}  // namespace c_api
-}  // namespace cugraph
 
 namespace {
 

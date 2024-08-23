@@ -403,3 +403,29 @@ def _sampler_output_from_sampling_results_heterogeneous(
         num_sampled_edges={k: t.tolist() for k, t in num_edges_per_hop_dict.items()},
         metadata=metadata,
     )
+
+
+def filter_cugraph_pyg_store(
+    feature_store,
+    graph_store,
+    node,
+    row,
+    col,
+    edge,
+    clx,
+) -> "torch_geometric.data.Data":
+    data = torch_geometric.data.Data()
+
+    data.edge_index = torch.stack([row, col], dim=0)
+
+    required_attrs = []
+    for attr in feature_store.get_all_tensor_attrs():
+        attr.index = edge if isinstance(attr.group_name, tuple) else node
+        required_attrs.append(attr)
+        data.num_nodes = attr.index.size(0)
+
+    tensors = feature_store.multi_get_tensor(required_attrs)
+    for i, attr in enumerate(required_attrs):
+        data[attr.attr_name] = tensors[i]
+
+    return data
