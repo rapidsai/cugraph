@@ -129,8 +129,8 @@ template <typename GraphViewType,
           typename T>
 void fill_edge_major_property(raft::handle_t const& handle,
                               GraphViewType const& graph_view,
-                              VertexIterator vertex_first,
-                              VertexIterator vertex_last,
+                              VertexIterator sorted_unique_vertex_first,
+                              VertexIterator sorted_unique_vertex_last,
                               EdgeMajorPropertyOutputWrapper edge_major_property_output,
                               T input)
 {
@@ -153,10 +153,10 @@ void fill_edge_major_property(raft::handle_t const& handle,
     auto const minor_comm_rank = minor_comm.get_rank();
     auto const minor_comm_size = minor_comm.get_size();
 
-    auto rx_counts =
-      host_scalar_allgather(minor_comm,
-                            static_cast<size_t>(thrust::distance(vertex_first, vertex_last)),
-                            handle.get_stream());
+    auto rx_counts = host_scalar_allgather(
+      minor_comm,
+      static_cast<size_t>(thrust::distance(sorted_unique_vertex_first, sorted_unique_vertex_last)),
+      handle.get_stream());
     auto max_rx_size =
       std::reduce(rx_counts.begin(), rx_counts.end(), size_t{0}, [](auto lhs, auto rhs) {
         return std::max(lhs, rhs);
@@ -169,8 +169,12 @@ void fill_edge_major_property(raft::handle_t const& handle,
         edge_partition_device_view_t<vertex_t, edge_t, GraphViewType::is_multi_gpu>(
           graph_view.local_edge_partition_view(i));
 
-      device_bcast(
-        minor_comm, vertex_first, rx_vertices.begin(), rx_counts[i], i, handle.get_stream());
+      device_bcast(minor_comm,
+                   sorted_unique_vertex_first,
+                   rx_vertices.begin(),
+                   rx_counts[i],
+                   i,
+                   handle.get_stream());
 
       if (edge_partition_keys) {
         thrust::for_each(
@@ -232,17 +236,18 @@ void fill_edge_major_property(raft::handle_t const& handle,
     assert(edge_partition_value_firsts.size() == size_t{1});
     if constexpr (contains_packed_bool_element) {
       thrust::for_each(handle.get_thrust_policy(),
-                       vertex_first,
-                       vertex_last,
+                       sorted_unique_vertex_first,
+                       sorted_unique_vertex_last,
                        [input, output_value_first = edge_partition_value_firsts[0]] __device__(
                          auto v) { packed_bool_atomic_set(output_value_first, v, input); });
     } else {
       auto val_first = thrust::make_constant_iterator(input);
-      thrust::scatter(handle.get_thrust_policy(),
-                      val_first,
-                      val_first + thrust::distance(vertex_first, vertex_last),
-                      vertex_first,
-                      edge_partition_value_firsts[0]);
+      thrust::scatter(
+        handle.get_thrust_policy(),
+        val_first,
+        val_first + thrust::distance(sorted_unique_vertex_first, sorted_unique_vertex_last),
+        sorted_unique_vertex_first,
+        edge_partition_value_firsts[0]);
     }
   }
 }
@@ -286,8 +291,8 @@ template <typename GraphViewType,
           typename T>
 void fill_edge_minor_property(raft::handle_t const& handle,
                               GraphViewType const& graph_view,
-                              VertexIterator vertex_first,
-                              VertexIterator vertex_last,
+                              VertexIterator sorted_unique_vertex_first,
+                              VertexIterator sorted_unique_vertex_last,
                               EdgeMinorPropertyOutputWrapper edge_minor_property_output,
                               T input)
 {
@@ -307,10 +312,10 @@ void fill_edge_minor_property(raft::handle_t const& handle,
     auto const major_comm_rank = major_comm.get_rank();
     auto const major_comm_size = major_comm.get_size();
 
-    auto rx_counts =
-      host_scalar_allgather(major_comm,
-                            static_cast<size_t>(thrust::distance(vertex_first, vertex_last)),
-                            handle.get_stream());
+    auto rx_counts = host_scalar_allgather(
+      major_comm,
+      static_cast<size_t>(thrust::distance(sorted_unique_vertex_first, sorted_unique_vertex_last)),
+      handle.get_stream());
     auto max_rx_size =
       std::reduce(rx_counts.begin(), rx_counts.end(), size_t{0}, [](auto lhs, auto rhs) {
         return std::max(lhs, rhs);
@@ -332,8 +337,12 @@ void fill_edge_minor_property(raft::handle_t const& handle,
       // FIXME: we can optionally use bitmap for this broadcast
       // FIXME: these broadcast operations can be placed between ncclGroupStart() and
       // ncclGroupEnd()
-      device_bcast(
-        major_comm, vertex_first, rx_vertices.begin(), rx_counts[i], i, handle.get_stream());
+      device_bcast(major_comm,
+                   sorted_unique_vertex_first,
+                   rx_vertices.begin(),
+                   rx_counts[i],
+                   i,
+                   handle.get_stream());
 
       if (edge_partition_keys) {
         thrust::for_each(
@@ -395,18 +404,19 @@ void fill_edge_minor_property(raft::handle_t const& handle,
            graph_view.local_edge_partition_src_range_size());
     if constexpr (contains_packed_bool_element) {
       thrust::for_each(handle.get_thrust_policy(),
-                       vertex_first,
-                       vertex_last,
+                       sorted_unique_vertex_first,
+                       sorted_unique_vertex_last,
                        [input, output_value_first = edge_partition_value_first] __device__(auto v) {
                          fill_scalar_or_thrust_tuple(output_value_first, v, input);
                        });
     } else {
       auto val_first = thrust::make_constant_iterator(input);
-      thrust::scatter(handle.get_thrust_policy(),
-                      val_first,
-                      val_first + thrust::distance(vertex_first, vertex_last),
-                      vertex_first,
-                      edge_partition_value_first);
+      thrust::scatter(
+        handle.get_thrust_policy(),
+        val_first,
+        val_first + thrust::distance(sorted_unique_vertex_first, sorted_unique_vertex_last),
+        sorted_unique_vertex_first,
+        edge_partition_value_first);
     }
   }
 }
@@ -452,8 +462,8 @@ void fill_edge_src_property(raft::handle_t const& handle,
 /**
  * @brief Fill graph edge source property values to the input value.
  *
- * This version fills only a subset of graph edge source property values. [@p vertex_first,
- * @p vertex_last) specifies the vertices to be filled.
+ * This version fills only a subset of graph edge source property values. [@p
+ * sorted_unique_vertex_first, @p sorted_unique_vertex_last) specifies the vertices to be filled.
  *
  * @tparam GraphViewType Type of the passed non-owning graph object.
  * @tparam VertexIterator Type of the iterator for vertex identifiers.
@@ -462,10 +472,12 @@ void fill_edge_src_property(raft::handle_t const& handle,
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Non-owning graph object.
- * @param vertex_first Iterator pointing to the first (inclusive) vertex with a value to be filled.
- * v in [vertex_first, vertex_last) should be distinct (and should belong to the vertex partition
- * assigned to this process in multi-GPU), otherwise undefined behavior.
- * @param vertex_last Iterator pointing to the last (exclusive) vertex with a value to be filled.
+ * @param sorted_unique_vertex_first Iterator pointing to the first (inclusive) vertex with a value
+ * to be filled. v in [vertex_first, sorted_unique_vertex_last) should be sorted & distinct (and
+ * should belong to the vertex partition assigned to this process in multi-GPU), otherwise undefined
+ * behavior.
+ * @param sorted_unique_vertex_last Iterator pointing to the last (exclusive) vertex with a value to
+ * be filled.
  * @param edge_src_property_output edge_src_property_view_t class object to store source property
  * values (for the edge source assigned to this process in multi-GPU).
  * @param input Edge source property values will be set to @p input.
@@ -477,8 +489,8 @@ template <typename GraphViewType,
           typename T>
 void fill_edge_src_property(raft::handle_t const& handle,
                             GraphViewType const& graph_view,
-                            VertexIterator vertex_first,
-                            VertexIterator vertex_last,
+                            VertexIterator sorted_unique_vertex_first,
+                            VertexIterator sorted_unique_vertex_last,
                             EdgeSrcValueOutputWrapper edge_src_property_output,
                             T input,
                             bool do_expensive_check = false)
@@ -487,8 +499,8 @@ void fill_edge_src_property(raft::handle_t const& handle,
   if (do_expensive_check) {
     auto num_invalids = thrust::count_if(
       handle.get_thrust_policy(),
-      vertex_first,
-      vertex_last,
+      sorted_unique_vertex_first,
+      sorted_unique_vertex_last,
       [local_vertex_partition_range_first = graph_view.local_vertex_partition_range_first(),
        local_vertex_partition_range_last =
          graph_view.local_vertex_partition_range_last()] __device__(auto v) {
@@ -499,17 +511,25 @@ void fill_edge_src_property(raft::handle_t const& handle,
       num_invalids =
         host_scalar_allreduce(comm, num_invalids, raft::comms::op_t::SUM, handle.get_stream());
     }
-    CUGRAPH_EXPECTS(
-      num_invalids == 0,
-      "Invalid input argument: invalid or non-local vertices in [vertex_first, vertex_last).");
+    CUGRAPH_EXPECTS(num_invalids == 0,
+                    "Invalid input argument: invalid or non-local vertices in "
+                    "[sorted_unique_vertex_first, sorted_unique_vertex_last).");
   }
 
   if constexpr (GraphViewType::is_storage_transposed) {
-    detail::fill_edge_minor_property(
-      handle, graph_view, vertex_first, vertex_last, edge_src_property_output, input);
+    detail::fill_edge_minor_property(handle,
+                                     graph_view,
+                                     sorted_unique_vertex_first,
+                                     sorted_unique_vertex_last,
+                                     edge_src_property_output,
+                                     input);
   } else {
-    detail::fill_edge_major_property(
-      handle, graph_view, vertex_first, vertex_last, edge_src_property_output, input);
+    detail::fill_edge_major_property(handle,
+                                     graph_view,
+                                     sorted_unique_vertex_first,
+                                     sorted_unique_vertex_last,
+                                     edge_src_property_output,
+                                     input);
   }
 }
 
@@ -553,8 +573,8 @@ void fill_edge_dst_property(raft::handle_t const& handle,
 /**
  * @brief Fill graph edge destination property values to the input value.
  *
- * This version fills only a subset of graph edge destination property values. [@p vertex_first,
- * @p vertex_last) specifies the vertices to be filled.
+ * This version fills only a subset of graph edge destination property values. [@p
+ * sorted_unique_vertex_first, @p sorted_unique_vertex_last) specifies the vertices to be filled.
  *
  * @tparam GraphViewType Type of the passed non-owning graph object.
  * @tparam VertexIterator Type of the iterator for vertex identifiers.
@@ -564,10 +584,12 @@ void fill_edge_dst_property(raft::handle_t const& handle,
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Non-owning graph object.
- * @param vertex_first Iterator pointing to the first (inclusive) vertex with a value to be filled.
- * v in [vertex_first, vertex_last) should be distinct (and should belong to the vertex partition
- * assigned to this process in multi-GPU), otherwise undefined behavior.
- * @param vertex_last Iterator pointing to the last (exclusive) vertex with a value to be filled.
+ * @param sorted_unique_vertex_first Iterator pointing to the first (inclusive) vertex with a value
+ * to be filled. v in [sorted_unique_vertex_first, sorted_unique_vertex_last) should be sorted &
+ * distinct (and should belong to the vertex partition assigned to this process in multi-GPU),
+ * otherwise undefined behavior.
+ * @param sorted_unique_vertex_last Iterator pointing to the last (exclusive) vertex with a value to
+ * be filled.
  * @param edge_dst_property_output edge_dst_property_view_t class object to store destination
  * property values (for the edge destinations assigned to this process in multi-GPU).
  * @param input Edge destination property values will be set to @p input.
@@ -579,8 +601,8 @@ template <typename GraphViewType,
           typename T>
 void fill_edge_dst_property(raft::handle_t const& handle,
                             GraphViewType const& graph_view,
-                            VertexIterator vertex_first,
-                            VertexIterator vertex_last,
+                            VertexIterator sorted_unique_vertex_first,
+                            VertexIterator sorted_unique_vertex_last,
                             EdgeDstValueOutputWrapper edge_dst_property_output,
                             T input,
                             bool do_expensive_check = false)
@@ -589,8 +611,8 @@ void fill_edge_dst_property(raft::handle_t const& handle,
   if (do_expensive_check) {
     auto num_invalids = thrust::count_if(
       handle.get_thrust_policy(),
-      vertex_first,
-      vertex_last,
+      sorted_unique_vertex_first,
+      sorted_unique_vertex_last,
       [local_vertex_partition_range_first = graph_view.local_vertex_partition_range_first(),
        local_vertex_partition_range_last =
          graph_view.local_vertex_partition_range_last()] __device__(auto v) {
@@ -601,17 +623,25 @@ void fill_edge_dst_property(raft::handle_t const& handle,
       num_invalids =
         host_scalar_allreduce(comm, num_invalids, raft::comms::op_t::SUM, handle.get_stream());
     }
-    CUGRAPH_EXPECTS(
-      num_invalids == 0,
-      "Invalid input argument: invalid or non-local vertices in [vertex_first, vertex_last).");
+    CUGRAPH_EXPECTS(num_invalids == 0,
+                    "Invalid input argument: invalid or non-local vertices in "
+                    "[sorted_unique_vertex_first, sorted_unique_vertex_last).");
   }
 
   if constexpr (GraphViewType::is_storage_transposed) {
-    detail::fill_edge_major_property(
-      handle, graph_view, vertex_first, vertex_last, edge_dst_property_output, input);
+    detail::fill_edge_major_property(handle,
+                                     graph_view,
+                                     sorted_unique_vertex_first,
+                                     sorted_unique_vertex_last,
+                                     edge_dst_property_output,
+                                     input);
   } else {
-    detail::fill_edge_minor_property(
-      handle, graph_view, vertex_first, vertex_last, edge_dst_property_output, input);
+    detail::fill_edge_minor_property(handle,
+                                     graph_view,
+                                     sorted_unique_vertex_first,
+                                     sorted_unique_vertex_last,
+                                     edge_dst_property_output,
+                                     input);
   }
 }
 
