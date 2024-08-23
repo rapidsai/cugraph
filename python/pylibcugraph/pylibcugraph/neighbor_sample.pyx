@@ -56,8 +56,8 @@ from pylibcugraph._cugraph_c.algorithms cimport (
 )
 from pylibcugraph._cugraph_c.sampling_algorithms cimport (
     cugraph_neighbor_sample,
-    cugraph_sample_heterogeneous_fanout_t,
-    cugraph_create_heterogeneous_fanout,
+    cugraph_sample_heterogeneous_fan_out_t,
+    cugraph_create_heterogeneous_fan_out,
     cugraph_heterogeneous_fanout_free,
 )
 from pylibcugraph.resource_handle cimport (
@@ -225,7 +225,7 @@ def neighbor_sample(ResourceHandle resource_handle,
     )
 
     cdef cugraph_graph_t* c_graph_ptr = input_graph.c_graph_ptr
-    cdef cugraph_sample_heterogeneous_fanout_t* heterogeneous_fanout_ptr = <cugraph_sample_heterogeneous_fanout_t*>NULL
+    cdef cugraph_sample_heterogeneous_fan_out_t* heterogeneous_fanout_ptr = <cugraph_sample_heterogeneous_fan_out_t*>NULL
     cdef cugraph_type_erased_host_array_view_t* fan_out_ptr = <cugraph_type_erased_host_array_view_t*>NULL
     cdef cugraph_type_erased_host_array_view_t* fan_out_size_ptr = <cugraph_type_erased_host_array_view_t*>NULL
     cdef cugraph_type_erased_host_array_view_t* fan_out_values_ptr = <cugraph_type_erased_host_array_view_t*>NULL
@@ -277,7 +277,7 @@ def neighbor_sample(ResourceHandle resource_handle,
                 len(h_fan_out[1]),
                 get_c_type_from_numpy_type(h_fan_out[1].dtype))
 
-        error_code = cugraph_create_heterogeneous_fanout(
+        error_code = cugraph_create_heterogeneous_fan_out(
             c_resource_handle_ptr,
             c_graph_ptr,
             fan_out_size_ptr,
@@ -286,7 +286,7 @@ def neighbor_sample(ResourceHandle resource_handle,
             &error_ptr
         )
 
-    assert_success(error_code, error_ptr, "cugraph_create_heterogeneous_fanout")
+    assert_success(error_code, error_ptr, "cugraph_create_heterogeneous_fan_out")
 
     cdef cugraph_sample_result_t* result_ptr
 

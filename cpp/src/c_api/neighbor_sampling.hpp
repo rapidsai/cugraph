@@ -20,7 +20,7 @@
 namespace cugraph {
 namespace c_api {
 
-using cugraph_sample_heterogeneous_fanout_t = std::tuple<
+using cugraph_sample_heterogeneous_fan_out_t = std::tuple<
   cugraph_type_erased_host_array_t*, cugraph_type_erased_host_array_t*>;
 
 }  // namespace c_api

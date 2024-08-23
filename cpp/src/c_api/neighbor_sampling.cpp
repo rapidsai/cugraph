@@ -77,7 +77,7 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
   cugraph::c_api::cugraph_type_erased_device_array_view_t const* label_to_comm_rank_{nullptr};
   cugraph::c_api::cugraph_type_erased_device_array_view_t const* label_offsets_{nullptr};
   cugraph::c_api::cugraph_type_erased_host_array_view_t const* fan_out_{nullptr};
-  cugraph::c_api::cugraph_sample_heterogeneous_fanout_t const* heterogeneous_fan_out_{nullptr};
+  cugraph::c_api::cugraph_sample_heterogeneous_fan_out_t const* heterogeneous_fan_out_{nullptr};
   cugraph::c_api::cugraph_sampling_options_t options_{};
   bool is_biased_{false};
   bool do_expensive_check_{false};
@@ -94,7 +94,7 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
     cugraph_type_erased_device_array_view_t const* label_to_comm_rank,
     cugraph_type_erased_device_array_view_t const* label_offsets,
     cugraph_type_erased_host_array_view_t const* fan_out,
-    cugraph_sample_heterogeneous_fanout_t const* heterogeneous_fan_out,
+    cugraph_sample_heterogeneous_fan_out_t const* heterogeneous_fan_out,
     cugraph::c_api::cugraph_sampling_options_t options,
     bool is_biased,
     bool do_expensive_check)
@@ -122,7 +122,7 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
         reinterpret_cast<cugraph::c_api::cugraph_type_erased_host_array_view_t const*>(fan_out)),
 
       heterogeneous_fan_out_(
-        reinterpret_cast<cugraph::c_api::cugraph_sample_heterogeneous_fanout_t const*>(
+        reinterpret_cast<cugraph::c_api::cugraph_sample_heterogeneous_fan_out_t const*>(
           heterogeneous_fan_out)),
   
       options_(options),
@@ -1007,7 +1007,7 @@ cugraph_error_code_t cugraph_neighbor_sample(
   const cugraph_type_erased_device_array_view_t* label_to_comm_rank,
   const cugraph_type_erased_device_array_view_t* label_offsets,
   const cugraph_type_erased_host_array_view_t* fan_out,
-  const cugraph_sample_heterogeneous_fanout_t* heterogeneous_fan_out,
+  const cugraph_sample_heterogeneous_fan_out_t* heterogeneous_fan_out,
   const cugraph_sampling_options_t* options,
   bool_t is_biased,
   bool_t do_expensive_check,
@@ -1064,14 +1064,14 @@ cugraph_error_code_t cugraph_neighbor_sample(
   } else {
     
     CAPI_EXPECTS(reinterpret_cast<cugraph::c_api::cugraph_type_erased_host_array_view_t const*>(
-                   std::get<0>(*reinterpret_cast<cugraph::c_api::cugraph_sample_heterogeneous_fanout_t const*>(heterogeneous_fan_out)))
+                   std::get<0>(*reinterpret_cast<cugraph::c_api::cugraph_sample_heterogeneous_fan_out_t const*>(heterogeneous_fan_out)))
                    ->type_ == INT32,
                CUGRAPH_INVALID_INPUT,
                "edge type offsets type must be INT32",
                *error);
     
     CAPI_EXPECTS(reinterpret_cast<cugraph::c_api::cugraph_type_erased_host_array_view_t const*>(
-                   std::get<0>(*reinterpret_cast<cugraph::c_api::cugraph_sample_heterogeneous_fanout_t const*>(heterogeneous_fan_out)))
+                   std::get<0>(*reinterpret_cast<cugraph::c_api::cugraph_sample_heterogeneous_fan_out_t const*>(heterogeneous_fan_out)))
                    ->type_ == INT32,
                CUGRAPH_INVALID_INPUT,
                "fan_out values type must be INT32",
@@ -1186,16 +1186,15 @@ cugraph_error_code_t cugraph_biased_neighbor_sample(
   return cugraph::c_api::run_algorithm(graph, functor, result, error);
 }
 
-extern "C" cugraph_error_code_t cugraph_create_heterogeneous_fanout(
+extern "C" cugraph_error_code_t cugraph_create_heterogeneous_fan_out(
   const cugraph_resource_handle_t* handle,
   cugraph_graph_t* graph,
   const cugraph_type_erased_host_array_view_t* edge_type_offsets,
   const cugraph_type_erased_host_array_view_t* fan_out,
-  cugraph_sample_heterogeneous_fanout_t** heterogeneous_fan_out,
+  cugraph_sample_heterogeneous_fan_out_t** heterogeneous_fan_out,
   cugraph_error_t** error)
 {
-
-  *heterogeneous_fan_out = reinterpret_cast<cugraph_sample_heterogeneous_fanout_t*> (new std::tuple<cugraph::c_api::cugraph_type_erased_host_array_t *, cugraph::c_api::cugraph_type_erased_host_array_t*> {
+  *heterogeneous_fan_out = reinterpret_cast<cugraph_sample_heterogeneous_fan_out_t*> (new std::tuple<cugraph::c_api::cugraph_type_erased_host_array_t *, cugraph::c_api::cugraph_type_erased_host_array_t*> {
           new cugraph::c_api::cugraph_type_erased_host_array_t(reinterpret_cast<cugraph::c_api::cugraph_type_erased_host_array_view_t const*>(edge_type_offsets)),
           new cugraph::c_api::cugraph_type_erased_host_array_t(reinterpret_cast<cugraph::c_api::cugraph_type_erased_host_array_view_t const*>(fan_out))});
   

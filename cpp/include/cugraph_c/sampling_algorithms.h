@@ -330,7 +330,7 @@ void cugraph_sampling_options_free(cugraph_sampling_options_t* options);
 /// mimic
 typedef struct {
   int32_t align_;
-} cugraph_sample_heterogeneous_fanout_t;
+} cugraph_sample_heterogeneous_fan_out_t;
 
 /**
  * @brief       Create heterogeneous fanout
@@ -353,12 +353,12 @@ typedef struct {
  *                             be populated if error code is not CUGRAPH_SUCCESS
  * @return error code
  */
-cugraph_error_code_t cugraph_create_heterogeneous_fanout(
+cugraph_error_code_t cugraph_create_heterogeneous_fan_out(
   const cugraph_resource_handle_t* handle,
   cugraph_graph_t* graph,
   const cugraph_type_erased_host_array_view_t* edge_type_offsets,
   const cugraph_type_erased_host_array_view_t* fanout,
-  cugraph_sample_heterogeneous_fanout_t** heterogeneous_fanout,
+  cugraph_sample_heterogeneous_fan_out_t** heterogeneous_fanout,
   cugraph_error_t** error);
 
 /**
@@ -366,7 +366,7 @@ cugraph_error_code_t cugraph_create_heterogeneous_fanout(
  *
  * @param [in]    heterogeneous_fanout The edge type size and fanout values
  */
-void cugraph_heterogeneous_fanout_free(cugraph_sample_heterogeneous_fanout_t* heterogeneous_fanout);
+void cugraph_heterogeneous_fanout_free(cugraph_sample_heterogeneous_fan_out_t* heterogeneous_fanout);
 
 /**
  * @brief     Uniform Neighborhood Sampling
@@ -547,7 +547,7 @@ cugraph_error_code_t cugraph_neighbor_sample(
   const cugraph_type_erased_device_array_view_t* label_to_comm_rank,
   const cugraph_type_erased_device_array_view_t* label_offsets,
   const cugraph_type_erased_host_array_view_t* fan_out,
-  const cugraph_sample_heterogeneous_fanout_t* heterogeneous_fanout,
+  const cugraph_sample_heterogeneous_fan_out_t* heterogeneous_fanout,
   const cugraph_sampling_options_t* options,
   bool_t is_biased,
   bool_t do_expensive_check,
