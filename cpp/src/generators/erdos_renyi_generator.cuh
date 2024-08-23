@@ -40,6 +40,11 @@ generate_erdos_renyi_graph_edgelist_gnp(raft::handle_t const& handle,
                                         vertex_t base_vertex_id,
                                         uint64_t seed)
 {
+  // NOTE:
+  // https://networkx.org/documentation/stable/_modules/networkx/generators/random_graphs.html#fast_gnp_random_graph
+  //   identifies a faster algorithm that I think would be very efficient on the GPU.  I believe we
+  //   could just compute lr/lp in that code for a batch of values, use prefix sums to generate edge
+  //   ids and then convert the generated values to a batch of edges.
   CUGRAPH_EXPECTS(num_vertices < std::numeric_limits<int32_t>::max(),
                   "Implementation cannot support specified value");
 
@@ -88,6 +93,11 @@ generate_erdos_renyi_graph_edgelist_gnm(raft::handle_t const& handle,
                                         uint64_t seed)
 {
   CUGRAPH_FAIL("Not implemented");
+
+  // To implement:
+  //    Use sampling function to select `m` unique edge ids from the
+  //    (num_vertices ^ 2) possible edges.  Convert these to vertex
+  //    ids.
 }
 
 }  // namespace cugraph

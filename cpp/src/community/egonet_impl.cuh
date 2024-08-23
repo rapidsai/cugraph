@@ -17,8 +17,6 @@
 
 // #define TIMING
 
-#include "utilities/graph_utils.cuh"
-
 #include <cugraph/algorithms.hpp>
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_functions.hpp>

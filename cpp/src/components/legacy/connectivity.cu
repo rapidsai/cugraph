@@ -15,7 +15,6 @@
  */
 
 #include "scc_matrix.cuh"
-#include "utilities/graph_utils.cuh"
 #include "weak_cc.cuh"
 
 #include <cugraph/algorithms.hpp>
