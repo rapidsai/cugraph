@@ -20,6 +20,7 @@ files:
       - depends_on_dask_cudf
       - depends_on_pylibraft
       - depends_on_raft_dask
+        # Deprecate pylibcugraphops
       - depends_on_pylibcugraphops
       - depends_on_pylibwholegraph
       - depends_on_cupy
@@ -44,6 +45,7 @@ files:
       - cuda_version
       - docs
       - py_version
+        # Deprecate pylibcugraphops
       - depends_on_pylibcugraphops
   test_cpp:
     output: none
@@ -188,6 +190,7 @@ files:
       table: project
     includes:
       - python_run_cugraph_dgl
+        # Deprecate pylibcugraphops
       - depends_on_pylibcugraphops
   py_test_cugraph_dgl:
     output: pyproject
@@ -214,6 +217,7 @@ files:
       table: project
     includes:
       - python_run_cugraph_pyg
+        # Deprecate pylibcugraphops
       - depends_on_pylibcugraphops
   py_test_cugraph_pyg:
     output: pyproject
@@ -239,6 +243,7 @@ files:
     extras:
       table: project
     includes:
+        # Deprecate pylibcugraphops
       - depends_on_pylibcugraphops
   py_test_cugraph_equivariant:
     output: pyproject
@@ -298,6 +303,7 @@ files:
     conda_dir: python/cugraph-dgl/conda
     includes:
       - checks
+        # Deprecate pylibcugraphops
       - depends_on_pylibcugraphops
       - cugraph_dgl_dev
       - test_python_common
@@ -308,6 +314,7 @@ files:
     conda_dir: python/cugraph-pyg/conda
     includes:
       - checks
+        # Deprecate pylibcugraphops
       - depends_on_pylibcugraphops
       - cugraph_pyg_dev
       - test_python_common
@@ -389,6 +396,7 @@ dependencies:
           - c-compiler
           - cxx-compiler
           - libcudf==24.10.*,>=0.0.0a0
+          # Deprecate libcugraphops
           - libcugraphops==24.10.*,>=0.0.0a0
           - libraft-headers==24.10.*,>=0.0.0a0
           - libraft==24.10.*,>=0.0.0a0
@@ -876,6 +884,7 @@ dependencies:
               - pylibcugraph-cu11==24.10.*,>=0.0.0a0
           - {matrix: null, packages: [*pylibcugraph_unsuffixed]}
 
+  # deprecate pylibcugraphops
   depends_on_pylibcugraphops:
     common:
       - output_types: conda
