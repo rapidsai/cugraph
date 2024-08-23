@@ -332,9 +332,9 @@ INSTANTIATE_TEST_SUITE_P(
   ::testing::Values(
     // enable correctness checks
     std::make_tuple(BFS_Usecase{0, false},
-                    cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, false, false)),
+                    cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, true /* undirected */, false)),
     std::make_tuple(BFS_Usecase{0, true},
-                    cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, false, false))));
+                    cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, true /* undirected */, false))));
 
 INSTANTIATE_TEST_SUITE_P(
   rmat_benchmark_test, /* note that scale & edge factor can be overridden in benchmarking (with

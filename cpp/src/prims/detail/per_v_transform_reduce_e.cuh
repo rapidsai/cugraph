@@ -2419,8 +2419,8 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
   std::chrono::duration<double> dur1 = time2 - time1;
   std::chrono::duration<double> dur2 = time3 - time2;
   std::chrono::duration<double> dur3 = time4 - time3;
-  std::cout << "\t\tdetail::per_v took (" << dur0.count() << "," << dur1.count() << ","
-            << dur2.count() << ")" << std::endl;
+  std::cout << "\t\tdetail::per_v (prep, ep, scatter, comm) took (" << dur0.count() << "," << dur1.count() << ","
+            << dur2.count() << "," << dur3.count() << ")" << std::endl;
 #endif
 }
 
