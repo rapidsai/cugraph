@@ -658,7 +658,7 @@ extract_transform_v_frontier_e(raft::handle_t const& handle,
 
   // compute max_pushes
 
-  std::vector<size_t> max_push_counts{};
+  size_t max_pushes{};
   {
     size_t partition_idx{};
     if constexpr (GraphViewType::is_multi_gpu) {
@@ -675,14 +675,8 @@ extract_transform_v_frontier_e(raft::handle_t const& handle,
       thrust_tuple_get_or_identity<decltype(frontier_key_last), 0>(frontier_key_last);
     // for an edge-masked graph, we can pass edge mask to compute tighter bound (at the expense of
     // additional computing)
-    auto max_pushes = edge_partition.compute_number_of_edges(
+    max_pushes = edge_partition.compute_number_of_edges(
       frontier_major_first, frontier_major_last, handle.get_stream());
-    if constexpr (GraphViewType::is_multi_gpu) {
-      auto& minor_comm = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
-      max_push_counts  = host_scalar_allgather(minor_comm, max_pushes, handle.get_stream());
-    } else {
-      max_push_counts = {max_pushes};
-    }
   }
 
   // set-up stream ppol
@@ -707,7 +701,12 @@ extract_transform_v_frontier_e(raft::handle_t const& handle,
         raft::comms::op_t::SUM,
         handle.get_stream());
       auto aggregate_max_pushes = host_scalar_allreduce(
-        comm, max_push_counts[partition_idx], raft::comms::op_t::SUM, handle.get_stream());
+        comm,
+        max_pushes,
+        raft::comms::op_t::SUM,
+        handle.get_stream());  // this is approximate as we only consider local edges for
+                               // [frontier_key_first, frontier_key_last), note that neighbor lists
+                               // are partitioned if minor_comm_size > 1
 
       size_t key_size{0};
       if constexpr (std::is_arithmetic_v<key_t>) {
@@ -839,14 +838,15 @@ extract_transform_v_frontier_e(raft::handle_t const& handle,
         }
       }
 
+      auto edge_partition_frontier_major_first =
+        thrust_tuple_get_or_identity<decltype(edge_partition_frontier_key_first), 0>(
+          edge_partition_frontier_key_first);
+      auto edge_partition_frontier_major_last =
+        thrust_tuple_get_or_identity<decltype(edge_partition_frontier_key_last), 0>(
+          edge_partition_frontier_key_last);
+
       std::optional<std::vector<size_t>> key_segment_offsets{std::nullopt};
       if (segment_offsets) {
-        auto edge_partition_frontier_major_first =
-          thrust_tuple_get_or_identity<decltype(edge_partition_frontier_key_first), 0>(
-            edge_partition_frontier_key_first);
-        auto edge_partition_frontier_major_last =
-          thrust_tuple_get_or_identity<decltype(edge_partition_frontier_key_last), 0>(
-            edge_partition_frontier_key_last);
         key_segment_offsets = compute_key_segment_offsets(
           edge_partition_frontier_major_first,
           edge_partition_frontier_major_last,
@@ -856,7 +856,15 @@ extract_transform_v_frontier_e(raft::handle_t const& handle,
       }
       key_segment_offset_vectors.push_back(std::move(key_segment_offsets));
 
-      auto edge_partition_max_pushes = max_push_counts[partition_idx];
+      size_t edge_partition_max_pushes = max_pushes;
+      if constexpr (GraphViewType::is_multi_gpu) {
+        auto& minor_comm = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
+        auto const minor_comm_rank = minor_comm.get_rank();
+        if (static_cast<int>(partition_idx) != minor_comm_rank) {
+          edge_partition_max_pushes = edge_partition.compute_number_of_edges(
+            edge_partition_frontier_major_first, edge_partition_frontier_major_last, loop_stream);
+        }
+      }
 
       output_key_buffers.push_back(
         allocate_optional_dataframe_buffer<output_key_t>(edge_partition_max_pushes, loop_stream));
