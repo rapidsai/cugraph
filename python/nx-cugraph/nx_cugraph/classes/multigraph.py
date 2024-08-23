@@ -20,6 +20,7 @@ import networkx as nx
 import numpy as np
 
 import nx_cugraph as nxcg
+from nx_cugraph import _nxver
 
 from ..utils import index_dtype
 from .graph import Graph
@@ -105,7 +106,12 @@ class MultiGraph(Graph):
             and len(new_graph.edge_keys) != src_indices.size
         ):
             raise ValueError
-        if zero or zero is None and nx.config.backends.cugraph.zero:
+        if (
+            zero
+            or zero is None
+            and _nxver >= (3, 3)
+            and nx.config.backends.cugraph.zero
+        ):
             new_graph = new_graph.to_zero()
         return new_graph
 
@@ -274,8 +280,6 @@ class MultiGraph(Graph):
         else:
             new_graph = super().__new__(cls, incoming_graph_data)
         new_graph.graph.update(attr)
-        # if nx.config.backends.cugraph.zero:
-        #     new_graph = new_graph.to_zero()  # XXX
         return new_graph
 
     #################

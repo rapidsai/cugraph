@@ -43,7 +43,6 @@ dependencies:
 - numpydoc
 - nvcc_linux-64=11.8
 - openmpi
-- packaging>=21
 - pandas
 - pre-commit
 - pydantic

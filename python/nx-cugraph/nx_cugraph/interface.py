@@ -18,6 +18,7 @@ import sys
 import networkx as nx
 
 import nx_cugraph as nxcg
+from nx_cugraph import _nxver
 
 
 class BackendInterface:
@@ -32,20 +33,18 @@ class BackendInterface:
                     "edge_attrs and weight arguments should not both be given"
                 )
             edge_attrs = {weight: 1}
-        try:
-            return nxcg.from_networkx(
-                graph,
-                *args,
-                edge_attrs=edge_attrs,
-                zero=nx.config.backends.cugraph.zero,
-                **kwargs,
-            )
-        except Exception as exc:
-            raise NotImplementedError from exc
+        return nxcg.from_networkx(
+            graph,
+            *args,
+            edge_attrs=edge_attrs,
+            zero=_nxver >= (3, 3) and nx.config.backends.cugraph.zero,
+            **kwargs,
+        )
 
     @staticmethod
     def convert_to_nx(obj, *, name: str | None = None):
         if isinstance(obj, nxcg.Graph):
+            # Observe that this does not try to convert ZeroGraph!
             return nxcg.to_networkx(obj)
         return obj
 
@@ -184,11 +183,7 @@ class BackendInterface:
             ): no_string_dtype,
         }
 
-        from packaging.version import parse
-
-        nxver = parse(nx.__version__)
-
-        if nxver.major == 3 and nxver.minor <= 2:
+        if _nxver <= (3, 2):
             xfail.update(
                 {
                     # NetworkX versions prior to 3.2.1 have tests written to
@@ -225,7 +220,7 @@ class BackendInterface:
                 }
             )
 
-        if nxver.major == 3 and nxver.minor <= 1:
+        if _nxver <= (3, 1):
             # MAINT: networkx 3.0, 3.1
             # NetworkX 3.2 added the ability to "fallback to nx" if backend algorithms
             # raise NotImplementedError or `can_run` returns False. The tests below
@@ -341,7 +336,7 @@ class BackendInterface:
                 xfail[key("test_louvain.py:test_threshold")] = (
                     "Louvain does not support seed parameter"
                 )
-            if nxver.major == 3 and nxver.minor >= 2:
+            if _nxver >= (3, 2):
                 xfail.update(
                     {
                         key(
@@ -358,7 +353,7 @@ class BackendInterface:
                         ): no_string_dtype,
                     }
                 )
-                if nxver.minor == 2:
+                if _nxver[1] == 2:
                     different_iteration_order = "Different graph data iteration order"
                     xfail.update(
                         {
@@ -375,7 +370,7 @@ class BackendInterface:
                             ): different_iteration_order,
                         }
                     )
-                elif nxver.minor >= 3:
+                elif _nxver[1] >= 3:
                     xfail.update(
                         {
                             key("test_louvain.py:test_max_level"): louvain_different,

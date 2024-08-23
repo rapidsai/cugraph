@@ -301,7 +301,8 @@ def get_info():
     return d
 
 
-def _check_networkx_version():
+def _check_networkx_version() -> tuple[int, int]:
+    """Check the version of networkx and return ``(major, minor)`` version tuple."""
     import re
     import warnings
 
@@ -325,6 +326,10 @@ def _check_networkx_version():
             f"nx-cugraph version {__version__} does not work with networkx version "
             f"{nx.__version__}. Please upgrade (or fix) your Python environment."
         )
+
+    nxver_major = int(version_major)
+    nxver_minor = int(re.match(r"^\d+", version_minor).group())
+    return (nxver_major, nxver_minor)
 
 
 if __name__ == "__main__":

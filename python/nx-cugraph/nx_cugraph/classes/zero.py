@@ -21,8 +21,15 @@ from networkx.classes.graph import (
 )
 
 import nx_cugraph as nxcg
+from nx_cugraph import _nxver
 
-_CACHE_KEY = (True, True)
+if _nxver < (3, 4):
+    _CACHE_KEY = (True, True, True)
+else:
+    _CACHE_KEY = (True, True)
+
+# Use to indicate when a full conversion to GPU failed so we don't try again.
+_CANT_CONVERT_TO_GPU = "_CANT_CONVERT_TO_GPU"
 
 
 # `collections.UserDict` was the preferred way to subclass dict, but now
@@ -81,17 +88,24 @@ class ZeroGraph(nx.Graph):
 
     @property
     def _cugraph(self):
-        cache = getattr(self, "__networkx_cache__", None)
-        if cache is None:
-            cache = {}
-        cache = cache.setdefault("backends", {}).setdefault("cugraph", {})
+        nx_cache = getattr(self, "__networkx_cache__", None)
+        if nx_cache is None:
+            nx_cache = {}
+        elif _CANT_CONVERT_TO_GPU in nx_cache:
+            return None
+        cache = nx_cache.setdefault("backends", {}).setdefault("cugraph", {})
         if (Gcg := cache.get(_CACHE_KEY)) is not None:
             return Gcg
         if self.__dict__["_node"] is None:
             raise RuntimeError("XXX")
-        Gcg = nxcg.from_networkx(
-            self, preserve_edge_attrs=True, preserve_node_attrs=True
-        )
+        try:
+            Gcg = nxcg.from_networkx(
+                self, preserve_edge_attrs=True, preserve_node_attrs=True
+            )
+        except Exception:
+            # Should we warn that the full graph can't be on GPU?
+            nx_cache[_CANT_CONVERT_TO_GPU] = True
+            return None
         Gcg.graph = self.graph
         cache[_CACHE_KEY] = Gcg
         return Gcg

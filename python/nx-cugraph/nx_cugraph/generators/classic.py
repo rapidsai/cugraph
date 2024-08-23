@@ -18,6 +18,7 @@ import networkx as nx
 import numpy as np
 
 import nx_cugraph as nxcg
+from nx_cugraph import _nxver
 
 from ..utils import _get_int_dtype, index_dtype, networkx_algorithm
 from ._utils import (
@@ -102,7 +103,7 @@ def complete_graph(n, create_using=None):
 @networkx_algorithm(version_added="23.12")
 def complete_multipartite_graph(*subset_sizes):
     if not subset_sizes:
-        if nx.config.backends.cugraph.zero:
+        if _nxver >= (3, 3) and nx.config.backends.cugraph.zero:
             return nxcg.ZeroGraph()
         return nxcg.Graph()
     try:

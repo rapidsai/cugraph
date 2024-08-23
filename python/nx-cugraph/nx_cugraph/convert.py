@@ -12,6 +12,7 @@
 # limitations under the License.
 from __future__ import annotations
 
+import functools
 import itertools
 import operator as op
 from collections import Counter, defaultdict
@@ -23,10 +24,14 @@ import networkx as nx
 import numpy as np
 
 import nx_cugraph as nxcg
+from nx_cugraph import _nxver
 
 from .classes.zero import ZeroGraph
 from .utils import index_dtype, networkx_algorithm
 from .utils.misc import pairwise
+
+if _nxver >= (3, 4):
+    from networkx.utils.backends import _get_cache_key, _get_from_cache, _set_to_cache
 
 if TYPE_CHECKING:  # pragma: no cover
     from nx_cugraph.typing import AttrKey, Dtype, EdgeValue, NodeValue, any_ndarray
@@ -61,6 +66,25 @@ def _iterate_values(graph, adj, is_dicts, func):
     return func(it), False
 
 
+def _not_implemented_error_diaper(func):
+    """Catch and convert exceptions to ``NotImplementedError``
+
+    ``nx.NetworkXError`` are raised without being converted.
+    """
+
+    @functools.wraps(func)
+    def inner(*args, **kwargs):
+        try:
+            return func(*args, **kwargs)
+        except nx.NetworkXError:
+            raise
+        except Exception as exc:
+            raise NotImplementedError from exc
+
+    return inner
+
+
+@_not_implemented_error_diaper
 def from_networkx(
     graph: nx.Graph,
     edge_attrs: AttrKey | dict[AttrKey, EdgeValue | None] | None = None,
@@ -148,12 +172,31 @@ def from_networkx(
         else:
             raise TypeError(f"Expected networkx.Graph; got {type(graph)}")
     elif isinstance(graph, ZeroGraph):
-        if zero or zero is None and nx.config.backends.cugraph.zero:
+        if (
+            zero
+            or zero is None
+            and _nxver >= (3, 3)
+            and nx.config.backends.cugraph.zero
+        ):
             return graph
         if graph._is_on_gpu:
             return graph._cugraph
         if not graph._is_on_cpu:
             raise RuntimeError("TODO")
+        if _nxver >= (3, 4):
+            cache_key = _get_cache_key(
+                edge_attrs=edge_attrs,
+                node_attrs=node_attrs,
+                preserve_edge_attrs=preserve_edge_attrs,
+                preserve_node_attrs=preserve_node_attrs,
+                preserve_graph_attrs=preserve_graph_attrs,
+            )
+            cache = getattr(graph, "__networkx_cache__", None)
+            if cache is not None:
+                cache = cache.setdefault("backends", {}).setdefault("cugraph", {})
+                compat_key, rv = _get_from_cache(cache, cache_key)
+                if rv is not None:
+                    return rv
 
     if preserve_all_attrs:
         preserve_edge_attrs = True
@@ -503,6 +546,9 @@ def from_networkx(
         )
     if preserve_graph_attrs:
         rv.graph.update(graph.graph)  # deepcopy?
+    if _nxver >= (3, 4) and isinstance(graph, ZeroGraph) and cache is not None:
+        # Make sure this conversion is added to the cache
+        _set_to_cache(cache, cache_key, rv)
     return rv
 
 
@@ -575,8 +621,7 @@ def to_networkx(G: nxcg.Graph, *, sort_edges: bool = False) -> nx.Graph:
     """
     if isinstance(G, ZeroGraph):
         # ZeroGraphs are already NetworkX graphs :)
-        # return G  # XXX: need to test
-        G = G._cugraph
+        return G
     rv = G.to_networkx_class()()
     id_to_key = G.id_to_key
     if sort_edges:

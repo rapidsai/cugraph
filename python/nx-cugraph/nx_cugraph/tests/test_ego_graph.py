@@ -12,16 +12,13 @@
 # limitations under the License.
 import networkx as nx
 import pytest
-from packaging.version import parse
 
 import nx_cugraph as nxcg
+from nx_cugraph import _nxver
 
 from .testing_utils import assert_graphs_equal
 
-nxver = parse(nx.__version__)
-
-
-if nxver.major == 3 and nxver.minor < 2:
+if _nxver < (3, 2):
     pytest.skip("Need NetworkX >=3.2 to test ego_graph", allow_module_level=True)
 
 
@@ -61,7 +58,7 @@ def test_ego_graph_cycle_graph(
 
     kwargs["distance"] = "weight"
     H2nx = nx.ego_graph(Gnx, n, **kwargs)
-    is_nx32 = nxver.major == 3 and nxver.minor == 2
+    is_nx32 = _nxver[:2] == (3, 2)
     if undirected and Gnx.is_directed() and Gnx.is_multigraph():
         if is_nx32:
             # `should_run` was added in nx 3.3

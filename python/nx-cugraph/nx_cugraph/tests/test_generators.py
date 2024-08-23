@@ -13,16 +13,13 @@
 import networkx as nx
 import numpy as np
 import pytest
-from packaging.version import parse
 
 import nx_cugraph as nxcg
+from nx_cugraph import _nxver
 
 from .testing_utils import assert_graphs_equal
 
-nxver = parse(nx.__version__)
-
-
-if nxver.major == 3 and nxver.minor < 2:
+if _nxver < (3, 2):
     pytest.skip("Need NetworkX >=3.2 to test generators", allow_module_level=True)
 
 

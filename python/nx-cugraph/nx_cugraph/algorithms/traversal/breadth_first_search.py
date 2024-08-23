@@ -18,6 +18,7 @@ import numpy as np
 import pylibcugraph as plc
 
 import nx_cugraph as nxcg
+from nx_cugraph import _nxver
 from nx_cugraph.convert import _to_graph
 from nx_cugraph.utils import _groupby, index_dtype, networkx_algorithm
 
@@ -57,7 +58,7 @@ def _bfs(G, source, *, depth_limit=None, reverse=False):
     return distances[mask], predecessors[mask], node_ids[mask]
 
 
-if nx.__version__[:3] <= "3.3":
+if _nxver <= (3, 3):
 
     @networkx_algorithm(is_incomplete=True, version_added="24.02", _plc="bfs")
     def generic_bfs_edges(

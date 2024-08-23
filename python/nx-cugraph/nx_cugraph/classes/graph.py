@@ -22,6 +22,7 @@ import numpy as np
 import pylibcugraph as plc
 
 import nx_cugraph as nxcg
+from nx_cugraph import _nxver
 
 from ..utils import index_dtype
 from .zero import ZeroGraph
@@ -175,7 +176,12 @@ class Graph:
         isolates = nxcg.algorithms.isolate._isolates(new_graph)
         if len(isolates) > 0:
             new_graph._node_ids = cp.arange(new_graph._N, dtype=index_dtype)
-        if zero or zero is None and nx.config.backends.cugraph.zero:
+        if (
+            zero
+            or zero is None
+            and _nxver >= (3, 3)
+            and nx.config.backends.cugraph.zero
+        ):
             new_graph = new_graph.to_zero()
         return new_graph
 

@@ -15,6 +15,7 @@ import networkx as nx
 import pylibcugraph as plc
 
 import nx_cugraph as nxcg
+from nx_cugraph import _nxver
 from nx_cugraph.convert import _to_undirected_graph
 from nx_cugraph.utils import (
     _get_int_dtype,
@@ -63,7 +64,7 @@ def k_truss(G, k):
     else:
         zero = False
     if nxcg.number_of_selfloops(G) > 0:
-        if nx.__version__[:3] <= "3.2":
+        if _nxver <= (3, 2):
             exc_class = nx.NetworkXError
         else:
             exc_class = nx.NetworkXNotImplemented
