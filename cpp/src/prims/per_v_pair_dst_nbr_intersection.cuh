@@ -55,11 +55,10 @@ namespace cugraph {
 
 namespace detail {
 
-
 }  // namespace detail
 
 /**
- * @brief Iterate over each input vertex pair and return the common destination neighbor list
+ * @brief Iterate over each input vertex pair and returns the common destination neighbor list
  * pair in a CSR-like format
  *
  * Iterate over every vertex pair; intersect destination neighbor lists of the two vertices in the
@@ -75,12 +74,12 @@ namespace detail {
  * @param A flag to run expensive checks for input arguments (if set to `true`).
  */
 template <typename GraphViewType, typename VertexPairIterator>
-std::tuple<rmm::device_uvector<size_t>, rmm::device_uvector<typename GraphViewType::vertex_type>> per_v_pair_dst_nbr_intersection(
-  raft::handle_t const& handle,
-  GraphViewType const& graph_view,
-  VertexPairIterator vertex_pair_first,
-  VertexPairIterator vertex_pair_last,
-  bool do_expensive_check = false)
+std::tuple<rmm::device_uvector<size_t>, rmm::device_uvector<typename GraphViewType::vertex_type>>
+per_v_pair_dst_nbr_intersection(raft::handle_t const& handle,
+                                GraphViewType const& graph_view,
+                                VertexPairIterator vertex_pair_first,
+                                VertexPairIterator vertex_pair_last,
+                                bool do_expensive_check = false)
 {
   static_assert(!GraphViewType::is_storage_transposed);
 
@@ -92,15 +91,15 @@ std::tuple<rmm::device_uvector<size_t>, rmm::device_uvector<typename GraphViewTy
   }
 
   auto [intersection_offsets, intersection_indices] =
-      detail::nbr_intersection(handle,
-                               graph_view,
-                               cugraph::edge_dummy_property_t{}.view(),
-                               vertex_pair_first,
-                               vertex_pair_last,
-                               std::array<bool, 2>{true, true},
-                               false /*FIXME: pass 'do_expensive_check' as argument*/);
+    detail::nbr_intersection(handle,
+                             graph_view,
+                             cugraph::edge_dummy_property_t{}.view(),
+                             vertex_pair_first,
+                             vertex_pair_last,
+                             std::array<bool, 2>{true, true},
+                             false /*FIXME: pass 'do_expensive_check' as argument*/);
 
- return std::make_tuple(std::move(intersection_offsets), std::move(intersection_indices));
+  return std::make_tuple(std::move(intersection_offsets), std::move(intersection_indices));
 }
 
 }  // namespace cugraph
