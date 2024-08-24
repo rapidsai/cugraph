@@ -307,6 +307,13 @@ void fill_edge_minor_property(raft::handle_t const& handle,
   using edge_t   = typename GraphViewType::edge_type;
 
   auto edge_partition_value_first = edge_minor_property_output.value_first();
+  vertex_t minor_range_first{};
+  if constexpr (GraphViewType::is_storage_transposed) {
+    minor_range_first = graph_view.local_edge_partition_src_range_first();
+  } else {
+    minor_range_first = graph_view.local_edge_partition_dst_range_first();
+  }
+
   if constexpr (GraphViewType::is_multi_gpu) {
     auto& comm                 = handle.get_comms();
     auto const comm_rank       = comm.get_rank();
@@ -328,6 +335,7 @@ void fill_edge_minor_property(raft::handle_t const& handle,
                        });
       raft::update_host(v_list_range.data(), tmps.data(), 2, handle.get_stream());
       handle.sync_stream();
+      v_list_range[0] -= (v_list_range[0] - minor_range_first) % packed_bools_per_word();
     }
 
     auto v_list_bitmap = compute_vertex_list_bitmap_info(sorted_unique_vertex_first,
@@ -357,85 +365,119 @@ void fill_edge_minor_property(raft::handle_t const& handle,
       key_offsets = graph_view.local_sorted_unique_edge_dst_vertex_partition_offsets();
     }
 
-    auto edge_partition =
-      edge_partition_device_view_t<vertex_t, edge_t, GraphViewType::is_multi_gpu>(
-        graph_view.local_edge_partition_view(size_t{0}));
     auto edge_partition_keys = edge_minor_property_output.keys();
     for (int i = 0; i < major_comm_size; ++i) {
-      rmm::device_uvector<vertex_t> rx_vertices(local_v_list_sizes[i], handle.get_stream());
-      // FIXME: these broadcast operations can be placed between ncclGroupStart() and
-      // ncclGroupEnd()
-      std::variant<raft::device_span<uint32_t const>, decltype(sorted_unique_vertex_first)>
-        v_list{};
-      if (use_bitmap_flags[i]) {
-        v_list =
-          (i == major_comm_rank)
-            ? raft::device_span<uint32_t const>((*v_list_bitmap).data(), (*v_list_bitmap).size())
-            : raft::device_span<uint32_t const>(static_cast<uint32_t const*>(nullptr), size_t{0});
-      } else {
-        v_list = sorted_unique_vertex_first;
-      }
-      device_bcast_vertex_list(major_comm,
-                               v_list,
-                               rx_vertices.begin(),
-                               local_v_list_range_firsts[i],
-                               local_v_list_range_lasts[i],
-                               local_v_list_sizes[i],
-                               i,
-                               handle.get_stream());
-
-      if (edge_partition_keys) {
+      if (is_packed_bool<typename EdgeMinorPropertyOutputWrapper::value_iterator,
+                         typename EdgeMinorPropertyOutputWrapper::value_type>() &&
+          !edge_partition_keys && use_bitmap_flags[i]) {
+        rmm::device_uvector<uint32_t> rx_bitmap(
+          packed_bool_size(local_v_list_range_lasts[i] - local_v_list_range_firsts[i]),
+          handle.get_stream());
+        device_bcast(
+          major_comm,
+          (i == major_comm_rank) ? (*v_list_bitmap).data() : static_cast<uint32_t const*>(nullptr),
+          rx_bitmap.data(),
+          rx_bitmap.size(),
+          i,
+          handle.get_stream());
         thrust::for_each(
           handle.get_thrust_policy(),
           thrust::make_counting_iterator(size_t{0}),
-          thrust::make_counting_iterator(local_v_list_sizes[i]),
-          [rx_vertex_first = rx_vertices.begin(),
-           input,
-           subrange_key_first         = (*edge_partition_keys).begin() + (*key_offsets)[i],
-           subrange_key_last          = (*edge_partition_keys).begin() + (*key_offsets)[i + 1],
-           edge_partition_value_first = edge_partition_value_first,
-           subrange_start_offset      = (*key_offsets)[i]] __device__(auto i) {
-            auto minor = *(rx_vertex_first + i);
-            auto it =
-              thrust::lower_bound(thrust::seq, subrange_key_first, subrange_key_last, minor);
-            if ((it != subrange_key_last) && (*it == minor)) {
-              auto subrange_offset = thrust::distance(subrange_key_first, it);
-              if constexpr (contains_packed_bool_element) {
-                fill_scalar_or_thrust_tuple(
-                  edge_partition_value_first, subrange_start_offset + subrange_offset, input);
+          thrust::make_counting_iterator(rx_bitmap.size()),
+          [input,
+           output_value_first =
+             edge_partition_value_first +
+             packed_bool_offset(local_v_list_range_firsts[i] - minor_range_first),
+           rx_bitmap = raft::device_span<uint32_t const>(rx_bitmap.data(),
+                                                         rx_bitmap.size())] __device__(size_t i) {
+            if ((i == 0) || (i == (rx_bitmap.size() - 1))) {  // first or last
+              cuda::atomic_ref<uint32_t, cuda::thread_scope_device> word(*(output_value_first + i));
+              if (input) {
+                word.fetch_or(rx_bitmap[i], cuda::std::memory_order_relaxed);
               } else {
-                *(edge_partition_value_first + subrange_start_offset + subrange_offset) = input;
+                word.fetch_and(~rx_bitmap[i], cuda::std::memory_order_relaxed);
+              }
+            } else {
+              if (input) {
+                *(output_value_first + i) |= rx_bitmap[i];
+              } else {
+                *(output_value_first + i) &= ~rx_bitmap[i];
               }
             }
           });
       } else {
-        if constexpr (contains_packed_bool_element) {
+        rmm::device_uvector<vertex_t> rx_vertices(local_v_list_sizes[i], handle.get_stream());
+        // FIXME: these broadcast operations can be placed between ncclGroupStart() and
+        // ncclGroupEnd()
+        std::variant<raft::device_span<uint32_t const>, decltype(sorted_unique_vertex_first)>
+          v_list{};
+        if (use_bitmap_flags[i]) {
+          v_list =
+            (i == major_comm_rank)
+              ? raft::device_span<uint32_t const>((*v_list_bitmap).data(), (*v_list_bitmap).size())
+              : raft::device_span<uint32_t const>(static_cast<uint32_t const*>(nullptr), size_t{0});
+        } else {
+          v_list = sorted_unique_vertex_first;
+        }
+        device_bcast_vertex_list(major_comm,
+                                 v_list,
+                                 rx_vertices.begin(),
+                                 local_v_list_range_firsts[i],
+                                 local_v_list_range_lasts[i],
+                                 local_v_list_sizes[i],
+                                 i,
+                                 handle.get_stream());
+
+        if (edge_partition_keys) {
           thrust::for_each(
             handle.get_thrust_policy(),
-            thrust::make_counting_iterator(vertex_t{0}),
-            thrust::make_counting_iterator(static_cast<vertex_t>(local_v_list_sizes[i])),
-            [edge_partition,
-             rx_vertex_first = rx_vertices.begin(),
+            thrust::make_counting_iterator(size_t{0}),
+            thrust::make_counting_iterator(local_v_list_sizes[i]),
+            [rx_vertex_first = rx_vertices.begin(),
              input,
-             output_value_first = edge_partition_value_first] __device__(auto i) {
-              auto rx_vertex    = *(rx_vertex_first + i);
-              auto minor_offset = edge_partition.minor_offset_from_minor_nocheck(rx_vertex);
-              fill_scalar_or_thrust_tuple(output_value_first, minor_offset, input);
+             subrange_key_first         = (*edge_partition_keys).begin() + (*key_offsets)[i],
+             subrange_key_last          = (*edge_partition_keys).begin() + (*key_offsets)[i + 1],
+             edge_partition_value_first = edge_partition_value_first,
+             subrange_start_offset      = (*key_offsets)[i]] __device__(auto i) {
+              auto minor = *(rx_vertex_first + i);
+              auto it =
+                thrust::lower_bound(thrust::seq, subrange_key_first, subrange_key_last, minor);
+              if ((it != subrange_key_last) && (*it == minor)) {
+                auto subrange_offset = thrust::distance(subrange_key_first, it);
+                if constexpr (contains_packed_bool_element) {
+                  fill_scalar_or_thrust_tuple(
+                    edge_partition_value_first, subrange_start_offset + subrange_offset, input);
+                } else {
+                  *(edge_partition_value_first + subrange_start_offset + subrange_offset) = input;
+                }
+              }
             });
         } else {
-          auto map_first = thrust::make_transform_iterator(
-            rx_vertices.begin(),
-            cuda::proclaim_return_type<vertex_t>([edge_partition] __device__(auto v) {
-              return edge_partition.minor_offset_from_minor_nocheck(v);
-            }));
-          auto val_first = thrust::make_constant_iterator(input);
-          // FIXME: this scatter is unnecessary if NCCL directly takes a permutation iterator (and
-          // directly scatters from the internal buffer)
-          thrust::scatter(handle.get_thrust_policy(),
-                          val_first,
-                          val_first + local_v_list_sizes[i],
-                          map_first,
-                          edge_partition_value_first);
+          if constexpr (contains_packed_bool_element) {
+            thrust::for_each(
+              handle.get_thrust_policy(),
+              thrust::make_counting_iterator(vertex_t{0}),
+              thrust::make_counting_iterator(static_cast<vertex_t>(local_v_list_sizes[i])),
+              [minor_range_first,
+               rx_vertex_first = rx_vertices.begin(),
+               input,
+               output_value_first = edge_partition_value_first] __device__(auto i) {
+                auto rx_vertex    = *(rx_vertex_first + i);
+                auto minor_offset = rx_vertex - minor_range_first;
+                fill_scalar_or_thrust_tuple(output_value_first, minor_offset, input);
+              });
+          } else {
+            auto map_first = thrust::make_transform_iterator(
+              rx_vertices.begin(),
+              cuda::proclaim_return_type<vertex_t>(
+                [minor_range_first] __device__(auto v) { return v - minor_range_first; }));
+            auto val_first = thrust::make_constant_iterator(input);
+            thrust::scatter(handle.get_thrust_policy(),
+                            val_first,
+                            val_first + local_v_list_sizes[i],
+                            map_first,
+                            edge_partition_value_first);
+          }
         }
       }
     }
