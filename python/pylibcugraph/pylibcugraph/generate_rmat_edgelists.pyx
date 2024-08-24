@@ -26,14 +26,9 @@ from pylibcugraph._cugraph_c.error cimport (
 from pylibcugraph._cugraph_c.array cimport (
     cugraph_type_erased_device_array_view_t,
 )
-from pylibcugraph._cugraph_c.graph_generators cimport (
-    cugraph_generate_rmat_edgelists,
-    cugraph_generate_edge_weights,
-    cugraph_generate_edge_ids,
-    cugraph_generate_edge_types,
+from pylibcugraph._cugraph_c.coo cimport (
     cugraph_coo_t,
     cugraph_coo_list_t,
-    cugraph_generator_distribution_t,
     cugraph_coo_get_sources,
     cugraph_coo_get_destinations,
     cugraph_coo_get_edge_weights,
@@ -43,6 +38,13 @@ from pylibcugraph._cugraph_c.graph_generators cimport (
     cugraph_coo_list_element,
     cugraph_coo_free,
     cugraph_coo_list_free,
+)
+from pylibcugraph._cugraph_c.graph_generators cimport (
+    cugraph_generate_rmat_edgelists,
+    cugraph_generate_edge_weights,
+    cugraph_generate_edge_ids,
+    cugraph_generate_edge_types,
+    cugraph_generator_distribution_t,
 )
 from pylibcugraph.resource_handle cimport (
     ResourceHandle,
