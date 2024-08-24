@@ -36,11 +36,7 @@ def relabel_nodes(G, mapping, copy=True):
                 "Using `copy=False` is invalid when using a NetworkX graph "
                 "as input to `nx_cugraph.relabel_nodes`"
             )
-        try:
-            G = nxcg.from_networkx(G, preserve_all_attrs=True)
-        except Exception as exc:
-            # XXX: this diaper pattern may be generally useful for 'zero'; what's best?
-            raise NotImplementedError("TODO") from exc
+        G = nxcg.from_networkx(G, preserve_all_attrs=True)
     else:
         zero = False
 

@@ -34,8 +34,7 @@ _CANT_CONVERT_TO_GPU = "_CANT_CONVERT_TO_GPU"
 
 # `collections.UserDict` was the preferred way to subclass dict, but now
 # subclassing dict directly is much better supported and should work here.
-# TODO: explore if having this class is strictly necessary, but we may choose
-# to keep it anyway out of an abundance of caution.
+# This class should only be necessary if the user clears the cache manually.
 class _ZeroGraphCache(dict):
     """Cache that ensures ZeroGraph will reify into a NetworkX graph when cleared."""
 
@@ -97,7 +96,12 @@ class ZeroGraph(nx.Graph):
         if (Gcg := cache.get(_CACHE_KEY)) is not None:
             return Gcg
         if self.__dict__["_node"] is None:
-            raise RuntimeError("XXX")
+            raise RuntimeError(
+                f"{type(self).__name__} cannot be converted to the GPU, because it is "
+                "not on the CPU! This is not supposed to be possible. If you believe "
+                "you have found a bug, please report a minimum reproducible example to "
+                "https://github.com/rapidsai/cugraph/issues/new/choose"
+            )
         try:
             Gcg = nxcg.from_networkx(
                 self, preserve_edge_attrs=True, preserve_node_attrs=True
@@ -115,6 +119,8 @@ class ZeroGraph(nx.Graph):
         if (cache := getattr(self, "__networkx_cache__", None)) is None:
             # Should we warn?
             return
+        # TODO: pay close attention to when we should clear the cache, since
+        # this may or may not be a mutation.
         cache = cache.setdefault("backends", {}).setdefault("cugraph", {})
         if val is None:
             cache.pop(_CACHE_KEY, None)
@@ -126,8 +132,9 @@ class ZeroGraph(nx.Graph):
 
     @nx.Graph.name.setter
     def name(self, s):
-        # Don't clear the cache when setting the name, since `.graph` is shared
-        # XXX
+        # Don't clear the cache when setting the name, since `.graph` is shared.
+        # There is a very small risk here for the cache to become (slightly)
+        # insconsistent if graphs from other backends are cached.
         self.graph["name"] = s
 
     @classmethod

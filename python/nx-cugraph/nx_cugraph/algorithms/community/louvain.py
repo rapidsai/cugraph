@@ -81,7 +81,7 @@ def _louvain_communities(
     node_ids, clusters, modularity = plc.louvain(
         resource_handle=plc.ResourceHandle(),
         graph=G._get_plc_graph(weight, 1, dtype),
-        max_level=max_level,  # TODO: add this parameter to NetworkX
+        max_level=max_level,
         threshold=threshold,
         resolution=resolution,
         do_expensive_check=False,

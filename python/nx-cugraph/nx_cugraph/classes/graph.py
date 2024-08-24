@@ -335,7 +335,7 @@ class Graph:
         else:
             raise NotImplementedError
         new_graph.graph.update(attr)
-        # XXX: we could return ZeroGraph here, but let's not for now
+        # We could return ZeroGraph here (if configured), but let's not for now
         return new_graph
 
     #################

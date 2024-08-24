@@ -163,7 +163,7 @@ def from_pandas_edgelist(
     return G
 
 
-@networkx_algorithm(version_added="23.12")
+@networkx_algorithm(version_added="23.12", fallback=True)
 def from_scipy_sparse_array(
     A, parallel_edges=False, create_using=None, edge_attribute="weight"
 ):

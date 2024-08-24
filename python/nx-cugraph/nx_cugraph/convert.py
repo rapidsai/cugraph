@@ -66,10 +66,12 @@ def _iterate_values(graph, adj, is_dicts, func):
     return func(it), False
 
 
-def _not_implemented_error_diaper(func):
-    """Catch and convert exceptions to ``NotImplementedError``
+# Consider adding this to `utils` if it is useful elsewhere
+def _fallback_decorator(func):
+    """Catch and convert exceptions to ``NotImplementedError``; use as a decorator.
 
-    ``nx.NetworkXError`` are raised without being converted.
+    ``nx.NetworkXError`` are raised without being converted. This allows
+    falling back to other backends if, for example, conversion to GPU failed.
     """
 
     @functools.wraps(func)
@@ -84,7 +86,7 @@ def _not_implemented_error_diaper(func):
     return inner
 
 
-@_not_implemented_error_diaper
+@_fallback_decorator
 def from_networkx(
     graph: nx.Graph,
     edge_attrs: AttrKey | dict[AttrKey, EdgeValue | None] | None = None,
@@ -182,7 +184,12 @@ def from_networkx(
         if graph._is_on_gpu:
             return graph._cugraph
         if not graph._is_on_cpu:
-            raise RuntimeError("TODO")
+            raise RuntimeError(
+                f"{type(graph).__name__} cannot be converted to the GPU, because it is "
+                "not on the CPU! This is not supposed to be possible. If you believe "
+                "you have found a bug, please report a minimum reproducible example to "
+                "https://github.com/rapidsai/cugraph/issues/new/choose"
+            )
         if _nxver >= (3, 4):
             cache_key = _get_cache_key(
                 edge_attrs=edge_attrs,
@@ -547,7 +554,9 @@ def from_networkx(
     if preserve_graph_attrs:
         rv.graph.update(graph.graph)  # deepcopy?
     if _nxver >= (3, 4) and isinstance(graph, ZeroGraph) and cache is not None:
-        # Make sure this conversion is added to the cache
+        # Make sure this conversion is added to the cache, and make all of
+        # our graphs share the same `.graph` attribute for consistency.
+        rv.graph = graph.graph
         _set_to_cache(cache, cache_key, rv)
     return rv
 
@@ -753,7 +762,7 @@ def _to_undirected_graph(
     raise TypeError
 
 
-@networkx_algorithm(version_added="24.08")
+@networkx_algorithm(version_added="24.08", fallback=True)
 def from_dict_of_lists(d, create_using=None):
     from .generators._utils import _create_using_class
 
