@@ -24,7 +24,6 @@ files:
       - depends_on_pylibcugraphops
       - depends_on_pylibwholegraph
       - depends_on_cupy
-      - depends_on_pytorch
       - python_run_cugraph
       - python_run_nx_cugraph
       - python_run_cugraph_dgl
@@ -66,7 +65,6 @@ files:
       - cuda_version
       - depends_on_cudf
       - depends_on_pylibwholegraph
-      - depends_on_pytorch
       - py_version
       - test_python_common
       - test_python_cugraph
@@ -202,7 +200,6 @@ files:
     includes:
       - test_python_common
       - depends_on_pylibwholegraph
-      - depends_on_pytorch
   py_build_cugraph_pyg:
     output: pyproject
     pyproject_dir: python/cugraph-pyg
@@ -229,7 +226,6 @@ files:
     includes:
       - test_python_common
       - depends_on_pylibwholegraph
-      - depends_on_pytorch
   py_build_cugraph_equivariant:
     output: pyproject
     pyproject_dir: python/cugraph-equivariant
@@ -662,10 +658,12 @@ dependencies:
       - output_types: [conda, pyproject]
         packages:
           - pandas
+          - pydantic
           - pytest
           - pytest-benchmark
           - pytest-cov
           - pytest-xdist
+          - torchdata
           - scipy
   test_python_cugraph:
     common:
@@ -709,36 +707,6 @@ dependencies:
           - pytorch-cuda==11.8
           - *tensordict
           - pyg>=2.5,<2.6
-
-  depends_on_pytorch:
-    common:
-      - output_types: [conda]
-        packages:
-          - &pytorch_unsuffixed pytorch>=2.0,<2.2.0a0
-          - torchdata
-          - pydantic
-
-    specific:
-      - output_types: [requirements]
-        matrices:
-          - matrix: {cuda: "12.*"}
-            packages:
-              - --extra-index-url=https://download.pytorch.org/whl/cu121
-          - matrix: {cuda: "11.*"}
-            packages:
-              - --extra-index-url=https://download.pytorch.org/whl/cu118
-          - {matrix: null, packages: null}
-      - output_types: [requirements, pyproject]
-        matrices:
-          - matrix: {cuda: "12.*"}
-            packages:
-              - &pytorch_pip torch>=2.0,<2.2.0a0
-              - *tensordict
-          - matrix: {cuda: "11.*"}
-            packages:
-              - *pytorch_pip
-              - *tensordict
-          - {matrix: null, packages: [*pytorch_pip, *tensordict]}
 
   depends_on_pylibwholegraph:
     common:
