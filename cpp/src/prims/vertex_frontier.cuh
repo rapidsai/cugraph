@@ -18,14 +18,19 @@
 #include <cugraph/utilities/device_comm.hpp>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/host_scalar_comm.hpp>
+#include <cugraph/utilities/packed_bool_utils.hpp>
 
 #include <raft/core/handle.hpp>
+#include <raft/core/device_span.hpp>
 #include <raft/core/host_span.hpp>
 #include <raft/util/cudart_utils.hpp>
 
 #include <rmm/device_scalar.hpp>
 #include <rmm/device_uvector.hpp>
 
+#include <cuda/atomic>
+#include <cuda/functional>
+#include <thrust/binary_search.h>
 #include <thrust/copy.h>
 #include <thrust/distance.h>
 #include <thrust/fill.h>
