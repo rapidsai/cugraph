@@ -28,7 +28,7 @@ from nx_cugraph import _nxver
 
 from .classes.zero import ZeroGraph
 from .utils import index_dtype, networkx_algorithm
-from .utils.misc import pairwise
+from .utils.misc import _And_NotImplementedError, pairwise
 
 if _nxver >= (3, 4):
     from networkx.utils.backends import _get_cache_key, _get_from_cache, _set_to_cache
@@ -81,7 +81,7 @@ def _fallback_decorator(func):
         except nx.NetworkXError:
             raise
         except Exception as exc:
-            raise NotImplementedError from exc
+            raise _And_NotImplementedError(exc) from exc
 
     return inner
 

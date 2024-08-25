@@ -22,6 +22,8 @@ from networkx.utils.decorators import nodes_or_number, not_implemented_for
 from nx_cugraph import _nxver
 from nx_cugraph.interface import BackendInterface
 
+from .misc import _And_NotImplementedError
+
 try:
     from networkx.utils.backends import _registered_algorithms
 except ModuleNotFoundError:
@@ -149,7 +151,7 @@ class networkx_algorithm:
         except NetworkXError:
             raise
         except Exception as exc:
-            raise NotImplementedError from exc
+            raise _And_NotImplementedError(exc) from exc
 
     def __reduce__(self):
         return _restore_networkx_dispatched, (self.name,)
