@@ -19,7 +19,6 @@
 #include "bh_kernels.cuh"
 #include "converters/legacy/COOtoCSR.cuh"
 #include "fa2_kernels.cuh"
-#include "utilities/graph_utils.cuh"
 #include "utils.hpp"
 
 #include <cugraph/detail/utility_wrappers.hpp>
