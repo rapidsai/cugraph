@@ -35,7 +35,7 @@ This script downloads the specified dataset using `cugraph.datasets`.
   ```
 
 #### 3. `create_results_summary_page.py`
-This script is designed to be run after `run-gap-benchmarks.sh` in order to generate an HTML page displaying a results table comparing default NetworkX to nx-cugraph. It also includes information about the machine the benchmarks were run on.
+This script is designed to be run after `run-gap-benchmarks.sh` in order to generate an HTML page displaying a results table comparing default NetworkX to nx-cugraph. The script also provides information about the current system.
 
 **Usage:**
   ```bash
