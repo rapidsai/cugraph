@@ -53,8 +53,9 @@ for algo in $algos; do
     python get_graph_bench_dataset.py $dataset
         for backend in $backends; do
             name="${backend}__${algo}__${dataset}"
-            # echo "Running: $backend, $dataset, bench_$algo"
-            echo "RUNNING: \"pytest -sv -k \"$backend and $dataset and bench_$algo and not 1000\" --benchmark-json=\"logs/${name}.json\" bench_algos.py"
+            echo "Running: $backend, $dataset, bench_$algo"
+            # command to preproduce test
+            # echo "RUNNING: \"pytest -sv -k \"$backend and $dataset and bench_$algo and not 1000\" --benchmark-json=\"logs/${name}.json\" bench_algos.py"
             pytest -sv \
                 -k "$backend and $dataset and bench_$algo and not 1000" \
                 --benchmark-json="logs/${name}.json" \
