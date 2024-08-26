@@ -27,9 +27,6 @@ algos="
     triangles
     bfs_predecessors
 "
-algos="
-    weakly_connected_components
-"
 datasets="
    netscience
    email_Eu_core
@@ -44,17 +41,10 @@ datasets="
    hollywood
    soc-livejournal
 "
-datasets="
-   hollywood
-"
-
 # None backend is default networkx
 # cugraph-preconvert backend is nx-cugraph
 backends="
     None
-    cugraph-preconverted
-"
-backends="
     cugraph-preconverted
 "
 
