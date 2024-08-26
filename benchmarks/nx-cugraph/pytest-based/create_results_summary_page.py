@@ -38,19 +38,23 @@ def compute_perf_vals(cugraph_runtime, networkx_runtime):
     return (speedup_string, delta_string)
 
 
-def get_system_info():
-    print(f"<p>Hostname        : {socket.gethostname()}</p>")
-    print(
-        f'<p class="text-indent"">Operating System: {platform.system()} {platform.release()}</p>'
-    )
-    print(f'<p class="text-indent">Kernel Version  : {platform.version()}</p>')
-    with open("/proc/cpuinfo") as f:
-        print(
-            f'<p>CPU        : {next(line.strip().split(": ")[1] for line in f if "model name" in line)} ({psutil.cpu_count(logical=False)} cores)</p>'
+def get_mem_info():
+    return round(psutil.virtual_memory().total / (1024**3), 2)
+
+
+def get_cuda_version():
+    output = subprocess.check_output("nvidia-smi", shell=True).decode()
+    try:
+        return next(
+            line.split("CUDA Version: ")[1].split()[0]
+            for line in output.splitlines()
+            if "CUDA Version" in line
         )
-    print(
-        f'<p class="text-indent">Memory       : {round(psutil.virtual_memory().total / (1024 ** 3), 2)} GB</p>'
-    )
+    except subprocess.CalledProcessError:
+        return "Failed to get CUDA version."
+
+
+def get_first_gpu_info():
     try:
         gpu_info = (
             subprocess.check_output(
@@ -65,13 +69,26 @@ def get_system_info():
             num_gpus = len(gpus)
             first_gpu = gpus[0]  # Get the information for the first GPU
             gpu_name, mem_total, _, _ = first_gpu.split(",")
-            print(
-                f"<p>GPU          : {num_gpus} x {gpu_name.strip()} ({round(int(mem_total.strip().split()[0]) / (1024), 2)} GB)</p>"
-            )
+            return f"{num_gpus} x {gpu_name.strip()} ({round(int(mem_total.strip().split()[0]) / (1024), 2)} GB)"
         else:
-            print("<p>No GPU found or unable to query GPU details.</p>")
+            print("No GPU found or unable to query GPU details.")
     except subprocess.CalledProcessError:
-        print("<p>Failed to execute nvidia-smi. No GPU information available.</p>")
+        print("Failed to execute nvidia-smi. No GPU information available.")
+
+
+def get_system_info():
+    print(f"<p>Hostname: {socket.gethostname()}</p>")
+    print(
+        f'<p class="text-indent"">Operating System: {platform.system()} {platform.release()}</p>'
+    )
+    print(f'<p class="text-indent">Kernel Version  : {platform.version()}</p>')
+    with open("/proc/cpuinfo") as f:
+        print(
+            f'<p>CPU: {next(line.strip().split(": ")[1] for line in f if "model name" in line)} ({psutil.cpu_count(logical=False)} cores)</p>'
+        )
+    print(f'<p class="text-indent">Memory: {get_mem_info()} GB</p>')
+    print(f"<p>GPU: {get_first_gpu_info()}</p>")
+    print(f"<p>CUDA Version: {get_cuda_version()}</p>")
 
 
 if __name__ == "__main__":

@@ -19,7 +19,7 @@ Our current benchmarks provide the following datasets:
 ### Scripts
 
 #### 1. `run-gap-benchmarks.sh`
-This script allows users to run selected algorithms across multiple datasets and backends. All results are stored inside a sub-directory (`logs/`) and named based on the combination of params for that benchmark.
+This script allows users to run selected algorithms across multiple datasets and backends. All results are stored inside a sub-directory (`logs/`) and output files are named based on the combination of parameters for that benchmark.
 
 **Usage:**
   ```bash
@@ -35,7 +35,7 @@ This script downloads the specified dataset using `cugraph.datasets`.
   ```
 
 #### 3. `create_results_summary_page.py`
-This script is designed to be run after `run-gap-benchmarks.sh` in order to generate an HTML page displaying a results table.
+This script is designed to be run after `run-gap-benchmarks.sh` in order to generate an HTML page displaying a results table comparing default NetworkX to nx-cugraph. It also includes information about the machine the benchmarks were run on.
 
 **Usage:**
   ```bash
