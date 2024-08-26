@@ -21,6 +21,8 @@ Our current benchmarks provide the following datasets:
 #### 1. `run-gap-benchmarks.sh`
 This script allows users to run selected algorithms across multiple datasets and backends. All results are stored inside a sub-directory (`logs/`) and output files are named based on the combination of parameters for that benchmark.
 
+NOTE: If running with all algorithms, datasets, and backends, this script may take a few hours to finish running.
+
 **Usage:**
   ```bash
   bash run-gap-benchmarks.sh  # edit this script directly
