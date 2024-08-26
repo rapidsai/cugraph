@@ -266,7 +266,7 @@ def graph_objs(request):
 @pytest.mark.managedmem_off
 @pytest.mark.poolallocator_on
 @pytest.mark.parametrize("batch_size", params.batch_sizes.values())
-@pytest.mark.parametrize("fanout", [params.fanout_10_25, params.fanout_5_10_15])
+@pytest.mark.parametrize("fanout", [params.fanout_10_25])
 @pytest.mark.parametrize(
     "with_replacement", [False], ids=lambda v: f"with_replacement={v}"
 )
