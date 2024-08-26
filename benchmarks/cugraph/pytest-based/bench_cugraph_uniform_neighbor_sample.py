@@ -287,6 +287,8 @@ def bench_cugraph_uniform_neighbor_sample(
         start_list=uns_args["start_list"],
         fanout_vals=uns_args["fanout"],
         with_replacement=uns_args["with_replacement"],
+        use_legacy_names=False,
+        with_edge_properties=True,
     )
     """
     dtmap = {"int32": 32 // 8, "int64": 64 // 8}
