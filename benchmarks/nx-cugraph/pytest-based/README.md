@@ -21,7 +21,7 @@ Our current benchmarks provide the following datasets:
 #### 1. `run-gap-benchmarks.sh`
 This script allows users to run selected algorithms across multiple datasets and backends. All results are stored inside a sub-directory (`logs/`) and named based on the combination of params for that benchmark.
 
-**Usage:** 
+**Usage:**
   ```bash
   bash run-gap-benchmarks.sh  # edit this script directly
   ```
@@ -29,7 +29,7 @@ This script allows users to run selected algorithms across multiple datasets and
 #### 2. `get_graph_bench_dataset.py`
 This script downloads the specified dataset using `cugraph.datasets`.
 
-**Usage:** 
+**Usage:**
   ```bash
   python get_graph_bench_dataset.py [dataset]
   ```
@@ -37,8 +37,7 @@ This script downloads the specified dataset using `cugraph.datasets`.
 #### 3. `create_results_summary_page.py`
 This script is designed to be run after `run-gap-benchmarks.sh` in order to generate an HTML page displaying a results table.
 
-**Usage:** 
+**Usage:**
   ```bash
   python create_results_summary_page.py > report.html
   ```
-

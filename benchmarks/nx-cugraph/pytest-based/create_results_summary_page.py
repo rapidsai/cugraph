@@ -15,6 +15,10 @@
 import re
 import pathlib
 import json
+import platform
+import psutil
+import socket
+import subprocess
 
 
 def compute_perf_vals(cugraph_runtime, networkx_runtime):
@@ -32,6 +36,42 @@ def compute_perf_vals(cugraph_runtime, networkx_runtime):
     delta_string = f"{delta:.3f}{units}"
 
     return (speedup_string, delta_string)
+
+
+def get_system_info():
+    print(f"<p>Hostname        : {socket.gethostname()}</p>")
+    print(
+        f'<p class="text-indent"">Operating System: {platform.system()} {platform.release()}</p>'
+    )
+    print(f'<p class="text-indent">Kernel Version  : {platform.version()}</p>')
+    with open("/proc/cpuinfo") as f:
+        print(
+            f'<p>CPU        : {next(line.strip().split(": ")[1] for line in f if "model name" in line)} ({psutil.cpu_count(logical=False)} cores)</p>'
+        )
+    print(
+        f'<p class="text-indent">Memory       : {round(psutil.virtual_memory().total / (1024 ** 3), 2)} GB</p>'
+    )
+    try:
+        gpu_info = (
+            subprocess.check_output(
+                "nvidia-smi --query-gpu=name,memory.total,memory.free,memory.used --format=csv,noheader",
+                shell=True,
+            )
+            .decode()
+            .strip()
+        )
+        if gpu_info:
+            gpus = gpu_info.split("\n")
+            num_gpus = len(gpus)
+            first_gpu = gpus[0]  # Get the information for the first GPU
+            gpu_name, mem_total, _, _ = first_gpu.split(",")
+            print(
+                f"<p>GPU          : {num_gpus} x {gpu_name.strip()} ({round(int(mem_total.strip().split()[0]) / (1024), 2)} GB)</p>"
+            )
+        else:
+            print("<p>No GPU found or unable to query GPU details.</p>")
+    except subprocess.CalledProcessError:
+        print("<p>Failed to execute nvidia-smi. No GPU information available.</p>")
 
 
 if __name__ == "__main__":
@@ -84,8 +124,9 @@ if __name__ == "__main__":
                 backend = "networkx"
 
             runtime = benchmark_run["stats"]["mean"]
-            benchmarks.setdefault(algo_name, {}).setdefault(backend, {})[dataset] = runtime
-    # breakpoint()
+            benchmarks.setdefault(algo_name, {}).setdefault(backend, {})[
+                dataset
+            ] = runtime
 
     # dump HTML table
     ordered_datasets = [
@@ -123,19 +164,12 @@ if __name__ == "__main__":
         .footer {
             background-color: #f1f1f1;
             padding: 10px;
-            text-align: center;
-            font-size: 14px;
-            color: #333;
-            left: 0;
-            bottom: 0;
+            font-size: 12px;
+            color: black;
             width: 100%;
         }
-        .footer a {
-            color: #007bff;
-            text-decoration: none;
-        }
-        .footer a:hover {
-            text-decoration: underline;
+        .text-indent {
+            text-indent: 20px; /* Indents the first line of the text by 30px */
         }
     </style>
     </head>
@@ -152,7 +186,6 @@ if __name__ == "__main__":
     <tbody>
     """
     )
-
 
     for algo_name in benchmarks:
         algo_runs = benchmarks[algo_name]
@@ -172,7 +205,8 @@ if __name__ == "__main__":
                     cugraph_runtime = cugraph_algo_runs[dataset]
                     networkx_runtime = networkx_algo_runs[dataset]
                     (speedup, runtime_delta) = compute_perf_vals(
-                        cugraph_runtime=cugraph_runtime, networkx_runtime=networkx_runtime
+                        cugraph_runtime=cugraph_runtime,
+                        networkx_runtime=networkx_runtime,
                     )
                     print(f"      <td>{speedup}<br>{runtime_delta}</td>")
                 else:
@@ -188,11 +222,8 @@ if __name__ == "__main__":
 
     print(
         """
-    </tbody>
-    </table>
-    <div class="footer">
-        
-    </div>
-    </html>
-    """
+    </tbody>\n</table>
+    <div class="footer">"""
     )
+    get_system_info()
+    print("""</div>\n</html>""")
