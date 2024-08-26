@@ -95,7 +95,6 @@ class DistSampleWriter:
         fanout_length = (len(minibatch_dict["label_hop_offsets"]) - 1) // len(
             minibatch_dict["batch_id"]
         )
-        rank_batch_offset = minibatch_dict["batch_id"][0]
 
         for p in range(
             0, int(ceil(len(minibatch_dict["batch_id"]) / self.__batches_per_partition))
@@ -108,7 +107,7 @@ class DistSampleWriter:
             ]
 
             batch_id_array_p = minibatch_dict["batch_id"][partition_start:partition_end]
-            start_batch_id = batch_id_array_p[0] - rank_batch_offset
+            start_batch_id = batch_id_array_p[0]
 
             start_ix, end_ix = label_hop_offsets_array_p[[0, -1]]
             majors_array_p = minibatch_dict["majors"][start_ix:end_ix]

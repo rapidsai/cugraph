@@ -260,6 +260,10 @@ class DistSampler:
         )
 
         if self.__writer is None:
+            # rename renumber_map -> map to match unbuffered format
+            minibatch_dict["map"] = minibatch_dict["renumber_map"]
+            del minibatch_dict["renumber_map"]
+
             return iter([(minibatch_dict, current_batches[0], current_batches[-1])])
         else:
             self.__writer.write_minibatches(minibatch_dict)
