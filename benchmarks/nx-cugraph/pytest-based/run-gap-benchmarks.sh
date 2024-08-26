@@ -27,6 +27,9 @@ algos="
     triangles
     bfs_predecessors
 "
+algos="
+    weakly_connected_components
+"
 datasets="
    netscience
    email_Eu_core
@@ -34,20 +37,38 @@ datasets="
    hollywood
    soc-livejournal
 "
+datasets="
+   netscience
+   email_Eu_core
+   cit_patents
+   hollywood
+   soc-livejournal
+"
+datasets="
+   hollywood
+"
+
 # None backend is default networkx
 # cugraph-preconvert backend is nx-cugraph
 backends="
     None
     cugraph-preconverted
 "
+backends="
+    cugraph-preconverted
+"
 
-for dataset in $datasets; do
-    python ensure_dataset_accessible.py $dataset
-    for backend in $backends; do
-        for algo in $algos; do
+for algo in $algos; do
+    for dataset in $datasets; do
+    python get_graph_bench_dataset.py $dataset
+        for backend in $backends; do
             name="${backend}__${algo}__${dataset}"
+            # echo "Running: $backend, $dataset, bench_$algo"
             echo "RUNNING: \"pytest -sv -k \"$backend and $dataset and bench_$algo and not 1000\" --benchmark-json=\"logs/${name}.json\" bench_algos.py"
-            pytest -sv -k "$backend and $dataset and bench_$algo and not 1000" --benchmark-json="logs/${name}.json" bench_algos.py 2>&1 | tee "logs/${name}.out"
+            pytest -sv \
+                -k "$backend and $dataset and bench_$algo and not 1000" \
+                --benchmark-json="logs/${name}.json" \
+                bench_algos.py 2>&1 | tee "logs/${name}.out"
         done
     done
 done

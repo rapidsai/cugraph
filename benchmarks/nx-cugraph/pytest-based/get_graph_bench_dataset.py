@@ -25,9 +25,11 @@ import sys
 
 import cugraph.datasets as cgds
 
-# download and store dataset (csv) by using the Datasets API
-dataset = sys.argv[1].replace("-", "_")
-dataset_obj = getattr(cgds, dataset)
 
-if not dataset_obj.get_path().exists():
-    dataset_obj.get_edgelist(download=True)
+if __name__ == "__main__":
+    # download and store dataset (csv) by using the Datasets API
+    dataset = sys.argv[1].replace("-", "_")
+    dataset_obj = getattr(cgds, dataset)
+
+    if not dataset_obj.get_path().exists():
+        dataset_obj.get_edgelist(download=True)

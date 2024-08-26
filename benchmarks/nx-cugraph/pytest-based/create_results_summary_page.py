@@ -11,18 +11,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+
 import re
 import pathlib
 import json
-
-logs_dir = pathlib.Path("logs")
-
-dataset_patt = re.compile(".*ds=([\w-]+).*")
-backend_patt = re.compile(".*backend=(\w+).*")
-k_patt = re.compile(".*k=(10*).*")
-
-# Organize all benchmark runs by the following hierarchy: algo -> backend -> dataset
-benchmarks = {}
 
 
 def compute_perf_vals(cugraph_runtime, networkx_runtime):
@@ -42,136 +34,165 @@ def compute_perf_vals(cugraph_runtime, networkx_runtime):
     return (speedup_string, delta_string)
 
 
-# Populate benchmarks dir from .json files
-for json_file in logs_dir.glob("*.json"):
-    # print(f"READING {json_file}")
-    try:
-        data = json.loads(open(json_file).read())
-    except json.decoder.JSONDecodeError:
-        # print(f"PROBLEM READING {json_file}, skipping.")
-        continue
+if __name__ == "__main__":
+    logs_dir = pathlib.Path("logs")
 
-    for benchmark_run in data["benchmarks"]:
-        # example name: "bench_triangles[ds=netscience-backend=cugraph-preconverted]"
-        name = benchmark_run["name"]
+    dataset_patt = re.compile(".*ds=([\w-]+).*")
+    backend_patt = re.compile(".*backend=(\w+).*")
+    k_patt = re.compile(".*k=(10*).*")
 
-        algo_name = name.split("[")[0]
-        if algo_name.startswith("bench_"):
-            algo_name = algo_name[6:]
-        # special case for betweenness_centrality
-        match = k_patt.match(name)
-        if match is not None:
-            algo_name += f", k={match.group(1)}"
+    # Organize all benchmark runs by the following hierarchy: algo -> backend -> dataset
+    benchmarks = {}
 
-        match = dataset_patt.match(name)
-        if match is None:
-            raise RuntimeError(
-                f"benchmark name {name} in file {json_file} has an unexpected format"
-            )
-        dataset = match.group(1)
-        if dataset.endswith("-backend"):
-            dataset = dataset[:-8]
+    # Populate benchmarks dir from .json files
+    for json_file in logs_dir.glob("*.json"):
+        # print(f"READING {json_file}")
+        try:
+            data = json.loads(open(json_file).read())
+        except json.decoder.JSONDecodeError:
+            # print(f"PROBLEM READING {json_file}, skipping.")
+            continue
 
-        match = backend_patt.match(name)
-        if match is None:
-            raise RuntimeError(
-                f"benchmark name {name} in file {json_file} has an unexpected format"
-            )
-        backend = match.group(1)
-        if backend == "None":
-            backend = "networkx"
+        for benchmark_run in data["benchmarks"]:
+            # example name: "bench_triangles[ds=netscience-backend=cugraph-preconverted]"
+            name = benchmark_run["name"]
 
-        runtime = benchmark_run["stats"]["mean"]
-        benchmarks.setdefault(algo_name, {}).setdefault(backend, {})[dataset] = runtime
+            algo_name = name.split("[")[0]
+            if algo_name.startswith("bench_"):
+                algo_name = algo_name[6:]
+            # special case for betweenness_centrality
+            match = k_patt.match(name)
+            if match is not None:
+                algo_name += f", k={match.group(1)}"
 
-
-# dump HTML table
-ordered_datasets = [
-    "netscience",
-    "email_Eu_core",
-    "cit-patents",
-    "hollywood",
-    "soc-livejournal1",
-]
-
-print(
-    """
-<html>
-<head>
-   <style>
-      table {
-        table-layout: fixed;
-        width: 100%;
-        border-collapse: collapse;
-      }
-      tbody tr:nth-child(odd) {
-        background-color: #ffffff;
-      }
-
-      tbody tr:nth-child(even) {
-        background-color: #d3d3d3;
-      }
-      tbody td {
-        text-align: center;
-      }
-      th,
-      td {
-        padding: 10px;
-      }
-   </style>
-</head>
-<table>
-   <thead>
-   <tr>
-      <th></th>"""
-)
-for ds in ordered_datasets:
-    print(f"      <th>{ds}</th>")
-print(
-    """   </tr>
-   </thead>
-   <tbody>
-"""
-)
-
-
-for algo_name in benchmarks:
-    algo_runs = benchmarks[algo_name]
-    print("   <tr>")
-    print(f"      <td>{algo_name}</td>")
-
-    # Proceed only if any results are present for both cugraph and NX
-    if "cugraph" in algo_runs and "networkx" in algo_runs:
-        cugraph_algo_runs = algo_runs["cugraph"]
-        networkx_algo_runs = algo_runs["networkx"]
-        datasets_in_both = set(cugraph_algo_runs).intersection(networkx_algo_runs)
-
-        # populate the table with speedup results for each dataset in the order
-        # specified in ordered_datasets. If results for a run using a dataset
-        # are not present for both cugraph and NX, output an empty cell.
-        for dataset in ordered_datasets:
-            if dataset in datasets_in_both:
-                cugraph_runtime = cugraph_algo_runs[dataset]
-                networkx_runtime = networkx_algo_runs[dataset]
-                (speedup, runtime_delta) = compute_perf_vals(
-                    cugraph_runtime=cugraph_runtime, networkx_runtime=networkx_runtime
+            match = dataset_patt.match(name)
+            if match is None:
+                raise RuntimeError(
+                    f"benchmark name {name} in file {json_file} has an unexpected format"
                 )
-                print(f"      <td>{speedup}<br>{runtime_delta}</td>")
-            else:
-                print(f"      <td></td>")
+            dataset = match.group(1)
+            if dataset.endswith("-backend"):
+                dataset = dataset[:-8]
 
-    # If a comparison between cugraph and NX cannot be made, output empty cells
-    # for each dataset
-    else:
-        for _ in range(len(ordered_datasets)):
-            print("      <td></td>")
+            match = backend_patt.match(name)
+            if match is None:
+                raise RuntimeError(
+                    f"benchmark name {name} in file {json_file} has an unexpected format"
+                )
+            backend = match.group(1)
+            if backend == "None":
+                backend = "networkx"
 
-    print("   </tr>")
+            runtime = benchmark_run["stats"]["mean"]
+            benchmarks.setdefault(algo_name, {}).setdefault(backend, {})[dataset] = runtime
+    # breakpoint()
 
-print(
+    # dump HTML table
+    ordered_datasets = [
+        "netscience",
+        "email_Eu_core",
+        "cit-patents",
+        "hollywood",
+        "soc-livejournal1",
+    ]
+
+    print(
+        """
+    <html>
+    <head>
+    <style>
+        table {
+            table-layout: fixed;
+            width: 100%;
+            border-collapse: collapse;
+        }
+        tbody tr:nth-child(odd) {
+            background-color: #ffffff;
+        }
+        tbody tr:nth-child(even) {
+            background-color: #d3d3d3;
+        }
+        tbody td {
+            text-align: center;
+            color: black;
+        }
+        th,
+        td {
+            padding: 10px;
+        }
+        .footer {
+            background-color: #f1f1f1;
+            padding: 10px;
+            text-align: center;
+            font-size: 14px;
+            color: #333;
+            left: 0;
+            bottom: 0;
+            width: 100%;
+        }
+        .footer a {
+            color: #007bff;
+            text-decoration: none;
+        }
+        .footer a:hover {
+            text-decoration: underline;
+        }
+    </style>
+    </head>
+    <table>
+    <thead>
+    <tr>
+        <th></th>"""
+    )
+    for ds in ordered_datasets:
+        print(f"      <th>{ds}</th>")
+    print(
+        """   </tr>
+    </thead>
+    <tbody>
     """
-   </tbody>
-</table>
-</html>
-"""
-)
+    )
+
+
+    for algo_name in benchmarks:
+        algo_runs = benchmarks[algo_name]
+        print("   <tr>")
+        print(f"      <td>{algo_name}</td>")
+        # Proceed only if any results are present for both cugraph and NX
+        if "cugraph" in algo_runs and "networkx" in algo_runs:
+            cugraph_algo_runs = algo_runs["cugraph"]
+            networkx_algo_runs = algo_runs["networkx"]
+            datasets_in_both = set(cugraph_algo_runs).intersection(networkx_algo_runs)
+
+            # populate the table with speedup results for each dataset in the order
+            # specified in ordered_datasets. If results for a run using a dataset
+            # are not present for both cugraph and NX, output an empty cell.
+            for dataset in ordered_datasets:
+                if dataset in datasets_in_both:
+                    cugraph_runtime = cugraph_algo_runs[dataset]
+                    networkx_runtime = networkx_algo_runs[dataset]
+                    (speedup, runtime_delta) = compute_perf_vals(
+                        cugraph_runtime=cugraph_runtime, networkx_runtime=networkx_runtime
+                    )
+                    print(f"      <td>{speedup}<br>{runtime_delta}</td>")
+                else:
+                    print(f"      <td></td>")
+
+        # If a comparison between cugraph and NX cannot be made, output empty cells
+        # for each dataset
+        else:
+            for _ in range(len(ordered_datasets)):
+                print("      <td></td>")
+
+        print("   </tr>")
+
+    print(
+        """
+    </tbody>
+    </table>
+    <div class="footer">
+        
+    </div>
+    </html>
+    """
+    )
