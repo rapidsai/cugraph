@@ -61,6 +61,9 @@ class DistSampleReader:
         if rank is None:
             self.__batch_count = batch_count
         else:
+            # TODO maybe remove this in favor of warning users that they are
+            # probably going to cause a hang, instead of attempting to resolve
+            # the hang for them by dropping batches.
             batch_count = torch.tensor([batch_count], device="cuda")
             torch.distributed.all_reduce(batch_count, torch.distributed.ReduceOp.MIN)
             self.__batch_count = int(batch_count)

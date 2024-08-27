@@ -263,6 +263,11 @@ class DistSampler:
             # rename renumber_map -> map to match unbuffered format
             minibatch_dict["map"] = minibatch_dict["renumber_map"]
             del minibatch_dict["renumber_map"]
+            minibatch_dict = {
+                k: torch.as_tensor(v, device="cuda")
+                for k, v in minibatch_dict.items()
+                if v is not None
+            }
 
             return iter([(minibatch_dict, current_batches[0], current_batches[-1])])
         else:
