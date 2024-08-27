@@ -68,8 +68,10 @@ jobs:
               - '!README.md'
               - '!docs/**'
               - '!img/**'
+              - '!mg_utils/**'
               - '!notebooks/**'
               - '!python/**'
+              - '!readme_pages/**'
               # TODO: Remove this before merging
               - '!.github/**'
             notebooks:
