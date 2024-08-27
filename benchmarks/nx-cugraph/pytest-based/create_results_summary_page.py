@@ -203,8 +203,7 @@ if __name__ == "__main__":
     <tbody>
     """
     )
-
-    for algo_name in benchmarks:
+    for algo_name in sorted(benchmarks):
         algo_runs = benchmarks[algo_name]
         print("   <tr>")
         print(f"      <td>{algo_name}</td>")
