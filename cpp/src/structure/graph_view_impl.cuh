@@ -803,7 +803,7 @@ graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t<mul
   raft::handle_t const& handle,
   raft::device_span<vertex_t const> edge_srcs,
   raft::device_span<vertex_t const> edge_dsts,
-  bool do_expensive_check)
+  bool do_expensive_check) const
 {
   CUGRAPH_EXPECTS(
     edge_srcs.size() == edge_dsts.size(),
@@ -883,7 +883,7 @@ graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t<!mu
   raft::handle_t const& handle,
   raft::device_span<vertex_t const> edge_srcs,
   raft::device_span<vertex_t const> edge_dsts,
-  bool do_expensive_check)
+  bool do_expensive_check) const
 {
   CUGRAPH_EXPECTS(
     edge_srcs.size() == edge_dsts.size(),

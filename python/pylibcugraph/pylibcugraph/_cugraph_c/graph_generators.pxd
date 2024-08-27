@@ -1,4 +1,4 @@
-# Copyright (c) 2023, NVIDIA CORPORATION.
+# Copyright (c) 2023-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -31,61 +31,15 @@ from pylibcugraph._cugraph_c.random cimport (
     cugraph_rng_state_t,
 )
 
+from pylibcugraph._cugraph_c.coo cimport (
+    cugraph_coo_t,
+    cugraph_coo_list_t,
+)
+
 cdef extern from "cugraph_c/graph_generators.h":
     ctypedef enum cugraph_generator_distribution_t:
         POWER_LAW
         UNIFORM
-
-    ctypedef struct cugraph_coo_t:
-        pass
-
-    ctypedef struct cugraph_coo_list_t:
-        pass
-
-    cdef cugraph_type_erased_device_array_view_t* \
-        cugraph_coo_get_sources(
-            cugraph_coo_t* coo
-        )
-
-    cdef cugraph_type_erased_device_array_view_t* \
-        cugraph_coo_get_destinations(
-            cugraph_coo_t* coo
-        )
-
-    cdef cugraph_type_erased_device_array_view_t* \
-        cugraph_coo_get_edge_weights(
-            cugraph_coo_t* coo
-        )
-
-    cdef cugraph_type_erased_device_array_view_t* \
-        cugraph_coo_get_edge_id(
-            cugraph_coo_t* coo
-        )
-
-    cdef cugraph_type_erased_device_array_view_t* \
-        cugraph_coo_get_edge_type(
-            cugraph_coo_t* coo
-        )
-
-    cdef size_t \
-        cugraph_coo_list_size(
-            const cugraph_coo_list_t* coo_list
-        )
-
-    cdef cugraph_coo_t* \
-        cugraph_coo_list_element(
-            cugraph_coo_list_t* coo_list,
-            size_t index)
-
-    cdef void \
-        cugraph_coo_free(
-            cugraph_coo_t* coo
-        )
-
-    cdef void \
-        cugraph_coo_list_free(
-            cugraph_coo_list_t* coo_list
-        )
 
     cdef cugraph_error_code_t \
         cugraph_generate_rmat_edgelist(
