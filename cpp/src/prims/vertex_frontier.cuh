@@ -15,13 +15,15 @@
  */
 #pragma once
 
+#include "prims/detail/multi_stream_utils.cuh"
+
 #include <cugraph/utilities/device_comm.hpp>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/host_scalar_comm.hpp>
 #include <cugraph/utilities/packed_bool_utils.hpp>
 
-#include <raft/core/handle.hpp>
 #include <raft/core/device_span.hpp>
+#include <raft/core/handle.hpp>
 #include <raft/core/host_span.hpp>
 #include <raft/util/cudart_utils.hpp>
 
@@ -184,19 +186,19 @@ void device_bcast_vertex_list(
     assert((comm.get_rank() != root) || (std::get<0>(v_list).size() == tmp_bitmap.size()));
     device_bcast(
       comm, std::get<0>(v_list).data(), tmp_bitmap.data(), tmp_bitmap.size(), root, stream_view);
-    thrust::copy_if(rmm::exec_policy(stream_view),
-                    thrust::make_counting_iterator(vertex_range_first),
-                    thrust::make_counting_iterator(vertex_range_last),
-                    thrust::make_transform_iterator(
-                      thrust::make_counting_iterator(vertex_t{0}),
-                      cuda::proclaim_return_type<bool>(
-                        [bitmap = raft::device_span<uint32_t const>(
-                           tmp_bitmap.data(), tmp_bitmap.size())] __device__(vertex_t v_offset) {
-                          return ((bitmap[packed_bool_offset(v_offset)] &
-                                   packed_bool_mask(v_offset)) != packed_bool_empty_mask());
-                        })),
-                    output_v_first,
-                    thrust::identity<bool>{});
+    detail::copy_if_nosync(
+      thrust::make_counting_iterator(vertex_range_first),
+      thrust::make_counting_iterator(vertex_range_last),
+      thrust::make_transform_iterator(
+        thrust::make_counting_iterator(vertex_t{0}),
+        cuda::proclaim_return_type<bool>(
+          [bitmap = raft::device_span<uint32_t const>(
+             tmp_bitmap.data(), tmp_bitmap.size())] __device__(vertex_t v_offset) {
+            return ((bitmap[packed_bool_offset(v_offset)] & packed_bool_mask(v_offset)) !=
+                    packed_bool_empty_mask());
+          })),
+      output_v_first,
+      stream_view);
   } else {
     device_bcast(comm, std::get<1>(v_list), output_v_first, v_list_size, root, stream_view);
   }

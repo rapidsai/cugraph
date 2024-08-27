@@ -19,6 +19,11 @@
 
 #include <raft/core/handle.hpp>
 #include <raft/util/integer_utils.hpp>
+#include <rmm/device_scalar.hpp>
+#include <rmm/device_uvector.hpp>
+#include <rmm/cuda_stream_view.hpp>
+
+#include <cub/cub.cuh>
 
 #include <numeric>
 #include <vector>
@@ -47,6 +52,45 @@ inline std::vector<size_t> init_stream_pool_indices(raft::handle_t const& handle
   std::iota(stream_pool_indices.begin(), stream_pool_indices.end(), size_t{0});
 
   return stream_pool_indices;
+}
+
+// this assumes that the caller already knows how many items will be copied.
+template <typename InputIterator, typename FlagIterator, typename OutputIterator>
+void copy_if_nosync(InputIterator input_first,
+                    InputIterator input_last,
+                    FlagIterator flag_first,
+                    OutputIterator output_first,
+                    rmm::cuda_stream_view stream_view)
+{
+  CUGRAPH_EXPECTS(
+    static_cast<size_t>(thrust::distance(input_first, input_last)) <=
+      static_cast<size_t>(std::numeric_limits<int>::max()),
+    "cugraph::detail::copy_if_nosync relies on cub::DeviceSelect::Flagged which uses int for input "
+    "size, but thrust::distance(input_first, input_last) exceeds std::numeric_limits<int>::max().");
+
+  size_t tmp_storage_bytes{0};
+  size_t input_size = static_cast<int>(thrust::distance(input_first, input_last));
+  rmm::device_scalar<int> num_copied(stream_view);
+
+  cub::DeviceSelect::Flagged(static_cast<void*>(nullptr),
+                             tmp_storage_bytes,
+                             input_first,
+                             flag_first,
+                             output_first,
+                             num_copied.data(),
+                             input_size,
+                             stream_view);
+
+  auto d_tmp_storage = rmm::device_uvector<std::byte>(tmp_storage_bytes, stream_view);
+
+  cub::DeviceSelect::Flagged(d_tmp_storage.data(),
+                             tmp_storage_bytes,
+                             input_first,
+                             flag_first,
+                             output_first,
+                             num_copied.data(),
+                             input_size,
+                             stream_view);
 }
 
 }  // namespace detail
