@@ -20,8 +20,6 @@ import numpy as np
 import cupy
 import cudf
 
-import nvtx
-
 from typing import Union, List, Dict, Tuple, Iterator, Optional
 
 from cugraph.utilities.utils import import_optional, MissingModule
@@ -228,7 +226,6 @@ class DistSampler:
         else:
             return 0, input_size_is_equal
 
-    @nvtx.annotate("cugraph-buffered-sampling", color="blue")
     def __sample_from_nodes_func(
         self,
         call_id: int,
