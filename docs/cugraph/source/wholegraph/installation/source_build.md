@@ -177,7 +177,7 @@ Run either the C++ or the Python tests with datasets
     ```
 
 
-Note: This conda installation only applies to Linux and Python versions 3.8/3.10.
+Note: This conda installation only applies to Linux and Python versions 3.10 and 3.11.
 
 ## Creating documentation
 
