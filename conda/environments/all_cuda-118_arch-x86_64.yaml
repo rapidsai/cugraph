@@ -42,6 +42,7 @@ dependencies:
 - numpy>=1.23,<3.0a0
 - numpydoc
 - nvcc_linux-64=11.8
+- ogb
 - openmpi
 - packaging>=21
 - pandas
@@ -74,6 +75,7 @@ dependencies:
 - sphinxcontrib-websupport
 - thriftpy2!=0.5.0,!=0.5.1
 - torchdata
+- torchmetrics
 - ucx-proc=*=gpu
 - ucx-py==0.40.*,>=0.0.0a0
 - wget
