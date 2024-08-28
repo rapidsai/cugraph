@@ -19,6 +19,7 @@ from cugraph.gnn.data_loading.dist_sampler import (
 from cugraph.gnn.data_loading.dist_io import (
     DistSampleWriter,
     DistSampleReader,
+    BufferedSampleReader,
 )
 
 
