@@ -2576,9 +2576,12 @@ def bench_extract_subgraph_for_rmat(gpubenchmark, rmat_PropertyGraph):
     scn = PropertyGraph.src_col_name
     dcn = PropertyGraph.dst_col_name
 
+    # Build a query string to extract a graph with only specific edges based on
+    # the integer vertex IDs. Other edge and/or vertex properties can be
+    # included in the query as well.
     verts = []
     for i in range(0, 10000, 10):
-        verts.append(generated_df["src"].iloc[i])
+        verts.append(int(generated_df["src"].iloc[i]))
 
     selected_edges = pG.select_edges(f"{scn}.isin({verts}) | {dcn}.isin({verts})")
     gpubenchmark(
@@ -2618,9 +2621,12 @@ def bench_extract_subgraph_for_rmat_detect_duplicate_edges(
     scn = PropertyGraph.src_col_name
     dcn = PropertyGraph.dst_col_name
 
+    # Build a query string to extract a graph with only specific edges based on
+    # the integer vertex IDs. Other edge and/or vertex properties can be
+    # included in the query as well.
     verts = []
     for i in range(0, 10000, 10):
-        verts.append(generated_df["src"].iloc[i])
+        verts.append(int(generated_df["src"].iloc[i]))
 
     selected_edges = pG.select_edges(f"{scn}.isin({verts}) | {dcn}.isin({verts})")
 
