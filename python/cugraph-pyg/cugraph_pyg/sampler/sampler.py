@@ -14,7 +14,7 @@
 from typing import Optional, Iterator, Union, Dict, Tuple
 
 from cugraph.utilities.utils import import_optional
-from cugraph.gnn import DistSampler, DistSampleReader
+from cugraph.gnn import DistSampler
 
 from .sampler_utils import filter_cugraph_pyg_store
 
@@ -152,13 +152,15 @@ class SampleReader:
     Iterator that processes results from the cuGraph distributed sampler.
     """
 
-    def __init__(self, base_reader: DistSampleReader):
+    def __init__(
+        self, base_reader: Iterator[Tuple[Dict[str, "torch.Tensor"], int, int]]
+    ):
         """
         Constructs a new SampleReader.
 
         Parameters
         ----------
-        base_reader: DistSampleReader
+        base_reader: Iterator[Tuple[Dict[str, "torch.Tensor"], int, int]]
             The reader responsible for loading saved samples produced by
             the cuGraph distributed sampler.
         """
@@ -202,14 +204,16 @@ class HomogeneousSampleReader(SampleReader):
     produced by the cuGraph distributed sampler.
     """
 
-    def __init__(self, base_reader: DistSampleReader):
+    def __init__(
+        self, base_reader: Iterator[Tuple[Dict[str, "torch.Tensor"], int, int]]
+    ):
         """
         Constructs a new HomogeneousSampleReader
 
         Parameters
         ----------
-        base_reader: DistSampleReader
-            The reader responsible for loading saved samples produced by
+        base_reader: Iterator[Tuple[Dict[str, "torch.Tensor"], int, int]]
+            The iterator responsible for loading saved samples produced by
             the cuGraph distributed sampler.
         """
         super().__init__(base_reader)
@@ -353,7 +357,7 @@ class BaseSampler:
             "torch_geometric.sampler.SamplerOutput",
         ]
     ]:
-        self.__sampler.sample_from_nodes(
+        reader = self.__sampler.sample_from_nodes(
             index.node, batch_size=self.__batch_size, **kwargs
         )
 
@@ -362,7 +366,7 @@ class BaseSampler:
             len(edge_attrs) == 1
             and edge_attrs[0].edge_type[0] == edge_attrs[0].edge_type[2]
         ):
-            return HomogeneousSampleReader(self.__sampler.get_reader())
+            return HomogeneousSampleReader(reader)
         else:
             # TODO implement heterogeneous sampling
             raise NotImplementedError(
