@@ -99,7 +99,7 @@ std::vector<size_t> compute_key_segment_offsets(KeyIterator sorted_key_first,
 
   rmm::device_uvector<size_t> d_offsets(d_thresholds.size(), stream_view);
   if constexpr (std::is_same_v<key_t, vertex_t>) {
-    thrust::lower_bound(rmm::exec_policy(stream_view),
+    thrust::lower_bound(rmm::exec_policy_nosync(stream_view),
                         sorted_key_first,
                         sorted_key_last,
                         d_thresholds.begin(),
@@ -108,7 +108,7 @@ std::vector<size_t> compute_key_segment_offsets(KeyIterator sorted_key_first,
   } else {
     auto sorted_vertex_first =
       thrust::make_transform_iterator(sorted_key_first, thrust_tuple_get<key_t, 0>{});
-    thrust::lower_bound(rmm::exec_policy(stream_view),
+    thrust::lower_bound(rmm::exec_policy_nosync(stream_view),
                         sorted_vertex_first,
                         sorted_vertex_first + thrust::distance(sorted_key_first, sorted_key_last),
                         d_thresholds.begin(),
@@ -146,9 +146,11 @@ std::optional<rmm::device_uvector<uint32_t>> compute_vertex_list_bitmap_info(
 
   if (v_list_size > static_cast<vertex_t>(bool_size * threshold_ratio)) {
     bitmap = rmm::device_uvector<uint32_t>(packed_bool_size(bool_size), stream_view);
-    thrust::fill(
-      rmm::exec_policy(stream_view), (*bitmap).begin(), (*bitmap).end(), packed_bool_empty_mask());
-    thrust::for_each(rmm::exec_policy(stream_view),
+    thrust::fill(rmm::exec_policy_nosync(stream_view),
+                 (*bitmap).begin(),
+                 (*bitmap).end(),
+                 packed_bool_empty_mask());
+    thrust::for_each(rmm::exec_policy_nosync(stream_view),
                      sorted_unique_vertex_first,
                      sorted_unique_vertex_last,
                      [bitmap  = raft::device_span<uint32_t>((*bitmap).data(), (*bitmap).size()),
