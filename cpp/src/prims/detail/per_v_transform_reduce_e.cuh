@@ -970,7 +970,6 @@ compute_selected_ranks(raft::comms::comms_t const& comm,
                        bool ignore_local_values,
                        rmm::cuda_stream_view stream_view)
 {
-  auto time0           = std::chrono::steady_clock::now();
   auto const comm_rank = comm.get_rank();
   auto const comm_size = comm.get_size();
 
@@ -998,7 +997,6 @@ compute_selected_ranks(raft::comms::comms_t const& comm,
                  : std::numeric_limits<priority_t>::max();  // lowest priority
       });
   }
-  auto time1 = std::chrono::steady_clock::now();
   device_allreduce(comm,
                    priorities.data(),
                    priorities.data(),
@@ -1006,7 +1004,6 @@ compute_selected_ranks(raft::comms::comms_t const& comm,
                    raft::comms::op_t::MIN,
                    stream_view);
 
-  auto time2 = std::chrono::steady_clock::now();
   if (comm_rank == root) {
     rmm::device_uvector<int> selected_ranks(priorities.size(), stream_view);
     auto offset_priority_pair_first =
@@ -1024,12 +1021,6 @@ compute_selected_ranks(raft::comms::comms_t const& comm,
                                           priority, root, subgroup_size, comm_size, offset);
                         return rank;
                       });
-    auto time3                         = std::chrono::steady_clock::now();
-    std::chrono::duration<double> dur0 = time1 - time0;
-    std::chrono::duration<double> dur1 = time2 - time1;
-    std::chrono::duration<double> dur2 = time3 - time2;
-    std::cout << "root compute_selected_ranks dur=(" << dur0.count() << "," << dur1.count() << ","
-              << dur2.count() << ")." << std::endl;
     return selected_ranks;
   } else {
     std::optional<rmm::device_uvector<bool>> keep_flags{std::nullopt};
@@ -1051,12 +1042,6 @@ compute_selected_ranks(raft::comms::comms_t const& comm,
                           return (rank == comm_rank);
                         });
     }
-    auto time3                         = std::chrono::steady_clock::now();
-    std::chrono::duration<double> dur0 = time1 - time0;
-    std::chrono::duration<double> dur1 = time2 - time1;
-    std::chrono::duration<double> dur2 = time3 - time2;
-    std::cout << "non-root compute_selected_ranks dur=(" << dur0.count() << "," << dur1.count()
-              << "," << dur2.count() << ")." << std::endl;
     return keep_flags;
   }
 }
