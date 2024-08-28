@@ -20,6 +20,7 @@ files:
       - depends_on_dask_cudf
       - depends_on_pylibraft
       - depends_on_raft_dask
+        # Deprecate pylibcugraphops
       - depends_on_pylibcugraphops
       - depends_on_pylibwholegraph
       - depends_on_cupy
@@ -44,6 +45,7 @@ files:
       - cuda_version
       - docs
       - py_version
+        # Deprecate pylibcugraphops
       - depends_on_pylibcugraphops
   test_cpp:
     output: none
@@ -135,6 +137,7 @@ files:
     extras:
       table: project
     includes:
+      - cuda_wheels
       - depends_on_rmm
       - depends_on_pylibraft
   py_test_pylibcugraph:
@@ -188,6 +191,7 @@ files:
       table: project
     includes:
       - python_run_cugraph_dgl
+        # Deprecate pylibcugraphops
       - depends_on_pylibcugraphops
   py_test_cugraph_dgl:
     output: pyproject
@@ -214,6 +218,7 @@ files:
       table: project
     includes:
       - python_run_cugraph_pyg
+        # Deprecate pylibcugraphops
       - depends_on_pylibcugraphops
   py_test_cugraph_pyg:
     output: pyproject
@@ -239,6 +244,7 @@ files:
     extras:
       table: project
     includes:
+        # Deprecate pylibcugraphops
       - depends_on_pylibcugraphops
   py_test_cugraph_equivariant:
     output: pyproject
@@ -298,6 +304,7 @@ files:
     conda_dir: python/cugraph-dgl/conda
     includes:
       - checks
+        # Deprecate pylibcugraphops
       - depends_on_pylibcugraphops
       - cugraph_dgl_dev
       - test_python_common
@@ -308,6 +315,7 @@ files:
     conda_dir: python/cugraph-pyg/conda
     includes:
       - checks
+        # Deprecate pylibcugraphops
       - depends_on_pylibcugraphops
       - cugraph_pyg_dev
       - test_python_common
@@ -376,6 +384,36 @@ dependencies:
             packages:
               - cudatoolkit
               - cuda-nvtx
+  cuda_wheels:
+    specific:
+      - output_types: pyproject
+        matrices:
+          - matrix:
+              cuda: "12.*"
+              use_cuda_wheels: "true"
+            packages:
+              - nvidia-cublas-cu12
+              - nvidia-curand-cu12
+              - nvidia-cusolver-cu12
+              - nvidia-cusparse-cu12
+          # CUDA 11 does not provide wheels, so use the system libraries instead
+          - matrix:
+              cuda: "11.*"
+              use_cuda_wheels: "true"
+            packages:
+          # if use_cuda_wheels=false is provided, do not add dependencies on any CUDA wheels
+          # (e.g. for DLFW and pip devcontainers)
+          - matrix:
+              use_cuda_wheels: "false"
+            packages:
+          # if no matching matrix selectors passed, list the unsuffixed packages
+          # (just as a source of documentation, as this populates pyproject.toml in source control)
+          - matrix:
+            packages:
+              - nvidia-cublas
+              - nvidia-curand
+              - nvidia-cusolver
+              - nvidia-cusparse
   common_build:
     common:
       - output_types: [conda, pyproject]
@@ -389,6 +427,7 @@ dependencies:
           - c-compiler
           - cxx-compiler
           - libcudf==24.10.*,>=0.0.0a0
+          # Deprecate libcugraphops
           - libcugraphops==24.10.*,>=0.0.0a0
           - libraft-headers==24.10.*,>=0.0.0a0
           - libraft==24.10.*,>=0.0.0a0
@@ -442,10 +481,6 @@ dependencies:
       - output_types: [conda]
         matrices:
           - matrix:
-              py: "3.9"
-            packages:
-              - python=3.9
-          - matrix:
               py: "3.10"
             packages:
               - python=3.10
@@ -455,7 +490,7 @@ dependencies:
               - python=3.11
           - matrix:
             packages:
-              - python>=3.9,<3.12
+              - python>=3.10,<3.12
   python_build_rapids:
     common:
       - output_types: [conda, pyproject, requirements]
@@ -678,6 +713,8 @@ dependencies:
           - &pytorch_unsuffixed pytorch>=2.0,<2.2.0a0
           - torchdata
           - pydantic
+          - ogb
+          - torchmetrics
 
     specific:
       - output_types: [requirements]
@@ -876,6 +913,7 @@ dependencies:
               - pylibcugraph-cu11==24.10.*,>=0.0.0a0
           - {matrix: null, packages: [*pylibcugraph_unsuffixed]}
 
+  # deprecate pylibcugraphops
   depends_on_pylibcugraphops:
     common:
       - output_types: conda

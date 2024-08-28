@@ -12,6 +12,8 @@
 # limitations under the License.
 
 
+import warnings
+
 from collections import defaultdict
 from collections.abc import MutableMapping
 from typing import Union, Dict, List, Tuple
@@ -20,9 +22,43 @@ from cugraph.utilities.utils import import_optional
 
 import cugraph_dgl
 from cugraph_dgl.typing import TensorType
+from cugraph_dgl.utils.cugraph_conversion_utils import _cast_to_torch_tensor
 
 torch = import_optional("torch")
 dgl = import_optional("dgl")
+
+
+class EmbeddingView:
+    def __init__(self, storage: "dgl.storages.base.FeatureStorage", ld: int):
+        self.__ld = ld
+        self.__storage = storage
+
+    def __getitem__(self, u: TensorType) -> "torch.Tensor":
+        u = _cast_to_torch_tensor(u)
+        try:
+            return self.__storage.fetch(
+                u,
+                "cuda",
+            )
+        except RuntimeError as ex:
+            warnings.warn(
+                "Got error accessing data, trying again with index on device: "
+                + str(ex)
+            )
+            return self.__storage.fetch(
+                u.cuda(),
+                "cuda",
+            )
+
+    @property
+    def shape(self) -> "torch.Size":
+        try:
+            f = self.__storage.fetch(torch.tensor([0]), "cpu")
+        except RuntimeError:
+            f = self.__storage.fetch(torch.tensor([0], device="cuda"), "cuda")
+        sz = [s for s in f.shape]
+        sz[0] = self.__ld
+        return torch.Size(tuple(sz))
 
 
 class HeteroEdgeDataView(MutableMapping):

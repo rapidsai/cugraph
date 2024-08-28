@@ -17,7 +17,9 @@
 #pragma once
 #define restrict __restrict__
 
-#include "utilities/graph_utils.cuh"
+// From old graph_utils.cuh
+#define CUDA_MAX_BLOCKS         65535
+#define CUDA_MAX_KERNEL_THREADS 256  // kernel will launch at most 256 threads per block
 
 namespace cugraph {
 namespace detail {

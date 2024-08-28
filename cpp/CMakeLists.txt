@@ -332,6 +332,12 @@ set(CUGRAPH_SOURCES
     src/sampling/neighbor_sampling_sg_v32_e64.cpp
     src/sampling/neighbor_sampling_sg_v32_e32.cpp
     src/sampling/neighbor_sampling_sg_v64_e64.cpp
+    src/sampling/negative_sampling_sg_v32_e64.cu
+    src/sampling/negative_sampling_sg_v32_e32.cu
+    src/sampling/negative_sampling_sg_v64_e64.cu
+    src/sampling/negative_sampling_mg_v32_e64.cu
+    src/sampling/negative_sampling_mg_v32_e32.cu
+    src/sampling/negative_sampling_mg_v64_e64.cu
     src/sampling/renumber_sampled_edgelist_sg_v64_e64.cu
     src/sampling/renumber_sampled_edgelist_sg_v32_e32.cu
     src/sampling/sampling_post_processing_sg_v64_e64.cu
@@ -483,6 +489,7 @@ set(CUGRAPH_SOURCES
     src/centrality/betweenness_centrality_mg_v32_e32.cu
     src/centrality/betweenness_centrality_mg_v32_e64.cu
     src/tree/legacy/mst.cu
+    src/from_cugraph_ops/sampling_index.cu
     src/components/weakly_connected_components_sg_v64_e64.cu
     src/components/weakly_connected_components_sg_v32_e32.cu
     src/components/weakly_connected_components_sg_v32_e64.cu
@@ -656,6 +663,7 @@ add_library(cugraph_c
         src/c_api/louvain.cpp
         src/c_api/triangle_count.cpp
         src/c_api/neighbor_sampling.cpp
+        src/c_api/negative_sampling.cpp
         src/c_api/labeling_result.cpp
         src/c_api/weakly_connected_components.cpp
         src/c_api/strongly_connected_components.cpp
