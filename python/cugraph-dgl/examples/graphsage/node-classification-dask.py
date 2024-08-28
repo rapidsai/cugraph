@@ -17,10 +17,8 @@
 
 # Ignore Warning
 import warnings
-import tempfile
 import time
 import cugraph_dgl
-import cugraph_dgl.dataloading
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -78,17 +76,14 @@ class SAGE(nn.Module):
     def inference(self, g, device, batch_size):
         """Conduct layer-wise inference to get all the node embeddings."""
         all_node_ids = torch.arange(0, g.num_nodes()).to(device)
-        feat = g.ndata["feat"][all_node_ids].to(device)
+        feat = g.get_node_storage(key="feat", ntype="_N").fetch(
+            all_node_ids, device=device
+        )
 
-        if isinstance(g, cugraph_dgl.Graph):
-            sampler = cugraph_dgl.dataloading.NeighborSampler([-1])
-            loader_cls = cugraph_dgl.dataloading.FutureDataLoader
-        else:
-            sampler = MultiLayerFullNeighborSampler(1, prefetch_node_feats=["feat"])
-            loader_cls = DataLoader
-        dataloader = loader_cls(
+        sampler = MultiLayerFullNeighborSampler(1, prefetch_node_feats=["feat"])
+        dataloader = DataLoader(
             g,
-            torch.arange(g.num_nodes()).to(device),
+            torch.arange(g.num_nodes()).to(g.device),
             sampler,
             device=device,
             batch_size=batch_size,
@@ -155,7 +150,7 @@ def layerwise_infer(device, graph, nid, model, batch_size):
         return MF.accuracy(pred, label, task="multiclass", num_classes=num_classes)
 
 
-def train(args, device, g, dataset, model, directory):
+def train(args, device, g, dataset, model):
     # create sampler & dataloader
     train_idx = dataset.train_idx.to(device)
     val_idx = dataset.val_idx.to(device)
@@ -163,13 +158,8 @@ def train(args, device, g, dataset, model, directory):
     use_uva = args.mode == "mixed"
     batch_size = 1024
     fanouts = [5, 10, 15]
-    if isinstance(g, cugraph_dgl.Graph):
-        sampler = cugraph_dgl.dataloading.NeighborSampler(fanouts, directory=directory)
-        loader_cls = cugraph_dgl.dataloading.FutureDataLoader
-    else:
-        sampler = NeighborSampler(fanouts)
-        loader_cls = DataLoader
-    train_dataloader = loader_cls(
+    sampler = NeighborSampler(fanouts)
+    train_dataloader = DataLoader(
         g,
         train_idx,
         sampler,
@@ -180,7 +170,7 @@ def train(args, device, g, dataset, model, directory):
         num_workers=0,
         use_uva=use_uva,
     )
-    val_dataloader = loader_cls(
+    val_dataloader = DataLoader(
         g,
         val_idx,
         sampler,
@@ -236,8 +226,6 @@ if __name__ == "__main__":
         " 'gpu_dgl' for pure-GPU training, "
         " 'gpu_cugraph_dgl' for pure-GPU training.",
     )
-    parser.add_argument("--dataset_root", type=str, default="dataset")
-    parser.add_argument("--tempdir_root", type=str, default=None)
     args = parser.parse_args()
     if not torch.cuda.is_available():
         args.mode = "cpu"
@@ -247,13 +235,11 @@ if __name__ == "__main__":
 
     # load and preprocess dataset
     print("Loading data")
-    dataset = AsNodePredDataset(
-        DglNodePropPredDataset("ogbn-products", root=args.dataset_root)
-    )
+    dataset = AsNodePredDataset(DglNodePropPredDataset("ogbn-products"))
     g = dataset[0]
     g = dgl.add_self_loop(g)
     if args.mode == "gpu_cugraph_dgl":
-        g = cugraph_dgl.cugraph_dgl_graph_from_heterograph(g.to("cuda"))
+        g = cugraph_dgl.cugraph_storage_from_heterograph(g.to("cuda"))
         del dataset.g
 
     else:
@@ -263,17 +249,20 @@ if __name__ == "__main__":
     )
 
     # create GraphSAGE model
-    feat_shape = g.ndata["feat"].shape[1]
+    feat_shape = (
+        g.get_node_storage(key="feat", ntype="_N")
+        .fetch(torch.LongTensor([0]).to(device), device=device)
+        .shape[1]
+    )
     print(feat_shape)
-
+    # no ndata in cugraph storage object
     in_size = feat_shape
     out_size = dataset.num_classes
     model = SAGE(in_size, 256, out_size).to(device)
 
     # model training
     print("Training...")
-    with tempfile.TemporaryDirectory(dir=args.tempdir_root) as directory:
-        train(args, device, g, dataset, model, directory)
+    train(args, device, g, dataset, model)
 
     # test the model
     print("Testing...")
