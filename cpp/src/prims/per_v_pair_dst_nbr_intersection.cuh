@@ -53,10 +53,6 @@
 
 namespace cugraph {
 
-namespace detail {
-
-}  // namespace detail
-
 /**
  * @brief Iterate over each input vertex pair and returns the common destination neighbor list
  * pair in a CSR-like format
