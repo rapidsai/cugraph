@@ -535,7 +535,7 @@ std::tuple<rmm::device_uvector<vertex_t>, std::vector<vertex_t>, vertex_t> compu
     }
   }
 
-  // 4. sort local vertices by degree (descending)
+  // 5. sort local vertices by degree (descending)
 
   thrust::sort_by_key(handle.get_thrust_policy(),
                       sorted_local_vertex_degrees.begin(),
@@ -543,7 +543,7 @@ std::tuple<rmm::device_uvector<vertex_t>, std::vector<vertex_t>, vertex_t> compu
                       sorted_local_vertices.begin(),
                       thrust::greater<edge_t>());
 
-  // 5. compute segment_offsets
+  // 6. compute segment_offsets
 
   static_assert(detail::num_sparse_segments_per_vertex_partition == 3);
   static_assert((detail::low_degree_threshold <= detail::mid_degree_threshold) &&
