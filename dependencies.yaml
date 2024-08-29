@@ -713,6 +713,8 @@ dependencies:
           - &pytorch_unsuffixed pytorch>=2.0,<2.2.0a0
           - torchdata
           - pydantic
+          - ogb
+          - torchmetrics
 
     specific:
       - output_types: [requirements]
