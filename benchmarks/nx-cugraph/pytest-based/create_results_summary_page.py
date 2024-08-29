@@ -153,6 +153,14 @@ if __name__ == "__main__":
         "hollywood",
         "soc-livejournal1",
     ]
+    # dataset, # Node, # Edge, Directed info
+    dataset_meta = {
+        "netscience": ["1,461", "5,484", "Yes"],
+        "email_Eu_core": ["1,005", "25,571", "Yes"],
+        "cit-patents": ["3,774,768", "16,518,948", "Yes"],
+        "hollywood": ["1,139,905", "57,515,616", "No"],
+        "soc-livejournal1": ["4,847,571", "68,993,773", "Yes"],
+    }
 
     print(
         """
@@ -193,10 +201,12 @@ if __name__ == "__main__":
     <table>
     <thead>
     <tr>
-        <th></th>"""
+        <th>Dataset<br>Nodes<br>Edges<Br>Directed</th>"""
     )
     for ds in ordered_datasets:
-        print(f"      <th>{ds}</th>")
+        print(
+            f"      <th>{ds}<br>{dataset_meta[ds][0]}<br>{dataset_meta[ds][1]}<br>{dataset_meta[ds][2]}<br></th>"
+        )
     print(
         """   </tr>
     </thead>
