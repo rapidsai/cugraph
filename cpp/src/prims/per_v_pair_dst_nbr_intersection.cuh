@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,41 +15,7 @@
  */
 #pragma once
 
-#include "detail/graph_partition_utils.cuh"
 #include "prims/detail/nbr_intersection.cuh"
-#include "prims/property_op_utils.cuh"
-#include "utilities/collect_comm.cuh"
-#include "utilities/error_check_utils.cuh"
-
-#include <cugraph/edge_partition_device_view.cuh>
-#include <cugraph/edge_partition_edge_property_device_view.cuh>
-#include <cugraph/edge_src_dst_property.hpp>
-#include <cugraph/graph_view.hpp>
-#include <cugraph/utilities/device_functors.cuh>
-#include <cugraph/utilities/error.hpp>
-
-#include <raft/core/handle.hpp>
-
-#include <rmm/exec_policy.hpp>
-
-#include <thrust/binary_search.h>
-#include <thrust/copy.h>
-#include <thrust/count.h>
-#include <thrust/execution_policy.h>
-#include <thrust/fill.h>
-#include <thrust/for_each.h>
-#include <thrust/functional.h>
-#include <thrust/iterator/counting_iterator.h>
-#include <thrust/iterator/iterator_traits.h>
-#include <thrust/iterator/zip_iterator.h>
-#include <thrust/merge.h>
-#include <thrust/optional.h>
-#include <thrust/reduce.h>
-#include <thrust/sort.h>
-#include <thrust/tabulate.h>
-#include <thrust/tuple.h>
-
-#include <type_traits>
 
 namespace cugraph {
 
@@ -79,23 +45,13 @@ per_v_pair_dst_nbr_intersection(raft::handle_t const& handle,
 {
   static_assert(!GraphViewType::is_storage_transposed);
 
-  if (do_expensive_check) {
-    auto num_invalids =
-      detail::count_invalid_vertex_pairs(handle, graph_view, vertex_pair_first, vertex_pair_last);
-    CUGRAPH_EXPECTS(num_invalids == 0,
-                    "Invalid input arguments: there are invalid input vertex pairs.");
-  }
-
-  auto [intersection_offsets, intersection_indices] =
-    detail::nbr_intersection(handle,
+  return detail::nbr_intersection(handle,
                              graph_view,
                              cugraph::edge_dummy_property_t{}.view(),
                              vertex_pair_first,
                              vertex_pair_last,
                              std::array<bool, 2>{true, true},
-                             false /*FIXME: pass 'do_expensive_check' as argument*/);
-
-  return std::make_tuple(std::move(intersection_offsets), std::move(intersection_indices));
+                             do_expensive_check /*FIXME: pass 'do_expensive_check' as argument*/);
 }
 
 }  // namespace cugraph
