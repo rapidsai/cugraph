@@ -21,6 +21,66 @@ import socket
 import subprocess
 
 
+def get_formatted_time_value(time):
+    res = ""
+    if time < 1:
+        if time < 0.001:
+            units = "us"
+            time *= 1e6
+        else:
+            units = "ms"
+            time *= 1e3
+    else:
+        units = "s"
+    return f"{time:.3f}{units}"
+
+
+def get_all_benchmark_info():
+    benchmarks = {}
+    # Populate benchmarks dir from .json files
+    for json_file in logs_dir.glob("*.json"):
+        try:
+            data = json.loads(open(json_file).read())
+        except json.decoder.JSONDecodeError:
+            continue
+
+        for benchmark_run in data["benchmarks"]:
+            # example name: "bench_triangles[ds=netscience-backend=cugraph-preconverted]"
+            name = benchmark_run["name"]
+
+            algo_name = name.split("[")[0]
+            if algo_name.startswith("bench_"):
+                algo_name = algo_name[6:]
+            # special case for betweenness_centrality
+            match = k_patt.match(name)
+            if match is not None:
+                algo_name += f", k={match.group(1)}"
+
+            match = dataset_patt.match(name)
+            if match is None:
+                raise RuntimeError(
+                    f"benchmark name {name} in file {json_file} has an unexpected format"
+                )
+            dataset = match.group(1)
+            if dataset.endswith("-backend"):
+                dataset = dataset[:-8]
+
+            match = backend_patt.match(name)
+            if match is None:
+                raise RuntimeError(
+                    f"benchmark name {name} in file {json_file} has an unexpected format"
+                )
+            backend = match.group(1)
+            if backend == "None":
+                backend = "networkx"
+
+            runtime = benchmark_run["stats"]["mean"]
+            benchmarks.setdefault(algo_name, {}).setdefault(backend, {})[
+                dataset
+            ] = runtime
+    return benchmarks
+
+
 def compute_perf_vals(cugraph_runtime, networkx_runtime):
     speedup_string = f"{networkx_runtime / cugraph_runtime:.3f}X"
     delta = networkx_runtime - cugraph_runtime
@@ -77,16 +137,17 @@ def get_first_gpu_info():
 
 
 def get_system_info():
+    print('<div class="box2">')
     print(f"<p>Hostname: {socket.gethostname()}</p>")
     print(
-        f'<p class="text-indent"">Operating System: {platform.system()} {platform.release()}</p>'
+        f'<p class="indent"">Operating System: {platform.system()} {platform.release()}</p>'
     )
-    print(f'<p class="text-indent">Kernel Version  : {platform.version()}</p>')
+    print(f'<p class="indent">Kernel Version  : {platform.version()}</p>')
     with open("/proc/cpuinfo") as f:
         print(
             f'<p>CPU: {next(line.strip().split(": ")[1] for line in f if "model name" in line)} ({psutil.cpu_count(logical=False)} cores)</p>'
         )
-    print(f'<p class="text-indent">Memory: {get_mem_info()} GB</p>')
+    print(f'<p class="indent">Memory: {get_mem_info()} GB</p>')
     print(f"<p>GPU: {get_first_gpu_info()}</p>")
     print(f"<p>CUDA Version: {get_cuda_version()}</p>")
 
@@ -99,51 +160,7 @@ if __name__ == "__main__":
     k_patt = re.compile(".*k=(10*).*")
 
     # Organize all benchmark runs by the following hierarchy: algo -> backend -> dataset
-    benchmarks = {}
-
-    # Populate benchmarks dir from .json files
-    for json_file in logs_dir.glob("*.json"):
-        # print(f"READING {json_file}")
-        try:
-            data = json.loads(open(json_file).read())
-        except json.decoder.JSONDecodeError:
-            # print(f"PROBLEM READING {json_file}, skipping.")
-            continue
-
-        for benchmark_run in data["benchmarks"]:
-            # example name: "bench_triangles[ds=netscience-backend=cugraph-preconverted]"
-            name = benchmark_run["name"]
-
-            algo_name = name.split("[")[0]
-            if algo_name.startswith("bench_"):
-                algo_name = algo_name[6:]
-            # special case for betweenness_centrality
-            match = k_patt.match(name)
-            if match is not None:
-                algo_name += f", k={match.group(1)}"
-
-            match = dataset_patt.match(name)
-            if match is None:
-                raise RuntimeError(
-                    f"benchmark name {name} in file {json_file} has an unexpected format"
-                )
-            dataset = match.group(1)
-            if dataset.endswith("-backend"):
-                dataset = dataset[:-8]
-
-            match = backend_patt.match(name)
-            if match is None:
-                raise RuntimeError(
-                    f"benchmark name {name} in file {json_file} has an unexpected format"
-                )
-            backend = match.group(1)
-            if backend == "None":
-                backend = "networkx"
-
-            runtime = benchmark_run["stats"]["mean"]
-            benchmarks.setdefault(algo_name, {}).setdefault(backend, {})[
-                dataset
-            ] = runtime
+    benchmarks = get_all_benchmark_info()
 
     # dump HTML table
     ordered_datasets = [
@@ -184,17 +201,26 @@ if __name__ == "__main__":
         }
         th,
         td {
-            padding: 10px;
+            padding: 12px;
         }
-        .footer {
-            background-color: #f1f1f1;
-            padding: 10px;
+        .footer-main {
+            background-color: #d1d1d1;
+            padding: 20px;
+            padding-top: 0px;
             font-size: 12px;
             color: black;
             width: 100%;
+            display: flex;
         }
-        .text-indent {
-            text-indent: 20px; /* Indents the first line of the text by 30px */
+        .box1{
+            flex: 1;
+            padding-right: 30px;
+        }
+        .box2{
+            flex: 4;
+        }
+        .indent {
+            text-indent: 20px;
         }
     </style>
     </head>
@@ -234,7 +260,11 @@ if __name__ == "__main__":
                         cugraph_runtime=cugraph_runtime,
                         networkx_runtime=networkx_runtime,
                     )
-                    print(f"      <td>{speedup}<br>{runtime_delta}</td>")
+                    nx_formatted = get_formatted_time_value(networkx_runtime)
+                    cg_formatted = get_formatted_time_value(cugraph_runtime)
+                    print(
+                        f"      <td>{nx_formatted} / {cg_formatted}<br>{speedup}<br>{runtime_delta}</td>"
+                    )
                 else:
                     print(f"      <td></td>")
 
@@ -243,13 +273,19 @@ if __name__ == "__main__":
         else:
             for _ in range(len(ordered_datasets)):
                 print("      <td></td>")
-
         print("   </tr>")
-
     print(
         """
     </tbody>\n</table>
-    <div class="footer">"""
+    <div class="footer-main">
+        <div class="box1">
+            <h4>Table Format:</h4>
+            <ul>
+                <li><strong>NetworkX time / nx-cugraph time</strong></li>
+                <li><strong>Speed-up of using nx-cugraph</strong></li>
+                <li><strong>Time-delta</strong></li>
+            </ul>
+        </div>"""
     )
     get_system_info()
-    print("""</div>\n</html>""")
+    print("""</div>\n</div>\n</html>""")
