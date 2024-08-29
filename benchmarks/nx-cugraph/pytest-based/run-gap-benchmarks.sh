@@ -34,13 +34,6 @@ datasets="
    hollywood
    soc-livejournal
 "
-datasets="
-   netscience
-   email_Eu_core
-   cit_patents
-   hollywood
-   soc-livejournal
-"
 # None backend is default networkx
 # cugraph-preconvert backend is nx-cugraph
 backends="
