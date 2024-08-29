@@ -141,6 +141,10 @@ class DataLoader:
         self.__device = device
 
     @property
+    def _batch_size(self):
+        return self.__batch_size
+
+    @property
     def dataset(
         self,
     ) -> Union[

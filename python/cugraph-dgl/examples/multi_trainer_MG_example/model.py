@@ -1,4 +1,4 @@
-# Copyright (c) 2023, NVIDIA CORPORATION.
+# Copyright (c) 2023-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -58,9 +58,8 @@ class Sage(nn.Module):
         # The nodes on each layer are of course splitted in batches.
 
         all_node_ids = torch.arange(0, g.num_nodes()).to(device)
-        feat = g.get_node_storage(key="feat", ntype="_N").fetch(
-            all_node_ids, device=device
-        )
+        feat = g.ndata["feat"][all_node_ids].to(device)
+
         sampler = dgl.dataloading.MultiLayerFullNeighborSampler(
             1, prefetch_node_feats=["feat"]
         )
@@ -114,15 +113,13 @@ def layerwise_infer(graph, nid, model, batch_size, device):
 
 
 def train_model(model, g, opt, train_dataloader, num_epochs, rank, val_nid):
-    g.ndata["feat"]["_N"] = g.ndata["feat"]["_N"].to("cuda")
-    g.ndata["label"]["_N"] = g.ndata["label"]["_N"].to("cuda")
     st = time.time()
     model.train()
     for epoch in range(num_epochs):
         total_loss = 0
         for _, (input_nodes, output_nodes, blocks) in enumerate(train_dataloader):
-            x = g.ndata["feat"]["_N"][input_nodes]
-            y = g.ndata["label"]["_N"][output_nodes]
+            x = g.ndata["feat"][input_nodes].to(torch.float32)
+            y = g.ndata["label"][output_nodes].to(torch.int64)
             y_hat = model(blocks, x)
             y = y.squeeze(1)
             loss = F.cross_entropy(y_hat, y)
