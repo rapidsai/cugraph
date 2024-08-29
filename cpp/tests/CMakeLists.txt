@@ -496,7 +496,7 @@ ConfigureTest(SAMPLING_HETEROGENEOUS_POST_PROCESSING_TEST
 
 ###################################################################################################
 # - NEGATIVE SAMPLING tests --------------------------------------------------------------------
-ConfigureTest(NEGATIVE_SAMPLING_TEST sampling/negative_sampling.cpp)
+ConfigureTest(NEGATIVE_SAMPLING_TEST sampling/negative_sampling.cpp PERCENT 100)
 
 ###################################################################################################
 # - Renumber tests --------------------------------------------------------------------------------
