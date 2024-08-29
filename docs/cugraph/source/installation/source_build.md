@@ -12,8 +12,7 @@ __Compilers:__
 * `nvcc`          version 11.5+
 
 __CUDA:__
-* CUDA 11.2+
-* NVIDIA driver 470.42.01 or newer
+* CUDA 11.8+
 * NVIDIA GPU, Volta architecture or later, with [compute capability](https://developer.nvidia.com/cuda-gpus) 7.0+
 
 Further details and download links for these prerequisites are available on the

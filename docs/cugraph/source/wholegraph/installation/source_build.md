@@ -16,8 +16,7 @@ __Compiler__:
 
 __CUDA__:
 * CUDA 11.8+
-* NVIDIA driver 450.80.02+
-* Pascal architecture or better
+* Volta architecture or better
 
 You can obtain CUDA from [https://developer.nvidia.com/cuda-downloads](https://developer.nvidia.com/cuda-downloads).
 
