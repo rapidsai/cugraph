@@ -131,7 +131,7 @@ struct node2vec_random_walk_e_bias_op_t {
         vertex_t dst,
         thrust::nullopt_t,
         thrust::nullopt_t,
-        W w) const
+        W) const
   {
     //  Check tag (prev vert) for destination
     if(dst == thrust::get<1>(tagged_src)){
@@ -192,8 +192,8 @@ struct uniform_selector {
     GraphViewType const& graph_view,
     std::optional<edge_property_view_t<typename GraphViewType::edge_type, weight_t const*>>
       edge_weight_view,
-    rmm::device_uvector<typename GraphViewType::vertex_type> const& current_vertices,
-    std::optional<rmm::device_uvector<typename GraphViewType::vertex_type>> &previous_vertices)
+    rmm::device_uvector<typename GraphViewType::vertex_type>&& current_vertices,
+    std::optional<rmm::device_uvector<typename GraphViewType::vertex_type>>&& previous_vertices)
   {
     using vertex_t = typename GraphViewType::vertex_type;
 
@@ -260,15 +260,9 @@ struct biased_selector {
     GraphViewType const& graph_view,
     std::optional<edge_property_view_t<typename GraphViewType::edge_type, weight_t const*>>
       edge_weight_view,
-    rmm::device_uvector<typename GraphViewType::vertex_type> const& current_vertices,
-    std::optional<rmm::device_uvector<typename GraphViewType::vertex_type>>& previous_vertices)
+    rmm::device_uvector<typename GraphViewType::vertex_type>&& current_vertices,
+    std::optional<rmm::device_uvector<typename GraphViewType::vertex_type>>&& previous_vertices)
   {
-    //  To do biased sampling, I need out_weights instead of out_degrees.
-    //  Then I generate a random float between [0, out_weights[v]).  Then
-    //  instead of making a decision based on the index I need to find
-    //  upper_bound (or is it lower_bound) of the random number and
-    //  the cumulative weight.
-
     //  Create vertex frontier
     using vertex_t = typename GraphViewType::vertex_type;
 
@@ -280,7 +274,12 @@ struct biased_selector {
 
     auto vertex_weight_sum  = compute_out_weight_sums(handle, graph_view, *edge_weight_view);
     edge_src_property_t<GraphViewType, weight_t> edge_src_out_weight_sums(handle, graph_view);
-    update_edge_src_property(handle, graph_view, vertex_weight_sum.data(), edge_src_out_weight_sums.mutable_view());
+    update_edge_src_property(handle, 
+                             graph_view, 
+                             vertex_frontier.bucket(0).begin(), 
+                             vertex_frontier.bucket(0).end(), 
+                             vertex_weight_sum.data(), 
+                             edge_src_out_weight_sums.mutable_view());
     auto [sample_offsets, sample_e_op_results] =
       cugraph::per_v_random_select_transform_outgoing_e(
         handle,
@@ -321,17 +320,9 @@ struct node2vec_selector {
     GraphViewType const& graph_view,
     std::optional<edge_property_view_t<typename GraphViewType::edge_type, weight_t const*>>
       edge_weight_view,
-    rmm::device_uvector<typename GraphViewType::vertex_type>& current_vertices,
-    std::optional<rmm::device_uvector<typename GraphViewType::vertex_type>>& previous_vertices)
+    rmm::device_uvector<typename GraphViewType::vertex_type>&& current_vertices,
+    std::optional<rmm::device_uvector<typename GraphViewType::vertex_type>>&& previous_vertices)
   {
-    //  To do node2vec, I need the following:
-    //    1) Find nbr_intersection() CSR
-    //    2) Convert CSR into COO format, with (p,c,d) triples
-    //    3) Shuffle COO structure s.t. each entry is on GPU where (c,d) resides
-    //    4) Revert COO back to CSR
-    //  After this, existing functor should work for symmetric graphs.  Add CUGRAPH_EXPECTS to ensure
-    //  no asymmetric graphs and add FIXME
-
     //  Create vertex frontier
     using vertex_t = typename GraphViewType::vertex_type;
     
@@ -355,6 +346,7 @@ struct node2vec_selector {
     rmm::device_uvector<vertex_t> aggregate_previous(size_t{0}, handle.get_stream());
     rmm::device_uvector<vertex_t> aggregate_indices(size_t{0}, handle.get_stream());
 
+    //  Aggregate intersection data across minor comm
     if constexpr (GraphViewType::is_multi_gpu) {
       intersection_counts.resize(intersection_offsets.size(),
                                  handle.get_stream());
@@ -662,7 +654,7 @@ random_walk_impl(raft::handle_t const& handle,
     }
 
     std::tie(current_vertices, previous_vertices, new_weights) =
-      random_selector.follow_random_edge(handle, graph_view, edge_weight_view, current_vertices, previous_vertices);
+      random_selector.follow_random_edge(handle, graph_view, edge_weight_view, std::move(current_vertices), std::move(previous_vertices));
 
     // FIXME: remove_if has a 32-bit overflow issue
     // (https://github.com/NVIDIA/thrust/issues/1302) Seems unlikely here (the goal of

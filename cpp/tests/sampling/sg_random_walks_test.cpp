@@ -201,9 +201,6 @@ using Tests_Node2VecRandomWalks_File =
 using Tests_Node2VecRandomWalks_Rmat =
   Tests_RandomWalks<std::tuple<Node2VecRandomWalks_Usecase, cugraph::test::Rmat_Usecase>>;
 
-#if 0
-// FIXME:  We should use these tests, gtest-1.11.0 makes it a runtime error
-//         to define and not instantiate these.
 TEST_P(Tests_UniformRandomWalks_File, Initialize_i32_i32_f)
 {
   run_current_test<int32_t, int32_t, float>(
@@ -215,7 +212,6 @@ TEST_P(Tests_UniformRandomWalks_Rmat, Initialize_i32_i32_f)
   run_current_test<int32_t, int32_t, float>(
     override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
 }
-#endif
 
 TEST_P(Tests_BiasedRandomWalks_File, Initialize_i32_i32_f)
 {
@@ -241,19 +237,13 @@ TEST_P(Tests_Node2VecRandomWalks_Rmat, Initialize_i32_i32_f)
     override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
 }
 
-#if 0
-// FIXME: Not sure why these are failing, but we're refactoring anyway.
 INSTANTIATE_TEST_SUITE_P(
   simple_test,
   Tests_UniformRandomWalks_File,
   ::testing::Combine(
     ::testing::Values(UniformRandomWalks_Usecase{false, 0, true},
                       UniformRandomWalks_Usecase{true, 0, true}),
-    ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"),
-                      cugraph::test::File_Usecase("test/datasets/web-Google.mtx"),
-                      cugraph::test::File_Usecase("test/datasets/ljournal-2008.mtx"),
-                      cugraph::test::File_Usecase("test/datasets/webbase-1M.mtx"))));
-#endif
+    ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"))));
 
 INSTANTIATE_TEST_SUITE_P(
   file_test,
@@ -268,6 +258,16 @@ INSTANTIATE_TEST_SUITE_P(
   ::testing::Combine(::testing::Values(Node2VecRandomWalks_Usecase{4, 8, false, 0, true},
                                        Node2VecRandomWalks_Usecase{4, 8, true, 0, true}),
                      ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"))));
+
+INSTANTIATE_TEST_SUITE_P(
+  file_large_test,
+  Tests_UniformRandomWalks_File,
+  ::testing::Combine(
+    ::testing::Values(UniformRandomWalks_Usecase{false, 0, true},
+                      UniformRandomWalks_Usecase{true, 0, true}),
+    ::testing::Values(cugraph::test::File_Usecase("test/datasets/web-Google.mtx"),
+                      cugraph::test::File_Usecase("test/datasets/ljournal-2008.mtx"),
+                      cugraph::test::File_Usecase("test/datasets/webbase-1M.mtx"))));
 
 INSTANTIATE_TEST_SUITE_P(
   file_large_test,
@@ -289,8 +289,6 @@ INSTANTIATE_TEST_SUITE_P(
                       cugraph::test::File_Usecase("test/datasets/ljournal-2008.mtx"),
                       cugraph::test::File_Usecase("test/datasets/webbase-1M.mtx"))));
 
-#if 0
-// FIXME: Not sure why these are failing, but we're refactoring anyway.
 INSTANTIATE_TEST_SUITE_P(
   rmat_small_test,
   Tests_UniformRandomWalks_Rmat,
@@ -305,7 +303,6 @@ INSTANTIATE_TEST_SUITE_P(
   ::testing::Combine(::testing::Values(UniformRandomWalks_Usecase{true, 0, false}),
                      ::testing::Values(cugraph::test::Rmat_Usecase(
                        20, 32, 0.57, 0.19, 0.19, 0, false, false))));
-#endif
 
 INSTANTIATE_TEST_SUITE_P(
   rmat_small_test,
