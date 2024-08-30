@@ -74,9 +74,9 @@ jobs:
           - '!.github/**'
       transform_expr: |
         {
-          "test_cpp": .cpp_any_changed,
-          "test_notebooks": .notebooks_any_changed,
-          "test_python": .python_any_changed,
+          "test_cpp": .cpp_any_changed == "true",
+          "test_notebooks": .notebooks_any_changed == "true",
+          "test_python": .python_any_changed == "true",
         }
   checks:
     secrets: inherit
