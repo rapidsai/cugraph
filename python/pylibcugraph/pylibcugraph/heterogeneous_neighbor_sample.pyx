@@ -55,10 +55,10 @@ from pylibcugraph._cugraph_c.algorithms cimport (
     cugraph_sampling_set_retain_seeds,
 )
 from pylibcugraph._cugraph_c.sampling_algorithms cimport (
-    cugraph_neighbor_sample,
+    cugraph_heterogeneous_neighbor_sample,
     cugraph_sample_heterogeneous_fan_out_t,
     cugraph_create_heterogeneous_fan_out,
-    cugraph_heterogeneous_fanout_free,
+    cugraph_heterogeneous_fan_out_free,
 )
 from pylibcugraph.resource_handle cimport (
     ResourceHandle,
@@ -84,7 +84,7 @@ from pylibcugraph.random cimport (
 import warnings
 
 # TODO accept cupy/numpy random state in addition to raw seed.
-def neighbor_sample(ResourceHandle resource_handle,
+def heterogeneous_neighbor_sample(ResourceHandle resource_handle,
                     _GPUGraph input_graph,
                     start_list,
                     h_fan_out,
@@ -108,7 +108,7 @@ def neighbor_sample(ResourceHandle resource_handle,
     """
     # FIXME: Deprecate uniform_neighbor_sample
     Does both uniform and biased neighborhood sampling, which samples nodes from
-    a graph based on the current node's neighbors, with a corresponding fanout
+    a graph based on the current node's neighbors, with a corresponding fan_out
     value at each hop.
 
     # FIXME: biased neighbor sampling is not yet exposed to PLC.
@@ -128,11 +128,15 @@ def neighbor_sample(ResourceHandle resource_handle,
     edge_biases: FIXE: update this - Create edge_biases of type
     'cugraph_edge_property_view_t' - edge biases not yet supported.
 
-    h_fan_out: numpy array type or tuple of numpy array type
-        Device array containing the brancing out (fan-out) degrees per
-        starting vertex for each hop level.
+    h_fan_out: tuple of numpy array type
+        Device array containing the branching out (fan-out) degrees per
+        starting vertex for each hop level in CSR style format. The first
+        element of the tuple is the offset array per edge type id and the second
+        element corresponds to the fan_out values.
+        The sampling method can use different fan_out values for each edge type.
     
-    is_biased: bool # FIXME: Update docstrings
+    is_biased: bool
+        If false, sampling procedure is done uniform otherwise with biases.
 
     with_replacement: bool
         If true, sampling procedure is done with replacement (the same vertex
@@ -225,9 +229,9 @@ def neighbor_sample(ResourceHandle resource_handle,
     )
 
     cdef cugraph_graph_t* c_graph_ptr = input_graph.c_graph_ptr
-    cdef cugraph_sample_heterogeneous_fan_out_t* heterogeneous_fanout_ptr = <cugraph_sample_heterogeneous_fan_out_t*>NULL
+    cdef cugraph_sample_heterogeneous_fan_out_t* heterogeneous_fan_out_ptr = <cugraph_sample_heterogeneous_fan_out_t*>NULL
     cdef cugraph_type_erased_host_array_view_t* fan_out_ptr = <cugraph_type_erased_host_array_view_t*>NULL
-    cdef cugraph_type_erased_host_array_view_t* fan_out_size_ptr = <cugraph_type_erased_host_array_view_t*>NULL
+    cdef cugraph_type_erased_host_array_view_t* fan_out_offsets_ptr = <cugraph_type_erased_host_array_view_t*>NULL
     cdef cugraph_type_erased_host_array_view_t* fan_out_values_ptr = <cugraph_type_erased_host_array_view_t*>NULL
 
     cdef bool_t c_deduplicate_sources = deduplicate_sources
@@ -238,7 +242,7 @@ def neighbor_sample(ResourceHandle resource_handle,
     cdef cugraph_error_code_t error_code
     cdef cugraph_error_t* error_ptr
     cdef uintptr_t ai_fan_out_ptr
-    cdef uintptr_t ai_fan_out_size_ptr
+    cdef uintptr_t ai_fan_out_offsets_ptr
     cdef uintptr_t ai_fan_out_values_ptr
 
 
@@ -247,44 +251,34 @@ def neighbor_sample(ResourceHandle resource_handle,
     assert_CAI_type(label_list, "label_list", True)
     assert_CAI_type(label_to_output_comm_rank, "label_to_output_comm_rank", True)
     assert_CAI_type(label_offsets, "label_offsets", True)
-    if not isinstance(h_fan_out, tuple):
-        assert_AI_type(h_fan_out, "h_fan_out")
-        ai_fan_out_ptr = \
-            h_fan_out.__array_interface__["data"][0]
 
-        fan_out_ptr = \
-            cugraph_type_erased_host_array_view_create(
-                <void*>ai_fan_out_ptr,
-                len(h_fan_out),
-                get_c_type_from_numpy_type(h_fan_out.dtype))
-    else:
-        assert_AI_type(h_fan_out[0], "h_fan_out_size")
-        assert_AI_type(h_fan_out[1], "h_fan_out_values")
-        ai_fan_out_size_ptr = \
-            h_fan_out[0].__array_interface__["data"][0]
-        ai_fan_out_values_ptr = \
-            h_fan_out[1].__array_interface__["data"][0]
+    assert_AI_type(h_fan_out[0], "h_fan_out_size")
+    assert_AI_type(h_fan_out[1], "h_fan_out_values")
+    ai_fan_out_offsets_ptr = \
+        h_fan_out[0].__array_interface__["data"][0]
+    ai_fan_out_values_ptr = \
+        h_fan_out[1].__array_interface__["data"][0]
 
-        fan_out_size_ptr = \
-            cugraph_type_erased_host_array_view_create(
-                <void*>ai_fan_out_size_ptr,
-                len(h_fan_out[0]),
-                get_c_type_from_numpy_type(h_fan_out[0].dtype))
+    fan_out_offsets_ptr = \
+        cugraph_type_erased_host_array_view_create(
+            <void*>ai_fan_out_offsets_ptr,
+            len(h_fan_out[0]),
+            get_c_type_from_numpy_type(h_fan_out[0].dtype))
 
-        fan_out_values_ptr = \
-            cugraph_type_erased_host_array_view_create(
-                <void*>ai_fan_out_values_ptr,
-                len(h_fan_out[1]),
-                get_c_type_from_numpy_type(h_fan_out[1].dtype))
+    fan_out_values_ptr = \
+        cugraph_type_erased_host_array_view_create(
+            <void*>ai_fan_out_values_ptr,
+            len(h_fan_out[1]),
+            get_c_type_from_numpy_type(h_fan_out[1].dtype))
 
-        error_code = cugraph_create_heterogeneous_fan_out(
-            c_resource_handle_ptr,
-            c_graph_ptr,
-            fan_out_size_ptr,
-            fan_out_values_ptr,
-            &heterogeneous_fanout_ptr,
-            &error_ptr
-        )
+    error_code = cugraph_create_heterogeneous_fan_out(
+        c_resource_handle_ptr,
+        c_graph_ptr,
+        fan_out_offsets_ptr,
+        fan_out_values_ptr,
+        &heterogeneous_fan_out_ptr,
+        &error_ptr
+    )
 
     assert_success(error_code, error_ptr, "cugraph_create_heterogeneous_fan_out")
 
@@ -405,7 +399,7 @@ def neighbor_sample(ResourceHandle resource_handle,
     cugraph_sampling_set_compress_per_hop(sampling_options, c_compress_per_hop)
     cugraph_sampling_set_retain_seeds(sampling_options, retain_seeds)
 
-    error_code = cugraph_neighbor_sample(
+    error_code = cugraph_heterogeneous_neighbor_sample(
         c_resource_handle_ptr,
         rng_state_ptr,
         c_graph_ptr,
@@ -415,20 +409,19 @@ def neighbor_sample(ResourceHandle resource_handle,
         label_list_ptr,
         label_to_output_comm_rank_ptr,
         label_offsets_ptr,
-        fan_out_ptr,
-        heterogeneous_fanout_ptr,
+        heterogeneous_fan_out_ptr,
         sampling_options,
         is_biased,
         do_expensive_check,
         &result_ptr,
         &error_ptr)
-    assert_success(error_code, error_ptr, "cugraph_neighbor_sample")
+    assert_success(error_code, error_ptr, "cugraph_heterogeneous_neighbor_sample")
 
     # Free the sampling options
     cugraph_sampling_options_free(sampling_options)
 
     if isinstance(h_fan_out, tuple):
-        cugraph_heterogeneous_fanout_free(heterogeneous_fanout_ptr)
+        cugraph_heterogeneous_fan_out_free(heterogeneous_fan_out_ptr)
 
     # Free the two input arrays that are no longer needed.
     cugraph_type_erased_device_array_view_free(start_ptr)
