@@ -260,9 +260,7 @@ std::tuple<rmm::device_uvector<vertex_t>, std::vector<vertex_t>, vertex_t> compu
             // used to map vertices to GPUs, and we may not see the expected randomization)
 
       assert(multi_gpu);
-      auto& comm           = handle.get_comms();
-      auto const comm_size = comm.get_size();
-      auto& minor_comm     = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
+      auto& minor_comm = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
       auto const minor_comm_size = minor_comm.get_size();
 
       assert(static_cast<size_t>(minor_comm_size) == edgelist_majors.size());
@@ -373,7 +371,7 @@ std::tuple<rmm::device_uvector<vertex_t>, std::vector<vertex_t>, vertex_t> compu
           sorted_unique_majors.shrink_to_fit(handle.get_stream());
         }
       }
-    } else {
+    } else {  // FIXME: why not apply binning here?
       rmm::device_uvector<vertex_t> majors(edgelist_edge_counts[0], handle.get_stream());
       thrust::copy(handle.get_thrust_policy(),
                    edgelist_majors[0],
@@ -1000,8 +998,7 @@ renumber_edgelist(
         ((*edgelist_intra_partition_segment_offsets)[i][0] == 0) &&
           ((*edgelist_intra_partition_segment_offsets)[i].back() == edgelist_edge_counts[i]),
         "Invalid input arguments: (*edgelist_intra_partition_segment_offsets)[][0] should be 0 "
-        "and "
-        "(*edgelist_intra_partition_segment_offsets)[].back() should coincide with "
+        "and (*edgelist_intra_partition_segment_offsets)[].back() should coincide with "
         "edgelist_edge_counts[].");
     }
   }
