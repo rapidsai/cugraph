@@ -8,8 +8,8 @@ to run supported algorithms with GPU acceleration.
 
 nx-cugraph requires the following:
  * NVIDIA GPU, Volta architecture or later, with [compute capability](https://developer.nvidia.com/cuda-gpus) 7.0+
- * CUDA 11.2, 11.4, 11.5, 11.8, or 12.0
- * Python version 3.9, 3.10, or 3.11
+ * CUDA 11.2, 11.4, 11.5, 11.8, 12.0, 12.2, or 12.5
+ * Python version 3.10 or 3.11
  * NetworkX >= version 3.0 (version 3.2 or higher recommended)
 
 More details about system requirements can be found in the [RAPIDS System Requirements documentation](https://docs.rapids.ai/install#system-req).

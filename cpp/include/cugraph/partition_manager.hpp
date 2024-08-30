@@ -75,6 +75,30 @@ class partition_manager {
   __host__ __device__
 #endif
     static int
+    compute_major_comm_rank_from_global_comm_rank(int major_comm_size,
+                                                  int minor_comm_size,
+                                                  int comm_rank)
+  {
+    return map_major_comm_to_gpu_row_comm ? comm_rank % major_comm_size
+                                          : comm_rank / minor_comm_size;
+  }
+
+#ifdef __CUDACC__
+  __host__ __device__
+#endif
+    static int
+    compute_minor_comm_rank_from_global_comm_rank(int major_comm_size,
+                                                  int minor_comm_size,
+                                                  int comm_rank)
+  {
+    return map_major_comm_to_gpu_row_comm ? comm_rank / major_comm_size
+                                          : comm_rank % minor_comm_size;
+  }
+
+#ifdef __CUDACC__
+  __host__ __device__
+#endif
+    static int
     compute_vertex_partition_id_from_graph_subcomm_ranks(int major_comm_size,
                                                          int minor_comm_size,
                                                          int major_comm_rank,

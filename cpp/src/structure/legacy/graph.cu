@@ -14,17 +14,18 @@
  * limitations under the License.
  */
 
-#include "utilities/graph_utils.cuh"
-
 #include <cugraph/legacy/graph.hpp>
 #include <cugraph/utilities/error.hpp>
 
+#include <raft/core/device_span.hpp>
 #include <raft/util/device_atomics.cuh>
 
 #include <rmm/exec_policy.hpp>
 
+#include <thrust/execution_policy.h>
 #include <thrust/for_each.h>
 #include <thrust/iterator/counting_iterator.h>
+#include <thrust/sequence.h>
 
 namespace {
 
@@ -69,15 +70,40 @@ namespace legacy {
 template <typename VT, typename ET, typename WT>
 void GraphViewBase<VT, ET, WT>::get_vertex_identifiers(VT* identifiers) const
 {
-  cugraph::detail::sequence<VT>(number_of_vertices, identifiers);
+  thrust::sequence(thrust::device,
+                   thrust::device_pointer_cast(identifiers),
+                   thrust::device_pointer_cast(identifiers + number_of_vertices),
+                   VT{0});
+  RAFT_CHECK_CUDA(nullptr);
 }
 
+// FIXME: Need to get rid of this function... still used in python
 template <typename VT, typename ET, typename WT>
 void GraphCompressedSparseBaseView<VT, ET, WT>::get_source_indices(VT* src_indices) const
 {
   CUGRAPH_EXPECTS(offsets != nullptr, "No graph specified");
-  cugraph::detail::offsets_to_indices<ET, VT>(
-    offsets, GraphViewBase<VT, ET, WT>::number_of_vertices, src_indices);
+  rmm::cuda_stream_view stream_view;
+
+  raft::device_span<VT> indices_span(src_indices, GraphViewBase<VT, ET, WT>::number_of_edges);
+
+  if (indices_span.size() > 0) {
+    thrust::fill(rmm::exec_policy(stream_view), indices_span.begin(), indices_span.end(), VT{0});
+
+    thrust::for_each(rmm::exec_policy(stream_view),
+                     offsets + 1,
+                     offsets + GraphViewBase<VT, ET, WT>::number_of_vertices,
+                     [indices_span] __device__(ET offset) {
+                       if (offset < static_cast<ET>(indices_span.size())) {
+                         cuda::atomic_ref<VT, cuda::thread_scope_device> atomic_counter(
+                           indices_span.data()[offset]);
+                         atomic_counter.fetch_add(VT{1}, cuda::std::memory_order_relaxed);
+                       }
+                     });
+    thrust::inclusive_scan(rmm::exec_policy(stream_view),
+                           indices_span.begin(),
+                           indices_span.end(),
+                           indices_span.begin());
+  }
 }
 
 template <typename VT, typename ET, typename WT>
@@ -151,7 +177,5 @@ void GraphCompressedSparseBaseView<VT, ET, WT>::degree(ET* degree, DegreeDirecti
 
 }  // namespace legacy
 }  // namespace cugraph
-
-#include "utilities/eidir_graph_utils.hpp"
 
 #include <cugraph/legacy/eidir_graph.hpp>

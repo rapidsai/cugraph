@@ -76,7 +76,7 @@ struct ArithmeticZipLess {
         return thrust::get<1>(left) < thrust::get<1>(right);
       }
     } else {
-      return left < right;
+      return false;
     }
   }
 };

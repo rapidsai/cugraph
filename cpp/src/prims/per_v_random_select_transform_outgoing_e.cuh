@@ -15,6 +15,7 @@
  */
 #pragma once
 
+#include "from_cugraph_ops/sampling.hpp"
 #include "prims/detail/sample_and_compute_local_nbr_indices.cuh"
 #include "prims/property_op_utils.cuh"
 
@@ -30,9 +31,6 @@
 #include <cugraph/utilities/shuffle_comm.cuh>
 
 #include <raft/random/rng.cuh>
-#ifndef NO_CUGRAPH_OPS
-#include <cugraph-ops/graph/sampling.hpp>
-#endif
 
 #include <cub/cub.cuh>
 #include <cuda/atomic>
