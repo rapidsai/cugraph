@@ -29,6 +29,7 @@ from cugraph_dgl.view import (
     HeteroNodeDataView,
     HeteroEdgeView,
     HeteroEdgeDataView,
+    EmbeddingView,
 )
 
 
@@ -567,8 +568,8 @@ class Graph:
         return (ntype, emb_name) in self.__ndata_storage
 
     def _get_n_emb(
-        self, ntype: str, emb_name: str, u: Union[str, TensorType]
-    ) -> "torch.Tensor":
+        self, ntype: Union[str, None], emb_name: str, u: Union[str, TensorType]
+    ) -> Union["torch.Tensor", "EmbeddingView"]:
         """
         Gets the embedding of a single node type.
         Unlike DGL, this function takes the string node
@@ -583,11 +584,11 @@ class Graph:
         u: Union[str, TensorType]
             Nodes to get the representation of, or ALL
             to get the representation of all nodes of
-            the given type.
+            the given type (returns embedding view).
 
         Returns
         -------
-        torch.Tensor
+        Union[torch.Tensor, cugraph_dgl.view.EmbeddingView]
             The embedding of the given edge type with the given embedding name.
         """
 
@@ -598,9 +599,14 @@ class Graph:
                 raise ValueError("Must provide the node type for a heterogeneous graph")
 
         if dgl.base.is_all(u):
-            u = torch.arange(self.num_nodes(ntype), dtype=self.idtype, device="cpu")
+            return EmbeddingView(
+                self.__ndata_storage[ntype, emb_name], self.num_nodes(ntype)
+            )
 
         try:
+            print(
+                u,
+            )
             return self.__ndata_storage[ntype, emb_name].fetch(
                 _cast_to_torch_tensor(u), "cuda"
             )
@@ -644,7 +650,9 @@ class Graph:
         etype = self.to_canonical_etype(etype)
 
         if dgl.base.is_all(u):
-            u = torch.arange(self.num_edges(etype), dtype=self.idtype, device="cpu")
+            return EmbeddingView(
+                self.__edata_storage[etype, emb_name], self.num_edges(etype)
+            )
 
         try:
             return self.__edata_storage[etype, emb_name].fetch(
