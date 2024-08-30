@@ -17,7 +17,7 @@ repos:
     hooks:
       - id: black
         language_version: python3
-        args: [--target-version=py39]
+        args: [--target-version=py310]
         files: ^(python/.*|benchmarks/.*)$
         exclude: ^python/nx-cugraph/
   - repo: https://github.com/PyCQA/flake8
