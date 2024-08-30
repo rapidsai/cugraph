@@ -322,12 +322,6 @@ void cugraph_sampling_options_free(cugraph_sampling_options_t* options);
 /**
  * @brief     Opaque neighborhood sampling heterogeneous fanout type
  */
-// FIXME: internal representation should be tuple instead of pairs - Make it more generic (tuple)
-// cugraph_device_tuple_t, host_device_tuple_t,
-// dictionary, key and array
-// translate dictionary to a tuple. Add to the draft PR the PLC layer.
-// Concatenate to build the 3 arrays from the PLC layer
-/// mimic
 typedef struct {
   int32_t align_;
 } cugraph_sample_heterogeneous_fan_out_t;
