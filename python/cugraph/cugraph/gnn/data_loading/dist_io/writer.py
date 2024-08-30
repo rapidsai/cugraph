@@ -109,6 +109,11 @@ class DistSampleWriter:
             batch_id_array_p = minibatch_dict["batch_id"][partition_start:partition_end]
             start_batch_id = batch_id_array_p[0]
 
+            input_offsets_p = minibatch_dict["input_offsets"][
+                partition_start : (partition_end + 1)
+            ]
+            input_index_p = minibatch_dict[input_offsets_p[0] : input_offsets_p[-1]]
+
             start_ix, end_ix = label_hop_offsets_array_p[[0, -1]]
             majors_array_p = minibatch_dict["majors"][start_ix:end_ix]
             minors_array_p = minibatch_dict["minors"][start_ix:end_ix]
@@ -151,6 +156,8 @@ class DistSampleWriter:
                     "edge_id": edge_id_array_p,
                     "edge_type": edge_type_array_p,
                     "renumber_map_offsets": renumber_map_offsets_array_p,
+                    "input_index": input_index_p,
+                    "input_offsets": input_offsets_p,
                 }
             )
 
@@ -200,6 +207,18 @@ class DistSampleWriter:
 
             batch_id_array_p = minibatch_dict["batch_id"][partition_start:partition_end]
             start_batch_id = batch_id_array_p[0]
+
+            input_offsets_p = minibatch_dict["input_offsets"][
+                partition_start : (partition_end + 1)
+            ]
+            input_index_p = minibatch_dict[input_offsets_p[0] : input_offsets_p[-1]]
+            edge_inverse_p = (
+                minibatch_dict["edge_inverse"][
+                    (input_offsets_p[0] * 2) : (input_offsets_p[-1] * 2)
+                ]
+                if "edge_inverse" in minibatch_dict
+                else None
+            )
 
             # major offsets and minors
             (
@@ -255,6 +274,9 @@ class DistSampleWriter:
                     "edge_id": edge_id_array_p,
                     "edge_type": edge_type_array_p,
                     "renumber_map_offsets": renumber_map_offsets_array_p,
+                    "input_index": input_index_p,
+                    "input_offsets": input_offsets_p,
+                    "edge_inverse": edge_inverse_p,
                 }
             )
 

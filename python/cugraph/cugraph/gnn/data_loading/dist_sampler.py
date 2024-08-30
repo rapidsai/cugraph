@@ -229,7 +229,7 @@ class DistSampler:
     def __sample_from_nodes_func(
         self,
         call_id: int,
-        current_seeds: "torch.Tensor",
+        current_seeds_and_ix: Tuple["torch.Tensor", "torch.Tensor"],
         batch_id_start: int,
         batch_size: int,
         batches_per_call: int,
@@ -237,6 +237,8 @@ class DistSampler:
         assume_equal_input_size: bool,
     ) -> Union[None, Iterator[Tuple[Dict[str, "torch.Tensor"], int, int]]]:
         torch = import_optional("torch")
+
+        current_seeds, current_ix = current_seeds_and_ix
 
         current_batches = torch.arange(
             batch_id_start + call_id * batches_per_call,
@@ -252,12 +254,27 @@ class DistSampler:
             : len(current_seeds)
         ]
 
+        # do qr division to get the number of batch_size batches and the
+        # size of the last batch
+        num_full, last_count = divmod(len(current_seeds), batch_size)
+        input_offsets = torch.concatenate(
+            [
+                torch.tensor([0], device="cuda", dtype=torch.int64),
+                torch.full((num_full,), batch_size, device="cuda", dtype=torch.int64),
+                torch.tensor([last_count], device="cuda", dtype=torch.int64)
+                if last_count > 0
+                else torch.tensor([], device="cuda", dtype=torch.int64),
+            ]
+        ).cumsum(-1)
+
         minibatch_dict = self.sample_batches(
             seeds=current_seeds,
             batch_ids=current_batches,
             random_state=random_state,
             assume_equal_input_size=assume_equal_input_size,
         )
+        minibatch_dict["input_index"] = current_ix.cuda()
+        minibatch_dict["input_offsets"] = input_offsets
 
         if self.__writer is None:
             # rename renumber_map -> map to match unbuffered format
@@ -274,6 +291,41 @@ class DistSampler:
             self.__writer.write_minibatches(minibatch_dict)
             return None
 
+    def __get_call_groups(
+        self,
+        seeds: TensorType,
+        input_id: TensorType,
+        seeds_per_call: int,
+        assume_equal_input_size: bool = False,
+    ):
+        # Split the input seeds into call groups.  Each call group
+        # corresponds to one sampling call.  A call group contains
+        # many batches.
+        seeds_call_groups = torch.split(seeds, seeds_per_call, dim=-1)
+        index_call_groups = torch.split(input_id, seeds_per_call, dim=-1)
+
+        # Need to add empties to the list of call groups to handle the case
+        # where not all ranks have the same number of call groups.  This
+        # prevents a hang since we need all ranks to make the same number
+        # of calls.
+        if not assume_equal_input_size:
+            num_call_groups = torch.tensor(
+                [len(seeds_call_groups)], device="cuda", dtype=torch.int32
+            )
+            torch.distributed.all_reduce(
+                num_call_groups, op=torch.distributed.ReduceOp.MAX
+            )
+            seeds_call_groups = list(seeds_call_groups) + (
+                [torch.tensor([], dtype=seeds.dtype, device="cuda")]
+                * (int(num_call_groups) - len(seeds_call_groups))
+            )
+            index_call_groups = list(index_call_groups) + (
+                [torch.tensor([], dtype=torch.int64, device=index_call_groups.device)]
+                * (int(num_call_groups) - len(index_call_groups))
+            )
+
+        return seeds_call_groups, index_call_groups
+
     def sample_from_nodes(
         self,
         nodes: TensorType,
@@ -281,6 +333,7 @@ class DistSampler:
         batch_size: int = 16,
         random_state: int = 62,
         assume_equal_input_size: bool = False,
+        input_id: Optional[TensorType] = None,
     ) -> Iterator[Tuple[Dict[str, "torch.Tensor"], int, int]]:
         """
         Performs node-based sampling.  Accepts a list of seed nodes, and batch size.
@@ -297,40 +350,36 @@ class DistSampler:
             The size of each batch.
         random_state: int
             The random seed to use for sampling.
+        assume_equal_input_size: bool
+            Whether the inputs across workers should be assumed to be equal in
+            dimension.  Skips some checks if True.
+        input_id: Optional[TensorType]
+            Input ids corresponding to the original batch tensor, if it
+            was permuted prior to calling this function.  If present,
+            will be saved with the samples.
         """
         torch = import_optional("torch")
 
         nodes = torch.as_tensor(nodes, device="cuda")
+        num_seeds = nodes.numel()
 
         batches_per_call = self._local_seeds_per_call // batch_size
         actual_seeds_per_call = batches_per_call * batch_size
 
-        # Split the input seeds into call groups.  Each call group
-        # corresponds to one sampling call.  A call group contains
-        # many batches.
-        num_seeds = len(nodes)
-        nodes_call_groups = torch.split(nodes, actual_seeds_per_call)
+        if input_id is None:
+            input_id = torch.arange(num_seeds, dtype=torch.int64, device="cpu")
 
         local_num_batches = int(ceil(num_seeds / batch_size))
         batch_id_start, input_size_is_equal = self.get_start_batch_offset(
             local_num_batches, assume_equal_input_size=assume_equal_input_size
         )
 
-        # Need to add empties to the list of call groups to handle the case
-        # where not all nodes have the same number of call groups.  This
-        # prevents a hang since we need all ranks to make the same number
-        # of calls.
-        if not input_size_is_equal:
-            num_call_groups = torch.tensor(
-                [len(nodes_call_groups)], device="cuda", dtype=torch.int32
-            )
-            torch.distributed.all_reduce(
-                num_call_groups, op=torch.distributed.ReduceOp.MAX
-            )
-            nodes_call_groups = list(nodes_call_groups) + (
-                [torch.tensor([], dtype=nodes.dtype, device="cuda")]
-                * (int(num_call_groups) - len(nodes_call_groups))
-            )
+        nodes_call_groups, index_call_groups = self.__get_call_groups(
+            nodes,
+            input_id,
+            actual_seeds_per_call,
+            assume_equal_input_size=input_size_is_equal,
+        )
 
         sample_args = (
             batch_id_start,
@@ -343,14 +392,227 @@ class DistSampler:
         if self.__writer is None:
             # Buffered sampling
             return BufferedSampleReader(
-                nodes_call_groups, self.__sample_from_nodes_func, *sample_args
+                zip(nodes_call_groups, index_call_groups),
+                self.__sample_from_nodes_func,
+                *sample_args,
             )
         else:
             # Unbuffered sampling
-            for i, current_seeds in enumerate(nodes_call_groups):
+            for i, current_seeds_and_ix in enumerate(
+                zip(nodes_call_groups, index_call_groups)
+            ):
                 self.__sample_from_nodes_func(
                     i,
-                    current_seeds,
+                    current_seeds_and_ix,
+                    *sample_args,
+                )
+
+            # Return a reader that points to the stored samples
+            rank = torch.distributed.get_rank() if self.is_multi_gpu else None
+            return self.__writer.get_reader(rank)
+
+    def __sample_from_edges_func(
+        self,
+        call_id: int,
+        current_seeds_and_ix: Tuple["torch.Tensor", "torch.Tensor"],
+        batch_id_start: int,
+        batch_size: int,
+        batches_per_call: int,
+        random_state: int,
+        assume_equal_input_size: bool,
+    ) -> Union[None, Iterator[Tuple[Dict[str, "torch.Tensor"], int, int]]]:
+        torch = import_optional("torch")
+
+        current_seeds, current_ix = current_seeds_and_ix
+        num_seed_edges = current_ix.numel()
+
+        # The index gets stored as-is regardless of what makes it into
+        # the final batch and in what order.
+        # do qr division to get the number of batch_size batches and the
+        # size of the last batch
+        num_whole_batches, last_count = divmod(num_seed_edges, batch_size)
+        input_offsets = torch.concatenate(
+            [
+                torch.tensor([0], device="cuda", dtype=torch.int64),
+                torch.full(
+                    (num_whole_batches,), batch_size, device="cuda", dtype=torch.int64
+                ),
+                torch.tensor([last_count], device="cuda", dtype=torch.int64)
+                if last_count > 0
+                else torch.tensor([], device="cuda", dtype=torch.int64),
+            ]
+        ).cumsum(-1)
+
+        current_seeds, leftover_seeds = (
+            current_seeds[:, num_whole_batches],
+            current_seeds[:, num_whole_batches:],
+        )
+
+        # For input edges, we need to translate this into unique vertices
+        # for each batch.
+        # We start by reorganizing the seed and index tensors so we can
+        # determine the unique vertices.  This results in the expected
+        # src-to-dst concatenation for each batch
+        current_seeds = torch.concat(
+            [
+                current_seeds[0].reshape((-1, batch_size)),
+                current_seeds[1].reshape((-1, batch_size)),
+            ],
+            axis=-1,
+        )
+
+        # The returned unique values must be sorted or else the inverse won't line up
+        # In the future this may be a good target for a C++ function
+        # Each element is a tuple of (unique, index, inverse)
+        # TODO make sure this is compatible with negative sampling
+        u = [
+            torch.unique(
+                t,
+                return_inverse=True,
+                sorted=True,
+            )
+            for t in current_seeds
+        ]
+        current_seeds = torch.concat([a[0] for a in u])
+        current_inv = torch.concat([a[1] for a in u])
+        current_batches = torch.concat(
+            [
+                torch.full(
+                    (a[0].numel(),),
+                    i + batch_id_start + (call_id * batches_per_call),
+                    device="cuda",
+                    dtype=torch.int32,
+                )
+                for i, a in enumerate(u)
+            ]
+        )
+        del u
+
+        # Join with the leftovers
+        # TODO make sure this is compatible with negative sampling
+        leftover_seeds, leftover_inv = leftover_seeds.flatten().unique(
+            return_inverse=True,
+            sorted=True,
+        )
+        current_seeds = torch.concat([current_seeds, leftover_seeds])
+        current_inv = torch.concat([current_inv, leftover_inv])
+        current_batches = torch.concat(
+            [
+                current_batches,
+                torch.full(
+                    (leftover_seeds.numel(),),
+                    current_batches[-1] + 1,
+                    device="cuda",
+                    dtype=torch.int32,
+                ),
+            ]
+        )
+
+        minibatch_dict = self.sample_batches(
+            seeds=current_seeds,
+            batch_ids=current_batches,
+            random_state=random_state,
+            assume_equal_input_size=assume_equal_input_size,
+        )
+        minibatch_dict["input_index"] = current_ix.cuda()
+        minibatch_dict["input_offsets"] = input_offsets
+        minibatch_dict[
+            "edge_inverse"
+        ] = current_inv  # (2 * batch_size) entries per batch
+
+        if self.__writer is None:
+            # rename renumber_map -> map to match unbuffered format
+            minibatch_dict["map"] = minibatch_dict["renumber_map"]
+            del minibatch_dict["renumber_map"]
+            minibatch_dict = {
+                k: torch.as_tensor(v, device="cuda")
+                for k, v in minibatch_dict.items()
+                if v is not None
+            }
+
+            return iter([(minibatch_dict, current_batches[0], current_batches[-1])])
+        else:
+            self.__writer.write_minibatches(minibatch_dict)
+            return None
+
+    def sample_from_edges(
+        self,
+        edges: TensorType,
+        *,
+        batch_size: int = 16,
+        random_state: int = 62,
+        assume_equal_input_size: bool = False,
+        input_id: Optional[TensorType] = None,
+    ) -> Iterator[Tuple[Dict[str, "torch.Tensor"], int, int]]:
+        """
+        Performs sampling starting from seed edges.
+
+        Parameters
+        ----------
+        edges: TensorType
+            2 x (# edges) tensor of edges to sample from.
+            Standard src/dst format.  This will be converted
+            to a list of seed nodes.
+        batch_size: int
+            The size of each batch.
+        random_state: int
+            The random seed to use for sampling.
+        assume_equal_input_size: bool
+            Whether this function should assume that inputs
+            are equal across ranks.  Skips some potentially
+            slow steps if True.
+        input_id: Optional[TensorType]
+            Input ids corresponding to the original batch tensor, if it
+            was permuted prior to calling this function.  If present,
+            will be saved with the samples.
+        """
+
+        torch = import_optional("torch")
+
+        edges = torch.as_tensor(edges, device="cuda")
+        num_seed_edges = edges.shape[-1]
+
+        batches_per_call = self._local_seeds_per_call // batch_size
+        actual_seed_edges_per_call = batches_per_call * batch_size
+
+        if input_id is None:
+            input_id = torch.arange(len(edges), dtype=torch.int64, device="cpu")
+
+        local_num_batches = int(ceil(num_seed_edges / batch_size))
+        batch_id_start, input_size_is_equal = self.get_start_batch_offset(
+            local_num_batches, assume_equal_input_size=assume_equal_input_size
+        )
+
+        edges_call_groups, index_call_groups = self.__get_call_groups(
+            edges,
+            input_id,
+            actual_seed_edges_per_call,
+            assume_equal_input_size=input_size_is_equal,
+        )
+
+        sample_args = (
+            batch_id_start,
+            batch_size,
+            batches_per_call,
+            random_state,
+            input_size_is_equal,
+        )
+
+        if self.__writer is None:
+            # Buffered sampling
+            return BufferedSampleReader(
+                zip(edges_call_groups, index_call_groups),
+                self.__sample_from_edges_func,
+                *sample_args,
+            )
+        else:
+            # Unbuffered sampling
+            for i, current_seeds_and_ix in enumerate(
+                zip(edges_call_groups, index_call_groups)
+            ):
+                self.__sample_from_edges_func(
+                    i,
+                    current_seeds_and_ix,
                     *sample_args,
                 )
 

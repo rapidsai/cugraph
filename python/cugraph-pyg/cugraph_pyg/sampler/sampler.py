@@ -101,9 +101,19 @@ class SampleIterator:
             data.num_sampled_nodes = next_sample.num_sampled_nodes
             data.num_sampled_edges = next_sample.num_sampled_edges
 
-            data.input_id = data.batch
-            data.seed_time = None
+            data.input_id = next_sample.metadata[0]
             data.batch_size = data.input_id.size(0)
+
+            if len(next_sample.metadata) == 2:
+                data.seed_time = next_sample.metadata[1]
+            elif len(next_sample.metadata) == 4:
+                (
+                    data.edge_label_index,
+                    data.edge_label,
+                    data.seed_time,
+                ) = next_sample.metadata[1:]
+            else:
+                raise ValueError("Invalid metadata")
 
         elif isinstance(next_sample, torch_geometric.sampler.HeteroSamplerOutput):
             col = {}
@@ -175,6 +185,9 @@ class SampleReader:
                 self.__base_reader
             )
 
+            self.__raw_sample_data["input_offsets"] -= self.__raw_sample_data[
+                "input_offsets"
+            ][0].clone()
             self.__raw_sample_data["label_hop_offsets"] -= self.__raw_sample_data[
                 "label_hop_offsets"
             ][0].clone()
@@ -266,6 +279,37 @@ class HomogeneousSampleReader(SampleReader):
             [num_seeds, num_sampled_nodes_hops.diff(prepend=num_seeds)]
         )
 
+        input_index = raw_sample_data["input_index"][
+            raw_sample_data["input_offsets"][index] : raw_sample_data["input_offsets"][
+                index + 1
+            ]
+        ]
+
+        edge_inverse = (
+            (
+                raw_sample_data["edge_inverse"][
+                    (raw_sample_data["input_offsets"][index] * 2) : (
+                        raw_sample_data["input_offsets"][index + 1] * 2
+                    )
+                ]
+            )
+            if "edge_inverse" in raw_sample_data
+            else None
+        )
+
+        if edge_inverse is None:
+            metadata = (
+                input_index,
+                None,  # TODO this will eventually include time
+            )
+        else:
+            metadata = (
+                input_index,
+                edge_inverse.view(2, -1),
+                None,
+                None,  # TODO this will eventually include time
+            )
+
         return torch_geometric.sampler.SamplerOutput(
             node=renumber_map.cpu(),
             row=minors,
@@ -274,6 +318,7 @@ class HomogeneousSampleReader(SampleReader):
             batch=renumber_map[:num_seeds],
             num_sampled_nodes=num_sampled_nodes.cpu(),
             num_sampled_edges=num_sampled_edges.cpu(),
+            metadata=metadata,
         )
 
     def __decode_coo(self, raw_sample_data: Dict[str, "torch.Tensor"], index: int):
@@ -319,6 +364,12 @@ class HomogeneousSampleReader(SampleReader):
             [num_seeds, num_sampled_nodes_hops.diff(prepend=num_seeds)]
         )
 
+        input_index = raw_sample_data["input_index"][
+            raw_sample_data["input_offsets"][index] : raw_sample_data["input_offsets"][
+                index + 1
+            ]
+        ]
+
         return torch_geometric.sampler.SamplerOutput(
             node=renumber_map.cpu(),
             row=minors,
@@ -327,6 +378,10 @@ class HomogeneousSampleReader(SampleReader):
             batch=renumber_map[:num_seeds],
             num_sampled_nodes=num_sampled_nodes,
             num_sampled_edges=num_sampled_edges,
+            metadata=(
+                input_index,
+                None,  # TODO this will eventually include time
+            ),
         )
 
     def _decode(self, raw_sample_data: Dict[str, "torch.Tensor"], index: int):
@@ -358,7 +413,7 @@ class BaseSampler:
         ]
     ]:
         reader = self.__sampler.sample_from_nodes(
-            index.node, batch_size=self.__batch_size, **kwargs
+            index.node, batch_size=self.__batch_size, input_id=index.input_id, **kwargs
         )
 
         edge_attrs = self.__graph_store.get_all_edge_attrs()
@@ -385,4 +440,24 @@ class BaseSampler:
             "torch_geometric.sampler.SamplerOutput",
         ]
     ]:
-        raise NotImplementedError("Edge sampling is currently unimplemented.")
+        if neg_sampling:
+            raise NotImplementedError("negative sampling is currently unsupported")
+
+        reader = self.__sampler.sample_from_edges(
+            torch.stack([index.row, index.col]),  # reverse of usual convention
+            input_id=index.input_id,
+            **kwargs,
+        )
+
+        edge_attrs = self.__graph_store.get_all_edge_attrs()
+        if (
+            len(edge_attrs) == 1
+            and edge_attrs[0].edge_type[0] == edge_attrs[0].edge_type[2]
+        ):
+            return HomogeneousSampleReader(reader)
+        else:
+            # TODO implement heterogeneous sampling
+            raise NotImplementedError(
+                "Sampling heterogeneous graphs is currently"
+                " unsupported in the non-dask API"
+            )
