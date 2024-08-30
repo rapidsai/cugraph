@@ -1178,7 +1178,8 @@ std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<weight_t>>,
            std::optional<rmm::device_uvector<edge_t>>,
-           std::optional<rmm::device_uvector<edge_type_t>>>
+           std::optional<rmm::device_uvector<edge_type_t>>,
+           std::vector<size_t>>
 shuffle_external_edges(raft::handle_t const& handle,
                        rmm::device_uvector<vertex_t>&& edge_srcs,
                        rmm::device_uvector<vertex_t>&& edge_dsts,

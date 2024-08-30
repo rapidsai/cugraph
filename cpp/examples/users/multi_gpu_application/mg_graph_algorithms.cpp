@@ -123,7 +123,7 @@ create_graph(raft::handle_t const& handle,
   //
 
   if (multi_gpu) {
-    std::tie(d_edge_srcs, d_edge_dsts, d_edge_wgts, std::ignore, std::ignore) =
+    std::tie(d_edge_srcs, d_edge_dsts, d_edge_wgts, std::ignore, std::ignore, std::ignore) =
       cugraph::shuffle_external_edges<vertex_t, vertex_t, weight_t, int32_t>(handle,
                                                                              std::move(d_edge_srcs),
                                                                              std::move(d_edge_dsts),
@@ -248,9 +248,8 @@ void run_graph_algorithms(
                             std::cout);
 }
 
-int main(int argc, char** argv)
+void run_tests()
 {
-  initialize_mpi_and_set_device(argc, argv);
   std::unique_ptr<raft::handle_t> handle = initialize_mg_handle();
 
   //
@@ -279,6 +278,7 @@ int main(int argc, char** argv)
       std::move(std::make_optional(edge_wgts)),
       renumber,
       is_symmetric);
+
   // Non-owning view of the graph object
   auto graph_view = graph.view();
 
@@ -291,6 +291,15 @@ int main(int argc, char** argv)
 
   run_graph_algorithms<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(
     *handle, graph_view, edge_weight_view);
+
+  handle.release();
+}
+
+int main(int argc, char** argv)
+{
+  initialize_mpi_and_set_device(argc, argv);
+
+  run_tests();
 
   RAFT_MPI_TRY(MPI_Finalize());
 }
