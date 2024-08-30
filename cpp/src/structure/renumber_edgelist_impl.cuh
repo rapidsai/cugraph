@@ -251,8 +251,10 @@ std::tuple<rmm::device_uvector<vertex_t>, std::vector<vertex_t>, vertex_t> compu
   if (!local_vertices) {
     rmm::device_uvector<vertex_t> sorted_unique_majors(0, handle.get_stream());
     if (edgelist_majors.size() > 1) {
-      constexpr size_t num_bins{8};  // increase the number of bins to cut peak memory usage (at the
-                                     // expense of additional computing)
+      constexpr size_t num_bins{
+        8};  // increase the number of bins to cut peak memory usage (at the expense of additional
+             // computing), limit the maximum temporary memory usage to "size of local edge list
+             // majors & minors" / "# bins".
       constexpr uint32_t hash_seed =
         1;  // shouldn't be 0 (in that case this hash function will coincide with the hash function
             // used to map vertices to GPUs, and we may not see the expected randomization)
@@ -387,7 +389,10 @@ std::tuple<rmm::device_uvector<vertex_t>, std::vector<vertex_t>, vertex_t> compu
     }
 
     rmm::device_uvector<vertex_t> sorted_unique_minors(0, handle.get_stream());
-    for (size_t i = 0; i < edgelist_minors.size(); ++i) {
+    for (size_t i = 0; i < edgelist_minors.size();
+         ++i) {  // limit the maximum temporary memory usage to "size of local edge list majors &
+                 // minors" / "# local edge partitions" (FXIME: we can further cut peak memory usage
+                 // by applying binning here as well; fewer bins than the edge list major case)
       rmm::device_uvector<vertex_t> tmp_minors(edgelist_edge_counts[i], handle.get_stream());
       thrust::copy(handle.get_thrust_policy(),
                    edgelist_minors[i],
