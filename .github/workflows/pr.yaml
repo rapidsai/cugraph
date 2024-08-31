@@ -44,7 +44,7 @@ jobs:
     uses: rapidsai/shared-workflows/.github/workflows/changed-files.yaml@changed-files
     with:
       files_yaml: |
-        cpp:
+        test_cpp:
           - '**'
           - '!CONTRIBUTING.md'
           - '!README.md'
@@ -56,14 +56,14 @@ jobs:
           - '!readme_pages/**'
           # TODO: Remove this before merging
           - '!.github/**'
-        notebooks:
+        test_notebooks:
           - '**'
           - '!CONTRIBUTING.md'
           - '!README.md'
           - '!docs/**'
           # TODO: Remove this before merging
           - '!.github/**'
-        python:
+        test_python:
           - '**'
           - '!CONTRIBUTING.md'
           - '!README.md'
