@@ -271,9 +271,8 @@ def bench_from_networkx(benchmark, graph_obj):
 
 
 # normalized_param_values = [True, False]
-# k_param_values = [10, 100]
 normalized_param_values = [True]
-k_param_values = [10]
+k_param_values = [10, 100, 1000]
 
 
 @pytest.mark.parametrize(
@@ -282,6 +281,10 @@ k_param_values = [10]
 @pytest.mark.parametrize("k", k_param_values, ids=lambda k: f"{k=}")
 def bench_betweenness_centrality(benchmark, graph_obj, backend_wrapper, normalized, k):
     G = get_graph_obj_for_benchmark(graph_obj, backend_wrapper)
+
+    if k > G.number_of_nodes():
+        pytest.skip(reason=f"{k=} > {G.number_of_nodes()=}")
+
     result = benchmark.pedantic(
         target=backend_wrapper(nx.betweenness_centrality),
         args=(G,),
@@ -305,6 +308,10 @@ def bench_edge_betweenness_centrality(
     benchmark, graph_obj, backend_wrapper, normalized, k
 ):
     G = get_graph_obj_for_benchmark(graph_obj, backend_wrapper)
+
+    if k > G.number_of_nodes():
+        pytest.skip(reason=f"{k=} > {G.number_of_nodes()=}")
+
     result = benchmark.pedantic(
         target=backend_wrapper(nx.edge_betweenness_centrality),
         args=(G,),
@@ -466,6 +473,26 @@ def bench_pagerank_personalized(benchmark, graph_obj, backend_wrapper):
         target=backend_wrapper(nx.pagerank),
         args=(G,),
         kwargs={"personalization": personalization_dict},
+        rounds=rounds,
+        iterations=iterations,
+        warmup_rounds=warmup_rounds,
+    )
+    assert type(result) is dict
+
+
+def bench_shortest_path(benchmark, graph_obj, backend_wrapper):
+    """
+    This passes in the source node with the highest degree, but no target.
+    """
+    G = get_graph_obj_for_benchmark(graph_obj, backend_wrapper)
+    node = get_highest_degree_node(graph_obj)
+
+    result = benchmark.pedantic(
+        target=backend_wrapper(nx.shortest_path),
+        args=(G,),
+        kwargs=dict(
+            source=node,
+        ),
         rounds=rounds,
         iterations=iterations,
         warmup_rounds=warmup_rounds,

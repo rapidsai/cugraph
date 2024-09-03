@@ -16,11 +16,15 @@
 
 #include "utilities/thrust_wrapper.hpp"
 
+#include <cugraph/utilities/device_functors.cuh>
+#include <cugraph/utilities/misc_utils.cuh>
+
 #include <rmm/exec_policy.hpp>
 
 #include <thrust/copy.h>
 #include <thrust/distance.h>
 #include <thrust/extrema.h>
+#include <thrust/gather.h>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/random.h>
 #include <thrust/remove.h>
@@ -476,6 +480,71 @@ template void populate_vertex_ids(raft::handle_t const& handle,
 template void populate_vertex_ids(raft::handle_t const& handle,
                                   rmm::device_uvector<int64_t>& d_vertices_v,
                                   int64_t vertex_id_offset);
+
+template <typename idx_t, typename offset_t>
+void expand_sparse_offsets(raft::handle_t const& handle,
+                           raft::device_span<offset_t const> offsets,
+                           raft::device_span<idx_t> indices,
+                           offset_t base_offset,
+                           idx_t base_idx)
+{
+  rmm::device_uvector<offset_t> tmp_offsets(offsets.size(), handle.get_stream());
+  thrust::transform(handle.get_thrust_policy(),
+                    offsets.begin(),
+                    offsets.end(),
+                    tmp_offsets.begin(),
+                    cugraph::detail::shift_left_t<offset_t>{base_offset});
+  auto tmp = cugraph::detail::expand_sparse_offsets(
+    raft::device_span<offset_t const>(tmp_offsets.data(), tmp_offsets.size()),
+    base_idx,
+    handle.get_stream());
+  thrust::copy(handle.get_thrust_policy(), tmp.begin(), tmp.end(), indices.begin());
+}
+
+template void expand_sparse_offsets(raft::handle_t const& handle,
+                                    raft::device_span<size_t const> offsets,
+                                    raft::device_span<int32_t> indices,
+                                    size_t base_offset,
+                                    int32_t base_idx);
+
+template void expand_sparse_offsets(raft::handle_t const& handle,
+                                    raft::device_span<size_t const> offsets,
+                                    raft::device_span<int64_t> indices,
+                                    size_t base_offset,
+                                    int64_t base_idx);
+
+template <typename idx_t, typename offset_t>
+void expand_hypersparse_offsets(raft::handle_t const& handle,
+                                raft::device_span<offset_t const> offsets,
+                                raft::device_span<idx_t const> nzd_indices,
+                                raft::device_span<idx_t> indices,
+                                offset_t base_offset)
+{
+  rmm::device_uvector<offset_t> tmp_offsets(offsets.size(), handle.get_stream());
+  thrust::transform(handle.get_thrust_policy(),
+                    offsets.begin(),
+                    offsets.end(),
+                    tmp_offsets.begin(),
+                    cugraph::detail::shift_left_t<offset_t>{base_offset});
+  auto tmp = cugraph::detail::expand_sparse_offsets(
+    raft::device_span<offset_t const>(tmp_offsets.data(), tmp_offsets.size()),
+    idx_t{0},
+    handle.get_stream());
+  thrust::gather(
+    handle.get_thrust_policy(), tmp.begin(), tmp.end(), nzd_indices.begin(), indices.begin());
+}
+
+template void expand_hypersparse_offsets(raft::handle_t const& handle,
+                                         raft::device_span<size_t const> offsets,
+                                         raft::device_span<int32_t const> nzd_indices,
+                                         raft::device_span<int32_t> indices,
+                                         size_t base_offset);
+
+template void expand_hypersparse_offsets(raft::handle_t const& handle,
+                                         raft::device_span<size_t const> offsets,
+                                         raft::device_span<int64_t const> nzd_indices,
+                                         raft::device_span<int64_t> indices,
+                                         size_t base_offset);
 
 }  // namespace test
 }  // namespace cugraph
