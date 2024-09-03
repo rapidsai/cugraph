@@ -16,8 +16,8 @@
 
 #include "c_api/abstract_functor.hpp"
 #include "c_api/graph.hpp"
-#include "c_api/resource_handle.hpp"
 #include "c_api/random.hpp"
+#include "c_api/resource_handle.hpp"
 #include "c_api/utils.hpp"
 
 #include <cugraph_c/algorithms.h>
@@ -226,7 +226,7 @@ struct uniform_random_walks_functor : public cugraph::c_api::abstract_functor {
 
       //  FIXME: remove once rng_state passed as parameter
       rng_state_ = reinterpret_cast<cugraph::c_api::cugraph_rng_state_t*>(
-      new cugraph::c_api::cugraph_rng_state_t{raft::random::RngState{0}});
+        new cugraph::c_api::cugraph_rng_state_t{raft::random::RngState{0}});
 
       auto [paths, weights] = cugraph::uniform_random_walks(
         handle_,
@@ -335,7 +335,7 @@ struct biased_random_walks_functor : public cugraph::c_api::abstract_functor {
 
       //  FIXME: remove once rng_state passed as parameter
       rng_state_ = reinterpret_cast<cugraph::c_api::cugraph_rng_state_t*>(
-      new cugraph::c_api::cugraph_rng_state_t{raft::random::RngState{0}});
+        new cugraph::c_api::cugraph_rng_state_t{raft::random::RngState{0}});
 
       auto [paths, weights] = cugraph::biased_random_walks(
         handle_,
@@ -445,7 +445,7 @@ struct node2vec_random_walks_functor : public cugraph::c_api::abstract_functor {
 
       //  FIXME: remove once rng_state passed as parameter
       rng_state_ = reinterpret_cast<cugraph::c_api::cugraph_rng_state_t*>(
-      new cugraph::c_api::cugraph_rng_state_t{raft::random::RngState{0}});
+        new cugraph::c_api::cugraph_rng_state_t{raft::random::RngState{0}});
 
       auto [paths, weights] = cugraph::node2vec_random_walks(
         handle_,

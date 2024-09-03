@@ -319,7 +319,7 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::Values(cugraph::test::File_Usecase("test/datasets/web-Google.mtx"),
                       cugraph::test::File_Usecase("test/datasets/ljournal-2008.mtx"),
                       cugraph::test::File_Usecase("test/datasets/webbase-1M.mtx"))));
-                      
+
 INSTANTIATE_TEST_SUITE_P(
   file_large_test,
   Tests_BiasedRandomWalks_File,

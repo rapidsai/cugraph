@@ -17,22 +17,22 @@
 #pragma once
 
 #include "detail/graph_partition_utils.cuh"
+#include "prims/detail/nbr_intersection.cuh"
 #include "prims/per_v_random_select_transform_outgoing_e.cuh"
-#include "prims/vertex_frontier.cuh"
 #include "prims/property_op_utils.cuh"
 #include "prims/update_edge_src_dst_property.cuh"
-#include "prims/detail/nbr_intersection.cuh"
+#include "prims/vertex_frontier.cuh"
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph.hpp>
+#include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/partition_manager.hpp>
 #include <cugraph/utilities/host_scalar_comm.hpp>
 #include <cugraph/utilities/shuffle_comm.cuh>
-#include <cugraph/graph_functions.hpp>
 
 #include <raft/core/handle.hpp>
 #include <raft/random/rng.cuh>
@@ -46,7 +46,6 @@
 #include <numeric>
 #include <type_traits>
 #include <vector>
-#include <type_traits>
 
 namespace cugraph {
 namespace detail {
@@ -70,7 +69,6 @@ struct sample_edges_op_t {
 
 template <typename vertex_t, typename bias_t>
 struct biased_random_walk_e_bias_op_t {
-
   __device__ bias_t
   operator()(vertex_t, vertex_t, bias_t src_out_weight_sum, thrust::nullopt_t, bias_t weight) const
   {
@@ -80,8 +78,8 @@ struct biased_random_walk_e_bias_op_t {
 
 template <typename vertex_t, typename weight_t>
 struct biased_sample_edges_op_t {
-  __device__ thrust::tuple<vertex_t, weight_t>
-  operator()(vertex_t, vertex_t dst, weight_t, thrust::nullopt_t, weight_t weight) const
+  __device__ thrust::tuple<vertex_t, weight_t> operator()(
+    vertex_t, vertex_t dst, weight_t, thrust::nullopt_t, weight_t weight) const
   {
     return thrust::make_tuple(dst, weight);
   }
@@ -99,56 +97,54 @@ struct node2vec_random_walk_e_bias_op_t {
   // Unweighted Bias Operator
   template <typename W = weight_t>
   __device__ std::enable_if_t<std::is_same_v<W, void>, bias_t> operator()(
-        thrust::tuple<vertex_t, vertex_t> tagged_src,
-        vertex_t dst,
-        thrust::nullopt_t,
-        thrust::nullopt_t,
-        thrust::nullopt_t) const
+    thrust::tuple<vertex_t, vertex_t> tagged_src,
+    vertex_t dst,
+    thrust::nullopt_t,
+    thrust::nullopt_t,
+    thrust::nullopt_t) const
   {
     //  Check tag (prev vert) for destination
-    if(dst == thrust::get<1>(tagged_src)){
-      return 1.0 / p_;
-    }
+    if (dst == thrust::get<1>(tagged_src)) { return 1.0 / p_; }
     //  Search zipped vertices for tagged src
     auto lower_itr = thrust::lower_bound(
-            thrust::seq, 
-            thrust::make_zip_iterator(current_vertices_.begin(), prev_vertices_.begin()),
-            thrust::make_zip_iterator(current_vertices_.end(), prev_vertices_.end()),
-            tagged_src);
-    auto low_idx = thrust::distance(thrust::make_zip_iterator(current_vertices_.begin(), 
-                                                              prev_vertices_.begin()), 
-                                    lower_itr);
+      thrust::seq,
+      thrust::make_zip_iterator(current_vertices_.begin(), prev_vertices_.begin()),
+      thrust::make_zip_iterator(current_vertices_.end(), prev_vertices_.end()),
+      tagged_src);
+    auto low_idx = thrust::distance(
+      thrust::make_zip_iterator(current_vertices_.begin(), prev_vertices_.begin()), lower_itr);
     auto intersection_index_first = intersection_indices_.begin() + intersection_offsets_[low_idx];
-    auto intersection_index_last = intersection_indices_.begin() + intersection_offsets_[low_idx + 1];
-    auto itr = thrust::lower_bound(thrust::seq, intersection_index_first, intersection_index_last, dst);
+    auto intersection_index_last =
+      intersection_indices_.begin() + intersection_offsets_[low_idx + 1];
+    auto itr =
+      thrust::lower_bound(thrust::seq, intersection_index_first, intersection_index_last, dst);
     return (itr != intersection_index_last && *itr == dst) ? 1.0 : 1.0 / q_;
   }
 
   //  Weighted Bias Operator
   template <typename W = weight_t>
   __device__ std::enable_if_t<!std::is_same_v<W, void>, bias_t> operator()(
-        thrust::tuple<vertex_t, vertex_t> tagged_src,
-        vertex_t dst,
-        thrust::nullopt_t,
-        thrust::nullopt_t,
-        W) const
+    thrust::tuple<vertex_t, vertex_t> tagged_src,
+    vertex_t dst,
+    thrust::nullopt_t,
+    thrust::nullopt_t,
+    W) const
   {
     //  Check tag (prev vert) for destination
-    if(dst == thrust::get<1>(tagged_src)){
-      return 1.0 / p_;
-    }
+    if (dst == thrust::get<1>(tagged_src)) { return 1.0 / p_; }
     //  Search zipped vertices for tagged src
     auto lower_itr = thrust::lower_bound(
-            thrust::seq, 
-            thrust::make_zip_iterator(current_vertices_.begin(), prev_vertices_.begin()),
-            thrust::make_zip_iterator(current_vertices_.end(), prev_vertices_.end()),
-            tagged_src);
-    auto low_idx = thrust::distance(thrust::make_zip_iterator(current_vertices_.begin(), 
-                                                              prev_vertices_.begin()), 
-                                    lower_itr);
+      thrust::seq,
+      thrust::make_zip_iterator(current_vertices_.begin(), prev_vertices_.begin()),
+      thrust::make_zip_iterator(current_vertices_.end(), prev_vertices_.end()),
+      tagged_src);
+    auto low_idx = thrust::distance(
+      thrust::make_zip_iterator(current_vertices_.begin(), prev_vertices_.begin()), lower_itr);
     auto intersection_index_first = intersection_indices_.begin() + intersection_offsets_[low_idx];
-    auto intersection_index_last = intersection_indices_.begin() + intersection_offsets_[low_idx + 1];
-    auto itr = thrust::lower_bound(thrust::seq, intersection_index_first, intersection_index_last, dst);
+    auto intersection_index_last =
+      intersection_indices_.begin() + intersection_offsets_[low_idx + 1];
+    auto itr =
+      thrust::lower_bound(thrust::seq, intersection_index_first, intersection_index_last, dst);
     return (itr != intersection_index_last && *itr == dst) ? 1.0 : 1.0 / q_;
   }
 };
@@ -157,22 +153,22 @@ template <typename vertex_t, typename weight_t>
 struct node2vec_sample_edges_op_t {
   template <typename W = weight_t>
   __device__ std::enable_if_t<std::is_same_v<W, void>, vertex_t> operator()(
-        thrust::tuple<vertex_t, vertex_t> tagged_src,
-        vertex_t dst,
-        thrust::nullopt_t,
-        thrust::nullopt_t,
-        thrust::nullopt_t) const
+    thrust::tuple<vertex_t, vertex_t> tagged_src,
+    vertex_t dst,
+    thrust::nullopt_t,
+    thrust::nullopt_t,
+    thrust::nullopt_t) const
   {
     return dst;
   }
 
   template <typename W = weight_t>
   __device__ std::enable_if_t<!std::is_same_v<W, void>, thrust::tuple<vertex_t, W>> operator()(
-        thrust::tuple<vertex_t, vertex_t> tagged_src,
-        vertex_t dst,
-        thrust::nullopt_t,
-        thrust::nullopt_t,
-        W w) const
+    thrust::tuple<vertex_t, vertex_t> tagged_src,
+    vertex_t dst,
+    thrust::nullopt_t,
+    thrust::nullopt_t,
+    W w) const
   {
     return thrust::make_tuple(dst, w);
   }
@@ -250,7 +246,7 @@ template <typename weight_t>
 struct biased_selector {
   raft::random::RngState& rng_state_;
   static constexpr bool is_second_order_ = false;
-  
+
   template <typename GraphViewType>
   std::tuple<rmm::device_uvector<typename GraphViewType::vertex_type>,
              std::optional<rmm::device_uvector<typename GraphViewType::vertex_type>>,
@@ -268,39 +264,41 @@ struct biased_selector {
 
     using tag_t = void;
 
-    cugraph::vertex_frontier_t<vertex_t, tag_t, GraphViewType::is_multi_gpu, false> vertex_frontier(handle, 1);
+    cugraph::vertex_frontier_t<vertex_t, tag_t, GraphViewType::is_multi_gpu, false> vertex_frontier(
+      handle, 1);
 
     vertex_frontier.bucket(0).insert(current_vertices.begin(), current_vertices.end());
 
-    auto vertex_weight_sum  = compute_out_weight_sums(handle, graph_view, *edge_weight_view);
+    auto vertex_weight_sum = compute_out_weight_sums(handle, graph_view, *edge_weight_view);
     edge_src_property_t<GraphViewType, weight_t> edge_src_out_weight_sums(handle, graph_view);
-    update_edge_src_property(handle, 
-                             graph_view, 
-                             vertex_frontier.bucket(0).begin(), 
-                             vertex_frontier.bucket(0).end(), 
-                             vertex_weight_sum.data(), 
+    update_edge_src_property(handle,
+                             graph_view,
+                             vertex_frontier.bucket(0).begin(),
+                             vertex_frontier.bucket(0).end(),
+                             vertex_weight_sum.data(),
                              edge_src_out_weight_sums.mutable_view());
-    auto [sample_offsets, sample_e_op_results] =
-      cugraph::per_v_random_select_transform_outgoing_e(
-        handle,
-        graph_view,
-        vertex_frontier.bucket(0),
-        edge_src_out_weight_sums.view(),
-        cugraph::edge_dst_dummy_property_t{}.view(),
-        *edge_weight_view,
-        biased_random_walk_e_bias_op_t<vertex_t, weight_t>{},
-        edge_src_out_weight_sums.view(),
-        cugraph::edge_dst_dummy_property_t{}.view(),
-        *edge_weight_view,
-        biased_sample_edges_op_t<vertex_t, weight_t>{},
-        rng_state_,
-        size_t{1},
-        true,
-        std::make_optional(
-            thrust::make_tuple(vertex_t{cugraph::invalid_vertex_id<vertex_t>::value}, weight_t{0.0})));
+    auto [sample_offsets, sample_e_op_results] = cugraph::per_v_random_select_transform_outgoing_e(
+      handle,
+      graph_view,
+      vertex_frontier.bucket(0),
+      edge_src_out_weight_sums.view(),
+      cugraph::edge_dst_dummy_property_t{}.view(),
+      *edge_weight_view,
+      biased_random_walk_e_bias_op_t<vertex_t, weight_t>{},
+      edge_src_out_weight_sums.view(),
+      cugraph::edge_dst_dummy_property_t{}.view(),
+      *edge_weight_view,
+      biased_sample_edges_op_t<vertex_t, weight_t>{},
+      rng_state_,
+      size_t{1},
+      true,
+      std::make_optional(
+        thrust::make_tuple(vertex_t{cugraph::invalid_vertex_id<vertex_t>::value}, weight_t{0.0})));
 
     //  Return results
-    return std::make_tuple(std::move(std::get<0>(sample_e_op_results)), std::move(previous_vertices), std::move(std::get<1>(sample_e_op_results)));
+    return std::make_tuple(std::move(std::get<0>(sample_e_op_results)),
+                           std::move(previous_vertices),
+                           std::move(std::get<1>(sample_e_op_results)));
   }
 };
 
@@ -325,12 +323,13 @@ struct node2vec_selector {
   {
     //  Create vertex frontier
     using vertex_t = typename GraphViewType::vertex_type;
-    
-    using tag_t = vertex_t;        
+
+    using tag_t = vertex_t;
 
     //  Zip previous and current vertices for nbr_intersection()
-    auto intersection_pairs = thrust::make_zip_iterator(current_vertices.begin(), (*previous_vertices).begin());
-    
+    auto intersection_pairs =
+      thrust::make_zip_iterator(current_vertices.begin(), (*previous_vertices).begin());
+
     auto [intersection_offsets, intersection_indices] =
       detail::nbr_intersection(handle,
                                graph_view,
@@ -348,27 +347,22 @@ struct node2vec_selector {
 
     //  Aggregate intersection data across minor comm
     if constexpr (GraphViewType::is_multi_gpu) {
-      intersection_counts.resize(intersection_offsets.size(),
-                                 handle.get_stream());
+      intersection_counts.resize(intersection_offsets.size(), handle.get_stream());
       thrust::adjacent_difference(handle.get_thrust_policy(),
                                   intersection_offsets.begin(),
                                   intersection_offsets.end(),
                                   intersection_counts.begin());
 
       auto recv_counts = cugraph::host_scalar_allgather(
-                                  handle.get_subcomm(cugraph::partition_manager::minor_comm_name()), 
-                                  current_vertices.size(), 
-                                  handle.get_stream());
+        handle.get_subcomm(cugraph::partition_manager::minor_comm_name()),
+        current_vertices.size(),
+        handle.get_stream());
 
       std::vector<size_t> displacements(recv_counts.size());
-      std::exclusive_scan(recv_counts.begin(), 
-                          recv_counts.end(), 
-                          displacements.begin(), 
-                          size_t{0});  
+      std::exclusive_scan(recv_counts.begin(), recv_counts.end(), displacements.begin(), size_t{0});
 
-      aggregate_offsets.resize(displacements.back() + recv_counts.back() + 1,
-                               handle.get_stream());
-      aggregate_offsets.set_element_to_zero_async(aggregate_offsets.size() - 1, 
+      aggregate_offsets.resize(displacements.back() + recv_counts.back() + 1, handle.get_stream());
+      aggregate_offsets.set_element_to_zero_async(aggregate_offsets.size() - 1,
                                                   handle.get_stream());
 
       cugraph::device_allgatherv(handle.get_subcomm(cugraph::partition_manager::minor_comm_name()),
@@ -383,8 +377,7 @@ struct node2vec_selector {
                              aggregate_offsets.end(),
                              aggregate_offsets.begin());
 
-      aggregate_currents.resize(displacements.back() + recv_counts.back(),
-                                handle.get_stream());
+      aggregate_currents.resize(displacements.back() + recv_counts.back(), handle.get_stream());
 
       cugraph::device_allgatherv(handle.get_subcomm(cugraph::partition_manager::minor_comm_name()),
                                  current_vertices.begin(),
@@ -393,8 +386,7 @@ struct node2vec_selector {
                                  displacements,
                                  handle.get_stream());
 
-      aggregate_previous.resize(displacements.back() + recv_counts.back(),
-                                handle.get_stream());
+      aggregate_previous.resize(displacements.back() + recv_counts.back(), handle.get_stream());
 
       cugraph::device_allgatherv(handle.get_subcomm(cugraph::partition_manager::minor_comm_name()),
                                  (*previous_vertices).begin(),
@@ -402,21 +394,17 @@ struct node2vec_selector {
                                  recv_counts,
                                  displacements,
                                  handle.get_stream());
-      
+
       recv_counts = cugraph::host_scalar_allgather(
-                              handle.get_subcomm(cugraph::partition_manager::minor_comm_name()), 
-                              intersection_offsets.back_element(handle.get_stream()), 
-                              handle.get_stream());
-     
+        handle.get_subcomm(cugraph::partition_manager::minor_comm_name()),
+        intersection_offsets.back_element(handle.get_stream()),
+        handle.get_stream());
+
       displacements.resize(recv_counts.size());
-      std::exclusive_scan(recv_counts.begin(), 
-                          recv_counts.end(), 
-                          displacements.begin(),
-                          size_t{0});  
-      
-      aggregate_indices.resize(displacements.back() + recv_counts.back(),
-                               handle.get_stream());
-      
+      std::exclusive_scan(recv_counts.begin(), recv_counts.end(), displacements.begin(), size_t{0});
+
+      aggregate_indices.resize(displacements.back() + recv_counts.back(), handle.get_stream());
+
       cugraph::device_allgatherv(handle.get_subcomm(cugraph::partition_manager::minor_comm_name()),
                                  intersection_indices.begin(),
                                  aggregate_indices.begin(),
@@ -425,11 +413,11 @@ struct node2vec_selector {
                                  handle.get_stream());
     }
 
-    cugraph::vertex_frontier_t<vertex_t, tag_t, GraphViewType::is_multi_gpu, false> vertex_frontier(handle, 1);
-    vertex_frontier.bucket(0).insert(thrust::make_zip_iterator(current_vertices.begin(),
-                                                              (*previous_vertices).begin()), 
-                                     thrust::make_zip_iterator(current_vertices.end(), 
-                                                              (*previous_vertices).end())); 
+    cugraph::vertex_frontier_t<vertex_t, tag_t, GraphViewType::is_multi_gpu, false> vertex_frontier(
+      handle, 1);
+    vertex_frontier.bucket(0).insert(
+      thrust::make_zip_iterator(current_vertices.begin(), (*previous_vertices).begin()),
+      thrust::make_zip_iterator(current_vertices.end(), (*previous_vertices).end()));
 
     // Create data structs for results
     rmm::device_uvector<vertex_t> minors(0, handle.get_stream());
@@ -444,23 +432,39 @@ struct node2vec_selector {
           cugraph::edge_src_dummy_property_t{}.view(),
           cugraph::edge_dst_dummy_property_t{}.view(),
           *edge_weight_view,
-          GraphViewType::is_multi_gpu 
-            ? node2vec_random_walk_e_bias_op_t<vertex_t, weight_t, weight_t>{
-                p_, 
-                q_, 
-                raft::device_span<size_t const>(aggregate_offsets.data(), aggregate_offsets.size()), 
-                raft::device_span<vertex_t const>(aggregate_indices.data(), aggregate_indices.size()), 
-                raft::device_span<vertex_t const>(aggregate_currents.data(), aggregate_currents.size()), 
-                raft::device_span<vertex_t const>(aggregate_previous.data(), aggregate_previous.size())
-            }
-            : node2vec_random_walk_e_bias_op_t<vertex_t, weight_t, weight_t>{
-                p_, 
-                q_, 
-                raft::device_span<size_t const>(intersection_offsets.data(), intersection_offsets.size()), 
-                raft::device_span<vertex_t const>(intersection_indices.data(), intersection_indices.size()), 
-                raft::device_span<vertex_t const>(current_vertices.data(), current_vertices.size()), 
-                raft::device_span<vertex_t const>((*previous_vertices).data(), (*previous_vertices).size())
-            },
+          GraphViewType::is_multi_gpu
+            ? node2vec_random_walk_e_bias_op_t<vertex_t,
+                                               weight_t,
+                                               weight_t>{p_,
+                                                         q_,
+                                                         raft::device_span<size_t const>(
+                                                           aggregate_offsets.data(),
+                                                           aggregate_offsets.size()),
+                                                         raft::device_span<vertex_t const>(
+                                                           aggregate_indices.data(),
+                                                           aggregate_indices.size()),
+                                                         raft::device_span<vertex_t const>(
+                                                           aggregate_currents.data(),
+                                                           aggregate_currents.size()),
+                                                         raft::device_span<vertex_t const>(
+                                                           aggregate_previous.data(),
+                                                           aggregate_previous.size())}
+            : node2vec_random_walk_e_bias_op_t<vertex_t,
+                                               weight_t,
+                                               weight_t>{p_,
+                                                         q_,
+                                                         raft::device_span<size_t const>(
+                                                           intersection_offsets.data(),
+                                                           intersection_offsets.size()),
+                                                         raft::device_span<vertex_t const>(
+                                                           intersection_indices.data(),
+                                                           intersection_indices.size()),
+                                                         raft::device_span<
+                                                           vertex_t const>(current_vertices.data(),
+                                                                           current_vertices.size()),
+                                                         raft::device_span<vertex_t const>(
+                                                           (*previous_vertices).data(),
+                                                           (*previous_vertices).size())},
           cugraph::edge_src_dummy_property_t{}.view(),
           cugraph::edge_dst_dummy_property_t{}.view(),
           *edge_weight_view,
@@ -468,44 +472,60 @@ struct node2vec_selector {
           rng_state_,
           size_t{1},
           true,
-          std::make_optional(
-            thrust::make_tuple(vertex_t{cugraph::invalid_vertex_id<vertex_t>::value}, weight_t{0.0})));
-        minors = std::move(std::get<0>(sample_e_op_results));
-        weights = std::move(std::get<1>(sample_e_op_results));
+          std::make_optional(thrust::make_tuple(
+            vertex_t{cugraph::invalid_vertex_id<vertex_t>::value}, weight_t{0.0})));
+      minors  = std::move(std::get<0>(sample_e_op_results));
+      weights = std::move(std::get<1>(sample_e_op_results));
     } else {
-      auto[ sample_offsets, sample_e_op_results] =
-      cugraph::per_v_random_select_transform_outgoing_e(
-        handle,
-        graph_view,
-        vertex_frontier.bucket(0),
-        cugraph::edge_src_dummy_property_t{}.view(),
-        cugraph::edge_dst_dummy_property_t{}.view(),
-        cugraph::edge_dummy_property_t{}.view(),
-        GraphViewType::is_multi_gpu 
-            ? node2vec_random_walk_e_bias_op_t<vertex_t, weight_t, weight_t>{
-                p_, 
-                q_, 
-                raft::device_span<size_t const>(aggregate_offsets.data(), aggregate_offsets.size()), 
-                raft::device_span<vertex_t const>(aggregate_indices.data(), aggregate_indices.size()), 
-                raft::device_span<vertex_t const>(aggregate_currents.data(), aggregate_currents.size()), 
-                raft::device_span<vertex_t const>(aggregate_previous.data(), aggregate_previous.size())
-            }
-            : node2vec_random_walk_e_bias_op_t<vertex_t, weight_t, weight_t>{
-                p_, 
-                q_, 
-                raft::device_span<size_t const>(intersection_offsets.data(), intersection_offsets.size()), 
-                raft::device_span<vertex_t const>(intersection_indices.data(), intersection_indices.size()), 
-                raft::device_span<vertex_t const>(current_vertices.data(), current_vertices.size()), 
-                raft::device_span<vertex_t const>((*previous_vertices).data(), (*previous_vertices).size())
-            },
-        cugraph::edge_src_dummy_property_t{}.view(),
-        cugraph::edge_dst_dummy_property_t{}.view(),
-        cugraph::edge_dummy_property_t{}.view(),
-        node2vec_sample_edges_op_t<vertex_t, void>{},
-        rng_state_,
-        size_t{1},
-        true,
-        std::make_optional(vertex_t{cugraph::invalid_vertex_id<vertex_t>::value}));
+      auto [sample_offsets, sample_e_op_results] =
+        cugraph::per_v_random_select_transform_outgoing_e(
+          handle,
+          graph_view,
+          vertex_frontier.bucket(0),
+          cugraph::edge_src_dummy_property_t{}.view(),
+          cugraph::edge_dst_dummy_property_t{}.view(),
+          cugraph::edge_dummy_property_t{}.view(),
+          GraphViewType::is_multi_gpu
+            ? node2vec_random_walk_e_bias_op_t<vertex_t,
+                                               weight_t,
+                                               weight_t>{p_,
+                                                         q_,
+                                                         raft::device_span<size_t const>(
+                                                           aggregate_offsets.data(),
+                                                           aggregate_offsets.size()),
+                                                         raft::device_span<vertex_t const>(
+                                                           aggregate_indices.data(),
+                                                           aggregate_indices.size()),
+                                                         raft::device_span<vertex_t const>(
+                                                           aggregate_currents.data(),
+                                                           aggregate_currents.size()),
+                                                         raft::device_span<vertex_t const>(
+                                                           aggregate_previous.data(),
+                                                           aggregate_previous.size())}
+            : node2vec_random_walk_e_bias_op_t<vertex_t,
+                                               weight_t,
+                                               weight_t>{p_,
+                                                         q_,
+                                                         raft::device_span<size_t const>(
+                                                           intersection_offsets.data(),
+                                                           intersection_offsets.size()),
+                                                         raft::device_span<vertex_t const>(
+                                                           intersection_indices.data(),
+                                                           intersection_indices.size()),
+                                                         raft::device_span<
+                                                           vertex_t const>(current_vertices.data(),
+                                                                           current_vertices.size()),
+                                                         raft::device_span<vertex_t const>(
+                                                           (*previous_vertices).data(),
+                                                           (*previous_vertices).size())},
+          cugraph::edge_src_dummy_property_t{}.view(),
+          cugraph::edge_dst_dummy_property_t{}.view(),
+          cugraph::edge_dummy_property_t{}.view(),
+          node2vec_sample_edges_op_t<vertex_t, void>{},
+          rng_state_,
+          size_t{1},
+          true,
+          std::make_optional(vertex_t{cugraph::invalid_vertex_id<vertex_t>::value}));
       minors = std::move(sample_e_op_results);
     }
 
@@ -549,12 +569,15 @@ random_walk_impl(raft::handle_t const& handle,
                        ? std::make_optional<rmm::device_uvector<weight_t>>(0, handle.get_stream())
                        : std::nullopt;
 
-  auto previous_vertices = (random_selector.is_second_order_) 
-                            ? std::make_optional<rmm::device_uvector<vertex_t>>(current_vertices.size(), handle.get_stream())
-                            : std::nullopt;
+  auto previous_vertices = (random_selector.is_second_order_)
+                             ? std::make_optional<rmm::device_uvector<vertex_t>>(
+                                 current_vertices.size(), handle.get_stream())
+                             : std::nullopt;
   if (previous_vertices) {
-    raft::copy(
-      (*previous_vertices).data(), start_vertices.data(), start_vertices.size(), handle.get_stream());
+    raft::copy((*previous_vertices).data(),
+               start_vertices.data(),
+               start_vertices.size(),
+               handle.get_stream());
   }
   raft::copy(
     current_vertices.data(), start_vertices.data(), start_vertices.size(), handle.get_stream());
@@ -590,37 +613,36 @@ random_walk_impl(raft::handle_t const& handle,
       auto& minor_comm = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
       auto const minor_comm_size = minor_comm.get_size();
 
-      if  (previous_vertices) {
-        std::forward_as_tuple(std::tie(current_vertices, current_gpu, current_position, previous_vertices),
-                            std::ignore) =
-        cugraph::groupby_gpu_id_and_shuffle_values(
-          handle.get_comms(),
-          thrust::make_zip_iterator(current_vertices.begin(),
-                                    current_gpu.begin(),
-                                    current_position.begin(),
-                                    previous_vertices->begin()),
-          thrust::make_zip_iterator(current_vertices.end(),
-                                    current_gpu.end(),
-                                    current_position.end(),
-                                    previous_vertices->end()),
-          [key_func =
-             cugraph::detail::compute_gpu_id_from_int_vertex_t<vertex_t>{
-               {vertex_partition_range_lasts.begin(), vertex_partition_range_lasts.size()},
-               major_comm_size,
-               minor_comm_size}] __device__(auto val) { return key_func(thrust::get<0>(val)); },
-          handle.get_stream());
+      if (previous_vertices) {
+        std::forward_as_tuple(
+          std::tie(current_vertices, current_gpu, current_position, previous_vertices),
+          std::ignore) =
+          cugraph::groupby_gpu_id_and_shuffle_values(
+            handle.get_comms(),
+            thrust::make_zip_iterator(current_vertices.begin(),
+                                      current_gpu.begin(),
+                                      current_position.begin(),
+                                      previous_vertices->begin()),
+            thrust::make_zip_iterator(current_vertices.end(),
+                                      current_gpu.end(),
+                                      current_position.end(),
+                                      previous_vertices->end()),
+            [key_func =
+               cugraph::detail::compute_gpu_id_from_int_vertex_t<vertex_t>{
+                 {vertex_partition_range_lasts.begin(), vertex_partition_range_lasts.size()},
+                 major_comm_size,
+                 minor_comm_size}] __device__(auto val) { return key_func(thrust::get<0>(val)); },
+            handle.get_stream());
       } else {
         // Shuffle vertices to correct GPU to compute random indices
         std::forward_as_tuple(std::tie(current_vertices, current_gpu, current_position),
                               std::ignore) =
           cugraph::groupby_gpu_id_and_shuffle_values(
             handle.get_comms(),
-            thrust::make_zip_iterator(current_vertices.begin(),
-                                            current_gpu.begin(),
-                                            current_position.begin()),
-            thrust::make_zip_iterator(current_vertices.end(),
-                                            current_gpu.end(),
-                                            current_position.end()),
+            thrust::make_zip_iterator(
+              current_vertices.begin(), current_gpu.begin(), current_position.begin()),
+            thrust::make_zip_iterator(
+              current_vertices.end(), current_gpu.end(), current_position.end()),
             [key_func =
                cugraph::detail::compute_gpu_id_from_int_vertex_t<vertex_t>{
                  {vertex_partition_range_lasts.begin(), vertex_partition_range_lasts.size()},
@@ -632,8 +654,8 @@ random_walk_impl(raft::handle_t const& handle,
 
     //  Sort for nbr_intersection, must sort all together
     if (previous_vertices) {
-      if constexpr (multi_gpu){
-        thrust::sort(handle.get_thrust_policy(), 
+      if constexpr (multi_gpu) {
+        thrust::sort(handle.get_thrust_policy(),
                      thrust::make_zip_iterator(current_vertices.begin(),
                                                (*previous_vertices).begin(),
                                                current_position.begin(),
@@ -643,18 +665,21 @@ random_walk_impl(raft::handle_t const& handle,
                                                current_position.end(),
                                                current_gpu.end()));
       } else {
-        thrust::sort(handle.get_thrust_policy(), 
-                     thrust::make_zip_iterator(current_vertices.begin(),
-                                               (*previous_vertices).begin(),
-                                               current_position.begin()),
-                     thrust::make_zip_iterator(current_vertices.end(),
-                                               (*previous_vertices).end(),
-                                               current_position.end()));
+        thrust::sort(
+          handle.get_thrust_policy(),
+          thrust::make_zip_iterator(
+            current_vertices.begin(), (*previous_vertices).begin(), current_position.begin()),
+          thrust::make_zip_iterator(
+            current_vertices.end(), (*previous_vertices).end(), current_position.end()));
       }
     }
 
     std::tie(current_vertices, previous_vertices, new_weights) =
-      random_selector.follow_random_edge(handle, graph_view, edge_weight_view, std::move(current_vertices), std::move(previous_vertices));
+      random_selector.follow_random_edge(handle,
+                                         graph_view,
+                                         edge_weight_view,
+                                         std::move(current_vertices),
+                                         std::move(previous_vertices));
 
     // FIXME: remove_if has a 32-bit overflow issue
     // (https://github.com/NVIDIA/thrust/issues/1302) Seems unlikely here (the goal of
@@ -699,9 +724,9 @@ random_walk_impl(raft::handle_t const& handle,
         }
       } else {
         if (previous_vertices) {
-          auto input_iter = thrust::make_zip_iterator(current_vertices.begin(), 
-                                                      current_gpu.begin(), 
-                                                      current_position.begin(), 
+          auto input_iter = thrust::make_zip_iterator(current_vertices.begin(),
+                                                      current_gpu.begin(),
+                                                      current_position.begin(),
                                                       previous_vertices->begin());
 
           compacted_length = thrust::distance(
@@ -731,8 +756,8 @@ random_walk_impl(raft::handle_t const& handle,
     } else {
       if (result_weights) {
         if (previous_vertices) {
-          auto input_iter = thrust::make_zip_iterator(current_vertices.begin(), 
-                                                      new_weights->begin(), 
+          auto input_iter = thrust::make_zip_iterator(current_vertices.begin(),
+                                                      new_weights->begin(),
                                                       current_position.begin(),
                                                       previous_vertices->begin());
 
@@ -761,10 +786,8 @@ random_walk_impl(raft::handle_t const& handle,
         }
       } else {
         if (previous_vertices) {
-          auto input_iter =
-            thrust::make_zip_iterator(current_vertices.begin(), 
-                                      current_position.begin(), 
-                                      previous_vertices->begin());
+          auto input_iter = thrust::make_zip_iterator(
+            current_vertices.begin(), current_position.begin(), previous_vertices->begin());
 
           compacted_length = thrust::distance(
             input_iter,
@@ -819,7 +842,9 @@ random_walk_impl(raft::handle_t const& handle,
                                                         previous_vertices->begin());
 
           std::forward_as_tuple(
-            std::tie(current_vertices, *new_weights, current_gpu, current_position, *previous_vertices), std::ignore) =
+            std::tie(
+              current_vertices, *new_weights, current_gpu, current_position, *previous_vertices),
+            std::ignore) =
             cugraph::groupby_gpu_id_and_shuffle_values(
               handle.get_comms(),
               current_iter,
@@ -828,12 +853,13 @@ random_walk_impl(raft::handle_t const& handle,
               handle.get_stream());
         } else {
           auto current_iter = thrust::make_zip_iterator(current_vertices.begin(),
-                                                        current_gpu.begin(), 
+                                                        current_gpu.begin(),
                                                         current_position.begin(),
                                                         previous_vertices->begin());
 
-          std::forward_as_tuple(std::tie(current_vertices, current_gpu, current_position, *previous_vertices),
-                                std::ignore) =
+          std::forward_as_tuple(
+            std::tie(current_vertices, current_gpu, current_position, *previous_vertices),
+            std::ignore) =
             cugraph::groupby_gpu_id_and_shuffle_values(
               handle.get_comms(),
               current_iter,
@@ -856,10 +882,9 @@ random_walk_impl(raft::handle_t const& handle,
               current_iter + current_vertices.size(),
               [] __device__(auto val) { return thrust::get<2>(val); },
               handle.get_stream());
-        } else {          
-          auto current_iter = thrust::make_zip_iterator(current_vertices.begin(),
-                                                        current_gpu.begin(), 
-                                                        current_position.begin());
+        } else {
+          auto current_iter = thrust::make_zip_iterator(
+            current_vertices.begin(), current_gpu.begin(), current_position.begin());
 
           std::forward_as_tuple(std::tie(current_vertices, current_gpu, current_position),
                                 std::ignore) =
@@ -874,32 +899,31 @@ random_walk_impl(raft::handle_t const& handle,
     }
 
     if (result_weights) {
-      thrust::for_each(
-          handle.get_thrust_policy(),
-          thrust::make_zip_iterator(
-            current_vertices.begin(), new_weights->begin(), current_position.begin()),
-          thrust::make_zip_iterator(
-            current_vertices.end(), new_weights->end(), current_position.end()),
-          [result_verts = result_vertices.data(),
-           result_wgts  = result_weights->data(),
-           level,
-           max_length] __device__(auto tuple) {
-            vertex_t v                                       = thrust::get<0>(tuple);
-            weight_t w                                       = thrust::get<1>(tuple);
-            size_t pos                                       = thrust::get<2>(tuple);
-            result_verts[pos * (max_length + 1) + level + 1] = v;
-            result_wgts[pos * max_length + level]            = w;
-          });
+      thrust::for_each(handle.get_thrust_policy(),
+                       thrust::make_zip_iterator(
+                         current_vertices.begin(), new_weights->begin(), current_position.begin()),
+                       thrust::make_zip_iterator(
+                         current_vertices.end(), new_weights->end(), current_position.end()),
+                       [result_verts = result_vertices.data(),
+                        result_wgts  = result_weights->data(),
+                        level,
+                        max_length] __device__(auto tuple) {
+                         vertex_t v                                       = thrust::get<0>(tuple);
+                         weight_t w                                       = thrust::get<1>(tuple);
+                         size_t pos                                       = thrust::get<2>(tuple);
+                         result_verts[pos * (max_length + 1) + level + 1] = v;
+                         result_wgts[pos * max_length + level]            = w;
+                       });
     } else {
       thrust::for_each(
-          handle.get_thrust_policy(),
-          thrust::make_zip_iterator(current_vertices.begin(), current_position.begin()),
-          thrust::make_zip_iterator(current_vertices.end(), current_position.end()),
-          [result_verts = result_vertices.data(), level, max_length] __device__(auto tuple) {
-            vertex_t v                                       = thrust::get<0>(tuple);
-            size_t pos                                       = thrust::get<1>(tuple);
-            result_verts[pos * (max_length + 1) + level + 1] = v;
-          });
+        handle.get_thrust_policy(),
+        thrust::make_zip_iterator(current_vertices.begin(), current_position.begin()),
+        thrust::make_zip_iterator(current_vertices.end(), current_position.end()),
+        [result_verts = result_vertices.data(), level, max_length] __device__(auto tuple) {
+          vertex_t v                                       = thrust::get<0>(tuple);
+          size_t pos                                       = thrust::get<1>(tuple);
+          result_verts[pos * (max_length + 1) + level + 1] = v;
+        });
     }
   }
 
@@ -960,14 +984,12 @@ node2vec_random_walks(raft::handle_t const& handle,
 {
   CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
 
-  return detail::random_walk_impl(
-    handle,
-    graph_view,
-    edge_weight_view,
-    start_vertices,
-    max_length,
-    detail::node2vec_selector<weight_t>{
-      p, q, rng_state});
+  return detail::random_walk_impl(handle,
+                                  graph_view,
+                                  edge_weight_view,
+                                  start_vertices,
+                                  max_length,
+                                  detail::node2vec_selector<weight_t>{p, q, rng_state});
 }
 
 }  // namespace cugraph

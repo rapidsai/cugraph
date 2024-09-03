@@ -40,7 +40,7 @@ struct UniformRandomWalks_Usecase {
              raft::device_span<vertex_t const> start_vertices,
              size_t num_paths)
   {
-     raft::random::RngState rng_state(0);
+    raft::random::RngState rng_state(0);
 
     return cugraph::uniform_random_walks(
       handle, rng_state, graph_view, edge_weight_view, start_vertices, num_paths);
@@ -240,10 +240,9 @@ TEST_P(Tests_Node2VecRandomWalks_Rmat, Initialize_i32_i32_f)
 INSTANTIATE_TEST_SUITE_P(
   simple_test,
   Tests_UniformRandomWalks_File,
-  ::testing::Combine(
-    ::testing::Values(UniformRandomWalks_Usecase{false, 0, true},
-                      UniformRandomWalks_Usecase{true, 0, true}),
-    ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"))));
+  ::testing::Combine(::testing::Values(UniformRandomWalks_Usecase{false, 0, true},
+                                       UniformRandomWalks_Usecase{true, 0, true}),
+                     ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"))));
 
 INSTANTIATE_TEST_SUITE_P(
   file_test,
@@ -292,17 +291,17 @@ INSTANTIATE_TEST_SUITE_P(
 INSTANTIATE_TEST_SUITE_P(
   rmat_small_test,
   Tests_UniformRandomWalks_Rmat,
-  ::testing::Combine(::testing::Values(UniformRandomWalks_Usecase{false, 0, true},
-                                       UniformRandomWalks_Usecase{true, 0, true}),
-                     ::testing::Values(cugraph::test::Rmat_Usecase(
-                       10, 16, 0.57, 0.19, 0.19, 0, false, false))));
+  ::testing::Combine(
+    ::testing::Values(UniformRandomWalks_Usecase{false, 0, true},
+                      UniformRandomWalks_Usecase{true, 0, true}),
+    ::testing::Values(cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, false, false))));
 
 INSTANTIATE_TEST_SUITE_P(
   rmat_benchmark_test,
   Tests_UniformRandomWalks_Rmat,
-  ::testing::Combine(::testing::Values(UniformRandomWalks_Usecase{true, 0, false}),
-                     ::testing::Values(cugraph::test::Rmat_Usecase(
-                       20, 32, 0.57, 0.19, 0.19, 0, false, false))));
+  ::testing::Combine(
+    ::testing::Values(UniformRandomWalks_Usecase{true, 0, false}),
+    ::testing::Values(cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false))));
 
 INSTANTIATE_TEST_SUITE_P(
   rmat_small_test,
