@@ -26,6 +26,7 @@
 
 #include <raft/core/handle.hpp>
 
+#include <rmm/device_scalar.hpp>
 #include <rmm/device_uvector.hpp>
 
 #include <thrust/distance.h>
@@ -124,6 +125,103 @@ generate<GraphViewType, property_t>::edge_property(raft::handle_t const& handle,
                        cugraph::edge_dummy_property_t{}.view(),
                        detail::edge_property_transform<vertex_type, property_t>{hash_bin_count},
                        output_property.mutable_view());
+  return output_property;
+}
+
+template <typename GraphViewType, typename property_t>
+cugraph::edge_property_t<GraphViewType, property_t>
+generate<GraphViewType, property_t>::edge_property_by_src_dst_types(
+  raft::handle_t const& handle,
+  GraphViewType const& graph_view,
+  raft::device_span<typename GraphViewType::vertex_type const> vertex_type_offsets,
+  int32_t hash_bin_count)
+{
+  auto output_property = cugraph::edge_property_t<GraphViewType, property_t>(handle, graph_view);
+
+  cugraph::transform_e(
+    handle,
+    graph_view,
+    cugraph::edge_src_dummy_property_t{}.view(),
+    cugraph::edge_dst_dummy_property_t{}.view(),
+    cugraph::edge_dummy_property_t{}.view(),
+    [vertex_type_offsets, hash_bin_count] __device__(auto src, auto dst, auto, auto, auto) {
+      auto src_v_type = thrust::distance(
+        vertex_type_offsets.begin() + 1,
+        thrust::upper_bound(
+          thrust::seq, vertex_type_offsets.begin() + 1, vertex_type_offsets.end(), src));
+      auto dst_v_type = thrust::distance(
+        vertex_type_offsets.begin() + 1,
+        thrust::upper_bound(
+          thrust::seq, vertex_type_offsets.begin() + 1, vertex_type_offsets.end(), dst));
+      auto num_v_types = vertex_type_offsets.size() - 1;
+      return detail::make_property_value<property_t>((src_v_type * num_v_types + dst_v_type) %
+                                                     hash_bin_count);
+    },
+    output_property.mutable_view());
+
+  return output_property;
+}
+
+template <typename GraphViewType, typename property_t>
+cugraph::edge_property_t<GraphViewType, property_t>
+generate<GraphViewType, property_t>::unique_edge_property(raft::handle_t const& handle,
+                                                          GraphViewType const& graph_view)
+{
+  auto output_property = cugraph::edge_property_t<GraphViewType, property_t>(handle, graph_view);
+  if constexpr (std::is_integral_v<property_t> && !std::is_same_v<property_t, bool>) {
+    CUGRAPH_EXPECTS(
+      graph_view.compute_number_of_edges(handle) <= std::numeric_limits<property_t>::max(),
+      "std::numeric_limits<property_t>::max() is smaller than the number of edges.");
+    rmm::device_scalar<property_t> counter(property_t{0}, handle.get_stream());
+    cugraph::transform_e(
+      handle,
+      graph_view,
+      cugraph::edge_src_dummy_property_t{}.view(),
+      cugraph::edge_dst_dummy_property_t{}.view(),
+      cugraph::edge_dummy_property_t{}.view(),
+      [counter = counter.data()] __device__(auto, auto, auto, auto, auto) {
+        cuda::atomic_ref<property_t, cuda::thread_scope_device> atomic_counter(*counter);
+        return atomic_counter.fetch_add(property_t{1}, cuda::std::memory_order_relaxed);
+      },
+      output_property.mutable_view());
+    if constexpr (GraphViewType::is_multi_gpu) { CUGRAPH_FAIL("unimplemented."); }
+  } else {
+    CUGRAPH_FAIL("unimplemented.");
+  }
+  return output_property;
+}
+
+template <typename GraphViewType, typename property_t>
+cugraph::edge_property_t<GraphViewType, property_t>
+generate<GraphViewType, property_t>::unique_edge_property_per_type(
+  raft::handle_t const& handle,
+  GraphViewType const& graph_view,
+  cugraph::edge_property_view_t<typename GraphViewType::edge_type, int32_t const*> edge_type_view,
+  int32_t num_edge_types)
+{
+  auto output_property = cugraph::edge_property_t<GraphViewType, property_t>(handle, graph_view);
+  if constexpr (std::is_integral_v<property_t> && !std::is_same_v<property_t, bool>) {
+    CUGRAPH_EXPECTS(
+      graph_view.compute_number_of_edges(handle) <= std::numeric_limits<property_t>::max(),
+      "std::numeric_limits<property_t>::max() is smaller than the number of edges.");
+    rmm::device_uvector<property_t> counters(num_edge_types, handle.get_stream());
+    thrust::fill(handle.get_thrust_policy(), counters.begin(), counters.end(), property_t{0});
+    cugraph::transform_e(
+      handle,
+      graph_view,
+      cugraph::edge_src_dummy_property_t{}.view(),
+      cugraph::edge_dst_dummy_property_t{}.view(),
+      edge_type_view,
+      [counters = raft::device_span<property_t>(counters.data(), counters.size())] __device__(
+        auto, auto, auto, auto, int32_t edge_type) {
+        cuda::atomic_ref<property_t, cuda::thread_scope_device> atomic_counter(counters[edge_type]);
+        return atomic_counter.fetch_add(property_t{1}, cuda::std::memory_order_relaxed);
+      },
+      output_property.mutable_view());
+    if constexpr (GraphViewType::is_multi_gpu) { CUGRAPH_FAIL("unimplemented."); }
+  } else {
+    CUGRAPH_FAIL("unimplemented.");
+  }
   return output_property;
 }
 
