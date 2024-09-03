@@ -255,7 +255,7 @@ class edge_partition_device_view_t<vertex_t, edge_t, multi_gpu, std::enable_if_t
     rmm::device_uvector<edge_t> local_degrees(this->major_range_size(), stream);
     if (dcs_nzd_vertices_) {
       assert(major_hypersparse_first_);
-      thrust::transform(rmm::exec_policy(stream),
+      thrust::transform(rmm::exec_policy_nosync(stream),
                         thrust::make_counting_iterator(this->major_range_first()),
                         thrust::make_counting_iterator(this->major_range_last()),
                         local_degrees.begin(),
@@ -266,7 +266,7 @@ class edge_partition_device_view_t<vertex_t, edge_t, multi_gpu, std::enable_if_t
                           major_hypersparse_first_.value_or(vertex_t{0})});
     } else {
       thrust::transform(
-        rmm::exec_policy(stream),
+        rmm::exec_policy_nosync(stream),
         thrust::make_counting_iterator(this->major_range_first()),
         thrust::make_counting_iterator(this->major_range_last()),
         local_degrees.begin(),
@@ -284,7 +284,7 @@ class edge_partition_device_view_t<vertex_t, edge_t, multi_gpu, std::enable_if_t
     rmm::device_uvector<edge_t> local_degrees(thrust::distance(major_first, major_last), stream);
     if (dcs_nzd_vertices_) {
       assert(major_hypersparse_first_);
-      thrust::transform(rmm::exec_policy(stream),
+      thrust::transform(rmm::exec_policy_nosync(stream),
                         major_first,
                         major_last,
                         local_degrees.begin(),
@@ -295,7 +295,7 @@ class edge_partition_device_view_t<vertex_t, edge_t, multi_gpu, std::enable_if_t
                           major_hypersparse_first_.value_or(vertex_t{0})});
     } else {
       thrust::transform(
-        rmm::exec_policy(stream),
+        rmm::exec_policy_nosync(stream),
         major_first,
         major_last,
         local_degrees.begin(),
@@ -355,7 +355,7 @@ class edge_partition_device_view_t<vertex_t, edge_t, multi_gpu, std::enable_if_t
     if (dcs_nzd_vertices_) {
       assert(major_hypersparse_first_);
       thrust::transform(
-        rmm::exec_policy(stream),
+        rmm::exec_policy_nosync(stream),
         thrust::make_counting_iterator(this->major_range_first()),
         thrust::make_counting_iterator(this->major_range_last()),
         local_degrees.begin(),
@@ -368,7 +368,7 @@ class edge_partition_device_view_t<vertex_t, edge_t, multi_gpu, std::enable_if_t
             mask_first});
     } else {
       thrust::transform(
-        rmm::exec_policy(stream),
+        rmm::exec_policy_nosync(stream),
         thrust::make_counting_iterator(this->major_range_first()),
         thrust::make_counting_iterator(this->major_range_last()),
         local_degrees.begin(),
@@ -394,7 +394,7 @@ class edge_partition_device_view_t<vertex_t, edge_t, multi_gpu, std::enable_if_t
     if (dcs_nzd_vertices_) {
       assert(major_hypersparse_first_);
       thrust::transform(
-        rmm::exec_policy(stream),
+        rmm::exec_policy_nosync(stream),
         major_first,
         major_last,
         local_degrees.begin(),
@@ -407,7 +407,7 @@ class edge_partition_device_view_t<vertex_t, edge_t, multi_gpu, std::enable_if_t
             mask_first});
     } else {
       thrust::transform(
-        rmm::exec_policy(stream),
+        rmm::exec_policy_nosync(stream),
         major_first,
         major_last,
         local_degrees.begin(),
@@ -577,7 +577,7 @@ class edge_partition_device_view_t<vertex_t, edge_t, multi_gpu, std::enable_if_t
   __host__ rmm::device_uvector<edge_t> compute_local_degrees(rmm::cuda_stream_view stream) const
   {
     rmm::device_uvector<edge_t> local_degrees(this->major_range_size(), stream);
-    thrust::transform(rmm::exec_policy(stream),
+    thrust::transform(rmm::exec_policy_nosync(stream),
                       thrust::make_counting_iterator(this->major_range_first()),
                       thrust::make_counting_iterator(this->major_range_last()),
                       local_degrees.begin(),
@@ -595,7 +595,7 @@ class edge_partition_device_view_t<vertex_t, edge_t, multi_gpu, std::enable_if_t
                                                              rmm::cuda_stream_view stream) const
   {
     rmm::device_uvector<edge_t> local_degrees(thrust::distance(major_first, major_last), stream);
-    thrust::transform(rmm::exec_policy(stream),
+    thrust::transform(rmm::exec_policy_nosync(stream),
                       major_first,
                       major_last,
                       local_degrees.begin(),
@@ -638,7 +638,7 @@ class edge_partition_device_view_t<vertex_t, edge_t, multi_gpu, std::enable_if_t
   {
     rmm::device_uvector<edge_t> local_degrees(this->major_range_size(), stream);
     thrust::transform(
-      rmm::exec_policy(stream),
+      rmm::exec_policy_nosync(stream),
       thrust::make_counting_iterator(this->major_range_first()),
       thrust::make_counting_iterator(this->major_range_last()),
       local_degrees.begin(),
@@ -660,7 +660,7 @@ class edge_partition_device_view_t<vertex_t, edge_t, multi_gpu, std::enable_if_t
   {
     rmm::device_uvector<edge_t> local_degrees(thrust::distance(major_first, major_last), stream);
     thrust::transform(
-      rmm::exec_policy(stream),
+      rmm::exec_policy_nosync(stream),
       major_first,
       major_last,
       local_degrees.begin(),
