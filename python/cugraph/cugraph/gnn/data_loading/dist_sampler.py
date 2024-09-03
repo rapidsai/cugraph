@@ -298,6 +298,8 @@ class DistSampler:
         seeds_per_call: int,
         assume_equal_input_size: bool = False,
     ):
+        torch = import_optional("torch")
+
         # Split the input seeds into call groups.  Each call group
         # corresponds to one sampling call.  A call group contains
         # many batches.
@@ -320,7 +322,7 @@ class DistSampler:
                 * (int(num_call_groups) - len(seeds_call_groups))
             )
             index_call_groups = list(index_call_groups) + (
-                [torch.tensor([], dtype=torch.int64, device=index_call_groups.device)]
+                [torch.tensor([], dtype=torch.int64, device=input_id.device)]
                 * (int(num_call_groups) - len(index_call_groups))
             )
 

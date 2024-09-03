@@ -112,7 +112,9 @@ class DistSampleWriter:
             input_offsets_p = minibatch_dict["input_offsets"][
                 partition_start : (partition_end + 1)
             ]
-            input_index_p = minibatch_dict[input_offsets_p[0] : input_offsets_p[-1]]
+            input_index_p = minibatch_dict["input_index"][
+                input_offsets_p[0] : input_offsets_p[-1]
+            ]
             edge_inverse_p = (
                 minibatch_dict["edge_inverse"][
                     (input_offsets_p[0] * 2) : (input_offsets_p[-1] * 2)
@@ -219,7 +221,9 @@ class DistSampleWriter:
             input_offsets_p = minibatch_dict["input_offsets"][
                 partition_start : (partition_end + 1)
             ]
-            input_index_p = minibatch_dict[input_offsets_p[0] : input_offsets_p[-1]]
+            input_index_p = minibatch_dict["input_index"][
+                input_offsets_p[0] : input_offsets_p[-1]
+            ]
             edge_inverse_p = (
                 minibatch_dict["edge_inverse"][
                     (input_offsets_p[0] * 2) : (input_offsets_p[-1] * 2)
