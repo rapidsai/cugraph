@@ -637,9 +637,9 @@ extract_transform_v_frontier_e(raft::handle_t const& handle,
     }
   }
 
-  // compute max_pushes
+  // compute local max_pushes
 
-  size_t max_pushes{};
+  size_t local_max_pushes{};
   {
     size_t partition_idx{};
     if constexpr (GraphViewType::is_multi_gpu) {
@@ -656,7 +656,7 @@ extract_transform_v_frontier_e(raft::handle_t const& handle,
       thrust_tuple_get_or_identity<decltype(frontier_key_last), 0>(frontier_key_last);
     // for an edge-masked graph, we can pass edge mask to compute tighter bound (at the expense of
     // additional computing)
-    max_pushes = edge_partition.compute_number_of_edges(
+    local_max_pushes = edge_partition.compute_number_of_edges(
       frontier_major_first, frontier_major_last, handle.get_stream());
   }
 
@@ -706,7 +706,7 @@ extract_transform_v_frontier_e(raft::handle_t const& handle,
         handle.get_stream());
       auto aggregate_max_pushes = host_scalar_allreduce(
         comm,
-        max_pushes,
+        local_max_pushes,
         raft::comms::op_t::SUM,
         handle.get_stream());  // this is approximate as we only consider local edges for
                                // [frontier_key_first, frontier_key_last), note that neighbor lists
@@ -768,6 +768,9 @@ extract_transform_v_frontier_e(raft::handle_t const& handle,
   auto time1 = std::chrono::steady_clock::now();
 #endif
   for (size_t i = 0; i < graph_view.number_of_local_edge_partitions(); i += num_concurrent_loops) {
+#if EXTRACT_PERFORMANCE_MEASUREMENT  // FIXME: delete
+    auto subtime0 = std::chrono::steady_clock::now();
+#endif
     auto loop_count =
       std::min(num_concurrent_loops, graph_view.number_of_local_edge_partitions() - i);
 
@@ -775,36 +778,26 @@ extract_transform_v_frontier_e(raft::handle_t const& handle,
                        std::vector<dataframe_buffer_type_t<key_t>>,
                        std::byte /* dummy */>
       edge_partition_key_buffers{};
-    if constexpr (GraphViewType::is_multi_gpu) { edge_partition_key_buffers.reserve(loop_count); }
-    std::vector<std::optional<std::vector<size_t>>> key_segment_offset_vectors{};
-    key_segment_offset_vectors.reserve(loop_count);
-    std::vector<optional_dataframe_buffer_type_t<output_key_t>> output_key_buffers{};
-    output_key_buffers.reserve(loop_count);
-    std::vector<optional_dataframe_buffer_type_t<output_value_t>> output_value_buffers{};
-    output_value_buffers.reserve(loop_count);
-    std::vector<rmm::device_scalar<size_t>> output_buffer_idx_scalars{};
-    output_buffer_idx_scalars.reserve(loop_count);
-    for (size_t j = 0; j < loop_count; ++j) {
-      auto partition_idx = i * num_concurrent_loops + j;
-      auto loop_stream   = stream_pool_indices
-                             ? handle.get_stream_from_stream_pool((*stream_pool_indices)[j])
-                             : handle.get_stream();
+    if constexpr (GraphViewType::is_multi_gpu) {
+      edge_partition_key_buffers.reserve(loop_count);
+      for (size_t j = 0; j < loop_count; ++j) {
+        auto partition_idx = i * num_concurrent_loops + j;
+        auto loop_stream   = stream_pool_indices
+                               ? handle.get_stream_from_stream_pool((*stream_pool_indices)[j])
+                               : handle.get_stream();
 
-      auto edge_partition =
-        edge_partition_device_view_t<vertex_t, edge_t, GraphViewType::is_multi_gpu>(
-          graph_view.local_edge_partition_view(partition_idx));
-      auto segment_offsets = graph_view.local_edge_partition_segment_offsets(partition_idx);
-
-      auto edge_partition_frontier_key_first = frontier_key_first;
-      auto edge_partition_frontier_key_last  = frontier_key_last;
-      if constexpr (GraphViewType::is_multi_gpu) {
         auto& minor_comm = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
         auto const minor_comm_rank = minor_comm.get_rank();
         auto const minor_comm_size = minor_comm.get_size();
 
-        if (minor_comm_size > 1) {
           auto edge_partition_key_buffer =
-            allocate_dataframe_buffer<key_t>(local_frontier_sizes[partition_idx], loop_stream);
+            allocate_dataframe_buffer<key_t>(minor_comm_size > 1 ? local_frontier_sizes[partition_idx] : size_t{0}, loop_stream);
+        if (minor_comm_size > 1) {
+        auto edge_partition =
+          edge_partition_device_view_t<vertex_t, edge_t, GraphViewType::is_multi_gpu>(
+            graph_view.local_edge_partition_view(partition_idx));
+        auto segment_offsets = graph_view.local_edge_partition_segment_offsets(partition_idx);
+
           if constexpr (try_bitmap) {
             std::variant<raft::device_span<uint32_t const>, decltype(frontier_key_first)> v_list{};
             if (use_bitmap_flags[partition_idx]) {
@@ -834,7 +827,44 @@ extract_transform_v_frontier_e(raft::handle_t const& handle,
                          static_cast<int>(partition_idx),
                          loop_stream);
           }
+        }
           edge_partition_key_buffers.push_back(std::move(edge_partition_key_buffer));
+      }
+    }
+#if EXTRACT_PERFORMANCE_MEASUREMENT  // FIXME: delete
+    auto subtime1 = std::chrono::steady_clock::now();
+#endif
+    if (stream_pool_indices) { handle.sync_stream_pool(*stream_pool_indices); }
+#if EXTRACT_PERFORMANCE_MEASUREMENT  // FIXME: delete
+    auto subtime2 = std::chrono::steady_clock::now();
+#endif
+
+    std::vector<std::optional<std::vector<size_t>>> key_segment_offset_vectors{};
+    key_segment_offset_vectors.reserve(loop_count);
+    std::vector<optional_dataframe_buffer_type_t<output_key_t>> output_key_buffers{};
+    output_key_buffers.reserve(loop_count);
+    std::vector<optional_dataframe_buffer_type_t<output_value_t>> output_value_buffers{};
+    output_value_buffers.reserve(loop_count);
+    std::vector<rmm::device_scalar<size_t>> output_buffer_idx_scalars{};
+    output_buffer_idx_scalars.reserve(loop_count);
+    for (size_t j = 0; j < loop_count; ++j) {
+      auto partition_idx = i * num_concurrent_loops + j;
+      auto loop_stream   = stream_pool_indices
+                             ? handle.get_stream_from_stream_pool((*stream_pool_indices)[j])
+                             : handle.get_stream();
+
+      auto edge_partition =
+        edge_partition_device_view_t<vertex_t, edge_t, GraphViewType::is_multi_gpu>(
+          graph_view.local_edge_partition_view(partition_idx));
+      auto segment_offsets = graph_view.local_edge_partition_segment_offsets(partition_idx);
+
+      auto edge_partition_frontier_key_first = frontier_key_first;
+      auto edge_partition_frontier_key_last  = frontier_key_last;
+      if constexpr (GraphViewType::is_multi_gpu) {
+        auto& minor_comm = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
+        auto const minor_comm_size = minor_comm.get_size();
+
+        if (minor_comm_size > 1) {
           edge_partition_frontier_key_first =
             get_dataframe_buffer_begin(edge_partition_key_buffers[j]);
           edge_partition_frontier_key_last =
@@ -851,6 +881,7 @@ extract_transform_v_frontier_e(raft::handle_t const& handle,
 
       std::optional<std::vector<size_t>> key_segment_offsets{std::nullopt};
       if (segment_offsets) {
+        // FIXME: comapute_key_segment_offstes() implicitly synchronizes to copy the results to host
         key_segment_offsets = compute_key_segment_offsets(
           edge_partition_frontier_major_first,
           edge_partition_frontier_major_last,
@@ -860,11 +891,12 @@ extract_transform_v_frontier_e(raft::handle_t const& handle,
       }
       key_segment_offset_vectors.push_back(std::move(key_segment_offsets));
 
-      size_t edge_partition_max_pushes = max_pushes;
+      size_t edge_partition_max_pushes = local_max_pushes;
       if constexpr (GraphViewType::is_multi_gpu) {
         auto& minor_comm = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
         auto const minor_comm_rank = minor_comm.get_rank();
         if (static_cast<int>(partition_idx) != minor_comm_rank) {
+          // FIXME: compute_number_of_edges() implicitly synchronizes to copy the results to host
           edge_partition_max_pushes = edge_partition.compute_number_of_edges(
             edge_partition_frontier_major_first, edge_partition_frontier_major_last, loop_stream);
         }
@@ -876,7 +908,13 @@ extract_transform_v_frontier_e(raft::handle_t const& handle,
         allocate_optional_dataframe_buffer<output_value_t>(edge_partition_max_pushes, loop_stream));
       output_buffer_idx_scalars.push_back(rmm::device_scalar<size_t>(size_t{0}, loop_stream));
     }
+#if EXTRACT_PERFORMANCE_MEASUREMENT  // FIXME: delete
+    auto subtime3 = std::chrono::steady_clock::now();
+#endif
     if (stream_pool_indices) { handle.sync_stream_pool(*stream_pool_indices); }
+#if EXTRACT_PERFORMANCE_MEASUREMENT  // FIXME: delete
+    auto subtime4 = std::chrono::steady_clock::now();
+#endif
 
     for (size_t j = 0; j < loop_count; ++j) {
       auto partition_idx = i * num_concurrent_loops + j;
@@ -1043,18 +1081,40 @@ extract_transform_v_frontier_e(raft::handle_t const& handle,
         }
       }
     }
+#if EXTRACT_PERFORMANCE_MEASUREMENT  // FIXME: delete
+    auto subtime5 = std::chrono::steady_clock::now();
+#endif
     if (stream_pool_indices) { handle.sync_stream_pool(*stream_pool_indices); }
+#if EXTRACT_PERFORMANCE_MEASUREMENT  // FIXME: delete
+    auto subtime6 = std::chrono::steady_clock::now();
+#endif
+
+    std::vector<size_t> tmp_buffer_sizes(loop_count);
+    for (size_t j = 0; j < loop_count; ++j) {
+      auto loop_stream = stream_pool_indices
+                           ? handle.get_stream_from_stream_pool((*stream_pool_indices)[j])
+                           : handle.get_stream();
+
+      auto& tmp_buffer_idx   = output_buffer_idx_scalars[j];
+      // FIXME: tmp_buffer_idx.value() implicitly synchronizes to copy the results to host
+      tmp_buffer_sizes[j] = tmp_buffer_idx.value(loop_stream);
+    }
+#if EXTRACT_PERFORMANCE_MEASUREMENT  // FIXME: delete
+    auto subtime7 = std::chrono::steady_clock::now();
+#endif
+    if (stream_pool_indices) { handle.sync_stream_pool(*stream_pool_indices); }
+#if EXTRACT_PERFORMANCE_MEASUREMENT  // FIXME: delete
+    auto subtime8 = std::chrono::steady_clock::now();
+#endif
 
     for (size_t j = 0; j < loop_count; ++j) {
       auto loop_stream = stream_pool_indices
                            ? handle.get_stream_from_stream_pool((*stream_pool_indices)[j])
                            : handle.get_stream();
 
+      auto tmp_buffer_size = tmp_buffer_sizes[j];
       auto& tmp_key_buffer   = output_key_buffers[j];
       auto& tmp_value_buffer = output_value_buffers[j];
-      auto& tmp_buffer_idx   = output_buffer_idx_scalars[j];
-
-      auto tmp_buffer_size = tmp_buffer_idx.value(loop_stream);
 
       resize_optional_dataframe_buffer<output_key_t>(tmp_key_buffer, tmp_buffer_size, loop_stream);
       shrink_to_fit_optional_dataframe_buffer<output_key_t>(tmp_key_buffer, loop_stream);
@@ -1066,7 +1126,24 @@ extract_transform_v_frontier_e(raft::handle_t const& handle,
       key_buffers.push_back(std::move(tmp_key_buffer));
       value_buffers.push_back(std::move(tmp_value_buffer));
     }
+#if EXTRACT_PERFORMANCE_MEASUREMENT  // FIXME: delete
+    auto subtime9 = std::chrono::steady_clock::now();
+#endif
     if (stream_pool_indices) { handle.sync_stream_pool(*stream_pool_indices); }
+#if EXTRACT_PERFORMANCE_MEASUREMENT  // FIXME: delete
+    auto subtime10 = std::chrono::steady_clock::now();
+    std::chrono::duration<double> subdur0 = subtime1 - subtime0;
+    std::chrono::duration<double> subdur1 = subtime2 - subtime1;
+    std::chrono::duration<double> subdur2 = subtime3 - subtime2;
+    std::chrono::duration<double> subdur3 = subtime4 - subtime3;
+    std::chrono::duration<double> subdur4 = subtime5 - subtime4;
+    std::chrono::duration<double> subdur5 = subtime6 - subtime5;
+    std::chrono::duration<double> subdur6 = subtime7 - subtime6;
+    std::chrono::duration<double> subdur7 = subtime8 - subtime7;
+    std::chrono::duration<double> subdur8 = subtime9 - subtime8;
+    std::chrono::duration<double> subdur9 = subtime10 - subtime9;
+    std::cout << "sub took (" << subdur0.count() << "," << subdur1.count() << "," << subdur2.count() << "," << subdur3.count() << "," << subdur4.count() << "," << subdur5.count() << "," << subdur6.count() << "," << subdur7.count() << "," << subdur8.count() << "," << subdur9.count() << ")" << std::endl;
+#endif
   }
 #if EXTRACT_PERFORMANCE_MEASUREMENT  // FIXME: delete
   RAFT_CUDA_TRY(cudaDeviceSynchronize());
@@ -1097,6 +1174,7 @@ extract_transform_v_frontier_e(raft::handle_t const& handle,
     std::vector<size_t> buffer_displacements(buffer_sizes.size());
     std::exclusive_scan(
       buffer_sizes.begin(), buffer_sizes.end(), buffer_displacements.begin(), size_t{0});
+    // FIXME: this copy can be performed in multiple streams
     for (size_t i = 0; i < key_buffers.size(); ++i) {
       if constexpr (!std::is_same_v<output_key_t, void>) {
         thrust::copy(
