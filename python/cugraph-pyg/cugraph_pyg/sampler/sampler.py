@@ -370,6 +370,31 @@ class HomogeneousSampleReader(SampleReader):
             ]
         ]
 
+        edge_inverse = (
+            (
+                raw_sample_data["edge_inverse"][
+                    (raw_sample_data["input_offsets"][index] * 2) : (
+                        raw_sample_data["input_offsets"][index + 1] * 2
+                    )
+                ]
+            )
+            if "edge_inverse" in raw_sample_data
+            else None
+        )
+
+        if edge_inverse is None:
+            metadata = (
+                input_index,
+                None,  # TODO this will eventually include time
+            )
+        else:
+            metadata = (
+                input_index,
+                edge_inverse.view(2, -1),
+                None,
+                None,  # TODO this will eventually include time
+            )
+
         return torch_geometric.sampler.SamplerOutput(
             node=renumber_map.cpu(),
             row=minors,
@@ -378,10 +403,7 @@ class HomogeneousSampleReader(SampleReader):
             batch=renumber_map[:num_seeds],
             num_sampled_nodes=num_sampled_nodes,
             num_sampled_edges=num_sampled_edges,
-            metadata=(
-                input_index,
-                None,  # TODO this will eventually include time
-            ),
+            metadata=metadata,
         )
 
     def _decode(self, raw_sample_data: Dict[str, "torch.Tensor"], index: int):

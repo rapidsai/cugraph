@@ -464,17 +464,31 @@ class DistSampler:
         # The returned unique values must be sorted or else the inverse won't line up
         # In the future this may be a good target for a C++ function
         # Each element is a tuple of (unique, index, inverse)
-        # TODO make sure this is compatible with negative sampling
-        u = [
-            torch.unique(
+        # The seeds must be presorted with a stable sort prior to calling
+        # unique_consecutive in order to support negative sampling.  This is
+        # because if we put positive edges after negative ones, then we may
+        # inadvertently turn a true positive into a false negative.
+        y = (
+            torch.sort(
                 t,
-                return_inverse=True,
-                sorted=True,
+                stable=True,
             )
             for t in current_seeds
+        )
+        z = ((v, torch.sort(i)[1]) for v, i in y)
+
+        u = [
+            (
+                torch.unique_consecutive(
+                    t,
+                    return_inverse=True,
+                ),
+                i,
+            )
+            for t, i in z
         ]
-        current_seeds = torch.concat([a[0] for a in u])
-        current_inv = torch.concat([a[1] for a in u])
+        current_seeds = torch.concat([a[0] for a, _ in u])
+        current_inv = torch.concat([a[1][i] for a, i in u])
         current_batches = torch.concat(
             [
                 torch.full(
@@ -489,11 +503,14 @@ class DistSampler:
         del u
 
         # Join with the leftovers
-        # TODO make sure this is compatible with negative sampling
-        leftover_seeds, leftover_inv = leftover_seeds.flatten().unique(
-            return_inverse=True,
-            sorted=True,
+        leftover_seeds, lyi = torch.sort(
+            leftover_seeds.flatten(),
+            stable=True,
         )
+        lz = torch.sort(lyi)[1]
+        leftover_seeds, lui = leftover_seeds.unique_consecutive(return_inverse=True)
+        leftover_inv = lui[lz]
+
         current_seeds = torch.concat([current_seeds, leftover_seeds])
         current_inv = torch.concat([current_inv, leftover_inv])
         current_batches = torch.concat(
@@ -507,6 +524,9 @@ class DistSampler:
                 ),
             ]
         )
+        del leftover_seeds
+        del lz
+        del lui
 
         minibatch_dict = self.sample_batches(
             seeds=current_seeds,
