@@ -47,6 +47,7 @@ add_library(cugraphtestutil STATIC
             structure/induced_subgraph_validate.cu
             sampling/random_walks_check_sg.cu
             sampling/detail/nbr_sampling_validate.cu
+            sampling/detail/sampling_post_processing_validate.cu
             ../../thirdparty/mmio/mmio.c)
 
 target_compile_options(cugraphtestutil
@@ -486,11 +487,16 @@ ConfigureTest(BIASED_NEIGHBOR_SAMPLING_TEST sampling/biased_neighbor_sampling.cp
 
 ###################################################################################################
 # - SAMPLING_POST_PROCESSING tests ----------------------------------------------------------------
-ConfigureTest(SAMPLING_POST_PROCESSING_TEST sampling/sampling_post_processing_test.cu)
+ConfigureTest(SAMPLING_POST_PROCESSING_TEST sampling/sampling_post_processing_test.cpp)
+
+###################################################################################################
+# - SAMPLING_HETEROGENEOUS_POST_PROCESSING tests --------------------------------------------------
+ConfigureTest(SAMPLING_HETEROGENEOUS_POST_PROCESSING_TEST
+              sampling/sampling_heterogeneous_post_processing_test.cpp)
 
 ###################################################################################################
 # - NEGATIVE SAMPLING tests --------------------------------------------------------------------
-ConfigureTest(NEGATIVE_SAMPLING_TEST sampling/negative_sampling.cpp)
+ConfigureTest(NEGATIVE_SAMPLING_TEST sampling/negative_sampling.cpp PERCENT 100)
 
 ###################################################################################################
 # - Renumber tests --------------------------------------------------------------------------------
@@ -581,7 +587,8 @@ if(BUILD_CUGRAPH_MG_TESTS)
     ###############################################################################################
     # - MG BETWEENNESS CENTRALITY tests -----------------------------------------------------------
     ConfigureTestMG(MG_BETWEENNESS_CENTRALITY_TEST centrality/mg_betweenness_centrality_test.cpp)
-    ConfigureTestMG(MG_EDGE_BETWEENNESS_CENTRALITY_TEST centrality/mg_edge_betweenness_centrality_test.cpp)
+    ConfigureTestMG(MG_EDGE_BETWEENNESS_CENTRALITY_TEST
+                    centrality/mg_edge_betweenness_centrality_test.cpp)
 
     ###############################################################################################
     # - MG BFS tests ------------------------------------------------------------------------------
