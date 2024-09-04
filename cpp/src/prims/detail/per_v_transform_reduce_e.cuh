@@ -1744,7 +1744,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
 
         auto edge_partition_key_buffer = allocate_dataframe_buffer<key_t>(
           minor_comm_size > 1 ? local_key_list_sizes[partition_idx] : size_t{0}, loop_stream);
-        if (minor_comm_size > 1) {
+        if (size_dataframe_buffer(edge_partition_key_buffer) > 0) {
           if constexpr (try_bitmap) {
             auto edge_partition =
               edge_partition_device_view_t<vertex_t, edge_t, GraphViewType::is_multi_gpu>(
@@ -1787,8 +1787,8 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
 #if PER_V_PERFORMANCE_MEASUREMENT  // FIXME: delete
     auto subtime1 = std::chrono::steady_clock::now();
 #endif
-    if (stream_pool_indices) { handle.sync_stream_pool(*stream_pool_indices); }
 #if PER_V_PERFORMANCE_MEASUREMENT  // FIXME: delete
+    if (stream_pool_indices) { handle.sync_stream_pool(*stream_pool_indices); }
     auto subtime2 = std::chrono::steady_clock::now();
 #endif
 
@@ -1826,7 +1826,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
             }
           }
 
-          // FIXME: compute_key_segment_offsets implicitly synchronizes to copy the results to host
+          // FIXME: compute_key_segment_offsets() implicitly synchronizes to copy the results to host
           key_segment_offsets = compute_key_segment_offsets(
             edge_partition_key_first,
             edge_partition_key_last,
@@ -2203,6 +2203,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
 
           auto& values = edge_partition_values[j];
 
+          // FIXME: this if-else might be unnecessary
           if (minor_comm_rank == static_cast<int>(partition_idx)) {
             device_gatherv(minor_comm,
                            get_dataframe_buffer_begin(values),
