@@ -177,7 +177,7 @@ Run either the C++ or the Python tests with datasets
    make test
    ```
 
-Note: This conda installation only applies to Linux and Python versions 3.10 and 3.11.
+Note: This conda installation only applies to Linux and Python versions 3.10, 3.11, and 3.12.
 
 ### (OPTIONAL) Set environment variable on activation
 
