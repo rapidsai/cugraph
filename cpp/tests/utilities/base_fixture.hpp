@@ -54,7 +54,7 @@ namespace test {
  * ```
  **/
 class BaseFixture : public ::testing::Test {
-  rmm::device_async_resource_ref _mr{rmm::mr::get_current_device_resource_ref()};
+  rmm::device_async_resource_ref _mr{raft::resource::get_current_device_resource_ref()};
 
  public:
   /**
