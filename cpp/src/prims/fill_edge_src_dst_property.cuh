@@ -335,7 +335,11 @@ void fill_edge_minor_property(raft::handle_t const& handle,
                        });
       raft::update_host(v_list_range.data(), tmps.data(), 2, handle.get_stream());
       handle.sync_stream();
-      v_list_range[0] -= (v_list_range[0] - minor_range_first) % packed_bools_per_word();
+      v_list_range[0] -=
+        (v_list_range[0] - minor_range_first) %
+        packed_bools_per_word();  // to perform bitwise AND|OR in word granularity (if edge minor
+                                  // property value type is packed bool &&
+                                  // !edge_partition_keys.has_value() && v_list_bitmap.has_value())
     }
 
     auto v_list_bitmap = compute_vertex_list_bitmap_info(sorted_unique_vertex_first,
