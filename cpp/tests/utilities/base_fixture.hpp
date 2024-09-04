@@ -22,12 +22,13 @@
 
 #include <cugraph/utilities/error.hpp>
 
+#include <raft/core/resource/device_memory_resource.hpp>
+
 #include <rmm/exec_policy.hpp>
 #include <rmm/mr/device/binning_memory_resource.hpp>
 #include <rmm/mr/device/cuda_memory_resource.hpp>
 #include <rmm/mr/device/managed_memory_resource.hpp>
 #include <rmm/mr/device/owning_wrapper.hpp>
-#include <rmm/mr/device/per_device_resource.hpp>
 #include <rmm/mr/device/pool_memory_resource.hpp>
 #include <rmm/resource_ref.hpp>
 
@@ -53,7 +54,7 @@ namespace test {
  * ```
  **/
 class BaseFixture : public ::testing::Test {
-  rmm::device_async_resource_ref _mr{rmm::mr::get_current_device_resource()};
+  rmm::device_async_resource_ref _mr{rmm::mr::get_current_device_resource_ref()};
 
  public:
   /**
@@ -211,7 +212,7 @@ inline auto parse_test_options(int argc, char** argv)
     auto const cmd_opts = parse_test_options(argc, argv);                               \
     auto const rmm_mode = cmd_opts["rmm_mode"].as<std::string>();                       \
     auto resource       = cugraph::test::create_memory_resource(rmm_mode);              \
-    rmm::mr::set_current_device_resource(resource.get());                               \
+    raft::resource::set_current_device_resource(resource.get());                        \
     cugraph::test::g_perf = cmd_opts["perf"].as<bool>();                                \
     cugraph::test::g_rmat_scale =                                                       \
       (cmd_opts.count("rmat_scale") > 0)                                                \
@@ -242,7 +243,7 @@ inline auto parse_test_options(int argc, char** argv)
     auto const cmd_opts = parse_test_options(argc, argv);                               \
     auto const rmm_mode = cmd_opts["rmm_mode"].as<std::string>();                       \
     auto resource       = cugraph::test::create_memory_resource(rmm_mode);              \
-    rmm::mr::set_current_device_resource(resource.get());                               \
+    raft::resource::set_current_device_resource(resource.get());                        \
     cugraph::test::g_perf = cmd_opts["perf"].as<bool>();                                \
     cugraph::test::g_rmat_scale =                                                       \
       (cmd_opts.count("rmat_scale") > 0)                                                \

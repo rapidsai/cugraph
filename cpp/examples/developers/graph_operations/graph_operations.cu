@@ -26,6 +26,7 @@
 #include <raft/comms/mpi_comms.hpp>
 #include <raft/core/comms.hpp>
 #include <raft/core/handle.hpp>
+#include <raft/core/resource/device_memory_resource.hpp>
 #include <raft/random/rng_state.hpp>
 
 #include <thrust/for_each.h>
@@ -52,7 +53,7 @@ std::unique_ptr<raft::handle_t> initialize_mg_handle()
 
   std::shared_ptr<rmm::mr::device_memory_resource> resource =
     std::make_shared<rmm::mr::cuda_memory_resource>();
-  rmm::mr::set_current_device_resource(resource.get());
+  raft::resource::set_current_device_resource(resource.get());
 
   std::unique_ptr<raft::handle_t> handle =
     std::make_unique<raft::handle_t>(rmm::cuda_stream_per_thread, resource);

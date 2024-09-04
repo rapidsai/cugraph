@@ -21,6 +21,8 @@
 #include <cugraph/utilities/dataframe_buffer.hpp>
 #include <cugraph/utilities/device_functors.cuh>
 
+#include <raft/core/resource/device_memory_resource.hpp>
+
 #include <rmm/device_scalar.hpp>
 #include <rmm/device_uvector.hpp>
 #include <rmm/mr/device/polymorphic_allocator.hpp>
@@ -821,7 +823,8 @@ class kv_cuco_store_t {
       static_cast<size_t>(num_keys) + 1);  // cuco::static_map requires at least one empty slot
 
     auto stream_adapter = rmm::mr::stream_allocator_adaptor(
-      rmm::mr::polymorphic_allocator<std::byte>(rmm::mr::get_current_device_resource()), stream);
+      rmm::mr::polymorphic_allocator<std::byte>(raft::resource::get_current_device_resource_ref()),
+      stream);
     if constexpr (std::is_arithmetic_v<value_t>) {
       cuco_store_ =
         std::make_unique<cuco_map_type>(cuco_size,

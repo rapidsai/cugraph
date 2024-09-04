@@ -15,6 +15,8 @@
  */
 #pragma once
 
+#include <raft/core/resource/device_memory_resource.hpp>
+
 #include <rmm/device_uvector.hpp>
 #include <rmm/mr/device/polymorphic_allocator.hpp>
 
@@ -324,7 +326,8 @@ class key_cuco_store_t {
       static_cast<size_t>(num_keys) + 1);  // cuco::static_map requires at least one empty slot
 
     auto stream_adapter = rmm::mr::stream_allocator_adaptor(
-      rmm::mr::polymorphic_allocator<std::byte>(rmm::mr::get_current_device_resource()), stream);
+      rmm::mr::polymorphic_allocator<std::byte>(raft::resource::get_current_device_resource_ref()),
+      stream);
     cuco_store_ =
       std::make_unique<cuco_set_type>(cuco_size,
                                       cuco::empty_key<key_t>{invalid_key},
