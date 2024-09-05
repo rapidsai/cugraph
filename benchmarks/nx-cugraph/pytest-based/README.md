@@ -19,13 +19,22 @@ Our current benchmarks provide the following datasets:
 ### Scripts
 
 #### 1. `run-main-benchmarks.sh`
-This script allows users to run selected algorithms across multiple datasets and backends. All results are stored inside a sub-directory (`logs/`) and output files are named based on the combination of parameters for that benchmark.
+This script allows users to run the main algorithms across multiple datasets and backends. All results are stored inside a sub-directory (`logs/`) and output files are named based on the combination of parameters for that benchmark.
 
-NOTE: If running with all algorithms, datasets, and backends, this script may take a few hours to finish running.
+NOTE: If running with all algorithms, datasets on CPU, this script may take a few hours to finish running.
 
 **Usage:**
+ - Run with `--cpu-only`:
   ```bash
-  bash run-main-benchmarks.sh  # edit this script directly
+  ./run-main-benchmarks.sh --cpu-only
+  ```
+ - Run with `--gpu-only`:
+  ```bash
+  ./run-main-benchmarks.sh --gpu-only
+  ```
+ - Run without any arguments (all backends):
+  ```bash
+  ./run-main-benchmarks.sh
   ```
 
 #### 2. `get_graph_bench_dataset.py`

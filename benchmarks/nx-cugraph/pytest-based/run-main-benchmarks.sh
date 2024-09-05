@@ -27,19 +27,27 @@ algos="
     triangles
     bfs_predecessors
 "
-datasets="
-   netscience
-   email_Eu_core
-   cit_patents
-   hollywood
-   soc-livejournal
-"
 # None backend is default networkx
 # cugraph-preconvert backend is nx-cugraph
 backends="
     None
     cugraph-preconverted
 "
+# check for --cpu-only or --gpu-only args
+if [[ "$#" -eq 1 ]]; then
+    case $1 in
+        --cpu-only)
+            backends="None"
+            ;;
+        --gpu-only)
+            backends="cugraph-preconverted"
+            ;;
+        *)
+            echo "Unknown option: $1"
+            exit 1
+            ;;
+    esac
+fi
 
 for algo in $algos; do
     for dataset in $datasets; do
