@@ -117,12 +117,12 @@ class LinkLoader:
             edge_label_index,
         ) = torch_geometric.loader.utils.get_edge_label_index(
             data,
-            edge_label_index,
+            (None, edge_label_index),
         )
 
         self.__input_data = torch_geometric.sampler.EdgeSamplerInput(
             input_id=torch.arange(
-                edge_label_index.shape[-1], dtype=torch.int64, device="cuda"
+                edge_label_index[0].numel(), dtype=torch.int64, device="cuda"
             )
             if input_id is None
             else input_id,
@@ -136,6 +136,7 @@ class LinkLoader:
         self.__data = data
 
         self.__link_sampler = link_sampler
+        self.__neg_sampling = neg_sampling
 
         self.__batch_size = batch_size
         self.__shuffle = shuffle
@@ -151,7 +152,7 @@ class LinkLoader:
             d = perm.numel() % self.__batch_size
             perm = perm[:-d]
 
-        input_data = torch_geometric.loader.node_loader.EdgeSamplerInput(
+        input_data = torch_geometric.sampler.EdgeSamplerInput(
             input_id=self.__input_data.input_id[perm],
             row=self.__input_data.row[perm],
             col=self.__input_data.col[perm],
@@ -165,5 +166,9 @@ class LinkLoader:
         )
 
         return cugraph_pyg.sampler.SampleIterator(
-            self.__data, self.__link_sampler.sample_from_edges(input_data)
+            self.__data,
+            self.__link_sampler.sample_from_edges(
+                input_data,
+                neg_sampling=self.__neg_sampling,
+            ),
         )

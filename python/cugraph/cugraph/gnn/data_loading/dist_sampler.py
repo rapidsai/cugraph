@@ -446,8 +446,8 @@ class DistSampler:
         ).cumsum(-1)
 
         current_seeds, leftover_seeds = (
-            current_seeds[:, num_whole_batches],
-            current_seeds[:, num_whole_batches:],
+            current_seeds[:, : (batch_size * num_whole_batches)],
+            current_seeds[:, (batch_size * num_whole_batches) :],
         )
 
         # For input edges, we need to translate this into unique vertices
@@ -499,7 +499,7 @@ class DistSampler:
                     device="cuda",
                     dtype=torch.int32,
                 )
-                for i, a in enumerate(u)
+                for i, (a, _) in enumerate(u)
             ]
         )
         del u

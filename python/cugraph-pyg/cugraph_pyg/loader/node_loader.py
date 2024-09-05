@@ -137,7 +137,7 @@ class NodeLoader:
             d = perm.numel() % self.__batch_size
             perm = perm[:-d]
 
-        input_data = torch_geometric.loader.node_loader.NodeSamplerInput(
+        input_data = torch_geometric.sampler.NodeSamplerInput(
             input_id=self.__input_data.input_id[perm],
             node=self.__input_data.node[perm],
             time=None
