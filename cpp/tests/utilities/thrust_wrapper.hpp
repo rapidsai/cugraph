@@ -93,5 +93,19 @@ void populate_vertex_ids(raft::handle_t const& handle,
                          rmm::device_uvector<vertex_t>& d_vertices_v /* [INOUT] */,
                          vertex_t vertex_id_offset);
 
+template <typename idx_t, typename offset_t>
+void expand_sparse_offsets(raft::handle_t const& handle,
+                           raft::device_span<offset_t const> offsets,
+                           raft::device_span<idx_t> indices,
+                           offset_t base_offset,
+                           idx_t base_idx);
+
+template <typename idx_t, typename offset_t>
+void expand_hypersparse_offsets(raft::handle_t const& handle,
+                                raft::device_span<offset_t const> offsets,
+                                raft::device_span<idx_t const> nzd_indices,
+                                raft::device_span<idx_t> indices,
+                                offset_t base_offset);
+
 }  // namespace test
 }  // namespace cugraph
