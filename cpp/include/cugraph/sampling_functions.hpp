@@ -43,6 +43,8 @@ enum class prior_sources_behavior_t { DEFAULT = 0, CARRY_OVER, EXCLUDE };
 /**
  * @brief Uniform Neighborhood Sampling.
  *
+ * @deprecated Replaced with homogeneous_uniform_neighbor_sample
+ *
  * This function traverses from a set of starting vertices, traversing outgoing edges and
  * randomly selects from these outgoing neighbors to extract a subgraph.
  *
@@ -139,6 +141,8 @@ uniform_neighbor_sample(
 
 /**
  * @brief Biased Neighborhood Sampling.
+ *
+ * @deprecated Replaced with homogeneous_biased_neighbor_sample
  *
  * This function traverses from a set of starting vertices, traversing outgoing edges and
  * randomly selects (with edge biases) from these outgoing neighbors to extract a subgraph.
@@ -242,12 +246,6 @@ biased_neighbor_sample(
 
 /**
  * @brief Defines flags for sampling
- *
- * Note that this uses the Builder Pattern to allow specification of options.
- * An example of how to build a complex option:
- *
- * sampling_flags_t x = sampling_flags_t{}.set_dedupe_sources(true);
- *
  */
 struct sampling_flags_t {
   /**
@@ -272,38 +270,6 @@ struct sampling_flags_t {
    *   (true) or without replacement (false).  Default is true.
    */
   bool with_replacement{true};
-
-  /**
-   * Set prior_sources_behavior to the specified value
-   */
-  sampling_flags_t set_prior_sources_behavior(prior_sources_behavior_t value)
-  {
-    return sampling_flags_t{value, return_hops, dedupe_sources, with_replacement};
-  }
-
-  /**
-   * Set return_hops to the specified value
-   */
-  sampling_flags_t set_return_hops(bool value)
-  {
-    return sampling_flags_t{prior_sources_behavior, value, dedupe_sources, with_replacement};
-  }
-
-  /**
-   * Set dedupe_sources to the specified value
-   */
-  sampling_flags_t set_dedupe_sources(bool value)
-  {
-    return sampling_flags_t{prior_sources_behavior, return_hops, value, with_replacement};
-  }
-
-  /**
-   * Set with_replacement to the specified value
-   */
-  sampling_flags_t set_with_replacement(bool value)
-  {
-    return sampling_flags_t{prior_sources_behavior, return_hops, dedupe_sources, value};
-  }
 };
 
 /**
@@ -370,7 +336,7 @@ std::tuple<rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<edge_type_t>>,
            std::optional<rmm::device_uvector<int32_t>>,
            std::optional<rmm::device_uvector<size_t>>>
-uniform_neighbor_sample(
+homogeneous_uniform_neighbor_sample(
   raft::handle_t const& handle,
   raft::random::RngState& rng_state,
   graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
@@ -449,7 +415,7 @@ std::tuple<rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<edge_type_t>>,
            std::optional<rmm::device_uvector<int32_t>>,
            std::optional<rmm::device_uvector<size_t>>>
-biased_neighbor_sample(
+homogeneous_biased_neighbor_sample(
   raft::handle_t const& handle,
   raft::random::RngState& rng_state,
   graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
