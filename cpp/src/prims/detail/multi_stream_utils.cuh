@@ -62,6 +62,7 @@ void copy_if_nosync(InputIterator input_first,
                     InputIterator input_last,
                     FlagIterator flag_first,
                     OutputIterator output_first,
+                    raft::device_span<size_t> count /* size = 1 */,
                     rmm::cuda_stream_view stream_view)
 {
   CUGRAPH_EXPECTS(
@@ -72,14 +73,13 @@ void copy_if_nosync(InputIterator input_first,
 
   size_t tmp_storage_bytes{0};
   size_t input_size = static_cast<int>(thrust::distance(input_first, input_last));
-  rmm::device_scalar<int> num_copied(stream_view);
 
   cub::DeviceSelect::Flagged(static_cast<void*>(nullptr),
                              tmp_storage_bytes,
                              input_first,
                              flag_first,
                              output_first,
-                             num_copied.data(),
+                             count.data(),
                              input_size,
                              stream_view);
 
@@ -90,7 +90,7 @@ void copy_if_nosync(InputIterator input_first,
                              input_first,
                              flag_first,
                              output_first,
-                             num_copied.data(),
+                             count.data(),
                              input_size,
                              stream_view);
 }

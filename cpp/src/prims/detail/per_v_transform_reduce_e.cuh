@@ -54,6 +54,7 @@
 #include <thrust/iterator/transform_iterator.h>
 #include <thrust/optional.h>
 #include <thrust/scatter.h>
+#include <thrust/set_operations.h>
 #include <thrust/transform_reduce.h>
 #include <thrust/tuple.h>
 #include <thrust/type_traits/integer_sequence.h>
@@ -1582,21 +1583,24 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
     auto const minor_comm_size = minor_comm.get_size();
 
     rmm::device_uvector<vertex_t> tmps(2, handle.get_stream());
-    thrust::tabulate(handle.get_thrust_policy(),
-        tmps.begin(),
-        tmps.end(),
-        [sorted_unique_key_first, v_list_size = static_cast<size_t>(thrust::distance(sorted_unique_key_first, sorted_unique_nzd_key_last))]__device__(size_t i) {
-          return (i == 0) ? *sorted_unique_key_first : (*(sorted_unique_key_first + (v_list_size - 1)) + 1);
-        });
-      raft::update_host(v_list_range.data(), tmps.data(), 2, handle.get_stream());
+    thrust::tabulate(
+      handle.get_thrust_policy(),
+      tmps.begin(),
+      tmps.end(),
+      [sorted_unique_key_first,
+       v_list_size = static_cast<size_t>(thrust::distance(
+         sorted_unique_key_first, sorted_unique_nzd_key_last))] __device__(size_t i) {
+        return (i == 0) ? *sorted_unique_key_first
+                        : (*(sorted_unique_key_first + (v_list_size - 1)) + 1);
+      });
+    raft::update_host(v_list_range.data(), tmps.data(), 2, handle.get_stream());
 
     if (minor_comm_size > 1) {
-      key_list_bitmap =
-        compute_vertex_list_bitmap_info(sorted_unique_key_first,
-                                        sorted_unique_nzd_key_last,
-                                        v_list_range[0],
-                                        v_list_range[1],
-                                        handle.get_stream());
+      key_list_bitmap = compute_vertex_list_bitmap_info(sorted_unique_key_first,
+                                                        sorted_unique_nzd_key_last,
+                                                        v_list_range[0],
+                                                        v_list_range[1],
+                                                        handle.get_stream());
     }
   }
 
@@ -1604,8 +1608,10 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
 
   std::conditional_t<use_input_key, std::vector<size_t>, std::byte /* dummy */>
     local_key_list_sizes{};
-  std::conditional_t<try_bitmap, std::vector<vertex_t>, std::byte /* dummy */> local_key_list_range_firsts{};
-  std::conditional_t<try_bitmap, std::vector<vertex_t>, std::byte /* dummy */> local_key_list_range_lasts{};
+  std::conditional_t<try_bitmap, std::vector<vertex_t>, std::byte /* dummy */>
+    local_key_list_range_firsts{};
+  std::conditional_t<try_bitmap, std::vector<vertex_t>, std::byte /* dummy */>
+    local_key_list_range_lasts{};
   std::conditional_t<try_bitmap, std::vector<bool>, std::byte /* dummy */> use_bitmap_flags{};
   std::conditional_t<use_input_key,
                      std::optional<std::vector<std::vector<size_t>>>,
@@ -1620,8 +1626,10 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
         static_cast<size_t>(thrust::distance(sorted_unique_key_first, sorted_unique_nzd_key_last)),
         handle.get_stream());
       if constexpr (try_bitmap) {
-        local_key_list_range_firsts = host_scalar_allgather(minor_comm, v_list_range[0], handle.get_stream());
-        local_key_list_range_lasts = host_scalar_allgather(minor_comm, v_list_range[1], handle.get_stream());
+        local_key_list_range_firsts =
+          host_scalar_allgather(minor_comm, v_list_range[0], handle.get_stream());
+        local_key_list_range_lasts =
+          host_scalar_allgather(minor_comm, v_list_range[1], handle.get_stream());
         auto tmp_flags = host_scalar_allgather(
           minor_comm, key_list_bitmap ? uint8_t{1} : uint8_t{0}, handle.get_stream());
         use_bitmap_flags.resize(tmp_flags.size());
@@ -2146,6 +2154,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
               assert(edge_partition_selected_ranks_or_flags[j].index() == 0);
               auto const& selected_ranks = std::get<0>(edge_partition_selected_ranks_or_flags[j]);
               resize_dataframe_buffer(values, copy_size, loop_stream);
+              rmm::device_scalar<size_t> dummy(size_t{0}, loop_stream);  // we already know the count
               copy_if_nosync(
                 get_dataframe_buffer_begin(output_buffer),
                 get_dataframe_buffer_end(output_buffer),
@@ -2154,6 +2163,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
                   cuda::proclaim_return_type<bool>(
                     [minor_comm_rank] __device__(auto rank) { return rank == minor_comm_rank; })),
                 get_dataframe_buffer_begin(values),
+                raft::device_span<size_t>(dummy.data(), size_t{1}),
                 loop_stream);
             }
           } else {
@@ -2161,10 +2171,12 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
               assert(edge_partition_selected_ranks_or_flags[j].index() == 1);
               auto& selected_flags = std::get<1>(edge_partition_selected_ranks_or_flags[j]);
               resize_dataframe_buffer(values, copy_size, loop_stream);
+              rmm::device_scalar<size_t> dummy(size_t{0}, loop_stream);  // we already know the count
               copy_if_nosync(get_dataframe_buffer_begin(output_buffer),
                              get_dataframe_buffer_end(output_buffer),
                              (*selected_flags).begin(),
                              get_dataframe_buffer_begin(values),
+                             raft::device_span<size_t>(dummy.data(), size_t{1}),
                              loop_stream);
               (*selected_flags).resize(0, loop_stream);
               (*selected_flags).shrink_to_fit(loop_stream);
