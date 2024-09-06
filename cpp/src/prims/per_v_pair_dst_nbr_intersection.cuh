@@ -18,7 +18,9 @@
 #include "prims/detail/nbr_intersection.cuh"
 
 #include <raft/core/handle.hpp>
+
 #include <rmm/device_uvector.hpp>
+
 #include <tuple>
 
 namespace cugraph {
@@ -49,14 +51,13 @@ per_v_pair_dst_nbr_intersection(raft::handle_t const& handle,
 {
   static_assert(!GraphViewType::is_storage_transposed);
 
-  return detail::nbr_intersection(
-    handle,
-    graph_view,
-    cugraph::edge_dummy_property_t{}.view(),
-    vertex_pair_first,
-    vertex_pair_last,
-    std::array<bool, 2>{true, true},
-    do_expensive_check);
+  return detail::nbr_intersection(handle,
+                                  graph_view,
+                                  cugraph::edge_dummy_property_t{}.view(),
+                                  vertex_pair_first,
+                                  vertex_pair_last,
+                                  std::array<bool, 2>{true, true},
+                                  do_expensive_check);
 }
 
 }  // namespace cugraph

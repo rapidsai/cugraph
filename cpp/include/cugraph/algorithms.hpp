@@ -1873,7 +1873,8 @@ void triangle_count(raft::handle_t const& handle,
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Graph view object.
- *  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
+ *  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to
+ * `true`).
  *
  * @return edge_property_t containing the edge triangle count
  */
