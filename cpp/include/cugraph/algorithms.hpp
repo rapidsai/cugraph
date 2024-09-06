@@ -1873,12 +1873,15 @@ void triangle_count(raft::handle_t const& handle,
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Graph view object.
+ *  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  *
  * @return edge_property_t containing the edge triangle count
  */
 template <typename vertex_t, typename edge_t, bool multi_gpu>
 edge_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>, edge_t> edge_triangle_count(
-  raft::handle_t const& handle, graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view);
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+  bool do_expensive_check = false);
 
 /*
  * @brief Compute K-Truss.
