@@ -17,6 +17,10 @@
 
 #include "prims/detail/nbr_intersection.cuh"
 
+#include <raft/core/handle.hpp>
+#include <rmm/device_uvector.hpp>
+#include <tuple>
+
 namespace cugraph {
 
 /**
