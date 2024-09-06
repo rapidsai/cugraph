@@ -27,6 +27,13 @@ algos="
     triangles
     bfs_predecessors
 "
+datasets="
+   netscience
+   email_Eu_core
+   cit_patents
+   hollywood
+   soc-livejournal
+"
 # None backend is default networkx
 # cugraph-preconvert backend is nx-cugraph
 backends="
@@ -51,7 +58,8 @@ fi
 
 for algo in $algos; do
     for dataset in $datasets; do
-    python get_graph_bench_dataset.py $dataset
+	# this script can be used to download benchmarking datasets by name via cugraph.datasets
+    # python get_graph_bench_dataset.py $dataset
         for backend in $backends; do
             name="${backend}__${algo}__${dataset}"
             echo "Running: $backend, $dataset, bench_$algo"
