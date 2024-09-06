@@ -34,6 +34,7 @@ template <typename GraphViewType, typename property_t>
 struct generate {
  private:
   using vertex_type = typename GraphViewType::vertex_type;
+  using edge_type_t = int32_t;
 
   using property_buffer_type = std::decay_t<decltype(allocate_dataframe_buffer<property_t>(
     size_t{0}, rmm::cuda_stream_view{}))>;
@@ -62,6 +63,28 @@ struct generate {
 
   static cugraph::edge_property_t<GraphViewType, property_t> edge_property(
     raft::handle_t const& handle, GraphViewType const& graph_view, int32_t hash_bin_count);
+
+  static cugraph::edge_property_t<GraphViewType, property_t> edge_property_by_src_dst_types(
+    raft::handle_t const& handle,
+    GraphViewType const& graph_view,
+    raft::device_span<typename GraphViewType::vertex_type const> vertex_type_offsets,
+    int32_t hash_bin_count);
+
+  // generate unqiue edge property values (in [0, # edges in the graph) if property_t is an integer
+  // type, this function requires std::numeric_limits<property_t>::max() to be no smaller than the
+  // number of edges in the input graph).
+  static cugraph::edge_property_t<GraphViewType, property_t> unique_edge_property(
+    raft::handle_t const& handle, GraphViewType const& graph_view);
+
+  // generate unique (edge property value, edge type) pairs (if property_t is an integral type, edge
+  // property values for each type are consecutive integers starting from 0, this function requires
+  // std::numeric_limits<property_t>::max() to be no smaller than the number of edges in the input
+  // graph).
+  static cugraph::edge_property_t<GraphViewType, property_t> unique_edge_property_per_type(
+    raft::handle_t const& handle,
+    GraphViewType const& graph_view,
+    cugraph::edge_property_view_t<typename GraphViewType::edge_type, int32_t const*> edge_type_view,
+    int32_t num_edge_types);
 };
 
 }  // namespace test
