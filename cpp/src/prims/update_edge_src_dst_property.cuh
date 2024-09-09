@@ -495,8 +495,7 @@ void update_edge_minor_property(raft::handle_t const& handle,
       (static_cast<size_t>(graph_view.compute_number_of_edges(handle) / comm_size) *
        sizeof(vertex_t)) /
       std::max(bcast_size, size_t{1});
-    num_concurrent_bcasts = std::max(num_concurrent_bcasts, size_t{1});
-    num_concurrent_bcasts = std::min(num_concurrent_bcasts, static_cast<size_t>(major_comm_size));
+    num_concurrent_bcasts = std::min(std::max(num_concurrent_bcasts, size_t{1}), static_cast<size_t>(major_comm_size));
     auto num_rounds = (static_cast<size_t>(major_comm_size) + num_concurrent_bcasts - size_t{1}) /
                       num_concurrent_bcasts;
 
