@@ -148,13 +148,13 @@ k_truss(raft::handle_t const& handle,
         std::nullopt,
         std::nullopt,
         cugraph::graph_properties_t{true, graph_view.is_multigraph()},
-        true);
+        false);
 
     modified_graph_view = (*modified_graph).view();
   }
 
   // 2. Find (k-1)-core and exclude edges that do not belong to (k-1)-core
-
+  /*
   {
     auto cur_graph_view = modified_graph_view ? *modified_graph_view : graph_view;
 
@@ -211,6 +211,7 @@ k_truss(raft::handle_t const& handle,
 
     renumber_map = std::move(tmp_renumber_map);
   }
+  */
 
   // 3. Keep only the edges from a low-degree vertex to a high-degree vertex.
 
@@ -277,7 +278,7 @@ k_truss(raft::handle_t const& handle,
         std::nullopt,
         std::nullopt,
         cugraph::graph_properties_t{false /* now asymmetric */, cur_graph_view.is_multigraph()},
-        true);
+        false);
 
     modified_graph_view = (*modified_graph).view();
     if (renumber_map) {  // collapse renumber_map
@@ -340,8 +341,12 @@ k_truss(raft::handle_t const& handle,
         edge_weight_view ? std::make_optional(*edge_weight_view) : std::nullopt,
         std::optional<edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
         std::optional<cugraph::edge_property_view_t<edge_t, int32_t const*>>{std::nullopt},
+        /*
         std::make_optional(
-          raft::device_span<vertex_t const>((*renumber_map).data(), (*renumber_map).size())));
+          raft::device_span<vertex_t const>((*renumber_map).data(), (*renumber_map).size()))
+        */
+        std::optional<raft::device_span<vertex_t const>>(std::nullopt)
+        );
 
     std::tie(edgelist_srcs, edgelist_dsts, edgelist_wgts) =
       symmetrize_edgelist<vertex_t, weight_t, false, multi_gpu>(handle,
@@ -349,6 +354,12 @@ k_truss(raft::handle_t const& handle,
                                                                 std::move(edgelist_dsts),
                                                                 std::move(edgelist_wgts),
                                                                 false);
+    
+    raft::print_device_vector("edgelist_srcs", edgelist_srcs.data(), edgelist_srcs.size(), std::cout);
+    raft::print_device_vector("edgelist_dsts", edgelist_dsts.data(), edgelist_dsts.size(), std::cout);
+
+    printf("\nK-TRUSS Successfully completed and the subgraph size = %d\n", edgelist_srcs.size());
+    //raft::print_device_vector("edgelist_wgts", count_3_.data(), count_3_.size(), std::cout); 
 
     return std::make_tuple(
       std::move(edgelist_srcs), std::move(edgelist_dsts), std::move(edgelist_wgts));
