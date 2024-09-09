@@ -59,7 +59,7 @@ fi
 for algo in $algos; do
     for dataset in $datasets; do
 	# this script can be used to download benchmarking datasets by name via cugraph.datasets
-    python get_graph_bench_dataset.py $dataset
+    	python get_graph_bench_dataset.py $dataset
         for backend in $backends; do
             name="${backend}__${algo}__${dataset}"
             echo "Running: $backend, $dataset, bench_$algo"
