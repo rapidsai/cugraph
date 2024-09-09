@@ -287,10 +287,10 @@ void bfs(raft::handle_t const& handle,
   // 4. BFS iteration
   vertex_t depth{0};
   bool top_down = true;
-  auto cur_aggregate_vertex_frontier_size =
+  auto cur_aggregate_frontier_size =
     static_cast<vertex_t>(vertex_frontier.bucket(bucket_idx_cur).aggregate_size());
   while (true) {
-    vertex_t next_aggregate_vertex_frontier_size{};
+    vertex_t next_aggregate_frontier_size{};
     if (top_down) {
 #if BFS_PERFORMANCE_MEASUREMENT  // FIXME: delete
       RAFT_CUDA_TRY(cudaDeviceSynchronize());
@@ -338,13 +338,13 @@ void bfs(raft::handle_t const& handle,
       auto topdown2 = std::chrono::steady_clock::now();
 #endif
 
-      next_aggregate_vertex_frontier_size =
+      next_aggregate_frontier_size =
         static_cast<vertex_t>(vertex_frontier.bucket(bucket_idx_next).aggregate_size());
 #if BFS_PERFORMANCE_MEASUREMENT  // FIXME: delete
       RAFT_CUDA_TRY(cudaDeviceSynchronize());
       auto topdown3 = std::chrono::steady_clock::now();
 #endif
-      if (next_aggregate_vertex_frontier_size == 0) {
+      if (next_aggregate_frontier_size == 0) {
 #if BFS_PERFORMANCE_MEASUREMENT  // FIXME: delete
         std::chrono::duration<double> dur0 = topdown1 - topdown0;
         std::chrono::duration<double> dur1 = topdown2 - topdown1;
@@ -423,7 +423,7 @@ void bfs(raft::handle_t const& handle,
                 handle.get_comms(), m_u, raft::comms::op_t::SUM, handle.get_stream())
             : m_u;
         if ((aggregate_m_f * direction_optimizing_alpha > aggregate_m_u) &&
-            (next_aggregate_vertex_frontier_size >= cur_aggregate_vertex_frontier_size)) {
+            (next_aggregate_frontier_size >= cur_aggregate_frontier_size)) {
           top_down = false;
         }
       }
@@ -455,7 +455,7 @@ void bfs(raft::handle_t const& handle,
       std::chrono::duration<double> dur4 = topdown5 - topdown4;
       std::chrono::duration<double> dur5 = topdown6 - topdown5;
       std::chrono::duration<double> dur  = topdown6 - topdown0;
-      std::cout << "topdown (prim,vf,host,fill,dir,vf) took " << dur.count() << " (" << dur0.count() << "," << dur1.count()
+      std::cout << depth << " topdown next_aggregate_frontier_size=" << next_aggregate_frontier_size << " (prim,vf,host,fill,dir,vf) took " << dur.count() << " (" << dur0.count() << "," << dur1.count()
                 << "," << dur2.count() << "," << dur3.count() << "," << dur4.count() << ","
                 << dur5.count() << ") s." << std::endl;
 #endif
@@ -533,7 +533,7 @@ void bfs(raft::handle_t const& handle,
       auto bottomup1 = std::chrono::steady_clock::now();
 #endif
 
-      next_aggregate_vertex_frontier_size =
+      next_aggregate_frontier_size =
         GraphViewType::is_multi_gpu
           ? host_scalar_allreduce(handle.get_comms(),
                                   static_cast<vertex_t>(new_frontier_vertex_buffer.size()),
@@ -544,7 +544,7 @@ void bfs(raft::handle_t const& handle,
       RAFT_CUDA_TRY(cudaDeviceSynchronize());
       auto bottomup2 = std::chrono::steady_clock::now();
 #endif
-      if (next_aggregate_vertex_frontier_size == 0) {
+      if (next_aggregate_frontier_size == 0) {
 #if BFS_PERFORMANCE_MEASUREMENT  // FIXME: delete
         std::chrono::duration<double> dur0 = bottomup1 - bottomup0;
         std::chrono::duration<double> dur1 = bottomup2 - bottomup1;
@@ -567,7 +567,7 @@ void bfs(raft::handle_t const& handle,
 #endif
 
       // FIXME: better move this right after host_scalar_allreduce???
-      auto aggregate_nzd_unvisted_vertices =
+      auto aggregate_nzd_unvisited_vertices =
         GraphViewType::is_multi_gpu
           ? host_scalar_allreduce(handle.get_comms(),
                                   static_cast<vertex_t>((*nzd_unvisited_vertices).size()),
@@ -575,9 +575,9 @@ void bfs(raft::handle_t const& handle,
                                   handle.get_stream())
           : static_cast<vertex_t>((*nzd_unvisited_vertices).size());
 
-      if ((next_aggregate_vertex_frontier_size * direction_optimizing_beta <
-           aggregate_nzd_unvisted_vertices) &&
-          (next_aggregate_vertex_frontier_size < cur_aggregate_vertex_frontier_size)) {
+      if ((next_aggregate_frontier_size * direction_optimizing_beta <
+           aggregate_nzd_unvisited_vertices) &&
+          (next_aggregate_frontier_size < cur_aggregate_frontier_size)) {
         top_down = true;
       }
 #if BFS_PERFORMANCE_MEASUREMENT  // FIXME: delete
@@ -605,12 +605,10 @@ void bfs(raft::handle_t const& handle,
       std::chrono::duration<double> dur3 = bottomup4 - bottomup3;
       std::chrono::duration<double> dur4 = bottomup5 - bottomup4;
       std::chrono::duration<double> dur  = bottomup5 - bottomup0;
-      std::cout << "bottomup (prim+,host,fill,dir,vf) took " << dur.count() << " (" << dur0.count() << "," << dur1.count()
-                << "," << dur2.count() << "," << dur3.count() << "," << dur4.count() << ") s."
-                << std::endl;
+      std::cout << depth << " bottomup next_aggregate_frontier_size=" << next_aggregate_frontier_size << " aggregatee_nzd_unvisited_vertices=" << aggregate_nzd_unvisited_vertices << " (prim+,host,fill,dir,vf) took " << dur.count() << " (" << dur0.count() << "," << dur1.count() << "," << dur2.count() << "," << dur3.count() << "," << dur4.count() << ") s." << std::endl;
 #endif
     }
-    cur_aggregate_vertex_frontier_size = next_aggregate_vertex_frontier_size;
+    cur_aggregate_frontier_size = next_aggregate_frontier_size;
 
     depth++;
     if (depth >= depth_limit) { break; }
