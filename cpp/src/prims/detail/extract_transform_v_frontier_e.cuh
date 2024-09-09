@@ -821,7 +821,7 @@ extract_transform_v_frontier_e(raft::handle_t const& handle,
     if constexpr (GraphViewType::is_multi_gpu) {
       edge_partition_key_buffers.reserve(loop_count);
       for (size_t j = 0; j < loop_count; ++j) {
-        auto partition_idx = i * num_concurrent_loops + j;
+        auto partition_idx = i + j;
         auto loop_stream   = stream_pool_indices
                                ? handle.get_stream_from_stream_pool((*stream_pool_indices)[j])
                                : handle.get_stream();
@@ -886,7 +886,7 @@ extract_transform_v_frontier_e(raft::handle_t const& handle,
     std::vector<rmm::device_scalar<size_t>> output_buffer_idx_scalars{};
     output_buffer_idx_scalars.reserve(loop_count);
     for (size_t j = 0; j < loop_count; ++j) {
-      auto partition_idx = i * num_concurrent_loops + j;
+      auto partition_idx = i + j;
       auto loop_stream   = stream_pool_indices
                              ? handle.get_stream_from_stream_pool((*stream_pool_indices)[j])
                              : handle.get_stream();
@@ -936,7 +936,7 @@ extract_transform_v_frontier_e(raft::handle_t const& handle,
 #endif
 
     for (size_t j = 0; j < loop_count; ++j) {
-      auto partition_idx = i * num_concurrent_loops + j;
+      auto partition_idx = i + j;
 
       auto edge_partition =
         edge_partition_device_view_t<vertex_t, edge_t, GraphViewType::is_multi_gpu>(
