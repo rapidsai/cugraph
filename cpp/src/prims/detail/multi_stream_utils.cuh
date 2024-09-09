@@ -124,6 +124,34 @@ void count_nosync(InputIterator input_first,
     d_tmp_storage.data(), tmp_storage_bytes, input_first, count.data(), input_size, stream_view);
 }
 
+template <typename InputIterator>
+void sum_nosync(InputIterator input_first,
+                InputIterator input_last,
+                raft::device_span<typename thrust::iterator_traits<InputIterator>::value_type> sum /* size = 1 */,
+                rmm::cuda_stream_view stream_view)
+{
+  CUGRAPH_EXPECTS(
+    static_cast<size_t>(thrust::distance(input_first, input_last)) <=
+      static_cast<size_t>(std::numeric_limits<int>::max()),
+    "cugraph::detail::count_nosync relies on cub::DeviceReduce::Sum which uses int for input size, "
+    "but thrust::distance(input_first, input_last) exceeds std::numeric_limits<int>::max().");
+
+  size_t tmp_storage_bytes{0};
+  size_t input_size = static_cast<int>(thrust::distance(input_first, input_last));
+
+  cub::DeviceReduce::Sum(static_cast<void*>(nullptr),
+                         tmp_storage_bytes,
+                         input_first,
+                         sum.data(),
+                         input_size,
+                         stream_view);
+
+  auto d_tmp_storage = rmm::device_uvector<std::byte>(tmp_storage_bytes, stream_view);
+
+  cub::DeviceReduce::Sum(
+    d_tmp_storage.data(), tmp_storage_bytes, input_first, sum.data(), input_size, stream_view);
+}
+
 }  // namespace detail
 
 }  // namespace cugraph
