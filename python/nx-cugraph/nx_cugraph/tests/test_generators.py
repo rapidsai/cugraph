@@ -26,9 +26,11 @@ if _nxver < (3, 2):
 def compare(name, create_using, *args, is_vanilla=False):
     exc1 = exc2 = None
     func = getattr(nx, name)
-    if isinstance(create_using, nxcg.Graph):
+    if isinstance(create_using, nxcg.CudaGraph):
         nx_create_using = nxcg.to_networkx(create_using)
-    elif isinstance(create_using, type) and issubclass(create_using, nxcg.Graph):
+    elif isinstance(create_using, type) and issubclass(
+        create_using, (nxcg.Graph, nxcg.CudaGraph)
+    ):
         nx_create_using = create_using.to_networkx_class()
     elif isinstance(create_using, nx.Graph):
         nx_create_using = create_using.copy()
@@ -58,8 +60,27 @@ def compare(name, create_using, *args, is_vanilla=False):
         exc2 = exc
     if exc1 is not None or exc2 is not None:
         assert type(exc1) is type(exc2)
+        return
+    if isinstance(Gcg, nxcg.Graph):
+        # If the graph is empty, it may be on host, otherwise it should be on device
+        if len(G):
+            assert Gcg._is_on_gpu
+            assert not Gcg._is_on_cpu
+        assert_graphs_equal(G, Gcg._cudagraph)
     else:
         assert_graphs_equal(G, Gcg)
+    # Ensure the output type is correct
+    if is_vanilla:
+        if _nxver < (3, 3) or nx.config.backends.cugraph.use_compat_graphs:
+            assert isinstance(Gcg, nxcg.Graph)
+        else:
+            assert isinstance(Gcg, nxcg.CudaGraph)
+    elif isinstance(create_using, type) and issubclass(
+        create_using, (nxcg.Graph, nxcg.CudaGraph)
+    ):
+        assert type(Gcg) is create_using
+    elif isinstance(create_using, (nxcg.Graph, nxcg.CudaGraph)):
+        assert type(Gcg) is type(create_using)
 
 
 N = list(range(-1, 5))
@@ -73,6 +94,10 @@ COMPLETE_CREATE_USING = [
     nxcg.DiGraph,
     nxcg.MultiGraph,
     nxcg.MultiDiGraph,
+    nxcg.CudaGraph,
+    nxcg.CudaDiGraph,
+    nxcg.CudaMultiGraph,
+    nxcg.CudaMultiDiGraph,
     # These raise NotImplementedError
     # nx.Graph(),
     # nx.DiGraph(),
@@ -82,6 +107,10 @@ COMPLETE_CREATE_USING = [
     nxcg.DiGraph(),
     nxcg.MultiGraph(),
     nxcg.MultiDiGraph(),
+    nxcg.CudaGraph(),
+    nxcg.CudaDiGraph(),
+    nxcg.CudaMultiGraph(),
+    nxcg.CudaMultiDiGraph(),
     None,
     object,  # Bad input
     7,  # Bad input
@@ -155,7 +184,7 @@ GENERATORS_M_N_VANILLA = [
 @pytest.mark.parametrize("create_using", COMPLETE_CREATE_USING)
 def test_generator_noarg(name, create_using):
     print(name, create_using, type(create_using))
-    if isinstance(create_using, nxcg.Graph) and name in {
+    if isinstance(create_using, nxcg.CudaGraph) and name in {
         # fmt: off
         "bull_graph", "chvatal_graph", "cubical_graph", "diamond_graph",
         "house_graph", "house_x_graph", "icosahedral_graph", "krackhardt_kite_graph",

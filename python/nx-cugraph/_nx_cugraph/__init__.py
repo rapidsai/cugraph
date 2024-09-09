@@ -296,7 +296,10 @@ def get_info():
         del d[key]
 
     d["default_config"] = {
-        "zero": os.environ.get("NX_CUGRAPH_ZERO", "true").strip().lower() == "true",
+        "use_compat_graphs": os.environ.get("NX_CUGRAPH_USE_COMPAT_GRAPHS", "true")
+        .strip()
+        .lower()
+        == "true",
     }
     return d
 

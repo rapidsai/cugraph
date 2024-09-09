@@ -103,9 +103,9 @@ def complete_graph(n, create_using=None):
 @networkx_algorithm(version_added="23.12")
 def complete_multipartite_graph(*subset_sizes):
     if not subset_sizes:
-        if _nxver >= (3, 3) and nx.config.backends.cugraph.zero:
-            return nxcg.ZeroGraph()
-        return nxcg.Graph()
+        if _nxver < (3, 3) or nx.config.backends.cugraph.use_compat_graphs:
+            return nxcg.Graph()
+        return nxcg.CudaGraph()
     try:
         subset_sizes = [_ensure_int(size) for size in subset_sizes]
     except TypeError:
@@ -142,6 +142,8 @@ def complete_multipartite_graph(*subset_sizes):
         dst_indices,
         node_values={"subset": subsets_array},
         id_to_key=nodes,
+        use_compat_graph=_nxver < (3, 3)
+        or nx.config.backends.cugraph.use_compat_graphs,
     )
 
 

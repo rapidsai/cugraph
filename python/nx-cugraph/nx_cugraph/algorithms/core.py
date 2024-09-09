@@ -59,10 +59,10 @@ def _(G):
 @networkx_algorithm(is_incomplete=True, version_added="23.12", _plc="k_truss_subgraph")
 def k_truss(G, k):
     if is_nx := isinstance(G, nx.Graph):
-        zero = isinstance(G, nxcg.ZeroGraph)
+        is_compat_graph = isinstance(G, nxcg.Graph)
         G = nxcg.from_networkx(G, preserve_all_attrs=True)
     else:
-        zero = False
+        is_compat_graph = False
     if nxcg.number_of_selfloops(G) > 0:
         if _nxver <= (3, 2):
             exc_class = nx.NetworkXError
@@ -132,7 +132,7 @@ def k_truss(G, k):
         node_values,
         node_masks,
         key_to_id=key_to_id,
-        zero=zero,
+        use_compat_graph=is_compat_graph,
     )
     new_graph.graph.update(G.graph)
     return new_graph

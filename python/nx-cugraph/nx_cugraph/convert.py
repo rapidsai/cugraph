@@ -26,7 +26,6 @@ import numpy as np
 import nx_cugraph as nxcg
 from nx_cugraph import _nxver
 
-from .classes.zero import ZeroGraph
 from .utils import index_dtype, networkx_algorithm
 from .utils.misc import _And_NotImplementedError, pairwise
 
@@ -101,8 +100,8 @@ def from_networkx(
     as_directed: bool = False,
     name: str | None = None,
     graph_name: str | None = None,
-    zero: bool | None = False,
-) -> nxcg.Graph:
+    use_compat_graph: bool | None = False,
+) -> nxcg.Graph | nxcg.CudaGraph:
     """Convert a networkx graph to nx_cugraph graph; can convert all attributes.
 
     Parameters
@@ -142,10 +141,16 @@ def from_networkx(
         The name of the algorithm when dispatched from networkx.
     graph_name : str, optional
         The name of the graph argument geing converted when dispatched from networkx.
+    use_compat_graph : bool or None, default False
+        Indicate whether to return a graph that is compatible with NetworkX graph.
+        For example, ``nx_cugraph.Graph`` can be used as a NetworkX graph and can
+        reside in host (CPU) or device (GPU) memory. The default is False, which
+        will return e.g. ``nx_cugraph.CudaGraph`` that only resides on device (GPU)
+        and is not fully compatible as a NetworkX graph.
 
     Returns
     -------
-    nx_cugraph.Graph
+    nx_cugraph.Graph or nx_cugraph.CudaGraph
 
     Notes
     -----
@@ -173,16 +178,16 @@ def from_networkx(
             graph = G
         else:
             raise TypeError(f"Expected networkx.Graph; got {type(graph)}")
-    elif isinstance(graph, ZeroGraph):
+    elif isinstance(graph, nxcg.Graph):
         if (
-            zero
-            or zero is None
-            and _nxver >= (3, 3)
-            and nx.config.backends.cugraph.zero
+            use_compat_graph
+            # Use compat graphs by default
+            or use_compat_graph is None
+            and (_nxver < (3, 3) or nx.config.backends.cugraph.use_compat_graphs)
         ):
             return graph
         if graph._is_on_gpu:
-            return graph._cugraph
+            return graph._cudagraph
         if not graph._is_on_cpu:
             raise RuntimeError(
                 f"{type(graph).__name__} cannot be converted to the GPU, because it is "
@@ -203,7 +208,11 @@ def from_networkx(
                 cache = cache.setdefault("backends", {}).setdefault("cugraph", {})
                 compat_key, rv = _get_from_cache(cache, cache_key)
                 if rv is not None:
-                    return rv
+                    if isinstance(rv, nxcg.Graph):
+                        # This shouldn't happen during normal use, but be extra-careful
+                        rv = rv._cudagraph
+                    if rv is not None:
+                        return rv
 
     if preserve_all_attrs:
         preserve_edge_attrs = True
@@ -229,7 +238,7 @@ def from_networkx(
         nx.DiGraph,
         nx.MultiGraph,
         nx.MultiDiGraph,
-    } or isinstance(graph, ZeroGraph):
+    } or isinstance(graph, nxcg.Graph):
         # This is a NetworkX private attribute, but is much faster to use
         adj = graph._adj
     else:
@@ -519,9 +528,9 @@ def from_networkx(
                 # if vals.ndim > 1: ...
     if graph.is_multigraph():
         if graph.is_directed() or as_directed:
-            klass = nxcg.MultiDiGraph
+            klass = nxcg.CudaMultiDiGraph
         else:
-            klass = nxcg.MultiGraph
+            klass = nxcg.CudaMultiGraph
         rv = klass.from_coo(
             N,
             src_indices,
@@ -533,13 +542,13 @@ def from_networkx(
             node_masks,
             key_to_id=key_to_id,
             edge_keys=edge_keys,
-            zero=zero,
+            use_compat_graph=False,
         )
     else:
         if graph.is_directed() or as_directed:
-            klass = nxcg.DiGraph
+            klass = nxcg.CudaDiGraph
         else:
-            klass = nxcg.Graph
+            klass = nxcg.CudaGraph
         rv = klass.from_coo(
             N,
             src_indices,
@@ -549,15 +558,22 @@ def from_networkx(
             node_values,
             node_masks,
             key_to_id=key_to_id,
-            zero=zero,
+            use_compat_graph=False,
         )
     if preserve_graph_attrs:
         rv.graph.update(graph.graph)  # deepcopy?
-    if _nxver >= (3, 4) and isinstance(graph, ZeroGraph) and cache is not None:
+    if _nxver >= (3, 4) and isinstance(graph, nxcg.Graph) and cache is not None:
         # Make sure this conversion is added to the cache, and make all of
         # our graphs share the same `.graph` attribute for consistency.
         rv.graph = graph.graph
         _set_to_cache(cache, cache_key, rv)
+    if (
+        use_compat_graph
+        # Use compat graphs by default
+        or use_compat_graph is None
+        and (_nxver < (3, 3) or nx.config.backends.cugraph.use_compat_graphs)
+    ):
+        return rv._to_compat_graph()
     return rv
 
 
@@ -606,14 +622,16 @@ def _iter_attr_dicts(
     return full_dicts
 
 
-def to_networkx(G: nxcg.Graph, *, sort_edges: bool = False) -> nx.Graph:
+def to_networkx(
+    G: nxcg.Graph | nxcg.CudaGraph, *, sort_edges: bool = False
+) -> nx.Graph:
     """Convert a nx_cugraph graph to networkx graph.
 
     All edge and node attributes and ``G.graph`` properties are converted.
 
     Parameters
     ----------
-    G : nx_cugraph.Graph
+    G : nx_cugraph.Graph or nx_cugraph.CudaGraph
     sort_edges : bool, default False
         Whether to sort the edge data of the input graph by (src, dst) indices
         before converting. This can be useful to convert to networkx graphs
@@ -628,8 +646,8 @@ def to_networkx(G: nxcg.Graph, *, sort_edges: bool = False) -> nx.Graph:
     --------
     from_networkx : The opposite; convert networkx graph to nx_cugraph graph
     """
-    if isinstance(G, ZeroGraph):
-        # ZeroGraphs are already NetworkX graphs :)
+    if isinstance(G, nxcg.Graph):
+        # These graphs are already NetworkX graphs :)
         return G
     rv = G.to_networkx_class()()
     id_to_key = G.id_to_key
@@ -697,13 +715,13 @@ def _to_graph(
     edge_attr: AttrKey | None = None,
     edge_default: EdgeValue | None = 1,
     edge_dtype: Dtype | None = None,
-) -> nxcg.Graph | nxcg.DiGraph:
+) -> nxcg.CudaGraph | nxcg.CudaDiGraph:
     """Ensure that input type is a nx_cugraph graph, and convert if necessary.
 
     Directed and undirected graphs are both allowed.
     This is an internal utility function and may change or be removed.
     """
-    if isinstance(G, nxcg.Graph):
+    if isinstance(G, nxcg.CudaGraph):
         return G
     if isinstance(G, nx.Graph):
         return from_networkx(
@@ -718,15 +736,15 @@ def _to_directed_graph(
     edge_attr: AttrKey | None = None,
     edge_default: EdgeValue | None = 1,
     edge_dtype: Dtype | None = None,
-) -> nxcg.DiGraph:
-    """Ensure that input type is a nx_cugraph DiGraph, and convert if necessary.
+) -> nxcg.CudaDiGraph:
+    """Ensure that input type is a nx_cugraph CudaDiGraph, and convert if necessary.
 
     Undirected graphs will be converted to directed.
     This is an internal utility function and may change or be removed.
     """
-    if isinstance(G, nxcg.DiGraph):
+    if isinstance(G, nxcg.CudaDiGraph):
         return G
-    if isinstance(G, nxcg.Graph):
+    if isinstance(G, nxcg.CudaGraph):
         return G.to_directed()
     if isinstance(G, nx.Graph):
         return from_networkx(
@@ -744,13 +762,13 @@ def _to_undirected_graph(
     edge_attr: AttrKey | None = None,
     edge_default: EdgeValue | None = 1,
     edge_dtype: Dtype | None = None,
-) -> nxcg.Graph:
-    """Ensure that input type is a nx_cugraph Graph, and convert if necessary.
+) -> nxcg.CudaGraph:
+    """Ensure that input type is a nx_cugraph CudaGraph, and convert if necessary.
 
     Only undirected graphs are allowed. Directed graphs will raise ValueError.
     This is an internal utility function and may change or be removed.
     """
-    if isinstance(G, nxcg.Graph):
+    if isinstance(G, nxcg.CudaGraph):
         if G.is_directed():
             raise ValueError("Only undirected graphs supported; got a directed graph")
         return G

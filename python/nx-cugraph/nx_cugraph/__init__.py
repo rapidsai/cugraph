@@ -39,8 +39,8 @@ from .algorithms import *
 
 from .interface import BackendInterface
 
-BackendInterface.Graph = classes.ZeroGraph
-BackendInterface.DiGraph = classes.ZeroDiGraph
-BackendInterface.MultiGraph = classes.ZeroMultiGraph
-BackendInterface.MultiDiGraph = classes.ZeroMultiDiGraph
+BackendInterface.Graph = classes.Graph
+BackendInterface.DiGraph = classes.DiGraph
+BackendInterface.MultiGraph = classes.MultiGraph
+BackendInterface.MultiDiGraph = classes.MultiDiGraph
 del BackendInterface

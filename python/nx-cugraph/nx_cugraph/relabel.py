@@ -29,16 +29,17 @@ __all__ = [
 
 @networkx_algorithm(version_added="24.08")
 def relabel_nodes(G, mapping, copy=True):
+    G_orig = G
     if isinstance(G, nx.Graph):
-        zero = isinstance(G, nxcg.ZeroGraph)
-        if not copy and not zero:
+        is_compat_graph = isinstance(G, nxcg.Graph)
+        if not copy and not is_compat_graph:
             raise RuntimeError(
                 "Using `copy=False` is invalid when using a NetworkX graph "
                 "as input to `nx_cugraph.relabel_nodes`"
             )
         G = nxcg.from_networkx(G, preserve_all_attrs=True)
     else:
-        zero = False
+        is_compat_graph = False
 
     it = range(G._N) if G.key_to_id is None else G.id_to_key
     if callable(mapping):
@@ -229,17 +230,13 @@ def relabel_nodes(G, mapping, copy=True):
         node_masks=node_masks,
         id_to_key=newid_to_key,
         key_to_id=key_to_newid,
-        zero=False,  # XXX TODO: figure out `create_using=` w/ zero graphs
+        use_compat_graph=is_compat_graph,
         **extra_kwargs,
     )
     rv.graph.update(G.graph)
     if not copy:
-        G._become(rv)
-        if zero:
-            return rv.to_zero()  # TODO: update original graph
-        return G
-    if zero:
-        return rv.to_zero()
+        G_orig._become(rv)
+        return G_orig
     return rv
 
 
@@ -250,10 +247,10 @@ def convert_node_labels_to_integers(
     if ordering not in {"default", "sorted", "increasing degree", "decreasing degree"}:
         raise nx.NetworkXError(f"Unknown node ordering: {ordering}")
     if isinstance(G, nx.Graph):
-        zero = isinstance(G, nxcg.ZeroGraph)
+        is_compat_graph = isinstance(G, nxcg.Graph)
         G = nxcg.from_networkx(G, preserve_all_attrs=True)
     else:
-        zero = False
+        is_compat_graph = False
     G = G.copy()
     if label_attribute is not None:
         prev_vals = G.id_to_key
@@ -291,6 +288,6 @@ def convert_node_labels_to_integers(
         key_to_id = G.key_to_id
         G.key_to_id = {i: key_to_id[n] for i, (d, n) in enumerate(pairs, first_label)}
     G._id_to_key = id_to_key
-    if zero:
-        return G.to_zero()
+    if is_compat_graph:
+        return G._to_compat_graph()
     return G

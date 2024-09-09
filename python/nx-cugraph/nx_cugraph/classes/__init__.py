@@ -10,10 +10,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from .zero import ZeroGraph, ZeroDiGraph, ZeroMultiGraph, ZeroMultiDiGraph
-from .graph import Graph
-from .digraph import DiGraph
-from .multigraph import MultiGraph
-from .multidigraph import MultiDiGraph
+from .graph import CudaGraph, Graph
+from .digraph import CudaDiGraph, DiGraph
+from .multigraph import CudaMultiGraph, MultiGraph
+from .multidigraph import CudaMultiDiGraph, MultiDiGraph
 
 from .function import *

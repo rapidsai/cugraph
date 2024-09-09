@@ -108,7 +108,7 @@ echo "nx-cugraph coverage from networkx tests: $_coverage"
 echo $_coverage | awk '{ if ($NF == "0.0%") exit 1 }'
 # Ensure all algorithms were called by comparing covered lines to function lines.
 # Run our tests again (they're fast enough) to add their coverage, then create coverage.json
-NX_CUGRAPH_ZERO=False pytest \
+NX_CUGRAPH_USE_COMPAT_GRAPHS=False pytest \
   --pyargs nx_cugraph \
   --config-file=../pyproject.toml \
   --cov-config=../pyproject.toml \

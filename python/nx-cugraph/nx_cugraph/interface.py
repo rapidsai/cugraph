@@ -37,14 +37,15 @@ class BackendInterface:
             graph,
             *args,
             edge_attrs=edge_attrs,
-            zero=_nxver >= (3, 3) and nx.config.backends.cugraph.zero,
+            use_compat_graph=_nxver < (3, 3)
+            or nx.config.backends.cugraph.use_compat_graphs,
             **kwargs,
         )
 
     @staticmethod
     def convert_to_nx(obj, *, name: str | None = None):
-        if isinstance(obj, nxcg.Graph):
-            # Observe that this does not try to convert ZeroGraph!
+        if isinstance(obj, nxcg.CudaGraph):
+            # Observe that this does not try to convert Graph!
             return nxcg.to_networkx(obj)
         return obj
 
@@ -70,8 +71,10 @@ class BackendInterface:
                 return (testname, frozenset({classname, filename}))
             return (testname, frozenset({filename}))
 
-        zero = _nxver >= (3, 3) and nx.config.backends.cugraph.zero
-        fallback = zero or nx.utils.backends._dispatchable._fallback_to_nx
+        use_compat_graph = (
+            _nxver < (3, 3) or nx.config.backends.cugraph.use_compat_graphs
+        )
+        fallback = use_compat_graph or nx.utils.backends._dispatchable._fallback_to_nx
 
         # Reasons for xfailing
         # For nx version <= 3.1
@@ -89,7 +92,7 @@ class BackendInterface:
             # This one is tricky b/c we don't raise; all dtypes are treated as str
             "mixed dtypes (str, int, float) for single node property not supported"
         )
-        # These shouldn't fail if using ZeroGraph or falling back to networkx
+        # These shouldn't fail if using Graph or falling back to networkx
         no_string_dtype = "string edge values not currently supported"
         no_object_dtype_for_edges = (
             "Edges don't support object dtype (lists, strings, etc.)"

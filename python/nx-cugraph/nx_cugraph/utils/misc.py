@@ -194,7 +194,7 @@ def _get_int_dtype(
 
 
 def _get_float_dtype(
-    dtype: Dtype, *, graph: nxcg.Graph | None = None, weight: EdgeKey | None = None
+    dtype: Dtype, *, graph: nxcg.CudaGraph | None = None, weight: EdgeKey | None = None
 ):
     """Promote dtype to float32 or float64 as appropriate."""
     if dtype is None:
