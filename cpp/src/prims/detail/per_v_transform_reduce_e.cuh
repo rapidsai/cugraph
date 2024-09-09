@@ -961,25 +961,37 @@ __host__ __device__ int priority_to_rank(
 // otherwise, it is sufficient to just return bool flags indiciating whether this rank's values are
 // selected or not.
 template <typename vertex_t, typename priority_t, typename ValueIterator>
-std::variant<rmm::device_uvector<int> /* root */, std::optional<rmm::device_uvector<bool>>>
-compute_selected_ranks(raft::comms::comms_t const& comm,
-                       ValueIterator value_first,
-                       ValueIterator value_last,
-                       int root,
-                       int subgroup_size /* faster interconnect within a subgroup */,
-                       typename thrust::iterator_traits<ValueIterator>::value_type init,
-                       bool ignore_local_values,
-                       rmm::cuda_stream_view stream_view)
+std::variant<rmm::device_uvector<int> /* root */, std::optional<rmm::device_uvector<uint32_t>>>
+compute_selected_ranks(
+  raft::comms::comms_t const& comm,
+  ValueIterator value_first,
+  ValueIterator value_last,
+  std::optional<raft::device_span<size_t const>>
+    hypersparse_key_offsets,  // we may not have values for the entire "range_size" if
+                              // hypersparse_key_offsets.has_value() is true
+  size_t range_size,
+  int root,
+  int subgroup_size /* faster interconnect within a subgroup */,
+  typename thrust::iterator_traits<ValueIterator>::value_type init,
+  bool ignore_local_values,
+  rmm::cuda_stream_view stream_view)
 {
   auto const comm_rank = comm.get_rank();
   auto const comm_size = comm.get_size();
+
+  assert(hypersparse_key_offsets.has_value() ||
+         static_cast<size_t>(thrust::distance(value_first, value_last)) ==
+           range_size);  // we should have for the entire "range_size" if
+                         // hypersparse_key_offsets.has_value() is false
+  auto contiguous_size = static_cast<size_t>(thrust::distance(value_first, value_last)) -
+                         (hypersparse_key_offsets ? (*hypersparse_key_offsets).size() : size_t{0});
 
   // For each vertex, select a comm_rank among the GPUs with a value other than init (if there are
   // more than one, the GPU with (comm_rank == root) has the highest priority, the GPUs in the same
   // DGX node should be the next)
 
-  rmm::device_uvector<priority_t> priorities(thrust::distance(value_first, value_last),
-                                             stream_view);
+  rmm::device_uvector<priority_t> priorities(range_size, stream_view);
+
   if (ignore_local_values) {
     thrust::fill(rmm::exec_policy_nosync(stream_view),
                  priorities.begin(),
@@ -989,7 +1001,7 @@ compute_selected_ranks(raft::comms::comms_t const& comm,
     thrust::tabulate(
       rmm::exec_policy_nosync(stream_view),
       priorities.begin(),
-      priorities.end(),
+      priorities.begin() + contiguous_size,
       [value_first, root, subgroup_size, init, comm_rank, comm_size] __device__(auto offset) {
         auto val = *(value_first + offset);
         return (val != init)
@@ -997,6 +1009,27 @@ compute_selected_ranks(raft::comms::comms_t const& comm,
                      comm_rank, root, subgroup_size, comm_size, static_cast<vertex_t>(offset))
                  : std::numeric_limits<priority_t>::max();  // lowest priority
       });
+    if (hypersparse_key_offsets) {
+      thrust::fill(rmm::exec_policy_nosync(stream_view),
+                   priorities.begin() + contiguous_size,
+                   priorities.end(),
+                   std::numeric_limits<priority_t>::max());
+      auto priority_first = thrust::make_transform_iterator(
+        (*hypersparse_key_offsets).begin(),
+        cuda::proclaim_return_type<priority_t>(
+          [root, subgroup_size, comm_rank, comm_size] __device__(auto offset) {
+            return rank_to_priority<vertex_t, priority_t>(
+              comm_rank, root, subgroup_size, comm_size, static_cast<vertex_t>(offset));
+          }));
+      thrust::scatter_if(
+        rmm::exec_policy_nosync(stream_view),
+        priority_first,
+        priority_first + (*hypersparse_key_offsets).size(),
+        (*hypersparse_key_offsets).begin(),
+        value_first + contiguous_size,
+        priorities.begin(),
+        is_not_equal_t<typename thrust::iterator_traits<ValueIterator>::value_type>{init});
+    }
   }
   device_allreduce(comm,
                    priorities.data(),
@@ -1004,7 +1037,6 @@ compute_selected_ranks(raft::comms::comms_t const& comm,
                    priorities.size(),
                    raft::comms::op_t::MIN,
                    stream_view);
-
   if (comm_rank == root) {
     rmm::device_uvector<int> selected_ranks(priorities.size(), stream_view);
     auto offset_priority_pair_first =
@@ -1024,24 +1056,65 @@ compute_selected_ranks(raft::comms::comms_t const& comm,
                       });
     return selected_ranks;
   } else {
-    std::optional<rmm::device_uvector<bool>> keep_flags{std::nullopt};
+    std::optional<rmm::device_uvector<uint32_t>> keep_flags{std::nullopt};
     if (!ignore_local_values) {
-      keep_flags = rmm::device_uvector<bool>(priorities.size(), stream_view);
+      keep_flags = rmm::device_uvector<uint32_t>(
+        packed_bool_size(thrust::distance(value_first, value_last)), stream_view);
       auto offset_priority_pair_first =
         thrust::make_zip_iterator(thrust::make_counting_iterator(vertex_t{0}), priorities.begin());
-      thrust::transform(rmm::exec_policy_nosync(stream_view),
-                        offset_priority_pair_first,
-                        offset_priority_pair_first + priorities.size(),
-                        (*keep_flags).begin(),
-                        [root, subgroup_size, comm_rank, comm_size] __device__(auto pair) {
-                          auto offset   = thrust::get<0>(pair);
-                          auto priority = thrust::get<1>(pair);
-                          auto rank     = (priority == std::numeric_limits<priority_t>::max())
-                                            ? comm_size
-                                            : priority_to_rank<vertex_t, priority_t>(
-                                            priority, root, subgroup_size, comm_size, offset);
-                          return (rank == comm_rank);
-                        });
+      thrust::fill(rmm::exec_policy_nosync(stream_view),
+                   (*keep_flags).begin(),
+                   (*keep_flags).end(),
+                   packed_bool_empty_mask());
+      thrust::for_each(
+        rmm::exec_policy_nosync(stream_view),
+        offset_priority_pair_first,
+        offset_priority_pair_first + contiguous_size,
+        [keep_flags = raft::device_span<uint32_t>((*keep_flags).data(), (*keep_flags).size()),
+         root,
+         subgroup_size,
+         comm_rank,
+         comm_size] __device__(auto pair) {
+          auto offset   = thrust::get<0>(pair);
+          auto priority = thrust::get<1>(pair);
+          auto rank     = (priority == std::numeric_limits<priority_t>::max())
+                            ? comm_size
+                            : priority_to_rank<vertex_t, priority_t>(
+                            priority, root, subgroup_size, comm_size, offset);
+          if (rank == comm_rank) {
+            cuda::atomic_ref<uint32_t, cuda::thread_scope_device> word(
+              keep_flags[packed_bool_offset(offset)]);
+            word.fetch_or(packed_bool_mask(offset), cuda::std::memory_order_relaxed);
+          }
+        });
+      if (hypersparse_key_offsets) {
+        thrust::for_each(
+          rmm::exec_policy_nosync(stream_view),
+          thrust::make_zip_iterator(thrust::make_counting_iterator(size_t{contiguous_size}),
+                                    (*hypersparse_key_offsets).begin()),
+          thrust::make_zip_iterator(thrust::make_counting_iterator(size_t{contiguous_size}),
+                                    (*hypersparse_key_offsets).begin()) +
+            (*hypersparse_key_offsets).size(),
+          [priorities = raft::device_span<priority_t const>(priorities.data(), priorities.size()),
+           keep_flags = raft::device_span<uint32_t>((*keep_flags).data(), (*keep_flags).size()),
+           root,
+           subgroup_size,
+           comm_rank,
+           comm_size] __device__(auto pair) {
+            auto offset   = thrust::get<1>(pair);
+            auto priority = priorities[offset];
+            auto rank     = (priority == std::numeric_limits<priority_t>::max())
+                              ? comm_size
+                              : priority_to_rank<vertex_t, priority_t>(
+                              priority, root, subgroup_size, comm_size, offset);
+            if (rank == comm_rank) {
+              cuda::atomic_ref<uint32_t, cuda::thread_scope_device> word(
+                keep_flags[packed_bool_offset(thrust::get<0>(pair))]);
+              word.fetch_or(packed_bool_mask(thrust::get<0>(pair)),
+                            cuda::std::memory_order_relaxed);
+            }
+          });
+      }
     }
     return keep_flags;
   }
@@ -1275,7 +1348,7 @@ void per_v_transform_reduce_e_edge_partition(
   }
 }
 
-#define PER_V_PERFORMANCE_MEASUREMENT 1
+#define PER_V_PERFORMANCE_MEASUREMENT 0
 
 template <bool incoming,  // iterate over incoming edges (incoming == true) or outgoing edges
                           // (incoming == false)
@@ -1308,8 +1381,9 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
 #endif
   constexpr bool update_major  = (incoming == GraphViewType::is_storage_transposed);
   constexpr bool use_input_key = !std::is_same_v<OptionalKeyIterator, void*>;
+  static_assert(update_major || !use_input_key);
   constexpr bool filter_input_key =
-    GraphViewType::is_multi_gpu && update_major && use_input_key &&
+    GraphViewType::is_multi_gpu && use_input_key &&
     std::is_same_v<ReduceOp,
                    reduce_op::any<T>>;  // if GraphViewType::is_multi_gpu && update_major &&
                                         // std::is_same_v<ReduceOp, reduce_op::any<T>>, for any
@@ -1317,7 +1391,6 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
                                         // if we find any valid local edge (FIXME: this is
                                         // applicable even when use_input_key is false).
 
-  static_assert(update_major || !use_input_key);
   static_assert(
     ReduceOp::pure_function &&
     ((reduce_op::has_compatible_raft_comms_op_v<ReduceOp> &&
@@ -1477,6 +1550,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
     auto edge_partition_e_value_input =
       edge_partition_e_input_device_view_t(edge_value_input, static_cast<size_t>(minor_comm_rank));
 
+    // FIXME: we may filter zero local degree vertices first
     per_v_transform_reduce_e_edge_partition<update_major, GraphViewType>(
       handle,
       edge_partition,
@@ -1582,20 +1656,24 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
     auto& minor_comm           = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
     auto const minor_comm_size = minor_comm.get_size();
 
-    rmm::device_uvector<vertex_t> tmps(2, handle.get_stream());
-    thrust::tabulate(
-      handle.get_thrust_policy(),
-      tmps.begin(),
-      tmps.end(),
-      [sorted_unique_key_first,
-       v_list_size = static_cast<size_t>(thrust::distance(
-         sorted_unique_key_first, sorted_unique_nzd_key_last))] __device__(size_t i) {
-        return (i == 0) ? *sorted_unique_key_first
-                        : (*(sorted_unique_key_first + (v_list_size - 1)) + 1);
-      });
-    raft::update_host(v_list_range.data(), tmps.data(), 2, handle.get_stream());
+    v_list_range = {vertex_t{0}, vertex_t{0}};
 
     if (minor_comm_size > 1) {
+      auto v_list_size =
+        static_cast<size_t>(thrust::distance(sorted_unique_key_first, sorted_unique_nzd_key_last));
+      if (v_list_size > 0) {
+        rmm::device_uvector<vertex_t> tmps(2, handle.get_stream());
+        thrust::tabulate(handle.get_thrust_policy(),
+                         tmps.begin(),
+                         tmps.end(),
+                         [sorted_unique_key_first, v_list_size] __device__(size_t i) {
+                           return (i == 0) ? *sorted_unique_key_first
+                                           : (*(sorted_unique_key_first + (v_list_size - 1)) + 1);
+                         });
+        raft::update_host(v_list_range.data(), tmps.data(), 2, handle.get_stream());
+        handle.sync_stream();
+      }
+
       key_list_bitmap = compute_vertex_list_bitmap_info(sorted_unique_key_first,
                                                         sorted_unique_nzd_key_last,
                                                         v_list_range[0],
@@ -1791,7 +1869,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
       edge_partition_key_buffers.reserve(loop_count);
 
       for (size_t j = 0; j < loop_count; ++j) {
-        auto partition_idx = i * num_concurrent_loops + j;
+        auto partition_idx = i + j;
         auto loop_stream   = stream_pool_indices
                                ? handle.get_stream_from_stream_pool((*stream_pool_indices)[j])
                                : handle.get_stream();
@@ -1827,6 +1905,13 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
                          static_cast<int>(partition_idx),
                          loop_stream);
           }
+          if constexpr (filter_input_key) {
+            auto process_local_edges = (static_cast<int>(partition_idx) != minor_comm_rank);
+            if (!process_local_edges) {
+              resize_dataframe_buffer(edge_partition_key_buffer, 0, loop_stream);
+              shrink_to_fit_dataframe_buffer(edge_partition_key_buffer, loop_stream);
+            }
+          }
         }
         edge_partition_key_buffers.push_back(std::move(edge_partition_key_buffer));
       }
@@ -1839,6 +1924,161 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
     auto subtime2 = std::chrono::steady_clock::now();
 #endif
 
+    std::conditional_t<filter_input_key,
+                       std::optional<std::vector<rmm::device_uvector<size_t>>>,
+                       std::byte /* dummy */>
+      edge_partition_hypersparse_key_offset_vectors{};  // drop zero local degree keys in the
+                                                        // hypersparse region
+    if constexpr (filter_input_key) {
+      auto& minor_comm = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
+      auto const minor_comm_rank = minor_comm.get_rank();
+      auto const minor_comm_size = minor_comm.get_size();
+
+      if (graph_view.use_dcs() && (minor_comm_size > 1)) {
+        // FIXME: we can pre-compute this & store in graph_t
+        std::vector<rmm::device_uvector<uint32_t>> edge_partition_hypersparse_bitmap_vectors{};
+        edge_partition_hypersparse_bitmap_vectors.reserve(loop_count);
+        for (size_t j = 0; j < loop_count; ++j) {
+          auto partition_idx = i + j;
+          auto loop_stream   = stream_pool_indices
+                                 ? handle.get_stream_from_stream_pool((*stream_pool_indices)[j])
+                                 : handle.get_stream();
+
+          auto edge_partition =
+            edge_partition_device_view_t<vertex_t, edge_t, GraphViewType::is_multi_gpu>(
+              graph_view.local_edge_partition_view(partition_idx));
+          auto const& segment_offsets =
+            graph_view.local_edge_partition_segment_offsets(partition_idx);
+
+          auto process_local_edges = (static_cast<int>(partition_idx) != minor_comm_rank);
+          rmm::device_uvector<uint32_t> bitmap(
+            process_local_edges ? packed_bool_size((*segment_offsets)[4] - (*segment_offsets)[3])
+                                : size_t{0},
+            loop_stream);
+          if (process_local_edges) {
+            thrust::fill(rmm::exec_policy_nosync(loop_stream),
+                         bitmap.begin(),
+                         bitmap.end(),
+                         packed_bool_empty_mask());
+            thrust::for_each(
+              rmm::exec_policy_nosync(loop_stream),
+              *(edge_partition.dcs_nzd_vertices()),
+              *(edge_partition.dcs_nzd_vertices()) + *(edge_partition.dcs_nzd_vertex_count()),
+              [bitmap = raft::device_span<uint32_t>(bitmap.data(), bitmap.size()),
+               major_hypersparse_first =
+                 *(edge_partition.major_hypersparse_first())] __device__(auto major) {
+                auto major_offset = major - major_hypersparse_first;
+                cuda::atomic_ref<uint32_t, cuda::thread_scope_device> word(
+                  bitmap[packed_bool_offset(major_offset)]);
+                word.fetch_or(packed_bool_mask(major_offset), cuda::std::memory_order_relaxed);
+              });
+          }
+          edge_partition_hypersparse_bitmap_vectors.push_back(std::move(bitmap));
+        }
+
+        edge_partition_hypersparse_key_offset_vectors = std::vector<rmm::device_uvector<size_t>>{};
+        (*edge_partition_hypersparse_key_offset_vectors).reserve(loop_count);
+
+        std::vector<dataframe_buffer_type_t<key_t>> edge_partition_tmp_key_buffers{};
+        edge_partition_tmp_key_buffers.reserve(loop_count);
+        std::vector<rmm::device_scalar<size_t>> edge_partition_tmp_count_scalars{};
+        edge_partition_tmp_count_scalars.reserve(loop_count);
+        for (size_t j = 0; j < loop_count; ++j) {
+          auto partition_idx = i + j;
+          auto loop_stream   = stream_pool_indices
+                                 ? handle.get_stream_from_stream_pool((*stream_pool_indices)[j])
+                                 : handle.get_stream();
+
+          auto edge_partition =
+            edge_partition_device_view_t<vertex_t, edge_t, GraphViewType::is_multi_gpu>(
+              graph_view.local_edge_partition_view(partition_idx));
+
+          auto edge_partition_key_first = get_dataframe_buffer_begin(edge_partition_key_buffers[j]);
+          auto const& key_segment_offsets = (*key_segment_offset_vectors)[partition_idx];
+
+          auto process_local_edges = (static_cast<int>(partition_idx) != minor_comm_rank);
+
+          auto keys = allocate_dataframe_buffer<key_t>(
+            process_local_edges ? (key_segment_offsets[4] - key_segment_offsets[3]) : size_t{0},
+            loop_stream);
+          rmm::device_uvector<size_t> offsets(
+            process_local_edges ? (key_segment_offsets[4] - key_segment_offsets[3]) : size_t{0},
+            loop_stream);
+          rmm::device_scalar<size_t> count(size_t{0}, loop_stream);
+          if (process_local_edges) {
+            auto input_first =
+              thrust::make_zip_iterator(edge_partition_key_first + key_segment_offsets[3],
+                                        thrust::make_counting_iterator(key_segment_offsets[3]));
+            auto flag_first = thrust::make_transform_iterator(
+              edge_partition_key_first + key_segment_offsets[3],
+              cuda::proclaim_return_type<bool>(
+                [bitmap =
+                   raft::device_span<uint32_t>(edge_partition_hypersparse_bitmap_vectors[j].data(),
+                                               edge_partition_hypersparse_bitmap_vectors[j].size()),
+                 major_hypersparse_first =
+                   *(edge_partition.major_hypersparse_first())] __device__(key_t key) {
+                  auto major        = thrust_tuple_get_or_identity<key_t, 0>(key);
+                  auto major_offset = major - major_hypersparse_first;
+                  return ((bitmap[packed_bool_offset(major_offset)] &
+                           packed_bool_mask(major_offset)) != packed_bool_empty_mask());
+                }));
+            copy_if_nosync(
+              input_first,
+              input_first + (key_segment_offsets[4] - key_segment_offsets[3]),
+              flag_first,
+              thrust::make_zip_iterator(get_dataframe_buffer_begin(keys), offsets.begin()),
+              raft::device_span<size_t>(count.data(), size_t{1}),
+              loop_stream);
+          }
+          edge_partition_tmp_key_buffers.push_back(std::move(keys));
+          (*edge_partition_hypersparse_key_offset_vectors).push_back(std::move(offsets));
+          edge_partition_tmp_count_scalars.push_back(std::move(count));
+        }
+
+        std::vector<size_t> h_counts(loop_count);
+        for (size_t j = 0; j < loop_count; ++j) {
+          auto loop_stream = stream_pool_indices
+                               ? handle.get_stream_from_stream_pool((*stream_pool_indices)[j])
+                               : handle.get_stream();
+          h_counts[j]      = edge_partition_tmp_count_scalars[j].value(loop_stream);
+        }
+
+        for (size_t j = 0; j < loop_count; ++j) {
+          auto partition_idx = i + j;
+          auto loop_stream   = stream_pool_indices
+                                 ? handle.get_stream_from_stream_pool((*stream_pool_indices)[j])
+                                 : handle.get_stream();
+
+          auto process_local_edges = (static_cast<int>(partition_idx) != minor_comm_rank);
+          if (process_local_edges) {
+            auto const& key_segment_offsets = (*key_segment_offset_vectors)[partition_idx];
+
+            resize_dataframe_buffer(edge_partition_tmp_key_buffers[j], h_counts[j], loop_stream);
+            shrink_to_fit_dataframe_buffer(
+              edge_partition_tmp_key_buffers[j],
+              loop_stream);  // FIXME: we can skip this to cut execution time
+            resize_dataframe_buffer(
+              (*edge_partition_hypersparse_key_offset_vectors)[j], h_counts[j], loop_stream);
+            shrink_to_fit_dataframe_buffer(
+              (*edge_partition_hypersparse_key_offset_vectors)[j],
+              loop_stream);  // FIXME: we can skip this to cut execution time
+            auto keys =
+              allocate_dataframe_buffer<key_t>(key_segment_offsets[3] + h_counts[j], loop_stream);
+            thrust::copy(
+              rmm::exec_policy_nosync(loop_stream),
+              get_dataframe_buffer_begin(edge_partition_key_buffers[j]),
+              get_dataframe_buffer_begin(edge_partition_key_buffers[j]) + key_segment_offsets[3],
+              get_dataframe_buffer_begin(keys));
+            thrust::copy(rmm::exec_policy_nosync(loop_stream),
+                         get_dataframe_buffer_begin(edge_partition_tmp_key_buffers[j]),
+                         get_dataframe_buffer_end(edge_partition_tmp_key_buffers[j]),
+                         get_dataframe_buffer_begin(keys) + key_segment_offsets[3]);
+            edge_partition_key_buffers[j] = std::move(keys);
+          }
+        }
+      }
+    }
+
     std::conditional_t<GraphViewType::is_multi_gpu && update_major,
                        std::vector<dataframe_buffer_type_t<T>>,
                        std::byte /* dummy */>
@@ -1847,7 +2087,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
       major_output_buffers.reserve(loop_count);
     }
     for (size_t j = 0; j < loop_count; ++j) {
-      auto partition_idx = i * num_concurrent_loops + j;
+      auto partition_idx = i + j;
       auto loop_stream   = stream_pool_indices
                              ? handle.get_stream_from_stream_pool((*stream_pool_indices)[j])
                              : handle.get_stream();
@@ -1855,12 +2095,13 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
       if constexpr (GraphViewType::is_multi_gpu && update_major) {
         size_t buffer_size{0};
         if constexpr (use_input_key) {
-          buffer_size = local_key_list_sizes[partition_idx];
+          buffer_size = size_dataframe_buffer(edge_partition_key_buffers[j]);
         } else {
           auto edge_partition =
             edge_partition_device_view_t<vertex_t, edge_t, GraphViewType::is_multi_gpu>(
               graph_view.local_edge_partition_view(partition_idx));
-          auto segment_offsets = graph_view.local_edge_partition_segment_offsets(partition_idx);
+          auto const& segment_offsets =
+            graph_view.local_edge_partition_segment_offsets(partition_idx);
 
           buffer_size = segment_offsets
                           ? *((*segment_offsets).rbegin() + 1) /* exclude the zero degree segment */
@@ -1878,7 +2119,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
 #endif
 
     for (size_t j = 0; j < loop_count; ++j) {
-      auto partition_idx = i * num_concurrent_loops + j;
+      auto partition_idx = i + j;
 
       auto edge_partition =
         edge_partition_device_view_t<vertex_t, edge_t, GraphViewType::is_multi_gpu>(
@@ -1933,9 +2174,17 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
       if constexpr (use_input_key) {
         if (key_segment_offset_vectors) {
           key_segment_offsets = (*key_segment_offset_vectors)[partition_idx];
+          if constexpr (filter_input_key) {
+            if (edge_partition_hypersparse_key_offset_vectors) {
+              (*key_segment_offsets).back() = static_cast<size_t>(
+                thrust::distance(edge_partition_key_first, edge_partition_key_last));
+              *((*key_segment_offsets).rbegin() + 1) = (*key_segment_offsets).back();
+            }
+          }
         }
       } else {
-        auto segment_offsets = graph_view.local_edge_partition_segment_offsets(partition_idx);
+        auto const& segment_offsets =
+          graph_view.local_edge_partition_segment_offsets(partition_idx);
         if (segment_offsets) {
           key_segment_offsets = std::vector<size_t>((*segment_offsets).size());
           std::transform((*segment_offsets).begin(),
@@ -2020,23 +2269,23 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
       auto const minor_comm_rank = minor_comm.get_rank();
       auto const minor_comm_size = minor_comm.get_size();
 
+      if constexpr (use_input_key) {
+        if (minor_comm_size > 1) {
+          edge_partition_key_buffers.clear();
+          edge_partition_key_buffers.shrink_to_fit();
+        }
+      }
+
       if constexpr (std::is_same_v<ReduceOp, reduce_op::any<T>>) {
         std::vector<
-          std::variant<rmm::device_uvector<int>, std::optional<rmm::device_uvector<bool>>>>
+          std::variant<rmm::device_uvector<int>, std::optional<rmm::device_uvector<uint32_t>>>>
           edge_partition_selected_ranks_or_flags{};
         edge_partition_selected_ranks_or_flags.reserve(loop_count);
         for (size_t j = 0; j < loop_count; ++j) {
-          auto partition_idx = i * num_concurrent_loops + j;
+          auto partition_idx = i + j;
           auto loop_stream   = stream_pool_indices
                                  ? handle.get_stream_from_stream_pool((*stream_pool_indices)[j])
                                  : handle.get_stream();
-
-          if constexpr (use_input_key) {
-            if (minor_comm_size > 1) {
-              resize_dataframe_buffer(edge_partition_key_buffers[j], 0, loop_stream);
-              shrink_to_fit_dataframe_buffer(edge_partition_key_buffers[j], loop_stream);
-            }
-          }
 
           bool process_local_edges = true;
           if constexpr (filter_input_key) {
@@ -2044,12 +2293,29 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
           }
 
           auto const& output_buffer = major_output_buffers[j];
+          std::optional<raft::device_span<size_t const>> hypersparse_key_offsets{std::nullopt};
+          if constexpr (filter_input_key) {
+            if (edge_partition_hypersparse_key_offset_vectors) {
+              hypersparse_key_offsets = raft::device_span<size_t const>(
+                (*edge_partition_hypersparse_key_offset_vectors)[j].data(),
+                (*edge_partition_hypersparse_key_offset_vectors)[j].size());
+            }
+          }
+
+          size_t range_size{0};
+          if constexpr (filter_input_key) {
+            range_size = local_key_list_sizes[partition_idx];
+          } else {
+            range_size = size_dataframe_buffer(output_buffer);
+          }
 
           if (minor_comm_size <= std::numeric_limits<uint8_t>::max()) {  // priority == uint8_t
             auto selected_ranks_or_flags = compute_selected_ranks<vertex_t, uint8_t>(
               minor_comm,
               get_dataframe_buffer_begin(output_buffer),
               get_dataframe_buffer_end(output_buffer),
+              hypersparse_key_offsets,
+              range_size,
               static_cast<int>(partition_idx),
               subgroup_size,
               init,
@@ -2065,6 +2331,8 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
               minor_comm,
               get_dataframe_buffer_begin(output_buffer),
               get_dataframe_buffer_end(output_buffer),
+              hypersparse_key_offsets,
+              range_size,
               static_cast<int>(partition_idx),
               subgroup_size,
               init,
@@ -2072,25 +2340,33 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
               loop_stream);
             edge_partition_selected_ranks_or_flags.push_back(std::move(selected_ranks_or_flags));
           }
+
+          if constexpr (filter_input_key) {
+            if (edge_partition_hypersparse_key_offset_vectors) {
+              resize_dataframe_buffer(
+                (*edge_partition_hypersparse_key_offset_vectors)[j], 0, loop_stream);
+              shrink_to_fit_dataframe_buffer((*edge_partition_hypersparse_key_offset_vectors)[j],
+                                             loop_stream);
+            }
+          }
         }
 #if PER_V_PERFORMANCE_MEASUREMENT  // FIXME: delete
         auto subtime7 = std::chrono::steady_clock::now();
 #endif
-        if (stream_pool_indices) { handle.sync_stream_pool(*stream_pool_indices); }
 #if PER_V_PERFORMANCE_MEASUREMENT  // FIXME: delete
+        if (stream_pool_indices) { handle.sync_stream_pool(*stream_pool_indices); }
         auto subtime8  = std::chrono::steady_clock::now();
         auto subtime9  = std::chrono::steady_clock::now();
         auto subtime10 = std::chrono::steady_clock::now();
 #endif
 
-        std::vector<size_t> copy_sizes(loop_count, 0);
+        std::vector<size_t> copy_sizes(loop_count);
         {
-          rmm::device_uvector<size_t> d_copy_sizes(loop_count, handle.get_stream());
-          thrust::fill(
-            handle.get_thrust_policy(), d_copy_sizes.begin(), d_copy_sizes.end(), size_t{0});
-          if (stream_pool_indices) { handle.sync_stream(); }
+          std::vector<rmm::device_scalar<size_t>> edge_partition_copy_sizes{};
+          edge_partition_copy_sizes.reserve(loop_count);
+
           for (size_t j = 0; j < loop_count; ++j) {
-            auto partition_idx = i * num_concurrent_loops + j;
+            auto partition_idx = i + j;
             auto loop_stream   = stream_pool_indices
                                    ? handle.get_stream_from_stream_pool((*stream_pool_indices)[j])
                                    : handle.get_stream();
@@ -2102,36 +2378,46 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
               }
             }
 
+            rmm::device_scalar<size_t> copy_size(size_t{0}, loop_stream);
             if (minor_comm_rank == static_cast<int>(partition_idx)) {
               if (process_local_edges) {
                 assert(edge_partition_selected_ranks_or_flags[j].index() == 0);
                 auto const& selected_ranks = std::get<0>(edge_partition_selected_ranks_or_flags[j]);
                 count_nosync(selected_ranks.begin(),
                              selected_ranks.end(),
-                             raft::device_span<size_t>(d_copy_sizes.data() + j, size_t{1}),
+                             raft::device_span<size_t>(copy_size.data(), size_t{1}),
                              minor_comm_rank,
                              loop_stream);
               }
             } else {
               assert(edge_partition_selected_ranks_or_flags[j].index() == 1);
-              auto& selected_flags = std::get<1>(edge_partition_selected_ranks_or_flags[j]);
-              if (selected_flags) {
-                count_nosync((*selected_flags).begin(),
-                             (*selected_flags).end(),
-                             raft::device_span<size_t>(d_copy_sizes.data() + j, size_t{1}),
-                             true,
-                             loop_stream);
+              auto& keep_flags = std::get<1>(edge_partition_selected_ranks_or_flags[j]);
+              if (keep_flags) {
+                auto count_first = thrust::make_transform_iterator(
+                  (*keep_flags).begin(),
+                  cuda::proclaim_return_type<size_t>(
+                    [] __device__(uint32_t word) { return static_cast<size_t>(__popc(word)); }));
+                sum_nosync(count_first,
+                           count_first + (*keep_flags).size(),
+                           raft::device_span<size_t>(copy_size.data(), size_t{1}),
+                           loop_stream);
               }
             }
+
+            edge_partition_copy_sizes.push_back(std::move(copy_size));
           }
+
 #if PER_V_PERFORMANCE_MEASUREMENT  // FIXME: delete
           subtime9 = std::chrono::steady_clock::now();
 #endif
-          if (stream_pool_indices) { handle.sync_stream_pool(*stream_pool_indices); }
-          raft::update_host(
-            copy_sizes.data(), d_copy_sizes.data(), d_copy_sizes.size(), handle.get_stream());
-          handle.sync_stream();
+          for (size_t j = 0; j < loop_count; ++j) {
+            auto loop_stream = stream_pool_indices
+                                 ? handle.get_stream_from_stream_pool((*stream_pool_indices)[j])
+                                 : handle.get_stream();
+            copy_sizes[j]    = edge_partition_copy_sizes[j].value(loop_stream);
+          }
 #if PER_V_PERFORMANCE_MEASUREMENT  // FIXME: delete
+          if (stream_pool_indices) { handle.sync_stream_pool(*stream_pool_indices); }
           subtime10 = std::chrono::steady_clock::now();
 #endif
         }
@@ -2139,47 +2425,60 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
         std::vector<dataframe_buffer_type_t<T>> edge_partition_values{};
         edge_partition_values.reserve(loop_count);
         for (size_t j = 0; j < loop_count; ++j) {
-          auto partition_idx = i * num_concurrent_loops + j;
+          auto partition_idx = i + j;
           auto loop_stream   = stream_pool_indices
                                  ? handle.get_stream_from_stream_pool((*stream_pool_indices)[j])
                                  : handle.get_stream();
 
           auto& output_buffer = major_output_buffers[j];
-
-          auto copy_size = copy_sizes[j];
+          auto copy_size      = copy_sizes[j];
 
           auto values = allocate_dataframe_buffer<T>(0, loop_stream);
           if (minor_comm_rank == static_cast<int>(partition_idx)) {
             if (copy_size > 0) {
-              assert(edge_partition_selected_ranks_or_flags[j].index() == 0);
-              auto const& selected_ranks = std::get<0>(edge_partition_selected_ranks_or_flags[j]);
-              resize_dataframe_buffer(values, copy_size, loop_stream);
-              rmm::device_scalar<size_t> dummy(size_t{0}, loop_stream);  // we already know the count
-              copy_if_nosync(
-                get_dataframe_buffer_begin(output_buffer),
-                get_dataframe_buffer_end(output_buffer),
-                thrust::make_transform_iterator(
-                  selected_ranks.begin(),
-                  cuda::proclaim_return_type<bool>(
-                    [minor_comm_rank] __device__(auto rank) { return rank == minor_comm_rank; })),
-                get_dataframe_buffer_begin(values),
-                raft::device_span<size_t>(dummy.data(), size_t{1}),
-                loop_stream);
+              if constexpr (filter_input_key) {
+                assert(false);  // should not be reached
+              } else {
+                assert(edge_partition_selected_ranks_or_flags[j].index() == 0);
+                auto const& selected_ranks = std::get<0>(edge_partition_selected_ranks_or_flags[j]);
+                resize_dataframe_buffer(values, copy_size, loop_stream);
+                rmm::device_scalar<size_t> dummy(size_t{0},
+                                                 loop_stream);  // we already know the count
+                copy_if_nosync(
+                  get_dataframe_buffer_begin(output_buffer),
+                  get_dataframe_buffer_end(output_buffer),
+                  thrust::make_transform_iterator(
+                    selected_ranks.begin(),
+                    cuda::proclaim_return_type<bool>(
+                      [minor_comm_rank] __device__(auto rank) { return rank == minor_comm_rank; })),
+                  get_dataframe_buffer_begin(values),
+                  raft::device_span<size_t>(dummy.data(), size_t{1}),
+                  loop_stream);
+              }
             }
           } else {
             if (copy_size > 0) {
               assert(edge_partition_selected_ranks_or_flags[j].index() == 1);
-              auto& selected_flags = std::get<1>(edge_partition_selected_ranks_or_flags[j]);
+              auto& keep_flags = std::get<1>(edge_partition_selected_ranks_or_flags[j]);
               resize_dataframe_buffer(values, copy_size, loop_stream);
-              rmm::device_scalar<size_t> dummy(size_t{0}, loop_stream);  // we already know the count
-              copy_if_nosync(get_dataframe_buffer_begin(output_buffer),
-                             get_dataframe_buffer_end(output_buffer),
-                             (*selected_flags).begin(),
-                             get_dataframe_buffer_begin(values),
-                             raft::device_span<size_t>(dummy.data(), size_t{1}),
-                             loop_stream);
-              (*selected_flags).resize(0, loop_stream);
-              (*selected_flags).shrink_to_fit(loop_stream);
+              rmm::device_scalar<size_t> dummy(size_t{0},
+                                               loop_stream);  // we already know the count
+              copy_if_nosync(
+                get_dataframe_buffer_begin(output_buffer),
+                get_dataframe_buffer_end(output_buffer),
+                thrust::make_transform_iterator(
+                  thrust::make_counting_iterator(size_t{0}),
+                  cuda::proclaim_return_type<bool>(
+                    [keep_flags = raft::device_span<uint32_t const>(
+                       (*keep_flags).data(), (*keep_flags).size())] __device__(size_t offset) {
+                      auto word = keep_flags[packed_bool_offset(offset)];
+                      return ((word & packed_bool_mask(offset)) != packed_bool_empty_mask());
+                    })),
+                get_dataframe_buffer_begin(values),
+                raft::device_span<size_t>(dummy.data(), size_t{1}),
+                loop_stream);
+              (*keep_flags).resize(0, loop_stream);
+              (*keep_flags).shrink_to_fit(loop_stream);
             }
           }
 
@@ -2196,55 +2495,75 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
         auto subtime12 = std::chrono::steady_clock::now();
 #endif
 
-        std::vector<size_t> rx_sizes{};
-        std::vector<size_t> rx_displs{};
-        auto rx_values = allocate_dataframe_buffer<T>(0, handle.get_stream());
-        if (stream_pool_indices) { handle.sync_stream(); }
-        for (size_t j = 0; j < loop_count; ++j) {
-          auto partition_idx = i * num_concurrent_loops + j;
-          auto loop_stream   = stream_pool_indices
-                                 ? handle.get_stream_from_stream_pool((*stream_pool_indices)[j])
-                                 : handle.get_stream();
-
-          auto& values = edge_partition_values[j];
-          // FIXME: host_scalar_gather implicitly synchronizes to copy the results to host
-          auto tmp_rx_sizes = host_scalar_gather(minor_comm,
-                                                 size_dataframe_buffer(values),
-                                                 static_cast<int>(partition_idx),
-                                                 loop_stream);
-
-          if (minor_comm_rank == static_cast<int>(partition_idx)) {
-            rx_sizes = std::move(tmp_rx_sizes);
-            rx_displs.resize(rx_sizes.size());
-            std::exclusive_scan(rx_sizes.begin(), rx_sizes.end(), rx_displs.begin(), size_t{0});
-            rx_values =
-              allocate_dataframe_buffer<T>(rx_displs.back() + rx_sizes.back(), loop_stream);
+        std::optional<std::vector<size_t>> rx_sizes{};
+        std::optional<std::vector<size_t>> rx_displs{};
+        std::optional<dataframe_buffer_type_t<T>> rx_values{};
+        {
+          std::vector<size_t> h_value_buffer_sizes(loop_count);
+          for (size_t j = 0; j < loop_count; ++j) {
+            h_value_buffer_sizes[j] = size_dataframe_buffer(edge_partition_values[j]);
+          }
+          rmm::device_uvector<size_t> d_value_buffer_sizes(loop_count, handle.get_stream());
+          raft::update_device(d_value_buffer_sizes.data(),
+                              h_value_buffer_sizes.data(),
+                              h_value_buffer_sizes.size(),
+                              handle.get_stream());
+          rmm::device_uvector<size_t> d_aggregate_value_buffer_sizes(minor_comm_size * loop_count,
+                                                                     handle.get_stream());
+          std::vector<size_t> tmp_rx_sizes(minor_comm_size, loop_count);
+          std::vector<size_t> tmp_rx_displs = std::vector<size_t>(minor_comm_size);
+          std::exclusive_scan(
+            tmp_rx_sizes.begin(), tmp_rx_sizes.end(), tmp_rx_displs.begin(), size_t{0});
+          device_allgatherv(minor_comm,
+                            d_value_buffer_sizes.data(),
+                            d_aggregate_value_buffer_sizes.data(),
+                            tmp_rx_sizes,
+                            tmp_rx_displs,
+                            handle.get_stream());
+          if (static_cast<size_t>(minor_comm_rank / num_concurrent_loops) ==
+              (i / num_concurrent_loops)) {
+            std::vector<size_t> h_aggregate_value_buffer_sizes(
+              d_aggregate_value_buffer_sizes.size());
+            raft::update_host(h_aggregate_value_buffer_sizes.data(),
+                              d_aggregate_value_buffer_sizes.data(),
+                              d_aggregate_value_buffer_sizes.size(),
+                              handle.get_stream());
+            handle.sync_stream();
+            auto j    = static_cast<size_t>(minor_comm_rank % num_concurrent_loops);
+            rx_sizes  = std::vector<size_t>(minor_comm_size);
+            rx_displs = std::vector<size_t>(minor_comm_size);
+            for (int k = 0; k < minor_comm_size; ++k) {
+              (*rx_sizes)[k] = h_aggregate_value_buffer_sizes[k * loop_count + j];
+            }
+            std::exclusive_scan(
+              (*rx_sizes).begin(), (*rx_sizes).end(), (*rx_displs).begin(), size_t{0});
+            rx_values = allocate_dataframe_buffer<T>((*rx_displs).back() + (*rx_sizes).back(),
+                                                     handle.get_stream());
           }
         }
 #if PER_V_PERFORMANCE_MEASUREMENT  // FIXME: delete
         auto subtime13 = std::chrono::steady_clock::now();
 #endif
-        if (stream_pool_indices) { handle.sync_stream_pool(*stream_pool_indices); }
+        handle.sync_stream();
 #if PER_V_PERFORMANCE_MEASUREMENT  // FIXME: delete
         auto subtime14 = std::chrono::steady_clock::now();
 #endif
 
         for (size_t j = 0; j < loop_count; ++j) {
-          auto partition_idx = i * num_concurrent_loops + j;
+          auto partition_idx = i + j;
           auto loop_stream   = stream_pool_indices
                                  ? handle.get_stream_from_stream_pool((*stream_pool_indices)[j])
                                  : handle.get_stream();
 
           auto& values = edge_partition_values[j];
 
-          // FIXME: this if-else might be unnecessary
           if (minor_comm_rank == static_cast<int>(partition_idx)) {
             device_gatherv(minor_comm,
                            get_dataframe_buffer_begin(values),
-                           get_dataframe_buffer_begin(rx_values),
+                           get_dataframe_buffer_begin(*rx_values),
                            values.size(),
-                           rx_sizes,
-                           rx_displs,
+                           *rx_sizes,
+                           *rx_displs,
                            static_cast<int>(partition_idx),
                            loop_stream);
           } else {
@@ -2264,32 +2583,38 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
 #if PER_V_PERFORMANCE_MEASUREMENT  // FIXME: delete
         auto subtime15 = std::chrono::steady_clock::now();
 #endif
-        if (stream_pool_indices) { handle.sync_stream_pool(*stream_pool_indices); }
 #if PER_V_PERFORMANCE_MEASUREMENT  // FIXME: delete
+        if (stream_pool_indices) { handle.sync_stream_pool(*stream_pool_indices); }
         auto subtime16 = std::chrono::steady_clock::now();
 #endif
 
-        if (size_dataframe_buffer(rx_values) > 0) {
-          auto j = static_cast<size_t>(minor_comm_rank % num_concurrent_loops);
+        if (rx_values && (size_dataframe_buffer(*rx_values) > 0)) {
+          auto j           = static_cast<size_t>(minor_comm_rank % num_concurrent_loops);
+          auto loop_stream = stream_pool_indices
+                               ? handle.get_stream_from_stream_pool((*stream_pool_indices)[j])
+                               : handle.get_stream();
 
+          // FIXME: we can use 8 bit integer for ranks (and 32 bit integers for rx_offsets) to cut
+          // sort time significantly
           auto& selected_ranks = std::get<0>(edge_partition_selected_ranks_or_flags[j]);
-          rmm::device_uvector<vertex_t> rx_offsets(selected_ranks.size(), handle.get_stream());
-          thrust::sequence(
-            handle.get_thrust_policy(), rx_offsets.begin(), rx_offsets.end(), vertex_t{0});
-          thrust::stable_sort_by_key(handle.get_thrust_policy(),
+          rmm::device_uvector<vertex_t> rx_offsets(selected_ranks.size(), loop_stream);
+          thrust::sequence(rmm::exec_policy_nosync(loop_stream),
+                           rx_offsets.begin(),
+                           rx_offsets.end(),
+                           vertex_t{0});
+          thrust::stable_sort_by_key(rmm::exec_policy_nosync(loop_stream),
                                      selected_ranks.begin(),
                                      selected_ranks.end(),
                                      rx_offsets.begin());
           // selected_ranks[] == comm_size if no GPU in minor_comm has a non-init value
-          rx_offsets.resize(rx_displs.back() + rx_sizes.back(), handle.get_stream());
-
-          thrust::scatter(handle.get_thrust_policy(),
-                          get_dataframe_buffer_begin(rx_values),
-                          get_dataframe_buffer_end(rx_values),
+          rx_offsets.resize((*rx_displs).back() + (*rx_sizes).back(), loop_stream);
+          thrust::scatter(rmm::exec_policy_nosync(loop_stream),
+                          get_dataframe_buffer_begin(*rx_values),
+                          get_dataframe_buffer_end(*rx_values),
                           rx_offsets.begin(),
                           tmp_vertex_value_output_first);
-          handle.sync_stream();
         }
+        if (stream_pool_indices) { handle.sync_stream_pool(*stream_pool_indices); }
 #if PER_V_PERFORMANCE_MEASUREMENT  // FIXME: delete
         auto subtime17                         = std::chrono::steady_clock::now();
         std::chrono::duration<double> subdur0  = subtime1 - subtime0;
@@ -2319,7 +2644,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
 #endif
       } else {
         for (size_t j = 0; j < loop_count; ++j) {
-          auto partition_idx = i * num_concurrent_loops + j;
+          auto partition_idx = i + j;
           auto loop_stream   = stream_pool_indices
                                  ? handle.get_stream_from_stream_pool((*stream_pool_indices)[j])
                                  : handle.get_stream();
