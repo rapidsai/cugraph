@@ -109,7 +109,7 @@ def load_resultset(resultset_name, resultset_download_url):
         if not compressed_file_path.exists():
             urllib.request.urlretrieve(resultset_download_url, compressed_file_path)
         tar = tarfile.open(str(compressed_file_path), "r:gz")
-        # TODO: pass filter="fully_trusted" once Python 3.12 is the minimum supported Python version
+        # TODO: pass filter="fully_trusted" when minimum supported Python version >=3.12
         #  ref: https://docs.python.org/3/library/tarfile.html#tarfile-extraction-filter
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", category=DeprecationWarning)
