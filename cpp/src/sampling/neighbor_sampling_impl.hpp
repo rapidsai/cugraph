@@ -279,11 +279,6 @@ neighbor_sample_impl(
     }
 
     ++hop;
-
-
-    // aggregation here for each hope regardless of the type  ****************************************************
-    // Genrate the mask for each type and store it for each iteration. mask vector at the beginning, populate that
-    // and within the inner loop, activate the right mask based and proceed.
     
     if (hop < (*fan_out).size()) {
       // FIXME:  We should modify vertex_partition_range_lasts to return a raft::host_span
