@@ -1348,7 +1348,7 @@ void per_v_transform_reduce_e_edge_partition(
   }
 }
 
-#define PER_V_PERFORMANCE_MEASUREMENT 0
+#define PER_V_PERFORMANCE_MEASUREMENT 1
 
 template <bool incoming,  // iterate over incoming edges (incoming == true) or outgoing edges
                           // (incoming == false)
@@ -1376,6 +1376,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
                               VertexValueOutputIterator vertex_value_output_first)
 {
 #if PER_V_PERFORMANCE_MEASUREMENT  // FIXME: delete
+  auto const comm_rank = handle.get_comms().get_rank();
   RAFT_CUDA_TRY(cudaDeviceSynchronize());
   auto time0 = std::chrono::steady_clock::now();
 #endif
@@ -2634,7 +2635,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
         std::chrono::duration<double> subdur14 = subtime15 - subtime14;
         std::chrono::duration<double> subdur15 = subtime16 - subtime15;
         std::chrono::duration<double> subdur16 = subtime17 - subtime16;
-        std::cout << "sub took (" << subdur0.count() << "," << subdur1.count() << ","
+        std::cout << comm_rank << ":sub took (" << subdur0.count() << "," << subdur1.count() << ","
                   << subdur2.count() << "," << subdur3.count() << "," << subdur4.count() << ","
                   << subdur5.count() << "," << subdur6.count() << "," << subdur7.count() << ","
                   << subdur8.count() << "," << subdur9.count() << "," << subdur10.count() << ","
@@ -2760,8 +2761,8 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
   std::chrono::duration<double> dur0 = time1 - time0;
   std::chrono::duration<double> dur1 = time2 - time1;
   std::chrono::duration<double> dur2 = time3 - time2;
-  std::cout << "\t\tdetail::per_v (prep, ep, comm) took (" << dur0.count() << "," << dur1.count()
-            << "," << dur2.count() << ")" << std::endl;
+  std::cout << "\t\t" << comm_rank << ":detail::per_v (prep, ep, comm) took (" << dur0.count()
+            << "," << dur1.count() << "," << dur2.count() << ")" << std::endl;
 #endif
 }
 

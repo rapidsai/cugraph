@@ -120,6 +120,7 @@ void bfs(raft::handle_t const& handle,
                 "GraphViewType should support the push model.");
 
 #if BFS_PERFORMANCE_MEASUREMENT  // FIXME: delete
+  auto const comm_rank = GraphViewType::is_multi_gpu ? handle.get_comms().get_rank() : int{0};
   RAFT_CUDA_TRY(cudaDeviceSynchronize());
   auto prep0 = std::chrono::steady_clock::now();
 #endif
@@ -275,13 +276,15 @@ void bfs(raft::handle_t const& handle,
                          true);
 #if BFS_PERFORMANCE_MEASUREMENT  // FIXME: delete
   RAFT_CUDA_TRY(cudaDeviceSynchronize());
-  auto prep4                        = std::chrono::steady_clock::now();
+  auto prep4                         = std::chrono::steady_clock::now();
   std::chrono::duration<double> dur0 = prep1 - prep0;
   std::chrono::duration<double> dur1 = prep2 - prep1;
   std::chrono::duration<double> dur2 = prep3 - prep2;
   std::chrono::duration<double> dur3 = prep4 - prep3;
-  std::chrono::duration<double> dur = prep4 - prep0;
-  std::cout << "prep (init,meta,vf,fill) took " << dur.count() << " (" << dur0.count() << "," << dur1.count() << "," << dur2.count() << "," << dur3.count() << ") s." << std::endl;
+  std::chrono::duration<double> dur  = prep4 - prep0;
+  std::cout << comm_rank << ":prep (init,meta,vf,fill) took " << dur.count() << " (" << dur0.count()
+            << "," << dur1.count() << "," << dur2.count() << "," << dur3.count() << ") s."
+            << std::endl;
 #endif
 
   // 4. BFS iteration
@@ -350,8 +353,9 @@ void bfs(raft::handle_t const& handle,
         std::chrono::duration<double> dur1 = topdown2 - topdown1;
         std::chrono::duration<double> dur2 = topdown3 - topdown2;
         std::chrono::duration<double> dur  = topdown3 - topdown0;
-        std::cout << "topdown (prim,vf,host) took " << dur.count() << " (" << dur0.count() << "," << dur1.count()
-                  << "," << dur2.count() << ") s." << std::endl;
+        std::cout << comm_rank << ":depth=" << depth << " topdown (prim,vf,host) took "
+                  << dur.count() << " (" << dur0.count() << "," << dur1.count() << ","
+                  << dur2.count() << ") s." << std::endl;
 #endif
         break;
       }
@@ -368,7 +372,8 @@ void bfs(raft::handle_t const& handle,
 #endif
 
       if (direction_optimizing) {
-        // FIXME: computing m_f & updating nzd_unvisited_vertices & computing m_u can be executed concurrently.
+        // FIXME: computing m_f & updating nzd_unvisited_vertices & computing m_u can be executed
+        // concurrently.
         // FIXME: also the above fill_edge_dst_property can be executed concurrently.
         auto m_f = thrust::transform_reduce(
           handle.get_thrust_policy(),
@@ -455,9 +460,11 @@ void bfs(raft::handle_t const& handle,
       std::chrono::duration<double> dur4 = topdown5 - topdown4;
       std::chrono::duration<double> dur5 = topdown6 - topdown5;
       std::chrono::duration<double> dur  = topdown6 - topdown0;
-      std::cout << depth << " topdown next_aggregate_frontier_size=" << next_aggregate_frontier_size << " (prim,vf,host,fill,dir,vf) took " << dur.count() << " (" << dur0.count() << "," << dur1.count()
-                << "," << dur2.count() << "," << dur3.count() << "," << dur4.count() << ","
-                << dur5.count() << ") s." << std::endl;
+      std::cout << comm_rank << ":depth=" << depth
+                << " topdown next_aggregate_frontier_size=" << next_aggregate_frontier_size
+                << " (prim,vf,host,fill,dir,vf) took " << dur.count() << " (" << dur0.count() << ","
+                << dur1.count() << "," << dur2.count() << "," << dur3.count() << "," << dur4.count()
+                << "," << dur5.count() << ") s." << std::endl;
 #endif
     } else {                     // bottom up
 #if BFS_PERFORMANCE_MEASUREMENT  // FIXME: delete
@@ -549,8 +556,9 @@ void bfs(raft::handle_t const& handle,
         std::chrono::duration<double> dur0 = bottomup1 - bottomup0;
         std::chrono::duration<double> dur1 = bottomup2 - bottomup1;
         std::chrono::duration<double> dur  = bottomup2 - bottomup0;
-        std::cout << "bottomup (prim+,host) took " << dur.count() << " (" << dur0.count() << "," << dur1.count()
-                  << ") s." << std::endl;
+        std::cout << comm_rank << ":depth=" << depth << " bottomup (prim+,host) took "
+                  << dur.count() << " (" << dur0.count() << "," << dur1.count() << ") s."
+                  << std::endl;
 #endif
         break;
       }
@@ -605,7 +613,12 @@ void bfs(raft::handle_t const& handle,
       std::chrono::duration<double> dur3 = bottomup4 - bottomup3;
       std::chrono::duration<double> dur4 = bottomup5 - bottomup4;
       std::chrono::duration<double> dur  = bottomup5 - bottomup0;
-      std::cout << depth << " bottomup next_aggregate_frontier_size=" << next_aggregate_frontier_size << " aggregatee_nzd_unvisited_vertices=" << aggregate_nzd_unvisited_vertices << " (prim+,host,fill,dir,vf) took " << dur.count() << " (" << dur0.count() << "," << dur1.count() << "," << dur2.count() << "," << dur3.count() << "," << dur4.count() << ") s." << std::endl;
+      std::cout << comm_rank << ":depth=" << depth
+                << " bottomup next_aggregate_frontier_size=" << next_aggregate_frontier_size
+                << " aggregatee_nzd_unvisited_vertices=" << aggregate_nzd_unvisited_vertices
+                << " (prim+,host,fill,dir,vf) took " << dur.count() << " (" << dur0.count() << ","
+                << dur1.count() << "," << dur2.count() << "," << dur3.count() << "," << dur4.count()
+                << ") s." << std::endl;
 #endif
     }
     cur_aggregate_frontier_size = next_aggregate_frontier_size;

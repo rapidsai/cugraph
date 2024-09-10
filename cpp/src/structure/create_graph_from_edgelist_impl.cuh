@@ -335,8 +335,13 @@ create_graph_from_partitioned_edgelist(
   auto const minor_comm_size = minor_comm.get_size();
 
   // 1. renumber
+#if 1
+  auto const comm_rank = handle.get_comms().get_rank();
+  RAFT_CUDA_TRY(cudaDeviceSynchronize());
+  std::cout << comm_rank << ":create_graph_from_partitioned 0" << std::endl;
+#endif
 
-  std::vector<edge_t> edgelist_edge_counts(minor_comm_size, edge_t{0});
+    std::vector < edge_t> edgelist_edge_counts(minor_comm_size, edge_t{0});
   for (size_t i = 0; i < edgelist_edge_counts.size(); ++i) {
     edgelist_edge_counts[i] = static_cast<edge_t>(edge_partition_edgelist_srcs[i].size());
   }
@@ -362,6 +367,10 @@ create_graph_from_partitioned_edgelist(
     num_segments_per_vertex_partition > (detail::num_sparse_segments_per_vertex_partition + 2);
 
   // 2. sort and compress edge list (COO) to CSR (or CSC) or CSR + DCSR (CSC + DCSC) hybrid
+#if 1
+  RAFT_CUDA_TRY(cudaDeviceSynchronize());
+  std::cout << comm_rank << ":create_graph_from_partitioned 1" << std::endl;
+#endif
 
   auto total_global_mem = handle.get_device_properties().totalGlobalMem;
   size_t element_size   = sizeof(vertex_t) * 2;
@@ -567,6 +576,10 @@ create_graph_from_partitioned_edgelist(
   }
 
   // 3. segmented sort neighbors
+#if 1
+  RAFT_CUDA_TRY(cudaDeviceSynchronize());
+  std::cout << comm_rank << ":create_graph_from_partitioned 3" << std::endl;
+#endif
 
   for (size_t i = 0; i < edge_partition_offsets.size(); ++i) {
     if (edge_partition_weights) {
@@ -653,6 +666,10 @@ create_graph_from_partitioned_edgelist(
   }
 
   // 4. create a graph and an edge_property_t object.
+#if 1
+  RAFT_CUDA_TRY(cudaDeviceSynchronize());
+  std::cout << comm_rank << ":create_graph_from_partitioned 4" << std::endl;
+#endif
 
   std::optional<edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, true>, weight_t>>
     edge_weights{std::nullopt};
@@ -933,6 +950,11 @@ create_graph_from_edgelist_impl(
   bool renumber,
   bool do_expensive_check)
 {
+#if 1
+  auto const comm_rank = handle.get_comms().get_rank();
+  RAFT_CUDA_TRY(cudaDeviceSynchronize());
+  std::cout << comm_rank << ":create_graph_from_edgelist_impl 0" << std::endl;
+#endif
   auto& major_comm           = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
   auto const major_comm_size = major_comm.get_size();
   auto& minor_comm           = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
@@ -1024,6 +1046,10 @@ create_graph_from_edgelist_impl(
   // 1. groupby each edge chunks to their target local adjacency matrix partition (and further
   // groupby within the local partition by applying the compute_gpu_id_from_vertex_t to minor vertex
   // IDs).
+#if 1
+  RAFT_CUDA_TRY(cudaDeviceSynchronize());
+  std::cout << comm_rank << ":create_graph_from_edgelist_impl 1" << std::endl;
+#endif
 
   std::vector<std::vector<rmm::device_uvector<vertex_t>>> edgelist_partitioned_srcs(
     edgelist_srcs.size());
@@ -1154,6 +1180,10 @@ create_graph_from_edgelist_impl(
   if (edgelist_edge_types) { (*edgelist_edge_types).clear(); }
 
   // 2. split the grouped edge chunks to local partitions
+#if 1
+  RAFT_CUDA_TRY(cudaDeviceSynchronize());
+  std::cout << comm_rank << ":create_graph_from_edgelist_impl 2" << std::endl;
+#endif
 
   auto edgelist_intra_partition_segment_offsets = std::vector<std::vector<edge_t>>(minor_comm_size);
 
@@ -1201,7 +1231,13 @@ create_graph_from_edgelist_impl(
                         intra_partition_segment_sizes.end(),
                         intra_partition_segment_offsets.begin() + 1);
 
+#if 1
+    std::cout << comm_rank << ": i=" << i << " edge_count=" << edge_count << std::endl;
+#endif
     rmm::device_uvector<vertex_t> tmp_srcs(edge_count, handle.get_stream());
+#if 1
+    std::cout << comm_rank << ": i=" << i << " tmp_srcs allocated" << std::endl;
+#endif
     for (int j = 0; j < major_comm_size; ++j) {
       for (size_t k = 0; k < edgelist_partitioned_srcs.size(); ++k) {
         auto& input_buffer = edgelist_partitioned_srcs[k][i * major_comm_size + j];
@@ -1218,6 +1254,9 @@ create_graph_from_edgelist_impl(
     edge_partition_edgelist_srcs.push_back(std::move(tmp_srcs));
 
     rmm::device_uvector<vertex_t> tmp_dsts(edge_count, handle.get_stream());
+#if 1
+    std::cout << comm_rank << ": i=" << i << " tmp_dsts allocated" << std::endl;
+#endif
     for (int j = 0; j < major_comm_size; ++j) {
       for (size_t k = 0; k < edgelist_partitioned_dsts.size(); ++k) {
         auto& input_buffer = edgelist_partitioned_dsts[k][i * major_comm_size + j];
@@ -1289,6 +1328,10 @@ create_graph_from_edgelist_impl(
 
     edgelist_intra_partition_segment_offsets[i] = std::move(intra_partition_segment_offsets);
   }
+#if 1
+  RAFT_CUDA_TRY(cudaDeviceSynchronize());
+  std::cout << comm_rank << ":create_graph_from_edgelist_impl 3" << std::endl;
+#endif
 
   return create_graph_from_partitioned_edgelist<vertex_t,
                                                 edge_t,

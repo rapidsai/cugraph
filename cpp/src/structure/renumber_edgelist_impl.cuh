@@ -247,6 +247,11 @@ std::tuple<rmm::device_uvector<vertex_t>, std::vector<vertex_t>, vertex_t> compu
   // 1. if local_vertices.has_value() is false, find unique vertices from edge majors & minors (to
   // construct local_vertices)
 
+#if 1
+  auto comm_rank = multi_gpu ? handle.get_comms().get_rank() : int{0};
+  RAFT_CUDA_TRY(cudaDeviceSynchronize());
+  std::cout << comm_rank << ":compute_renumber_map 0" << std::endl;
+#endif
   rmm::device_uvector<vertex_t> sorted_local_vertices(0, handle.get_stream());
   if (!local_vertices) {
     constexpr size_t num_bins{
@@ -521,6 +526,10 @@ std::tuple<rmm::device_uvector<vertex_t>, std::vector<vertex_t>, vertex_t> compu
     thrust::sort(
       handle.get_thrust_policy(), sorted_local_vertices.begin(), sorted_local_vertices.end());
   }
+#if 1
+  RAFT_CUDA_TRY(cudaDeviceSynchronize());
+  std::cout << comm_rank << ":compute_renumber_map 1" << std::endl;
+#endif
 
   // 2. find an unused vertex ID
 
@@ -531,6 +540,10 @@ std::tuple<rmm::device_uvector<vertex_t>, std::vector<vertex_t>, vertex_t> compu
   CUGRAPH_EXPECTS(locally_unused_vertex_id.has_value(),
                   "Invalid input arguments: there is no unused value in the entire range of "
                   "vertex_t, increase vertex_t to 64 bit.");
+#if 1
+  RAFT_CUDA_TRY(cudaDeviceSynchronize());
+  std::cout << comm_rank << ":compute_renumber_map 2" << std::endl;
+#endif
 
   // 3. compute global degrees for the sorted local vertices
 
@@ -706,6 +719,10 @@ std::tuple<rmm::device_uvector<vertex_t>, std::vector<vertex_t>, vertex_t> compu
       offset += this_chunk_size;
     }
   }
+#if 1
+  RAFT_CUDA_TRY(cudaDeviceSynchronize());
+  std::cout << comm_rank << ":compute_renumber_map 3" << std::endl;
+#endif
 
   // 5. sort local vertices by degree (descending)
 
@@ -773,6 +790,10 @@ std::tuple<rmm::device_uvector<vertex_t>, std::vector<vertex_t>, vertex_t> compu
                     d_segment_offsets.size(),
                     handle.get_stream());
   handle.sync_stream();
+#if 1
+  RAFT_CUDA_TRY(cudaDeviceSynchronize());
+  std::cout << comm_rank << ":compute_renumber_map 4" << std::endl;
+#endif
 
   return std::make_tuple(
     std::move(sorted_local_vertices), h_segment_offsets, *locally_unused_vertex_id);
@@ -1065,12 +1086,20 @@ renumber_edgelist(
 
   // 1. compute renumber map
 
+#if 1
+  RAFT_CUDA_TRY(cudaDeviceSynchronize());
+  std::cout << comm_rank << ":renumber_edgelist 0" << std::endl;
+#endif
   auto [renumber_map_labels, vertex_partition_segment_offsets, locally_unused_vertex_id] =
     detail::compute_renumber_map<vertex_t, edge_t, multi_gpu>(handle,
                                                               std::move(local_vertices),
                                                               edgelist_const_majors,
                                                               edgelist_const_minors,
                                                               edgelist_edge_counts);
+#if 1
+  RAFT_CUDA_TRY(cudaDeviceSynchronize());
+  std::cout << comm_rank << ":renumber_edgelist 1" << std::endl;
+#endif
 
   // 2. initialize partition_t object, number_of_vertices, and number_of_edges
 
@@ -1106,6 +1135,10 @@ renumber_edgelist(
 
   // 3. renumber edges
 
+#if 1
+  RAFT_CUDA_TRY(cudaDeviceSynchronize());
+  std::cout << comm_rank << ":renumber_edgelist 2" << std::endl;
+#endif
   {
     vertex_t max_edge_partition_major_range_size{0};
     for (size_t i = 0; i < edgelist_majors.size(); ++i) {
@@ -1138,11 +1171,23 @@ renumber_edgelist(
     }
   }
 
+#if 1
+  RAFT_CUDA_TRY(cudaDeviceSynchronize());
+  std::cout << comm_rank
+            << ":renumber_edgelist 3 partition.local_edge_partition_minor_range_size()="
+            << partition.local_edge_partition_minor_range_size()
+            << " number_of_edges=" << number_of_edges << " comm_size=" << comm_size
+            << " edgelist_intra_partition_segment_offsets.has_value()="
+            << edgelist_intra_partition_segment_offsets.has_value() << std::endl;
+#endif
   if ((static_cast<double>(partition.local_edge_partition_minor_range_size() *
                            2.5 /* tuning parameter */) >=
        static_cast<double>(number_of_edges / comm_size)) &&
       edgelist_intra_partition_segment_offsets) {  // memory footprint dominated by the O(V/sqrt(P))
                                                    // part than the O(E/P) part
+#if 1
+    std::cout << comm_rank << "path A" << std::endl;
+#endif
     vertex_t max_segment_size{0};
     for (int i = 0; i < major_comm_size; ++i) {
       auto minor_range_vertex_partition_id =
@@ -1182,6 +1227,9 @@ renumber_edgelist(
       }
     }
   } else {
+#if 1
+    std::cout << comm_rank << ":path B" << std::endl;
+#endif
     rmm::device_uvector<vertex_t> renumber_map_minor_labels(
       partition.local_edge_partition_minor_range_size(), handle.get_stream());
     std::vector<size_t> recvcounts(major_comm_size);
@@ -1216,6 +1264,10 @@ renumber_edgelist(
     }
   }
 
+#if 1
+  RAFT_CUDA_TRY(cudaDeviceSynchronize());
+  std::cout << comm_rank << ":renumber_edgelist 4" << std::endl;
+#endif
   auto edge_partition_segment_offsets =
     detail::aggregate_segment_offsets(handle, vertex_partition_segment_offsets);
 

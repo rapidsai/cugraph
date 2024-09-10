@@ -372,6 +372,7 @@ void fill_edge_minor_property(raft::handle_t const& handle,
     num_concurrent_bcasts = std::min(num_concurrent_bcasts, handle.get_stream_pool_size());
     num_concurrent_bcasts =
       std::min(std::max(num_concurrent_bcasts, size_t{1}), static_cast<size_t>(major_comm_size));
+    std::cout << comm.get_rank() << ":" << " v_list_size=" << v_list_size << " v_list_range=(" << v_list_range[0] << "," << v_list_range[1] << ") v_list_bitmap.has_value()=" << v_list_bitmap.has_value() << " num_concurrent_bcasts=" << num_concurrent_bcasts << std::endl;
 
     std::optional<std::vector<size_t>> stream_pool_indices{std::nullopt};
     if (num_concurrent_bcasts > 1) {
