@@ -11,6 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import warnings
 import tarfile
 
 import urllib.request
@@ -108,7 +109,11 @@ def load_resultset(resultset_name, resultset_download_url):
         if not compressed_file_path.exists():
             urllib.request.urlretrieve(resultset_download_url, compressed_file_path)
         tar = tarfile.open(str(compressed_file_path), "r:gz")
-        tar.extractall(str(curr_resultset_download_dir))
+        # TODO: pass filter="fully_trusted" once Python 3.12 is the minimum supported Python version
+        #  ref: https://docs.python.org/3/library/tarfile.html#tarfile-extraction-filter
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", category=DeprecationWarning)
+            tar.extractall(str(curr_resultset_download_dir))
         tar.close()
 
     # FIXME: This assumes separator is " ", but should this be configurable?
