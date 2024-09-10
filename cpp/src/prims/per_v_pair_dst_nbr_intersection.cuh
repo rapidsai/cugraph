@@ -39,7 +39,7 @@ namespace cugraph {
  * @param graph_view Non-owning graph object.
  * @param vertex_pair_first Iterator pointing to the first (inclusive) input vertex pair.
  * @param vertex_pair_last Iterator pointing to the last (exclusive) input vertex pair.
- * @param A flag to run expensive checks for input arguments (if set to `true`).
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  * @return std::tuple Tuple of intersection offsets and indices.
  */
 template <typename GraphViewType, typename VertexPairIterator>
