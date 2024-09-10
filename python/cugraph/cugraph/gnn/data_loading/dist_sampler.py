@@ -489,19 +489,24 @@ class DistSampler:
             )
             for t, i in z
         ]
-        current_seeds = torch.concat([a[0] for a, _ in u])
-        current_inv = torch.concat([a[1][i] for a, i in u])
-        current_batches = torch.concat(
-            [
-                torch.full(
-                    (a[0].numel(),),
-                    i + batch_id_start + (call_id * batches_per_call),
-                    device="cuda",
-                    dtype=torch.int32,
-                )
-                for i, (a, _) in enumerate(u)
-            ]
-        )
+        if len(u) > 0:
+            current_seeds = torch.concat([a[0] for a, _ in u])
+            current_inv = torch.concat([a[1][i] for a, i in u])
+            current_batches = torch.concat(
+                [
+                    torch.full(
+                        (a[0].numel(),),
+                        i + batch_id_start + (call_id * batches_per_call),
+                        device="cuda",
+                        dtype=torch.int32,
+                    )
+                    for i, (a, _) in enumerate(u)
+                ]
+            )
+        else:
+            current_seeds = torch.tensor([], device="cuda", dtype=torch.int64)
+            current_inv = torch.tensor([], device="cuda", dtype=torch.int64)
+            current_batches = torch.tensor([], device="cuda", dtype=torch.int32)
         del u
 
         # Join with the leftovers
@@ -520,7 +525,7 @@ class DistSampler:
                 current_batches,
                 torch.full(
                     (leftover_seeds.numel(),),
-                    current_batches[-1] + 1,
+                    (current_batches[-1] + 1) if current_batches.numel() > 0 else 0,
                     device="cuda",
                     dtype=torch.int32,
                 ),
