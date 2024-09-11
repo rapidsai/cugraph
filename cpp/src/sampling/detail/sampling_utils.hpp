@@ -293,7 +293,41 @@ shuffle_and_organize_output(
   std::optional<rmm::device_uvector<edge_type_t>>&& edge_types,
   std::optional<rmm::device_uvector<int32_t>>&& hops,
   std::optional<rmm::device_uvector<label_t>>&& labels,
-  std::optional<std::tuple<raft::device_span<label_t const>, raft::device_span<int32_t const>>>
+  std::optional<raft::device_span<int32_t const>> label_to_output_comm_rank);
+
+/**
+ * @brief   Convert the starting vertex offsets into starting vertex labels
+ *
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param starting_vertex_offsets Offsets array defining where each vertex label begins
+ *
+ * @returns device vector containing labels for each starting vertex
+ */
+rmm::device_uvector<int32_t> convert_starting_vertex_offsets_to_labels(
+  raft::handle_t const& handle, raft::device_span<size_t const> starting_vertex_offsets);
+
+/**
+ * @brief   Flatten the legacy label_to_output_comm_rank into the new structure
+ *
+ * Legacy structure supported arbitrary labels, the new structure is a dense mapping of labels from
+ * [0,n).
+ *
+ * @tparam label_t typename for the label
+ *
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param label_to_output_comm_rank  A tuple containing label ids and the comm rank each label
+ * should be assigned to
+ *
+ * @returns device vector containing the mapping to comm_rank.  Entry `i` will be the comm rank
+ * destination for label `i`.
+ */
+template <typename label_t>
+rmm::device_uvector<int32_t> flatten_label_map(
+  raft::handle_t const& handle,
+  std::tuple<raft::device_span<label_t const>, raft::device_span<int32_t const>>
     label_to_output_comm_rank);
+
 }  // namespace detail
 }  // namespace cugraph
