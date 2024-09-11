@@ -19,7 +19,7 @@ Our current benchmarks provide the following datasets:
 ### Scripts
 
 #### 1. `run-main-benchmarks.sh`
-This script allows users to run the main algorithms across multiple datasets and backends. All results are stored inside a sub-directory (`logs/`) and output files are named based on the combination of parameters for that benchmark.
+This script allows users to run a small set of commonly-used algorithms across multiple datasets and backends. All results are stored inside a sub-directory (`logs/`) and output files are named based on the combination of parameters for that benchmark.
 
 NOTE: If running with all algorithms, datasets on CPU, this script may take a few hours to finish running.
 
