@@ -1043,15 +1043,46 @@ create_graph_from_edgelist_impl(
     }
   }
 
-  // 1. groupby each edge chunks to their target local adjacency matrix partition (and further
+  auto num_chunks = edgelist_srcs.size();
+
+  // 1. check whether we can temporarily store a 64 bit vertex ID in 48 bit.
+
+  bool clip_high_order_zero_bits = false;
+
+  static_assert((sizeof(vertex_t) == 4) || (sizeof(vertex_t) == 8));
+  if constexpr (sizeof(vertex_t) == 8) {        // 64 bit vertex ID
+    static_assert(std::is_signed_v<vertex_t>);  // __clzll takes a signed integer
+    size_t min_clz{sizeof(vertex_t) * 8};
+    for (size_t i = 0; i < num_chunks; ++i) {
+      min_clz = thrust::transform_reduce(handle.get_thrust_policy(),
+                                         edgelist_srcs[i].begin(),
+                                         edgelist_srcs[i].end(),
+                                         cuda::proclaim_return_type<size_t>([] __device__(auto v) {
+                                           return static_cast<size_t>(__clzll(v));
+                                         }),
+                                         min_clz,
+                                         thrust::minimum<size_t>{});
+      min_clz = thrust::transform_reduce(handle.get_thrust_policy(),
+                                         edgelist_dsts[i].begin(),
+                                         edgelist_dsts[i].end(),
+                                         cuda::proclaim_return_type<size_t>([] __device__(auto v) {
+                                           return static_cast<size_t>(__clzll(v));
+                                         }),
+                                         min_clz,
+                                         thrust::minimum<size_t>{});
+    }
+    if (min_clz >= 16) { clip_high_order_zero_bits = true; }
+    std::cout << "min_clz=" << min_clz << std::endl;
+  }
+
+  // 2. groupby each edge chunks to their target local adjacency matrix partition (and further
   // groupby within the local partition by applying the compute_gpu_id_from_vertex_t to minor vertex
   // IDs).
 #if 1
   RAFT_CUDA_TRY(cudaDeviceSynchronize());
-  std::cout << comm_rank << ":create_graph_from_edgelist_impl 1" << std::endl;
+  std::cout << comm_rank << ":create_graph_from_edgelist_impl 1 clip_high_order_zero_bits="
+            << clip_high_order_zero_bits << std::endl;
 #endif
-
-  auto num_chunks = edgelist_srcs.size();
 
   std::vector<std::vector<size_t>> edgelist_edge_offset_vectors(num_chunks);
   std::vector<std::vector<rmm::device_uvector<vertex_t>>> edgelist_partitioned_srcs(num_chunks);
@@ -1178,7 +1209,7 @@ create_graph_from_edgelist_impl(
       (*this_chunk_edge_types).shrink_to_fit(handle.get_stream());
     }
 
-    edgelist_edge_offset_vectors.push_back(std::move(h_this_chunk_edge_offsets));
+    edgelist_edge_offset_vectors[i] = std::move(h_this_chunk_edge_offsets);
   }
   edgelist_srcs.clear();
   edgelist_dsts.clear();
@@ -1186,7 +1217,7 @@ create_graph_from_edgelist_impl(
   if (edgelist_edge_ids) { (*edgelist_edge_ids).clear(); }
   if (edgelist_edge_types) { (*edgelist_edge_types).clear(); }
 
-  // 2. split the grouped edge chunks to local partitions
+  // 3. split the grouped edge chunks to local partitions
 #if 1
   RAFT_CUDA_TRY(cudaDeviceSynchronize());
   std::cout << comm_rank << ":create_graph_from_edgelist_impl 2" << std::endl;
@@ -1225,18 +1256,18 @@ create_graph_from_edgelist_impl(
     for (int j = 0; j < major_comm_size /* # segments in the local minor range */; ++j) {
       edge_t displacement{0};
       for (size_t k = 0; k < num_chunks; ++k) {
-        auto segment_size = (edgelist_edge_offset_vectors[k][i * major_comm_size + j + 1] -
-                             edgelist_edge_offset_vectors[k][i * major_comm_size + j]);
+        auto segment_size = edgelist_edge_offset_vectors[k][i * major_comm_size + j + 1] -
+                            edgelist_edge_offset_vectors[k][i * major_comm_size + j];
         edge_count += segment_size;
         intra_partition_segment_sizes[j] += segment_size;
         intra_segment_copy_output_displacements[j * num_chunks + k] = displacement;
         displacement += segment_size;
       }
     }
-    std::vector<edge_t> intra_partition_segment_offset_vectors(major_comm_size + 1, 0);
+    std::vector<edge_t> intra_partition_segment_offsets(major_comm_size + 1, 0);
     std::inclusive_scan(intra_partition_segment_sizes.begin(),
                         intra_partition_segment_sizes.end(),
-                        intra_partition_segment_offset_vectors.begin() + 1);
+                        intra_partition_segment_offsets.begin() + 1);
 #if 1
     std::cout << comm_rank << ": i=" << i << " edge_count=" << edge_count << std::endl;
 #endif
@@ -1248,13 +1279,14 @@ create_graph_from_edgelist_impl(
     for (int j = 0; j < major_comm_size; ++j) {
       for (size_t k = 0; k < num_chunks; ++k) {
         auto input_first = edgelist_partitioned_srcs[k][i].begin() +
-                           edgelist_edge_offset_vectors[k][i * major_comm_size + j];
-        auto segment_size = (edgelist_edge_offset_vectors[k][i * major_comm_size + j + 1] -
-                             edgelist_edge_offset_vectors[k][i * major_comm_size + j]);
+                           (edgelist_edge_offset_vectors[k][i * major_comm_size + j] -
+                            edgelist_edge_offset_vectors[k][i * major_comm_size]);
+        auto segment_size = edgelist_edge_offset_vectors[k][i * major_comm_size + j + 1] -
+                            edgelist_edge_offset_vectors[k][i * major_comm_size + j];
         thrust::copy(handle.get_thrust_policy(),
                      input_first,
                      input_first + segment_size,
-                     tmp_srcs.begin() + intra_partition_segment_offset_vectors[j] +
+                     tmp_srcs.begin() + intra_partition_segment_offsets[j] +
                        intra_segment_copy_output_displacements[j * num_chunks + k]);
       }
     }
@@ -1271,13 +1303,14 @@ create_graph_from_edgelist_impl(
     for (int j = 0; j < major_comm_size; ++j) {
       for (size_t k = 0; k < num_chunks; ++k) {
         auto input_first = edgelist_partitioned_dsts[k][i].begin() +
-                           edgelist_edge_offset_vectors[k][i * major_comm_size + j];
-        auto segment_size = (edgelist_edge_offset_vectors[k][i * major_comm_size + j + 1] -
-                             edgelist_edge_offset_vectors[k][i * major_comm_size + j]);
+                           (edgelist_edge_offset_vectors[k][i * major_comm_size + j] -
+                            edgelist_edge_offset_vectors[k][i * major_comm_size]);
+        auto segment_size = edgelist_edge_offset_vectors[k][i * major_comm_size + j + 1] -
+                            edgelist_edge_offset_vectors[k][i * major_comm_size + j];
         thrust::copy(handle.get_thrust_policy(),
                      input_first,
                      input_first + segment_size,
-                     tmp_dsts.begin() + intra_partition_segment_offset_vectors[j] +
+                     tmp_dsts.begin() + intra_partition_segment_offsets[j] +
                        intra_segment_copy_output_displacements[j * num_chunks + k]);
       }
     }
@@ -1292,13 +1325,14 @@ create_graph_from_edgelist_impl(
       for (int j = 0; j < major_comm_size; ++j) {
         for (size_t k = 0; k < num_chunks; ++k) {
           auto input_first = (*edgelist_partitioned_weights)[k][i].begin() +
-                             edgelist_edge_offset_vectors[k][i * major_comm_size + j];
-          auto segment_size = (edgelist_edge_offset_vectors[k][i * major_comm_size + j + 1] -
-                               edgelist_edge_offset_vectors[k][i * major_comm_size + j]);
+                             (edgelist_edge_offset_vectors[k][i * major_comm_size + j] -
+                              edgelist_edge_offset_vectors[k][i * major_comm_size]);
+          auto segment_size = edgelist_edge_offset_vectors[k][i * major_comm_size + j + 1] -
+                              edgelist_edge_offset_vectors[k][i * major_comm_size + j];
           thrust::copy(handle.get_thrust_policy(),
                        input_first,
                        input_first + segment_size,
-                       tmp_weights.begin() + intra_partition_segment_offset_vectors[j] +
+                       tmp_weights.begin() + intra_partition_segment_offsets[j] +
                          intra_segment_copy_output_displacements[j * num_chunks + k]);
         }
       }
@@ -1314,13 +1348,14 @@ create_graph_from_edgelist_impl(
       for (int j = 0; j < major_comm_size; ++j) {
         for (size_t k = 0; k < num_chunks; ++k) {
           auto input_first = (*edgelist_partitioned_edge_ids)[k][i].begin() +
-                             edgelist_edge_offset_vectors[k][i * major_comm_size + j];
-          auto segment_size = (edgelist_edge_offset_vectors[k][i * major_comm_size + j + 1] -
-                               edgelist_edge_offset_vectors[k][i * major_comm_size + j]);
+                             (edgelist_edge_offset_vectors[k][i * major_comm_size + j] -
+                              edgelist_edge_offset_vectors[k][i * major_comm_size]);
+          auto segment_size = edgelist_edge_offset_vectors[k][i * major_comm_size + j + 1] -
+                              edgelist_edge_offset_vectors[k][i * major_comm_size + j];
           thrust::copy(handle.get_thrust_policy(),
                        input_first,
                        input_first + segment_size,
-                       tmp_edge_ids.begin() + intra_partition_segment_offset_vectors[j] +
+                       tmp_edge_ids.begin() + intra_partition_segment_offsets[j] +
                          intra_segment_copy_output_displacements[j * num_chunks + k]);
         }
       }
@@ -1336,13 +1371,14 @@ create_graph_from_edgelist_impl(
       for (int j = 0; j < major_comm_size; ++j) {
         for (size_t k = 0; k < num_chunks; ++k) {
           auto input_first = (*edgelist_partitioned_edge_types)[k][i].begin() +
-                             edgelist_edge_offset_vectors[k][i * major_comm_size + j];
-          auto segment_size = (edgelist_edge_offset_vectors[k][i * major_comm_size + j + 1] -
-                               edgelist_edge_offset_vectors[k][i * major_comm_size + j]);
+                             (edgelist_edge_offset_vectors[k][i * major_comm_size + j] -
+                              edgelist_edge_offset_vectors[k][i * major_comm_size]);
+          auto segment_size = edgelist_edge_offset_vectors[k][i * major_comm_size + j + 1] -
+                              edgelist_edge_offset_vectors[k][i * major_comm_size + j];
           thrust::copy(handle.get_thrust_policy(),
                        input_first,
                        input_first + segment_size,
-                       tmp_edge_types.begin() + intra_partition_segment_offset_vectors[j] +
+                       tmp_edge_types.begin() + intra_partition_segment_offsets[j] +
                          intra_segment_copy_output_displacements[j * num_chunks + k]);
         }
       }
@@ -1353,8 +1389,7 @@ create_graph_from_edgelist_impl(
       (*edge_partition_edgelist_edge_types).push_back(std::move(tmp_edge_types));
     }
 
-    edgelist_intra_partition_segment_offset_vectors[i] =
-      std::move(intra_partition_segment_offset_vectors);
+    edgelist_intra_partition_segment_offset_vectors[i] = std::move(intra_partition_segment_offsets);
   }
 #if 1
   RAFT_CUDA_TRY(cudaDeviceSynchronize());
