@@ -495,7 +495,8 @@ void update_edge_minor_property(raft::handle_t const& handle,
       (static_cast<size_t>(graph_view.compute_number_of_edges(handle) / comm_size) *
        sizeof(vertex_t)) /
       std::max(bcast_size, size_t{1});
-    num_concurrent_bcasts = std::min(std::max(num_concurrent_bcasts, size_t{1}), static_cast<size_t>(major_comm_size));
+    num_concurrent_bcasts =
+      std::min(std::max(num_concurrent_bcasts, size_t{1}), static_cast<size_t>(major_comm_size));
     auto num_rounds = (static_cast<size_t>(major_comm_size) + num_concurrent_bcasts - size_t{1}) /
                       num_concurrent_bcasts;
 
@@ -731,26 +732,33 @@ void update_edge_minor_property(raft::handle_t const& handle,
       handle.sync_stream();
     }
 
-    auto v_list_bitmap = compute_vertex_list_bitmap_info(sorted_unique_vertex_first,
-                                                         sorted_unique_vertex_last,
-                                                         v_list_range[0],
-                                                         v_list_range[1],
-                                                         handle.get_stream());
-
-    std::vector<bool> use_bitmap_flags(major_comm_size, false);
-    {
-      auto tmp_flags = host_scalar_allgather(
-        major_comm, v_list_bitmap ? uint8_t{1} : uint8_t{0}, handle.get_stream());
-      std::transform(tmp_flags.begin(), tmp_flags.end(), use_bitmap_flags.begin(), [](auto flag) {
-        return flag == uint8_t{1};
-      });
-    }
-
     auto local_v_list_sizes = host_scalar_allgather(major_comm, v_list_size, handle.get_stream());
     auto local_v_list_range_firsts =
       host_scalar_allgather(major_comm, v_list_range[0], handle.get_stream());
     auto local_v_list_range_lasts =
       host_scalar_allgather(major_comm, v_list_range[1], handle.get_stream());
+
+    std::optional<rmm::device_uvector<uint32_t>> v_list_bitmap{std::nullopt};
+    if (major_comm_size > 1) {
+      double avg_fill_ratio{0.0};
+      for (int i = 0; i < major_comm_size; ++i) {
+        auto num_keys   = static_cast<double>(local_v_list_sizes[i]);
+        auto range_size = local_v_list_range_lasts[i] - local_v_list_range_firsts[i];
+        avg_fill_ratio +=
+          (range_size > 0) ? (num_keys / static_cast<double>(range_size)) : double{0.0};
+      }
+      avg_fill_ratio /= static_cast<double>(major_comm_size);
+
+      constexpr double threshold_ratio =
+        0.0 /* tuning parameter */ / static_cast<double>(sizeof(vertex_t) * 8);
+      if (avg_fill_ratio > threshold_ratio) {
+        v_list_bitmap = compute_vertex_list_bitmap_info(sorted_unique_vertex_first,
+                                                        sorted_unique_vertex_last,
+                                                        local_v_list_range_firsts[major_comm_rank],
+                                                        local_v_list_range_lasts[major_comm_rank],
+                                                        handle.get_stream());
+      }
+    }
 
     std::optional<raft::host_span<vertex_t const>> key_offsets{};
     if constexpr (GraphViewType::is_storage_transposed) {
@@ -814,7 +822,7 @@ void update_edge_minor_property(raft::handle_t const& handle,
       // ncclGroupEnd()
       std::variant<raft::device_span<uint32_t const>, decltype(sorted_unique_vertex_first)>
         v_list{};
-      if (use_bitmap_flags[i]) {
+      if (v_list_bitmap) {
         v_list =
           (i == major_comm_rank)
             ? raft::device_span<uint32_t const>((*v_list_bitmap).data(), (*v_list_bitmap).size())

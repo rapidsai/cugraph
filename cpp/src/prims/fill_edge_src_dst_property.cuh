@@ -342,25 +342,33 @@ void fill_edge_minor_property(raft::handle_t const& handle,
                                   // !edge_partition_keys.has_value() && v_list_bitmap.has_value())
     }
 
-    auto v_list_bitmap = compute_vertex_list_bitmap_info(sorted_unique_vertex_first,
-                                                         sorted_unique_vertex_last,
-                                                         v_list_range[0],
-                                                         v_list_range[1],
-                                                         handle.get_stream());
-
-    std::vector<bool> use_bitmap_flags(major_comm_size, false);
-    {
-      auto tmp_flags = host_scalar_allgather(
-        major_comm, v_list_bitmap ? uint8_t{1} : uint8_t{0}, handle.get_stream());
-      std::transform(tmp_flags.begin(), tmp_flags.end(), use_bitmap_flags.begin(), [](auto flag) {
-        return flag == uint8_t{1};
-      });
-    }
     auto local_v_list_sizes = host_scalar_allgather(major_comm, v_list_size, handle.get_stream());
     auto local_v_list_range_firsts =
       host_scalar_allgather(major_comm, v_list_range[0], handle.get_stream());
     auto local_v_list_range_lasts =
       host_scalar_allgather(major_comm, v_list_range[1], handle.get_stream());
+
+    std::optional<rmm::device_uvector<uint32_t>> v_list_bitmap{std::nullopt};
+    if (major_comm_size > 1) {
+      double avg_fill_ratio{0.0};
+      for (int i = 0; i < major_comm_size; ++i) {
+        auto num_keys   = static_cast<double>(local_v_list_sizes[i]);
+        auto range_size = local_v_list_range_lasts[i] - local_v_list_range_firsts[i];
+        avg_fill_ratio +=
+          (range_size > 0) ? (num_keys / static_cast<double>(range_size)) : double{0.0};
+      }
+      avg_fill_ratio /= static_cast<double>(major_comm_size);
+
+      constexpr double threshold_ratio =
+        0.0 /* tuning parameter */ / static_cast<double>(sizeof(vertex_t) * 8);
+      if (avg_fill_ratio > threshold_ratio) {
+        v_list_bitmap = compute_vertex_list_bitmap_info(sorted_unique_vertex_first,
+                                                        sorted_unique_vertex_last,
+                                                        local_v_list_range_firsts[major_comm_rank],
+                                                        local_v_list_range_lasts[major_comm_rank],
+                                                        handle.get_stream());
+      }
+    }
 
     auto num_concurrent_bcasts =
       (static_cast<size_t>(graph_view.compute_number_of_edges(handle) / comm_size) *
@@ -372,7 +380,10 @@ void fill_edge_minor_property(raft::handle_t const& handle,
     num_concurrent_bcasts = std::min(num_concurrent_bcasts, handle.get_stream_pool_size());
     num_concurrent_bcasts =
       std::min(std::max(num_concurrent_bcasts, size_t{1}), static_cast<size_t>(major_comm_size));
-    std::cout << comm.get_rank() << ":" << " v_list_size=" << v_list_size << " v_list_range=(" << v_list_range[0] << "," << v_list_range[1] << ") v_list_bitmap.has_value()=" << v_list_bitmap.has_value() << " num_concurrent_bcasts=" << num_concurrent_bcasts << std::endl;
+    std::cout << comm.get_rank() << ":"
+              << " v_list_size=" << v_list_size << " v_list_range=(" << v_list_range[0] << ","
+              << v_list_range[1] << ") v_list_bitmap.has_value()=" << v_list_bitmap.has_value()
+              << " num_concurrent_bcasts=" << num_concurrent_bcasts << std::endl;
 
     std::optional<std::vector<size_t>> stream_pool_indices{std::nullopt};
     if (num_concurrent_bcasts > 1) {
@@ -393,18 +404,21 @@ void fill_edge_minor_property(raft::handle_t const& handle,
       auto loop_count = std::min(num_concurrent_bcasts, static_cast<size_t>(major_comm_size) - i);
       for (size_t j = 0; j < loop_count; ++j) {
         auto partition_idx = i + j;
-        auto loop_stream = stream_pool_indices ? handle.get_stream_from_stream_pool((*stream_pool_indices)[j]) : handle.get_stream();
+        auto loop_stream   = stream_pool_indices
+                               ? handle.get_stream_from_stream_pool((*stream_pool_indices)[j])
+                               : handle.get_stream();
 
         if (is_packed_bool<typename EdgeMinorPropertyOutputWrapper::value_iterator,
                            typename EdgeMinorPropertyOutputWrapper::value_type>() &&
-            !edge_partition_keys && use_bitmap_flags[partition_idx]) {
+            !edge_partition_keys && v_list_bitmap) {
           rmm::device_uvector<uint32_t> rx_bitmap(
             packed_bool_size(local_v_list_range_lasts[partition_idx] -
                              local_v_list_range_firsts[partition_idx]),
             loop_stream);
           device_bcast(major_comm,
-                       (static_cast<int>(partition_idx) == major_comm_rank) ? (*v_list_bitmap).data()
-                                              : static_cast<uint32_t const*>(nullptr),
+                       (static_cast<int>(partition_idx) == major_comm_rank)
+                         ? (*v_list_bitmap).data()
+                         : static_cast<uint32_t const*>(nullptr),
                        rx_bitmap.data(),
                        rx_bitmap.size(),
                        partition_idx,
@@ -436,17 +450,17 @@ void fill_edge_minor_property(raft::handle_t const& handle,
               }
             });
         } else {
-          rmm::device_uvector<vertex_t> rx_vertices(local_v_list_sizes[partition_idx],
-                                                    loop_stream);
+          rmm::device_uvector<vertex_t> rx_vertices(local_v_list_sizes[partition_idx], loop_stream);
           // FIXME: these broadcast operations can be placed between ncclGroupStart() and
           // ncclGroupEnd()
           std::variant<raft::device_span<uint32_t const>, decltype(sorted_unique_vertex_first)>
             v_list{};
-          if (use_bitmap_flags[partition_idx]) {
-            v_list = (static_cast<int>(partition_idx) == major_comm_rank) ? raft::device_span<uint32_t const>(
-                                                (*v_list_bitmap).data(), (*v_list_bitmap).size())
-                                            : raft::device_span<uint32_t const>(
-                                                static_cast<uint32_t const*>(nullptr), size_t{0});
+          if (v_list_bitmap) {
+            v_list = (static_cast<int>(partition_idx) == major_comm_rank)
+                       ? raft::device_span<uint32_t const>((*v_list_bitmap).data(),
+                                                           (*v_list_bitmap).size())
+                       : raft::device_span<uint32_t const>(static_cast<uint32_t const*>(nullptr),
+                                                           size_t{0});
           } else {
             v_list = sorted_unique_vertex_first;
           }

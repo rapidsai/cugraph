@@ -1647,43 +1647,8 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
     }
   }
 
-  // 5. compute optional bitmap info
-
-  std::
-    conditional_t<try_bitmap, std::optional<rmm::device_uvector<uint32_t>>, std::byte /* dummy */>
-      key_list_bitmap{};
-  std::conditional_t<try_bitmap, std::array<vertex_t, 2>, std::byte /* dummy */> v_list_range{};
-  if constexpr (try_bitmap) {
-    auto& minor_comm           = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
-    auto const minor_comm_size = minor_comm.get_size();
-
-    v_list_range = {vertex_t{0}, vertex_t{0}};
-
-    if (minor_comm_size > 1) {
-      auto v_list_size =
-        static_cast<size_t>(thrust::distance(sorted_unique_key_first, sorted_unique_nzd_key_last));
-      if (v_list_size > 0) {
-        rmm::device_uvector<vertex_t> tmps(2, handle.get_stream());
-        thrust::tabulate(handle.get_thrust_policy(),
-                         tmps.begin(),
-                         tmps.end(),
-                         [sorted_unique_key_first, v_list_size] __device__(size_t i) {
-                           return (i == 0) ? *sorted_unique_key_first
-                                           : (*(sorted_unique_key_first + (v_list_size - 1)) + 1);
-                         });
-        raft::update_host(v_list_range.data(), tmps.data(), 2, handle.get_stream());
-        handle.sync_stream();
-      }
-
-      key_list_bitmap = compute_vertex_list_bitmap_info(sorted_unique_key_first,
-                                                        sorted_unique_nzd_key_last,
-                                                        v_list_range[0],
-                                                        v_list_range[1],
-                                                        handle.get_stream());
-    }
-  }
-
-  // 6. collect local_key_list_sizes & use_bitmap_flags & key_segment_offsets
+  // 5. collect local_key_list_sizes & local_key_list_range_firsts & local_key_list_range_lasts &
+  // key_segment_offsets
 
   std::conditional_t<use_input_key, std::vector<size_t>, std::byte /* dummy */>
     local_key_list_sizes{};
@@ -1691,7 +1656,6 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
     local_key_list_range_firsts{};
   std::conditional_t<try_bitmap, std::vector<vertex_t>, std::byte /* dummy */>
     local_key_list_range_lasts{};
-  std::conditional_t<try_bitmap, std::vector<bool>, std::byte /* dummy */> use_bitmap_flags{};
   std::conditional_t<use_input_key,
                      std::optional<std::vector<std::vector<size_t>>>,
                      std::byte /* dummy */>
@@ -1705,16 +1669,25 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
         static_cast<size_t>(thrust::distance(sorted_unique_key_first, sorted_unique_nzd_key_last)),
         handle.get_stream());
       if constexpr (try_bitmap) {
+        std::array<vertex_t, 2> v_list_range = {vertex_t{0}, vertex_t{0}};
+        auto v_list_size                     = static_cast<size_t>(
+          thrust::distance(sorted_unique_key_first, sorted_unique_nzd_key_last));
+        if (v_list_size > 0) {
+          rmm::device_uvector<vertex_t> tmps(2, handle.get_stream());
+          thrust::tabulate(handle.get_thrust_policy(),
+                           tmps.begin(),
+                           tmps.end(),
+                           [sorted_unique_key_first, v_list_size] __device__(size_t i) {
+                             return (i == 0) ? *sorted_unique_key_first
+                                             : (*(sorted_unique_key_first + (v_list_size - 1)) + 1);
+                           });
+          raft::update_host(v_list_range.data(), tmps.data(), 2, handle.get_stream());
+          handle.sync_stream();
+        }
         local_key_list_range_firsts =
           host_scalar_allgather(minor_comm, v_list_range[0], handle.get_stream());
         local_key_list_range_lasts =
           host_scalar_allgather(minor_comm, v_list_range[1], handle.get_stream());
-        auto tmp_flags = host_scalar_allgather(
-          minor_comm, key_list_bitmap ? uint8_t{1} : uint8_t{0}, handle.get_stream());
-        use_bitmap_flags.resize(tmp_flags.size());
-        std::transform(tmp_flags.begin(), tmp_flags.end(), use_bitmap_flags.begin(), [](auto flag) {
-          return flag == uint8_t{1};
-        });
       }
       if (key_segment_offsets) {
         rmm::device_uvector<size_t> d_key_segment_offsets((*key_segment_offsets).size(),
@@ -1754,6 +1727,38 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
       if (key_segment_offsets) {
         key_segment_offset_vectors       = std::vector<std::vector<size_t>>(1);
         (*key_segment_offset_vectors)[0] = *key_segment_offsets;
+      }
+    }
+  }
+
+  // 6. compute optional bitmap info
+
+  std::
+    conditional_t<try_bitmap, std::optional<rmm::device_uvector<uint32_t>>, std::byte /* dummy */>
+      key_list_bitmap{};
+  if constexpr (try_bitmap) {
+    auto& minor_comm           = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
+    auto const minor_comm_size = minor_comm.get_size();
+    if (minor_comm_size > 1) {
+      auto const minor_comm_rank = minor_comm.get_rank();
+      double avg_fill_ratio{0.0};
+      for (int i = 0; i < minor_comm_size; ++i) {
+        auto num_keys   = static_cast<double>(local_key_list_sizes[i]);
+        auto range_size = local_key_list_range_lasts[i] - local_key_list_range_firsts[i];
+        avg_fill_ratio +=
+          (range_size > 0) ? (num_keys / static_cast<double>(range_size)) : double{0.0};
+      }
+      avg_fill_ratio /= static_cast<double>(minor_comm_size);
+
+      constexpr double threshold_ratio =
+        8.0 /* tuning parameter */ / static_cast<double>(sizeof(vertex_t) * 8);
+      if (avg_fill_ratio > threshold_ratio) {
+        key_list_bitmap =
+          compute_vertex_list_bitmap_info(sorted_unique_key_first,
+                                          sorted_unique_nzd_key_last,
+                                          local_key_list_range_firsts[minor_comm_rank],
+                                          local_key_list_range_lasts[minor_comm_rank],
+                                          handle.get_stream());
       }
     }
   }
@@ -1881,7 +1886,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
           if constexpr (try_bitmap) {
             std::variant<raft::device_span<uint32_t const>, decltype(sorted_unique_key_first)>
               v_list{};
-            if (use_bitmap_flags[partition_idx]) {
+            if (key_list_bitmap) {
               v_list = (static_cast<int>(partition_idx) == minor_comm_rank)
                          ? raft::device_span<uint32_t const>((*key_list_bitmap).data(),
                                                              (*key_list_bitmap).size())

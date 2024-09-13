@@ -616,31 +616,7 @@ extract_transform_v_frontier_e(raft::handle_t const& handle,
     }
   }
 
-  // update frontier bitmap (used to reduce broadcast bandwidth size)
-
-  std::
-    conditional_t<try_bitmap, std::optional<rmm::device_uvector<uint32_t>>, std::byte /* dummy */>
-      frontier_bitmap{};
-  if constexpr (try_bitmap) {
-    auto& minor_comm           = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
-    auto const minor_comm_size = minor_comm.get_size();
-    if (minor_comm_size > 1) {
-      auto const minor_comm_rank = minor_comm.get_rank();
-      auto segment_offsets =
-        graph_view.local_edge_partition_segment_offsets(static_cast<size_t>(minor_comm_rank));
-      size_t bool_size = segment_offsets ? *((*segment_offsets).rbegin() + 1)
-                                         : graph_view.local_vertex_partition_range_size();
-
-      frontier_bitmap =
-        compute_vertex_list_bitmap_info(frontier_key_first,
-                                        frontier_key_last,
-                                        graph_view.local_vertex_partition_range_first(),
-                                        graph_view.local_vertex_partition_range_first() + bool_size,
-                                        handle.get_stream());
-    }
-  }
-
-  // compute local max_pushes
+  // 2. compute local max_pushes
 
   size_t local_max_pushes{};
   {
@@ -663,10 +639,13 @@ extract_transform_v_frontier_e(raft::handle_t const& handle,
       frontier_major_first, frontier_major_last, handle.get_stream());
   }
 
-  // communication over minor_comm
+  // 3. communication over minor_comm
 
   std::vector<size_t> local_frontier_sizes{};
-  std::conditional_t<try_bitmap, std::vector<bool>, std::byte /* dummy */> use_bitmap_flags{};
+  std::conditional_t<try_bitmap, std::vector<vertex_t>, std::byte /* dummy */>
+    local_frontier_range_firsts{};
+  std::conditional_t<try_bitmap, std::vector<vertex_t>, std::byte /* dummy */>
+    local_frontier_range_lasts{};
   std::optional<std::vector<std::vector<size_t>>> key_segment_offset_vectors{std::nullopt};
   if constexpr (GraphViewType::is_multi_gpu) {
     auto& minor_comm           = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
@@ -676,12 +655,25 @@ extract_transform_v_frontier_e(raft::handle_t const& handle,
       static_cast<size_t>(thrust::distance(frontier_key_first, frontier_key_last)),
       handle.get_stream());
     if constexpr (try_bitmap) {
-      auto tmp_flags = host_scalar_allgather(
-        minor_comm, frontier_bitmap ? uint8_t{1} : uint8_t{0}, handle.get_stream());
-      use_bitmap_flags.resize(tmp_flags.size());
-      std::transform(tmp_flags.begin(), tmp_flags.end(), use_bitmap_flags.begin(), [](auto flag) {
-        return flag == uint8_t{1};
-      });
+      std::array<vertex_t, 2> v_list_range = {vertex_t{0}, vertex_t{0}};
+      auto v_list_size =
+        static_cast<size_t>(thrust::distance(frontier_key_first, frontier_key_last));
+      if (v_list_size > 0) {
+        rmm::device_uvector<vertex_t> tmps(2, handle.get_stream());
+        thrust::tabulate(handle.get_thrust_policy(),
+                         tmps.begin(),
+                         tmps.end(),
+                         [frontier_key_first, v_list_size] __device__(size_t i) {
+                           return (i == 0) ? *frontier_key_first
+                                           : (*(frontier_key_first + (v_list_size - 1)) + 1);
+                         });
+        raft::update_host(v_list_range.data(), tmps.data(), 2, handle.get_stream());
+        handle.sync_stream();
+      }
+      local_frontier_range_firsts =
+        host_scalar_allgather(minor_comm, v_list_range[0], handle.get_stream());
+      local_frontier_range_lasts =
+        host_scalar_allgather(minor_comm, v_list_range[1], handle.get_stream());
     }
     if (key_segment_offsets) {
       rmm::device_uvector<size_t> d_key_segment_offsets((*key_segment_offsets).size(),
@@ -720,6 +712,38 @@ extract_transform_v_frontier_e(raft::handle_t const& handle,
     if (key_segment_offsets) {
       key_segment_offset_vectors       = std::vector<std::vector<size_t>>(1);
       (*key_segment_offset_vectors)[0] = *key_segment_offsets;
+    }
+  }
+
+  // update frontier bitmap (used to reduce broadcast bandwidth size)
+
+  std::
+    conditional_t<try_bitmap, std::optional<rmm::device_uvector<uint32_t>>, std::byte /* dummy */>
+      frontier_bitmap{};
+  if constexpr (try_bitmap) {
+    auto& minor_comm           = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
+    auto const minor_comm_size = minor_comm.get_size();
+    if (minor_comm_size > 1) {
+      auto const minor_comm_rank = minor_comm.get_rank();
+      double avg_fill_ratio{0.0};
+      for (int i = 0; i < minor_comm_size; ++i) {
+        auto num_keys   = static_cast<double>(local_frontier_sizes[i]);
+        auto range_size = local_frontier_range_lasts[i] - local_frontier_range_firsts[i];
+        avg_fill_ratio +=
+          (range_size > 0) ? (num_keys / static_cast<double>(range_size)) : double{0.0};
+      }
+      avg_fill_ratio /= static_cast<double>(minor_comm_size);
+
+      constexpr double threshold_ratio =
+        8.0 /* tuning parameter */ / static_cast<double>(sizeof(vertex_t) * 8);
+      if (avg_fill_ratio > threshold_ratio) {
+        frontier_bitmap =
+          compute_vertex_list_bitmap_info(frontier_key_first,
+                                          frontier_key_last,
+                                          local_frontier_range_firsts[minor_comm_rank],
+                                          local_frontier_range_lasts[minor_comm_rank],
+                                          handle.get_stream());
+      }
     }
   }
 
@@ -836,11 +860,10 @@ extract_transform_v_frontier_e(raft::handle_t const& handle,
           auto edge_partition =
             edge_partition_device_view_t<vertex_t, edge_t, GraphViewType::is_multi_gpu>(
               graph_view.local_edge_partition_view(partition_idx));
-          auto segment_offsets = graph_view.local_edge_partition_segment_offsets(partition_idx);
 
           if constexpr (try_bitmap) {
             std::variant<raft::device_span<uint32_t const>, decltype(frontier_key_first)> v_list{};
-            if (use_bitmap_flags[partition_idx]) {
+            if (frontier_bitmap) {
               v_list = (static_cast<int>(partition_idx) == minor_comm_rank)
                          ? raft::device_span<uint32_t const>((*frontier_bitmap).data(),
                                                              (*frontier_bitmap).size())
@@ -849,13 +872,11 @@ extract_transform_v_frontier_e(raft::handle_t const& handle,
             } else {
               v_list = frontier_key_first;
             }
-            auto bool_size = segment_offsets ? *((*segment_offsets).rbegin() + 1)
-                                             : edge_partition.major_range_size();
             device_bcast_vertex_list(minor_comm,
                                      v_list,
                                      get_dataframe_buffer_begin(edge_partition_key_buffer),
-                                     edge_partition.major_range_first(),
-                                     edge_partition.major_range_first() + bool_size,
+                                     local_frontier_range_firsts[partition_idx],
+                                     local_frontier_range_lasts[partition_idx],
                                      local_frontier_sizes[partition_idx],
                                      static_cast<int>(partition_idx),
                                      loop_stream);
@@ -1131,20 +1152,21 @@ extract_transform_v_frontier_e(raft::handle_t const& handle,
                            ? handle.get_stream_from_stream_pool((*stream_pool_indices)[j])
                            : handle.get_stream();
 
-      auto tmp_buffer_size   = tmp_buffer_sizes[j];
+      auto tmp_buffer_size = tmp_buffer_sizes[j];
       if (tmp_buffer_size > 0) {
-      auto& tmp_key_buffer   = output_key_buffers[j];
-      auto& tmp_value_buffer = output_value_buffers[j];
+        auto& tmp_key_buffer   = output_key_buffers[j];
+        auto& tmp_value_buffer = output_value_buffers[j];
 
-      resize_optional_dataframe_buffer<output_key_t>(tmp_key_buffer, tmp_buffer_size, loop_stream);
-      shrink_to_fit_optional_dataframe_buffer<output_key_t>(tmp_key_buffer, loop_stream);
+        resize_optional_dataframe_buffer<output_key_t>(
+          tmp_key_buffer, tmp_buffer_size, loop_stream);
+        shrink_to_fit_optional_dataframe_buffer<output_key_t>(tmp_key_buffer, loop_stream);
 
-      resize_optional_dataframe_buffer<output_value_t>(
-        tmp_value_buffer, tmp_buffer_size, loop_stream);
-      shrink_to_fit_optional_dataframe_buffer<output_value_t>(tmp_value_buffer, loop_stream);
+        resize_optional_dataframe_buffer<output_value_t>(
+          tmp_value_buffer, tmp_buffer_size, loop_stream);
+        shrink_to_fit_optional_dataframe_buffer<output_value_t>(tmp_value_buffer, loop_stream);
 
-      key_buffers.push_back(std::move(tmp_key_buffer));
-      value_buffers.push_back(std::move(tmp_value_buffer));
+        key_buffers.push_back(std::move(tmp_key_buffer));
+        value_buffers.push_back(std::move(tmp_value_buffer));
       }
     }
 #if EXTRACT_PERFORMANCE_MEASUREMENT  // FIXME: delete
@@ -1180,8 +1202,7 @@ extract_transform_v_frontier_e(raft::handle_t const& handle,
   auto value_buffer = allocate_optional_dataframe_buffer<output_value_t>(0, handle.get_stream());
   if (key_buffers.size() == 0) {
     /* nothing to do */
-  }
-  else if (key_buffers.size() == 1) {
+  } else if (key_buffers.size() == 1) {
     key_buffer   = std::move(key_buffers[0]);
     value_buffer = std::move(value_buffers[0]);
   } else {
