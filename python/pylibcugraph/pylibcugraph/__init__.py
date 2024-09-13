@@ -39,7 +39,10 @@ from pylibcugraph.bfs import bfs
 
 from pylibcugraph.uniform_neighbor_sample import uniform_neighbor_sample
 
-from pylibcugraph.uniform_neighbor_sample import neighbor_sample
+
+#FIXME: break down the API into homogeneous and heterogeneous neighbor sample
+#from pylibcugraph.uniform_neighbor_sample import neighbor_sample
+#from pylibcugraph.biased_neighbor_sample import biased_neighbor_sample
 
 from pylibcugraph.core_number import core_number
 

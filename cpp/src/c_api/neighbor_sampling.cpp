@@ -415,9 +415,20 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
           offsets.reset();
         
         } else { // heterogeneous
+          //graph_view.local_vertex_partition_range_size()
+
+          rmm::device_uvector<vertex_t> vertex_type_offsets(graph_view.local_vertex_partition_range_size(), handle_.get_stream());
+
+          cugraph::detail::sequence_fill(handle_.get_stream(),
+                                vertex_type_offsets.begin(),
+                                vertex_type_offsets.size(),
+                                vertex_t{0});
+
+          //std::get<0>(*heterogeneous_fan_out_).back() - 1
 
           rmm::device_uvector<vertex_t> output_majors(0, handle_.get_stream());
             rmm::device_uvector<vertex_t> output_renumber_map(0, handle_.get_stream());
+            /*
             std::tie(output_majors,
                     minors,
                     wgt,
@@ -426,7 +437,20 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
                     label_hop_offsets,
                     output_renumber_map,
                     renumber_map_offsets) =
-              cugraph::renumber_and_sort_sampled_edgelist<vertex_t>(
+            */
+            /*
+            std::tie(output_majors,
+               minors,
+               wgt,
+               edge_id,
+               edge_type,
+               renumbered_and_sorted_vertex_renumber_map,
+               renumbered_and_sorted_vertex_renumber_map_label_type_offsets,
+               renumbered_and_sorted_edge_id_renumber_map,
+               renumbered_and_sorted_edge_id_renumber_map_label_type_offsets) =
+            */
+            auto x =
+              cugraph::heterogeneous_renumber_and_sort_sampled_edgelist<vertex_t>(
                 handle_,
                 std::move(src),
                 std::move(dst),
@@ -444,8 +468,13 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
                 offsets ? std::make_optional(
                             raft::device_span<size_t const>{offsets->data(), offsets->size()})
                         : std::nullopt,
+                raft::device_span<vertex_t const>{
+                      vertex_type_offsets.data(), vertex_type_offsets.size()},
+                
                 edge_label ? edge_label->size() : size_t{1},
                 hop ? fan_out_->size_ : size_t{1},
+                size_t{1},
+                size_t{1},
                 src_is_major,
                 do_expensive_check_);
 

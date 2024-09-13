@@ -47,6 +47,7 @@ dependencies:
 - numba>=0.57
 - numpy>=1.23,<2.0a0
 - numpydoc
+- ogb
 - openmpi
 - packaging>=21
 - pandas
@@ -69,7 +70,7 @@ dependencies:
 - recommonmark
 - requests
 - rmm==24.10.*,>=0.0.0a0
-- scikit-build-core>=0.7.0
+- scikit-build-core>=0.10.0
 - scikit-learn>=0.23.1
 - scipy
 - setuptools>=61.0.0
@@ -79,6 +80,7 @@ dependencies:
 - sphinxcontrib-websupport
 - thriftpy2!=0.5.0,!=0.5.1
 - torchdata
+- torchmetrics
 - ucx-proc=*=gpu
 - ucx-py==0.40.*,>=0.0.0a0
 - wget

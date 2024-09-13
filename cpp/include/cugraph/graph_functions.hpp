@@ -989,63 +989,6 @@ rmm::device_uvector<vertex_t> select_random_vertices(
   bool do_expensive_check = false);
 
 /**
- * @brief renumber sampling output
- *
- * @deprecated This API will be deprecated and will be replaced by the
- * renumber_and_compress_sampled_edgelist and renumber_and_sort_sampled_edgelist functions in
- * sampling_functions.hpp.
- *
- * This function renumbers sampling function (e.g. uniform_neighbor_sample) outputs satisfying the
- * following requirements.
- *
- * 1. If @p edgelist_hops is valid, we can consider (vertex ID, flag=src, hop) triplets for each
- * vertex ID in @p edgelist_srcs and (vertex ID, flag=dst, hop) triplets for each vertex ID in @p
- * edgelist_dsts. From these triplets, we can find the minimum (hop, flag) pairs for every unique
- * vertex ID (hop is the primary key and flag is the secondary key, flag=src is considered smaller
- * than flag=dst if hop numbers are same). Vertex IDs with smaller (hop, flag) pairs precede vertex
- * IDs with larger (hop, flag) pairs in renumbering. Ordering can be arbitrary among the vertices
- * with the same (hop, flag) pairs.
- * 2. If @p edgelist_hops is invalid, unique vertex IDs in @p edgelist_srcs precede vertex IDs that
- * appear only in @p edgelist_dsts.
- * 3. If label_offsets.has_value() is ture, edge lists for different labels will be renumbered
- * separately.
- *
- * This function is single-GPU only (we are not aware of any practical multi-GPU use cases).
- *
- * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
- * @tparam label_t Type of labels. Needs to be an integral type.
- * @param  handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
- * handles to various CUDA libraries) to run graph algorithms.
- * @param edgelist_srcs A vector storing original edgelist source vertices.
- * @param edgelist_dsts A vector storing original edgelist destination vertices (size = @p
- * edgelist_srcs.size()).
- * @param edgelist_hops An optional pointer to the array storing hops for each edge list (source,
- * destination) pairs (size = @p edgelist_srcs.size() if valid).
- * @param label_offsets An optional tuple of unique labels and the input edge list (@p
- * edgelist_srcs, @p edgelist_hops, and @p edgelist_dsts) offsets for the labels (siez = # unique
- * labels + 1).
- * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
- * @return Tuple of vectors storing renumbered edge sources (size = @p edgelist_srcs.size()) ,
- * renumbered edge destinations (size = @p edgelist_dsts.size()), renumber_map to query original
- * verties (size = # unique vertices or aggregate # unique vertices for every label), and
- * renumber_map offsets (size = std::get<0>(*label_offsets).size() + 1, valid only if @p
- * label_offsets.has_value() is true).
- */
-template <typename vertex_t, typename label_t>
-std::tuple<rmm::device_uvector<vertex_t>,
-           rmm::device_uvector<vertex_t>,
-           rmm::device_uvector<vertex_t>,
-           std::optional<rmm::device_uvector<size_t>>>
-renumber_sampled_edgelist(
-  raft::handle_t const& handle,
-  rmm::device_uvector<vertex_t>&& edgelist_srcs,
-  rmm::device_uvector<vertex_t>&& edgelist_dsts,
-  std::optional<raft::device_span<int32_t const>> edgelist_hops,
-  std::optional<std::tuple<raft::device_span<label_t const>, raft::device_span<size_t const>>>
-    label_offsets,
-  bool do_expensive_check = false);
-
-/**
  * @brief Remove self loops from an edge list
  *
  * @tparam vertex_t    Type of vertex identifiers. Needs to be an integral type.
@@ -1178,7 +1121,8 @@ std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<weight_t>>,
            std::optional<rmm::device_uvector<edge_t>>,
-           std::optional<rmm::device_uvector<edge_type_t>>>
+           std::optional<rmm::device_uvector<edge_type_t>>,
+           std::vector<size_t>>
 shuffle_external_edges(raft::handle_t const& handle,
                        rmm::device_uvector<vertex_t>&& edge_srcs,
                        rmm::device_uvector<vertex_t>&& edge_dsts,

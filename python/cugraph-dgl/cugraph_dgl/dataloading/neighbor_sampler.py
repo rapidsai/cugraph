@@ -194,7 +194,7 @@ class NeighborSampler(Sampler):
 
         if g.is_homogeneous:
             indices = torch.concat(list(indices))
-            ds.sample_from_nodes(indices, batch_size=batch_size)
+            ds.sample_from_nodes(indices.long(), batch_size=batch_size)
             return HomogeneousSampleReader(
                 ds.get_reader(), self.output_format, self.edge_dir
             )
