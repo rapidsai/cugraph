@@ -247,7 +247,7 @@ biased_neighbor_sample(
   bool do_expensive_check                         = false);
 
 /**
- * @brief Homogeneous Neighborhood Sampling.
+ * @brief Heterogeneous Neighborhood Sampling.
  *
  * This function traverses from a set of starting vertices, traversing outgoing edges and
  * randomly selects (with edge biases or not) from these outgoing neighbors to extract a subgraph.
