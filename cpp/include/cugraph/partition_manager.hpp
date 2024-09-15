@@ -42,7 +42,7 @@ class partition_manager {
   // partitioning along the major axis (major sub-communicator is responsible for this) and along
   // the minor axis (minor sub-communicator is responsible for this). This variable controls whether
   // to map the major sub-communicator to the GPU row communicator or the GPU column communicator.
-  static constexpr bool map_major_comm_to_gpu_row_comm = false;  // FIXME: this is for benchmarking, reset to true before merging
+  static constexpr bool map_major_comm_to_gpu_row_comm = true;
 
 #ifdef __CUDACC__
   __host__ __device__
