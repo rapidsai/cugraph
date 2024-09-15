@@ -16,7 +16,7 @@
 #pragma once
 
 #include "prims/reduce_op.cuh"
-#include "prims/transform_reduce_v_frontier_outgoing_e_by_src_dst.cuh"
+#include "prims/transform_reduce_v_frontier_outgoing_e_by_dst.cuh"
 #include "prims/vertex_frontier.cuh"
 
 #include <cugraph/algorithms.hpp>
@@ -147,15 +147,15 @@ k_hop_nbrs(raft::handle_t const& handle,
   rmm::device_uvector<vertex_t> nbrs(0, handle.get_stream());
   for (size_t iter = 0; iter < k; ++iter) {
     auto new_frontier_key_buffer =
-      transform_reduce_v_frontier_outgoing_e_by_dst(handle,
-                                                    push_graph_view,
-                                                    frontier.bucket(bucket_idx_cur),
-                                                    edge_src_dummy_property_t{}.view(),
-                                                    edge_dst_dummy_property_t{}.view(),
-                                                    edge_dummy_property_t{}.view(),
-                                                    e_op_t<vertex_t>{},
-                                                    reduce_op::null{},
-                                                    do_expensive_check);
+      cugraph::transform_reduce_v_frontier_outgoing_e_by_dst(handle,
+                                                             push_graph_view,
+                                                             frontier.bucket(bucket_idx_cur),
+                                                             edge_src_dummy_property_t{}.view(),
+                                                             edge_dst_dummy_property_t{}.view(),
+                                                             edge_dummy_property_t{}.view(),
+                                                             e_op_t<vertex_t>{},
+                                                             reduce_op::null{},
+                                                             do_expensive_check);
     if (iter < (k - 1)) {
       frontier.bucket(bucket_idx_cur).clear();
       frontier.bucket(bucket_idx_cur)

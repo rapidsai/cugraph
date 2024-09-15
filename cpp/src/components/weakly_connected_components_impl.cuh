@@ -16,7 +16,7 @@
 #pragma once
 
 #include "prims/fill_edge_src_dst_property.cuh"
-#include "prims/transform_reduce_v_frontier_outgoing_e_by_src_dst.cuh"
+#include "prims/transform_reduce_v_frontier_outgoing_e_by_dst.cuh"
 #include "prims/update_edge_src_dst_property.cuh"
 #include "prims/update_v_frontier.cuh"
 #include "prims/vertex_frontier.cuh"
@@ -550,24 +550,25 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
       auto old_num_edge_inserts = num_edge_inserts.value(handle.get_stream());
       resize_dataframe_buffer(edge_buffer, old_num_edge_inserts + max_pushes, handle.get_stream());
 
-      auto new_frontier_tagged_vertex_buffer = transform_reduce_v_frontier_outgoing_e_by_dst(
-        handle,
-        level_graph_view,
-        vertex_frontier.bucket(bucket_idx_cur),
-        edge_src_dummy_property_t{}.view(),
-        edge_dst_dummy_property_t{}.view(),
-        edge_dummy_property_t{}.view(),
-        e_op_t<vertex_t, decltype(get_dataframe_buffer_begin(edge_buffer))>{
-          GraphViewType::is_multi_gpu
-            ? detail::edge_partition_endpoint_property_device_view_t<vertex_t, vertex_t*>(
-                edge_dst_components.mutable_view())
-            : detail::edge_partition_endpoint_property_device_view_t<vertex_t, vertex_t*>(
-                detail::edge_minor_property_view_t<vertex_t, vertex_t*>(level_components,
-                                                                        vertex_t{0})),
-          level_graph_view.local_edge_partition_dst_range_first(),
-          get_dataframe_buffer_begin(edge_buffer),
-          num_edge_inserts.data()},
-        reduce_op::null());
+      auto new_frontier_tagged_vertex_buffer =
+        cugraph::transform_reduce_v_frontier_outgoing_e_by_dst(
+          handle,
+          level_graph_view,
+          vertex_frontier.bucket(bucket_idx_cur),
+          edge_src_dummy_property_t{}.view(),
+          edge_dst_dummy_property_t{}.view(),
+          edge_dummy_property_t{}.view(),
+          e_op_t<vertex_t, decltype(get_dataframe_buffer_begin(edge_buffer))>{
+            GraphViewType::is_multi_gpu
+              ? detail::edge_partition_endpoint_property_device_view_t<vertex_t, vertex_t*>(
+                  edge_dst_components.mutable_view())
+              : detail::edge_partition_endpoint_property_device_view_t<vertex_t, vertex_t*>(
+                  detail::edge_minor_property_view_t<vertex_t, vertex_t*>(level_components,
+                                                                          vertex_t{0})),
+            level_graph_view.local_edge_partition_dst_range_first(),
+            get_dataframe_buffer_begin(edge_buffer),
+            num_edge_inserts.data()},
+          reduce_op::null());
 
       update_v_frontier(handle,
                         level_graph_view,

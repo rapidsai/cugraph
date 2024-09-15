@@ -1114,7 +1114,8 @@ shuffle_external_vertex_value_pairs(raft::handle_t const& handle,
  * @param edge_ids  Optional list of edge ids
  * @param edge_types Optional list of edge types
  * @return Tuple of vectors storing edge sources, destinations, optional weights,
- *          optional edge ids, optional edge types mapped to this GPU.
+ *          optional edge ids, optional edge types mapped to this GPU and a vector storing the
+ *          number of edges received from each GPU.
  */
 template <typename vertex_t, typename edge_t, typename weight_t, typename edge_type_t>
 std::tuple<rmm::device_uvector<vertex_t>,

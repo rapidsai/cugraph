@@ -16,7 +16,7 @@
 #pragma once
 
 #include "prims/reduce_v.cuh"
-#include "prims/transform_reduce_v_frontier_outgoing_e_by_src_dst.cuh"
+#include "prims/transform_reduce_v_frontier_outgoing_e_by_dst.cuh"
 #include "prims/update_edge_src_dst_property.cuh"
 #include "prims/update_v_frontier.cuh"
 #include "prims/vertex_frontier.cuh"
@@ -222,14 +222,15 @@ void core_number(raft::handle_t const& handle,
         if (graph_view.is_symmetric() || ((degree_type == k_core_degree_type_t::IN) ||
                                           (degree_type == k_core_degree_type_t::INOUT))) {
           auto [new_frontier_vertex_buffer, delta_buffer] =
-            transform_reduce_v_frontier_outgoing_e_by_dst(handle,
-                                                          graph_view,
-                                                          vertex_frontier.bucket(bucket_idx_cur),
-                                                          edge_src_dummy_property_t{}.view(),
-                                                          dst_core_numbers.view(),
-                                                          edge_dummy_property_t{}.view(),
-                                                          e_op_t<vertex_t, edge_t>{k, delta},
-                                                          reduce_op::plus<edge_t>());
+            cugraph::transform_reduce_v_frontier_outgoing_e_by_dst(
+              handle,
+              graph_view,
+              vertex_frontier.bucket(bucket_idx_cur),
+              edge_src_dummy_property_t{}.view(),
+              dst_core_numbers.view(),
+              edge_dummy_property_t{}.view(),
+              e_op_t<vertex_t, edge_t>{k, delta},
+              reduce_op::plus<edge_t>());
 
           update_v_frontier(
             handle,

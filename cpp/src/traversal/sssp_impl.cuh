@@ -19,7 +19,7 @@
 #include "prims/fill_edge_src_dst_property.cuh"
 #include "prims/reduce_op.cuh"
 #include "prims/transform_reduce_e.cuh"
-#include "prims/transform_reduce_v_frontier_outgoing_e_by_src_dst.cuh"
+#include "prims/transform_reduce_v_frontier_outgoing_e_by_dst.cuh"
 #include "prims/update_edge_src_dst_property.cuh"
 #include "prims/update_v_frontier.cuh"
 #include "prims/vertex_frontier.cuh"
@@ -197,7 +197,7 @@ void sssp(raft::handle_t const& handle,
       push_graph_view.local_vertex_partition_view());
 
     auto [new_frontier_vertex_buffer, distance_predecessor_buffer] =
-      transform_reduce_v_frontier_outgoing_e_by_dst(
+      cugraph::transform_reduce_v_frontier_outgoing_e_by_dst(
         handle,
         push_graph_view,
         vertex_frontier.bucket(bucket_idx_cur_near),

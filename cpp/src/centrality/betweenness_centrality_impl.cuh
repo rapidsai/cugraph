@@ -23,7 +23,7 @@
 #include "prims/per_v_transform_reduce_incoming_outgoing_e.cuh"
 #include "prims/transform_e.cuh"
 #include "prims/transform_reduce_v.cuh"
-#include "prims/transform_reduce_v_frontier_outgoing_e_by_src_dst.cuh"
+#include "prims/transform_reduce_v_frontier_outgoing_e_by_dst.cuh"
 #include "prims/update_edge_src_dst_property.cuh"
 #include "prims/update_v_frontier.cuh"
 #include "prims/vertex_frontier.cuh"
@@ -133,15 +133,15 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<edge_t>> brandes_b
     update_edge_src_property(handle, graph_view, sigmas.begin(), src_sigmas.mutable_view());
     update_edge_dst_property(handle, graph_view, distances.begin(), dst_distances.mutable_view());
 
-    auto [new_frontier, new_sigma] =
-      transform_reduce_v_frontier_outgoing_e_by_dst(handle,
-                                                    graph_view,
-                                                    vertex_frontier.bucket(bucket_idx_cur),
-                                                    src_sigmas.view(),
-                                                    dst_distances.view(),
-                                                    cugraph::edge_dummy_property_t{}.view(),
-                                                    brandes_e_op_t<vertex_t>{},
-                                                    reduce_op::plus<vertex_t>());
+    auto [new_frontier, new_sigma] = cugraph::transform_reduce_v_frontier_outgoing_e_by_dst(
+      handle,
+      graph_view,
+      vertex_frontier.bucket(bucket_idx_cur),
+      src_sigmas.view(),
+      dst_distances.view(),
+      cugraph::edge_dummy_property_t{}.view(),
+      brandes_e_op_t<vertex_t>{},
+      reduce_op::plus<vertex_t>());
 
     update_v_frontier(handle,
                       graph_view,

@@ -74,8 +74,7 @@ namespace detail {
 
 int32_t constexpr update_v_frontier_from_outgoing_e_kernel_block_size = 512;
 
-template <bool reduce_by_src,
-          typename key_t,
+template <typename key_t,
           typename payload_t,
           typename vertex_t,
           typename src_value_t,
@@ -93,7 +92,7 @@ struct transform_reduce_v_frontier_call_e_op_t {
   {
     auto e_op_result = e_op(key, dst, sv, dv, ev);
     if (e_op_result.has_value()) {
-      auto reduce_by = reduce_by_src ? thrust_tuple_get_or_identity<key_t, 0>(key) : dst;
+      auto reduce_by = dst;
       if constexpr (std::is_same_v<key_t, vertex_t> && std::is_same_v<payload_t, void>) {
         return reduce_by;
       } else if constexpr (std::is_same_v<key_t, vertex_t> && !std::is_same_v<payload_t, void>) {
@@ -178,9 +177,12 @@ auto sort_and_reduce_buffer_elements(
   return std::make_tuple(std::move(key_buffer), std::move(payload_buffer));
 }
 
-template <bool reduce_by_src,
-          typename GraphViewType,
-          typename VertexFrontierBucketType,
+#if 1  // FIXME: delete
+#define TRANSFORM_REDUCE_PERFORMANCE_MEASUREMENT 1
+#endif
+
+template <typename GraphViewType,
+          typename KeyBucketType,
           typename EdgeSrcValueInputWrapper,
           typename EdgeDstValueInputWrapper,
           typename EdgeValueInputWrapper,
@@ -188,28 +190,27 @@ template <bool reduce_by_src,
           typename ReduceOp>
 std::conditional_t<
   !std::is_same_v<typename ReduceOp::value_type, void>,
-  std::tuple<decltype(allocate_dataframe_buffer<typename VertexFrontierBucketType::key_type>(
+  std::tuple<decltype(allocate_dataframe_buffer<typename KeyBucketType::key_type>(
                0, rmm::cuda_stream_view{})),
              decltype(detail::allocate_optional_dataframe_buffer<typename ReduceOp::value_type>(
                0, rmm::cuda_stream_view{}))>,
-  decltype(allocate_dataframe_buffer<typename VertexFrontierBucketType::key_type>(
-    0, rmm::cuda_stream_view{}))>
-transform_reduce_v_frontier_outgoing_e_by_src_dst(raft::handle_t const& handle,
-                                                  GraphViewType const& graph_view,
-                                                  VertexFrontierBucketType const& frontier,
-                                                  EdgeSrcValueInputWrapper edge_src_value_input,
-                                                  EdgeDstValueInputWrapper edge_dst_value_input,
-                                                  EdgeValueInputWrapper edge_value_input,
-                                                  EdgeOp e_op,
-                                                  ReduceOp reduce_op,
-                                                  bool do_expensive_check = false)
+  decltype(allocate_dataframe_buffer<typename KeyBucketType::key_type>(0, rmm::cuda_stream_view{}))>
+transform_reduce_v_frontier_outgoing_e_by_dst(raft::handle_t const& handle,
+                                              GraphViewType const& graph_view,
+                                              KeyBucketType const& frontier,
+                                              EdgeSrcValueInputWrapper edge_src_value_input,
+                                              EdgeDstValueInputWrapper edge_dst_value_input,
+                                              EdgeValueInputWrapper edge_value_input,
+                                              EdgeOp e_op,
+                                              ReduceOp reduce_op,
+                                              bool do_expensive_check = false)
 {
   static_assert(!GraphViewType::is_storage_transposed,
                 "GraphViewType should support the push model.");
 
   using vertex_t  = typename GraphViewType::vertex_type;
   using edge_t    = typename GraphViewType::edge_type;
-  using key_t     = typename VertexFrontierBucketType::key_type;
+  using key_t     = typename KeyBucketType::key_type;
   using payload_t = typename ReduceOp::value_type;
 
   if (do_expensive_check) {
@@ -218,8 +219,11 @@ transform_reduce_v_frontier_outgoing_e_by_src_dst(raft::handle_t const& handle,
 
   // 1. fill the buffer
 
-  detail::transform_reduce_v_frontier_call_e_op_t<reduce_by_src,
-                                                  key_t,
+#if TRANSFORM_REDUCE_PERFORMANCE_MEASUREMENT  // FIXME: delete
+  RAFT_CUDA_TRY(cudaDeviceSynchronize());
+  auto time0 = std::chrono::steady_clock::now();
+#endif
+  detail::transform_reduce_v_frontier_call_e_op_t<key_t,
                                                   payload_t,
                                                   vertex_t,
                                                   typename EdgeSrcValueInputWrapper::value_type,
@@ -228,24 +232,29 @@ transform_reduce_v_frontier_outgoing_e_by_src_dst(raft::handle_t const& handle,
                                                   EdgeOp>
     e_op_wrapper{e_op};
 
-  bool constexpr max_one_e_per_frontier_key =
-    reduce_by_src && std::is_same_v<ReduceOp, reduce_op::any<typename ReduceOp::value_type>>;
   auto [key_buffer, payload_buffer] =
-    detail::extract_transform_v_frontier_e<false, max_one_e_per_frontier_key, key_t, payload_t>(
-      handle,
-      graph_view,
-      frontier,
-      edge_src_value_input,
-      edge_dst_value_input,
-      edge_value_input,
-      e_op_wrapper,
-      do_expensive_check);
+    detail::extract_transform_v_frontier_e<false, key_t, payload_t>(handle,
+                                                                    graph_view,
+                                                                    frontier,
+                                                                    edge_src_value_input,
+                                                                    edge_dst_value_input,
+                                                                    edge_value_input,
+                                                                    e_op_wrapper,
+                                                                    do_expensive_check);
+#if TRANSFORM_REDUCE_PERFORMANCE_MEASUREMENT  // FIXME: delete
+  RAFT_CUDA_TRY(cudaDeviceSynchronize());
+  auto time1 = std::chrono::steady_clock::now();
+#endif
 
   // 2. reduce the buffer
 
   std::tie(key_buffer, payload_buffer) =
     detail::sort_and_reduce_buffer_elements<key_t, payload_t, ReduceOp>(
       handle, std::move(key_buffer), std::move(payload_buffer), reduce_op);
+#if TRANSFORM_REDUCE_PERFORMANCE_MEASUREMENT  // FIXME: delete
+  RAFT_CUDA_TRY(cudaDeviceSynchronize());
+  auto time2 = std::chrono::steady_clock::now();
+#endif
   if constexpr (GraphViewType::is_multi_gpu) {
     // FIXME: this step is unnecessary if major_comm_size== 1
     auto& comm                 = handle.get_comms();
@@ -256,17 +265,11 @@ transform_reduce_v_frontier_outgoing_e_by_src_dst(raft::handle_t const& handle,
     auto const minor_comm_rank = minor_comm.get_rank();
     auto const minor_comm_size = minor_comm.get_size();
 
-    std::vector<vertex_t> h_vertex_lasts(reduce_by_src ? minor_comm_size : major_comm_size);
+    std::vector<vertex_t> h_vertex_lasts(major_comm_size);
     for (size_t i = 0; i < h_vertex_lasts.size(); ++i) {
       auto vertex_partition_id =
-        reduce_by_src
-          ? detail::compute_local_edge_partition_major_range_vertex_partition_id_t{major_comm_size,
-                                                                                   minor_comm_size,
-                                                                                   major_comm_rank,
-                                                                                   minor_comm_rank}(
-              i)
-          : detail::compute_local_edge_partition_minor_range_vertex_partition_id_t{
-              major_comm_size, minor_comm_size, major_comm_rank, minor_comm_rank}(i);
+        detail::compute_local_edge_partition_minor_range_vertex_partition_id_t{
+          major_comm_size, minor_comm_size, major_comm_rank, minor_comm_rank}(i);
       h_vertex_lasts[i] = graph_view.vertex_partition_range_last(vertex_partition_id);
     }
 
@@ -295,19 +298,14 @@ transform_reduce_v_frontier_outgoing_e_by_src_dst(raft::handle_t const& handle,
       h_tx_buffer_last_boundaries.begin(), h_tx_buffer_last_boundaries.end(), tx_counts.begin());
 
     auto rx_key_buffer = allocate_dataframe_buffer<key_t>(size_t{0}, handle.get_stream());
-    std::tie(rx_key_buffer, std::ignore) = shuffle_values(reduce_by_src ? minor_comm : major_comm,
-                                                          get_dataframe_buffer_begin(key_buffer),
-                                                          tx_counts,
-                                                          handle.get_stream());
+    std::tie(rx_key_buffer, std::ignore) = shuffle_values(
+      major_comm, get_dataframe_buffer_begin(key_buffer), tx_counts, handle.get_stream());
     key_buffer = std::move(rx_key_buffer);
 
     if constexpr (!std::is_same_v<payload_t, void>) {
       auto rx_payload_buffer = allocate_dataframe_buffer<payload_t>(size_t{0}, handle.get_stream());
-      std::tie(rx_payload_buffer, std::ignore) =
-        shuffle_values(reduce_by_src ? minor_comm : major_comm,
-                       get_dataframe_buffer_begin(payload_buffer),
-                       tx_counts,
-                       handle.get_stream());
+      std::tie(rx_payload_buffer, std::ignore) = shuffle_values(
+        major_comm, get_dataframe_buffer_begin(payload_buffer), tx_counts, handle.get_stream());
       payload_buffer = std::move(rx_payload_buffer);
     }
 
@@ -315,6 +313,15 @@ transform_reduce_v_frontier_outgoing_e_by_src_dst(raft::handle_t const& handle,
       detail::sort_and_reduce_buffer_elements<key_t, payload_t, ReduceOp>(
         handle, std::move(key_buffer), std::move(payload_buffer), reduce_op);
   }
+#if TRANSFORM_REDUCE_PERFORMANCE_MEASUREMENT  // FIXME: delete
+  RAFT_CUDA_TRY(cudaDeviceSynchronize());
+  auto time3                         = std::chrono::steady_clock::now();
+  std::chrono::duration<double> dur0 = time1 - time0;
+  std::chrono::duration<double> dur1 = time2 - time1;
+  std::chrono::duration<double> dur2 = time3 - time2;
+  std::cout << "\tprim (fill,lreduce,greduce) took (" << dur0.count() << "," << dur1.count() << ","
+            << dur2.count() << ")" << std::endl;
+#endif
 
   if constexpr (!std::is_same_v<payload_t, void>) {
     return std::make_tuple(std::move(key_buffer), std::move(payload_buffer));
@@ -325,17 +332,17 @@ transform_reduce_v_frontier_outgoing_e_by_src_dst(raft::handle_t const& handle,
 
 }  // namespace detail
 
-template <typename GraphViewType, typename VertexFrontierBucketType>
+template <typename GraphViewType, typename KeyBucketType>
 size_t compute_num_out_nbrs_from_frontier(raft::handle_t const& handle,
                                           GraphViewType const& graph_view,
-                                          VertexFrontierBucketType const& frontier)
+                                          KeyBucketType const& frontier)
 {
   static_assert(!GraphViewType::is_storage_transposed,
                 "GraphViewType should support the push model.");
 
   using vertex_t = typename GraphViewType::vertex_type;
   using edge_t   = typename GraphViewType::edge_type;
-  using key_t    = typename VertexFrontierBucketType::key_type;
+  using key_t    = typename KeyBucketType::key_type;
 
   size_t ret{0};
 
@@ -408,102 +415,14 @@ size_t compute_num_out_nbrs_from_frontier(raft::handle_t const& handle,
 
 /**
  * @brief Iterate over outgoing edges from the current vertex frontier and reduce valid edge functor
- * outputs by (tagged-)source ID.
- *
- * Edge functor outputs are thrust::optional objects and invalid if thrust::nullopt. Vertices are
- * assumed to be tagged if VertexFrontierBucketType::key_type is a tuple of a vertex type and a tag
- * type (VertexFrontierBucketType::key_type is identical to a vertex type otherwise).
- *
- * @tparam GraphViewType Type of the passed non-owning graph object.
- * @tparam VertexFrontierBucketType Type of the vertex frontier bucket class which abstracts the
- * current (tagged-)vertex frontier.
- * @tparam EdgeSrcValueInputWrapper Type of the wrapper for edge source property values.
- * @tparam EdgeDstValueInputWrapper Type of the wrapper for edge destination property values.
- * @tparam EdgeValueInputWrapper Type of the wrapper for edge property values.
- * @tparam EdgeOp Type of the quinary edge operator.
- * @tparam ReduceOp Type of the binary reduction operator.
- * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
- * handles to various CUDA libraries) to run graph algorithms.
- * @param graph_view Non-owning graph object.
- * @param frontier VertexFrontierBucketType class object for the current vertex frontier.
- * @param edge_src_value_input Wrapper used to access source input property values (for the edge
- * sources assigned to this process in multi-GPU). Use either cugraph::edge_src_property_t::view()
- * (if @p e_op needs to access source property values) or cugraph::edge_src_dummy_property_t::view()
- * (if @p e_op does not access source property values). Use update_edge_src_property to fill the
- * wrapper.
- * @param edge_dst_value_input Wrapper used to access destination input property values (for the
- * edge destinations assigned to this process in multi-GPU). Use either
- * cugraph::edge_dst_property_t::view() (if @p e_op needs to access destination property values) or
- * cugraph::edge_dst_dummy_property_t::view() (if @p e_op does not access destination property
- * values). Use update_edge_dst_property to fill the wrapper.
- * @param edge_value_input Wrapper used to access edge input property values (for the edges assigned
- * to this process in multi-GPU). Use either cugraph::edge_property_t::view() (if @p e_op needs to
- * access edge property values) or cugraph::edge_dummy_property_t::view() (if @p e_op does not
- * access edge property values).
- * @param e_op Quinary operator takes edge (tagged-)source, edge destination, property values for
- * the source, destination, and edge and returns 1) thrust::nullopt (if invalid and to be
- * discarded); 2) dummy (but valid) thrust::optional object (e.g.
- * thrust::optional<std::byte>{std::byte{0}}, if vertices are not tagged and ReduceOp::value_type is
- * void); 3) a tag (if vertices are tagged and ReduceOp::value_type is void); 4) a value to be
- * reduced using the @p reduce_op (if vertices are not tagged and ReduceOp::value_type is not void);
- * or 5) a tuple of a tag and a value to be reduced (if vertices are tagged and ReduceOp::value_type
- * is not void).
- * @param reduce_op Binary operator that takes two input arguments and reduce the two values to one.
- * There are pre-defined reduction operators in prims/reduce_op.cuh. It is
- * recommended to use the pre-defined reduction operators whenever possible as the current (and
- * future) implementations of graph primitives may check whether @p ReduceOp is a known type (or has
- * known member variables) to take a more optimized code path. See the documentation in the
- * reduce_op.cuh file for instructions on writing custom reduction operators.
- * @return Tuple of key values and payload values (if ReduceOp::value_type is not void) or just key
- * values (if ReduceOp::value_type is void). Keys in the return values are sorted in ascending order
- * using a vertex ID as the primary key and a tag (if relevant) as the secondary key.
- */
-template <typename GraphViewType,
-          typename VertexFrontierBucketType,
-          typename EdgeSrcValueInputWrapper,
-          typename EdgeDstValueInputWrapper,
-          typename EdgeValueInputWrapper,
-          typename EdgeOp,
-          typename ReduceOp>
-std::conditional_t<
-  !std::is_same_v<typename ReduceOp::value_type, void>,
-  std::tuple<decltype(allocate_dataframe_buffer<typename VertexFrontierBucketType::key_type>(
-               0, rmm::cuda_stream_view{})),
-             decltype(detail::allocate_optional_dataframe_buffer<typename ReduceOp::value_type>(
-               0, rmm::cuda_stream_view{}))>,
-  decltype(allocate_dataframe_buffer<typename VertexFrontierBucketType::key_type>(
-    0, rmm::cuda_stream_view{}))>
-transform_reduce_v_frontier_outgoing_e_by_src(raft::handle_t const& handle,
-                                              GraphViewType const& graph_view,
-                                              VertexFrontierBucketType const& frontier,
-                                              EdgeSrcValueInputWrapper edge_src_value_input,
-                                              EdgeDstValueInputWrapper edge_dst_value_input,
-                                              EdgeValueInputWrapper edge_value_input,
-                                              EdgeOp e_op,
-                                              ReduceOp reduce_op,
-                                              bool do_expensive_check = false)
-{
-  return detail::transform_reduce_v_frontier_outgoing_e_by_src_dst<true>(handle,
-                                                                         graph_view,
-                                                                         frontier,
-                                                                         edge_src_value_input,
-                                                                         edge_dst_value_input,
-                                                                         edge_value_input,
-                                                                         e_op,
-                                                                         reduce_op,
-                                                                         do_expensive_check);
-}
-
-/**
- * @brief Iterate over outgoing edges from the current vertex frontier and reduce valid edge functor
  * outputs by (tagged-)destination ID.
  *
  * Edge functor outputs are thrust::optional objects and invalid if thrust::nullopt. Vertices are
- * assumed to be tagged if VertexFrontierBucketType::key_type is a tuple of a vertex type and a tag
- * type (VertexFrontierBucketType::key_type is identical to a vertex type otherwise).
+ * assumed to be tagged if KeyBucketType::key_type is a tuple of a vertex type and a tag
+ * type (KeyBucketType::key_type is identical to a vertex type otherwise).
  *
  * @tparam GraphViewType Type of the passed non-owning graph object.
- * @tparam VertexFrontierBucketType Type of the vertex frontier bucket class which abstracts the
+ * @tparam KeyBucketType Type of the vertex frontier bucket class which abstracts the
  * current (tagged-)vertex frontier.
  * @tparam EdgeSrcValueInputWrapper Type of the wrapper for edge source property values.
  * @tparam EdgeDstValueInputWrapper Type of the wrapper for edge destination property values.
@@ -513,7 +432,7 @@ transform_reduce_v_frontier_outgoing_e_by_src(raft::handle_t const& handle,
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Non-owning graph object.
- * @param frontier VertexFrontierBucketType class object for the current vertex frontier.
+ * @param frontier KeyBucketType class object for the current vertex frontier.
  * @param edge_src_value_input Wrapper used to access source input property values (for the edge
  * sources assigned to this process in multi-GPU). Use either cugraph::edge_src_property_t::view()
  * (if @p e_op needs to access source property values) or cugraph::edge_src_dummy_property_t::view()
@@ -547,7 +466,7 @@ transform_reduce_v_frontier_outgoing_e_by_src(raft::handle_t const& handle,
  * using a vertex ID as the primary key and a tag (if relevant) as the secondary key.
  */
 template <typename GraphViewType,
-          typename VertexFrontierBucketType,
+          typename KeyBucketType,
           typename EdgeSrcValueInputWrapper,
           typename EdgeDstValueInputWrapper,
           typename EdgeValueInputWrapper,
@@ -555,15 +474,14 @@ template <typename GraphViewType,
           typename ReduceOp>
 std::conditional_t<
   !std::is_same_v<typename ReduceOp::value_type, void>,
-  std::tuple<decltype(allocate_dataframe_buffer<typename VertexFrontierBucketType::key_type>(
+  std::tuple<decltype(allocate_dataframe_buffer<typename KeyBucketType::key_type>(
                0, rmm::cuda_stream_view{})),
              decltype(detail::allocate_optional_dataframe_buffer<typename ReduceOp::value_type>(
                0, rmm::cuda_stream_view{}))>,
-  decltype(allocate_dataframe_buffer<typename VertexFrontierBucketType::key_type>(
-    0, rmm::cuda_stream_view{}))>
+  decltype(allocate_dataframe_buffer<typename KeyBucketType::key_type>(0, rmm::cuda_stream_view{}))>
 transform_reduce_v_frontier_outgoing_e_by_dst(raft::handle_t const& handle,
                                               GraphViewType const& graph_view,
-                                              VertexFrontierBucketType const& frontier,
+                                              KeyBucketType const& frontier,
                                               EdgeSrcValueInputWrapper edge_src_value_input,
                                               EdgeDstValueInputWrapper edge_dst_value_input,
                                               EdgeValueInputWrapper edge_value_input,
@@ -571,15 +489,15 @@ transform_reduce_v_frontier_outgoing_e_by_dst(raft::handle_t const& handle,
                                               ReduceOp reduce_op,
                                               bool do_expensive_check = false)
 {
-  return detail::transform_reduce_v_frontier_outgoing_e_by_src_dst<false>(handle,
-                                                                          graph_view,
-                                                                          frontier,
-                                                                          edge_src_value_input,
-                                                                          edge_dst_value_input,
-                                                                          edge_value_input,
-                                                                          e_op,
-                                                                          reduce_op,
-                                                                          do_expensive_check);
+  return detail::transform_reduce_v_frontier_outgoing_e_by_dst(handle,
+                                                               graph_view,
+                                                               frontier,
+                                                               edge_src_value_input,
+                                                               edge_dst_value_input,
+                                                               edge_value_input,
+                                                               e_op,
+                                                               reduce_op,
+                                                               do_expensive_check);
 }
 
 }  // namespace cugraph
