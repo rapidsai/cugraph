@@ -131,7 +131,7 @@ create_graph(raft::handle_t const& handle,
   //
 
   if (multi_gpu) {
-    std::tie(d_edge_srcs, d_edge_dsts, d_edge_wgts, std::ignore, std::ignore) =
+    std::tie(d_edge_srcs, d_edge_dsts, d_edge_wgts, std::ignore, std::ignore, std::ignore) =
       cugraph::shuffle_external_edges<vertex_t, vertex_t, weight_t, int32_t>(handle,
                                                                              std::move(d_edge_srcs),
                                                                              std::move(d_edge_dsts),
@@ -215,10 +215,10 @@ void perform_example_graph_operations(
                                                                                   graph_view);
 
     cugraph::update_edge_src_property(
-      handle, graph_view, vertex_weights.begin(), src_vertex_weights_cache);
+      handle, graph_view, vertex_weights.begin(), src_vertex_weights_cache.mutable_view());
 
     cugraph::update_edge_dst_property(
-      handle, graph_view, vertex_weights.begin(), dst_vertex_weights_cache);
+      handle, graph_view, vertex_weights.begin(), dst_vertex_weights_cache.mutable_view());
 
     rmm::device_uvector<result_t> weighted_averages(
       size_of_the_vertex_partition_assigned_to_this_process, handle.get_stream());
@@ -259,10 +259,10 @@ void perform_example_graph_operations(
                                                                                   graph_view);
 
     cugraph::update_edge_src_property(
-      handle, graph_view, vertex_weights.begin(), src_vertex_weights_cache);
+      handle, graph_view, vertex_weights.begin(), src_vertex_weights_cache.mutable_view());
 
     cugraph::update_edge_dst_property(
-      handle, graph_view, vertex_weights.begin(), dst_vertex_weights_cache);
+      handle, graph_view, vertex_weights.begin(), dst_vertex_weights_cache.mutable_view());
 
     rmm::device_uvector<result_t> weighted_averages(
       size_of_the_vertex_partition_assigned_to_this_process, handle.get_stream());

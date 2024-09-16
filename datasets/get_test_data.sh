@@ -27,6 +27,12 @@ cd "$( cd "$( dirname "$(realpath -m "${BASH_SOURCE[0]}")" )" && pwd )";
 #
 # FIXME: some test data needs to be extracted to "benchmarks", which is
 # confusing now that there's dedicated datasets for benchmarks.
+CPP_CI_DATASET_DATA="
+# ~10s download
+https://data.rapids.ai/cugraph/test/cpp_ci_datasets.tgz
+test
+"
+
 BASE_DATASET_DATA="
 # ~22s download
 https://data.rapids.ai/cugraph/test/datasets.tgz
@@ -89,6 +95,8 @@ if hasArg "--benchmark"; then
     DATASET_DATA="${BENCHMARK_DATASET_DATA}"
 elif hasArg "--subset"; then
     DATASET_DATA="${BASE_DATASET_DATA}"
+elif hasArg "--cpp_ci_subset"; then
+    DATASET_DATA="${CPP_CI_DATASET_DATA}"
 elif hasArg "--self_loops"; then
     DATASET_DATA="${SELF_LOOPS_DATASET_DATA}"
 # Do not include benchmark datasets by default - too big

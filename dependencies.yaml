@@ -489,8 +489,12 @@ dependencies:
             packages:
               - python=3.11
           - matrix:
+              py: "3.12"
             packages:
-              - python>=3.10,<3.12
+              - python=3.12
+          - matrix:
+            packages:
+              - python>=3.10,<3.13
   python_build_rapids:
     common:
       - output_types: [conda, pyproject, requirements]
@@ -713,6 +717,8 @@ dependencies:
           - &pytorch_unsuffixed pytorch>=2.0,<2.2.0a0
           - torchdata
           - pydantic
+          - ogb
+          - torchmetrics
 
     specific:
       - output_types: [requirements]
