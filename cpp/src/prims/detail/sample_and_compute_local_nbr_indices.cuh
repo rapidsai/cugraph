@@ -392,11 +392,11 @@ compute_unique_keys(raft::handle_t const& handle,
       cuda::proclaim_return_type<size_t>(
         [unique_key_first = get_dataframe_buffer_begin(aggregate_local_frontier_unique_keys) +
                             local_frontier_unique_key_displacements[i],
-         num_unique_keys = local_frontier_unique_key_sizes[i]] __device__(key_t key) {
+         unique_key_last = get_dataframe_buffer_begin(aggregate_local_frontier_unique_keys) +
+                           local_frontier_unique_key_displacements[i] +
+                           local_frontier_unique_key_sizes[i]] __device__(key_t key) {
           return static_cast<size_t>(thrust::distance(
-            unique_key_first,
-            thrust::lower_bound(
-              thrust::seq, unique_key_first, unique_key_first + num_unique_keys, key)));
+            unique_key_first, thrust::find(thrust::seq, unique_key_first, unique_key_last, key)));
         }));
   }
 
@@ -1759,8 +1759,7 @@ biased_sample_and_compute_local_nbr_indices(
   std::optional<rmm::device_uvector<size_t>> key_indices{std::nullopt};
   std::vector<size_t> local_frontier_sample_offsets{};
   if (with_replacement) {
-    // computet segmented inclusive sums (one segment per seed)
-
+    // compute segmented inclusive sums (one segment per seed)
     auto unique_key_first = thrust::make_transform_iterator(
       thrust::make_counting_iterator(size_t{0}),
       cuda::proclaim_return_type<size_t>(
