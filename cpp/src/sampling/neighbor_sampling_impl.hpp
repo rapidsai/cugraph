@@ -577,9 +577,7 @@ heterogeneous_neighbor_sample(
     heterogeneous_fan_out,
   sampling_flags_t sampling_flags,
   bool do_expensive_check)
-{
-  using bias_t = weight_t;  // dummy
-  
+{ 
   rmm::device_uvector<int32_t> starting_vertex_labels(0, handle.get_stream());
 
   if (starting_vertex_offsets)
