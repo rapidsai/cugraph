@@ -44,8 +44,10 @@ struct UniformRandomWalks_Usecase {
              raft::device_span<vertex_t const> start_vertices,
              size_t max_depth)
   {
+    raft::random::RngState rng_state(static_cast<uint64_t>(handle.get_comms().get_rank()));
+
     return cugraph::uniform_random_walks(
-      handle, graph_view, edge_weight_view, start_vertices, max_depth, seed);
+      handle, rng_state, graph_view, edge_weight_view, start_vertices, max_depth);
   }
 
   bool expect_throw() { return false; }
@@ -66,12 +68,13 @@ struct BiasedRandomWalks_Usecase {
   {
     CUGRAPH_EXPECTS(edge_weight_view.has_value(), "Biased random walk requires edge weights.");
 
+    raft::random::RngState rng_state(static_cast<uint64_t>(handle.get_comms().get_rank()));
+
     return cugraph::biased_random_walks(
-      handle, graph_view, *edge_weight_view, start_vertices, max_depth, seed);
+      handle, rng_state, graph_view, *edge_weight_view, start_vertices, max_depth);
   }
 
-  // FIXME: Not currently implemented
-  bool expect_throw() { return true; }
+  bool expect_throw() { return !test_weighted; }
 };
 
 struct Node2VecRandomWalks_Usecase {
@@ -89,18 +92,19 @@ struct Node2VecRandomWalks_Usecase {
              raft::device_span<vertex_t const> start_vertices,
              size_t max_depth)
   {
+    raft::random::RngState rng_state(static_cast<uint64_t>(handle.get_comms().get_rank()));
+
     return cugraph::node2vec_random_walks(handle,
+                                          rng_state,
                                           graph_view,
                                           edge_weight_view,
                                           start_vertices,
                                           max_depth,
                                           static_cast<weight_t>(p),
-                                          static_cast<weight_t>(q),
-                                          seed);
+                                          static_cast<weight_t>(q));
   }
 
-  // FIXME: Not currently implemented
-  bool expect_throw() { return true; }
+  bool expect_throw() { return false; }
 };
 
 template <typename tuple_t>

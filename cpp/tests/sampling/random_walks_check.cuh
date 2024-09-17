@@ -108,7 +108,7 @@ void random_walks_validate(
                      (int)d,
                      (float)w);
             } else {
-              printf("edge (%d,%d) NOT FOUND\n", (int)s, (int)d);
+              printf("edge (%d,%d), weight %g NOT FOUND\n", (int)s, (int)d, (float)w);
             }
 
             return 1;
