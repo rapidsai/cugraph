@@ -21,7 +21,7 @@ The RAPIDS Docker containers (as of Release 23.10) contain all RAPIDS packages, 
 
 
 ## Conda
-It is easy to install WholeGraph using conda. You can get a minimal conda installation with [Miniconda](https://conda.io/miniconda.html) or get the full installation with [Anaconda](https://www.anaconda.com/download).
+It is easy to install WholeGraph using conda. You can get a minimal conda installation with [miniforge](https://github.com/conda-forge/miniforge).
 
 WholeGraph conda packages
  * libwholegraph
