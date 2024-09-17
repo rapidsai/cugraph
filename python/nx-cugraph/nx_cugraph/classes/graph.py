@@ -695,9 +695,14 @@ class Graph:
                 is_multigraph=self.is_multigraph() and symmetrize is None,
                 is_symmetric=not self.is_directed() or symmetrize is not None,
             ),
-            src_or_offset_array=src_indices,
-            dst_or_index_array=dst_indices,
-            weight_array=edge_array,
+            # Use `cp.asarray` to ensure that data is contiguous in device memory.
+            # We could, perhaps, update e.g. `self.src_indices` with the new contiguous
+            # array. This does not copy if arrays are already contiguous.
+            src_or_offset_array=cp.asarray(src_indices, order="C"),
+            dst_or_index_array=cp.asarray(dst_indices, order="C"),
+            weight_array=(
+                None if edge_array is None else cp.asarray(edge_array, order="C")
+            ),
             store_transposed=store_transposed,
             renumber=False,
             do_expensive_check=False,

@@ -17,6 +17,8 @@ import pytest
 import nx_cugraph as nxcg
 from nx_cugraph.utils import _cp_iscopied_asarray
 
+from .testing_utils import assert_graphs_equal
+
 try:
     import cudf
 except ModuleNotFoundError:
@@ -84,3 +86,18 @@ def test_from_pandas_edgelist(data, create_using):
             source.to_numpy(), orig_object=source
         )
         assert is_copied is True
+
+
+@pytest.mark.parametrize("edge_attr", [None, True])
+@pytest.mark.parametrize("create_using", CREATE_USING)
+def test_multiple_edges(edge_attr, create_using):
+    df = pd.DataFrame(
+        {
+            "source": [0, 0, 0, 1, 1, 2, 0, 0],
+            "target": [1, 1, 1, 0, 2, 0, 0, 0],
+            "x": [0, 1, 2, 3, 4, 5, 6, 7],
+        }
+    )
+    Gnx = nx.from_pandas_edgelist(df, edge_attr=edge_attr, create_using=create_using)
+    Gcg = nxcg.from_pandas_edgelist(df, edge_attr=edge_attr, create_using=create_using)
+    assert_graphs_equal(Gnx, Gcg)

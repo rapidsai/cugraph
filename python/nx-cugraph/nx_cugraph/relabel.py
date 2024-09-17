@@ -10,8 +10,11 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+from __future__ import annotations
+
 import itertools
 from collections import defaultdict
+from typing import TYPE_CHECKING
 
 import cupy as cp
 import networkx as nx
@@ -20,6 +23,10 @@ import numpy as np
 import nx_cugraph as nxcg
 
 from .utils import _get_int_dtype, _groupby, index_dtype, networkx_algorithm
+
+if TYPE_CHECKING:  # pragma: no cover
+    from nx_cugraph.typing import AttrKey, Dtype, EdgeValue
+
 
 __all__ = [
     "convert_node_labels_to_integers",
@@ -149,66 +156,13 @@ def relabel_nodes(G, mapping, copy=True):
                     new_edge_indices.append(edge_index)
                 edge_indices = cp.array(new_edge_indices, index_dtype)
         else:
-            stacked_dup = cp.vstack((src_indices_dup, dst_indices_dup))
-            if not edge_values:
-                # Drop duplicates
-                stacked = cp.unique(stacked_dup, axis=1)
-            else:
-                # Drop duplicates. This relies heavily on `_groupby`.
-                # It has not been compared to alternative implementations.
-                # I wonder if there are ways to use assignment using duplicate indices.
-                (stacked, ind, inv) = cp.unique(
-                    stacked_dup, axis=1, return_index=True, return_inverse=True
-                )
-                if ind.dtype != int_dtype:
-                    ind = ind.astype(int_dtype)
-                if inv.dtype != int_dtype:
-                    inv = inv.astype(int_dtype)
-
-                # We need to merge edge data
-                mask = cp.ones(src_indices.size, dtype=bool)
-                mask[ind] = False
-                edge_data = [val[mask] for val in edge_values.values()]
-                edge_data.extend(val[mask] for val in edge_masks.values())
-                groups = _groupby(inv[mask], edge_data)
-
-                edge_values = {key: val[ind] for key, val in edge_values.items()}
-                edge_masks = {key: val[ind] for key, val in edge_masks.items()}
-
-                value_keys = list(edge_values.keys())
-                mask_keys = list(edge_masks.keys())
-
-                values_to_update = defaultdict(list)
-                masks_to_update = defaultdict(list)
-                for k, v in groups.items():
-                    it = iter(v)
-                    vals = dict(zip(value_keys, it))  # zip(strict=False)
-                    masks = dict(zip(mask_keys, it))  # zip(strict=True)
-                    for key, val in vals.items():
-                        if key in masks:
-                            val = val[masks[key]]
-                            if val.size > 0:
-                                values_to_update[key].append((k, val[-1]))
-                                masks_to_update[key].append((k, True))
-                        else:
-                            values_to_update[key].append((k, val[-1]))
-                            if key in edge_masks:
-                                masks_to_update[key].append((k, True))
-
-                int_dtype = _get_int_dtype(src_indices.size - 1)
-                for k, v in values_to_update.items():
-                    ii, jj = zip(*v)
-                    edge_val = edge_values[k]
-                    edge_val[cp.array(ii, dtype=int_dtype)] = cp.array(
-                        jj, dtype=edge_val.dtype
-                    )
-                for k, v in masks_to_update.items():
-                    ii, jj = zip(*v)
-                    edge_masks[k][cp.array(ii, dtype=int_dtype)] = cp.array(
-                        jj, dtype=bool
-                    )
-            src_indices = stacked[0]
-            dst_indices = stacked[1]
+            src_indices, dst_indices, edge_values, edge_masks = _deduplicate(
+                src_indices_dup,
+                dst_indices_dup,
+                edge_values,
+                edge_masks,
+                int_dtype=int_dtype,
+            )
 
     if G.is_multigraph():
         # `edge_keys` and `edge_indices` are preserved for free if no nodes were merged
@@ -232,6 +186,88 @@ def relabel_nodes(G, mapping, copy=True):
         G._become(rv)
         return G
     return rv
+
+
+def _deduplicate(
+    src_indices: cp.ndarray,
+    dst_indices: cp.ndarray,
+    edge_values: dict[AttrKey, cp.ndarray[EdgeValue]] | None,
+    edge_masks: dict[AttrKey, cp.ndarray[bool]] | None,
+    *,
+    int_dtype: Dtype | None = None,
+) -> tuple[
+    cp.ndarray,
+    cp.ndarray,
+    dict[AttrKey, cp.ndarray[EdgeValue]] | None,
+    dict[AttrKey, cp.ndarray[bool]] | None,
+]:
+    """Drop duplicate edges given indices and values.
+
+    This is useful when ingesting user data to create Graphs or DiGraphs.
+    It merges data from duplicate edges.
+    """
+    stacked_dup = cp.vstack((src_indices, dst_indices))
+    if not edge_values:
+        # Drop duplicates
+        stacked = cp.unique(stacked_dup, axis=1)
+    else:
+        # Drop duplicates. This relies heavily on `_groupby`.
+        # It has not been compared to alternative implementations.
+        # I wonder if there are ways to use assignment using duplicate indices.
+        (stacked, ind, inv) = cp.unique(
+            stacked_dup, axis=1, return_index=True, return_inverse=True
+        )
+        if int_dtype is not None and ind.dtype != int_dtype:
+            ind = ind.astype(int_dtype)
+        if int_dtype is not None and inv.dtype != int_dtype:
+            inv = inv.astype(int_dtype)
+
+        # We need to merge edge data
+        mask = cp.ones(src_indices.size, dtype=bool)
+        mask[ind] = False
+        edge_data = [val[mask] for val in edge_values.values()]
+        if edge_masks:
+            edge_data.extend(val[mask] for val in edge_masks.values())
+        groups = _groupby(inv[mask], edge_data)
+
+        edge_values = {key: val[ind] for key, val in edge_values.items()}
+        value_keys = list(edge_values.keys())
+        values_to_update = defaultdict(list)
+        if edge_masks:
+            edge_masks = {key: val[ind] for key, val in edge_masks.items()}
+            mask_keys = list(edge_masks.keys())
+            masks_to_update = defaultdict(list)
+            for k, v in groups.items():
+                it = iter(v)
+                vals = dict(zip(value_keys, it))  # zip(strict=False)
+                masks = dict(zip(mask_keys, it))  # zip(strict=True)
+                for key, val in vals.items():
+                    if key in masks:
+                        val = val[masks[key]]
+                        if val.size > 0:
+                            values_to_update[key].append((k, val[-1]))
+                            masks_to_update[key].append((k, True))
+                    else:
+                        values_to_update[key].append((k, val[-1]))
+                        if key in edge_masks:
+                            masks_to_update[key].append((k, True))
+        else:
+            for k, v in groups.items():
+                for key, val in zip(value_keys, v):
+                    values_to_update[key].append((k, val[-1]))
+
+        int_dtype = _get_int_dtype(src_indices.size - 1)
+        for k, v in values_to_update.items():
+            ii, jj = zip(*v)
+            edge_val = edge_values[k]
+            edge_val[cp.array(ii, dtype=int_dtype)] = cp.array(jj, dtype=edge_val.dtype)
+        if edge_masks:
+            for k, v in masks_to_update.items():
+                ii, jj = zip(*v)
+                edge_masks[k][cp.array(ii, dtype=int_dtype)] = cp.array(jj, dtype=bool)
+    src_indices = stacked[0]
+    dst_indices = stacked[1]
+    return src_indices, dst_indices, edge_values, edge_masks
 
 
 @networkx_algorithm(version_added="24.08")

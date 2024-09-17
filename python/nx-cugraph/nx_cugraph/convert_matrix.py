@@ -15,6 +15,7 @@ import networkx as nx
 import numpy as np
 
 from .generators._utils import _create_using_class
+from .relabel import _deduplicate
 from .utils import _cp_iscopied_asarray, index_dtype, networkx_algorithm
 
 __all__ = [
@@ -154,6 +155,19 @@ def from_pandas_edgelist(
                     key for keep, key in zip(mask.tolist(), edge_keys) if keep
                 ]
         kwargs["edge_keys"] = edge_keys
+
+    if not graph_class.is_multigraph():
+        src_indices, dst_indices, kwargs["edge_values"], kwargs["edge_masks"] = (
+            # PERF: we may not need to do a generic merge as done in `_deduplicate`;
+            # we just need the last value since all edges have all edge attributes.
+            # Generic merging handles cases when edges have different attributes.
+            _deduplicate(
+                src_indices,
+                dst_indices,
+                kwargs.get("edge_values"),
+                kwargs.get("edge_masks"),
+            )
+        )
 
     G = graph_class.from_coo(N, src_indices, dst_indices, **kwargs)
     if inplace:

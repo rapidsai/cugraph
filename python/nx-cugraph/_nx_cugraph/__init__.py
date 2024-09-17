@@ -297,8 +297,8 @@ def get_info():
 
 
 def _check_networkx_version():
-    import warnings
     import re
+    import warnings
 
     import networkx as nx
 
