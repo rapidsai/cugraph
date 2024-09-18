@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2023, NVIDIA CORPORATION.
+# Copyright (c) 2019-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -486,7 +486,7 @@ def test_scipy_api_compat():
     distances = cugraph.shortest_path(
         input_coo_matrix, source=0, return_predecessors=False
     )
-    assert type(distances) != tuple
+    assert type(distances) is not tuple
 
     with pytest.raises(ValueError):
         cugraph.shortest_path(input_coo_matrix, source=0, unweighted=False)

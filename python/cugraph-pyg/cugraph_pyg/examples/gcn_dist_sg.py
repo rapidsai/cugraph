@@ -66,7 +66,7 @@ def train(epoch: int):
     torch.cuda.synchronize()
     print(
         f"Average Training Iteration Time (s/iter): \
-            {(time.perf_counter() - start_avg_time)/(i-warmup_steps):.6f}"
+            {(time.perf_counter() - start_avg_time) / (i - warmup_steps):.6f}"
     )
 
 

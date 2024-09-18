@@ -20,6 +20,7 @@ namespace cugraph {
 // SG instantiation
 template edge_property_t<graph_view_t<int64_t, int64_t, false, true>, int64_t> edge_triangle_count(
   raft::handle_t const& handle,
-  cugraph::graph_view_t<int64_t, int64_t, false, true> const& graph_view);
+  cugraph::graph_view_t<int64_t, int64_t, false, true> const& graph_view,
+  bool do_expensive_check);
 
 }  // namespace cugraph
