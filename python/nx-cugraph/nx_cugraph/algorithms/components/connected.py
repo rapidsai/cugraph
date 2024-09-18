@@ -15,7 +15,12 @@ import networkx as nx
 import pylibcugraph as plc
 
 from nx_cugraph.convert import _to_undirected_graph
-from nx_cugraph.utils import _groupby, networkx_algorithm, not_implemented_for
+from nx_cugraph.utils import (
+    _cp_unique,
+    _groupby,
+    networkx_algorithm,
+    not_implemented_for,
+)
 
 __all__ = [
     "number_connected_components",
@@ -44,7 +49,7 @@ def _number_connected_components(G, symmetrize=None):
         labels=None,
         do_expensive_check=False,
     )
-    return cp.unique(labels).size
+    return _cp_unique(labels).size
 
 
 @number_connected_components._can_run

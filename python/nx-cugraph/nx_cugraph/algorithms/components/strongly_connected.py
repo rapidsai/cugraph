@@ -15,7 +15,7 @@ import networkx as nx
 import pylibcugraph as plc
 
 from nx_cugraph.convert import _to_directed_graph
-from nx_cugraph.utils import _groupby, index_dtype, not_implemented_for
+from nx_cugraph.utils import _cp_unique, _groupby, index_dtype, not_implemented_for
 
 __all__ = [
     "number_strongly_connected_components",
@@ -74,7 +74,7 @@ def number_strongly_connected_components(G):
     if G.src_indices.size == 0:
         return len(G)
     labels = _strongly_connected_components(G)
-    return cp.unique(labels).size
+    return _cp_unique(labels).size
 
 
 @not_implemented_for("undirected")

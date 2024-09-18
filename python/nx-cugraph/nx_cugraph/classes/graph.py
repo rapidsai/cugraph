@@ -23,7 +23,7 @@ import pylibcugraph as plc
 
 import nx_cugraph as nxcg
 
-from ..utils import index_dtype
+from ..utils import _cp_unique, index_dtype
 
 if TYPE_CHECKING:  # pragma: no cover
     from collections.abc import Iterable, Iterator
@@ -490,7 +490,7 @@ class Graph:
             n = self.key_to_id[n]
         nbrs = self.dst_indices[self.src_indices == n]
         if self.is_multigraph():
-            nbrs = cp.unique(nbrs)
+            nbrs = _cp_unique(nbrs)
         return nbrs
 
     @networkx_api

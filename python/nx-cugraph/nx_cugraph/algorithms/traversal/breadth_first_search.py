@@ -19,7 +19,7 @@ import pylibcugraph as plc
 
 import nx_cugraph as nxcg
 from nx_cugraph.convert import _to_graph
-from nx_cugraph.utils import _groupby, index_dtype, networkx_algorithm
+from nx_cugraph.utils import _cp_unique, _groupby, index_dtype, networkx_algorithm
 
 __all__ = [
     "bfs_edges",
@@ -155,7 +155,7 @@ def bfs_tree(G, source, reverse=False, depth_limit=None, sort_neighbors=None):
             id_to_key=[source],
         )
     # TODO: create renumbering helper function(s)
-    unique_node_ids = cp.unique(cp.hstack((predecessors, node_ids)))
+    unique_node_ids = _cp_unique(cp.hstack((predecessors, node_ids)))
     # Renumber edges
     src_indices = cp.searchsorted(unique_node_ids, predecessors).astype(index_dtype)
     dst_indices = cp.searchsorted(unique_node_ids, node_ids).astype(index_dtype)

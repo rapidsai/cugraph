@@ -22,7 +22,7 @@ import numpy as np
 
 import nx_cugraph as nxcg
 
-from .utils import _get_int_dtype, _groupby, index_dtype, networkx_algorithm
+from .utils import _cp_unique, _get_int_dtype, _groupby, index_dtype, networkx_algorithm
 
 if TYPE_CHECKING:  # pragma: no cover
     from nx_cugraph.typing import AttrKey, Dtype, EdgeValue
@@ -209,12 +209,12 @@ def _deduplicate(
     stacked_dup = cp.vstack((src_indices, dst_indices))
     if not edge_values:
         # Drop duplicates
-        stacked = cp.unique(stacked_dup, axis=1)
+        stacked = _cp_unique(stacked_dup, axis=1)
     else:
         # Drop duplicates. This relies heavily on `_groupby`.
         # It has not been compared to alternative implementations.
         # I wonder if there are ways to use assignment using duplicate indices.
-        (stacked, ind, inv) = cp.unique(
+        (stacked, ind, inv) = _cp_unique(
             stacked_dup, axis=1, return_index=True, return_inverse=True
         )
         if int_dtype is not None and ind.dtype != int_dtype:

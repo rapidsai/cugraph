@@ -46,6 +46,7 @@ __all__ = [
     "_get_float_dtype",
     "_dtype_param",
     "_cp_iscopied_asarray",
+    "_cp_unique",
 ]
 
 # This may switch to np.uint32 at some point
@@ -238,3 +239,22 @@ def _cp_iscopied_asarray(a, *args, orig_object=None, **kwargs):
     ):
         return False, arr
     return True, arr
+
+
+def _cp_unique(ar, *args, axis=None, **kwargs):
+    """Safely compute ``unique`` with cupy or numpy.
+
+    This function is intended to work around this issue until it is fixed:
+    https://github.com/cupy/cupy/issues/8326
+
+    When the `axis` keyword is not None, ``cp.unique`` may run forever.
+    To avoid this, this function uses ``np.unique`` when `axis` is used.
+
+    This function assumes ``axis=`` is given as a keyword, not positional, argument.
+    """
+    if axis is None:
+        return cp.unique(ar, *args, **kwargs)
+    result = np.unique(ar.get(), *args, axis=axis, **kwargs)
+    if isinstance(result, tuple):
+        return tuple(cp.array(x) for x in result)
+    return cp.array(result)

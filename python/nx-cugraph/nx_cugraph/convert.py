@@ -24,7 +24,7 @@ import numpy as np
 
 import nx_cugraph as nxcg
 
-from .utils import index_dtype, networkx_algorithm
+from .utils import _cp_unique, index_dtype, networkx_algorithm
 from .utils.misc import pairwise
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -737,7 +737,7 @@ def to_dict_of_lists(G, nodelist=None):
     # Sort indices so we can use `cp.unique` to determine boundaries.
     # This is like exporting to DCSR.
     if G.is_multigraph():
-        stacked = cp.unique(cp.vstack((src_indices, dst_indices)), axis=1)
+        stacked = _cp_unique(cp.vstack((src_indices, dst_indices)), axis=1)
         src_indices = stacked[0]
         dst_indices = stacked[1]
     else:
@@ -745,7 +745,7 @@ def to_dict_of_lists(G, nodelist=None):
         indices = cp.lexsort(stacked)
         src_indices = src_indices[indices]
         dst_indices = dst_indices[indices]
-    compressed_srcs, left_bounds = cp.unique(src_indices, return_index=True)
+    compressed_srcs, left_bounds = _cp_unique(src_indices, return_index=True)
     # Ensure we include isolate nodes in the result (and in proper order)
     rv = None
     if nodelist is not None:

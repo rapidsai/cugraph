@@ -17,6 +17,7 @@ import pylibcugraph as plc
 import nx_cugraph as nxcg
 from nx_cugraph.convert import _to_undirected_graph
 from nx_cugraph.utils import (
+    _cp_unique,
     _get_int_dtype,
     index_dtype,
     networkx_algorithm,
@@ -97,7 +98,7 @@ def k_truss(G, k):
             do_expensive_check=False,
         )
         # Renumber step 0: node indices
-        node_indices = cp.unique(cp.concatenate([src_indices, dst_indices]))
+        node_indices = _cp_unique(cp.concatenate([src_indices, dst_indices]))
         # Renumber step 1: edge values
         if edge_indices.dtype != edge_dtype:
             # The returned edge_indices may have different dtype (and float)
