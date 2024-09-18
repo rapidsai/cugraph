@@ -1,4 +1,4 @@
-# Copyright (c) 2022-2023, NVIDIA CORPORATION.
+# Copyright (c) 2022-2024, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -307,8 +307,8 @@ def test_load_call_unload_extension(client, extension1):
     assert len(results) == 2
     assert len(results[0]) == 33
     assert len(results[1]) == 21
-    assert type(results[0][0]) == int
-    assert type(results[1][0]) == float
+    assert type(results[0][0]) is int
+    assert type(results[1][0]) is float
     assert results[0][0] == 9
     assert results[1][0] == 9.0
 

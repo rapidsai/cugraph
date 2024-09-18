@@ -134,7 +134,7 @@ def train_model(model, g, opt, train_dataloader, num_epochs, rank, val_nid):
     et = time.time()
     print(
         f"Total time taken for num_epochs {num_epochs} "
-        f"with batch_size {train_dataloader._batch_size} = {et-st} s on rank ={rank}"
+        f"with batch_size {train_dataloader._batch_size} = {et - st} s on rank ={rank}"
     )
     if rank == 0:
         val_acc = layerwise_infer(g, val_nid, model, 1024 * 5, "cuda")

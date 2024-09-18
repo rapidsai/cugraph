@@ -33,6 +33,7 @@ option(FIND_CUGRAPH_CPP "Search for existing CUGRAPH C++ installations before de
        OFF
 )
 option(USE_CUGRAPH_OPS "Enable all functions that call cugraph-ops" ON)
+option(USE_CUDA_MATH_WHEELS "Use the CUDA math wheels instead of the system libraries" OFF)
 
 if(NOT USE_CUGRAPH_OPS)
     message(STATUS "Disabling libcugraph functions that reference cugraph-ops")
@@ -49,6 +50,8 @@ endif()
 include(rapids-cython-core)
 
 if(NOT cugraph_FOUND)
+  find_package(CUDAToolkit REQUIRED)
+
   set(BUILD_TESTS OFF)
   set(BUILD_CUGRAPH_MG_TESTS OFF)
   set(BUILD_CUGRAPH_OPS_CPP_TESTS OFF)
@@ -60,7 +63,25 @@ if(NOT cugraph_FOUND)
   set(CUGRAPH_EXCLUDE_CUGRAPH_OPS_FROM_ALL ON)
   set(ALLOW_CLONE_CUGRAPH_OPS ON)
 
+  if(CUDAToolkit_VERSION VERSION_GREATER_EQUAL 12.0)
+    set(CUDA_STATIC_MATH_LIBRARIES OFF)
+  elseif(USE_CUDA_MATH_WHEELS)
+    message(FATAL_ERROR "Cannot use CUDA math wheels with CUDA < 12.0")
+  endif()
+
   add_subdirectory(../../cpp cugraph-cpp EXCLUDE_FROM_ALL)
+
+  if(NOT CUDA_STATIC_MATH_LIBRARIES AND USE_CUDA_MATH_WHEELS)
+    set(rpaths
+      "$ORIGIN/../nvidia/cublas/lib"
+      "$ORIGIN/../nvidia/cufft/lib"
+      "$ORIGIN/../nvidia/curand/lib"
+      "$ORIGIN/../nvidia/cusolver/lib"
+      "$ORIGIN/../nvidia/cusparse/lib"
+      "$ORIGIN/../nvidia/nvjitlink/lib"
+    )
+    set_property(TARGET cugraph PROPERTY INSTALL_RPATH ${rpaths} APPEND)
+  endif()
 
   set(cython_lib_dir cugraph)
   install(TARGETS cugraph DESTINATION ${cython_lib_dir})

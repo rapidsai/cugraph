@@ -636,7 +636,7 @@ class graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if
                                      /* (edge_srcs, edge_dsts) should be pre-shuffled */
                                      raft::device_span<vertex_t const> edge_srcs,
                                      raft::device_span<vertex_t const> edge_dsts,
-                                     bool do_expensive_check = false);
+                                     bool do_expensive_check = false) const;
 
   rmm::device_uvector<edge_t> compute_multiplicity(
     raft::handle_t const& handle,
@@ -945,7 +945,7 @@ class graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if
   rmm::device_uvector<bool> has_edge(raft::handle_t const& handle,
                                      raft::device_span<vertex_t const> edge_srcs,
                                      raft::device_span<vertex_t const> edge_dsts,
-                                     bool do_expensive_check = false);
+                                     bool do_expensive_check = false) const;
 
   rmm::device_uvector<edge_t> compute_multiplicity(raft::handle_t const& handle,
                                                    raft::device_span<vertex_t const> edge_srcs,

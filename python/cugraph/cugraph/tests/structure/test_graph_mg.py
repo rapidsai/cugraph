@@ -303,7 +303,7 @@ def test_mg_graph_serializable(dask_client, input_combo):
     G = input_combo["MGGraph"]
     dask_client.publish_dataset(shared_g=G)
     shared_g = dask_client.get_dataset("shared_g")
-    assert type(shared_g) == type(G)
+    assert type(shared_g) is type(G)
     assert G.number_of_vertices() == shared_g.number_of_vertices()
     assert G.number_of_edges() == shared_g.number_of_edges()
     # cleanup
@@ -314,7 +314,7 @@ def test_mg_graph_serializable(dask_client, input_combo):
 def test_mg_graph_copy():
     G = cugraph.MultiGraph(directed=True)
     G_c = copy.deepcopy(G)
-    assert type(G) == type(G_c)
+    assert type(G) is type(G_c)
 
 
 @pytest.mark.mg

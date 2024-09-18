@@ -234,7 +234,7 @@ def run_workflow(
     torch.distributed.barrier()
     total_et = time.time()
     print(
-        f"Total time taken on n_epochs {n_epochs} = {total_et-total_st} s",
+        f"Total time taken on n_epochs {n_epochs} = {total_et - total_st} s",
         f"measured by worker = {global_rank}",
     )
 
