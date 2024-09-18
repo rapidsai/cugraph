@@ -12,7 +12,6 @@
 # limitations under the License.
 
 # This example illustrates link classification using the ogbl-wikikg2 dataset.
-# The contrived task is to predict the relation type.
 
 import argparse
 
