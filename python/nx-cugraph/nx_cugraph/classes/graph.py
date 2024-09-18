@@ -113,10 +113,19 @@ class Graph:
     ) -> Graph:
         new_graph = object.__new__(cls)
         new_graph.__networkx_cache__ = {}
+        # Ensure edge data is contiguous; don't copy if they are. Indices handled below.
         new_graph.src_indices = src_indices
         new_graph.dst_indices = dst_indices
-        new_graph.edge_values = {} if edge_values is None else dict(edge_values)
-        new_graph.edge_masks = {} if edge_masks is None else dict(edge_masks)
+        new_graph.edge_values = (
+            {}
+            if edge_values is None
+            else {key: cp.asarray(val, order="C") for key, val in edge_values.items()}
+        )
+        new_graph.edge_masks = (
+            {}
+            if edge_masks is None
+            else {key: cp.asarray(val, order="C") for key, val in edge_masks.items()}
+        )
         new_graph.node_values = {} if node_values is None else dict(node_values)
         new_graph.node_masks = {} if node_masks is None else dict(node_masks)
         new_graph.key_to_id = None if key_to_id is None else dict(key_to_id)
@@ -164,6 +173,11 @@ class Graph:
                     f"(got {new_graph.dst_indices.dtype.name})."
                 )
             new_graph.dst_indices = dst_indices
+
+        # Ensure edge data is contiguous; don't copy if they are. Values handled above.
+        # Do this now so we don't copy every time we create a PLC graph.
+        new_graph.src_indices = cp.asarray(new_graph.src_indices, order="C")
+        new_graph.dst_indices = cp.asarray(new_graph.dst_indices, order="C")
 
         # If the graph contains isolates, plc.SGGraph() must be passed a value
         # for vertices_array that contains every vertex ID, since the

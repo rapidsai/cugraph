@@ -94,7 +94,10 @@ class MultiGraph(Graph):
             id_to_key=id_to_key,
             **attr,
         )
-        new_graph.edge_indices = edge_indices
+        # Ensure edge data is contiguous; don't copy if they are.
+        new_graph.edge_indices = (
+            None if edge_indices is None else cp.asarray(edge_indices, order="C")
+        )
         new_graph.edge_keys = edge_keys
         # Easy and fast sanity checks
         if (
