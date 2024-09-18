@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2023, NVIDIA CORPORATION.
+# Copyright (c) 2019-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -36,7 +36,7 @@ def _ensure_args(
     # checks common to all input types
     if (method is not None) and (method != "auto"):
         raise ValueError("only 'auto' is currently accepted for method")
-    if (indices is not None) and (type(indices) == list):
+    if (indices is not None) and (type(indices) is list):
         raise ValueError("indices currently cannot be a list-like type")
     if (indices is not None) and (source is not None):
         raise TypeError("cannot specify both 'source' and 'indices'")
@@ -70,9 +70,11 @@ def _ensure_args(
 
     # Check for non-Graph-type inputs
     else:
-        if (directed is not None) and (type(directed) != bool):
+        if (directed is not None) and (type(directed) is not bool):
             raise ValueError("'directed' must be a bool")
-        if (return_predecessors is not None) and (type(return_predecessors) != bool):
+        if (return_predecessors is not None) and (
+            type(return_predecessors) is not bool
+        ):
             raise ValueError("'return_predecessors' must be a bool")
         if (unweighted is not None) and (unweighted is not True):
             raise ValueError("'unweighted' currently must be True if " "specified")

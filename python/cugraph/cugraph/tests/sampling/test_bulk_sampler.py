@@ -119,7 +119,7 @@ def test_bulk_sampler_remainder(scratch_dir):
         assert b in recovered_samples["batch_id"].values_host.tolist()
 
     for x in range(0, 6, 2):
-        subdir = f"{x}-{x+1}"
+        subdir = f"{x}-{x + 1}"
         df = cudf.read_parquet(os.path.join(samples_path, f"batch={subdir}.parquet"))
 
         assert ((df.batch_id == x) | (df.batch_id == (x + 1))).all()
