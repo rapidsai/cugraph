@@ -205,7 +205,9 @@ def train(args, device, g, dataset, model):
 
         et = time.time()
 
-        print(f"Time taken for epoch {epoch} with batch_size {batch_size} = {et-st} s")
+        print(
+            f"Time taken for epoch {epoch} with batch_size {batch_size} = {et - st} s"
+        )
         acc = evaluate(model, g, val_dataloader)
         print(
             "Epoch {:05d} | Loss {:.4f} | Accuracy {:.4f} ".format(
