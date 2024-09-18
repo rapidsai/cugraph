@@ -18,8 +18,8 @@
 
 #include "detail/graph_partition_utils.cuh"
 #include "prims/edge_bucket.cuh"
+#include "prims/per_v_pair_dst_nbr_intersection.cuh"
 #include "prims/transform_e.cuh"
-#include "prims/transform_reduce_dst_nbr_intersection_of_e_endpoints_by_v.cuh"
 
 #include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/graph_functions.hpp>
@@ -124,7 +124,8 @@ struct extract_q_r {
 template <typename vertex_t, typename edge_t, bool store_transposed, bool multi_gpu>
 edge_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>, edge_t> edge_triangle_count_impl(
   raft::handle_t const& handle,
-  graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view)
+  graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
+  bool do_expensive_check)
 {
   using weight_t = float;
   rmm::device_uvector<vertex_t> edgelist_srcs(0, handle.get_stream());
@@ -158,14 +159,11 @@ edge_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>, edge_t> edge_t
     num_remaining_edges -= chunk_size;
     // Perform 'nbr_intersection' in chunks to reduce peak memory.
     auto [intersection_offsets, intersection_indices] =
-      detail::nbr_intersection(handle,
-                               graph_view,
-                               cugraph::edge_dummy_property_t{}.view(),
-                               edge_first + prev_chunk_size,
-                               edge_first + prev_chunk_size + chunk_size,
-                               std::array<bool, 2>{true, true},
-                               false /*FIXME: pass 'do_expensive_check' as argument*/);
-
+      per_v_pair_dst_nbr_intersection(handle,
+                                      graph_view,
+                                      edge_first + prev_chunk_size,
+                                      edge_first + prev_chunk_size + chunk_size,
+                                      do_expensive_check);
     // Update the number of triangles of each (p, q) edges by looking at their intersection
     // size
     thrust::for_each(
@@ -365,9 +363,11 @@ edge_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>, edge_t> edge_t
 
 template <typename vertex_t, typename edge_t, bool multi_gpu>
 edge_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>, edge_t> edge_triangle_count(
-  raft::handle_t const& handle, graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view)
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+  bool do_expensive_check)
 {
-  return detail::edge_triangle_count_impl(handle, graph_view);
+  return detail::edge_triangle_count_impl(handle, graph_view, do_expensive_check);
 }
 
 }  // namespace cugraph
