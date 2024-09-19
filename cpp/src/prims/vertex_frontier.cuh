@@ -196,6 +196,33 @@ void device_bcast_vertex_list(
   }
 }
 
+template <typename OutputVertexIterator>
+void retrieve_vertex_list_from_bitmap(
+  raft::device_span<uint32_t const> bitmap,
+  OutputVertexIterator output_v_first,
+  raft::device_span<size_t> count /* size = 1 */,
+  typename thrust::iterator_traits<OutputVertexIterator>::value_type vertex_range_first,
+  typename thrust::iterator_traits<OutputVertexIterator>::value_type vertex_range_last,
+  rmm::cuda_stream_view stream_view)
+{
+  using vertex_t = typename thrust::iterator_traits<OutputVertexIterator>::value_type;
+
+    assert((comm.get_rank() != root) || (bitmap.size() == packed_bool_size(vertex_range_last - vertex_ragne_first)));
+    detail::copy_if_nosync(
+      thrust::make_counting_iterator(vertex_range_first),
+      thrust::make_counting_iterator(vertex_range_last),
+      thrust::make_transform_iterator(
+        thrust::make_counting_iterator(vertex_t{0}),
+        cuda::proclaim_return_type<bool>(
+          [bitmap] __device__(vertex_t v_offset) {
+            return ((bitmap[packed_bool_offset(v_offset)] & packed_bool_mask(v_offset)) !=
+                    packed_bool_empty_mask());
+          })),
+      output_v_first,
+      count,
+      stream_view);
+}
+
 // key type is either vertex_t (tag_t == void) or thrust::tuple<vertex_t, tag_t> (tag_t != void)
 // if sorted_unique is true, stores unique key objects in the sorted (non-descending) order.
 // if false, there can be duplicates and the elements may not be sorted.

@@ -300,6 +300,121 @@ bool check_no_parallel_edge(raft::handle_t const& handle,
          (org_edge_first + edgelist_srcs.size());
 }
 
+template <typename edge_t>
+std::vector<rmm::device_uvector<std::byte>>
+split_edge_chunk_compressed_elements_to_local_edge_partitions(
+  raft::handle_t const& handle,
+  std::vector<rmm::device_uvector<std::byte>>&& edgelist_compressed_elements,
+  std::vector<std::vector<edge_t>> const& edgelist_edge_offset_vectors,
+  std::vector<edge_t> const& edge_partition_edge_counts,
+  std::vector<std::vector<edge_t>> const& edge_partition_intra_partition_segment_offset_vectors,
+  std::vector<std::vector<edge_t>> const&
+    edge_partition_intra_segment_copy_output_displacement_vectors,
+  size_t element_size)
+{
+  auto num_chunks          = edgelist_compressed_elements.size();
+  auto num_edge_partitions = edge_partition_edge_counts.size();
+  auto num_segments        = edge_partition_intra_partition_segment_offset_vectors[0].size() - 1;
+  for (size_t i = 0; i < edge_partition_intra_partition_segment_offset_vectors.size(); ++i) {
+    assert(edge_partition_intra_partition_segment_offset_vectors[i].size() == (num_segments + 1));
+  }
+
+  std::vector<rmm::device_uvector<std::byte>> edge_partition_compressed_elements{};
+  edge_partition_compressed_elements.reserve(num_edge_partitions);
+  for (size_t i = 0; i < num_edge_partitions; ++i) {
+    edge_partition_compressed_elements.push_back(rmm::device_uvector<std::byte>(
+      edge_partition_edge_counts[i] * element_size, handle.get_stream()));
+  }
+
+  for (size_t i = 0; i < num_edge_partitions; ++i) {
+    for (size_t j = 0; j < num_segments; ++j) {
+      for (size_t k = 0; k < num_chunks; ++k) {
+        auto segment_offset = edgelist_edge_offset_vectors[k][i * num_segments + j];
+        auto segment_size   = edgelist_edge_offset_vectors[k][i * num_segments + j + 1] -
+                            edgelist_edge_offset_vectors[k][i * num_segments + j];
+        auto output_offset =
+          edge_partition_intra_partition_segment_offset_vectors[i][j] +
+          edge_partition_intra_segment_copy_output_displacement_vectors[i][j * num_chunks + k];
+        thrust::copy(
+          handle.get_thrust_policy(),
+          edgelist_compressed_elements[k].begin() + segment_offset * element_size,
+          edgelist_compressed_elements[k].begin() + (segment_offset + segment_size) * element_size,
+          edge_partition_compressed_elements[i].begin() + output_offset * element_size);
+      }
+    }
+  }
+  edgelist_compressed_elements.clear();
+
+  return edge_partition_compressed_elements;
+}
+
+template <typename edge_t, typename T>
+std::vector<rmm::device_uvector<T>> split_edge_chunk_elements_to_local_edge_partitions(
+  raft::handle_t const& handle,
+  std::vector<rmm::device_uvector<T>>&& edgelist_elements,
+  std::vector<std::vector<edge_t>> const& edgelist_edge_offset_vectors,
+  std::vector<edge_t> const& edge_partition_edge_counts,
+  std::vector<std::vector<edge_t>> const& edge_partition_intra_partition_segment_offset_vectors,
+  std::vector<std::vector<edge_t>> const&
+    edge_partition_intra_segment_copy_output_displacement_vectors)
+{
+  static_assert(std::is_arithmetic_v<T>);  // otherwise, unimplemented.
+  auto num_chunks          = edgelist_elements.size();
+  auto num_edge_partitions = edge_partition_edge_counts.size();
+  auto num_segments        = edge_partition_intra_partition_segment_offset_vectors[0].size() - 1;
+  for (size_t i = 0; i < edge_partition_intra_partition_segment_offset_vectors.size(); ++i) {
+    assert(edge_partition_intra_partition_segment_offset_vectors[i].size() == (num_segments + 1));
+  }
+
+  std::vector<rmm::device_uvector<T>> edge_partition_elements{};
+  edge_partition_elements.reserve(num_edge_partitions);
+  for (size_t i = 0; i < num_edge_partitions; ++i) {
+    edge_partition_elements.push_back(
+      rmm::device_uvector<T>(edge_partition_edge_counts[i], handle.get_stream()));
+  }
+
+  for (size_t i = 0; i < num_edge_partitions; ++i) {
+    for (size_t j = 0; j < num_segments; ++j) {
+      for (size_t k = 0; k < num_chunks; ++k) {
+        auto segment_offset = edgelist_edge_offset_vectors[k][i * num_segments + j];
+        auto segment_size   = edgelist_edge_offset_vectors[k][i * num_segments + j + 1] -
+                            edgelist_edge_offset_vectors[k][i * num_segments + j];
+        auto output_offset =
+          edge_partition_intra_partition_segment_offset_vectors[i][j] +
+          edge_partition_intra_segment_copy_output_displacement_vectors[i][j * num_chunks + k];
+        thrust::copy(handle.get_thrust_policy(),
+                     edgelist_elements[k].begin() + segment_offset,
+                     edgelist_elements[k].begin() + (segment_offset + segment_size),
+                     edge_partition_elements[i].begin() + output_offset);
+      }
+    }
+  }
+  edgelist_elements.clear();
+
+  return edge_partition_elements;
+}
+
+template <typename vertex_t>
+void decompress_vertices(raft::handle_t const& handle,
+                         raft::device_span<std::byte const> compressed_vertices,
+                         raft::device_span<vertex_t> vertices,
+                         size_t compressed_v_size)
+{
+  auto input_v_first = thrust::make_transform_iterator(
+    thrust::make_counting_iterator(size_t{0}),
+    cuda::proclaim_return_type<vertex_t>(
+      [byte_first = compressed_vertices.begin(), compressed_v_size] __device__(size_t i) {
+        uint64_t v{0};
+        for (size_t j = 0; j < compressed_v_size; ++j) {
+          auto b = *(byte_first + i * compressed_v_size + j);
+          v |= static_cast<uint64_t>(b) << (8 * j);
+        }
+        return static_cast<vertex_t>(v);
+      }));
+  thrust::copy(
+    handle.get_thrust_policy(), input_v_first, input_v_first + vertices.size(), vertices.begin());
+}
+
 template <typename vertex_t,
           typename edge_t,
           typename weight_t,
@@ -379,8 +494,7 @@ create_graph_from_partitioned_edgelist(
   if (edge_partition_edgelist_edge_ids) { element_size += sizeof(edge_id_t); }
   if (edge_partition_edgelist_edge_types) { element_size += sizeof(edge_type_t); }
   auto constexpr mem_frugal_ratio =
-    0.25;  // if the expected temporary buffer size exceeds the mem_frugal_ratio of the
-           // total_global_mem, switch to the memory frugal approach
+    0.05;  // if the expected temporary buffer size exceeds the mem_frugal_ratio of the total_global_mem, switch to the memory frugal approach
   auto mem_frugal_threshold =
     static_cast<size_t>(static_cast<double>(total_global_mem / element_size) * mem_frugal_ratio);
 
@@ -549,6 +663,7 @@ create_graph_from_partitioned_edgelist(
               mem_frugal_threshold,
               handle.get_stream());
         } else {
+RAFT_CUDA_TRY(cudaDeviceSynchronize()); std::cout << comm_rank << ":create_graph_from_partitioned 2-1 i=" << i << std::endl;
           std::forward_as_tuple(offsets, indices, dcs_nzd_vertices) =
             detail::sort_and_compress_edgelist<vertex_t, edge_t, store_transposed>(
               std::move(edge_partition_edgelist_srcs[i]),
@@ -560,6 +675,7 @@ create_graph_from_partitioned_edgelist(
               minor_range_last,
               mem_frugal_threshold,
               handle.get_stream());
+RAFT_CUDA_TRY(cudaDeviceSynchronize()); std::cout << comm_rank << ":create_graph_from_partitioned 2-2 i=" << i << std::endl;
         }
       }
     }
@@ -1046,68 +1162,71 @@ create_graph_from_edgelist_impl(
 
   auto num_chunks = edgelist_srcs.size();
 
-  // 1. check whether we can temporarily store a 64 bit vertex ID in 48 bit.
+  // 1. set whether to temporarily compress vertex IDs or not in splitting edge chunks
 
-  bool store_v_in_48bit = false;  // if set to true, temporarily store vertex IDs in 48 bit
+  size_t compressed_v_size =
+    sizeof(vertex_t);  // if set to a value smaller than sizeof(vertex_t), temporarily store vertex
+                       // IDs in compressed_v_size byte variables
 
   static_assert((sizeof(vertex_t) == 4) || (sizeof(vertex_t) == 8));
   if constexpr (sizeof(vertex_t) == 8) {        // 64 bit vertex ID
     static_assert(std::is_signed_v<vertex_t>);  // __clzll takes a signed integer
-    size_t min_clz{sizeof(vertex_t) * 8};
-    for (size_t i = 0; i < num_chunks; ++i) {
-      min_clz = thrust::transform_reduce(handle.get_thrust_policy(),
-                                         edgelist_srcs[i].begin(),
-                                         edgelist_srcs[i].end(),
-                                         cuda::proclaim_return_type<size_t>([] __device__(auto v) {
-                                           return static_cast<size_t>(__clzll(v));
-                                         }),
-                                         min_clz,
-                                         thrust::minimum<size_t>{});
-      min_clz = thrust::transform_reduce(handle.get_thrust_policy(),
-                                         edgelist_dsts[i].begin(),
-                                         edgelist_dsts[i].end(),
-                                         cuda::proclaim_return_type<size_t>([] __device__(auto v) {
-                                           return static_cast<size_t>(__clzll(v));
-                                         }),
-                                         min_clz,
-                                         thrust::minimum<size_t>{});
+
+    auto total_global_mem = handle.get_device_properties().totalGlobalMem;
+    size_t element_size   = sizeof(vertex_t) * 2;
+    if (edgelist_weights) { element_size += sizeof(weight_t); }
+    if (edgelist_edge_ids) { element_size += sizeof(edge_id_t); }
+    if (edgelist_edge_types) { element_size += sizeof(edge_type_t); }
+    edge_t num_edges{0};
+    for (size_t i = 0; i < edgelist_srcs.size(); ++i) {
+      num_edges += edgelist_srcs[i].size();
     }
-    if (min_clz >= 16) {
-      store_v_in_48bit = true;
+    bool compress{false};
+    if (static_cast<size_t>(num_edges) * element_size >
+        static_cast<size_t>(total_global_mem * 0.5 /* tuning parameter */)) {
+      compress = true;
     }
-    std::cout << "min_clz=" << min_clz << std::endl;
+
+    if (compress) {
+      size_t min_clz{sizeof(vertex_t) * 8};
+      for (size_t i = 0; i < num_chunks; ++i) {
+        min_clz =
+          thrust::transform_reduce(handle.get_thrust_policy(),
+                                   edgelist_srcs[i].begin(),
+                                   edgelist_srcs[i].end(),
+                                   cuda::proclaim_return_type<size_t>([] __device__(auto v) {
+                                     return static_cast<size_t>(__clzll(v));
+                                   }),
+                                   min_clz,
+                                   thrust::minimum<size_t>{});
+        min_clz =
+          thrust::transform_reduce(handle.get_thrust_policy(),
+                                   edgelist_dsts[i].begin(),
+                                   edgelist_dsts[i].end(),
+                                   cuda::proclaim_return_type<size_t>([] __device__(auto v) {
+                                     return static_cast<size_t>(__clzll(v));
+                                   }),
+                                   min_clz,
+                                   thrust::minimum<size_t>{});
+      }
+      compressed_v_size = sizeof(vertex_t) - (min_clz / 8);
+      compressed_v_size = std::max(
+        compressed_v_size, size_t{5});  // FIXME: max(compressed_v_size, size_t{1}) is sufficient,
+                                        // but we need to check whether this works at scale 40
+    }
   }
+#if 1
+  RAFT_CUDA_TRY(cudaDeviceSynchronize());
+  std::cout << comm_rank
+            << ":create_graph_from_edgelist_impl 1 compressed_v_size=" << compressed_v_size
+            << std::endl;
+#endif
 
   // 2. groupby each edge chunks to their target local adjacency matrix partition (and further
   // groupby within the local partition by applying the compute_gpu_id_from_vertex_t to minor vertex
   // IDs).
-#if 1
-  RAFT_CUDA_TRY(cudaDeviceSynchronize());
-  std::cout << comm_rank
-            << ":create_graph_from_edgelist_impl 1 store_v_in_48bit=" << store_v_in_48bit
-            << std::endl;
-#endif
 
-  std::vector<std::vector<size_t>> edgelist_edge_offset_vectors(num_chunks);
-  std::vector<
-    std::vector<std::variant<rmm::device_uvector<vertex_t>, rmm::device_uvector<uint16_t>>>>
-    edgelist_partitioned_srcs(num_chunks);
-  std::vector<
-    std::vector<std::variant<rmm::device_uvector<vertex_t>, rmm::device_uvector<uint16_t>>>>
-    edgelist_partitioned_dsts(num_chunks);
-  auto edgelist_partitioned_weights =
-    edgelist_weights
-      ? std::make_optional<std::vector<std::vector<rmm::device_uvector<weight_t>>>>(num_chunks)
-      : std::nullopt;
-  auto edgelist_partitioned_edge_ids =
-    edgelist_edge_ids
-      ? std::make_optional<std::vector<std::vector<rmm::device_uvector<edge_id_t>>>>(num_chunks)
-      : std::nullopt;
-  auto edgelist_partitioned_edge_types =
-    edgelist_edge_types
-      ? std::make_optional<std::vector<std::vector<rmm::device_uvector<edge_type_t>>>>(num_chunks)
-      : std::nullopt;
-
+  std::vector<std::vector<edge_t>> edgelist_edge_offset_vectors(num_chunks);
   for (size_t i = 0; i < num_chunks; ++i) {  // iterate over input edge chunks
     std::optional<rmm::device_uvector<weight_t>> this_chunk_weights{std::nullopt};
     if (edgelist_weights) { this_chunk_weights = std::move((*edgelist_weights)[i]); }
@@ -1124,6 +1243,9 @@ create_graph_from_edgelist_impl(
         this_chunk_edge_ids,
         this_chunk_edge_types,
         true);
+    if (this_chunk_weights) { (*edgelist_weights)[i] = std::move(*this_chunk_weights); }
+    if (this_chunk_edge_ids) { (*edgelist_edge_ids)[i] = std::move(*this_chunk_edge_ids); }
+    if (this_chunk_edge_types) { (*edgelist_edge_types)[i] = std::move(*this_chunk_edge_types); }
 
     std::vector<size_t> h_this_chunk_edge_counts(d_this_chunk_edge_counts.size());
     raft::update_host(h_this_chunk_edge_counts.data(),
@@ -1131,175 +1253,82 @@ create_graph_from_edgelist_impl(
                       d_this_chunk_edge_counts.size(),
                       handle.get_stream());
     handle.sync_stream();
-    std::vector<size_t> h_this_chunk_edge_offsets(
+    std::vector<edge_t> h_this_chunk_edge_offsets(
       h_this_chunk_edge_counts.size() + 1,
       0);  // size = minor_comm_size (# local edge partitions) * major_comm_size (# segments in the
            // local minor range)
     std::inclusive_scan(h_this_chunk_edge_counts.begin(),
                         h_this_chunk_edge_counts.end(),
                         h_this_chunk_edge_offsets.begin() + 1);
-
-    for (int j = 0; j < minor_comm_size /* # local edge partitions */; ++j) {
-      auto partition_size = h_this_chunk_edge_offsets[(j + 1) * major_comm_size] -
-                            h_this_chunk_edge_offsets[j * major_comm_size];
-      std::variant<rmm::device_uvector<vertex_t>, rmm::device_uvector<uint16_t>> tmp_srcs =
-        rmm::device_uvector<vertex_t>(0, handle.get_stream());
-      if (store_v_in_48bit) {
-        tmp_srcs         = rmm::device_uvector<uint16_t>(partition_size * 3, handle.get_stream());
-        auto input_first = thrust::make_transform_iterator(
-          thrust::make_counting_iterator(size_t{0}),
-          cuda::proclaim_return_type<uint16_t>(
-            [src_first = edgelist_srcs[i].begin() +
-                         h_this_chunk_edge_offsets[j * major_comm_size]] __device__(size_t i) {
-              auto v = static_cast<uint64_t>(*(src_first + (i / 3)));
-              return static_cast<uint16_t>((v >> (16 * (i % 3))) & uint64_t{0xffff});
-            }));
-        thrust::copy(handle.get_thrust_policy(),
-                     input_first,
-                     input_first + partition_size * 3,
-                     std::get<1>(tmp_srcs).begin());
-      } else {
-        std::get<0>(tmp_srcs).resize(partition_size, handle.get_stream());
-        auto input_first =
-          edgelist_srcs[i].begin() + h_this_chunk_edge_offsets[j * major_comm_size];
-        thrust::copy(handle.get_thrust_policy(),
-                     input_first,
-                     input_first + partition_size,
-                     std::get<0>(tmp_srcs).begin());
-      }
-      edgelist_partitioned_srcs[i].push_back(std::move(tmp_srcs));
-    }
-    edgelist_srcs[i].resize(0, handle.get_stream());
-    edgelist_srcs[i].shrink_to_fit(handle.get_stream());
-
-    for (int j = 0; j < minor_comm_size /* # local edge partitions */; ++j) {
-      auto partition_size = h_this_chunk_edge_offsets[(j + 1) * major_comm_size] -
-                            h_this_chunk_edge_offsets[j * major_comm_size];
-      std::variant<rmm::device_uvector<vertex_t>, rmm::device_uvector<uint16_t>> tmp_dsts =
-        rmm::device_uvector<vertex_t>(0, handle.get_stream());
-      if (store_v_in_48bit) {
-        tmp_dsts         = rmm::device_uvector<uint16_t>(partition_size * 3, handle.get_stream());
-        auto input_first = thrust::make_transform_iterator(
-          thrust::make_counting_iterator(size_t{0}),
-          cuda::proclaim_return_type<uint16_t>(
-            [dst_first = edgelist_dsts[i].begin() +
-                         h_this_chunk_edge_offsets[j * major_comm_size]] __device__(size_t i) {
-              auto v = static_cast<uint64_t>(*(dst_first + (i / 3)));
-              return static_cast<uint16_t>((v >> (16 * (i % 3))) & uint64_t{0xffff});
-            }));
-        thrust::copy(handle.get_thrust_policy(),
-                     input_first,
-                     input_first + partition_size * 3,
-                     std::get<1>(tmp_dsts).begin());
-      } else {
-        std::get<0>(tmp_dsts).resize(partition_size, handle.get_stream());
-        auto input_first =
-          edgelist_dsts[i].begin() + h_this_chunk_edge_offsets[j * major_comm_size];
-        thrust::copy(handle.get_thrust_policy(),
-                     input_first,
-                     input_first + partition_size,
-                     std::get<0>(tmp_dsts).begin());
-      }
-      edgelist_partitioned_dsts[i].push_back(std::move(tmp_dsts));
-    }
-    edgelist_dsts[i].resize(0, handle.get_stream());
-    edgelist_dsts[i].shrink_to_fit(handle.get_stream());
-
-    if (this_chunk_weights) {
-      for (int j = 0; j < minor_comm_size /* # local edge partitions */; ++j) {
-        rmm::device_uvector<weight_t> tmp_weights(
-          h_this_chunk_edge_offsets[(j + 1) * major_comm_size] -
-            h_this_chunk_edge_offsets[j * major_comm_size],
-          handle.get_stream());
-        auto input_first =
-          (*this_chunk_weights).begin() + h_this_chunk_edge_offsets[j * major_comm_size];
-        thrust::copy(handle.get_thrust_policy(),
-                     input_first,
-                     input_first + tmp_weights.size(),
-                     tmp_weights.begin());
-        (*edgelist_partitioned_weights)[i].push_back(std::move(tmp_weights));
-      }
-      (*this_chunk_weights).resize(0, handle.get_stream());
-      (*this_chunk_weights).shrink_to_fit(handle.get_stream());
-    }
-
-    if (this_chunk_edge_ids) {
-      for (int j = 0; j < minor_comm_size /* # local edge partitions */; ++j) {
-        rmm::device_uvector<edge_id_t> tmp_edge_ids(
-          h_this_chunk_edge_offsets[(j + 1) * major_comm_size] -
-            h_this_chunk_edge_offsets[j * major_comm_size],
-          handle.get_stream());
-        auto input_first =
-          (*this_chunk_edge_ids).begin() + h_this_chunk_edge_offsets[j * major_comm_size];
-        thrust::copy(handle.get_thrust_policy(),
-                     input_first,
-                     input_first + tmp_edge_ids.size(),
-                     tmp_edge_ids.begin());
-        (*edgelist_partitioned_edge_ids)[i].push_back(std::move(tmp_edge_ids));
-      }
-      (*this_chunk_edge_ids).resize(0, handle.get_stream());
-      (*this_chunk_edge_ids).shrink_to_fit(handle.get_stream());
-    }
-
-    if (this_chunk_edge_types) {
-      for (int j = 0; j < minor_comm_size /* # local edge partitions */; ++j) {
-        rmm::device_uvector<edge_type_t> tmp_edge_types(
-          h_this_chunk_edge_offsets[(j + 1) * major_comm_size] -
-            h_this_chunk_edge_offsets[j * major_comm_size],
-          handle.get_stream());
-        auto input_first =
-          (*this_chunk_edge_types).begin() + h_this_chunk_edge_offsets[j * major_comm_size];
-        thrust::copy(handle.get_thrust_policy(),
-                     input_first,
-                     input_first + tmp_edge_types.size(),
-                     tmp_edge_types.begin());
-        (*edgelist_partitioned_edge_types)[i].push_back(std::move(tmp_edge_types));
-      }
-      (*this_chunk_edge_types).resize(0, handle.get_stream());
-      (*this_chunk_edge_types).shrink_to_fit(handle.get_stream());
-    }
-
     edgelist_edge_offset_vectors[i] = std::move(h_this_chunk_edge_offsets);
   }
-  edgelist_srcs.clear();
-  edgelist_dsts.clear();
-  if (edgelist_weights) { (*edgelist_weights).clear(); }
-  if (edgelist_edge_ids) { (*edgelist_edge_ids).clear(); }
-  if (edgelist_edge_types) { (*edgelist_edge_types).clear(); }
-
-  // 3. split the grouped edge chunks to local partitions
 #if 1
   RAFT_CUDA_TRY(cudaDeviceSynchronize());
   std::cout << comm_rank << ":create_graph_from_edgelist_impl 2" << std::endl;
 #endif
 
-  auto edgelist_intra_partition_segment_offset_vectors =
-    std::vector<std::vector<edge_t>>(minor_comm_size);
+  // 3. compress edge chunk source/destination vertices to cut intermediate peak memory requirement
 
-  std::vector<rmm::device_uvector<vertex_t>> edge_partition_edgelist_srcs{};
-  edge_partition_edgelist_srcs.reserve(minor_comm_size);
-  std::vector<rmm::device_uvector<vertex_t>> edge_partition_edgelist_dsts{};
-  edge_partition_edgelist_dsts.reserve(minor_comm_size);
-  auto edge_partition_edgelist_weights =
-    edgelist_partitioned_weights ? std::make_optional<std::vector<rmm::device_uvector<weight_t>>>()
-                                 : std::nullopt;
-  if (edgelist_partitioned_weights) { (*edge_partition_edgelist_weights).reserve(minor_comm_size); }
-  auto edge_partition_edgelist_edge_ids =
-    edgelist_partitioned_edge_ids
-      ? std::make_optional<std::vector<rmm::device_uvector<edge_id_t>>>()
-      : std::nullopt;
-  if (edgelist_partitioned_edge_ids) {
-    (*edge_partition_edgelist_edge_ids).reserve(minor_comm_size);
-  }
-  auto edge_partition_edgelist_edge_types =
-    edgelist_partitioned_edge_types
-      ? std::make_optional<std::vector<rmm::device_uvector<edge_type_t>>>()
-      : std::nullopt;
-  if (edgelist_partitioned_edge_types) {
-    (*edge_partition_edgelist_edge_types).reserve(minor_comm_size);
-  }
+  std::optional<std::vector<rmm::device_uvector<std::byte>>> edgelist_compressed_srcs{std::nullopt};
+  std::optional<std::vector<rmm::device_uvector<std::byte>>> edgelist_compressed_dsts{std::nullopt};
+  if (compressed_v_size < sizeof(vertex_t)) {
+    edgelist_compressed_srcs = std::vector<rmm::device_uvector<std::byte>>{};
+    edgelist_compressed_dsts = std::vector<rmm::device_uvector<std::byte>>{};
+    (*edgelist_compressed_srcs).reserve(num_chunks);
+    (*edgelist_compressed_dsts).reserve(num_chunks);
+    for (size_t i = 0; i < num_chunks; ++i) {  // iterate over input edge chunks
+                                               // compress source values
+      auto tmp_srcs = rmm::device_uvector<std::byte>(edgelist_srcs[i].size() * compressed_v_size,
+                                                     handle.get_stream());
+      auto input_src_first = thrust::make_transform_iterator(
+        thrust::make_counting_iterator(size_t{0}),
+        cuda::proclaim_return_type<std::byte>(
+          [src_first = edgelist_srcs[i].begin(), compressed_v_size] __device__(size_t i) {
+            auto v = static_cast<uint64_t>(*(src_first + (i / compressed_v_size)));
+            return static_cast<std::byte>((v >> (8 * (i % compressed_v_size))) & uint64_t{0xff});
+          }));
+      thrust::copy(handle.get_thrust_policy(),
+                   input_src_first,
+                   input_src_first + edgelist_srcs[i].size() * compressed_v_size,
+                   tmp_srcs.begin());
+      edgelist_srcs[i].resize(0, handle.get_stream());
+      edgelist_srcs[i].shrink_to_fit(handle.get_stream());
+      (*edgelist_compressed_srcs).push_back(std::move(tmp_srcs));
 
-  for (int i = 0; i < minor_comm_size; ++i) {  // iterate over local edge partitions
+      // compress destination values
+
+      auto tmp_dsts = rmm::device_uvector<std::byte>(edgelist_dsts[i].size() * compressed_v_size,
+                                                     handle.get_stream());
+      auto input_dst_first = thrust::make_transform_iterator(
+        thrust::make_counting_iterator(size_t{0}),
+        cuda::proclaim_return_type<std::byte>(
+          [dst_first = edgelist_dsts[i].begin(), compressed_v_size] __device__(size_t i) {
+            auto v = static_cast<uint64_t>(*(dst_first + (i / compressed_v_size)));
+            return static_cast<std::byte>((v >> (8 * (i % compressed_v_size))) & uint64_t{0xff});
+          }));
+      thrust::copy(handle.get_thrust_policy(),
+                   input_dst_first,
+                   input_dst_first + edgelist_dsts[i].size() * compressed_v_size,
+                   tmp_dsts.begin());
+      edgelist_dsts[i].resize(0, handle.get_stream());
+      edgelist_dsts[i].shrink_to_fit(handle.get_stream());
+      (*edgelist_compressed_dsts).push_back(std::move(tmp_dsts));
+    }
+  }
+#if 1
+  RAFT_CUDA_TRY(cudaDeviceSynchronize());
+  std::cout << comm_rank << ":create_graph_from_edgelist_impl 3" << std::endl;
+#endif
+
+  // 4. compute additional copy_offset vectors
+  // FIXME: we can store chunk data in multiple rmm::device_uvector objects to free memory earlier
+
+  std::vector<edge_t> edge_partition_edge_counts(minor_comm_size);
+  std::vector<std::vector<edge_t>> edge_partition_intra_partition_segment_offset_vectors(
+    minor_comm_size);
+  std::vector<std::vector<edge_t>> edge_partition_intra_segment_copy_output_displacement_vectors(
+    minor_comm_size);
+  for (int i = 0; i < minor_comm_size; ++i) {
     edge_t edge_count{0};
     std::vector<edge_t> intra_partition_segment_sizes(major_comm_size, 0);
     std::vector<edge_t> intra_segment_copy_output_displacements(major_comm_size * num_chunks);
@@ -1318,182 +1347,239 @@ create_graph_from_edgelist_impl(
     std::inclusive_scan(intra_partition_segment_sizes.begin(),
                         intra_partition_segment_sizes.end(),
                         intra_partition_segment_offsets.begin() + 1);
-#if 1
-    std::cout << comm_rank << ": i=" << i << " edge_count=" << edge_count << std::endl;
-#endif
 
-    rmm::device_uvector<vertex_t> tmp_srcs(edge_count, handle.get_stream());
-#if 1
-    std::cout << comm_rank << ": i=" << i << " tmp_srcs allocated" << std::endl;
-#endif
-    for (int j = 0; j < major_comm_size; ++j) {
-      for (size_t k = 0; k < num_chunks; ++k) {
-        auto segment_offset = edgelist_edge_offset_vectors[k][i * major_comm_size + j] -
-                              edgelist_edge_offset_vectors[k][i * major_comm_size];
-        auto segment_size = edgelist_edge_offset_vectors[k][i * major_comm_size + j + 1] -
-                            edgelist_edge_offset_vectors[k][i * major_comm_size + j];
-        if (store_v_in_48bit) {
-          auto input_first = thrust::make_transform_iterator(
-            thrust::make_counting_iterator(size_t{0}),
-            cuda::proclaim_return_type<vertex_t>(
-              [uint16_first = std::get<1>(edgelist_partitioned_srcs[k][i]).begin() +
-                              segment_offset * 3] __device__(size_t i) {
-                auto v0 = *(uint16_first + i * 3 + 0);
-                auto v1 = *(uint16_first + i * 3 + 1);
-                auto v2 = *(uint16_first + i * 3 + 2);
-                return static_cast<vertex_t>(static_cast<uint64_t>(v0) |
-                                             (static_cast<uint64_t>(v1) << 16) |
-                                             (static_cast<uint64_t>(v2) << 32));
-              }));
-          thrust::copy(handle.get_thrust_policy(),
-                       input_first,
-                       input_first + segment_size,
-                       tmp_srcs.begin() + intra_partition_segment_offsets[j] +
-                         intra_segment_copy_output_displacements[j * num_chunks + k]);
-        } else {
-          auto input_first = std::get<0>(edgelist_partitioned_srcs[k][i]).begin() + segment_offset;
-          thrust::copy(handle.get_thrust_policy(),
-                       input_first,
-                       input_first + segment_size,
-                       tmp_srcs.begin() + intra_partition_segment_offsets[j] +
-                         intra_segment_copy_output_displacements[j * num_chunks + k]);
-        }
-      }
-    }
-    for (size_t k = 0; k < num_chunks; ++k) {
-      if (store_v_in_48bit) {
-        std::get<1>(edgelist_partitioned_srcs[k][i]).resize(0, handle.get_stream());
-        std::get<1>(edgelist_partitioned_srcs[k][i]).shrink_to_fit(handle.get_stream());
-      } else {
-        std::get<0>(edgelist_partitioned_srcs[k][i]).resize(0, handle.get_stream());
-        std::get<0>(edgelist_partitioned_srcs[k][i]).shrink_to_fit(handle.get_stream());
-      }
-    }
-    edge_partition_edgelist_srcs.push_back(std::move(tmp_srcs));
-
-    rmm::device_uvector<vertex_t> tmp_dsts(edge_count, handle.get_stream());
-#if 1
-    std::cout << comm_rank << ": i=" << i << " tmp_dsts allocated" << std::endl;
-#endif
-    for (int j = 0; j < major_comm_size; ++j) {
-      for (size_t k = 0; k < num_chunks; ++k) {
-        auto segment_offset = edgelist_edge_offset_vectors[k][i * major_comm_size + j] -
-                              edgelist_edge_offset_vectors[k][i * major_comm_size];
-        auto segment_size = edgelist_edge_offset_vectors[k][i * major_comm_size + j + 1] -
-                            edgelist_edge_offset_vectors[k][i * major_comm_size + j];
-        if (store_v_in_48bit) {
-          auto input_first = thrust::make_transform_iterator(
-            thrust::make_counting_iterator(size_t{0}),
-            cuda::proclaim_return_type<vertex_t>(
-              [uint16_first = std::get<1>(edgelist_partitioned_dsts[k][i]).begin() +
-                              segment_offset * 3] __device__(size_t i) {
-                auto v0 = *(uint16_first + i * 3 + 0);
-                auto v1 = *(uint16_first + i * 3 + 1);
-                auto v2 = *(uint16_first + i * 3 + 2);
-                return static_cast<vertex_t>(static_cast<uint64_t>(v0) |
-                                             (static_cast<uint64_t>(v1) << 16) |
-                                             (static_cast<uint64_t>(v2) << 32));
-              }));
-          thrust::copy(handle.get_thrust_policy(),
-                       input_first,
-                       input_first + segment_size,
-                       tmp_dsts.begin() + intra_partition_segment_offsets[j] +
-                         intra_segment_copy_output_displacements[j * num_chunks + k]);
-        } else {
-          auto input_first = std::get<0>(edgelist_partitioned_dsts[k][i]).begin() + segment_offset;
-          thrust::copy(handle.get_thrust_policy(),
-                       input_first,
-                       input_first + segment_size,
-                       tmp_dsts.begin() + intra_partition_segment_offsets[j] +
-                         intra_segment_copy_output_displacements[j * num_chunks + k]);
-        }
-      }
-    }
-    for (size_t k = 0; k < num_chunks; ++k) {
-      if (store_v_in_48bit) {
-        std::get<1>(edgelist_partitioned_dsts[k][i]).resize(0, handle.get_stream());
-        std::get<1>(edgelist_partitioned_dsts[k][i]).shrink_to_fit(handle.get_stream());
-      } else {
-        std::get<0>(edgelist_partitioned_dsts[k][i]).resize(0, handle.get_stream());
-        std::get<0>(edgelist_partitioned_dsts[k][i]).shrink_to_fit(handle.get_stream());
-      }
-    }
-    edge_partition_edgelist_dsts.push_back(std::move(tmp_dsts));
-
-    if (edge_partition_edgelist_weights) {
-      rmm::device_uvector<weight_t> tmp_weights(edge_count, handle.get_stream());
-      for (int j = 0; j < major_comm_size; ++j) {
-        for (size_t k = 0; k < num_chunks; ++k) {
-          auto input_first = (*edgelist_partitioned_weights)[k][i].begin() +
-                             (edgelist_edge_offset_vectors[k][i * major_comm_size + j] -
-                              edgelist_edge_offset_vectors[k][i * major_comm_size]);
-          auto segment_size = edgelist_edge_offset_vectors[k][i * major_comm_size + j + 1] -
-                              edgelist_edge_offset_vectors[k][i * major_comm_size + j];
-          thrust::copy(handle.get_thrust_policy(),
-                       input_first,
-                       input_first + segment_size,
-                       tmp_weights.begin() + intra_partition_segment_offsets[j] +
-                         intra_segment_copy_output_displacements[j * num_chunks + k]);
-        }
-      }
-      for (size_t k = 0; k < num_chunks; ++k) {
-        (*edgelist_partitioned_weights)[k][i].resize(0, handle.get_stream());
-        (*edgelist_partitioned_weights)[k][i].shrink_to_fit(handle.get_stream());
-      }
-      (*edge_partition_edgelist_weights).push_back(std::move(tmp_weights));
-    }
-
-    if (edge_partition_edgelist_edge_ids) {
-      rmm::device_uvector<edge_id_t> tmp_edge_ids(edge_count, handle.get_stream());
-      for (int j = 0; j < major_comm_size; ++j) {
-        for (size_t k = 0; k < num_chunks; ++k) {
-          auto input_first = (*edgelist_partitioned_edge_ids)[k][i].begin() +
-                             (edgelist_edge_offset_vectors[k][i * major_comm_size + j] -
-                              edgelist_edge_offset_vectors[k][i * major_comm_size]);
-          auto segment_size = edgelist_edge_offset_vectors[k][i * major_comm_size + j + 1] -
-                              edgelist_edge_offset_vectors[k][i * major_comm_size + j];
-          thrust::copy(handle.get_thrust_policy(),
-                       input_first,
-                       input_first + segment_size,
-                       tmp_edge_ids.begin() + intra_partition_segment_offsets[j] +
-                         intra_segment_copy_output_displacements[j * num_chunks + k]);
-        }
-      }
-      for (size_t k = 0; k < num_chunks; ++k) {
-        (*edgelist_partitioned_edge_ids)[k][i].resize(0, handle.get_stream());
-        (*edgelist_partitioned_edge_ids)[k][i].shrink_to_fit(handle.get_stream());
-      }
-      (*edge_partition_edgelist_edge_ids).push_back(std::move(tmp_edge_ids));
-    }
-
-    if (edge_partition_edgelist_edge_types) {
-      rmm::device_uvector<edge_type_t> tmp_edge_types(edge_count, handle.get_stream());
-      for (int j = 0; j < major_comm_size; ++j) {
-        for (size_t k = 0; k < num_chunks; ++k) {
-          auto input_first = (*edgelist_partitioned_edge_types)[k][i].begin() +
-                             (edgelist_edge_offset_vectors[k][i * major_comm_size + j] -
-                              edgelist_edge_offset_vectors[k][i * major_comm_size]);
-          auto segment_size = edgelist_edge_offset_vectors[k][i * major_comm_size + j + 1] -
-                              edgelist_edge_offset_vectors[k][i * major_comm_size + j];
-          thrust::copy(handle.get_thrust_policy(),
-                       input_first,
-                       input_first + segment_size,
-                       tmp_edge_types.begin() + intra_partition_segment_offsets[j] +
-                         intra_segment_copy_output_displacements[j * num_chunks + k]);
-        }
-      }
-      for (size_t k = 0; k < num_chunks; ++k) {
-        (*edgelist_partitioned_edge_types)[k][i].resize(0, handle.get_stream());
-        (*edgelist_partitioned_edge_types)[k][i].shrink_to_fit(handle.get_stream());
-      }
-      (*edge_partition_edgelist_edge_types).push_back(std::move(tmp_edge_types));
-    }
-
-    edgelist_intra_partition_segment_offset_vectors[i] = std::move(intra_partition_segment_offsets);
+    edge_partition_edge_counts[i] = edge_count;
+    edge_partition_intra_partition_segment_offset_vectors[i] =
+      std::move(intra_partition_segment_offsets);
+    edge_partition_intra_segment_copy_output_displacement_vectors[i] =
+      std::move(intra_segment_copy_output_displacements);
   }
 #if 1
   RAFT_CUDA_TRY(cudaDeviceSynchronize());
-  std::cout << comm_rank << ":create_graph_from_edgelist_impl 3" << std::endl;
+  std::cout << comm_rank << ":create_graph_from_edgelist_impl 4" << std::endl;
+#endif
+
+  // 5. split the grouped edge chunks to local partitions
+
+  std::vector<rmm::device_uvector<vertex_t>> edge_partition_edgelist_srcs{};
+  std::vector<rmm::device_uvector<vertex_t>> edge_partition_edgelist_dsts{};
+  std::optional<std::vector<rmm::device_uvector<weight_t>>> edge_partition_edgelist_weights{
+    std::nullopt};
+  std::optional<std::vector<rmm::device_uvector<edge_id_t>>> edge_partition_edgelist_edge_ids{
+    std::nullopt};
+  std::optional<std::vector<rmm::device_uvector<edge_type_t>>> edge_partition_edgelist_edge_types{
+    std::nullopt};
+
+  std::optional<std::vector<rmm::device_uvector<std::byte>>>
+    edge_partition_edgelist_compressed_srcs{};
+  std::optional<std::vector<rmm::device_uvector<std::byte>>>
+    edge_partition_edgelist_compressed_dsts{};
+
+  if (compressed_v_size < sizeof(vertex_t)) {
+    edge_partition_edgelist_compressed_srcs =
+      split_edge_chunk_compressed_elements_to_local_edge_partitions<edge_t>(
+        handle,
+        std::move(*edgelist_compressed_srcs),
+        edgelist_edge_offset_vectors,
+        edge_partition_edge_counts,
+        edge_partition_intra_partition_segment_offset_vectors,
+        edge_partition_intra_segment_copy_output_displacement_vectors,
+        compressed_v_size);
+#if 1
+  RAFT_CUDA_TRY(cudaDeviceSynchronize());
+  std::cout << comm_rank << ":create_graph_from_edgelist_impl 4-1" << std::endl;
+#endif
+
+    edge_partition_edgelist_compressed_dsts =
+      split_edge_chunk_compressed_elements_to_local_edge_partitions<edge_t>(
+        handle,
+        std::move(*edgelist_compressed_dsts),
+        edgelist_edge_offset_vectors,
+        edge_partition_edge_counts,
+        edge_partition_intra_partition_segment_offset_vectors,
+        edge_partition_intra_segment_copy_output_displacement_vectors,
+        compressed_v_size);
+  } else {
+    edge_partition_edgelist_srcs =
+      split_edge_chunk_elements_to_local_edge_partitions<edge_t, vertex_t>(
+        handle,
+        std::move(edgelist_srcs),
+        edgelist_edge_offset_vectors,
+        edge_partition_edge_counts,
+        edge_partition_intra_partition_segment_offset_vectors,
+        edge_partition_intra_segment_copy_output_displacement_vectors);
+
+    edge_partition_edgelist_dsts =
+      split_edge_chunk_elements_to_local_edge_partitions<edge_t, vertex_t>(
+        handle,
+        std::move(edgelist_dsts),
+        edgelist_edge_offset_vectors,
+        edge_partition_edge_counts,
+        edge_partition_intra_partition_segment_offset_vectors,
+        edge_partition_intra_segment_copy_output_displacement_vectors);
+  }
+
+#if 1
+  RAFT_CUDA_TRY(cudaDeviceSynchronize());
+  std::cout << comm_rank << ":create_graph_from_edgelist_impl 5" << std::endl;
+#endif
+
+  if (edgelist_weights) {
+    edge_partition_edgelist_weights =
+      split_edge_chunk_elements_to_local_edge_partitions<edge_t, weight_t>(
+        handle,
+        std::move(*edgelist_weights),
+        edgelist_edge_offset_vectors,
+        edge_partition_edge_counts,
+        edge_partition_intra_partition_segment_offset_vectors,
+        edge_partition_intra_segment_copy_output_displacement_vectors);
+  }
+  if (edgelist_edge_ids) {
+    edge_partition_edgelist_edge_ids =
+      split_edge_chunk_elements_to_local_edge_partitions<edge_t, edge_id_t>(
+        handle,
+        std::move(*edgelist_edge_ids),
+        edgelist_edge_offset_vectors,
+        edge_partition_edge_counts,
+        edge_partition_intra_partition_segment_offset_vectors,
+        edge_partition_intra_segment_copy_output_displacement_vectors);
+  }
+  if (edgelist_edge_types) {
+    edge_partition_edgelist_edge_types =
+      split_edge_chunk_elements_to_local_edge_partitions<edge_t, edge_type_t>(
+        handle,
+        std::move(*edgelist_edge_types),
+        edgelist_edge_offset_vectors,
+        edge_partition_edge_counts,
+        edge_partition_intra_partition_segment_offset_vectors,
+        edge_partition_intra_segment_copy_output_displacement_vectors);
+  }
+#if 1
+  RAFT_CUDA_TRY(cudaDeviceSynchronize());
+  std::cout << comm_rank << ":create_graph_from_edgelist_impl 6" << std::endl;
+#endif
+
+  // 6. decompress edge chunk source/destination vertices to cut intermediate peak memory
+  // requirement
+
+  if (compressed_v_size < sizeof(vertex_t)) {
+    assert(edge_partition_edgelist_compressed_srcs);
+    assert(edge_partition_edgelist_compressed_dsts);
+    edge_partition_edgelist_srcs.reserve(minor_comm_size);
+    edge_partition_edgelist_dsts.reserve(minor_comm_size);
+    for (int i = 0; i < minor_comm_size; ++i) {
+      auto tmp_srcs =
+        try_allocate_dataframe_buffer<vertex_t>(edge_partition_edge_counts[i], handle.get_stream());
+      if (tmp_srcs) {
+        decompress_vertices(
+          handle,
+          raft::device_span<std::byte const>((*edge_partition_edgelist_compressed_srcs)[i].data(),
+                                             (*edge_partition_edgelist_compressed_srcs)[i].size()),
+          raft::device_span<vertex_t>((*tmp_srcs).data(), (*tmp_srcs).size()),
+          compressed_v_size);
+        // defer freeing (*edge_partition_edgelist_compressed_srcs)[i] to reduce memory
+        // fragmentation (pool allocator)
+        edge_partition_edgelist_srcs.push_back(std::move(*tmp_srcs));
+      } else {
+        break;
+      }
+
+      auto tmp_dsts =
+        try_allocate_dataframe_buffer<vertex_t>(edge_partition_edge_counts[i], handle.get_stream());
+      if (tmp_dsts) {
+        decompress_vertices(
+          handle,
+          raft::device_span<std::byte const>((*edge_partition_edgelist_compressed_dsts)[i].data(),
+                                             (*edge_partition_edgelist_compressed_dsts)[i].size()),
+          raft::device_span<vertex_t>((*tmp_dsts).data(), (*tmp_dsts).size()),
+          compressed_v_size);
+        // defer freeing (*edge_partition_edgelist_compressed_dsts)[i] to reduce memory
+        // fragmentation (pool allocator)
+        edge_partition_edgelist_dsts.push_back(std::move(*tmp_dsts));
+      } else {
+        break;
+      }
+    }
+
+    auto num_src_allocs = edge_partition_edgelist_srcs.size();
+    auto num_dst_allocs = edge_partition_edgelist_dsts.size();
+    if ((num_src_allocs < static_cast<size_t>(minor_comm_size)) ||
+        (num_dst_allocs < static_cast<size_t>(minor_comm_size))) {
+      std::vector<std::vector<std::byte>> h_edge_partition_edgelist_compressed_srcs(
+        static_cast<size_t>(minor_comm_size) - num_src_allocs);
+      std::vector<std::vector<std::byte>> h_edge_partition_edgelist_compressed_dsts(
+        static_cast<size_t>(minor_comm_size) - num_dst_allocs);
+      for (size_t i = 0; i < static_cast<int>(minor_comm_size) - num_src_allocs; ++i) {
+        h_edge_partition_edgelist_compressed_srcs[i].resize(
+          edge_partition_edge_counts[num_src_allocs + i] * compressed_v_size);
+        raft::update_host(h_edge_partition_edgelist_compressed_srcs[i].data(),
+                          (*edge_partition_edgelist_compressed_srcs)[num_src_allocs + i].data(),
+                          (*edge_partition_edgelist_compressed_srcs)[num_src_allocs + i].size(),
+                          handle.get_stream());
+      }
+      for (size_t i = 0; i < static_cast<int>(minor_comm_size) - num_dst_allocs; ++i) {
+        h_edge_partition_edgelist_compressed_dsts[i].resize(
+          edge_partition_edge_counts[num_dst_allocs + i] * compressed_v_size);
+        raft::update_host(h_edge_partition_edgelist_compressed_dsts[i].data(),
+                          (*edge_partition_edgelist_compressed_dsts)[num_dst_allocs + i].data(),
+                          (*edge_partition_edgelist_compressed_dsts)[num_dst_allocs + i].size(),
+                          handle.get_stream());
+      }
+      (*edge_partition_edgelist_compressed_srcs).clear();
+      (*edge_partition_edgelist_compressed_dsts).clear();
+      for (size_t i = 0;
+           i < static_cast<int>(minor_comm_size) - std::min(num_src_allocs, num_dst_allocs);
+           ++i) {
+        if (i < static_cast<size_t>(minor_comm_size) - num_src_allocs) {
+          edge_partition_edgelist_srcs.push_back(rmm::device_uvector<vertex_t>(
+            edge_partition_edge_counts[num_src_allocs + i], handle.get_stream()));
+        }
+        if (i < static_cast<size_t>(minor_comm_size) - num_dst_allocs) {
+          edge_partition_edgelist_dsts.push_back(rmm::device_uvector<vertex_t>(
+            edge_partition_edge_counts[num_dst_allocs + i], handle.get_stream()));
+        }
+      }
+      for (size_t i = 0;
+           i < static_cast<int>(minor_comm_size) - std::min(num_src_allocs, num_dst_allocs);
+           ++i) {
+        if (i < static_cast<size_t>(minor_comm_size) - num_src_allocs) {
+          rmm::device_uvector<std::byte> tmp_bytes(
+            edge_partition_edge_counts[num_src_allocs + i] * compressed_v_size,
+            handle.get_stream());
+          raft::update_device(tmp_bytes.data(),
+                              h_edge_partition_edgelist_compressed_srcs[i].data(),
+                              edge_partition_edge_counts[num_src_allocs + i] * compressed_v_size,
+                              handle.get_stream());
+          decompress_vertices(
+            handle,
+            raft::device_span<std::byte const>(tmp_bytes.data(), tmp_bytes.size()),
+            raft::device_span<vertex_t>(edge_partition_edgelist_srcs[num_src_allocs + i].data(),
+                                        edge_partition_edgelist_srcs[num_src_allocs + i].size()),
+            compressed_v_size);
+        }
+        if (i < static_cast<size_t>(minor_comm_size) - num_dst_allocs) {
+          rmm::device_uvector<std::byte> tmp_bytes(
+            edge_partition_edge_counts[num_dst_allocs + i] * compressed_v_size,
+            handle.get_stream());
+          raft::update_device(tmp_bytes.data(),
+                              h_edge_partition_edgelist_compressed_dsts[i].data(),
+                              edge_partition_edge_counts[num_dst_allocs + i] * compressed_v_size,
+                              handle.get_stream());
+          decompress_vertices(
+            handle,
+            raft::device_span<std::byte const>(tmp_bytes.data(), tmp_bytes.size()),
+            raft::device_span<vertex_t>(edge_partition_edgelist_dsts[num_dst_allocs + i].data(),
+                                        edge_partition_edgelist_dsts[num_dst_allocs + i].size()),
+            compressed_v_size);
+        }
+      }
+
+      handle.sync_stream();
+    }
+  }
+#if 1
+  RAFT_CUDA_TRY(cudaDeviceSynchronize());
+  std::cout << comm_rank << ":create_graph_from_edgelist_impl 7" << std::endl;
 #endif
 
   return create_graph_from_partitioned_edgelist<vertex_t,
@@ -1510,7 +1596,7 @@ create_graph_from_edgelist_impl(
     std::move(edge_partition_edgelist_weights),
     std::move(edge_partition_edgelist_edge_ids),
     std::move(edge_partition_edgelist_edge_types),
-    edgelist_intra_partition_segment_offset_vectors,
+    edge_partition_intra_partition_segment_offset_vectors,
     graph_properties,
     renumber);
 }

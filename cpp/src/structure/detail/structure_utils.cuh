@@ -60,7 +60,8 @@ rmm::device_uvector<edge_t> compute_sparse_offsets(
   bool edgelist_major_sorted,
   rmm::cuda_stream_view stream_view)
 {
-  rmm::device_uvector<edge_t> offsets((major_range_last - major_range_first) + 1, stream_view);
+  rmm::device_uvector<edge_t> offsets(static_cast<size_t>(major_range_last - major_range_first) + 1,
+                                      stream_view);
   if (edgelist_major_sorted) {
     offsets.set_element_to_zero_async(0, stream_view);
     thrust::upper_bound(rmm::exec_policy(stream_view),
@@ -77,7 +78,9 @@ rmm::device_uvector<edge_t> compute_sparse_offsets(
                      edgelist_major_first,
                      edgelist_major_last,
                      [offset_view, major_range_first] __device__(auto v) {
-                       atomicAdd(&offset_view[v - major_range_first], edge_t{1});
+                       cuda::atomic_ref<edge_t, cuda::thread_scope_device> atomic_counter(
+                         offset_view[v - major_range_first]);
+                       atomic_counter.fetch_add(edge_t{1}, cuda::std::memory_order_relaxed);
                      });
 
     thrust::exclusive_scan(
@@ -246,30 +249,112 @@ sort_and_compress_edgelist(rmm::device_uvector<vertex_t>&& edgelist_srcs,
 
   rmm::device_uvector<edge_t> offsets(0, stream_view);
   rmm::device_uvector<vertex_t> indices(0, stream_view);
-  auto edge_first = thrust::make_zip_iterator(edgelist_majors.begin(), edgelist_minors.begin());
   if (edgelist_minors.size() > mem_frugal_threshold) {
-    offsets = compute_sparse_offsets<edge_t>(edgelist_majors.begin(),
-                                             edgelist_majors.end(),
-                                             major_range_first,
-                                             major_range_last,
-                                             false,
-                                             stream_view);
+    static_assert((sizeof(vertex_t) == 4) || (sizeof(vertex_t) == 8));
+    if ((sizeof(vertex_t) == 8) && (static_cast<size_t>(major_range_last - major_range_first) <=
+                                    static_cast<size_t>(std::numeric_limits<uint32_t>::max()))) {
+      rmm::device_uvector<uint32_t> edgelist_major_offsets(edgelist_majors.size(), stream_view);
+      thrust::transform(
+        rmm::exec_policy_nosync(stream_view),
+        edgelist_majors.begin(),
+        edgelist_majors.end(),
+        edgelist_major_offsets.begin(),
+        cuda::proclaim_return_type<uint32_t>([major_range_first] __device__(vertex_t major) {
+          return static_cast<uint32_t>(major - major_range_first);
+        }));
+      edgelist_majors.resize(0, stream_view);
+      edgelist_majors.shrink_to_fit(stream_view);
 
-    auto pivot = major_range_first + static_cast<vertex_t>(thrust::distance(
-                                       offsets.begin(),
-                                       thrust::lower_bound(rmm::exec_policy(stream_view),
-                                                           offsets.begin(),
-                                                           offsets.end(),
-                                                           edgelist_minors.size() / 2)));
-    auto second_first =
-      detail::mem_frugal_partition(edge_first,
-                                   edge_first + edgelist_minors.size(),
-                                   thrust_tuple_get<thrust::tuple<vertex_t, vertex_t>, 0>{},
-                                   pivot,
-                                   stream_view);
-    thrust::sort(rmm::exec_policy(stream_view), edge_first, second_first);
-    thrust::sort(rmm::exec_policy(stream_view), second_first, edge_first + edgelist_minors.size());
+      offsets =
+        compute_sparse_offsets<edge_t>(edgelist_major_offsets.begin(),
+                                       edgelist_major_offsets.end(),
+                                       uint32_t{0},
+                                       static_cast<uint32_t>(major_range_last - major_range_first),
+                                       false,
+                                       stream_view);
+      std::array<uint32_t, 3> pivots{};
+      for (size_t i = 0; i < 3; ++i) {
+        pivots[i] = static_cast<uint32_t>(thrust::distance(
+          offsets.begin(),
+          thrust::lower_bound(rmm::exec_policy(stream_view),
+                              offsets.begin(),
+                              offsets.end(),
+                              static_cast<edge_t>((edgelist_major_offsets.size() * (i + 1)) / 4))));
+      }
+
+      auto pair_first =
+        thrust::make_zip_iterator(edgelist_major_offsets.begin(), edgelist_minors.begin());
+      auto second_half_first =
+        detail::mem_frugal_partition(pair_first,
+                                     pair_first + edgelist_major_offsets.size(),
+                                     thrust_tuple_get<thrust::tuple<uint32_t, vertex_t>, 0>{},
+                                     pivots[1],
+                                     stream_view);
+      auto second_quarter_first =
+        detail::mem_frugal_partition(pair_first,
+                                     second_half_first,
+                                     thrust_tuple_get<thrust::tuple<uint32_t, vertex_t>, 0>{},
+                                     pivots[0],
+                                     stream_view);
+      auto last_quarter_first =
+        detail::mem_frugal_partition(second_half_first,
+                                     pair_first + edgelist_major_offsets.size(),
+                                     thrust_tuple_get<thrust::tuple<uint32_t, vertex_t>, 0>{},
+                                     pivots[2],
+                                     stream_view);
+      thrust::sort(rmm::exec_policy(stream_view), pair_first, second_quarter_first);
+      thrust::sort(rmm::exec_policy(stream_view), second_quarter_first, second_half_first);
+      thrust::sort(rmm::exec_policy(stream_view), second_half_first, last_quarter_first);
+      thrust::sort(rmm::exec_policy(stream_view),
+                   last_quarter_first,
+                   pair_first + edgelist_major_offsets.size());
+    } else {
+      offsets = compute_sparse_offsets<edge_t>(edgelist_majors.begin(),
+                                               edgelist_majors.end(),
+                                               major_range_first,
+                                               major_range_last,
+                                               false,
+                                               stream_view);
+      std::array<vertex_t, 3> pivots{};
+      for (size_t i = 0; i < 3; ++i) {
+        pivots[i] =
+          major_range_first +
+          static_cast<vertex_t>(thrust::distance(
+            offsets.begin(),
+            thrust::lower_bound(rmm::exec_policy(stream_view),
+                                offsets.begin(),
+                                offsets.end(),
+                                static_cast<edge_t>((edgelist_minors.size() * (i + 1)) / 4))));
+      }
+      auto edge_first = thrust::make_zip_iterator(edgelist_majors.begin(), edgelist_minors.begin());
+      auto second_half_first =
+        detail::mem_frugal_partition(edge_first,
+                                     edge_first + edgelist_majors.size(),
+                                     thrust_tuple_get<thrust::tuple<vertex_t, vertex_t>, 0>{},
+                                     pivots[1],
+                                     stream_view);
+      auto second_quarter_first =
+        detail::mem_frugal_partition(edge_first,
+                                     second_half_first,
+                                     thrust_tuple_get<thrust::tuple<vertex_t, vertex_t>, 0>{},
+                                     pivots[0],
+                                     stream_view);
+      auto last_quarter_first =
+        detail::mem_frugal_partition(second_half_first,
+                                     edge_first + edgelist_majors.size(),
+                                     thrust_tuple_get<thrust::tuple<vertex_t, vertex_t>, 0>{},
+                                     pivots[2],
+                                     stream_view);
+      thrust::sort(rmm::exec_policy(stream_view), edge_first, second_quarter_first);
+      thrust::sort(rmm::exec_policy(stream_view), second_quarter_first, second_half_first);
+      thrust::sort(rmm::exec_policy(stream_view), second_half_first, last_quarter_first);
+      thrust::sort(
+        rmm::exec_policy(stream_view), last_quarter_first, edge_first + edgelist_majors.size());
+      edgelist_majors.resize(0, stream_view);
+      edgelist_majors.shrink_to_fit(stream_view);
+    }
   } else {
+    auto edge_first = thrust::make_zip_iterator(edgelist_majors.begin(), edgelist_minors.begin());
     thrust::sort(rmm::exec_policy(stream_view), edge_first, edge_first + edgelist_minors.size());
     offsets = compute_sparse_offsets<edge_t>(edgelist_majors.begin(),
                                              edgelist_majors.end(),
@@ -277,11 +362,10 @@ sort_and_compress_edgelist(rmm::device_uvector<vertex_t>&& edgelist_srcs,
                                              major_range_last,
                                              true,
                                              stream_view);
+    edgelist_majors.resize(0, stream_view);
+    edgelist_majors.shrink_to_fit(stream_view);
   }
   indices = std::move(edgelist_minors);
-
-  edgelist_majors.resize(0, stream_view);
-  edgelist_majors.shrink_to_fit(stream_view);
 
   std::optional<rmm::device_uvector<vertex_t>> dcs_nzd_vertices{std::nullopt};
   if (major_hypersparse_first) {

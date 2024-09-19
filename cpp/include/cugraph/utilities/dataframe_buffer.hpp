@@ -91,6 +91,17 @@ template <typename T>
 using dataframe_buffer_type_t = typename dataframe_buffer_type<T>::type;
 
 template <typename T>
+std::optional<dataframe_buffer_type_t<T>> try_allocate_dataframe_buffer(
+  size_t buffer_size, rmm::cuda_stream_view stream_view)
+{
+  try {
+    return allocate_dataframe_buffer<T>(buffer_size, stream_view);
+  } catch (std::exception const& e) {
+    return std::nullopt;
+  }
+}
+
+template <typename T>
 struct dataframe_buffer_iterator_type {
   using type = typename rmm::device_uvector<T>::iterator;
 };
