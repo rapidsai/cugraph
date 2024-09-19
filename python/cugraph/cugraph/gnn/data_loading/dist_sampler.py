@@ -489,6 +489,7 @@ class DistSampler:
             )
             for t, i in z
         ]
+
         if len(u) > 0:
             current_seeds = torch.concat([a[0] for a, _ in u])
             current_inv = torch.concat([a[1][i] for a, i in u])
