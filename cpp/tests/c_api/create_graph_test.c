@@ -104,6 +104,7 @@ int test_create_sg_graph_simple()
                                      FALSE,
                                      FALSE,
                                      FALSE,
+                                     FALSE,
                                      &graph,
                                      &ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "graph creation failed.");
@@ -404,6 +405,7 @@ int test_create_sg_graph_symmetric_error()
                                      wgt_view,
                                      NULL,
                                      NULL,
+                                     FALSE,
                                      FALSE,
                                      FALSE,
                                      FALSE,

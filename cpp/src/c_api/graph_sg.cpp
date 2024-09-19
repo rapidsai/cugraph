@@ -43,6 +43,7 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
   bool_t renumber_;
   bool_t drop_self_loops_;
   bool_t drop_multi_edges_;
+  bool_t symmetrize_;
   bool_t do_expensive_check_;
   cugraph_data_type_id_t edge_type_;
   cugraph::c_api::cugraph_graph_t* result_{};
@@ -58,6 +59,7 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
                        bool_t renumber,
                        bool_t drop_self_loops,
                        bool_t drop_multi_edges,
+                       bool_t symmetrize,
                        bool_t do_expensive_check,
                        cugraph_data_type_id_t edge_type)
     : abstract_functor(),
@@ -72,6 +74,7 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
       renumber_(renumber),
       drop_self_loops_(drop_self_loops),
       drop_multi_edges_(drop_multi_edges),
+      symmetrize_(symmetrize),
       do_expensive_check_(do_expensive_check),
       edge_type_(edge_type)
   {
@@ -164,6 +167,23 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
                                    edge_type_ids_->size_,
                                    handle_.get_stream());
       }
+      
+      if (symmetrize_) {
+        if (edgelist_edge_ids || edgelist_edge_types) {
+          // Currently doesn't support the symmetrization with edge_ids and edge_types
+          unsupported();
+        }
+
+        // Symmetrize the edgelist
+        std::tie(
+          edgelist_srcs, edgelist_dsts, edgelist_weights) =
+          cugraph::symmetrize_edgelist<vertex_t, weight_t, store_transposed, multi_gpu>(handle_,
+                                      std::move(edgelist_srcs),
+                                      std::move(edgelist_dsts),
+                                      std::move(edgelist_weights),
+                                      false);
+      }
+      
 
       auto graph = new cugraph::graph_t<vertex_t, edge_t, store_transposed, multi_gpu>(handle_);
 
@@ -205,6 +225,23 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
                                       properties_->is_symmetric
                                         ? true /* keep minimum weight edges to maintain symmetry */
                                         : false);
+      }
+
+
+      if (symmetrize_) {
+        if (edgelist_edge_ids || edgelist_edge_types) {
+          // Currently doesn't support the symmetrization with edge_ids and edge_types
+          unsupported();
+        }
+
+        // Symmetrize the edgelist
+        std::tie(
+          edgelist_srcs, edgelist_dsts, edgelist_weights) =
+          cugraph::symmetrize_edgelist<vertex_t, weight_t, store_transposed, multi_gpu>(handle_,
+                                      std::move(edgelist_srcs),
+                                      std::move(edgelist_dsts),
+                                      std::move(edgelist_weights),
+                                      false);
       }
 
       std::tie(*graph, new_edge_weights, new_edge_ids, new_edge_types, new_number_map) =
@@ -518,6 +555,7 @@ extern "C" cugraph_error_code_t cugraph_graph_create_sg(
   bool_t renumber,
   bool_t drop_self_loops,
   bool_t drop_multi_edges,
+  bool_t symmetrize,
   bool_t do_expensive_check,
   cugraph_graph_t** graph,
   cugraph_error_t** error)
@@ -606,6 +644,7 @@ extern "C" cugraph_error_code_t cugraph_graph_create_sg(
                                  renumber,
                                  drop_self_loops,
                                  drop_multi_edges,
+                                 symmetrize,
                                  do_expensive_check,
                                  edge_type);
 
@@ -656,6 +695,7 @@ extern "C" cugraph_error_code_t cugraph_sg_graph_create(
                                  edge_type_ids,
                                  store_transposed,
                                  renumber,
+                                 FALSE,
                                  FALSE,
                                  FALSE,
                                  do_expensive_check,

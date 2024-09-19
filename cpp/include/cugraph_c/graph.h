@@ -103,6 +103,7 @@ cugraph_error_code_t cugraph_sg_graph_create(
  *    Note that setting this flag will arbitrarily select one instance of a multi edge to be the
  *    edge that survives.  If the edges have properties that should be honored (e.g. sum the
  weights,
+ * @param [in] symmetrize      If true, symmetrize the edgelist.
  *    or take the maximum weight), the caller should remove specific edges themselves and not rely
  *    on this flag.
  * @param [in]  do_expensive_check    If true, do expensive checks to validate the input data
@@ -126,6 +127,7 @@ cugraph_error_code_t cugraph_graph_create_sg(
   bool_t renumber,
   bool_t drop_self_loops,
   bool_t drop_multi_edges,
+  bool_t symmetrize,
   bool_t do_expensive_check,
   cugraph_graph_t** graph,
   cugraph_error_t** error);
@@ -289,6 +291,7 @@ cugraph_error_code_t cugraph_mg_graph_create(
  *    Note that setting this flag will arbitrarily select one instance of a multi edge to be the
  *    edge that survives.  If the edges have properties that should be honored (e.g. sum the
  * weights, or take the maximum weight), the caller should do that on not rely on this flag.
+ * @param [in]  symmetrize      If true, symmetrize the edgelist.
  * @param [in]  do_expensive_check  If true, do expensive checks to validate the input data
  *    is consistent with software assumptions.  If false bypass these checks.
  * @param [out] graph           A pointer to the graph object
@@ -309,6 +312,7 @@ cugraph_error_code_t cugraph_graph_create_mg(
   size_t num_arrays,
   bool_t drop_self_loops,
   bool_t drop_multi_edges,
+  bool_t symmetrize,
   bool_t do_expensive_check,
   cugraph_graph_t** graph,
   cugraph_error_t** error);

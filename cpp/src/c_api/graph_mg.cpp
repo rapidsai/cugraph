@@ -71,6 +71,7 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
   bool_t renumber_;
   bool_t drop_self_loops_;
   bool_t drop_multi_edges_;
+  bool_t symmetrize_;
   bool_t do_expensive_check_;
   cugraph::c_api::cugraph_graph_t* result_{};
 
@@ -91,6 +92,7 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
     bool_t renumber,
     bool_t drop_self_loops,
     bool_t drop_multi_edges,
+    bool_t symmetrize,
     bool_t do_expensive_check)
     : abstract_functor(),
       properties_(properties),
@@ -109,6 +111,7 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
       renumber_(renumber),
       drop_self_loops_(drop_self_loops),
       drop_multi_edges_(drop_multi_edges),
+      symmetrize_(symmetrize),
       do_expensive_check_(do_expensive_check)
   {
   }
@@ -224,6 +227,23 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
                                         : false);
       }
 
+
+      if (symmetrize_) {
+        if (edgelist_edge_ids || edgelist_edge_types) {
+          // Currently doesn't support the symmetrization with edge_ids and edge_types
+          unsupported();
+        }
+
+        // Symmetrize the edgelist
+        std::tie(
+          edgelist_srcs, edgelist_dsts, edgelist_weights) =
+          cugraph::symmetrize_edgelist<vertex_t, weight_t, store_transposed, multi_gpu>(handle_,
+                                      std::move(edgelist_srcs),
+                                      std::move(edgelist_dsts),
+                                      std::move(edgelist_weights),
+                                      false);
+      }
+
       std::tie(*graph, new_edge_weights, new_edge_ids, new_edge_types, new_number_map) =
         cugraph::create_graph_from_edgelist<vertex_t,
                                             edge_t,
@@ -290,6 +310,7 @@ extern "C" cugraph_error_code_t cugraph_graph_create_mg(
   size_t num_arrays,
   bool_t drop_self_loops,
   bool_t drop_multi_edges,
+  bool_t symmetrize,
   bool_t do_expensive_check,
   cugraph_graph_t** graph,
   cugraph_error_t** error)
@@ -488,6 +509,7 @@ extern "C" cugraph_error_code_t cugraph_graph_create_mg(
                                bool_t::TRUE,
                                drop_self_loops,
                                drop_multi_edges,
+                               symmetrize,
                                do_expensive_check);
 
   try {
@@ -532,6 +554,7 @@ extern "C" cugraph_error_code_t cugraph_mg_graph_create(
                                  (edge_type_ids == nullptr) ? nullptr : &edge_type_ids,
                                  store_transposed,
                                  1,
+                                 FALSE,
                                  FALSE,
                                  FALSE,
                                  do_expensive_check,
