@@ -60,7 +60,12 @@ class SampleIterator:
         next_sample = next(self.__output_iter)
         if isinstance(next_sample, torch_geometric.sampler.SamplerOutput):
             sz = next_sample.edge.numel()
-            if sz == next_sample.col.numel():
+            if sz == next_sample.col.numel() and (
+                next_sample.node.numel() > next_sample.col[-1]
+            ):
+                # This will only trigger on very small batches and will have minimal
+                # performance impact.  If COO output is removed, then this condition
+                # can be avoided.
                 col = next_sample.col
             else:
                 col = torch_geometric.edge_index.ptr2index(
