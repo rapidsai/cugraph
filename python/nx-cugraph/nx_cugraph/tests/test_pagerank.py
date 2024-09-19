@@ -23,8 +23,8 @@ def test_pagerank_multigraph():
     df = pd.DataFrame({"source": [0, 1, 1, 1, 1, 1, 1, 2],
                        "target": [1, 2, 2, 2, 2, 2, 2, 3]})
     expected_pr_for_G = nx.pagerank(nx.from_pandas_edgelist(df))
-    expected_pr_for_MultiG = nx.pagerank(nx.from_pandas_edgelist(
-        df, create_using=nx.MultiGraph))
+    expected_pr_for_MultiG = nx.pagerank(
+        nx.from_pandas_edgelist(df, create_using=nx.MultiGraph))
 
     G = nx.from_pandas_edgelist(df, backend="cugraph")
     actual_pr_for_G = nx.pagerank(G, backend="cugraph")
