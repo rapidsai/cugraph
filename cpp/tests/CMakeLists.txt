@@ -221,6 +221,7 @@ function(ConfigureTestMG CMAKE_TEST_NAME)
         PERCENT 100
         INSTALL_COMPONENT_SET testing_mg
     )
+    rapids_test_record_install(TARGET ${CMAKE_TEST_NAME} COMPONENT testing_mg)
     set_tests_properties(${CMAKE_TEST_NAME} PROPERTIES LABELS "CUGRAPH_MG")
 
 endfunction()
@@ -303,6 +304,7 @@ function(ConfigureCTestMG CMAKE_TEST_NAME)
         PERCENT 100
         INSTALL_COMPONENT_SET testing_mg
     )
+    rapids_test_record_install(TARGET ${CMAKE_TEST_NAME} COMPONENT testing_mg)
     set_tests_properties(${CMAKE_TEST_NAME} PROPERTIES LABELS "CUGRAPH_C_MG")
 
 
