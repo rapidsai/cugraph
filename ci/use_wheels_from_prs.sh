@@ -41,9 +41,10 @@ PYLIBRAFT_CHANNEL=$(
   RAPIDS_PY_WHEEL_NAME=pylibraft_${RAPIDS_PY_CUDA_SUFFIX} rapids-get-pr-wheel-artifact raft 2433 python
 )
 
-PYLIBCUGRAPHOPS_CHANNEL=$(
-  RAPIDS_PY_WHEEL_NAME=pylibraft_${RAPIDS_PY_CUDA_SUFFIX} rapids-get-pr-wheel-artifact cugraph-ops 692 python
-)
+# NOTE: rapids-get-pr-wheel-artifact seems to not work with private repos
+# PYLIBCUGRAPHOPS_CHANNEL=$(
+#   RAPIDS_PY_WHEEL_NAME=pylibraft_${RAPIDS_PY_CUDA_SUFFIX} rapids-get-pr-wheel-artifact cugraph-ops 692 python
+# )
 
 cat > /tmp/constraints.txt <<EOF
 librmm-${RAPIDS_PY_CUDA_SUFFIX} @ file://$(echo ${LIBRMM_CHANNEL}/librmm_*.whl)
@@ -57,7 +58,8 @@ libucxx-${RAPIDS_PY_CUDA_SUFFIX} @ file://$(echo ${LIBUCXX_CHANNEL}/libucxx_*.wh
 distributed-ucxx-${RAPIDS_PY_CUDA_SUFFIX} @ file://$(echo ${DISTRIBUTED_UCXX_CHANNEL}/distributed_ucxx_*.whl)
 raft-dask-${RAPIDS_PY_CUDA_SUFFIX} @ file://$(echo ${RAFT_DASK_CHANNEL}/raft_dask_*.whl)
 pylibraft-${RAPIDS_PY_CUDA_SUFFIX} @ file://$(echo ${PYLIBRAFT_CHANNEL}/pylibraft_*.whl)
-pylibcugraphops-${RAPIDS_PY_CUDA_SUFFIX} @ file://$(echo ${PYLIBCUGRAPHOPS_CHANNEL}/pylibcugraphops_*.whl)
 EOF
+
+# pylibcugraphops-${RAPIDS_PY_CUDA_SUFFIX} @ file://$(echo ${PYLIBCUGRAPHOPS_CHANNEL}/pylibcugraphops_*.whl)
 
 export PIP_CONSTRAINT=/tmp/constraints.txt
