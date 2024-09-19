@@ -3,4 +3,6 @@
 
 set -euo pipefail
 
+source ./ci/use_wheels_from_prs.sh
+
 ./ci/build_wheel.sh cugraph-pyg python/cugraph-pyg

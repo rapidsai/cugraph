@@ -15,6 +15,8 @@ case "${RAPIDS_CUDA_VERSION}" in
   ;;
 esac
 
+source ./ci/use_wheels_from_prs.sh
+
 export SKBUILD_CMAKE_ARGS="-DDETECT_CONDA_ENV=OFF;-DFIND_CUGRAPH_CPP=OFF;-DCPM_cugraph-ops_SOURCE=${GITHUB_WORKSPACE}/cugraph-ops/${EXTRA_CMAKE_ARGS}"
 export SKBUILD_BUILD_TOOL_ARGS="-j${PARALLEL_LEVEL};-l${PARALLEL_LEVEL}"
 

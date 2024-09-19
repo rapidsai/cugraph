@@ -5,6 +5,8 @@ set -euo pipefail
 
 RAPIDS_PY_CUDA_SUFFIX="$(rapids-wheel-ctk-name-gen ${RAPIDS_CUDA_VERSION})"
 
+source ./ci/use_wheels_from_prs.sh
+
 # Download the pylibcugraph wheel built in the previous step and make it
 # available for pip to find.
 #
@@ -14,7 +16,7 @@ RAPIDS_PY_CUDA_SUFFIX="$(rapids-wheel-ctk-name-gen ${RAPIDS_CUDA_VERSION})"
 # are used when creating the isolated build environment
 CPP_WHEELHOUSE=$(RAPIDS_PY_WHEEL_NAME="pylibcugraph_${RAPIDS_PY_CUDA_SUFFIX}" rapids-download-wheels-from-s3 /tmp/pylibcugraph_dist)
 
-echo "pylibcugraph-${RAPIDS_PY_CUDA_SUFFIX} @ file://$(echo ${CPP_WHEELHOUSE}/pylibcugraph_*.whl)" > ./constraints.txt
+echo "pylibcugraph-${RAPIDS_PY_CUDA_SUFFIX} @ file://$(echo ${CPP_WHEELHOUSE}/pylibcugraph_*.whl)" >> ./constraints.txt
 export PIP_CONSTRAINT="${PWD}/constraints.txt"
 
 PARALLEL_LEVEL=$(python -c \

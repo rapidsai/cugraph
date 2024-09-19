@@ -5,6 +5,8 @@ set -Eeuo pipefail
 
 . /opt/conda/etc/profile.d/conda.sh
 
+source ./ci/use_conda_packages_from_prs.sh
+
 rapids-logger "Generate notebook testing dependencies"
 rapids-dependency-file-generator \
   --output conda \

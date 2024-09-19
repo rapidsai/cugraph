@@ -3,6 +3,8 @@
 
 set -eoxu pipefail
 
+source ./ci/use_wheels_from_prs.sh
+
 package_name="cugraph-dgl"
 package_dir="python/cugraph-dgl"
 
