@@ -25,6 +25,9 @@ else()
       "Could not determine RAPIDS version. Contents of VERSION file:\n${_rapids_version_formatted}")
 endif()
 
+# TODO: Remove these two lines before merging
+set(rapids-cmake-repo https://github.com/KyleFromNVIDIA/rapids-cmake.git)
+set(rapids-cmake-branch rapids_add_test-install_target)
 if(NOT EXISTS "${CMAKE_CURRENT_BINARY_DIR}/CUGRAPH_RAPIDS-${RAPIDS_VERSION_MAJOR_MINOR}.cmake")
   file(
     DOWNLOAD
