@@ -160,6 +160,7 @@ if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
       cugraph-dgl \
       'dgl>=1.1.0.cu*,<=2.0.0.cu*' \
       'pytorch>=2.0' \
+      'numpy>=2.0' \
       'cuda-version=11.8'
 
     rapids-print-env
@@ -210,7 +211,8 @@ if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
       --channel "${PYTHON_CHANNEL}" \
       --channel pyg \
       "cugraph-pyg" \
-      "ogb"
+      "ogb" \
+      "numpy>=2.0"
 
     pip install \
         pyg_lib \
@@ -253,7 +255,8 @@ if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
       --channel "${PYTHON_CHANNEL}" \
       --channel conda-forge \
       --channel nvidia \
-      cugraph-equivariant
+      cugraph-equivariant \
+      "numpy>=2.0"
     pip install e3nn==0.5.1
 
     rapids-print-env
