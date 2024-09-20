@@ -16,7 +16,7 @@ from typing import Optional, Iterator, Union, Dict, Tuple
 from cugraph.utilities.utils import import_optional
 from cugraph.gnn import DistSampler
 
-from .sampler_utils import filter_cugraph_pyg_store
+from .sampler_utils import filter_cugraph_pyg_store, neg_sample
 
 torch = import_optional("torch")
 torch_geometric = import_optional("torch_geometric")
@@ -467,11 +467,24 @@ class BaseSampler:
             "torch_geometric.sampler.SamplerOutput",
         ]
     ]:
+        src = index.row
+        dst = index.col
         if neg_sampling:
-            raise NotImplementedError("negative sampling is currently unsupported")
+            # TODO handle temporal sampling (node_time)
+            src_neg, dst_neg = neg_sample(
+                self.__graph_store,
+                index.row,
+                index.col,
+                neg_sampling,
+                None,  # src_time,
+                None,  # src_node_time,
+            )
+            if neg_sampling.is_binary():
+                src = torch.cat([src, src_neg], dim=0)
+            dst = torch.cat([dst, dst_neg], dim=0)
 
         reader = self.__sampler.sample_from_edges(
-            torch.stack([index.row, index.col]),  # reverse of usual convention
+            torch.stack([src, dst]),  # reverse of usual convention
             input_id=index.input_id,
             batch_size=self.__batch_size,
             **kwargs,

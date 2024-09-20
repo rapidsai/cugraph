@@ -14,10 +14,14 @@
 
 from typing import Sequence, Dict, Tuple
 
-from cugraph_pyg.data import DaskGraphStore
+from math import ceil
+
+from cugraph_pyg.data import GraphStore, DaskGraphStore
 
 from cugraph.utilities.utils import import_optional
 import cudf
+import cupy
+import pylibcugraph
 
 dask_cudf = import_optional("dask_cudf")
 torch_geometric = import_optional("torch_geometric")
@@ -429,3 +433,43 @@ def filter_cugraph_pyg_store(
         data[attr.attr_name] = tensors[i]
 
     return data
+
+
+def neg_sample(
+    graph_store: GraphStore,
+    seed_src: "torch.Tensor",
+    seed_dst: "torch.Tensor",
+    neg_sampling: "torch_geometric.sampler.NegativeSampling",
+    time: "torch.Tensor",
+    node_time: "torch.Tensor",
+) -> Tuple["torch.Tensor", "torch.Tensor"]:
+    unweighted = neg_sampling.src_weight is None and neg_sampling.dst_weight is None
+
+    num_neg = int(ceil(neg_sampling.amount * seed_src.numel()))
+
+    if node_time is None:
+        result_dict = pylibcugraph.negative_sample(
+            graph_store._resource_handle,
+            graph_store._graph,
+            num_neg,
+            vertices=None
+            if unweighted
+            else cupy.arange(neg_sampling.src_weight.numel(), dtype="int64"),
+            src_bias=None
+            if neg_sampling.src_weight is None
+            else cupy.asarray(neg_sampling.src_weight),
+            dst_bias=None
+            if neg_sampling.dst_weight is None
+            else cupy.asarray(neg_sampling.dst_weight),
+            remove_duplicates=False,
+            remove_false_negatives=False,
+            exact_number_of_samples=True,
+            do_expensive_check=False,
+        )
+        return torch.as_tensor(result_dict["sources"], device="cuda"), torch.as_tensor(
+            result_dict["destinations"], device="cuda"
+        )
+
+    raise NotImplementedError(
+        "Temporal negative sampling is currently unimplemented in cuGraph-PyG"
+    )

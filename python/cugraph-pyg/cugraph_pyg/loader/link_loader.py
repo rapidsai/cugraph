@@ -139,6 +139,29 @@ class LinkLoader:
             input_type=input_type,
         )
 
+        # Edge label check from torch_geometric.loader.LinkLoader
+        if (
+            neg_sampling is not None
+            and neg_sampling.is_binary()
+            and edge_label is not None
+            and edge_label.min() == 0
+        ):
+            edge_label = edge_label + 1
+
+        if (
+            neg_sampling is not None
+            and neg_sampling.is_triplet()
+            and edge_label is not None
+        ):
+            raise ValueError(
+                "'edge_label' needs to be undefined for "
+                "'triplet'-based negative sampling. Please use "
+                "`src_index`, `dst_pos_index` and "
+                "`neg_pos_index` of the returned mini-batch "
+                "instead to differentiate between positive and "
+                "negative samples."
+            )
+
         self.__data = data
 
         self.__link_sampler = link_sampler
