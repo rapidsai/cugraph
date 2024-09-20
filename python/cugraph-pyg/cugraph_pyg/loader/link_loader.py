@@ -112,6 +112,12 @@ class LinkLoader:
         if transform_sampler_output is not None:
             warnings.warn("transform_sampler_output is currently ignored.")
 
+        if neg_sampling_ratio is not None:
+            warnings.warn(
+                "The 'neg_sampling_ratio' argument is deprecated in PyG"
+                " and is not supported in cuGraph-PyG."
+            )
+
         (
             input_type,
             edge_label_index,
