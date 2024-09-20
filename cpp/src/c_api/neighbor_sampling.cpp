@@ -1184,7 +1184,7 @@ cugraph_error_code_t cugraph_uniform_neighbor_sample(
                                     graph,
                                     nullptr,
                                     start_vertices,
-                                    start_vertex_labels,
+                                    start_vertex_labels, // Deprecated flag
                                     nullptr, //start_vertex_offsets
                                     label_list,
                                     label_to_comm_rank,
@@ -1269,7 +1269,7 @@ cugraph_error_code_t cugraph_biased_neighbor_sample(
                                     graph,
                                     edge_biases,
                                     start_vertices,
-                                    start_vertex_labels,
+                                    start_vertex_labels, // Deprecated flag
                                     nullptr, //start_vertex_offsets
                                     label_list,
                                     label_to_comm_rank,
@@ -1355,7 +1355,7 @@ cugraph_error_code_t cugraph_heterogeneous_neighbor_sample(
                                     graph,
                                     edge_biases,
                                     start_vertices,
-                                    nullptr, //start_vertex_labels
+                                    nullptr, //start_vertex_labels /*Deprecated flag*/
                                     start_vertex_offsets,
                                     label_list,
                                     label_to_comm_rank,
@@ -1441,7 +1441,7 @@ cugraph_error_code_t cugraph_homogeneous_neighbor_sample(
                                     graph,
                                     edge_biases,
                                     start_vertices,
-                                    nullptr, //start_vertex_labels
+                                    nullptr, //start_vertex_labels /*Deprecated flag*/
                                     start_vertex_offsets,
                                     label_list,
                                     label_to_comm_rank,
