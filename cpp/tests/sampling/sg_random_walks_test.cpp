@@ -40,8 +40,10 @@ struct UniformRandomWalks_Usecase {
              raft::device_span<vertex_t const> start_vertices,
              size_t num_paths)
   {
+    raft::random::RngState rng_state(0);
+
     return cugraph::uniform_random_walks(
-      handle, graph_view, edge_weight_view, start_vertices, num_paths, seed);
+      handle, rng_state, graph_view, edge_weight_view, start_vertices, num_paths);
   }
 
   bool expect_throw() { return false; }
@@ -62,12 +64,13 @@ struct BiasedRandomWalks_Usecase {
   {
     CUGRAPH_EXPECTS(edge_weight_view.has_value(), "Biased random walk requires edge weights.");
 
+    raft::random::RngState rng_state(0);
+
     return cugraph::biased_random_walks(
-      handle, graph_view, *edge_weight_view, start_vertices, num_paths, seed);
+      handle, rng_state, graph_view, *edge_weight_view, start_vertices, num_paths);
   }
 
-  // FIXME: Not currently implemented
-  bool expect_throw() { return true; }
+  bool expect_throw() { return !test_weighted; }
 };
 
 struct Node2VecRandomWalks_Usecase {
@@ -85,18 +88,19 @@ struct Node2VecRandomWalks_Usecase {
              raft::device_span<vertex_t const> start_vertices,
              size_t num_paths)
   {
+    raft::random::RngState rng_state(0);
+
     return cugraph::node2vec_random_walks(handle,
+                                          rng_state,
                                           graph_view,
                                           edge_weight_view,
                                           start_vertices,
                                           num_paths,
                                           static_cast<weight_t>(p),
-                                          static_cast<weight_t>(q),
-                                          seed);
+                                          static_cast<weight_t>(q));
   }
 
-  // FIXME: Not currently implemented
-  bool expect_throw() { return true; }
+  bool expect_throw() { return false; }
 };
 
 template <typename tuple_t>
@@ -197,9 +201,6 @@ using Tests_Node2VecRandomWalks_File =
 using Tests_Node2VecRandomWalks_Rmat =
   Tests_RandomWalks<std::tuple<Node2VecRandomWalks_Usecase, cugraph::test::Rmat_Usecase>>;
 
-#if 0
-// FIXME:  We should use these tests, gtest-1.11.0 makes it a runtime error
-//         to define and not instantiate these.
 TEST_P(Tests_UniformRandomWalks_File, Initialize_i32_i32_f)
 {
   run_current_test<int32_t, int32_t, float>(
@@ -211,7 +212,6 @@ TEST_P(Tests_UniformRandomWalks_Rmat, Initialize_i32_i32_f)
   run_current_test<int32_t, int32_t, float>(
     override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
 }
-#endif
 
 TEST_P(Tests_BiasedRandomWalks_File, Initialize_i32_i32_f)
 {
@@ -237,19 +237,12 @@ TEST_P(Tests_Node2VecRandomWalks_Rmat, Initialize_i32_i32_f)
     override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
 }
 
-#if 0
-// FIXME: Not sure why these are failing, but we're refactoring anyway.
 INSTANTIATE_TEST_SUITE_P(
   simple_test,
   Tests_UniformRandomWalks_File,
-  ::testing::Combine(
-    ::testing::Values(UniformRandomWalks_Usecase{false, 0, true},
-                      UniformRandomWalks_Usecase{true, 0, true}),
-    ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"),
-                      cugraph::test::File_Usecase("test/datasets/web-Google.mtx"),
-                      cugraph::test::File_Usecase("test/datasets/ljournal-2008.mtx"),
-                      cugraph::test::File_Usecase("test/datasets/webbase-1M.mtx"))));
-#endif
+  ::testing::Combine(::testing::Values(UniformRandomWalks_Usecase{false, 0, true},
+                                       UniformRandomWalks_Usecase{true, 0, true}),
+                     ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"))));
 
 INSTANTIATE_TEST_SUITE_P(
   file_test,
@@ -264,6 +257,16 @@ INSTANTIATE_TEST_SUITE_P(
   ::testing::Combine(::testing::Values(Node2VecRandomWalks_Usecase{4, 8, false, 0, true},
                                        Node2VecRandomWalks_Usecase{4, 8, true, 0, true}),
                      ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"))));
+
+INSTANTIATE_TEST_SUITE_P(
+  file_large_test,
+  Tests_UniformRandomWalks_File,
+  ::testing::Combine(
+    ::testing::Values(UniformRandomWalks_Usecase{false, 0, true},
+                      UniformRandomWalks_Usecase{true, 0, true}),
+    ::testing::Values(cugraph::test::File_Usecase("test/datasets/web-Google.mtx"),
+                      cugraph::test::File_Usecase("test/datasets/ljournal-2008.mtx"),
+                      cugraph::test::File_Usecase("test/datasets/webbase-1M.mtx"))));
 
 INSTANTIATE_TEST_SUITE_P(
   file_large_test,
@@ -285,23 +288,20 @@ INSTANTIATE_TEST_SUITE_P(
                       cugraph::test::File_Usecase("test/datasets/ljournal-2008.mtx"),
                       cugraph::test::File_Usecase("test/datasets/webbase-1M.mtx"))));
 
-#if 0
-// FIXME: Not sure why these are failing, but we're refactoring anyway.
 INSTANTIATE_TEST_SUITE_P(
   rmat_small_test,
   Tests_UniformRandomWalks_Rmat,
-  ::testing::Combine(::testing::Values(UniformRandomWalks_Usecase{false, 0, true},
-                                       UniformRandomWalks_Usecase{true, 0, true}),
-                     ::testing::Values(cugraph::test::Rmat_Usecase(
-                       10, 16, 0.57, 0.19, 0.19, 0, false, false))));
+  ::testing::Combine(
+    ::testing::Values(UniformRandomWalks_Usecase{false, 0, true},
+                      UniformRandomWalks_Usecase{true, 0, true}),
+    ::testing::Values(cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, false, false))));
 
 INSTANTIATE_TEST_SUITE_P(
   rmat_benchmark_test,
   Tests_UniformRandomWalks_Rmat,
-  ::testing::Combine(::testing::Values(UniformRandomWalks_Usecase{true, 0, false}),
-                     ::testing::Values(cugraph::test::Rmat_Usecase(
-                       20, 32, 0.57, 0.19, 0.19, 0, false, false))));
-#endif
+  ::testing::Combine(
+    ::testing::Values(UniformRandomWalks_Usecase{true, 0, false}),
+    ::testing::Values(cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false))));
 
 INSTANTIATE_TEST_SUITE_P(
   rmat_small_test,
