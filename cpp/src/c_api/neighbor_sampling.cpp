@@ -88,7 +88,7 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
   int num_edge_types_{};
   cugraph::c_api::cugraph_sampling_options_t options_{};
   bool is_biased_{false};
-  bool is_deprecated_{false};
+  bool is_deprecated_api_{false};
   bool do_expensive_check_{false};
   cugraph::c_api::cugraph_sample_result_t* result_{nullptr};
 
@@ -107,7 +107,7 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
     int num_edge_types,
     cugraph::c_api::cugraph_sampling_options_t options,
     bool is_biased,
-    bool is_deprecated,
+    bool is_deprecated_api,
     bool do_expensive_check)
     : abstract_functor(),
       handle_(*reinterpret_cast<cugraph::c_api::cugraph_resource_handle_t const*>(handle)->handle_),
@@ -137,7 +137,7 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
       num_edge_types_(num_edge_types),
       options_(options),
       is_biased_(is_biased),
-      is_deprecated_(is_deprecated),
+      is_deprecated_api_(is_deprecated_api),
       do_expensive_check_(do_expensive_check)
   {
   }
@@ -250,7 +250,7 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
       std::optional<rmm::device_uvector<size_t>> offsets{std::nullopt};
 
       // if 'start_vertex_offsets' is not NULL, leverage the new API
-      if (is_deprecated_) {
+      if (is_deprecated_api_) {
         if (is_biased_) {
           // Call biased neighbor sample
           auto&& [src, dst, wgt, edge_id, edge_type, hop, edge_label, offsets] =
@@ -554,7 +554,7 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
               raft::device_span<vertex_t const>{
                     vertex_type_offsets.data(), vertex_type_offsets.size()},
               
-              edge_label ? edge_label->size() : size_t{1}, // FIXME: update edge_label
+              start_vertex_offsets ? start_vertex_offsets->size() : size_t{1},
               hop ? fan_out_->size_ : size_t{1},
               size_t{1},
               size_t{1},
@@ -578,6 +578,10 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
       } else {
         if (options_.compression_type_ != cugraph_compression_type_t::COO) {
           CUGRAPH_FAIL("Can only use COO format if not renumbering");
+        }
+
+        if (num_edge_types_ != 1) {
+          CUGRAPH_FAIL("Can only use COO format for homogeneous neighborhood sampling");
         }
 
         std::tie(src, dst, wgt, edge_id, edge_type, label_hop_offsets) =
@@ -1193,7 +1197,7 @@ cugraph_error_code_t cugraph_uniform_neighbor_sample(
                                     1,
                                     std::move(options_cpp),
                                     is_biased,
-                                    true, // is_deprecated
+                                    true, // is_deprecated_api
                                     do_expensive_check};
   return cugraph::c_api::run_algorithm(graph, functor, result, error);
 }
@@ -1278,7 +1282,7 @@ cugraph_error_code_t cugraph_biased_neighbor_sample(
                                     1,
                                     std::move(options_cpp),
                                     is_biased,
-                                    true, // is_deprecated
+                                    true, // is_deprecated_api
                                     do_expensive_check};
   return cugraph::c_api::run_algorithm(graph, functor, result, error);
 }
@@ -1290,9 +1294,7 @@ cugraph_error_code_t cugraph_heterogeneous_neighbor_sample(
   const cugraph_edge_property_view_t* edge_biases,
   const cugraph_type_erased_device_array_view_t* start_vertices,
   const cugraph_type_erased_device_array_view_t* start_vertex_offsets,
-  const cugraph_type_erased_device_array_view_t* label_list,
   const cugraph_type_erased_device_array_view_t* label_to_comm_rank,
-  const cugraph_type_erased_device_array_view_t* label_offsets,
   const cugraph_type_erased_host_array_view_t* fan_out,
   int num_edge_types,
   const cugraph_sampling_options_t* options,
@@ -1312,9 +1314,10 @@ cugraph_error_code_t cugraph_heterogeneous_neighbor_sample(
       *error);
   }
   
-  CAPI_EXPECTS((!options_cpp.retain_seeds_) || (label_offsets != nullptr),
+  // FIXME: Should we maintain this contition?
+  CAPI_EXPECTS((!options_cpp.retain_seeds_) || (start_vertex_offsets != nullptr),
                CUGRAPH_INVALID_INPUT,
-               "must specify label_offsets if retain_seeds is true",
+               "must specify start_vertex_offsets if retain_seeds is true",
                *error);
   
   CAPI_EXPECTS((start_vertex_offsets == nullptr) ||
@@ -1328,11 +1331,6 @@ cugraph_error_code_t cugraph_heterogeneous_neighbor_sample(
   CAPI_EXPECTS((label_to_comm_rank == nullptr) || (start_vertex_offsets != nullptr),
                CUGRAPH_INVALID_INPUT,
                "cannot specify label_to_comm_rank unless start_vertex_offsets is also specified",
-               *error);
-
-  CAPI_EXPECTS((label_to_comm_rank == nullptr) || (label_list != nullptr),
-               CUGRAPH_INVALID_INPUT,
-               "cannot specify label_to_comm_rank unless label_list is also specified",
                *error);
     
   CAPI_EXPECTS(
@@ -1355,16 +1353,16 @@ cugraph_error_code_t cugraph_heterogeneous_neighbor_sample(
                                     graph,
                                     edge_biases,
                                     start_vertices,
-                                    nullptr, //start_vertex_labels /*Deprecated flag*/
+                                    nullptr, // start_vertex_labels /*Deprecated flag*/
                                     start_vertex_offsets,
-                                    label_list,
+                                    nullptr, // label_list /*Deprecated flag*/
                                     label_to_comm_rank,
-                                    label_offsets,
+                                    nullptr, // label_offsets /*Deprecated flag*/
                                     fan_out,
                                     num_edge_types,
                                     std::move(options_cpp),
                                     is_biased,
-                                    false, // is_deprecated
+                                    false, // is_deprecated_api
                                     do_expensive_check};
   return cugraph::c_api::run_algorithm(graph, functor, result, error);
 }
@@ -1376,9 +1374,7 @@ cugraph_error_code_t cugraph_homogeneous_neighbor_sample(
   const cugraph_edge_property_view_t* edge_biases,
   const cugraph_type_erased_device_array_view_t* start_vertices,
   const cugraph_type_erased_device_array_view_t* start_vertex_offsets,
-  const cugraph_type_erased_device_array_view_t* label_list,
   const cugraph_type_erased_device_array_view_t* label_to_comm_rank,
-  const cugraph_type_erased_device_array_view_t* label_offsets,
   const cugraph_type_erased_host_array_view_t* fan_out,
   const cugraph_sampling_options_t* options,
   bool_t is_biased,
@@ -1397,9 +1393,10 @@ cugraph_error_code_t cugraph_homogeneous_neighbor_sample(
       *error);
   }
   
-  CAPI_EXPECTS((!options_cpp.retain_seeds_) || (label_offsets != nullptr),
+  // FIXME: Should we maintain this contition?
+  CAPI_EXPECTS((!options_cpp.retain_seeds_) || (start_vertex_offsets != nullptr),
                CUGRAPH_INVALID_INPUT,
-               "must specify label_offsets if retain_seeds is true",
+               "must specify start_vertex_offsets if retain_seeds is true",
                *error);
   
   CAPI_EXPECTS((start_vertex_offsets == nullptr) ||
@@ -1413,11 +1410,6 @@ cugraph_error_code_t cugraph_homogeneous_neighbor_sample(
   CAPI_EXPECTS((label_to_comm_rank == nullptr) || (start_vertex_offsets != nullptr),
                CUGRAPH_INVALID_INPUT,
                "cannot specify label_to_comm_rank unless start_vertex_offsets is also specified",
-               *error);
-
-  CAPI_EXPECTS((label_to_comm_rank == nullptr) || (label_list != nullptr),
-               CUGRAPH_INVALID_INPUT,
-               "cannot specify label_to_comm_rank unless label_list is also specified",
                *error);
   
   CAPI_EXPECTS(reinterpret_cast<cugraph::c_api::cugraph_type_erased_host_array_view_t const*>(
@@ -1443,14 +1435,14 @@ cugraph_error_code_t cugraph_homogeneous_neighbor_sample(
                                     start_vertices,
                                     nullptr, //start_vertex_labels /*Deprecated flag*/
                                     start_vertex_offsets,
-                                    label_list,
+                                    nullptr,//label_list /*Deprecated flag*/
                                     label_to_comm_rank,
-                                    label_offsets,
+                                    nullptr, //label_offsets /*Deprecated flag*/
                                     fan_out,
                                     1,
                                     std::move(options_cpp),
                                     is_biased,
-                                    false, // is_deprecated
+                                    false, // is_deprecated_api
                                     do_expensive_check};
   return cugraph::c_api::run_algorithm(graph, functor, result, error);
 }
