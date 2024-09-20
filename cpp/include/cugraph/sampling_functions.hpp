@@ -327,7 +327,9 @@ struct sampling_flags_t {
  * @param label_to_output_comm_rank Optional device span identifying which rank should get each
  * vertex label.  This should be the same on each rank.
  * @param fan_out Host span defining branching out (fan-out) degree per source vertex for each
- * level
+ * level. The fanout value at hop x is given by the expression 'fanout[x*num_edge_types + edge_type_id]'
+ * @param num_edge_types Number of edge types where a value of 1 translates to homogeneous neighbor
+ * sample whereas a value greater than 1 translates to heterogeneous neighbor sample.
  * @param flags A set of flags indicating which sampling features should be used.
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  * @return tuple device vectors (vertex_t source_vertex, vertex_t destination_vertex,
@@ -359,8 +361,8 @@ heterogeneous_neighbor_sample(
   raft::device_span<vertex_t const> starting_vertices,
   std::optional<raft::device_span<size_t const>> starting_vertex_offsets,
   std::optional<raft::device_span<int32_t const>> label_to_output_comm_rank,
-  std::tuple<raft::host_span<int32_t const>, raft::host_span<int32_t const>>
-    heterogeneous_fan_out,
+  raft::host_span<int32_t const> fan_out,
+  edge_type_t num_edge_types,
   sampling_flags_t sampling_flags,
   bool do_expensive_check = false);
 
@@ -415,7 +417,7 @@ heterogeneous_neighbor_sample(
  * @param label_to_output_comm_rank Optional device span identifying which rank should get each
  * vertex label.  This should be the same on each rank.
  * @param fan_out Host span defining branching out (fan-out) degree per source vertex for each
- * level
+ * level.
  * @param flags A set of flags indicating which sampling features should be used.
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  * @return tuple device vectors (vertex_t source_vertex, vertex_t destination_vertex,

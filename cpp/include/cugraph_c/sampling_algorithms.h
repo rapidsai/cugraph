@@ -200,6 +200,13 @@ typedef struct {
 } cugraph_sampling_options_t;
 
 /**
+ * @brief     Opaque sampling options type
+ */
+typedef struct {
+  int32_t align_;
+} sampling_flags_t;
+
+/**
  * @brief     Enumeration for prior sources behavior
  */
 typedef enum cugraph_prior_sources_behavior_t {
@@ -321,29 +328,29 @@ void cugraph_sampling_set_dedupe_sources(cugraph_sampling_options_t* options, bo
 void cugraph_sampling_options_free(cugraph_sampling_options_t* options);
 
 /**
- * @brief     Opaque neighborhood sampling heterogeneous fanout type
+ * @brief     Opaque neighborhood sampling heterogeneous fan_out type
  */
 typedef struct {
   int32_t align_;
 } cugraph_sample_heterogeneous_fan_out_t;
 
 /**
- * @brief       Create heterogeneous fanout
+ * @brief       Create heterogeneous fan_out
  *
- * Input data will be stored in the heterogenous_fanout.
+ * Input data will be stored in the heterogenous_fan_out.
  * 
- * The fanout is going to be a CSR structure, the edge_type_offsets will define which range
- * of the fanout array is associated with each edge type, the fanout will be the values of
- * fanout for that hop/type. So for edge type k, fanout[edge_type_offsets[k]] will identify
- * the fanout for hop 0 for edge type k.  fanout[edge_type_offsets[k] +1] will identify the
- * fanout for hop 1, etc. edge_type_offsets[k+1] will mark the beginning of the fanout
- * array for type k+1 (and the end of the fanout array for type k.
+ * The fan_out is going to be a CSR structure, the edge_type_offsets will define which range
+ * of the fan_out array is associated with each edge type, the fan_out will be the values of
+ * fan_out for that hop/type. So for edge type k, fan_out[edge_type_offsets[k]] will identify
+ * the fan_out for hop 0 for edge type k.  fan_out[edge_type_offsets[k] +1] will identify the
+ * fan_out for hop 1, etc. edge_type_offsets[k+1] will mark the beginning of the fan_out
+ * array for type k+1 (and the end of the fan_out array for type k.
  *
  * @param [in]  handle         Handle for accessing resources
  * @param [in]  graph          Pointer to graph
  * @param [in]  edge_type_offsets Type erased array of edge type offsets
- * @param [in]  fanout         Type erased array of fanout values
- * @param [out] heterogeneous_fanout Opaque pointer to fanout_t
+ * @param [in]  fan_out         Type erased array of fan_out values
+ * @param [out] heterogeneous_fan_out Opaque pointer to fan_out_t
  * @param [out] error          Pointer to an error object storing details of any error.  Will
  *                             be populated if error code is not CUGRAPH_SUCCESS
  * @return error code
@@ -352,16 +359,16 @@ cugraph_error_code_t cugraph_create_heterogeneous_fan_out(
   const cugraph_resource_handle_t* handle,
   cugraph_graph_t* graph,
   const cugraph_type_erased_host_array_view_t* edge_type_offsets,
-  const cugraph_type_erased_host_array_view_t* fanout,
-  cugraph_sample_heterogeneous_fan_out_t** heterogeneous_fanout,
+  const cugraph_type_erased_host_array_view_t* fan_out,
+  cugraph_sample_heterogeneous_fan_out_t** heterogeneous_fan_out,
   cugraph_error_t** error);
 
 /**
- * @brief     Free edge type and fanout pairs
+ * @brief     Free edge type and fan_out pairs
  *
- * @param [in]    heterogeneous_fanout The edge type size and fanout values
+ * @param [in]    heterogeneous_fan_out The edge type size and fan_out values
  */
-void cugraph_heterogeneous_fan_out_free(cugraph_sample_heterogeneous_fan_out_t* heterogeneous_fanout);
+void cugraph_heterogeneous_fan_out_free(cugraph_sample_heterogeneous_fan_out_t* heterogeneous_fan_out);
 
 /**
  * @brief     Uniform Neighborhood Sampling
@@ -394,8 +401,8 @@ void cugraph_heterogeneous_fan_out_free(cugraph_sample_heterogeneous_fan_out_t* 
  * label_to_comm_rank[i].  If not specified then the output data will not be shuffled between ranks.
  * @param [in]  label_offsets Device array of the offsets for each label in the seed list.  This
  *                            parameter is only used with the retain_seeds option.
- * @param [in]  fanout       Host array defining the fan out at each step in the sampling algorithm.
- *                           We only support fanout values of type INT32
+ * @param [in]  fan_out       Host array defining the fan out at each step in the sampling algorithm.
+ *                           We only support fan_out values of type INT32
  * @param [in,out] rng_state State of the random number generator, updated with each call
  * @param [in]  sampling_options
  *                           Opaque pointer defining the sampling options.
@@ -455,8 +462,8 @@ cugraph_error_code_t cugraph_uniform_neighbor_sample(
  * label_to_comm_rank[i].  If not specified then the output data will not be shuffled between ranks.
  * @param [in]  label_offsets Device array of the offsets for each label in the seed list.  This
  *                            parameter is only used with the retain_seeds option.
- * @param [in]  fanout       Host array defining the fan out at each step in the sampling algorithm.
- *                           We only support fanout values of type INT32
+ * @param [in]  fan_out       Host array defining the fan out at each step in the sampling algorithm.
+ *                           We only support fan_out values of type INT32
  * @param [in,out] rng_state State of the random number generator, updated with each call
  * @param [in]  sampling_options
  *                           Opaque pointer defining the sampling options.
@@ -487,7 +494,7 @@ cugraph_error_code_t cugraph_biased_neighbor_sample(
  * @brief     Heterogeneous Neighborhood Sampling
  *
  * Returns a sample of the neighborhood around specified start vertices with edge biases or not
- * and homogeneous fanout types.
+ * and homogeneous fan_out types.
  * Optionally, each start vertex can be associated with a label, allowing the caller to specify
  * multiple batches of sampling requests in the same function call - which should improve GPU
  * utilization.
@@ -516,10 +523,11 @@ cugraph_error_code_t cugraph_biased_neighbor_sample(
  * label_to_comm_rank[i].  If not specified then the output data will not be shuffled between ranks.
  * @param [in]  label_offsets Device array of the offsets for each label in the seed list.  This
  *                            parameter is only used with the retain_seeds option.
- * @param [in]  heterogeneous_fanout  Tuple of host arrays defining the fan out at each step in the
- * sampling algorithm. in CSR style format. The first element of the tuple is the offset array per
- * edge type id and the second element corresponds to the fanout values.
- * We only support type INT32 for both the offsets and the fanout values array.
+ * @param [in]  fan_out       Host array defining the fan out at each step in the sampling algorithm.
+ *                            We only support fan_out values of type INT32
+ * @param [in]  num_edge_types Number of edge types where a value of 1 translates to homogeneous neighbor
+ *                            sample whereas a value greater than 1 translates to heterogeneous neighbor
+ *                            sample.
  * @param [in]  sampling_options
  *                           Opaque pointer defining the sampling options.
  * @param [in]  is_biased
@@ -542,7 +550,8 @@ cugraph_error_code_t cugraph_heterogeneous_neighbor_sample(
   const cugraph_type_erased_device_array_view_t* label_list,
   const cugraph_type_erased_device_array_view_t* label_to_comm_rank,
   const cugraph_type_erased_device_array_view_t* label_offsets,
-  const cugraph_sample_heterogeneous_fan_out_t* heterogeneous_fanout,
+  const cugraph_sample_heterogeneous_fan_out_t* fan_out,
+  int num_edge_types,
   const cugraph_sampling_options_t* options,
   bool_t is_biased,
   bool_t do_expensive_check,
@@ -553,7 +562,7 @@ cugraph_error_code_t cugraph_heterogeneous_neighbor_sample(
  * @brief     Homogeneous Neighborhood Sampling
  *
  * Returns a sample of the neighborhood around specified start vertices with edge biases or not
- * and homogeneous fanout types.
+ * and homogeneous fan_out types.
  * Optionally, each start vertex can be associated with a label, allowing the caller to specify
  * multiple batches of sampling requests in the same function call - which should improve GPU
  * utilization.
@@ -582,8 +591,8 @@ cugraph_error_code_t cugraph_heterogeneous_neighbor_sample(
  * label_to_comm_rank[i].  If not specified then the output data will not be shuffled between ranks.
  * @param [in]  label_offsets Device array of the offsets for each label in the seed list.  This
  *                            parameter is only used with the retain_seeds option.
- * @param [in]  fanout       Host array defining the fan out at each step in the sampling algorithm.
- *                           We only support fanout values of type INT32
+ * @param [in]  fan_out       Host array defining the fan out at each step in the sampling algorithm.
+ *                            We only support fan_out values of type INT32
  * @param [in]  sampling_options
  *                           Opaque pointer defining the sampling options.
  * @param [in]  is_biased

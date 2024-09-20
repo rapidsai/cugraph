@@ -133,7 +133,6 @@ template std::tuple<rmm::device_uvector<int64_t>,
                     std::optional<rmm::device_uvector<int64_t>>,
                     std::optional<rmm::device_uvector<int32_t>>,
                     std::optional<rmm::device_uvector<int32_t>>,
-                    std::optional<rmm::device_uvector<int32_t>>,
                     std::optional<rmm::device_uvector<size_t>>>
 heterogeneous_neighbor_sample(
   raft::handle_t const& handle,
@@ -144,22 +143,17 @@ heterogeneous_neighbor_sample(
   std::optional<edge_property_view_t<int64_t, int32_t const*>> edge_type_view,
   std::optional<edge_property_view_t<int64_t, float const*>> edge_bias_view,
   raft::device_span<int64_t const> starting_vertices,
-  std::optional<raft::device_span<int32_t const>> starting_vertex_labels,
-  std::optional<std::tuple<raft::device_span<int32_t const>, raft::device_span<int32_t const>>>
-    label_to_output_comm_rank,
-  std::tuple<raft::host_span<int32_t const>, raft::host_span<int32_t const>>
-    heterogeneous_fan_out,
-  bool return_hops,
-  bool with_replacement,
-  prior_sources_behavior_t prior_sources_behavior,
-  bool dedupe_sources,
+  std::optional<raft::device_span<size_t const>> starting_vertex_offsets,
+  std::optional<raft::device_span<int32_t const>> label_to_output_comm_rank,
+  raft::host_span<int32_t const> fan_out,
+  int32_t num_edge_types,
+  sampling_flags_t sampling_flags,
   bool do_expensive_check);
 
 template std::tuple<rmm::device_uvector<int64_t>,
                     rmm::device_uvector<int64_t>,
                     std::optional<rmm::device_uvector<double>>,
                     std::optional<rmm::device_uvector<int64_t>>,
-                    std::optional<rmm::device_uvector<int32_t>>,
                     std::optional<rmm::device_uvector<int32_t>>,
                     std::optional<rmm::device_uvector<int32_t>>,
                     std::optional<rmm::device_uvector<size_t>>>
@@ -172,15 +166,11 @@ heterogeneous_neighbor_sample(
   std::optional<edge_property_view_t<int64_t, int32_t const*>> edge_type_view,
   std::optional<edge_property_view_t<int64_t, double const*>> edge_bias_view,
   raft::device_span<int64_t const> starting_vertices,
-  std::optional<raft::device_span<int32_t const>> starting_vertex_labels,
-  std::optional<std::tuple<raft::device_span<int32_t const>, raft::device_span<int32_t const>>>
-    label_to_output_comm_rank,
-  std::tuple<raft::host_span<int32_t const>, raft::host_span<int32_t const>>
-    heterogeneous_fan_out,
-  bool return_hops,
-  bool with_replacement,
-  prior_sources_behavior_t prior_sources_behavior,
-  bool dedupe_sources,
+  std::optional<raft::device_span<size_t const>> starting_vertex_offsets,
+  std::optional<raft::device_span<int32_t const>> label_to_output_comm_rank,
+  raft::host_span<int32_t const> fan_out,
+  int32_t num_edge_types,
+  sampling_flags_t sampling_flags,
   bool do_expensive_check);
 
 template std::tuple<rmm::device_uvector<int64_t>,
@@ -189,7 +179,6 @@ template std::tuple<rmm::device_uvector<int64_t>,
                     std::optional<rmm::device_uvector<int64_t>>,
                     std::optional<rmm::device_uvector<int32_t>>,
                     std::optional<rmm::device_uvector<int32_t>>,
-                    std::optional<rmm::device_uvector<int32_t>>,
                     std::optional<rmm::device_uvector<size_t>>>
 homogeneous_neighbor_sample(
   raft::handle_t const& handle,
@@ -200,21 +189,16 @@ homogeneous_neighbor_sample(
   std::optional<edge_property_view_t<int64_t, int32_t const*>> edge_type_view,
   std::optional<edge_property_view_t<int64_t, float const*>> edge_bias_view,
   raft::device_span<int64_t const> starting_vertices,
-  std::optional<raft::device_span<int32_t const>> starting_vertex_labels,
-  std::optional<std::tuple<raft::device_span<int32_t const>, raft::device_span<int32_t const>>>
-    label_to_output_comm_rank,
+  std::optional<raft::device_span<size_t const>> starting_vertex_offsets,
+  std::optional<raft::device_span<int32_t const>> label_to_output_comm_rank,
   raft::host_span<int32_t const> fan_out,
-  bool return_hops,
-  bool with_replacement,
-  prior_sources_behavior_t prior_sources_behavior,
-  bool dedupe_sources,
+  sampling_flags_t sampling_flags,
   bool do_expensive_check);
 
 template std::tuple<rmm::device_uvector<int64_t>,
                     rmm::device_uvector<int64_t>,
                     std::optional<rmm::device_uvector<double>>,
                     std::optional<rmm::device_uvector<int64_t>>,
-                    std::optional<rmm::device_uvector<int32_t>>,
                     std::optional<rmm::device_uvector<int32_t>>,
                     std::optional<rmm::device_uvector<int32_t>>,
                     std::optional<rmm::device_uvector<size_t>>>
@@ -227,14 +211,10 @@ homogeneous_neighbor_sample(
   std::optional<edge_property_view_t<int64_t, int32_t const*>> edge_type_view,
   std::optional<edge_property_view_t<int64_t, double const*>> edge_bias_view,
   raft::device_span<int64_t const> starting_vertices,
-  std::optional<raft::device_span<int32_t const>> starting_vertex_labels,
-  std::optional<std::tuple<raft::device_span<int32_t const>, raft::device_span<int32_t const>>>
-    label_to_output_comm_rank,
+  std::optional<raft::device_span<size_t const>> starting_vertex_offsets,
+  std::optional<raft::device_span<int32_t const>> label_to_output_comm_rank,
   raft::host_span<int32_t const> fan_out,
-  bool return_hops,
-  bool with_replacement,
-  prior_sources_behavior_t prior_sources_behavior,
-  bool dedupe_sources,
+  sampling_flags_t sampling_flags,
   bool do_expensive_check);
 
 }  // namespace cugraph

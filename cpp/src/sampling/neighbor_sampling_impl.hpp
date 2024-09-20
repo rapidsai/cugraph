@@ -62,9 +62,8 @@ neighbor_sample_impl(raft::handle_t const& handle,
                      raft::device_span<vertex_t const> starting_vertices,
                      std::optional<raft::device_span<label_t const>> starting_vertex_labels,
                      std::optional<raft::device_span<int32_t const>> label_to_output_comm_rank,
-                     std::optional<raft::host_span<int32_t const>> fan_out,
-                     std::optional<std::tuple<raft::host_span<int32_t const>, raft::host_span<int32_t const>>>
-                      heterogeneous_fan_out,
+                     raft::host_span<int32_t const> fan_out,
+                     edge_type_t num_edge_types,
                      bool return_hops,
                      bool with_replacement,
                      prior_sources_behavior_t prior_sources_behavior,
@@ -77,54 +76,34 @@ neighbor_sample_impl(raft::handle_t const& handle,
   std::optional<graph_view_t<vertex_t, edge_t, false, multi_gpu>> modified_graph_view{std::nullopt};
 
 
-  if (fan_out) {
-    CUGRAPH_EXPECTS((*fan_out).size() > 0,
-                    "Invalid input argument: number of levels must be non-zero.");
-    CUGRAPH_EXPECTS(
-      (*fan_out).size() <= static_cast<size_t>(std::numeric_limits<int32_t>::max()),
-      "Invalid input argument: number of levels should not overflow int32_t");  // as we use int32_t
-                                                                                // to store hops
-  } else {
+  CUGRAPH_EXPECTS(fan_out.size() > 0, "Invalid input argument: number of levels must be non-zero.");
+  CUGRAPH_EXPECTS(
+    fan_out.size() <= static_cast<size_t>(std::numeric_limits<int32_t>::max()),
+    "Invalid input argument: number of levels should not overflow int32_t");  // as we use int32_t
+                                                                              // to store hops
+  edge_masks_vector.reserve(num_edge_types);
+  
+  for (int i = 0; i < num_edge_types; i++) {
 
-    CUGRAPH_EXPECTS(
-      std::get<0>(*heterogeneous_fan_out).back() == std::get<1>(*heterogeneous_fan_out).size() &&
-        std::get<1>(*heterogeneous_fan_out).size() != 0,
-      "Invalid input argument: number of levels and size must match and should be non zero.");
+    cugraph::edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, bool> edge_mask(handle, graph_view);
     
+    cugraph::fill_edge_property(handle, graph_view, edge_mask.mutable_view(), bool{true});
 
-    CUGRAPH_EXPECTS(
-      std::get<0>(*heterogeneous_fan_out).size() <=
-          static_cast<size_t>(std::numeric_limits<int32_t>::max()) &&
-        std::get<1>(*heterogeneous_fan_out).size() <=
-          static_cast<size_t>(std::numeric_limits<int32_t>::max()),
-      "Invalid input argument: number of levels should not overflow int32_t");  // as we use int32_t
-                                                                                // to store hops
+    (*modified_graph_view).attach_edge_mask(edge_mask.view());
 
-    edge_masks_vector.reserve(std::get<0>(*heterogeneous_fan_out).size() - 1);
+    cugraph::transform_e(
+      handle,
+      *modified_graph_view,
+      cugraph::edge_src_dummy_property_t{}.view(),
+      cugraph::edge_dst_dummy_property_t{}.view(),
+      *edge_type_view,
+      [valid_edge_type = i] __device__(auto src, auto dst, thrust::nullopt_t, thrust::nullopt_t, auto edge_type) {
+        return edge_type == valid_edge_type;
+      },
+      edge_mask.mutable_view(),
+      false);
     
-    for (int i = 0; i < std::get<0>(*heterogeneous_fan_out).size() - 1; i++) {
-
-      cugraph::edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, bool> edge_mask(handle, graph_view);
-      
-      cugraph::fill_edge_property(handle, graph_view, edge_mask.mutable_view(), bool{true});
-
-      (*modified_graph_view).attach_edge_mask(edge_mask.view());
-
-      cugraph::transform_e(
-        handle,
-        *modified_graph_view,
-        cugraph::edge_src_dummy_property_t{}.view(),
-        cugraph::edge_dst_dummy_property_t{}.view(),
-        *edge_type_view,
-        [valid_edge_type = i] __device__(auto src, auto dst, thrust::nullopt_t, thrust::nullopt_t, auto edge_type) {
-          return edge_type == valid_edge_type;
-        },
-        edge_mask.mutable_view(),
-        false);
-      
-      edge_masks_vector.push_back(std::move(edge_mask));
-    }
-    
+    edge_masks_vector.push_back(std::move(edge_mask));
   }
 
   if constexpr (!multi_gpu) {
@@ -164,14 +143,14 @@ neighbor_sample_impl(raft::handle_t const& handle,
     starting_vertex_labels ? std::make_optional(std::vector<rmm::device_uvector<label_t>>{})
                            : std::nullopt;
 
-  level_result_src_vectors.reserve((*fan_out).size());
-  level_result_dst_vectors.reserve((*fan_out).size());
-  if (level_result_weight_vectors) { (*level_result_weight_vectors).reserve((*fan_out).size()); }
-  if (level_result_edge_id_vectors) { (*level_result_edge_id_vectors).reserve((*fan_out).size()); }
+  level_result_src_vectors.reserve((fan_out).size());
+  level_result_dst_vectors.reserve((fan_out).size());
+  if (level_result_weight_vectors) { (*level_result_weight_vectors).reserve((fan_out).size()); }
+  if (level_result_edge_id_vectors) { (*level_result_edge_id_vectors).reserve((fan_out).size()); }
   if (level_result_edge_type_vectors) {
-    (*level_result_edge_type_vectors).reserve((*fan_out).size());
+    (*level_result_edge_type_vectors).reserve((fan_out).size());
   }
-  if (level_result_label_vectors) { (*level_result_label_vectors).reserve((*fan_out).size()); }
+  if (level_result_label_vectors) { (*level_result_label_vectors).reserve((fan_out).size()); }
 
   rmm::device_uvector<vertex_t> frontier_vertices(0, handle.get_stream());
   auto frontier_vertex_labels =
@@ -192,45 +171,16 @@ neighbor_sample_impl(raft::handle_t const& handle,
   }
 
   std::vector<size_t> level_sizes{};
-  int32_t hop{0};
-  int32_t edge_type_id_max{1}; // A value of 1 translate to homogeneous neighbor sample
-  int32_t num_edge_type_per_hop{0};
   
   auto cur_graph_view = modified_graph_view ? *modified_graph_view : graph_view;
 
-  if (heterogeneous_fan_out) {
-    num_edge_type_per_hop = std::get<0>(*heterogeneous_fan_out).back() - 1;
-  }
 
-  while(true) {
-    int32_t k_level{0};
-    if (fan_out) {
-      k_level = (*fan_out)[hop];
-      if (hop == (*fan_out).size()) {
-        break;
-      }
-    } else if (heterogeneous_fan_out) {
-        if (num_edge_type_per_hop == 0) {
-          break;
-        }
-        edge_type_id_max = std::get<0>(*heterogeneous_fan_out).back() - 1;
-      
-    }
-  
-    for (int i = 0; i < edge_type_id_max; i++) {
-      if (heterogeneous_fan_out) { 
-        // Can make the code easier to read by setting a mask for both
-        // homogeneous and heterogeneous neighbor sample. For the former,
-        // no edges should be masked
-        cur_graph_view.attach_edge_mask(edge_masks_vector[i].view());
-        auto k_level_size = (std::get<1>(*heterogeneous_fan_out)[i + 1] - std::get<1>(*heterogeneous_fan_out)[i]);
-        if (k_level_size > hop) {
-          k_level = i + hop;
-        } else { // otherwise, k_level = 0
-          --num_edge_type_per_hop ;
+  // Get the number of hop. If homogeneous neighbor sample, num_edge_types = 1
+  auto num_hops = (fan_out.size() % num_edge_types) ? (fan_out.size() / num_edge_types) : (fan_out.size() / num_edge_types + 1);
 
-        }
-      }
+  for (auto hop = 0; hop < num_hops; hop++){
+    for (auto edge_type_id = 0; edge_type_id < num_edge_types; edge_type_id++) {
+      auto k_level = fan_out[(hop*num_edge_types) + edge_type_id];
       rmm::device_uvector<vertex_t> srcs(0, handle.get_stream());
       rmm::device_uvector<vertex_t> dsts(0, handle.get_stream());
       std::optional<rmm::device_uvector<weight_t>> weights{std::nullopt};
@@ -247,8 +197,8 @@ neighbor_sample_impl(raft::handle_t const& handle,
                       edge_type_view,
                       edge_bias_view,
                       rng_state,
-                      this_frontier_vertices,
-                      this_frontier_vertex_labels,
+                      starting_vertices,
+                      starting_vertex_labels,
                       static_cast<size_t>(k_level),
                       with_replacement);
       } else {
@@ -258,8 +208,8 @@ neighbor_sample_impl(raft::handle_t const& handle,
                                   edge_weight_view,
                                   edge_id_view,
                                   edge_type_view,
-                                  this_frontier_vertices,
-                                  this_frontier_vertex_labels);
+                                  starting_vertices,
+                                  starting_vertex_labels);
       }
 
       level_sizes.push_back(srcs.size());
@@ -272,39 +222,35 @@ neighbor_sample_impl(raft::handle_t const& handle,
       if (labels) { (*level_result_label_vectors).push_back(std::move(*labels)); }
     }
 
-    ++hop;
-    
-    if (hop < (*fan_out).size()) {
-      // FIXME:  We should modify vertex_partition_range_lasts to return a raft::host_span
-      //  rather than making a copy.
-      auto vertex_partition_range_lasts = cur_graph_view.vertex_partition_range_lasts();
-      std::tie(frontier_vertices, frontier_vertex_labels, vertex_used_as_source) =
-        prepare_next_frontier(
-          handle,
-          starting_vertices,
-          starting_vertex_labels,
-          raft::device_span<vertex_t const>{level_result_dst_vectors.back().data(),
-                                            level_result_dst_vectors.back().size()},
-          frontier_vertex_labels ? std::make_optional(raft::device_span<label_t const>(
-                                     level_result_label_vectors->back().data(),
-                                     level_result_label_vectors->back().size()))
-                                 : std::nullopt,
-          std::move(vertex_used_as_source),
-          cur_graph_view.local_vertex_partition_view(),
-          vertex_partition_range_lasts,
-          prior_sources_behavior,
-          dedupe_sources,
-          do_expensive_check);
+    // FIXME:  We should modify vertex_partition_range_lasts to return a raft::host_span
+    //  rather than making a copy.
+    auto vertex_partition_range_lasts = cur_graph_view.vertex_partition_range_lasts();
+    std::tie(frontier_vertices, frontier_vertex_labels, vertex_used_as_source) =
+      prepare_next_frontier(
+        handle,
+        starting_vertices,
+        starting_vertex_labels,
+        raft::device_span<vertex_t const>{level_result_dst_vectors.back().data(),
+                                          level_result_dst_vectors.back().size()},
+        frontier_vertex_labels ? std::make_optional(raft::device_span<label_t const>(
+                                    level_result_label_vectors->back().data(),
+                                    level_result_label_vectors->back().size()))
+                                : std::nullopt,
+        std::move(vertex_used_as_source),
+        cur_graph_view.local_vertex_partition_view(),
+        vertex_partition_range_lasts,
+        prior_sources_behavior,
+        dedupe_sources,
+        do_expensive_check);
 
-      starting_vertices =
-        raft::device_span<vertex_t const>(frontier_vertices.data(), frontier_vertices.size());
+    starting_vertices =
+      raft::device_span<vertex_t const>(frontier_vertices.data(), frontier_vertices.size());
 
-      if (frontier_vertex_labels) {
-        starting_vertex_labels = raft::device_span<label_t const>(frontier_vertex_labels->data(),
-                                                                  frontier_vertex_labels->size());
-      }
+    if (frontier_vertex_labels) {
+      starting_vertex_labels = raft::device_span<label_t const>(frontier_vertex_labels->data(),
+                                                                frontier_vertex_labels->size());
     }
-  } // While loop end here: FIXME: remove this comment
+  }
 
   auto result_size = std::reduce(level_sizes.begin(), level_sizes.end());
   size_t output_offset{};
@@ -386,7 +332,7 @@ neighbor_sample_impl(raft::handle_t const& handle,
   if (return_hops) {
     result_hops   = rmm::device_uvector<int32_t>(result_size, handle.get_stream());
     output_offset = 0;
-    for (size_t i = 0; i < (*fan_out).size(); ++i) {
+    for (size_t i = 0; i < (fan_out).size(); ++i) {
       scalar_fill(
         handle, result_hops->data() + output_offset, level_sizes[i], static_cast<int32_t>(i));
       output_offset += level_sizes[i];
@@ -476,8 +422,8 @@ uniform_neighbor_sample(
     label_to_output_comm_rank
       ? std::make_optional(raft::device_span<int32_t const>{label_map.data(), label_map.size()})
       : std::nullopt,
-    std::make_optional(fan_out),
-    std::nullopt,
+    fan_out,
+    edge_type_t{1},
     return_hops,
     with_replacement,
     prior_sources_behavior,
@@ -540,7 +486,7 @@ biased_neighbor_sample(
       ? std::make_optional(raft::device_span<int32_t const>{label_map.data(), label_map.size()})
       : std::nullopt,
     fan_out,
-    std::nullopt,
+    edge_type_t{1},
     return_hops,
     with_replacement,
     prior_sources_behavior,
@@ -573,8 +519,8 @@ heterogeneous_neighbor_sample(
   raft::device_span<vertex_t const> starting_vertices,
   std::optional<raft::device_span<size_t const>> starting_vertex_offsets,
   std::optional<raft::device_span<int32_t const>> label_to_output_comm_rank,
-  std::tuple<raft::host_span<int32_t const>, raft::host_span<int32_t const>>
-    heterogeneous_fan_out,
+  raft::host_span<int32_t const> fan_out,
+  edge_type_t num_edge_types,
   sampling_flags_t sampling_flags,
   bool do_expensive_check)
 { 
@@ -583,26 +529,37 @@ heterogeneous_neighbor_sample(
   if (starting_vertex_offsets)
     starting_vertex_labels =
       detail::convert_starting_vertex_offsets_to_labels(handle, *starting_vertex_offsets);
-
-  return detail::neighbor_sample_impl<vertex_t, edge_t, weight_t, edge_type_t, bias_t>(
-    handle,
-    rng_state,
-    graph_view,
-    edge_weight_view,
-    edge_id_view,
-    edge_type_view,
-    edge_bias_view,
-    starting_vertices,
-    starting_vertex_offsets ? std::make_optional(raft::device_span<int32_t const>{
-                                starting_vertex_labels.data(), starting_vertex_labels.size()})
-                            : std::nullopt,
-    label_to_output_comm_rank,
-    fan_out,
-    sampling_flags.return_hops,
-    sampling_flags.with_replacement,
-    sampling_flags.prior_sources_behavior,
-    sampling_flags.dedupe_sources,
-    do_expensive_check);
+  
+  auto [majors, minors, weights, edge_ids, edge_types, hops, labels, offsets]
+    = detail::neighbor_sample_impl<vertex_t, edge_t, weight_t, edge_type_t, bias_t>(
+        handle,
+        rng_state,
+        graph_view,
+        edge_weight_view,
+        edge_id_view,
+        edge_type_view,
+        edge_bias_view,
+        starting_vertices,
+        starting_vertex_offsets ? std::make_optional(raft::device_span<int32_t const>{
+                                    starting_vertex_labels.data(), starting_vertex_labels.size()})
+                                : std::nullopt,
+        label_to_output_comm_rank,
+        fan_out,
+        num_edge_types,
+        sampling_flags.return_hops,
+        sampling_flags.with_replacement,
+        sampling_flags.prior_sources_behavior,
+        sampling_flags.dedupe_sources,
+        do_expensive_check);
+  
+  return std::make_tuple(std::move(majors),
+                         std::move(minors),
+                         std::move(weights),
+                         std::move(edge_ids),
+                         std::move(edge_types),
+                         std::move(hops),
+                         std::move(offsets));
+  
 }
 
 template <typename vertex_t,
@@ -631,6 +588,7 @@ homogeneous_neighbor_sample(
   std::optional<raft::device_span<size_t const>> starting_vertex_offsets,
   std::optional<raft::device_span<int32_t const>> label_to_output_comm_rank,
   raft::host_span<int32_t const> fan_out,
+  // edge_type_t num_edge_types, /*argument not needed for homogeneous neighbor sample*/
   sampling_flags_t sampling_flags,
   bool do_expensive_check)
 {
@@ -641,8 +599,11 @@ homogeneous_neighbor_sample(
     starting_vertex_labels =
       detail::convert_starting_vertex_offsets_to_labels(handle, *starting_vertex_offsets);
 
-  return detail::neighbor_sample_impl<vertex_t, edge_t, weight_t, edge_type_t, bias_t>(
+  
+  auto [majors, minors, weights, edge_ids, edge_types, hops, labels, offsets]
+    = detail::neighbor_sample_impl<vertex_t, edge_t, weight_t, edge_type_t, bias_t>(
     handle,
+    rng_state,
     graph_view,
     edge_weight_view,
     edge_id_view,
@@ -654,13 +615,20 @@ homogeneous_neighbor_sample(
                             : std::nullopt,
     label_to_output_comm_rank,
     fan_out,
-    std::nullopt,
-    return_hops,
-    with_replacement,
-    prior_sources_behavior,
-    dedupe_sources,
-    rng_state,
+    edge_type_t{1},
+    sampling_flags.return_hops,
+    sampling_flags.with_replacement,
+    sampling_flags.prior_sources_behavior,
+    sampling_flags.dedupe_sources,
     do_expensive_check);
+  
+  return std::make_tuple(std::move(majors),
+                         std::move(minors),
+                         std::move(weights),
+                         std::move(edge_ids),
+                         std::move(edge_types),
+                         std::move(hops),
+                         std::move(offsets));
 }
 
 }  // namespace cugraph
