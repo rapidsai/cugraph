@@ -159,7 +159,7 @@ if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
       cugraph \
       cugraph-dgl \
       'dgl>=1.1.0.cu*,<=2.0.0.cu*' \
-      'pytorch>=2.0' \
+      'pytorch>=2.0,<2.4' \
       'numpy>=2.0' \
       'cuda-version=11.8'
 

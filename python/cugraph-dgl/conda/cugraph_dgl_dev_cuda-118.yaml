@@ -19,7 +19,7 @@ dependencies:
 - pytest-cov
 - pytest-xdist
 - pytorch-cuda==11.8
-- pytorch>=2.0
+- pytorch>=2.0,<2.4
 - scipy
 - tensordict>=0.1.2
 name: cugraph_dgl_dev_cuda-118
