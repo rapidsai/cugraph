@@ -416,7 +416,7 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
                           (options_.compression_type_ == cugraph_compression_type_t::COO);
 
       if (options_.renumber_results_) {
-        if (fan_out_ != nullptr) {
+        if (num_edge_types_ == 1) { // homogeneous renumbering
           if (options_.compression_type_ == cugraph_compression_type_t::COO) {
             // COO
 
@@ -442,13 +442,14 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
                   ? std::make_optional(raft::device_span<vertex_t const>{
                       start_vertices_->as_type<vertex_t>(), start_vertices_->size_})
                   : std::nullopt,
-                options_.retain_seeds_ ? std::make_optional(raft::device_span<size_t const>{
-                                          label_offsets_->as_type<size_t>(), label_offsets_->size_})
+                options_.retain_seeds_ ? (is_deprecated_api_? std::make_optional(raft::device_span<size_t const>{
+                                          label_offsets_->as_type<size_t>(), label_offsets_->size_}) : std::make_optional(raft::device_span<size_t const>{
+                                          start_vertex_offsets_->as_type<size_t>(), start_vertex_offsets_->size_}))
                                       : std::nullopt,
                 offsets ? std::make_optional(
                             raft::device_span<size_t const>{offsets->data(), offsets->size()})
                         : std::nullopt,
-                edge_label ? edge_label->size() : size_t{1}, // FIXME: update edge_label
+                edge_label ? edge_label->size() : size_t{1}, // FIXME: update edge_label ?
                 hop ? fan_out_->size_ : size_t{1},
                 src_is_major,
                 do_expensive_check_);
@@ -463,6 +464,8 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
 
             rmm::device_uvector<size_t> output_major_offsets(0, handle_.get_stream());
             rmm::device_uvector<vertex_t> output_renumber_map(0, handle_.get_stream());
+            // FIXME: Update this function to handle the new API with 'starting_vertex_offsets'
+            // and indices.
             std::tie(majors,
                     output_major_offsets,
                     minors,
@@ -484,8 +487,9 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
                   ? std::make_optional(raft::device_span<vertex_t const>{
                       start_vertices_->as_type<vertex_t>(), start_vertices_->size_})
                   : std::nullopt,
-                options_.retain_seeds_ ? std::make_optional(raft::device_span<size_t const>{
-                                          label_offsets_->as_type<size_t>(), label_offsets_->size_})
+                options_.retain_seeds_ ? (is_deprecated_api_? std::make_optional(raft::device_span<size_t const>{
+                                          label_offsets_->as_type<size_t>(), label_offsets_->size_}) : std::make_optional(raft::device_span<size_t const>{
+                                          start_vertex_offsets_->as_type<size_t>(), start_vertex_offsets_->size_}))
                                       : std::nullopt,
                 offsets ? std::make_optional(
                             raft::device_span<size_t const>{offsets->data(), offsets->size()})
@@ -505,7 +509,7 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
           hop.reset();
           offsets.reset();
         
-        } else { // heterogeneous
+        } else { // heterogeneous renumbering
 
           rmm::device_uvector<vertex_t> vertex_type_offsets(graph_view.local_vertex_partition_range_size(), handle_.get_stream());
 
@@ -523,6 +527,8 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
           // extract the edge_type from label_type_hop_offsets
           std::optional<rmm::device_uvector<size_t>> label_type_hop_offsets{std::nullopt};
 
+          // FIXME: Update this function to handle the new API with 'starting_vertex_offsets'
+          // and indices.
           std::tie(output_majors,
               minors,
               wgt,
@@ -546,7 +552,7 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
                     start_vertices_->as_type<vertex_t>(), start_vertices_->size_})
                 : std::nullopt,
               options_.retain_seeds_ ? std::make_optional(raft::device_span<size_t const>{
-                                        label_offsets_->as_type<size_t>(), label_offsets_->size_})
+                                        start_vertex_offsets_->as_type<size_t>(), start_vertex_offsets_->size_})
                                     : std::nullopt,
               offsets ? std::make_optional(
                           raft::device_span<size_t const>{offsets->data(), offsets->size()})
@@ -580,9 +586,6 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
           CUGRAPH_FAIL("Can only use COO format if not renumbering");
         }
 
-        if (num_edge_types_ != 1) {
-          CUGRAPH_FAIL("Can only use COO format for homogeneous neighborhood sampling");
-        }
 
         std::tie(src, dst, wgt, edge_id, edge_type, label_hop_offsets) =
           cugraph::sort_sampled_edgelist(handle_,
