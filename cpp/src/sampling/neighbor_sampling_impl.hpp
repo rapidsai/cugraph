@@ -73,7 +73,7 @@ neighbor_sample_impl(raft::handle_t const& handle,
   static_assert(std::is_floating_point_v<bias_t>);
 
   std::vector<cugraph::edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, bool>> edge_masks_vector{};
-  std::optional<graph_view_t<vertex_t, edge_t, false, multi_gpu>> modified_graph_view{std::nullopt};
+  graph_view_t<vertex_t, edge_t, false, multi_gpu> modified_graph_view = graph_view;
 
 
   CUGRAPH_EXPECTS(fan_out.size() > 0, "Invalid input argument: number of levels must be non-zero.");
@@ -87,13 +87,13 @@ neighbor_sample_impl(raft::handle_t const& handle,
 
     cugraph::edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, bool> edge_mask(handle, graph_view);
     
-    cugraph::fill_edge_property(handle, graph_view, edge_mask.mutable_view(), bool{true});
+    cugraph::fill_edge_property(handle, modified_graph_view, edge_mask.mutable_view(), bool{true});
 
-    (*modified_graph_view).attach_edge_mask(edge_mask.view());
+    modified_graph_view.attach_edge_mask(edge_mask.view());
 
     cugraph::transform_e(
       handle,
-      *modified_graph_view,
+      modified_graph_view,
       cugraph::edge_src_dummy_property_t{}.view(),
       cugraph::edge_dst_dummy_property_t{}.view(),
       *edge_type_view,
@@ -172,7 +172,7 @@ neighbor_sample_impl(raft::handle_t const& handle,
 
   std::vector<size_t> level_sizes{};
   
-  auto cur_graph_view = modified_graph_view ? *modified_graph_view : graph_view;
+  auto cur_graph_view = modified_graph_view;
 
 
   // Get the number of hop. If homogeneous neighbor sample, num_edge_types = 1
