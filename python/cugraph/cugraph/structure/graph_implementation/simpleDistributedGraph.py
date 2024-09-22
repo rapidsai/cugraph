@@ -98,6 +98,7 @@ class simpleDistributedGraphImpl:
         edge_id_type,
         edge_type_id,
         drop_multi_edges,
+        symmetrize
     ):
         weights = None
         edge_ids = None
@@ -151,6 +152,7 @@ class simpleDistributedGraphImpl:
             else ([cudf.Series(dtype=edge_type_id)] if edge_type_id else None),
             num_arrays=num_arrays,
             store_transposed=store_transposed,
+            symmetrize=symmetrize,
             do_expensive_check=False,
             drop_multi_edges=drop_multi_edges,
         )
@@ -183,6 +185,11 @@ class simpleDistributedGraphImpl:
                 destination
             ].dtype not in [np.int32, np.int64]:
                 raise ValueError("set renumber to True for non integer columns ids")
+        
+        if (self.properties.directed and symmetrize):
+            raise ValueError(
+                "The edgelist can only be symmetrized for undirected graphs."
+            )
 
         s_col = source
         d_col = destination
@@ -370,6 +377,7 @@ class simpleDistributedGraphImpl:
                 self.edge_id_type,
                 self.edge_type_id_type,
                 not self.properties.multi_edge,
+                not self.properties.directed
             )
             for w, edata in persisted_keys_d.items()
         }

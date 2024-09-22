@@ -174,6 +174,10 @@ class Graph:
 
             This parameter is deprecated and will be removed.
 
+        symmetrize: bool, optional (default=True)
+            If True, symmetrize the edge list for an undirected graph. Setting
+            this flag to True for a directed graph returns an error.
+
         Examples
         --------
         >>> df = cudf.read_csv(datasets_path / 'karate.csv', delimiter=' ',

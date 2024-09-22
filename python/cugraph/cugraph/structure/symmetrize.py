@@ -251,12 +251,25 @@ def symmetrize(
     >>> df['values'] = cudf.Series(M['2'])
     >>> src, dst, val = symmetrize(df, 'sources', 'destinations', 'values', multi=True)
     """
+    print("multi = \n", multi)
+    return (
+                input_df[source_col_name],
+                input_df[dest_col_name],
+                input_df[value_col_name],
+            )
 
+
+
+
+    """
     warnings.warn(
         "This method is deprecated and will no longer be supported. The symmetrization "
-        "of the edges are only supported by creating an undirected graph",
+        "of the edges are only supported by setting the 'symmetrize' flag to 'True'",
         FutureWarning,
     )
+    """
+
+    """
 
     # FIXME: Redundant check that should be done at the graph creation
     if "edge_id" in input_df.columns and symmetrize:
@@ -300,6 +313,7 @@ def symmetrize(
             )
 
     return output_df[source_col_name], output_df[dest_col_name]
+    """
 
 
 def _add_reverse_edges(df, src_name, dst_name, weight_name):

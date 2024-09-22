@@ -11,9 +11,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from cugraph.structure import graph_primtypes_wrapper
+#from cugraph.structure import graph_primtypes_wrapper *********
 from cugraph.structure.replicate_edgelist import replicate_cudf_dataframe
-from cugraph.structure.symmetrize import symmetrize
+from cugraph.structure.symmetrize import symmetrize as symmetrize_
 from cugraph.structure.number_map import NumberMap
 import cugraph.dask.common.mg_utils as mg_utils
 import cudf
@@ -134,6 +134,7 @@ class simpleGraphImpl:
         renumber=True,
         legacy_renum_only=False,
         store_transposed=False,
+        symmetrize=False
     ):
         if legacy_renum_only:
             warning_msg = (
@@ -141,6 +142,11 @@ class simpleGraphImpl:
             )
             warnings.warn(
                 warning_msg,
+            )
+        
+        if (self.properties.directed and symmetrize):
+            raise ValueError(
+                "The edgelist can only be symmetrized for undirected graphs."
             )
 
         # Verify column names present in input DataFrame
@@ -268,8 +274,9 @@ class simpleGraphImpl:
         # otherwise the inital dataframe will be returned. Duplicated edges
         # will be dropped unless the graph is a MultiGraph(Not Implemented yet)
         # TODO: Update Symmetrize to work on Graph and/or DataFrame
+        """
         if edge_attr is not None:
-            source_col, dest_col, value_col = symmetrize(
+            source_col, dest_col, value_col = symmetrize_(
                 elist,
                 source,
                 destination,
@@ -285,7 +292,7 @@ class simpleGraphImpl:
                 value_col = value_dict
         else:
             value_col = None
-            source_col, dest_col = symmetrize(
+            source_col, dest_col = symmetrize_(
                 elist,
                 source,
                 destination,
@@ -304,6 +311,43 @@ class simpleGraphImpl:
 
         self.edgelist = simpleGraphImpl.EdgeList(source_col, dest_col, value_col)
 
+        print("original edgelist = ", len(elist[source]), " symmetrize edgelist = ", len(source_col))
+        print("value_col = \n", value_col)
+        """
+
+        #self.edgelist = simpleGraphImpl.EdgeList(elist[source], elist[destination], elist[weight])
+        print("\nelist = \n", elist.head())
+
+        #"""
+        if edge_attr is not None:
+            value_col = {
+                self.edgeWeightCol: elist[weight] if weight in edge_attr else None,
+                self.edgeIdCol: elist[edge_id] if edge_id in edge_attr else None,
+                self.edgeTypeCol: elist[edge_type]
+                if edge_type in edge_attr else None,
+            }
+
+            print("value_col = \n", value_col)
+        else:
+            value_col = None
+        
+        # unsymmetrize edgelist
+        # FIXME: if the user calls self.edgelist after creating the graph, returns the symmetrized
+        # edgelist if the graph is undirected or symmetrize = True (decompress)
+        self.edgelist = simpleGraphImpl.EdgeList(elist[source], elist[destination], value_col)
+
+        #print("value_col_df = \n", elist[weight])
+        #"""
+
+
+
+
+
+
+
+
+
+
         if self.batch_enabled:
             self._replicate_edgelist()
 
@@ -312,6 +356,7 @@ class simpleGraphImpl:
             store_transposed=store_transposed,
             renumber=renumber,
             drop_multi_edges=not self.properties.multi_edge,
+            symmetrize=not self.properties.directed
         )
 
     def to_pandas_edgelist(
@@ -428,7 +473,7 @@ class simpleGraphImpl:
                 then containing the weight value for each edge
         """
         if self.edgelist is None:
-            src, dst, weights = graph_primtypes_wrapper.view_edge_list(self)
+            src, dst, weights = (None, None, None)#graph_primtypes_wrapper.view_edge_list(self) ****
             self.edgelist = self.EdgeList(src, dst, weights)
 
         srcCol = self.source_columns
@@ -555,7 +600,10 @@ class simpleGraphImpl:
         if value_col is not None:
             self.properties.weighted = True
         self._make_plc_graph(
-            value_col=value_col, store_transposed=store_transposed, renumber=renumber
+            value_col=value_col,
+            store_transposed=store_transposed,
+            renumber=renumber,
+            symmetrize=not self.properties.directed
         )
 
         if self.batch_enabled:
@@ -596,7 +644,7 @@ class simpleGraphImpl:
                     self.transposedadjlist.weights,
                 )
             else:
-                off, ind, vals = graph_primtypes_wrapper.view_adj_list(self)
+                off, ind, vals = (None, None, None)#graph_primtypes_wrapper.view_adj_list(self) ****
             self.adjlist = self.AdjList(off, ind, vals)
 
             if self.batch_enabled:
@@ -643,7 +691,7 @@ class simpleGraphImpl:
                     off,
                     ind,
                     vals,
-                ) = graph_primtypes_wrapper.view_transposed_adj_list(self)
+                ) = (None, None, None)#graph_primtypes_wrapper.view_transposed_adj_list(self)  *******
             self.transposedadjlist = self.transposedAdjList(off, ind, vals)
 
             if self.batch_enabled:
@@ -1146,6 +1194,7 @@ class simpleGraphImpl:
         store_transposed: bool = False,
         renumber: bool = True,
         drop_multi_edges: bool = False,
+        symmetrize: bool = False
     ):
         """
         Parameters
@@ -1164,6 +1213,8 @@ class simpleGraphImpl:
             int32 or int64 type.
         drop_multi_edges: bool (default=False)
             Whether to drop multi edges
+        symmetrize: bool (default=False)
+            Whether to symmetrize
         """
 
         if value_col is None:
@@ -1214,7 +1265,12 @@ class simpleGraphImpl:
                     "This may cause extra memory usage.  Consider passing"
                     " a int64 list of edge ids instead."
                 )
+        df = cudf.DataFrame()
 
+        df["srcs"] = src_or_offset_array
+        df["dsts"] = dst_or_index_array
+        df["wgts"] = weight_col
+        print("df = \n", df)
         self._plc_graph = SGGraph(
             resource_handle=ResourceHandle(),
             graph_properties=graph_props,
@@ -1228,6 +1284,7 @@ class simpleGraphImpl:
             do_expensive_check=True,
             input_array_format=input_array_format,
             drop_multi_edges=drop_multi_edges,
+            symmetrize=symmetrize
         )
 
     def to_directed(self, DiG, store_transposed=False):
