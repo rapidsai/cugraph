@@ -42,9 +42,6 @@ enum class prior_sources_behavior_t { DEFAULT = 0, CARRY_OVER, EXCLUDE };
 
 /**
  * @brief Uniform Neighborhood Sampling.
- * 
- * @deprecated  This API will be deleted, use cugraph_homogeneous_neighbor_sample with
- * 'is_biased' set to false instead
  *
  * @deprecated Replaced with homogeneous_uniform_neighbor_sample
  *
@@ -144,9 +141,6 @@ uniform_neighbor_sample(
 
 /**
  * @brief Biased Neighborhood Sampling.
- * 
- * @deprecated  This API will be deleted, use cugraph_homogeneous_neighbor_sample with
- * 'is_biased' set to true instead
  *
  * @deprecated Replaced with homogeneous_biased_neighbor_sample
  *
