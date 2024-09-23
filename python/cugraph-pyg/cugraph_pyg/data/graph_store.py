@@ -159,6 +159,7 @@ class GraphStore(
                     sum(self._num_vertices().values()), dtype="int64"
                 )
                 vertices_array = cupy.array_split(vertices_array, world_size)[rank]
+                print(vertices_array)
 
                 self.__graph = pylibcugraph.MGGraph(
                     self._resource_handle,
@@ -205,13 +206,18 @@ class GraphStore(
                     else edge_attr.size[1]
                 )
             else:
-                if edge_attr.edge_type[0] not in num_vertices:
+                if edge_attr.edge_type[0] != edge_attr.edge_type[2]:
+                    if edge_attr.edge_type[0] not in num_vertices:
+                        num_vertices[edge_attr.edge_type[0]] = int(
+                            self.__edge_indices[edge_attr.edge_type][0].max() + 1
+                        )
+                    if edge_attr.edge_type[2] not in num_vertices:
+                        num_vertices[edge_attr.edge_type[1]] = int(
+                            self.__edge_indices[edge_attr.edge_type][1].max() + 1
+                        )
+                elif edge_attr.edge_type[0] not in num_vertices:
                     num_vertices[edge_attr.edge_type[0]] = int(
-                        self.__edge_indices[edge_attr.edge_type][0].max() + 1
-                    )
-                if edge_attr.edge_type[2] not in num_vertices:
-                    num_vertices[edge_attr.edge_type[1]] = int(
-                        self.__edge_indices[edge_attr.edge_type][1].max() + 1
+                        self.__edge_indices[edge_attr.edge_type].max() + 1
                     )
 
         if self.is_multi_gpu:
