@@ -655,7 +655,11 @@ class simpleGraphImpl:
                     self.adjlist.weights,
                 )
             else:
-                (off, ind, vals,) = graph_primtypes_wrapper.view_transposed_adj_list(self)
+                (
+                    off,
+                    ind,
+                    vals,
+                ) = graph_primtypes_wrapper.view_transposed_adj_list(self)
             self.transposedadjlist = self.transposedAdjList(off, ind, vals)
 
             if self.batch_enabled:

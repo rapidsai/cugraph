@@ -191,7 +191,7 @@ class simpleDistributedGraphImpl:
                 "The edgelist can only be symmetrized for undirected graphs."
             )
 
-        if symmetrize or symmetrize == None:
+        if symmetrize or symmetrize is None:
             unsupported = False
             if edge_id is not None or edge_type is not None:
                 unsupported = True
@@ -204,7 +204,7 @@ class simpleDistributedGraphImpl:
                     "If the edges are already symmetric, set the 'symmetrize' "
                     "flag to False"
                 )
-            if symmetrize == None:
+            if symmetrize is None:
                 # default behavior
                 symmetrize = not self.properties.directed
 
