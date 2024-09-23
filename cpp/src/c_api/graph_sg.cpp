@@ -217,13 +217,13 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
         }
 
         // Symmetrize the edgelist
-        std::tie(
-          edgelist_srcs, edgelist_dsts, edgelist_weights) =
-          cugraph::symmetrize_edgelist<vertex_t, weight_t, store_transposed, multi_gpu>(handle_,
-                                      std::move(edgelist_srcs),
-                                      std::move(edgelist_dsts),
-                                      std::move(edgelist_weights),
-                                      false);
+        std::tie(edgelist_srcs, edgelist_dsts, edgelist_weights) =
+          cugraph::symmetrize_edgelist<vertex_t, weight_t, store_transposed, multi_gpu>(
+            handle_,
+            std::move(edgelist_srcs),
+            std::move(edgelist_dsts),
+            std::move(edgelist_weights),
+            false);
       }
 
       std::tie(*graph, new_edge_weights, new_edge_ids, new_edge_types, new_number_map) =
@@ -419,7 +419,7 @@ struct create_graph_csr_functor : public cugraph::c_api::abstract_functor {
       auto edge_types = new cugraph::edge_property_t<
         cugraph::graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>,
         edge_type_id_t>(handle_);
-      
+
       if (symmetrize_) {
         if (edgelist_edge_ids || edgelist_edge_types) {
           // Currently doesn't support the symmetrization with edge_ids and edge_types
@@ -427,13 +427,13 @@ struct create_graph_csr_functor : public cugraph::c_api::abstract_functor {
         }
 
         // Symmetrize the edgelist
-        std::tie(
-          edgelist_srcs, edgelist_dsts, edgelist_weights) =
-          cugraph::symmetrize_edgelist<vertex_t, weight_t, store_transposed, multi_gpu>(handle_,
-                                      std::move(edgelist_srcs),
-                                      std::move(edgelist_dsts),
-                                      std::move(edgelist_weights),
-                                      false);
+        std::tie(edgelist_srcs, edgelist_dsts, edgelist_weights) =
+          cugraph::symmetrize_edgelist<vertex_t, weight_t, store_transposed, multi_gpu>(
+            handle_,
+            std::move(edgelist_srcs),
+            std::move(edgelist_dsts),
+            std::move(edgelist_weights),
+            false);
       }
 
       std::tie(*graph, new_edge_weights, new_edge_ids, new_edge_types, new_number_map) =
@@ -777,7 +777,7 @@ cugraph_error_code_t cugraph_graph_create_sg_from_csr(
                                      p_edge_ids,
                                      p_edge_type_ids,
                                      renumber,
-                                     FALSE, // symmetrize
+                                     FALSE,  // symmetrize
                                      do_expensive_check);
 
   try {

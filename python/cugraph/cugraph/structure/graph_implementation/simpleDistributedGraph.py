@@ -34,7 +34,6 @@ from pylibcugraph import (
 )
 
 from cugraph.structure.number_map import NumberMap
-from cugraph.structure.symmetrize import symmetrize
 from cugraph.dask.common.part_utils import (
     persist_dask_df_equal_parts_per_worker,
 )
@@ -98,7 +97,7 @@ class simpleDistributedGraphImpl:
         edge_id_type,
         edge_type_id,
         drop_multi_edges,
-        symmetrize
+        symmetrize,
     ):
         weights = None
         edge_ids = None
@@ -174,7 +173,7 @@ class simpleDistributedGraphImpl:
         renumber=True,
         store_transposed=False,
         legacy_renum_only=False,
-        symmetrize=None
+        symmetrize=None,
     ):
         if not isinstance(input_ddf, dask_cudf.DataFrame):
             raise TypeError("input should be a dask_cudf dataFrame")
@@ -186,24 +185,25 @@ class simpleDistributedGraphImpl:
                 destination
             ].dtype not in [np.int32, np.int64]:
                 raise ValueError("set renumber to True for non integer columns ids")
-        
-        if (self.properties.directed and symmetrize):
+
+        if self.properties.directed and symmetrize:
             raise ValueError(
                 "The edgelist can only be symmetrized for undirected graphs."
             )
-        
-        if (symmetrize or symmetrize == None):
+
+        if symmetrize or symmetrize == None:
             unsupported = False
             if edge_id is not None or edge_type is not None:
                 unsupported = True
             if isinstance(edge_attr, list):
                 if len(edge_attr) > 1:
                     unsupported = True
-            if unsupported:    
+            if unsupported:
                 raise ValueError(
                     "Edge list containing Edge Ids or Types can't be symmetrized. "
                     "If the edges are already symmetric, set the 'symmetrize' "
-                    "flag to False")
+                    "flag to False"
+                )
             if symmetrize == None:
                 # default behavior
                 symmetrize = not self.properties.directed
@@ -378,7 +378,7 @@ class simpleDistributedGraphImpl:
                 self.edge_id_type,
                 self.edge_type_id_type,
                 not self.properties.multi_edge,
-                not self.properties.directed
+                not self.properties.directed,
             )
             for w, edata in persisted_keys_d.items()
         }

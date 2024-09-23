@@ -122,14 +122,14 @@ cdef class SGGraph(_GPUGraph):
 
     drop_self_loops : bool, optional (default='False')
         If true, drop any self loops that exist in the provided edge list.
-        
+
         Not supported for CSR graph.
 
     drop_multi_edges: bool, optional (default='False')
         If true, drop any multi edges that exist in the provided edge list
 
         Not supported for CSR graph.
-    
+
     symmetrize: bool, optional (default='False')
         If true, symmetrize the edge list
 
@@ -336,7 +336,7 @@ cdef class MGGraph(_GPUGraph):
 
     drop_multi_edges: bool, optional (default='False')
         If true, drop any multi edges that exist in the provided edge list
-    
+
     symmetrize: bool, optional (default='False')
         If true, symmetrize the edge list
 

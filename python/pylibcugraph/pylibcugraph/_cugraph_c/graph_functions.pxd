@@ -248,7 +248,7 @@ cdef extern from "cugraph_c/graph_functions.h":
         cugraph_degrees_result_free(
             cugraph_degrees_result_t* degrees_result
         )
-    
+
     ###########################################################################
     # symmetrize
     cdef cugraph_error_code_t \

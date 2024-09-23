@@ -227,7 +227,6 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
                                         : false);
       }
 
-
       if (symmetrize_) {
         if (edgelist_edge_ids || edgelist_edge_types) {
           // Currently doesn't support the symmetrization of edgelist with edge_ids and edge_types
@@ -235,13 +234,13 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
         }
 
         // Symmetrize the edgelist
-        std::tie(
-          edgelist_srcs, edgelist_dsts, edgelist_weights) =
-          cugraph::symmetrize_edgelist<vertex_t, weight_t, store_transposed, multi_gpu>(handle_,
-                                      std::move(edgelist_srcs),
-                                      std::move(edgelist_dsts),
-                                      std::move(edgelist_weights),
-                                      false);
+        std::tie(edgelist_srcs, edgelist_dsts, edgelist_weights) =
+          cugraph::symmetrize_edgelist<vertex_t, weight_t, store_transposed, multi_gpu>(
+            handle_,
+            std::move(edgelist_srcs),
+            std::move(edgelist_dsts),
+            std::move(edgelist_weights),
+            false);
       }
 
       std::tie(*graph, new_edge_weights, new_edge_ids, new_edge_types, new_number_map) =

@@ -116,7 +116,7 @@ class Graph:
         renumber=True,
         store_transposed=False,
         legacy_renum_only=False,
-        symmetrize=None
+        symmetrize=None,
     ):
         """
         Initialize a graph from the edge list. It is an error to call this
@@ -208,7 +208,7 @@ class Graph:
             renumber=renumber,
             store_transposed=store_transposed,
             legacy_renum_only=legacy_renum_only,
-            symmetrize=symmetrize
+            symmetrize=symmetrize,
         )
 
     def from_cudf_adjlist(
@@ -218,7 +218,7 @@ class Graph:
         value_col=None,
         renumber=True,
         store_transposed=False,
-        symmetrize=None
+        symmetrize=None,
     ):
         """
         Initialize a graph from the adjacency list. It is an error to call this
@@ -286,7 +286,8 @@ class Graph:
             offset_col=offset_col,
             index_col=index_col,
             value_col=value_col,
-            symmetrize=symmetrize)
+            symmetrize=symmetrize,
+        )
 
     def from_dask_cudf_edgelist(
         self,
