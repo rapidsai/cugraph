@@ -248,3 +248,16 @@ cdef extern from "cugraph_c/graph_functions.h":
         cugraph_degrees_result_free(
             cugraph_degrees_result_t* degrees_result
         )
+    
+    ###########################################################################
+    # symmetrize
+    cdef cugraph_error_code_t \
+        symmetrize_edgelist(
+            const cugraph_resource_handle_t* handle,
+            const cugraph_type_erased_device_array_view_t* src,
+            const cugraph_type_erased_device_array_view_t* dst,
+            const cugraph_type_erased_device_array_view_t* weights,
+            bool_t reciprocal,
+            cugraph_induced_subgraph_result_t** result,
+            cugraph_error_t** error
+        )

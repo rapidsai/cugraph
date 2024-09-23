@@ -122,9 +122,17 @@ cdef class SGGraph(_GPUGraph):
 
     drop_self_loops : bool, optional (default='False')
         If true, drop any self loops that exist in the provided edge list.
+        
+        Not supported for CSR graph.
 
     drop_multi_edges: bool, optional (default='False')
         If true, drop any multi edges that exist in the provided edge list
+
+        Not supported for CSR graph.
+    
+    symmetrize: bool, optional (default='False')
+        If true, symmetrize the edge list
+
 
     Examples
     ---------
@@ -155,7 +163,8 @@ cdef class SGGraph(_GPUGraph):
                   input_array_format="COO",
                   vertices_array=None,
                   drop_self_loops=False,
-                  drop_multi_edges=False):
+                  drop_multi_edges=False,
+                  symmetrize=False):
 
         # FIXME: add tests for these
         if not(isinstance(store_transposed, (int, bool))):
@@ -217,6 +226,7 @@ cdef class SGGraph(_GPUGraph):
                 renumber,
                 drop_self_loops,
                 drop_multi_edges,
+                symmetrize,
                 do_expensive_check,
                 &(self.c_graph_ptr),
                 &error_ptr)
@@ -233,6 +243,7 @@ cdef class SGGraph(_GPUGraph):
                 self.edge_id_view_ptr,
                 edge_type_view_ptr,
                 store_transposed,
+                symmetrize,
                 renumber,
                 # drop_self_loops, #FIXME: Not supported yet
                 # drop_multi_edges, #FIXME: Not supported yet
@@ -325,6 +336,10 @@ cdef class MGGraph(_GPUGraph):
 
     drop_multi_edges: bool, optional (default='False')
         If true, drop any multi edges that exist in the provided edge list
+    
+    symmetrize: bool, optional (default='False')
+        If true, symmetrize the edge list
+
     """
     def __cinit__(self,
                   ResourceHandle resource_handle,
@@ -339,7 +354,8 @@ cdef class MGGraph(_GPUGraph):
                   vertices_array=None,
                   size_t num_arrays=1, # default value to not break users
                   drop_self_loops=False,
-                  drop_multi_edges=False):
+                  drop_multi_edges=False,
+                  symmetrize=False,):
 
         if not(isinstance(store_transposed, (int, bool))):
             raise TypeError("expected int or bool for store_transposed, got "
@@ -465,6 +481,7 @@ cdef class MGGraph(_GPUGraph):
             num_arrays,
             drop_self_loops,
             drop_multi_edges,
+            symmetrize,
             do_expensive_check,
             &(self.c_graph_ptr),
             &error_ptr)

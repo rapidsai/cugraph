@@ -167,23 +167,6 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
                                    edge_type_ids_->size_,
                                    handle_.get_stream());
       }
-      
-      if (symmetrize_) {
-        if (edgelist_edge_ids || edgelist_edge_types) {
-          // Currently doesn't support the symmetrization with edge_ids and edge_types
-          unsupported();
-        }
-
-        // Symmetrize the edgelist
-        std::tie(
-          edgelist_srcs, edgelist_dsts, edgelist_weights) =
-          cugraph::symmetrize_edgelist<vertex_t, weight_t, store_transposed, multi_gpu>(handle_,
-                                      std::move(edgelist_srcs),
-                                      std::move(edgelist_dsts),
-                                      std::move(edgelist_weights),
-                                      false);
-      }
-      
 
       auto graph = new cugraph::graph_t<vertex_t, edge_t, store_transposed, multi_gpu>(handle_);
 
@@ -226,7 +209,6 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
                                         ? true /* keep minimum weight edges to maintain symmetry */
                                         : false);
       }
-
 
       if (symmetrize_) {
         if (edgelist_edge_ids || edgelist_edge_types) {
@@ -305,6 +287,7 @@ struct create_graph_csr_functor : public cugraph::c_api::abstract_functor {
   cugraph::c_api::cugraph_type_erased_device_array_view_t const* edge_ids_;
   cugraph::c_api::cugraph_type_erased_device_array_view_t const* edge_type_ids_;
   bool_t renumber_;
+  bool_t symmetrize_;
   bool_t do_expensive_check_;
   cugraph::c_api::cugraph_graph_t* result_{};
 
@@ -317,6 +300,7 @@ struct create_graph_csr_functor : public cugraph::c_api::abstract_functor {
     cugraph::c_api::cugraph_type_erased_device_array_view_t const* edge_ids,
     cugraph::c_api::cugraph_type_erased_device_array_view_t const* edge_type_ids,
     bool_t renumber,
+    bool_t symmetrize,
     bool_t do_expensive_check)
     : abstract_functor(),
       properties_(properties),
@@ -327,6 +311,7 @@ struct create_graph_csr_functor : public cugraph::c_api::abstract_functor {
       edge_ids_(edge_ids),
       edge_type_ids_(edge_type_ids),
       renumber_(renumber),
+      symmetrize_(symmetrize),
       do_expensive_check_(do_expensive_check)
   {
   }
@@ -434,6 +419,22 @@ struct create_graph_csr_functor : public cugraph::c_api::abstract_functor {
       auto edge_types = new cugraph::edge_property_t<
         cugraph::graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>,
         edge_type_id_t>(handle_);
+      
+      if (symmetrize_) {
+        if (edgelist_edge_ids || edgelist_edge_types) {
+          // Currently doesn't support the symmetrization with edge_ids and edge_types
+          unsupported();
+        }
+
+        // Symmetrize the edgelist
+        std::tie(
+          edgelist_srcs, edgelist_dsts, edgelist_weights) =
+          cugraph::symmetrize_edgelist<vertex_t, weight_t, store_transposed, multi_gpu>(handle_,
+                                      std::move(edgelist_srcs),
+                                      std::move(edgelist_dsts),
+                                      std::move(edgelist_weights),
+                                      false);
+      }
 
       std::tie(*graph, new_edge_weights, new_edge_ids, new_edge_types, new_number_map) =
         cugraph::create_graph_from_edgelist<vertex_t,
@@ -713,6 +714,7 @@ cugraph_error_code_t cugraph_graph_create_sg_from_csr(
   const cugraph_type_erased_device_array_view_t* edge_type_ids,
   bool_t store_transposed,
   bool_t renumber,
+  bool_t symmetrize,
   bool_t do_expensive_check,
   cugraph_graph_t** graph,
   cugraph_error_t** error)
@@ -775,6 +777,7 @@ cugraph_error_code_t cugraph_graph_create_sg_from_csr(
                                      p_edge_ids,
                                      p_edge_type_ids,
                                      renumber,
+                                     FALSE, // symmetrize
                                      do_expensive_check);
 
   try {
@@ -810,6 +813,7 @@ cugraph_error_code_t cugraph_sg_graph_create_from_csr(
   const cugraph_type_erased_device_array_view_t* edge_type_ids,
   bool_t store_transposed,
   bool_t renumber,
+  bool_t symmetrize,
   bool_t do_expensive_check,
   cugraph_graph_t** graph,
   cugraph_error_t** error)
@@ -823,6 +827,7 @@ cugraph_error_code_t cugraph_sg_graph_create_from_csr(
                                           edge_type_ids,
                                           store_transposed,
                                           renumber,
+                                          symmetrize,
                                           do_expensive_check,
                                           graph,
                                           error);

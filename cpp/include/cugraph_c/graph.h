@@ -152,6 +152,9 @@ cugraph_error_code_t cugraph_graph_create_sg(
  *    If false, do not renumber.  Renumbering enables some significant optimizations within
  *    the graph primitives library, so it is strongly encouraged.  Renumbering is required if
  *    the vertices are not sequential integer values from 0 to num_vertices.
+ * @param [in]  symmetrize     If true, symmetrize the edgelist.
+ *    or take the maximum weight), the caller should remove specific edges themselves and not rely
+ *    on this flag.
  * @param [in]  do_expensive_check    If true, do expensive checks to validate the input data
  *    is consistent with software assumptions.  If false bypass these checks.
  * @param [out] graph          A pointer to the graph object
@@ -170,6 +173,7 @@ cugraph_error_code_t cugraph_sg_graph_create_from_csr(
   const cugraph_type_erased_device_array_view_t* edge_type_ids,
   bool_t store_transposed,
   bool_t renumber,
+  bool_t symmetrize,
   bool_t do_expensive_check,
   cugraph_graph_t** graph,
   cugraph_error_t** error);
@@ -192,6 +196,9 @@ cugraph_error_code_t cugraph_sg_graph_create_from_csr(
  *    If false, do not renumber.  Renumbering enables some significant optimizations within
  *    the graph primitives library, so it is strongly encouraged.  Renumbering is required if
  *    the vertices are not sequential integer values from 0 to num_vertices.
+ * @param [in]  symmetrize     If true, symmetrize the edgelist.
+ *    or take the maximum weight), the caller should remove specific edges themselves and not rely
+ *    on this flag.
  * @param [in]  do_expensive_check    If true, do expensive checks to validate the input data
  *    is consistent with software assumptions.  If false bypass these checks.
  * @param [out] graph          A pointer to the graph object
@@ -210,6 +217,7 @@ cugraph_error_code_t cugraph_graph_create_sg_from_csr(
   const cugraph_type_erased_device_array_view_t* edge_type_ids,
   bool_t store_transposed,
   bool_t renumber,
+  bool_t symmetrize,
   bool_t do_expensive_check,
   cugraph_graph_t** graph,
   cugraph_error_t** error);

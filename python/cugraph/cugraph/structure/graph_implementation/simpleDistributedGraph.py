@@ -174,6 +174,7 @@ class simpleDistributedGraphImpl:
         renumber=True,
         store_transposed=False,
         legacy_renum_only=False,
+        symmetrize=None
     ):
         if not isinstance(input_ddf, dask_cudf.DataFrame):
             raise TypeError("input should be a dask_cudf dataFrame")
@@ -190,6 +191,22 @@ class simpleDistributedGraphImpl:
             raise ValueError(
                 "The edgelist can only be symmetrized for undirected graphs."
             )
+        
+        if (symmetrize or symmetrize == None):
+            unsupported = False
+            if edge_id is not None or edge_type is not None:
+                unsupported = True
+            if isinstance(edge_attr, list):
+                if len(edge_attr) > 1:
+                    unsupported = True
+            if unsupported:    
+                raise ValueError(
+                    "Edge list containing Edge Ids or Types can't be symmetrized. "
+                    "If the edges are already symmetric, set the 'symmetrize' "
+                    "flag to False")
+            if symmetrize == None:
+                # default behavior
+                symmetrize = not self.properties.directed
 
         s_col = source
         d_col = destination
@@ -273,27 +290,11 @@ class simpleDistributedGraphImpl:
         ddf_columns += value_col_names
         input_ddf = input_ddf[ddf_columns]
 
-        if len(value_col_names) == 0:
-            source_col, dest_col = symmetrize(
-                input_ddf,
-                source,
-                destination,
-                multi=True,  # Deprecated parameter
-                symmetrize=not self.properties.directed,
-            )
-            value_col = None
-        else:
-            source_col, dest_col, value_col = symmetrize(
-                input_ddf,
-                source,
-                destination,
-                value_col_names,
-                multi=True,  # Deprecated parameter
-                symmetrize=not self.properties.directed,
-            )
-
         # Create a dask_cudf dataframe from the cudf series
         # or dataframe objects obtained from symmetrization
+        source_col = input_ddf[source]
+        dest_col = input_ddf[destination]
+        value_col = input_ddf[value_col_names]
         if isinstance(source_col, dask_cudf.Series):
             frames = [
                 source_col.to_frame(name=source),

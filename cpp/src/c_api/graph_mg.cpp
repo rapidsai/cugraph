@@ -230,7 +230,7 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
 
       if (symmetrize_) {
         if (edgelist_edge_ids || edgelist_edge_types) {
-          // Currently doesn't support the symmetrization with edge_ids and edge_types
+          // Currently doesn't support the symmetrization of edgelist with edge_ids and edge_types
           unsupported();
         }
 
