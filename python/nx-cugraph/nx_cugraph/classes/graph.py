@@ -49,10 +49,20 @@ __all__ = ["CudaGraph", "Graph"]
 
 networkx_api = nxcg.utils.decorators.networkx_class(nx.Graph)
 
+# The "everything" cache key is an internal implementation detail of NetworkX
+# that may change between releases.
 if _nxver < (3, 4):
-    _CACHE_KEY = (True, True, True)
+    _CACHE_KEY = (
+        True,  # Include all edge values
+        True,  # Include all node values
+        True,  # Include `.graph` attributes
+    )
 else:
-    _CACHE_KEY = (True, True)
+    _CACHE_KEY = (
+        True,  # Include all edge values
+        True,  # Include all node values
+        # `.graph` attributes are always included now
+    )
 
 # Use to indicate when a full conversion to GPU failed so we don't try again.
 _CANT_CONVERT_TO_GPU = "_CANT_CONVERT_TO_GPU"
