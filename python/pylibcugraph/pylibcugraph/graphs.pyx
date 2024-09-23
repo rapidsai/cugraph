@@ -355,7 +355,7 @@ cdef class MGGraph(_GPUGraph):
                   size_t num_arrays=1, # default value to not break users
                   drop_self_loops=False,
                   drop_multi_edges=False,
-                  symmetrize=False,):
+                  symmetrize=False):
 
         if not(isinstance(store_transposed, (int, bool))):
             raise TypeError("expected int or bool for store_transposed, got "
