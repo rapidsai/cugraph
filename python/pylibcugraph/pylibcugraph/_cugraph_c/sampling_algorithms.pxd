@@ -75,7 +75,7 @@ cdef extern from "cugraph_c/sampling_algorithms.h":
         const cugraph_type_erased_device_array_view_t* label_list,
         const cugraph_type_erased_device_array_view_t* label_to_comm_rank,
         const cugraph_type_erased_device_array_view_t* label_offsets,
-        const cugraph_sample_heterogeneous_fan_out_t* heterogeneous_fanout,
+        const cugraph_sample_heterogeneous_fan_out_t* heterogeneous_fan_out,
         const cugraph_sampling_options_t* options,
         bool_t is_biased,
         bool_t do_expensive_check,
@@ -151,13 +151,13 @@ cdef extern from "cugraph_c/sampling_algorithms.h":
             cugraph_graph_t* graph,
             const cugraph_type_erased_host_array_view_t* edge_type_offsets,
             const cugraph_type_erased_host_array_view_t* fanout,
-            cugraph_sample_heterogeneous_fan_out_t** heterogeneous_fanout,
+            cugraph_sample_heterogeneous_fan_out_t** heterogeneous_fan_out,
             cugraph_error_t** error
         )
 
     cdef void \
         cugraph_heterogeneous_fan_out_free(
-            cugraph_sample_heterogeneous_fan_out_t* heterogeneous_fanout);
+            cugraph_sample_heterogeneous_fan_out_t* heterogeneous_fan_out);
     # negative sampling
     cdef cugraph_error_code_t \
         cugraph_negative_sampling(
