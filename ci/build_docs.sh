@@ -60,20 +60,13 @@ for PROJECT in libcugraphops libwholegraph; do
   curl "https://d1664dvumjb44w.cloudfront.net/${PROJECT}/xml_tar/${RAPIDS_VERSION_NUMBER}/xml.tar.gz" | tar -xzf - -C "${TMP_DIR}"
 done
 
-rapids-logger "Build CPP docs"
-pushd cpp/doxygen
+rapids-logger "Build Doxygen docs"
+pushd cpp
 doxygen Doxyfile
-export XML_DIR_LIBCUGRAPH="$(pwd)/xml"
+mkdir -p "${RAPIDS_DOCS_DIR}/libcugraph/xml_tar"
+tar -czf "${RAPIDS_DOCS_DIR}/libcugraph/xml_tar"/xml.tar.gz -C xml .
 popd
 
-rapids-logger "Build Python docs"
-pushd docs/cugraph
-# Ensure cugraph is importable, since sphinx does not report details about this
-# type of failure well.
-python -c "import cugraph; print(f'Using cugraph: {cugraph}')"
-sphinx-build -b dirhtml source _html
-mkdir -p "${RAPIDS_DOCS_DIR}/cugraph/html"
-mv _html/* "${RAPIDS_DOCS_DIR}/cugraph/html"
-popd
+rapids-logger "Output temp dir: ${RAPIDS_DOCS_DIR}"
 
 rapids-upload-docs
