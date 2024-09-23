@@ -253,3 +253,57 @@ def test_link_neighbor_loader_basic_mg(select_edges, batch_size, depth):
         ),
         nprocs=world_size,
     )
+
+
+def run_test_link_neighbor_loader_uneven_mg(rank, uid, world_size, edge_index):
+    init_pytorch_worker(rank, world_size, uid)
+
+    graph_store = GraphStore(is_multi_gpu=True)
+    feature_store = TensorDictFeatureStore()
+
+    batch_size = 1
+    graph_store[("n", "e", "n"), "coo"] = torch.tensor_split(
+        edge_index, world_size, dim=-1
+    )[rank]
+
+    elx = graph_store[("n", "e", "n"), "coo"]  # select all edges on each worker
+    loader = LinkNeighborLoader(
+        (feature_store, graph_store),
+        num_neighbors=[2, 2, 2],
+        edge_label_index=elx,
+        batch_size=batch_size,
+        shuffle=False,
+    )
+
+    for i, batch in enumerate(loader):
+        assert (
+            batch.input_id.cpu() == torch.arange(i * batch_size, (i + 1) * batch_size)
+        ).all()
+
+        assert (elx[:, [i]] == batch.n_id[batch.edge_label_index.cpu()]).all()
+
+    cugraph_comms_shutdown()
+
+
+@pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
+@pytest.mark.mg
+def test_link_neighbor_loader_uneven_mg():
+    edge_index = torch.tensor(
+        [
+            [0, 1, 3, 4, 7],
+            [1, 0, 8, 9, 12],
+        ]
+    )
+
+    uid = cugraph_comms_create_unique_id()
+    world_size = torch.cuda.device_count()
+
+    torch.multiprocessing.spawn(
+        run_test_link_neighbor_loader_uneven_mg,
+        args=(
+            uid,
+            world_size,
+            edge_index,
+        ),
+        nprocs=world_size,
+    )
