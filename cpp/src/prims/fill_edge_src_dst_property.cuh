@@ -381,8 +381,7 @@ RAFT_CUDA_TRY(cudaDeviceSynchronize()); auto t0 = std::chrono::steady_clock::now
     num_concurrent_bcasts = std::min(num_concurrent_bcasts, handle.get_stream_pool_size());
     num_concurrent_bcasts =
       std::min(std::max(num_concurrent_bcasts, size_t{1}), static_cast<size_t>(major_comm_size));
-    std::cout << comm.get_rank() << ":"
-              << " v_list_size=" << v_list_size << " v_list_range=(" << v_list_range[0] << ","
+    std::cout << "v_list_size=" << v_list_size << " v_list_range=(" << v_list_range[0] << ","
               << v_list_range[1] << ") v_list_bitmap.has_value()=" << v_list_bitmap.has_value()
               << " num_concurrent_bcasts=" << num_concurrent_bcasts << std::endl;
 
@@ -559,7 +558,7 @@ RAFT_CUDA_TRY(cudaDeviceSynchronize()); auto sub3 = std::chrono::steady_clock::n
 std::chrono::duration<double> subdur0 = sub1 - sub0;
 std::chrono::duration<double> subdur1 = sub2 - sub1;
 std::chrono::duration<double> subdur2 = sub3 - sub2;
-std::cout << comm.get_rank() << ":sub took (" << subdur0.count() << "," << subdur1.count() << "," << subdur2.count() << ")" << std::endl;
+std::cout << "sub (fill) took (" << subdur0.count() << "," << subdur1.count() << "," << subdur2.count() << ")" << std::endl;
 #if 0
       for (size_t j = 0; j < loop_count; ++j) {
         auto partition_idx = i + j;
@@ -693,7 +692,7 @@ std::cout << comm.get_rank() << ":sub took (" << subdur0.count() << "," << subdu
 RAFT_CUDA_TRY(cudaDeviceSynchronize()); auto t2 = std::chrono::steady_clock::now();
 std::chrono::duration<double> dur0 = t1 - t0;
 std::chrono::duration<double> dur1 = t2 - t1;
-std::cout << comm.get_rank() << ":fill_edge_minor took (" << dur0.count() << "," << dur1.count() << ")" << std::endl;
+std::cout << "fill_edge_minor took (" << dur0.count() << "," << dur1.count() << ")" << std::endl;
   } else {
     assert(graph_view.local_vertex_partition_range_size() ==
            graph_view.local_edge_partition_src_range_size());

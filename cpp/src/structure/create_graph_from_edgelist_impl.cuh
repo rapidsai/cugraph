@@ -452,9 +452,8 @@ create_graph_from_partitioned_edgelist(
 
   // 1. renumber
 #if 1
-  auto const comm_rank = handle.get_comms().get_rank();
   RAFT_CUDA_TRY(cudaDeviceSynchronize());
-  std::cout << comm_rank << ":create_graph_from_partitioned 0" << std::endl;
+  std::cout << "create_graph_from_partitioned 0" << std::endl;
 #endif
 
   std::vector<edge_t> edgelist_edge_counts(minor_comm_size, edge_t{0});
@@ -485,7 +484,7 @@ create_graph_from_partitioned_edgelist(
   // 2. sort and compress edge list (COO) to CSR (or CSC) or CSR + DCSR (CSC + DCSC) hybrid
 #if 1
   RAFT_CUDA_TRY(cudaDeviceSynchronize());
-  std::cout << comm_rank << ":create_graph_from_partitioned 1" << std::endl;
+  std::cout << "create_graph_from_partitioned 1" << std::endl;
 #endif
 
   auto total_global_mem = handle.get_device_properties().totalGlobalMem;
@@ -663,7 +662,7 @@ create_graph_from_partitioned_edgelist(
               mem_frugal_threshold,
               handle.get_stream());
         } else {
-RAFT_CUDA_TRY(cudaDeviceSynchronize()); std::cout << comm_rank << ":create_graph_from_partitioned 2-1 i=" << i << std::endl;
+RAFT_CUDA_TRY(cudaDeviceSynchronize()); std::cout << "create_graph_from_partitioned 2-1 i=" << i << std::endl;
           std::forward_as_tuple(offsets, indices, dcs_nzd_vertices) =
             detail::sort_and_compress_edgelist<vertex_t, edge_t, store_transposed>(
               std::move(edge_partition_edgelist_srcs[i]),
@@ -675,7 +674,7 @@ RAFT_CUDA_TRY(cudaDeviceSynchronize()); std::cout << comm_rank << ":create_graph
               minor_range_last,
               mem_frugal_threshold,
               handle.get_stream());
-RAFT_CUDA_TRY(cudaDeviceSynchronize()); std::cout << comm_rank << ":create_graph_from_partitioned 2-2 i=" << i << std::endl;
+RAFT_CUDA_TRY(cudaDeviceSynchronize()); std::cout << "create_graph_from_partitioned 2-2 i=" << i << std::endl;
         }
       }
     }
@@ -695,7 +694,7 @@ RAFT_CUDA_TRY(cudaDeviceSynchronize()); std::cout << comm_rank << ":create_graph
   // 3. segmented sort neighbors
 #if 1
   RAFT_CUDA_TRY(cudaDeviceSynchronize());
-  std::cout << comm_rank << ":create_graph_from_partitioned 3" << std::endl;
+  std::cout << "create_graph_from_partitioned 3" << std::endl;
 #endif
 
   for (size_t i = 0; i < edge_partition_offsets.size(); ++i) {
@@ -785,7 +784,7 @@ RAFT_CUDA_TRY(cudaDeviceSynchronize()); std::cout << comm_rank << ":create_graph
   // 4. create a graph and an edge_property_t object.
 #if 1
   RAFT_CUDA_TRY(cudaDeviceSynchronize());
-  std::cout << comm_rank << ":create_graph_from_partitioned 4" << std::endl;
+  std::cout << "create_graph_from_partitioned 4" << std::endl;
 #endif
 
   std::optional<edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, true>, weight_t>>
@@ -1068,9 +1067,8 @@ create_graph_from_edgelist_impl(
   bool do_expensive_check)
 {
 #if 1
-  auto const comm_rank = handle.get_comms().get_rank();
   RAFT_CUDA_TRY(cudaDeviceSynchronize());
-  std::cout << comm_rank << ":create_graph_from_edgelist_impl 0" << std::endl;
+  std::cout << "create_graph_from_edgelist_impl 0" << std::endl;
 #endif
   auto& major_comm           = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
   auto const major_comm_size = major_comm.get_size();
@@ -1217,8 +1215,7 @@ create_graph_from_edgelist_impl(
   }
 #if 1
   RAFT_CUDA_TRY(cudaDeviceSynchronize());
-  std::cout << comm_rank
-            << ":create_graph_from_edgelist_impl 1 compressed_v_size=" << compressed_v_size
+  std::cout << "create_graph_from_edgelist_impl 1 compressed_v_size=" << compressed_v_size
             << std::endl;
 #endif
 
@@ -1264,7 +1261,7 @@ create_graph_from_edgelist_impl(
   }
 #if 1
   RAFT_CUDA_TRY(cudaDeviceSynchronize());
-  std::cout << comm_rank << ":create_graph_from_edgelist_impl 2" << std::endl;
+  std::cout << "create_graph_from_edgelist_impl 2" << std::endl;
 #endif
 
   // 3. compress edge chunk source/destination vertices to cut intermediate peak memory requirement
@@ -1317,7 +1314,7 @@ create_graph_from_edgelist_impl(
   }
 #if 1
   RAFT_CUDA_TRY(cudaDeviceSynchronize());
-  std::cout << comm_rank << ":create_graph_from_edgelist_impl 3" << std::endl;
+  std::cout << "create_graph_from_edgelist_impl 3" << std::endl;
 #endif
 
   // 4. compute additional copy_offset vectors
@@ -1356,7 +1353,7 @@ create_graph_from_edgelist_impl(
   }
 #if 1
   RAFT_CUDA_TRY(cudaDeviceSynchronize());
-  std::cout << comm_rank << ":create_graph_from_edgelist_impl 4" << std::endl;
+  std::cout << "create_graph_from_edgelist_impl 4" << std::endl;
 #endif
 
   // 5. split the grouped edge chunks to local partitions
@@ -1387,7 +1384,7 @@ create_graph_from_edgelist_impl(
         compressed_v_size);
 #if 1
   RAFT_CUDA_TRY(cudaDeviceSynchronize());
-  std::cout << comm_rank << ":create_graph_from_edgelist_impl 4-1" << std::endl;
+  std::cout << "create_graph_from_edgelist_impl 4-1" << std::endl;
 #endif
 
     edge_partition_edgelist_compressed_dsts =
@@ -1421,7 +1418,7 @@ create_graph_from_edgelist_impl(
 
 #if 1
   RAFT_CUDA_TRY(cudaDeviceSynchronize());
-  std::cout << comm_rank << ":create_graph_from_edgelist_impl 5" << std::endl;
+  std::cout << "create_graph_from_edgelist_impl 5" << std::endl;
 #endif
 
   if (edgelist_weights) {
@@ -1456,7 +1453,7 @@ create_graph_from_edgelist_impl(
   }
 #if 1
   RAFT_CUDA_TRY(cudaDeviceSynchronize());
-  std::cout << comm_rank << ":create_graph_from_edgelist_impl 6" << std::endl;
+  std::cout << "create_graph_from_edgelist_impl 6" << std::endl;
 #endif
 
   // 6. decompress edge chunk source/destination vertices to cut intermediate peak memory
@@ -1579,7 +1576,7 @@ create_graph_from_edgelist_impl(
   }
 #if 1
   RAFT_CUDA_TRY(cudaDeviceSynchronize());
-  std::cout << comm_rank << ":create_graph_from_edgelist_impl 7" << std::endl;
+  std::cout << "create_graph_from_edgelist_impl 7" << std::endl;
 #endif
 
   return create_graph_from_partitioned_edgelist<vertex_t,

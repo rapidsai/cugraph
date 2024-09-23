@@ -373,12 +373,12 @@ void bfs(raft::handle_t const& handle,
 
   // 4. BFS iteration
   vertex_t depth{0};
-  bool top_down = true;
+  bool topdown = true;
   auto cur_aggregate_frontier_size =
     static_cast<vertex_t>(vertex_frontier.bucket(bucket_idx_cur).aggregate_size());
   while (true) {
     vertex_t next_aggregate_frontier_size{};
-    if (top_down) {
+    if (topdown) {
 #if BFS_PERFORMANCE_MEASUREMENT  // FIXME: delete
       RAFT_CUDA_TRY(cudaDeviceSynchronize());
       auto topdown0 = std::chrono::steady_clock::now();
@@ -575,7 +575,7 @@ void bfs(raft::handle_t const& handle,
                   << " next_aggregate_frontier_size=" << next_aggregate_frontier_size << std::endl;
         if ((aggregate_m_f * direction_optimizing_alpha > aggregate_m_u) &&
             (next_aggregate_frontier_size >= cur_aggregate_frontier_size)) {
-          top_down = false;
+          topdown = false;
         }
       }
 #if BFS_PERFORMANCE_MEASUREMENT  // FIXME: delete
@@ -583,7 +583,7 @@ void bfs(raft::handle_t const& handle,
       auto topdown5 = std::chrono::steady_clock::now();
 #endif
 
-      if (top_down) {  // staying in top-down
+      if (topdown) {  // staying in top-down
         vertex_frontier.bucket(bucket_idx_cur) =
           key_bucket_t<vertex_t, void, GraphViewType::is_multi_gpu, true>(handle);
         vertex_frontier.swap_buckets(bucket_idx_cur, bucket_idx_next);
@@ -608,6 +608,7 @@ void bfs(raft::handle_t const& handle,
       std::chrono::duration<double> dur  = topdown6 - topdown0;
       std::cout << comm_rank << ":depth=" << depth
                 << " topdown next_aggregate_frontier_size=" << next_aggregate_frontier_size
+                << " next topdown=" << topdown
                 << " (prim,vf,host,fill,dir,vf) took " << dur.count() << " (" << dur0.count() << ","
                 << dur1.count() << "," << dur2.count() << "," << dur3.count() << "," << dur4.count()
                 << "," << dur5.count() << ") s." << std::endl;
@@ -732,14 +733,14 @@ void bfs(raft::handle_t const& handle,
       if ((next_aggregate_frontier_size * direction_optimizing_beta <
            aggregate_nzd_unvisited_vertices) &&
           (next_aggregate_frontier_size < cur_aggregate_frontier_size)) {
-        top_down = true;
+        topdown = true;
       }
 #if BFS_PERFORMANCE_MEASUREMENT  // FIXME: delete
       RAFT_CUDA_TRY(cudaDeviceSynchronize());
       auto bottomup4 = std::chrono::steady_clock::now();
 #endif
 
-      if (top_down) {  // swithcing to top-down
+      if (topdown) {  // swithcing to top-down
         vertex_frontier.bucket(bucket_idx_cur) =
           key_bucket_t<vertex_t, void, GraphViewType::is_multi_gpu, true>(
             handle, std::move(new_frontier_vertex_buffer));
