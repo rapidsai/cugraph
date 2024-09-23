@@ -483,6 +483,8 @@ class BaseSampler:
                 src = torch.cat([src, src_neg], dim=0)
             dst = torch.cat([dst, dst_neg], dim=0)
 
+        # TODO for temporal sampling, node times have to be
+        # adjusted here.
         reader = self.__sampler.sample_from_edges(
             torch.stack([src, dst]),  # reverse of usual convention
             input_id=index.input_id,
