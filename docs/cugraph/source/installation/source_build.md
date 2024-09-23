@@ -12,8 +12,7 @@ __Compilers:__
 * `nvcc`          version 11.5+
 
 __CUDA:__
-* CUDA 11.2+
-* NVIDIA driver 470.42.01 or newer
+* CUDA 11.8+
 * NVIDIA GPU, Volta architecture or later, with [compute capability](https://developer.nvidia.com/cuda-gpus) 7.0+
 
 Further details and download links for these prerequisites are available on the
@@ -178,7 +177,7 @@ Run either the C++ or the Python tests with datasets
    make test
    ```
 
-Note: This conda installation only applies to Linux and Python versions 3.8/3.11.
+Note: This conda installation only applies to Linux and Python versions 3.10, 3.11, and 3.12.
 
 ### (OPTIONAL) Set environment variable on activation
 

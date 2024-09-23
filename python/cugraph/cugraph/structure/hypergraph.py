@@ -440,6 +440,7 @@ def _create_hyper_edges(
     for key, col in events[columns].items():
         cat = categories.get(key, key)
         fs = [EVENTID] + ([key] if drop_edge_attrs else edge_attrs)
+        fs = list(set(fs))
         df = events[fs].dropna(subset=[key]) if dropna else events[fs]
         if len(df) == 0:
             continue
@@ -464,8 +465,7 @@ def _create_hyper_edges(
     if not drop_edge_attrs:
         columns += edge_attrs
 
-    edges = cudf.concat(edges)[columns]
-    edges.reset_index(drop=True, inplace=True)
+    edges = cudf.concat(edges, ignore_index=True)[list(set(columns))]
     return edges
 
 
@@ -546,6 +546,7 @@ def _create_direct_edges(
         for key2, col2 in events[sorted(edge_shape[key1])].items():
             cat2 = categories.get(key2, key2)
             fs = [EVENTID] + ([key1, key2] if drop_edge_attrs else edge_attrs)
+            fs = list(set(fs))
             df = events[fs].dropna(subset=[key1, key2]) if dropna else events[fs]
             if len(df) == 0:
                 continue
@@ -573,20 +574,22 @@ def _create_direct_edges(
     if not drop_edge_attrs:
         columns += edge_attrs
 
-    edges = cudf.concat(edges)[columns]
+    edges = cudf.concat(edges)[list(set(columns))]
     edges.reset_index(drop=True, inplace=True)
     return edges
 
 
 def _str_scalar_to_category(size, val):
-    return cudf.core.column.build_categorical_column(
-        categories=cudf.core.column.as_column([val], dtype="str"),
-        codes=cudf.core.column.as_column(0, length=size, dtype=np.int32),
-        mask=None,
+    return cudf.core.column.CategoricalColumn(
+        data=None,
         size=size,
+        dtype=cudf.CategoricalDtype(
+            categories=cudf.core.column.as_column([val], dtype="str"), ordered=False
+        ),
+        mask=None,
         offset=0,
         null_count=0,
-        ordered=False,
+        children=(cudf.core.column.as_column(0, length=size, dtype=np.int32),),
     )
 
 

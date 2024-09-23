@@ -1,4 +1,4 @@
-# Copyright (c) 2020-2023, NVIDIA CORPORATION.
+# Copyright (c) 2020-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -523,6 +523,7 @@ def create_list_series_from_2d_ar(ar, index):
     mask_col = cp.full(shape=n_rows, fill_value=True)
     mask = cudf._lib.transform.bools_to_mask(as_column(mask_col))
     lc = cudf.core.column.ListColumn(
+        data=None,
         size=n_rows,
         dtype=cudf.ListDtype(data.dtype),
         mask=mask,
@@ -530,7 +531,7 @@ def create_list_series_from_2d_ar(ar, index):
         null_count=0,
         children=(offset_col, data),
     )
-    return cudf.Series(lc, index=index)
+    return cudf.Series._from_column(lc, index=index)
 
 
 def create_directory_with_overwrite(directory):

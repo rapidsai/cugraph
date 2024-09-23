@@ -1,4 +1,4 @@
-# Copyright (c) 2021-2023, NVIDIA CORPORATION.
+# Copyright (c) 2021-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -34,7 +34,9 @@ _visible_devices = None
 _scale_values = [2, 4, 16]
 _scale_test_ids = [f"scale={x}" for x in _scale_values]
 _graph_types = [cugraph.Graph, None, int]
-_graph_test_ids = [f"create_using={getattr(x,'__name__',str(x))}" for x in _graph_types]
+_graph_test_ids = [
+    f"create_using={getattr(x, '__name__', str(x))}" for x in _graph_types
+]
 
 
 def _call_rmat(scale, num_edges, create_using, mg=True):

@@ -15,6 +15,7 @@
  */
 
 #include "prims/per_v_random_select_transform_outgoing_e.cuh"
+#include "prims/transform_e.cuh"
 #include "prims/vertex_frontier.cuh"
 #include "utilities/base_fixture.hpp"
 #include "utilities/conversion_utilities.hpp"
@@ -103,6 +104,7 @@ struct Prims_Usecase {
   bool with_replacement{false};
   bool use_invalid_value{false};
   bool use_weight_as_bias{false};
+  bool inject_zero_bias{false};  // valid only when use_weight_as_bias is true
   bool edge_masking{false};
   bool check_correctness{true};
 };
@@ -157,6 +159,23 @@ class Tests_MGPerVRandomSelectTransformOutgoingE
       edge_mask = cugraph::test::generate<decltype(mg_graph_view), bool>::edge_property(
         *handle_, mg_graph_view, 2);
       mg_graph_view.attach_edge_mask((*edge_mask).view());
+    }
+
+    if (mg_edge_weight_view && prims_usecase.inject_zero_bias) {
+      cugraph::transform_e(
+        *handle_,
+        mg_graph_view,
+        cugraph::edge_src_dummy_property_t{}.view(),
+        cugraph::edge_dst_dummy_property_t{}.view(),
+        *mg_edge_weight_view,
+        [] __device__(auto src, auto dst, auto, auto, auto w) {
+          if ((src % 2) == 0 && (dst % 2) == 0) {
+            return weight_t{0.0};
+          } else {
+            return w;
+          }
+        },
+        (*mg_edge_weights).mutable_view());
     }
 
     // 2. run MG per_v_random_select_transform_outgoing_e primitive
@@ -324,11 +343,14 @@ class Tests_MGPerVRandomSelectTransformOutgoingE
       }
 
       cugraph::graph_t<vertex_t, edge_t, false, false> sg_graph(*handle_);
-      std::tie(sg_graph, std::ignore, std::ignore, std::ignore) =
+      std::optional<
+        cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, false, false>, weight_t>>
+        sg_edge_weights{std::nullopt};
+      std::tie(sg_graph, sg_edge_weights, std::ignore, std::ignore) =
         cugraph::test::mg_graph_to_sg_graph(
           *handle_,
           mg_graph_view,
-          std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>>{std::nullopt},
+          mg_edge_weight_view,
           std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
           std::make_optional<raft::device_span<vertex_t const>>((*mg_renumber_map).data(),
                                                                 (*mg_renumber_map).size()),
@@ -347,6 +369,8 @@ class Tests_MGPerVRandomSelectTransformOutgoingE
         }
 
         auto sg_graph_view = sg_graph.view();
+        auto sg_edge_weight_view =
+          sg_edge_weights ? std::make_optional((*sg_edge_weights).view()) : std::nullopt;
 
         rmm::device_uvector<edge_t> sg_offsets(sg_graph_view.number_of_vertices() + vertex_t{1},
                                                handle_->get_stream());
@@ -361,6 +385,17 @@ class Tests_MGPerVRandomSelectTransformOutgoingE
                      sg_graph_view.local_edge_partition_view().indices().end(),
                      sg_indices.begin());
 
+        std::optional<rmm::device_uvector<weight_t>> sg_biases{std::nullopt};
+        if (sg_edge_weight_view) {
+          auto firsts = (*sg_edge_weight_view).value_firsts();
+          auto counts = (*sg_edge_weight_view).edge_counts();
+          assert(firsts.size() == 1);
+          assert(counts.size() == 1);
+          sg_biases = rmm::device_uvector<weight_t>(counts[0], handle_->get_stream());
+          thrust::copy(
+            handle_->get_thrust_policy(), firsts[0], firsts[0] + counts[0], (*sg_biases).begin());
+        }
+
         auto num_invalids = static_cast<size_t>(thrust::count_if(
           handle_->get_thrust_policy(),
           thrust::make_counting_iterator(size_t{0}),
@@ -371,9 +406,10 @@ class Tests_MGPerVRandomSelectTransformOutgoingE
                                                         : thrust::nullopt,
            sample_e_op_result_first =
              cugraph::get_dataframe_buffer_begin(mg_aggregate_sample_e_op_results),
-           sg_offsets       = sg_offsets.begin(),
-           sg_indices       = sg_indices.begin(),
-           K                = prims_usecase.K,
+           sg_offsets = sg_offsets.begin(),
+           sg_indices = sg_indices.begin(),
+           sg_biases  = sg_biases ? thrust::make_optional((*sg_biases).begin()) : thrust::nullopt,
+           K          = prims_usecase.K,
            with_replacement = prims_usecase.with_replacement,
            invalid_value =
              invalid_value ? thrust::make_optional<result_t>(*invalid_value) : thrust::nullopt,
@@ -402,6 +438,12 @@ class Tests_MGPerVRandomSelectTransformOutgoingE
             auto count = offset_last - offset_first;
 
             auto out_degree = *(sg_offsets + v + 1) - *(sg_offsets + v);
+            if (sg_biases) {
+              out_degree = thrust::count_if(thrust::seq,
+                                            *sg_biases + *(sg_offsets + v),
+                                            *sg_biases + *(sg_offsets + v + 1),
+                                            [] __device__(auto bias) { return bias > 0.0; });
+            }
             if (with_replacement) {
               if ((out_degree > 0 && count != K) || (out_degree == 0 && count != 0)) {
                 return true;
@@ -418,12 +460,33 @@ class Tests_MGPerVRandomSelectTransformOutgoingE
               auto sg_dst       = thrust::get<1>(e_op_result);
               auto sg_nbr_first = sg_indices + *(sg_offsets + sg_src);
               auto sg_nbr_last  = sg_indices + *(sg_offsets + (sg_src + vertex_t{1}));
-              if (!thrust::binary_search(thrust::seq,
-                                         sg_nbr_first,
-                                         sg_nbr_last,
-                                         sg_dst)) {  // assumed neighbor lists are sorted
-                return true;
+              auto sg_nbr_bias_first =
+                sg_biases ? thrust::make_optional((*sg_biases) + *(sg_offsets + sg_src))
+                          : thrust::nullopt;
+              if (sg_src != v) { return true; }
+
+              if (sg_nbr_bias_first) {
+                auto lower_it = thrust::lower_bound(thrust::seq, sg_nbr_first, sg_nbr_last, sg_dst);
+                auto upper_it = thrust::upper_bound(thrust::seq, sg_nbr_first, sg_nbr_last, sg_dst);
+                bool found    = false;
+                for (auto it = (*sg_nbr_bias_first + thrust::distance(sg_nbr_first, lower_it));
+                     it != (*sg_nbr_bias_first + thrust::distance(sg_nbr_first, upper_it));
+                     ++it) {
+                  if (*it > 0.0) {
+                    found = true;
+                    break;
+                  }
+                }
+                if (!found) { return true; }
+              } else {
+                if (!thrust::binary_search(thrust::seq,
+                                           sg_nbr_first,
+                                           sg_nbr_last,
+                                           sg_dst)) {  // assumed neighbor lists are sorted
+                  return true;
+                }
               }
+
               property_t src_val{};
               property_t dst_val{};
               if constexpr (cugraph::is_thrust_tuple_of_arithmetic<property_t>::value) {
@@ -443,20 +506,25 @@ class Tests_MGPerVRandomSelectTransformOutgoingE
                   thrust::get<1>(sample_e_op_result_first.get_iterator_tuple()) + offset_first;
                 auto sg_dst_last =
                   thrust::get<1>(sample_e_op_result_first.get_iterator_tuple()) + offset_last;
-                auto dst_count =
-                  thrust::count(thrust::seq,
-                                sg_dst_first,
-                                sg_dst_last,
-                                sg_dst);  // this could be inefficient for high-degree vertices, if
-                                          // we sort [sg_dst_first, sg_dst_last) we can use binary
-                                          // search but we may better not modify the sampling output
-                                          // and allow inefficiency as this is just for testing
-                auto multiplicity = thrust::distance(
-                  thrust::lower_bound(thrust::seq, sg_nbr_first, sg_nbr_last, sg_dst),
+                auto dst_count = thrust::count(thrust::seq, sg_dst_first, sg_dst_last, sg_dst);
+                auto lower_it =
+                  thrust::lower_bound(thrust::seq,
+                                      sg_nbr_first,
+                                      sg_nbr_last,
+                                      sg_dst);  // this assumes neighbor lists are sorted
+                auto upper_it =
                   thrust::upper_bound(thrust::seq,
                                       sg_nbr_first,
                                       sg_nbr_last,
-                                      sg_dst));  // this assumes neighbor lists are sorted
+                                      sg_dst);  // this assumes neighbor lists are sorted
+                auto multiplicity =
+                  sg_nbr_bias_first
+                    ? thrust::count_if(
+                        thrust::seq,
+                        *sg_nbr_bias_first + thrust::distance(sg_nbr_first, lower_it),
+                        *sg_nbr_bias_first + thrust::distance(sg_nbr_first, upper_it),
+                        [] __device__(auto bias) { return bias > 0.0; })
+                    : thrust::distance(lower_it, upper_it);
                 if (dst_count > multiplicity) { return true; }
               }
             }
@@ -547,44 +615,60 @@ INSTANTIATE_TEST_SUITE_P(
   file_test,
   Tests_MGPerVRandomSelectTransformOutgoingE_File,
   ::testing::Combine(
-    ::testing::Values(Prims_Usecase{size_t{1000}, size_t{4}, false, false, false, false},
-                      Prims_Usecase{size_t{1000}, size_t{4}, false, false, false, true},
-                      Prims_Usecase{size_t{1000}, size_t{4}, false, false, true, false},
-                      Prims_Usecase{size_t{1000}, size_t{4}, false, false, true, true},
-                      Prims_Usecase{size_t{1000}, size_t{4}, false, true, false, false},
-                      Prims_Usecase{size_t{1000}, size_t{4}, false, true, false, true},
-                      Prims_Usecase{size_t{1000}, size_t{4}, false, true, true, false},
-                      Prims_Usecase{size_t{1000}, size_t{4}, false, true, true, true},
-                      Prims_Usecase{size_t{1000}, size_t{4}, true, false, false, false},
-                      Prims_Usecase{size_t{1000}, size_t{4}, true, false, false, true},
-                      Prims_Usecase{size_t{1000}, size_t{4}, true, false, true, false},
-                      Prims_Usecase{size_t{1000}, size_t{4}, true, false, true, true},
-                      Prims_Usecase{size_t{1000}, size_t{4}, true, true, false, false},
-                      Prims_Usecase{size_t{1000}, size_t{4}, true, true, false, true},
-                      Prims_Usecase{size_t{1000}, size_t{4}, true, true, true, false},
-                      Prims_Usecase{size_t{1000}, size_t{4}, true, true, true, true}),
+    ::testing::Values(Prims_Usecase{size_t{1000}, size_t{4}, false, false, false, false, false},
+                      Prims_Usecase{size_t{1000}, size_t{4}, false, false, false, false, true},
+                      Prims_Usecase{size_t{1000}, size_t{4}, false, false, true, false, false},
+                      Prims_Usecase{size_t{1000}, size_t{4}, false, false, true, true, false},
+                      Prims_Usecase{size_t{1000}, size_t{4}, false, false, true, false, true},
+                      Prims_Usecase{size_t{1000}, size_t{4}, false, false, true, true, true},
+                      Prims_Usecase{size_t{1000}, size_t{4}, false, true, false, false, false},
+                      Prims_Usecase{size_t{1000}, size_t{4}, false, true, false, false, true},
+                      Prims_Usecase{size_t{1000}, size_t{4}, false, true, true, false, false},
+                      Prims_Usecase{size_t{1000}, size_t{4}, false, true, true, true, false},
+                      Prims_Usecase{size_t{1000}, size_t{4}, false, true, true, false, true},
+                      Prims_Usecase{size_t{1000}, size_t{4}, false, true, true, true, true},
+                      Prims_Usecase{size_t{1000}, size_t{4}, true, false, false, false, false},
+                      Prims_Usecase{size_t{1000}, size_t{4}, true, false, false, false, true},
+                      Prims_Usecase{size_t{1000}, size_t{4}, true, false, true, false, false},
+                      Prims_Usecase{size_t{1000}, size_t{4}, true, false, true, true, false},
+                      Prims_Usecase{size_t{1000}, size_t{4}, true, false, true, false, true},
+                      Prims_Usecase{size_t{1000}, size_t{4}, true, false, true, true, true},
+                      Prims_Usecase{size_t{1000}, size_t{4}, true, true, false, false, false},
+                      Prims_Usecase{size_t{1000}, size_t{4}, true, true, false, false, true},
+                      Prims_Usecase{size_t{1000}, size_t{4}, true, true, true, false, false},
+                      Prims_Usecase{size_t{1000}, size_t{4}, true, true, true, true, false},
+                      Prims_Usecase{size_t{1000}, size_t{4}, true, true, true, false, true},
+                      Prims_Usecase{size_t{1000}, size_t{4}, true, true, true, true, true}),
     ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"))));
 
 INSTANTIATE_TEST_SUITE_P(
   file_large_test,
   Tests_MGPerVRandomSelectTransformOutgoingE_File,
   ::testing::Combine(
-    ::testing::Values(Prims_Usecase{size_t{1000}, size_t{4}, false, false, false, false},
-                      Prims_Usecase{size_t{1000}, size_t{4}, false, false, false, true},
-                      Prims_Usecase{size_t{1000}, size_t{4}, false, false, true, false},
-                      Prims_Usecase{size_t{1000}, size_t{4}, false, false, true, true},
-                      Prims_Usecase{size_t{1000}, size_t{4}, false, true, false, false},
-                      Prims_Usecase{size_t{1000}, size_t{4}, false, true, false, true},
-                      Prims_Usecase{size_t{1000}, size_t{4}, false, true, true, false},
-                      Prims_Usecase{size_t{1000}, size_t{4}, false, true, true, true},
-                      Prims_Usecase{size_t{1000}, size_t{4}, true, false, false, false},
-                      Prims_Usecase{size_t{1000}, size_t{4}, true, false, false, true},
-                      Prims_Usecase{size_t{1000}, size_t{4}, true, false, true, false},
-                      Prims_Usecase{size_t{1000}, size_t{4}, true, false, true, true},
-                      Prims_Usecase{size_t{1000}, size_t{4}, true, true, false, false},
-                      Prims_Usecase{size_t{1000}, size_t{4}, true, true, false, true},
-                      Prims_Usecase{size_t{1000}, size_t{4}, true, true, true, false},
-                      Prims_Usecase{size_t{1000}, size_t{4}, true, true, true, true}),
+    ::testing::Values(Prims_Usecase{size_t{1000}, size_t{4}, false, false, false, false, false},
+                      Prims_Usecase{size_t{1000}, size_t{4}, false, false, false, false, true},
+                      Prims_Usecase{size_t{1000}, size_t{4}, false, false, true, false, false},
+                      Prims_Usecase{size_t{1000}, size_t{4}, false, false, true, true, false},
+                      Prims_Usecase{size_t{1000}, size_t{4}, false, false, true, false, true},
+                      Prims_Usecase{size_t{1000}, size_t{4}, false, false, true, true, true},
+                      Prims_Usecase{size_t{1000}, size_t{4}, false, true, false, false, false},
+                      Prims_Usecase{size_t{1000}, size_t{4}, false, true, false, false, true},
+                      Prims_Usecase{size_t{1000}, size_t{4}, false, true, true, false, false},
+                      Prims_Usecase{size_t{1000}, size_t{4}, false, true, true, true, false},
+                      Prims_Usecase{size_t{1000}, size_t{4}, false, true, true, false, true},
+                      Prims_Usecase{size_t{1000}, size_t{4}, false, true, true, true, true},
+                      Prims_Usecase{size_t{1000}, size_t{4}, true, false, false, false, false},
+                      Prims_Usecase{size_t{1000}, size_t{4}, true, false, false, false, true},
+                      Prims_Usecase{size_t{1000}, size_t{4}, true, false, true, false, false},
+                      Prims_Usecase{size_t{1000}, size_t{4}, true, false, true, true, false},
+                      Prims_Usecase{size_t{1000}, size_t{4}, true, false, true, false, true},
+                      Prims_Usecase{size_t{1000}, size_t{4}, true, false, true, true, true},
+                      Prims_Usecase{size_t{1000}, size_t{4}, true, true, false, false, false},
+                      Prims_Usecase{size_t{1000}, size_t{4}, true, true, false, false, true},
+                      Prims_Usecase{size_t{1000}, size_t{4}, true, true, true, false, false},
+                      Prims_Usecase{size_t{1000}, size_t{4}, true, true, true, true, false},
+                      Prims_Usecase{size_t{1000}, size_t{4}, true, true, true, false, true},
+                      Prims_Usecase{size_t{1000}, size_t{4}, true, true, true, true, true}),
     ::testing::Values(cugraph::test::File_Usecase("test/datasets/web-Google.mtx"),
                       cugraph::test::File_Usecase("test/datasets/ljournal-2008.mtx"),
                       cugraph::test::File_Usecase("test/datasets/webbase-1M.mtx"))));
@@ -593,22 +677,30 @@ INSTANTIATE_TEST_SUITE_P(
   rmat_small_test,
   Tests_MGPerVRandomSelectTransformOutgoingE_Rmat,
   ::testing::Combine(
-    ::testing::Values(Prims_Usecase{size_t{1000}, size_t{4}, false, false, false, false},
-                      Prims_Usecase{size_t{1000}, size_t{4}, false, false, false, true},
-                      Prims_Usecase{size_t{1000}, size_t{4}, false, false, true, false},
-                      Prims_Usecase{size_t{1000}, size_t{4}, false, false, true, true},
-                      Prims_Usecase{size_t{1000}, size_t{4}, false, true, false, false},
-                      Prims_Usecase{size_t{1000}, size_t{4}, false, true, false, true},
-                      Prims_Usecase{size_t{1000}, size_t{4}, false, true, true, false},
-                      Prims_Usecase{size_t{1000}, size_t{4}, false, true, true, true},
-                      Prims_Usecase{size_t{1000}, size_t{4}, true, false, false, false},
-                      Prims_Usecase{size_t{1000}, size_t{4}, true, false, false, true},
-                      Prims_Usecase{size_t{1000}, size_t{4}, true, false, true, false},
-                      Prims_Usecase{size_t{1000}, size_t{4}, true, false, true, true},
-                      Prims_Usecase{size_t{1000}, size_t{4}, true, true, false, false},
-                      Prims_Usecase{size_t{1000}, size_t{4}, true, true, false, true},
-                      Prims_Usecase{size_t{1000}, size_t{4}, true, true, true, false},
-                      Prims_Usecase{size_t{1000}, size_t{4}, true, true, true, true}),
+    ::testing::Values(Prims_Usecase{size_t{1000}, size_t{4}, false, false, false, false, false},
+                      Prims_Usecase{size_t{1000}, size_t{4}, false, false, false, false, true},
+                      Prims_Usecase{size_t{1000}, size_t{4}, false, false, true, false, false},
+                      Prims_Usecase{size_t{1000}, size_t{4}, false, false, true, true, false},
+                      Prims_Usecase{size_t{1000}, size_t{4}, false, false, true, false, true},
+                      Prims_Usecase{size_t{1000}, size_t{4}, false, false, true, true, true},
+                      Prims_Usecase{size_t{1000}, size_t{4}, false, true, false, false, false},
+                      Prims_Usecase{size_t{1000}, size_t{4}, false, true, false, false, true},
+                      Prims_Usecase{size_t{1000}, size_t{4}, false, true, true, false, false},
+                      Prims_Usecase{size_t{1000}, size_t{4}, false, true, true, true, false},
+                      Prims_Usecase{size_t{1000}, size_t{4}, false, true, true, false, true},
+                      Prims_Usecase{size_t{1000}, size_t{4}, false, true, true, true, true},
+                      Prims_Usecase{size_t{1000}, size_t{4}, true, false, false, false, false},
+                      Prims_Usecase{size_t{1000}, size_t{4}, true, false, false, false, true},
+                      Prims_Usecase{size_t{1000}, size_t{4}, true, false, true, false, false},
+                      Prims_Usecase{size_t{1000}, size_t{4}, true, false, true, true, false},
+                      Prims_Usecase{size_t{1000}, size_t{4}, true, false, true, false, true},
+                      Prims_Usecase{size_t{1000}, size_t{4}, true, false, true, true, true},
+                      Prims_Usecase{size_t{1000}, size_t{4}, true, true, false, false, false},
+                      Prims_Usecase{size_t{1000}, size_t{4}, true, true, false, false, true},
+                      Prims_Usecase{size_t{1000}, size_t{4}, true, true, true, false, false},
+                      Prims_Usecase{size_t{1000}, size_t{4}, true, true, true, true, false},
+                      Prims_Usecase{size_t{1000}, size_t{4}, true, true, true, false, true},
+                      Prims_Usecase{size_t{1000}, size_t{4}, true, true, true, true, true}),
     ::testing::Values(cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, false, false))));
 
 INSTANTIATE_TEST_SUITE_P(
@@ -620,22 +712,30 @@ INSTANTIATE_TEST_SUITE_P(
   Tests_MGPerVRandomSelectTransformOutgoingE_Rmat,
   ::testing::Combine(
     ::testing::Values(
-      Prims_Usecase{size_t{10000000}, size_t{25}, false, false, false, false, false},
-      Prims_Usecase{size_t{10000000}, size_t{25}, false, false, false, true, false},
-      Prims_Usecase{size_t{10000000}, size_t{25}, false, false, true, false, false},
-      Prims_Usecase{size_t{10000000}, size_t{25}, false, false, true, true, false},
-      Prims_Usecase{size_t{10000000}, size_t{25}, false, true, false, false, false},
-      Prims_Usecase{size_t{10000000}, size_t{25}, false, true, false, true, false},
-      Prims_Usecase{size_t{10000000}, size_t{25}, false, true, true, false, false},
-      Prims_Usecase{size_t{10000000}, size_t{25}, false, true, true, true, false},
-      Prims_Usecase{size_t{10000000}, size_t{25}, true, false, false, false, false},
-      Prims_Usecase{size_t{10000000}, size_t{25}, true, false, false, true, false},
-      Prims_Usecase{size_t{10000000}, size_t{25}, true, false, true, false, false},
-      Prims_Usecase{size_t{10000000}, size_t{25}, true, false, true, true, false},
-      Prims_Usecase{size_t{10000000}, size_t{25}, true, true, false, false, false},
-      Prims_Usecase{size_t{10000000}, size_t{25}, true, true, false, true, false},
-      Prims_Usecase{size_t{10000000}, size_t{25}, true, true, true, false, false},
-      Prims_Usecase{size_t{10000000}, size_t{25}, true, true, true, true, false}),
+      Prims_Usecase{size_t{10000000}, size_t{25}, false, false, false, false, false, false},
+      Prims_Usecase{size_t{10000000}, size_t{25}, false, false, false, false, true, false},
+      Prims_Usecase{size_t{10000000}, size_t{25}, false, false, true, false, false, false},
+      Prims_Usecase{size_t{10000000}, size_t{25}, false, false, true, true, false, false},
+      Prims_Usecase{size_t{10000000}, size_t{25}, false, false, true, false, true, false},
+      Prims_Usecase{size_t{10000000}, size_t{25}, false, false, true, true, true, false},
+      Prims_Usecase{size_t{10000000}, size_t{25}, false, true, false, false, false, false},
+      Prims_Usecase{size_t{10000000}, size_t{25}, false, true, false, false, true, false},
+      Prims_Usecase{size_t{10000000}, size_t{25}, false, true, true, false, false, false},
+      Prims_Usecase{size_t{10000000}, size_t{25}, false, true, true, true, false, false},
+      Prims_Usecase{size_t{10000000}, size_t{25}, false, true, true, false, true, false},
+      Prims_Usecase{size_t{10000000}, size_t{25}, false, true, true, true, true, false},
+      Prims_Usecase{size_t{10000000}, size_t{25}, true, false, false, false, false, false},
+      Prims_Usecase{size_t{10000000}, size_t{25}, true, false, false, false, true, false},
+      Prims_Usecase{size_t{10000000}, size_t{25}, true, false, true, false, false, false},
+      Prims_Usecase{size_t{10000000}, size_t{25}, true, false, true, true, false, false},
+      Prims_Usecase{size_t{10000000}, size_t{25}, true, false, true, false, true, false},
+      Prims_Usecase{size_t{10000000}, size_t{25}, true, false, true, true, true, false},
+      Prims_Usecase{size_t{10000000}, size_t{25}, true, true, false, false, false, false},
+      Prims_Usecase{size_t{10000000}, size_t{25}, true, true, false, false, true, false},
+      Prims_Usecase{size_t{10000000}, size_t{25}, true, true, true, false, false, false},
+      Prims_Usecase{size_t{10000000}, size_t{25}, true, true, true, true, false, false},
+      Prims_Usecase{size_t{10000000}, size_t{25}, true, true, true, false, true, false},
+      Prims_Usecase{size_t{10000000}, size_t{25}, true, true, true, true, true, false}),
     ::testing::Values(cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false))));
 
 CUGRAPH_MG_TEST_PROGRAM_MAIN()

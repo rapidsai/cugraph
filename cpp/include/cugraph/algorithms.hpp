@@ -1579,11 +1579,11 @@ std::
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 std::tuple<rmm::device_uvector<vertex_t>, std::optional<rmm::device_uvector<weight_t>>>
 uniform_random_walks(raft::handle_t const& handle,
+                     raft::random::RngState& rng_state,
                      graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
                      std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
                      raft::device_span<vertex_t const> start_vertices,
-                     size_t max_length,
-                     uint64_t seed = std::numeric_limits<uint64_t>::max());
+                     size_t max_length);
 
 /**
  * @brief returns biased random walks from starting sources, where each path is of given
@@ -1623,11 +1623,11 @@ uniform_random_walks(raft::handle_t const& handle,
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 std::tuple<rmm::device_uvector<vertex_t>, std::optional<rmm::device_uvector<weight_t>>>
 biased_random_walks(raft::handle_t const& handle,
+                    raft::random::RngState& rng_state,
                     graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
                     edge_property_view_t<edge_t, weight_t const*> edge_weight_view,
                     raft::device_span<vertex_t const> start_vertices,
-                    size_t max_length,
-                    uint64_t seed = std::numeric_limits<uint64_t>::max());
+                    size_t max_length);
 
 /**
  * @brief returns biased random walks with node2vec biases from starting sources,
@@ -1670,19 +1670,21 @@ biased_random_walks(raft::handle_t const& handle,
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 std::tuple<rmm::device_uvector<vertex_t>, std::optional<rmm::device_uvector<weight_t>>>
 node2vec_random_walks(raft::handle_t const& handle,
+                      raft::random::RngState& rng_state,
                       graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
                       std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
                       raft::device_span<vertex_t const> start_vertices,
                       size_t max_length,
                       weight_t p,
-                      weight_t q,
-                      uint64_t seed = std::numeric_limits<uint64_t>::max());
+                      weight_t q);
 
 #ifndef NO_CUGRAPH_OPS
 /**
  * @brief generate sub-sampled graph as an adjacency list (CSR format) given input graph,
  * list of vertices and sample size per vertex. The output graph consists of the given
  * vertices with each vertex having at most `sample_size` neighbors from the original graph
+ *
+ * @deprecated This API will be deprecated.  uniform_neighbor_sample can be used instead.
  *
  * @tparam graph_t Type of input graph/view (typically, graph_view_t, non-transposed and
  * single-gpu).
@@ -1713,6 +1715,8 @@ sample_neighbors_adjacency_list(raft::handle_t const& handle,
  * @brief generate sub-sampled graph as an edge list (COO format) given input graph,
  * list of vertices and sample size per vertex. The output graph consists of the given
  * vertices with each vertex having at most `sample_size` neighbors from the original graph
+ *
+ * @deprecated This API will be deprecated.  uniform_neighbor_sample can be used instead.
  *
  * @tparam graph_t Type of input graph/view (typically, graph_view_t, non-transposed and
  * single-gpu).
@@ -1869,12 +1873,16 @@ void triangle_count(raft::handle_t const& handle,
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Graph view object.
+ *  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to
+ * `true`).
  *
  * @return edge_property_t containing the edge triangle count
  */
 template <typename vertex_t, typename edge_t, bool multi_gpu>
 edge_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>, edge_t> edge_triangle_count(
-  raft::handle_t const& handle, graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view);
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+  bool do_expensive_check = false);
 
 /*
  * @brief Compute K-Truss.
