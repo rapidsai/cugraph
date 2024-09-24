@@ -439,37 +439,93 @@ def neg_sample(
     graph_store: GraphStore,
     seed_src: "torch.Tensor",
     seed_dst: "torch.Tensor",
+    batch_size: int,
     neg_sampling: "torch_geometric.sampler.NegativeSampling",
     time: "torch.Tensor",
     node_time: "torch.Tensor",
 ) -> Tuple["torch.Tensor", "torch.Tensor"]:
-    unweighted = neg_sampling.src_weight is None and neg_sampling.dst_weight is None
+    try:
+        # Compatibility for PyG 2.5
+        src_weight = neg_sampling.src_weight
+        dst_weight = neg_sampling.dst_weight
+    except AttributeError:
+        src_weight = neg_sampling.weight
+        dst_weight = neg_sampling.weight
+    unweighted = src_weight is None and dst_weight is None
 
-    num_neg = int(ceil(neg_sampling.amount * seed_src.numel()))
+    # Require at least one negative edge per batch
+    num_neg = max(
+        int(ceil(neg_sampling.amount * seed_src.numel())),
+        int(ceil(seed_src.numel() / batch_size)),
+    )
+
+    if graph_store.is_multi_gpu:
+        num_neg_global = torch.tensor([num_neg], device="cuda")
+        torch.distributed.all_reduce(num_neg_global, op=torch.distributed.ReduceOp.SUM)
+        num_neg = int(num_neg_global)
+    else:
+        num_neg_global = num_neg
 
     if node_time is None:
-        result_dict = pylibcugraph.negative_sample(
+        result_dict = pylibcugraph.negative_sampling(
             graph_store._resource_handle,
             graph_store._graph,
-            num_neg,
+            num_neg_global,
             vertices=None
             if unweighted
-            else cupy.arange(neg_sampling.src_weight.numel(), dtype="int64"),
-            src_bias=None
-            if neg_sampling.src_weight is None
-            else cupy.asarray(neg_sampling.src_weight),
-            dst_bias=None
-            if neg_sampling.dst_weight is None
-            else cupy.asarray(neg_sampling.dst_weight),
+            else cupy.arange(src_weight.numel(), dtype="int64"),
+            src_bias=None if src_weight is None else cupy.asarray(src_weight),
+            dst_bias=None if dst_weight is None else cupy.asarray(dst_weight),
             remove_duplicates=False,
             remove_false_negatives=False,
             exact_number_of_samples=True,
             do_expensive_check=False,
         )
-        return torch.as_tensor(result_dict["sources"], device="cuda"), torch.as_tensor(
-            result_dict["destinations"], device="cuda"
-        )
 
+        src_neg = torch.as_tensor(result_dict["sources"], device="cuda")[:num_neg]
+        dst_neg = torch.as_tensor(result_dict["destinations"], device="cuda")[:num_neg]
+
+        # TODO modifiy the C API so this condition is impossible
+        if src_neg.numel() < num_neg:
+            num_gen = num_neg - src_neg.numel()
+            src_neg = torch.concat(
+                [
+                    src_neg,
+                    torch.randint(
+                        0, src_neg.max(), (num_gen,), device="cuda", dtype=torch.int64
+                    ),
+                ]
+            )
+            dst_neg = torch.concat(
+                [
+                    dst_neg,
+                    torch.randint(
+                        0, dst_neg.max(), (num_gen,), device="cuda", dtype=torch.int64
+                    ),
+                ]
+            )
+        return src_neg, dst_neg
     raise NotImplementedError(
         "Temporal negative sampling is currently unimplemented in cuGraph-PyG"
+    )
+
+
+def neg_cat(
+    seed_pos: "torch.Tensor", seed_neg: "torch.Tensor", pos_batch_size: int
+) -> Tuple["torch.Tensor", int]:
+    num_seeds = seed_pos.numel()
+    num_batches = int(ceil(num_seeds / pos_batch_size))
+    neg_batch_size = int(ceil(seed_neg.numel() / num_batches))
+
+    batch_pos_offsets = torch.full((num_batches,), pos_batch_size).cumsum(-1)[:-1]
+    seed_pos_splits = torch.tensor_split(seed_pos, batch_pos_offsets)
+
+    batch_neg_offsets = torch.full((num_batches,), neg_batch_size).cumsum(-1)[:-1]
+    seed_neg_splits = torch.tensor_split(seed_neg, batch_neg_offsets)
+
+    return (
+        torch.concatenate(
+            [torch.concatenate(s) for s in zip(seed_pos_splits, seed_neg_splits)]
+        ),
+        neg_batch_size,
     )

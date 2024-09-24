@@ -16,7 +16,7 @@ from typing import Optional, Iterator, Union, Dict, Tuple
 from cugraph.utilities.utils import import_optional
 from cugraph.gnn import DistSampler
 
-from .sampler_utils import filter_cugraph_pyg_store, neg_sample
+from .sampler_utils import filter_cugraph_pyg_store, neg_sample, neg_cat
 
 torch = import_optional("torch")
 torch_geometric = import_optional("torch_geometric")
@@ -290,6 +290,21 @@ class HomogeneousSampleReader(SampleReader):
             ]
         ]
 
+        num_seeds = input_index.numel()
+        input_index = input_index[input_index >= 0]
+
+        num_pos = input_index.numel()
+        num_neg = num_seeds - num_pos
+        if num_neg > 0:
+            edge_label = torch.concat(
+                [
+                    torch.full((num_pos,), 1.0),
+                    torch.full((num_neg,), 0.0),
+                ]
+            )
+        else:
+            edge_label = None
+
         edge_inverse = (
             (
                 raw_sample_data["edge_inverse"][
@@ -311,7 +326,7 @@ class HomogeneousSampleReader(SampleReader):
             metadata = (
                 input_index,
                 edge_inverse.view(2, -1),
-                None,
+                edge_label,
                 None,  # TODO this will eventually include time
             )
 
@@ -469,26 +484,45 @@ class BaseSampler:
     ]:
         src = index.row
         dst = index.col
+        input_id = index.input_id
+        neg_batch_size = 0
         if neg_sampling:
+            # Sample every negative subset at once.
             # TODO handle temporal sampling (node_time)
             src_neg, dst_neg = neg_sample(
                 self.__graph_store,
                 index.row,
                 index.col,
+                self.__batch_size,
                 neg_sampling,
                 None,  # src_time,
                 None,  # src_node_time,
             )
             if neg_sampling.is_binary():
-                src = torch.cat([src, src_neg], dim=0)
-            dst = torch.cat([dst, dst_neg], dim=0)
+                src, _ = neg_cat(src.cuda(), src_neg, self.__batch_size)
+            else:
+                # triplet, cat dst to src so length is the same; will
+                # result in the same set of unique vertices
+                src, _ = neg_cat(src.cuda(), dst_neg, self.__batch_size)
+            dst, neg_batch_size = neg_cat(dst.cuda(), dst_neg, self.__batch_size)
+
+            # Concatenate -1s so the input id tensor lines up and can
+            # be processed by the dist sampler.
+            # When loading the output batch, '-1' will be dropped.
+            input_id, _ = neg_cat(
+                input_id,
+                torch.full(
+                    (dst_neg.numel(),), -1, dtype=torch.int64, device=input_id.device
+                ),
+                self.__batch_size,
+            )
 
         # TODO for temporal sampling, node times have to be
         # adjusted here.
         reader = self.__sampler.sample_from_edges(
             torch.stack([src, dst]),  # reverse of usual convention
-            input_id=index.input_id,
-            batch_size=self.__batch_size,
+            input_id=input_id,
+            batch_size=self.__batch_size + neg_batch_size,
             **kwargs,
         )
 

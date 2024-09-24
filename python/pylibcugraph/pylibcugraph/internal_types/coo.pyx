@@ -23,6 +23,10 @@ from pylibcugraph._cugraph_c.coo cimport (
     cugraph_coo_get_edge_id,
     cugraph_coo_get_edge_type,
 )
+from pylibcugraph._cugraph_c.array cimport (
+    cugraph_type_erased_device_array_view_t,
+)
+from pylibcugraph.utils cimport create_cupy_array_view_for_device_ptr
 
 cdef class COO:
     """
@@ -47,7 +51,7 @@ cdef class COO:
     cdef set_ptr(self, cugraph_coo_t* ptr):
         self.c_coo_ptr = ptr
 
-    def get_array(self, cugraph_type_erased_device_array_view_t* ptr):
+    cdef get_array(self, cugraph_type_erased_device_array_view_t* ptr):
         if ptr is NULL:
             return None
 
@@ -60,38 +64,33 @@ cdef class COO:
         if self.c_coo_ptr is NULL:
             raise ValueError("pointer not set, must call set_ptr() with a "
                              "non-NULL value first.")
-        return get_array(
-            <cugraph_type_erased_device_array_view_t*>cugraph_coo_get_sources(self.c_sample_result_ptr)
-        )
+        cdef cugraph_type_erased_device_array_view_t* ptr = cugraph_coo_get_sources(self.c_coo_ptr)
+        return self.get_array(ptr)
 
     def get_destinations(self):
         if self.c_coo_ptr is NULL:
             raise ValueError("pointer not set, must call set_ptr() with a "
                              "non-NULL value first.")
-        return get_array(
-            <cugraph_type_erased_device_array_view_t*>cugraph_coo_get_destinations(self.c_sample_result_ptr)
-        )
+        cdef cugraph_type_erased_device_array_view_t* ptr = cugraph_coo_get_destinations(self.c_coo_ptr)
+        return self.get_array(ptr)
 
     def get_edge_ids(self):
         if self.c_coo_ptr is NULL:
             raise ValueError("pointer not set, must call set_ptr() with a "
                              "non-NULL value first.")
-        return get_array(
-            <cugraph_type_erased_device_array_view_t*>cugraph_coo_get_edge_id(self.c_sample_result_ptr)
-        )
+        cdef cugraph_type_erased_device_array_view_t* ptr = cugraph_coo_get_edge_id(self.c_coo_ptr)
+        return self.get_array(ptr)
 
     def get_edge_types(self):
         if self.c_coo_ptr is NULL:
             raise ValueError("pointer not set, must call set_ptr() with a "
                              "non-NULL value first.")
-        return get_array(
-            <cugraph_type_erased_device_array_view_t*>cugraph_coo_get_edge_type(self.c_sample_result_ptr)
-        )
+        cdef cugraph_type_erased_device_array_view_t* ptr = cugraph_coo_get_edge_type(self.c_coo_ptr)
+        return self.get_array(ptr)
 
     def get_edge_weights(self):
         if self.c_coo_ptr is NULL:
             raise ValueError("pointer not set, must call set_ptr() with a "
                              "non-NULL value first.")
-        return get_array(
-            <cugraph_type_erased_device_array_view_t*>cugraph_coo_get_edge_weights(self.c_sample_result_ptr)
-        )
+        cdef cugraph_type_erased_device_array_view_t* ptr = cugraph_coo_get_edge_weights(self.c_coo_ptr)
+        return self.get_array(ptr)

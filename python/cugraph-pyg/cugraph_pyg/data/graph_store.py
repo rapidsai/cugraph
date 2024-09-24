@@ -159,7 +159,6 @@ class GraphStore(
                     sum(self._num_vertices().values()), dtype="int64"
                 )
                 vertices_array = cupy.array_split(vertices_array, world_size)[rank]
-                print(vertices_array)
 
                 self.__graph = pylibcugraph.MGGraph(
                     self._resource_handle,

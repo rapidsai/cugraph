@@ -32,6 +32,12 @@ from pylibcugraph._cugraph_c.array cimport (
     cugraph_type_erased_host_array_view_create,
     cugraph_type_erased_host_array_view_free,
 )
+from pylibcugraph.resource_handle cimport (
+    ResourceHandle,
+)
+from pylibcugraph.graphs cimport (
+    _GPUGraph,
+)
 from pylibcugraph._cugraph_c.graph cimport (
     cugraph_graph_t,
 )
@@ -43,6 +49,17 @@ from pylibcugraph._cugraph_c.coo cimport (
 )
 from pylibcugraph.internal_types.coo cimport (
     COO,
+)
+from pylibcugraph.utils cimport (
+    assert_success,
+    assert_CAI_type,
+    create_cugraph_type_erased_device_array_view_from_py_obj,
+)
+from pylibcugraph._cugraph_c.random cimport (
+    cugraph_rng_state_t
+)
+from pylibcugraph.random cimport (
+    CuGraphRandomState
 )
 
 def negative_sampling(ResourceHandle resource_handle,
@@ -115,7 +132,7 @@ def negative_sampling(ResourceHandle resource_handle,
         resource_handle.c_resource_handle_ptr
     )
 
-    cdef cugraph_graph_t* c_graph_ptr = input_graph.c_graph_ptr
+    cdef cugraph_graph_t* c_graph_ptr = graph.c_graph_ptr
 
     cdef bool_t c_remove_duplicates = remove_duplicates
     cdef bool_t c_remove_false_negatives = remove_false_negatives
@@ -135,24 +152,25 @@ def negative_sampling(ResourceHandle resource_handle,
         create_cugraph_type_erased_device_array_view_from_py_obj(dst_bias)
 
     cdef cugraph_coo_t* result_ptr
-    cdef cugraph_error_code_t* err_ptr
+    cdef cugraph_error_t* err_ptr
+    cdef cugraph_error_code_t error_code
 
     error_code = cugraph_negative_sampling(
         c_resource_handle_ptr,
-        cg_rng_state.rng_state_ptr,
+        rng_state_ptr,
         c_graph_ptr,
-        num_samples,
         vertices_ptr,
         src_bias_ptr,
         dst_bias_ptr,
+        num_samples,
         c_remove_duplicates,
-        c_remove_false_negatives
+        c_remove_false_negatives,
         c_exact_number_of_samples,
         c_do_expensive_check,
         &result_ptr,
         &err_ptr,
     )
-    assert_success(error_code, error_ptr, "cugraph_negative_sampling")
+    assert_success(error_code, err_ptr, "cugraph_negative_sampling")
 
     coo = COO()
     coo.set_ptr(result_ptr)

@@ -131,7 +131,7 @@ def test_link_neighbor_loader_basic(
 @pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
 @pytest.mark.sg
 @pytest.mark.parametrize("batch_size", [1, 2])
-def test_link_neighbor_loader_negative_sampling(batch_size):
+def test_link_neighbor_loader_negative_sampling_basic(batch_size):
     num_edges = 62
     num_nodes = 19
     select_edges = 17
@@ -153,12 +153,44 @@ def test_link_neighbor_loader_negative_sampling(batch_size):
         num_neighbors=[3, 3, 3],
         edge_label_index=elx,
         batch_size=batch_size,
+        neg_sampling="binary",
         shuffle=False,
     )
 
     elx = torch.tensor_split(elx, eix.numel() // batch_size, dim=1)
     for i, batch in enumerate(loader):
-        assert (
-            batch.input_id.cpu() == torch.arange(i * batch_size, (i + 1) * batch_size)
-        ).all()
-        assert (elx[i] == batch.n_id[batch.edge_label_index.cpu()]).all()
+        assert batch.edge_label[0] == 1.0
+
+
+@pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
+@pytest.mark.sg
+@pytest.mark.parametrize("batch_size", [1, 2])
+def test_link_neighbor_loader_negative_sampling_uneven(batch_size):
+    num_edges = 62
+    num_nodes = 19
+    select_edges = 17
+
+    graph_store = GraphStore()
+    feature_store = TensorDictFeatureStore()
+
+    eix = torch.randperm(num_edges)[:select_edges]
+    graph_store[("n", "e", "n"), "coo"] = torch.stack(
+        [
+            torch.randint(0, num_nodes, (num_edges,)),
+            torch.randint(0, num_nodes, (num_edges,)),
+        ]
+    )
+
+    elx = graph_store[("n", "e", "n"), "coo"][:, eix]
+    loader = cugraph_pyg.loader.LinkNeighborLoader(
+        (feature_store, graph_store),
+        num_neighbors=[3, 3, 3],
+        edge_label_index=elx,
+        batch_size=batch_size,
+        neg_sampling=torch_geometric.sampler.NegativeSampling("binary", amount=0.1),
+        shuffle=False,
+    )
+
+    elx = torch.tensor_split(elx, eix.numel() // batch_size, dim=1)
+    for i, batch in enumerate(loader):
+        assert batch.edge_label[0] == 1.0

@@ -118,7 +118,7 @@ class LinkLoader:
                 " and is not supported in cuGraph-PyG."
             )
 
-        neg_sampling = torch_geometric.sampler.NegativeSamling.cast(neg_sampling)
+        neg_sampling = torch_geometric.sampler.NegativeSampling.cast(neg_sampling)
 
         (
             input_type,
