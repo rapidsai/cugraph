@@ -11,8 +11,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import cupy as cp
+import networkx as nx
 
 import nx_cugraph as nxcg
+from nx_cugraph import _nxver
 
 from ..utils import networkx_algorithm
 from ._utils import (
@@ -42,4 +44,7 @@ def caveman_graph(l, k):  # noqa: E741
     dst_cliques.extend(dst_clique + i * k for i in range(1, l))
     src_indices = cp.hstack(src_cliques)
     dst_indices = cp.hstack(dst_cliques)
-    return nxcg.Graph.from_coo(l * k, src_indices, dst_indices)
+    use_compat_graph = _nxver < (3, 3) or nx.config.backends.cugraph.use_compat_graphs
+    return nxcg.CudaGraph.from_coo(
+        l * k, src_indices, dst_indices, use_compat_graph=use_compat_graph
+    )
