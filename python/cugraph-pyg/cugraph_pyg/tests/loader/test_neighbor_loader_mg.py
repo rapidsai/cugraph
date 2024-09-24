@@ -96,7 +96,6 @@ def run_test_neighbor_loader_mg(rank, uid, world_size, specify_size):
     cugraph_comms_shutdown()
 
 
-@pytest.mark.skip(reason="asdf")
 @pytest.mark.parametrize("specify_size", [True, False])
 @pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
 @pytest.mark.mg
@@ -166,7 +165,6 @@ def run_test_neighbor_loader_biased_mg(rank, uid, world_size):
     cugraph_comms_shutdown()
 
 
-@pytest.mark.skip(reason="asdf")
 @pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
 @pytest.mark.mg
 def test_neighbor_loader_biased_mg():
