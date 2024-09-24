@@ -1,4 +1,4 @@
-# Copyright (c) 2022-2023, NVIDIA CORPORATION.
+# Copyright (c) 2022-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -126,4 +126,4 @@ if __name__ == "__main__":
     st = time.time()
     sampling_func(g, subset_split_idx["train"], labels, train_loader)
     et = time.time()
-    print(f"Sampling time taken  = {et-st} s")
+    print(f"Sampling time taken  = {et - st} s")

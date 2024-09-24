@@ -689,6 +689,14 @@ class Graph:
             src_indices = src_indices.astype(index_dtype)
             dst_indices = dst_indices.astype(index_dtype)
 
+        # This sets drop_multi_edges=True for non-multigraph input, which means
+        # the data in self.src_indices and self.dst_indices may not be
+        # identical to that contained in the returned pcl.SGGraph (the returned
+        # SGGraph may have fewer edges since duplicates are dropped). Ideally
+        # self.src_indices and self.dst_indices would be updated to have
+        # duplicate edges removed for non-multigraph instances, but that
+        # requires additional code which would be redundant and likely not as
+        # performant as the code in PLC.
         return plc.SGGraph(
             resource_handle=plc.ResourceHandle(),
             graph_properties=plc.GraphProperties(
@@ -702,6 +710,7 @@ class Graph:
             renumber=False,
             do_expensive_check=False,
             vertices_array=self._node_ids,
+            drop_multi_edges=not self.is_multigraph(),
         )
 
     def _sort_edge_indices(self, primary="src"):

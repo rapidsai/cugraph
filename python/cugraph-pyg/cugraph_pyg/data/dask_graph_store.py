@@ -150,7 +150,7 @@ class CuGraphTensorAttr:
         if key not in self.__dataclass_fields__:
             raise KeyError(key)
         attr = getattr(self, key)
-        return type(attr) != _field_status or attr != _field_status.UNSET
+        return type(attr) is not _field_status or attr != _field_status.UNSET
 
     def is_fully_specified(self):
         """
