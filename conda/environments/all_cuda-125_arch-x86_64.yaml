@@ -49,7 +49,6 @@ dependencies:
 - numpydoc
 - ogb
 - openmpi
-- packaging>=21
 - pandas
 - pre-commit
 - pydantic

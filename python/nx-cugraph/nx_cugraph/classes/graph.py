@@ -20,8 +20,13 @@ import cupy as cp
 import networkx as nx
 import numpy as np
 import pylibcugraph as plc
+from networkx.classes.graph import (
+    _CachedPropertyResetterAdj,
+    _CachedPropertyResetterNode,
+)
 
 import nx_cugraph as nxcg
+from nx_cugraph import _nxver
 
 from ..utils import index_dtype
 
@@ -40,57 +45,246 @@ if TYPE_CHECKING:  # pragma: no cover
         any_ndarray,
     )
 
-__all__ = ["Graph"]
+__all__ = ["CudaGraph", "Graph"]
 
 networkx_api = nxcg.utils.decorators.networkx_class(nx.Graph)
 
+# The "everything" cache key is an internal implementation detail of NetworkX
+# that may change between releases.
+if _nxver < (3, 4):
+    _CACHE_KEY = (
+        True,  # Include all edge values
+        True,  # Include all node values
+        True,  # Include `.graph` attributes
+    )
+else:
+    _CACHE_KEY = (
+        True,  # Include all edge values
+        True,  # Include all node values
+        # `.graph` attributes are always included now
+    )
 
-class Graph:
+# Use to indicate when a full conversion to GPU failed so we don't try again.
+_CANT_CONVERT_TO_GPU = "_CANT_CONVERT_TO_GPU"
+
+
+# `collections.UserDict` was the preferred way to subclass dict, but now
+# subclassing dict directly is much better supported and should work here.
+# This class should only be necessary if the user clears the cache manually.
+class _GraphCache(dict):
+    """Cache that ensures Graph will reify into a NetworkX graph when cleared."""
+
+    _graph: Graph
+
+    def __init__(self, graph: Graph):
+        self._graph = graph
+
+    def clear(self) -> None:
+        self._graph._reify_networkx()
+        super().clear()
+
+
+class Graph(nx.Graph):
     # Tell networkx to dispatch calls with this object to nx-cugraph
     __networkx_backend__: ClassVar[str] = "cugraph"  # nx >=3.2
     __networkx_plugin__: ClassVar[str] = "cugraph"  # nx <3.2
 
+    # Core attributes of NetowkrX graphs that will be copied and cleared as appropriate.
+    # These attributes comprise the edge and node data model for NetworkX graphs.
+    _nx_attrs = ("_node", "_adj")
+
     # Allow networkx dispatch machinery to cache conversions.
     # This means we should clear the cache if we ever mutate the object!
-    __networkx_cache__: dict | None
+    __networkx_cache__: _GraphCache | None
 
     # networkx properties
     graph: dict
-    graph_attr_dict_factory: ClassVar[type] = dict
+    # Should we declare type annotations for the rest?
 
-    # Not networkx properties
-    # We store edge data in COO format with {src,dst}_indices and edge_values.
-    src_indices: cp.ndarray[IndexValue]
-    dst_indices: cp.ndarray[IndexValue]
-    edge_values: dict[AttrKey, cp.ndarray[EdgeValue]]
-    edge_masks: dict[AttrKey, cp.ndarray[bool]]
-    node_values: dict[AttrKey, any_ndarray[NodeValue]]
-    node_masks: dict[AttrKey, any_ndarray[bool]]
-    key_to_id: dict[NodeKey, IndexValue] | None
-    _id_to_key: list[NodeKey] | None
-    _N: int
-    _node_ids: cp.ndarray[IndexValue] | None  # holds plc.SGGraph.vertices_array data
+    # Properties that trigger copying to the CPU
+    def _prepare_setter(self):
+        """Be careful when setting private attributes which may be used during init."""
+        if (
+            # If not present, then this must be in init
+            any(attr not in self.__dict__ for attr in self._nx_attrs)
+            # Already on the CPU
+            or not any(self.__dict__[attr] is None for attr in self._nx_attrs)
+        ):
+            return
+        if self._is_on_gpu:
+            # Copy from GPU to CPU
+            self._reify_networkx()
+            return
+        # Default values
+        for attr in self._nx_attrs:
+            if self.__dict__[attr] is None:
+                if attr == "_succ":
+                    self.__dict__[attr] = self.__dict__["_adj"]
+                else:
+                    self.__dict__[attr] = {}
 
-    # Used by graph._get_plc_graph
-    _plc_type_map: ClassVar[dict[np.dtype, np.dtype]] = {
-        # signed int
-        np.dtype(np.int8): np.dtype(np.float32),
-        np.dtype(np.int16): np.dtype(np.float32),
-        np.dtype(np.int32): np.dtype(np.float64),
-        np.dtype(np.int64): np.dtype(np.float64),  # raise if abs(x) > 2**53
-        # unsigned int
-        np.dtype(np.uint8): np.dtype(np.float32),
-        np.dtype(np.uint16): np.dtype(np.float32),
-        np.dtype(np.uint32): np.dtype(np.float64),
-        np.dtype(np.uint64): np.dtype(np.float64),  # raise if x > 2**53
-        # other
-        np.dtype(np.bool_): np.dtype(np.float32),
-        np.dtype(np.float16): np.dtype(np.float32),
-    }
-    _plc_allowed_edge_types: ClassVar[set[np.dtype]] = {
-        np.dtype(np.float32),
-        np.dtype(np.float64),
-    }
+    @property
+    @networkx_api
+    def _node(self):
+        if (node := self.__dict__["_node"]) is None:
+            self._reify_networkx()
+            node = self.__dict__["_node"]
+        return node
+
+    @_node.setter
+    def _node(self, val):
+        self._prepare_setter()
+        _CachedPropertyResetterNode.__set__(None, self, val)
+        if cache := getattr(self, "__networkx_cache__", None):
+            cache.clear()
+
+    @property
+    @networkx_api
+    def _adj(self):
+        if (adj := self.__dict__["_adj"]) is None:
+            self._reify_networkx()
+            adj = self.__dict__["_adj"]
+        return adj
+
+    @_adj.setter
+    def _adj(self, val):
+        self._prepare_setter()
+        _CachedPropertyResetterAdj.__set__(None, self, val)
+        if cache := getattr(self, "__networkx_cache__", None):
+            cache.clear()
+
+    @property
+    def _is_on_gpu(self) -> bool:
+        """Whether the full graph is on device (in the cache).
+
+        This returns False when only a subset of the graph (such as only
+        edge indices and edge attribute) is on device.
+
+        The graph may be on host (CPU) and device (GPU) at the same time.
+        """
+        cache = getattr(self, "__networkx_cache__", None)
+        if not cache:
+            return False
+        return _CACHE_KEY in cache.get("backends", {}).get("cugraph", {})
+
+    @property
+    def _is_on_cpu(self) -> bool:
+        """Whether the graph is on host as a NetworkX graph.
+
+        This means the core data structures that comprise a NetworkX graph
+        (such as ``G._node`` and ``G._adj``) are present.
+
+        The graph may be on host (CPU) and device (GPU) at the same time.
+        """
+        return self.__dict__["_node"] is not None
+
+    @property
+    def _cudagraph(self):
+        """Return the full ``CudaGraph`` on device, computing if necessary, or None."""
+        nx_cache = getattr(self, "__networkx_cache__", None)
+        if nx_cache is None:
+            nx_cache = {}
+        elif _CANT_CONVERT_TO_GPU in nx_cache:
+            return None
+        cache = nx_cache.setdefault("backends", {}).setdefault("cugraph", {})
+        if (Gcg := cache.get(_CACHE_KEY)) is not None:
+            if isinstance(Gcg, Graph):
+                # This shouldn't happen during normal use, but be extra-careful anyway
+                return Gcg._cudagraph
+            return Gcg
+        if self.__dict__["_node"] is None:
+            raise RuntimeError(
+                f"{type(self).__name__} cannot be converted to the GPU, because it is "
+                "not on the CPU! This is not supposed to be possible. If you believe "
+                "you have found a bug, please report a minimum reproducible example to "
+                "https://github.com/rapidsai/cugraph/issues/new/choose"
+            )
+        try:
+            Gcg = nxcg.from_networkx(
+                self, preserve_edge_attrs=True, preserve_node_attrs=True
+            )
+        except Exception:
+            # Should we warn that the full graph can't be on GPU?
+            nx_cache[_CANT_CONVERT_TO_GPU] = True
+            return None
+        Gcg.graph = self.graph
+        cache[_CACHE_KEY] = Gcg
+        return Gcg
+
+    @_cudagraph.setter
+    def _cudagraph(self, val, *, clear_cpu=True):
+        """Set the full ``CudaGraph`` for this graph, or remove from device if None."""
+        if (cache := getattr(self, "__networkx_cache__", None)) is None:
+            # Should we warn?
+            return
+        # TODO: pay close attention to when we should clear the cache, since
+        # this may or may not be a mutation.
+        cache = cache.setdefault("backends", {}).setdefault("cugraph", {})
+        if val is None:
+            cache.pop(_CACHE_KEY, None)
+        else:
+            self.graph = val.graph
+            cache[_CACHE_KEY] = val
+            if clear_cpu:
+                for key in self._nx_attrs:
+                    self.__dict__[key] = None
+
+    @nx.Graph.name.setter
+    def name(self, s):
+        # Don't clear the cache when setting the name, since `.graph` is shared.
+        # There is a very small risk here for the cache to become (slightly)
+        # insconsistent if graphs from other backends are cached.
+        self.graph["name"] = s
+
+    @classmethod
+    @networkx_api
+    def is_directed(cls) -> bool:
+        return False
+
+    @classmethod
+    @networkx_api
+    def is_multigraph(cls) -> bool:
+        return False
+
+    @classmethod
+    def to_cudagraph_class(cls) -> type[CudaGraph]:
+        return CudaGraph
+
+    @classmethod
+    @networkx_api
+    def to_directed_class(cls) -> type[nxcg.DiGraph]:
+        return nxcg.DiGraph
+
+    @classmethod
+    def to_networkx_class(cls) -> type[nx.Graph]:
+        return nx.Graph
+
+    @classmethod
+    @networkx_api
+    def to_undirected_class(cls) -> type[Graph]:
+        return Graph
+
+    def __init__(self, incoming_graph_data=None, **attr):
+        super().__init__(incoming_graph_data, **attr)
+        self.__networkx_cache__ = _GraphCache(self)
+
+    def _reify_networkx(self) -> None:
+        """Copy graph to host (CPU) if necessary."""
+        if self.__dict__["_node"] is None:
+            # After we make this into an nx graph, we rely on the cache being correct
+            Gcg = self._cudagraph
+            G = nxcg.to_networkx(Gcg)
+            for key in self._nx_attrs:
+                self.__dict__[key] = G.__dict__[key]
+
+    def _become(self, other: Graph):
+        if self.__class__ is not other.__class__:
+            raise TypeError(
+                "Attempting to update graph inplace with graph of different type!"
+            )
+        # Begin with the simplest implementation; do we need to do more?
+        self.__dict__.update(other.__dict__)
+        return self
 
     ####################
     # Creation methods #
@@ -109,9 +303,10 @@ class Graph:
         *,
         key_to_id: dict[NodeKey, IndexValue] | None = None,
         id_to_key: list[NodeKey] | None = None,
+        use_compat_graph: bool | None = None,
         **attr,
-    ) -> Graph:
-        new_graph = object.__new__(cls)
+    ) -> Graph | CudaGraph:
+        new_graph = object.__new__(cls.to_cudagraph_class())
         new_graph.__networkx_cache__ = {}
         new_graph.src_indices = src_indices
         new_graph.dst_indices = dst_indices
@@ -173,7 +368,8 @@ class Graph:
         isolates = nxcg.algorithms.isolate._isolates(new_graph)
         if len(isolates) > 0:
             new_graph._node_ids = cp.arange(new_graph._N, dtype=index_dtype)
-
+        if use_compat_graph or use_compat_graph is None and issubclass(cls, Graph):
+            new_graph = new_graph._to_compat_graph()
         return new_graph
 
     @classmethod
@@ -188,8 +384,9 @@ class Graph:
         *,
         key_to_id: dict[NodeKey, IndexValue] | None = None,
         id_to_key: list[NodeKey] | None = None,
+        use_compat_graph: bool | None = None,
         **attr,
-    ) -> Graph:
+    ) -> Graph | CudaGraph:
         N = indptr.size - 1
         src_indices = cp.array(
             # cp.repeat is slow to use here, so use numpy instead
@@ -205,6 +402,7 @@ class Graph:
             node_masks,
             key_to_id=key_to_id,
             id_to_key=id_to_key,
+            use_compat_graph=use_compat_graph,
             **attr,
         )
 
@@ -220,8 +418,9 @@ class Graph:
         *,
         key_to_id: dict[NodeKey, IndexValue] | None = None,
         id_to_key: list[NodeKey] | None = None,
+        use_compat_graph: bool | None = None,
         **attr,
-    ) -> Graph:
+    ) -> Graph | CudaGraph:
         N = indptr.size - 1
         dst_indices = cp.array(
             # cp.repeat is slow to use here, so use numpy instead
@@ -237,6 +436,7 @@ class Graph:
             node_masks,
             key_to_id=key_to_id,
             id_to_key=id_to_key,
+            use_compat_graph=use_compat_graph,
             **attr,
         )
 
@@ -254,8 +454,9 @@ class Graph:
         *,
         key_to_id: dict[NodeKey, IndexValue] | None = None,
         id_to_key: list[NodeKey] | None = None,
+        use_compat_graph: bool | None = None,
         **attr,
-    ) -> Graph:
+    ) -> Graph | CudaGraph:
         src_indices = cp.array(
             # cp.repeat is slow to use here, so use numpy instead
             np.repeat(compressed_srcs.get(), cp.diff(indptr).get())
@@ -270,6 +471,7 @@ class Graph:
             node_masks,
             key_to_id=key_to_id,
             id_to_key=id_to_key,
+            use_compat_graph=use_compat_graph,
             **attr,
         )
 
@@ -287,8 +489,9 @@ class Graph:
         *,
         key_to_id: dict[NodeKey, IndexValue] | None = None,
         id_to_key: list[NodeKey] | None = None,
+        use_compat_graph: bool | None = None,
         **attr,
-    ) -> Graph:
+    ) -> Graph | CudaGraph:
         dst_indices = cp.array(
             # cp.repeat is slow to use here, so use numpy instead
             np.repeat(compressed_dsts.get(), cp.diff(indptr).get())
@@ -303,13 +506,75 @@ class Graph:
             node_masks,
             key_to_id=key_to_id,
             id_to_key=id_to_key,
+            use_compat_graph=use_compat_graph,
             **attr,
         )
 
-    def __new__(cls, incoming_graph_data=None, **attr) -> Graph:
+
+class CudaGraph:
+    # Tell networkx to dispatch calls with this object to nx-cugraph
+    __networkx_backend__: ClassVar[str] = "cugraph"  # nx >=3.2
+    __networkx_plugin__: ClassVar[str] = "cugraph"  # nx <3.2
+
+    # Allow networkx dispatch machinery to cache conversions.
+    # This means we should clear the cache if we ever mutate the object!
+    __networkx_cache__: dict | None
+
+    # networkx properties
+    graph: dict
+    graph_attr_dict_factory: ClassVar[type] = dict
+
+    # Not networkx properties
+    # We store edge data in COO format with {src,dst}_indices and edge_values.
+    src_indices: cp.ndarray[IndexValue]
+    dst_indices: cp.ndarray[IndexValue]
+    edge_values: dict[AttrKey, cp.ndarray[EdgeValue]]
+    edge_masks: dict[AttrKey, cp.ndarray[bool]]
+    node_values: dict[AttrKey, any_ndarray[NodeValue]]
+    node_masks: dict[AttrKey, any_ndarray[bool]]
+    key_to_id: dict[NodeKey, IndexValue] | None
+    _id_to_key: list[NodeKey] | None
+    _N: int
+    _node_ids: cp.ndarray[IndexValue] | None  # holds plc.SGGraph.vertices_array data
+
+    # Used by graph._get_plc_graph
+    _plc_type_map: ClassVar[dict[np.dtype, np.dtype]] = {
+        # signed int
+        np.dtype(np.int8): np.dtype(np.float32),
+        np.dtype(np.int16): np.dtype(np.float32),
+        np.dtype(np.int32): np.dtype(np.float64),
+        np.dtype(np.int64): np.dtype(np.float64),  # raise if abs(x) > 2**53
+        # unsigned int
+        np.dtype(np.uint8): np.dtype(np.float32),
+        np.dtype(np.uint16): np.dtype(np.float32),
+        np.dtype(np.uint32): np.dtype(np.float64),
+        np.dtype(np.uint64): np.dtype(np.float64),  # raise if x > 2**53
+        # other
+        np.dtype(np.bool_): np.dtype(np.float32),
+        np.dtype(np.float16): np.dtype(np.float32),
+    }
+    _plc_allowed_edge_types: ClassVar[set[np.dtype]] = {
+        np.dtype(np.float32),
+        np.dtype(np.float64),
+    }
+
+    ####################
+    # Creation methods #
+    ####################
+
+    from_coo = classmethod(Graph.from_coo.__func__)
+    from_csr = classmethod(Graph.from_csr.__func__)
+    from_csc = classmethod(Graph.from_csc.__func__)
+    from_dcsr = classmethod(Graph.from_dcsr.__func__)
+    from_dcsc = classmethod(Graph.from_dcsc.__func__)
+
+    def __new__(cls, incoming_graph_data=None, **attr) -> CudaGraph:
         if incoming_graph_data is None:
             new_graph = cls.from_coo(
-                0, cp.empty(0, index_dtype), cp.empty(0, index_dtype)
+                0,
+                cp.empty(0, index_dtype),
+                cp.empty(0, index_dtype),
+                use_compat_graph=False,
             )
         elif incoming_graph_data.__class__ is cls:
             new_graph = incoming_graph_data.copy()
@@ -318,34 +583,30 @@ class Graph:
         else:
             raise NotImplementedError
         new_graph.graph.update(attr)
+        # We could return Graph here (if configured), but let's not for now
         return new_graph
 
     #################
     # Class methods #
     #################
 
-    @classmethod
-    @networkx_api
-    def is_directed(cls) -> bool:
-        return False
+    is_directed = classmethod(Graph.is_directed.__func__)
+    is_multigraph = classmethod(Graph.is_multigraph.__func__)
+    to_cudagraph_class = classmethod(Graph.to_cudagraph_class.__func__)
+    to_networkx_class = classmethod(Graph.to_networkx_class.__func__)
 
     @classmethod
     @networkx_api
-    def is_multigraph(cls) -> bool:
-        return False
+    def to_directed_class(cls) -> type[nxcg.CudaDiGraph]:
+        return nxcg.CudaDiGraph
 
     @classmethod
     @networkx_api
-    def to_directed_class(cls) -> type[nxcg.DiGraph]:
-        return nxcg.DiGraph
+    def to_undirected_class(cls) -> type[CudaGraph]:
+        return CudaGraph
 
     @classmethod
-    def to_networkx_class(cls) -> type[nx.Graph]:
-        return nx.Graph
-
-    @classmethod
-    @networkx_api
-    def to_undirected_class(cls) -> type[Graph]:
+    def _to_compat_graph_class(cls) -> type[Graph]:
         return Graph
 
     ##############
@@ -438,7 +699,7 @@ class Graph:
             cache.clear()
 
     @networkx_api
-    def copy(self, as_view: bool = False) -> Graph:
+    def copy(self, as_view: bool = False) -> CudaGraph:
         # Does shallow copy in networkx
         return self._copy(as_view, self.__class__)
 
@@ -534,13 +795,18 @@ class Graph:
         return int(cp.count_nonzero(self.src_indices <= self.dst_indices))
 
     @networkx_api
-    def to_directed(self, as_view: bool = False) -> nxcg.DiGraph:
+    def to_directed(self, as_view: bool = False) -> nxcg.CudaDiGraph:
         return self._copy(as_view, self.to_directed_class())
 
     @networkx_api
-    def to_undirected(self, as_view: bool = False) -> Graph:
+    def to_undirected(self, as_view: bool = False) -> CudaGraph:
         # Does deep copy in networkx
         return self._copy(as_view, self.to_undirected_class())
+
+    def _to_compat_graph(self) -> Graph:
+        rv = self._to_compat_graph_class()()
+        rv._cudagraph = self
+        return rv
 
     # Not implemented...
     # adj, adjacency, add_edge, add_edges_from, add_node,
@@ -552,8 +818,8 @@ class Graph:
     # Private methods #
     ###################
 
-    def _copy(self, as_view: bool, cls: type[Graph], reverse: bool = False):
-        # DRY warning: see also MultiGraph._copy
+    def _copy(self, as_view: bool, cls: type[CudaGraph], reverse: bool = False):
+        # DRY warning: see also CudaMultiGraph._copy
         src_indices = self.src_indices
         dst_indices = self.dst_indices
         edge_values = self.edge_values
@@ -593,6 +859,7 @@ class Graph:
             node_masks,
             key_to_id=key_to_id,
             id_to_key=id_to_key,
+            use_compat_graph=False,
         )
         if as_view:
             rv.graph = self.graph
@@ -714,7 +981,7 @@ class Graph:
         )
 
     def _sort_edge_indices(self, primary="src"):
-        # DRY warning: see also MultiGraph._sort_edge_indices
+        # DRY warning: see also CudaMultiGraph._sort_edge_indices
         if primary == "src":
             stacked = cp.vstack((self.dst_indices, self.src_indices))
         elif primary == "dst":
@@ -736,7 +1003,7 @@ class Graph:
             {key: val[indices] for key, val in self.edge_masks.items()}
         )
 
-    def _become(self, other: Graph):
+    def _become(self, other: CudaGraph):
         if self.__class__ is not other.__class__:
             raise TypeError(
                 "Attempting to update graph inplace with graph of different type!"

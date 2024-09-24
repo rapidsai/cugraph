@@ -47,7 +47,7 @@ def _create_Gs():
 @pytest.mark.parametrize("Gnx", _create_Gs())
 @pytest.mark.parametrize("reciprocal", [False, True])
 def test_to_undirected_directed(Gnx, reciprocal):
-    Gcg = nxcg.DiGraph(Gnx)
+    Gcg = nxcg.CudaDiGraph(Gnx)
     assert_graphs_equal(Gnx, Gcg)
     Hnx1 = Gnx.to_undirected(reciprocal=reciprocal)
     Hcg1 = Gcg.to_undirected(reciprocal=reciprocal)
@@ -62,6 +62,6 @@ def test_multidigraph_to_undirected():
     Gnx.add_edge(0, 1)
     Gnx.add_edge(0, 1)
     Gnx.add_edge(1, 0)
-    Gcg = nxcg.MultiDiGraph(Gnx)
+    Gcg = nxcg.CudaMultiDiGraph(Gnx)
     with pytest.raises(NotImplementedError):
         Gcg.to_undirected()
