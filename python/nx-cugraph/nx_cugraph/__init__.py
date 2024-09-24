@@ -12,6 +12,11 @@
 # limitations under the License.
 from networkx.exception import *
 
+from _nx_cugraph._version import __git_commit__, __version__
+from _nx_cugraph import _check_networkx_version
+
+_nxver: tuple[int, int] = _check_networkx_version()
+
 from . import utils
 
 from . import classes
@@ -32,7 +37,10 @@ from .generators import *
 from . import algorithms
 from .algorithms import *
 
-from _nx_cugraph._version import __git_commit__, __version__
-from _nx_cugraph import _check_networkx_version
+from .interface import BackendInterface
 
-_check_networkx_version()
+BackendInterface.Graph = classes.Graph
+BackendInterface.DiGraph = classes.DiGraph
+BackendInterface.MultiGraph = classes.MultiGraph
+BackendInterface.MultiDiGraph = classes.MultiDiGraph
+del BackendInterface

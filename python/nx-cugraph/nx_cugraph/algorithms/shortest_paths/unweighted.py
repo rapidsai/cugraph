@@ -17,6 +17,7 @@ import networkx as nx
 import numpy as np
 import pylibcugraph as plc
 
+from nx_cugraph import _nxver
 from nx_cugraph.convert import _to_graph
 from nx_cugraph.utils import _groupby, index_dtype, networkx_algorithm
 
@@ -43,7 +44,7 @@ def single_source_shortest_path_length(G, source, cutoff=None):
 def single_target_shortest_path_length(G, target, cutoff=None):
     G = _to_graph(G)
     rv = _bfs(G, target, cutoff, "Target", return_type="length")
-    if nx.__version__[:3] <= "3.4":
+    if _nxver <= (3, 4):
         return iter(rv.items())
     return rv
 
@@ -61,7 +62,7 @@ def bidirectional_shortest_path(G, source, target):
     # TODO PERF: do bidirectional traversal in core
     G = _to_graph(G)
     if source not in G or target not in G:
-        if nx.__version__[:3] <= "3.3":
+        if _nxver <= (3, 3):
             raise nx.NodeNotFound(
                 f"Either source {source} or target {target} is not in G"
             )

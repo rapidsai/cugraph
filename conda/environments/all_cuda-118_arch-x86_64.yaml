@@ -44,7 +44,6 @@ dependencies:
 - nvcc_linux-64=11.8
 - ogb
 - openmpi
-- packaging>=21
 - pandas
 - pre-commit
 - pydantic

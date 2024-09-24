@@ -18,6 +18,7 @@ import sys
 import networkx as nx
 
 import nx_cugraph as nxcg
+from nx_cugraph import _nxver
 
 
 class BackendInterface:
@@ -32,11 +33,19 @@ class BackendInterface:
                     "edge_attrs and weight arguments should not both be given"
                 )
             edge_attrs = {weight: 1}
-        return nxcg.from_networkx(graph, *args, edge_attrs=edge_attrs, **kwargs)
+        return nxcg.from_networkx(
+            graph,
+            *args,
+            edge_attrs=edge_attrs,
+            use_compat_graph=_nxver < (3, 3)
+            or nx.config.backends.cugraph.use_compat_graphs,
+            **kwargs,
+        )
 
     @staticmethod
     def convert_to_nx(obj, *, name: str | None = None):
-        if isinstance(obj, nxcg.Graph):
+        if isinstance(obj, nxcg.CudaGraph):
+            # Observe that this does not try to convert Graph!
             return nxcg.to_networkx(obj)
         return obj
 
@@ -62,18 +71,31 @@ class BackendInterface:
                 return (testname, frozenset({classname, filename}))
             return (testname, frozenset({filename}))
 
+        use_compat_graph = (
+            _nxver < (3, 3) or nx.config.backends.cugraph.use_compat_graphs
+        )
+        fallback = use_compat_graph or nx.utils.backends._dispatchable._fallback_to_nx
+
         # Reasons for xfailing
+        # For nx version <= 3.1
         no_weights = "weighted implementation not currently supported"
         no_multigraph = "multigraphs not currently supported"
-        louvain_different = "Louvain may be different due to RNG"
-        no_string_dtype = "string edge values not currently supported"
-        sssp_path_different = "sssp may choose a different valid path"
-        no_object_dtype_for_edges = (
-            "Edges don't support object dtype (lists, strings, etc.)"
-        )
-        tuple_elements_preferred = "elements are tuples instead of lists"
+        # For nx version <= 3.2
         nx_cugraph_in_test_setup = (
             "nx-cugraph Graph is incompatible in test setup in nx versions < 3.3"
+        )
+        # For all versions
+        louvain_different = "Louvain may be different due to RNG"
+        sssp_path_different = "sssp may choose a different valid path"
+        tuple_elements_preferred = "elements are tuples instead of lists"
+        no_mixed_dtypes_for_nodes = (
+            # This one is tricky b/c we don't raise; all dtypes are treated as str
+            "mixed dtypes (str, int, float) for single node property not supported"
+        )
+        # These shouldn't fail if using Graph or falling back to networkx
+        no_string_dtype = "string edge values not currently supported"
+        no_object_dtype_for_edges = (
+            "Edges don't support object dtype (lists, strings, etc.)"
         )
 
         xfail = {
@@ -99,38 +121,6 @@ class BackendInterface:
                 "test_gh6787_and_edge_attribute_names"
             ): sssp_path_different,
             key(
-                "test_graph_hashing.py:test_isomorphic_edge_attr"
-            ): no_object_dtype_for_edges,
-            key(
-                "test_graph_hashing.py:test_isomorphic_edge_attr_and_node_attr"
-            ): no_object_dtype_for_edges,
-            key(
-                "test_graph_hashing.py:test_isomorphic_edge_attr_subgraph_hash"
-            ): no_object_dtype_for_edges,
-            key(
-                "test_graph_hashing.py:"
-                "test_isomorphic_edge_attr_and_node_attr_subgraph_hash"
-            ): no_object_dtype_for_edges,
-            key(
-                "test_summarization.py:TestSNAPNoEdgeTypes.test_summary_graph"
-            ): no_object_dtype_for_edges,
-            key(
-                "test_summarization.py:TestSNAPUndirected.test_summary_graph"
-            ): no_object_dtype_for_edges,
-            key(
-                "test_summarization.py:TestSNAPDirected.test_summary_graph"
-            ): no_object_dtype_for_edges,
-            key("test_gexf.py:TestGEXF.test_relabel"): no_object_dtype_for_edges,
-            key(
-                "test_gml.py:TestGraph.test_parse_gml_cytoscape_bug"
-            ): no_object_dtype_for_edges,
-            key("test_gml.py:TestGraph.test_parse_gml"): no_object_dtype_for_edges,
-            key("test_gml.py:TestGraph.test_read_gml"): no_object_dtype_for_edges,
-            key("test_gml.py:TestGraph.test_data_types"): no_object_dtype_for_edges,
-            key(
-                "test_gml.py:TestPropertyLists.test_reading_graph_with_list_property"
-            ): no_object_dtype_for_edges,
-            key(
                 "test_relabel.py:"
                 "test_relabel_preserve_node_order_partial_mapping_with_copy_false"
             ): "Node order is preserved when relabeling with partial mapping",
@@ -138,48 +128,107 @@ class BackendInterface:
                 "test_gml.py:"
                 "TestPropertyLists.test_reading_graph_with_single_element_list_property"
             ): tuple_elements_preferred,
-            key(
-                "test_relabel.py:"
-                "TestRelabel.test_relabel_multidigraph_inout_merge_nodes"
-            ): no_string_dtype,
-            key(
-                "test_relabel.py:TestRelabel.test_relabel_multigraph_merge_inplace"
-            ): no_string_dtype,
-            key(
-                "test_relabel.py:TestRelabel.test_relabel_multidigraph_merge_inplace"
-            ): no_string_dtype,
-            key(
-                "test_relabel.py:TestRelabel.test_relabel_multidigraph_inout_copy"
-            ): no_string_dtype,
-            key(
-                "test_relabel.py:TestRelabel.test_relabel_multigraph_merge_copy"
-            ): no_string_dtype,
-            key(
-                "test_relabel.py:TestRelabel.test_relabel_multidigraph_merge_copy"
-            ): no_string_dtype,
-            key(
-                "test_relabel.py:TestRelabel.test_relabel_multigraph_nonnumeric_key"
-            ): no_string_dtype,
-            key("test_contraction.py:test_multigraph_path"): no_object_dtype_for_edges,
-            key(
-                "test_contraction.py:test_directed_multigraph_path"
-            ): no_object_dtype_for_edges,
-            key(
-                "test_contraction.py:test_multigraph_blockmodel"
-            ): no_object_dtype_for_edges,
-            key(
-                "test_summarization.py:TestSNAPUndirectedMulti.test_summary_graph"
-            ): no_string_dtype,
-            key(
-                "test_summarization.py:TestSNAPDirectedMulti.test_summary_graph"
-            ): no_string_dtype,
         }
+        if not fallback:
+            xfail.update(
+                {
+                    key(
+                        "test_graph_hashing.py:test_isomorphic_edge_attr"
+                    ): no_object_dtype_for_edges,
+                    key(
+                        "test_graph_hashing.py:test_isomorphic_edge_attr_and_node_attr"
+                    ): no_object_dtype_for_edges,
+                    key(
+                        "test_graph_hashing.py:test_isomorphic_edge_attr_subgraph_hash"
+                    ): no_object_dtype_for_edges,
+                    key(
+                        "test_graph_hashing.py:"
+                        "test_isomorphic_edge_attr_and_node_attr_subgraph_hash"
+                    ): no_object_dtype_for_edges,
+                    key(
+                        "test_summarization.py:TestSNAPNoEdgeTypes.test_summary_graph"
+                    ): no_object_dtype_for_edges,
+                    key(
+                        "test_summarization.py:TestSNAPUndirected.test_summary_graph"
+                    ): no_object_dtype_for_edges,
+                    key(
+                        "test_summarization.py:TestSNAPDirected.test_summary_graph"
+                    ): no_object_dtype_for_edges,
+                    key(
+                        "test_gexf.py:TestGEXF.test_relabel"
+                    ): no_object_dtype_for_edges,
+                    key(
+                        "test_gml.py:TestGraph.test_parse_gml_cytoscape_bug"
+                    ): no_object_dtype_for_edges,
+                    key(
+                        "test_gml.py:TestGraph.test_parse_gml"
+                    ): no_object_dtype_for_edges,
+                    key(
+                        "test_gml.py:TestGraph.test_read_gml"
+                    ): no_object_dtype_for_edges,
+                    key(
+                        "test_gml.py:TestGraph.test_data_types"
+                    ): no_object_dtype_for_edges,
+                    key(
+                        "test_gml.py:"
+                        "TestPropertyLists.test_reading_graph_with_list_property"
+                    ): no_object_dtype_for_edges,
+                    key(
+                        "test_relabel.py:"
+                        "TestRelabel.test_relabel_multidigraph_inout_merge_nodes"
+                    ): no_string_dtype,
+                    key(
+                        "test_relabel.py:"
+                        "TestRelabel.test_relabel_multigraph_merge_inplace"
+                    ): no_string_dtype,
+                    key(
+                        "test_relabel.py:"
+                        "TestRelabel.test_relabel_multidigraph_merge_inplace"
+                    ): no_string_dtype,
+                    key(
+                        "test_relabel.py:"
+                        "TestRelabel.test_relabel_multidigraph_inout_copy"
+                    ): no_string_dtype,
+                    key(
+                        "test_relabel.py:TestRelabel.test_relabel_multigraph_merge_copy"
+                    ): no_string_dtype,
+                    key(
+                        "test_relabel.py:"
+                        "TestRelabel.test_relabel_multidigraph_merge_copy"
+                    ): no_string_dtype,
+                    key(
+                        "test_relabel.py:"
+                        "TestRelabel.test_relabel_multigraph_nonnumeric_key"
+                    ): no_string_dtype,
+                    key(
+                        "test_contraction.py:test_multigraph_path"
+                    ): no_object_dtype_for_edges,
+                    key(
+                        "test_contraction.py:test_directed_multigraph_path"
+                    ): no_object_dtype_for_edges,
+                    key(
+                        "test_contraction.py:test_multigraph_blockmodel"
+                    ): no_object_dtype_for_edges,
+                    key(
+                        "test_summarization.py:"
+                        "TestSNAPUndirectedMulti.test_summary_graph"
+                    ): no_string_dtype,
+                    key(
+                        "test_summarization.py:TestSNAPDirectedMulti.test_summary_graph"
+                    ): no_string_dtype,
+                }
+            )
+        else:
+            xfail.update(
+                {
+                    key(
+                        "test_gml.py:"
+                        "TestPropertyLists.test_reading_graph_with_list_property"
+                    ): no_mixed_dtypes_for_nodes,
+                }
+            )
 
-        from packaging.version import parse
-
-        nxver = parse(nx.__version__)
-
-        if nxver.major == 3 and nxver.minor <= 2:
+        if _nxver <= (3, 2):
             xfail.update(
                 {
                     # NetworkX versions prior to 3.2.1 have tests written to
@@ -216,7 +265,7 @@ class BackendInterface:
                 }
             )
 
-        if nxver.major == 3 and nxver.minor <= 1:
+        if _nxver <= (3, 1):
             # MAINT: networkx 3.0, 3.1
             # NetworkX 3.2 added the ability to "fallback to nx" if backend algorithms
             # raise NotImplementedError or `can_run` returns False. The tests below
@@ -332,24 +381,25 @@ class BackendInterface:
                 xfail[key("test_louvain.py:test_threshold")] = (
                     "Louvain does not support seed parameter"
                 )
-            if nxver.major == 3 and nxver.minor >= 2:
-                xfail.update(
-                    {
-                        key(
-                            "test_convert_pandas.py:TestConvertPandas."
-                            "test_from_edgelist_multi_attr_incl_target"
-                        ): no_string_dtype,
-                        key(
-                            "test_convert_pandas.py:TestConvertPandas."
-                            "test_from_edgelist_multidigraph_and_edge_attr"
-                        ): no_string_dtype,
-                        key(
-                            "test_convert_pandas.py:TestConvertPandas."
-                            "test_from_edgelist_int_attr_name"
-                        ): no_string_dtype,
-                    }
-                )
-                if nxver.minor == 2:
+            if _nxver >= (3, 2):
+                if not fallback:
+                    xfail.update(
+                        {
+                            key(
+                                "test_convert_pandas.py:TestConvertPandas."
+                                "test_from_edgelist_multi_attr_incl_target"
+                            ): no_string_dtype,
+                            key(
+                                "test_convert_pandas.py:TestConvertPandas."
+                                "test_from_edgelist_multidigraph_and_edge_attr"
+                            ): no_string_dtype,
+                            key(
+                                "test_convert_pandas.py:TestConvertPandas."
+                                "test_from_edgelist_int_attr_name"
+                            ): no_string_dtype,
+                        }
+                    )
+                if _nxver[1] == 2:
                     different_iteration_order = "Different graph data iteration order"
                     xfail.update(
                         {
@@ -366,7 +416,7 @@ class BackendInterface:
                             ): different_iteration_order,
                         }
                     )
-                elif nxver.minor >= 3:
+                elif _nxver[1] >= 3:
                     xfail.update(
                         {
                             key("test_louvain.py:test_max_level"): louvain_different,

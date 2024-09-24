@@ -15,6 +15,7 @@ import networkx as nx
 import numpy as np
 import pylibcugraph as plc
 
+from nx_cugraph import _nxver
 from nx_cugraph.convert import _to_graph
 from nx_cugraph.utils import (
     _dtype_param,
@@ -53,7 +54,7 @@ def hits(
     if nstart is not None:
         nstart = G._dict_to_nodearray(nstart, 0, dtype)
     if max_iter <= 0:
-        if nx.__version__[:3] <= "3.2":
+        if _nxver <= (3, 2):
             raise ValueError("`maxiter` must be a positive integer.")
         raise nx.PowerIterationFailedConvergence(max_iter)
     try:
