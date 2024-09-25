@@ -14,12 +14,9 @@ import importlib
 import inspect
 
 import networkx as nx
-from packaging.version import parse
 
 import nx_cugraph as nxcg
 from nx_cugraph.utils import networkx_algorithm
-
-nxver = parse(nx.__version__)
 
 
 def test_match_signature_and_names():

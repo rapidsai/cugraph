@@ -1,4 +1,4 @@
-# Copyright (c) 2023, NVIDIA CORPORATION.
+# Copyright (c) 2023-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -11,6 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import warnings
 import tarfile
 
 import urllib.request
@@ -108,7 +109,11 @@ def load_resultset(resultset_name, resultset_download_url):
         if not compressed_file_path.exists():
             urllib.request.urlretrieve(resultset_download_url, compressed_file_path)
         tar = tarfile.open(str(compressed_file_path), "r:gz")
-        tar.extractall(str(curr_resultset_download_dir))
+        # TODO: pass filter="fully_trusted" when minimum supported Python version >=3.12
+        #  ref: https://docs.python.org/3/library/tarfile.html#tarfile-extraction-filter
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", category=DeprecationWarning)
+            tar.extractall(str(curr_resultset_download_dir))
         tar.close()
 
     # FIXME: This assumes separator is " ", but should this be configurable?

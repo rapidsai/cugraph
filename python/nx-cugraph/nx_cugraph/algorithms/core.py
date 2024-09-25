@@ -15,6 +15,7 @@ import networkx as nx
 import pylibcugraph as plc
 
 import nx_cugraph as nxcg
+from nx_cugraph import _nxver
 from nx_cugraph.convert import _to_undirected_graph
 from nx_cugraph.utils import (
     _get_int_dtype,
@@ -58,9 +59,12 @@ def _(G):
 @networkx_algorithm(is_incomplete=True, version_added="23.12", _plc="k_truss_subgraph")
 def k_truss(G, k):
     if is_nx := isinstance(G, nx.Graph):
+        is_compat_graph = isinstance(G, nxcg.Graph)
         G = nxcg.from_networkx(G, preserve_all_attrs=True)
+    else:
+        is_compat_graph = False
     if nxcg.number_of_selfloops(G) > 0:
-        if nx.__version__[:3] <= "3.2":
+        if _nxver <= (3, 2):
             exc_class = nx.NetworkXError
         else:
             exc_class = nx.NetworkXNotImplemented
@@ -128,6 +132,7 @@ def k_truss(G, k):
         node_values,
         node_masks,
         key_to_id=key_to_id,
+        use_compat_graph=is_compat_graph,
     )
     new_graph.graph.update(G.graph)
     return new_graph

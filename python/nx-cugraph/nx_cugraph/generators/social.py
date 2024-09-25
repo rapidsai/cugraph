@@ -11,9 +11,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import cupy as cp
+import networkx as nx
 import numpy as np
 
 import nx_cugraph as nxcg
+from nx_cugraph import _nxver
 
 from ..utils import index_dtype, networkx_algorithm
 
@@ -77,7 +79,8 @@ def davis_southern_women_graph():
         "E13", "E14",
     ]
     # fmt: on
-    return nxcg.Graph.from_coo(
+    use_compat_graph = _nxver < (3, 3) or nx.config.backends.cugraph.use_compat_graphs
+    return nxcg.CudaGraph.from_coo(
         32,
         src_indices,
         dst_indices,
@@ -85,6 +88,7 @@ def davis_southern_women_graph():
         id_to_key=women + events,
         top=women,
         bottom=events,
+        use_compat_graph=use_compat_graph,
     )
 
 
@@ -111,7 +115,14 @@ def florentine_families_graph():
         "Salviati", "Strozzi", "Tornabuoni"
     ]
     # fmt: on
-    return nxcg.Graph.from_coo(15, src_indices, dst_indices, id_to_key=nodes)
+    use_compat_graph = _nxver < (3, 3) or nx.config.backends.cugraph.use_compat_graphs
+    return nxcg.CudaGraph.from_coo(
+        15,
+        src_indices,
+        dst_indices,
+        id_to_key=nodes,
+        use_compat_graph=use_compat_graph,
+    )
 
 
 @networkx_algorithm(version_added="23.12")
@@ -165,13 +176,15 @@ def karate_club_graph():
         "Officer", "Officer", "Officer", "Officer", "Officer", "Officer",
     ])
     # fmt: on
-    return nxcg.Graph.from_coo(
+    use_compat_graph = _nxver < (3, 3) or nx.config.backends.cugraph.use_compat_graphs
+    return nxcg.CudaGraph.from_coo(
         34,
         src_indices,
         dst_indices,
         edge_values={"weight": weights},
         node_values={"club": clubs},
         name="Zachary's Karate Club",
+        use_compat_graph=use_compat_graph,
     )
 
 
@@ -289,6 +302,12 @@ def les_miserables_graph():
         "Zephine",
     ]
     # fmt: on
-    return nxcg.Graph.from_coo(
-        77, src_indices, dst_indices, edge_values={"weight": weights}, id_to_key=nodes
+    use_compat_graph = _nxver < (3, 3) or nx.config.backends.cugraph.use_compat_graphs
+    return nxcg.CudaGraph.from_coo(
+        77,
+        src_indices,
+        dst_indices,
+        edge_values={"weight": weights},
+        id_to_key=nodes,
+        use_compat_graph=use_compat_graph,
     )

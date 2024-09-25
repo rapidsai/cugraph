@@ -17,7 +17,7 @@ import nx_cugraph as nxcg
 
 def assert_graphs_equal(Gnx, Gcg):
     assert isinstance(Gnx, nx.Graph)
-    assert isinstance(Gcg, nxcg.Graph)
+    assert isinstance(Gcg, nxcg.CudaGraph)
     assert (a := Gnx.number_of_nodes()) == (b := Gcg.number_of_nodes()), (a, b)
     assert (a := Gnx.number_of_edges()) == (b := Gcg.number_of_edges()), (a, b)
     assert (a := Gnx.is_directed()) == (b := Gcg.is_directed()), (a, b)
