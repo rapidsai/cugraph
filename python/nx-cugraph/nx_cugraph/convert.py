@@ -29,9 +29,6 @@ from nx_cugraph import _nxver
 from .utils import index_dtype, networkx_algorithm
 from .utils.misc import _And_NotImplementedError, pairwise
 
-if _nxver >= (3, 4):
-    from networkx.utils.backends import _get_cache_key, _get_from_cache, _set_to_cache
-
 if TYPE_CHECKING:  # pragma: no cover
     from nx_cugraph.typing import AttrKey, Dtype, EdgeValue, NodeValue, any_ndarray
 
@@ -195,24 +192,6 @@ def from_networkx(
                 "you have found a bug, please report a minimum reproducible example to "
                 "https://github.com/rapidsai/cugraph/issues/new/choose"
             )
-        if _nxver >= (3, 4):
-            cache_key = _get_cache_key(
-                edge_attrs=edge_attrs,
-                node_attrs=node_attrs,
-                preserve_edge_attrs=preserve_edge_attrs,
-                preserve_node_attrs=preserve_node_attrs,
-                preserve_graph_attrs=preserve_graph_attrs,
-            )
-            cache = getattr(graph, "__networkx_cache__", None)
-            if cache is not None:
-                cache = cache.setdefault("backends", {}).setdefault("cugraph", {})
-                compat_key, rv = _get_from_cache(cache, cache_key)
-                if rv is not None:
-                    if isinstance(rv, nxcg.Graph):
-                        # This shouldn't happen during normal use, but be extra-careful
-                        rv = rv._cudagraph
-                    if rv is not None:
-                        return rv
 
     if preserve_all_attrs:
         preserve_edge_attrs = True
@@ -562,11 +541,6 @@ def from_networkx(
         )
     if preserve_graph_attrs:
         rv.graph.update(graph.graph)  # deepcopy?
-    if _nxver >= (3, 4) and isinstance(graph, nxcg.Graph) and cache is not None:
-        # Make sure this conversion is added to the cache, and make all of
-        # our graphs share the same `.graph` attribute for consistency.
-        rv.graph = graph.graph
-        _set_to_cache(cache, cache_key, rv)
     if (
         use_compat_graph
         # Use compat graphs by default
