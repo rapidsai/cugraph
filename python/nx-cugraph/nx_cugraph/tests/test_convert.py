@@ -13,12 +13,9 @@
 import cupy as cp
 import networkx as nx
 import pytest
-from packaging.version import parse
 
 import nx_cugraph as nxcg
 from nx_cugraph import interface
-
-nxver = parse(nx.__version__)
 
 
 @pytest.mark.parametrize(

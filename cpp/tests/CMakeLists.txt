@@ -220,6 +220,7 @@ function(ConfigureTestMG CMAKE_TEST_NAME)
         GPUS ${GPU_COUNT}
         PERCENT 100
         INSTALL_COMPONENT_SET testing_mg
+        INSTALL_TARGET ${CMAKE_TEST_NAME}
     )
     set_tests_properties(${CMAKE_TEST_NAME} PROPERTIES LABELS "CUGRAPH_MG")
 
@@ -302,6 +303,7 @@ function(ConfigureCTestMG CMAKE_TEST_NAME)
         GPUS ${GPU_COUNT}
         PERCENT 100
         INSTALL_COMPONENT_SET testing_mg
+        INSTALL_TARGET ${CMAKE_TEST_NAME}
     )
     set_tests_properties(${CMAKE_TEST_NAME} PROPERTIES LABELS "CUGRAPH_C_MG")
 

@@ -16,9 +16,13 @@ from functools import partial, update_wrapper
 from textwrap import dedent
 
 import networkx as nx
+from networkx import NetworkXError
 from networkx.utils.decorators import nodes_or_number, not_implemented_for
 
+from nx_cugraph import _nxver
 from nx_cugraph.interface import BackendInterface
+
+from .misc import _And_NotImplementedError
 
 try:
     from networkx.utils.backends import _registered_algorithms
@@ -44,6 +48,7 @@ class networkx_algorithm:
     version_added: str
     is_incomplete: bool
     is_different: bool
+    _fallback: bool
     _plc_names: set[str] | None
 
     def __new__(
@@ -59,6 +64,7 @@ class networkx_algorithm:
         version_added: str,  # Required
         is_incomplete: bool = False,  # See self.extra_doc for details if True
         is_different: bool = False,  # See self.extra_doc for details if True
+        fallback: bool = False,  # Change non-nx exceptions to NotImplementedError
         _plc: str | set[str] | None = None,  # Hidden from user, may be removed someday
     ):
         if func is None:
@@ -70,10 +76,11 @@ class networkx_algorithm:
                 version_added=version_added,
                 is_incomplete=is_incomplete,
                 is_different=is_different,
+                fallback=fallback,
                 _plc=_plc,
             )
         instance = object.__new__(cls)
-        if nodes_or_number is not None and nx.__version__[:3] > "3.2":
+        if nodes_or_number is not None and _nxver > (3, 2):
             func = nx.utils.decorators.nodes_or_number(nodes_or_number)(func)
         # update_wrapper sets __wrapped__, which will be used for the signature
         update_wrapper(instance, func)
@@ -100,6 +107,7 @@ class networkx_algorithm:
         instance.version_added = version_added
         instance.is_incomplete = is_incomplete
         instance.is_different = is_different
+        instance.fallback = fallback
         # The docstring on our function is added to the NetworkX docstring.
         instance.extra_doc = (
             dedent(func.__doc__.lstrip("\n").rstrip()) if func.__doc__ else None
@@ -113,7 +121,7 @@ class networkx_algorithm:
         # Set methods so they are in __dict__
         instance._can_run = instance._can_run
         instance._should_run = instance._should_run
-        if nodes_or_number is not None and nx.__version__[:3] <= "3.2":
+        if nodes_or_number is not None and _nxver <= (3, 2):
             instance = nx.utils.decorators.nodes_or_number(nodes_or_number)(instance)
         return instance
 
@@ -136,7 +144,14 @@ class networkx_algorithm:
         self.should_run = func
 
     def __call__(self, /, *args, **kwargs):
-        return self.__wrapped__(*args, **kwargs)
+        if not self.fallback:
+            return self.__wrapped__(*args, **kwargs)
+        try:
+            return self.__wrapped__(*args, **kwargs)
+        except NetworkXError:
+            raise
+        except Exception as exc:
+            raise _And_NotImplementedError(exc) from exc
 
     def __reduce__(self):
         return _restore_networkx_dispatched, (self.name,)

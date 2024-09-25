@@ -16,23 +16,50 @@ import networkx as nx
 
 import nx_cugraph as nxcg
 
-from .digraph import DiGraph
-from .multigraph import MultiGraph
+from .digraph import CudaDiGraph, DiGraph
+from .graph import Graph
+from .multigraph import CudaMultiGraph, MultiGraph
 
-__all__ = ["MultiDiGraph"]
+__all__ = ["CudaMultiDiGraph", "MultiDiGraph"]
 
 networkx_api = nxcg.utils.decorators.networkx_class(nx.MultiDiGraph)
 
 
-class MultiDiGraph(MultiGraph, DiGraph):
+class MultiDiGraph(nx.MultiDiGraph, MultiGraph, DiGraph):
+    name = Graph.name
+    _node = Graph._node
+    _adj = DiGraph._adj
+    _succ = DiGraph._succ
+    _pred = DiGraph._pred
+
     @classmethod
     @networkx_api
     def is_directed(cls) -> bool:
         return True
 
     @classmethod
+    @networkx_api
+    def is_multigraph(cls) -> bool:
+        return True
+
+    @classmethod
+    def to_cudagraph_class(cls) -> type[CudaMultiDiGraph]:
+        return CudaMultiDiGraph
+
+    @classmethod
     def to_networkx_class(cls) -> type[nx.MultiDiGraph]:
         return nx.MultiDiGraph
+
+
+class CudaMultiDiGraph(CudaMultiGraph, CudaDiGraph):
+    is_directed = classmethod(MultiDiGraph.is_directed.__func__)
+    is_multigraph = classmethod(MultiDiGraph.is_multigraph.__func__)
+    to_cudagraph_class = classmethod(MultiDiGraph.to_cudagraph_class.__func__)
+    to_networkx_class = classmethod(MultiDiGraph.to_networkx_class.__func__)
+
+    @classmethod
+    def _to_compat_graph_class(cls) -> type[MultiDiGraph]:
+        return MultiDiGraph
 
     ##########################
     # NetworkX graph methods #

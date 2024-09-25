@@ -22,7 +22,7 @@ import numpy as np
 import nx_cugraph as nxcg
 
 from ..utils import index_dtype
-from .graph import Graph
+from .graph import CudaGraph, Graph, _GraphCache
 
 if TYPE_CHECKING:
     from nx_cugraph.typing import (
@@ -34,12 +34,251 @@ if TYPE_CHECKING:
         NodeValue,
         any_ndarray,
     )
-__all__ = ["MultiGraph"]
+__all__ = ["MultiGraph", "CudaMultiGraph"]
 
 networkx_api = nxcg.utils.decorators.networkx_class(nx.MultiGraph)
 
 
-class MultiGraph(Graph):
+class MultiGraph(nx.MultiGraph, Graph):
+    name = Graph.name
+    _node = Graph._node
+    _adj = Graph._adj
+
+    @classmethod
+    @networkx_api
+    def is_directed(cls) -> bool:
+        return False
+
+    @classmethod
+    @networkx_api
+    def is_multigraph(cls) -> bool:
+        return True
+
+    @classmethod
+    def to_cudagraph_class(cls) -> type[CudaMultiGraph]:
+        return CudaMultiGraph
+
+    @classmethod
+    @networkx_api
+    def to_directed_class(cls) -> type[nxcg.MultiDiGraph]:
+        return nxcg.MultiDiGraph
+
+    @classmethod
+    def to_networkx_class(cls) -> type[nx.MultiGraph]:
+        return nx.MultiGraph
+
+    @classmethod
+    @networkx_api
+    def to_undirected_class(cls) -> type[MultiGraph]:
+        return MultiGraph
+
+    def __init__(self, incoming_graph_data=None, multigraph_input=None, **attr):
+        super().__init__(incoming_graph_data, multigraph_input, **attr)
+        self.__networkx_cache__ = _GraphCache(self)
+
+    ####################
+    # Creation methods #
+    ####################
+
+    @classmethod
+    def from_coo(
+        cls,
+        N: int,
+        src_indices: cp.ndarray[IndexValue],
+        dst_indices: cp.ndarray[IndexValue],
+        edge_indices: cp.ndarray[IndexValue] | None = None,
+        edge_values: dict[AttrKey, cp.ndarray[EdgeValue]] | None = None,
+        edge_masks: dict[AttrKey, cp.ndarray[bool]] | None = None,
+        node_values: dict[AttrKey, any_ndarray[NodeValue]] | None = None,
+        node_masks: dict[AttrKey, any_ndarray[bool]] | None = None,
+        *,
+        key_to_id: dict[NodeKey, IndexValue] | None = None,
+        id_to_key: list[NodeKey] | None = None,
+        edge_keys: list[EdgeKey] | None = None,
+        use_compat_graph: bool | None = None,
+        **attr,
+    ) -> MultiGraph | CudaMultiGraph:
+        new_graph = super(cls.to_undirected_class(), cls).from_coo(
+            N,
+            src_indices,
+            dst_indices,
+            edge_values,
+            edge_masks,
+            node_values,
+            node_masks,
+            key_to_id=key_to_id,
+            id_to_key=id_to_key,
+            use_compat_graph=False,
+            **attr,
+        )
+        new_graph.edge_indices = edge_indices
+        new_graph.edge_keys = edge_keys
+        # Easy and fast sanity checks
+        if (
+            new_graph.edge_keys is not None
+            and len(new_graph.edge_keys) != src_indices.size
+        ):
+            raise ValueError
+        if use_compat_graph or use_compat_graph is None and issubclass(cls, Graph):
+            new_graph = new_graph._to_compat_graph()
+        return new_graph
+
+    @classmethod
+    def from_csr(
+        cls,
+        indptr: cp.ndarray[IndexValue],
+        dst_indices: cp.ndarray[IndexValue],
+        edge_indices: cp.ndarray[IndexValue] | None = None,
+        edge_values: dict[AttrKey, cp.ndarray[EdgeValue]] | None = None,
+        edge_masks: dict[AttrKey, cp.ndarray[bool]] | None = None,
+        node_values: dict[AttrKey, any_ndarray[NodeValue]] | None = None,
+        node_masks: dict[AttrKey, any_ndarray[bool]] | None = None,
+        *,
+        key_to_id: dict[NodeKey, IndexValue] | None = None,
+        id_to_key: list[NodeKey] | None = None,
+        edge_keys: list[EdgeKey] | None = None,
+        use_compat_graph: bool | None = None,
+        **attr,
+    ) -> MultiGraph | CudaMultiGraph:
+        N = indptr.size - 1
+        src_indices = cp.array(
+            # cp.repeat is slow to use here, so use numpy instead
+            np.repeat(np.arange(N, dtype=index_dtype), cp.diff(indptr).get())
+        )
+        return cls.from_coo(
+            N,
+            src_indices,
+            dst_indices,
+            edge_indices,
+            edge_values,
+            edge_masks,
+            node_values,
+            node_masks,
+            key_to_id=key_to_id,
+            id_to_key=id_to_key,
+            edge_keys=edge_keys,
+            use_compat_graph=use_compat_graph,
+            **attr,
+        )
+
+    @classmethod
+    def from_csc(
+        cls,
+        indptr: cp.ndarray[IndexValue],
+        src_indices: cp.ndarray[IndexValue],
+        edge_indices: cp.ndarray[IndexValue] | None = None,
+        edge_values: dict[AttrKey, cp.ndarray[EdgeValue]] | None = None,
+        edge_masks: dict[AttrKey, cp.ndarray[bool]] | None = None,
+        node_values: dict[AttrKey, any_ndarray[NodeValue]] | None = None,
+        node_masks: dict[AttrKey, any_ndarray[bool]] | None = None,
+        *,
+        key_to_id: dict[NodeKey, IndexValue] | None = None,
+        id_to_key: list[NodeKey] | None = None,
+        edge_keys: list[EdgeKey] | None = None,
+        use_compat_graph: bool | None = None,
+        **attr,
+    ) -> MultiGraph | CudaMultiGraph:
+        N = indptr.size - 1
+        dst_indices = cp.array(
+            # cp.repeat is slow to use here, so use numpy instead
+            np.repeat(np.arange(N, dtype=index_dtype), cp.diff(indptr).get())
+        )
+        return cls.from_coo(
+            N,
+            src_indices,
+            dst_indices,
+            edge_indices,
+            edge_values,
+            edge_masks,
+            node_values,
+            node_masks,
+            key_to_id=key_to_id,
+            id_to_key=id_to_key,
+            edge_keys=edge_keys,
+            use_compat_graph=use_compat_graph,
+            **attr,
+        )
+
+    @classmethod
+    def from_dcsr(
+        cls,
+        N: int,
+        compressed_srcs: cp.ndarray[IndexValue],
+        indptr: cp.ndarray[IndexValue],
+        dst_indices: cp.ndarray[IndexValue],
+        edge_indices: cp.ndarray[IndexValue] | None = None,
+        edge_values: dict[AttrKey, cp.ndarray[EdgeValue]] | None = None,
+        edge_masks: dict[AttrKey, cp.ndarray[bool]] | None = None,
+        node_values: dict[AttrKey, any_ndarray[NodeValue]] | None = None,
+        node_masks: dict[AttrKey, any_ndarray[bool]] | None = None,
+        *,
+        key_to_id: dict[NodeKey, IndexValue] | None = None,
+        id_to_key: list[NodeKey] | None = None,
+        edge_keys: list[EdgeKey] | None = None,
+        use_compat_graph: bool | None = None,
+        **attr,
+    ) -> MultiGraph | CudaMultiGraph:
+        src_indices = cp.array(
+            # cp.repeat is slow to use here, so use numpy instead
+            np.repeat(compressed_srcs.get(), cp.diff(indptr).get())
+        )
+        return cls.from_coo(
+            N,
+            src_indices,
+            dst_indices,
+            edge_indices,
+            edge_values,
+            edge_masks,
+            node_values,
+            node_masks,
+            key_to_id=key_to_id,
+            id_to_key=id_to_key,
+            edge_keys=edge_keys,
+            use_compat_graph=use_compat_graph,
+            **attr,
+        )
+
+    @classmethod
+    def from_dcsc(
+        cls,
+        N: int,
+        compressed_dsts: cp.ndarray[IndexValue],
+        indptr: cp.ndarray[IndexValue],
+        src_indices: cp.ndarray[IndexValue],
+        edge_indices: cp.ndarray[IndexValue] | None = None,
+        edge_values: dict[AttrKey, cp.ndarray[EdgeValue]] | None = None,
+        edge_masks: dict[AttrKey, cp.ndarray[bool]] | None = None,
+        node_values: dict[AttrKey, any_ndarray[NodeValue]] | None = None,
+        node_masks: dict[AttrKey, any_ndarray[bool]] | None = None,
+        *,
+        key_to_id: dict[NodeKey, IndexValue] | None = None,
+        id_to_key: list[NodeKey] | None = None,
+        edge_keys: list[EdgeKey] | None = None,
+        use_compat_graph: bool | None = None,
+        **attr,
+    ) -> MultiGraph | CudaGraph:
+        dst_indices = cp.array(
+            # cp.repeat is slow to use here, so use numpy instead
+            np.repeat(compressed_dsts.get(), cp.diff(indptr).get())
+        )
+        return cls.from_coo(
+            N,
+            src_indices,
+            dst_indices,
+            edge_indices,
+            edge_values,
+            edge_masks,
+            node_values,
+            node_masks,
+            key_to_id=key_to_id,
+            id_to_key=id_to_key,
+            edge_keys=edge_keys,
+            use_compat_graph=use_compat_graph,
+            **attr,
+        )
+
+
+class CudaMultiGraph(CudaGraph):
     # networkx properties
     edge_key_dict_factory: ClassVar[type] = dict
 
@@ -65,194 +304,15 @@ class MultiGraph(Graph):
     # Creation methods #
     ####################
 
-    @classmethod
-    def from_coo(
-        cls,
-        N: int,
-        src_indices: cp.ndarray[IndexValue],
-        dst_indices: cp.ndarray[IndexValue],
-        edge_indices: cp.ndarray[IndexValue] | None = None,
-        edge_values: dict[AttrKey, cp.ndarray[EdgeValue]] | None = None,
-        edge_masks: dict[AttrKey, cp.ndarray[bool]] | None = None,
-        node_values: dict[AttrKey, any_ndarray[NodeValue]] | None = None,
-        node_masks: dict[AttrKey, any_ndarray[bool]] | None = None,
-        *,
-        key_to_id: dict[NodeKey, IndexValue] | None = None,
-        id_to_key: list[NodeKey] | None = None,
-        edge_keys: list[EdgeKey] | None = None,
-        **attr,
-    ) -> MultiGraph:
-        new_graph = super().from_coo(
-            N,
-            src_indices,
-            dst_indices,
-            edge_values,
-            edge_masks,
-            node_values,
-            node_masks,
-            key_to_id=key_to_id,
-            id_to_key=id_to_key,
-            **attr,
-        )
-        new_graph.edge_indices = edge_indices
-        new_graph.edge_keys = edge_keys
-        # Easy and fast sanity checks
-        if (
-            new_graph.edge_keys is not None
-            and len(new_graph.edge_keys) != src_indices.size
-        ):
-            raise ValueError
-        return new_graph
-
-    @classmethod
-    def from_csr(
-        cls,
-        indptr: cp.ndarray[IndexValue],
-        dst_indices: cp.ndarray[IndexValue],
-        edge_indices: cp.ndarray[IndexValue] | None = None,
-        edge_values: dict[AttrKey, cp.ndarray[EdgeValue]] | None = None,
-        edge_masks: dict[AttrKey, cp.ndarray[bool]] | None = None,
-        node_values: dict[AttrKey, any_ndarray[NodeValue]] | None = None,
-        node_masks: dict[AttrKey, any_ndarray[bool]] | None = None,
-        *,
-        key_to_id: dict[NodeKey, IndexValue] | None = None,
-        id_to_key: list[NodeKey] | None = None,
-        edge_keys: list[EdgeKey] | None = None,
-        **attr,
-    ) -> MultiGraph:
-        N = indptr.size - 1
-        src_indices = cp.array(
-            # cp.repeat is slow to use here, so use numpy instead
-            np.repeat(np.arange(N, dtype=index_dtype), cp.diff(indptr).get())
-        )
-        return cls.from_coo(
-            N,
-            src_indices,
-            dst_indices,
-            edge_indices,
-            edge_values,
-            edge_masks,
-            node_values,
-            node_masks,
-            key_to_id=key_to_id,
-            id_to_key=id_to_key,
-            edge_keys=edge_keys,
-            **attr,
-        )
-
-    @classmethod
-    def from_csc(
-        cls,
-        indptr: cp.ndarray[IndexValue],
-        src_indices: cp.ndarray[IndexValue],
-        edge_indices: cp.ndarray[IndexValue] | None = None,
-        edge_values: dict[AttrKey, cp.ndarray[EdgeValue]] | None = None,
-        edge_masks: dict[AttrKey, cp.ndarray[bool]] | None = None,
-        node_values: dict[AttrKey, any_ndarray[NodeValue]] | None = None,
-        node_masks: dict[AttrKey, any_ndarray[bool]] | None = None,
-        *,
-        key_to_id: dict[NodeKey, IndexValue] | None = None,
-        id_to_key: list[NodeKey] | None = None,
-        edge_keys: list[EdgeKey] | None = None,
-        **attr,
-    ) -> MultiGraph:
-        N = indptr.size - 1
-        dst_indices = cp.array(
-            # cp.repeat is slow to use here, so use numpy instead
-            np.repeat(np.arange(N, dtype=index_dtype), cp.diff(indptr).get())
-        )
-        return cls.from_coo(
-            N,
-            src_indices,
-            dst_indices,
-            edge_indices,
-            edge_values,
-            edge_masks,
-            node_values,
-            node_masks,
-            key_to_id=key_to_id,
-            id_to_key=id_to_key,
-            edge_keys=edge_keys,
-            **attr,
-        )
-
-    @classmethod
-    def from_dcsr(
-        cls,
-        N: int,
-        compressed_srcs: cp.ndarray[IndexValue],
-        indptr: cp.ndarray[IndexValue],
-        dst_indices: cp.ndarray[IndexValue],
-        edge_indices: cp.ndarray[IndexValue] | None = None,
-        edge_values: dict[AttrKey, cp.ndarray[EdgeValue]] | None = None,
-        edge_masks: dict[AttrKey, cp.ndarray[bool]] | None = None,
-        node_values: dict[AttrKey, any_ndarray[NodeValue]] | None = None,
-        node_masks: dict[AttrKey, any_ndarray[bool]] | None = None,
-        *,
-        key_to_id: dict[NodeKey, IndexValue] | None = None,
-        id_to_key: list[NodeKey] | None = None,
-        edge_keys: list[EdgeKey] | None = None,
-        **attr,
-    ) -> MultiGraph:
-        src_indices = cp.array(
-            # cp.repeat is slow to use here, so use numpy instead
-            np.repeat(compressed_srcs.get(), cp.diff(indptr).get())
-        )
-        return cls.from_coo(
-            N,
-            src_indices,
-            dst_indices,
-            edge_indices,
-            edge_values,
-            edge_masks,
-            node_values,
-            node_masks,
-            key_to_id=key_to_id,
-            id_to_key=id_to_key,
-            edge_keys=edge_keys,
-            **attr,
-        )
-
-    @classmethod
-    def from_dcsc(
-        cls,
-        N: int,
-        compressed_dsts: cp.ndarray[IndexValue],
-        indptr: cp.ndarray[IndexValue],
-        src_indices: cp.ndarray[IndexValue],
-        edge_indices: cp.ndarray[IndexValue] | None = None,
-        edge_values: dict[AttrKey, cp.ndarray[EdgeValue]] | None = None,
-        edge_masks: dict[AttrKey, cp.ndarray[bool]] | None = None,
-        node_values: dict[AttrKey, any_ndarray[NodeValue]] | None = None,
-        node_masks: dict[AttrKey, any_ndarray[bool]] | None = None,
-        *,
-        key_to_id: dict[NodeKey, IndexValue] | None = None,
-        id_to_key: list[NodeKey] | None = None,
-        edge_keys: list[EdgeKey] | None = None,
-        **attr,
-    ) -> Graph:
-        dst_indices = cp.array(
-            # cp.repeat is slow to use here, so use numpy instead
-            np.repeat(compressed_dsts.get(), cp.diff(indptr).get())
-        )
-        return cls.from_coo(
-            N,
-            src_indices,
-            dst_indices,
-            edge_indices,
-            edge_values,
-            edge_masks,
-            node_values,
-            node_masks,
-            key_to_id=key_to_id,
-            id_to_key=id_to_key,
-            edge_keys=edge_keys,
-            **attr,
-        )
+    from_coo = classmethod(MultiGraph.from_coo.__func__)
+    from_csr = classmethod(MultiGraph.from_csr.__func__)
+    from_csc = classmethod(MultiGraph.from_csc.__func__)
+    from_dcsr = classmethod(MultiGraph.from_dcsr.__func__)
+    from_dcsc = classmethod(MultiGraph.from_dcsc.__func__)
 
     def __new__(
         cls, incoming_graph_data=None, multigraph_input=None, **attr
-    ) -> MultiGraph:
+    ) -> CudaMultiGraph:
         if isinstance(incoming_graph_data, dict) and multigraph_input is not False:
             new_graph = nxcg.from_networkx(
                 nx.MultiGraph(incoming_graph_data, multigraph_input=multigraph_input),
@@ -267,28 +327,23 @@ class MultiGraph(Graph):
     # Class methods #
     #################
 
-    @classmethod
-    @networkx_api
-    def is_directed(cls) -> bool:
-        return False
+    is_directed = classmethod(MultiGraph.is_directed.__func__)
+    is_multigraph = classmethod(MultiGraph.is_multigraph.__func__)
+    to_cudagraph_class = classmethod(MultiGraph.to_cudagraph_class.__func__)
+    to_networkx_class = classmethod(MultiGraph.to_networkx_class.__func__)
 
     @classmethod
     @networkx_api
-    def is_multigraph(cls) -> bool:
-        return True
+    def to_directed_class(cls) -> type[nxcg.CudaMultiDiGraph]:
+        return nxcg.CudaMultiDiGraph
 
     @classmethod
     @networkx_api
-    def to_directed_class(cls) -> type[nxcg.MultiDiGraph]:
-        return nxcg.MultiDiGraph
+    def to_undirected_class(cls) -> type[CudaMultiGraph]:
+        return CudaMultiGraph
 
     @classmethod
-    def to_networkx_class(cls) -> type[nx.MultiGraph]:
-        return nx.MultiGraph
-
-    @classmethod
-    @networkx_api
-    def to_undirected_class(cls) -> type[MultiGraph]:
+    def _to_compat_graph_class(cls) -> type[MultiGraph]:
         return MultiGraph
 
     ##########################
@@ -308,7 +363,7 @@ class MultiGraph(Graph):
         self.edge_keys = None
 
     @networkx_api
-    def copy(self, as_view: bool = False) -> MultiGraph:
+    def copy(self, as_view: bool = False) -> CudaMultiGraph:
         # Does shallow copy in networkx
         return self._copy(as_view, self.__class__)
 
@@ -391,11 +446,11 @@ class MultiGraph(Graph):
         return any(edge_keys[i] == key for i in indices.tolist())
 
     @networkx_api
-    def to_directed(self, as_view: bool = False) -> nxcg.MultiDiGraph:
+    def to_directed(self, as_view: bool = False) -> nxcg.CudaMultiDiGraph:
         return self._copy(as_view, self.to_directed_class())
 
     @networkx_api
-    def to_undirected(self, as_view: bool = False) -> MultiGraph:
+    def to_undirected(self, as_view: bool = False) -> CudaMultiGraph:
         # Does deep copy in networkx
         return self._copy(as_view, self.to_undirected_class())
 
@@ -403,8 +458,8 @@ class MultiGraph(Graph):
     # Private methods #
     ###################
 
-    def _copy(self, as_view: bool, cls: type[Graph], reverse: bool = False):
-        # DRY warning: see also Graph._copy
+    def _copy(self, as_view: bool, cls: type[CudaGraph], reverse: bool = False):
+        # DRY warning: see also CudaGraph._copy
         src_indices = self.src_indices
         dst_indices = self.dst_indices
         edge_indices = self.edge_indices
@@ -451,6 +506,7 @@ class MultiGraph(Graph):
             key_to_id=key_to_id,
             id_to_key=id_to_key,
             edge_keys=edge_keys,
+            use_compat_graph=False,
         )
         if as_view:
             rv.graph = self.graph
@@ -460,7 +516,7 @@ class MultiGraph(Graph):
         return rv
 
     def _sort_edge_indices(self, primary="src"):
-        # DRY warning: see also Graph._sort_edge_indices
+        # DRY warning: see also CudaGraph._sort_edge_indices
         if self.edge_indices is None and self.edge_keys is None:
             return super()._sort_edge_indices(primary=primary)
         if primary == "src":

@@ -40,7 +40,6 @@ dependencies = [
 
 [project.optional-dependencies]
 test = [
-    "packaging>=21",
     "pandas",
     "pytest",
     "pytest-benchmark",
@@ -170,6 +169,7 @@ external = [
 ]
 ignore = [
     # Would be nice to fix these
+    "B905",  # `zip()` without an explicit `strict=` parameter (Note: possible since py39 was dropped; we should do this!)
     "D100",  # Missing docstring in public module
     "D101",  # Missing docstring in public class
     "D102",  # Missing docstring in public method
@@ -215,6 +215,7 @@ ignore = [
     "SIM105",  # Use contextlib.suppress(...) instead of try-except-pass (Note: try-except-pass is much faster)
     "SIM108",  # Use ternary operator ... instead of if-else-block (Note: if-else better for coverage and sometimes clearer)
     "TRY003",  # Avoid specifying long messages outside the exception class (Note: why?)
+    "UP038",  # Use `X | Y` in `isinstance` call instead of `(X, Y)` (Note: tuple is faster for now)
 
     # Ignored categories
     "C90",  # mccabe (Too strict, but maybe we should make things less complex)
@@ -241,6 +242,7 @@ ignore = [
 # Allow assert, print, RNG, and no docstring
 "nx_cugraph/**/tests/*py" = ["S101", "S311", "T201", "D103", "D100"]
 "_nx_cugraph/__init__.py" = ["E501"]
+"nx_cugraph/__init__.py" = ["E402"]  # Allow module level import not at top of file
 "nx_cugraph/algorithms/**/*py" = ["D205", "D401"]  # Allow flexible docstrings for algorithms
 "nx_cugraph/generators/**/*py" = ["D205", "D401"]  # Allow flexible docstrings for generators
 "nx_cugraph/interface.py" = ["D401"]  # Flexible docstrings
