@@ -41,6 +41,7 @@
 #include <thrust/sort.h>
 #include <thrust/tabulate.h>
 #include <thrust/tuple.h>
+#include <thrust/unique.h>
 
 #include <algorithm>
 #include <numeric>
@@ -76,6 +77,7 @@ inline std::tuple<std::vector<size_t>,
                   std::vector<int>>
 compute_tx_rx_counts_offsets_ranks(raft::comms::comms_t const& comm,
                                    rmm::device_uvector<size_t> const& d_tx_value_counts,
+                                   bool drop_empty_ranks,
                                    rmm::cuda_stream_view stream_view)
 {
   auto const comm_size = comm.get_size();
@@ -111,28 +113,30 @@ compute_tx_rx_counts_offsets_ranks(raft::comms::comms_t const& comm,
   std::partial_sum(tx_counts.begin(), tx_counts.end() - 1, tx_offsets.begin() + 1);
   std::partial_sum(rx_counts.begin(), rx_counts.end() - 1, rx_offsets.begin() + 1);
 
-  int num_tx_dst_ranks{0};
-  int num_rx_src_ranks{0};
-  for (int i = 0; i < comm_size; ++i) {
-    if (tx_counts[i] != 0) {
-      tx_counts[num_tx_dst_ranks]    = tx_counts[i];
-      tx_offsets[num_tx_dst_ranks]   = tx_offsets[i];
-      tx_dst_ranks[num_tx_dst_ranks] = tx_dst_ranks[i];
-      ++num_tx_dst_ranks;
+  if (drop_empty_ranks) {
+    int num_tx_dst_ranks{0};
+    int num_rx_src_ranks{0};
+    for (int i = 0; i < comm_size; ++i) {
+      if (tx_counts[i] != 0) {
+        tx_counts[num_tx_dst_ranks]    = tx_counts[i];
+        tx_offsets[num_tx_dst_ranks]   = tx_offsets[i];
+        tx_dst_ranks[num_tx_dst_ranks] = tx_dst_ranks[i];
+        ++num_tx_dst_ranks;
+      }
+      if (rx_counts[i] != 0) {
+        rx_counts[num_rx_src_ranks]    = rx_counts[i];
+        rx_offsets[num_rx_src_ranks]   = rx_offsets[i];
+        rx_src_ranks[num_rx_src_ranks] = rx_src_ranks[i];
+        ++num_rx_src_ranks;
+      }
     }
-    if (rx_counts[i] != 0) {
-      rx_counts[num_rx_src_ranks]    = rx_counts[i];
-      rx_offsets[num_rx_src_ranks]   = rx_offsets[i];
-      rx_src_ranks[num_rx_src_ranks] = rx_src_ranks[i];
-      ++num_rx_src_ranks;
-    }
+    tx_counts.resize(num_tx_dst_ranks);
+    tx_offsets.resize(num_tx_dst_ranks);
+    tx_dst_ranks.resize(num_tx_dst_ranks);
+    rx_counts.resize(num_rx_src_ranks);
+    rx_offsets.resize(num_rx_src_ranks);
+    rx_src_ranks.resize(num_rx_src_ranks);
   }
-  tx_counts.resize(num_tx_dst_ranks);
-  tx_offsets.resize(num_tx_dst_ranks);
-  tx_dst_ranks.resize(num_tx_dst_ranks);
-  rx_counts.resize(num_rx_src_ranks);
-  rx_offsets.resize(num_rx_src_ranks);
-  rx_src_ranks.resize(num_rx_src_ranks);
 
   return std::make_tuple(tx_counts, tx_offsets, tx_dst_ranks, rx_counts, rx_offsets, rx_src_ranks);
 }
@@ -823,6 +827,8 @@ auto shuffle_values(raft::comms::comms_t const& comm,
                     std::vector<size_t> const& tx_value_counts,
                     rmm::cuda_stream_view stream_view)
 {
+  using value_t = typename thrust::iterator_traits<TxValueIterator>::value_type;
+
   auto const comm_size = comm.get_size();
 
   rmm::device_uvector<size_t> d_tx_value_counts(comm_size, stream_view);
@@ -836,11 +842,10 @@ auto shuffle_values(raft::comms::comms_t const& comm,
   std::vector<size_t> rx_offsets{};
   std::vector<int> rx_src_ranks{};
   std::tie(tx_counts, tx_offsets, tx_dst_ranks, rx_counts, rx_offsets, rx_src_ranks) =
-    detail::compute_tx_rx_counts_offsets_ranks(comm, d_tx_value_counts, stream_view);
+    detail::compute_tx_rx_counts_offsets_ranks(comm, d_tx_value_counts, true, stream_view);
 
-  auto rx_value_buffer =
-    allocate_dataframe_buffer<typename thrust::iterator_traits<TxValueIterator>::value_type>(
-      rx_offsets.size() > 0 ? rx_offsets.back() + rx_counts.back() : size_t{0}, stream_view);
+  auto rx_value_buffer = allocate_dataframe_buffer<value_t>(
+    rx_offsets.size() > 0 ? rx_offsets.back() + rx_counts.back() : size_t{0}, stream_view);
 
   // (if num_tx_dst_ranks == num_rx_src_ranks == comm_size).
   device_multicast_sendrecv(comm,
@@ -866,6 +871,100 @@ auto shuffle_values(raft::comms::comms_t const& comm,
   return std::make_tuple(std::move(rx_value_buffer), rx_counts);
 }
 
+// this uses less memory than calling shuffle_values then sort & unique but requires comm.get_size()
+// - 1 communication steps
+template <typename TxValueIterator>
+auto shuffle_and_unique_segment_sorted_values(
+  raft::comms::comms_t const& comm,
+  TxValueIterator
+    segment_sorted_tx_value_first,  // sorted within each segment (segment sizes:
+                                    // tx_value_counts[i], where i = [0, comm_size); and bettter be
+                                    // unique to reduce communication volume
+  std::vector<size_t> const& tx_value_counts,
+  rmm::cuda_stream_view stream_view)
+{
+  using value_t = typename thrust::iterator_traits<TxValueIterator>::value_type;
+
+  auto const comm_rank = comm.get_rank();
+  auto const comm_size = comm.get_size();
+
+  auto sorted_unique_values = allocate_dataframe_buffer<value_t>(0, stream_view);
+  if (comm_size == 1) {
+    resize_dataframe_buffer(sorted_unique_values, tx_value_counts[comm_rank], stream_view);
+    thrust::copy(rmm::exec_policy_nosync(stream_view),
+                 segment_sorted_tx_value_first,
+                 segment_sorted_tx_value_first + tx_value_counts[comm_rank],
+                 get_dataframe_buffer_begin(sorted_unique_values));
+    resize_dataframe_buffer(
+      sorted_unique_values,
+      thrust::distance(get_dataframe_buffer_begin(sorted_unique_values),
+                       thrust::unique(rmm::exec_policy_nosync(stream_view),
+                                      get_dataframe_buffer_begin(sorted_unique_values),
+                                      get_dataframe_buffer_end(sorted_unique_values))),
+      stream_view);
+  } else {
+    rmm::device_uvector<size_t> d_tx_value_counts(comm_size, stream_view);
+    raft::update_device(
+      d_tx_value_counts.data(), tx_value_counts.data(), comm_size, stream_view.value());
+
+    std::vector<size_t> tx_counts{};
+    std::vector<size_t> tx_offsets{};
+    std::vector<size_t> rx_counts{};
+    std::vector<size_t> rx_offsets{};
+    std::tie(tx_counts, tx_offsets, std::ignore, rx_counts, rx_offsets, std::ignore) =
+      detail::compute_tx_rx_counts_offsets_ranks(comm, d_tx_value_counts, false, stream_view);
+
+    d_tx_value_counts.resize(0, stream_view);
+    d_tx_value_counts.shrink_to_fit(stream_view);
+
+    for (int i = 1; i < comm_size; ++i) {
+      auto dst = (comm_rank + i) % comm_size;
+      auto src =
+        static_cast<int>((static_cast<size_t>(comm_rank) + static_cast<size_t>(comm_size - i)) %
+                         static_cast<size_t>(comm_size));
+      auto rx_sorted_values = allocate_dataframe_buffer<value_t>(rx_counts[src], stream_view);
+      device_sendrecv(comm,
+                      segment_sorted_tx_value_first + tx_offsets[dst],
+                      tx_counts[dst],
+                      dst,
+                      get_dataframe_buffer_begin(rx_sorted_values),
+                      rx_counts[src],
+                      src,
+                      stream_view);
+      auto merged_sorted_values = allocate_dataframe_buffer<value_t>(
+        (i == 1 ? tx_counts[comm_rank] : size_dataframe_buffer(sorted_unique_values)) +
+          rx_counts[src],
+        stream_view);
+      if (i == 1) {
+        thrust::merge(
+          rmm::exec_policy_nosync(stream_view),
+          segment_sorted_tx_value_first + tx_offsets[comm_rank],
+          segment_sorted_tx_value_first + (tx_offsets[comm_rank] + tx_counts[comm_rank]),
+          get_dataframe_buffer_begin(rx_sorted_values),
+          get_dataframe_buffer_end(rx_sorted_values),
+          get_dataframe_buffer_begin(merged_sorted_values));
+      } else {
+        thrust::merge(rmm::exec_policy_nosync(stream_view),
+                      get_dataframe_buffer_begin(sorted_unique_values),
+                      get_dataframe_buffer_end(sorted_unique_values),
+                      get_dataframe_buffer_begin(rx_sorted_values),
+                      get_dataframe_buffer_end(rx_sorted_values),
+                      get_dataframe_buffer_begin(merged_sorted_values));
+      }
+      resize_dataframe_buffer(
+        merged_sorted_values,
+        thrust::distance(get_dataframe_buffer_begin(merged_sorted_values),
+                         thrust::unique(rmm::exec_policy_nosync(stream_view),
+                                        get_dataframe_buffer_begin(merged_sorted_values),
+                                        get_dataframe_buffer_end(merged_sorted_values))),
+        stream_view);
+      sorted_unique_values = std::move(merged_sorted_values);
+    }
+  }
+  shrink_to_fit_dataframe_buffer(sorted_unique_values, stream_view);
+  return sorted_unique_values;
+}
+
 template <typename ValueIterator, typename ValueToGPUIdOp>
 auto groupby_gpu_id_and_shuffle_values(raft::comms::comms_t const& comm,
                                        ValueIterator tx_value_first /* [INOUT */,
@@ -889,7 +988,7 @@ auto groupby_gpu_id_and_shuffle_values(raft::comms::comms_t const& comm,
   std::vector<size_t> rx_offsets{};
   std::vector<int> rx_src_ranks{};
   std::tie(tx_counts, tx_offsets, tx_dst_ranks, rx_counts, rx_offsets, rx_src_ranks) =
-    detail::compute_tx_rx_counts_offsets_ranks(comm, d_tx_value_counts, stream_view);
+    detail::compute_tx_rx_counts_offsets_ranks(comm, d_tx_value_counts, true, stream_view);
 
   auto rx_value_buffer =
     allocate_dataframe_buffer<typename thrust::iterator_traits<ValueIterator>::value_type>(
@@ -943,7 +1042,7 @@ auto groupby_gpu_id_and_shuffle_kv_pairs(raft::comms::comms_t const& comm,
   std::vector<size_t> rx_offsets{};
   std::vector<int> rx_src_ranks{};
   std::tie(tx_counts, tx_offsets, tx_dst_ranks, rx_counts, rx_offsets, rx_src_ranks) =
-    detail::compute_tx_rx_counts_offsets_ranks(comm, d_tx_value_counts, stream_view);
+    detail::compute_tx_rx_counts_offsets_ranks(comm, d_tx_value_counts, true, stream_view);
 
   rmm::device_uvector<typename thrust::iterator_traits<VertexIterator>::value_type> rx_keys(
     rx_offsets.size() > 0 ? rx_offsets.back() + rx_counts.back() : size_t{0}, stream_view);
