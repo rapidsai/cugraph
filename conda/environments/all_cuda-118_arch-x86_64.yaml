@@ -33,7 +33,7 @@ dependencies:
 - libraft==24.10.*,>=0.0.0a0
 - librmm==24.10.*,>=0.0.0a0
 - nbsphinx
-- nccl>=2.9.9
+- nccl>=2.18.1.1
 - networkx>=2.5.1
 - networkx>=3.0
 - ninja
