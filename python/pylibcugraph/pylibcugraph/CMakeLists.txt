@@ -54,8 +54,6 @@ set(cython_sources
     triangle_count.pyx
     two_hop_neighbors.pyx
     uniform_neighbor_sample.pyx
-    #neighbor_sample.pyx // Fix me, break the APi into homogeneous nad heterogeneous neighbor sample
-    #biased_neighbor_sample.pyx
     uniform_random_walks.pyx
     utils.pyx
     weakly_connected_components.pyx

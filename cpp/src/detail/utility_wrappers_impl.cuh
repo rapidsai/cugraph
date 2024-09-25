@@ -73,6 +73,22 @@ void sequence_fill(rmm::cuda_stream_view const& stream_view,
 }
 
 template <typename value_t>
+void transform_increment(rmm::cuda_stream_view const& stream_view,
+                         value_t* d_value,
+                         size_t size,
+                         size_t incr)
+{
+  thrust::transform(rmm::exec_policy(stream_view),
+                    d_value,
+                    d_value + size,
+                    d_value,
+                    cuda::proclaim_return_type<value_t>([incr] __device__(value_t value) {
+                      return static_cast<value_t>(value + incr);
+                    }));
+}
+
+
+template <typename value_t>
 void stride_fill(rmm::cuda_stream_view const& stream_view,
                  value_t* d_value,
                  size_t size,

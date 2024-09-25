@@ -83,7 +83,7 @@ struct uniform_neighbor_sampling_functor : public cugraph::c_api::abstract_funct
   cugraph::c_api::cugraph_type_erased_device_array_view_t const* start_vertex_labels_{nullptr};
   cugraph::c_api::cugraph_type_erased_device_array_view_t const* label_list_{nullptr};
   cugraph::c_api::cugraph_type_erased_device_array_view_t const* label_to_comm_rank_{nullptr};
-  cugraph::c_api::cugraph_type_erased_device_array_view_t const* label_offsets_{nullptr};
+  cugraph::c_api::cugraph_type_erased_device_array_view_t const* label_offsets_{nullptr}; // start_vertex_label_offsets - local to each GPU - For every start vertex, it needs to pass a global label IDs and label_to_comm_rank (?) - 
   cugraph::c_api::cugraph_type_erased_host_array_view_t const* fan_out_{nullptr};
   cugraph::c_api::cugraph_rng_state_t* rng_state_{nullptr};
   cugraph::c_api::cugraph_sampling_options_t options_{};
@@ -774,7 +774,6 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
   cugraph::c_api::cugraph_edge_property_view_t const* edge_biases_{nullptr};
   cugraph::c_api::cugraph_type_erased_device_array_view_t const* start_vertices_{nullptr};
   cugraph::c_api::cugraph_type_erased_device_array_view_t const* start_vertex_offsets_{nullptr};
-  cugraph::c_api::cugraph_type_erased_device_array_view_t const* label_to_comm_rank_{nullptr};
   cugraph::c_api::cugraph_type_erased_host_array_view_t const* fan_out_{nullptr};
   int num_edge_types_{};
   cugraph::c_api::cugraph_sampling_options_t options_{};
@@ -789,7 +788,6 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
     cugraph_edge_property_view_t const* edge_biases,
     cugraph_type_erased_device_array_view_t const* start_vertices,
     cugraph_type_erased_device_array_view_t const* start_vertex_offsets,
-    cugraph_type_erased_device_array_view_t const* label_to_comm_rank,
     cugraph_type_erased_host_array_view_t const* fan_out,
     int num_edge_types,
     cugraph::c_api::cugraph_sampling_options_t options,
@@ -807,9 +805,6 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
       start_vertex_offsets_(
         reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(
           start_vertex_offsets)),
-      label_to_comm_rank_(
-        reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(
-          label_to_comm_rank)),
       fan_out_(
         reinterpret_cast<cugraph::c_api::cugraph_type_erased_host_array_view_t const*>(fan_out)),
       num_edge_types_(num_edge_types),
@@ -872,8 +867,8 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
                  handle_.get_stream());
 
       std::optional<rmm::device_uvector<label_t>> start_vertex_labels{std::nullopt};
-
       std::optional<rmm::device_uvector<size_t>> start_vertex_offsets{std::nullopt};
+      std::optional<rmm::device_uvector<label_t>> label_to_comm_rank{std::nullopt};
 
       if (start_vertex_offsets_ != nullptr) {
         start_vertex_offsets =
@@ -882,12 +877,49 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
                    start_vertex_offsets_->as_type<size_t>(),
                    start_vertex_offsets_->size_,
                    handle_.get_stream());
+        
+
+        // Get the number of labels on each GPU
+        auto num_local_labels = start_vertex_offsets_->size_ - 1;
+        auto global_labels = cugraph::host_scalar_allgather(
+          handle_.get_comms(), num_local_labels, handle_.get_stream());
+        
+        std::exclusive_scan(
+            global_labels.begin(), global_labels.end(), global_labels.begin(), size_t{0});
+        
+        // Compute the global start_vertex_label_offsets
+        cugraph::detail::transform_increment(handle_.get_stream(),
+                                             (*start_vertex_offsets).begin(),
+                                             (*start_vertex_offsets).size(),
+                                             global_labels[handle_.get_comms().get_rank()]);
+
+        // Retrieve the start_vertex_labels
+        start_vertex_labels =
+          cugraph::detail::convert_starting_vertex_offsets_to_labels(
+            handle_,
+            raft::device_span<size_t const>{(*start_vertex_offsets).data(),
+                                            (*start_vertex_offsets).size()});
       }
 
       if constexpr (multi_gpu) {
+        if (start_vertex_labels) {
+
+          rmm::device_uvector<label_t> label_to_comm_rank_d_vector((*start_vertex_labels).size(), handle_.get_stream());
+
+          cugraph::detail::scalar_fill(handle_.get_stream(),
+                                       label_to_comm_rank_d_vector.begin(),
+                                       label_to_comm_rank_d_vector.size(),
+                                       label_t{handle_.get_comms().get_rank()});
+          
+          std::tie(start_vertices, *start_vertex_labels, *label_to_comm_rank) =
+            cugraph::detail::shuffle_ext_vertex_values_pairs_to_local_gpu_by_vertex_partitioning(
+              handle_, std::move(start_vertices), std::move(*start_vertex_labels), std::move(label_to_comm_rank_d_vector));
+          
+        } else {
           start_vertices =
             cugraph::detail::shuffle_ext_vertices_to_local_gpu_by_vertex_partitioning(
               handle_, std::move(start_vertices));
+        }
       }
 
       //
@@ -919,7 +951,7 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
                             vertex_t{0});
       
       // FIXME: For biased sampling, the user should pass either biases or edge weights,
-      // otherwised throw an error and suggest them to use uniform neighbor sample instead
+      // otherwised throw an error and suggest the user to call uniform neighbor sample instead
 
       if (num_edge_types_ > 1) {
         // call heterogeneous neighbor sample
@@ -935,12 +967,12 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
               (edge_biases != nullptr) ? *edge_biases : edge_weights->view(),
               raft::device_span<vertex_t const>{start_vertices.data(), start_vertices.size()},
               (start_vertex_offsets_ != nullptr)
-                ? std::make_optional<raft::device_span<size_t const>>(start_vertex_offsets->data(),
-                                                                      start_vertex_offsets->size())
+                ? std::make_optional<raft::device_span<int const>>((*start_vertex_labels).data(),
+                                                                      (*start_vertex_labels).size())
                 : std::nullopt,
-              (label_to_comm_rank_ != nullptr)
-                ? std::make_optional(raft::device_span<int const>{label_to_comm_rank_->as_type<int>(),
-                                                    label_to_comm_rank_->size_})
+              label_to_comm_rank
+                ? std::make_optional(raft::device_span<int const>{(*label_to_comm_rank).data(),
+                                                                  (*label_to_comm_rank).size()})
                 : std::nullopt,
               raft::host_span<const int>(
                                         fan_out_->as_type<const int>(), fan_out_->size_),
@@ -963,12 +995,12 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
               (edge_types != nullptr) ? std::make_optional(edge_types->view()) : std::nullopt,
               raft::device_span<vertex_t const>{start_vertices.data(), start_vertices.size()},
               (start_vertex_offsets_ != nullptr)
-                ? std::make_optional<raft::device_span<size_t const>>(start_vertex_offsets->data(),
-                                                                      start_vertex_offsets->size())
+                ? std::make_optional<raft::device_span<int const>>((*start_vertex_labels).data(),
+                                                                      (*start_vertex_labels).size())
                 : std::nullopt,
-              (label_to_comm_rank_ != nullptr)
-                ? std::make_optional(raft::device_span<int const>{label_to_comm_rank_->as_type<int>(),
-                                                    label_to_comm_rank_->size_})
+              label_to_comm_rank
+                ? std::make_optional(raft::device_span<int const>{(*label_to_comm_rank).data(),
+                                                                  (*label_to_comm_rank).size()})
                 : std::nullopt,
               raft::host_span<const int>(
                                         fan_out_->as_type<const int>(), fan_out_->size_),
@@ -996,12 +1028,12 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
               (edge_biases != nullptr) ? *edge_biases : edge_weights->view(),
               raft::device_span<vertex_t const>{start_vertices.data(), start_vertices.size()},
               (start_vertex_offsets_ != nullptr)
-                ? std::make_optional<raft::device_span<size_t const>>(start_vertex_offsets->data(),
-                                                                      start_vertex_offsets->size())
+                ? std::make_optional<raft::device_span<int const>>((*start_vertex_labels).data(),
+                                                                   (*start_vertex_labels).size())
                 : std::nullopt,
-              (label_to_comm_rank_ != nullptr)
-                ? std::make_optional(raft::device_span<int const>{label_to_comm_rank_->as_type<int>(),
-                                                    label_to_comm_rank_->size_})
+              label_to_comm_rank
+                ? std::make_optional(raft::device_span<int const>{(*label_to_comm_rank).data(),
+                                                                  (*label_to_comm_rank).size()})
                 : std::nullopt,
               raft::host_span<const int>(
                                         fan_out_->as_type<const int>(), fan_out_->size_),
@@ -1024,12 +1056,12 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
               (edge_types != nullptr) ? std::make_optional(edge_types->view()) : std::nullopt,
               raft::device_span<vertex_t const>{start_vertices.data(), start_vertices.size()},
               (start_vertex_offsets_ != nullptr)
-                ? std::make_optional<raft::device_span<size_t const>>(start_vertex_offsets->data(),
-                                                                      start_vertex_offsets->size())
+                ? std::make_optional<raft::device_span<int const>>((*start_vertex_labels).data(),
+                                                                      (*start_vertex_labels).size())
                 : std::nullopt,
-              (label_to_comm_rank_ != nullptr)
-                ? std::make_optional(raft::device_span<int const>{label_to_comm_rank_->as_type<int>(),
-                                                    label_to_comm_rank_->size_})
+              label_to_comm_rank
+                ? std::make_optional(raft::device_span<int const>{(*label_to_comm_rank).data(),
+                                                                  (*label_to_comm_rank).size()})
                 : std::nullopt,
               raft::host_span<const int>(
                                         fan_out_->as_type<const int>(), fan_out_->size_),
@@ -1129,8 +1161,7 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
 
             rmm::device_uvector<size_t> output_major_offsets(0, handle_.get_stream());
             rmm::device_uvector<vertex_t> output_renumber_map(0, handle_.get_stream());
-            // FIXME: Update this function to handle the new API with 'starting_vertex_offsets'
-            // and indices.
+
             std::tie(majors,
                     output_major_offsets,
                     minors,
@@ -1191,8 +1222,6 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
           // extract the edge_type from label_type_hop_offsets
           std::optional<rmm::device_uvector<size_t>> label_type_hop_offsets{std::nullopt};
 
-          // FIXME: Update this function to handle the new API with 'starting_vertex_offsets'
-          // and indices.
           std::tie(output_majors,
               minors,
               wgt,
@@ -1951,7 +1980,6 @@ cugraph_error_code_t cugraph_heterogeneous_uniform_neighbor_sample(
   cugraph_graph_t* graph,
   const cugraph_type_erased_device_array_view_t* start_vertices,
   const cugraph_type_erased_device_array_view_t* start_vertex_offsets,
-  const cugraph_type_erased_device_array_view_t* label_to_comm_rank,
   const cugraph_type_erased_host_array_view_t* fan_out,
   int num_edge_types,
   const cugraph_sampling_options_t* options,
@@ -1973,11 +2001,6 @@ cugraph_error_code_t cugraph_heterogeneous_uniform_neighbor_sample(
                     ->type_ == SIZE_T),
                CUGRAPH_INVALID_INPUT,
                "start_vertex_offsets should be of type size_t",
-               *error);
-
-  CAPI_EXPECTS((label_to_comm_rank == nullptr) || (start_vertex_offsets != nullptr),
-               CUGRAPH_INVALID_INPUT,
-               "cannot specify label_to_comm_rank unless start_vertex_offsets is also specified",
                *error);
     
   CAPI_EXPECTS(
@@ -2001,7 +2024,6 @@ cugraph_error_code_t cugraph_heterogeneous_uniform_neighbor_sample(
                                     nullptr,
                                     start_vertices,
                                     start_vertex_offsets,
-                                    label_to_comm_rank,
                                     fan_out,
                                     num_edge_types,
                                     std::move(options_cpp),
@@ -2017,7 +2039,6 @@ cugraph_error_code_t cugraph_heterogeneous_biased_neighbor_sample(
   const cugraph_edge_property_view_t* edge_biases,
   const cugraph_type_erased_device_array_view_t* start_vertices,
   const cugraph_type_erased_device_array_view_t* start_vertex_offsets,
-  const cugraph_type_erased_device_array_view_t* label_to_comm_rank,
   const cugraph_type_erased_host_array_view_t* fan_out,
   int num_edge_types,
   const cugraph_sampling_options_t* options,
@@ -2047,11 +2068,6 @@ cugraph_error_code_t cugraph_heterogeneous_biased_neighbor_sample(
                CUGRAPH_INVALID_INPUT,
                "start_vertex_offsets should be of type size_t",
                *error);
-
-  CAPI_EXPECTS((label_to_comm_rank == nullptr) || (start_vertex_offsets != nullptr),
-               CUGRAPH_INVALID_INPUT,
-               "cannot specify label_to_comm_rank unless start_vertex_offsets is also specified",
-               *error);
     
   CAPI_EXPECTS(
     reinterpret_cast<cugraph::c_api::cugraph_type_erased_host_array_view_t const*>(fan_out)
@@ -2074,7 +2090,6 @@ cugraph_error_code_t cugraph_heterogeneous_biased_neighbor_sample(
                                     edge_biases,
                                     start_vertices,
                                     start_vertex_offsets,
-                                    label_to_comm_rank,
                                     fan_out,
                                     num_edge_types,
                                     std::move(options_cpp),
@@ -2089,7 +2104,6 @@ cugraph_error_code_t cugraph_homogeneous_uniform_neighbor_sample(
   cugraph_graph_t* graph,
   const cugraph_type_erased_device_array_view_t* start_vertices,
   const cugraph_type_erased_device_array_view_t* start_vertex_offsets,
-  const cugraph_type_erased_device_array_view_t* label_to_comm_rank,
   const cugraph_type_erased_host_array_view_t* fan_out,
   const cugraph_sampling_options_t* options,
   bool_t do_expensive_check,
@@ -2110,11 +2124,6 @@ cugraph_error_code_t cugraph_homogeneous_uniform_neighbor_sample(
                     ->type_ == SIZE_T),
                CUGRAPH_INVALID_INPUT,
                "start_vertex_offsets should be of type size_t",
-               *error);
-
-  CAPI_EXPECTS((label_to_comm_rank == nullptr) || (start_vertex_offsets != nullptr),
-               CUGRAPH_INVALID_INPUT,
-               "cannot specify label_to_comm_rank unless start_vertex_offsets is also specified",
                *error);
   
   CAPI_EXPECTS(reinterpret_cast<cugraph::c_api::cugraph_type_erased_host_array_view_t const*>(
@@ -2139,7 +2148,6 @@ cugraph_error_code_t cugraph_homogeneous_uniform_neighbor_sample(
                                     nullptr,
                                     start_vertices,
                                     start_vertex_offsets,
-                                    label_to_comm_rank,
                                     fan_out,
                                     1, // num_edge_types
                                     std::move(options_cpp),
@@ -2155,7 +2163,6 @@ cugraph_error_code_t cugraph_homogeneous_biased_neighbor_sample(
   const cugraph_edge_property_view_t* edge_biases,
   const cugraph_type_erased_device_array_view_t* start_vertices,
   const cugraph_type_erased_device_array_view_t* start_vertex_offsets,
-  const cugraph_type_erased_device_array_view_t* label_to_comm_rank,
   const cugraph_type_erased_host_array_view_t* fan_out,
   const cugraph_sampling_options_t* options,
   bool_t do_expensive_check,
@@ -2184,11 +2191,6 @@ cugraph_error_code_t cugraph_homogeneous_biased_neighbor_sample(
                CUGRAPH_INVALID_INPUT,
                "start_vertex_offsets should be of type size_t",
                *error);
-
-  CAPI_EXPECTS((label_to_comm_rank == nullptr) || (start_vertex_offsets != nullptr),
-               CUGRAPH_INVALID_INPUT,
-               "cannot specify label_to_comm_rank unless start_vertex_offsets is also specified",
-               *error);
   
   CAPI_EXPECTS(reinterpret_cast<cugraph::c_api::cugraph_type_erased_host_array_view_t const*>(
                 fan_out)
@@ -2212,7 +2214,6 @@ cugraph_error_code_t cugraph_homogeneous_biased_neighbor_sample(
                                     edge_biases,
                                     start_vertices,
                                     start_vertex_offsets,
-                                    label_to_comm_rank,
                                     fan_out,
                                     1, // num_edge_types
                                     std::move(options_cpp),

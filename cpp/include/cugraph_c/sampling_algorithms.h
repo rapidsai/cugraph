@@ -509,12 +509,6 @@ cugraph_error_code_t cugraph_biased_neighbor_sample(
  * @param [in]  start_vertices Device array of start vertices for the sampling
  * @param [in]  start_vertex_offsets Device array of the offsets for each label in the seed list.  This
  *                            parameter is only used with the retain_seeds option.
- * @param [in]  label_to_comm_rank Device array identifying which comm rank the output for a
- * particular label should be shuffled in the output based on the @p start_vertex_offsets. 
- * If not specifed the data is not organized in output.  If specified then the all data in the range
- * @p start_vertex_offsets[i+1] - @p start_vertex_offsets[i] will be shuffled to rank @p.  This
- * cannot be specified unless @p start_vertex_offsets is also specified.
- * label_to_comm_rank[i].  If not specified then the output data will not be shuffled between ranks.
  * @param [in]  fan_out       Host array defining the fan out at each step in the sampling algorithm.
  *                            We only support fan_out values of type INT32
  * @param [in]  num_edge_types Number of edge types where a value of 1 translates to homogeneous neighbor
@@ -539,7 +533,6 @@ cugraph_error_code_t cugraph_heterogeneous_uniform_neighbor_sample(
   const cugraph_edge_property_view_t* edge_biases,
   const cugraph_type_erased_device_array_view_t* start_vertices,
   const cugraph_type_erased_device_array_view_t* start_vertex_offsets,
-  const cugraph_type_erased_device_array_view_t* label_to_comm_rank,
   const cugraph_sample_heterogeneous_fan_out_t* fan_out,
   int num_edge_types,
   const cugraph_sampling_options_t* options,
@@ -570,12 +563,6 @@ cugraph_error_code_t cugraph_heterogeneous_uniform_neighbor_sample(
  * @param [in]  start_vertices Device array of start vertices for the sampling
  * @param [in]  start_vertex_offsets Device array of the offsets for each label in the seed list.  This
  *                            parameter is only used with the retain_seeds option.
- * @param [in]  label_to_comm_rank Device array identifying which comm rank the output for a
- * particular label should be shuffled in the output based on the @p start_vertex_offsets. 
- * If not specifed the data is not organized in output.  If specified then the all data in the range
- * @p start_vertex_offsets[i+1] - @p start_vertex_offsets[i] will be shuffled to rank @p.  This
- * cannot be specified unless @p start_vertex_offsets is also specified.
- * label_to_comm_rank[i].  If not specified then the output data will not be shuffled between ranks.
  * @param [in]  fan_out       Host array defining the fan out at each step in the sampling algorithm.
  *                            We only support fan_out values of type INT32
  * @param [in]  num_edge_types Number of edge types where a value of 1 translates to homogeneous neighbor
@@ -600,7 +587,6 @@ cugraph_error_code_t cugraph_heterogeneous_biased_neighbor_sample(
   const cugraph_edge_property_view_t* edge_biases,
   const cugraph_type_erased_device_array_view_t* start_vertices,
   const cugraph_type_erased_device_array_view_t* start_vertex_offsets,
-  const cugraph_type_erased_device_array_view_t* label_to_comm_rank,
   const cugraph_sample_heterogeneous_fan_out_t* fan_out,
   int num_edge_types,
   const cugraph_sampling_options_t* options,
@@ -628,12 +614,6 @@ cugraph_error_code_t cugraph_heterogeneous_biased_neighbor_sample(
  * @param [in]  start_vertices Device array of start vertices for the sampling
  * @param [in]  start_vertex_offsets Device array of the offsets for each label in the seed list.  This
  *                            parameter is only used with the retain_seeds option.
- * @param [in]  label_to_comm_rank Device array identifying which comm rank the output for a
- * particular label should be shuffled in the output based on the @p start_vertex_offsets. 
- * If not specifed the data is not organized in output.  If specified then the all data in the range
- * @p start_vertex_offsets[i+1] - @p start_vertex_offsets[i] will be shuffled to rank @p.  This
- * cannot be specified unless @p start_vertex_offsets is also specified.
- * label_to_comm_rank[i].  If not specified then the output data will not be shuffled between ranks.
  * @param [in]  fan_out       Host array defining the fan out at each step in the sampling algorithm.
  *                            We only support fan_out values of type INT32
  * @param [in]  sampling_options
@@ -651,7 +631,6 @@ cugraph_error_code_t cugraph_homogeneous_uniform_neighbor_sample(
   cugraph_graph_t* graph,
   const cugraph_type_erased_device_array_view_t* start_vertices,
   const cugraph_type_erased_device_array_view_t* start_vertex_offsets,
-  const cugraph_type_erased_device_array_view_t* label_to_comm_rank,
   const cugraph_type_erased_host_array_view_t* fan_out,
   const cugraph_sampling_options_t* options,
   bool_t do_expensive_check,
@@ -679,12 +658,6 @@ cugraph_error_code_t cugraph_homogeneous_uniform_neighbor_sample(
  * @param [in]  start_vertices Device array of start vertices for the sampling
  * @param [in]  start_vertex_offsets Device array of the offsets for each label in the seed list.  This
  *                            parameter is only used with the retain_seeds option.
- * @param [in]  label_to_comm_rank Device array identifying which comm rank the output for a
- * particular label should be shuffled in the output based on the @p start_vertex_offsets. 
- * If not specifed the data is not organized in output.  If specified then the all data in the range
- * @p start_vertex_offsets[i+1] - @p start_vertex_offsets[i] will be shuffled to rank @p.  This
- * cannot be specified unless @p start_vertex_offsets is also specified.
- * label_to_comm_rank[i].  If not specified then the output data will not be shuffled between ranks.
  * @param [in]  fan_out       Host array defining the fan out at each step in the sampling algorithm.
  *                            We only support fan_out values of type INT32
  * @param [in]  sampling_options
@@ -703,7 +676,6 @@ cugraph_error_code_t cugraph_homogeneous_biased_neighbor_sample(
   const cugraph_edge_property_view_t* edge_biases,
   const cugraph_type_erased_device_array_view_t* start_vertices,
   const cugraph_type_erased_device_array_view_t* start_vertex_offsets,
-  const cugraph_type_erased_device_array_view_t* label_to_comm_rank,
   const cugraph_type_erased_host_array_view_t* fan_out,
   const cugraph_sampling_options_t* options,
   bool_t do_expensive_check,

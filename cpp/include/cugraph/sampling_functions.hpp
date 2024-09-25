@@ -85,7 +85,7 @@ enum class prior_sources_behavior_t { DEFAULT = 0, CARRY_OVER, EXCLUDE };
  * @param edge_type_view Optional view object holding edge types for @p graph_view.
  * @param starting_vertices Device span of starting vertex IDs for the sampling.
  * In a multi-gpu context the starting vertices should be local to this GPU.
- * @param starting_vertex_labels Optional device span of labels associted with each starting vertex
+ * @param starting_vertex_labels Optional device span of labels associated with each starting vertex
  * for the sampling.
  * @param label_to_output_comm_rank Optional tuple of device spans mapping label to a particular
  * output rank.  Element 0 of the tuple identifes the label, Element 1 of the tuple identifies the
@@ -189,7 +189,7 @@ uniform_neighbor_sample(
  * corresponding edge can never be selected.
  * @param starting_vertices Device span of starting vertex IDs for the sampling.
  * In a multi-gpu context the starting vertices should be local to this GPU.
- * @param starting_vertex_labels Optional device span of labels associted with each starting vertex
+ * @param starting_vertex_labels Optional device span of labels associated with each starting vertex
  * for the sampling.
  * @param label_to_output_comm_rank Optional tuple of device spans mapping label to a particular
  * output rank.  Element 0 of the tuple identifes the label, Element 1 of the tuple identifies the
@@ -312,8 +312,8 @@ struct sampling_flags_t {
  * @param edge_type_view Optional view object holding edge types for @p graph_view.
  * @param starting_vertices Device span of starting vertex IDs for the sampling.
  * In a multi-gpu context the starting vertices should be local to this GPU.
- * @param starting_vertex_offsets Optional device span of offsets identifying the range of
- * starting vertex values for this label.
+ * @param starting_vertex_labels Optional device span of labels associated with each starting vertex
+ * for the sampling.
  * @param label_to_output_comm_rank Optional device span identifying which rank should get each
  * vertex label.  This should be the same on each rank.
  * @param fan_out Host span defining branching out (fan-out) degree per source vertex for each
@@ -347,7 +347,7 @@ heterogeneous_uniform_neighbor_sample(
   std::optional<edge_property_view_t<edge_t, edge_t const*>> edge_id_view,
   std::optional<edge_property_view_t<edge_t, edge_type_t const*>> edge_type_view,
   raft::device_span<vertex_t const> starting_vertices,
-  std::optional<raft::device_span<size_t const>> starting_vertex_offsets,
+  std::optional<raft::device_span<int32_t const>> starting_vertex_labels,
   std::optional<raft::device_span<int32_t const>> label_to_output_comm_rank,
   raft::host_span<int32_t const> fan_out,
   edge_type_t num_edge_types,
@@ -400,8 +400,8 @@ heterogeneous_uniform_neighbor_sample(
  * corresponding edge can never be selected.
  * @param starting_vertices Device span of starting vertex IDs for the sampling.
  * In a multi-gpu context the starting vertices should be local to this GPU.
- * @param starting_vertex_offsets Optional device span of offsets identifying the range of
- * starting vertex values for this label.
+ * @param starting_vertex_labels Optional device span of labels associated with each starting vertex
+ * for the sampling.
  * @param label_to_output_comm_rank Optional device span identifying which rank should get each
  * vertex label.  This should be the same on each rank.
  * @param fan_out Host span defining branching out (fan-out) degree per source vertex for each
@@ -437,7 +437,7 @@ heterogeneous_biased_neighbor_sample(
   std::optional<edge_property_view_t<edge_t, edge_type_t const*>> edge_type_view,
   edge_property_view_t<edge_t, bias_t const*> edge_bias_view,
   raft::device_span<vertex_t const> starting_vertices,
-  std::optional<raft::device_span<size_t const>> starting_vertex_offsets,
+  std::optional<raft::device_span<int32_t const>> starting_vertex_labels,
   std::optional<raft::device_span<int32_t const>> label_to_output_comm_rank,
   raft::host_span<int32_t const> fan_out,
   edge_type_t num_edge_types,
@@ -485,8 +485,8 @@ heterogeneous_biased_neighbor_sample(
  * @param edge_type_view Optional view object holding edge types for @p graph_view.
  * @param starting_vertices Device span of starting vertex IDs for the sampling.
  * In a multi-gpu context the starting vertices should be local to this GPU.
-  * @param starting_vertex_offsets Optional device span of offsets identifying the range of
- * starting vertex values for this label.
+ * @param starting_vertex_labels Optional device span of labels associated with each starting vertex
+ * for the sampling.
  * @param label_to_output_comm_rank Optional device span identifying which rank should get each
  * vertex label.  This should be the same on each rank.
  * @param fan_out Host span defining branching out (fan-out) degree per source vertex for each
@@ -519,7 +519,7 @@ homogeneous_uniform_neighbor_sample(
   std::optional<edge_property_view_t<edge_t, edge_t const*>> edge_id_view,
   std::optional<edge_property_view_t<edge_t, edge_type_t const*>> edge_type_view,
   raft::device_span<vertex_t const> starting_vertices,
-  std::optional<raft::device_span<size_t const>> starting_vertex_offsets,
+  std::optional<raft::device_span<int32_t const>> starting_vertex_labels,
   std::optional<raft::device_span<int32_t const>> label_to_output_comm_rank,
   raft::host_span<int32_t const> fan_out,
   sampling_flags_t sampling_flags,
@@ -570,8 +570,8 @@ homogeneous_uniform_neighbor_sample(
  * corresponding edge can never be selected.
  * @param starting_vertices Device span of starting vertex IDs for the sampling.
  * In a multi-gpu context the starting vertices should be local to this GPU.
-  * @param starting_vertex_offsets Optional device span of offsets identifying the range of
- * starting vertex values for this label.
+ * @param starting_vertex_labels Optional device span of labels associated with each starting vertex
+ * for the sampling.
  * @param label_to_output_comm_rank Optional device span identifying which rank should get each
  * vertex label.  This should be the same on each rank.
  * @param fan_out Host span defining branching out (fan-out) degree per source vertex for each
@@ -606,7 +606,7 @@ homogeneous_biased_neighbor_sample(
   std::optional<edge_property_view_t<edge_t, edge_type_t const*>> edge_type_view,
   edge_property_view_t<edge_t, bias_t const*> edge_bias_view,
   raft::device_span<vertex_t const> starting_vertices,
-  std::optional<raft::device_span<size_t const>> starting_vertex_offsets,
+  std::optional<raft::device_span<int32_t const>> starting_vertex_labels,
   std::optional<raft::device_span<int32_t const>> label_to_output_comm_rank,
   raft::host_span<int32_t const> fan_out,
   sampling_flags_t sampling_flags,
