@@ -14,6 +14,8 @@ import cupy as cp
 import networkx as nx
 import numpy as np
 
+from nx_cugraph import _nxver
+
 from .generators._utils import _create_using_class
 from .utils import _cp_iscopied_asarray, index_dtype, networkx_algorithm
 
@@ -26,6 +28,7 @@ __all__ = [
 # Value columns with string dtype is not supported
 @networkx_algorithm(is_incomplete=True,
                     returns_networkx_compatible_graph=True,
+                    fallback=True,
                     version_added="23.12")
 def from_pandas_edgelist(
     df,
@@ -140,7 +143,7 @@ def from_pandas_edgelist(
         and (
             # In nx <= 3.3, `edge_key` was ignored if `edge_attr` is None
             edge_attr is not None
-            or nx.__version__[:3] > "3.3"
+            or _nxver > (3, 3)
         )
     ):
         try:
@@ -163,7 +166,7 @@ def from_pandas_edgelist(
     return G
 
 
-@networkx_algorithm(version_added="23.12")
+@networkx_algorithm(version_added="23.12", fallback=True)
 def from_scipy_sparse_array(
     A, parallel_edges=False, create_using=None, edge_attribute="weight"
 ):

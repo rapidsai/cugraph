@@ -22,6 +22,7 @@ or
 
 $ python _nx_cugraph/__init__.py
 """
+import os
 
 from _nx_cugraph._version import __version__
 
@@ -293,12 +294,20 @@ def get_info():
 
     for key in info_keys:
         del d[key]
+
+    d["default_config"] = {
+        "use_compat_graphs": os.environ.get("NX_CUGRAPH_USE_COMPAT_GRAPHS", "true")
+        .strip()
+        .lower()
+        == "true",
+    }
     return d
 
 
-def _check_networkx_version():
-    import warnings
+def _check_networkx_version() -> tuple[int, int]:
+    """Check the version of networkx and return ``(major, minor)`` version tuple."""
     import re
+    import warnings
 
     import networkx as nx
 
@@ -320,6 +329,10 @@ def _check_networkx_version():
             f"nx-cugraph version {__version__} does not work with networkx version "
             f"{nx.__version__}. Please upgrade (or fix) your Python environment."
         )
+
+    nxver_major = int(version_major)
+    nxver_minor = int(re.match(r"^\d+", version_minor).group())
+    return (nxver_major, nxver_minor)
 
 
 if __name__ == "__main__":
