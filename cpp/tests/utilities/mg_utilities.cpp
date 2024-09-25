@@ -60,7 +60,7 @@ std::unique_ptr<raft::handle_t> initialize_mg_handle(size_t pool_size)
     --gpu_row_comm_size;
   }
 
-  cugraph::partition_manager::init_subcomm(*handle, gpu_row_comm_size);
+  cugraph::partition_manager::init_subcomm(*handle, std::max(comm_size / 8, 1));
 
   return std::move(handle);
 }

@@ -77,10 +77,16 @@ inline auto make_pool(bool use_max = false)
   // effect the maximum amount of parallel tests, and therefore `tests/CMakeLists.txt`
   // `_CUGRAPH_TEST_PERCENT` default value will need to be audited.
   auto const [free, total] = rmm::available_device_memory();
-  auto const min_alloc =
-    use_max ? rmm::align_down(std::min(free, total / 2), rmm::CUDA_ALLOCATION_ALIGNMENT)
+  // EOS: 1 node 0.94 succeeded 0.95 failed, 2+ nodes 0.97 succeeded 0.98 failed
+  auto const init_alloc =
+    use_max ? rmm::align_down(std::min(free, static_cast<size_t>(total * 0.93)), rmm::CUDA_ALLOCATION_ALIGNMENT)
             : rmm::align_down(std::min(free, total / 10), rmm::CUDA_ALLOCATION_ALIGNMENT);
-  return rmm::mr::make_owning_wrapper<rmm::mr::pool_memory_resource>(make_cuda(), min_alloc);
+  std::optional<size_t> max_alloc{};
+  if (use_max) {
+    max_alloc = init_alloc;
+  }
+  std::cout << "init_alloc ratio=" << static_cast<double>(init_alloc) / static_cast<double>(total) << std::endl;
+  return rmm::mr::make_owning_wrapper<rmm::mr::pool_memory_resource>(make_cuda(), init_alloc, max_alloc);
 }
 
 inline auto make_binning()

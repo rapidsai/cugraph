@@ -246,7 +246,7 @@ class Rmat_Usecase : public detail::TranslateGraph_Usecase {
     // cuMemAddressReserve
     // (https://developer.nvidia.com/blog/introducing-low-level-gpu-virtual-memory-management), we
     // can reduce the temporary memory requirement to (1 / num_partitions) * (original data size)
-    size_t constexpr num_partitions_per_gpu = 4;
+    size_t constexpr num_partitions_per_gpu = 8;
     size_t num_partitions =
       num_partitions_per_gpu * static_cast<size_t>(multi_gpu ? handle.get_comms().get_size() : 1);
 
