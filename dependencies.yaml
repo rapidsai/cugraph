@@ -530,7 +530,7 @@ dependencies:
           - aiohttp
           - fsspec>=0.6.0
           - requests
-          - nccl>=2.9.9
+          - nccl>=2.18.1.1
           - ucx-proc=*=gpu
           - &ucx_py_unsuffixed ucx-py==0.41.*,>=0.0.0a0
       - output_types: pyproject
