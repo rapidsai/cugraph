@@ -287,6 +287,8 @@ void fill_edge_minor_property(raft::handle_t const& handle,
   }
 }
 
+#define FILL_PERFORMANCE_MEASUREMENT 1
+
 template <typename GraphViewType,
           typename VertexIterator,
           typename EdgeMinorPropertyOutputWrapper,
@@ -298,7 +300,10 @@ void fill_edge_minor_property(raft::handle_t const& handle,
                               EdgeMinorPropertyOutputWrapper edge_minor_property_output,
                               T input)
 {
-RAFT_CUDA_TRY(cudaDeviceSynchronize()); auto t0 = std::chrono::steady_clock::now();
+#if FILL_PERFORMANCE_MEASUREMENT
+  RAFT_CUDA_TRY(cudaDeviceSynchronize());
+  auto t0 = std::chrono::steady_clock::now();
+#endif
   constexpr bool contains_packed_bool_element =
     cugraph::has_packed_bool_element<typename EdgeMinorPropertyOutputWrapper::value_iterator,
                                      typename EdgeMinorPropertyOutputWrapper::value_type>();
@@ -370,6 +375,17 @@ RAFT_CUDA_TRY(cudaDeviceSynchronize()); auto t0 = std::chrono::steady_clock::now
                                                         handle.get_stream());
       }
     }
+    size_t min_bcast_size = std::numeric_limits<size_t>::max();
+    for (int i = 0; i < major_comm_size; ++i) {
+      if (v_list_bitmap) {
+        min_bcast_size =
+          std::min(min_bcast_size,
+                   packed_bool_size(local_v_list_range_lasts[i] - local_v_list_range_firsts[i]) *
+                     sizeof(uint32_t));
+      } else {
+        min_bcast_size = std::min(min_bcast_size, local_v_list_sizes[i] * sizeof(vertex_t));
+      }
+    }
 
     auto num_concurrent_bcasts =
       (static_cast<size_t>(graph_view.compute_number_of_edges(handle) / comm_size) *
@@ -381,9 +397,10 @@ RAFT_CUDA_TRY(cudaDeviceSynchronize()); auto t0 = std::chrono::steady_clock::now
     num_concurrent_bcasts = std::min(num_concurrent_bcasts, handle.get_stream_pool_size());
     num_concurrent_bcasts =
       std::min(std::max(num_concurrent_bcasts, size_t{1}), static_cast<size_t>(major_comm_size));
-    std::cout << "v_list_size=" << v_list_size << " v_list_range=(" << v_list_range[0] << ","
+    std::cerr << "v_list_size=" << v_list_size << " v_list_range=(" << v_list_range[0] << ","
               << v_list_range[1] << ") v_list_bitmap.has_value()=" << v_list_bitmap.has_value()
-              << " num_concurrent_bcasts=" << num_concurrent_bcasts << std::endl;
+              << " num_concurrent_bcasts=" << num_concurrent_bcasts
+              << " min_bcast_size=" << min_bcast_size << std::endl;
 
     std::optional<std::vector<size_t>> stream_pool_indices{std::nullopt};
     if (num_concurrent_bcasts > 1) {
@@ -397,190 +414,70 @@ RAFT_CUDA_TRY(cudaDeviceSynchronize()); auto t0 = std::chrono::steady_clock::now
     } else {
       key_offsets = graph_view.local_sorted_unique_edge_dst_vertex_partition_offsets();
     }
+    handle.sync_stream();  // FIXME: unnecessary if we run broadcast operations in ncclGroupStart &
+                           // ncclGroupoEnd
 
-RAFT_CUDA_TRY(cudaDeviceSynchronize()); auto t1 = std::chrono::steady_clock::now();
+#if FILL_PERFORMANCE_MEASUREMENT
+    RAFT_CUDA_TRY(cudaDeviceSynchronize());
+    auto t1 = std::chrono::steady_clock::now();
+#endif
     auto edge_partition_keys = edge_minor_property_output.keys();
     for (size_t i = 0; i < static_cast<size_t>(major_comm_size); i += num_concurrent_bcasts) {
-RAFT_CUDA_TRY(cudaDeviceSynchronize()); auto sub0 = std::chrono::steady_clock::now();
+      RAFT_CUDA_TRY(cudaDeviceSynchronize());
+      auto sub0       = std::chrono::steady_clock::now();
       auto loop_count = std::min(num_concurrent_bcasts, static_cast<size_t>(major_comm_size) - i);
 
-      std::vector<std::variant<rmm::device_uvector<vertex_t>, rmm::device_uvector<uint32_t>>>
-        edge_partition_key_buffers{};
-      std::vector<rmm::device_scalar<size_t>> edge_partition_dummy_counter_scalars{};
-      for (size_t j = 0; j < loop_count; ++j) {
-        auto partition_idx = i + j;
-
-        std::variant<rmm::device_uvector<vertex_t>, rmm::device_uvector<uint32_t>> key_buffer =
-          rmm::device_uvector<vertex_t>(0, handle.get_stream());
-        if (v_list_bitmap) {
-          key_buffer = rmm::device_uvector<uint32_t>(
+      if (is_packed_bool<typename EdgeMinorPropertyOutputWrapper::value_iterator,
+                         typename EdgeMinorPropertyOutputWrapper::value_type>() &&
+          !edge_partition_keys && v_list_bitmap) {
+#if FILL_PERFORMANCE_MEASUREMENT
+        RAFT_CUDA_TRY(cudaDeviceSynchronize());
+        auto sub0 = std::chrono::steady_clock::now();
+#endif
+        std::vector<rmm::device_uvector<uint32_t>> edge_partition_rx_bitmaps{};
+        edge_partition_rx_bitmaps.reserve(loop_count);
+        for (size_t j = 0; j < loop_count; ++j) {
+          auto partition_idx = i + j;
+          edge_partition_rx_bitmaps.push_back(rmm::device_uvector<uint32_t>(
             packed_bool_size(local_v_list_range_lasts[partition_idx] -
                              local_v_list_range_firsts[partition_idx]),
-            handle.get_stream());
-        } else {
-          std::get<0>(key_buffer).resize(local_v_list_sizes[partition_idx], handle.get_stream());
+            handle.get_stream()));
         }
-        edge_partition_key_buffers.push_back(std::move(key_buffer));
-        edge_partition_dummy_counter_scalars.push_back(
-          rmm::device_scalar<size_t>(size_t{0}, handle.get_stream()));
-      }
-RAFT_CUDA_TRY(cudaDeviceSynchronize()); auto sub1 = std::chrono::steady_clock::now();
 
-      device_group_start(major_comm);
-      for (size_t j = 0; j < loop_count; ++j) {
-        auto partition_idx = i + j;
-
-        auto& key_buffer = edge_partition_key_buffers[j];
-        if (v_list_bitmap) {
-          device_bcast(major_comm,
-                       (static_cast<int>(partition_idx) == major_comm_rank)
-                         ? (*v_list_bitmap).data()
-                         : static_cast<uint32_t const*>(nullptr),
-                       std::get<1>(key_buffer).data(),
-                       std::get<1>(key_buffer).size(),
-                       static_cast<int>(partition_idx),
-                       handle.get_stream());
-        } else {
-          device_bcast(major_comm,
-                       sorted_unique_vertex_first,
-                       std::get<0>(key_buffer).data(),
-                       std::get<0>(key_buffer).size(),
-                       static_cast<int>(partition_idx),
-                       handle.get_stream());
+#if FILL_PERFORMANCE_MEASUREMENT
+        RAFT_CUDA_TRY(cudaDeviceSynchronize());
+        auto sub1 = std::chrono::steady_clock::now();
+#endif
+        if (packed_bool_size(min_bcast_size) >= 8192 /* workaround for a seemingly NCCL bug */) {
+          device_group_start(major_comm);
         }
-      }
-      device_group_end(major_comm);
-      if (stream_pool_indices) { handle.sync_stream(); }
-RAFT_CUDA_TRY(cudaDeviceSynchronize()); auto sub2 = std::chrono::steady_clock::now();
-
-      for (size_t j = 0; j < loop_count; ++j) {
-        auto partition_idx = i + j;
-        auto loop_stream   = stream_pool_indices
-                               ? handle.get_stream_from_stream_pool((*stream_pool_indices)[j])
-                               : handle.get_stream();
-
-        if (is_packed_bool<typename EdgeMinorPropertyOutputWrapper::value_iterator,
-                           typename EdgeMinorPropertyOutputWrapper::value_type>() &&
-            !edge_partition_keys && v_list_bitmap) {
-          auto const& rx_bitmap = std::get<1>(edge_partition_key_buffers[j]);
-          thrust::for_each(
-            rmm::exec_policy_nosync(loop_stream),
-            thrust::make_counting_iterator(size_t{0}),
-            thrust::make_counting_iterator(rx_bitmap.size()),
-            [input,
-             output_value_first =
-               edge_partition_value_first +
-               packed_bool_offset(local_v_list_range_firsts[partition_idx] - minor_range_first),
-             rx_bitmap = raft::device_span<uint32_t const>(rx_bitmap.data(),
-                                                           rx_bitmap.size())] __device__(size_t i) {
-              if ((i == 0) || (i == (rx_bitmap.size() - 1))) {  // first or last
-                cuda::atomic_ref<uint32_t, cuda::thread_scope_device> word(
-                  *(output_value_first + i));
-                if (input) {
-                  word.fetch_or(rx_bitmap[i], cuda::std::memory_order_relaxed);
-                } else {
-                  word.fetch_and(~rx_bitmap[i], cuda::std::memory_order_relaxed);
-                }
-              } else {
-                if (input) {
-                  *(output_value_first + i) |= rx_bitmap[i];
-                } else {
-                  *(output_value_first + i) &= ~rx_bitmap[i];
-                }
-              }
-            });
-        } else {
-          if (v_list_bitmap) {
-            auto const& rx_bitmap = std::get<1>(edge_partition_key_buffers[j]);
-            rmm::device_uvector<vertex_t> rx_vertices(local_v_list_sizes[partition_idx], loop_stream);
-            rmm::device_scalar<size_t> dummy(size_t{0}, loop_stream);
-            retrieve_vertex_list_from_bitmap(raft::device_span<uint32_t const>(rx_bitmap.data(), rx_bitmap.size()), rx_vertices.begin(), raft::device_span<size_t>(dummy.data(), size_t{1}), local_v_list_range_firsts[partition_idx], local_v_list_range_lasts[partition_idx], loop_stream);
-            edge_partition_key_buffers[j] = std::move(rx_vertices);
-          }
-          auto const& rx_vertices = std::get<0>(edge_partition_key_buffers[j]);
-          if (edge_partition_keys) {
-            thrust::for_each(
-              rmm::exec_policy_nosync(loop_stream),
-              thrust::make_counting_iterator(size_t{0}),
-              thrust::make_counting_iterator(local_v_list_sizes[partition_idx]),
-              [rx_vertex_first = rx_vertices.begin(),
-               input,
-               subrange_key_first = (*edge_partition_keys).begin() + (*key_offsets)[partition_idx],
-               subrange_key_last =
-                 (*edge_partition_keys).begin() + (*key_offsets)[partition_idx + 1],
-               edge_partition_value_first = edge_partition_value_first,
-               subrange_start_offset      = (*key_offsets)[partition_idx]] __device__(auto i) {
-                auto minor = *(rx_vertex_first + i);
-                auto it =
-                  thrust::lower_bound(thrust::seq, subrange_key_first, subrange_key_last, minor);
-                if ((it != subrange_key_last) && (*it == minor)) {
-                  auto subrange_offset = thrust::distance(subrange_key_first, it);
-                  if constexpr (contains_packed_bool_element) {
-                    fill_scalar_or_thrust_tuple(
-                      edge_partition_value_first, subrange_start_offset + subrange_offset, input);
-                  } else {
-                    *(edge_partition_value_first + subrange_start_offset + subrange_offset) = input;
-                  }
-                }
-              });
-          } else {
-            if constexpr (contains_packed_bool_element) {
-              thrust::for_each(
-                rmm::exec_policy_nosync(loop_stream),
-                thrust::make_counting_iterator(vertex_t{0}),
-                thrust::make_counting_iterator(
-                  static_cast<vertex_t>(local_v_list_sizes[partition_idx])),
-                [minor_range_first,
-                 rx_vertex_first = rx_vertices.begin(),
-                 input,
-                 output_value_first = edge_partition_value_first] __device__(auto i) {
-                  auto rx_vertex    = *(rx_vertex_first + i);
-                  auto minor_offset = rx_vertex - minor_range_first;
-                  fill_scalar_or_thrust_tuple(output_value_first, minor_offset, input);
-                });
-            } else {
-              auto map_first = thrust::make_transform_iterator(
-                rx_vertices.begin(),
-                cuda::proclaim_return_type<vertex_t>(
-                  [minor_range_first] __device__(auto v) { return v - minor_range_first; }));
-              auto val_first = thrust::make_constant_iterator(input);
-              thrust::scatter(rmm::exec_policy_nosync(loop_stream),
-                              val_first,
-                              val_first + local_v_list_sizes[partition_idx],
-                              map_first,
-                              edge_partition_value_first);
-            }
-          }
-        }
-      }
-      if (stream_pool_indices) { handle.sync_stream_pool(*stream_pool_indices); }
-RAFT_CUDA_TRY(cudaDeviceSynchronize()); auto sub3 = std::chrono::steady_clock::now();
-std::chrono::duration<double> subdur0 = sub1 - sub0;
-std::chrono::duration<double> subdur1 = sub2 - sub1;
-std::chrono::duration<double> subdur2 = sub3 - sub2;
-std::cout << "sub (fill) took (" << subdur0.count() << "," << subdur1.count() << "," << subdur2.count() << ")" << std::endl;
-#if 0
-      for (size_t j = 0; j < loop_count; ++j) {
-        auto partition_idx = i + j;
-        auto loop_stream   = stream_pool_indices
-                               ? handle.get_stream_from_stream_pool((*stream_pool_indices)[j])
-                               : handle.get_stream();
-
-        if (is_packed_bool<typename EdgeMinorPropertyOutputWrapper::value_iterator,
-                           typename EdgeMinorPropertyOutputWrapper::value_type>() &&
-            !edge_partition_keys && v_list_bitmap) {
-          rmm::device_uvector<uint32_t> rx_bitmap(
-            packed_bool_size(local_v_list_range_lasts[partition_idx] -
-                             local_v_list_range_firsts[partition_idx]),
-            loop_stream);
+        for (size_t j = 0; j < loop_count; ++j) {
+          auto partition_idx = i + j;
+          auto& rx_bitmap    = edge_partition_rx_bitmaps[j];
           device_bcast(major_comm,
                        (static_cast<int>(partition_idx) == major_comm_rank)
                          ? (*v_list_bitmap).data()
                          : static_cast<uint32_t const*>(nullptr),
                        rx_bitmap.data(),
                        rx_bitmap.size(),
-                       partition_idx,
-                       loop_stream);
+                       static_cast<int>(partition_idx),
+                       handle.get_stream());
+        }
+        if (min_bcast_size >= 8192 /* workaround for a seemingly NCCL bug */) {
+          device_group_end(major_comm);
+        }
+        handle.sync_stream();
+
+#if FILL_PERFORMANCE_MEASUREMENT
+        RAFT_CUDA_TRY(cudaDeviceSynchronize());
+        auto sub2 = std::chrono::steady_clock::now();
+#endif
+        for (size_t j = 0; j < loop_count; ++j) {
+          auto partition_idx    = i + j;
+          auto loop_stream      = stream_pool_indices
+                                    ? handle.get_stream_from_stream_pool((*stream_pool_indices)[j])
+                                    : handle.get_stream();
+          auto const& rx_bitmap = edge_partition_rx_bitmaps[j];
           thrust::for_each(
             rmm::exec_policy_nosync(loop_stream),
             thrust::make_counting_iterator(size_t{0}),
@@ -607,30 +504,108 @@ std::cout << "sub (fill) took (" << subdur0.count() << "," << subdur1.count() <<
                 }
               }
             });
-        } else {
-          rmm::device_uvector<vertex_t> rx_vertices(local_v_list_sizes[partition_idx], loop_stream);
-          // FIXME: these broadcast operations can be placed between ncclGroupStart() and
-          // ncclGroupEnd()
-          std::variant<raft::device_span<uint32_t const>, decltype(sorted_unique_vertex_first)>
-            v_list{};
-          if (v_list_bitmap) {
-            v_list = (static_cast<int>(partition_idx) == major_comm_rank)
-                       ? raft::device_span<uint32_t const>((*v_list_bitmap).data(),
-                                                           (*v_list_bitmap).size())
-                       : raft::device_span<uint32_t const>(static_cast<uint32_t const*>(nullptr),
-                                                           size_t{0});
-          } else {
-            v_list = sorted_unique_vertex_first;
-          }
-          device_bcast_vertex_list(major_comm,
-                                   v_list,
-                                   rx_vertices.begin(),
-                                   local_v_list_range_firsts[partition_idx],
-                                   local_v_list_range_lasts[partition_idx],
-                                   local_v_list_sizes[partition_idx],
-                                   partition_idx,
-                                   loop_stream);
+        }
+#if FILL_PERFORMANCE_MEASUREMENT
+        RAFT_CUDA_TRY(cudaDeviceSynchronize());
+        auto sub3                             = std::chrono::steady_clock::now();
+        std::chrono::duration<double> subdur0 = sub1 - sub0;
+        std::chrono::duration<double> subdur1 = sub2 - sub1;
+        std::chrono::duration<double> subdur2 = sub3 - sub2;
+        std::cerr << "fill_edge_minor path A took (" << subdur0.count() << "," << subdur1.count()
+                  << "," << subdur2.count() << ")" << std::endl;
+#endif
+      } else {
+#if FILL_PERFORMANCE_MEASUREMENT
+        RAFT_CUDA_TRY(cudaDeviceSynchronize());
+        auto sub0 = std::chrono::steady_clock::now();
+#endif
+        std::vector<std::variant<rmm::device_uvector<vertex_t>, rmm::device_uvector<uint32_t>>>
+          edge_partition_v_buffers{};
+        edge_partition_v_buffers.reserve(loop_count);
+        std::vector<rmm::device_scalar<size_t>> edge_partition_dummy_counter_scalars{};
+        edge_partition_dummy_counter_scalars.reserve(loop_count);
+        for (size_t j = 0; j < loop_count; ++j) {
+          auto partition_idx = i + j;
 
+          std::variant<rmm::device_uvector<vertex_t>, rmm::device_uvector<uint32_t>> v_buffer =
+            rmm::device_uvector<vertex_t>(0, handle.get_stream());
+          if (v_list_bitmap) {
+            v_buffer = rmm::device_uvector<uint32_t>(
+              packed_bool_size(local_v_list_range_lasts[partition_idx] -
+                               local_v_list_range_firsts[partition_idx]),
+              handle.get_stream());
+          } else {
+            std::get<0>(v_buffer).resize(local_v_list_sizes[partition_idx], handle.get_stream());
+          }
+          edge_partition_v_buffers.push_back(std::move(v_buffer));
+          edge_partition_dummy_counter_scalars.push_back(
+            rmm::device_scalar<size_t>(size_t{0}, handle.get_stream()));
+        }
+#if FILL_PERFORMANCE_MEASUREMENT
+        RAFT_CUDA_TRY(cudaDeviceSynchronize());
+        auto sub1 = std::chrono::steady_clock::now();
+#endif
+
+        if (min_bcast_size >= 8192 /* workaround for a seemingly NCCL bug */) {
+          device_group_start(major_comm);
+        };
+        for (size_t j = 0; j < loop_count; ++j) {
+          auto partition_idx = i + j;
+
+          auto& v_buffer = edge_partition_v_buffers[j];
+          if (v_list_bitmap) {
+            device_bcast(major_comm,
+                         (static_cast<int>(partition_idx) == major_comm_rank)
+                           ? (*v_list_bitmap).data()
+                           : static_cast<uint32_t const*>(nullptr),
+                         std::get<1>(v_buffer).data(),
+                         std::get<1>(v_buffer).size(),
+                         static_cast<int>(partition_idx),
+                         handle.get_stream());
+          } else {
+            // FIXME: we may better send 32 bit vertex offsets if [local_v_list_range_firsts[],
+            // local_v_list_range_lasts[]) fit into unsigned 32 bit integer
+            device_bcast(major_comm,
+                         (static_cast<int>(partition_idx) == major_comm_rank)
+                           ? sorted_unique_vertex_first
+                           : static_cast<vertex_t const*>(nullptr),
+                         std::get<0>(v_buffer).data(),
+                         std::get<0>(v_buffer).size(),
+                         static_cast<int>(partition_idx),
+                         handle.get_stream());
+          }
+        }
+        if (min_bcast_size >= 8192 /* workaround for a seemingly NCCL bug */) {
+          device_group_end(major_comm);
+        }
+        if (stream_pool_indices) { handle.sync_stream(); }
+#if FILL_PERFORMANCE_MEASUREMENT
+        RAFT_CUDA_TRY(cudaDeviceSynchronize());
+        auto sub2 = std::chrono::steady_clock::now();
+#endif
+
+        for (size_t j = 0; j < loop_count; ++j) {
+          auto partition_idx = i + j;
+          auto loop_stream   = stream_pool_indices
+                                 ? handle.get_stream_from_stream_pool((*stream_pool_indices)[j])
+                                 : handle.get_stream();
+
+          if (v_list_bitmap) {
+            auto const& rx_bitmap = std::get<1>(edge_partition_v_buffers[j]);
+            rmm::device_uvector<vertex_t> rx_vertices(local_v_list_sizes[partition_idx],
+                                                      loop_stream);
+            rmm::device_scalar<size_t> dummy(size_t{0}, loop_stream);
+            retrieve_vertex_list_from_bitmap(
+              raft::device_span<uint32_t const>(rx_bitmap.data(), rx_bitmap.size()),
+              rx_vertices.begin(),
+              raft::device_span<size_t>(dummy.data(), size_t{1}),
+              local_v_list_range_firsts[partition_idx],
+              local_v_list_range_lasts[partition_idx],
+              loop_stream);
+            edge_partition_v_buffers[j] = std::move(rx_vertices);
+          }
+
+          auto const& rx_vertices = std::get<0>(edge_partition_v_buffers[j]);
           if (edge_partition_keys) {
             thrust::for_each(
               rmm::exec_policy_nosync(loop_stream),
@@ -685,14 +660,26 @@ std::cout << "sub (fill) took (" << subdur0.count() << "," << subdur1.count() <<
             }
           }
         }
+#if FILL_PERFORMANCE_MEASUREMENT
+        RAFT_CUDA_TRY(cudaDeviceSynchronize());
+        auto sub3                             = std::chrono::steady_clock::now();
+        std::chrono::duration<double> subdur0 = sub1 - sub0;
+        std::chrono::duration<double> subdur1 = sub2 - sub1;
+        std::chrono::duration<double> subdur2 = sub3 - sub2;
+        std::cerr << "fill_edge_minor path B took (" << subdur0.count() << "," << subdur1.count()
+                  << "," << subdur2.count() << ")" << std::endl;
+#endif
       }
       if (stream_pool_indices) { handle.sync_stream_pool(*stream_pool_indices); }
-#endif
     }
-RAFT_CUDA_TRY(cudaDeviceSynchronize()); auto t2 = std::chrono::steady_clock::now();
-std::chrono::duration<double> dur0 = t1 - t0;
-std::chrono::duration<double> dur1 = t2 - t1;
-std::cout << "fill_edge_minor took (" << dur0.count() << "," << dur1.count() << ")" << std::endl;
+#if FILL_PERFORMANCE_MEASUREMENT
+    RAFT_CUDA_TRY(cudaDeviceSynchronize());
+    auto t2                            = std::chrono::steady_clock::now();
+    std::chrono::duration<double> dur0 = t1 - t0;
+    std::chrono::duration<double> dur1 = t2 - t1;
+    std::cerr << "fill_edge_minor took (" << dur0.count() << "," << dur1.count() << ")"
+              << std::endl;
+#endif
   } else {
     assert(graph_view.local_vertex_partition_range_size() ==
            graph_view.local_edge_partition_src_range_size());
