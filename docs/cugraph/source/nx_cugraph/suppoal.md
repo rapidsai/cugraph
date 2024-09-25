@@ -14,7 +14,7 @@ Below is the list of algorithms that are currently supported in nx-cugraph.
 
 | **Centrality**    | **Centrality**   |
 |------------------------------|------------------------------|
-| betweenness_centrality       |  betweenness_centrality      | 
+| betweenness_centrality       |  betweenness_centrality      |
 | edge_betweenness_centrality  | in_degree_centrality         |
 | degree_centrality            |  edge_betweenness_centrality |
 | in_degree_centrality         | in_degree_centrality         |
