@@ -1,5 +1,5 @@
 # FAQ
 
- > **1. When should I __?**
+ > **1. Is `nx-cugraph` able to run across multiple GPUs?**
 
-Here is the explanation to the question.
+We currently do not support multi-GPU. There are plans to add support for this later on.
