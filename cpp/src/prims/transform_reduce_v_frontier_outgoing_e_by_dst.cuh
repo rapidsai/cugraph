@@ -293,6 +293,17 @@ transform_reduce_v_frontier_outgoing_e_by_dst(raft::handle_t const& handle,
                       d_tx_buffer_last_boundaries.size(),
                       handle.get_stream());
     handle.sync_stream();
+#if 0
+    std::vector<size_t> tx_counts(comm.get_size(), 0);
+    for (int i = 0; i < major_comm_size; ++i) {
+      auto r = partition_manager::compute_global_comm_rank_from_graph_subcomm_ranks(major_comm_size, minor_comm_size, i, minor_comm_rank);
+      tx_counts[r] = (i == 0) ? h_tx_buffer_last_boundaries[0] : (h_tx_buffer_last_boundaries[i] - h_tx_buffer_last_boundaries[i - 1]);
+    }
+
+    auto rx_key_buffer = allocate_dataframe_buffer<key_t>(size_t{0}, handle.get_stream());
+    std::tie(rx_key_buffer, std::ignore) = shuffle_values(
+      comm, get_dataframe_buffer_begin(key_buffer), tx_counts, handle.get_stream());  // use comm insteads of major_comm to save P2P buffer allocation
+#else
     std::vector<size_t> tx_counts(h_tx_buffer_last_boundaries.size());
     std::adjacent_difference(
       h_tx_buffer_last_boundaries.begin(), h_tx_buffer_last_boundaries.end(), tx_counts.begin());
@@ -300,12 +311,18 @@ transform_reduce_v_frontier_outgoing_e_by_dst(raft::handle_t const& handle,
     auto rx_key_buffer = allocate_dataframe_buffer<key_t>(size_t{0}, handle.get_stream());
     std::tie(rx_key_buffer, std::ignore) = shuffle_values(
       major_comm, get_dataframe_buffer_begin(key_buffer), tx_counts, handle.get_stream());
+#endif
     key_buffer = std::move(rx_key_buffer);
 
     if constexpr (!std::is_same_v<payload_t, void>) {
       auto rx_payload_buffer = allocate_dataframe_buffer<payload_t>(size_t{0}, handle.get_stream());
+#if 0
+      std::tie(rx_payload_buffer, std::ignore) = shuffle_values(
+        comm, get_dataframe_buffer_begin(payload_buffer), tx_counts, handle.get_stream());
+#else
       std::tie(rx_payload_buffer, std::ignore) = shuffle_values(
         major_comm, get_dataframe_buffer_begin(payload_buffer), tx_counts, handle.get_stream());
+#endif
       payload_buffer = std::move(rx_payload_buffer);
     }
 
@@ -319,7 +336,7 @@ transform_reduce_v_frontier_outgoing_e_by_dst(raft::handle_t const& handle,
   std::chrono::duration<double> dur0 = time1 - time0;
   std::chrono::duration<double> dur1 = time2 - time1;
   std::chrono::duration<double> dur2 = time3 - time2;
-  std::cout << "\tprim (fill,lreduce,greduce) took (" << dur0.count() << "," << dur1.count() << ","
+  std::cerr << "\tprim (fill,lreduce,greduce) took (" << dur0.count() << "," << dur1.count() << ","
             << dur2.count() << ")" << std::endl;
 #endif
 

@@ -1185,7 +1185,7 @@ extract_transform_v_frontier_e(raft::handle_t const& handle,
     std::chrono::duration<double> subdur7 = subtime8 - subtime7;
     std::chrono::duration<double> subdur8 = subtime9 - subtime8;
     std::chrono::duration<double> subdur9 = subtime10 - subtime9;
-    std::cout << "sub (extract) took (" << subdur0.count() << "," << subdur1.count() << "," << subdur2.count()
+    std::cerr << "sub (extract) took (" << subdur0.count() << "," << subdur1.count() << "," << subdur2.count()
               << "," << subdur3.count() << "," << subdur4.count() << "," << subdur5.count() << ","
               << subdur6.count() << "," << subdur7.count() << "," << subdur8.count() << ","
               << subdur9.count() << ")" << std::endl;
@@ -1248,7 +1248,7 @@ extract_transform_v_frontier_e(raft::handle_t const& handle,
   std::chrono::duration<double> dur0 = time1 - time0;
   std::chrono::duration<double> dur1 = time2 - time1;
   std::chrono::duration<double> dur2 = time3 - time2;
-  std::cout << "\t\t" << "detail::extract (pre,fill,concat) took (" << dur0.count() << "," << dur1.count()
+  std::cerr << "\t\t" << "detail::extract (pre,fill,concat) took (" << dur0.count() << "," << dur1.count()
             << "," << dur2.count() << ")" << std::endl;
 #endif
 

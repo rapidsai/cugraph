@@ -120,7 +120,6 @@ void bfs(raft::handle_t const& handle,
                 "GraphViewType should support the push model.");
 
 #if BFS_PERFORMANCE_MEASUREMENT  // FIXME: delete
-  auto const comm_rank = GraphViewType::is_multi_gpu ? handle.get_comms().get_rank() : int{0};
   RAFT_CUDA_TRY(cudaDeviceSynchronize());
   auto prep0 = std::chrono::steady_clock::now();
 #endif
@@ -366,7 +365,7 @@ void bfs(raft::handle_t const& handle,
   std::chrono::duration<double> dur2 = prep3 - prep2;
   std::chrono::duration<double> dur3 = prep4 - prep3;
   std::chrono::duration<double> dur  = prep4 - prep0;
-  std::cout << comm_rank << ":prep (init,meta,vf,fill) took " << dur.count() << " (" << dur0.count()
+  std::cerr << "prep (init,meta,vf,fill) took " << dur.count() << " (" << dur0.count()
             << "," << dur1.count() << "," << dur2.count() << "," << dur3.count() << ") s."
             << std::endl;
 #endif
@@ -437,7 +436,7 @@ void bfs(raft::handle_t const& handle,
         std::chrono::duration<double> dur1 = topdown2 - topdown1;
         std::chrono::duration<double> dur2 = topdown3 - topdown2;
         std::chrono::duration<double> dur  = topdown3 - topdown0;
-        std::cout << comm_rank << ":depth=" << depth << " topdown (prim,vf,host) took "
+        std::cerr << "depth=" << depth << " topdown (prim,vf,host) took "
                   << dur.count() << " (" << dur0.count() << "," << dur1.count() << ","
                   << dur2.count() << ") s." << std::endl;
 #endif
@@ -567,7 +566,7 @@ void bfs(raft::handle_t const& handle,
             ? host_scalar_allreduce(
                 handle.get_comms(), m_u, raft::comms::op_t::SUM, handle.get_stream())
             : m_u;
-        std::cout << comm_rank << ":m_f=" << m_f << " m_u=" << m_u
+        std::cerr << "m_f=" << m_f << " m_u=" << m_u
                   << " aggregate_m_f * direction_optimzing_alpha="
                   << aggregate_m_f * direction_optimizing_alpha
                   << " aggregate_m_u=" << aggregate_m_u
@@ -606,7 +605,7 @@ void bfs(raft::handle_t const& handle,
       std::chrono::duration<double> dur4 = topdown5 - topdown4;
       std::chrono::duration<double> dur5 = topdown6 - topdown5;
       std::chrono::duration<double> dur  = topdown6 - topdown0;
-      std::cout << comm_rank << ":depth=" << depth
+      std::cerr << "depth=" << depth
                 << " topdown next_aggregate_frontier_size=" << next_aggregate_frontier_size
                 << " next topdown=" << topdown
                 << " (prim,vf,host,fill,dir,vf) took " << dur.count() << " (" << dur0.count() << ","
@@ -703,7 +702,7 @@ void bfs(raft::handle_t const& handle,
         std::chrono::duration<double> dur0 = bottomup1 - bottomup0;
         std::chrono::duration<double> dur1 = bottomup2 - bottomup1;
         std::chrono::duration<double> dur  = bottomup2 - bottomup0;
-        std::cout << comm_rank << ":depth=" << depth << " bottomup (prim+,host) took "
+        std::cerr << "depth=" << depth << " bottomup (prim+,host) took "
                   << dur.count() << " (" << dur0.count() << "," << dur1.count() << ") s."
                   << std::endl;
 #endif
@@ -760,7 +759,7 @@ void bfs(raft::handle_t const& handle,
       std::chrono::duration<double> dur3 = bottomup4 - bottomup3;
       std::chrono::duration<double> dur4 = bottomup5 - bottomup4;
       std::chrono::duration<double> dur  = bottomup5 - bottomup0;
-      std::cout << comm_rank << ":depth=" << depth
+      std::cerr << "depth=" << depth
                 << " bottomup next_aggregate_frontier_size=" << next_aggregate_frontier_size
                 << " aggregatee_nzd_unvisited_vertices=" << aggregate_nzd_unvisited_vertices
                 << " (prim+,host,fill,dir,vf) took " << dur.count() << " (" << dur0.count() << ","
