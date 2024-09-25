@@ -942,14 +942,7 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
       std::optional<rmm::device_uvector<int32_t>> hop{std::nullopt};
       std::optional<rmm::device_uvector<label_t>> edge_label{std::nullopt};
       std::optional<rmm::device_uvector<size_t>> offsets{std::nullopt};
-
-      rmm::device_uvector<vertex_t> vertex_type_offsets(graph_view.local_vertex_partition_range_size(), handle_.get_stream());
-
-      cugraph::detail::sequence_fill(handle_.get_stream(),
-                            vertex_type_offsets.begin(),
-                            vertex_type_offsets.size(),
-                            vertex_t{0});
-      
+  
       // FIXME: For biased sampling, the user should pass either biases or edge weights,
       // otherwised throw an error and suggest the user to call uniform neighbor sample instead
 
