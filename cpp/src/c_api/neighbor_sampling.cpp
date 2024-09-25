@@ -83,7 +83,7 @@ struct uniform_neighbor_sampling_functor : public cugraph::c_api::abstract_funct
   cugraph::c_api::cugraph_type_erased_device_array_view_t const* start_vertex_labels_{nullptr};
   cugraph::c_api::cugraph_type_erased_device_array_view_t const* label_list_{nullptr};
   cugraph::c_api::cugraph_type_erased_device_array_view_t const* label_to_comm_rank_{nullptr};
-  cugraph::c_api::cugraph_type_erased_device_array_view_t const* label_offsets_{nullptr}; // start_vertex_label_offsets - local to each GPU - For every start vertex, it needs to pass a global label IDs and label_to_comm_rank (?) - 
+  cugraph::c_api::cugraph_type_erased_device_array_view_t const* label_offsets_{nullptr};
   cugraph::c_api::cugraph_type_erased_host_array_view_t const* fan_out_{nullptr};
   cugraph::c_api::cugraph_rng_state_t* rng_state_{nullptr};
   cugraph::c_api::cugraph_sampling_options_t options_{};
