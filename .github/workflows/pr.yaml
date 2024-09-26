@@ -46,6 +46,7 @@ jobs:
       files_yaml: |
         test_cpp:
           - '**'
+          - '!.devcontainers/**'
           - '!CONTRIBUTING.md'
           - '!README.md'
           - '!docs/**'
@@ -58,6 +59,7 @@ jobs:
           - '!.github/**'
         test_notebooks:
           - '**'
+          - '!.devcontainers/**'
           - '!CONTRIBUTING.md'
           - '!README.md'
           - '!docs/**'
@@ -65,6 +67,7 @@ jobs:
           - '!.github/**'
         test_python:
           - '**'
+          - '!.devcontainers/**'
           - '!CONTRIBUTING.md'
           - '!README.md'
           - '!docs/**'
