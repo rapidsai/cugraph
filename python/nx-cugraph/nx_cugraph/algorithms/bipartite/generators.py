@@ -16,6 +16,7 @@ import cupy as cp
 import networkx as nx
 import numpy as np
 
+from nx_cugraph import _nxver
 from nx_cugraph.generators._utils import _create_using_class, _number_and_nodes
 from nx_cugraph.utils import index_dtype, networkx_algorithm
 
@@ -48,7 +49,7 @@ def complete_bipartite_graph(n1, n2, create_using=None):
         nodes.extend(range(n2) if nodes2 is None else nodes2)
         if len(set(nodes)) != len(nodes):
             raise nx.NetworkXError("Inputs n1 and n2 must contain distinct nodes")
-    if nx.__version__[:3] <= "3.3":
+    if _nxver <= (3, 3):
         name = f"complete_bipartite_graph({orig_n1}, {orig_n2})"
     else:
         name = f"complete_bipartite_graph({n1}, {n2})"

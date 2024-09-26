@@ -18,7 +18,7 @@ import tempfile
 
 from typing import Sequence, Optional, Union, List, Tuple, Iterator
 
-from cugraph.gnn import UniformNeighborSampler, DistSampleWriter
+from cugraph.gnn import UniformNeighborSampler, BiasedNeighborSampler, DistSampleWriter
 from cugraph.utilities.utils import import_optional
 
 import cugraph_dgl
@@ -93,7 +93,6 @@ class NeighborSampler(Sampler):
             If provided, the probability of each neighbor being
             sampled is proportional to the edge feature
             with the given name.  Mutually exclusive with mask.
-            Currently unsupported.
         mask: str
             Optional.
             If proivided, only neighbors where the edge mask
@@ -133,10 +132,6 @@ class NeighborSampler(Sampler):
             raise NotImplementedError(
                 "Edge masking is currently unsupported by cuGraph-DGL"
             )
-        if prob:
-            raise NotImplementedError(
-                "Edge masking is currently unsupported by cuGraph-DGL"
-            )
         if prefetch_edge_feats:
             warnings.warn("'prefetch_edge_feats' is ignored by cuGraph-DGL")
         if prefetch_node_feats:
@@ -145,6 +140,8 @@ class NeighborSampler(Sampler):
             warnings.warn("'prefetch_labels' is ignored by cuGraph-DGL")
         if fused:
             warnings.warn("'fused' is ignored by cuGraph-DGL")
+
+        self.__prob_attr = prob
 
         self.fanouts = fanouts_per_layer
         reverse_fanouts = fanouts_per_layer.copy()
@@ -180,8 +177,14 @@ class NeighborSampler(Sampler):
             format=kwargs.pop("format", "parquet"),
         )
 
-        ds = UniformNeighborSampler(
-            g._graph(self.edge_dir),
+        sampling_clx = (
+            UniformNeighborSampler
+            if self.__prob_attr is None
+            else BiasedNeighborSampler
+        )
+
+        ds = sampling_clx(
+            g._graph(self.edge_dir, prob_attr=self.__prob_attr),
             writer,
             compression="CSR",
             fanout=self._reversed_fanout_vals,

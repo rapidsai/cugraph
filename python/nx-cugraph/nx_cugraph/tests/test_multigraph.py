@@ -1,4 +1,4 @@
-# Copyright (c) 2023, NVIDIA CORPORATION.
+# Copyright (c) 2023-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -26,7 +26,7 @@ def test_get_edge_data(test_nxcugraph):
     G.add_edge(0, 3)
     G.add_edge(0, 3)
     if test_nxcugraph:
-        G = nxcg.MultiGraph(G)
+        G = nxcg.CudaMultiGraph(G)
     default = object()
     assert G.get_edge_data(0, 0, default=default) is default
     assert G.get_edge_data("a", "b", default=default) is default
@@ -60,7 +60,7 @@ def test_get_edge_data(test_nxcugraph):
     G = nx.MultiGraph()
     G.add_edge(0, 1)
     if test_nxcugraph:
-        G = nxcg.MultiGraph(G)
+        G = nxcg.CudaMultiGraph(G)
     assert G.get_edge_data(0, 1, default=default) == {0: {}}
     assert G.get_edge_data(0, 1, 0, default=default) == {}
     assert G.get_edge_data(0, 1, 1, default=default) is default

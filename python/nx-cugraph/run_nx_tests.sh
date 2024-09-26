@@ -18,6 +18,10 @@
 #   testing takes longer.  Without it, tests will xfail when encountering a
 #   function that we don't implement.
 #
+# NX_CUGRAPH_USE_COMPAT_GRAPHS, {"True", "False"}, default is "True"
+#   Whether to use `nxcg.Graph` as the nx_cugraph backend graph.
+#   A Graph should be a compatible NetworkX graph, so fewer tests should fail.
+#
 # Coverage of `nx_cugraph.algorithms` is reported and is a good sanity check
 # that algorithms run.
 

@@ -1,4 +1,4 @@
-# Copyright (c) 2023, NVIDIA CORPORATION.
+# Copyright (c) 2023-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -16,6 +16,7 @@ import cupy as cp
 import networkx as nx
 
 import nx_cugraph as nxcg
+from nx_cugraph import _nxver
 
 from ..utils import index_dtype
 
@@ -74,7 +75,7 @@ def _common_small_graph(n, nodes, create_using, *, allow_directed=True):
     return G
 
 
-def _create_using_class(create_using, *, default=nxcg.Graph):
+def _create_using_class(create_using, *, default=nx.Graph):
     """Handle ``create_using`` argument and return a Graph type from nx_cugraph."""
     inplace = False
     if create_using is None:
@@ -85,16 +86,17 @@ def _create_using_class(create_using, *, default=nxcg.Graph):
         create_using, "is_multigraph"
     ):
         raise TypeError("create_using is not a valid graph type or instance")
-    elif not isinstance(create_using, nxcg.Graph):
+    elif not isinstance(create_using, (nxcg.Graph, nxcg.CudaGraph)):
         raise NotImplementedError(
             f"create_using with object of type {type(create_using)} is not supported "
-            "by the cugraph backend; only nx_cugraph.Graph objects are allowed."
+            "by the cugraph backend; only nx_cugraph.Graph or nx_cugraph.CudaGraph "
+            "objects are allowed."
         )
     else:
         inplace = True
         G = create_using
         G.clear()
-    if not isinstance(G, nxcg.Graph):
+    if not isinstance(G, (nxcg.Graph, nxcg.CudaGraph)):
         if G.is_multigraph():
             if G.is_directed():
                 graph_class = nxcg.MultiDiGraph
@@ -104,10 +106,12 @@ def _create_using_class(create_using, *, default=nxcg.Graph):
             graph_class = nxcg.DiGraph
         else:
             graph_class = nxcg.Graph
+        if _nxver >= (3, 3) and not nx.config.backends.cugraph.use_compat_graphs:
+            graph_class = graph_class.to_cudagraph_class()
         if G.__class__ not in {nx.Graph, nx.DiGraph, nx.MultiGraph, nx.MultiDiGraph}:
             raise NotImplementedError(
                 f"create_using with type {type(G)} is not supported by the cugraph "
-                "backend; only standard networkx or nx_cugraph Graph objects are "
+                "backend; only standard networkx or nx_cugraph graph objects are "
                 "allowed (but not customized subclasses derived from them)."
             )
     else:
