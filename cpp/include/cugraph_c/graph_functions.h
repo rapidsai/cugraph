@@ -361,30 +361,6 @@ cugraph_type_erased_device_array_view_t* cugraph_degrees_result_get_out_degrees(
  */
 void cugraph_degrees_result_free(cugraph_degrees_result_t* degrees_result);
 
-/**
- * @brief      Symmetrize edgelist
- *
- * This function symmetrizes the edgelist.
- *
- * @param [in]  handle            Handle for accessing resources.
- * @param [in]  src               Device array containing the source vertex ids.
- * @param [in]  dst               Device array containing the destination vertex ids
- * @param [in]  weights           Optional device array containing the edge weights
- * @param [in]  reciprocal        Flag indicating whether to keep (if set to `false`) or discard
- *                                 (if set to `true`) edges that appear only in one direction.
- * @param [out] result            Opaque pointer to gathered edgelist result
- * @param [out] error             Pointer to an error object storing details of any error.  Will
- *                                be populated if error code is not CUGRAPH_SUCCESS
- * @return error code
- */
-cugraph_error_code_t symmetrize_edgelist(const cugraph_resource_handle_t* handle,
-                                         const cugraph_type_erased_device_array_view_t* src,
-                                         const cugraph_type_erased_device_array_view_t* dst,
-                                         const cugraph_type_erased_device_array_view_t* weights,
-                                         bool_t reciprocal,
-                                         cugraph_induced_subgraph_result_t** result,
-                                         cugraph_error_t** error);
-
 #ifdef __cplusplus
 }
 #endif
