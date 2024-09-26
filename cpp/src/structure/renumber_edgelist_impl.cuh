@@ -438,6 +438,34 @@ std::tuple<rmm::device_uvector<vertex_t>, std::vector<vertex_t>, vertex_t> compu
 
           edge_partition_tmp_minors.push_back(std::move(tmp_minors));
         }
+        if (edge_partition_tmp_minors.size() == 1) {
+          this_bin_sorted_unique_minors = std::move(edge_partition_tmp_minors[0]);
+        } else {
+          edge_t aggregate_size{0};
+          for (size_t j = 0; j < edge_partition_tmp_minors.size(); ++j) {
+            aggregate_size += edge_partition_tmp_minors[j].size();
+          }
+          this_bin_sorted_unique_minors.resize(aggregate_size, handle.get_stream());
+          size_t output_offset{0};
+          for (size_t j = 0; j < edge_partition_tmp_minors.size(); ++j) {
+            thrust::copy(handle.get_thrust_policy(),
+                         edge_partition_tmp_minors[j].begin(),
+                         edge_partition_tmp_minors[j].end(),
+                         this_bin_sorted_unique_minors.begin() + output_offset);
+            output_offset += edge_partition_tmp_minors[j].size();
+          }
+          edge_partition_tmp_minors.clear();
+          thrust::sort(handle.get_thrust_policy(),
+                       this_bin_sorted_unique_minors.begin(),
+                       this_bin_sorted_unique_minors.end());
+          this_bin_sorted_unique_minors.resize(
+            thrust::distance(this_bin_sorted_unique_minors.begin(),
+                             thrust::unique(handle.get_thrust_policy(),
+                                            this_bin_sorted_unique_minors.begin(),
+                                            this_bin_sorted_unique_minors.end())),
+            handle.get_stream());
+          this_bin_sorted_unique_minors.shrink_to_fit(handle.get_stream());
+        }
         if constexpr (multi_gpu) {
           auto& major_comm = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
           auto const major_comm_size = major_comm.get_size();
@@ -446,29 +474,6 @@ std::tuple<rmm::device_uvector<vertex_t>, std::vector<vertex_t>, vertex_t> compu
             auto const comm_size = comm.get_size();
             auto& minor_comm = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
             auto const minor_comm_size = minor_comm.get_size();
-            edge_t aggregate_size{0};
-            for (size_t j = 0; j < edge_partition_tmp_minors.size(); ++j) {
-              aggregate_size += edge_partition_tmp_minors[j].size();
-            }
-            this_bin_sorted_unique_minors.resize(aggregate_size, handle.get_stream());
-            size_t output_offset{0};
-            for (size_t j = 0; j < edge_partition_tmp_minors.size(); ++j) {
-              thrust::copy(handle.get_thrust_policy(),
-                           edge_partition_tmp_minors[j].begin(),
-                           edge_partition_tmp_minors[j].end(),
-                           this_bin_sorted_unique_minors.begin() + output_offset);
-              output_offset += edge_partition_tmp_minors[j].size();
-            }
-            thrust::sort(handle.get_thrust_policy(),
-                         this_bin_sorted_unique_minors.begin(),
-                         this_bin_sorted_unique_minors.end());
-            this_bin_sorted_unique_minors.resize(
-              thrust::distance(this_bin_sorted_unique_minors.begin(),
-                               thrust::unique(handle.get_thrust_policy(),
-                                              this_bin_sorted_unique_minors.begin(),
-                                              this_bin_sorted_unique_minors.end())),
-              handle.get_stream());
-            this_bin_sorted_unique_minors.shrink_to_fit(handle.get_stream());
 #if 0
             this_bin_sorted_unique_minors = shuffle_ext_vertices_to_local_gpu_by_vertex_partitioning(handle, std::move(this_bin_sorted_unique_minors));
             thrust::sort(handle.get_thrust_policy(),
@@ -510,8 +515,6 @@ std::tuple<rmm::device_uvector<vertex_t>, std::vector<vertex_t>, vertex_t> compu
           } else {
             this_bin_sorted_unique_minors = std::move(edge_partition_tmp_minors[0]);
           }
-        } else {
-          this_bin_sorted_unique_minors = std::move(edge_partition_tmp_minors[0]);
         }
       }
 #if 1
