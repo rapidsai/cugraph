@@ -14,7 +14,6 @@ from __future__ import annotations
 
 from copy import deepcopy
 from typing import TYPE_CHECKING
-from functools import cached_property
 
 import cupy as cp
 import networkx as nx
@@ -246,24 +245,6 @@ class CudaDiGraph(CudaGraph):
         return rv
 
     # Many more methods to implement...
-
-    ##############
-    # Properties #
-    ##############
-
-    # Define cached_property properties to support usage as a networkx.Graph
-    # instance by maintaining a networkx.Graph copy of the graph.
-    @cached_property
-    def _succ(self):
-        if (G := self.__networkx_cache__.get("networkx")) is None:
-            G = self.__networkx_cache__.setdefault("networkx", nxcg.to_networkx(self))
-        return G._succ
-
-    @cached_property
-    def _pred(self):
-        if (G := self.__networkx_cache__.get("networkx")) is None:
-            G = self.__networkx_cache__.setdefault("networkx", nxcg.to_networkx(self))
-        return G._pred
 
     ###################
     # Private methods #
