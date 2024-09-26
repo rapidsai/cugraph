@@ -103,6 +103,8 @@ cugraph_error_code_t cugraph_sg_graph_create(
  *    Note that setting this flag will arbitrarily select one instance of a multi edge to be the
  *    edge that survives.  If the edges have properties that should be honored (e.g. sum the
  weights,
+ *    or take the maximum weight), the caller should remove specific edges themselves and not rely
+ *    on this flag.
  * @param [in] symmetrize      If true, symmetrize the edgelist. The symmetrization of edges
  * with edge_ids and/or edge_type_ids is currently not supported.
  * @param [in]  do_expensive_check    If true, do expensive checks to validate the input data
