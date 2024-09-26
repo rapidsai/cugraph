@@ -33,7 +33,7 @@ dependencies:
 - libraft==24.10.*,>=0.0.0a0
 - librmm==24.10.*,>=0.0.0a0
 - nbsphinx
-- nccl>=2.18.1.1
+- nccl>=2.19
 - networkx>=2.5.1
 - networkx>=3.0
 - ninja
@@ -57,7 +57,7 @@ dependencies:
 - pytest-mpl
 - pytest-xdist
 - python-louvain
-- pytorch>=2.0,<2.4.0a0
+- pytorch>=2.3,<2.4.0a0
 - raft-dask==24.10.*,>=0.0.0a0
 - rapids-build-backend>=0.3.1,<0.4.0.dev0
 - rapids-dask-dependency==24.10.*,>=0.0.0a0
