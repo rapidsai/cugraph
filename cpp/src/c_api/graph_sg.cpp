@@ -585,7 +585,7 @@ extern "C" cugraph_error_code_t cugraph_graph_create_sg(
     CAPI_EXPECTS(
     (properties->is_symmetric == TRUE),
     CUGRAPH_INVALID_INPUT,
-    "Invalid input arguments: The graph property must be symmetric if symmetrize is set to True.",
+    "Invalid input arguments: The graph property must be symmetric if 'symmetrize' is set to True.",
     *error);
   }
 
@@ -761,7 +761,7 @@ cugraph_error_code_t cugraph_graph_create_sg_from_csr(
     CAPI_EXPECTS(
     (properties->is_symmetric == TRUE),
     CUGRAPH_INVALID_INPUT,
-    "Invalid input arguments: The graph property must be symmetric if symmetrize is set to True.",
+    "Invalid input arguments: The graph property must be symmetric if 'symmetrize' is set to True.",
     *error);
   }
 
