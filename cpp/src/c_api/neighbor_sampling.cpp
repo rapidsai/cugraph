@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-#include "c_api/neighbor_sampling.hpp"
 
 #include "c_api/abstract_functor.hpp"
 #include "c_api/graph.hpp"
@@ -1860,8 +1859,6 @@ cugraph_error_code_t cugraph_uniform_neighbor_sample(
     CUGRAPH_INVALID_INPUT,
     "fan_out should be of type int",
     *error);
-  
-  bool is_biased = false;
 
   uniform_neighbor_sampling_functor functor{handle,
                                             graph,
@@ -1940,8 +1937,6 @@ cugraph_error_code_t cugraph_biased_neighbor_sample(
     CUGRAPH_INVALID_INPUT,
     "fan_out should be of type int",
     *error);
-
-  bool is_biased = true;
 
   biased_neighbor_sampling_functor functor{handle,
                                            graph,
@@ -2125,7 +2120,6 @@ cugraph_error_code_t cugraph_homogeneous_uniform_neighbor_sample(
                "vertex type of graph and start_vertices must match",
                *error);
 
-
   neighbor_sampling_functor functor{handle,
                                     rng_state,
                                     graph,
@@ -2204,24 +2198,4 @@ cugraph_error_code_t cugraph_homogeneous_biased_neighbor_sample(
                                     TRUE,
                                     do_expensive_check};
   return cugraph::c_api::run_algorithm(graph, functor, result, error);
-}
-
-
-
-
-
-
-extern "C" cugraph_error_code_t cugraph_create_heterogeneous_fan_out(
-  const cugraph_resource_handle_t* handle,
-  cugraph_graph_t* graph,
-  const cugraph_type_erased_host_array_view_t* edge_type_offsets,
-  const cugraph_type_erased_host_array_view_t* fan_out,
-  cugraph_sample_heterogeneous_fan_out_t** heterogeneous_fan_out,
-  cugraph_error_t** error)
-{
-  *heterogeneous_fan_out = reinterpret_cast<cugraph_sample_heterogeneous_fan_out_t*> (new std::tuple<cugraph::c_api::cugraph_type_erased_host_array_t *, cugraph::c_api::cugraph_type_erased_host_array_t*> {
-          new cugraph::c_api::cugraph_type_erased_host_array_t(reinterpret_cast<cugraph::c_api::cugraph_type_erased_host_array_view_t const*>(edge_type_offsets)),
-          new cugraph::c_api::cugraph_type_erased_host_array_t(reinterpret_cast<cugraph::c_api::cugraph_type_erased_host_array_view_t const*>(fan_out))});
-  
-  return CUGRAPH_SUCCESS;
 }

@@ -330,51 +330,12 @@ void cugraph_sampling_options_free(cugraph_sampling_options_t* options);
 /**
  * @brief     Opaque neighborhood sampling heterogeneous fan_out type
  */
-typedef struct {
-  int32_t align_;
-} cugraph_sample_heterogeneous_fan_out_t;
 
-/**
- * @brief       Create heterogeneous fan_out
- *
- * Input data will be stored in the heterogenous_fan_out.
- * 
- * The fan_out is going to be a CSR structure, the edge_type_offsets will define which range
- * of the fan_out array is associated with each edge type, the fan_out will be the values of
- * fan_out for that hop/type. So for edge type k, fan_out[edge_type_offsets[k]] will identify
- * the fan_out for hop 0 for edge type k.  fan_out[edge_type_offsets[k] +1] will identify the
- * fan_out for hop 1, etc. edge_type_offsets[k+1] will mark the beginning of the fan_out
- * array for type k+1 (and the end of the fan_out array for type k.
- *
- * @param [in]  handle         Handle for accessing resources
- * @param [in]  graph          Pointer to graph
- * @param [in]  edge_type_offsets Type erased array of edge type offsets
- * @param [in]  fan_out         Type erased array of fan_out values
- * @param [out] heterogeneous_fan_out Opaque pointer to fan_out_t
- * @param [out] error          Pointer to an error object storing details of any error.  Will
- *                             be populated if error code is not CUGRAPH_SUCCESS
- * @return error code
- */
-cugraph_error_code_t cugraph_create_heterogeneous_fan_out(
-  const cugraph_resource_handle_t* handle,
-  cugraph_graph_t* graph,
-  const cugraph_type_erased_host_array_view_t* edge_type_offsets,
-  const cugraph_type_erased_host_array_view_t* fan_out,
-  cugraph_sample_heterogeneous_fan_out_t** heterogeneous_fan_out,
-  cugraph_error_t** error);
-
-/**
- * @brief     Free edge type and fan_out pairs
- *
- * @param [in]    heterogeneous_fan_out The edge type size and fan_out values
- */
-void cugraph_heterogeneous_fan_out_free(cugraph_sample_heterogeneous_fan_out_t* heterogeneous_fan_out);
 
 /**
  * @brief     Uniform Neighborhood Sampling
  * 
- * @deprecated  This API will be deleted, use cugraph_homogeneous_neighbor_sample with
- * 'is_biased' set to false instead
+ * @deprecated  This API will be deleted, use cugraph_homogeneous_uniform_neighbor_sample
  *
  * Returns a sample of the neighborhood around specified start vertices.  Optionally, each
  * start vertex can be associated with a label, allowing the caller to specify multiple batches
@@ -431,8 +392,7 @@ cugraph_error_code_t cugraph_uniform_neighbor_sample(
 /**
  * @brief     Biased Neighborhood Sampling
  * 
- * @deprecated  This API will be deleted, use cugraph_homogeneous_neighbor_sample with
- * 'is_biased' set to true instead
+ * @deprecated  This API will be deleted, use cugraph_homogeneous_biased_neighbor_sample.
  * 
  * Returns a sample of the neighborhood around specified start vertices.  Optionally, each
  * start vertex can be associated with a label, allowing the caller to specify multiple batches
@@ -516,9 +476,6 @@ cugraph_error_code_t cugraph_biased_neighbor_sample(
  *                            sample.
  * @param [in]  sampling_options
  *                           Opaque pointer defining the sampling options.
- * @param [in]  is_biased
- *                           A flag specifying whether to run biased neighborhood sampling
- *                           (if set to true) or uniform neighbor sampling.
  * @param [in]  do_expensive_check
  *                           A flag to run expensive checks for input arguments (if set to true)
  * @param [out]  result      Output from the uniform_neighbor_sample call
@@ -533,10 +490,9 @@ cugraph_error_code_t cugraph_heterogeneous_uniform_neighbor_sample(
   const cugraph_edge_property_view_t* edge_biases,
   const cugraph_type_erased_device_array_view_t* start_vertices,
   const cugraph_type_erased_device_array_view_t* start_vertex_offsets,
-  const cugraph_sample_heterogeneous_fan_out_t* fan_out,
+  const cugraph_type_erased_device_array_view_t* fan_out,
   int num_edge_types,
   const cugraph_sampling_options_t* options,
-  bool_t is_biased,
   bool_t do_expensive_check,
   cugraph_sample_result_t** result,
   cugraph_error_t** error);
@@ -570,9 +526,6 @@ cugraph_error_code_t cugraph_heterogeneous_uniform_neighbor_sample(
  *                            sample.
  * @param [in]  sampling_options
  *                           Opaque pointer defining the sampling options.
- * @param [in]  is_biased
- *                           A flag specifying whether to run biased neighborhood sampling
- *                           (if set to true) or uniform neighbor sampling.
  * @param [in]  do_expensive_check
  *                           A flag to run expensive checks for input arguments (if set to true)
  * @param [out]  result      Output from the uniform_neighbor_sample call
@@ -587,10 +540,9 @@ cugraph_error_code_t cugraph_heterogeneous_biased_neighbor_sample(
   const cugraph_edge_property_view_t* edge_biases,
   const cugraph_type_erased_device_array_view_t* start_vertices,
   const cugraph_type_erased_device_array_view_t* start_vertex_offsets,
-  const cugraph_sample_heterogeneous_fan_out_t* fan_out,
+  const cugraph_type_erased_device_array_view_t* fan_out,
   int num_edge_types,
   const cugraph_sampling_options_t* options,
-  bool_t is_biased,
   bool_t do_expensive_check,
   cugraph_sample_result_t** result,
   cugraph_error_t** error);
