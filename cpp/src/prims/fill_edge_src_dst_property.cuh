@@ -448,9 +448,7 @@ void fill_edge_minor_property(raft::handle_t const& handle,
         RAFT_CUDA_TRY(cudaDeviceSynchronize());
         auto sub1 = std::chrono::steady_clock::now();
 #endif
-        if (packed_bool_size(min_bcast_size) >= 8192 /* workaround for a seemingly NCCL bug */) {
-          device_group_start(major_comm);
-        }
+        device_group_start(major_comm);
         for (size_t j = 0; j < loop_count; ++j) {
           auto partition_idx = i + j;
           auto& rx_bitmap    = edge_partition_rx_bitmaps[j];
@@ -463,10 +461,8 @@ void fill_edge_minor_property(raft::handle_t const& handle,
                        static_cast<int>(partition_idx),
                        handle.get_stream());
         }
-        if (min_bcast_size >= 8192 /* workaround for a seemingly NCCL bug */) {
-          device_group_end(major_comm);
-        }
-        handle.sync_stream();
+        device_group_end(major_comm);
+        handle.sync_stream();  // FIXME: ???
 
 #if FILL_PERFORMANCE_MEASUREMENT
         RAFT_CUDA_TRY(cudaDeviceSynchronize());
