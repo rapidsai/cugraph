@@ -1,6 +1,6 @@
 # Getting Started
 
-This guide describes how to install ``nx-cugraph`` use it in your workflows.
+This guide describes how to install ``nx-cugraph`` and use it in your workflows.
 
 
 ## System Requirements

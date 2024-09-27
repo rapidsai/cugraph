@@ -23,15 +23,15 @@ By simply `installing and enabling nx-cugraph <https://github.com/rapidsai/cugra
     Try it on Google Colab!
 
 
-+---------------------------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------+
-| **Zero Code Change Acceleration**                                                           | **Third-Party Library Compatible**                                                                                  |
-|                                                                                             |                                                                                                                     |
-| Just ``%load_ext cudf.pandas`` in Jupyter, or pass ``-m cudf.pandas`` on the command line.  | ``nx_cugraph`` is compatible with most third-party libraries that use pandas.                                       |
-+---------------------------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------+
-| **Run the same code on CPU or GPU**                                                         | **100% of the NetworkX API**                                                                                        |
-|                                                                                             |                                                                                                                     |
-| Nothing changes, not even your `import` statements, when going from CPU to GPU.             | Combines the full flexibility of NetworkX with the speed of running on GPU.                                         |
-+---------------------------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------+
++---------------------------------------------------------------------------------------------+
+| **Zero Code Change Acceleration**                                                           |
+|                                                                                             |
+| Just ``nx.config.backend_priority=["cugraph"]`` in Jupyter, or set ``NETWORKX_BACKEND_PRIORITY=cugraph`` in the shell.  |
++---------------------------------------------------------------------------------------------+
+| **Run the same code on CPU or GPU**                                                         |
+|                                                                                             |
+| Nothing changes, not even your `import` statements, when going from CPU to GPU.             |
++---------------------------------------------------------------------------------------------+
 
 
 ``nx-cugraph`` is now Generally Available (GA) as part of the ``RAPIDS`` package.  See `RAPIDS

@@ -14,20 +14,24 @@ While NetworkX is a pure-Python implementation with minimal to no dependencies, 
 NetworkX will use nx-cugraph as the graph analytics backend if any of the
 following are used:
 
-### `NETWORKX_AUTOMATIC_BACKENDS` environment variable.
+### `NETWORKX_BACKEND_PRIORITY` environment variable.
 
-The `NETWORKX_AUTOMATIC_BACKENDS` environment variable can be used to have NetworkX automatically dispatch to specified backends an API is called that the backend supports.
-Set `NETWORKX_AUTOMATIC_BACKENDS=cugraph` to use nx-cugraph to GPU accelerate supported APIs with no code changes.
-Example:
+The `NETWORKX_BACKEND_PRIORITY` environment variable can be used to have NetworkX automatically dispatch to specified backends. This variable can be set to a single backend name, or a comma-separated list of backends ordered using the priority which NetworkX should try.  If a NetworkX function is called that nx-cugraph supports, NetworkX will re-direct the function call to nx-cugraph automatically, or fall back to the next backend in the list if provided, or run using the default NetworkX implementation.
+For example, this setting will have NetworkX use nx-cugraph for any function called by the script supported by nx-cugraph, and the default NetworkX implementation for all others.
 ```
-bash> NETWORKX_AUTOMATIC_BACKENDS=cugraph python my_networkx_script.py
+bash> NETWORKX_BACKEND_PRIORITY=cugraph python my_networkx_script.py
+```
+
+This example will have NetworkX use nx-cugraph for functions it supports, then try other_backend if nx-cugraph does not support them, and finally the default NetworkX implementation if not supported by either backend:
+```
+bash> NETWORKX_BACKEND_PRIORITY="cugraph,other_backend" python my_networkx_script.py
 ```
 
 ### `backend=` keyword argument
 
 To explicitly specify a particular backend for an API, use the `backend=`
 keyword argument. This argument takes precedence over the
-`NETWORKX_AUTOMATIC_BACKENDS` environment variable. This requires anyone
+`NETWORKX_BACKEND_PRIORITY` environment variable. This requires anyone
 running code that uses the `backend=` keyword argument to have the specified
 backend installed.
 
@@ -81,7 +85,7 @@ Run the command:
 user@machine:/# ipython bc_demo.ipy
 ```
 
-You will observe a run time of approximately 7 minutes...more or less depending on your cpu.
+You will observe a run time of approximately 7 minutes...more or less depending on your CPU.
 
 Run the command again, this time specifying cugraph as the NetworkX backend.
 ```
@@ -91,7 +95,7 @@ This run will be much faster, typically around 20 seconds depending on your GPU.
 ```
 user@machine:/# NETWORKX_BACKEND_PRIORITY=cugraph ipython bc_demo.ipy
 ```
-There is also an option to cache the graph conversion to GPU. This can dramatically improve performance when running multiple algorithms on the same graph.
+There is also an option to cache the graph conversion to GPU. This can dramatically improve performance when running multiple algorithms on the same graph. Caching is enabled by default for NetworkX versions 3.4 and later, but if using an older version, set "NETWORKX_CACHE_CONVERTED_GRAPHS=True"
 ```
 NETWORKX_BACKEND_PRIORITY=cugraph NETWORKX_CACHE_CONVERTED_GRAPHS=True ipython bc_demo.ipy
 ```
