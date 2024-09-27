@@ -481,13 +481,18 @@ ConfigureTest(RANDOM_WALKS_TEST sampling/sg_random_walks_test.cpp)
 # - UNIFORM NBR SAMPLING tests --------------------------------------------------------------------
 ConfigureTest(UNIFORM_NEIGHBOR_SAMPLING_TEST sampling/uniform_neighbor_sampling.cpp)
 
-# - UNIFORM NBR SAMPLING tests --------------------------------------------------------------------
+# - HOMOGENEOUS UNIFORM NBR SAMPLING tests --------------------------------------------------------------------
 ConfigureTest(
     HOMOGENEOUS_UNIFORM_NEIGHBOR_SAMPLING_TEST sampling/homogeneous_uniform_neighbor_sampling.cpp)
 
 ###################################################################################################
 # - BIASED NBR SAMPLING tests ---------------------------------------------------------------------
 ConfigureTest(BIASED_NEIGHBOR_SAMPLING_TEST sampling/biased_neighbor_sampling.cpp)
+
+###################################################################################################
+# - HOMOGENEOUS BIASED NBR SAMPLING tests ---------------------------------------------------------------------
+ConfigureTest(
+    HOMOGENEOUS_BIASED_NEIGHBOR_SAMPLING_TEST sampling/homogeneous_biased_neighbor_sampling.cpp)
 
 ###################################################################################################
 # - SAMPLING_POST_PROCESSING tests ----------------------------------------------------------------
