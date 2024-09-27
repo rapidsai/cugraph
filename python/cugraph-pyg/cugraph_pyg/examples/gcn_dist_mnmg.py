@@ -204,6 +204,7 @@ def run_train(
         directory=train_path,
         shuffle=True,
         drop_last=True,
+        global_shuffle=True,
         **kwargs,
     )
 
@@ -217,6 +218,7 @@ def run_train(
         shuffle=True,
         drop_last=True,
         local_seeds_per_call=80000,
+        global_shuffle=False,
         **kwargs,
     )
 
@@ -229,6 +231,7 @@ def run_train(
         directory=valid_path,
         shuffle=True,
         drop_last=True,
+        global_shuffle=False,
         **kwargs,
     )
 
