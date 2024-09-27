@@ -72,9 +72,6 @@ neighbor_sample_impl(raft::handle_t const& handle,
 {
   static_assert(std::is_floating_point_v<bias_t>);
 
-  std::vector<cugraph::edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, bool>> edge_masks_vector{};
-  graph_view_t<vertex_t, edge_t, false, multi_gpu> modified_graph_view = graph_view;
-
   if constexpr (!multi_gpu) {
     CUGRAPH_EXPECTS(!label_to_output_comm_rank,
                     "cannot specify output GPU mapping in SG implementation");
@@ -103,9 +100,12 @@ neighbor_sample_impl(raft::handle_t const& handle,
     fan_out.size() <= static_cast<size_t>(std::numeric_limits<int32_t>::max()),
     "Invalid input argument: number of levels should not overflow int32_t");  // as we use int32_t
                                                                               // to store hops
+  
+  std::vector<cugraph::edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, bool>> edge_masks_vector{};
+  graph_view_t<vertex_t, edge_t, false, multi_gpu> modified_graph_view = graph_view;
   edge_masks_vector.reserve(num_edge_types);
   
-  for (int i = 0; i < num_edge_types; i++) {
+  for (int i = 0; i < num_edge_types - 1; i++) {
 
     cugraph::edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, bool> edge_mask(handle, graph_view);
     
@@ -170,9 +170,9 @@ neighbor_sample_impl(raft::handle_t const& handle,
   std::vector<size_t> level_sizes{};
 
   // Get the number of hop. If homogeneous neighbor sample, num_edge_types = 1
-  auto num_hops = (fan_out.size() % num_edge_types) ? (fan_out.size() / num_edge_types) : (fan_out.size() / num_edge_types + 1);
+  auto num_hops = ((fan_out.size() % num_edge_types) == 0) ? (fan_out.size() / num_edge_types) : ((fan_out.size() / num_edge_types) + 1);
 
-  for (auto hop = 0; hop < num_hops; hop++){
+  for (auto hop = 0; hop < num_hops - 1; hop++){
     for (auto edge_type_id = 0; edge_type_id < num_edge_types; edge_type_id++) {
       auto k_level = fan_out[(hop*num_edge_types) + edge_type_id];
       rmm::device_uvector<vertex_t> srcs(0, handle.get_stream());
@@ -182,7 +182,9 @@ neighbor_sample_impl(raft::handle_t const& handle,
       std::optional<rmm::device_uvector<edge_type_t>> edge_types{std::nullopt};
       std::optional<rmm::device_uvector<int32_t>> labels{std::nullopt};
 
-      modified_graph_view.attach_edge_mask(edge_masks_vector[edge_type_id].view());
+      if (num_edge_types > 1) {
+        modified_graph_view.attach_edge_mask(edge_masks_vector[edge_type_id].view());
+      }
 
       if (k_level > 0) {
         std::tie(srcs, dsts, weights, edge_ids, edge_types, labels) =
