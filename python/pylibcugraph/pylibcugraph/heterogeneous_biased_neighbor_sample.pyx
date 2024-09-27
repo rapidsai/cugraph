@@ -55,10 +55,7 @@ from pylibcugraph._cugraph_c.algorithms cimport (
     cugraph_sampling_set_retain_seeds,
 )
 from pylibcugraph._cugraph_c.sampling_algorithms cimport (
-    cugraph_heterogeneous_neighbor_sample,
-    cugraph_sample_heterogeneous_fan_out_t,
-    cugraph_create_heterogeneous_fan_out,
-    cugraph_heterogeneous_fan_out_free,
+    cugraph_heterogeneous_biased_neighbor_sample,
 )
 from pylibcugraph.resource_handle cimport (
     ResourceHandle,
@@ -84,27 +81,24 @@ from pylibcugraph.random cimport (
 import warnings
 
 # TODO accept cupy/numpy random state in addition to raw seed.
-def heterogeneous_neighbor_sample(ResourceHandle resource_handle,
-                    _GPUGraph input_graph,
-                    start_list,
-                    h_fan_out,
-                    bool_t is_biased,
-                    bool_t with_replacement,
-                    bool_t do_expensive_check,
-                    with_edge_properties=False,
-                    batch_id_list=None,
-                    label_list=None,
-                    label_to_output_comm_rank=None,
-                    label_offsets=None,
-                    prior_sources_behavior=None,
-                    deduplicate_sources=False,
-                    return_hops=False,
-                    renumber=False,
-                    retain_seeds=False,
-                    compression='COO',
-                    compress_per_hop=False,
-                    random_state=None,
-                    return_dict=False,):
+def heterogeneous_biased_neighbor_sample(ResourceHandle resource_handle,
+                                         _GPUGraph input_graph,
+                                         start_vertex_list,
+                                         start_vertex_offsets,
+                                         h_fan_out,
+                                         num_edge_types,
+                                         bool_t with_replacement,
+                                         bool_t do_expensive_check,
+                                         with_edge_properties=False,
+                                         prior_sources_behavior=None,
+                                         deduplicate_sources=False,
+                                         return_hops=False,
+                                         renumber=False,
+                                         retain_seeds=False,
+                                         compression='COO',
+                                         compress_per_hop=False,
+                                         random_state=None,
+                                         return_dict=False,):
     """
     # FIXME: Deprecate uniform_neighbor_sample
     Does both uniform and biased neighborhood sampling, which samples nodes from
@@ -121,22 +115,26 @@ def heterogeneous_neighbor_sample(ResourceHandle resource_handle,
 
     input_graph : SGGraph or MGGraph
         The input graph, for either Single or Multi-GPU operations.
-
-    start_list: device array type
-        Device array containing the list of starting vertices for sampling.
-
+    
     edge_biases: FIXE: update this - Create edge_biases of type
-    'cugraph_edge_property_view_t' - edge biases not yet supported.
+        'cugraph_edge_property_view_t' - edge biases not yet supported.
+
+    start_vertex_list: device array type
+        Device array containing the list of starting vertices for sampling.
+    
+    start_vertex_offsets: list[int] (Optional)
+        Offsets of each label within the start vertex list.
 
     h_fan_out: tuple of numpy array type
         Device array containing the branching out (fan-out) degrees per
-        starting vertex for each hop level in CSR style format. The first
-        element of the tuple is the offset array per edge type id and the second
-        element corresponds to the fan_out values.
-        The sampling method can use different fan_out values for each edge type.
+        starting vertex for each hop level
+        
+        The sampling method can use different fan_out values for each edge type
+        which is not the case for homogeneous neighborhood sampling.
     
-    is_biased: bool
-        If false, sampling procedure is done uniform otherwise with biases.
+    num_edge_types: Number of edge types where a value of 1 translates to homogeneous neighbor
+        sample whereas a value greater than 1 translates to heterogeneous neighbor
+        sample.
 
     with_replacement: bool
         If true, sampling procedure is done with replacement (the same vertex
@@ -150,22 +148,6 @@ def heterogeneous_neighbor_sample(ResourceHandle resource_handle,
         If True, returns the edge properties of each edges along with the
         edges themselves.  Will result in an error if the provided graph
         does not have edge properties.
-
-    batch_id_list: list[int32] (Optional)
-        List of int32 batch ids that is returned with each edge.  Optional
-        argument, defaults to NULL, returning nothing.
-
-    label_list: list[int32] (Optional)
-        List of unique int32 batch ids.  Required if also passing the
-        label_to_output_comm_rank flag.  Default to NULL (does nothing)
-
-    label_to_output_comm_rank: list[int32] (Optional)
-        Maps the unique batch ids in label_list to the rank of the
-        worker that should hold results for that batch id.
-        Defaults to NULL (does nothing)
-
-    label_offsets: list[int] (Optional)
-        Offsets of each label within the start vertex list.
 
     prior_sources_behavior: str (Optional)
         Options are "carryover", and "exclude".
@@ -229,10 +211,7 @@ def heterogeneous_neighbor_sample(ResourceHandle resource_handle,
     )
 
     cdef cugraph_graph_t* c_graph_ptr = input_graph.c_graph_ptr
-    cdef cugraph_sample_heterogeneous_fan_out_t* heterogeneous_fan_out_ptr = <cugraph_sample_heterogeneous_fan_out_t*>NULL
     cdef cugraph_type_erased_host_array_view_t* fan_out_ptr = <cugraph_type_erased_host_array_view_t*>NULL
-    cdef cugraph_type_erased_host_array_view_t* fan_out_offsets_ptr = <cugraph_type_erased_host_array_view_t*>NULL
-    cdef cugraph_type_erased_host_array_view_t* fan_out_values_ptr = <cugraph_type_erased_host_array_view_t*>NULL
 
     cdef bool_t c_deduplicate_sources = deduplicate_sources
     cdef bool_t c_return_hops = return_hops
@@ -242,114 +221,56 @@ def heterogeneous_neighbor_sample(ResourceHandle resource_handle,
     cdef cugraph_error_code_t error_code
     cdef cugraph_error_t* error_ptr
     cdef uintptr_t ai_fan_out_ptr
-    cdef uintptr_t ai_fan_out_offsets_ptr
-    cdef uintptr_t ai_fan_out_values_ptr
 
+    # FIXME: refactor the way we are creating pointer. Can use a single helper function to create **************
 
-    assert_CAI_type(start_list, "start_list")
-    assert_CAI_type(batch_id_list, "batch_id_list", True)
-    assert_CAI_type(label_list, "label_list", True)
-    assert_CAI_type(label_to_output_comm_rank, "label_to_output_comm_rank", True)
-    assert_CAI_type(label_offsets, "label_offsets", True)
+    assert_CAI_type(start_vertex_list, "start_vertex_list")
+    assert_CAI_type(start_vertex_offsets, "start_vertex_offsets", True)
 
-    assert_AI_type(h_fan_out[0], "h_fan_out_size")
-    assert_AI_type(h_fan_out[1], "h_fan_out_values")
-    ai_fan_out_offsets_ptr = \
-        h_fan_out[0].__array_interface__["data"][0]
-    ai_fan_out_values_ptr = \
-        h_fan_out[1].__array_interface__["data"][0]
+    assert_AI_type(h_fan_out, "h_fan_out")
 
-    fan_out_offsets_ptr = \
+    ai_fan_out_ptr = \
+        h_fan_out.__array_interface__["data"][0]
+
+    fan_out_ptr = \
         cugraph_type_erased_host_array_view_create(
-            <void*>ai_fan_out_offsets_ptr,
-            len(h_fan_out[0]),
-            get_c_type_from_numpy_type(h_fan_out[0].dtype))
+            <void*>ai_fan_out_ptr,
+            len(h_fan_out),
+            get_c_type_from_numpy_type(h_fan_out.dtype))
 
-    fan_out_values_ptr = \
-        cugraph_type_erased_host_array_view_create(
-            <void*>ai_fan_out_values_ptr,
-            len(h_fan_out[1]),
-            get_c_type_from_numpy_type(h_fan_out[1].dtype))
 
-    error_code = cugraph_create_heterogeneous_fan_out(
-        c_resource_handle_ptr,
-        c_graph_ptr,
-        fan_out_offsets_ptr,
-        fan_out_values_ptr,
-        &heterogeneous_fan_out_ptr,
-        &error_ptr
-    )
-
-    assert_success(error_code, error_ptr, "cugraph_create_heterogeneous_fan_out")
 
     cdef cugraph_sample_result_t* result_ptr
 
     cdef uintptr_t cai_start_ptr = \
-        start_list.__cuda_array_interface__["data"][0]
+        start_vertex_list.__cuda_array_interface__["data"][0]
 
-    cdef uintptr_t cai_batch_id_ptr
-    if batch_id_list is not None:
-        cai_batch_id_ptr = \
-            batch_id_list.__cuda_array_interface__['data'][0]
+    cdef uintptr_t cai_start_vertex_offsets_ptr
+    if start_vertex_offsets is not None:
+        cai_start_vertex_offsets_ptr = \
+            start_vertex_offsets.__cuda_array_interface__['data'][0]
 
-    cdef uintptr_t cai_label_list_ptr
-    if label_list is not None:
-        cai_label_list_ptr = \
-            label_list.__cuda_array_interface__['data'][0]
 
-    cdef uintptr_t cai_label_to_output_comm_rank_ptr
-    if label_to_output_comm_rank is not None:
-        cai_label_to_output_comm_rank_ptr = \
-            label_to_output_comm_rank.__cuda_array_interface__['data'][0]
-
-    cdef uintptr_t cai_label_offsets_ptr
-    if label_offsets is not None:
-        cai_label_offsets_ptr = \
-            label_offsets.__cuda_array_interface__['data'][0]
-
-    cdef cugraph_type_erased_device_array_view_t* start_ptr = \
+    cdef cugraph_type_erased_device_array_view_t* start_vertex_list_ptr = \
         cugraph_type_erased_device_array_view_create(
             <void*>cai_start_ptr,
-            len(start_list),
-            get_c_type_from_numpy_type(start_list.dtype))
+            len(start_vertex_list),
+            get_c_type_from_numpy_type(start_vertex_list.dtype))
 
-    cdef cugraph_type_erased_device_array_view_t* batch_id_ptr = <cugraph_type_erased_device_array_view_t*>NULL
-    if batch_id_list is not None:
-        batch_id_ptr = \
-            cugraph_type_erased_device_array_view_create(
-                <void*>cai_batch_id_ptr,
-                len(batch_id_list),
-                get_c_type_from_numpy_type(batch_id_list.dtype)
-            )
 
-    cdef cugraph_type_erased_device_array_view_t* label_list_ptr = <cugraph_type_erased_device_array_view_t*>NULL
-    if label_list is not None:
-        label_list_ptr = \
+    cdef cugraph_type_erased_device_array_view_t* start_vertex_offsets_ptr = <cugraph_type_erased_device_array_view_t*>NULL
+    if start_vertex_offsets is not None:
+        start_vertex_offsets_ptr = \
             cugraph_type_erased_device_array_view_create(
-                <void*>cai_label_list_ptr,
-                len(label_list),
-                get_c_type_from_numpy_type(label_list.dtype)
-            )
-
-    cdef cugraph_type_erased_device_array_view_t* label_to_output_comm_rank_ptr = <cugraph_type_erased_device_array_view_t*>NULL
-    if label_to_output_comm_rank is not None:
-        label_to_output_comm_rank_ptr = \
-            cugraph_type_erased_device_array_view_create(
-                <void*>cai_label_to_output_comm_rank_ptr,
-                len(label_to_output_comm_rank),
-                get_c_type_from_numpy_type(label_to_output_comm_rank.dtype)
+                <void*>cai_start_vertex_offsets_ptr,
+                len(start_vertex_offsets),
+                get_c_type_from_numpy_type(start_vertex_offsets.dtype)
             )
 
     cdef cugraph_type_erased_device_array_view_t* label_offsets_ptr = <cugraph_type_erased_device_array_view_t*>NULL
     if retain_seeds:
-        if label_offsets is None:
+        if start_vertex_offsets is None:
             raise ValueError("Must provide label offsets if retain_seeds is True")
-        label_offsets_ptr = \
-            cugraph_type_erased_device_array_view_create(
-                <void*>cai_label_offsets_ptr,
-                len(label_offsets),
-                get_c_type_from_numpy_type(label_offsets.dtype)
-            )
 
     cg_rng_state = CuGraphRandomState(resource_handle, random_state)
 
@@ -399,37 +320,30 @@ def heterogeneous_neighbor_sample(ResourceHandle resource_handle,
     cugraph_sampling_set_compress_per_hop(sampling_options, c_compress_per_hop)
     cugraph_sampling_set_retain_seeds(sampling_options, retain_seeds)
 
-    error_code = cugraph_heterogeneous_neighbor_sample(
+    error_code = cugraph_heterogeneous_biased_neighbor_sample(
         c_resource_handle_ptr,
         rng_state_ptr,
         c_graph_ptr,
         <cugraph_edge_property_view_t*>NULL, # FIXME: Add support for biased neighbor sampling
-        start_ptr,
-        batch_id_ptr,
-        label_list_ptr,
-        label_to_output_comm_rank_ptr,
-        label_offsets_ptr,
-        heterogeneous_fan_out_ptr,
+        start_vertex_list_ptr,
+        start_vertex_offsets_ptr,
+        fan_out_ptr,
+        num_edge_types,
         sampling_options,
-        is_biased,
         do_expensive_check,
         &result_ptr,
         &error_ptr)
-    assert_success(error_code, error_ptr, "cugraph_heterogeneous_neighbor_sample")
+    assert_success(error_code, error_ptr, "cugraph_heterogeneous_biased_neighbor_sample")
 
     # Free the sampling options
     cugraph_sampling_options_free(sampling_options)
 
-    if isinstance(h_fan_out, tuple):
-        cugraph_heterogeneous_fan_out_free(heterogeneous_fan_out_ptr)
-
     # Free the two input arrays that are no longer needed.
-    cugraph_type_erased_device_array_view_free(start_ptr)
+    cugraph_type_erased_device_array_view_free(start_vertex_list_ptr)
     cugraph_type_erased_host_array_view_free(fan_out_ptr)
-    if batch_id_list is not None:
-        cugraph_type_erased_device_array_view_free(batch_id_ptr)
-    if label_offsets is not None:
-        cugraph_type_erased_device_array_view_free(label_offsets_ptr)
+
+    if start_vertex_offsets is not None:
+        cugraph_type_erased_device_array_view_free(start_vertex_offsets_ptr)
 
     # Have the SamplingResult instance assume ownership of the result data.
     result = SamplingResult()
