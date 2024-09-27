@@ -396,7 +396,7 @@ void fill_edge_minor_property(raft::handle_t const& handle,
       avg_fill_ratio /= static_cast<double>(major_comm_size);
 
       constexpr double threshold_ratio =
-        8.0 /* tuning parameter */ / static_cast<double>(sizeof(vertex_t) * 8);
+        2.0 /* tuning parameter */ / static_cast<double>(sizeof(vertex_t) * 8);
       if (avg_fill_ratio > threshold_ratio) {
         v_list_bitmap = compute_vertex_list_bitmap_info(sorted_unique_vertex_first,
                                                         sorted_unique_vertex_last,
@@ -444,8 +444,6 @@ void fill_edge_minor_property(raft::handle_t const& handle,
     } else {
       key_offsets = graph_view.local_sorted_unique_edge_dst_vertex_partition_offsets();
     }
-    handle.sync_stream();  // FIXME: unnecessary if we run broadcast operations in ncclGroupStart &
-                           // ncclGroupoEnd
 
 #if FILL_PERFORMANCE_MEASUREMENT
     RAFT_CUDA_TRY(cudaDeviceSynchronize());
@@ -530,6 +528,7 @@ void fill_edge_minor_property(raft::handle_t const& handle,
               }
             });
         }
+        if (stream_pool_indices) { handle.sync_stream_pool(*stream_pool_indices); }
 #if FILL_PERFORMANCE_MEASUREMENT
         RAFT_CUDA_TRY(cudaDeviceSynchronize());
         auto sub3                             = std::chrono::steady_clock::now();
@@ -680,6 +679,7 @@ void fill_edge_minor_property(raft::handle_t const& handle,
             }
           }
         }
+        if (stream_pool_indices) { handle.sync_stream_pool(*stream_pool_indices); }
 #if FILL_PERFORMANCE_MEASUREMENT
         RAFT_CUDA_TRY(cudaDeviceSynchronize());
         auto sub3                             = std::chrono::steady_clock::now();
@@ -690,7 +690,6 @@ void fill_edge_minor_property(raft::handle_t const& handle,
                   << "," << subdur2.count() << ")" << std::endl;
 #endif
       }
-      if (stream_pool_indices) { handle.sync_stream_pool(*stream_pool_indices); }
     }
 #if FILL_PERFORMANCE_MEASUREMENT
     RAFT_CUDA_TRY(cudaDeviceSynchronize());
@@ -702,7 +701,9 @@ void fill_edge_minor_property(raft::handle_t const& handle,
 #endif
   } else {
     assert(graph_view.local_vertex_partition_range_size() ==
-           graph_view.local_edge_partition_src_range_size());
+           (GraphViewType::is_storage_transposed
+              ? graph_view.local_edge_partition_src_range_size()
+              : graph_view.local_edge_partition_dst_range_sizse()));
     if constexpr (contains_packed_bool_element) {
       thrust::for_each(handle.get_thrust_policy(),
                        sorted_unique_vertex_first,
