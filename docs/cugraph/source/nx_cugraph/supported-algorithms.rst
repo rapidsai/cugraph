@@ -182,7 +182,7 @@ The list of currently supported algorithms is as follows:
 +---------------------------------------+
 
 +---------------------------+
-| **Traversal**            |
+| **Traversal**       		|
 +===========================+
 | bfs_edges                 |
 +---------------------------+
