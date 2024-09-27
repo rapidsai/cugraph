@@ -487,7 +487,6 @@ cugraph_error_code_t cugraph_heterogeneous_uniform_neighbor_sample(
   const cugraph_resource_handle_t* handle,
   cugraph_rng_state_t* rng_state,
   cugraph_graph_t* graph,
-  const cugraph_edge_property_view_t* edge_biases,
   const cugraph_type_erased_device_array_view_t* start_vertices,
   const cugraph_type_erased_device_array_view_t* start_vertex_offsets,
   const cugraph_type_erased_host_array_view_t* fan_out,
