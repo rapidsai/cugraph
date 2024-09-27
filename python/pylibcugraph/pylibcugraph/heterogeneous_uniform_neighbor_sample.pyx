@@ -20,9 +20,6 @@ from pylibcugraph._cugraph_c.resource_handle cimport (
     bool_t,
     cugraph_resource_handle_t,
 )
-from pylibcugraph._cugraph_c.properties cimport (
-    cugraph_edge_property_view_t,
-)
 from pylibcugraph._cugraph_c.error cimport (
     cugraph_error_code_t,
     cugraph_error_t,
@@ -55,7 +52,7 @@ from pylibcugraph._cugraph_c.algorithms cimport (
     cugraph_sampling_set_retain_seeds,
 )
 from pylibcugraph._cugraph_c.sampling_algorithms cimport (
-    cugraph_heterogeneous_biased_neighbor_sample,
+    cugraph_heterogeneous_uniform_neighbor_sample,
 )
 from pylibcugraph.resource_handle cimport (
     ResourceHandle,
@@ -81,29 +78,29 @@ from pylibcugraph.random cimport (
 import warnings
 
 # TODO accept cupy/numpy random state in addition to raw seed.
-def heterogeneous_biased_neighbor_sample(ResourceHandle resource_handle,
-                                         _GPUGraph input_graph,
-                                         start_vertex_list,
-                                         start_vertex_offsets,
-                                         h_fan_out,
-                                         num_edge_types,
-                                         bool_t with_replacement,
-                                         bool_t do_expensive_check,
-                                         with_edge_properties=False,
-                                         prior_sources_behavior=None,
-                                         deduplicate_sources=False,
-                                         return_hops=False,
-                                         renumber=False,
-                                         retain_seeds=False,
-                                         compression='COO',
-                                         compress_per_hop=False,
-                                         random_state=None,
-                                         return_dict=False,):
+def heterogeneous_uniform_neighbor_sample(ResourceHandle resource_handle,
+                                          _GPUGraph input_graph,
+                                          start_vertex_list,
+                                          start_vertex_offsets,
+                                          h_fan_out,
+                                          num_edge_types,
+                                          bool_t with_replacement,
+                                          bool_t do_expensive_check,
+                                          with_edge_properties=False,
+                                          prior_sources_behavior=None,
+                                          deduplicate_sources=False,
+                                          return_hops=False,
+                                          renumber=False,
+                                          retain_seeds=False,
+                                          compression='COO',
+                                          compress_per_hop=False,
+                                          random_state=None,
+                                          return_dict=False,):
     """
-    # FIXME: Deprecate biased_neighbor_sample
+    # FIXME: Deprecate uniform_neighbor_sample
     Performs biased neighborhood sampling, which samples nodes from
     a graph based on the current node's neighbors, with a corresponding fan_out
-    value at each hop. The edges are sampled with biases.
+    value at each hop. The edges are sampled uniformly.
 
     Parameters
     ----------
@@ -113,9 +110,6 @@ def heterogeneous_biased_neighbor_sample(ResourceHandle resource_handle,
 
     input_graph : SGGraph or MGGraph
         The input graph, for either Single or Multi-GPU operations.
-    
-    edge_biases: FIXE: update this - Create edge_biases of type
-        'cugraph_edge_property_view_t' - edge biases not yet supported.
 
     start_vertex_list: device array type
         Device array containing the list of starting vertices for sampling.
@@ -318,11 +312,10 @@ def heterogeneous_biased_neighbor_sample(ResourceHandle resource_handle,
     cugraph_sampling_set_compress_per_hop(sampling_options, c_compress_per_hop)
     cugraph_sampling_set_retain_seeds(sampling_options, retain_seeds)
 
-    error_code = cugraph_heterogeneous_biased_neighbor_sample(
+    error_code = cugraph_heterogeneous_uniform_neighbor_sample(
         c_resource_handle_ptr,
         rng_state_ptr,
         c_graph_ptr,
-        <cugraph_edge_property_view_t*>NULL, # FIXME: Add support for biased neighbor sampling
         start_vertex_list_ptr,
         start_vertex_offsets_ptr,
         fan_out_ptr,
@@ -331,7 +324,7 @@ def heterogeneous_biased_neighbor_sample(ResourceHandle resource_handle,
         do_expensive_check,
         &result_ptr,
         &error_ptr)
-    assert_success(error_code, error_ptr, "cugraph_heterogeneous_biased_neighbor_sample")
+    assert_success(error_code, error_ptr, "cugraph_heterogeneous_uniform_neighbor_sample")
 
     # Free the sampling options
     cugraph_sampling_options_free(sampling_options)
@@ -403,7 +396,7 @@ def heterogeneous_biased_neighbor_sample(ResourceHandle resource_handle,
     else:
         # TODO this is deprecated, remove it in release 23.12
         warnings.warn(
-            "Calling heterogeneous_biased_neighbor_sample with the 'with_edge_properties' argument is deprecated."
+            "Calling heterogeneous_uniform_neighbor_sample with the 'with_edge_properties' argument is deprecated."
             " Starting in release 23.12, this argument will be removed in favor of behaving like the "
             "with_edge_properties=True option, returning whatever properties are in the graph.",
             FutureWarning,
