@@ -33,22 +33,20 @@ namespace cugraph {
 
 namespace detail {
 
-inline std::vector<size_t> init_stream_pool_indices(
-  raft::handle_t const& handle,
-  size_t max_tmp_buffer_size,
-  size_t approx_tmp_buffer_size_per_edge_partition,
-  size_t num_local_edge_partitions,
-  size_t num_streams_per_edge_partition)
+inline std::vector<size_t> init_stream_pool_indices(size_t max_tmp_buffer_size,
+                                                    size_t approx_tmp_buffer_size_per_loop,
+                                                    size_t loop_count,
+                                                    size_t num_streams_per_loop,
+                                                    size_t max_streams)
 {
-  size_t num_streams =
-    std::min(num_local_edge_partitions * num_streams_per_edge_partition,
-             raft::round_down_safe(handle.get_stream_pool_size(), num_streams_per_edge_partition));
+  size_t num_streams = std::min(loop_count * num_streams_per_loop,
+                                raft::round_down_safe(max_streams, num_streams_per_loop));
 
   auto num_concurrent_loops =
-    (approx_tmp_buffer_size_per_edge_partition > 0)
-      ? std::max(max_tmp_buffer_size / approx_tmp_buffer_size_per_edge_partition, size_t{1})
-      : num_local_edge_partitions;
-  num_streams = std::min(num_concurrent_loops * num_streams_per_edge_partition, num_streams);
+    (approx_tmp_buffer_size_per_loop > 0)
+      ? std::max(max_tmp_buffer_size / approx_tmp_buffer_size_per_loop, size_t{1})
+      : loop_count;
+  num_streams = std::min(num_concurrent_loops * num_streams_per_loop, num_streams);
 
   std::vector<size_t> stream_pool_indices(num_streams);
   std::iota(stream_pool_indices.begin(), stream_pool_indices.end(), size_t{0});
@@ -125,10 +123,11 @@ void count_nosync(InputIterator input_first,
 }
 
 template <typename InputIterator>
-void sum_nosync(InputIterator input_first,
-                InputIterator input_last,
-                raft::device_span<typename thrust::iterator_traits<InputIterator>::value_type> sum /* size = 1 */,
-                rmm::cuda_stream_view stream_view)
+void sum_nosync(
+  InputIterator input_first,
+  InputIterator input_last,
+  raft::device_span<typename thrust::iterator_traits<InputIterator>::value_type> sum /* size = 1 */,
+  rmm::cuda_stream_view stream_view)
 {
   CUGRAPH_EXPECTS(
     static_cast<size_t>(thrust::distance(input_first, input_last)) <=

@@ -327,8 +327,8 @@ void fill_edge_minor_property(raft::handle_t const& handle,
     auto const major_comm_rank = major_comm.get_rank();
     auto const major_comm_size = major_comm.get_size();
 
-    auto v_list_size =
-      static_cast<size_t>(thrust::distance(sorted_unique_vertex_first, sorted_unique_vertex_last));
+    auto v_list_size = static_cast<vertex_t>(
+      thrust::distance(sorted_unique_vertex_first, sorted_unique_vertex_last));
     std::array<vertex_t, 2> v_list_range = {vertex_t{0}, vertex_t{0}};
     if (v_list_size > 0) {
       rmm::device_uvector<vertex_t> tmps(2, handle.get_stream());
@@ -348,11 +348,41 @@ void fill_edge_minor_property(raft::handle_t const& handle,
                                   // !edge_partition_keys.has_value() && v_list_bitmap.has_value())
     }
 
-    auto local_v_list_sizes = host_scalar_allgather(major_comm, v_list_size, handle.get_stream());
-    auto local_v_list_range_firsts =
-      host_scalar_allgather(major_comm, v_list_range[0], handle.get_stream());
-    auto local_v_list_range_lasts =
-      host_scalar_allgather(major_comm, v_list_range[1], handle.get_stream());
+    std::vector<vertex_t> local_v_list_sizes{};
+    std::vector<vertex_t> local_v_list_range_firsts{};
+    std::vector<vertex_t> local_v_list_range_lasts{};
+    if (major_comm_size > 1) {  // allgather v_list_size, v_list_range[0], and v_list_range[1]
+      std::vector<vertex_t> h_tmps = {v_list_size, v_list_range[0], v_list_range[1]};
+      rmm::device_uvector<vertex_t> d_aggregate_tmps(major_comm_size * size_t{3},
+                                                     handle.get_stream());
+      raft::update_device(d_aggregate_tmps.data() + major_comm_rank * size_t{3},
+                          h_tmps.data(),
+                          size_t{3},
+                          handle.get_stream());
+      device_allgather(major_comm,
+                       d_aggregate_tmps.data() + major_comm_rank * size_t{3},
+                       d_aggregate_tmps.data(),
+                       size_t{3},
+                       handle.get_stream());
+      std::vector<vertex_t> h_aggregate_tmps(d_aggregate_tmps.size());
+      raft::update_host(h_aggregate_tmps.data(),
+                        d_aggregate_tmps.data(),
+                        d_aggregate_tmps.size(),
+                        handle.get_stream());
+      handle.sync_stream();
+      local_v_list_sizes        = std::vector<vertex_t>(major_comm_size);
+      local_v_list_range_firsts = std::vector<vertex_t>(major_comm_size);
+      local_v_list_range_lasts  = std::vector<vertex_t>(major_comm_size);
+      for (int i = 0; i < major_comm_size; ++i) {
+        local_v_list_sizes[i]        = h_aggregate_tmps[i * size_t{3}];
+        local_v_list_range_firsts[i] = h_aggregate_tmps[i * size_t{3} + 1];
+        local_v_list_range_lasts[i]  = h_aggregate_tmps[i * size_t{3} + 2];
+      }
+    } else {
+      local_v_list_sizes        = {v_list_size};
+      local_v_list_range_firsts = {v_list_range[0]};
+      local_v_list_range_lasts  = {v_list_range[1]};
+    }
 
     std::optional<rmm::device_uvector<uint32_t>> v_list_bitmap{std::nullopt};
     if (major_comm_size > 1) {
@@ -375,38 +405,38 @@ void fill_edge_minor_property(raft::handle_t const& handle,
                                                         handle.get_stream());
       }
     }
-    size_t min_bcast_size = std::numeric_limits<size_t>::max();
-    for (int i = 0; i < major_comm_size; ++i) {
-      if (v_list_bitmap) {
-        min_bcast_size =
-          std::min(min_bcast_size,
-                   packed_bool_size(local_v_list_range_lasts[i] - local_v_list_range_firsts[i]) *
-                     sizeof(uint32_t));
-      } else {
-        min_bcast_size = std::min(min_bcast_size, local_v_list_sizes[i] * sizeof(vertex_t));
-      }
-    }
 
-    auto num_concurrent_bcasts =
-      (static_cast<size_t>(graph_view.compute_number_of_edges(handle) / comm_size) *
-       sizeof(vertex_t)) /
-      std::min(
-        (std::reduce(local_v_list_sizes.begin(), local_v_list_sizes.end()) / major_comm_size) *
-          sizeof(vertex_t),
-        size_t{1});
-    num_concurrent_bcasts = std::min(num_concurrent_bcasts, handle.get_stream_pool_size());
-    num_concurrent_bcasts =
-      std::min(std::max(num_concurrent_bcasts, size_t{1}), static_cast<size_t>(major_comm_size));
-    std::cerr << "v_list_size=" << v_list_size << " v_list_range=(" << v_list_range[0] << ","
-              << v_list_range[1] << ") v_list_bitmap.has_value()=" << v_list_bitmap.has_value()
-              << " num_concurrent_bcasts=" << num_concurrent_bcasts
-              << " min_bcast_size=" << min_bcast_size << std::endl;
+    auto edge_partition_keys = edge_minor_property_output.keys();
 
     std::optional<std::vector<size_t>> stream_pool_indices{std::nullopt};
-    if (num_concurrent_bcasts > 1) {
-      stream_pool_indices = std::vector<size_t>(num_concurrent_bcasts);
-      std::iota((*stream_pool_indices).begin(), (*stream_pool_indices).end(), size_t{0});
+    {
+      size_t tmp_buffer_size_per_loop{};
+      for (int i = 0; i < major_comm_size; ++i) {
+        if (is_packed_bool<typename EdgeMinorPropertyOutputWrapper::value_iterator,
+                           typename EdgeMinorPropertyOutputWrapper::value_type>() &&
+            !edge_partition_keys && v_list_bitmap) {
+          tmp_buffer_size_per_loop +=
+            packed_bool_size(local_v_list_range_lasts[i] - local_v_list_range_firsts[i]) *
+            sizeof(uint32_t);
+        } else {
+          tmp_buffer_size_per_loop += static_cast<size_t>(local_v_list_sizes[i]) * sizeof(vertex_t);
+        }
+      }
+      tmp_buffer_size_per_loop /= major_comm_size;
+      stream_pool_indices = init_stream_pool_indices(
+        static_cast<size_t>(static_cast<double>(handle.get_device_properties().totalGlobalMem) *
+                            0.05),
+        tmp_buffer_size_per_loop,
+        major_comm_size,
+        1,
+        handle.get_stream_pool_size());
+      if ((*stream_pool_indices).size() <= 1) { stream_pool_indices = std::nullopt; }
     }
+    size_t num_concurrent_bcasts = stream_pool_indices ? (*stream_pool_indices).size() : size_t{1};
+
+    std::cerr << "v_list_size=" << v_list_size << " v_list_range=(" << v_list_range[0] << ","
+              << v_list_range[1] << ") v_list_bitmap.has_value()=" << v_list_bitmap.has_value()
+              << " num_concurrent_bcasts=" << num_concurrent_bcasts << std::endl;
 
     std::optional<raft::host_span<vertex_t const>> key_offsets{};
     if constexpr (GraphViewType::is_storage_transposed) {
@@ -421,7 +451,6 @@ void fill_edge_minor_property(raft::handle_t const& handle,
     RAFT_CUDA_TRY(cudaDeviceSynchronize());
     auto t1 = std::chrono::steady_clock::now();
 #endif
-    auto edge_partition_keys = edge_minor_property_output.keys();
     for (size_t i = 0; i < static_cast<size_t>(major_comm_size); i += num_concurrent_bcasts) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());
       auto sub0       = std::chrono::steady_clock::now();
@@ -462,7 +491,7 @@ void fill_edge_minor_property(raft::handle_t const& handle,
                        handle.get_stream());
         }
         device_group_end(major_comm);
-        handle.sync_stream();  // FIXME: ???
+        if (stream_pool_indices) { handle.sync_stream(); }
 
 #if FILL_PERFORMANCE_MEASUREMENT
         RAFT_CUDA_TRY(cudaDeviceSynchronize());
@@ -542,9 +571,7 @@ void fill_edge_minor_property(raft::handle_t const& handle,
         auto sub1 = std::chrono::steady_clock::now();
 #endif
 
-        if (min_bcast_size >= 8192 /* workaround for a seemingly NCCL bug */) {
-          device_group_start(major_comm);
-        };
+        device_group_start(major_comm);
         for (size_t j = 0; j < loop_count; ++j) {
           auto partition_idx = i + j;
 
@@ -571,9 +598,7 @@ void fill_edge_minor_property(raft::handle_t const& handle,
                          handle.get_stream());
           }
         }
-        if (min_bcast_size >= 8192 /* workaround for a seemingly NCCL bug */) {
-          device_group_end(major_comm);
-        }
+        device_group_end(major_comm);
         if (stream_pool_indices) { handle.sync_stream(); }
 #if FILL_PERFORMANCE_MEASUREMENT
         RAFT_CUDA_TRY(cudaDeviceSynchronize());
@@ -605,7 +630,7 @@ void fill_edge_minor_property(raft::handle_t const& handle,
           if (edge_partition_keys) {
             thrust::for_each(
               rmm::exec_policy_nosync(loop_stream),
-              thrust::make_counting_iterator(size_t{0}),
+              thrust::make_counting_iterator(vertex_t{0}),
               thrust::make_counting_iterator(local_v_list_sizes[partition_idx]),
               [rx_vertex_first = rx_vertices.begin(),
                input,
@@ -632,8 +657,7 @@ void fill_edge_minor_property(raft::handle_t const& handle,
               thrust::for_each(
                 rmm::exec_policy_nosync(loop_stream),
                 thrust::make_counting_iterator(vertex_t{0}),
-                thrust::make_counting_iterator(
-                  static_cast<vertex_t>(local_v_list_sizes[partition_idx])),
+                thrust::make_counting_iterator(local_v_list_sizes[partition_idx]),
                 [minor_range_first,
                  rx_vertex_first = rx_vertices.begin(),
                  input,

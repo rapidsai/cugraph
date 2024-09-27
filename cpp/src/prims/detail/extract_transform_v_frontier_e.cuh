@@ -760,8 +760,8 @@ extract_transform_v_frontier_e(raft::handle_t const& handle,
       auto& comm           = handle.get_comms();
       auto const comm_size = comm.get_size();
 
-      auto max_tmp_buffer_size =
-        (graph_view.compute_number_of_edges(handle) / comm_size) * sizeof(vertex_t);
+      auto max_tmp_buffer_size = static_cast<size_t>(
+        static_cast<double>(handle.get_device_properties().totalGlobalMem) * 0.05);
 
       auto aggregate_major_range_size = host_scalar_allreduce(
         comm,
@@ -802,11 +802,12 @@ extract_transform_v_frontier_e(raft::handle_t const& handle,
         (aggregate_major_range_size / comm_size) * key_size +
         (aggregate_max_pushes / comm_size) * (output_key_size + output_value_size);
 
-      stream_pool_indices = init_stream_pool_indices(handle,
-                                                     max_tmp_buffer_size,
+      stream_pool_indices = init_stream_pool_indices(max_tmp_buffer_size,
                                                      approx_tmp_buffer_size_per_edge_partition,
                                                      graph_view.number_of_local_edge_partitions(),
-                                                     max_segments);
+                                                     max_segments,
+                                                     handle.get_stream_pool_size());
+      if ((*stream_pool_indices).size() <= 1) { stream_pool_indices = std::nullopt; }
     }
   }
 
@@ -1185,10 +1186,10 @@ extract_transform_v_frontier_e(raft::handle_t const& handle,
     std::chrono::duration<double> subdur7 = subtime8 - subtime7;
     std::chrono::duration<double> subdur8 = subtime9 - subtime8;
     std::chrono::duration<double> subdur9 = subtime10 - subtime9;
-    std::cerr << "sub (extract) took (" << subdur0.count() << "," << subdur1.count() << "," << subdur2.count()
-              << "," << subdur3.count() << "," << subdur4.count() << "," << subdur5.count() << ","
-              << subdur6.count() << "," << subdur7.count() << "," << subdur8.count() << ","
-              << subdur9.count() << ")" << std::endl;
+    std::cerr << "sub (extract) took (" << subdur0.count() << "," << subdur1.count() << ","
+              << subdur2.count() << "," << subdur3.count() << "," << subdur4.count() << ","
+              << subdur5.count() << "," << subdur6.count() << "," << subdur7.count() << ","
+              << subdur8.count() << "," << subdur9.count() << ")" << std::endl;
 #endif
   }
 #if EXTRACT_PERFORMANCE_MEASUREMENT  // FIXME: delete
@@ -1248,7 +1249,8 @@ extract_transform_v_frontier_e(raft::handle_t const& handle,
   std::chrono::duration<double> dur0 = time1 - time0;
   std::chrono::duration<double> dur1 = time2 - time1;
   std::chrono::duration<double> dur2 = time3 - time2;
-  std::cerr << "\t\t" << "detail::extract (pre,fill,concat) took (" << dur0.count() << "," << dur1.count()
+  std::cerr << "\t\t"
+            << "detail::extract (pre,fill,concat) took (" << dur0.count() << "," << dur1.count()
             << "," << dur2.count() << ")" << std::endl;
 #endif
 

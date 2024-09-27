@@ -55,7 +55,7 @@ auto iter_to_raw_ptr(thrust::detail::normal_iterator<thrust::device_ptr<T>> iter
 }
 
 template <typename InputIterator, typename OutputValueType>
-std::enable_if_t<std::is_same<OutputValueType, thrust::detail::any_assign>::value, void>
+std::enable_if_t<std::is_same_v<OutputValueType, thrust::detail::any_assign>, void>
 device_isend_impl(raft::comms::comms_t const& comm,
                   InputIterator input_first,
                   size_t count,
@@ -76,7 +76,7 @@ std::enable_if_t<std::is_arithmetic<OutputValueType>::value, void> device_isend_
   raft::comms::request_t* request)
 {
   static_assert(
-    std::is_same<typename std::iterator_traits<InputIterator>::value_type, OutputValueType>::value);
+    std::is_same_v<typename std::iterator_traits<InputIterator>::value_type, OutputValueType>);
   comm.isend(iter_to_raw_ptr(input_first), count, dst, tag, request);
 }
 
@@ -136,7 +136,7 @@ device_irecv_impl(raft::comms::comms_t const& comm,
 {
   static_assert(
 
-    std::is_same<InputValueType, typename std::iterator_traits<OutputIterator>::value_type>::value);
+    std::is_same_v<InputValueType, typename std::iterator_traits<OutputIterator>::value_type>);
   comm.irecv(iter_to_raw_ptr(output_first), count, src, tag, request);
 }
 
@@ -200,7 +200,7 @@ device_sendrecv_impl(raft::comms::comms_t const& comm,
 {
   using value_type = typename std::iterator_traits<InputIterator>::value_type;
   static_assert(
-    std::is_same<typename std::iterator_traits<OutputIterator>::value_type, value_type>::value);
+    std::is_same_v<typename std::iterator_traits<OutputIterator>::value_type, value_type>);
   comm.device_sendrecv(iter_to_raw_ptr(input_first),
                        tx_count,
                        dst,
@@ -286,7 +286,7 @@ device_multicast_sendrecv_impl(raft::comms::comms_t const& comm,
 {
   using value_type = typename std::iterator_traits<InputIterator>::value_type;
   static_assert(
-    std::is_same<typename std::iterator_traits<OutputIterator>::value_type, value_type>::value);
+    std::is_same_v<typename std::iterator_traits<OutputIterator>::value_type, value_type>);
   comm.device_multicast_sendrecv(iter_to_raw_ptr(input_first),
                                  tx_counts,
                                  tx_offsets,
@@ -379,8 +379,8 @@ device_bcast_impl(raft::comms::comms_t const& comm,
                   int root,
                   rmm::cuda_stream_view stream_view)
 {
-  static_assert(std::is_same<typename std::iterator_traits<InputIterator>::value_type,
-                             typename std::iterator_traits<OutputIterator>::value_type>::value);
+  static_assert(std::is_same_v<typename std::iterator_traits<InputIterator>::value_type,
+                               typename std::iterator_traits<OutputIterator>::value_type>);
   comm.bcast(
     iter_to_raw_ptr(input_first), iter_to_raw_ptr(output_first), count, root, stream_view.value());
 }
@@ -440,8 +440,8 @@ device_allreduce_impl(raft::comms::comms_t const& comm,
                       raft::comms::op_t op,
                       rmm::cuda_stream_view stream_view)
 {
-  static_assert(std::is_same<typename std::iterator_traits<InputIterator>::value_type,
-                             typename std::iterator_traits<OutputIterator>::value_type>::value);
+  static_assert(std::is_same_v<typename std::iterator_traits<InputIterator>::value_type,
+                               typename std::iterator_traits<OutputIterator>::value_type>);
   comm.allreduce(
     iter_to_raw_ptr(input_first), iter_to_raw_ptr(output_first), count, op, stream_view.value());
 }
@@ -503,8 +503,8 @@ device_reduce_impl(raft::comms::comms_t const& comm,
                    int root,
                    rmm::cuda_stream_view stream_view)
 {
-  static_assert(std::is_same<typename std::iterator_traits<InputIterator>::value_type,
-                             typename std::iterator_traits<OutputIterator>::value_type>::value);
+  static_assert(std::is_same_v<typename std::iterator_traits<InputIterator>::value_type,
+                               typename std::iterator_traits<OutputIterator>::value_type>);
   comm.reduce(iter_to_raw_ptr(input_first),
               iter_to_raw_ptr(output_first),
               count,
@@ -550,6 +550,62 @@ struct device_reduce_tuple_iterator_element_impl<InputIterator, OutputIterator, 
 
 template <typename InputIterator, typename OutputIterator>
 std::enable_if_t<thrust::detail::is_discard_iterator<OutputIterator>::value, void>
+device_allgather_impl(raft::comms::comms_t const& comm,
+                      InputIterator input_first,
+                      OutputIterator output_first,
+                      size_t sendcount,
+                      rmm::cuda_stream_view stream_view)
+{
+  // no-op
+}
+
+template <typename InputIterator, typename OutputIterator>
+std::enable_if_t<
+  std::is_arithmetic<typename std::iterator_traits<OutputIterator>::value_type>::value,
+  void>
+device_allgather_impl(raft::comms::comms_t const& comm,
+                      InputIterator input_first,
+                      OutputIterator output_first,
+                      size_t sendcount,
+                      rmm::cuda_stream_view stream_view)
+{
+  static_assert(std::is_same_v<typename std::iterator_traits<InputIterator>::value_type,
+                               typename std::iterator_traits<OutputIterator>::value_type>);
+  comm.allgather(
+    iter_to_raw_ptr(input_first), iter_to_raw_ptr(output_first), sendcount, stream_view.value());
+}
+
+template <typename InputIterator, typename OutputIterator, size_t I, size_t N>
+struct device_allgather_tuple_iterator_element_impl {
+  void run(raft::comms::comms_t const& comm,
+           InputIterator input_first,
+           OutputIterator output_first,
+           size_t sendcount,
+           rmm::cuda_stream_view stream_view) const
+  {
+    device_allgather_impl(comm,
+                          thrust::get<I>(input_first.get_iterator_tuple()),
+                          thrust::get<I>(output_first.get_iterator_tuple()),
+                          sendcount,
+                          stream_view);
+    device_allgather_tuple_iterator_element_impl<InputIterator, OutputIterator, I + 1, N>().run(
+      comm, input_first, output_first, sendcount, stream_view);
+  }
+};
+
+template <typename InputIterator, typename OutputIterator, size_t I>
+struct device_allgather_tuple_iterator_element_impl<InputIterator, OutputIterator, I, I> {
+  void run(raft::comms::comms_t const& comm,
+           InputIterator input_first,
+           OutputIterator output_first,
+           size_t sendcount,
+           rmm::cuda_stream_view stream_view) const
+  {
+  }
+};
+
+template <typename InputIterator, typename OutputIterator>
+std::enable_if_t<thrust::detail::is_discard_iterator<OutputIterator>::value, void>
 device_allgatherv_impl(raft::comms::comms_t const& comm,
                        InputIterator input_first,
                        OutputIterator output_first,
@@ -571,8 +627,8 @@ device_allgatherv_impl(raft::comms::comms_t const& comm,
                        std::vector<size_t> const& displacements,
                        rmm::cuda_stream_view stream_view)
 {
-  static_assert(std::is_same<typename std::iterator_traits<InputIterator>::value_type,
-                             typename std::iterator_traits<OutputIterator>::value_type>::value);
+  static_assert(std::is_same_v<typename std::iterator_traits<InputIterator>::value_type,
+                               typename std::iterator_traits<OutputIterator>::value_type>);
   comm.allgatherv(iter_to_raw_ptr(input_first),
                   iter_to_raw_ptr(output_first),
                   recvcounts.data(),
@@ -639,8 +695,8 @@ device_gatherv_impl(raft::comms::comms_t const& comm,
                     int root,
                     rmm::cuda_stream_view stream_view)
 {
-  static_assert(std::is_same<typename std::iterator_traits<InputIterator>::value_type,
-                             typename std::iterator_traits<OutputIterator>::value_type>::value);
+  static_assert(std::is_same_v<typename std::iterator_traits<InputIterator>::value_type,
+                               typename std::iterator_traits<OutputIterator>::value_type>);
   comm.gatherv(iter_to_raw_ptr(input_first),
                iter_to_raw_ptr(output_first),
                sendcount,
@@ -998,6 +1054,44 @@ device_reduce(raft::comms::comms_t const& comm,
                                                     size_t{0},
                                                     tuple_size>()
     .run(comm, input_first, output_first, count, op, root, stream_view);
+}
+
+template <typename InputIterator, typename OutputIterator>
+std::enable_if_t<
+  std::is_arithmetic<typename std::iterator_traits<InputIterator>::value_type>::value,
+  void>
+device_allgather(raft::comms::comms_t const& comm,
+                 InputIterator input_first,
+                 OutputIterator output_first,
+                 size_t sendcount,
+                 rmm::cuda_stream_view stream_view)
+{
+  detail::device_allgather_impl(comm, input_first, output_first, sendcount, stream_view);
+}
+
+template <typename InputIterator, typename OutputIterator>
+std::enable_if_t<
+  is_thrust_tuple_of_arithmetic<typename std::iterator_traits<InputIterator>::value_type>::value &&
+    is_thrust_tuple<typename std::iterator_traits<OutputIterator>::value_type>::value,
+  void>
+device_allgather(raft::comms::comms_t const& comm,
+                 InputIterator input_first,
+                 OutputIterator output_first,
+                 size_t sendcount,
+                 rmm::cuda_stream_view stream_view)
+{
+  static_assert(
+    thrust::tuple_size<typename thrust::iterator_traits<InputIterator>::value_type>::value ==
+    thrust::tuple_size<typename thrust::iterator_traits<OutputIterator>::value_type>::value);
+
+  size_t constexpr tuple_size =
+    thrust::tuple_size<typename thrust::iterator_traits<InputIterator>::value_type>::value;
+
+  detail::device_allgather_tuple_iterator_element_impl<InputIterator,
+                                                       OutputIterator,
+                                                       size_t{0},
+                                                       tuple_size>()
+    .run(comm, input_first, output_first, sendcount, stream_view);
 }
 
 template <typename InputIterator, typename OutputIterator>
