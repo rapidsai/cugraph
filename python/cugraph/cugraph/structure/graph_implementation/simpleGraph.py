@@ -148,23 +148,30 @@ class simpleGraphImpl:
             raise ValueError(
                 "The edgelist can only be symmetrized for undirected graphs."
             )
-
-        if symmetrize or symmetrize is None:
-            unsupported = False
-            if edge_id is not None or edge_type is not None:
-                unsupported = True
-            if isinstance(edge_attr, list):
-                if len(edge_attr) > 1:
-                    unsupported = True
-            if unsupported:
+        
+        if self.properties.directed:
+            if symmetrize:
                 raise ValueError(
-                    "Edge list containing Edge Ids or Types can't be symmetrized. "
-                    "If the edges are already symmetric, set the 'symmetrize' "
-                    "flag to False"
+                    "The edgelist can only be symmetrized for undirected graphs."
                 )
-            if symmetrize is None:
-                # default behavior
-                symmetrize = not self.properties.directed
+        else:
+            if symmetrize or symmetrize is None:
+                unsupported = False
+                if edge_id is not None or edge_type is not None:
+                    unsupported = True
+                if isinstance(edge_attr, list):
+                    if len(edge_attr) > 1:
+                        unsupported = True
+                if unsupported:
+                    raise ValueError(
+                        "Edge list containing Edge Ids or Types can't be symmetrized. "
+                        "If the edges are already symmetric, set the 'symmetrize' "
+                        "flag to False"
+                    )
+        
+        if symmetrize is None:
+            # default behavior
+            symmetrize = not self.properties.directed
 
         # Verify column names present in input DataFrame
         s_col = source
