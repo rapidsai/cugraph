@@ -238,10 +238,9 @@ class Tests_Heterogeneous_Biased_Neighbor_Sampling
 
 using Tests_Heterogeneous_Biased_Neighbor_Sampling_File =
   Tests_Heterogeneous_Biased_Neighbor_Sampling<cugraph::test::File_Usecase>;
-//#if 0
+
 using Tests_Heterogeneous_Biased_Neighbor_Sampling_Rmat =
   Tests_Heterogeneous_Biased_Neighbor_Sampling<cugraph::test::Rmat_Usecase>;
-//#endif
 
 TEST_P(Tests_Heterogeneous_Biased_Neighbor_Sampling_File, CheckInt32Int32Float)
 {
@@ -249,16 +248,6 @@ TEST_P(Tests_Heterogeneous_Biased_Neighbor_Sampling_File, CheckInt32Int32Float)
     override_File_Usecase_with_cmd_line_arguments(GetParam()));
 }
 
-#if 0
-INSTANTIATE_TEST_SUITE_P(
-  file_test,
-  Tests_Heterogeneous_Biased_Neighbor_Sampling_File,
-  ::testing::Combine(
-    ::testing::Values(Heterogeneous_Biased_Neighbor_Sampling_Usecase{{4, 10, 7, 8}, 128, 2, false}),
-    ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"))));
-#endif
-
-//#if 0
 TEST_P(Tests_Heterogeneous_Biased_Neighbor_Sampling_File, CheckInt32Int64Float)
 {
   run_current_test<int32_t, int64_t, float>(
