@@ -287,6 +287,8 @@ def strongly_connected_components(
         "strongly_connected_components", G, directed, connection, return_labels
     )
 
+    print("G = ", G)
+
     # FIXME: allow nx_weight_attr to be specified
     (G, input_type) = ensure_cugraph_obj(
         G, nx_weight_attr="weight", matrix_graph_type=Graph(directed=directed)
