@@ -100,30 +100,32 @@ neighbor_sample_impl(raft::handle_t const& handle,
     fan_out.size() <= static_cast<size_t>(std::numeric_limits<int32_t>::max()),
     "Invalid input argument: number of levels should not overflow int32_t");  // as we use int32_t
                                                                               // to store hops
-  
+
   std::vector<cugraph::edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, bool>> edge_masks_vector{};
   graph_view_t<vertex_t, edge_t, false, multi_gpu> modified_graph_view = graph_view;
   edge_masks_vector.reserve(num_edge_types);
   
-  for (int i = 0; i < num_edge_types - 1; i++) {
+  if (num_edge_types > 1) {
+    for (int i = 0; i < num_edge_types; i++) {
 
-    cugraph::edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, bool> edge_mask(handle, graph_view);
-    
-    cugraph::fill_edge_property(handle, modified_graph_view, edge_mask.mutable_view(), bool{true});
+      cugraph::edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, bool> edge_mask(handle, graph_view);
+      
+      cugraph::fill_edge_property(handle, modified_graph_view, edge_mask.mutable_view(), bool{true});
 
-    cugraph::transform_e(
-      handle,
-      modified_graph_view,
-      cugraph::edge_src_dummy_property_t{}.view(),
-      cugraph::edge_dst_dummy_property_t{}.view(),
-      *edge_type_view,
-      [valid_edge_type = i] __device__(auto src, auto dst, thrust::nullopt_t, thrust::nullopt_t, auto edge_type) {
-        return edge_type == valid_edge_type;
-      },
-      edge_mask.mutable_view(),
-      false);
-    
-    edge_masks_vector.push_back(std::move(edge_mask));
+      cugraph::transform_e(
+        handle,
+        modified_graph_view,
+        cugraph::edge_src_dummy_property_t{}.view(),
+        cugraph::edge_dst_dummy_property_t{}.view(),
+        *edge_type_view,
+        [valid_edge_type = i] __device__(auto src, auto dst, thrust::nullopt_t, thrust::nullopt_t, /*thrust::nullopt_t*/auto edge_type) {
+          return edge_type == valid_edge_type;
+        },
+        edge_mask.mutable_view(),
+        false);
+      
+      edge_masks_vector.push_back(std::move(edge_mask));
+    }
   }
 
   std::vector<rmm::device_uvector<vertex_t>> level_result_src_vectors{};
@@ -172,7 +174,7 @@ neighbor_sample_impl(raft::handle_t const& handle,
   // Get the number of hop. If homogeneous neighbor sample, num_edge_types = 1
   auto num_hops = ((fan_out.size() % num_edge_types) == 0) ? (fan_out.size() / num_edge_types) : ((fan_out.size() / num_edge_types) + 1);
 
-  for (auto hop = 0; hop < num_hops - 1; hop++){
+  for (auto hop = 0; hop < num_hops; hop++){
     for (auto edge_type_id = 0; edge_type_id < num_edge_types; edge_type_id++) {
       auto k_level = fan_out[(hop*num_edge_types) + edge_type_id];
       rmm::device_uvector<vertex_t> srcs(0, handle.get_stream());
@@ -211,9 +213,9 @@ neighbor_sample_impl(raft::handle_t const& handle,
       }
 
       level_sizes.push_back(srcs.size());
-
       level_result_src_vectors.push_back(std::move(srcs));
       level_result_dst_vectors.push_back(std::move(dsts));
+
       if (weights) { (*level_result_weight_vectors).push_back(std::move(*weights)); }
       if (edge_ids) { (*level_result_edge_id_vectors).push_back(std::move(*edge_ids)); }
       if (edge_types) { (*level_result_edge_type_vectors).push_back(std::move(*edge_types)); }
