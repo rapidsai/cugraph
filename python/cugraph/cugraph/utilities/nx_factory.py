@@ -136,7 +136,7 @@ def convert_from_nx(
         # FIXME: The legacy algorithms do not support the PLC graph
         # hence, the symmetrization cannot be performed at the graph
         # creation. Use the deprecated 'symmetrize' function for now.
-        source_col, dest_col, value_col = symmetrize(
+        source_col, dest_col = symmetrize(
             _gdf,
             "src",
             "dst",
