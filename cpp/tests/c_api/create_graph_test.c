@@ -214,6 +214,7 @@ int test_create_sg_graph_csr()
                                               FALSE,
                                               FALSE,
                                               FALSE,
+                                              FALSE,
                                               &graph,
                                               &ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "graph creation failed.");
@@ -528,6 +529,7 @@ int test_create_sg_graph_with_isolated_vertices()
                                      FALSE,
                                      FALSE,
                                      FALSE,
+                                     FALSE,
                                      &graph,
                                      &ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "graph creation failed.");
@@ -674,6 +676,7 @@ int test_create_sg_graph_csr_with_isolated()
                                               wgt_view,
                                               NULL,
                                               NULL,
+                                              FALSE,
                                               FALSE,
                                               FALSE,
                                               FALSE,
@@ -841,6 +844,7 @@ int test_create_sg_graph_with_isolated_vertices_multi_input()
                                      FALSE,
                                      TRUE,
                                      TRUE,
+                                     FALSE,
                                      FALSE,
                                      &graph,
                                      &ret_error);
