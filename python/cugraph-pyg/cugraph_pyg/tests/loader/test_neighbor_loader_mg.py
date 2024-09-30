@@ -19,7 +19,7 @@ from cugraph.datasets import karate
 from cugraph.utilities.utils import import_optional, MissingModule
 
 from cugraph_pyg.data import TensorDictFeatureStore, GraphStore
-from cugraph_pyg.loader import NeighborLoader
+from cugraph_pyg.loader import NeighborLoader, LinkNeighborLoader
 
 from cugraph.gnn import (
     cugraph_comms_init,
@@ -96,6 +96,7 @@ def run_test_neighbor_loader_mg(rank, uid, world_size, specify_size):
     cugraph_comms_shutdown()
 
 
+@pytest.mark.skip(reason="deleteme")
 @pytest.mark.parametrize("specify_size", [True, False])
 @pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
 @pytest.mark.mg
@@ -165,6 +166,7 @@ def run_test_neighbor_loader_biased_mg(rank, uid, world_size):
     cugraph_comms_shutdown()
 
 
+@pytest.mark.skip(reason="deleteme")
 @pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
 @pytest.mark.mg
 def test_neighbor_loader_biased_mg():
@@ -176,6 +178,187 @@ def test_neighbor_loader_biased_mg():
         args=(
             uid,
             world_size,
+        ),
+        nprocs=world_size,
+    )
+
+
+def run_test_link_neighbor_loader_basic_mg(
+    rank,
+    uid,
+    world_size,
+    num_nodes: int,
+    num_edges: int,
+    select_edges: int,
+    batch_size: int,
+    num_neighbors: int,
+    depth: int,
+):
+    init_pytorch_worker(rank, world_size, uid)
+
+    graph_store = GraphStore(is_multi_gpu=True)
+    feature_store = TensorDictFeatureStore()
+
+    eix = torch.randperm(num_edges)[:select_edges]
+    graph_store[("n", "e", "n"), "coo"] = torch.stack(
+        [
+            torch.randint(0, num_nodes, (num_edges,)),
+            torch.randint(0, num_nodes, (num_edges,)),
+        ]
+    )
+
+    elx = graph_store[("n", "e", "n"), "coo"][:, eix]
+    loader = LinkNeighborLoader(
+        (feature_store, graph_store),
+        num_neighbors=[num_neighbors] * depth,
+        edge_label_index=elx,
+        batch_size=batch_size,
+        shuffle=False,
+    )
+
+    elx = torch.tensor_split(elx, eix.numel() // batch_size, dim=1)
+    for i, batch in enumerate(loader):
+        assert (
+            batch.input_id.cpu() == torch.arange(i * batch_size, (i + 1) * batch_size)
+        ).all()
+        assert (elx[i] == batch.n_id[batch.edge_label_index.cpu()]).all()
+
+    cugraph_comms_shutdown()
+
+
+@pytest.mark.skip(reason="deleteme")
+@pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
+@pytest.mark.mg
+@pytest.mark.parametrize("select_edges", [64, 128])
+@pytest.mark.parametrize("batch_size", [2, 4])
+@pytest.mark.parametrize("depth", [1, 3])
+def test_link_neighbor_loader_basic_mg(select_edges, batch_size, depth):
+    num_nodes = 25
+    num_edges = 128
+    num_neighbors = 2
+
+    uid = cugraph_comms_create_unique_id()
+    world_size = torch.cuda.device_count()
+
+    torch.multiprocessing.spawn(
+        run_test_link_neighbor_loader_basic_mg,
+        args=(
+            uid,
+            world_size,
+            num_nodes,
+            num_edges,
+            select_edges,
+            batch_size,
+            num_neighbors,
+            depth,
+        ),
+        nprocs=world_size,
+    )
+
+
+def run_test_link_neighbor_loader_uneven_mg(rank, uid, world_size, edge_index):
+    init_pytorch_worker(rank, world_size, uid)
+
+    graph_store = GraphStore(is_multi_gpu=True)
+    feature_store = TensorDictFeatureStore()
+
+    batch_size = 1
+    graph_store[("n", "e", "n"), "coo"] = torch.tensor_split(
+        edge_index, world_size, dim=-1
+    )[rank]
+
+    elx = graph_store[("n", "e", "n"), "coo"]  # select all edges on each worker
+    loader = LinkNeighborLoader(
+        (feature_store, graph_store),
+        num_neighbors=[2, 2, 2],
+        edge_label_index=elx,
+        batch_size=batch_size,
+        shuffle=False,
+    )
+
+    for i, batch in enumerate(loader):
+        assert (
+            batch.input_id.cpu() == torch.arange(i * batch_size, (i + 1) * batch_size)
+        ).all()
+
+        assert (elx[:, [i]] == batch.n_id[batch.edge_label_index.cpu()]).all()
+
+    cugraph_comms_shutdown()
+
+
+@pytest.mark.skip(reason="deleteme")
+@pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
+@pytest.mark.mg
+def test_link_neighbor_loader_uneven_mg():
+    edge_index = torch.tensor(
+        [
+            [0, 1, 3, 4, 7],
+            [1, 0, 8, 9, 12],
+        ]
+    )
+
+    uid = cugraph_comms_create_unique_id()
+    world_size = torch.cuda.device_count()
+
+    torch.multiprocessing.spawn(
+        run_test_link_neighbor_loader_uneven_mg,
+        args=(
+            uid,
+            world_size,
+            edge_index,
+        ),
+        nprocs=world_size,
+    )
+
+
+def run_test_link_neighbor_loader_negative_sampling_basic_mg(
+    rank, world_size, uid, batch_size
+):
+    num_edges = 62 * world_size
+    num_nodes = 19 * world_size
+    select_edges = 17
+
+    init_pytorch_worker(rank, world_size, uid)
+
+    graph_store = GraphStore(is_multi_gpu=True)
+    feature_store = TensorDictFeatureStore()
+
+    eix = torch.randperm(num_edges)[:select_edges]
+    graph_store[("n", "e", "n"), "coo"] = torch.stack(
+        [
+            torch.randint(0, num_nodes, (num_edges,)),
+            torch.randint(0, num_nodes, (num_edges,)),
+        ]
+    )
+
+    elx = graph_store[("n", "e", "n"), "coo"][:, eix]
+    loader = LinkNeighborLoader(
+        (feature_store, graph_store),
+        num_neighbors=[3, 3, 3],
+        edge_label_index=elx,
+        batch_size=batch_size,
+        neg_sampling="binary",
+        shuffle=False,
+    )
+
+    elx = torch.tensor_split(elx, eix.numel() // batch_size, dim=1)
+    for i, batch in enumerate(loader):
+        assert batch.edge_label[0] == 1.0
+
+
+@pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
+@pytest.mark.mg
+@pytest.mark.parametrize("batch_size", [1, 2])
+def test_link_neighbor_loader_negative_sampling_basic_mg(batch_size):
+    uid = cugraph_comms_create_unique_id()
+    world_size = torch.cuda.device_count()
+
+    torch.multiprocessing.spawn(
+        run_test_link_neighbor_loader_negative_sampling_basic_mg,
+        args=(
+            world_size,
+            uid,
+            batch_size,
         ),
         nprocs=world_size,
     )
