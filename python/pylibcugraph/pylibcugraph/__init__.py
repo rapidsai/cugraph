@@ -38,6 +38,10 @@ from pylibcugraph.node2vec import node2vec
 from pylibcugraph.bfs import bfs
 
 from pylibcugraph.uniform_neighbor_sample import uniform_neighbor_sample
+from pylibcugraph.homogeneous_uniform_neighbor_sample import homogeneous_uniform_neighbor_sample
+from pylibcugraph.homogeneous_biased_neighbor_sample import homogeneous_biased_neighbor_sample
+from pylibcugraph.heterogeneous_uniform_neighbor_sample import heterogeneous_uniform_neighbor_sample
+from pylibcugraph.heterogeneous_biased_neighbor_sample import heterogeneous_biased_neighbor_sample
 
 
 #FIXME: break down the API into homogeneous and heterogeneous neighbor sample
