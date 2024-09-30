@@ -729,8 +729,6 @@ void fill_edge_minor_property(raft::handle_t const& handle,
                          static_cast<int>(partition_idx),
                          handle.get_stream());
           } else {
-            // FIXME: we may better send 32 bit vertex offsets if [local_v_list_range_firsts[],
-            // local_v_list_range_lasts[]) fit into unsigned 32 bit integer
             device_bcast(major_comm,
                          (static_cast<int>(partition_idx) == major_comm_rank)
                            ? sorted_unique_vertex_first
@@ -838,7 +836,7 @@ void fill_edge_minor_property(raft::handle_t const& handle,
                     [minor_range_first,
                      range_first =
                        local_v_list_range_firsts[partition_idx]] __device__(auto v_offset) {
-                      return v_offset + (range_first - minor_range_first);
+                      return static_cast<vertex_t>(v_offset + (range_first - minor_range_first));
                     }));
                 auto val_first = thrust::make_constant_iterator(input);
                 thrust::scatter(rmm::exec_policy_nosync(loop_stream),

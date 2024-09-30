@@ -646,63 +646,97 @@ extract_transform_v_frontier_e(raft::handle_t const& handle,
     local_frontier_range_lasts{};
   std::optional<std::vector<std::vector<size_t>>> key_segment_offset_vectors{std::nullopt};
   if constexpr (GraphViewType::is_multi_gpu) {
-    // FIXME: combine multiple host_scalar_allgather
     auto& minor_comm           = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
+    auto const minor_comm_rank = minor_comm.get_rank();
     auto const minor_comm_size = minor_comm.get_size();
-    local_frontier_sizes       = host_scalar_allgather(
-      minor_comm,
-      static_cast<size_t>(thrust::distance(frontier_key_first, frontier_key_last)),
-      handle.get_stream());
+
+    size_t num_scalars = 1;  // local_frontier_size
     if constexpr (try_bitmap) {
-      std::array<vertex_t, 2> v_list_range = {vertex_t{0}, vertex_t{0}};
-      auto v_list_size =
-        static_cast<size_t>(thrust::distance(frontier_key_first, frontier_key_last));
-      if (v_list_size > 0) {
-        rmm::device_uvector<vertex_t> tmps(2, handle.get_stream());
-        thrust::tabulate(handle.get_thrust_policy(),
-                         tmps.begin(),
-                         tmps.end(),
-                         [frontier_key_first, v_list_size] __device__(size_t i) {
-                           return (i == 0) ? *frontier_key_first
-                                           : (*(frontier_key_first + (v_list_size - 1)) + 1);
-                         });
-        raft::update_host(v_list_range.data(), tmps.data(), 2, handle.get_stream());
-        handle.sync_stream();
-      }
-      local_frontier_range_firsts =
-        host_scalar_allgather(minor_comm, v_list_range[0], handle.get_stream());
-      local_frontier_range_lasts =
-        host_scalar_allgather(minor_comm, v_list_range[1], handle.get_stream());
+      num_scalars += 2;  // local_frontier_range_first, local_frontier_range_last
+    }
+    if (key_segment_offsets) { num_scalars += (*key_segment_offsets).size(); }
+    rmm::device_uvector<size_t> d_aggregate_tmps(minor_comm_size * num_scalars,
+                                                 handle.get_stream());
+    thrust::tabulate(
+      handle.get_thrust_policy(),
+      d_aggregate_tmps.begin() + minor_comm_rank * num_scalars,
+      d_aggregate_tmps.begin() + minor_comm_rank * num_scalars + (try_bitmap ? 3 : 1),
+      [frontier_key_first,
+       v_list_size = static_cast<size_t>(thrust::distance(frontier_key_first, frontier_key_last)),
+       vertex_partition_range_first =
+         graph_view.local_vertex_partition_range_first()] __device__(size_t i) {
+        if constexpr (try_bitmap) {
+          if (i == 0) {
+            return v_list_size;
+          } else if (i == 1) {
+            vertex_t first{};
+            if (v_list_size > 0) {
+              first = *frontier_key_first;
+            } else {
+              first = vertex_partition_range_first;
+            }
+            assert(static_cast<vertex_t>(static_cast<size_t>(first)) == first);
+            return static_cast<size_t>(first);
+          } else {
+            assert(i == 2);
+            vertex_t last{};
+            if (v_list_size > 0) {
+              last = *(frontier_key_first + (v_list_size - 1)) + 1;
+            } else {
+              last = vertex_partition_range_first;
+            }
+            assert(static_cast<vertex_t>(static_cast<size_t>(last)) == last);
+            return static_cast<size_t>(last);
+          }
+        } else {
+          assert(i == 0);
+          return v_list_size;
+        }
+      });
+    if (key_segment_offsets) {
+      raft::update_device(
+        d_aggregate_tmps.data() + (minor_comm_rank * num_scalars + (try_bitmap ? 3 : 1)),
+        (*key_segment_offsets).data(),
+        (*key_segment_offsets).size(),
+        handle.get_stream());
+    }
+
+    if (minor_comm_size > 1) {
+      device_allgather(minor_comm,
+                       d_aggregate_tmps.data() + minor_comm_rank * num_scalars,
+                       d_aggregate_tmps.data(),
+                       num_scalars,
+                       handle.get_stream());
+    }
+
+    std::vector<size_t> h_aggregate_tmps(d_aggregate_tmps.size());
+    raft::update_host(h_aggregate_tmps.data(),
+                      d_aggregate_tmps.data(),
+                      d_aggregate_tmps.size(),
+                      handle.get_stream());
+    handle.sync_stream();
+    local_frontier_sizes = std::vector<size_t>(minor_comm_size);
+    if constexpr (try_bitmap) {
+      local_frontier_range_firsts = std::vector<vertex_t>(minor_comm_size);
+      local_frontier_range_lasts  = std::vector<vertex_t>(minor_comm_size);
     }
     if (key_segment_offsets) {
-      rmm::device_uvector<size_t> d_key_segment_offsets((*key_segment_offsets).size(),
-                                                        handle.get_stream());
-      raft::update_device(d_key_segment_offsets.data(),
-                          (*key_segment_offsets).data(),
-                          (*key_segment_offsets).size(),
-                          handle.get_stream());
-      rmm::device_uvector<size_t> d_aggregate_key_segment_offsets(
-        minor_comm_size * d_key_segment_offsets.size(), handle.get_stream());
-      std::vector<size_t> rx_counts(minor_comm_size, d_key_segment_offsets.size());
-      std::vector<size_t> rx_displacements(minor_comm_size);
-      std::exclusive_scan(rx_counts.begin(), rx_counts.end(), rx_displacements.begin(), size_t{0});
-      device_allgatherv(minor_comm,
-                        d_key_segment_offsets.data(),
-                        d_aggregate_key_segment_offsets.data(),
-                        rx_counts,
-                        rx_displacements,
-                        handle.get_stream());
-      std::vector<size_t> h_aggregate_key_segment_offsets(d_aggregate_key_segment_offsets.size());
-      raft::update_host(h_aggregate_key_segment_offsets.data(),
-                        d_aggregate_key_segment_offsets.data(),
-                        d_aggregate_key_segment_offsets.size(),
-                        handle.get_stream());
-      handle.sync_stream();
-      key_segment_offset_vectors = std::vector<std::vector<size_t>>(minor_comm_size);
-      for (int i = 0; i < minor_comm_size; ++i) {
-        (*key_segment_offset_vectors)[i] = std::vector<size_t>(
-          h_aggregate_key_segment_offsets.begin() + i * (*key_segment_offsets).size(),
-          h_aggregate_key_segment_offsets.begin() + (i + 1) * (*key_segment_offsets).size());
+      key_segment_offset_vectors = std::vector<std::vector<size_t>>{};
+      (*key_segment_offset_vectors).reserve(minor_comm_size);
+    }
+    for (int i = 0; i < minor_comm_size; ++i) {
+      local_frontier_sizes[i] = h_aggregate_tmps[i * num_scalars];
+      if constexpr (try_bitmap) {
+        local_frontier_range_firsts[i] =
+          static_cast<vertex_t>(h_aggregate_tmps[i * num_scalars + 1]);
+        local_frontier_range_lasts[i] =
+          static_cast<vertex_t>(h_aggregate_tmps[i * num_scalars + 2]);
+      }
+      if (key_segment_offsets) {
+        (*key_segment_offset_vectors)
+          .emplace_back(h_aggregate_tmps.begin() + (i * num_scalars + (try_bitmap ? 3 : 1)),
+                        h_aggregate_tmps.begin() +
+                          (i * num_scalars + (try_bitmap ? 3 : 1) + (*key_segment_offsets).size()));
       }
     }
   } else {
