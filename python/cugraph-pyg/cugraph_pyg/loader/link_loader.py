@@ -22,11 +22,11 @@ torch_geometric = import_optional("torch_geometric")
 torch = import_optional("torch")
 
 
-class NodeLoader:
+class LinkLoader:
     """
-    Duck-typed version of torch_geometric.loader.NodeLoader.
+    Duck-typed version of torch_geometric.loader.LinkLoader.
     Loads samples from batches of input nodes using a
-    `~cugraph_pyg.sampler.BaseSampler.sample_from_nodes`
+    `~cugraph_pyg.sampler.BaseSampler.sample_from_edges`
     function.
     """
 
@@ -39,15 +39,18 @@ class NodeLoader:
                 "torch_geometric.data.FeatureStore", "torch_geometric.data.GraphStore"
             ],
         ],
-        node_sampler: "cugraph_pyg.sampler.BaseSampler",
-        input_nodes: "torch_geometric.typing.InputNodes" = None,
-        input_time: "torch_geometric.typing.OptTensor" = None,
+        link_sampler: "cugraph_pyg.sampler.BaseSampler",
+        edge_label_index: "torch_geometric.typing.InputEdges" = None,
+        edge_label: "torch_geometric.typing.OptTensor" = None,
+        edge_label_time: "torch_geometric.typing.OptTensor" = None,
+        neg_sampling: Optional["torch_geometric.sampler.NegativeSampling"] = None,
+        neg_sampling_ratio: Optional[Union[int, float]] = None,
         transform: Optional[Callable] = None,
         transform_sampler_output: Optional[Callable] = None,
         filter_per_worker: Optional[bool] = None,
         custom_cls: Optional["torch_geometric.data.HeteroData"] = None,
         input_id: "torch_geometric.typing.OptTensor" = None,
-        batch_size: int = 1,
+        batch_size: int = 1,  # refers to number of edges in batch
         shuffle: bool = False,
         drop_last: bool = False,
         **kwargs,
@@ -57,12 +60,21 @@ class NodeLoader:
         ----------
             data: Data, HeteroData, or Tuple[FeatureStore, GraphStore]
                 See torch_geometric.loader.NodeLoader.
-            node_sampler: BaseSampler
-                See torch_geometric.loader.NodeLoader.
-            input_nodes: InputNodes
-                See torch_geometric.loader.NodeLoader.
-            input_time: OptTensor
-                See torch_geometric.loader.NodeLoader.
+            link_sampler: BaseSampler
+                See torch_geometric.loader.LinkLoader.
+            edge_label_index: InputEdges
+                See torch_geometric.loader.LinkLoader.
+            edge_label: OptTensor
+                See torch_geometric.loader.LinkLoader.
+            edge_label_time: OptTensor
+                See torch_geometric.loader.LinkLoader.
+            neg_sampling: Optional[NegativeSampling]
+                Type of negative sampling to perform, if desired.
+                See torch_geometric.loader.LinkLoader.
+            neg_sampling_ratio: Optional[Union[int, float]]
+                Negative sampling ratio.  Affects how many negative
+                samples are generated.
+                See torch_geometric.loader.LinkLoader.
             transform: Callable (optional, default=None)
                 This argument currently has no effect.
             transform_sampler_output: Callable (optional, default=None)
@@ -73,7 +85,7 @@ class NodeLoader:
                 This argument currently has no effect.  This loader will
                 always return a Data or HeteroData object.
             input_id: OptTensor
-                See torch_geometric.loader.NodeLoader.
+                See torch_geometric.loader.LinkLoader.
 
         """
         if not isinstance(data, (list, tuple)) or not isinstance(
@@ -82,10 +94,10 @@ class NodeLoader:
             # Will eventually automatically convert these objects to cuGraph objects.
             raise NotImplementedError("Currently can't accept non-cugraph graphs")
 
-        if not isinstance(node_sampler, cugraph_pyg.sampler.BaseSampler):
+        if not isinstance(link_sampler, cugraph_pyg.sampler.BaseSampler):
             raise NotImplementedError("Must provide a cuGraph sampler")
 
-        if input_time is not None:
+        if edge_label_time is not None:
             raise ValueError("Temporal sampling is currently unsupported")
 
         if filter_per_worker:
@@ -100,28 +112,62 @@ class NodeLoader:
         if transform_sampler_output is not None:
             warnings.warn("transform_sampler_output is currently ignored.")
 
+        if neg_sampling_ratio is not None:
+            warnings.warn(
+                "The 'neg_sampling_ratio' argument is deprecated in PyG"
+                " and is not supported in cuGraph-PyG."
+            )
+
+        neg_sampling = torch_geometric.sampler.NegativeSampling.cast(neg_sampling)
+
         (
             input_type,
-            input_nodes,
-            input_id,
-        ) = torch_geometric.loader.utils.get_input_nodes(
+            edge_label_index,
+        ) = torch_geometric.loader.utils.get_edge_label_index(
             data,
-            input_nodes,
-            input_id,
+            (None, edge_label_index),
         )
 
-        self.__input_data = torch_geometric.sampler.NodeSamplerInput(
-            input_id=torch.arange(len(input_nodes), dtype=torch.int64, device="cuda")
+        self.__input_data = torch_geometric.sampler.EdgeSamplerInput(
+            input_id=torch.arange(
+                edge_label_index[0].numel(), dtype=torch.int64, device="cuda"
+            )
             if input_id is None
             else input_id,
-            node=input_nodes,
-            time=None,
+            row=edge_label_index[0],
+            col=edge_label_index[1],
+            label=edge_label,
+            time=edge_label_time,
             input_type=input_type,
         )
 
+        # Edge label check from torch_geometric.loader.LinkLoader
+        if (
+            neg_sampling is not None
+            and neg_sampling.is_binary()
+            and edge_label is not None
+            and edge_label.min() == 0
+        ):
+            edge_label = edge_label + 1
+
+        if (
+            neg_sampling is not None
+            and neg_sampling.is_triplet()
+            and edge_label is not None
+        ):
+            raise ValueError(
+                "'edge_label' needs to be undefined for "
+                "'triplet'-based negative sampling. Please use "
+                "`src_index`, `dst_pos_index` and "
+                "`neg_pos_index` of the returned mini-batch "
+                "instead to differentiate between positive and "
+                "negative samples."
+            )
+
         self.__data = data
 
-        self.__node_sampler = node_sampler
+        self.__link_sampler = link_sampler
+        self.__neg_sampling = neg_sampling
 
         self.__batch_size = batch_size
         self.__shuffle = shuffle
@@ -129,17 +175,21 @@ class NodeLoader:
 
     def __iter__(self):
         if self.__shuffle:
-            perm = torch.randperm(self.__input_data.node.numel())
+            perm = torch.randperm(self.__input_data.row.numel())
         else:
-            perm = torch.arange(self.__input_data.node.numel())
+            perm = torch.arange(self.__input_data.row.numel())
 
         if self.__drop_last:
             d = perm.numel() % self.__batch_size
             perm = perm[:-d]
 
-        input_data = torch_geometric.sampler.NodeSamplerInput(
+        input_data = torch_geometric.sampler.EdgeSamplerInput(
             input_id=self.__input_data.input_id[perm],
-            node=self.__input_data.node[perm],
+            row=self.__input_data.row[perm],
+            col=self.__input_data.col[perm],
+            label=None
+            if self.__input_data.label is None
+            else self.__input_data.label[perm],
             time=None
             if self.__input_data.time is None
             else self.__input_data.time[perm],
@@ -147,5 +197,9 @@ class NodeLoader:
         )
 
         return cugraph_pyg.sampler.SampleIterator(
-            self.__data, self.__node_sampler.sample_from_nodes(input_data)
+            self.__data,
+            self.__link_sampler.sample_from_edges(
+                input_data,
+                neg_sampling=self.__neg_sampling,
+            ),
         )

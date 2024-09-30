@@ -16,6 +16,9 @@ import warnings
 from cugraph_pyg.loader.node_loader import NodeLoader
 from cugraph_pyg.loader.neighbor_loader import NeighborLoader
 
+from cugraph_pyg.loader.link_loader import LinkLoader
+from cugraph_pyg.loader.link_neighbor_loader import LinkNeighborLoader
+
 from cugraph_pyg.loader.dask_node_loader import DaskNeighborLoader
 
 from cugraph_pyg.loader.dask_node_loader import BulkSampleLoader
