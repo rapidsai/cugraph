@@ -46,7 +46,7 @@ This includes several ways to set up cuGraph
 
 Build From Source
 
-To build from source, check each RAPIDS GitHub README for set up and build instructions. Further links are provided in the `selector tool <https://docs.rapids.ai/install#selector>`_. 
+To build from source, check each RAPIDS GitHub README for set up and build instructions. Further links are provided in the `selector tool <https://docs.rapids.ai/install#selector>`_.
 If additional help is needed reach out on our `Slack Channel <https://rapids-goai.slack.com/archives/C5E06F4DC>`_.
 
 CuGraph Using NetworkX Code
@@ -79,7 +79,7 @@ is a good place to start. Some of these show `multi-GPU tests/examples <https://
    :maxdepth: 2
 
    top_toc
-   
+
 Indices and tables
 ==================
 
