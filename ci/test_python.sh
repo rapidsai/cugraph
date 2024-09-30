@@ -159,7 +159,7 @@ if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
       cugraph \
       cugraph-dgl \
       'dgl>=1.1.0.cu*,<=2.0.0.cu*' \
-      'pytorch>=2.0' \
+      'pytorch>=2.3,<2.4' \
       'cuda-version=11.8'
 
     rapids-print-env
@@ -198,10 +198,10 @@ if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
     # TODO re-enable logic once CUDA 12 is testable
     #if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
     CONDA_CUDA_VERSION="11.8"
-    PYG_URL="https://data.pyg.org/whl/torch-2.1.0+cu118.html"
+    PYG_URL="https://data.pyg.org/whl/torch-2.3.0+cu118.html"
     #else
     #  CONDA_CUDA_VERSION="12.1"
-    #  PYG_URL="https://data.pyg.org/whl/torch-2.1.0+cu121.html"
+    #  PYG_URL="https://data.pyg.org/whl/torch-2.3.0+cu121.html"
     #fi
 
     # Will automatically install built dependencies of cuGraph-PyG
