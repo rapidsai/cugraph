@@ -620,9 +620,6 @@ class Graph:
             )
 
         try:
-            print(
-                u,
-            )
             return self.__ndata_storage[ntype, emb_name].fetch(
                 _cast_to_torch_tensor(u), "cuda"
             )

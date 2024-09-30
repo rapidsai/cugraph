@@ -29,13 +29,13 @@ export CI_RUN=1
 
 if [[ "${CUDA_VERSION}" == "11.8.0" ]]; then
   PYTORCH_URL="https://download.pytorch.org/whl/cu118"
-  PYG_URL="https://data.pyg.org/whl/torch-2.1.0+cu118.html"
+  PYG_URL="https://data.pyg.org/whl/torch-2.3.0+cu118.html"
 else
   PYTORCH_URL="https://download.pytorch.org/whl/cu121"
-  PYG_URL="https://data.pyg.org/whl/torch-2.1.0+cu121.html"
+  PYG_URL="https://data.pyg.org/whl/torch-2.3.0+cu121.html"
 fi
 rapids-logger "Installing PyTorch and PyG dependencies"
-rapids-retry python -m pip install torch==2.1.0 --index-url ${PYTORCH_URL}
+rapids-retry python -m pip install torch==2.3.0 --index-url ${PYTORCH_URL}
 rapids-retry python -m pip install "torch-geometric>=2.5,<2.6"
 rapids-retry python -m pip install \
   ogb \
