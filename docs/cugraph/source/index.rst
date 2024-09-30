@@ -56,9 +56,20 @@ Nx-cugraph offers those with existing NetworkX code, a **zero code change** opti
 
  Cugraph API Example
 
+ .. code-block:: python
 
+  # Import needed libraries
+  import cugraph
+  import cudf
 
-Until then, `the cuGraph notebook repository <https://github.com/rapidsai/cugraph/blob/main/notebooks/README.md>`_ 
+  # Use cuGraph datasets API to load karate data set into a graph
+  from cugraph.datasets import karate
+  G = karate.get_graph()
+
+  # Call cugraph.degree_centrality 
+  vertex_bc = cugraph.degree_centrality(G)
+
+There are several resources containing cuGraph examples, `the cuGraph notebook repository <https://github.com/rapidsai/cugraph/blob/main/notebooks/README.md>`_ 
 has many examples of loading graph data and running algorithms in Jupyter notebooks.
 The `cuGraph test code <https://github.com/rapidsai/cugraph/tree/main/python/cugraph/cugraph/tests>_` contain python scripts setting up and calling cuGraph algorithms. 
 A simple example of `testing the degree centrality algorithm <https://github.com/rapidsai/cugraph/blob/main/python/cugraph/cugraph/tests/centrality/test_degree_centrality.py>`_ 
