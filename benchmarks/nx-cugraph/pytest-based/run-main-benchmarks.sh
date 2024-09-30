@@ -30,7 +30,7 @@ algos="
 datasets="
    netscience
    email_Eu_core
-   cit_patents
+   cit-patents
    hollywood
    soc-livejournal
 "

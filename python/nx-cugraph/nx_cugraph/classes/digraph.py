@@ -18,24 +18,74 @@ from typing import TYPE_CHECKING
 import cupy as cp
 import networkx as nx
 import numpy as np
+from networkx.classes.digraph import (
+    _CachedPropertyResetterAdjAndSucc,
+    _CachedPropertyResetterPred,
+)
 
 import nx_cugraph as nxcg
 
 from ..utils import index_dtype
-from .graph import Graph
+from .graph import CudaGraph, Graph
 
 if TYPE_CHECKING:  # pragma: no cover
     from nx_cugraph.typing import AttrKey
 
-__all__ = ["DiGraph"]
+__all__ = ["CudaDiGraph", "DiGraph"]
 
 networkx_api = nxcg.utils.decorators.networkx_class(nx.DiGraph)
 
 
-class DiGraph(Graph):
-    #################
-    # Class methods #
-    #################
+class DiGraph(nx.DiGraph, Graph):
+    _nx_attrs = ("_node", "_adj", "_succ", "_pred")
+
+    name = Graph.name
+    _node = Graph._node
+
+    @property
+    @networkx_api
+    def _adj(self):
+        if (adj := self.__dict__["_adj"]) is None:
+            self._reify_networkx()
+            adj = self.__dict__["_adj"]
+        return adj
+
+    @_adj.setter
+    def _adj(self, val):
+        self._prepare_setter()
+        _CachedPropertyResetterAdjAndSucc.__set__(None, self, val)
+        if cache := getattr(self, "__networkx_cache__", None):
+            cache.clear()
+
+    @property
+    @networkx_api
+    def _succ(self):
+        if (succ := self.__dict__["_succ"]) is None:
+            self._reify_networkx()
+            succ = self.__dict__["_succ"]
+        return succ
+
+    @_succ.setter
+    def _succ(self, val):
+        self._prepare_setter()
+        _CachedPropertyResetterAdjAndSucc.__set__(None, self, val)
+        if cache := getattr(self, "__networkx_cache__", None):
+            cache.clear()
+
+    @property
+    @networkx_api
+    def _pred(self):
+        if (pred := self.__dict__["_pred"]) is None:
+            self._reify_networkx()
+            pred = self.__dict__["_pred"]
+        return pred
+
+    @_pred.setter
+    def _pred(self, val):
+        self._prepare_setter()
+        _CachedPropertyResetterPred.__set__(None, self, val)
+        if cache := getattr(self, "__networkx_cache__", None):
+            cache.clear()
 
     @classmethod
     @networkx_api
@@ -43,8 +93,32 @@ class DiGraph(Graph):
         return True
 
     @classmethod
+    @networkx_api
+    def is_multigraph(cls) -> bool:
+        return False
+
+    @classmethod
+    def to_cudagraph_class(cls) -> type[CudaDiGraph]:
+        return CudaDiGraph
+
+    @classmethod
     def to_networkx_class(cls) -> type[nx.DiGraph]:
         return nx.DiGraph
+
+
+class CudaDiGraph(CudaGraph):
+    #################
+    # Class methods #
+    #################
+
+    is_directed = classmethod(DiGraph.is_directed.__func__)
+    is_multigraph = classmethod(DiGraph.is_multigraph.__func__)
+    to_cudagraph_class = classmethod(DiGraph.to_cudagraph_class.__func__)
+    to_networkx_class = classmethod(DiGraph.to_networkx_class.__func__)
+
+    @classmethod
+    def _to_compat_graph_class(cls) -> type[DiGraph]:
+        return DiGraph
 
     @networkx_api
     def size(self, weight: AttrKey | None = None) -> int:
@@ -57,7 +131,7 @@ class DiGraph(Graph):
     ##########################
 
     @networkx_api
-    def reverse(self, copy: bool = True) -> DiGraph:
+    def reverse(self, copy: bool = True) -> CudaDiGraph:
         return self._copy(not copy, self.__class__, reverse=True)
 
     @networkx_api
@@ -162,6 +236,7 @@ class DiGraph(Graph):
             node_masks,
             key_to_id=key_to_id,
             id_to_key=id_to_key,
+            use_compat_graph=False,
         )
         if as_view:
             rv.graph = self.graph

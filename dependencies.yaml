@@ -524,13 +524,13 @@ dependencies:
           - &dask rapids-dask-dependency==24.10.*,>=0.0.0a0
           - &dask_cuda dask-cuda==24.10.*,>=0.0.0a0
           - &numba numba>=0.57
-          - &numpy numpy>=1.23,<2.0a0
+          - &numpy numpy>=1.23,<3.0a0
       - output_types: conda
         packages:
           - aiohttp
           - fsspec>=0.6.0
           - requests
-          - nccl>=2.9.9
+          - nccl>=2.19
           - ucx-proc=*=gpu
           - &ucx_py_unsuffixed ucx-py==0.40.*,>=0.0.0a0
       - output_types: pyproject
@@ -688,7 +688,6 @@ dependencies:
     common:
       - output_types: [conda, pyproject]
         packages:
-          - packaging>=21
             # not needed by nx-cugraph tests, but is required for running networkx tests
           - pytest-mpl
   cugraph_dgl_dev:
@@ -696,7 +695,9 @@ dependencies:
       - output_types: [conda]
         packages:
           - *cugraph_unsuffixed
-          - pytorch>=2.0
+          # ceiling could be removed when this is fixed:
+          # https://github.com/conda-forge/pytorch-cpu-feedstock/issues/254
+          - &pytorch_conda pytorch>=2.3,<2.4.0a0
           - pytorch-cuda==11.8
           - &tensordict tensordict>=0.1.2
           - dgl>=1.1.0.cu*
@@ -705,7 +706,7 @@ dependencies:
       - output_types: [conda]
         packages:
           - *cugraph_unsuffixed
-          - pytorch>=2.0
+          - *pytorch_conda
           - pytorch-cuda==11.8
           - *tensordict
           - pyg>=2.5,<2.6
@@ -714,7 +715,7 @@ dependencies:
     common:
       - output_types: [conda]
         packages:
-          - &pytorch_unsuffixed pytorch>=2.0,<2.2.0a0
+          - *pytorch_conda
           - torchdata
           - pydantic
           - ogb
@@ -734,7 +735,7 @@ dependencies:
         matrices:
           - matrix: {cuda: "12.*"}
             packages:
-              - &pytorch_pip torch>=2.0,<2.2.0a0
+              - &pytorch_pip torch>=2.3,<2.4.0a0
               - *tensordict
           - matrix: {cuda: "11.*"}
             packages:

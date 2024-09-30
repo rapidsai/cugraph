@@ -12,11 +12,10 @@
 # limitations under the License.
 import networkx as nx
 import pytest
-from packaging.version import parse
 
-nxver = parse(nx.__version__)
+from nx_cugraph import _nxver
 
-if nxver.major == 3 and nxver.minor < 2:
+if _nxver < (3, 2):
     pytest.skip("Need NetworkX >=3.2 to test clustering", allow_module_level=True)
 
 
