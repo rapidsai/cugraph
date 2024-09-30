@@ -33,10 +33,12 @@ def create_df_from_disjoint_series(series_list: List[cudf.Series]):
 
 
 def create_df_from_disjoint_arrays(array_dict: Dict[str, cupy.array]):
+    series_dict = {}
     for k in list(array_dict.keys()):
-        array_dict[k] = cudf.Series(array_dict[k], name=k)
+        if array_dict[k] is not None:
+            series_dict[k] = cudf.Series(array_dict[k], name=k)
 
-    return create_df_from_disjoint_series(list(array_dict.values()))
+    return create_df_from_disjoint_series(list(series_dict.values()))
 
 
 def _write_samples_to_parquet_csr(
