@@ -71,6 +71,16 @@ template void sequence_fill(rmm::cuda_stream_view const& stream_view,
                             size_t size,
                             uint64_t start_value);
 
+template void transform_increment(rmm::cuda_stream_view const& stream_view,
+                                  int64_t* d_value,
+                                  size_t size,
+                                  size_t value);
+
+template void transform_increment(rmm::cuda_stream_view const& stream_view,
+                                  uint64_t* d_value,
+                                  size_t size,
+                                  size_t value);
+
 template void stride_fill(rmm::cuda_stream_view const& stream_view,
                           int64_t* d_value,
                           size_t size,

@@ -143,6 +143,29 @@ shuffle_ext_vertex_value_pairs_to_local_gpu_by_vertex_partitioning(
   rmm::device_uvector<value_t>&& values);
 
 /**
+ * @brief Shuffle external (i.e. before renumbering) vertex & values pairs to their local GPU based
+ * on vertex partitioning.
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam value_t Type of values.
+ *
+ * @param[in] handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator,
+ * and handles to various CUDA libraries) to run graph algorithms.
+ * @param[in] vertices Vertices to shuffle.
+ * @param[in] values_0 First values to shuffle.
+ * @param[in] values_1 Second values to shuffle.
+ *
+ * @return Tuple of vectors storing shuffled vertex & value pairs.
+ */
+template <typename vertex_t, typename value0_t, typename value1_t>
+std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<value0_t>, rmm::device_uvector<value1_t>>
+shuffle_ext_vertex_values_pairs_to_local_gpu_by_vertex_partitioning(
+  raft::handle_t const& handle,
+  rmm::device_uvector<vertex_t>&& vertices,
+  rmm::device_uvector<value0_t>&& values_0,
+  rmm::device_uvector<value1_t>&& values_1);
+
+/**
  * @brief Permute a range.
  *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.

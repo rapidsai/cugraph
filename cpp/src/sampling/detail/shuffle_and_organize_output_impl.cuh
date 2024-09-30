@@ -41,14 +41,12 @@ namespace detail {
 
 template <typename label_t>
 struct shuffle_to_output_comm_rank_t {
-  raft::device_span<label_t const> output_label_;
   raft::device_span<int32_t const> output_rank_;
 
   template <typename key_t>
   __device__ int32_t operator()(key_t key) const
   {
-    auto pos = thrust::lower_bound(thrust::seq, output_label_.begin(), output_label_.end(), key);
-    return output_rank_[thrust::distance(output_label_.begin(), pos)];
+    return output_rank_[key];
   }
 };
 
@@ -206,8 +204,7 @@ shuffle_and_organize_output(
   std::optional<rmm::device_uvector<edge_type_t>>&& edge_types,
   std::optional<rmm::device_uvector<int32_t>>&& hops,
   std::optional<rmm::device_uvector<label_t>>&& labels,
-  std::optional<std::tuple<raft::device_span<label_t const>, raft::device_span<int32_t const>>>
-    label_to_output_comm_rank)
+  std::optional<raft::device_span<int32_t const>> label_to_output_comm_rank)
 {
   std::optional<rmm::device_uvector<size_t>> offsets{std::nullopt};
 
@@ -215,8 +212,6 @@ shuffle_and_organize_output(
     sort_sampled_tuples(handle, majors, minors, weights, edge_ids, edge_types, hops, *labels);
 
     if (label_to_output_comm_rank) {
-      CUGRAPH_EXPECTS(labels, "labels must be specified in order to shuffle sampling results");
-
       auto& comm           = handle.get_comms();
       auto const comm_size = comm.get_size();
 
@@ -247,8 +242,7 @@ shuffle_and_organize_output(
                                           edge_ids->begin(),
                                           edge_types->begin(),
                                           hops->begin()),
-                shuffle_to_output_comm_rank_t<label_t>{std::get<0>(*label_to_output_comm_rank),
-                                                       std::get<1>(*label_to_output_comm_rank)},
+                shuffle_to_output_comm_rank_t<label_t>{*label_to_output_comm_rank},
                 comm_size,
                 mem_frugal_threshold,
                 handle.get_stream());
@@ -282,8 +276,7 @@ shuffle_and_organize_output(
                                           weights->begin(),
                                           edge_ids->begin(),
                                           edge_types->begin()),
-                shuffle_to_output_comm_rank_t<label_t>{std::get<0>(*label_to_output_comm_rank),
-                                                       std::get<1>(*label_to_output_comm_rank)},
+                shuffle_to_output_comm_rank_t<label_t>{*label_to_output_comm_rank},
                 comm_size,
                 mem_frugal_threshold,
                 handle.get_stream());
@@ -317,8 +310,7 @@ shuffle_and_organize_output(
                                           weights->begin(),
                                           edge_ids->begin(),
                                           hops->begin()),
-                shuffle_to_output_comm_rank_t<label_t>{std::get<0>(*label_to_output_comm_rank),
-                                                       std::get<1>(*label_to_output_comm_rank)},
+                shuffle_to_output_comm_rank_t<label_t>{*label_to_output_comm_rank},
                 comm_size,
                 mem_frugal_threshold,
                 handle.get_stream());
@@ -347,8 +339,7 @@ shuffle_and_organize_output(
                 labels->end(),
                 thrust::make_zip_iterator(
                   majors.begin(), minors.begin(), weights->begin(), edge_ids->begin()),
-                shuffle_to_output_comm_rank_t<label_t>{std::get<0>(*label_to_output_comm_rank),
-                                                       std::get<1>(*label_to_output_comm_rank)},
+                shuffle_to_output_comm_rank_t<label_t>{*label_to_output_comm_rank},
                 comm_size,
                 mem_frugal_threshold,
                 handle.get_stream());
@@ -383,8 +374,7 @@ shuffle_and_organize_output(
                                           weights->begin(),
                                           edge_types->begin(),
                                           hops->begin()),
-                shuffle_to_output_comm_rank_t<label_t>{std::get<0>(*label_to_output_comm_rank),
-                                                       std::get<1>(*label_to_output_comm_rank)},
+                shuffle_to_output_comm_rank_t<label_t>{*label_to_output_comm_rank},
                 comm_size,
                 mem_frugal_threshold,
                 handle.get_stream());
@@ -413,8 +403,7 @@ shuffle_and_organize_output(
                 labels->end(),
                 thrust::make_zip_iterator(
                   majors.begin(), minors.begin(), weights->begin(), edge_types->begin()),
-                shuffle_to_output_comm_rank_t<label_t>{std::get<0>(*label_to_output_comm_rank),
-                                                       std::get<1>(*label_to_output_comm_rank)},
+                shuffle_to_output_comm_rank_t<label_t>{*label_to_output_comm_rank},
                 comm_size,
                 mem_frugal_threshold,
                 handle.get_stream());
@@ -444,8 +433,7 @@ shuffle_and_organize_output(
                 labels->end(),
                 thrust::make_zip_iterator(
                   majors.begin(), minors.begin(), weights->begin(), hops->begin()),
-                shuffle_to_output_comm_rank_t<label_t>{std::get<0>(*label_to_output_comm_rank),
-                                                       std::get<1>(*label_to_output_comm_rank)},
+                shuffle_to_output_comm_rank_t<label_t>{*label_to_output_comm_rank},
                 comm_size,
                 mem_frugal_threshold,
                 handle.get_stream());
@@ -471,8 +459,7 @@ shuffle_and_organize_output(
                 labels->begin(),
                 labels->end(),
                 thrust::make_zip_iterator(majors.begin(), minors.begin(), weights->begin()),
-                shuffle_to_output_comm_rank_t<label_t>{std::get<0>(*label_to_output_comm_rank),
-                                                       std::get<1>(*label_to_output_comm_rank)},
+                shuffle_to_output_comm_rank_t<label_t>{*label_to_output_comm_rank},
                 comm_size,
                 mem_frugal_threshold,
                 handle.get_stream());
@@ -505,8 +492,7 @@ shuffle_and_organize_output(
                                           edge_ids->begin(),
                                           edge_types->begin(),
                                           hops->begin()),
-                shuffle_to_output_comm_rank_t<label_t>{std::get<0>(*label_to_output_comm_rank),
-                                                       std::get<1>(*label_to_output_comm_rank)},
+                shuffle_to_output_comm_rank_t<label_t>{*label_to_output_comm_rank},
                 comm_size,
                 mem_frugal_threshold,
                 handle.get_stream());
@@ -535,8 +521,7 @@ shuffle_and_organize_output(
                 labels->end(),
                 thrust::make_zip_iterator(
                   majors.begin(), minors.begin(), edge_ids->begin(), edge_types->begin()),
-                shuffle_to_output_comm_rank_t<label_t>{std::get<0>(*label_to_output_comm_rank),
-                                                       std::get<1>(*label_to_output_comm_rank)},
+                shuffle_to_output_comm_rank_t<label_t>{*label_to_output_comm_rank},
                 comm_size,
                 mem_frugal_threshold,
                 handle.get_stream());
@@ -566,8 +551,7 @@ shuffle_and_organize_output(
                 labels->end(),
                 thrust::make_zip_iterator(
                   majors.begin(), minors.begin(), edge_ids->begin(), hops->begin()),
-                shuffle_to_output_comm_rank_t<label_t>{std::get<0>(*label_to_output_comm_rank),
-                                                       std::get<1>(*label_to_output_comm_rank)},
+                shuffle_to_output_comm_rank_t<label_t>{*label_to_output_comm_rank},
                 comm_size,
                 mem_frugal_threshold,
                 handle.get_stream());
@@ -593,8 +577,7 @@ shuffle_and_organize_output(
                 labels->begin(),
                 labels->end(),
                 thrust::make_zip_iterator(majors.begin(), minors.begin(), edge_ids->begin()),
-                shuffle_to_output_comm_rank_t<label_t>{std::get<0>(*label_to_output_comm_rank),
-                                                       std::get<1>(*label_to_output_comm_rank)},
+                shuffle_to_output_comm_rank_t<label_t>{*label_to_output_comm_rank},
                 comm_size,
                 mem_frugal_threshold,
                 handle.get_stream());
@@ -623,8 +606,7 @@ shuffle_and_organize_output(
                 labels->end(),
                 thrust::make_zip_iterator(
                   majors.begin(), minors.begin(), edge_types->begin(), hops->begin()),
-                shuffle_to_output_comm_rank_t<label_t>{std::get<0>(*label_to_output_comm_rank),
-                                                       std::get<1>(*label_to_output_comm_rank)},
+                shuffle_to_output_comm_rank_t<label_t>{*label_to_output_comm_rank},
                 comm_size,
                 mem_frugal_threshold,
                 handle.get_stream());
@@ -651,8 +633,7 @@ shuffle_and_organize_output(
                 labels->begin(),
                 labels->end(),
                 thrust::make_zip_iterator(majors.begin(), minors.begin(), edge_types->begin()),
-                shuffle_to_output_comm_rank_t<label_t>{std::get<0>(*label_to_output_comm_rank),
-                                                       std::get<1>(*label_to_output_comm_rank)},
+                shuffle_to_output_comm_rank_t<label_t>{*label_to_output_comm_rank},
                 comm_size,
                 mem_frugal_threshold,
                 handle.get_stream());
@@ -678,8 +659,7 @@ shuffle_and_organize_output(
                 labels->begin(),
                 labels->end(),
                 thrust::make_zip_iterator(majors.begin(), minors.begin(), hops->begin()),
-                shuffle_to_output_comm_rank_t<label_t>{std::get<0>(*label_to_output_comm_rank),
-                                                       std::get<1>(*label_to_output_comm_rank)},
+                shuffle_to_output_comm_rank_t<label_t>{*label_to_output_comm_rank},
                 comm_size,
                 mem_frugal_threshold,
                 handle.get_stream());
@@ -702,8 +682,7 @@ shuffle_and_organize_output(
                 labels->begin(),
                 labels->end(),
                 thrust::make_zip_iterator(majors.begin(), minors.begin()),
-                shuffle_to_output_comm_rank_t<label_t>{std::get<0>(*label_to_output_comm_rank),
-                                                       std::get<1>(*label_to_output_comm_rank)},
+                shuffle_to_output_comm_rank_t<label_t>{*label_to_output_comm_rank},
                 comm_size,
                 mem_frugal_threshold,
                 handle.get_stream());
