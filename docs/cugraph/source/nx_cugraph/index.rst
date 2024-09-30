@@ -18,7 +18,7 @@ By simply `installing and enabling nx-cugraph <https://github.com/rapidsai/cugra
 
 .. figure:: ../_static/colab.png
     :width: 200px
-    :target: https://github.com/rapidsai-community/showcase/blob/632d50068f2dec08a591c98f4c41092eab2dfae4/getting_started_tutorials/accelerated_networkx_demo.ipynb/
+    :target: https://nvda.ws/4drM4re
 
     Try it on Google Colab!
 
