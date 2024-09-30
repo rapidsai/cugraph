@@ -37,7 +37,7 @@ This includes several ways to set up cuGraph
 
 **Note: Windows use of RAPIDS depends on prior installation of** `WSL2 <https://learn.microsoft.com/en-us/windows/wsl/install>`_.
 
-* From windows
+* From Windows
 
   * `Conda <https://docs.rapids.ai/install#wsl-conda>`_
   * `Docker <https://docs.rapids.ai/install#wsl-docker>`_
@@ -49,7 +49,7 @@ Build From Source
 To build from source, check each RAPIDS GitHub README for set up and build instructions. Further links are provided in the `selector tool <https://docs.rapids.ai/install#selector>`_.
 If additional help is needed reach out on our `Slack Channel <https://rapids-goai.slack.com/archives/C5E06F4DC>`_.
 
-CuGraph Using NetworkX Code
+cuGraph Using NetworkX Code
 While the steps above are required to use the full suite of cuGraph graph analytics, cuGraph is now supported as a NetworkX backend using `nx-cugraph <https://docs.rapids.ai/api/cugraph/nightly/nx_cugraph/nx_cugraph/>_.
 Nx-cugraph offers those with existing NetworkX code, a **zero code change** option with a growing list of supported algorithms.
 
