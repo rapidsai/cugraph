@@ -220,7 +220,7 @@ def heterogeneous_biased_neighbor_sample(ResourceHandle resource_handle,
     cdef cugraph_error_t* error_ptr
     cdef uintptr_t ai_fan_out_ptr
 
-    # FIXME: refactor the way we are creating pointer. Can use a single helper function to create **************
+    # FIXME: refactor the way we are creating pointer. Can use a single helper function to create
 
     assert_CAI_type(start_vertex_list, "start_vertex_list")
     assert_CAI_type(start_vertex_offsets, "start_vertex_offsets", True)
