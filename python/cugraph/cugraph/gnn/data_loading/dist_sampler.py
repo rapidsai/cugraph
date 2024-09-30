@@ -776,7 +776,7 @@ class NeighborSampler(DistSampler):
                 label_to_output_comm_rank=cupy.asarray(label_to_output_comm_rank),
                 h_fan_out=np.array(self.__fanout, dtype="int32"),
                 with_replacement=self.__with_replacement,
-                do_expensive_check=True,
+                do_expensive_check=False,
                 with_edge_properties=True,
                 random_state=random_state + rank,
                 prior_sources_behavior=self.__prior_sources_behavior,

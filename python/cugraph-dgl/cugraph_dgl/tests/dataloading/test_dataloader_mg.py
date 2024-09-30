@@ -82,9 +82,18 @@ def test_dataloader_basic_homogeneous():
     )
 
 
-def sample_dgl_graphs(g, train_nid, fanouts, batch_size=1):
+def sample_dgl_graphs(
+    g,
+    train_nid,
+    fanouts,
+    batch_size=1,
+    prob_attr=None,
+):
     # Single fanout to match cugraph
-    sampler = dgl.dataloading.NeighborSampler(fanouts)
+    sampler = dgl.dataloading.NeighborSampler(
+        fanouts,
+        prob=prob_attr,
+    )
     dataloader = dgl.dataloading.DataLoader(
         g,
         train_nid,
@@ -105,8 +114,17 @@ def sample_dgl_graphs(g, train_nid, fanouts, batch_size=1):
     return dgl_output
 
 
-def sample_cugraph_dgl_graphs(cugraph_g, train_nid, fanouts, batch_size=1):
-    sampler = cugraph_dgl.dataloading.NeighborSampler(fanouts)
+def sample_cugraph_dgl_graphs(
+    cugraph_g,
+    train_nid,
+    fanouts,
+    batch_size=1,
+    prob_attr=None,
+):
+    sampler = cugraph_dgl.dataloading.NeighborSampler(
+        fanouts,
+        prob=prob_attr,
+    )
 
     dataloader = cugraph_dgl.dataloading.FutureDataLoader(
         cugraph_g,
@@ -177,5 +195,60 @@ def test_same_homogeneousgraph_results_mg(ix, batch_size):
     torch.multiprocessing.spawn(
         run_test_same_homogeneousgraph_results,
         args=(world_size, uid, ix, batch_size),
+        nprocs=world_size,
+    )
+
+
+def run_test_dataloader_biased_homogeneous(rank, world_size, uid):
+    init_pytorch_worker(rank, world_size, uid, True)
+
+    src = torch.tensor([1, 2, 3, 4, 5, 6, 7, 8]) + (rank * 9)
+    dst = torch.tensor([0, 0, 0, 0, 1, 1, 1, 1]) + (rank * 9)
+    wgt = torch.tensor(
+        [0.1, 0.1, 0.2, 0, 0, 0, 0.2, 0.1] * world_size, dtype=torch.float32
+    )
+
+    train_nid = torch.tensor([0, 1]) + (rank * 9)
+    # Create a heterograph with 3 node types and 3 edge types.
+    dgl_g = dgl.graph((src, dst))
+    dgl_g.edata["wgt"] = wgt[:8]
+
+    cugraph_g = cugraph_dgl.Graph(is_multi_gpu=True)
+    cugraph_g.add_nodes(9 * world_size)
+    cugraph_g.add_edges(u=src, v=dst, data={"wgt": wgt})
+
+    dgl_output = sample_dgl_graphs(dgl_g, train_nid, [4], batch_size=2, prob_attr="wgt")
+    cugraph_output = sample_cugraph_dgl_graphs(
+        cugraph_g, train_nid, [4], batch_size=2, prob_attr="wgt"
+    )
+
+    cugraph_output_nodes = cugraph_output[0]["output_nodes"].cpu().numpy()
+    dgl_output_nodes = dgl_output[0]["output_nodes"].cpu().numpy()
+
+    np.testing.assert_array_equal(
+        np.sort(cugraph_output_nodes), np.sort(dgl_output_nodes)
+    )
+    assert (
+        dgl_output[0]["blocks"][0].num_dst_nodes()
+        == cugraph_output[0]["blocks"][0].num_dst_nodes()
+    )
+    assert (
+        dgl_output[0]["blocks"][0].num_edges()
+        == cugraph_output[0]["blocks"][0].num_edges()
+    )
+
+    assert 5 == cugraph_output[0]["blocks"][0].num_edges()
+
+
+@pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
+@pytest.mark.skipif(isinstance(dgl, MissingModule), reason="dgl not available")
+def test_dataloader_biased_homogeneous_mg():
+    uid = cugraph_comms_create_unique_id()
+    # Limit the number of GPUs this test is run with
+    world_size = torch.cuda.device_count()
+
+    torch.multiprocessing.spawn(
+        run_test_dataloader_biased_homogeneous,
+        args=(world_size, uid),
         nprocs=world_size,
     )
