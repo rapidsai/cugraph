@@ -6,7 +6,7 @@ We ran several commonly used graph algorithms on both `networkx` and `nx-cugraph
 
 <figure>
 
-![bench-image](../_static/bc_benchmark.png)   
+![bench-image](../_static/bc_benchmark.png)
 
 <figcaption style="text-align: center;">Results from running this <a
 href="https://github.com/rapidsai/cugraph/blob/HEAD/benchmarks/nx-cugraph/pytest-based/bench_algos.py">Benchmark</a><span
