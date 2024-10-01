@@ -25,6 +25,7 @@ import cugraph
 from cugraph.testing import utils
 from cudf.testing import assert_series_equal
 from cudf.testing.testing import assert_frame_equal
+from cugraph.structure.symmetrize import symmetrize
 
 # MG
 import dask_cudf
@@ -534,6 +535,20 @@ def test_to_directed(graph_file):
     # cugraph add_edge_list
     G = cugraph.Graph()
     G.from_cudf_edgelist(cu_M, source="0", destination="1")
+
+    # FIXME: Uses the deprecated implementation of symmetrize.
+    source_col, dest_col = symmetrize(
+        G.edgelist.edgelist_df,
+        "src",
+        "dst",
+        symmetrize=not G.is_directed())
+
+    input_df = cudf.DataFrame()
+    input_df["src"] = source_col
+    input_df["dst"] = dest_col
+
+    G.edgelist.edgelist_df = input_df
+
     Gnx = nx.from_pandas_edgelist(M, source="0", target="1", create_using=nx.Graph())
 
     DiG = G.to_directed()
