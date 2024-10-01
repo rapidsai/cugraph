@@ -304,7 +304,7 @@ def get_info():
 
     # Enable zero-code change usage with a simple environment variable
     # by setting or updating other NETWORKX environment variables.
-    if os.environ.get("NX_CUGRAPH", "").strip().lower() == "true":
+    if os.environ.get("NX_CUGRAPH_AUTOCONFIG", "").strip().lower() == "true":
         from itertools import chain
 
         def update_env_var(varname):
