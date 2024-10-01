@@ -6,16 +6,16 @@ We ran several commonly used graph algorithms on both `networkx` and `nx-cugraph
 
 <figure>
 
-<!-- ![bench-image](link) -->
+![bench-image](../_static/bc_benchmark.png)   
 
-<figcaption style="text-align: center;">Results of the <a
-href="https://github.com/rapidsai/cugraph">Benchmark</a> including <span
-class="title-ref">nx-cugraph</span></figcaption>
+<figcaption style="text-align: center;">Results from running this <a
+href="https://github.com/rapidsai/cugraph/blob/HEAD/benchmarks/nx-cugraph/pytest-based/bench_algos.py">Benchmark</a><span
+class="title-ref"></span></figcaption>
 </figure>
 
 ## Reproducing Benchmarks
 
-Below are the steps to reproduce the results on your workstation. These are documented in <https://github.com/rapidsai/cugraph/blob/HEAD/benchmarks/nx-cugraph/pytest-based>.
+Below are the steps to reproduce the results on your workstation. These are documented in this [README](https://github.com/rapidsai/cugraph/blob/HEAD/benchmarks/nx-cugraph/pytest-based).
 
 1. Clone the latest <https://github.com/rapidsai/cugraph>
 
