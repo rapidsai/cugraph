@@ -194,7 +194,7 @@ def _get_int_dtype(
 
 
 def _get_float_dtype(
-    dtype: Dtype, *, graph: nxcg.Graph | None = None, weight: EdgeKey | None = None
+    dtype: Dtype, *, graph: nxcg.CudaGraph | None = None, weight: EdgeKey | None = None
 ):
     """Promote dtype to float32 or float64 as appropriate."""
     if dtype is None:
@@ -238,3 +238,37 @@ def _cp_iscopied_asarray(a, *args, orig_object=None, **kwargs):
     ):
         return False, arr
     return True, arr
+
+
+class _And_NotImplementedError(NotImplementedError):
+    """Additionally make an exception a ``NotImplementedError``.
+
+    For example:
+
+    >>> try:
+    ...     raise _And_NotImplementedError(KeyError("missing"))
+    ... except KeyError:
+    ...     pass
+
+    or
+
+    >>> try:
+    ...     raise _And_NotImplementedError(KeyError("missing"))
+    ... except NotImplementedError:
+    ...     pass
+
+    """
+
+    def __new__(cls, exc):
+        exc_type = type(exc)
+        if issubclass(exc_type, NotImplementedError):
+            new_type = exc_type
+        else:
+            new_type = type(
+                f"{exc_type.__name__}{cls.__name__}",
+                (exc_type, NotImplementedError),
+                {},
+            )
+        instance = NotImplementedError.__new__(new_type)
+        instance.__init__(*exc.args)
+        return instance

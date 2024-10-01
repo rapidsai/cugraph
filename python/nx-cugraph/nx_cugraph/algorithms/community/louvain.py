@@ -12,9 +12,9 @@
 # limitations under the License.
 import warnings
 
-import networkx as nx
 import pylibcugraph as plc
 
+from nx_cugraph import _nxver
 from nx_cugraph.convert import _to_undirected_graph
 from nx_cugraph.utils import (
     _dtype_param,
@@ -27,7 +27,7 @@ from nx_cugraph.utils import (
 __all__ = ["louvain_communities"]
 
 # max_level argument was added to NetworkX 3.3
-if nx.__version__[:3] <= "3.2":
+if _nxver <= (3, 2):
     _max_level_param = {
         "max_level : int, optional": (
             "Upper limit of the number of macro-iterations (max: 500)."
@@ -81,7 +81,7 @@ def _louvain_communities(
     node_ids, clusters, modularity = plc.louvain(
         resource_handle=plc.ResourceHandle(),
         graph=G._get_plc_graph(weight, 1, dtype),
-        max_level=max_level,  # TODO: add this parameter to NetworkX
+        max_level=max_level,
         threshold=threshold,
         resolution=resolution,
         do_expensive_check=False,

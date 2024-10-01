@@ -20,6 +20,8 @@
 
 #include <raft/comms/std_comms.hpp>
 
+#include <nccl.h>
+
 #include <vector>
 
 namespace cugraph {

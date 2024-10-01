@@ -14,6 +14,7 @@ import cupy as cp
 import networkx as nx
 
 import nx_cugraph as nxcg
+from nx_cugraph import _nxver
 
 from ..utils import index_dtype, networkx_algorithm
 from ._utils import _IS_NX32_OR_LESS, _create_using_class
@@ -449,7 +450,14 @@ def pappus_graph():
         index_dtype,
     )
     # fmt: on
-    return nxcg.Graph.from_coo(18, src_indices, dst_indices, name="Pappus Graph")
+    use_compat_graph = _nxver < (3, 3) or nx.config.backends.cugraph.use_compat_graphs
+    return nxcg.CudaGraph.from_coo(
+        18,
+        src_indices,
+        dst_indices,
+        name="Pappus Graph",
+        use_compat_graph=use_compat_graph,
+    )
 
 
 @networkx_algorithm(version_added="23.12")

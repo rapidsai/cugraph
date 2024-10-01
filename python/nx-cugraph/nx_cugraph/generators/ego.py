@@ -32,7 +32,10 @@ def ego_graph(
 ):
     """Weighted ego_graph with negative cycles is not yet supported. `NotImplementedError` will be raised if there are negative `distance` edge weights."""  # noqa: E501
     if isinstance(G, nx.Graph):
+        is_compat_graph = isinstance(G, nxcg.Graph)
         G = nxcg.from_networkx(G, preserve_all_attrs=True)
+    else:
+        is_compat_graph = False
     if n not in G:
         if distance is None:
             raise nx.NodeNotFound(f"Source {n} is not in G")
@@ -100,7 +103,10 @@ def ego_graph(
             node_mask &= node_ids != src_index
         node_ids = node_ids[node_mask]
     if node_ids.size == G._N:
-        return G.copy()
+        rv = G.copy()
+        if is_compat_graph:
+            return rv._to_compat_graph()
+        return rv
     # TODO: create renumbering helper function(s)
     node_ids.sort()  # TODO: is this ever necessary? Keep for safety
     node_values = {key: val[node_ids] for key, val in G.node_values.items()}
@@ -137,6 +143,7 @@ def ego_graph(
         "node_values": node_values,
         "node_masks": node_masks,
         "key_to_id": key_to_id,
+        "use_compat_graph": False,
     }
     if G.is_multigraph():
         if G.edge_keys is not None:
@@ -147,6 +154,8 @@ def ego_graph(
             kwargs["edge_indices"] = G.edge_indices[edge_mask]
     rv = G.__class__.from_coo(**kwargs)
     rv.graph.update(G.graph)
+    if is_compat_graph:
+        return rv._to_compat_graph()
     return rv
 
 

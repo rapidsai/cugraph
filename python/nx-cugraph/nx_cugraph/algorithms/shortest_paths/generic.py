@@ -14,6 +14,7 @@ import networkx as nx
 import numpy as np
 
 import nx_cugraph as nxcg
+from nx_cugraph import _nxver
 from nx_cugraph.convert import _to_graph
 from nx_cugraph.utils import _dtype_param, _get_float_dtype, networkx_algorithm
 
@@ -57,7 +58,7 @@ def shortest_path(
                 paths = nxcg.all_pairs_dijkstra_path(G, weight=weight, dtype=dtype)
             else:  # method == 'bellman-ford':
                 paths = nxcg.all_pairs_bellman_ford_path(G, weight=weight, dtype=dtype)
-            if nx.__version__[:3] <= "3.4":
+            if _nxver <= (3, 4):
                 paths = dict(paths)
         # To target
         elif method == "unweighted":
@@ -129,7 +130,7 @@ def shortest_path_length(
         # To target
         elif method == "unweighted":
             lengths = nxcg.single_target_shortest_path_length(G, target)
-            if nx.__version__[:3] <= "3.4":
+            if _nxver <= (3, 4):
                 lengths = dict(lengths)
         elif method == "dijkstra":
             lengths = nxcg.single_source_dijkstra_path_length(
