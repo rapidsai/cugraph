@@ -257,7 +257,6 @@ def symmetrize(
     >>> df['values'] = cudf.Series(M['2'])
     >>> src, dst, val = symmetrize(df, 'sources', 'destinations', 'values', multi=True)
     """
-    
     warnings.warn(
         "This method is deprecated and will no longer be supported. The symmetrization "
         "of the edges are only supported by setting the 'symmetrize' flag to 'True'",
