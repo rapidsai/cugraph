@@ -81,7 +81,7 @@ std::tuple<std::vector<vertex_t>, std::vector<offset_t>> compute_offset_aligned_
 
     return std::make_tuple(h_chunk_offsets, h_element_offsets);
   } else {
-    return std::make_tuple(std::vector<vertex_t>{{0, offsets.size() - 1}},
+    return std::make_tuple(std::vector<vertex_t>{{0, static_cast<vertex_t>(offsets.size() - 1)}},
                            std::vector<offset_t>{{0, num_elements}});
   }
 }

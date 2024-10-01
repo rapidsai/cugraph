@@ -243,15 +243,20 @@ namespace detail {
 // use (key, value) pairs to store source/destination properties if (unique edge
 // sources/destinations) over (V / major_comm_size|minor_comm_size) is smaller than the threshold
 // value
-double constexpr edge_partition_src_dst_property_values_kv_pair_fill_ratio_threshold = 0.0;  // FIXME: just for benchmarking
+double constexpr edge_partition_src_dst_property_values_kv_pair_fill_ratio_threshold =
+  0.0;  // FIXME: just for benchmarking
 
 // FIXME: threshold values require tuning
 // use the hypersparse format (currently, DCSR or DCSC) for the vertices with their degrees smaller
 // than minor_comm_size * hypersparse_threshold_ratio, should be less than 1.0
 double constexpr hypersparse_threshold_ratio = 0.5;
-size_t constexpr low_degree_threshold{raft::warp_size()};
-size_t constexpr mid_degree_threshold{1024};
-size_t constexpr num_sparse_segments_per_vertex_partition{3};
+size_t constexpr low_degree_threshold{
+  raft::warp_size()};  // belongs to the low degree segment if the global degree is smaller than
+                       // this value.
+size_t constexpr mid_degree_threshold{
+  1024};  // belongs to the medium degree segment if the global degree is smaller than this value,
+          // otherwise, belongs to the high degree segment.
+size_t constexpr num_sparse_segments_per_vertex_partition{3};  // high, mid, low
 
 // Common for both graph_view_t & graph_t and both single-GPU & multi-GPU versions
 template <typename vertex_t, typename edge_t>
@@ -313,6 +318,7 @@ struct graph_view_meta_t<vertex_t,
 
   // segment offsets based on vertex degree
   std::vector<vertex_t> edge_partition_segment_offsets{};
+  std::optional<std::vector<vertex_t>> edge_partition_hypersparse_degree_offsets{};
 
   std::conditional_t<store_transposed,
                      std::optional<raft::device_span<vertex_t const>>,
@@ -356,6 +362,7 @@ struct graph_view_meta_t<vertex_t,
 
   // segment offsets based on vertex degree, relevant only if vertex IDs are renumbered
   std::optional<std::vector<vertex_t>> segment_offsets{std::nullopt};
+  std::optional<std::vector<vertex_t>> hypersparse_degree_offsets{std::nullopt};
 };
 
 // graph_view_t is a non-owning graph class (note that graph_t is an owning graph class)
@@ -563,6 +570,22 @@ class graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if
         (partition_idx + 1) * num_segments_per_vertex_partition);
   }
 
+  std::optional<std::vector<vertex_t>> local_edge_partition_hypersparse_degree_offsets(
+    size_t partition_idx) const
+  {
+    auto num_degrees_per_vertex_partition =
+      edge_partition_hypersparse_degree_offsets_
+        ? ((*edge_partition_hypersparse_degree_offsets_).size() / edge_partition_offsets_.size())
+        : size_t{0};
+    return edge_partition_hypersparse_degree_offsets_
+             ? std::make_optional<std::vector<vertex_t>>(
+                 (*edge_partition_hypersparse_degree_offsets_).begin() +
+                   partition_idx * num_degrees_per_vertex_partition,
+                 (*edge_partition_hypersparse_degree_offsets_).begin() +
+                   (partition_idx + 1) * num_degrees_per_vertex_partition)
+             : std::nullopt;
+  }
+
   vertex_partition_view_t<vertex_t, true> local_vertex_partition_view() const
   {
     return vertex_partition_view_t<vertex_t, true>(this->number_of_vertices(),
@@ -760,6 +783,7 @@ class graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if
 
   // segment offsets based on vertex degree
   std::vector<vertex_t> edge_partition_segment_offsets_{};
+  std::optional<std::vector<vertex_t>> edge_partition_hypersparse_degree_offsets_{};
 
   // if valid, store source/destination property values in key/value pairs (this saves memory if #
   // unique edge sources/destinations << V / major_comm_size|minor_comm_size).
@@ -910,6 +934,13 @@ class graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if
     return segment_offsets_;
   }
 
+  std::optional<std::vector<vertex_t>> local_edge_partition_hypersparse_degree_offsets(
+    size_t partition_idx = 0) const
+  {
+    assert(partition_idx == 0);
+    return hypersparse_degree_offsets_;
+  }
+
   vertex_partition_view_t<vertex_t, false> local_vertex_partition_view() const
   {
     return vertex_partition_view_t<vertex_t, false>(this->number_of_vertices());
@@ -1050,6 +1081,7 @@ class graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if
 
   // segment offsets based on vertex degree, relevant only if vertex IDs are renumbered
   std::optional<std::vector<vertex_t>> segment_offsets_{std::nullopt};
+  std::optional<std::vector<vertex_t>> hypersparse_degree_offsets_{std::nullopt};
 
   std::optional<edge_property_view_t<edge_t, uint32_t const*, bool>> edge_mask_view_{std::nullopt};
 };

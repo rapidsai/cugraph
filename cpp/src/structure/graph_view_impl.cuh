@@ -496,6 +496,7 @@ graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t<mul
     edge_partition_dcs_nzd_vertices_(edge_partition_dcs_nzd_vertices),
     partition_(meta.partition),
     edge_partition_segment_offsets_(meta.edge_partition_segment_offsets),
+    edge_partition_hypersparse_degree_offsets_(meta.edge_partition_hypersparse_degree_offsets),
     local_sorted_unique_edge_srcs_(meta.local_sorted_unique_edge_srcs),
     local_sorted_unique_edge_src_chunk_start_offsets_(
       meta.local_sorted_unique_edge_src_chunk_start_offsets),
@@ -538,7 +539,8 @@ graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t<!mu
       meta.number_of_vertices, meta.number_of_edges, meta.properties),
     offsets_(offsets),
     indices_(indices),
-    segment_offsets_(meta.segment_offsets)
+    segment_offsets_(meta.segment_offsets),
+    hypersparse_degree_offsets_(meta.hypersparse_degree_offsets)
 {
   // cheap error checks
 

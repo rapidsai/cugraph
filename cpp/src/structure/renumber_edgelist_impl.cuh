@@ -235,14 +235,17 @@ std::optional<vertex_t> find_locally_unused_ext_vertex_id(
            : std::nullopt /* if the entire range of vertex_t is used */;
 }
 
-// returns renumber map and segment_offsets
+// returns renumber map, segment_offsets, and hypersparse_degree_offsets
 template <typename vertex_t, typename edge_t, bool multi_gpu>
-std::tuple<rmm::device_uvector<vertex_t>, std::vector<vertex_t>, vertex_t> compute_renumber_map(
-  raft::handle_t const& handle,
-  std::optional<rmm::device_uvector<vertex_t>>&& local_vertices,
-  std::vector<vertex_t const*> const& edgelist_majors,
-  std::vector<vertex_t const*> const& edgelist_minors,
-  std::vector<edge_t> const& edgelist_edge_counts)
+std::tuple<rmm::device_uvector<vertex_t>,
+           std::vector<vertex_t>,
+           std::optional<std::vector<vertex_t>>,
+           vertex_t>
+compute_renumber_map(raft::handle_t const& handle,
+                     std::optional<rmm::device_uvector<vertex_t>>&& local_vertices,
+                     std::vector<vertex_t const*> const& edgelist_majors,
+                     std::vector<vertex_t const*> const& edgelist_minors,
+                     std::vector<edge_t> const& edgelist_edge_counts)
 {
   // 1. if local_vertices.has_value() is false, find unique vertices from edge majors & minors (to
   // construct local_vertices)
@@ -322,10 +325,6 @@ std::tuple<rmm::device_uvector<vertex_t>, std::vector<vertex_t>, vertex_t> compu
     handle.sync_stream();
 
     for (size_t i = 0; i < num_bins; ++i) {
-#if 1
-      RAFT_CUDA_TRY(cudaDeviceSynchronize());
-      std::cerr << "compute_renumber_map 0-1 i=" << i << std::endl;
-#endif
       rmm::device_uvector<vertex_t> this_bin_sorted_unique_majors(0, handle.get_stream());
       {
         std::vector<rmm::device_uvector<vertex_t>> edge_partition_tmp_majors{};  // for bin "i"
@@ -377,22 +376,8 @@ std::tuple<rmm::device_uvector<vertex_t>, std::vector<vertex_t>, vertex_t> compu
                            this_bin_sorted_unique_majors.begin() + output_offset);
               output_offset += edge_partition_tmp_majors[j].size();
             }
-#if 0
-            std::tie(this_bin_sorted_unique_majors, std::ignore) = shuffle_values(
-              minor_comm, this_bin_sorted_unique_majors.begin(), tx_counts, handle.get_stream());
-            thrust::sort(
-              handle.get_thrust_policy(),
-              this_bin_sorted_unique_majors.begin(),
-              this_bin_sorted_unique_majors.end());
-            this_bin_sorted_unique_majors.resize(thrust::distance(this_bin_sorted_unique_majors.begin(), thrust::unique(
-              handle.get_thrust_policy(),
-              this_bin_sorted_unique_majors.begin(),
-              this_bin_sorted_unique_majors.end())), handle.get_stream());
-            this_bin_sorted_unique_majors.shrink_to_fit(handle.get_stream());
-#else
             this_bin_sorted_unique_majors = shuffle_and_unique_segment_sorted_values(
               minor_comm, this_bin_sorted_unique_majors.begin(), tx_counts, handle.get_stream());
-#endif
           } else {
             this_bin_sorted_unique_majors = std::move(edge_partition_tmp_majors[0]);
           }
@@ -401,10 +386,6 @@ std::tuple<rmm::device_uvector<vertex_t>, std::vector<vertex_t>, vertex_t> compu
         }
       }
 
-#if 1
-      RAFT_CUDA_TRY(cudaDeviceSynchronize());
-      std::cerr << "compute_renumber_map 0-2 i=" << i << std::endl;
-#endif
       rmm::device_uvector<vertex_t> this_bin_sorted_unique_minors(0, handle.get_stream());
       {
         std::vector<rmm::device_uvector<vertex_t>> edge_partition_tmp_minors{};  // for bin "i"
@@ -474,16 +455,6 @@ std::tuple<rmm::device_uvector<vertex_t>, std::vector<vertex_t>, vertex_t> compu
             auto const comm_size = comm.get_size();
             auto& minor_comm = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
             auto const minor_comm_size = minor_comm.get_size();
-#if 0
-            this_bin_sorted_unique_minors = shuffle_ext_vertices_to_local_gpu_by_vertex_partitioning(handle, std::move(this_bin_sorted_unique_minors));
-            thrust::sort(handle.get_thrust_policy(),
-                         this_bin_sorted_unique_minors.begin(),
-                         this_bin_sorted_unique_minors.end());
-            this_bin_sorted_unique_minors.resize(thrust::distance(this_bin_sorted_unique_minors.begin(), thrust::unique(handle.get_thrust_policy(),
-                         this_bin_sorted_unique_minors.begin(),
-                         this_bin_sorted_unique_minors.end())), handle.get_stream());
-            this_bin_sorted_unique_minors.shrink_to_fit(handle.get_stream());
-#else
             compute_gpu_id_from_ext_vertex_t<vertex_t> gpu_id_func{
               comm_size, major_comm_size, minor_comm_size};
             auto d_tx_counts = groupby_and_count(
@@ -511,14 +482,9 @@ std::tuple<rmm::device_uvector<vertex_t>, std::vector<vertex_t>, vertex_t> compu
             }
             this_bin_sorted_unique_minors = shuffle_and_unique_segment_sorted_values(
               major_comm, this_bin_sorted_unique_minors.begin(), h_tx_counts, handle.get_stream());
-#endif
           }
         }
       }
-#if 1
-      RAFT_CUDA_TRY(cudaDeviceSynchronize());
-      std::cerr << "compute_renumber_map 0-3 i=" << i << std::endl;
-#endif
       rmm::device_uvector<vertex_t> this_bin_sorted_unique_vertices(0, handle.get_stream());
       {
         rmm::device_uvector<vertex_t> merged_vertices(
@@ -542,10 +508,6 @@ std::tuple<rmm::device_uvector<vertex_t>, std::vector<vertex_t>, vertex_t> compu
         merged_vertices.shrink_to_fit(handle.get_stream());
         this_bin_sorted_unique_vertices = std::move(merged_vertices);
       }
-#if 1
-      RAFT_CUDA_TRY(cudaDeviceSynchronize());
-      std::cerr << "compute_renumber_map 0-4 i=" << i << std::endl;
-#endif
       if (sorted_local_vertices.size() == 0) {
         sorted_local_vertices = std::move(this_bin_sorted_unique_vertices);
       } else {
@@ -690,61 +652,98 @@ std::tuple<rmm::device_uvector<vertex_t>, std::vector<vertex_t>, vertex_t> compu
                 (detail::hypersparse_threshold_ratio <= 1.0));
   size_t mid_degree_threshold{detail::mid_degree_threshold};
   size_t low_degree_threshold{detail::low_degree_threshold};
-  size_t hypersparse_degree_threshold{0};
+  size_t hypersparse_degree_threshold{1};
   if (multi_gpu) {
     auto& minor_comm           = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
     auto const minor_comm_size = minor_comm.get_size();
     mid_degree_threshold *= minor_comm_size;
     low_degree_threshold *= minor_comm_size;
-    hypersparse_degree_threshold =
-      static_cast<size_t>(minor_comm_size * detail::hypersparse_threshold_ratio);
+    hypersparse_degree_threshold = std::max(
+      static_cast<size_t>(minor_comm_size * detail::hypersparse_threshold_ratio), size_t{1});
   }
-  auto num_segments_per_vertex_partition =
-    detail::num_sparse_segments_per_vertex_partition +
-    (hypersparse_degree_threshold > 0 ? size_t{2} : size_t{1});  // last is 0-degree segment
-  rmm::device_uvector<edge_t> d_thresholds(num_segments_per_vertex_partition - 1,
-                                           handle.get_stream());
-  auto h_thresholds =
-    hypersparse_degree_threshold > 0
-      ? std::vector<edge_t>{static_cast<edge_t>(mid_degree_threshold),
-                            static_cast<edge_t>(low_degree_threshold),
-                            static_cast<edge_t>(hypersparse_degree_threshold),
-                            std::min(static_cast<edge_t>(hypersparse_degree_threshold), edge_t{1})}
-      : std::vector<edge_t>{static_cast<edge_t>(mid_degree_threshold),
-                            static_cast<edge_t>(low_degree_threshold),
-                            edge_t{1}};
-  raft::update_device(
-    d_thresholds.data(), h_thresholds.data(), h_thresholds.size(), handle.get_stream());
 
-  rmm::device_uvector<vertex_t> d_segment_offsets(num_segments_per_vertex_partition + 1,
-                                                  handle.get_stream());
+  std::vector<vertex_t> h_segment_offsets{};
+  std::optional<std::vector<vertex_t>> h_hypersparse_degree_offsets{};
+  {
+    auto num_partitions = detail::num_sparse_segments_per_vertex_partition /* high, mid, low */ +
+                          (hypersparse_degree_threshold > 1
+                             ? hypersparse_degree_threshold - size_t{1}
+                             /* one partition per each global degree in the hypersparse region */
+                             : size_t{0}) +
+                          size_t{1} /* zero */;
+    rmm::device_uvector<edge_t> d_thresholds(num_partitions - 1, handle.get_stream());
+    thrust::tabulate(handle.get_thrust_policy(),
+                     d_thresholds.begin(),
+                     d_thresholds.end(),
+                     [mid_degree_threshold,
+                      low_degree_threshold,
+                      hypersparse_degree_threshold] __device__(size_t i) {
+                       if (i == 0) {
+                         return mid_degree_threshold;  // high,mid boundary
+                       } else if (i == 1) {
+                         return low_degree_threshold;  // mid, low boundary
+                       } else {
+                         assert(hypersparse_degree_threshold > (i - 2));
+                         return hypersparse_degree_threshold - (i - 2);
+                       }
+                     });
+    rmm::device_uvector<vertex_t> d_offsets(num_partitions + 1, handle.get_stream());
+    d_offsets.set_element_to_zero_async(0, handle.get_stream());
+    auto vertex_count = static_cast<vertex_t>(sorted_local_vertices.size());
+    d_offsets.set_element(num_partitions, vertex_count, handle.get_stream());
+    thrust::upper_bound(handle.get_thrust_policy(),
+                        sorted_local_vertex_degrees.begin(),
+                        sorted_local_vertex_degrees.end(),
+                        d_thresholds.begin(),
+                        d_thresholds.end(),
+                        d_offsets.begin() + 1,
+                        thrust::greater<edge_t>{});
+    std::vector<vertex_t> h_offsets(d_offsets.size());
+    raft::update_host(h_offsets.data(), d_offsets.data(), d_offsets.size(), handle.get_stream());
+    handle.sync_stream();
+    std::cerr << "hypersparse_degree_threshold=" << hypersparse_degree_threshold << std::endl;
+    raft::print_host_vector("h_offsets", h_offsets.data(), h_offsets.size(), std::cerr);
 
-  auto vertex_count = static_cast<vertex_t>(sorted_local_vertices.size());
-  d_segment_offsets.set_element_to_zero_async(0, handle.get_stream());
-  d_segment_offsets.set_element(
-    num_segments_per_vertex_partition, vertex_count, handle.get_stream());
+    auto num_segments_per_vertex_partition =
+      detail::num_sparse_segments_per_vertex_partition +
+      (hypersparse_degree_threshold > 1 ? size_t{2} : size_t{1});  // last is 0-degree segment
+    h_segment_offsets.resize(num_segments_per_vertex_partition + 1);
+    std::copy(h_offsets.begin(),
+              h_offsets.begin() + num_sparse_segments_per_vertex_partition + 1,
+              h_segment_offsets.begin());
+    *(h_segment_offsets.rbegin()) = *(h_offsets.rbegin());
+    if (hypersparse_degree_threshold > 1) {
+      *(h_segment_offsets.rbegin() + 1) = *(h_offsets.rbegin() + 1);
 
-  thrust::upper_bound(handle.get_thrust_policy(),
-                      sorted_local_vertex_degrees.begin(),
-                      sorted_local_vertex_degrees.end(),
-                      d_thresholds.begin(),
-                      d_thresholds.end(),
-                      d_segment_offsets.begin() + 1,
-                      thrust::greater<edge_t>{});
+      h_hypersparse_degree_offsets = std::vector<vertex_t>(hypersparse_degree_threshold);
+      std::copy(h_offsets.begin() + num_sparse_segments_per_vertex_partition,
+                h_offsets.begin() + num_sparse_segments_per_vertex_partition +
+                  (hypersparse_degree_threshold - 1),
+                (*h_hypersparse_degree_offsets).begin());
+      auto shift = (*h_hypersparse_degree_offsets)[0];
+      std::transform((*h_hypersparse_degree_offsets).begin(),
+                     (*h_hypersparse_degree_offsets).end(),
+                     (*h_hypersparse_degree_offsets).begin(),
+                     [shift](auto offset) { return offset - shift; });
+      *((*h_hypersparse_degree_offsets).rbegin()) = *(h_offsets.rbegin() + 1);
+      raft::print_host_vector("hypersparse_degree_offsets",
+                              (*h_hypersparse_degree_offsets).data(),
+                              (*h_hypersparse_degree_offsets).size(),
+                              std::cerr);
+    }
+    raft::print_host_vector(
+      "h_segment_offsets", h_segment_offsets.data(), h_segment_offsets.size(), std::cerr);
+  }
 
-  std::vector<vertex_t> h_segment_offsets(d_segment_offsets.size());
-  raft::update_host(h_segment_offsets.data(),
-                    d_segment_offsets.data(),
-                    d_segment_offsets.size(),
-                    handle.get_stream());
-  handle.sync_stream();
 #if 1
   RAFT_CUDA_TRY(cudaDeviceSynchronize());
   std::cerr << "compute_renumber_map 4" << std::endl;
 #endif
 
-  return std::make_tuple(
-    std::move(sorted_local_vertices), h_segment_offsets, *locally_unused_vertex_id);
+  return std::make_tuple(std::move(sorted_local_vertices),
+                         h_segment_offsets,
+                         h_hypersparse_degree_offsets,
+                         *locally_unused_vertex_id);
 }
 
 template <typename vertex_t, typename edge_t, bool multi_gpu>
@@ -930,32 +929,28 @@ void expensive_check_edgelist(
 }
 
 template <typename vertex_t>
-std::vector<vertex_t> aggregate_segment_offsets(raft::handle_t const& handle,
-                                                std::vector<vertex_t> const& segment_offsets)
+std::vector<vertex_t> aggregate_offset_vectors(raft::handle_t const& handle,
+                                               std::vector<vertex_t> const& offsets)
 {
   auto& minor_comm           = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
   auto const minor_comm_size = minor_comm.get_size();
 
-  rmm::device_uvector<vertex_t> d_segment_offsets(segment_offsets.size(), handle.get_stream());
-  raft::update_device(
-    d_segment_offsets.data(), segment_offsets.data(), segment_offsets.size(), handle.get_stream());
-  rmm::device_uvector<vertex_t> d_aggregate_segment_offsets(
-    minor_comm_size * d_segment_offsets.size(), handle.get_stream());
-  minor_comm.allgather(d_segment_offsets.data(),
-                       d_aggregate_segment_offsets.data(),
-                       d_segment_offsets.size(),
-                       handle.get_stream());
+  rmm::device_uvector<vertex_t> d_offsets(offsets.size(), handle.get_stream());
+  raft::update_device(d_offsets.data(), offsets.data(), offsets.size(), handle.get_stream());
+  rmm::device_uvector<vertex_t> d_aggregate_offset_vectors(minor_comm_size * d_offsets.size(),
+                                                           handle.get_stream());
+  minor_comm.allgather(
+    d_offsets.data(), d_aggregate_offset_vectors.data(), d_offsets.size(), handle.get_stream());
 
-  std::vector<vertex_t> h_aggregate_segment_offsets(d_aggregate_segment_offsets.size(),
-                                                    vertex_t{0});
-  raft::update_host(h_aggregate_segment_offsets.data(),
-                    d_aggregate_segment_offsets.data(),
-                    d_aggregate_segment_offsets.size(),
+  std::vector<vertex_t> h_aggregate_offset_vectors(d_aggregate_offset_vectors.size(), vertex_t{0});
+  raft::update_host(h_aggregate_offset_vectors.data(),
+                    d_aggregate_offset_vectors.data(),
+                    d_aggregate_offset_vectors.size(),
                     handle.get_stream());
 
   handle.sync_stream();  // this is necessary as h_aggregate_offsets can be used right after return.
 
-  return h_aggregate_segment_offsets;
+  return h_aggregate_offset_vectors;
 }
 
 }  // namespace detail
@@ -1038,7 +1033,10 @@ renumber_edgelist(
   RAFT_CUDA_TRY(cudaDeviceSynchronize());
   std::cerr << "renumber_edgelist 0" << std::endl;
 #endif
-  auto [renumber_map_labels, vertex_partition_segment_offsets, locally_unused_vertex_id] =
+  auto [renumber_map_labels,
+        vertex_partition_segment_offsets,
+        vertex_partition_hypersparse_degree_offsets,
+        locally_unused_vertex_id] =
     detail::compute_renumber_map<vertex_t, edge_t, multi_gpu>(handle,
                                                               std::move(local_vertices),
                                                               edgelist_const_majors,
@@ -1243,12 +1241,20 @@ renumber_edgelist(
   std::cerr << "renumber_edgelist 4" << std::endl;
 #endif
   auto edge_partition_segment_offsets =
-    detail::aggregate_segment_offsets(handle, vertex_partition_segment_offsets);
+    detail::aggregate_offset_vectors(handle, vertex_partition_segment_offsets);
+  auto edge_partition_hypersparse_degree_offsets =
+    vertex_partition_hypersparse_degree_offsets
+      ? std::make_optional(
+          detail::aggregate_offset_vectors(handle, *vertex_partition_hypersparse_degree_offsets))
+      : std::nullopt;
 
   return std::make_tuple(
     std::move(renumber_map_labels),
-    renumber_meta_t<vertex_t, edge_t, multi_gpu>{
-      number_of_vertices, number_of_edges, partition, edge_partition_segment_offsets});
+    renumber_meta_t<vertex_t, edge_t, multi_gpu>{number_of_vertices,
+                                                 number_of_edges,
+                                                 partition,
+                                                 edge_partition_segment_offsets,
+                                                 edge_partition_hypersparse_degree_offsets});
 }
 
 template <typename vertex_t, typename edge_t, bool multi_gpu>
@@ -1276,7 +1282,10 @@ renumber_edgelist(raft::handle_t const& handle,
       std::nullopt);
   }
 
-  auto [renumber_map_labels, segment_offsets, locally_unused_vertex_id] =
+  auto [renumber_map_labels,
+        segment_offsets,
+        hypersparse_degree_offsets,
+        locally_unused_vertex_id] =
     detail::compute_renumber_map<vertex_t, edge_t, multi_gpu>(
       handle,
       std::move(vertices),
@@ -1297,8 +1306,9 @@ renumber_edgelist(raft::handle_t const& handle,
   renumber_map_view.find(
     edgelist_minors, edgelist_minors + num_edgelist_edges, edgelist_minors, handle.get_stream());
 
-  return std::make_tuple(std::move(renumber_map_labels),
-                         renumber_meta_t<vertex_t, edge_t, multi_gpu>{segment_offsets});
+  return std::make_tuple(
+    std::move(renumber_map_labels),
+    renumber_meta_t<vertex_t, edge_t, multi_gpu>{segment_offsets, hypersparse_degree_offsets});
 }
 
 }  // namespace cugraph

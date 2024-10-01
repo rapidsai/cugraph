@@ -165,7 +165,8 @@ update_local_sorted_unique_edge_majors_minors(
   // majors/minors to support storing edge major/minor properties in (key, value) pairs.
 
   // 1. Update local_sorted_unique_edge_minors & local_sorted_unique_edge_minor_offsets
-RAFT_CUDA_TRY(cudaDeviceSynchronize()); std::cerr << "update_local_sorted_unique_edge_majors_minors 1" << std::endl;
+  RAFT_CUDA_TRY(cudaDeviceSynchronize());
+  std::cerr << "update_local_sorted_unique_edge_majors_minors 1" << std::endl;
 
   {
     auto [minor_range_first, minor_range_last] = meta.partition.local_edge_partition_minor_range();
@@ -192,7 +193,10 @@ RAFT_CUDA_TRY(cudaDeviceSynchronize()); std::cerr << "update_local_sorted_unique
       raft::comms::op_t::MAX,
       handle.get_stream());
 
-std::cout << "max_minor_properties_fill_ratio=" << max_minor_properties_fill_ratio << " detail::edge_partition_src_dst_property_values_kv_pair_fill_ratio_threshold=" << detail::edge_partition_src_dst_property_values_kv_pair_fill_ratio_threshold << std::endl;
+    std::cout << "max_minor_properties_fill_ratio=" << max_minor_properties_fill_ratio
+              << " detail::edge_partition_src_dst_property_values_kv_pair_fill_ratio_threshold="
+              << detail::edge_partition_src_dst_property_values_kv_pair_fill_ratio_threshold
+              << std::endl;
     if (max_minor_properties_fill_ratio <
         detail::edge_partition_src_dst_property_values_kv_pair_fill_ratio_threshold) {
       std::cerr << "K,V pairs" << std::endl;
@@ -283,7 +287,8 @@ std::cout << "max_minor_properties_fill_ratio=" << max_minor_properties_fill_rat
   }
 
   // 2. Update local_sorted_unique_edge_majors & local_sorted_unique_edge_major_offsets
-RAFT_CUDA_TRY(cudaDeviceSynchronize()); std::cerr << "update_local_sorted_unique_edge_majors_minors 2" << std::endl;
+  RAFT_CUDA_TRY(cudaDeviceSynchronize());
+  std::cerr << "update_local_sorted_unique_edge_majors_minors 2" << std::endl;
 
   std::vector<vertex_t> num_local_unique_edge_major_counts(edge_partition_offsets.size());
   for (size_t i = 0; i < edge_partition_offsets.size(); ++i) {
@@ -308,7 +313,10 @@ RAFT_CUDA_TRY(cudaDeviceSynchronize()); std::cerr << "update_local_sorted_unique
                           raft::comms::op_t::MAX,
                           handle.get_stream());
 
-std::cout << "max_major_properties_fill_ratio=" << max_major_properties_fill_ratio << " detail::edge_partition_src_dst_property_values_kv_pair_fill_ratio_threshold=" << detail::edge_partition_src_dst_property_values_kv_pair_fill_ratio_threshold << std::endl;
+  std::cout << "max_major_properties_fill_ratio=" << max_major_properties_fill_ratio
+            << " detail::edge_partition_src_dst_property_values_kv_pair_fill_ratio_threshold="
+            << detail::edge_partition_src_dst_property_values_kv_pair_fill_ratio_threshold
+            << std::endl;
   if (max_major_properties_fill_ratio <
       detail::edge_partition_src_dst_property_values_kv_pair_fill_ratio_threshold) {
     auto const chunk_size =
@@ -373,7 +381,8 @@ std::cout << "max_major_properties_fill_ratio=" << max_major_properties_fill_rat
     }
     local_sorted_unique_edge_major_chunk_size = chunk_size;
   }
-RAFT_CUDA_TRY(cudaDeviceSynchronize()); std::cerr << "update_local_sorted_unique_edge_majors_minors 3" << std::endl;
+  RAFT_CUDA_TRY(cudaDeviceSynchronize());
+  std::cerr << "update_local_sorted_unique_edge_majors_minors 3" << std::endl;
 
   return std::make_tuple(std::move(local_sorted_unique_edge_majors),
                          std::move(local_sorted_unique_edge_major_chunk_start_offsets),
@@ -406,7 +415,8 @@ graph_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t<multi_gp
                   "Invalid input argument: edge_partition_dcs_nzd_vertices.has_value() && "
                   "edge_partition_indices.size() != (*edge_partition_dcs_nzd_vertices).size().");
 
-  edge_partition_segment_offsets_ = meta.edge_partition_segment_offsets;
+  edge_partition_segment_offsets_            = meta.edge_partition_segment_offsets;
+  edge_partition_hypersparse_degree_offsets_ = meta.edge_partition_hypersparse_degree_offsets;
 
   // compress edge list (COO) to CSR (or CSC) or CSR + DCSR (CSC + DCSC) hybrid
 
@@ -431,7 +441,8 @@ graph_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t<multi_gp
         edge_partition_indices_,
         edge_partition_dcs_nzd_vertices_);
   } else {
-RAFT_CUDA_TRY(cudaDeviceSynchronize()); std::cerr << "graph_t 0" << std::endl;
+    RAFT_CUDA_TRY(cudaDeviceSynchronize());
+    std::cerr << "graph_t 0" << std::endl;
     std::tie(local_sorted_unique_edge_srcs_,
              local_sorted_unique_edge_src_chunk_start_offsets_,
              local_sorted_unique_edge_src_chunk_size_,
@@ -445,7 +456,8 @@ RAFT_CUDA_TRY(cudaDeviceSynchronize()); std::cerr << "graph_t 0" << std::endl;
         edge_partition_offsets_,
         edge_partition_indices_,
         edge_partition_dcs_nzd_vertices_);
-RAFT_CUDA_TRY(cudaDeviceSynchronize()); std::cerr << "graph_t 1" << std::endl;
+    RAFT_CUDA_TRY(cudaDeviceSynchronize());
+    std::cerr << "graph_t 1" << std::endl;
   }
 }
 
@@ -460,7 +472,8 @@ graph_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t<!multi_g
       meta.number_of_vertices, static_cast<edge_t>(indices.size()), meta.properties),
     offsets_(std::move(offsets)),
     indices_(std::move(indices)),
-    segment_offsets_(meta.segment_offsets)
+    segment_offsets_(meta.segment_offsets),
+    hypersparse_degree_offsets_(meta.hypersparse_degree_offsets)
 {
 }
 
