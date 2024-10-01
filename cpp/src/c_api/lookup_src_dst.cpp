@@ -307,23 +307,26 @@ extern "C" cugraph_error_code_t cugraph_lookup_endpoints_from_edge_ids_and_types
 {
   CAPI_EXPECTS(
     reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph)->vertex_type_ ==
-      reinterpret_cast<cugraph::c_api::cugraph_graph_t const*>(lookup_container)->vertex_type_,
+      reinterpret_cast<cugraph::c_api::cugraph_lookup_container_t const*>(lookup_container)
+        ->vertex_type_,
     CUGRAPH_INVALID_INPUT,
     "vertex type of graph and lookup_container must match",
     *error);
   CAPI_EXPECTS(
     reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph)->edge_type_ ==
-      reinterpret_cast<cugraph::c_api::cugraph_graph_t const*>(lookup_container)->edge_type_,
+      reinterpret_cast<cugraph::c_api::cugraph_lookup_container_t const*>(lookup_container)
+        ->edge_type_,
     CUGRAPH_INVALID_INPUT,
     "edge type of graph and lookup_container must match",
     *error);
 
-  CAPI_EXPECTS(reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph)->edge_type_id_type_ ==
-                 reinterpret_cast<cugraph::c_api::cugraph_graph_t const*>(lookup_container)
-                   ->edge_type_id_type_,
-               CUGRAPH_INVALID_INPUT,
-               "edge type id type of graph and lookup_container must match",
-               *error);
+  CAPI_EXPECTS(
+    reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph)->edge_type_id_type_ ==
+      reinterpret_cast<cugraph::c_api::cugraph_lookup_container_t const*>(lookup_container)
+        ->edge_type_id_type_,
+    CUGRAPH_INVALID_INPUT,
+    "edge type id type of graph and lookup_container must match",
+    *error);
 
   lookup_using_edge_ids_and_types_functor functor(
     handle, graph, lookup_container, edge_ids_to_lookup, edge_types_to_lookup);
@@ -341,23 +344,26 @@ extern "C" cugraph_error_code_t cugraph_lookup_endpoints_from_edge_ids_and_singl
 {
   CAPI_EXPECTS(
     reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph)->vertex_type_ ==
-      reinterpret_cast<cugraph::c_api::cugraph_graph_t const*>(lookup_container)->vertex_type_,
+      reinterpret_cast<cugraph::c_api::cugraph_lookup_container_t const*>(lookup_container)
+        ->vertex_type_,
     CUGRAPH_INVALID_INPUT,
     "vertex type of graph and lookup_container must match",
     *error);
   CAPI_EXPECTS(
     reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph)->edge_type_ ==
-      reinterpret_cast<cugraph::c_api::cugraph_graph_t const*>(lookup_container)->edge_type_,
+      reinterpret_cast<cugraph::c_api::cugraph_lookup_container_t const*>(lookup_container)
+        ->edge_type_,
     CUGRAPH_INVALID_INPUT,
     "edge type of graph and lookup_container must match",
     *error);
 
-  CAPI_EXPECTS(reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph)->edge_type_id_type_ ==
-                 reinterpret_cast<cugraph::c_api::cugraph_graph_t const*>(lookup_container)
-                   ->edge_type_id_type_,
-               CUGRAPH_INVALID_INPUT,
-               "edge type id type of graph and lookup_container must match",
-               *error);
+  CAPI_EXPECTS(
+    reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph)->edge_type_id_type_ ==
+      reinterpret_cast<cugraph::c_api::cugraph_lookup_container_t const*>(lookup_container)
+        ->edge_type_id_type_,
+    CUGRAPH_INVALID_INPUT,
+    "edge type id type of graph and lookup_container must match",
+    *error);
 
   lookup_using_edge_ids_of_single_type_functor functor(
     handle, graph, lookup_container, edge_ids_to_lookup, edge_type_to_lookup);
@@ -386,4 +392,11 @@ extern "C" void cugraph_lookup_result_free(cugraph_lookup_result_t* result)
   delete internal_pointer->srcs_;
   delete internal_pointer->dsts_;
   delete internal_pointer;
+}
+
+extern "C" void cugraph_lookup_container_free(cugraph_lookup_container_t* container)
+{
+  auto internal_ptr = reinterpret_cast<cugraph::c_api::cugraph_lookup_container_t*>(container);
+  // The graph should presumably own the other structures.
+  delete internal_ptr;
 }
