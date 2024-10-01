@@ -538,10 +538,8 @@ def test_to_directed(graph_file):
 
     # FIXME: Uses the deprecated implementation of symmetrize.
     source_col, dest_col = symmetrize(
-        G.edgelist.edgelist_df,
-        "src",
-        "dst",
-        symmetrize=not G.is_directed())
+        G.edgelist.edgelist_df, "src", "dst", symmetrize=not G.is_directed()
+    )
 
     input_df = cudf.DataFrame()
     input_df["src"] = source_col

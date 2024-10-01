@@ -581,12 +581,12 @@ extern "C" cugraph_error_code_t cugraph_graph_create_sg(
   auto p_edge_type_ids =
     reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(edge_type_ids);
 
-  if (symmetrize == TRUE){
-    CAPI_EXPECTS(
-    (properties->is_symmetric == TRUE),
-    CUGRAPH_INVALID_INPUT,
-    "Invalid input arguments: The graph property must be symmetric if 'symmetrize' is set to True.",
-    *error);
+  if (symmetrize == TRUE) {
+    CAPI_EXPECTS((properties->is_symmetric == TRUE),
+                 CUGRAPH_INVALID_INPUT,
+                 "Invalid input arguments: The graph property must be symmetric if 'symmetrize' is "
+                 "set to True.",
+                 *error);
   }
 
   CAPI_EXPECTS(p_src->size_ == p_dst->size_,
@@ -757,12 +757,12 @@ cugraph_error_code_t cugraph_graph_create_sg_from_csr(
     weight_type = cugraph_data_type_id_t::FLOAT32;
   }
 
-  if (symmetrize == TRUE){
-    CAPI_EXPECTS(
-    (properties->is_symmetric == TRUE),
-    CUGRAPH_INVALID_INPUT,
-    "Invalid input arguments: The graph property must be symmetric if 'symmetrize' is set to True.",
-    *error);
+  if (symmetrize == TRUE) {
+    CAPI_EXPECTS((properties->is_symmetric == TRUE),
+                 CUGRAPH_INVALID_INPUT,
+                 "Invalid input arguments: The graph property must be symmetric if 'symmetrize' is "
+                 "set to True.",
+                 *error);
   }
 
   CAPI_EXPECTS(

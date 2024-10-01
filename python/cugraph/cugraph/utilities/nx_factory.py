@@ -1,4 +1,4 @@
-# Copyright (c) 2020-2023, NVIDIA CORPORATION.
+# Copyright (c) 2020-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -119,10 +119,8 @@ def convert_from_nx(
     """
 
     if isinstance(nxG, nx.classes.digraph.DiGraph):
-        print("creating a directed graph")
         G = cugraph.Graph(directed=True)
     elif isinstance(nxG, nx.classes.graph.Graph):
-        print("creating an undirected graph")
         G = cugraph.Graph()
     else:
         raise TypeError(
@@ -137,11 +135,9 @@ def convert_from_nx(
         # hence, the symmetrization cannot be performed at the graph
         # creation. Use the deprecated 'symmetrize' function for now.
         source_col, dest_col = symmetrize(
-            _gdf,
-            "src",
-            "dst",
-            symmetrize=not G.is_directed())
-            
+            _gdf, "src", "dst", symmetrize=not G.is_directed()
+        )
+
         _gdf = cudf.DataFrame()
 
         _gdf["src"] = source_col
@@ -153,7 +149,7 @@ def convert_from_nx(
             edge_attr=None,
             renumber=do_renumber,
             store_transposed=store_transposed,
-        )       
+        )
     else:
         if weight is None:
             _gdf = convert_weighted_unnamed_to_gdf(nxG, vertex_type)
@@ -161,12 +157,9 @@ def convert_from_nx(
             # hence, the symmetrization cannot be performed at the graph
             # creation. Use the deprecated 'symmetrize' function for now.
             source_col, dest_col, value_col = symmetrize(
-                _gdf,
-                "src",
-                "target",
-                "weight",
-                symmetrize=not G.is_directed())
-            
+                _gdf, "src", "target", "weight", symmetrize=not G.is_directed()
+            )
+
             _gdf = cudf.DataFrame()
 
             _gdf["src"] = source_col
@@ -187,12 +180,9 @@ def convert_from_nx(
             # hence, the symmetrization cannot be performed at the graph
             # creation. Use the deprecated 'symmetrize' function for now.
             source_col, dest_col, value_col = symmetrize(
-                _gdf,
-                "src",
-                "dst",
-                "weight",
-                symmetrize=not G.is_directed())
-            
+                _gdf, "src", "dst", "weight", symmetrize=not G.is_directed()
+            )
+
             _gdf = cudf.DataFrame()
 
             _gdf["src"] = source_col
@@ -207,7 +197,6 @@ def convert_from_nx(
                 renumber=do_renumber,
                 store_transposed=store_transposed,
             )
-                
 
     return G
 

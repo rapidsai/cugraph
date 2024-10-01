@@ -148,7 +148,7 @@ class simpleGraphImpl:
             raise ValueError(
                 "The edgelist can only be symmetrized for undirected graphs."
             )
-        
+
         if self.properties.directed:
             if symmetrize:
                 raise ValueError(
@@ -168,7 +168,7 @@ class simpleGraphImpl:
                         "If the edges are already symmetric, set the 'symmetrize' "
                         "flag to False"
                     )
-        
+
         if symmetrize is None:
             # default behavior
             symmetrize = not self.properties.directed
@@ -299,7 +299,7 @@ class simpleGraphImpl:
         # be returned. If set to False, the API will assume that the edges are already
         # symmetric. Duplicated edges will be dropped unless the graph is a
         # MultiGraph(Not Implemented yet)
-        
+
         if edge_attr is not None:
             value_col = {
                 self.edgeWeightCol: elist[weight] if weight in edge_attr else None,
@@ -1359,9 +1359,8 @@ class simpleGraphImpl:
                 df, simpleGraphImpl.srcCol, simpleGraphImpl.dstCol
             )
             value_col = None
-        
-        self.edgelist = simpleGraphImpl.EdgeList(source_col, dest_col, value_col)
 
+        self.edgelist = simpleGraphImpl.EdgeList(source_col, dest_col, value_col)
 
         return (
             (df[simpleGraphImpl.srcCol] == u) & (df[simpleGraphImpl.dstCol] == v)

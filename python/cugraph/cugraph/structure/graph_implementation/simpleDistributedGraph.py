@@ -210,7 +210,7 @@ class simpleDistributedGraphImpl:
                         "If the edges are already symmetric, set the 'symmetrize' "
                         "flag to False"
                     )
-        
+
         if symmetrize is None:
             # default behavior
             symmetrize = not self.properties.directed

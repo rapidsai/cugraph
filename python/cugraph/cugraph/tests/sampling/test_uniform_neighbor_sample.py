@@ -151,10 +151,8 @@ def test_uniform_neighbor_sample_simple(input_combo):
 
     # FIXME: Uses the deprecated implementation of symmetrize.
     source_col, dest_col = symmetrize(
-        input_df,
-        "src",
-        "dst",
-        symmetrize=not G.is_directed())
+        input_df, "src", "dst", symmetrize=not G.is_directed()
+    )
 
     input_df = cudf.DataFrame()
     input_df["src"] = source_col

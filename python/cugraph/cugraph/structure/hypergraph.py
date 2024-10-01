@@ -288,21 +288,20 @@ def hypergraph(
             "src",
             "dst",
             "weights",
-            symmetrize=not graph.is_directed())
-        
+            symmetrize=not graph.is_directed(),
+        )
+
         df["src"] = source_col
         df["dst"] = dest_col
         df["weights"] = value_col
     else:
-        source_col, dest_col= symmetrize(
-            graph.edgelist.edgelist_df,
-            "src",
-            "dst",
-            symmetrize=not graph.is_directed())
-        
+        source_col, dest_col = symmetrize(
+            graph.edgelist.edgelist_df, "src", "dst", symmetrize=not graph.is_directed()
+        )
+
         df["src"] = source_col
         df["dst"] = dest_col
-            
+
     graph.edgelist.edgelist_df = df
 
     return {
