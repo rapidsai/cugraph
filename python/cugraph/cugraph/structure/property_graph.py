@@ -2011,17 +2011,27 @@ class EXPERIMENTAL__PropertyGraph:
         # symmetrize function.
 
         # Symmetrize the internal representation of the edgelists
-        source_col, dest_col, value_col = symmetrize(
-            G.edgelist.edgelist_df,
-            "src",
-            "dst",
-            "weights",
-            symmetrize=not G.is_directed())
+
+        if edge_attr is not None:
+            source_col, dest_col, value_col = symmetrize(
+                G.edgelist.edgelist_df,
+                "src",
+                "dst",
+                "weights",
+                symmetrize=not G.is_directed())
+        else:
+            source_col, dest_col = symmetrize(
+                G.edgelist.edgelist_df,
+                    "src",
+                    "dst",
+                    symmetrize=not G.is_directed())
+
         
         renumbered_edge_prop_df = cudf.DataFrame()
         renumbered_edge_prop_df["src"] = source_col
         renumbered_edge_prop_df["dst"] = dest_col
-        renumbered_edge_prop_df["weights"] = value_col
+        if edge_attr:
+            renumbered_edge_prop_df["weights"] = value_col
 
         G.edgelist.edgelist_df = renumbered_edge_prop_df
 
