@@ -45,6 +45,6 @@ pip install nx-cugraph-cu11 --extra-index-url https://pypi.nvidia.com
 <div style="border: 1px solid #ccc; background-color: #f9f9f9; padding: 10px; border-radius: 5px;">
 
 **Note:**
- - The `pip install` examples above ar efor CUDA 11. To install for CUDA 12, replace `-cu11` with `-cu12`
+ - The `pip install` examples above are for CUDA 11. To install for CUDA 12, replace `-cu11` with `-cu12`
 
 </div>

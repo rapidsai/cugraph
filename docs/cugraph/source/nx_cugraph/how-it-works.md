@@ -16,7 +16,7 @@ following are used:
 
 ### `NETWORKX_BACKEND_PRIORITY` environment variable.
 
-The `NETWORKX_BACKEND_PRIORITY` environment variable can be used to have NetworkX automatically dispatch to specified backends. This variable can be set to a single backend name, or a comma-separated list of backends ordered using the priority which NetworkX should try.  If a NetworkX function is called that nx-cugraph supports, NetworkX will re-direct the function call to nx-cugraph automatically, or fall back to the next backend in the list if provided, or run using the default NetworkX implementation.
+The `NETWORKX_BACKEND_PRIORITY` environment variable can be used to have NetworkX automatically dispatch to specified backends. This variable can be set to a single backend name, or a comma-separated list of backends ordered using the priority which NetworkX should try.  If a NetworkX function is called that nx-cugraph supports, NetworkX will redirect the function call to nx-cugraph automatically, or fall back to the next backend in the list if provided, or run using the default NetworkX implementation.
 For example, this setting will have NetworkX use nx-cugraph for any function called by the script supported by nx-cugraph, and the default NetworkX implementation for all others.
 ```
 bash> NETWORKX_BACKEND_PRIORITY=cugraph python my_networkx_script.py
@@ -36,7 +36,7 @@ running code that uses the `backend=` keyword argument to have the specified
 backend installed.
 
 Example:
-```
+```python
 nx.betweenness_centrality(cit_patents_graph, k=k, backend="cugraph")
 ```
 
@@ -108,6 +108,6 @@ nx.betweenness_centrality(cit_patents_graph, k=k, backend="cugraph")
 ```
 
 
-The latest list of algorithms supported by nx-cugraph can be found [here](https://github.com/rapidsai/cugraph/blob/main/python/nx-cugraph/README.md#algorithms) or in the next session.
+The latest list of algorithms supported by nx-cugraph can be found [here](https://github.com/rapidsai/cugraph/blob/HEAD/python/nx-cugraph/README.md#algorithms) or in the next section.
 
 ---

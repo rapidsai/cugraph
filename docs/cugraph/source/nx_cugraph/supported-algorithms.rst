@@ -13,8 +13,6 @@ Below is the list of algorithms that are currently supported in nx-cugraph.
 Algorithms
 ----------
 
-The list of currently supported algorithms is as follows:
-
 +-----------------------------+
 | **Centrality**              |
 +=============================+

@@ -15,7 +15,7 @@ class="title-ref">nx-cugraph</span></figcaption>
 
 ## Reproducing Benchmarks
 
-Below are the steps to reproduce the results on your workstation. These are documented in <https://github.com/rapidsai/cugraph/tree/branch-24.10/benchmarks/nx-cugraph/pytest-based>.
+Below are the steps to reproduce the results on your workstation. These are documented in <https://github.com/rapidsai/cugraph/blob/HEAD/benchmarks/nx-cugraph/pytest-based>.
 
 1. Clone the latest <https://github.com/rapidsai/cugraph>
 
