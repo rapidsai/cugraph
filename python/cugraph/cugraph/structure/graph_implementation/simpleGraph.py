@@ -13,7 +13,7 @@
 
 from cugraph.structure import graph_primtypes_wrapper
 from cugraph.structure.replicate_edgelist import replicate_cudf_dataframe
-from cugraph.structure.symmetrize import symmetrize as symmetrize
+from cugraph.structure.symmetrize import symmetrize as symmetrize_df
 from cugraph.structure.number_map import NumberMap
 import cugraph.dask.common.mg_utils as mg_utils
 import cudf
@@ -299,7 +299,7 @@ class simpleGraphImpl:
         # be returned. If set to False, the API will assume that the edges are already
         # symmetric. Duplicated edges will be dropped unless the graph is a
         # MultiGraph(Not Implemented yet)
-
+        
         if edge_attr is not None:
             value_col = {
                 self.edgeWeightCol: elist[weight] if weight in edge_attr else None,
@@ -1171,6 +1171,7 @@ class simpleGraphImpl:
         drop_multi_edges: bool = False,
         symmetrize: bool = False,
     ):
+        print("in PLC symmetrize = ", symmetrize)
         """
         Parameters
         ----------
@@ -1301,14 +1302,14 @@ class simpleGraphImpl:
         else:
             df = self.edgelist.edgelist_df
             if self.edgelist.weights:
-                source_col, dest_col, value_col = symmetrize(
+                source_col, dest_col, value_col = symmetrize_df(
                     df,
                     simpleGraphImpl.srcCol,
                     simpleGraphImpl.dstCol,
                     simpleGraphImpl.edgeWeightCol,
                 )
             else:
-                source_col, dest_col = symmetrize(
+                source_col, dest_col = symmetrize_df(
                     df, simpleGraphImpl.srcCol, simpleGraphImpl.dstCol
                 )
                 value_col = None
@@ -1343,6 +1344,25 @@ class simpleGraphImpl:
             v = tmp["id"][1]
 
         df = self.edgelist.edgelist_df
+
+        if self.edgelist.weights:
+            # FIXME: Update this function to not call the deprecated
+            # symmetrize function.
+            source_col, dest_col, value_col = symmetrize_df(
+                df,
+                simpleGraphImpl.srcCol,
+                simpleGraphImpl.dstCol,
+                simpleGraphImpl.edgeWeightCol,
+            )
+        else:
+            source_col, dest_col = symmetrize_df(
+                df, simpleGraphImpl.srcCol, simpleGraphImpl.dstCol
+            )
+            value_col = None
+        
+        self.edgelist = simpleGraphImpl.EdgeList(source_col, dest_col, value_col)
+
+
         return (
             (df[simpleGraphImpl.srcCol] == u) & (df[simpleGraphImpl.dstCol] == v)
         ).any()
