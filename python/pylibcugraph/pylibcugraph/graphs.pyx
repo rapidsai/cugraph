@@ -243,8 +243,8 @@ cdef class SGGraph(_GPUGraph):
                 self.edge_id_view_ptr,
                 edge_type_view_ptr,
                 store_transposed,
-                symmetrize,
                 renumber,
+                symmetrize,
                 # drop_self_loops, #FIXME: Not supported yet
                 # drop_multi_edges, #FIXME: Not supported yet
                 do_expensive_check,
