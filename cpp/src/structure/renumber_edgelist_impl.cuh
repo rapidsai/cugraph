@@ -512,8 +512,6 @@ std::tuple<rmm::device_uvector<vertex_t>, std::vector<vertex_t>, vertex_t> compu
             this_bin_sorted_unique_minors = shuffle_and_unique_segment_sorted_values(
               major_comm, this_bin_sorted_unique_minors.begin(), h_tx_counts, handle.get_stream());
 #endif
-          } else {
-            this_bin_sorted_unique_minors = std::move(edge_partition_tmp_minors[0]);
           }
         }
       }
