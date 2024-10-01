@@ -21,6 +21,7 @@ import cugraph
 from cugraph import uniform_neighbor_sample
 from cugraph.testing import UNDIRECTED_DATASETS
 from cugraph.datasets import email_Eu_core, small_tree
+from cugraph.structure.symmetrize import symmetrize
 from pylibcugraph.testing.utils import gen_fixture_params_product
 
 
@@ -147,6 +148,17 @@ def test_uniform_neighbor_sample_simple(input_combo):
     # FIXME: in simpleGraph and simpleDistributedGraph, G.edgelist.edgelist_df
     # should be 'None' if the datasets was never renumbered
     input_df = G.edgelist.edgelist_df
+
+    # FIXME: Uses the deprecated implementation of symmetrize.
+    source_col, dest_col = symmetrize(
+        input_df,
+        "src",
+        "dst",
+        symmetrize=not G.is_directed())
+
+    input_df = cudf.DataFrame()
+    input_df["src"] = source_col
+    input_df["dst"] = dest_col
 
     result_nbr = uniform_neighbor_sample(
         G,
