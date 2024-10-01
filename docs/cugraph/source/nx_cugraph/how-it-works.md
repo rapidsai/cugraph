@@ -16,7 +16,8 @@ following are used:
 
 ### `NETWORKX_BACKEND_PRIORITY` environment variable.
 
-The `NETWORKX_BACKEND_PRIORITY` environment variable can be used to have NetworkX automatically dispatch to specified backends. This variable can be set to a single backend name, or a comma-separated list of backends ordered using the priority which NetworkX should try.  If a NetworkX function is called that nx-cugraph supports, NetworkX will redirect the function call to nx-cugraph automatically, or fall back to the next backend in the list if provided, or run using the default NetworkX implementation.
+The `NETWORKX_BACKEND_PRIORITY` environment variable can be used to have NetworkX automatically dispatch to specified backends. This variable can be set to a single backend name, or a comma-separated list of backends ordered using the priority which NetworkX should try.  If a NetworkX function is called that nx-cugraph supports, NetworkX will redirect the function call to nx-cugraph automatically, or fall back to the next backend in the list if provided, or run using the default NetworkX implementation. See [NetworkX Backends and Configs](https://networkx.org/documentation/stable/reference/backends.html).
+
 For example, this setting will have NetworkX use nx-cugraph for any function called by the script supported by nx-cugraph, and the default NetworkX implementation for all others.
 ```
 bash> NETWORKX_BACKEND_PRIORITY=cugraph python my_networkx_script.py
