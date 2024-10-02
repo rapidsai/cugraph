@@ -27,6 +27,7 @@ from cugraph.testing import UNDIRECTED_DATASETS
 from cugraph.dask import uniform_neighbor_sample
 from cugraph.dask.common.mg_utils import is_single_gpu
 from cugraph.structure.symmetrize import _memory_efficient_drop_duplicates
+from cugraph.structure.symmetrize import symmetrize_ddf
 from cugraph.datasets import email_Eu_core, small_tree
 from pylibcugraph.testing.utils import gen_fixture_params_product
 
@@ -144,6 +145,12 @@ def test_mg_uniform_neighbor_sample_simple(dask_client, input_combo):
         input_df, vertex_col_name, len(workers)
     )
 
+    input_df = symmetrize_ddf(
+        input_df,
+        src_name="src",
+        dst_name = "dst",
+        symmetrize=not dg.is_directed())
+
     result_nbr = uniform_neighbor_sample(
         dg,
         input_combo["start_list"],
@@ -247,6 +254,13 @@ def test_mg_uniform_neighbor_sample_tree(dask_client, directed):
     # input_df != ddf if 'directed = False' because ddf will be symmetrized
     # internally.
     input_df = G.input_df
+
+    input_df = symmetrize_ddf(
+        input_df,
+        src_name="src",
+        dst_name = "dst",
+        symmetrize=not G.is_directed())
+
     join = result_nbr.merge(
         input_df, left_on=[*result_nbr.columns[:2]], right_on=[*input_df.columns[:2]]
     )
