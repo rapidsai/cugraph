@@ -54,7 +54,7 @@ directly in their code to access the utilities provided to create a Graph
 instance specifically for the nx-cugraph backend.
 
 Example:
-```
+```python
 import networkx as nx
 import nx_cugraph as nxcg
 
