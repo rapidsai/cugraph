@@ -71,7 +71,7 @@ nx.betweenness_centrality(nxcg_G, k=1000)  # nxcg Graph type causes cugraph back
 
 Create `bc_demo.ipy` and paste the code below.
 
-```
+```python
 import pandas as pd
 import networkx as nx
 
