@@ -207,7 +207,7 @@ void retrieve_vertex_list_from_bitmap(
 {
   using vertex_t = typename thrust::iterator_traits<OutputVertexIterator>::value_type;
 
-    assert((comm.get_rank() != root) || (bitmap.size() == packed_bool_size(vertex_range_last - vertex_ragne_first)));
+    assert((comm.get_rank() != root) || (bitmap.size() >= packed_bool_size(vertex_range_last - vertex_ragne_first)));
     detail::copy_if_nosync(
       thrust::make_counting_iterator(vertex_range_first),
       thrust::make_counting_iterator(vertex_range_last),
