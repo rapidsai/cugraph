@@ -1352,10 +1352,12 @@ class simpleGraphImpl:
                 simpleGraphImpl.srcCol,
                 simpleGraphImpl.dstCol,
                 simpleGraphImpl.edgeWeightCol,
+                symmetrize=not self.properties.directed
             )
         else:
             source_col, dest_col = symmetrize_df(
-                df, simpleGraphImpl.srcCol, simpleGraphImpl.dstCol
+                df, simpleGraphImpl.srcCol, simpleGraphImpl.dstCol,
+                symmetrize=not self.properties.directed
             )
             value_col = None
 
