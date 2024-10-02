@@ -146,10 +146,8 @@ def test_mg_uniform_neighbor_sample_simple(dask_client, input_combo):
     )
 
     input_df = symmetrize_ddf(
-        input_df,
-        src_name="src",
-        dst_name = "dst",
-        symmetrize=not dg.is_directed())
+        input_df, src_name="src", dst_name="dst", symmetrize=not dg.is_directed()
+    )
 
     result_nbr = uniform_neighbor_sample(
         dg,
@@ -256,10 +254,8 @@ def test_mg_uniform_neighbor_sample_tree(dask_client, directed):
     input_df = G.input_df
 
     input_df = symmetrize_ddf(
-        input_df,
-        src_name="src",
-        dst_name = "dst",
-        symmetrize=not G.is_directed())
+        input_df, src_name="src", dst_name="dst", symmetrize=not G.is_directed()
+    )
 
     join = result_nbr.merge(
         input_df, left_on=[*result_nbr.columns[:2]], right_on=[*input_df.columns[:2]]
