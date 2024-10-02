@@ -178,8 +178,11 @@ class Graph:
         symmetrize: bool, optional (default=None)
             If True, symmetrize the edge list for an undirected graph. Setting
             this flag to True for a directed graph returns an error. The default
-            behavior symmetrizes the edges if the graph is undirected. If the edges
-            are already symmetric, set this flag to False.
+            behavior symmetrizes the edges if the graph is undirected. This flag
+            cannot be set to True if the edgelist contains edge IDs or edge Types.
+            If the incoming edgelist is intended for an undirected graph and it is
+            known to be symmetric, this flag can be set to False to skip the
+            symmetrization step for better performance.
 
         Examples
         --------
@@ -259,8 +262,11 @@ class Graph:
         symmetrize: bool, optional (default=None)
             If True, symmetrize the edge list for an undirected graph. Setting
             this flag to True for a directed graph returns an error. The default
-            behavior symmetrizes the edges if the graph is undirected. If the edges
-            are already symmetric, set this flag to False.
+            behavior symmetrizes the edges if the graph is undirected. This flag
+            cannot be set to True if the edgelist contains edge IDs or edge Types.
+            If the incoming edgelist is intended for an undirected graph and it is
+            known to be symmetric, this flag can be set to False to skip the
+            symmetrization step for better performance.
 
         Examples
         --------
