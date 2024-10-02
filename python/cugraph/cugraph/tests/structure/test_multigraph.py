@@ -76,7 +76,7 @@ def test_Graph_from_MultiGraph(graph_file):
 
     G = cugraph.Graph(GM)
     Gnx = nx.Graph(GnxM)
-    assert Gnx.number_of_edges() == G.number_of_edges(True)
+    assert Gnx.number_of_edges() == G.number_of_edges(directed_edges=True)
     GdM = graph_file.get_graph(create_using=cugraph.MultiGraph(directed=True))
     GnxdM = nx.from_pandas_edgelist(
         nxM,

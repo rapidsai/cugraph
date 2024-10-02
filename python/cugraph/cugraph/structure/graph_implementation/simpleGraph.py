@@ -1171,7 +1171,6 @@ class simpleGraphImpl:
         drop_multi_edges: bool = False,
         symmetrize: bool = False,
     ):
-        print("in PLC symmetrize = ", symmetrize)
         """
         Parameters
         ----------
