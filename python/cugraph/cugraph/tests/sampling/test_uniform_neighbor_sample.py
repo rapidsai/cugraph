@@ -247,8 +247,7 @@ def test_uniform_neighbor_sample_tree(directed):
 
     # FIXME: Uses the deprecated implementation of symmetrize.
     source_col, dest_col, value_col = symmetrize(
-        G.edgelist.edgelist_df, "src", "dst", "weights",
-        symmetrize=not G.is_directed()
+        G.edgelist.edgelist_df, "src", "dst", "weights", symmetrize=not G.is_directed()
     )
 
     input_df = cudf.DataFrame()
@@ -269,7 +268,7 @@ def test_uniform_neighbor_sample_tree(directed):
     # Retrieve the input dataframe.
     # input_df != df if 'directed = False' because df will be symmetrized
     # internally.
-    #input_df = G.edgelist.edgelist_df
+    # input_df = G.edgelist.edgelist_df
 
     # TODO: Incomplete, include more testing for tree graph as well as
     # for larger graphs

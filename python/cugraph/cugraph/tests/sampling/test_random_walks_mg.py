@@ -210,8 +210,7 @@ def test_dask_mg_random_walks(dask_client, input_graph):
 
     # FIXME: leverages the deprecated symmetrize call
     source_col, dest_col, value_col = symmetrize(
-        df_G, "src", "dst", "value",
-        symmetrize=not input_graph.is_directed()
+        df_G, "src", "dst", "value", symmetrize=not input_graph.is_directed()
     )
 
     df = cudf.DataFrame()
