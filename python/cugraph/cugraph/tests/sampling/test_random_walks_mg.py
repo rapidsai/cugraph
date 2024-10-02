@@ -218,6 +218,4 @@ def test_dask_mg_random_walks(dask_client, input_graph):
     df["dst"] = dest_col
     df["value"] = value_col
 
-    df_G = df
-
-    check_random_walks(input_graph, path_data, seeds, max_depth, df_G)
+    check_random_walks(input_graph, path_data, seeds, max_depth, df)

@@ -250,6 +250,9 @@ def test_uniform_neighbor_sample_tree(directed):
         G.edgelist.edgelist_df, "src", "dst", "weights", symmetrize=not G.is_directed()
     )
 
+    # Retrieve the input dataframe.
+    # input_df != df if 'directed = False' because df will be symmetrized
+    # internally.
     input_df = cudf.DataFrame()
     input_df["src"] = source_col
     input_df["dst"] = dest_col
@@ -264,11 +267,6 @@ def test_uniform_neighbor_sample_tree(directed):
     #
 
     assert G.renumbered is False
-
-    # Retrieve the input dataframe.
-    # input_df != df if 'directed = False' because df will be symmetrized
-    # internally.
-    # input_df = G.edgelist.edgelist_df
 
     # TODO: Incomplete, include more testing for tree graph as well as
     # for larger graphs
