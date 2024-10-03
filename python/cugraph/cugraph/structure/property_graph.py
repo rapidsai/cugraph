@@ -15,6 +15,7 @@ import cudf
 import numpy as np
 
 import cugraph
+from cugraph.structure.symmetrize import symmetrize
 from cugraph.utilities.utils import (
     import_optional,
     MissingModule,
@@ -2004,6 +2005,33 @@ class EXPERIMENTAL__PropertyGraph:
             G.from_cudf_edgelist(edge_prop_df.reset_index(), **create_args)
         else:
             G.from_pandas_edgelist(edge_prop_df.reset_index(), **create_args)
+
+        # FIXME: Property_graph does not fully leverage the PLC API yet.
+        # It still relies on the edges being symmetrized by the deprecated
+        # symmetrize function.
+
+        # Symmetrize the internal representation of the edgelists
+
+        if edge_attr is not None:
+            source_col, dest_col, value_col = symmetrize(
+                G.edgelist.edgelist_df,
+                "src",
+                "dst",
+                "weights",
+                symmetrize=not G.is_directed(),
+            )
+        else:
+            source_col, dest_col = symmetrize(
+                G.edgelist.edgelist_df, "src", "dst", symmetrize=not G.is_directed()
+            )
+
+        renumbered_edge_prop_df = cudf.DataFrame()
+        renumbered_edge_prop_df["src"] = source_col
+        renumbered_edge_prop_df["dst"] = dest_col
+        if edge_attr:
+            renumbered_edge_prop_df["weights"] = value_col
+
+        G.edgelist.edgelist_df = renumbered_edge_prop_df
 
         if add_edge_data:
             # Set the edge_data on the resulting Graph to a DataFrame

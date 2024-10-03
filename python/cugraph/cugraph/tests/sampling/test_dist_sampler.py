@@ -20,6 +20,7 @@ import cudf
 
 from cugraph.datasets import karate
 from cugraph.gnn import UniformNeighborSampler, DistSampleWriter
+from cugraph.gnn.data_loading.bulk_sampler_io import create_df_from_disjoint_arrays
 
 from pylibcugraph import SGGraph, ResourceHandle, GraphProperties
 
@@ -41,7 +42,7 @@ if not isinstance(torch, MissingModule):
 
 
 @pytest.fixture
-def karate_graph():
+def karate_graph() -> SGGraph:
     el = karate.get_edgelist().reset_index().rename(columns={"index": "eid"})
     G = SGGraph(
         ResourceHandle(),
@@ -99,5 +100,62 @@ def test_dist_sampler_simple(
         for i in range(len(edge_id)):
             assert original_el.src.iloc[edge_id.iloc[i]] == src.iloc[i]
             assert original_el.dst.iloc[edge_id.iloc[i]] == dst.iloc[i]
+
+    shutil.rmtree(samples_path)
+
+
+@pytest.mark.sg
+@pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
+@pytest.mark.parametrize("seeds_per_call", [4, 5, 10])
+@pytest.mark.parametrize("compression", ["COO", "CSR"])
+def test_dist_sampler_buffered_in_memory(
+    scratch_dir: str, karate_graph: SGGraph, seeds_per_call: int, compression: str
+):
+    G = karate_graph
+
+    samples_path = os.path.join(scratch_dir, "test_bulk_sampler_buffered_in_memory")
+    create_directory_with_overwrite(samples_path)
+
+    seeds = cupy.arange(10, dtype="int64")
+
+    unbuffered_sampler = UniformNeighborSampler(
+        G,
+        writer=DistSampleWriter(samples_path),
+        local_seeds_per_call=seeds_per_call,
+        compression=compression,
+    )
+
+    buffered_sampler = UniformNeighborSampler(
+        G,
+        writer=None,
+        local_seeds_per_call=seeds_per_call,
+        compression=compression,
+    )
+
+    unbuffered_results = unbuffered_sampler.sample_from_nodes(
+        seeds,
+        batch_size=4,
+    )
+
+    unbuffered_results = [
+        (create_df_from_disjoint_arrays(r[0]), r[1], r[2]) for r in unbuffered_results
+    ]
+
+    buffered_results = buffered_sampler.sample_from_nodes(seeds, batch_size=4)
+    buffered_results = [
+        (create_df_from_disjoint_arrays(r[0]), r[1], r[2]) for r in buffered_results
+    ]
+
+    assert len(buffered_results) == len(unbuffered_results)
+
+    for k in range(len(buffered_results)):
+        br, bs, be = buffered_results[k]
+        ur, us, ue = unbuffered_results[k]
+
+        assert bs == us
+        assert be == ue
+
+        for col in ur.columns:
+            assert (br[col].dropna() == ur[col].dropna()).all()
 
     shutil.rmtree(samples_path)

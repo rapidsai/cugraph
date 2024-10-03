@@ -17,7 +17,7 @@ cd "${package_dir}"
 
 python -m pip wheel \
     -w dist \
-    -vvv \
+    -v \
     --no-deps \
     --disable-pip-version-check \
     --extra-index-url https://pypi.nvidia.com \
