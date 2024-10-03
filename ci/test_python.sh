@@ -210,13 +210,8 @@ if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
       --channel "${PYTHON_CHANNEL}" \
       --channel pyg \
       "cugraph-pyg" \
+      "pytorch>=2.3,<2.4"
       "ogb"
-
-    pip install \
-        pyg_lib \
-        torch_scatter \
-        torch_sparse \
-      -f ${PYG_URL}
 
     rapids-print-env
 
