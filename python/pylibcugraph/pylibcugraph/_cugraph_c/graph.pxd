@@ -67,6 +67,7 @@ cdef extern from "cugraph_c/graph.h":
              bool_t renumber,
              bool_t drop_self_loops,
              bool_t drop_multi_edges,
+             bool_t symmetrize,
              bool_t check,
              cugraph_graph_t** graph,
              cugraph_error_t** error)
@@ -117,6 +118,7 @@ cdef extern from "cugraph_c/graph.h":
             const cugraph_type_erased_device_array_view_t* edge_type_ids,
             bool_t store_transposed,
             bool_t renumber,
+            bool_t symmetrize,
             bool_t check,
             cugraph_graph_t** graph,
             cugraph_error_t** error
@@ -173,6 +175,7 @@ cdef extern from "cugraph_c/graph.h":
             size_t num_arrays,
             bool_t drop_self_loops,
             bool_t drop_multi_edges,
+            bool_t symmetrize,
             bool_t do_expensive_check,
             cugraph_graph_t** graph,
             cugraph_error_t** error)
