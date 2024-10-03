@@ -21,7 +21,7 @@ import pylibcugraph
 from cugraph.utilities.utils import import_optional, MissingModule
 from cugraph.gnn.comms import cugraph_comms_get_raft_handle
 
-from typing import Union, Optional, List, Dict
+from typing import Union, Optional, List, Dict, Tuple
 
 
 # Have to use import_optional even though these are required
@@ -58,12 +58,18 @@ class GraphStore(
         """
         self.__edge_indices = tensordict.TensorDict({}, batch_size=(2,))
         self.__sizes = {}
-        self.__graph = None
-        self.__vertex_offsets = None
+
         self.__handle = None
         self.__is_multi_gpu = is_multi_gpu
 
+        self.__clear_graph()
+
         super().__init__()
+
+    def __clear_graph(self):
+        self.__graph = None
+        self.__vertex_offsets = None
+        self.__weight_attr = None
 
     def _put_edge_index(
         self,
@@ -88,8 +94,7 @@ class GraphStore(
         self.__sizes[edge_attr.edge_type] = edge_attr.size
 
         # invalidate the graph
-        self.__graph = None
-        self.__vertex_offsets = None
+        self.__clear_graph()
         return True
 
     def _get_edge_index(
@@ -108,7 +113,7 @@ class GraphStore(
         del self.__edge_indices[edge_attr.edge_type]
 
         # invalidate the graph
-        self.__graph = None
+        self.__clear_graph()
         return True
 
     def get_all_edge_attrs(self) -> List["torch_geometric.data.EdgeAttr"]:
@@ -163,6 +168,9 @@ class GraphStore(
                     vertices_array=[vertices_array],
                     edge_id_array=[cupy.asarray(edgelist_dict["eid"])],
                     edge_type_array=[cupy.asarray(edgelist_dict["etp"])],
+                    weight_array=[cupy.asarray(edgelist_dict["wgt"])]
+                    if "wgt" in edgelist_dict
+                    else None,
                 )
             else:
                 self.__graph = pylibcugraph.SGGraph(
@@ -175,6 +183,9 @@ class GraphStore(
                     ),
                     edge_id_array=cupy.asarray(edgelist_dict["eid"]),
                     edge_type_array=cupy.asarray(edgelist_dict["etp"]),
+                    weight_array=cupy.asarray(edgelist_dict["wgt"])
+                    if "wgt" in edgelist_dict
+                    else None,
                 )
 
         return self.__graph
@@ -194,13 +205,18 @@ class GraphStore(
                     else edge_attr.size[1]
                 )
             else:
-                if edge_attr.edge_type[0] not in num_vertices:
+                if edge_attr.edge_type[0] != edge_attr.edge_type[2]:
+                    if edge_attr.edge_type[0] not in num_vertices:
+                        num_vertices[edge_attr.edge_type[0]] = int(
+                            self.__edge_indices[edge_attr.edge_type][0].max() + 1
+                        )
+                    if edge_attr.edge_type[2] not in num_vertices:
+                        num_vertices[edge_attr.edge_type[1]] = int(
+                            self.__edge_indices[edge_attr.edge_type][1].max() + 1
+                        )
+                elif edge_attr.edge_type[0] not in num_vertices:
                     num_vertices[edge_attr.edge_type[0]] = int(
-                        self.__edge_indices[edge_attr.edge_type][0].max() + 1
-                    )
-                if edge_attr.edge_type[2] not in num_vertices:
-                    num_vertices[edge_attr.edge_type[1]] = int(
-                        self.__edge_indices[edge_attr.edge_type][1].max() + 1
+                        self.__edge_indices[edge_attr.edge_type].max() + 1
                     )
 
         if self.is_multi_gpu:
@@ -227,6 +243,32 @@ class GraphStore(
     @property
     def is_homogeneous(self) -> bool:
         return len(self._vertex_offsets) == 1
+
+    def _set_weight_attr(self, attr: Tuple["torch_geometric.data.FeatureStore", str]):
+        if attr != self.__weight_attr:
+            self.__clear_graph()
+            self.__weight_attr = attr
+
+    def __get_weight_tensor(
+        self,
+        sorted_keys: List[Tuple[str, str, str]],
+        start_offsets: "torch.Tensor",
+        num_edges_t: "torch.Tensor",
+    ):
+        feature_store, attr_name = self.__weight_attr
+
+        weights = []
+        for i, et in enumerate(sorted_keys):
+            ix = torch.arange(
+                start_offsets[i],
+                start_offsets[i] + num_edges_t[i],
+                dtype=torch.int64,
+                device="cpu",
+            )
+
+            weights.append(feature_store[et, attr_name][ix])
+
+        return torch.concat(weights)
 
     def __get_edgelist(self):
         """
@@ -275,59 +317,49 @@ class GraphStore(
             )
         )
 
+        num_edges_t = torch.tensor(
+            [self.__edge_indices[et].shape[1] for et in sorted_keys], device="cuda"
+        )
+
         if self.is_multi_gpu:
             rank = torch.distributed.get_rank()
             world_size = torch.distributed.get_world_size()
 
-            num_edges_t = torch.tensor(
-                [self.__edge_indices[et].shape[1] for et in sorted_keys], device="cuda"
-            )
             num_edges_all_t = torch.empty(
                 world_size, num_edges_t.numel(), dtype=torch.int64, device="cuda"
             )
             torch.distributed.all_gather_into_tensor(num_edges_all_t, num_edges_t)
 
-            if rank > 0:
-                start_offsets = num_edges_all_t[:rank].T.sum(axis=1)
-                edge_id_array = torch.concat(
-                    [
-                        torch.arange(
-                            start_offsets[i],
-                            start_offsets[i] + num_edges_all_t[rank][i],
-                            dtype=torch.int64,
-                            device="cuda",
-                        )
-                        for i in range(len(sorted_keys))
-                    ]
-                )
-            else:
-                edge_id_array = torch.concat(
-                    [
-                        torch.arange(
-                            self.__edge_indices[et].shape[1],
-                            dtype=torch.int64,
-                            device="cuda",
-                        )
-                        for et in sorted_keys
-                    ]
-                )
-
+            start_offsets = num_edges_all_t[:rank].T.sum(axis=1)
         else:
-            # single GPU
-            edge_id_array = torch.concat(
-                [
-                    torch.arange(
-                        self.__edge_indices[et].shape[1],
-                        dtype=torch.int64,
-                        device="cuda",
-                    )
-                    for et in sorted_keys
-                ]
+            rank = 0
+            start_offsets = torch.zeros(
+                (len(sorted_keys),), dtype=torch.int64, device="cuda"
             )
+            num_edges_all_t = num_edges_t.reshape((1, num_edges_t.numel()))
 
-        return {
+        edge_id_array = torch.concat(
+            [
+                torch.arange(
+                    start_offsets[i],
+                    start_offsets[i] + num_edges_all_t[rank][i],
+                    dtype=torch.int64,
+                    device="cuda",
+                )
+                for i in range(len(sorted_keys))
+            ]
+        )
+
+        d = {
             "dst": edge_index[0],
             "src": edge_index[1],
             "etp": edge_type_array,
             "eid": edge_id_array,
         }
+
+        if self.__weight_attr is not None:
+            d["wgt"] = self.__get_weight_tensor(
+                sorted_keys, start_offsets.cpu(), num_edges_t.cpu()
+            ).cuda()
+
+        return d

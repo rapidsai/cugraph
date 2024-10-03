@@ -14,7 +14,26 @@
 from cugraph.gnn.data_loading.bulk_sampler import BulkSampler
 from cugraph.gnn.data_loading.dist_sampler import (
     DistSampler,
+    NeighborSampler,
+)
+from cugraph.gnn.data_loading.dist_io import (
     DistSampleWriter,
     DistSampleReader,
-    UniformNeighborSampler,
+    BufferedSampleReader,
 )
+
+
+def UniformNeighborSampler(*args, **kwargs):
+    return NeighborSampler(
+        *args,
+        **kwargs,
+        biased=False,
+    )
+
+
+def BiasedNeighborSampler(*args, **kwargs):
+    return NeighborSampler(
+        *args,
+        **kwargs,
+        biased=True,
+    )

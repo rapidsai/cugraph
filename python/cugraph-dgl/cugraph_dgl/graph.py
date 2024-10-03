@@ -29,6 +29,7 @@ from cugraph_dgl.view import (
     HeteroNodeDataView,
     HeteroEdgeView,
     HeteroEdgeDataView,
+    EmbeddingView,
 )
 
 
@@ -311,7 +312,7 @@ class Graph:
         self.__graph = None
         self.__vertex_offsets = None
 
-    def num_nodes(self, ntype: str = None) -> int:
+    def num_nodes(self, ntype: Optional[str] = None) -> int:
         """
         Returns the number of nodes of ntype, or if ntype is not provided,
         the total number of nodes in the graph.
@@ -321,7 +322,7 @@ class Graph:
 
         return self.__num_nodes_dict[ntype]
 
-    def number_of_nodes(self, ntype: str = None) -> int:
+    def number_of_nodes(self, ntype: Optional[str] = None) -> int:
         """
         Alias for num_nodes.
         """
@@ -380,7 +381,7 @@ class Graph:
 
         return dict(self.__vertex_offsets)
 
-    def __get_edgelist(self) -> Dict[str, "torch.Tensor"]:
+    def __get_edgelist(self, prob_attr=None) -> Dict[str, "torch.Tensor"]:
         """
         This function always returns src/dst labels with respect
         to the out direction.
@@ -430,62 +431,70 @@ class Graph:
             )
         )
 
+        num_edges_t = torch.tensor(
+            [self.__edge_indices[et].shape[1] for et in sorted_keys], device="cuda"
+        )
+
         if self.is_multi_gpu:
             rank = torch.distributed.get_rank()
             world_size = torch.distributed.get_world_size()
 
-            num_edges_t = torch.tensor(
-                [self.__edge_indices[et].shape[1] for et in sorted_keys], device="cuda"
-            )
             num_edges_all_t = torch.empty(
                 world_size, num_edges_t.numel(), dtype=torch.int64, device="cuda"
             )
             torch.distributed.all_gather_into_tensor(num_edges_all_t, num_edges_t)
 
-            if rank > 0:
-                start_offsets = num_edges_all_t[:rank].T.sum(axis=1)
-                edge_id_array = torch.concat(
+            start_offsets = num_edges_all_t[:rank].T.sum(axis=1)
+
+        else:
+            rank = 0
+            start_offsets = torch.zeros(
+                (len(sorted_keys),), dtype=torch.int64, device="cuda"
+            )
+            num_edges_all_t = num_edges_t.reshape((1, num_edges_t.numel()))
+
+        # Use pinned memory here for fast access to CPU/WG storage
+        edge_id_array_per_type = [
+            torch.arange(
+                start_offsets[i],
+                start_offsets[i] + num_edges_all_t[rank][i],
+                dtype=torch.int64,
+                device="cpu",
+            ).pin_memory()
+            for i in range(len(sorted_keys))
+        ]
+
+        # Retrieve the weights from the appropriate feature(s)
+        # DGL implicitly requires all edge types use the same
+        # feature name.
+        if prob_attr is None:
+            weights = None
+        else:
+            if len(sorted_keys) > 1:
+                weights = torch.concat(
                     [
-                        torch.arange(
-                            start_offsets[i],
-                            start_offsets[i] + num_edges_all_t[rank][i],
-                            dtype=torch.int64,
-                            device="cuda",
-                        )
-                        for i in range(len(sorted_keys))
+                        self.edata[prob_attr][sorted_keys[i]][ix]
+                        for i, ix in enumerate(edge_id_array_per_type)
                     ]
                 )
             else:
-                edge_id_array = torch.concat(
-                    [
-                        torch.arange(
-                            self.__edge_indices[et].shape[1],
-                            dtype=torch.int64,
-                            device="cuda",
-                        )
-                        for et in sorted_keys
-                    ]
-                )
+                weights = self.edata[prob_attr][edge_id_array_per_type[0]]
 
-        else:
-            # single GPU
-            edge_id_array = torch.concat(
-                [
-                    torch.arange(
-                        self.__edge_indices[et].shape[1],
-                        dtype=torch.int64,
-                        device="cuda",
-                    )
-                    for et in sorted_keys
-                ]
-            )
+        # Safe to move this to cuda because the consumer will always
+        # move it to cuda if it isn't already there.
+        edge_id_array = torch.concat(edge_id_array_per_type).cuda()
 
-        return {
+        edgelist_dict = {
             "src": edge_index[0],
             "dst": edge_index[1],
             "etp": edge_type_array,
             "eid": edge_id_array,
         }
+
+        if weights is not None:
+            edgelist_dict["wgt"] = weights
+
+        return edgelist_dict
 
     @property
     def is_homogeneous(self):
@@ -507,7 +516,9 @@ class Graph:
         return self.__handle
 
     def _graph(
-        self, direction: str
+        self,
+        direction: str,
+        prob_attr: Optional[str] = None,
     ) -> Union[pylibcugraph.SGGraph, pylibcugraph.MGGraph]:
         """
         Gets the pylibcugraph Graph object with edges pointing in the given direction
@@ -521,12 +532,16 @@ class Graph:
             is_multigraph=True, is_symmetric=False
         )
 
-        if self.__graph is not None and self.__graph[1] != direction:
-            self.__graph = None
+        if self.__graph is not None:
+            if (
+                self.__graph["direction"] != direction
+                or self.__graph["prob_attr"] != prob_attr
+            ):
+                self.__graph = None
 
         if self.__graph is None:
             src_col, dst_col = ("src", "dst") if direction == "out" else ("dst", "src")
-            edgelist_dict = self.__get_edgelist()
+            edgelist_dict = self.__get_edgelist(prob_attr=prob_attr)
 
             if self.is_multi_gpu:
                 rank = torch.distributed.get_rank()
@@ -535,40 +550,42 @@ class Graph:
                 vertices_array = cupy.arange(self.num_nodes(), dtype="int64")
                 vertices_array = cupy.array_split(vertices_array, world_size)[rank]
 
-                self.__graph = (
-                    pylibcugraph.MGGraph(
-                        self._resource_handle,
-                        graph_properties,
-                        [cupy.asarray(edgelist_dict[src_col]).astype("int64")],
-                        [cupy.asarray(edgelist_dict[dst_col]).astype("int64")],
-                        vertices_array=[vertices_array],
-                        edge_id_array=[cupy.asarray(edgelist_dict["eid"])],
-                        edge_type_array=[cupy.asarray(edgelist_dict["etp"])],
-                    ),
-                    direction,
+                graph = pylibcugraph.MGGraph(
+                    self._resource_handle,
+                    graph_properties,
+                    [cupy.asarray(edgelist_dict[src_col]).astype("int64")],
+                    [cupy.asarray(edgelist_dict[dst_col]).astype("int64")],
+                    vertices_array=[vertices_array],
+                    edge_id_array=[cupy.asarray(edgelist_dict["eid"])],
+                    edge_type_array=[cupy.asarray(edgelist_dict["etp"])],
+                    weight_array=[cupy.asarray(edgelist_dict["wgt"])]
+                    if "wgt" in edgelist_dict
+                    else None,
                 )
             else:
-                self.__graph = (
-                    pylibcugraph.SGGraph(
-                        self._resource_handle,
-                        graph_properties,
-                        cupy.asarray(edgelist_dict[src_col]).astype("int64"),
-                        cupy.asarray(edgelist_dict[dst_col]).astype("int64"),
-                        vertices_array=cupy.arange(self.num_nodes(), dtype="int64"),
-                        edge_id_array=cupy.asarray(edgelist_dict["eid"]),
-                        edge_type_array=cupy.asarray(edgelist_dict["etp"]),
-                    ),
-                    direction,
+                graph = pylibcugraph.SGGraph(
+                    self._resource_handle,
+                    graph_properties,
+                    cupy.asarray(edgelist_dict[src_col]).astype("int64"),
+                    cupy.asarray(edgelist_dict[dst_col]).astype("int64"),
+                    vertices_array=cupy.arange(self.num_nodes(), dtype="int64"),
+                    edge_id_array=cupy.asarray(edgelist_dict["eid"]),
+                    edge_type_array=cupy.asarray(edgelist_dict["etp"]),
+                    weight_array=cupy.asarray(edgelist_dict["wgt"])
+                    if "wgt" in edgelist_dict
+                    else None,
                 )
 
-        return self.__graph[0]
+        self.__graph = {"graph": graph, "direction": direction, "prob_attr": prob_attr}
+
+        return self.__graph["graph"]
 
     def _has_n_emb(self, ntype: str, emb_name: str) -> bool:
         return (ntype, emb_name) in self.__ndata_storage
 
     def _get_n_emb(
-        self, ntype: str, emb_name: str, u: Union[str, TensorType]
-    ) -> "torch.Tensor":
+        self, ntype: Union[str, None], emb_name: str, u: Union[str, TensorType]
+    ) -> Union["torch.Tensor", "EmbeddingView"]:
         """
         Gets the embedding of a single node type.
         Unlike DGL, this function takes the string node
@@ -583,11 +600,11 @@ class Graph:
         u: Union[str, TensorType]
             Nodes to get the representation of, or ALL
             to get the representation of all nodes of
-            the given type.
+            the given type (returns embedding view).
 
         Returns
         -------
-        torch.Tensor
+        Union[torch.Tensor, cugraph_dgl.view.EmbeddingView]
             The embedding of the given edge type with the given embedding name.
         """
 
@@ -598,7 +615,9 @@ class Graph:
                 raise ValueError("Must provide the node type for a heterogeneous graph")
 
         if dgl.base.is_all(u):
-            u = torch.arange(self.num_nodes(ntype), dtype=self.idtype, device="cpu")
+            return EmbeddingView(
+                self.__ndata_storage[ntype, emb_name], self.num_nodes(ntype)
+            )
 
         try:
             return self.__ndata_storage[ntype, emb_name].fetch(
@@ -644,7 +663,9 @@ class Graph:
         etype = self.to_canonical_etype(etype)
 
         if dgl.base.is_all(u):
-            u = torch.arange(self.num_edges(etype), dtype=self.idtype, device="cpu")
+            return EmbeddingView(
+                self.__edata_storage[etype, emb_name], self.num_edges(etype)
+            )
 
         try:
             return self.__edata_storage[etype, emb_name].fetch(

@@ -22,6 +22,7 @@ or
 
 $ python _nx_cugraph/__init__.py
 """
+import os
 
 from _nx_cugraph._version import __version__
 
@@ -35,7 +36,7 @@ _info = {
     "backend_name": "cugraph",
     "project": "nx-cugraph",
     "package": "nx_cugraph",
-    "url": f"https://github.com/rapidsai/cugraph/tree/branch-{_version_major:0>2}.{_version_minor:0>2}/python/nx-cugraph",
+    "url": f"https://rapids.ai/nx-cugraph",
     "short_summary": "GPU-accelerated backend.",
     # "description": "TODO",
     "functions": {
@@ -293,10 +294,19 @@ def get_info():
 
     for key in info_keys:
         del d[key]
+
+    d["default_config"] = {
+        "use_compat_graphs": os.environ.get("NX_CUGRAPH_USE_COMPAT_GRAPHS", "true")
+        .strip()
+        .lower()
+        == "true",
+    }
     return d
 
 
-def _check_networkx_version():
+def _check_networkx_version() -> tuple[int, int]:
+    """Check the version of networkx and return ``(major, minor)`` version tuple."""
+    import re
     import warnings
 
     import networkx as nx
@@ -310,11 +320,19 @@ def _check_networkx_version():
             UserWarning,
             stacklevel=2,
         )
-    if len(version_minor) > 1:
+
+    # Allow single-digit minor versions, e.g. 3.4 and release candidates, e.g. 3.4rc0
+    pattern = r"^\d(rc\d+)?$"
+
+    if not re.match(pattern, version_minor):
         raise RuntimeWarning(
             f"nx-cugraph version {__version__} does not work with networkx version "
             f"{nx.__version__}. Please upgrade (or fix) your Python environment."
         )
+
+    nxver_major = int(version_major)
+    nxver_minor = int(re.match(r"^\d+", version_minor).group())
+    return (nxver_major, nxver_minor)
 
 
 if __name__ == "__main__":

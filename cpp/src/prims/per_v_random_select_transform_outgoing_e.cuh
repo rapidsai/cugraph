@@ -15,6 +15,7 @@
  */
 #pragma once
 
+#include "from_cugraph_ops/sampling.hpp"
 #include "prims/detail/sample_and_compute_local_nbr_indices.cuh"
 #include "prims/property_op_utils.cuh"
 
@@ -30,9 +31,6 @@
 #include <cugraph/utilities/shuffle_comm.cuh>
 
 #include <raft/random/rng.cuh>
-#ifndef NO_CUGRAPH_OPS
-#include <cugraph-ops/graph/sampling.hpp>
-#endif
 
 #include <cub/cub.cuh>
 #include <cuda/atomic>
@@ -353,7 +351,7 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
       uniform_sample_and_compute_local_nbr_indices(
         handle,
         graph_view,
-        (minor_comm_size > 1) ? get_dataframe_buffer_begin(*aggregate_local_frontier)
+        (minor_comm_size > 1) ? get_dataframe_buffer_cbegin(*aggregate_local_frontier)
                               : frontier.begin(),
         local_frontier_displacements,
         local_frontier_sizes,
@@ -365,7 +363,7 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
       biased_sample_and_compute_local_nbr_indices(
         handle,
         graph_view,
-        (minor_comm_size > 1) ? get_dataframe_buffer_begin(*aggregate_local_frontier)
+        (minor_comm_size > 1) ? get_dataframe_buffer_cbegin(*aggregate_local_frontier)
                               : frontier.begin(),
         edge_bias_src_value_input,
         edge_bias_dst_value_input,
@@ -394,7 +392,7 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
         graph_view.local_edge_partition_view(i));
 
     auto edge_partition_frontier_key_first =
-      ((minor_comm_size > 1) ? get_dataframe_buffer_begin(*aggregate_local_frontier)
+      ((minor_comm_size > 1) ? get_dataframe_buffer_cbegin(*aggregate_local_frontier)
                              : frontier.begin()) +
       local_frontier_displacements[i];
     auto edge_partition_sample_local_nbr_index_first =

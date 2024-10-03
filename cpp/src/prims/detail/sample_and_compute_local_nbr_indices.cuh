@@ -15,6 +15,7 @@
  */
 #pragma once
 
+#include "from_cugraph_ops/sampling.hpp"
 #include "prims/detail/partition_v_frontier.cuh"
 #include "prims/detail/transform_v_frontier_e.cuh"
 #include "prims/property_op_utils.cuh"
@@ -33,9 +34,6 @@
 #include <cugraph/vertex_partition_device_view.cuh>
 
 #include <raft/random/rng.cuh>
-#ifndef NO_CUGRAPH_OPS
-#include <cugraph-ops/graph/sampling.hpp>
-#endif
 
 #include <cub/cub.cuh>
 #include <cuda/atomic>
@@ -394,11 +392,11 @@ compute_unique_keys(raft::handle_t const& handle,
       cuda::proclaim_return_type<size_t>(
         [unique_key_first = get_dataframe_buffer_begin(aggregate_local_frontier_unique_keys) +
                             local_frontier_unique_key_displacements[i],
-         num_unique_keys = local_frontier_unique_key_sizes[i]] __device__(key_t key) {
+         unique_key_last = get_dataframe_buffer_begin(aggregate_local_frontier_unique_keys) +
+                           local_frontier_unique_key_displacements[i] +
+                           local_frontier_unique_key_sizes[i]] __device__(key_t key) {
           return static_cast<size_t>(thrust::distance(
-            unique_key_first,
-            thrust::lower_bound(
-              thrust::seq, unique_key_first, unique_key_first + num_unique_keys, key)));
+            unique_key_first, thrust::find(thrust::seq, unique_key_first, unique_key_last, key)));
         }));
   }
 
@@ -639,7 +637,7 @@ rmm::device_uvector<edge_t> compute_uniform_sampling_index_without_replacement(
   auto mid_partition_size = frontier_partition_offsets[2] - frontier_partition_offsets[1];
   if (mid_partition_size > 0) {
     // FIXME: tmp_degrees & tmp_nbr_indices can be avoided if we customize
-    // cugraph::ops::get_sampling_index
+    // cugraph::legacy::ops::get_sampling_index
     rmm::device_uvector<edge_t> tmp_degrees(mid_partition_size, handle.get_stream());
     rmm::device_uvector<edge_t> tmp_nbr_indices(mid_partition_size * K, handle.get_stream());
     thrust::gather(handle.get_thrust_policy(),
@@ -647,13 +645,13 @@ rmm::device_uvector<edge_t> compute_uniform_sampling_index_without_replacement(
                    frontier_indices.begin() + frontier_partition_offsets[2],
                    frontier_degrees.begin(),
                    tmp_degrees.begin());
-    cugraph::ops::graph::get_sampling_index(tmp_nbr_indices.data(),
-                                            rng_state,
-                                            tmp_degrees.data(),
-                                            mid_partition_size,
-                                            static_cast<int32_t>(K),
-                                            false,
-                                            handle.get_stream());
+    cugraph::legacy::ops::graph::get_sampling_index(tmp_nbr_indices.data(),
+                                                    rng_state,
+                                                    tmp_degrees.data(),
+                                                    mid_partition_size,
+                                                    static_cast<int32_t>(K),
+                                                    false,
+                                                    handle.get_stream());
     thrust::for_each(
       handle.get_thrust_policy(),
       thrust::make_counting_iterator(size_t{0}),
@@ -736,7 +734,7 @@ rmm::device_uvector<edge_t> compute_uniform_sampling_index_without_replacement(
         }
 
         if (retry_segment_indices) {
-          cugraph::ops::graph::get_sampling_index(
+          cugraph::legacy::ops::graph::get_sampling_index(
             (*retry_nbr_indices).data(),
             rng_state,
             (*retry_degrees).begin(),
@@ -752,7 +750,7 @@ rmm::device_uvector<edge_t> compute_uniform_sampling_index_without_replacement(
                        segment_frontier_degree_first,
                        segment_frontier_degree_first + num_segments,
                        tmp_degrees.begin());
-          cugraph::ops::graph::get_sampling_index(
+          cugraph::legacy::ops::graph::get_sampling_index(
             tmp_nbr_indices.data(),
             rng_state,
             tmp_degrees.data(),
@@ -1626,13 +1624,13 @@ uniform_sample_and_compute_local_nbr_indices(
   if (with_replacement) {
     if (frontier_degrees.size() > 0) {
       nbr_indices.resize(frontier_degrees.size() * K, handle.get_stream());
-      cugraph::ops::graph::get_sampling_index(nbr_indices.data(),
-                                              rng_state,
-                                              frontier_degrees.data(),
-                                              static_cast<edge_t>(frontier_degrees.size()),
-                                              static_cast<int32_t>(K),
-                                              with_replacement,
-                                              handle.get_stream());
+      cugraph::legacy::ops::graph::get_sampling_index(nbr_indices.data(),
+                                                      rng_state,
+                                                      frontier_degrees.data(),
+                                                      static_cast<edge_t>(frontier_degrees.size()),
+                                                      static_cast<int32_t>(K),
+                                                      with_replacement,
+                                                      handle.get_stream());
       frontier_degrees.resize(0, handle.get_stream());
       frontier_degrees.shrink_to_fit(handle.get_stream());
     }
@@ -1761,8 +1759,7 @@ biased_sample_and_compute_local_nbr_indices(
   std::optional<rmm::device_uvector<size_t>> key_indices{std::nullopt};
   std::vector<size_t> local_frontier_sample_offsets{};
   if (with_replacement) {
-    // computet segmented inclusive sums (one segment per seed)
-
+    // compute segmented inclusive sums (one segment per seed)
     auto unique_key_first = thrust::make_transform_iterator(
       thrust::make_counting_iterator(size_t{0}),
       cuda::proclaim_return_type<size_t>(
@@ -2041,7 +2038,7 @@ biased_sample_and_compute_local_nbr_indices(
         zero_bias_frontier_indices.resize(zero_bias_count_inclusive_sums.back(),
                                           handle.get_stream());
         zero_bias_frontier_indices.shrink_to_fit(handle.get_stream());
-        zero_bias_local_nbr_indices.resize(frontier_indices.size(), handle.get_stream());
+        zero_bias_local_nbr_indices.resize(zero_bias_frontier_indices.size(), handle.get_stream());
         zero_bias_local_nbr_indices.shrink_to_fit(handle.get_stream());
         std::vector<size_t> zero_bias_counts(zero_bias_count_inclusive_sums.size());
         std::adjacent_difference(zero_bias_count_inclusive_sums.begin(),

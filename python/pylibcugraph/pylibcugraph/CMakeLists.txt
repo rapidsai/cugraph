@@ -54,6 +54,8 @@ set(cython_sources
     triangle_count.pyx
     two_hop_neighbors.pyx
     uniform_neighbor_sample.pyx
+    biased_neighbor_sample.pyx
+    negative_sampling.pyx
     uniform_random_walks.pyx
     utils.pyx
     weakly_connected_components.pyx

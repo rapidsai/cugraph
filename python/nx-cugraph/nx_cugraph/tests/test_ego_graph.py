@@ -12,16 +12,13 @@
 # limitations under the License.
 import networkx as nx
 import pytest
-from packaging.version import parse
 
 import nx_cugraph as nxcg
+from nx_cugraph import _nxver
 
 from .testing_utils import assert_graphs_equal
 
-nxver = parse(nx.__version__)
-
-
-if nxver.major == 3 and nxver.minor < 2:
+if _nxver < (3, 2):
     pytest.skip("Need NetworkX >=3.2 to test ego_graph", allow_module_level=True)
 
 
@@ -49,7 +46,12 @@ def test_ego_graph_cycle_graph(
     kwargs = {"radius": radius, "center": center, "undirected": undirected}
     Hnx = nx.ego_graph(Gnx, n, **kwargs)
     Hcg = nx.ego_graph(Gnx, n, **kwargs, backend="cugraph")
+    use_compat_graphs = _nxver < (3, 3) or nx.config.backends.cugraph.use_compat_graphs
+    assert_graphs_equal(Hnx, Hcg._cudagraph if use_compat_graphs else Hcg)
+    Hcg = nx.ego_graph(Gcg, n, **kwargs)
     assert_graphs_equal(Hnx, Hcg)
+    Hcg = nx.ego_graph(Gcg._to_compat_graph(), n, **kwargs)
+    assert_graphs_equal(Hnx, Hcg._cudagraph)
     with pytest.raises(nx.NodeNotFound, match="not in G"):
         nx.ego_graph(Gnx, -1, **kwargs)
     with pytest.raises(nx.NodeNotFound, match="not in G"):
@@ -61,20 +63,36 @@ def test_ego_graph_cycle_graph(
 
     kwargs["distance"] = "weight"
     H2nx = nx.ego_graph(Gnx, n, **kwargs)
-    is_nx32 = nxver.major == 3 and nxver.minor == 2
+    is_nx32 = _nxver[:2] == (3, 2)
     if undirected and Gnx.is_directed() and Gnx.is_multigraph():
         if is_nx32:
             # `should_run` was added in nx 3.3
             match = "Weighted ego_graph with undirected=True not implemented"
+        elif _nxver >= (3, 4):
+            match = "not implemented by 'cugraph'"
         else:
             match = "not implemented by cugraph"
-        with pytest.raises(RuntimeError, match=match):
+        with pytest.raises(
+            RuntimeError if _nxver < (3, 4) else NotImplementedError, match=match
+        ):
             nx.ego_graph(Gnx, n, **kwargs, backend="cugraph")
         with pytest.raises(NotImplementedError, match="ego_graph"):
-            nx.ego_graph(Gcg, n, **kwargs)
+            nx.ego_graph(Gcg, n, **kwargs, backend="cugraph")
+        if _nxver < (3, 4):
+            with pytest.raises(NotImplementedError, match="ego_graph"):
+                nx.ego_graph(Gcg, n, **kwargs)
+        else:
+            # This is an interesting case. `nxcg.ego_graph` is not implemented for
+            # these arguments, so it falls back to networkx. Hence, as it is currently
+            # implemented, the input graph is `nxcg.CudaGraph`, but the output graph
+            # is `nx.Graph`. Should networkx convert back to "cugraph" backend?
+            # TODO: make fallback to networkx configurable.
+            H2cg = nx.ego_graph(Gcg, n, **kwargs)
+            assert type(H2nx) is type(H2cg)
+            assert_graphs_equal(H2nx, nxcg.from_networkx(H2cg, preserve_all_attrs=True))
     else:
         H2cg = nx.ego_graph(Gnx, n, **kwargs, backend="cugraph")
-        assert_graphs_equal(H2nx, H2cg)
+        assert_graphs_equal(H2nx, H2cg._cudagraph if use_compat_graphs else H2cg)
         with pytest.raises(nx.NodeNotFound, match="not found in graph"):
             nx.ego_graph(Gnx, -1, **kwargs)
         with pytest.raises(nx.NodeNotFound, match="not found in graph"):
