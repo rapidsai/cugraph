@@ -37,6 +37,7 @@
 import cudf
 import numpy as np
 from cugraph.structure.graph_classes import Graph
+from cugraph.structure.symmetrize import symmetrize
 
 
 def hypergraph(
@@ -276,6 +277,32 @@ def hypergraph(
         edge_attr=WEIGHTS,
         renumber=True,
     )
+
+    df = cudf.DataFrame()
+
+    # Need to refactor this code as it uses the
+    # deprecated symmetrize call.
+    if "weights" in graph.edgelist.edgelist_df:
+        source_col, dest_col, value_col = symmetrize(
+            graph.edgelist.edgelist_df,
+            "src",
+            "dst",
+            "weights",
+            symmetrize=not graph.is_directed(),
+        )
+
+        df["src"] = source_col
+        df["dst"] = dest_col
+        df["weights"] = value_col
+    else:
+        source_col, dest_col = symmetrize(
+            graph.edgelist.edgelist_df, "src", "dst", symmetrize=not graph.is_directed()
+        )
+
+        df["src"] = source_col
+        df["dst"] = dest_col
+
+    graph.edgelist.edgelist_df = df
 
     return {
         "nodes": nodes,

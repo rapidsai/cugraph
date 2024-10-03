@@ -116,6 +116,7 @@ class Graph:
         renumber=True,
         store_transposed=False,
         legacy_renum_only=False,
+        symmetrize=None,
     ):
         """
         Initialize a graph from the edge list. It is an error to call this
@@ -174,6 +175,15 @@ class Graph:
 
             This parameter is deprecated and will be removed.
 
+        symmetrize: bool, optional (default=None)
+            If True, symmetrize the edge list for an undirected graph. Setting
+            this flag to True for a directed graph returns an error. The default
+            behavior symmetrizes the edges if the graph is undirected. This flag
+            cannot be set to True if the edgelist contains edge IDs or edge Types.
+            If the incoming edgelist is intended for an undirected graph and it is
+            known to be symmetric, this flag can be set to False to skip the
+            symmetrization step for better performance.
+
         Examples
         --------
         >>> df = cudf.read_csv(datasets_path / 'karate.csv', delimiter=' ',
@@ -201,6 +211,7 @@ class Graph:
             renumber=renumber,
             store_transposed=store_transposed,
             legacy_renum_only=legacy_renum_only,
+            symmetrize=symmetrize,
         )
 
     def from_cudf_adjlist(
@@ -210,6 +221,7 @@ class Graph:
         value_col=None,
         renumber=True,
         store_transposed=False,
+        symmetrize=None,
     ):
         """
         Initialize a graph from the adjacency list. It is an error to call this
@@ -247,6 +259,14 @@ class Graph:
         store_transposed : bool, optional (default=False)
             If True, stores the transpose of the adjacency matrix.  Required
             for certain algorithms.
+        symmetrize: bool, optional (default=None)
+            If True, symmetrize the edge list for an undirected graph. Setting
+            this flag to True for a directed graph returns an error. The default
+            behavior symmetrizes the edges if the graph is undirected. This flag
+            cannot be set to True if the edgelist contains edge IDs or edge Types.
+            If the incoming edgelist is intended for an undirected graph and it is
+            known to be symmetric, this flag can be set to False to skip the
+            symmetrization step for better performance.
 
         Examples
         --------
@@ -268,7 +288,12 @@ class Graph:
             raise RuntimeError("Graph is already initialized")
         elif self._Impl.edgelist is not None or self._Impl.adjlist is not None:
             raise RuntimeError("Graph already has values")
-        self._Impl._simpleGraphImpl__from_adjlist(offset_col, index_col, value_col)
+        self._Impl._simpleGraphImpl__from_adjlist(
+            offset_col=offset_col,
+            index_col=index_col,
+            value_col=value_col,
+            symmetrize=symmetrize,
+        )
 
     def from_dask_cudf_edgelist(
         self,

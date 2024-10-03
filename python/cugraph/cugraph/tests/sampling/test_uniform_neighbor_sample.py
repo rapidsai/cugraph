@@ -21,6 +21,7 @@ import cugraph
 from cugraph import uniform_neighbor_sample
 from cugraph.testing import UNDIRECTED_DATASETS
 from cugraph.datasets import email_Eu_core, small_tree
+from cugraph.structure.symmetrize import symmetrize
 from pylibcugraph.testing.utils import gen_fixture_params_product
 
 
@@ -148,6 +149,15 @@ def test_uniform_neighbor_sample_simple(input_combo):
     # should be 'None' if the datasets was never renumbered
     input_df = G.edgelist.edgelist_df
 
+    # FIXME: Uses the deprecated implementation of symmetrize.
+    source_col, dest_col = symmetrize(
+        input_df, "src", "dst", symmetrize=not G.is_directed()
+    )
+
+    input_df = cudf.DataFrame()
+    input_df["src"] = source_col
+    input_df["dst"] = dest_col
+
     result_nbr = uniform_neighbor_sample(
         G,
         input_combo["start_list"],
@@ -235,6 +245,19 @@ def test_uniform_neighbor_sample_tree(directed):
     G = cugraph.Graph(directed=directed)
     G.from_cudf_edgelist(df, "src", "dst", "value")
 
+    # FIXME: Uses the deprecated implementation of symmetrize.
+    source_col, dest_col, value_col = symmetrize(
+        G.edgelist.edgelist_df, "src", "dst", "weights", symmetrize=not G.is_directed()
+    )
+
+    # Retrieve the input dataframe.
+    # input_df != df if 'directed = False' because df will be symmetrized
+    # internally.
+    input_df = cudf.DataFrame()
+    input_df["src"] = source_col
+    input_df["dst"] = dest_col
+    input_df["value"] = value_col
+
     #
     # Make sure the old C++ renumbering was skipped because:
     #    1) Pylibcugraph already does renumbering
@@ -244,11 +267,6 @@ def test_uniform_neighbor_sample_tree(directed):
     #
 
     assert G.renumbered is False
-
-    # Retrieve the input dataframe.
-    # input_df != df if 'directed = False' because df will be symmetrized
-    # internally.
-    input_df = G.edgelist.edgelist_df
 
     # TODO: Incomplete, include more testing for tree graph as well as
     # for larger graphs
