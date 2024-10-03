@@ -323,7 +323,6 @@ channels:
   - rapidsai
   - rapidsai-nightly
   - dask/label/dev
-  - pyg
   - dglteam/label/cu118
   - conda-forge
   - nvidia
@@ -709,7 +708,7 @@ dependencies:
           - *pytorch_conda
           - pytorch-cuda==11.8
           - *tensordict
-          - pyg>=2.5,<2.6
+          - pytorch_geometric>=2.5,<2.6
 
   depends_on_pytorch:
     common:

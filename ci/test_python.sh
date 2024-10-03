@@ -210,7 +210,6 @@ if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
     rapids-mamba-retry install \
       --channel "${CPP_CHANNEL}" \
       --channel "${PYTHON_CHANNEL}" \
-      --channel pyg \
       "cugraph-pyg=${RAPIDS_VERSION_MAJOR_MINOR}.*" \
       "pytorch>=2.3,<2.4" \
       "ogb"
