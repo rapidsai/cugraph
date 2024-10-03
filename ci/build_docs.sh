@@ -6,6 +6,10 @@ set -euo pipefail
 rapids-logger "Create test conda environment"
 . /opt/conda/etc/profile.d/conda.sh
 
+export RAPIDS_VERSION="$(rapids-version)"
+export RAPIDS_VERSION_MAJOR_MINOR="$(rapids-version-major-minor)"
+export RAPIDS_VERSION_NUMBER="$RAPIDS_VERSION_MAJOR_MINOR"
+
 rapids-dependency-file-generator \
   --output conda \
   --file-key docs \
@@ -35,22 +39,19 @@ rapids-mamba-retry install \
   --channel pyg \
   --channel nvidia \
   --channel "${DGL_CHANNEL}" \
-  libcugraph \
-  pylibcugraph \
-  cugraph \
-  cugraph-pyg \
-  cugraph-dgl \
-  cugraph-service-server \
-  cugraph-service-client \
-  libcugraph_etl \
-  pylibcugraphops \
-  pylibwholegraph \
+  "libcugraph=${RAPIDS_VERSION_MAJOR_MINOR}.*" \
+  "pylibcugraph=${RAPIDS_VERSION_MAJOR_MINOR}.*" \
+  "cugraph=${RAPIDS_VERSION_MAJOR_MINOR}.*" \
+  "cugraph-pyg=${RAPIDS_VERSION_MAJOR_MINOR}.*" \
+  "cugraph-dgl=${RAPIDS_VERSION_MAJOR_MINOR}.*" \
+  "cugraph-service-server=${RAPIDS_VERSION_MAJOR_MINOR}.*" \
+  "cugraph-service-client=${RAPIDS_VERSION_MAJOR_MINOR}.*" \
+  "libcugraph_etl=${RAPIDS_VERSION_MAJOR_MINOR}.*" \
+  "pylibcugraphops=${RAPIDS_VERSION_MAJOR_MINOR}.*" \
+  "pylibwholegraph=${RAPIDS_VERSION_MAJOR_MINOR}.*" \
   pytorch \
   "cuda-version=${CONDA_CUDA_VERSION}"
 
-export RAPIDS_VERSION="$(rapids-version)"
-export RAPIDS_VERSION_MAJOR_MINOR="$(rapids-version-major-minor)"
-export RAPIDS_VERSION_NUMBER="$RAPIDS_VERSION_MAJOR_MINOR"
 export RAPIDS_DOCS_DIR="$(mktemp -d)"
 
 for PROJECT in libcugraphops libwholegraph; do

@@ -8,6 +8,8 @@ cd "$(dirname "$(realpath "${BASH_SOURCE[0]}")")"/../
 
 . /opt/conda/etc/profile.d/conda.sh
 
+RAPIDS_VERSION_MAJOR_MINOR="$(rapids-version-major-minor)"
+
 rapids-logger "Generate Python testing dependencies"
 rapids-dependency-file-generator \
   --output conda \
@@ -34,12 +36,12 @@ rapids-print-env
 rapids-mamba-retry install \
   --channel "${CPP_CHANNEL}" \
   --channel "${PYTHON_CHANNEL}" \
-  libcugraph \
-  pylibcugraph \
-  cugraph \
-  nx-cugraph \
-  cugraph-service-server \
-  cugraph-service-client
+  "libcugraph=${RAPIDS_VERSION_MAJOR_MINOR}.*" \
+  "pylibcugraph=${RAPIDS_VERSION_MAJOR_MINOR}.*" \
+  "cugraph=${RAPIDS_VERSION_MAJOR_MINOR}.*" \
+  "nx-cugraph=${RAPIDS_VERSION_MAJOR_MINOR}.*" \
+  "cugraph-service-server=${RAPIDS_VERSION_MAJOR_MINOR}.*" \
+  "cugraph-service-client=${RAPIDS_VERSION_MAJOR_MINOR}.*"
 
 rapids-logger "Check GPU usage"
 nvidia-smi
@@ -153,11 +155,11 @@ if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
       --channel conda-forge \
       --channel dglteam/label/cu118 \
       --channel nvidia \
-      libcugraph \
-      pylibcugraph \
-      pylibcugraphops \
-      cugraph \
-      cugraph-dgl \
+      "libcugraph=${RAPIDS_VERSION_MAJOR_MINOR}.*" \
+      "pylibcugraph=${RAPIDS_VERSION_MAJOR_MINOR}.*" \
+      "pylibcugraphops=${RAPIDS_VERSION_MAJOR_MINOR}.*" \
+      "cugraph=${RAPIDS_VERSION_MAJOR_MINOR}.*" \
+      "cugraph-dgl=${RAPIDS_VERSION_MAJOR_MINOR}.*" \
       'dgl>=1.1.0.cu*,<=2.0.0.cu*' \
       'pytorch>=2.3,<2.4' \
       'cuda-version=11.8'
@@ -209,7 +211,7 @@ if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
       --channel "${CPP_CHANNEL}" \
       --channel "${PYTHON_CHANNEL}" \
       --channel pyg \
-      "cugraph-pyg" \
+      "cugraph-pyg=${RAPIDS_VERSION_MAJOR_MINOR}.*" \
       "pytorch>=2.3,<2.4" \
       "ogb"
 
@@ -248,7 +250,7 @@ if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
       --channel "${PYTHON_CHANNEL}" \
       --channel conda-forge \
       --channel nvidia \
-      cugraph-equivariant
+      "cugraph-equivariant=${RAPIDS_VERSION_MAJOR_MINOR}.*"
     pip install e3nn==0.5.1
 
     rapids-print-env
