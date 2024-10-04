@@ -20,10 +20,10 @@ a supported GPU.
 Getting started with cuGraph
 
 Required hardware/software for cuGraph and `RAPIDS <https://docs.rapids.ai/user-guide>`_
- * NVIDIA GPU, Volta architecture or later, with `compute capability <https://developer.nvidia.com/cuda-gpus> 7.0+`_
+ * NVIDIA GPU, Volta architecture or later, with `compute capability 7.0+ <https://developer.nvidia.com/cuda-gpus>`_
  * CUDA 11.2-11.8, 12.0-12.5
  * Python version 3.10, 3.11, or 3.12
- * NetworkX version 3.0 or newer in order to use use the nx-cuGraph backend. NetworkX version 3.4 or newer is recommended. (`see below <#cugraph-using-networkx-code>`).
+ * NetworkX version 3.0 or newer in order to use use the nx-cuGraph backend. NetworkX version 3.4 or newer is recommended. (`see below <nx_cugraph/index.rst>`_).
 
 Installation
 The latest RAPIDS System Requirements documentation is located `here <https://docs.rapids.ai/install#system-req>`_.
@@ -41,9 +41,9 @@ This includes several ways to set up cuGraph
 
 * From Windows
 
-  * `Conda <https://docs.rapids.ai/install#wsl-conda>`_
-  * `Docker <https://docs.rapids.ai/install#wsl-docker>`_
-  * `pip <https://docs.rapids.ai/install#wsl-pip>`_
+  * `Conda <https://docs.rapids.ai/install#wsl2-conda>`_
+  * `Docker <https://docs.rapids.ai/install#wsl2-docker>`_
+  * `pip <https://docs.rapids.ai/install#wsl2-pip>`_
 
 
 cuGraph Using NetworkX Code
@@ -67,11 +67,11 @@ their existing NetworkX code using an NVIDIA GPU and cuGraph.
   # Call cugraph.degree_centrality
   vertex_bc = cugraph.degree_centrality(G)
 
-There are several resources containing cuGraph examples, `the cuGraph notebook repository <https://github.com/rapidsai/cugraph/blob/main/notebooks/README.md>`_
+There are several resources containing cuGraph examples, `the cuGraph notebook repository <https://github.com/rapidsai/cugraph/blob/HEAD/notebooks/README.md>`_
 has many examples of loading graph data and running algorithms in Jupyter notebooks.
 The `cuGraph test code <https://github.com/rapidsai/cugraph/tree/main/python/cugraph/cugraph/tests>_` contain python scripts setting up and calling cuGraph algorithms.
-A simple example of `testing the degree centrality algorithm <https://github.com/rapidsai/cugraph/blob/main/python/cugraph/cugraph/tests/centrality/test_degree_centrality.py>`_
-is a good place to start. Some of these show `multi-GPU tests/examples <https://github.com/rapidsai/cugraph/blob/main/python/cugraph/cugraph/tests/centrality/test_degree_centrality_mg.py>`_ with larger data sets as well.
+A simple example of `testing the degree centrality algorithm <https://github.com/rapidsai/cugraph/blob/HEAD/python/cugraph/cugraph/tests/centrality/test_degree_centrality.py>`_
+is a good place to start. Some of these show `multi-GPU tests/examples <https://github.com/rapidsai/cugraph/blob/HEAD/python/cugraph/cugraph/tests/centrality/test_degree_centrality_mg.py>`_ with larger data sets as well.
 
 .. toctree::
    :maxdepth: 2

@@ -1,3 +1,5 @@
+.. HEADER ? Contents
+
 .. toctree::
   :maxdepth: 2
   :caption: cuGraph documentation Contents:
