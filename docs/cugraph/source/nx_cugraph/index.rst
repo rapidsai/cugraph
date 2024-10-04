@@ -3,7 +3,7 @@ nx-cugraph
 
 ``nx-cugraph`` is a NetworkX backend that provides **GPU acceleration** to many popular NetworkX algorithms.
 
-By simply `installing and enabling nx-cugraph <https://github.com/rapidsai/cugraph/blob/HEAD/python/nx-cugraph/README.md#install>`_, users can see significant speedup on workflows where performance is hindered by the default NetworkX implementation. 
+By simply `installing and enabling nx-cugraph <https://github.com/rapidsai/cugraph/blob/HEAD/python/nx-cugraph/README.md#install>`_, users can see significant speedup on workflows where performance is hindered by the default NetworkX implementation.
 
 Users can have GPU-based, large-scale performance **without** changing their familiar and easy-to-use NetworkX code.
 
