@@ -1,4 +1,4 @@
-# Getting Started
+# Installing nx-cugraph
 
 This guide describes how to install ``nx-cugraph`` and use it in your workflows.
 
@@ -14,7 +14,7 @@ This guide describes how to install ``nx-cugraph`` and use it in your workflows.
 
 More details about system requirements can be found in the [RAPIDS System Requirements Documentation](https://docs.rapids.ai/install#system-req).
 
-## Installing nx-cugraph
+## Installing Packages
 
 Read the [RAPIDS Quick Start Guide](https://docs.rapids.ai/install) to learn more about installing all RAPIDS libraries.
 
