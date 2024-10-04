@@ -153,14 +153,13 @@ if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
       --channel "${CPP_CHANNEL}" \
       --channel "${PYTHON_CHANNEL}" \
       --channel conda-forge \
-      --channel dglteam/label/cu118 \
+      --channel dglteam/label/th23_cu118 \
       --channel nvidia \
       "libcugraph=${RAPIDS_VERSION_MAJOR_MINOR}.*" \
       "pylibcugraph=${RAPIDS_VERSION_MAJOR_MINOR}.*" \
       "pylibcugraphops=${RAPIDS_VERSION_MAJOR_MINOR}.*" \
       "cugraph=${RAPIDS_VERSION_MAJOR_MINOR}.*" \
       "cugraph-dgl=${RAPIDS_VERSION_MAJOR_MINOR}.*" \
-      'dgl>=1.1.0.cu*,<=2.0.0.cu*' \
       'pytorch>=2.3,<2.4' \
       'cuda-version=11.8'
 

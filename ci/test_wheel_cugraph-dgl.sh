@@ -30,10 +30,10 @@ else
   PYTORCH_CUDA_VER=$PKG_CUDA_VER
 fi
 PYTORCH_URL="https://download.pytorch.org/whl/cu${PYTORCH_CUDA_VER}"
-DGL_URL="https://data.dgl.ai/wheels/cu${PYTORCH_CUDA_VER}/repo.html"
+DGL_URL="https://data.dgl.ai/wheels/torch-2.3/cu${PYTORCH_CUDA_VER}/repo.html"
 
 rapids-logger "Installing PyTorch and DGL"
 rapids-retry python -m pip install torch==2.3.0 --index-url ${PYTORCH_URL}
-rapids-retry python -m pip install dgl==2.2.1 --find-links ${DGL_URL}
+rapids-retry python -m pip install dgl==2.4.0 --find-links ${DGL_URL}
 
 python -m pytest python/cugraph-dgl/tests
