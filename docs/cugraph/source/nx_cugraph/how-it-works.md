@@ -11,6 +11,8 @@ While NetworkX is a pure-Python implementation with minimal to no dependencies, 
 
 ## Enabling nx-cugraph
 
+It is recommended to use `networkx>=3.4` for optimal compatibility, but `nx-cugraph` will work with `3.0+`.
+
 NetworkX will use `nx-cugraph` as the backend if any of the following are used:
 
 ### `NX_CUGRAPH_AUTOCONFIG` environment variable.
