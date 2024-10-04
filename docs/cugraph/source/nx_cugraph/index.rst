@@ -26,7 +26,7 @@ By simply `installing and enabling nx-cugraph <https://github.com/rapidsai/cugra
 +------------------------------------------------------------------------------------------------------------------------+
 | **Zero Code Change Acceleration**                                                                                      |
 |                                                                                                                        |
-| Just ``nx.config.backend_priority=["cugraph"]`` in Jupyter, or set ``NETWORKX_BACKEND_PRIORITY=cugraph`` in the shell. |
+| Just ``nx.config.backend_priority=["cugraph"]`` in Jupyter, or set ``NX_CUGRAPH_AUTOCONFIG=True`` in the shell. |
 +------------------------------------------------------------------------------------------------------------------------+
 | **Run the same code on CPU or GPU**                                                                                    |
 |                                                                                                                        |
