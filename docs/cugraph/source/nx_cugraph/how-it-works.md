@@ -98,7 +98,7 @@ Wall time: 5.32 s
 This run will be much faster, typically around 5 seconds depending on your GPU.
 
 *Note, the examples above were run using the following specs*:
-<div style="padding: 10px; user-select: none; font-size: small;">
+<div style="padding: 10px; color: black; font-size: small;">
 
     NetworkX 3.4
 

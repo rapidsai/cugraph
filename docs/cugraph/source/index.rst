@@ -21,7 +21,7 @@ cuGraph is now available as a NetworkX backend using `nx-cugraph <https://rapids
 Our major integration effort with NetworkX offers NetworkX users a **zero code change** option to accelerate
 their existing NetworkX code using an NVIDIA GPU and cuGraph.
 
-If you would like to continue using default cuGraph, then continue reading down below.
+Check out `zero code change accelerated NetworkX <nx_cugraph/index>`_. If you would like to continue using default cuGraph, then continue down below.
 
 ----------------------------
 Getting started with cuGraph
