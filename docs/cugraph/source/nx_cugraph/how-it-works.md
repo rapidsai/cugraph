@@ -97,15 +97,13 @@ Wall time: 5.32 s
 ```
 This run will be much faster, typically around 5 seconds depending on your GPU.
 
+<div style="color: black; padding: 10px; border-radius: 5px;">
+
 *Note, the examples above were run using the following specs*:
-<div style="padding: 10px; color: black; font-size: small;">
 
     NetworkX 3.4
-
     nx-cugraph 24.10
-
     CPU: Intel(R) Xeon(R) Gold 6128 CPU @ 3.40GHz 45GB RAM
-
     GPU: NVIDIA Quadro RTX 8000 80GB RAM
 
 </div>
