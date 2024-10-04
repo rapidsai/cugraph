@@ -10,7 +10,7 @@ Introduction
 ~~~~~~~~~~~~
 cuGraph is a library of graph algorithms that seamlessly integrates into the
 RAPIDS data science ecosystem and allows the data scientist to easily call
-graph algorithms using data stored in Pandas/cuDF DataFrames or CuPy/SciPy
+graph algorithms using data stored in cuDF/Pandas DataFrames or CuPy/SciPy
 sparse matrices.
 
 ---------------------------
