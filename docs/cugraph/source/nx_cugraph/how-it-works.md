@@ -4,14 +4,13 @@ NetworkX has the ability to **dispatch function calls to separately-installed th
 
 NetworkX backends let users experience improved performance and/or additional functionality without changing their NetworkX Python code. Examples include backends that provide algorithm acceleration using GPUs, parallel processing, graph database integration, and more.
 
-While NetworkX is a pure-Python implementation with minimal to no dependencies, backends may be written in other languages and require specialized hardware and/or OS support, additional software dependencies, or even separate services. Installation instructions vary based on the backend, and additional information can be found from the individual backend project pages.
-
+While NetworkX is a pure-Python implementation, backends may be written to use other libraries and even specialized hardware. `nx-cugraph` is a NetworkX backend that uses RAPIDS cuGraph and NVIDIA GPUs to significantly improve NetworkX performance.
 
 ![nxcg-execution-flow](../_static/nxcg-execution-diagram.jpg)
 
 ## Enabling nx-cugraph
 
-It is recommended to use `networkx>=3.4` for optimal compatibility, but `nx-cugraph` will work with `3.0+`.
+It is recommended to use `networkx>=3.4` for optimal zero code change performance, but `nx-cugraph` will also work with `networkx 3.0+`.
 
 NetworkX will use `nx-cugraph` as the backend if any of the following are used:
 
@@ -54,7 +53,10 @@ import networkx as nx
 import nx_cugraph as nxcg
 
 G = nx.Graph()
-...
+
+# populate the graph
+#  ...
+
 nxcg_G = nxcg.from_networkx(G)             # conversion happens once here
 nx.betweenness_centrality(nxcg_G, k=1000)  # nxcg Graph type causes cugraph backend
                                            # to be used, no conversion necessary
@@ -93,28 +95,21 @@ user@machine:/# NX_CUGRAPH_AUTOCONFIG=True ipython bc_demo.ipy
 CPU times: user 4.14 s, sys: 1.13 s, total: 5.27 s
 Wall time: 5.32 s
 ```
-This run will be much faster, typically around 4 seconds depending on your GPU.
-```bash
-user@machine:/# NX_CUGRAPH_AUTOCONFIG=True ipython bc_demo.ipy
-```
-There is also an option to cache the graph conversion to GPU. This can dramatically improve performance when running multiple algorithms on the same graph. Caching is enabled by default for NetworkX versions 3.4 and later, but if using an older version, set `NETWORKX_CACHE_CONVERTED_GRAPHS=True`.
-```
-user@machine:/# NX_CUGRAPH_AUTOCONFIG=cugraph NETWORKX_CACHE_CONVERTED_GRAPHS=True ipython bc_demo.ipy
-```
-
-When running Python interactively, the cugraph backend can be specified as an argument in the algorithm call.
-
-For example:
-```python
-nx.betweenness_centrality(cit_patents_graph, k=k, backend="cugraph")
-```
+This run will be much faster, typically around 5 seconds depending on your GPU.
 
 *Note, the examples above were run using the following specs*:
-```{note}
-NetworkX 3.4
-nx-cugraph 24.10
-CPU: Intel(R) Xeon(R) Gold 6128 CPU @ 3.40GHz 45GB RAM
-GPU: NVIDIA Quadro RTX 8000 80GB RAM
-```
+<div style="padding: 10px; user-select: none; font-size: small;">
 
-The latest list of algorithms supported by `nx-cugraph` can be found in the [cugraph documentation](https://github.com/rapidsai/cugraph/blob/HEAD/python/nx-cugraph/README.md#algorithms), or in the next section.
+    NetworkX 3.4
+
+    nx-cugraph 24.10
+
+    CPU: Intel(R) Xeon(R) Gold 6128 CPU @ 3.40GHz 45GB RAM
+
+    GPU: NVIDIA Quadro RTX 8000 80GB RAM
+
+</div>
+
+---
+
+The latest list of algorithms supported by `nx-cugraph` can be found in [GitHub](https://github.com/rapidsai/cugraph/blob/HEAD/python/nx-cugraph/README.md#algorithms), or in the [Supported Algorithms Section](supported-algorithms.md).
