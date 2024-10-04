@@ -323,7 +323,7 @@ channels:
   - rapidsai
   - rapidsai-nightly
   - dask/label/dev
-  - dglteam/label/cu118
+  - dglteam/label/th23_cu118
   - conda-forge
   - nvidia
 dependencies:
@@ -699,7 +699,7 @@ dependencies:
           - &pytorch_conda pytorch>=2.3,<2.4.0a0
           - pytorch-cuda==11.8
           - &tensordict tensordict>=0.1.2
-          - dgl>=1.1.0.cu*
+          - dgl>=2.4.0.cu*
   cugraph_pyg_dev:
     common:
       - output_types: [conda]

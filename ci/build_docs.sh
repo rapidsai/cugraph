@@ -26,10 +26,10 @@ PYTHON_CHANNEL=$(rapids-download-conda-from-s3 python)
 
 if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
   CONDA_CUDA_VERSION="11.8"
-  DGL_CHANNEL="dglteam/label/cu118"
+  DGL_CHANNEL="dglteam/label/th23_cu118"
 else
   CONDA_CUDA_VERSION="12.1"
-  DGL_CHANNEL="dglteam/label/cu121"
+  DGL_CHANNEL="dglteam/label/th23_cu121"
 fi
 
 rapids-mamba-retry install \
@@ -48,7 +48,7 @@ rapids-mamba-retry install \
   "libcugraph_etl=${RAPIDS_VERSION_MAJOR_MINOR}.*" \
   "pylibcugraphops=${RAPIDS_VERSION_MAJOR_MINOR}.*" \
   "pylibwholegraph=${RAPIDS_VERSION_MAJOR_MINOR}.*" \
-  pytorch \
+  "pytorch>=2.3,<2.4" \
   "cuda-version=${CONDA_CUDA_VERSION}"
 
 export RAPIDS_DOCS_DIR="$(mktemp -d)"

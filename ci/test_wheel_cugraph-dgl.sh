@@ -34,6 +34,6 @@ DGL_URL="https://data.dgl.ai/wheels/cu${PYTORCH_CUDA_VER}/repo.html"
 
 rapids-logger "Installing PyTorch and DGL"
 rapids-retry python -m pip install torch==2.3.0 --index-url ${PYTORCH_URL}
-rapids-retry python -m pip install dgl==2.0.0 --find-links ${DGL_URL}
+rapids-retry python -m pip install dgl==2.2.1 --find-links ${DGL_URL}
 
 python -m pytest python/cugraph-dgl/tests
