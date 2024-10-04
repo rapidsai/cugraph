@@ -10,8 +10,8 @@ Introduction
 ~~~~~~~~~~~~
 cuGraph is a library of graph algorithms that seamlessly integrates into the
 RAPIDS data science ecosystem and allows the data scientist to easily call
-graph algorithms using data stored in GPU DataFrames, NetworkX Graphs, or even
-CuPy or SciPy sparse Matrices. 
+graph algorithms using data stored in Pandas/cuDF DataFrames or CuPy/SciPy
+sparse matrices.
 
 ---------------------------
 cuGraph Using NetworkX Code
@@ -71,9 +71,9 @@ This includes several ways to set up cuGraph
 
  There are several resources containing cuGraph examples, the cuGraph `notebook repository <https://github.com/rapidsai/cugraph/blob/HEAD/notebooks/README.md>`_ has many examples of loading graph data and running algorithms in Jupyter notebooks.
  The cuGraph `test code <https://github.com/rapidsai/cugraph/tree/main/python/cugraph/cugraph/tests>`_ contains script examples of setting up and calling cuGraph algorithms.
- 
+
  A simple example of `testing the degree centrality algorithm <https://github.com/rapidsai/cugraph/blob/HEAD/python/cugraph/cugraph/tests/centrality/test_degree_centrality.py>`_ is a good place to start. There are also `multi-GPU examples <https://github.com/rapidsai/cugraph/blob/HEAD/python/cugraph/cugraph/tests/centrality/test_degree_centrality_mg.py>`_ with larger data sets as well.
- 
+
 ----
 
 ~~~~~~~~~~~~~~~~~
