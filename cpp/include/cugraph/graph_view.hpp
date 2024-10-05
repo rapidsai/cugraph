@@ -165,7 +165,12 @@ class partition_t {
     return vertex_partition_range_last(partition_idx) - vertex_partition_range_first(partition_idx);
   }
 
-  size_t number_of_local_edge_partitions() const { return minor_comm_size_; }
+  size_t number_of_local_edge_partitions() const { return static_cast<size_t>(minor_comm_size_); }
+  size_t coinciding_local_edge_partition_idx() const
+  {
+    return static_cast<size_t>(minor_comm_rank_);
+  }  // the major range of coinciding_local_edge_partition_idx()'th local edge partition coincides
+     // with the local vertex partition range
 
   // major: source of the edge partition (if not transposed) or destination of the edge partition
   // (if transposed).
@@ -559,6 +564,12 @@ class graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if
            (detail::num_sparse_segments_per_vertex_partition + size_t{2});
   }
 
+  std::optional<std::vector<vertex_t>> local_vertex_partition_segment_offsets() const
+  {
+    auto partition_idx = partition_.coinciding_local_edge_partition_idx();
+    return local_edge_partition_segment_offsets(partition_idx);
+  }
+
   std::optional<std::vector<vertex_t>> local_edge_partition_segment_offsets(
     size_t partition_idx) const
   {
@@ -568,6 +579,12 @@ class graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if
       edge_partition_segment_offsets_.begin() + partition_idx * num_segments_per_vertex_partition,
       edge_partition_segment_offsets_.begin() +
         (partition_idx + 1) * num_segments_per_vertex_partition);
+  }
+
+  std::optional<std::vector<vertex_t>> local_vertex_partition_hypersparse_degree_offsets() const
+  {
+    auto partition_idx = partition_.coinciding_local_edge_partition_idx();
+    return local_edge_partition_hypersparse_degree_offsets(partition_idx);
   }
 
   std::optional<std::vector<vertex_t>> local_edge_partition_hypersparse_degree_offsets(
@@ -927,6 +944,11 @@ class graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if
 
   bool use_dcs() const { return false; }
 
+  std::optional<std::vector<vertex_t>> local_vertex_partition_segment_offsets() const
+  {
+    return local_edge_partition_segment_offsets(size_t{0});
+  }
+
   std::optional<std::vector<vertex_t>> local_edge_partition_segment_offsets(
     size_t partition_idx = 0) const
   {
@@ -934,32 +956,37 @@ class graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if
     return segment_offsets_;
   }
 
+  std::optional<std::vector<vertex_t>> local_vertex_partition_hypersparse_degree_offsets() const
+  {
+    return local_edge_partition_hypersparse_degree_offsets(size_t{0});
+  }
+
   std::optional<std::vector<vertex_t>> local_edge_partition_hypersparse_degree_offsets(
     size_t partition_idx = 0) const
   {
-    assert(partition_idx == 0);
-    return hypersparse_degree_offsets_;
+      assert(partition_idx == 0);
+      return hypersparse_degree_offsets_;
   }
 
   vertex_partition_view_t<vertex_t, false> local_vertex_partition_view() const
   {
-    return vertex_partition_view_t<vertex_t, false>(this->number_of_vertices());
+      return vertex_partition_view_t<vertex_t, false>(this->number_of_vertices());
   }
 
   edge_partition_view_t<vertex_t, edge_t, false> local_edge_partition_view(
     size_t partition_idx = 0) const
   {
-    assert(partition_idx == 0);  // there is only one edge partition in single-GPU
-    return edge_partition_view_t<vertex_t, edge_t, false>(
-      offsets_, indices_, this->number_of_vertices());
+      assert(partition_idx == 0);  // there is only one edge partition in single-GPU
+      return edge_partition_view_t<vertex_t, edge_t, false>(
+        offsets_, indices_, this->number_of_vertices());
   }
 
   // FIXME: deprecated, replaced with compute_number_of_edges (which works with or without edge
   // masking)
   edge_t number_of_edges() const
   {
-    CUGRAPH_EXPECTS(!(this->has_edge_mask()), "unimplemented.");
-    return this->number_of_edges_;
+      CUGRAPH_EXPECTS(!(this->has_edge_mask()), "unimplemented.");
+      return this->number_of_edges_;
   }
 
   edge_t compute_number_of_edges(raft::handle_t const& handle) const;
@@ -987,92 +1014,96 @@ class graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if
   std::enable_if_t<transposed, std::optional<raft::device_span<vertex_t const>>>
   local_sorted_unique_edge_srcs() const
   {
-    return std::nullopt;
+      return std::nullopt;
   }
 
   template <bool transposed = is_storage_transposed>
   std::enable_if_t<!transposed, std::optional<raft::device_span<vertex_t const>>>
   local_sorted_unique_edge_srcs(size_t partition_idx = 0) const
   {
-    assert(partition_idx == 0);
-    return std::nullopt;
+      assert(partition_idx == 0);
+      return std::nullopt;
   }
 
   template <bool transposed = is_storage_transposed>
   std::enable_if_t<transposed, std::optional<raft::device_span<vertex_t const>>>
   local_sorted_unique_edge_src_chunk_start_offsets() const
   {
-    return std::nullopt;
+      return std::nullopt;
   }
 
   template <bool transposed = is_storage_transposed>
   std::enable_if_t<!transposed, std::optional<raft::device_span<vertex_t const>>>
   local_sorted_unique_edge_src_chunk_start_offsets(size_t partition_idx = 0) const
   {
-    assert(partition_idx == 0);
-    return std::nullopt;
+      assert(partition_idx == 0);
+      return std::nullopt;
   }
 
-  std::optional<vertex_t> local_sorted_unique_edge_src_chunk_size() const { return std::nullopt; }
+  std::optional<vertex_t> local_sorted_unique_edge_src_chunk_size() const {
+      return std::nullopt; }
 
   template <bool transposed = is_storage_transposed>
   std::enable_if_t<transposed, std::optional<raft::host_span<vertex_t const>>>
   local_sorted_unique_edge_src_vertex_partition_offsets() const
   {
-    return std::nullopt;
+      return std::nullopt;
   }
 
   template <bool transposed = is_storage_transposed>
   std::enable_if_t<!transposed, std::optional<raft::device_span<vertex_t const>>>
   local_sorted_unique_edge_dsts() const
   {
-    return std::nullopt;
+      return std::nullopt;
   }
 
   template <bool transposed = is_storage_transposed>
   std::enable_if_t<transposed, std::optional<raft::device_span<vertex_t const>>>
   local_sorted_unique_edge_dsts(size_t partition_idx = 0) const
   {
-    assert(partition_idx == 0);
-    return std::nullopt;
+      assert(partition_idx == 0);
+      return std::nullopt;
   }
 
   template <bool transposed = is_storage_transposed>
   std::enable_if_t<!transposed, std::optional<raft::device_span<vertex_t const>>>
   local_sorted_unique_edge_dst_chunk_start_offsets() const
   {
-    return std::nullopt;
+      return std::nullopt;
   }
 
   template <bool transposed = is_storage_transposed>
   std::enable_if_t<transposed, std::optional<raft::device_span<vertex_t const>>>
   local_sorted_unique_edge_dst_chunk_start_offsets(size_t partition_idx = 0) const
   {
-    assert(partition_idx == 0);
-    return std::nullopt;
+      assert(partition_idx == 0);
+      return std::nullopt;
   }
 
-  std::optional<vertex_t> local_sorted_unique_edge_dst_chunk_size() const { return std::nullopt; }
+  std::optional<vertex_t> local_sorted_unique_edge_dst_chunk_size() const {
+      return std::nullopt; }
 
   template <bool transposed = is_storage_transposed>
   std::enable_if_t<!transposed, std::optional<raft::host_span<vertex_t const>>>
   local_sorted_unique_edge_dst_vertex_partition_offsets() const
   {
-    return std::nullopt;
+      return std::nullopt;
   }
 
   void attach_edge_mask(edge_property_view_t<edge_t, uint32_t const*, bool> edge_mask_view)
   {
-    edge_mask_view_ = edge_mask_view;
+      edge_mask_view_ = edge_mask_view;
   }
 
-  void clear_edge_mask() { edge_mask_view_ = std::nullopt; }
+  void clear_edge_mask() {
+      edge_mask_view_ = std::nullopt; }
 
-  bool has_edge_mask() const { return edge_mask_view_.has_value(); }
+  bool has_edge_mask() const {
+      return edge_mask_view_.has_value(); }
 
   std::optional<edge_property_view_t<edge_t, uint32_t const*, bool>> edge_mask_view() const
   {
-    return edge_mask_view_;
+      return edge_mask_view_;
   }
 
  private:
@@ -1084,6 +1115,6 @@ class graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if
   std::optional<std::vector<vertex_t>> hypersparse_degree_offsets_{std::nullopt};
 
   std::optional<edge_property_view_t<edge_t, uint32_t const*, bool>> edge_mask_view_{std::nullopt};
-};
+  };
 
 }  // namespace cugraph
