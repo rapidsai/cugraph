@@ -36,7 +36,7 @@ _info = {
     "backend_name": "cugraph",
     "project": "nx-cugraph",
     "package": "nx_cugraph",
-    "url": f"https://github.com/rapidsai/cugraph/tree/branch-{_version_major:0>2}.{_version_minor:0>2}/python/nx-cugraph",
+    "url": f"https://rapids.ai/nx-cugraph",
     "short_summary": "GPU-accelerated backend.",
     # "description": "TODO",
     "functions": {
