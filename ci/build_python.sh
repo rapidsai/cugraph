@@ -61,7 +61,6 @@ if [[ ${RAPIDS_CUDA_MAJOR} == "11" ]]; then
     --no-test \
     --channel "${CPP_CHANNEL}" \
     --channel "${RAPIDS_CONDA_BLD_OUTPUT_DIR}" \
-    --channel pyg \
     --channel pytorch \
     --channel pytorch-nightly \
     conda/recipes/cugraph-pyg
@@ -71,7 +70,7 @@ if [[ ${RAPIDS_CUDA_MAJOR} == "11" ]]; then
     --no-test \
     --channel "${CPP_CHANNEL}" \
     --channel "${RAPIDS_CONDA_BLD_OUTPUT_DIR}" \
-    --channel dglteam \
+    --channel dglteam/label/th23_cu118 \
     --channel pytorch \
     --channel pytorch-nightly \
     conda/recipes/cugraph-dgl
