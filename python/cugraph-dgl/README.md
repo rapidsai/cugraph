@@ -8,9 +8,12 @@
 
 Install and update cugraph-dgl and the required dependencies using the command:
 
-```
-conda install mamba -n base -c conda-forge
-mamba install cugraph-dgl -c rapidsai-nightly -c rapidsai -c pytorch -c conda-forge -c nvidia -c dglteam
+```shell
+# CUDA 11
+conda install -c rapidsai -c pytorch -c conda-forge -c nvidia -c dglteam/label/th23_cu118 cugraph-dgl
+
+# CUDA 12
+conda install -c rapidsai -c pytorch -c conda-forge -c nvidia -c dglteam/label/th23_cu121 cugraph-dgl
 ```
 
 ## Build from Source
