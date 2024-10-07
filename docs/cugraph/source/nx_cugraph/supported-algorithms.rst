@@ -2,7 +2,7 @@ Supported Algorithms
 =====================
 
 The nx-cugraph backend to NetworkX connects
-`pylibcugraph <../../readme_pages/pylibcugraph.md>`_ (cuGraph's low-level Python
+`pylibcugraph <https://github.com/rapidsai/cugraph/blob/HEAD/readme_pages/pylibcugraph.md>`_ (cuGraph's low-level Python
 interface to its CUDA-based graph analytics library) and
 `CuPy <https://cupy.dev/>`_ (a GPU-accelerated array library) to NetworkX's
 familiar and easy-to-use API.
@@ -209,6 +209,40 @@ Algorithms
 | is_tree             |
 +---------------------+
 
+
+Utilities
+-------
+
++-------------------------+
+| **Classes**             |
++=========================+
+| is_negatively_weighted  |
++-------------------------+
+
++----------------------+
+| **Convert**          |
++======================+
+| from_dict_of_lists   |
++----------------------+
+| to_dict_of_lists     |
++----------------------+
+
++--------------------------+
+| **Convert Matrix**       |
++==========================+
+| from_pandas_edgelist     |
++--------------------------+
+| from_scipy_sparse_array  |
++--------------------------+
+
++-----------------------------------+
+| **Relabel**                       |
++===================================+
+| convert_node_labels_to_integers   |
++-----------------------------------+
+| relabel_nodes                     |
++-----------------------------------+
+
 Generators
 ------------
 
@@ -315,39 +349,6 @@ Generators
 +-------------------------------+
 | les_miserables_graph          |
 +-------------------------------+
-
-Other
--------
-
-+-------------------------+
-| **Classes**             |
-+=========================+
-| is_negatively_weighted  |
-+-------------------------+
-
-+----------------------+
-| **Convert**          |
-+======================+
-| from_dict_of_lists   |
-+----------------------+
-| to_dict_of_lists     |
-+----------------------+
-
-+--------------------------+
-| **Convert Matrix**       |
-+==========================+
-| from_pandas_edgelist     |
-+--------------------------+
-| from_scipy_sparse_array  |
-+--------------------------+
-
-+-----------------------------------+
-| **Relabel**                       |
-+===================================+
-| convert_node_labels_to_integers   |
-+-----------------------------------+
-| relabel_nodes                     |
-+-----------------------------------+
 
 
 To request nx-cugraph backend support for a NetworkX API that is not listed

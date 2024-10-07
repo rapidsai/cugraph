@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2023, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -105,6 +105,8 @@ cugraph_error_code_t cugraph_sg_graph_create(
  weights,
  *    or take the maximum weight), the caller should remove specific edges themselves and not rely
  *    on this flag.
+ * @param [in] symmetrize      If true, symmetrize the edgelist. The symmetrization of edges
+ * with edge_ids and/or edge_type_ids is currently not supported.
  * @param [in]  do_expensive_check    If true, do expensive checks to validate the input data
  *    is consistent with software assumptions.  If false bypass these checks.
  * @param [out] graph          A pointer to the graph object
@@ -126,6 +128,7 @@ cugraph_error_code_t cugraph_graph_create_sg(
   bool_t renumber,
   bool_t drop_self_loops,
   bool_t drop_multi_edges,
+  bool_t symmetrize,
   bool_t do_expensive_check,
   cugraph_graph_t** graph,
   cugraph_error_t** error);
@@ -150,6 +153,8 @@ cugraph_error_code_t cugraph_graph_create_sg(
  *    If false, do not renumber.  Renumbering enables some significant optimizations within
  *    the graph primitives library, so it is strongly encouraged.  Renumbering is required if
  *    the vertices are not sequential integer values from 0 to num_vertices.
+ * @param [in]  symmetrize     If true, symmetrize the edgelist. The symmetrization of edges
+ * with edge_ids and/or edge_type_ids is currently not supported.
  * @param [in]  do_expensive_check    If true, do expensive checks to validate the input data
  *    is consistent with software assumptions.  If false bypass these checks.
  * @param [out] graph          A pointer to the graph object
@@ -168,6 +173,7 @@ cugraph_error_code_t cugraph_sg_graph_create_from_csr(
   const cugraph_type_erased_device_array_view_t* edge_type_ids,
   bool_t store_transposed,
   bool_t renumber,
+  bool_t symmetrize,
   bool_t do_expensive_check,
   cugraph_graph_t** graph,
   cugraph_error_t** error);
@@ -190,6 +196,8 @@ cugraph_error_code_t cugraph_sg_graph_create_from_csr(
  *    If false, do not renumber.  Renumbering enables some significant optimizations within
  *    the graph primitives library, so it is strongly encouraged.  Renumbering is required if
  *    the vertices are not sequential integer values from 0 to num_vertices.
+ * @param [in]  symmetrize     If true, symmetrize the edgelist. The symmetrization of edges
+ * with edge_ids and/or edge_type_ids is currently not supported.
  * @param [in]  do_expensive_check    If true, do expensive checks to validate the input data
  *    is consistent with software assumptions.  If false bypass these checks.
  * @param [out] graph          A pointer to the graph object
@@ -208,6 +216,7 @@ cugraph_error_code_t cugraph_graph_create_sg_from_csr(
   const cugraph_type_erased_device_array_view_t* edge_type_ids,
   bool_t store_transposed,
   bool_t renumber,
+  bool_t symmetrize,
   bool_t do_expensive_check,
   cugraph_graph_t** graph,
   cugraph_error_t** error);
@@ -289,6 +298,8 @@ cugraph_error_code_t cugraph_mg_graph_create(
  *    Note that setting this flag will arbitrarily select one instance of a multi edge to be the
  *    edge that survives.  If the edges have properties that should be honored (e.g. sum the
  * weights, or take the maximum weight), the caller should do that on not rely on this flag.
+ * @param [in]  symmetrize      If true, symmetrize the edgelist. The symmetrization of edges
+ * with edge_ids and/or edge_type_ids is currently not supported.
  * @param [in]  do_expensive_check  If true, do expensive checks to validate the input data
  *    is consistent with software assumptions.  If false bypass these checks.
  * @param [out] graph           A pointer to the graph object
@@ -309,6 +320,7 @@ cugraph_error_code_t cugraph_graph_create_mg(
   size_t num_arrays,
   bool_t drop_self_loops,
   bool_t drop_multi_edges,
+  bool_t symmetrize,
   bool_t do_expensive_check,
   cugraph_graph_t** graph,
   cugraph_error_t** error);

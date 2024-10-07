@@ -19,8 +19,10 @@ import pytest
 import cugraph
 import dask_cudf
 import cugraph.dask as dcg
+import cudf
 from cugraph.testing import SMALL_DATASETS
 from cugraph.datasets import karate_asymmetric
+from cugraph.structure.symmetrize import symmetrize
 from pylibcugraph.testing.utils import gen_fixture_params_product
 
 
@@ -205,4 +207,15 @@ def input_graph(request):
 def test_dask_mg_random_walks(dask_client, input_graph):
     path_data, seeds, max_depth = calc_random_walks(input_graph)
     df_G = input_graph.input_df.compute().reset_index(drop=True)
-    check_random_walks(input_graph, path_data, seeds, max_depth, df_G)
+
+    # FIXME: leverages the deprecated symmetrize call
+    source_col, dest_col, value_col = symmetrize(
+        df_G, "src", "dst", "value", symmetrize=not input_graph.is_directed()
+    )
+
+    df = cudf.DataFrame()
+    df["src"] = source_col
+    df["dst"] = dest_col
+    df["value"] = value_col
+
+    check_random_walks(input_graph, path_data, seeds, max_depth, df)
