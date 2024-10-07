@@ -4,7 +4,7 @@
 </h1>
 <h1 align="left";>
   <br>
-CuGraph pylibcugraph
+cuGraph pylibcugraph
 </h1>
 
 Part of [RAPIDS](https://rapids.ai) cuGraph, pylibcugraph is a wrapper around the cuGraph C API. It is aimed more at integrators instead of algorithm writers or end users like Data Scientists. Most of the cuGraph python API uses pylibcugraph to efficiently run algorithms by removing much of the overhead of the python-centric implementation, relying more on cython instead. Pylibcugraph is intended for applications that require a tighter integration with cuGraph at the Python layer with fewer dependencies.
