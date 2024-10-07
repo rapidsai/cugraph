@@ -1,4 +1,4 @@
-# Getting Started
+# Installing nx-cugraph
 
 This guide describes how to install ``nx-cugraph`` and use it in your workflows.
 
@@ -10,11 +10,11 @@ This guide describes how to install ``nx-cugraph`` and use it in your workflows.
  - **Volta architecture or later NVIDIA GPU, with [compute capability](https://developer.nvidia.com/cuda-gpus) 7.0+**
  - **[CUDA](https://docs.nvidia.com/cuda/index.html) 11.2, 11.4, 11.5, 11.8, 12.0, 12.2, or 12.5**
  - **Python >= 3.10**
- - **[NetworkX](https://networkx.org/documentation/stable/install.html#) >= 3.0 (version 3.2 or higher recommended)**
+ - **[NetworkX](https://networkx.org/documentation/stable/install.html#) >= 3.0 (version 3.4 or higher recommended)**
 
 More details about system requirements can be found in the [RAPIDS System Requirements Documentation](https://docs.rapids.ai/install#system-req).
 
-## Installing nx-cugraph
+## Installing Packages
 
 Read the [RAPIDS Quick Start Guide](https://docs.rapids.ai/install) to learn more about installing all RAPIDS libraries.
 
