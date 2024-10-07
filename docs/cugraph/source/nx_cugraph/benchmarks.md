@@ -15,14 +15,12 @@ class="title-ref"></span></figcaption>
 
 ## Reproducing Benchmarks
 
-Below are the steps to reproduce the results on your workstation. These are documented in this [README](https://github.com/rapidsai/cugraph/blob/HEAD/benchmarks/nx-cugraph/pytest-based).
+Below are the steps to reproduce the results on your own.
 
 1. Clone the latest <https://github.com/rapidsai/cugraph>
 
-2. Follow the instructions to build an environment
+2. Follow the instructions to build and activate an environment
 
-3. Activate the environment
+4. Install the latest `nx-cugraph` by following the [Installation Guide](installation.md)
 
-4. Install the latest `nx-cugraph` by following the [guide](installation.md)
-
-5. Follow the instructions written in the README here: `cugraph/benchmarks/nx-cugraph/pytest-based/`
+5. Follow the instructions written in the README [here](https://github.com/rapidsai/cugraph/blob/HEAD/benchmarks/nx-cugraph/pytest-based)
