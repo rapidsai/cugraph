@@ -30,7 +30,6 @@ python -m pip install \
     "$(echo ./local-deps/pylibcugraph_${RAPIDS_PY_CUDA_SUFFIX}*.whl)" \
     "$(echo ./local-deps/cugraph_${RAPIDS_PY_CUDA_SUFFIX}*.whl)" \
     "$(echo ./dist/cugraph_pyg_${RAPIDS_PY_CUDA_SUFFIX}*.whl)[test]" \
-    'dgl==2.4.0' \
     'ogb' \
     'pyg_lib' \
     'torch>=2.3.0,<2.4' \
