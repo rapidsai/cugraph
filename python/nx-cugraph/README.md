@@ -10,7 +10,7 @@ nx-cugraph requires the following:
  * NVIDIA GPU, Volta architecture or later, with [compute capability](https://developer.nvidia.com/cuda-gpus) 7.0+
  * CUDA 11.2, 11.4, 11.5, 11.8, 12.0, 12.2, or 12.5
  * Python version 3.10, 3.11, or 3.12
- * NetworkX >= version 3.0 (version 3.2 or higher recommended)
+ * NetworkX >= version 3.0 (version 3.4 or higher recommended)
 
 More details about system requirements can be found in the [RAPIDS System Requirements documentation](https://docs.rapids.ai/install#system-req).
 
@@ -45,18 +45,18 @@ Notes:
 NetworkX will use nx-cugraph as the graph analytics backend if any of the
 following are used:
 
-### `NETWORKX_AUTOMATIC_BACKENDS` environment variable.
-The `NETWORKX_AUTOMATIC_BACKENDS` environment variable can be used to have NetworkX automatically dispatch to specified backends an API is called that the backend supports.
-Set `NETWORKX_AUTOMATIC_BACKENDS=cugraph` to use nx-cugraph to GPU accelerate supported APIs with no code changes.
+### `NX_CUGRAPH_AUTOCONFIG` environment variable.
+The `NX_CUGRAPH_AUTOCONFIG` environment variable can be used to have NetworkX automatically dispatch to specified backends if an API is called that the backend supports.
+Set `NX_CUGRAPH_AUTOCONFIG=True` to use nx-cugraph to GPU accelerate supported APIs with zero code change.
 Example:
 ```
-bash> NETWORKX_AUTOMATIC_BACKENDS=cugraph python my_networkx_script.py
+bash> NX_CUGRAPH_AUTOCONFIG=True python my_networkx_script.py
 ```
 
 ### `backend=` keyword argument
 To explicitly specify a particular backend for an API, use the `backend=`
 keyword argument. This argument takes precedence over the
-`NETWORKX_AUTOMATIC_BACKENDS` environment variable. This requires anyone
+`NX_CUGRAPH_AUTOCONFIG` environment variable. This requires anyone
 running code that uses the `backend=` keyword argument to have the specified
 backend installed.
 
