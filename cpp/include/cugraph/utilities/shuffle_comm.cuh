@@ -871,6 +871,142 @@ auto shuffle_values(raft::comms::comms_t const& comm,
   return std::make_tuple(std::move(rx_value_buffer), rx_counts);
 }
 
+// Add gaps in the receive buffer to enforce that the sent data offset and the received data offset
+// have the same alignment for every rank. This is faster assuming that @p alignment ensures cache
+// line alignment in both send & receive buffer (tested with NCCL 2.23.4)
+template <typename TxValueIterator>
+auto shuffle_values(
+  raft::comms::comms_t const& comm,
+  TxValueIterator tx_value_first,
+  std::vector<size_t> const& tx_value_counts,
+  size_t alignment,  // # elements
+  std::optional<typename thrust::iterator_traits<TxValueIterator>::value_type> fill_value,
+  rmm::cuda_stream_view stream_view)
+{
+  using value_t = typename thrust::iterator_traits<TxValueIterator>::value_type;
+
+  auto const comm_size = comm.get_size();
+
+  std::vector<size_t> tx_value_displacements(tx_value_counts.size());
+  std::exclusive_scan(
+    tx_value_counts.begin(), tx_value_counts.end(), tx_value_displacements.begin(), size_t{0});
+
+  std::vector<size_t> tx_unaligned_counts(comm_size);
+  std::vector<size_t> tx_displacements(comm_size);
+  std::vector<size_t> tx_aligned_counts(comm_size);
+  std::vector<size_t> tx_aligned_displacements(comm_size);
+  std::vector<size_t> rx_unaligned_counts(comm_size);
+  std::vector<size_t> rx_displacements(comm_size);
+  std::vector<size_t> rx_aligned_counts(comm_size);
+  std::vector<size_t> rx_aligned_displacements(comm_size);
+  std::vector<int> tx_ranks(comm_size);
+  std::iota(tx_ranks.begin(), tx_ranks.end(), int{0});
+  auto rx_ranks = tx_ranks;
+  for (size_t i = 0; i < tx_value_counts.size(); ++i) {
+    tx_unaligned_counts[i] = 0;
+    if (tx_value_displacements[i] % alignment != 0) {
+      tx_unaligned_counts[i] =
+        std::min(alignment - (tx_value_displacements[i] % alignment), tx_value_counts[i]);
+    }
+    tx_displacements[i]         = tx_value_displacements[i];
+    tx_aligned_counts[i]        = tx_value_counts[i] - tx_unaligned_counts[i];
+    tx_aligned_displacements[i] = tx_value_displacements[i] + tx_unaligned_counts[i];
+  }
+
+  rmm::device_uvector<size_t> d_tx_unaligned_counts(tx_unaligned_counts.size(), stream_view);
+  rmm::device_uvector<size_t> d_tx_aligned_counts(tx_aligned_counts.size(), stream_view);
+  rmm::device_uvector<size_t> d_rx_unaligned_counts(rx_unaligned_counts.size(), stream_view);
+  rmm::device_uvector<size_t> d_rx_aligned_counts(rx_aligned_counts.size(), stream_view);
+  raft::update_device(d_tx_unaligned_counts.data(),
+                      tx_unaligned_counts.data(),
+                      tx_unaligned_counts.size(),
+                      stream_view);
+  raft::update_device(
+    d_tx_aligned_counts.data(), tx_aligned_counts.data(), tx_aligned_counts.size(), stream_view);
+  std::vector<size_t> tx_counts(comm_size, size_t{1});
+  std::vector<size_t> tx_offsets(comm_size);
+  std::iota(tx_offsets.begin(), tx_offsets.end(), size_t{0});
+  auto rx_counts  = tx_counts;
+  auto rx_offsets = tx_offsets;
+  cugraph::device_multicast_sendrecv(comm,
+                                     d_tx_unaligned_counts.data(),
+                                     tx_counts,
+                                     tx_offsets,
+                                     tx_ranks,
+                                     d_rx_unaligned_counts.data(),
+                                     rx_counts,
+                                     rx_offsets,
+                                     rx_ranks,
+                                     stream_view);
+  cugraph::device_multicast_sendrecv(comm,
+                                     d_tx_aligned_counts.data(),
+                                     tx_counts,
+                                     tx_offsets,
+                                     tx_ranks,
+                                     d_rx_aligned_counts.data(),
+                                     rx_counts,
+                                     rx_offsets,
+                                     rx_ranks,
+                                     stream_view);
+  raft::update_host(rx_unaligned_counts.data(),
+                    d_rx_unaligned_counts.data(),
+                    d_rx_unaligned_counts.size(),
+                    stream_view);
+  raft::update_host(
+    rx_aligned_counts.data(), d_rx_aligned_counts.data(), d_rx_aligned_counts.size(), stream_view);
+  RAFT_CUDA_TRY(cudaStreamSynchronize(stream_view));
+  size_t offset{0};
+  for (size_t i = 0; i < rx_counts.size(); ++i) {
+    auto target_alignment = (alignment - rx_unaligned_counts[i]) % alignment;
+    auto cur_alignment    = offset % alignment;
+    if (target_alignment >= cur_alignment) {
+      offset += target_alignment - cur_alignment;
+    } else {
+      offset += (target_alignment + alignment) - cur_alignment;
+    }
+    rx_displacements[i]         = offset;
+    rx_aligned_displacements[i] = rx_displacements[i] + rx_unaligned_counts[i];
+    offset                      = rx_aligned_displacements[i] + rx_aligned_counts[i];
+  }
+
+  auto rx_values = allocate_dataframe_buffer<value_t>(
+    rx_aligned_displacements.back() + rx_aligned_counts.back(), stream_view);
+  if (fill_value) {
+    thrust::fill(rmm::exec_policy_nosync(stream_view),
+                 get_dataframe_buffer_begin(rx_values),
+                 get_dataframe_buffer_end(rx_values),
+                 *fill_value);
+  }
+  cugraph::device_multicast_sendrecv(comm,
+                                     tx_value_first,
+                                     tx_unaligned_counts,
+                                     tx_displacements,
+                                     tx_ranks,
+                                     get_dataframe_buffer_begin(rx_values),
+                                     rx_unaligned_counts,
+                                     rx_displacements,
+                                     rx_ranks,
+                                     stream_view);
+  cugraph::device_multicast_sendrecv(comm,
+                                     tx_value_first,
+                                     tx_aligned_counts,
+                                     tx_aligned_displacements,
+                                     tx_ranks,
+                                     get_dataframe_buffer_begin(rx_values),
+                                     rx_aligned_counts,
+                                     rx_aligned_displacements,
+                                     rx_ranks,
+                                     stream_view);
+
+  return std::make_tuple(std::move(rx_values),
+                         tx_unaligned_counts,
+                         tx_aligned_counts,
+                         tx_displacements,
+                         rx_unaligned_counts,
+                         rx_aligned_counts,
+                         rx_displacements);
+}
+
 // this uses less memory than calling shuffle_values then sort & unique but requires comm.get_size()
 // - 1 communication steps
 template <typename TxValueIterator>

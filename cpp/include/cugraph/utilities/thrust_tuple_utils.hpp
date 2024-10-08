@@ -65,6 +65,18 @@ size_t sum_thrust_tuple_element_sizes(std::index_sequence<Is...>)
 }
 
 template <typename TupleType, std::size_t... Is>
+size_t min_thrust_tuple_element_sizes(std::index_sequence<Is...>)
+{
+  return std::min(sizeof(typename thrust::tuple_element<Is, TupleType>::type)...);
+}
+
+template <typename TupleType, std::size_t... Is>
+size_t max_thrust_tuple_element_sizes(std::index_sequence<Is...>)
+{
+  return std::max(sizeof(typename thrust::tuple_element<Is, TupleType>::type)...);
+}
+
+template <typename TupleType, std::size_t... Is>
 auto thrust_tuple_to_std_tuple(TupleType tup, std::index_sequence<Is...>)
 {
   return std::make_tuple(thrust::get<Is>(tup)...);
@@ -178,6 +190,20 @@ template <typename TupleType>
 constexpr size_t sum_thrust_tuple_element_sizes()
 {
   return detail::sum_thrust_tuple_element_sizes<TupleType>(
+    std::make_index_sequence<thrust::tuple_size<TupleType>::value>());
+}
+
+template <typename TupleType>
+constexpr size_t min_thrust_tuple_element_sizes()
+{
+  return detail::min_thrust_tuple_element_sizes<TupleType>(
+    std::make_index_sequence<thrust::tuple_size<TupleType>::value>());
+}
+
+template <typename TupleType>
+constexpr size_t max_thrust_tuple_element_sizes()
+{
+  return detail::max_thrust_tuple_element_sizes<TupleType>(
     std::make_index_sequence<thrust::tuple_size<TupleType>::value>());
 }
 

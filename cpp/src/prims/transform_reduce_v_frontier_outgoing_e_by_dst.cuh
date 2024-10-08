@@ -23,6 +23,7 @@
 #include <cugraph/edge_partition_device_view.cuh>
 #include <cugraph/edge_partition_endpoint_property_device_view.cuh>
 #include <cugraph/edge_src_dst_property.hpp>
+#include <cugraph/graph.hpp>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/partition_manager.hpp>
 #include <cugraph/utilities/dataframe_buffer.hpp>
@@ -109,14 +110,151 @@ struct transform_reduce_v_frontier_call_e_op_t {
   }
 };
 
-template <typename key_t, typename payload_t, typename ReduceOp>
-auto sort_and_reduce_buffer_elements(
+template <typename InputKeyIterator, typename key_t>
+struct update_keep_flag_t {
+  using input_key_t =
+    typename thrust::iterator_traits<InputKeyIterator>::value_type;  // uint32_t (compressed) or
+                                                                     // key_t (i.e. vertex_t)
+
+  raft::device_span<uint32_t> bitmap{};
+  raft::device_span<uint32_t> keep_flags{};
+  key_t v_range_first{};
+  InputKeyIterator input_key_first{};
+  thrust::optional<input_key_t> invalid_input_key{};
+
+  __device__ void operator()(size_t i) const
+  {
+    auto v = *(input_key_first + i);
+    if (invalid_input_key && (v == *invalid_input_key)) {
+      return;  // just discard
+    }
+    input_key_t v_offset{};
+    if constexpr ((sizeof(key_t) == 8) && std::is_same_v<input_key_t, uint32_t>) {
+      v_offset = v;
+    } else {
+      v_offset = v - v_range_first;
+    }
+    cuda::atomic_ref<uint32_t, cuda::thread_scope_device> bitmap_word(
+      bitmap[packed_bool_offset(v_offset)]);
+    auto old = bitmap_word.fetch_or(packed_bool_mask(v_offset), cuda::std::memory_order_relaxed);
+    if ((old & packed_bool_mask(v_offset)) == packed_bool_empty_mask()) {
+      cuda::atomic_ref<uint32_t, cuda::thread_scope_device> keep_flag_word(
+        keep_flags[packed_bool_offset(i)]);
+      keep_flag_word.fetch_or(packed_bool_mask(i), cuda::std::memory_order_relaxed);
+    }
+  }
+};
+
+template <typename input_key_t /* uint32_t if 64 bit vertex IDs are compressed to 32 bit offsets,
+                                  otherwise input_key_t == output_key_t */
+          ,
+          typename key_t,
+          typename payload_t,
+          typename ReduceOp>
+std::tuple<dataframe_buffer_type_t<key_t>, optional_dataframe_buffer_type_t<payload_t>>
+sort_and_reduce_buffer_elements(
   raft::handle_t const& handle,
-  decltype(allocate_dataframe_buffer<key_t>(0, rmm::cuda_stream_view{}))&& key_buffer,
-  decltype(allocate_optional_dataframe_buffer<payload_t>(0,
-                                                         rmm::cuda_stream_view{}))&& payload_buffer,
-  ReduceOp reduce_op)
+  dataframe_buffer_type_t<input_key_t>&& key_buffer,
+  optional_dataframe_buffer_type_t<payload_t>&& payload_buffer,
+  ReduceOp reduce_op,
+  std::conditional_t<std::is_integral_v<key_t>, std::tuple<key_t, key_t>, std::byte /* dummy */>
+    vertex_range,
+  std::optional<input_key_t> invalid_key /* drop (key, (payload)) pairs with invalid key */)
 {
+  constexpr bool compressed =
+    std::is_integral_v<key_t> && (sizeof(key_t) == 8) &&
+    std::is_same_v<input_key_t, uint32_t>;  // we currently compress only when key_t is an integral
+                                            // type (i.e. vertex_t)
+  static_assert(compressed || std::is_same_v<input_key_t, key_t>);
+
+  if constexpr (std::is_integral_v<key_t> &&
+                (std::is_same_v<payload_t, void> ||
+                 std::is_same_v<ReduceOp,
+                                reduce_op::any<typename ReduceOp::value_type>>)) {  // try to use
+                                                                                    // bitmap for
+                                                                                    // filtering
+    key_t range_size = std::get<1>(vertex_range) - std::get<0>(vertex_range);
+    if (static_cast<double>(size_dataframe_buffer(key_buffer)) >=
+        static_cast<double>(range_size) *
+          0.125 /* tuning parameter */) {  // use bitmap for filtering
+      rmm::device_uvector<uint32_t> bitmap(packed_bool_size(range_size), handle.get_stream());
+      rmm::device_uvector<uint32_t> keep_flags(packed_bool_size(size_dataframe_buffer(key_buffer)),
+                                               handle.get_stream());
+      thrust::fill(
+        handle.get_thrust_policy(), bitmap.begin(), bitmap.end(), packed_bool_empty_mask());
+      thrust::fill(
+        handle.get_thrust_policy(), keep_flags.begin(), keep_flags.end(), packed_bool_empty_mask());
+      thrust::for_each(handle.get_thrust_policy(),
+                       thrust::make_counting_iterator(size_t{0}),
+                       thrust::make_counting_iterator(size_dataframe_buffer(key_buffer)),
+                       update_keep_flag_t<decltype(get_dataframe_buffer_begin(key_buffer)), key_t>{
+                         raft::device_span<uint32_t>(bitmap.data(), bitmap.size()),
+                         raft::device_span<uint32_t>(keep_flags.data(), keep_flags.size()),
+                         std::get<0>(vertex_range),
+                         get_dataframe_buffer_begin(key_buffer),
+                         to_thrust_optional(invalid_key)});
+      auto stencil_first = thrust::make_transform_iterator(
+        thrust::make_counting_iterator(size_t{0}),
+        cuda::proclaim_return_type<bool>(
+          [keep_flags = raft::device_span<uint32_t const>(keep_flags.data(),
+                                                          keep_flags.size())] __device__(size_t i) {
+            return (keep_flags[packed_bool_offset(i)] & packed_bool_mask(i)) !=
+                   packed_bool_empty_mask();
+          }));
+      if constexpr (std::is_same_v<payload_t, void>) {
+        resize_dataframe_buffer(
+          key_buffer,
+          thrust::distance(get_dataframe_buffer_begin(key_buffer),
+                           thrust::remove_if(handle.get_thrust_policy(),
+                                             get_dataframe_buffer_begin(key_buffer),
+                                             get_dataframe_buffer_end(key_buffer),
+                                             stencil_first,
+                                             is_not_equal_t<bool>{true})),
+          handle.get_stream());
+        shrink_to_fit_dataframe_buffer(key_buffer, handle.get_stream());
+        thrust::sort(handle.get_thrust_policy(),
+                     get_dataframe_buffer_begin(key_buffer),
+                     get_dataframe_buffer_end(key_buffer));
+      } else {
+        static_assert(std::is_same_v<ReduceOp, reduce_op::any<typename ReduceOp::value_type>>);
+        auto pair_first = thrust::make_zip_iterator(get_dataframe_buffer_begin(key_buffer),
+                                                    get_dataframe_buffer_begin(payload_buffer));
+        resize_dataframe_buffer(
+          key_buffer,
+          thrust::distance(pair_first,
+                           thrust::remove_if(handle.get_thrust_policy(),
+                                             pair_first,
+                                             pair_first + size_dataframe_buffer(key_buffer),
+                                             stencil_first,
+                                             is_not_equal_t<bool>{true})),
+          handle.get_stream());
+        resize_dataframe_buffer(
+          payload_buffer, size_dataframe_buffer(key_buffer), handle.get_stream());
+        shrink_to_fit_dataframe_buffer(key_buffer, handle.get_stream());
+        shrink_to_fit_dataframe_buffer(payload_buffer, handle.get_stream());
+        thrust::sort_by_key(handle.get_thrust_policy(),
+                            get_dataframe_buffer_begin(key_buffer),
+                            get_dataframe_buffer_end(key_buffer),
+                            get_dataframe_buffer_begin(payload_buffer));
+      }
+
+      if constexpr (compressed) {
+        rmm::device_uvector<key_t> output_key_buffer(key_buffer.size(), handle.get_stream());
+        thrust::transform(handle.get_thrust_policy(),
+                          key_buffer.begin(),
+                          key_buffer.end(),
+                          output_key_buffer.begin(),
+                          cuda::proclaim_return_type<key_t>(
+                            [v_first = std::get<0>(vertex_range)] __device__(uint32_t v_offset) {
+                              return static_cast<key_t>(v_first + v_offset);
+                            }));
+        return std::make_tuple(std::move(output_key_buffer), std::move(payload_buffer));
+      } else {
+        return std::make_tuple(std::move(key_buffer), std::move(payload_buffer));
+      }
+    }
+  }
+
   if constexpr (std::is_same_v<payload_t, void>) {
     thrust::sort(handle.get_thrust_policy(),
                  get_dataframe_buffer_begin(key_buffer),
@@ -128,28 +266,155 @@ auto sort_and_reduce_buffer_elements(
                         get_optional_dataframe_buffer_begin<payload_t>(payload_buffer));
   }
 
+  auto output_key_buffer = allocate_dataframe_buffer<key_t>(0, handle.get_stream());
   if constexpr (std::is_same_v<payload_t, void>) {
-    auto it = thrust::unique(handle.get_thrust_policy(),
-                             get_dataframe_buffer_begin(key_buffer),
-                             get_dataframe_buffer_end(key_buffer));
-    resize_dataframe_buffer(
-      key_buffer,
-      static_cast<size_t>(thrust::distance(get_dataframe_buffer_begin(key_buffer), it)),
-      handle.get_stream());
-    shrink_to_fit_dataframe_buffer(key_buffer, handle.get_stream());
+    if constexpr (compressed) {
+      resize_dataframe_buffer(
+        output_key_buffer, size_dataframe_buffer(key_buffer), handle.get_stream());
+      auto input_key_first = thrust::make_transform_iterator(
+        get_dataframe_buffer_begin(key_buffer),
+        cuda::proclaim_return_type<key_t>(
+          [v_first = std::get<0>(vertex_range)] __device__(auto v_offset) {
+            return static_cast<key_t>(v_first + v_offset);
+          }));
+      resize_dataframe_buffer(
+        output_key_buffer,
+        thrust::distance(
+          get_dataframe_buffer_begin(output_key_buffer),
+          thrust::copy_if(handle.get_thrust_policy(),
+                          input_key_first,
+                          input_key_first + size_dataframe_buffer(key_buffer),
+                          thrust::make_counting_iterator(size_t{0}),
+                          get_dataframe_buffer_begin(output_key_buffer),
+                          cuda::proclaim_return_type<bool>(
+                            [key_first   = get_dataframe_buffer_begin(key_buffer),
+                             invalid_key = to_thrust_optional(invalid_key)] __device__(size_t i) {
+                              auto key = *(key_first + i);
+                              if (invalid_key && (key == *invalid_key)) {
+                                return false;
+                              } else if ((i != 0) && (key == *(key_first + (i - 1)))) {
+                                return false;
+                              } else {
+                                return true;
+                              }
+                            }))),
+        handle.get_stream());
+    } else {
+      resize_dataframe_buffer(
+        key_buffer,
+        thrust::distance(
+          get_dataframe_buffer_begin(key_buffer),
+          thrust::remove_if(handle.get_thrust_policy(),
+                            get_dataframe_buffer_begin(key_buffer),
+                            get_dataframe_buffer_end(key_buffer),
+                            thrust::make_counting_iterator(size_t{0}),
+                            cuda::proclaim_return_type<bool>(
+                              [key_first   = get_dataframe_buffer_begin(key_buffer),
+                               invalid_key = to_thrust_optional(invalid_key)] __device__(size_t i) {
+                                auto key = *(key_first + i);
+                                if (invalid_key && (key == *invalid_key)) {
+                                  return true;
+                                } else if ((i != 0) && (key == *(key_first + (i - 1)))) {
+                                  return true;
+                                } else {
+                                  return false;
+                                }
+                              }))),
+        handle.get_stream());
+      output_key_buffer = std::move(key_buffer);
+    }
+    shrink_to_fit_dataframe_buffer(output_key_buffer, handle.get_stream());
   } else if constexpr (std::is_same_v<ReduceOp, reduce_op::any<typename ReduceOp::value_type>>) {
-    auto it = thrust::unique_by_key(handle.get_thrust_policy(),
-                                    get_dataframe_buffer_begin(key_buffer),
-                                    get_dataframe_buffer_end(key_buffer),
-                                    get_optional_dataframe_buffer_begin<payload_t>(payload_buffer));
-    resize_dataframe_buffer(key_buffer,
-                            static_cast<size_t>(thrust::distance(
-                              get_dataframe_buffer_begin(key_buffer), thrust::get<0>(it))),
-                            handle.get_stream());
-    resize_dataframe_buffer(payload_buffer, size_dataframe_buffer(key_buffer), handle.get_stream());
-    shrink_to_fit_dataframe_buffer(key_buffer, handle.get_stream());
+    if constexpr (compressed) {
+      resize_dataframe_buffer(
+        output_key_buffer, size_dataframe_buffer(key_buffer), handle.get_stream());
+      auto input_key_first = thrust::make_transform_iterator(
+        get_dataframe_buffer_begin(key_buffer),
+        cuda::proclaim_return_type<key_t>(
+          [v_first = std::get<0>(vertex_range)] __device__(auto v_offset) {
+            return static_cast<key_t>(v_first + v_offset);
+          }));
+      auto tmp_payload_buffer = allocate_dataframe_buffer<payload_t>(
+        size_dataframe_buffer(payload_buffer), handle.get_stream());
+      auto input_pair_first =
+        thrust::make_zip_iterator(input_key_first, get_dataframe_buffer_begin(payload_buffer));
+      auto output_pair_first =
+        thrust::make_zip_iterator(get_dataframe_buffer_begin(output_key_buffer),
+                                  get_dataframe_buffer_begin(tmp_payload_buffer));
+      resize_dataframe_buffer(
+        output_key_buffer,
+        thrust::distance(
+          output_pair_first,
+          thrust::copy_if(handle.get_thrust_policy(),
+                          input_pair_first,
+                          input_pair_first + size_dataframe_buffer(key_buffer),
+                          thrust::make_counting_iterator(size_t{0}),
+                          output_pair_first,
+                          cuda::proclaim_return_type<bool>(
+                            [key_first   = get_dataframe_buffer_begin(key_buffer),
+                             invalid_key = to_thrust_optional(invalid_key)] __device__(size_t i) {
+                              auto key = *(key_first + i);
+                              if (invalid_key && (key == *invalid_key)) {
+                                return false;
+                              } else if ((i != 0) && (key == *(key_first + (i - 1)))) {
+                                return false;
+                              } else {
+                                return true;
+                              }
+                            }))),
+        handle.get_stream());
+      resize_dataframe_buffer(
+        tmp_payload_buffer, size_dataframe_buffer(output_key_buffer), handle.get_stream());
+      payload_buffer = std::move(tmp_payload_buffer);
+    } else {
+      auto pair_first = thrust::make_zip_iterator(get_dataframe_buffer_begin(key_buffer),
+                                                  get_dataframe_buffer_begin(payload_buffer));
+      resize_dataframe_buffer(
+        key_buffer,
+        thrust::distance(
+          pair_first,
+          thrust::remove_if(handle.get_thrust_policy(),
+                            pair_first,
+                            pair_first + size_dataframe_buffer(key_buffer),
+                            thrust::make_counting_iterator(size_t{0}),
+                            cuda::proclaim_return_type<bool>(
+                              [key_first   = get_dataframe_buffer_begin(key_buffer),
+                               invalid_key = to_thrust_optional(invalid_key)] __device__(size_t i) {
+                                auto key = *(key_first + i);
+                                if (invalid_key && (key == *invalid_key)) {
+                                  return true;
+                                } else if ((i != 0) && (key == *(key_first + (i - 1)))) {
+                                  return true;
+                                } else {
+                                  return false;
+                                }
+                              }))),
+        handle.get_stream());
+      resize_dataframe_buffer(
+        payload_buffer, size_dataframe_buffer(key_buffer), handle.get_stream());
+      output_key_buffer = std::move(key_buffer);
+    }
+    shrink_to_fit_dataframe_buffer(output_key_buffer, handle.get_stream());
     shrink_to_fit_dataframe_buffer(payload_buffer, handle.get_stream());
   } else {
+    if (invalid_key) {
+      auto pair_first = thrust::make_zip_iterator(get_dataframe_buffer_begin(key_buffer),
+                                                  get_dataframe_buffer_begin(payload_buffer));
+      resize_dataframe_buffer(
+        key_buffer,
+        thrust::distance(pair_first,
+                         thrust::remove_if(handle.get_thrust_policy(),
+                                           pair_first,
+                                           pair_first + size_dataframe_buffer(key_buffer),
+                                           cuda::proclaim_return_type<bool>(
+                                             [invalid_key = *invalid_key] __device__(auto kv) {
+                                               auto key = thrust::get<0>(kv);
+                                               return key == invalid_key;
+                                             }))),
+        handle.get_stream());
+      resize_dataframe_buffer(
+        payload_buffer, size_dataframe_buffer(key_buffer), handle.get_stream());
+    }
     auto num_uniques =
       thrust::count_if(handle.get_thrust_policy(),
                        thrust::make_counting_iterator(size_t{0}),
@@ -161,20 +426,37 @@ auto sort_and_reduce_buffer_elements(
     auto new_payload_buffer =
       allocate_dataframe_buffer<payload_t>(num_uniques, handle.get_stream());
 
-    thrust::reduce_by_key(handle.get_thrust_policy(),
-                          get_dataframe_buffer_begin(key_buffer),
-                          get_dataframe_buffer_end(key_buffer),
-                          get_optional_dataframe_buffer_begin<payload_t>(payload_buffer),
-                          get_dataframe_buffer_begin(new_key_buffer),
-                          get_dataframe_buffer_begin(new_payload_buffer),
-                          thrust::equal_to<key_t>(),
-                          reduce_op);
+    if constexpr (compressed) {
+      auto input_key_first = thrust::make_transform_iterator(
+        get_dataframe_buffer_begin(key_buffer),
+        cuda::proclaim_return_type<key_t>(
+          [v_first = std::get<0>(vertex_range)] __device__(auto v_offset) {
+            return static_cast<key_t>(v_first + v_offset);
+          }));
+      thrust::reduce_by_key(handle.get_thrust_policy(),
+                            input_key_first,
+                            input_key_first + size_dataframe_buffer(key_buffer),
+                            get_optional_dataframe_buffer_begin<payload_t>(payload_buffer),
+                            get_dataframe_buffer_begin(new_key_buffer),
+                            get_dataframe_buffer_begin(new_payload_buffer),
+                            thrust::equal_to<key_t>(),
+                            reduce_op);
+    } else {
+      thrust::reduce_by_key(handle.get_thrust_policy(),
+                            get_dataframe_buffer_begin(key_buffer),
+                            get_dataframe_buffer_end(key_buffer),
+                            get_optional_dataframe_buffer_begin<payload_t>(payload_buffer),
+                            get_dataframe_buffer_begin(new_key_buffer),
+                            get_dataframe_buffer_begin(new_payload_buffer),
+                            thrust::equal_to<key_t>(),
+                            reduce_op);
+    }
 
-    key_buffer     = std::move(new_key_buffer);
-    payload_buffer = std::move(new_payload_buffer);
+    output_key_buffer = std::move(new_key_buffer);
+    payload_buffer    = std::move(new_payload_buffer);
   }
 
-  return std::make_tuple(std::move(key_buffer), std::move(payload_buffer));
+  return std::make_tuple(std::move(output_key_buffer), std::move(payload_buffer));
 }
 
 #if 1  // FIXME: delete
@@ -219,7 +501,7 @@ transform_reduce_v_frontier_outgoing_e_by_dst(raft::handle_t const& handle,
 
   // 1. fill the buffer
 
-#if TRANSFORM_REDUCE_PERFORMANCE_MEASUREMENT  // FIXME: delete
+#if TRANSFORM_REDUCE_PERFORMANCE_MEASUREMENT
   RAFT_CUDA_TRY(cudaDeviceSynchronize());
   auto time0 = std::chrono::steady_clock::now();
 #endif
@@ -241,28 +523,41 @@ transform_reduce_v_frontier_outgoing_e_by_dst(raft::handle_t const& handle,
                                                                     edge_value_input,
                                                                     e_op_wrapper,
                                                                     do_expensive_check);
-#if TRANSFORM_REDUCE_PERFORMANCE_MEASUREMENT  // FIXME: delete
+#if TRANSFORM_REDUCE_PERFORMANCE_MEASUREMENT
   RAFT_CUDA_TRY(cudaDeviceSynchronize());
-  auto time1 = std::chrono::steady_clock::now();
+  auto time1               = std::chrono::steady_clock::now();
   auto size_before_lreduce = size_dataframe_buffer(key_buffer);
 #endif
 
   // 2. reduce the buffer
 
+  std::
+    conditional_t<std::is_integral_v<key_t>, std::tuple<vertex_t, vertex_t>, std::byte /* dummy */>
+      vertex_range{};
+  if constexpr (std::is_integral_v<key_t>) {
+    vertex_range = std::make_tuple(graph_view.local_edge_partition_dst_range_first(),
+                                   graph_view.local_edge_partition_dst_range_last());
+  }
   std::tie(key_buffer, payload_buffer) =
-    detail::sort_and_reduce_buffer_elements<key_t, payload_t, ReduceOp>(
-      handle, std::move(key_buffer), std::move(payload_buffer), reduce_op);
-#if TRANSFORM_REDUCE_PERFORMANCE_MEASUREMENT  // FIXME: delete
+    detail::sort_and_reduce_buffer_elements<key_t, key_t, payload_t, ReduceOp>(
+      handle,
+      std::move(key_buffer),
+      std::move(payload_buffer),
+      reduce_op,
+      vertex_range,
+      std::nullopt);
+#if TRANSFORM_REDUCE_PERFORMANCE_MEASUREMENT
   RAFT_CUDA_TRY(cudaDeviceSynchronize());
-  auto time2 = std::chrono::steady_clock::now();
-  auto time3 = std::chrono::steady_clock::now();
-  auto time4 = std::chrono::steady_clock::now();
-  auto size_after_lreduce = size_dataframe_buffer(key_buffer);
+  auto time2               = std::chrono::steady_clock::now();
+  auto time3               = std::chrono::steady_clock::now();
+  auto time4               = std::chrono::steady_clock::now();
+  auto size_after_lreduce  = size_dataframe_buffer(key_buffer);
   auto size_before_greduce = size_after_lreduce;
 #endif
+  bool aligned_path = false;  // FIXME: delete
+  double fill_ratio = 0.0;    // FIXME: delete
   if constexpr (GraphViewType::is_multi_gpu) {
     // FIXME: this step is unnecessary if major_comm_size== 1
-    auto& comm                 = handle.get_comms();
     auto& major_comm           = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
     auto const major_comm_rank = major_comm.get_rank();
     auto const major_comm_size = major_comm.get_size();
@@ -270,15 +565,41 @@ transform_reduce_v_frontier_outgoing_e_by_dst(raft::handle_t const& handle,
     auto const minor_comm_rank = minor_comm.get_rank();
     auto const minor_comm_size = minor_comm.get_size();
 
+    constexpr bool try_compression = (sizeof(vertex_t) == 8) && std::is_same_v<key_t, vertex_t>;
+
+    std::conditional_t<try_compression, vertex_t, std::byte /* dummy */> max_vertex_partition_size{
+      0};
+    std::conditional_t<try_compression, std::vector<vertex_t>, std::byte /* dummy */>
+      h_vertex_firsts{};
+    if constexpr (try_compression) { h_vertex_firsts = std::vector<vertex_t>(major_comm_size); }
     std::vector<vertex_t> h_vertex_lasts(major_comm_size);
     for (size_t i = 0; i < h_vertex_lasts.size(); ++i) {
       auto vertex_partition_id =
         detail::compute_local_edge_partition_minor_range_vertex_partition_id_t{
           major_comm_size, minor_comm_size, major_comm_rank, minor_comm_rank}(i);
+      if constexpr (try_compression) {
+        max_vertex_partition_size = std::max(
+          graph_view.vertex_partition_range_size(vertex_partition_id), max_vertex_partition_size);
+        h_vertex_firsts[i] = graph_view.vertex_partition_range_first(vertex_partition_id);
+      }
       h_vertex_lasts[i] = graph_view.vertex_partition_range_last(vertex_partition_id);
     }
 
+    std::conditional_t<try_compression,
+                       std::optional<rmm::device_uvector<vertex_t>>,
+                       std::byte /* dummy */>
+      d_vertex_firsts{};
     rmm::device_uvector<vertex_t> d_vertex_lasts(h_vertex_lasts.size(), handle.get_stream());
+    if constexpr (try_compression) {
+      if (max_vertex_partition_size <= std::numeric_limits<uint32_t>::max()) {
+        d_vertex_firsts =
+          rmm::device_uvector<vertex_t>(h_vertex_firsts.size(), handle.get_stream());
+        raft::update_device((*d_vertex_firsts).data(),
+                            h_vertex_firsts.data(),
+                            h_vertex_firsts.size(),
+                            handle.get_stream());
+      }
+    }
     raft::update_device(
       d_vertex_lasts.data(), h_vertex_lasts.data(), h_vertex_lasts.size(), handle.get_stream());
     rmm::device_uvector<edge_t> d_tx_buffer_last_boundaries(d_vertex_lasts.size(),
@@ -292,6 +613,32 @@ transform_reduce_v_frontier_outgoing_e_by_dst(raft::handle_t const& handle,
                         d_vertex_lasts.begin(),
                         d_vertex_lasts.end(),
                         d_tx_buffer_last_boundaries.begin());
+    std::conditional_t<try_compression,
+                       std::optional<rmm::device_uvector<uint32_t>>,
+                       std::byte /* dummy */>
+      compressed_v_buffer{};
+    if constexpr (try_compression) {
+      if (d_vertex_firsts) {
+        compressed_v_buffer =
+          rmm::device_uvector<uint32_t>(size_dataframe_buffer(key_buffer), handle.get_stream());
+        thrust::transform(handle.get_thrust_policy(),
+                          get_dataframe_buffer_begin(key_buffer),
+                          get_dataframe_buffer_end(key_buffer),
+                          (*compressed_v_buffer).begin(),
+                          cuda::proclaim_return_type<uint32_t>(
+                            [firsts = raft::device_span<vertex_t const>((*d_vertex_firsts).data(),
+                                                                        (*d_vertex_firsts).size()),
+                             lasts  = raft::device_span<vertex_t const>(
+                               d_vertex_lasts.data(), d_vertex_lasts.size())] __device__(auto v) {
+                              auto major_comm_rank = thrust::distance(
+                                lasts.begin(),
+                                thrust::upper_bound(thrust::seq, lasts.begin(), lasts.end(), v));
+                              return static_cast<uint32_t>(v - firsts[major_comm_rank]);
+                            }));
+        resize_dataframe_buffer(key_buffer, 0, handle.get_stream());
+        shrink_to_fit_dataframe_buffer(key_buffer, handle.get_stream());
+      }
+    }
     std::vector<edge_t> h_tx_buffer_last_boundaries(d_tx_buffer_last_boundaries.size());
     raft::update_host(h_tx_buffer_last_boundaries.data(),
                       d_tx_buffer_last_boundaries.data(),
@@ -302,42 +649,226 @@ transform_reduce_v_frontier_outgoing_e_by_dst(raft::handle_t const& handle,
     std::adjacent_difference(
       h_tx_buffer_last_boundaries.begin(), h_tx_buffer_last_boundaries.end(), tx_counts.begin());
 
-#if TRANSFORM_REDUCE_PERFORMANCE_MEASUREMENT  // FIXME: delete
+#if TRANSFORM_REDUCE_PERFORMANCE_MEASUREMENT
     RAFT_CUDA_TRY(cudaDeviceSynchronize());
     time3 = std::chrono::steady_clock::now();
 #endif
-    auto rx_key_buffer = allocate_dataframe_buffer<key_t>(size_t{0}, handle.get_stream());
-    std::tie(rx_key_buffer, std::ignore) = shuffle_values(
-      major_comm, get_dataframe_buffer_begin(key_buffer), tx_counts, handle.get_stream());
-    key_buffer = std::move(rx_key_buffer);
-
-    if constexpr (!std::is_same_v<payload_t, void>) {
-      auto rx_payload_buffer = allocate_dataframe_buffer<payload_t>(size_t{0}, handle.get_stream());
-      std::tie(rx_payload_buffer, std::ignore) = shuffle_values(
-        major_comm, get_dataframe_buffer_begin(payload_buffer), tx_counts, handle.get_stream());
-      payload_buffer = std::move(rx_payload_buffer);
+    constexpr size_t cache_line_size = 128;
+    size_t min_element_size{cache_line_size};
+    if constexpr (std::is_same_v<key_t, vertex_t>) {
+      if constexpr (try_compression) {
+        if (compressed_v_buffer) {
+          min_element_size = std::min(sizeof(uint32_t), min_element_size);
+        } else {
+          min_element_size = std::min(sizeof(key_t), min_element_size);
+        }
+      } else {
+        min_element_size = std::min(sizeof(key_t), min_element_size);
+      }
+    } else {
+      static_assert(is_thrust_tuple_of_arithmetic<key_t>::value);
+      min_element_size =
+        std::min(cugraph::min_thrust_tuple_element_sizes<key_t>(), min_element_size);
     }
-#if TRANSFORM_REDUCE_PERFORMANCE_MEASUREMENT  // FIXME: delete
+    if constexpr (!std::is_same_v<payload_t, void>) {
+      if constexpr (std::is_arithmetic_v<payload_t>) {
+        min_element_size = std::min(sizeof(payload_t), min_element_size);
+      } else {
+        static_assert(is_thrust_tuple_of_arithmetic<payload_t>::value);
+        min_element_size = std::min(min_thrust_tuple_element_sizes<payload_t>(), min_element_size);
+      }
+    }
+    auto alignment = cache_line_size / min_element_size;
+    std::optional<std::conditional_t<try_compression, std::variant<key_t, uint32_t>, key_t>>
+      invalid_key{std::nullopt};
+
+    size_t local_key_buffer_size{};
+    if constexpr (try_compression) {
+      if (compressed_v_buffer) {
+        local_key_buffer_size = size_dataframe_buffer(*compressed_v_buffer);
+      } else {
+        local_key_buffer_size = size_dataframe_buffer(key_buffer);
+      }
+    } else {
+      local_key_buffer_size = size_dataframe_buffer(key_buffer);
+    }
+    auto avg_key_buffer_size =
+      host_scalar_allreduce(
+        major_comm, local_key_buffer_size, raft::comms::op_t::SUM, handle.get_stream()) /
+      major_comm_size;
+    if (avg_key_buffer_size >= alignment * size_t{128} /* 128 tuning parameter */) {
+      aligned_path = true;  // FIXME: delete
+      if constexpr (std::is_same_v<key_t, vertex_t>) {
+        if constexpr (try_compression) {
+          if (compressed_v_buffer) {
+            invalid_key = std::numeric_limits<uint32_t>::max();
+          } else {
+            invalid_key = invalid_vertex_id_v<vertex_t>;
+          }
+        } else {
+          invalid_key = invalid_vertex_id_v<vertex_t>;
+        }
+      } else {
+        invalid_key                  = key_t{};
+        thrust::get<0>(*invalid_key) = invalid_vertex_id_v<vertex_t>;
+      }
+
+      if constexpr (try_compression) {
+        if (compressed_v_buffer) {
+          auto rx_compressed_v_buffer =
+            allocate_dataframe_buffer<uint32_t>(size_t{0}, handle.get_stream());
+          std::tie(rx_compressed_v_buffer,
+                   std::ignore,
+                   std::ignore,
+                   std::ignore,
+                   std::ignore,
+                   std::ignore,
+                   std::ignore) = shuffle_values(major_comm,
+                                                 get_dataframe_buffer_begin(*compressed_v_buffer),
+                                                 tx_counts,
+                                                 alignment,
+                                                 std::make_optional(std::get<1>(*invalid_key)),
+                                                 handle.get_stream());
+          compressed_v_buffer   = std::move(rx_compressed_v_buffer);
+        } else {
+          auto rx_key_buffer    = allocate_dataframe_buffer<key_t>(size_t{0}, handle.get_stream());
+          std::tie(rx_key_buffer,
+                   std::ignore,
+                   std::ignore,
+                   std::ignore,
+                   std::ignore,
+                   std::ignore,
+                   std::ignore) = shuffle_values(major_comm,
+                                                 get_dataframe_buffer_begin(key_buffer),
+                                                 tx_counts,
+                                                 alignment,
+                                                 std::make_optional(std::get<0>(*invalid_key)),
+                                                 handle.get_stream());
+          key_buffer            = std::move(rx_key_buffer);
+        }
+      } else {
+        auto rx_key_buffer    = allocate_dataframe_buffer<key_t>(size_t{0}, handle.get_stream());
+        std::tie(rx_key_buffer,
+                 std::ignore,
+                 std::ignore,
+                 std::ignore,
+                 std::ignore,
+                 std::ignore,
+                 std::ignore) = shuffle_values(major_comm,
+                                               get_dataframe_buffer_begin(key_buffer),
+                                               tx_counts,
+                                               alignment,
+                                               invalid_key,
+                                               handle.get_stream());
+        key_buffer            = std::move(rx_key_buffer);
+      }
+      if constexpr (!std::is_same_v<payload_t, void>) {
+        auto rx_payload_buffer =
+          allocate_dataframe_buffer<payload_t>(size_t{0}, handle.get_stream());
+        std::tie(rx_payload_buffer,
+                 std::ignore,
+                 std::ignore,
+                 std::ignore,
+                 std::ignore,
+                 std::ignore,
+                 std::ignore) = shuffle_values(major_comm,
+                                               get_dataframe_buffer_begin(payload_buffer),
+                                               tx_counts,
+                                               alignment,
+                                               std::nullopt,
+                                               handle.get_stream());
+        payload_buffer        = std::move(rx_payload_buffer);
+      }
+    } else {
+      if constexpr (try_compression) {
+        if (compressed_v_buffer) {
+          auto rx_compressed_v_buffer =
+            allocate_dataframe_buffer<uint32_t>(size_t{0}, handle.get_stream());
+          std::tie(rx_compressed_v_buffer, std::ignore) =
+            shuffle_values(major_comm,
+                           get_dataframe_buffer_begin(*compressed_v_buffer),
+                           tx_counts,
+                           handle.get_stream());
+          compressed_v_buffer = std::move(rx_compressed_v_buffer);
+        } else {
+          auto rx_key_buffer = allocate_dataframe_buffer<key_t>(size_t{0}, handle.get_stream());
+          std::tie(rx_key_buffer, std::ignore) = shuffle_values(
+            major_comm, get_dataframe_buffer_begin(key_buffer), tx_counts, handle.get_stream());
+          key_buffer = std::move(rx_key_buffer);
+        }
+      } else {
+        auto rx_key_buffer = allocate_dataframe_buffer<key_t>(size_t{0}, handle.get_stream());
+        std::tie(rx_key_buffer, std::ignore) = shuffle_values(
+          major_comm, get_dataframe_buffer_begin(key_buffer), tx_counts, handle.get_stream());
+        key_buffer = std::move(rx_key_buffer);
+      }
+
+      if constexpr (!std::is_same_v<payload_t, void>) {
+        auto rx_payload_buffer =
+          allocate_dataframe_buffer<payload_t>(size_t{0}, handle.get_stream());
+        std::tie(rx_payload_buffer, std::ignore) = shuffle_values(
+          major_comm, get_dataframe_buffer_begin(payload_buffer), tx_counts, handle.get_stream());
+        payload_buffer = std::move(rx_payload_buffer);
+      }
+    }
+#if TRANSFORM_REDUCE_PERFORMANCE_MEASUREMENT
     RAFT_CUDA_TRY(cudaDeviceSynchronize());
-    time4 = std::chrono::steady_clock::now();
+    time4               = std::chrono::steady_clock::now();
     size_before_greduce = size_dataframe_buffer(key_buffer);
 #endif
 
-    std::tie(key_buffer, payload_buffer) =
-      detail::sort_and_reduce_buffer_elements<key_t, payload_t, ReduceOp>(
-        handle, std::move(key_buffer), std::move(payload_buffer), reduce_op);
+    if constexpr (std::is_integral_v<key_t>) {
+      vertex_range = std::make_tuple(graph_view.local_vertex_partition_range_first(),
+                                     graph_view.local_vertex_partition_range_last());
+      fill_ratio   = static_cast<double>(size_dataframe_buffer(key_buffer)) /
+                   static_cast<double>(std::get<1>(vertex_range) -
+                                       std::get<0>(vertex_range));  // FIXME: delete
+    }
+    if constexpr (try_compression) {
+      if (compressed_v_buffer) {
+        std::tie(key_buffer, payload_buffer) =
+          detail::sort_and_reduce_buffer_elements<uint32_t, key_t, payload_t, ReduceOp>(
+            handle,
+            std::move(*compressed_v_buffer),
+            std::move(payload_buffer),
+            reduce_op,
+            vertex_range,
+            invalid_key ? std::make_optional(std::get<1>(*invalid_key)) : std::nullopt);
+      } else {
+        std::tie(key_buffer, payload_buffer) =
+          detail::sort_and_reduce_buffer_elements<key_t, key_t, payload_t, ReduceOp>(
+            handle,
+            std::move(key_buffer),
+            std::move(payload_buffer),
+            reduce_op,
+            vertex_range,
+            invalid_key ? std::make_optional(std::get<0>(*invalid_key)) : std::nullopt);
+      }
+    } else {
+      std::tie(key_buffer, payload_buffer) =
+        detail::sort_and_reduce_buffer_elements<key_t, key_t, payload_t, ReduceOp>(
+          handle,
+          std::move(key_buffer),
+          std::move(payload_buffer),
+          reduce_op,
+          vertex_range,
+          invalid_key);
+    }
   }
-#if TRANSFORM_REDUCE_PERFORMANCE_MEASUREMENT  // FIXME: delete
+#if TRANSFORM_REDUCE_PERFORMANCE_MEASUREMENT
   RAFT_CUDA_TRY(cudaDeviceSynchronize());
   auto time5                         = std::chrono::steady_clock::now();
-  auto size_after_greduce = size_dataframe_buffer(key_buffer);
+  auto size_after_greduce            = size_dataframe_buffer(key_buffer);
   std::chrono::duration<double> dur0 = time1 - time0;
   std::chrono::duration<double> dur1 = time2 - time1;
   std::chrono::duration<double> dur2 = time3 - time2;
   std::chrono::duration<double> dur3 = time4 - time3;
   std::chrono::duration<double> dur4 = time5 - time4;
-  std::cerr << "\tprim (fill,lreduce,g-prep,g-shuffle,g-s&r) took (" << dur0.count() << "," << dur1.count() << ","
-            << dur2.count() << "," << dur3.count() << "," << dur4.count() << ") l_size=(" << size_before_lreduce << "," << size_after_lreduce << ") g_size=(" << size_before_greduce << "," << size_after_greduce << ")" << std::endl;
+  std::cerr << "\tprim (fill,lreduce,g-prep,g-shuffle,g-s&r) took (" << dur0.count() << ","
+            << dur1.count() << "," << dur2.count() << "," << dur3.count() << "," << dur4.count()
+            << ") l_size=(" << size_before_lreduce << "," << size_after_lreduce << ") g_size=("
+            << size_before_greduce << "," << size_after_greduce << ")"
+            << " aligned_path=" << aligned_path << " fill_ratio=" << fill_ratio << std::endl;
 #endif
 
   if constexpr (!std::is_same_v<payload_t, void>) {
