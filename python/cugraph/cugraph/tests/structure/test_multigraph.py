@@ -1,4 +1,4 @@
-# Copyright (c) 2020-2023, NVIDIA CORPORATION.
+# Copyright (c) 2020-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -76,7 +76,7 @@ def test_Graph_from_MultiGraph(graph_file):
 
     G = cugraph.Graph(GM)
     Gnx = nx.Graph(GnxM)
-    assert Gnx.number_of_edges() == G.number_of_edges()
+    assert Gnx.number_of_edges() == G.number_of_edges(directed_edges=True)
     GdM = graph_file.get_graph(create_using=cugraph.MultiGraph(directed=True))
     GnxdM = nx.from_pandas_edgelist(
         nxM,
