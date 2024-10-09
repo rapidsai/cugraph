@@ -103,6 +103,11 @@ class graph_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t<mu
                               ? std::make_optional<std::vector<raft::device_span<vertex_t const>>>(
                                   (*edge_partition_dcs_nzd_vertices_).size())
                               : std::nullopt;
+    auto dcs_nzd_range_bitmaps =
+      edge_partition_dcs_nzd_range_bitmaps_
+        ? std::make_optional<std::vector<raft::device_span<uint32_t const>>>(
+            (*edge_partition_dcs_nzd_range_bitmaps_).size())
+        : std::nullopt;
     for (size_t i = 0; i < offsets.size(); ++i) {
       offsets[i] = raft::device_span<edge_t const>(edge_partition_offsets_[i].data(),
                                                    edge_partition_offsets_[i].size());
@@ -112,6 +117,11 @@ class graph_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t<mu
         (*dcs_nzd_vertices)[i] =
           raft::device_span<vertex_t const>((*edge_partition_dcs_nzd_vertices_)[i].data(),
                                             (*edge_partition_dcs_nzd_vertices_)[i].size());
+      }
+      if (dcs_nzd_range_bitmaps) {
+        (*dcs_nzd_range_bitmaps)[i] =
+          raft::device_span<uint32_t const>((*edge_partition_dcs_nzd_range_bitmaps_)[i].data(),
+                                            (*edge_partition_dcs_nzd_range_bitmaps_)[i].size());
       }
     }
 
@@ -203,6 +213,7 @@ class graph_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t<mu
       offsets,
       indices,
       dcs_nzd_vertices,
+      dcs_nzd_range_bitmaps,
       graph_view_meta_t<vertex_t, edge_t, store_transposed, multi_gpu>{
         this->number_of_vertices(),
         this->number_of_edges(),
@@ -226,6 +237,8 @@ class graph_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t<mu
 
   // nzd: nonzero (local) degree
   std::optional<std::vector<rmm::device_uvector<vertex_t>>> edge_partition_dcs_nzd_vertices_{
+    std::nullopt};
+  std::optional<std::vector<rmm::device_uvector<uint32_t>>> edge_partition_dcs_nzd_range_bitmaps_{
     std::nullopt};
   partition_t<vertex_t> partition_{};
 

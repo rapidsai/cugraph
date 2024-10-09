@@ -56,6 +56,7 @@ class edge_partition_view_t<vertex_t, edge_t, multi_gpu, std::enable_if_t<multi_
   edge_partition_view_t(raft::device_span<edge_t const> offsets,
                         raft::device_span<vertex_t const> indices,
                         std::optional<raft::device_span<vertex_t const>> dcs_nzd_vertices,
+                        std::optional<raft::device_span<uint32_t const>> dcs_nzd_range_bitmap,
                         std::optional<vertex_t> major_hypersparse_first,
                         vertex_t major_range_first,
                         vertex_t major_range_last,
@@ -64,6 +65,7 @@ class edge_partition_view_t<vertex_t, edge_t, multi_gpu, std::enable_if_t<multi_
                         vertex_t major_value_start_offset)
     : detail::edge_partition_view_base_t<vertex_t, edge_t>(offsets, indices),
       dcs_nzd_vertices_(dcs_nzd_vertices),
+      dcs_nzd_range_bitmap_(dcs_nzd_range_bitmap),
       major_hypersparse_first_(major_hypersparse_first),
       major_range_first_(major_range_first),
       major_range_last_(major_range_last),
@@ -78,6 +80,11 @@ class edge_partition_view_t<vertex_t, edge_t, multi_gpu, std::enable_if_t<multi_
     return dcs_nzd_vertices_;
   }
 
+  std::optional<raft::device_span<uint32_t const>> dcs_nzd_range_bitmap() const
+  {
+    return dcs_nzd_range_bitmap_;
+  }
+
   std::optional<vertex_t> major_hypersparse_first() const { return major_hypersparse_first_; }
 
   vertex_t major_range_first() const { return major_range_first_; }
@@ -90,6 +97,7 @@ class edge_partition_view_t<vertex_t, edge_t, multi_gpu, std::enable_if_t<multi_
  private:
   // relevant only if we use the CSR + DCSR (or CSC + DCSC) hybrid format
   std::optional<raft::device_span<vertex_t const>> dcs_nzd_vertices_{std::nullopt};
+  std::optional<raft::device_span<uint32_t const>> dcs_nzd_range_bitmap_{std::nullopt};
   std::optional<vertex_t> major_hypersparse_first_{std::nullopt};
 
   vertex_t major_range_first_{0};

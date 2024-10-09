@@ -204,6 +204,7 @@ class edge_partition_device_view_t<vertex_t, edge_t, multi_gpu, std::enable_if_t
   edge_partition_device_view_t(edge_partition_view_t<vertex_t, edge_t, multi_gpu> view)
     : detail::edge_partition_device_view_base_t<vertex_t, edge_t>(view.offsets(), view.indices()),
       dcs_nzd_vertices_(detail::to_thrust_optional(view.dcs_nzd_vertices())),
+      dcs_nzd_range_bitmap_(detail::to_thrust_optional(view.dcs_nzd_range_bitmap())),
       major_hypersparse_first_(detail::to_thrust_optional(view.major_hypersparse_first())),
       major_range_first_(view.major_range_first()),
       major_range_last_(view.major_range_last()),
@@ -515,6 +516,7 @@ class edge_partition_device_view_t<vertex_t, edge_t, multi_gpu, std::enable_if_t
     return minor_range_first_ + minor_offset;
   }
 
+  // FIxME: better return thrust::optional<raft::device_span<vertex_t const>> for consistency (see dcs_nzd_range_bitmap())
   __host__ __device__ thrust::optional<vertex_t const*> dcs_nzd_vertices() const
   {
     return dcs_nzd_vertices_ ? thrust::optional<vertex_t const*>{(*dcs_nzd_vertices_).data()}
@@ -528,10 +530,20 @@ class edge_partition_device_view_t<vertex_t, edge_t, multi_gpu, std::enable_if_t
              : thrust::nullopt;
   }
 
+  __host__ __device__ thrust::optional<raft::device_span<uint32_t const>> dcs_nzd_range_bitmap()
+    const
+  {
+    return dcs_nzd_range_bitmap_
+             ? thrust::make_optional<raft::device_span<uint32_t const>>(
+                 (*dcs_nzd_range_bitmap_).data(), (*dcs_nzd_range_bitmap_).size())
+             : thrust::nullopt;
+  }
+
  private:
   // should be trivially copyable to device
 
   thrust::optional<raft::device_span<vertex_t const>> dcs_nzd_vertices_{thrust::nullopt};
+  thrust::optional<raft::device_span<uint32_t const>> dcs_nzd_range_bitmap_{thrust::nullopt};
   thrust::optional<vertex_t> major_hypersparse_first_{thrust::nullopt};
 
   vertex_t major_range_first_{0};

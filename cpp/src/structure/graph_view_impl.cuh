@@ -488,12 +488,15 @@ graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t<mul
                std::vector<raft::device_span<vertex_t const>> const& edge_partition_indices,
                std::optional<std::vector<raft::device_span<vertex_t const>>> const&
                  edge_partition_dcs_nzd_vertices,
+               std::optional<std::vector<raft::device_span<uint32_t const>>> const&
+                 edge_partition_dcs_nzd_range_bitmaps,
                graph_view_meta_t<vertex_t, edge_t, store_transposed, multi_gpu> meta)
   : detail::graph_base_t<vertex_t, edge_t>(
       meta.number_of_vertices, meta.number_of_edges, meta.properties),
     edge_partition_offsets_(edge_partition_offsets),
     edge_partition_indices_(edge_partition_indices),
     edge_partition_dcs_nzd_vertices_(edge_partition_dcs_nzd_vertices),
+    edge_partition_dcs_nzd_range_bitmaps_(edge_partition_dcs_nzd_range_bitmaps),
     partition_(meta.partition),
     edge_partition_segment_offsets_(meta.edge_partition_segment_offsets),
     edge_partition_hypersparse_degree_offsets_(meta.edge_partition_hypersparse_degree_offsets),

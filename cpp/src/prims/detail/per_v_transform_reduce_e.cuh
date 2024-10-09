@@ -1971,7 +1971,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
 
       stream_pool_indices = init_stream_pool_indices(
         static_cast<size_t>(static_cast<double>(handle.get_device_properties().totalGlobalMem) *
-                            0.1),
+                            0.2),
         tmp_buffer_size_per_loop,
         graph_view.number_of_local_edge_partitions(),
         max_segments,
@@ -2239,6 +2239,9 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
               auto const& segment_offsets =
                 graph_view.local_edge_partition_segment_offsets(partition_idx);
 
+#if 1
+              auto segment_bitmap = *(edge_partition.dcs_nzd_range_bitmap());
+#else
               // FIXME: we can pre-compute this & store in graph_t
               rmm::device_uvector<uint32_t> segment_bitmap(
                 packed_bool_size((*segment_offsets)[4] - (*segment_offsets)[3]), loop_stream);
@@ -2258,6 +2261,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
                     bitmap[packed_bool_offset(major_offset)]);
                   word.fetch_or(packed_bool_mask(major_offset), cuda::std::memory_order_relaxed);
                 });
+#endif
 
               auto range_offset_first = std::min(
                 (edge_partition.major_range_first() + (*segment_offsets)[3] >
