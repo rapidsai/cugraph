@@ -53,7 +53,7 @@ struct hash_src_dst_pair {
     vertex_t pair[2];
     pair[0] = thrust::get<0>(t);
     pair[1] = thrust::get<1>(t);
-    cuco::detail::MurmurHash3_32<vertex_t*> hash_func{};
+    cuco::murmurhash3_32<vertex_t*> hash_func{};
     return hash_func.compute_hash(reinterpret_cast<std::byte*>(pair), 2 * sizeof(vertex_t)) %
            num_groups;
   }
