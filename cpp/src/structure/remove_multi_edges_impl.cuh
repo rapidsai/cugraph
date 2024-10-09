@@ -28,6 +28,7 @@
 
 #include <rmm/device_uvector.hpp>
 
+#include <cuda/std/cstddef>
 #include <thrust/binary_search.h>
 #include <thrust/distance.h>
 #include <thrust/iterator/zip_iterator.h>
@@ -54,7 +55,7 @@ struct hash_src_dst_pair {
     pair[0] = thrust::get<0>(t);
     pair[1] = thrust::get<1>(t);
     cuco::murmurhash3_32<vertex_t*> hash_func{};
-    return hash_func.compute_hash(reinterpret_cast<std::byte*>(pair), 2 * sizeof(vertex_t)) %
+    return hash_func.compute_hash(reinterpret_cast<cuda::std::byte*>(pair), 2 * sizeof(vertex_t)) %
            num_groups;
   }
 };
