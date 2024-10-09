@@ -109,6 +109,7 @@ int test_create_mg_graph_simple(const cugraph_resource_handle_t* handle)
                             1,
                             FALSE,
                             FALSE,
+                            FALSE,
                             TRUE,
                             &graph,
                             &ret_error);
@@ -249,6 +250,7 @@ int test_create_mg_graph_multiple_edge_lists(const cugraph_resource_handle_t* ha
                             NULL,
                             FALSE,
                             num_local_arrays,
+                            FALSE,
                             FALSE,
                             FALSE,
                             TRUE,
@@ -446,6 +448,7 @@ int test_create_mg_graph_multiple_edge_lists_multi_edge(const cugraph_resource_h
                             num_local_arrays,
                             TRUE,
                             TRUE,
+                            FALSE,
                             TRUE,
                             &graph,
                             &ret_error);

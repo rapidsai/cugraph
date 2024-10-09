@@ -8,6 +8,8 @@ cd "$(dirname "$(realpath "${BASH_SOURCE[0]}")")"/../
 
 . /opt/conda/etc/profile.d/conda.sh
 
+RAPIDS_VERSION_MAJOR_MINOR="$(rapids-version-major-minor)"
+
 rapids-logger "Generate C++ testing dependencies"
 rapids-dependency-file-generator \
   --output conda \
@@ -30,7 +32,9 @@ rapids-print-env
 
 rapids-mamba-retry install \
     --channel "${CPP_CHANNEL}" \
-    libcugraph libcugraph_etl libcugraph-tests
+    "libcugraph=${RAPIDS_VERSION_MAJOR_MINOR}.*" \
+    "libcugraph_etl=${RAPIDS_VERSION_MAJOR_MINOR}.*" \
+    "libcugraph-tests=${RAPIDS_VERSION_MAJOR_MINOR}.*"
 
 rapids-logger "Check GPU usage"
 nvidia-smi
@@ -38,7 +42,7 @@ nvidia-smi
 # RAPIDS_DATASET_ROOT_DIR is used by test scripts
 export RAPIDS_DATASET_ROOT_DIR="$(realpath datasets)"
 pushd "${RAPIDS_DATASET_ROOT_DIR}"
-./get_test_data.sh --subset
+./get_test_data.sh --cpp_ci_subset
 popd
 
 export GTEST_OUTPUT=xml:${RAPIDS_TESTS_DIR}/

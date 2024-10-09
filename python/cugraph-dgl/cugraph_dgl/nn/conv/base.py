@@ -129,7 +129,7 @@ class SparseGraph(object):
         if csrc_ids is not None:
             if csrc_ids.numel() != self._num_src_nodes + 1:
                 raise RuntimeError(
-                    f"Size mismatch for 'csrc_ids': expected ({size[0]+1},), "
+                    f"Size mismatch for 'csrc_ids': expected ({size[0] + 1},), "
                     f"but got {tuple(csrc_ids.size())}"
                 )
             csrc_ids = csrc_ids.contiguous()
@@ -137,7 +137,7 @@ class SparseGraph(object):
         if cdst_ids is not None:
             if cdst_ids.numel() != self._num_dst_nodes + 1:
                 raise RuntimeError(
-                    f"Size mismatch for 'cdst_ids': expected ({size[1]+1},), "
+                    f"Size mismatch for 'cdst_ids': expected ({size[1] + 1},), "
                     f"but got {tuple(cdst_ids.size())}"
                 )
             cdst_ids = cdst_ids.contiguous()

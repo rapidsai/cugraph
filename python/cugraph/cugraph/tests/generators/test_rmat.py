@@ -27,7 +27,9 @@ import cupy as cp
 _scale_values = [2, 4, 16]
 _scale_test_ids = [f"scale={x}" for x in _scale_values]
 _graph_types = [cugraph.Graph, None, int]
-_graph_test_ids = [f"create_using={getattr(x,'__name__',str(x))}" for x in _graph_types]
+_graph_test_ids = [
+    f"create_using={getattr(x, '__name__', str(x))}" for x in _graph_types
+]
 _clip_and_flip = [False, True]
 _clip_and_flip_test_ids = [f"clip_and_flip={x}" for x in _clip_and_flip]
 _scramble_vertex_ids = [False, True]

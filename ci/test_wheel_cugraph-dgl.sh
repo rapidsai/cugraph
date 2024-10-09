@@ -30,20 +30,10 @@ else
   PYTORCH_CUDA_VER=$PKG_CUDA_VER
 fi
 PYTORCH_URL="https://download.pytorch.org/whl/cu${PYTORCH_CUDA_VER}"
-DGL_URL="https://data.dgl.ai/wheels/cu${PYTORCH_CUDA_VER}/repo.html"
-
-# Starting from 2.2, PyTorch wheels depend on nvidia-nccl-cuxx>=2.19 wheel and
-# dynamically link to NCCL. RAPIDS CUDA 11 CI images have an older NCCL version that
-# might shadow the newer NCCL required by PyTorch during import (when importing
-# `cupy` before `torch`).
-if [[ "${NCCL_VERSION}" < "2.19" ]]; then
-  PYTORCH_VER="2.1.0"
-else
-  PYTORCH_VER="2.3.0"
-fi
+DGL_URL="https://data.dgl.ai/wheels/torch-2.3/cu${PYTORCH_CUDA_VER}/repo.html"
 
 rapids-logger "Installing PyTorch and DGL"
-rapids-retry python -m pip install "torch==${PYTORCH_VER}" --index-url ${PYTORCH_URL}
-rapids-retry python -m pip install dgl==2.0.0 --find-links ${DGL_URL}
+rapids-retry python -m pip install torch==2.3.0 --index-url ${PYTORCH_URL}
+rapids-retry python -m pip install dgl==2.4.0 --find-links ${DGL_URL}
 
 python -m pytest python/cugraph-dgl/tests

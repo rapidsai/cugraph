@@ -4,22 +4,21 @@ channels:
 - rapidsai
 - rapidsai-nightly
 - dask/label/dev
-- pyg
-- dglteam/label/cu118
+- dglteam/label/th23_cu118
 - conda-forge
 - nvidia
 dependencies:
-- cugraph==24.8.*
+- cugraph==24.10.*,>=0.0.0a0
 - pandas
 - pre-commit
-- pyg>=2.5,<2.6
-- pylibcugraphops==24.8.*
+- pylibcugraphops==24.10.*,>=0.0.0a0
 - pytest
 - pytest-benchmark
 - pytest-cov
 - pytest-xdist
 - pytorch-cuda==11.8
-- pytorch>=2.0
+- pytorch>=2.3,<2.4.0a0
+- pytorch_geometric>=2.5,<2.6
 - scipy
 - tensordict>=0.1.2
 name: cugraph_pyg_dev_cuda-118

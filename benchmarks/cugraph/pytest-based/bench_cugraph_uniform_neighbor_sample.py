@@ -48,6 +48,11 @@ from cugraph_benchmarking.timer import TimerContext
 _seed = 42
 
 
+###############################################################################
+# Helpers
+###############################################################################
+
+
 def create_graph(graph_data):
     """
     Create a graph instance based on the data to be loaded/generated, return a
@@ -107,9 +112,6 @@ def create_mg_graph(graph_data):
     Create a graph instance based on the data to be loaded/generated, return a
     tuple containing (graph_obj, num_verts, client, cluster)
     """
-    # range starts at 1 to let let 0 be used by benchmark/client process
-    visible_devices = os.getenv("DASK_WORKER_DEVICES", "1,2,3,4")
-
     (client, cluster) = start_dask_client(
         # enable_tcp_over_ucx=True,
         # enable_infiniband=False,
@@ -117,7 +119,6 @@ def create_mg_graph(graph_data):
         # enable_rdmacm=False,
         protocol="ucx",
         rmm_pool_size="28GB",
-        dask_worker_devices=visible_devices,
     )
     rmm.reinitialize(pool_allocator=True)
 
@@ -261,8 +262,11 @@ def graph_objs(request):
 
 ################################################################################
 # Benchmarks
+###############################################################################
+@pytest.mark.managedmem_off
+@pytest.mark.poolallocator_on
 @pytest.mark.parametrize("batch_size", params.batch_sizes.values())
-@pytest.mark.parametrize("fanout", [params.fanout_10_25, params.fanout_5_10_15])
+@pytest.mark.parametrize("fanout", [params.fanout_10_25])
 @pytest.mark.parametrize(
     "with_replacement", [False], ids=lambda v: f"with_replacement={v}"
 )
@@ -283,6 +287,8 @@ def bench_cugraph_uniform_neighbor_sample(
         start_list=uns_args["start_list"],
         fanout_vals=uns_args["fanout"],
         with_replacement=uns_args["with_replacement"],
+        use_legacy_names=False,
+        with_edge_properties=True,
     )
     """
     dtmap = {"int32": 32 // 8, "int64": 64 // 8}

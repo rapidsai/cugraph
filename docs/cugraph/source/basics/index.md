@@ -1,5 +1,5 @@
-
 # cuGraph Introduction
+
 The Data Scientist has a collection of techniques within their
 proverbial toolbox. Data engineering, statistical analysis, and
 machine learning are among the most commonly known. However, there
@@ -20,8 +20,8 @@ into the RAPIDS data science ecosystem and allows the data scientist to easily
 call graph algorithms using data stored in a GPU DataFrame, NetworkX Graphs, or even
 CuPy or SciPy sparse Matrix.
 
-
 ## Vision
+
 The vision of RAPIDS cuGraph is to ___make graph analysis ubiquitous to the
 point that users just think in terms of analysis and not technologies or
 frameworks___. This is a goal that many of us on the cuGraph team have been
@@ -47,7 +47,6 @@ the graph analytic goodness mentioned above with the ability to perform
 high-speed ETL, statistics, and machine learning. To make things even better,
 RAPIDS and DASK allows cuGraph to scale to multiple GPUs to support
 multi-billion edge graphs.
-
 
 ## Terminology
 

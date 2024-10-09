@@ -8,6 +8,8 @@ cd "$(dirname "$(realpath "${BASH_SOURCE[0]}")")"/../
 
 . /opt/conda/etc/profile.d/conda.sh
 
+RAPIDS_VERSION_MAJOR_MINOR="$(rapids-version-major-minor)"
+
 rapids-logger "Generate Python testing dependencies"
 rapids-dependency-file-generator \
   --output conda \
@@ -34,12 +36,12 @@ rapids-print-env
 rapids-mamba-retry install \
   --channel "${CPP_CHANNEL}" \
   --channel "${PYTHON_CHANNEL}" \
-  libcugraph \
-  pylibcugraph \
-  cugraph \
-  nx-cugraph \
-  cugraph-service-server \
-  cugraph-service-client
+  "libcugraph=${RAPIDS_VERSION_MAJOR_MINOR}.*" \
+  "pylibcugraph=${RAPIDS_VERSION_MAJOR_MINOR}.*" \
+  "cugraph=${RAPIDS_VERSION_MAJOR_MINOR}.*" \
+  "nx-cugraph=${RAPIDS_VERSION_MAJOR_MINOR}.*" \
+  "cugraph-service-server=${RAPIDS_VERSION_MAJOR_MINOR}.*" \
+  "cugraph-service-client=${RAPIDS_VERSION_MAJOR_MINOR}.*"
 
 rapids-logger "Check GPU usage"
 nvidia-smi
@@ -108,7 +110,7 @@ echo "nx-cugraph coverage from networkx tests: $_coverage"
 echo $_coverage | awk '{ if ($NF == "0.0%") exit 1 }'
 # Ensure all algorithms were called by comparing covered lines to function lines.
 # Run our tests again (they're fast enough) to add their coverage, then create coverage.json
-pytest \
+NX_CUGRAPH_USE_COMPAT_GRAPHS=False pytest \
   --pyargs nx_cugraph \
   --config-file=../pyproject.toml \
   --cov-config=../pyproject.toml \
@@ -151,15 +153,14 @@ if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
       --channel "${CPP_CHANNEL}" \
       --channel "${PYTHON_CHANNEL}" \
       --channel conda-forge \
-      --channel dglteam/label/cu118 \
+      --channel dglteam/label/th23_cu118 \
       --channel nvidia \
-      libcugraph \
-      pylibcugraph \
-      pylibcugraphops \
-      cugraph \
-      cugraph-dgl \
-      'dgl>=1.1.0.cu*,<=2.0.0.cu*' \
-      'pytorch>=2.0' \
+      "libcugraph=${RAPIDS_VERSION_MAJOR_MINOR}.*" \
+      "pylibcugraph=${RAPIDS_VERSION_MAJOR_MINOR}.*" \
+      "pylibcugraphops=${RAPIDS_VERSION_MAJOR_MINOR}.*" \
+      "cugraph=${RAPIDS_VERSION_MAJOR_MINOR}.*" \
+      "cugraph-dgl=${RAPIDS_VERSION_MAJOR_MINOR}.*" \
+      'pytorch>=2.3,<2.4' \
       'cuda-version=11.8'
 
     rapids-print-env
@@ -198,25 +199,19 @@ if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
     # TODO re-enable logic once CUDA 12 is testable
     #if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
     CONDA_CUDA_VERSION="11.8"
-    PYG_URL="https://data.pyg.org/whl/torch-2.1.0+cu118.html"
+    PYG_URL="https://data.pyg.org/whl/torch-2.3.0+cu118.html"
     #else
     #  CONDA_CUDA_VERSION="12.1"
-    #  PYG_URL="https://data.pyg.org/whl/torch-2.1.0+cu121.html"
+    #  PYG_URL="https://data.pyg.org/whl/torch-2.3.0+cu121.html"
     #fi
 
     # Will automatically install built dependencies of cuGraph-PyG
     rapids-mamba-retry install \
       --channel "${CPP_CHANNEL}" \
       --channel "${PYTHON_CHANNEL}" \
-      --channel pyg \
-      "cugraph-pyg" \
+      "cugraph-pyg=${RAPIDS_VERSION_MAJOR_MINOR}.*" \
+      "pytorch>=2.3,<2.4" \
       "ogb"
-
-    pip install \
-        pyg_lib \
-        torch_scatter \
-        torch_sparse \
-      -f ${PYG_URL}
 
     rapids-print-env
 
@@ -253,7 +248,7 @@ if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
       --channel "${PYTHON_CHANNEL}" \
       --channel conda-forge \
       --channel nvidia \
-      cugraph-equivariant
+      "cugraph-equivariant=${RAPIDS_VERSION_MAJOR_MINOR}.*"
     pip install e3nn==0.5.1
 
     rapids-print-env
