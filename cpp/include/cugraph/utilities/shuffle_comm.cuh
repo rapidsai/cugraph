@@ -51,6 +51,8 @@ namespace cugraph {
 
 namespace detail {
 
+constexpr size_t cache_line_size = 128;
+
 template <typename GroupIdIterator>
 struct compute_group_id_count_pair_t {
   GroupIdIterator group_id_first{};

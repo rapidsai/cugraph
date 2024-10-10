@@ -1195,21 +1195,19 @@ extract_transform_v_frontier_e(raft::handle_t const& handle,
       }
     }
     if (stream_pool_indices) { handle.sync_stream_pool(*stream_pool_indices); }
-#if EXTRACT_PERFORMANCE_MEASUREMENT  // FIXME: delete
+#if EXTRACT_PERFORMANCE_MEASUREMENT
     auto subtime3 = std::chrono::steady_clock::now();
 #endif
 
     std::vector<size_t> tmp_buffer_sizes(loop_count);
     for (size_t j = 0; j < loop_count; ++j) {
-      auto loop_stream = stream_pool_indices
-                           ? handle.get_stream_from_stream_pool((*stream_pool_indices)[j])
-                           : handle.get_stream();
-
+      auto loop_stream     = stream_pool_indices
+                               ? handle.get_stream_from_stream_pool((*stream_pool_indices)[j])
+                               : handle.get_stream();
       auto& tmp_buffer_idx = output_buffer_idx_scalars[j];
-      // FIXME: tmp_buffer_idx.value() implicitly synchronizes to copy the results to host
-      tmp_buffer_sizes[j] = tmp_buffer_idx.value(loop_stream);
+      tmp_buffer_sizes[j]  = tmp_buffer_idx.value(loop_stream);
     }
-#if EXTRACT_PERFORMANCE_MEASUREMENT  // FIXME: delete
+#if EXTRACT_PERFORMANCE_MEASUREMENT
     if (stream_pool_indices) { handle.sync_stream_pool(*stream_pool_indices); }
     auto subtime4 = std::chrono::steady_clock::now();
 #endif
@@ -1245,8 +1243,8 @@ extract_transform_v_frontier_e(raft::handle_t const& handle,
     std::chrono::duration<double> subdur3 = subtime4 - subtime3;
     std::chrono::duration<double> subdur4 = subtime5 - subtime4;
     std::cerr << "sub (extract) took (" << subdur0.count() << "," << subdur1.count() << ","
-              << subdur2.count() << "," << subdur3.count() << "," << subdur4.count() << ")"
-              << std::endl;
+              << subdur2.count() << "," << subdur3.count() << "," << subdur4.count()
+              << ") loop_count=" << loop_count << std::endl;
 #endif
   }
 #if EXTRACT_PERFORMANCE_MEASUREMENT  // FIXME: delete
@@ -1267,7 +1265,7 @@ extract_transform_v_frontier_e(raft::handle_t const& handle,
     std::vector<size_t> buffer_sizes(key_buffers.size());
     static_assert(!std::is_same_v<output_key_t, void> || !std::is_same_v<output_value_t, void>);
     for (size_t i = 0; i < key_buffers.size(); ++i) {
-      if constexpr (!std::is_same_v<key_t, void>) {
+      if constexpr (!std::is_same_v<output_key_t, void>) {
         buffer_sizes[i] = size_optional_dataframe_buffer<output_key_t>(key_buffers[i]);
       } else {
         buffer_sizes[i] = size_optional_dataframe_buffer<output_value_t>(value_buffers[i]);

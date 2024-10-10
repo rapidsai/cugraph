@@ -653,7 +653,6 @@ transform_reduce_v_frontier_outgoing_e_by_dst(raft::handle_t const& handle,
     RAFT_CUDA_TRY(cudaDeviceSynchronize());
     time3 = std::chrono::steady_clock::now();
 #endif
-    constexpr size_t cache_line_size = 128;
     size_t min_element_size{cache_line_size};
     if constexpr (std::is_same_v<key_t, vertex_t>) {
       if constexpr (try_compression) {
