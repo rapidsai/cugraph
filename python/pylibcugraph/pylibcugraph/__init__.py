@@ -21,6 +21,8 @@ from pylibcugraph.resource_handle import ResourceHandle
 
 from pylibcugraph.graph_properties import GraphProperties
 
+from pylibcugraph.edge_id_lookup_table import EdgeIdLookupTable
+
 from pylibcugraph.eigenvector_centrality import eigenvector_centrality
 
 from pylibcugraph.katz_centrality import katz_centrality
