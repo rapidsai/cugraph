@@ -160,7 +160,7 @@ if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
       "pylibcugraphops=${RAPIDS_VERSION_MAJOR_MINOR}.*" \
       "cugraph=${RAPIDS_VERSION_MAJOR_MINOR}.*" \
       "cugraph-dgl=${RAPIDS_VERSION_MAJOR_MINOR}.*" \
-      'pytorch>=2.3,<2.4' \
+      'pytorch>=2.3' \
       'cuda-version=11.8'
 
     rapids-print-env
@@ -210,7 +210,7 @@ if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
       --channel "${CPP_CHANNEL}" \
       --channel "${PYTHON_CHANNEL}" \
       "cugraph-pyg=${RAPIDS_VERSION_MAJOR_MINOR}.*" \
-      "pytorch>=2.3,<2.4" \
+      "pytorch>=2.3" \
       "ogb"
 
     rapids-print-env
