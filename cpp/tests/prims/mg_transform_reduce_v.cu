@@ -53,7 +53,7 @@ struct v_op_t {
 
   __device__ auto operator()(vertex_t, vertex_t val) const
   {
-    cuco::detail::MurmurHash3_32<vertex_t> hash_func{};
+    cuco::murmurhash3_32<vertex_t> hash_func{};
     return cugraph::test::detail::make_property_value<property_t>(hash_func(val) % mod);
   }
 };

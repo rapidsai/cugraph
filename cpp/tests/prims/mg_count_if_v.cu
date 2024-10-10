@@ -48,7 +48,7 @@ struct test_predicate {
   test_predicate(int mod_count) : mod(mod_count) {}
   __device__ bool operator()(vertex_t, const vertex_t& val)
   {
-    cuco::detail::MurmurHash3_32<vertex_t> hash_func{};
+    cuco::murmurhash3_32<vertex_t> hash_func{};
     return (0 == (hash_func(val) % mod));
   }
 };
