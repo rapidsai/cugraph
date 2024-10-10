@@ -4,7 +4,6 @@
 set -eoxu pipefail
 
 package_name=$1
-package_dir=$2
 
 python_package_name=$(echo ${package_name}|sed 's/-/_/g')
 
