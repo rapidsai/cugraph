@@ -243,11 +243,12 @@ std::tuple<rmm::device_uvector<vertex_t>, weight_t> approximate_weighted_matchin
         major_comm_size,
         minor_comm_size};
 
-      candidates_of_candidates = cugraph::collect_values_for_keys(handle,
+      candidates_of_candidates = cugraph::collect_values_for_keys(comm,
                                                                   target_candidate_map.view(),
                                                                   candidates.begin(),
                                                                   candidates.end(),
-                                                                  vertex_to_gpu_id_op);
+                                                                  vertex_to_gpu_id_op,
+                                                                  handle.get_stream());
     } else {
       candidates_of_candidates.resize(candidates.size(), handle.get_stream());
 

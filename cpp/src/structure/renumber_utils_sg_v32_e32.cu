@@ -69,4 +69,18 @@ template void unrenumber_local_int_edges<int32_t, true, false>(raft::handle_t co
                                                                int32_t num_vertices,
                                                                bool do_expensive_check);
 
+template void unrenumber_sorted_unique_local_int_edge_dsts<int32_t, false, false>(
+  raft::handle_t const& handle,
+  raft::device_span<int32_t> sorted_unique_edge_dsts /* [INOUT] */,
+  raft::device_span<int32_t const> renumber_map,
+  std::vector<int32_t> const& vertex_partition_range_lasts,
+  bool do_expensive_check);
+
+template void unrenumber_sorted_unique_local_int_edge_dsts<int32_t, true, false>(
+  raft::handle_t const& handle,
+  raft::device_span<int32_t> sorted_unique_edge_dsts /* [INOUT] */,
+  raft::device_span<int32_t const> renumber_map,
+  std::vector<int32_t> const& vertex_partition_range_lasts,
+  bool do_expensive_check);
+
 }  // namespace cugraph

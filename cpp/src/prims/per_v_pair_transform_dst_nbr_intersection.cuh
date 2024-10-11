@@ -250,11 +250,14 @@ void per_v_pair_transform_dst_nbr_intersection(
   }
 
   auto num_input_pairs = static_cast<size_t>(thrust::distance(vertex_pair_first, vertex_pair_last));
-  std::optional<rmm::device_uvector<vertex_t>> unique_vertices{std::nullopt};
+  std::optional<rmm::device_uvector<vertex_t>> sorted_unique_vertices{std::nullopt};
   std::optional<decltype(allocate_dataframe_buffer<property_t>(size_t{0}, rmm::cuda_stream_view{}))>
-    property_buffer_for_unique_vertices{std::nullopt};
+    property_buffer_for_sorted_unique_vertices{std::nullopt};
   if constexpr (GraphViewType::is_multi_gpu) {
-    unique_vertices  = rmm::device_uvector<vertex_t>(num_input_pairs * 2, handle.get_stream());
+    auto& comm = handle.get_comms();
+
+    sorted_unique_vertices =
+      rmm::device_uvector<vertex_t>(num_input_pairs * 2, handle.get_stream());
     auto elem0_first = thrust::make_transform_iterator(
       vertex_pair_first,
       cugraph::thrust_tuple_get<typename thrust::iterator_traits<VertexPairIterator>::value_type,
@@ -262,7 +265,7 @@ void per_v_pair_transform_dst_nbr_intersection(
     thrust::copy(handle.get_thrust_policy(),
                  elem0_first,
                  elem0_first + num_input_pairs,
-                 (*unique_vertices).begin());
+                 (*sorted_unique_vertices).begin());
     auto elem1_first = thrust::make_transform_iterator(
       vertex_pair_first,
       cugraph::thrust_tuple_get<typename thrust::iterator_traits<VertexPairIterator>::value_type,
@@ -270,25 +273,25 @@ void per_v_pair_transform_dst_nbr_intersection(
     thrust::copy(handle.get_thrust_policy(),
                  elem1_first,
                  elem1_first + num_input_pairs,
-                 (*unique_vertices).begin() + num_input_pairs);
-    thrust::sort(handle.get_thrust_policy(), (*unique_vertices).begin(), (*unique_vertices).end());
-    (*unique_vertices)
-      .resize(thrust::distance((*unique_vertices).begin(),
+                 (*sorted_unique_vertices).begin() + num_input_pairs);
+    thrust::sort(handle.get_thrust_policy(),
+                 (*sorted_unique_vertices).begin(),
+                 (*sorted_unique_vertices).end());
+    (*sorted_unique_vertices)
+      .resize(thrust::distance((*sorted_unique_vertices).begin(),
                                thrust::unique(handle.get_thrust_policy(),
-                                              (*unique_vertices).begin(),
-                                              (*unique_vertices).end())),
+                                              (*sorted_unique_vertices).begin(),
+                                              (*sorted_unique_vertices).end())),
               handle.get_stream());
 
-    std::tie(unique_vertices, property_buffer_for_unique_vertices) =
-      collect_values_for_unique_int_vertices(handle,
-                                             std::move(*unique_vertices),
-                                             vertex_value_input_first,
-                                             graph_view.vertex_partition_range_lasts());
-    thrust::sort_by_key(
-      handle.get_thrust_policy(),
-      (*unique_vertices).begin(),
-      (*unique_vertices).end(),
-      (*property_buffer_for_unique_vertices).begin());  // necessary for binary search
+    property_buffer_for_sorted_unique_vertices = collect_values_for_sorted_unique_int_vertices(
+      comm,
+      raft::device_span<vertex_t const>((*sorted_unique_vertices).data(),
+                                        (*sorted_unique_vertices).size()),
+      vertex_value_input_first,
+      graph_view.vertex_partition_range_lasts(),
+      graph_view.local_vertex_partition_range_first(),
+      handle.get_stream());
   }
 
   rmm::device_uvector<size_t> vertex_pair_indices(num_input_pairs, handle.get_stream());
@@ -412,32 +415,32 @@ void per_v_pair_transform_dst_nbr_intersection(
                                    do_expensive_check);
       }
 
-      if (unique_vertices) {
-        auto vertex_value_input_for_unique_vertices_first =
-          get_dataframe_buffer_begin(*property_buffer_for_unique_vertices);
-        thrust::for_each(
-          handle.get_thrust_policy(),
-          thrust::make_counting_iterator(size_t{0}),
-          thrust::make_counting_iterator(this_chunk_size),
-          detail::call_intersection_op_t<
-            GraphViewType,
-            decltype(vertex_value_input_for_unique_vertices_first),
-            typename decltype(r_nbr_intersection_property_values0)::const_pointer,
-            IntersectionOp,
-            decltype(chunk_vertex_pair_index_first),
-            VertexPairIterator,
-            VertexPairValueOutputIterator>{edge_partition,
-                                           thrust::make_optional<raft::device_span<vertex_t const>>(
-                                             (*unique_vertices).data(), (*unique_vertices).size()),
-                                           vertex_value_input_for_unique_vertices_first,
-                                           intersection_op,
-                                           intersection_offsets.data(),
-                                           intersection_indices.data(),
-                                           r_nbr_intersection_property_values0.data(),
-                                           r_nbr_intersection_property_values1.data(),
-                                           chunk_vertex_pair_index_first,
-                                           vertex_pair_first,
-                                           vertex_pair_value_output_first});
+      if (sorted_unique_vertices) {
+        auto vertex_value_input_for_sorted_unique_vertices_first =
+          get_dataframe_buffer_begin(*property_buffer_for_sorted_unique_vertices);
+        thrust::for_each(handle.get_thrust_policy(),
+                         thrust::make_counting_iterator(size_t{0}),
+                         thrust::make_counting_iterator(this_chunk_size),
+                         detail::call_intersection_op_t<
+                           GraphViewType,
+                           decltype(vertex_value_input_for_sorted_unique_vertices_first),
+                           typename decltype(r_nbr_intersection_property_values0)::const_pointer,
+                           IntersectionOp,
+                           decltype(chunk_vertex_pair_index_first),
+                           VertexPairIterator,
+                           VertexPairValueOutputIterator>{
+                           edge_partition,
+                           thrust::make_optional<raft::device_span<vertex_t const>>(
+                             (*sorted_unique_vertices).data(), (*sorted_unique_vertices).size()),
+                           vertex_value_input_for_sorted_unique_vertices_first,
+                           intersection_op,
+                           intersection_offsets.data(),
+                           intersection_indices.data(),
+                           r_nbr_intersection_property_values0.data(),
+                           r_nbr_intersection_property_values1.data(),
+                           chunk_vertex_pair_index_first,
+                           vertex_pair_first,
+                           vertex_pair_value_output_first});
       } else {
         thrust::for_each(handle.get_thrust_policy(),
                          thrust::make_counting_iterator(size_t{0}),
