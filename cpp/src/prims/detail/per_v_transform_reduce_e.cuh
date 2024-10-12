@@ -972,14 +972,14 @@ __host__ __device__ int priority_to_rank(
 }
 
 template <typename vertex_t, typename priority_t, typename ValueIterator>
-rmm::device_uvector<priority_t> compute_priorities(
+void compute_priorities(
   raft::comms::comms_t const& comm,
   ValueIterator value_first,
+  raft::device_span<priority_t> priorities,
   std::optional<raft::device_span<size_t const>>
     hypersparse_key_offsets,  // we may not have values for the entire "range_size" if
                               // hypersparse_key_offsets.has_value() is true
   size_t contiguous_size,
-  size_t range_size,
   int root,
   int subgroup_size /* faster interconnect within a subgroup */,
   typename thrust::iterator_traits<ValueIterator>::value_type init,
@@ -992,8 +992,6 @@ rmm::device_uvector<priority_t> compute_priorities(
   // For each vertex, select a comm_rank among the GPUs with a value other than init (if there are
   // more than one, the GPU with (comm_rank == root) has the highest priority, GPUs in the same DGX
   // node should be the next)
-
-  rmm::device_uvector<priority_t> priorities(range_size, stream_view);
 
   if (ignore_local_values) {
     thrust::fill(rmm::exec_policy_nosync(stream_view),
@@ -1034,8 +1032,6 @@ rmm::device_uvector<priority_t> compute_priorities(
         is_not_equal_t<typename thrust::iterator_traits<ValueIterator>::value_type>{init});
     }
   }
-
-  return priorities;
 }
 
 // return selected ranks if root.
@@ -2032,6 +2028,9 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
 #endif
     auto loop_count =
       std::min(num_concurrent_loops, graph_view.number_of_local_edge_partitions() - i);
+#if PER_V_PERFORMANCE_MEASUREMENT
+    std::vector<size_t> bcast_sizes(loop_count);
+#endif
 
     std::conditional_t<GraphViewType::is_multi_gpu && use_input_key,
                        std::vector<dataframe_buffer_type_t<key_t>>,
@@ -2074,7 +2073,19 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
                               : local_key_list_sizes[partition_idx],
                             handle.get_stream());
             use_tmp_bcast_buffer = true;
+#if PER_V_PERFORMANCE_MEASUREMENT
+            bcast_sizes[j] =
+              (v_list_bitmap ? packed_bool_size(local_v_list_range_lasts[partition_idx] -
+                                                local_v_list_range_firsts[partition_idx])
+                             : local_key_list_sizes[partition_idx]) *
+              sizeof(uint32_t);
+#endif
           }
+#if PER_V_PERFORMANCE_MEASUREMENT
+          else {
+            bcast_sizes[j] = local_key_list_sizes[partition_idx] * sizeof(vertex_t);
+          }
+#endif
         }
         if (!use_tmp_bcast_buffer) {
           edge_partition_key_buffers.push_back(allocate_dataframe_buffer<key_t>(
@@ -2666,12 +2677,6 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
       }
 
       if constexpr (std::is_same_v<ReduceOp, reduce_op::any<T>>) {
-        std::vector<std::variant<rmm::device_uvector<uint8_t>,
-                                 rmm::device_uvector<uint16_t>,
-                                 rmm::device_uvector<uint32_t>>>
-          edge_partition_priorities{};
-        edge_partition_priorities.reserve(loop_count);
-
         std::conditional_t<filter_input_key,
                            std::optional<std::vector<raft::device_span<size_t const>>>,
                            std::byte /* dummy */>
@@ -2684,34 +2689,11 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
         }
 
         std::vector<size_t> edge_partition_allreduce_sizes(loop_count);
+        std::vector<size_t> edge_partition_allreduce_displacements(loop_count);
         std::vector<size_t> edge_partition_contiguous_sizes(loop_count);
 
         for (size_t j = 0; j < loop_count; ++j) {
-          auto partition_idx = i + j;
-          auto loop_stream   = stream_pool_indices
-                                 ? handle.get_stream_from_stream_pool((*stream_pool_indices)[j])
-                                 : handle.get_stream();
-
-          bool process_local_edges = true;
-          if constexpr (filter_input_key) {
-            if (static_cast<int>(partition_idx) == minor_comm_rank) { process_local_edges = false; }
-          }
-
-          std::optional<raft::device_span<size_t const>> hypersparse_non_deg1_key_offsets{
-            std::nullopt};
-          if constexpr (filter_input_key) {
-            if (edge_partition_hypersparse_key_offset_vectors) {
-              hypersparse_non_deg1_key_offsets = raft::device_span<size_t const>(
-                (*edge_partition_hypersparse_key_offset_vectors)[j].data(),
-                (*edge_partition_hypersparse_key_offset_vectors)[j].size() -
-                  (edge_partition_deg1_hypersparse_key_offset_counts
-                     ? (*edge_partition_deg1_hypersparse_key_offset_counts)[j]
-                     : size_t{0}));
-              (*edge_partition_hypersparse_non_deg1_key_offset_spans)[j] =
-                *hypersparse_non_deg1_key_offsets;
-            }
-          }
-
+          auto partition_idx        = i + j;
           auto const& output_buffer = edge_partition_major_output_buffers[j];
 
           size_t allreduce_size{};
@@ -2740,18 +2722,69 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
           }
           edge_partition_allreduce_sizes[j]  = allreduce_size;
           edge_partition_contiguous_sizes[j] = contiguous_size;
+        }
+        std::exclusive_scan(edge_partition_allreduce_sizes.begin(),
+                            edge_partition_allreduce_sizes.end(),
+                            edge_partition_allreduce_displacements.begin(),
+                            size_t{0});
+        std::variant<rmm::device_uvector<uint8_t>,
+                     rmm::device_uvector<uint16_t>,
+                     rmm::device_uvector<uint32_t>>
+          aggregate_priorities = rmm::device_uvector<uint8_t>(0, handle.get_stream());
+        if (minor_comm_size <= std::numeric_limits<uint8_t>::max()) {  // priority == uint8_t
+          std::get<0>(aggregate_priorities)
+            .resize(edge_partition_allreduce_displacements.back() +
+                      edge_partition_allreduce_sizes.back(),
+                    handle.get_stream());
+        } else if (minor_comm_size <=
+                   std::numeric_limits<uint16_t>::max()) {  // priority == uint16_t
+          aggregate_priorities = rmm::device_uvector<uint16_t>(
+            edge_partition_allreduce_displacements.back() + edge_partition_allreduce_sizes.back(),
+            handle.get_stream());
+        } else {  // priority == uint32_t
+          aggregate_priorities = rmm::device_uvector<uint32_t>(
+            edge_partition_allreduce_displacements.back() + edge_partition_allreduce_sizes.back(),
+            handle.get_stream());
+        }
+        if (stream_pool_indices) { handle.sync_stream(); }
 
-          std::variant<rmm::device_uvector<uint8_t>,
-                       rmm::device_uvector<uint16_t>,
-                       rmm::device_uvector<uint32_t>>
-            priorities = rmm::device_uvector<uint8_t>(0, loop_stream);
+        for (size_t j = 0; j < loop_count; ++j) {
+          auto partition_idx = i + j;
+          auto loop_stream   = stream_pool_indices
+                                 ? handle.get_stream_from_stream_pool((*stream_pool_indices)[j])
+                                 : handle.get_stream();
+
+          std::optional<raft::device_span<size_t const>> hypersparse_non_deg1_key_offsets{
+            std::nullopt};
+          if constexpr (filter_input_key) {
+            if (edge_partition_hypersparse_key_offset_vectors) {
+              hypersparse_non_deg1_key_offsets = raft::device_span<size_t const>(
+                (*edge_partition_hypersparse_key_offset_vectors)[j].data(),
+                (*edge_partition_hypersparse_key_offset_vectors)[j].size() -
+                  (edge_partition_deg1_hypersparse_key_offset_counts
+                     ? (*edge_partition_deg1_hypersparse_key_offset_counts)[j]
+                     : size_t{0}));
+              (*edge_partition_hypersparse_non_deg1_key_offset_spans)[j] =
+                *hypersparse_non_deg1_key_offsets;
+            }
+          }
+
+          auto const& output_buffer = edge_partition_major_output_buffers[j];
+
+          bool process_local_edges = true;
+          if constexpr (filter_input_key) {
+            if (static_cast<int>(partition_idx) == minor_comm_rank) { process_local_edges = false; }
+          }
+
           if (minor_comm_size <= std::numeric_limits<uint8_t>::max()) {  // priority == uint8_t
-            priorities = compute_priorities<vertex_t, uint8_t>(
+            compute_priorities<vertex_t, uint8_t>(
               minor_comm,
               get_dataframe_buffer_begin(output_buffer),
+              raft::device_span<uint8_t>(
+                std::get<0>(aggregate_priorities).data() + edge_partition_allreduce_displacements[j],
+                edge_partition_allreduce_sizes[j]),
               hypersparse_non_deg1_key_offsets,
-              contiguous_size,
-              allreduce_size,
+              edge_partition_contiguous_sizes[j],
               static_cast<int>(partition_idx),
               subgroup_size,
               init,
@@ -2759,61 +2792,59 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
               loop_stream);
           } else if (minor_comm_size <=
                      std::numeric_limits<uint16_t>::max()) {  // priority == uint16_t
-            priorities = compute_priorities<vertex_t, uint16_t>(
+            compute_priorities<vertex_t, uint16_t>(
               minor_comm,
               get_dataframe_buffer_begin(output_buffer),
+              raft::device_span<uint16_t>(
+                std::get<1>(aggregate_priorities).data() + edge_partition_allreduce_displacements[j],
+                edge_partition_allreduce_sizes[j]),
               hypersparse_non_deg1_key_offsets,
-              contiguous_size,
-              allreduce_size,
+              edge_partition_contiguous_sizes[j],
               static_cast<int>(partition_idx),
               subgroup_size,
               init,
               process_local_edges ? false : true /* ignore_local_values */,
               loop_stream);
           } else {  // priority == uint32_t
-            priorities = compute_priorities<vertex_t, uint32_t>(
+            compute_priorities<vertex_t, uint32_t>(
               minor_comm,
               get_dataframe_buffer_begin(output_buffer),
+              raft::device_span<uint32_t>(
+                std::get<2>(aggregate_priorities).data() + edge_partition_allreduce_displacements[j],
+                edge_partition_allreduce_sizes[j]),
               hypersparse_non_deg1_key_offsets,
-              contiguous_size,
-              allreduce_size,
+              edge_partition_contiguous_sizes[j],
               static_cast<int>(partition_idx),
               subgroup_size,
               init,
               process_local_edges ? false : true /* ignore_local_values */,
               loop_stream);
           }
-          edge_partition_priorities.push_back(std::move(priorities));
         }
         if (stream_pool_indices) { handle.sync_stream_pool(*stream_pool_indices); }
 #if PER_V_PERFORMANCE_MEASUREMENT
         auto subtime6 = std::chrono::steady_clock::now();
 #endif
 
-        device_group_start(minor_comm);
-        for (size_t j = 0; j < loop_count; ++j) {
-          auto& priorities = edge_partition_priorities[j];
-          if (minor_comm_size <= std::numeric_limits<uint8_t>::max()) {  // priority == uint8_t
-            device_allreduce(minor_comm,
-                             std::get<0>(priorities).data(),
-                             std::get<0>(priorities).data(),
-                             std::get<0>(priorities).size(),
-                             raft::comms::op_t::MIN,
-                             handle.get_stream());
-          } else if (minor_comm_size <=
-                     std::numeric_limits<uint16_t>::max()) {  // priority == uint16_t
-            CUGRAPH_FAIL(
-              "unimplemented.");  // currently, raft does not support allreduce on uint16_t.
-          } else {                // priority == uint32_t
-            device_allreduce(minor_comm,
-                             std::get<2>(priorities).data(),
-                             std::get<2>(priorities).data(),
-                             std::get<2>(priorities).size(),
-                             raft::comms::op_t::MIN,
-                             handle.get_stream());
-          }
+        if (minor_comm_size <= std::numeric_limits<uint8_t>::max()) {  // priority == uint8_t
+          device_allreduce(minor_comm,
+                           std::get<0>(aggregate_priorities).data(),
+                           std::get<0>(aggregate_priorities).data(),
+                           std::get<0>(aggregate_priorities).size(),
+                           raft::comms::op_t::MIN,
+                           handle.get_stream());
+        } else if (minor_comm_size <=
+                   std::numeric_limits<uint16_t>::max()) {  // priority == uint16_t
+          CUGRAPH_FAIL(
+            "unimplemented.");  // currently, raft does not support allreduce on uint16_t.
+        } else {                // priority == uint32_t
+          device_allreduce(minor_comm,
+                           std::get<2>(aggregate_priorities).data(),
+                           std::get<2>(aggregate_priorities).data(),
+                           std::get<2>(aggregate_priorities).size(),
+                           raft::comms::op_t::MIN,
+                           handle.get_stream());
         }
-        device_group_end(minor_comm);
         if (stream_pool_indices) { handle.sync_stream(); }
 #if PER_V_PERFORMANCE_MEASUREMENT
         auto subtime7 = std::chrono::steady_clock::now();
@@ -2846,54 +2877,65 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
 
           auto contiguous_size = edge_partition_contiguous_sizes[j];
 
-          auto& priorities = edge_partition_priorities[j];
           std::variant<rmm::device_uvector<int>, std::optional<rmm::device_uvector<uint32_t>>>
             selected_ranks_or_flags = rmm::device_uvector<int>(0, loop_stream);
           if (minor_comm_size <= std::numeric_limits<uint8_t>::max()) {  // priority == uint8_t
+            auto priorities = raft::device_span<uint8_t const>(
+              std::get<0>(aggregate_priorities).data() + edge_partition_allreduce_displacements[j],
+              edge_partition_allreduce_sizes[j]);
             selected_ranks_or_flags = compute_selected_ranks_from_priorities<vertex_t, uint8_t>(
               minor_comm,
-              raft::device_span<uint8_t const>(std::get<0>(priorities).data(),
-                                               std::get<0>(priorities).size()),
+              priorities,
               hypersparse_non_deg1_key_offsets,
               contiguous_size,
               static_cast<int>(partition_idx),
               subgroup_size,
               process_local_edges ? false : true /* ignore_local_values */,
               loop_stream);
-            std::get<0>(priorities).resize(0, loop_stream);
-            std::get<0>(priorities).shrink_to_fit(loop_stream);
           } else if (minor_comm_size <=
                      std::numeric_limits<uint16_t>::max()) {  // priority == uint16_t
+            auto priorities = raft::device_span<uint16_t const>(
+              std::get<1>(aggregate_priorities).data() + edge_partition_allreduce_displacements[j],
+              edge_partition_allreduce_sizes[j]);
             selected_ranks_or_flags = compute_selected_ranks_from_priorities<vertex_t, uint16_t>(
               minor_comm,
-              raft::device_span<uint16_t const>(std::get<1>(priorities).data(),
-                                                std::get<1>(priorities).size()),
+              priorities,
               hypersparse_non_deg1_key_offsets,
               contiguous_size,
               static_cast<int>(partition_idx),
               subgroup_size,
               process_local_edges ? false : true /* ignore_local_values */,
               loop_stream);
-            std::get<1>(priorities).resize(0, loop_stream);
-            std::get<1>(priorities).shrink_to_fit(loop_stream);
           } else {  // priority_t == uint32_t
+            auto priorities = raft::device_span<uint32_t const>(
+              std::get<2>(aggregate_priorities).data() + edge_partition_allreduce_displacements[j],
+              edge_partition_allreduce_sizes[j]);
             selected_ranks_or_flags = compute_selected_ranks_from_priorities<vertex_t, uint32_t>(
               minor_comm,
-              raft::device_span<uint32_t const>(std::get<2>(priorities).data(),
-                                                std::get<2>(priorities).size()),
+              priorities,
               hypersparse_non_deg1_key_offsets,
               contiguous_size,
               static_cast<int>(partition_idx),
               subgroup_size,
               process_local_edges ? false : true /* ignore_local_values */,
               loop_stream);
-            std::get<2>(priorities).resize(0, loop_stream);
-            std::get<2>(priorities).shrink_to_fit(loop_stream);
           }
           edge_partition_selected_ranks_or_flags.push_back(std::move(selected_ranks_or_flags));
         }
-#if PER_V_PERFORMANCE_MEASUREMENT
         if (stream_pool_indices) { handle.sync_stream_pool(*stream_pool_indices); }
+        if (minor_comm_size <= std::numeric_limits<uint8_t>::max()) {  // priority == uint8_t
+          std::get<0>(aggregate_priorities).resize(0, handle.get_stream());
+          std::get<0>(aggregate_priorities).shrink_to_fit(handle.get_stream());
+        } else if (minor_comm_size <=
+                   std::numeric_limits<uint16_t>::max()) {  // priority == uint16_t
+          std::get<1>(aggregate_priorities).resize(0, handle.get_stream());
+          std::get<1>(aggregate_priorities).shrink_to_fit(handle.get_stream());
+        } else {
+          std::get<2>(aggregate_priorities).resize(0, handle.get_stream());
+          std::get<2>(aggregate_priorities).shrink_to_fit(handle.get_stream());
+        }
+        if (stream_pool_indices) { handle.sync_stream(); }
+#if PER_V_PERFORMANCE_MEASUREMENT
         auto subtime8 = std::chrono::steady_clock::now();
 #endif
 
@@ -3457,6 +3499,11 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
                   << subdur5.count() << "," << subdur6.count() << "," << subdur7.count() << ","
                   << subdur8.count() << "," << subdur9.count() << "," << subdur10.count() << ","
                   << subdur11.count() << ")" << std::endl;
+        raft::print_host_vector("bcast_sizes", bcast_sizes.data(), bcast_sizes.size(), std::cerr);
+        raft::print_host_vector("edge_partition_allreduce_sizes",
+                                edge_partition_allreduce_sizes.data(),
+                                edge_partition_allreduce_sizes.size(),
+                                std::cerr);
 #endif
       } else {
         device_group_start(minor_comm);
