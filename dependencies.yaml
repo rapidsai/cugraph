@@ -324,7 +324,6 @@ channels:
   - rapidsai-nightly
   - dask/label/dev
   - dglteam/label/th23_cu118
-  - pytorch
   - conda-forge
   - nvidia
 dependencies:
