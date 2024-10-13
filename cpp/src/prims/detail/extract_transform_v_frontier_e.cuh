@@ -475,7 +475,7 @@ __global__ static void extract_transform_v_frontier_e_high_degree(
   }
 }
 
-#define EXTRACT_PERFORMANCE_MEASUREMENT 1
+#define EXTRACT_PERFORMANCE_MEASUREMENT 1  // FIXME: delete
 
 template <bool incoming,  // iterate over incoming edges (incoming == true) or outgoing edges
                           // (incoming == false)
@@ -498,7 +498,7 @@ extract_transform_v_frontier_e(raft::handle_t const& handle,
                                EdgeOp e_op,
                                bool do_expensive_check = false)
 {
-#if EXTRACT_PERFORMANCE_MEASUREMENT  // FIXME: delete
+#if EXTRACT_PERFORMANCE_MEASUREMENT
   RAFT_CUDA_TRY(cudaDeviceSynchronize());
   auto time0 = std::chrono::steady_clock::now();
 #endif
@@ -862,12 +862,12 @@ extract_transform_v_frontier_e(raft::handle_t const& handle,
 
   auto edge_mask_view = graph_view.edge_mask_view();
 
-#if EXTRACT_PERFORMANCE_MEASUREMENT  // FIXME: delete
+#if EXTRACT_PERFORMANCE_MEASUREMENT
   RAFT_CUDA_TRY(cudaDeviceSynchronize());
   auto time1 = std::chrono::steady_clock::now();
 #endif
   for (size_t i = 0; i < graph_view.number_of_local_edge_partitions(); i += num_concurrent_loops) {
-#if EXTRACT_PERFORMANCE_MEASUREMENT  // FIXME: delete
+#if EXTRACT_PERFORMANCE_MEASUREMENT
     auto subtime0 = std::chrono::steady_clock::now();
 #endif
     auto loop_count =
@@ -928,7 +928,7 @@ extract_transform_v_frontier_e(raft::handle_t const& handle,
         edge_partition_key_buffers.push_back(std::move(edge_partition_key_buffer));
       }
     }
-#if EXTRACT_PERFORMANCE_MEASUREMENT  // FIXME: delete
+#if EXTRACT_PERFORMANCE_MEASUREMENT
     if (stream_pool_indices) { handle.sync_stream_pool(*stream_pool_indices); }
     auto subtime1 = std::chrono::steady_clock::now();
 #endif
@@ -1023,7 +1023,7 @@ extract_transform_v_frontier_e(raft::handle_t const& handle,
       output_buffer_idx_scalars.push_back(rmm::device_scalar<size_t>(size_t{0}, loop_stream));
     }
     if (stream_pool_indices) { handle.sync_stream_pool(*stream_pool_indices); }
-#if EXTRACT_PERFORMANCE_MEASUREMENT  // FIXME: delete
+#if EXTRACT_PERFORMANCE_MEASUREMENT
     auto subtime2 = std::chrono::steady_clock::now();
 #endif
 
@@ -1235,7 +1235,7 @@ extract_transform_v_frontier_e(raft::handle_t const& handle,
       }
     }
     if (stream_pool_indices) { handle.sync_stream_pool(*stream_pool_indices); }
-#if EXTRACT_PERFORMANCE_MEASUREMENT  // FIXME: delete
+#if EXTRACT_PERFORMANCE_MEASUREMENT
     auto subtime5                         = std::chrono::steady_clock::now();
     std::chrono::duration<double> subdur0 = subtime1 - subtime0;
     std::chrono::duration<double> subdur1 = subtime2 - subtime1;
@@ -1247,7 +1247,7 @@ extract_transform_v_frontier_e(raft::handle_t const& handle,
               << ") loop_count=" << loop_count << std::endl;
 #endif
   }
-#if EXTRACT_PERFORMANCE_MEASUREMENT  // FIXME: delete
+#if EXTRACT_PERFORMANCE_MEASUREMENT
   RAFT_CUDA_TRY(cudaDeviceSynchronize());
   auto time2 = std::chrono::steady_clock::now();
 #endif
@@ -1298,7 +1298,7 @@ extract_transform_v_frontier_e(raft::handle_t const& handle,
     }
   }
 
-#if EXTRACT_PERFORMANCE_MEASUREMENT  // FIXME: delete
+#if EXTRACT_PERFORMANCE_MEASUREMENT
   RAFT_CUDA_TRY(cudaDeviceSynchronize());
   auto time3                         = std::chrono::steady_clock::now();
   std::chrono::duration<double> dur0 = time1 - time0;

@@ -677,6 +677,7 @@ transform_reduce_v_frontier_outgoing_e_by_dst(raft::handle_t const& handle,
         min_element_size = std::min(min_thrust_tuple_element_sizes<payload_t>(), min_element_size);
       }
     }
+    assert((cache_line_size % min_element_size) == 0);
     auto alignment = cache_line_size / min_element_size;
     std::optional<std::conditional_t<try_compression, std::variant<key_t, uint32_t>, key_t>>
       invalid_key{std::nullopt};
