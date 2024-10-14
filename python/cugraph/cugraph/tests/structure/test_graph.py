@@ -221,11 +221,11 @@ def test_create_undirected_graph_from_asymmetric_adj_list():
         # Ifan undirected graph is created with 'symmetrize' set to False, the
         # edgelist provided by the user must be symmetric.
         G.from_cudf_adjlist(offsets, indices, None, symmetrize=False)
-    
+
     G = cugraph.Graph(directed=False)
     G.from_cudf_adjlist(offsets, indices, None, symmetrize=True)
 
-    # FIXME: Once 'decompress_to_edgelist' is exposed to the 
+    # FIXME: Once 'decompress_to_edgelist' is exposed to the
     # python API, ensure that the derived edgelist is symmetric
     # if symmetrize = True.
 
