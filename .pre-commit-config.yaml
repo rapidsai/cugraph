@@ -78,4 +78,4 @@ repos:
         types_or: [python, markdown]
         language: python
         pass_filenames: false
-        additional_dependencies: ["networkx>=3.3"]
+        additional_dependencies: ["networkx>=3.4"]
