@@ -19,6 +19,10 @@ jobs:
       - wheel-build-cugraph-pyg
       - wheel-build-cugraph-equivariant
     secrets: inherit
+    uses: rapidsai/shared-workflows/.github/workflows/pr-builder.yaml@branch-24.12
+    if: always()
+    with:
+      needs: ${{ toJSON(needs) }}
   wheel-build-pylibcugraph:
     secrets: inherit
     uses: rapidsai/shared-workflows/.github/workflows/wheels-build.yaml@branch-24.12
