@@ -169,11 +169,6 @@ sort_by_key<int32_t, int32_t>(raft::handle_t const& handle,
                               rmm::device_uvector<int32_t> const& keys,
                               rmm::device_uvector<int32_t> const& values);
 
-template std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<int64_t>>
-sort_by_key<int32_t, int64_t>(raft::handle_t const& handle,
-                              rmm::device_uvector<int32_t> const& keys,
-                              rmm::device_uvector<int64_t> const& values);
-
 template std::tuple<rmm::device_uvector<int64_t>, rmm::device_uvector<float>>
 sort_by_key<int64_t, float>(raft::handle_t const& handle,
                             rmm::device_uvector<int64_t> const& keys,
@@ -259,11 +254,6 @@ template std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<int32_t>>
 sort_by_key<int32_t, int32_t>(raft::handle_t const& handle,
                               rmm::device_uvector<int32_t>&& keys,
                               rmm::device_uvector<int32_t>&& values);
-
-template std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<int64_t>>
-sort_by_key<int32_t, int64_t>(raft::handle_t const& handle,
-                              rmm::device_uvector<int32_t>&& keys,
-                              rmm::device_uvector<int64_t>&& values);
 
 template std::tuple<rmm::device_uvector<int64_t>, rmm::device_uvector<float>>
 sort_by_key<int64_t, float>(raft::handle_t const& handle,

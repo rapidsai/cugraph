@@ -609,14 +609,14 @@ extern "C" cugraph_error_code_t cugraph_graph_create_sg(
                "Invalid input arguments: src size != weights size.",
                *error);
 
-  cugraph_data_type_id_t edge_type;
-  cugraph_data_type_id_t weight_type;
+  if (p_src->type_ == cugraph_data_type_id_t::INT32)
+    CAPI_EXPECTS(p_src->size_ < int32_threshold,
+                 CUGRAPH_INVALID_INPUT,
+                 "Number of edges won't fit in 32-bit integer, using 32-bit type",
+                 *error);
 
-  if (p_src->size_ < int32_threshold) {
-    edge_type = p_src->type_;
-  } else {
-    edge_type = cugraph_data_type_id_t::INT64;
-  }
+  cugraph_data_type_id_t edge_type = p_src->type_;
+  cugraph_data_type_id_t weight_type;
 
   if (weights != nullptr) {
     weight_type = p_weights->type_;

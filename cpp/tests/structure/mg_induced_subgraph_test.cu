@@ -288,12 +288,6 @@ TEST_P(Tests_MGInducedSubgraph_Rmat, CheckInt32Int32)
     override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
 }
 
-TEST_P(Tests_MGInducedSubgraph_Rmat, CheckInt32Int64)
-{
-  run_current_test<int32_t, int64_t, float, false>(
-    override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
-}
-
 TEST_P(Tests_MGInducedSubgraph_Rmat, CheckInt64Int64)
 {
   run_current_test<int64_t, int64_t, float, false>(
