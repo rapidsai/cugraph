@@ -26,6 +26,7 @@ from cugraph.testing import utils
 from cudf.testing import assert_series_equal
 from cudf.testing.testing import assert_frame_equal
 from cugraph.structure.symmetrize import symmetrize
+from cugraph.datasets import karate_asymmetric
 
 # MG
 import dask_cudf
@@ -202,6 +203,31 @@ def test_add_adj_list_to_edge_list(graph_file):
     destinations_cu = edgelist["dst"]
     compare_series(sources_cu, sources_exp)
     compare_series(destinations_cu, destinations_exp)
+
+
+@pytest.mark.sg
+def test_create_undirected_graph_from_asymmetric_adj_list():
+    # karate_asymmetric.get_path()
+    Mnx = utils.read_csv_for_nx(karate_asymmetric.get_path())
+    N = max(max(Mnx["0"]), max(Mnx["1"])) + 1
+    Mcsr = scipy.sparse.csr_matrix((Mnx.weight, (Mnx["0"], Mnx["1"])), shape=(N, N))
+
+    offsets = cudf.Series(Mcsr.indptr)
+    indices = cudf.Series(Mcsr.indices)
+
+    G = cugraph.Graph(directed=False)
+
+    with pytest.raises(Exception):
+        # Ifan undirected graph is created with 'symmetrize' set to False, the
+        # edgelist provided by the user must be symmetric.
+        G.from_cudf_adjlist(offsets, indices, None, symmetrize=False)
+    
+    G = cugraph.Graph(directed=False)
+    G.from_cudf_adjlist(offsets, indices, None, symmetrize=True)
+
+    # FIXME: Once 'decompress_to_edgelist' is exposed to the 
+    # python API, ensure that the derived edgelist is symmetric
+    # if symmetrize = True.
 
 
 # Test
