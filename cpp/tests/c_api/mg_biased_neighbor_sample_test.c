@@ -941,7 +941,7 @@ int test_biased_neighbor_sample_alex_bug(const cugraph_resource_handle_t* handle
   cugraph_sample_result_free(result);
 #endif
 
-  cugraph_sg_graph_free(graph);
+  cugraph_graph_free(graph);
   cugraph_error_free(ret_error);
 }
 
@@ -1221,7 +1221,7 @@ int test_biased_neighbor_sample_sort_by_hop(const cugraph_resource_handle_t* han
   cugraph_sample_result_free(result);
 #endif
 
-  cugraph_sg_graph_free(graph);
+  cugraph_graph_free(graph);
   cugraph_error_free(ret_error);
 }
 

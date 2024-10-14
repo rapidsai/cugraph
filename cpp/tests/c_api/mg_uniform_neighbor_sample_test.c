@@ -938,7 +938,7 @@ int test_uniform_neighbor_sample_alex_bug(const cugraph_resource_handle_t* handl
   cugraph_sample_result_free(result);
 #endif
 
-  cugraph_sg_graph_free(graph);
+  cugraph_graph_free(graph);
   cugraph_error_free(ret_error);
 }
 
@@ -1217,7 +1217,7 @@ int test_uniform_neighbor_sample_sort_by_hop(const cugraph_resource_handle_t* ha
   cugraph_sample_result_free(result);
 #endif
 
-  cugraph_sg_graph_free(graph);
+  cugraph_graph_free(graph);
   cugraph_error_free(ret_error);
 }
 
