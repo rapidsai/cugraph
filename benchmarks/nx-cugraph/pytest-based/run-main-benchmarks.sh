@@ -14,7 +14,7 @@
 
 
 # location to store datasets used for benchmarking
-export RAPIDS_DATASET_ROOT_DIR=/datasets/cugraph
+export RAPIDS_DATASET_ROOT_DIR=${RAPIDS_DATASET_ROOT_DIR:-/datasets/cugraph}
 mkdir -p logs
 
 # list of algos, datasets, and back-ends to use in combinations
