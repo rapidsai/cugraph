@@ -5,6 +5,7 @@ set -euo pipefail
 
 package_name=$1
 package_dir=$2
+underscore_package_name=$(echo "${package_name}" | tr "-" "_")
 
 source rapids-configure-sccache
 source rapids-date-string
@@ -16,13 +17,13 @@ matrix_selectors="cuda=${RAPIDS_CUDA_VERSION%.*};arch=$(arch);py=${RAPIDS_PY_VER
 
 rapids-dependency-file-generator \
   --output requirements \
-  --file-key "py_build_${package_name/-/_}" \
+  --file-key "py_build_${underscore_package_name}" \
   --matrix "${matrix_selectors}" \
-| tee -a /tmp/requirements-build.txt
+| tee /tmp/requirements-build.txt
 
 rapids-dependency-file-generator \
   --output requirements \
-  --file-key "py_rapids_build_${package_name/-/_}" \
+  --file-key "py_rapids_build_${underscore_package_name}" \
   --matrix "${matrix_selectors}" \
 | tee -a /tmp/requirements-build.txt
 
