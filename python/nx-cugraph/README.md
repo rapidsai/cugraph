@@ -1,7 +1,7 @@
 # nx-cugraph
 
 ## Description
-[RAPIDS](https://rapids.ai) nx-cugraph is a [backend to NetworkX](https://networkx.org/documentation/stable/reference/utils.html#backends)
+[RAPIDS](https://rapids.ai) nx-cugraph is a [backend to NetworkX](https://networkx.org/documentation/stable/backends.html)
 to run supported algorithms with GPU acceleration.
 
 ## System Requirements
@@ -46,8 +46,10 @@ NetworkX will use nx-cugraph as the graph analytics backend if any of the
 following are used:
 
 ### `NX_CUGRAPH_AUTOCONFIG` environment variable.
-The `NX_CUGRAPH_AUTOCONFIG` environment variable can be used to have NetworkX automatically dispatch to specified backends if an API is called that the backend supports.
-Set `NX_CUGRAPH_AUTOCONFIG=True` to use nx-cugraph to GPU accelerate supported APIs with zero code change.
+By setting `NX_CUGRAPH_AUTOCONFIG=True`, NetworkX will automatically dispatch algorithm calls to nx-cugraph (if the backend is supported). This allows users to GPU accelerate their code with zero code change.
+
+Read more on [Networkx Backends and How They Work](https://networkx.org/documentation/stable/reference/backends.html).
+
 Example:
 ```
 bash> NX_CUGRAPH_AUTOCONFIG=True python my_networkx_script.py
