@@ -163,7 +163,7 @@ class Tests_MGPerVPairTransformDstNbrIntersection
       cugraph::get_dataframe_buffer_begin(mg_vertex_pair_buffer),
       cugraph::get_dataframe_buffer_end(mg_vertex_pair_buffer),
       [comm_rank, num_vertices = mg_graph_view.number_of_vertices()] __device__(size_t i) {
-        cuco::detail::MurmurHash3_32<size_t>
+        cuco::murmurhash3_32<size_t>
           hash_func{};  // use hash_func to generate arbitrary vertex pairs
         auto v0 = static_cast<vertex_t>(hash_func(i + comm_rank) % num_vertices);
         auto v1 = static_cast<vertex_t>(hash_func(i + num_vertices + comm_rank) % num_vertices);
