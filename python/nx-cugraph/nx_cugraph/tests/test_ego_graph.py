@@ -78,7 +78,7 @@ def test_ego_graph_cycle_graph(
             nx.ego_graph(Gnx, n, **kwargs, backend="cugraph")
         with pytest.raises(NotImplementedError, match="ego_graph"):
             nx.ego_graph(Gcg, n, **kwargs, backend="cugraph")
-        if _nxver < (3, 4):
+        if _nxver < (3, 4) or not nx.config.fallback_to_nx:
             with pytest.raises(NotImplementedError, match="ego_graph"):
                 nx.ego_graph(Gcg, n, **kwargs)
         else:
@@ -86,7 +86,6 @@ def test_ego_graph_cycle_graph(
             # these arguments, so it falls back to networkx. Hence, as it is currently
             # implemented, the input graph is `nxcg.CudaGraph`, but the output graph
             # is `nx.Graph`. Should networkx convert back to "cugraph" backend?
-            # TODO: make fallback to networkx configurable.
             H2cg = nx.ego_graph(Gcg, n, **kwargs)
             assert type(H2nx) is type(H2cg)
             assert_graphs_equal(H2nx, nxcg.from_networkx(H2cg, preserve_all_attrs=True))
