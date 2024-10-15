@@ -210,7 +210,7 @@ if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
       --channel "${CPP_CHANNEL}" \
       --channel "${PYTHON_CHANNEL}" \
       "cugraph-pyg=${RAPIDS_VERSION_MAJOR_MINOR}.*" \
-      "pytorch>=2.3" \
+      'pytorch>=2.3' \
       "ogb"
 
     rapids-print-env
