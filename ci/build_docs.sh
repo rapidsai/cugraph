@@ -48,7 +48,7 @@ rapids-mamba-retry install \
   "libcugraph_etl=${RAPIDS_VERSION_MAJOR_MINOR}.*" \
   "pylibcugraphops=${RAPIDS_VERSION_MAJOR_MINOR}.*" \
   "pylibwholegraph=${RAPIDS_VERSION_MAJOR_MINOR}.*" \
-  'pytorch>=2.3,<2.4' \
+  'pytorch>=2.3' \
   "cuda-version=${CONDA_CUDA_VERSION}"
 
 export RAPIDS_DOCS_DIR="$(mktemp -d)"
