@@ -161,7 +161,7 @@ int generic_egonet_test(const cugraph_resource_handle_t* resource_handle,
     cugraph_induced_subgraph_result_free(result);
   }
 
-  cugraph_sg_graph_free(graph);
+  cugraph_graph_free(graph);
   cugraph_error_free(ret_error);
 
   return test_ret_value;

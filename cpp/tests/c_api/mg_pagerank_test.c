@@ -94,7 +94,7 @@ int generic_pagerank_test(const cugraph_resource_handle_t* handle,
   }
 
   cugraph_centrality_result_free(p_result);
-  cugraph_mg_graph_free(p_graph);
+  cugraph_graph_free(p_graph);
   cugraph_error_free(ret_error);
 
   return test_ret_value;
@@ -169,7 +169,7 @@ int generic_pagerank_nonconverging_test(const cugraph_resource_handle_t* handle,
   }
 
   cugraph_centrality_result_free(p_result);
-  cugraph_mg_graph_free(p_graph);
+  cugraph_graph_free(p_graph);
   cugraph_error_free(ret_error);
 
   return test_ret_value;
@@ -278,7 +278,7 @@ int generic_personalized_pagerank_test(const cugraph_resource_handle_t* handle,
   }
 
   cugraph_centrality_result_free(p_result);
-  cugraph_mg_graph_free(p_graph);
+  cugraph_graph_free(p_graph);
   cugraph_error_free(ret_error);
 
   return test_ret_value;
@@ -387,7 +387,7 @@ int generic_personalized_pagerank_nonconverging_test(const cugraph_resource_hand
   }
 
   cugraph_centrality_result_free(p_result);
-  cugraph_mg_graph_free(p_graph);
+  cugraph_graph_free(p_graph);
   cugraph_error_free(ret_error);
 
   return test_ret_value;
