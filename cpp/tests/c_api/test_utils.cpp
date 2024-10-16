@@ -98,8 +98,9 @@ extern "C" int create_test_graph(const cugraph_resource_handle_t* p_handle,
     p_handle, wgt_view, (byte_t*)h_wgt, ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "wgt copy_from_host failed.");
 
-  ret_code = cugraph_sg_graph_create(p_handle,
+  ret_code = cugraph_graph_create_sg(p_handle,
                                      &properties,
+                                     nullptr,
                                      src_view,
                                      dst_view,
                                      wgt_view,
@@ -107,6 +108,9 @@ extern "C" int create_test_graph(const cugraph_resource_handle_t* p_handle,
                                      nullptr,
                                      store_transposed,
                                      renumber,
+                                     FALSE,
+                                     FALSE,
+                                     FALSE,
                                      FALSE,
                                      p_graph,
                                      ret_error);
@@ -180,8 +184,9 @@ extern "C" int create_test_graph_double(const cugraph_resource_handle_t* p_handl
     p_handle, wgt_view, (byte_t*)h_wgt, ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "wgt copy_from_host failed.");
 
-  ret_code = cugraph_sg_graph_create(p_handle,
+  ret_code = cugraph_graph_create_sg(p_handle,
                                      &properties,
+                                     nullptr,
                                      src_view,
                                      dst_view,
                                      wgt_view,
@@ -189,6 +194,9 @@ extern "C" int create_test_graph_double(const cugraph_resource_handle_t* p_handl
                                      nullptr,
                                      store_transposed,
                                      renumber,
+                                     FALSE,
+                                     FALSE,
+                                     FALSE,
                                      FALSE,
                                      p_graph,
                                      ret_error);
@@ -355,8 +363,9 @@ int create_sg_test_graph(const cugraph_resource_handle_t* handle,
     TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "edge_id copy_from_host failed.");
   }
 
-  ret_code = cugraph_sg_graph_create(handle,
+  ret_code = cugraph_graph_create_sg(handle,
                                      &properties,
+                                     nullptr,
                                      src_view,
                                      dst_view,
                                      wgt_view,
@@ -364,6 +373,9 @@ int create_sg_test_graph(const cugraph_resource_handle_t* handle,
                                      edge_type_view,
                                      store_transposed,
                                      renumber,
+                                     FALSE,
+                                     FALSE,
+                                     FALSE,
                                      FALSE,
                                      graph,
                                      ret_error);
