@@ -296,7 +296,7 @@ def bench_from_networkx(benchmark, graph_obj):
 
 # normalized_param_values = [True, False]
 normalized_param_values = [True]
-k_param_values = [10, 100, 1000]
+k_param_values = [10, 20, 50, 100, 500, 1000]
 
 
 @pytest.mark.parametrize(
@@ -305,7 +305,6 @@ k_param_values = [10, 100, 1000]
 @pytest.mark.parametrize("k", k_param_values, ids=lambda k: f"{k=}")
 def bench_betweenness_centrality(benchmark, graph_obj, backend_wrapper, normalized, k):
     G = get_graph_obj_for_benchmark(graph_obj, backend_wrapper)
-
     if k > G.number_of_nodes():
         pytest.skip(reason=f"{k=} > {G.number_of_nodes()=}")
 

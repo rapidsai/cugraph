@@ -14,7 +14,7 @@
 
 
 # location to store datasets used for benchmarking
-export RAPIDS_DATASET_ROOT_DIR=/datasets/cugraph
+export RAPIDS_DATASET_ROOT_DIR=${RAPIDS_DATASET_ROOT_DIR:-/datasets/cugraph}
 mkdir -p logs
 
 # list of algos, datasets, and back-ends to use in combinations
@@ -41,6 +41,11 @@ backends="
     None
     cugraph-preconverted
 "
+
+# edit this directly to for pytest
+# e.g. -k "and not 100 and not 1000"
+bc_k_values=""
+
 # check for --cpu-only or --gpu-only args
 if [[ "$#" -eq 1 ]]; then
     case $1 in
@@ -62,10 +67,12 @@ for algo in $algos; do
         for backend in $backends; do
             name="${backend}__${algo}__${dataset}"
             echo "Running: $backend, $dataset, bench_$algo"
-            # command to preproduce test
-            # echo "RUNNING: \"pytest -sv -k \"$backend and $dataset and bench_$algo and not 1000\" --benchmark-json=\"logs/${name}.json\" bench_algos.py"
-            pytest -sv \
-                -k "$backend and $dataset and bench_$algo and not 1000" \
+
+            # uncomment to get command for reproducing test
+            # echo "RUNNING: \"pytest -sv -k \"$backend and $dataset and bench_$algo $bc_k_values\" --benchmark-json=\"logs/${name}.json\" bench_algos.py"
+
+            pytest -sv --co \
+                -k "$backend and $dataset and bench_$algo $bc_k_values" \
                 --benchmark-json="logs/${name}.json" \
                 bench_algos.py 2>&1 | tee "logs/${name}.out"
         done
