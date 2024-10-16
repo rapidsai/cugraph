@@ -204,7 +204,7 @@ int test_create_sg_graph_csr()
     handle, wgt_view, (byte_t*)h_wgt, &ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "wgt copy_from_host failed.");
 
-  ret_code = cugraph_sg_graph_create_from_csr(handle,
+  ret_code = cugraph_graph_create_sg_from_csr(handle,
                                               &properties,
                                               offsets_view,
                                               indices_view,
@@ -669,7 +669,7 @@ int test_create_sg_graph_csr_with_isolated()
     handle, wgt_view, (byte_t*)h_wgt, &ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "wgt copy_from_host failed.");
 
-  ret_code = cugraph_sg_graph_create_from_csr(handle,
+  ret_code = cugraph_graph_create_sg_from_csr(handle,
                                               &properties,
                                               offsets_view,
                                               indices_view,
