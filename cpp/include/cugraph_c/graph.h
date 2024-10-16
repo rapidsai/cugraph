@@ -17,6 +17,7 @@
 #pragma once
 
 #include <cugraph_c/array.h>
+#include <cugraph_c/edgelist.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -35,8 +36,42 @@ typedef struct {
   bool_t is_multigraph;
 } cugraph_graph_properties_t;
 
+typedef struct {
+  bool_t store_transposed;
+  bool_t renumber;
+  bool_t drop_self_loops;
+  bool_t drop_multi_edges;
+  bool_t symmetrize;
+  bool_t multi_gpu;
+} cugraph_graph_creation_flags_t;
+
+/**
+ * @brief     Construct a graph
+ *
+ * @param [in]  handle         Handle for accessing resources
+ * @param [in]  properties     Properties of the constructed graph
+ * @param [in]  edgelist       Edgelist object containing all of the vertex and edge data
+ * @param [in]  flags          Graph creation flags
+ * @param [in]  do_expensive_check    If true, do expensive checks to validate the input data
+ *    is consistent with software assumptions.  If false bypass these checks.
+ * @param [out] graph          A pointer to the graph object
+ * @param [out] error          Pointer to an error object storing details of any error.  Will
+ *                             be populated if error code is not CUGRAPH_SUCCESS
+ *
+ * @return error code
+ */
+cugraph_error_code_t cugraph_graph_create(const cugraph_resource_handle_t* handle,
+                                          const cugraph_graph_properties_t* properties,
+                                          const cugraph_edgelist_t* edgelist,
+                                          const cugraph_graph_creation_flags_t flags,
+                                          bool_t do_expensive_check,
+                                          cugraph_graph_t** graph,
+                                          cugraph_error_t** error);
+
 /**
  * @brief     Construct an SG graph
+ *
+ * @deprecated  This API will be deleted, use cugraph_graph_create instead
  *
  * @param [in]  handle         Handle for accessing resources
  * @param [in]  properties     Properties of the constructed graph
@@ -94,6 +129,8 @@ cugraph_error_code_t cugraph_graph_create_sg(
 /**
  * @brief     Construct an SG graph from a CSR input
  *
+ * @deprecated  This API will be deleted, use cugraph_graph_create instead
+ *
  * @param [in]  handle         Handle for accessing resources
  * @param [in]  properties     Properties of the constructed graph
  * @param [in]  offsets        Device array containing the CSR offsets array
@@ -136,6 +173,8 @@ cugraph_error_code_t cugraph_graph_create_sg_from_csr(
 
 /**
  * @brief     Construct an MG graph
+ *
+ * @deprecated  This API will be deleted, use cugraph_graph_create instead
  *
  * @param [in]  handle          Handle for accessing resources
  * @param [in]  properties      Properties of the constructed graph
