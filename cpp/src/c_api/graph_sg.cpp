@@ -761,7 +761,7 @@ cugraph_error_code_t cugraph_graph_create_sg_from_csr(
                                      p_edge_ids,
                                      p_edge_type_ids,
                                      renumber,
-                                     FALSE,  // symmetrize
+                                     symmetrize,
                                      do_expensive_check);
 
   try {
