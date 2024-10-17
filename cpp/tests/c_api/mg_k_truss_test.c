@@ -16,6 +16,7 @@
 
 #include "mg_test_utils.h" /* RUN_TEST */
 
+#include <cugraph_c/community_algorithms.h>
 #include <cugraph_c/graph.h>
 #include <cugraph_c/graph_functions.h>
 
@@ -99,7 +100,7 @@ int generic_k_truss_test(const cugraph_resource_handle_t* handle,
   }
 
   cugraph_induced_subgraph_result_free(result);
-  cugraph_mg_graph_free(graph);
+  cugraph_graph_free(graph);
   cugraph_error_free(ret_error);
   return test_ret_value;
 }

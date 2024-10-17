@@ -128,7 +128,7 @@ int generic_similarity_test(vertex_t* h_src,
 
   if (result != NULL) cugraph_similarity_result_free(result);
   if (vertex_pairs != NULL) cugraph_vertex_pairs_free(vertex_pairs);
-  cugraph_sg_graph_free(graph);
+  cugraph_graph_free(graph);
   cugraph_free_resource_handle(handle);
   cugraph_error_free(ret_error);
 
@@ -238,7 +238,7 @@ int generic_all_pairs_similarity_test(vertex_t* h_src,
   }
 
   if (result != NULL) cugraph_similarity_result_free(result);
-  cugraph_sg_graph_free(graph);
+  cugraph_graph_free(graph);
   cugraph_free_resource_handle(handle);
   cugraph_error_free(ret_error);
 
