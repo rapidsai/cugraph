@@ -71,7 +71,7 @@ for algo in $algos; do
             # uncomment to get command for reproducing test
             # echo "RUNNING: \"pytest -sv -k \"$backend and $dataset and bench_$algo $bc_k_values\" --benchmark-json=\"logs/${name}.json\" bench_algos.py"
 
-            pytest -sv --co \
+            pytest -sv \
                 -k "$backend and $dataset and bench_$algo $bc_k_values" \
                 --benchmark-json="logs/${name}.json" \
                 bench_algos.py 2>&1 | tee "logs/${name}.out"
