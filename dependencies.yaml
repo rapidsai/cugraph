@@ -158,6 +158,13 @@ files:
     includes:
       - python_build_rapids
       - python_build_wheel
+  py_rapids_build_nx_cugraph:
+    output: pyproject
+    pyproject_dir: python/nx-cugraph
+    extras:
+      table: tool.rapids-build-backend
+      key: requires
+    includes: []
   py_run_nx_cugraph:
     output: pyproject
     pyproject_dir: python/nx-cugraph
@@ -184,6 +191,13 @@ files:
     includes:
       - python_build_rapids
       - python_build_wheel
+  py_rapids_build_cugraph_dgl:
+    output: pyproject
+    pyproject_dir: python/cugraph-dgl
+    extras:
+      table: tool.rapids-build-backend
+      key: requires
+    includes: []
   py_run_cugraph_dgl:
     output: pyproject
     pyproject_dir: python/cugraph-dgl
@@ -211,6 +225,13 @@ files:
     includes:
       - python_build_rapids
       - python_build_wheel
+  py_rapids_build_cugraph_pyg:
+    output: pyproject
+    pyproject_dir: python/cugraph-pyg
+    extras:
+      table: tool.rapids-build-backend
+      key: requires
+    includes: []
   py_run_cugraph_pyg:
     output: pyproject
     pyproject_dir: python/cugraph-pyg
@@ -238,6 +259,13 @@ files:
     includes:
       - python_build_rapids
       - python_build_wheel
+  py_rapids_build_cugraph_equivariant:
+    output: pyproject
+    pyproject_dir: python/cugraph-equivariant
+    extras:
+      table: tool.rapids-build-backend
+      key: requires
+    includes: []
   py_run_cugraph_equivariant:
     output: pyproject
     pyproject_dir: python/cugraph-equivariant
@@ -262,6 +290,13 @@ files:
     includes:
       - python_build_rapids
       - python_build_wheel
+  py_rapids_build_cugraph_service_client:
+    output: pyproject
+    pyproject_dir: python/cugraph-service/client
+    extras:
+      table: tool.rapids-build-backend
+      key: requires
+    includes: []
   py_run_cugraph_service_client:
     output: pyproject
     pyproject_dir: python/cugraph-service/client
@@ -277,6 +312,13 @@ files:
     includes:
       - python_build_rapids
       - python_build_wheel
+  py_rapids_build_cugraph_service_server:
+    output: pyproject
+    pyproject_dir: python/cugraph-service/server
+    extras:
+      table: tool.rapids-build-backend
+      key: requires
+    includes: []
   py_run_cugraph_service_server:
     output: pyproject
     pyproject_dir: python/cugraph-service/server
