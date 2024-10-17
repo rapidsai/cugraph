@@ -44,7 +44,7 @@ template <typename vertex_t, typename edge_t>
 struct is_vertex_edge_combo {
   static constexpr bool value = is_one_of<vertex_t, int32_t, int64_t>::value &&
                                 is_one_of<edge_t, int32_t, int64_t>::value &&
-                                (sizeof(vertex_t) <= sizeof(edge_t));
+                                (sizeof(vertex_t) == sizeof(edge_t));
 };
 
 // meta-function that constrains

@@ -190,13 +190,6 @@ TEST_P(Tests_MGSimilarity_Rmat, CheckInt32Int32FloatFloatJaccard)
     override_Rmat_Usecase_with_cmd_line_arguments(GetParam()), cugraph::test::test_jaccard_t{});
 }
 
-TEST_P(Tests_MGSimilarity_Rmat, CheckInt32Int64FloatFloatJaccard)
-{
-  auto param = GetParam();
-  run_current_test<int32_t, int64_t, float>(
-    override_Rmat_Usecase_with_cmd_line_arguments(GetParam()), cugraph::test::test_jaccard_t{});
-}
-
 TEST_P(Tests_MGSimilarity_Rmat, CheckInt64Int64FloatFloatJaccard)
 {
   auto param = GetParam();
@@ -213,12 +206,6 @@ TEST_P(Tests_MGSimilarity_File, CheckInt32Int32FloatSorensen)
 TEST_P(Tests_MGSimilarity_Rmat, CheckInt32Int32FloatSorensen)
 {
   run_current_test<int32_t, int32_t, float>(
-    override_Rmat_Usecase_with_cmd_line_arguments(GetParam()), cugraph::test::test_sorensen_t{});
-}
-
-TEST_P(Tests_MGSimilarity_Rmat, CheckInt32Int64FloatSorensen)
-{
-  run_current_test<int32_t, int64_t, float>(
     override_Rmat_Usecase_with_cmd_line_arguments(GetParam()), cugraph::test::test_sorensen_t{});
 }
 
@@ -240,12 +227,6 @@ TEST_P(Tests_MGSimilarity_Rmat, CheckInt32Int32FloatOverlap)
     override_Rmat_Usecase_with_cmd_line_arguments(GetParam()), cugraph::test::test_overlap_t{});
 }
 
-TEST_P(Tests_MGSimilarity_Rmat, CheckInt32Int64FloatOverlap)
-{
-  run_current_test<int32_t, int64_t, float>(
-    override_Rmat_Usecase_with_cmd_line_arguments(GetParam()), cugraph::test::test_overlap_t{});
-}
-
 TEST_P(Tests_MGSimilarity_Rmat, CheckInt64Int64FloatOverlap)
 {
   run_current_test<int64_t, int64_t, float>(
@@ -263,13 +244,6 @@ TEST_P(Tests_MGSimilarity_Rmat, CheckInt32Int32FloatFloatCosine)
 {
   auto param = GetParam();
   run_current_test<int32_t, int32_t, float>(
-    override_Rmat_Usecase_with_cmd_line_arguments(GetParam()), cugraph::test::test_cosine_t{});
-}
-
-TEST_P(Tests_MGSimilarity_Rmat, CheckInt32Int64FloatFloatCosine)
-{
-  auto param = GetParam();
-  run_current_test<int32_t, int64_t, float>(
     override_Rmat_Usecase_with_cmd_line_arguments(GetParam()), cugraph::test::test_cosine_t{});
 }
 

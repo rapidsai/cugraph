@@ -334,20 +334,6 @@ TEST_P(Tests_MGExtractTransformE_Rmat, CheckInt32Int32FloatInt32TupleFloatInt32)
     cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
 
-TEST_P(Tests_MGExtractTransformE_File, CheckInt32Int64FloatInt32Int32)
-{
-  auto param = GetParam();
-  run_current_test<int32_t, int64_t, float, int32_t>(std::get<0>(param), std::get<1>(param));
-}
-
-TEST_P(Tests_MGExtractTransformE_Rmat, CheckInt32Int64FloatInt32Int32)
-{
-  auto param = GetParam();
-  run_current_test<int32_t, int64_t, float, int32_t>(
-    std::get<0>(param),
-    cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
-}
-
 TEST_P(Tests_MGExtractTransformE_File, CheckInt64Int64FloatInt32Int32)
 {
   auto param = GetParam();

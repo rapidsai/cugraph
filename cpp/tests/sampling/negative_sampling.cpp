@@ -213,17 +213,11 @@ class Tests_Negative_Sampling : public ::testing::TestWithParam<input_usecase_t>
 using Tests_Negative_Sampling_File_i32_i32_float =
   Tests_Negative_Sampling<cugraph::test::File_Usecase, int32_t, int32_t, float>;
 
-using Tests_Negative_Sampling_File_i32_i64_float =
-  Tests_Negative_Sampling<cugraph::test::File_Usecase, int32_t, int64_t, float>;
-
 using Tests_Negative_Sampling_File_i64_i64_float =
   Tests_Negative_Sampling<cugraph::test::File_Usecase, int64_t, int64_t, float>;
 
 using Tests_Negative_Sampling_Rmat_i32_i32_float =
   Tests_Negative_Sampling<cugraph::test::Rmat_Usecase, int32_t, int32_t, float>;
-
-using Tests_Negative_Sampling_Rmat_i32_i64_float =
-  Tests_Negative_Sampling<cugraph::test::Rmat_Usecase, int32_t, int64_t, float>;
 
 using Tests_Negative_Sampling_Rmat_i64_i64_float =
   Tests_Negative_Sampling<cugraph::test::Rmat_Usecase, int64_t, int64_t, float>;
@@ -255,12 +249,6 @@ TEST_P(Tests_Negative_Sampling_File_i32_i32_float, CheckInt32Int32Float)
   run_all_tests(this);
 }
 
-TEST_P(Tests_Negative_Sampling_File_i32_i64_float, CheckInt32Int64Float)
-{
-  load_graph(override_File_Usecase_with_cmd_line_arguments(GetParam()));
-  run_all_tests(this);
-}
-
 TEST_P(Tests_Negative_Sampling_File_i64_i64_float, CheckInt64Int64Float)
 {
   load_graph(override_File_Usecase_with_cmd_line_arguments(GetParam()));
@@ -268,12 +256,6 @@ TEST_P(Tests_Negative_Sampling_File_i64_i64_float, CheckInt64Int64Float)
 }
 
 TEST_P(Tests_Negative_Sampling_Rmat_i32_i32_float, CheckInt32Int32Float)
-{
-  load_graph(override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
-  run_all_tests(this);
-}
-
-TEST_P(Tests_Negative_Sampling_Rmat_i32_i64_float, CheckInt32Int64Float)
 {
   load_graph(override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
   run_all_tests(this);
@@ -299,18 +281,6 @@ INSTANTIATE_TEST_SUITE_P(
 
 INSTANTIATE_TEST_SUITE_P(
   file_test,
-  Tests_Negative_Sampling_File_i32_i64_float,
-  ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx")));
-
-INSTANTIATE_TEST_SUITE_P(
-  file_large_test,
-  Tests_Negative_Sampling_File_i32_i64_float,
-  ::testing::Values(cugraph::test::File_Usecase("test/datasets/web-Google.mtx"),
-                    cugraph::test::File_Usecase("test/datasets/ljournal-2008.mtx"),
-                    cugraph::test::File_Usecase("test/datasets/webbase-1M.mtx")));
-
-INSTANTIATE_TEST_SUITE_P(
-  file_test,
   Tests_Negative_Sampling_File_i64_i64_float,
   ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx")));
 
@@ -324,11 +294,6 @@ INSTANTIATE_TEST_SUITE_P(
 INSTANTIATE_TEST_SUITE_P(
   rmat_small_test,
   Tests_Negative_Sampling_Rmat_i32_i32_float,
-  ::testing::Values(cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, false, false, 0)));
-
-INSTANTIATE_TEST_SUITE_P(
-  rmat_small_test,
-  Tests_Negative_Sampling_Rmat_i32_i64_float,
   ::testing::Values(cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, false, false, 0)));
 
 INSTANTIATE_TEST_SUITE_P(

@@ -217,18 +217,6 @@ TEST_P(Tests_WeightSum_Rmat, CheckInt32Int32FloatTransposeTrue)
   run_current_test<int32_t, int32_t, float, true>(std::get<0>(param), std::get<1>(param));
 }
 
-TEST_P(Tests_WeightSum_Rmat, CheckInt32Int64FloatTransposeFalse)
-{
-  auto param = override_Rmat_Usecase_with_cmd_line_arguments(GetParam());
-  run_current_test<int32_t, int64_t, float, false>(std::get<0>(param), std::get<1>(param));
-}
-
-TEST_P(Tests_WeightSum_Rmat, CheckInt32Int64FloatTransposeTrue)
-{
-  auto param = override_Rmat_Usecase_with_cmd_line_arguments(GetParam());
-  run_current_test<int32_t, int64_t, float, true>(std::get<0>(param), std::get<1>(param));
-}
-
 TEST_P(Tests_WeightSum_Rmat, CheckInt64Int64FloatTransposeFalse)
 {
   auto param = override_Rmat_Usecase_with_cmd_line_arguments(GetParam());

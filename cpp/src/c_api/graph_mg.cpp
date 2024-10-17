@@ -402,6 +402,14 @@ extern "C" cugraph_error_code_t cugraph_graph_create_mg(
                                                     raft::comms::op_t::SUM,
                                                     p_handle->handle_->get_stream());
 
+  cugraph_data_type_id_t edge_type{vertex_type};
+
+  if (vertex_type == cugraph_data_type_id_t::INT32)
+    CAPI_EXPECTS(num_edges < int32_threshold,
+                 CUGRAPH_INVALID_INPUT,
+                 "Number of edges won't fit in 32-bit integer, using 32-bit type",
+                 *error);
+
   auto vertex_types = cugraph::host_scalar_allgather(
     p_handle->handle_->get_comms(), static_cast<int>(vertex_type), p_handle->handle_->get_stream());
 
@@ -433,14 +441,6 @@ extern "C" cugraph_error_code_t cugraph_graph_create_mg(
                CUGRAPH_INVALID_INPUT,
                "different weight type used on different GPUs",
                *error);
-
-  cugraph_data_type_id_t edge_type;
-
-  if (num_edges < int32_threshold) {
-    edge_type = static_cast<cugraph_data_type_id_t>(vertex_types[0]);
-  } else {
-    edge_type = cugraph_data_type_id_t::INT64;
-  }
 
   if (weight_type == cugraph_data_type_id_t::NTYPES) {
     weight_type = cugraph_data_type_id_t::FLOAT32;
