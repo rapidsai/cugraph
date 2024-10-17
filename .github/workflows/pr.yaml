@@ -55,16 +55,12 @@ jobs:
           - '!notebooks/**'
           - '!python/**'
           - '!readme_pages/**'
-          # TODO: Remove this before merging
-          - '!.github/**'
         test_notebooks:
           - '**'
           - '!.devcontainers/**'
           - '!CONTRIBUTING.md'
           - '!README.md'
           - '!docs/**'
-          # TODO: Remove this before merging
-          - '!.github/**'
         test_python:
           - '**'
           - '!.devcontainers/**'
@@ -73,8 +69,6 @@ jobs:
           - '!docs/**'
           - '!img/**'
           - '!notebooks/**'
-          # TODO: Remove this before merging
-          - '!.github/**'
   checks:
     secrets: inherit
     uses: rapidsai/shared-workflows/.github/workflows/checks.yaml@branch-24.12
