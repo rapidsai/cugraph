@@ -80,7 +80,6 @@ def test_lookup_table():
         do_expensive_check=True,
     )
 
-    # call __dealloc__()
     table = EdgeIdLookupTable(ResourceHandle(), graph)
 
     assert table is not None
@@ -96,3 +95,6 @@ def test_lookup_table():
     found_edges = table.find(cupy.array([3, 1, 0, 5]), 6)
     assert (found_edges["sources"] == cupy.array([-1, 4, 5, -1])).all()
     assert (found_edges["destinations"] == cupy.array([-1, 1, 0, -1])).all()
+
+    # call __dealloc__()
+    del table
