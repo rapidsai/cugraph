@@ -166,6 +166,7 @@ if __name__ == "__main__":
     ordered_datasets = [
         "netscience",
         "email_Eu_core",
+        "amazon0302",
         "cit-patents",
         "hollywood",
         "soc-livejournal1",
@@ -174,6 +175,7 @@ if __name__ == "__main__":
     dataset_meta = {
         "netscience": ["1,461", "5,484", "Yes"],
         "email_Eu_core": ["1,005", "25,571", "Yes"],
+        "amazon0302": ["262,111", "1,234,877", "Yes"],
         "cit-patents": ["3,774,768", "16,518,948", "Yes"],
         "hollywood": ["1,139,905", "57,515,616", "No"],
         "soc-livejournal1": ["4,847,571", "68,993,773", "Yes"],
