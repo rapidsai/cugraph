@@ -77,7 +77,7 @@ cdef class EdgeIdLookupTable:
         if self.lookup_container_c_ptr is not NULL:
             cugraph_lookup_container_free(self.lookup_container_c_ptr)
 
-    def find(
+    def lookup_vertex_ids(
         self,
         edge_ids,
         int edge_type
