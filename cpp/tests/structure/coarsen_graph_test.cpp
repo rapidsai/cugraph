@@ -366,18 +366,6 @@ TEST_P(Tests_CoarsenGraph_Rmat, CheckInt32Int32FloatTransposeTrue)
     override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
 }
 
-TEST_P(Tests_CoarsenGraph_Rmat, CheckInt32Int64FloatTransposeFalse)
-{
-  run_current_test<int32_t, int64_t, float, false>(
-    override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
-}
-
-TEST_P(Tests_CoarsenGraph_Rmat, CheckInt32Int64FloatTransposeTrue)
-{
-  run_current_test<int32_t, int64_t, float, true>(
-    override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
-}
-
 TEST_P(Tests_CoarsenGraph_Rmat, CheckInt64Int64FloatTransposeFalse)
 {
   run_current_test<int64_t, int64_t, float, false>(
