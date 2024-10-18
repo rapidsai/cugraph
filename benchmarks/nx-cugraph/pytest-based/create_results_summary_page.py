@@ -157,7 +157,7 @@ if __name__ == "__main__":
 
     dataset_patt = re.compile(".*ds=([\w-]+).*")
     backend_patt = re.compile(".*backend=(\w+).*")
-    k_patt = re.compile(".*k=(10*).*")
+    k_patt = re.compile(".*k=(\d+).*")
 
     # Organize all benchmark runs by the following hierarchy: algo -> backend -> dataset
     benchmarks = get_all_benchmark_info()
