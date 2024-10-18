@@ -83,7 +83,7 @@ jobs:
   conda-cpp-build:
     needs: checks
     secrets: inherit
-    uses: rapidsai/shared-workflows/.github/workflows/conda-cpp-build.yaml@branch-24.12
+    uses: rapidsai/shared-workflows/.github/workflows/conda-cpp-build.yaml@proxy-cache
     with:
       build_type: pull-request
       node_type: cpu32
@@ -105,7 +105,7 @@ jobs:
   conda-python-build:
     needs: conda-cpp-build
     secrets: inherit
-    uses: rapidsai/shared-workflows/.github/workflows/conda-python-build.yaml@branch-24.12
+    uses: rapidsai/shared-workflows/.github/workflows/conda-python-build.yaml@proxy-cache
     with:
       build_type: pull-request
   conda-python-tests:
@@ -139,7 +139,7 @@ jobs:
   wheel-build-pylibcugraph:
     needs: checks
     secrets: inherit
-    uses: rapidsai/shared-workflows/.github/workflows/wheels-build.yaml@branch-24.12
+    uses: rapidsai/shared-workflows/.github/workflows/wheels-build.yaml@proxy-cache
     with:
       build_type: pull-request
       script: ci/build_wheel_pylibcugraph.sh
@@ -158,7 +158,7 @@ jobs:
   wheel-build-cugraph:
     needs: wheel-tests-pylibcugraph
     secrets: inherit
-    uses: rapidsai/shared-workflows/.github/workflows/wheels-build.yaml@branch-24.12
+    uses: rapidsai/shared-workflows/.github/workflows/wheels-build.yaml@proxy-cache
     with:
       build_type: pull-request
       script: ci/build_wheel_cugraph.sh
@@ -176,7 +176,7 @@ jobs:
   wheel-build-nx-cugraph:
     needs: wheel-tests-pylibcugraph
     secrets: inherit
-    uses: rapidsai/shared-workflows/.github/workflows/wheels-build.yaml@branch-24.12
+    uses: rapidsai/shared-workflows/.github/workflows/wheels-build.yaml@proxy-cache
     with:
       build_type: pull-request
       script: ci/build_wheel_nx-cugraph.sh
@@ -191,7 +191,7 @@ jobs:
   wheel-build-cugraph-dgl:
     needs: wheel-tests-cugraph
     secrets: inherit
-    uses: rapidsai/shared-workflows/.github/workflows/wheels-build.yaml@branch-24.12
+    uses: rapidsai/shared-workflows/.github/workflows/wheels-build.yaml@proxy-cache
     with:
       build_type: pull-request
       script: ci/build_wheel_cugraph-dgl.sh
@@ -207,7 +207,7 @@ jobs:
   wheel-build-cugraph-pyg:
     needs: wheel-tests-cugraph
     secrets: inherit
-    uses: rapidsai/shared-workflows/.github/workflows/wheels-build.yaml@branch-24.12
+    uses: rapidsai/shared-workflows/.github/workflows/wheels-build.yaml@proxy-cache
     with:
       build_type: pull-request
       script: ci/build_wheel_cugraph-pyg.sh
@@ -222,7 +222,7 @@ jobs:
       matrix_filter: map(select(.ARCH == "amd64"))
   wheel-build-cugraph-equivariant:
     secrets: inherit
-    uses: rapidsai/shared-workflows/.github/workflows/wheels-build.yaml@branch-24.12
+    uses: rapidsai/shared-workflows/.github/workflows/wheels-build.yaml@proxy-cache
     with:
       build_type: pull-request
       script: ci/build_wheel_cugraph-equivariant.sh
