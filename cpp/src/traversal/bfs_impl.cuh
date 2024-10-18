@@ -365,9 +365,8 @@ void bfs(raft::handle_t const& handle,
   std::chrono::duration<double> dur2 = prep3 - prep2;
   std::chrono::duration<double> dur3 = prep4 - prep3;
   std::chrono::duration<double> dur  = prep4 - prep0;
-  std::cerr << "prep (init,meta,vf,fill) took " << dur.count() << " (" << dur0.count()
-            << "," << dur1.count() << "," << dur2.count() << "," << dur3.count() << ") s."
-            << std::endl;
+  std::cerr << "prep (init,meta,vf,fill) took " << dur.count() << " (" << dur0.count() << ","
+            << dur1.count() << "," << dur2.count() << "," << dur3.count() << ") s." << std::endl;
 #endif
 
   // 4. BFS iteration
@@ -436,9 +435,9 @@ void bfs(raft::handle_t const& handle,
         std::chrono::duration<double> dur1 = topdown2 - topdown1;
         std::chrono::duration<double> dur2 = topdown3 - topdown2;
         std::chrono::duration<double> dur  = topdown3 - topdown0;
-        std::cerr << "depth=" << depth << " topdown (prim,vf,host) took "
-                  << dur.count() << " (" << dur0.count() << "," << dur1.count() << ","
-                  << dur2.count() << ") s." << std::endl;
+        std::cerr << "depth=" << depth << " topdown (prim,vf,host) took " << dur.count() << " ("
+                  << dur0.count() << "," << dur1.count() << "," << dur2.count() << ") s."
+                  << std::endl;
 #endif
         break;
       }
@@ -566,12 +565,14 @@ void bfs(raft::handle_t const& handle,
             ? host_scalar_allreduce(
                 handle.get_comms(), m_u, raft::comms::op_t::SUM, handle.get_stream())
             : m_u;
+#if BFS_PERFORMANCE_MEASUREMENT  // FIXME: delete
         std::cerr << "m_f=" << m_f << " m_u=" << m_u
                   << " aggregate_m_f * direction_optimzing_alpha="
                   << aggregate_m_f * direction_optimizing_alpha
                   << " aggregate_m_u=" << aggregate_m_u
                   << " cur_aggregate_frontier_size=" << cur_aggregate_frontier_size
                   << " next_aggregate_frontier_size=" << next_aggregate_frontier_size << std::endl;
+#endif
         if ((aggregate_m_f * direction_optimizing_alpha > aggregate_m_u) &&
             (next_aggregate_frontier_size >= cur_aggregate_frontier_size)) {
           topdown = false;
@@ -607,10 +608,10 @@ void bfs(raft::handle_t const& handle,
       std::chrono::duration<double> dur  = topdown6 - topdown0;
       std::cerr << "depth=" << depth
                 << " topdown next_aggregate_frontier_size=" << next_aggregate_frontier_size
-                << " next topdown=" << topdown
-                << " (prim,vf,host,fill,dir,vf) took " << dur.count() << " (" << dur0.count() << ","
-                << dur1.count() << "," << dur2.count() << "," << dur3.count() << "," << dur4.count()
-                << "," << dur5.count() << ") s." << std::endl;
+                << " next topdown=" << topdown << " (prim,vf,host,fill,dir,vf) took " << dur.count()
+                << " (" << dur0.count() << "," << dur1.count() << "," << dur2.count() << ","
+                << dur3.count() << "," << dur4.count() << "," << dur5.count() << ") s."
+                << std::endl;
 #endif
     } else {                     // bottom up
 #if BFS_PERFORMANCE_MEASUREMENT  // FIXME: delete
@@ -702,9 +703,8 @@ void bfs(raft::handle_t const& handle,
         std::chrono::duration<double> dur0 = bottomup1 - bottomup0;
         std::chrono::duration<double> dur1 = bottomup2 - bottomup1;
         std::chrono::duration<double> dur  = bottomup2 - bottomup0;
-        std::cerr << "depth=" << depth << " bottomup (prim+,host) took "
-                  << dur.count() << " (" << dur0.count() << "," << dur1.count() << ") s."
-                  << std::endl;
+        std::cerr << "depth=" << depth << " bottomup (prim+,host) took " << dur.count() << " ("
+                  << dur0.count() << "," << dur1.count() << ") s." << std::endl;
 #endif
         break;
       }

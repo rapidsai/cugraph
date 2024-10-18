@@ -750,6 +750,7 @@ extract_transform_v_frontier_e(raft::handle_t const& handle,
 
   // update frontier bitmap (used to reduce broadcast bandwidth size)
 
+  // FIXME: v_compressible...
   std::
     conditional_t<try_bitmap, std::optional<rmm::device_uvector<uint32_t>>, std::byte /* dummy */>
       frontier_bitmap{};
@@ -983,7 +984,7 @@ extract_transform_v_frontier_e(raft::handle_t const& handle,
             auto edge_partition_frontier_major_last =
               thrust_tuple_get_or_identity<decltype(edge_partition_frontier_key_last), 0>(
                 edge_partition_frontier_key_last);
-            // FIXME: compute_number_of_edges() implicitly synchronizes to copy the results to host
+            // FIXME: compute_number_of_edges() implicitly synchronizes to copy the results to host (use cub reduce)
             // FIXME: check whether skipping a call for 0 key_buffer size helps or not
             edge_partition_max_pushes = edge_partition.compute_number_of_edges(
               edge_partition_frontier_major_first, edge_partition_frontier_major_last, loop_stream);

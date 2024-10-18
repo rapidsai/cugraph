@@ -425,7 +425,6 @@ void fill_edge_minor_property(raft::handle_t const& handle,
       auto avg_v_list_size = std::reduce(local_v_list_sizes.begin(), local_v_list_sizes.end()) /
                              static_cast<vertex_t>(major_comm_size);
 
-      // FIXME: should I better set minimum v_list_size???
       if ((avg_fill_ratio > threshold_ratio) &&
           (static_cast<size_t>(avg_v_list_size) > packed_bool_word_bcast_alignment)) {
         if (is_packed_bool<typename EdgeMinorPropertyOutputWrapper::value_iterator,
@@ -452,6 +451,7 @@ void fill_edge_minor_property(raft::handle_t const& handle,
                        boundary_words.begin(),
                        boundary_words.begin() + leading_boundary_words,
                        packed_bool_empty_mask());
+          // FIXME: this looks expensive...
           thrust::for_each(
             handle.get_thrust_policy(),
             sorted_unique_vertex_first,
@@ -535,12 +535,14 @@ void fill_edge_minor_property(raft::handle_t const& handle,
     }
     size_t num_concurrent_bcasts = stream_pool_indices ? (*stream_pool_indices).size() : size_t{1};
 
+#if FILL_PERFORMANCE_MEASUREMENT
     std::cerr << "v_list_size=" << local_v_list_sizes[major_comm_rank] << " v_list_range=("
               << local_v_list_range_firsts[major_comm_rank] << ","
               << local_v_list_range_lasts[major_comm_rank]
               << ") v_list_bitmap.has_value()=" << v_list_bitmap.has_value()
               << " compressed_v_list.has_value()=" << compressed_v_list.has_value()
               << " num_concurrent_bcasts=" << num_concurrent_bcasts << std::endl;
+#endif
 
     std::optional<raft::host_span<vertex_t const>> key_offsets{};
     if constexpr (GraphViewType::is_storage_transposed) {

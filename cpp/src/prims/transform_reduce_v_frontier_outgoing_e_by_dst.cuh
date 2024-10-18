@@ -825,7 +825,9 @@ transform_reduce_v_frontier_outgoing_e_by_dst(raft::handle_t const& handle,
     }
     if constexpr (try_compression) {
       if (compressed_v_buffer) {
+#if TRANSFORM_REDUCE_PERFORMANCE_MEASUREMENT
         size_before_greduce = size_dataframe_buffer(*compressed_v_buffer);  // FIXME: delete
+#endif
         std::tie(key_buffer, payload_buffer) =
           detail::sort_and_reduce_buffer_elements<uint32_t, key_t, payload_t, ReduceOp>(
             handle,
@@ -835,7 +837,9 @@ transform_reduce_v_frontier_outgoing_e_by_dst(raft::handle_t const& handle,
             vertex_range,
             invalid_key ? std::make_optional(std::get<1>(*invalid_key)) : std::nullopt);
       } else {
+#if TRANSFORM_REDUCE_PERFORMANCE_MEASUREMENT
         size_before_greduce = size_dataframe_buffer(key_buffer);  // FIXME: delete
+#endif
         std::tie(key_buffer, payload_buffer) =
           detail::sort_and_reduce_buffer_elements<key_t, key_t, payload_t, ReduceOp>(
             handle,
@@ -846,7 +850,9 @@ transform_reduce_v_frontier_outgoing_e_by_dst(raft::handle_t const& handle,
             invalid_key ? std::make_optional(std::get<0>(*invalid_key)) : std::nullopt);
       }
     } else {
+#if TRANSFORM_REDUCE_PERFORMANCE_MEASUREMENT
       size_before_greduce = size_dataframe_buffer(key_buffer);  // FIXME: delete
+#endif
       std::tie(key_buffer, payload_buffer) =
         detail::sort_and_reduce_buffer_elements<key_t, key_t, payload_t, ReduceOp>(
           handle,
