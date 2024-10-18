@@ -141,7 +141,7 @@ int generic_spectral_test(vertex_t* h_src,
     cugraph_clustering_result_free(result);
   }
 
-  cugraph_sg_graph_free(graph);
+  cugraph_graph_free(graph);
   cugraph_free_resource_handle(handle);
   cugraph_error_free(ret_error);
 
@@ -272,7 +272,7 @@ int generic_balanced_cut_test(vertex_t* h_src,
     cugraph_clustering_result_free(result);
   }
 
-  cugraph_sg_graph_free(graph);
+  cugraph_graph_free(graph);
   cugraph_free_resource_handle(handle);
   cugraph_error_free(ret_error);
 
