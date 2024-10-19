@@ -1194,9 +1194,9 @@ compute_selected_ranks_from_priorities(
 template <bool update_major,
           typename GraphViewType,
           typename OptionalKeyIterator,  // invalid if void*
-          typename EdgeSrcValueInputWrapper,
-          typename EdgeDstValueInputWrapper,
-          typename EdgeValueInputWrapper,
+          typename EdgePartitionSrcValueInputWrapper,
+          typename EdgePartitionDstValueInputWrapper,
+          typename EdgePartitionValueInputWrapper,
           typename EdgePartitionEdgeMaskWrapper,
           typename ResultValueOutputIteratorOrWrapper /* wrapper if update_major &&
                                                          GraphViewType::is_multi_gpu, iterator
@@ -1213,9 +1213,9 @@ void per_v_transform_reduce_e_edge_partition(
                                GraphViewType::is_multi_gpu> edge_partition,
   OptionalKeyIterator edge_partition_key_first,
   OptionalKeyIterator edge_partition_key_last,
-  EdgeSrcValueInputWrapper edge_partition_src_value_input,
-  EdgeDstValueInputWrapper edge_partition_dst_value_input,
-  EdgeValueInputWrapper edge_partition_e_value_input,
+  EdgePartitionSrcValueInputWrapper edge_partition_src_value_input,
+  EdgePartitionDstValueInputWrapper edge_partition_dst_value_input,
+  EdgePartitionValueInputWrapper edge_partition_e_value_input,
   thrust::optional<EdgePartitionEdgeMaskWrapper> edge_partition_e_mask,
   ResultValueOutputIteratorOrWrapper output_buffer,
   EdgeOp e_op,
@@ -2002,6 +2002,8 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
   std::optional<std::vector<size_t>> stream_pool_indices{std::nullopt};
   if constexpr (GraphViewType::is_multi_gpu) {
     if (local_vertex_partition_segment_offsets && (handle.get_stream_pool_size() >= max_segments)) {
+      auto max_tmp_buffer_size = static_cast<size_t>(
+        static_cast<double>(handle.get_device_properties().totalGlobalMem) * 0.2);
       size_t tmp_buffer_size_per_loop{0};
       if constexpr (update_major) {
         auto& minor_comm = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
@@ -2010,7 +2012,11 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
         size_t key_size{0};
         if constexpr (use_input_key) {
           if constexpr (std::is_arithmetic_v<key_t>) {
-            key_size = sizeof(key_t);
+            if (v_compressible) {
+              key_size = sizeof(uint32_t);
+            } else {
+              key_size = sizeof(key_t);
+            }
           } else {
             key_size = sum_thrust_tuple_element_sizes<key_t>();
           }
@@ -2020,17 +2026,6 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
           value_size = sizeof(T);
         } else {
           value_size = sum_thrust_tuple_element_sizes<T>();
-        }
-        size_t approx_tmp_size{0};
-        if constexpr (filter_input_key) {
-          // use tmeporary buffers to store non-zero local degree key offsets in the hypersparse
-          // regioon, priorities, selected ranks (or)  flags (non-root), and selected values (and
-          // key offsets for the selected values that are in the hypersparse region and have the
-          // global degree of 1)
-          approx_tmp_size = static_cast<size_t>(
-            static_cast<double>(sizeof(size_t)) * 0.25 +
-            static_cast<double>(value_size) /
-              static_cast<double>(minor_comm_size) /* only one value will be selected */);
         }
 
         size_t aggregate_major_range_size{};
@@ -2046,18 +2041,27 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
             }
           }
         }
+        size_t size_per_key{};
+        if constexpr (filter_input_key) {
+          size_per_key =
+            key_size +
+            value_size / 2;  // to reflect that many keys will be filtered out, note that this is a
+                             // simple approximation, memory requirement in this case is much more
+                             // complex as we store additional temporary variables
+
+        } else {
+          size_per_key = key_size + value_size;
+        }
         tmp_buffer_size_per_loop =
           (aggregate_major_range_size / graph_view.number_of_local_edge_partitions()) *
-          (key_size + value_size + approx_tmp_size);
+          size_per_key;
       }
 
-      stream_pool_indices = init_stream_pool_indices(
-        static_cast<size_t>(static_cast<double>(handle.get_device_properties().totalGlobalMem) *
-                            0.2),
-        tmp_buffer_size_per_loop,
-        graph_view.number_of_local_edge_partitions(),
-        max_segments,
-        handle.get_stream_pool_size());
+      stream_pool_indices = init_stream_pool_indices(max_tmp_buffer_size,
+                                                     tmp_buffer_size_per_loop,
+                                                     graph_view.number_of_local_edge_partitions(),
+                                                     max_segments,
+                                                     handle.get_stream_pool_size());
       if ((*stream_pool_indices).size() <= 1) { stream_pool_indices = std::nullopt; }
     }
   }
@@ -2065,9 +2069,13 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
   // 8. set-up temporary buffers
 
   size_t num_concurrent_loops{1};
+  std::optional<std::vector<size_t>> loop_stream_pool_indices{
+    std::nullopt};  // first num_concurrent_loops streams from stream_pool_indices
   if (stream_pool_indices) {
     assert(((*stream_pool_indices).size() % max_segments) == 0);
-    num_concurrent_loops = (*stream_pool_indices).size() / max_segments;
+    num_concurrent_loops     = (*stream_pool_indices).size() / max_segments;
+    loop_stream_pool_indices = std::vector<size_t>(num_concurrent_loops);
+    std::iota((*loop_stream_pool_indices).begin(), (*loop_stream_pool_indices).end(), size_t{0});
   }
 
   using minor_tmp_buffer_type = std::conditional_t<GraphViewType::is_storage_transposed,
@@ -2101,7 +2109,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
     num_concurrent_loops, handle.get_stream());
 
   if constexpr (!GraphViewType::is_multi_gpu || !use_input_key) {
-    if (stream_pool_indices) { handle.sync_stream(); }
+    if (loop_stream_pool_indices) { handle.sync_stream(); }
   }
 
   // 9. process local edge partitions
@@ -2147,7 +2155,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
 
       edge_partition_key_buffers.reserve(loop_count);
 
-      std::conditional_t<std::is_same_v<key_t, vertex_t>,
+      std::conditional_t<try_bitmap,
                          std::optional<std::vector<rmm::device_uvector<uint32_t>>>,
                          std::byte /* dummy */>
         edge_partition_bitmap_buffers{std::nullopt};
@@ -2244,7 +2252,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
         }
       }
       device_group_end(minor_comm);
-      if (stream_pool_indices) { handle.sync_stream(); }
+      if (loop_stream_pool_indices) { handle.sync_stream(); }
 #if PER_V_PERFORMANCE_MEASUREMENT
       subtime2 = std::chrono::steady_clock::now();
 #endif
@@ -2256,9 +2264,10 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
 
           for (size_t j = 0; j < loop_count; ++j) {
             auto partition_idx = i + j;
-            auto loop_stream   = stream_pool_indices
-                                   ? handle.get_stream_from_stream_pool((*stream_pool_indices)[j])
-                                   : handle.get_stream();
+            auto loop_stream =
+              loop_stream_pool_indices
+                ? handle.get_stream_from_stream_pool((*loop_stream_pool_indices)[j])
+                : handle.get_stream();
 
             std::variant<rmm::device_uvector<uint32_t>, rmm::device_uvector<vertex_t>> keys =
               rmm::device_uvector<uint32_t>(0, loop_stream);
@@ -2337,7 +2346,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
           if constexpr (try_bitmap) {
             if (edge_partition_bitmap_buffers) { allocate_new_key_buffer = false; }
           }
-          if (allocate_new_key_buffer) {  // allocate new key buffers and copy  the sparse segment
+          if (allocate_new_key_buffer) {  // allocate new key buffers and copy the sparse segment
                                           // keys to the new key buffers
             if constexpr (try_bitmap) {
               edge_partition_new_key_buffers = std::vector<
@@ -2349,9 +2358,10 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
 
             for (size_t j = 0; j < loop_count; ++j) {
               auto partition_idx = i + j;
-              auto loop_stream   = stream_pool_indices
-                                     ? handle.get_stream_from_stream_pool((*stream_pool_indices)[j])
-                                     : handle.get_stream();
+              auto loop_stream =
+                loop_stream_pool_indices
+                  ? handle.get_stream_from_stream_pool((*loop_stream_pool_indices)[j])
+                  : handle.get_stream();
 
               auto const& key_segment_offsets = (*key_segment_offset_vectors)[partition_idx];
 
@@ -2410,9 +2420,10 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
 
           for (size_t j = 0; j < loop_count; ++j) {
             auto partition_idx = i + j;
-            auto loop_stream   = stream_pool_indices
-                                   ? handle.get_stream_from_stream_pool((*stream_pool_indices)[j])
-                                   : handle.get_stream();
+            auto loop_stream =
+              loop_stream_pool_indices
+                ? handle.get_stream_from_stream_pool((*loop_stream_pool_indices)[j])
+                : handle.get_stream();
 
             auto const& key_segment_offsets = (*key_segment_offset_vectors)[partition_idx];
 
@@ -2460,7 +2471,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
                              local_v_list_range_lasts[partition_idx] -
                                local_v_list_range_firsts[partition_idx]);
                   if (range_offset_first < range_offset_last) {
-                    auto count_first = thrust::make_transform_iterator(
+                    auto input_count_first = thrust::make_transform_iterator(
                       thrust::make_counting_iterator(packed_bool_offset(range_offset_first)),
                       cuda::proclaim_return_type<vertex_t>(
                         [range_bitmap =
@@ -2474,113 +2485,284 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
                           }
                           return static_cast<vertex_t>(__popc(word));
                         }));
-                    rmm::device_uvector<vertex_t> count_displacements(
+                    rmm::device_uvector<vertex_t> input_count_offsets(
+                      (rx_bitmap.size() - packed_bool_offset(range_offset_first)) + 1, loop_stream);
+                    input_count_offsets.set_element_to_zero_async(0, loop_stream);
+                    thrust::inclusive_scan(
+                      rmm::exec_policy_nosync(loop_stream),
+                      input_count_first,
+                      input_count_first +
+                        (rx_bitmap.size() - packed_bool_offset(range_offset_first)),
+                      input_count_offsets.begin() + 1);
+                    rmm::device_uvector<uint32_t> filtered_bitmap(
                       rx_bitmap.size() - packed_bool_offset(range_offset_first), loop_stream);
-                    thrust::exclusive_scan(rmm::exec_policy_nosync(loop_stream),
-                                           count_first,
-                                           count_first + count_displacements.size(),
-                                           count_displacements.begin());
-                    auto offset_first = thrust::make_transform_iterator(
-                      thrust::make_counting_iterator(range_offset_first),
-                      cuda::proclaim_return_type<size_t>(
-                        [range_bitmap =
-                           raft::device_span<uint32_t const>(rx_bitmap.data(), rx_bitmap.size()),
-                         count_displacements = raft::device_span<vertex_t const>(
-                           count_displacements.data(), count_displacements.size()),
-                         range_offset_first,
-                         start_offset = key_segment_offsets[3]] __device__(auto range_offset) {
-                          auto word = range_bitmap[packed_bool_offset(range_offset)];
-                          if (packed_bool_offset(range_offset) ==
-                              packed_bool_offset(range_offset_first)) {
-                            word &= ~packed_bool_partial_mask(
-                              range_offset_first %
-                              packed_bools_per_word());  // clear the bits in the sparse region
-                          }
-                          return static_cast<size_t>(
-                            start_offset +
-                            count_displacements[packed_bool_offset(range_offset) -
-                                                packed_bool_offset(range_offset_first)] +
-                            __popc(word & packed_bool_partial_mask(range_offset %
-                                                                   packed_bools_per_word())));
-                        }));
-                    auto flag_first = thrust::make_transform_iterator(
-                      thrust::make_counting_iterator(range_offset_first),
-                      cuda::proclaim_return_type<bool>(
+                    thrust::tabulate(
+                      rmm::exec_policy_nosync(loop_stream),
+                      filtered_bitmap.begin(),
+                      filtered_bitmap.end(),
+                      cuda::proclaim_return_type<uint32_t>(
                         [range_bitmap =
                            raft::device_span<uint32_t const>(rx_bitmap.data(), rx_bitmap.size()),
                          segment_bitmap = raft::device_span<uint32_t const>(segment_bitmap.data(),
                                                                             segment_bitmap.size()),
                          range_first    = local_v_list_range_firsts[partition_idx],
+                         range_offset_first,
+                         range_offset_last,
                          major_hypersparse_first =
-                           *(edge_partition
-                               .major_hypersparse_first())] __device__(auto range_offset) {
-                          auto segment_offset =
-                            (range_first + range_offset) - major_hypersparse_first;
-                          return ((range_bitmap[packed_bool_offset(range_offset)] &
-                                   packed_bool_mask(range_offset)) != packed_bool_empty_mask()) &&
-                                 ((segment_bitmap[packed_bool_offset(segment_offset)] &
-                                   packed_bool_mask(segment_offset)) != packed_bool_empty_mask());
+                           *(edge_partition.major_hypersparse_first())] __device__(size_t i) {
+                          auto this_word_range_offset_first = cuda::std::max(
+                            static_cast<vertex_t>((packed_bool_offset(range_offset_first) + i) *
+                                                  packed_bools_per_word()),
+                            range_offset_first);
+                          auto this_word_range_offset_last =
+                            cuda::std::min(static_cast<vertex_t>(
+                                             (packed_bool_offset(range_offset_first) + (i + 1)) *
+                                             packed_bools_per_word()),
+                                           range_offset_last);
+                          auto range_lead_bits = static_cast<size_t>(this_word_range_offset_first %
+                                                                     packed_bools_per_word());
+                          auto range_bitmap_word =
+                            range_bitmap[packed_bool_offset(range_offset_first) + i];
+                          if (i == 0) {  // clear the bits in the sparse region
+                            range_bitmap_word &= ~packed_bool_partial_mask(range_offset_first %
+                                                                           packed_bools_per_word());
+                          }
+                          auto this_word_hypersparse_offset_first =
+                            (range_first + this_word_range_offset_first) - major_hypersparse_first;
+                          auto num_bits = static_cast<size_t>(this_word_range_offset_last -
+                                                              this_word_range_offset_first);
+                          auto hypersparse_lead_bits =
+                            static_cast<size_t>(this_word_hypersparse_offset_first) %
+                            packed_bools_per_word();
+                          auto segment_bitmap_word = ((segment_bitmap[packed_bool_offset(
+                                                         this_word_hypersparse_offset_first)] >>
+                                                       hypersparse_lead_bits))
+                                                     << range_lead_bits;
+                          auto remaining_bits =
+                            (num_bits > (packed_bools_per_word() - hypersparse_lead_bits))
+                              ? (num_bits - (packed_bools_per_word() - hypersparse_lead_bits))
+                              : size_t{0};
+                          if (remaining_bits > 0) {
+                            segment_bitmap_word |=
+                              ((segment_bitmap
+                                  [packed_bool_offset(this_word_hypersparse_offset_first) + 1] &
+                                packed_bool_partial_mask(remaining_bits))
+                               << ((packed_bools_per_word() - hypersparse_lead_bits) +
+                                   range_lead_bits));
+                          }
+                          return range_bitmap_word & segment_bitmap_word;
                         }));
+                    auto output_count_first = thrust::make_transform_iterator(
+                      filtered_bitmap.begin(),
+                      cuda::proclaim_return_type<vertex_t>([] __device__(uint32_t word) {
+                        return static_cast<vertex_t>(__popc(word));
+                      }));
+                    rmm::device_uvector<vertex_t> output_count_offsets(filtered_bitmap.size() + 1,
+                                                                       loop_stream);
+                    output_count_offsets.set_element_to_zero_async(0, loop_stream);
+                    thrust::inclusive_scan(rmm::exec_policy_nosync(loop_stream),
+                                           output_count_first,
+                                           output_count_first + filtered_bitmap.size(),
+                                           output_count_offsets.begin() + 1);
                     if (keys.index() == 0) {
                       if (offsets.index() == 0) {
-                        auto input_pair_first = thrust::make_zip_iterator(
-                          thrust::make_counting_iterator(range_offset_first),
-                          thrust::make_transform_iterator(offset_first,
-                                                          typecast_t<size_t, uint32_t>{}));
-                        detail::copy_if_nosync(
-                          input_pair_first,
-                          input_pair_first + (range_offset_last - range_offset_first),
-                          flag_first,
-                          thrust::make_zip_iterator(
-                            get_dataframe_buffer_begin(std::get<0>(keys)) + key_segment_offsets[3],
-                            std::get<0>(offsets).begin()),
-                          raft::device_span<size_t>(counters.data() + j, size_t{1}),
-                          loop_stream);
+                        thrust::for_each(
+                          rmm::exec_policy_nosync(loop_stream),
+                          thrust::make_counting_iterator(size_t{0}),
+                          thrust::make_counting_iterator(filtered_bitmap.size()),
+                          [range_bitmap =
+                             raft::device_span<uint32_t const>(rx_bitmap.data(), rx_bitmap.size()),
+                           filtered_bitmap = raft::device_span<uint32_t const>(
+                             filtered_bitmap.data(), filtered_bitmap.size()),
+                           input_count_offsets = raft::device_span<vertex_t const>(
+                             input_count_offsets.data(), input_count_offsets.size()),
+                           output_count_offsets = raft::device_span<vertex_t const>(
+                             output_count_offsets.data(), output_count_offsets.size()),
+                           output_key_first =
+                             get_dataframe_buffer_begin(std::get<0>(keys)) + key_segment_offsets[3],
+                           output_offset_first = std::get<0>(offsets).begin(),
+                           range_offset_first,
+                           start_key_offset = key_segment_offsets[3]] __device__(size_t i) {
+                            auto range_bitmap_word =
+                              range_bitmap[packed_bool_offset(range_offset_first) + i];
+                            if (i == 0) {  // clear the bits in the sparse region
+                              range_bitmap_word &= ~packed_bool_partial_mask(
+                                range_offset_first % packed_bools_per_word());
+                            }
+                            auto filtered_bitmap_word = filtered_bitmap[i];
+                            auto lead_bits            = (i == 0)
+                                                          ? static_cast<unsigned int>(range_offset_first %
+                                                                           packed_bools_per_word())
+                                                          : static_cast<unsigned int>(0);
+                            auto this_word_start_v_offset =
+                              static_cast<uint32_t>((packed_bool_offset(range_offset_first) + i) *
+                                                    packed_bools_per_word());
+                            auto this_word_start_key_offset =
+                              static_cast<uint32_t>(start_key_offset + input_count_offsets[i]);
+                            auto this_word_output_start_offset = output_count_offsets[i];
+                            for (int j = 0; j < __popc(filtered_bitmap_word); ++j) {
+                              auto jth_set_bit_pos = static_cast<uint32_t>(
+                                __fns(filtered_bitmap_word, lead_bits, j + 1));
+                              *(output_key_first + (this_word_output_start_offset + j)) =
+                                this_word_start_v_offset + jth_set_bit_pos;
+                              *(output_offset_first + (this_word_output_start_offset + j)) =
+                                this_word_start_key_offset +
+                                static_cast<uint32_t>(__popc(
+                                  range_bitmap_word & packed_bool_partial_mask(jth_set_bit_pos)));
+                            }
+                          });
                       } else {
-                        auto input_pair_first = thrust::make_zip_iterator(
-                          thrust::make_counting_iterator(range_offset_first), offset_first);
-                        detail::copy_if_nosync(
-                          input_pair_first,
-                          input_pair_first + (range_offset_last - range_offset_first),
-                          flag_first,
-                          thrust::make_zip_iterator(
-                            get_dataframe_buffer_begin(std::get<0>(keys)) + key_segment_offsets[3],
-                            std::get<1>(offsets).begin()),
-                          raft::device_span<size_t>(counters.data() + j, size_t{1}),
-                          loop_stream);
+                        thrust::for_each(
+                          rmm::exec_policy_nosync(loop_stream),
+                          thrust::make_counting_iterator(size_t{0}),
+                          thrust::make_counting_iterator(filtered_bitmap.size()),
+                          [range_bitmap =
+                             raft::device_span<uint32_t const>(rx_bitmap.data(), rx_bitmap.size()),
+                           filtered_bitmap = raft::device_span<uint32_t const>(
+                             filtered_bitmap.data(), filtered_bitmap.size()),
+                           input_count_offsets = raft::device_span<vertex_t const>(
+                             input_count_offsets.data(), input_count_offsets.size()),
+                           output_count_offsets = raft::device_span<vertex_t const>(
+                             output_count_offsets.data(), output_count_offsets.size()),
+                           output_key_first =
+                             get_dataframe_buffer_begin(std::get<0>(keys)) + key_segment_offsets[3],
+                           output_offset_first = std::get<1>(offsets).begin(),
+                           range_offset_first,
+                           start_key_offset = key_segment_offsets[3]] __device__(size_t i) {
+                            auto range_bitmap_word =
+                              range_bitmap[packed_bool_offset(range_offset_first) + i];
+                            if (i == 0) {  // clear the bits in the sparse region
+                              range_bitmap_word &= ~packed_bool_partial_mask(
+                                range_offset_first % packed_bools_per_word());
+                            }
+                            auto filtered_bitmap_word = filtered_bitmap[i];
+                            auto lead_bits            = (i == 0)
+                                                          ? static_cast<unsigned int>(range_offset_first %
+                                                                           packed_bools_per_word())
+                                                          : static_cast<unsigned int>(0);
+                            auto this_word_start_v_offset =
+                              static_cast<uint32_t>((packed_bool_offset(range_offset_first) + i) *
+                                                    packed_bools_per_word());
+                            auto this_word_start_key_offset =
+                              static_cast<size_t>(start_key_offset + input_count_offsets[i]);
+                            auto this_word_output_start_offset = output_count_offsets[i];
+                            for (int j = 0; j < __popc(filtered_bitmap_word); ++j) {
+                              auto jth_set_bit_pos = static_cast<uint32_t>(
+                                __fns(filtered_bitmap_word, lead_bits, j + 1));
+                              *(output_key_first + (this_word_output_start_offset + j)) =
+                                this_word_start_v_offset + jth_set_bit_pos;
+                              *(output_offset_first + (this_word_output_start_offset + j)) =
+                                this_word_start_key_offset +
+                                static_cast<size_t>(__popc(
+                                  range_bitmap_word & packed_bool_partial_mask(jth_set_bit_pos)));
+                            }
+                          });
                       }
                     } else {
                       if (offsets.index() == 0) {
-                        auto input_pair_first = thrust::make_zip_iterator(
-                          thrust::make_counting_iterator(local_v_list_range_firsts[partition_idx] +
-                                                         range_offset_first),
-                          thrust::make_transform_iterator(offset_first,
-                                                          typecast_t<size_t, uint32_t>{}));
-                        detail::copy_if_nosync(
-                          input_pair_first,
-                          input_pair_first + (range_offset_last - range_offset_first),
-                          flag_first,
-                          thrust::make_zip_iterator(
-                            get_dataframe_buffer_begin(std::get<1>(keys)) + key_segment_offsets[3],
-                            std::get<0>(offsets).begin()),
-                          raft::device_span<size_t>(counters.data() + j, size_t{1}),
-                          loop_stream);
+                        thrust::for_each(
+                          rmm::exec_policy_nosync(loop_stream),
+                          thrust::make_counting_iterator(size_t{0}),
+                          thrust::make_counting_iterator(filtered_bitmap.size()),
+                          [range_bitmap =
+                             raft::device_span<uint32_t const>(rx_bitmap.data(), rx_bitmap.size()),
+                           filtered_bitmap = raft::device_span<uint32_t const>(
+                             filtered_bitmap.data(), filtered_bitmap.size()),
+                           input_count_offsets = raft::device_span<vertex_t const>(
+                             input_count_offsets.data(), input_count_offsets.size()),
+                           output_count_offsets = raft::device_span<vertex_t const>(
+                             output_count_offsets.data(), output_count_offsets.size()),
+                           output_key_first =
+                             get_dataframe_buffer_begin(std::get<0>(keys)) + key_segment_offsets[3],
+                           output_offset_first = std::get<0>(offsets).begin(),
+                           range_first         = local_v_list_range_firsts[partition_idx],
+                           range_offset_first,
+                           start_key_offset = key_segment_offsets[3]] __device__(size_t i) {
+                            auto range_bitmap_word =
+                              range_bitmap[packed_bool_offset(range_offset_first) + i];
+                            if (i == 0) {  // clear the bits in the sparse region
+                              range_bitmap_word &= ~packed_bool_partial_mask(
+                                range_offset_first % packed_bools_per_word());
+                            }
+                            auto filtered_bitmap_word = filtered_bitmap[i];
+                            auto lead_bits            = (i == 0)
+                                                          ? static_cast<unsigned int>(range_offset_first %
+                                                                           packed_bools_per_word())
+                                                          : static_cast<unsigned int>(0);
+                            auto this_word_start_v =
+                              range_first +
+                              static_cast<vertex_t>((packed_bool_offset(range_offset_first) + i) *
+                                                    packed_bools_per_word());
+                            auto this_word_start_key_offset =
+                              static_cast<uint32_t>(start_key_offset + input_count_offsets[i]);
+                            auto this_word_output_start_offset = output_count_offsets[i];
+                            for (int j = 0; j < __popc(filtered_bitmap_word); ++j) {
+                              auto jth_set_bit_pos = static_cast<vertex_t>(
+                                __fns(filtered_bitmap_word, lead_bits, j + 1));
+                              *(output_key_first + (this_word_output_start_offset + j)) =
+                                this_word_start_v + jth_set_bit_pos;
+                              *(output_offset_first + (this_word_output_start_offset + j)) =
+                                this_word_start_key_offset +
+                                static_cast<uint32_t>(__popc(
+                                  range_bitmap_word & packed_bool_partial_mask(jth_set_bit_pos)));
+                            }
+                          });
                       } else {
-                        auto input_pair_first = thrust::make_zip_iterator(
-                          thrust::make_counting_iterator(local_v_list_range_firsts[partition_idx] +
-                                                         range_offset_first),
-                          offset_first);
-                        detail::copy_if_nosync(
-                          input_pair_first,
-                          input_pair_first + (range_offset_last - range_offset_first),
-                          flag_first,
-                          thrust::make_zip_iterator(
-                            get_dataframe_buffer_begin(std::get<1>(keys)) + key_segment_offsets[3],
-                            std::get<1>(offsets).begin()),
-                          raft::device_span<size_t>(counters.data() + j, size_t{1}),
-                          loop_stream);
+                        thrust::for_each(
+                          rmm::exec_policy_nosync(loop_stream),
+                          thrust::make_counting_iterator(size_t{0}),
+                          thrust::make_counting_iterator(filtered_bitmap.size()),
+                          [range_bitmap =
+                             raft::device_span<uint32_t const>(rx_bitmap.data(), rx_bitmap.size()),
+                           filtered_bitmap = raft::device_span<uint32_t const>(
+                             filtered_bitmap.data(), filtered_bitmap.size()),
+                           input_count_offsets = raft::device_span<vertex_t const>(
+                             input_count_offsets.data(), input_count_offsets.size()),
+                           output_count_offsets = raft::device_span<vertex_t const>(
+                             output_count_offsets.data(), output_count_offsets.size()),
+                           output_key_first =
+                             get_dataframe_buffer_begin(std::get<0>(keys)) + key_segment_offsets[3],
+                           output_offset_first = std::get<1>(offsets).begin(),
+                           range_first         = local_v_list_range_firsts[partition_idx],
+                           range_offset_first,
+                           start_key_offset = key_segment_offsets[3]] __device__(size_t i) {
+                            auto range_bitmap_word =
+                              range_bitmap[packed_bool_offset(range_offset_first) + i];
+                            if (i == 0) {  // clear the bits in the sparse region
+                              range_bitmap_word &= ~packed_bool_partial_mask(
+                                range_offset_first % packed_bools_per_word());
+                            }
+                            auto filtered_bitmap_word = filtered_bitmap[i];
+                            auto lead_bits            = (i == 0)
+                                                          ? static_cast<unsigned int>(range_offset_first %
+                                                                           packed_bools_per_word())
+                                                          : static_cast<unsigned int>(0);
+                            auto this_word_start_v =
+                              range_first +
+                              static_cast<vertex_t>((packed_bool_offset(range_offset_first) + i) *
+                                                    packed_bools_per_word());
+                            auto this_word_start_key_offset =
+                              static_cast<size_t>(start_key_offset + input_count_offsets[i]);
+                            auto this_word_output_start_offset = output_count_offsets[i];
+                            for (int j = 0; j < __popc(filtered_bitmap_word); ++j) {
+                              auto jth_set_bit_pos = static_cast<vertex_t>(
+                                __fns(filtered_bitmap_word, lead_bits, j + 1));
+                              *(output_key_first + (this_word_output_start_offset + j)) =
+                                this_word_start_v + jth_set_bit_pos;
+                              *(output_offset_first + (this_word_output_start_offset + j)) =
+                                this_word_start_key_offset +
+                                static_cast<size_t>(__popc(
+                                  range_bitmap_word & packed_bool_partial_mask(jth_set_bit_pos)));
+                            }
+                          });
                       }
                     }
+                    thrust::transform(
+                      rmm::exec_policy_nosync(loop_stream),
+                      output_count_offsets.begin() + (output_count_offsets.size() - 1),
+                      output_count_offsets.end(),
+                      counters.data() + j,
+                      typecast_t<vertex_t, size_t>{});
                   } else {
                     thrust::fill(rmm::exec_policy_nosync(loop_stream),
                                  counters.data() + j,
@@ -2730,11 +2912,13 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
             }
 
             (*edge_partition_hypersparse_key_offset_vectors).push_back(std::move(offsets));
-            if (edge_partition_new_key_buffers) {
+          }
+          if (loop_stream_pool_indices) { handle.sync_stream_pool(*loop_stream_pool_indices); }
+          if (edge_partition_new_key_buffers) {
+            for (size_t j = 0; j < loop_count; ++j) {
               edge_partition_key_buffers[j] = std::move((*edge_partition_new_key_buffers)[j]);
             }
           }
-          if (stream_pool_indices) { handle.sync_stream_pool(*stream_pool_indices); }
           if (edge_partition_bitmap_buffers) { (*edge_partition_bitmap_buffers).clear(); }
 
           std::vector<size_t> h_counts(loop_count);
@@ -2743,9 +2927,10 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
 
           for (size_t j = 0; j < loop_count; ++j) {
             auto partition_idx = i + j;
-            auto loop_stream   = stream_pool_indices
-                                   ? handle.get_stream_from_stream_pool((*stream_pool_indices)[j])
-                                   : handle.get_stream();
+            auto loop_stream =
+              loop_stream_pool_indices
+                ? handle.get_stream_from_stream_pool((*loop_stream_pool_indices)[j])
+                : handle.get_stream();
 
             if (process_local_edges[j]) {
               auto& key_segment_offsets = (*key_segment_offset_vectors)[partition_idx];
@@ -2775,7 +2960,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
           }
 
           {  // update edge_partition_deg1_hypersparse_key_offset_counts
-            if (stream_pool_indices) { handle.sync_stream_pool(*stream_pool_indices); }
+            if (loop_stream_pool_indices) { handle.sync_stream_pool(*loop_stream_pool_indices); }
 
             std::vector<void const*> h_ptrs(
               loop_count);  // pointers to hypersparse key offset vectors
@@ -2849,7 +3034,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
       }
     }
 #if PER_V_PERFORMANCE_MEASUREMENT
-    if (stream_pool_indices) { handle.sync_stream_pool(*stream_pool_indices); }
+    if (loop_stream_pool_indices) { handle.sync_stream_pool(*loop_stream_pool_indices); }
     auto subtime3 = std::chrono::steady_clock::now();
 #endif
 
@@ -2863,8 +3048,8 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
 
     for (size_t j = 0; j < loop_count; ++j) {
       auto partition_idx = i + j;
-      auto loop_stream   = stream_pool_indices
-                             ? handle.get_stream_from_stream_pool((*stream_pool_indices)[j])
+      auto loop_stream   = loop_stream_pool_indices
+                             ? handle.get_stream_from_stream_pool((*loop_stream_pool_indices)[j])
                              : handle.get_stream();
 
       if constexpr (GraphViewType::is_multi_gpu && update_major) {
@@ -2898,7 +3083,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
           allocate_dataframe_buffer<T>(buffer_size, loop_stream));
       }
     }
-    if (stream_pool_indices) { handle.sync_stream_pool(*stream_pool_indices); }
+    if (loop_stream_pool_indices) { handle.sync_stream_pool(*loop_stream_pool_indices); }
 #if PER_V_PERFORMANCE_MEASUREMENT
     auto subtime4 = std::chrono::steady_clock::now();
 #endif
@@ -3150,12 +3335,12 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
             edge_partition_allreduce_displacements.back() + edge_partition_allreduce_sizes.back(),
             handle.get_stream());
         }
-        if (stream_pool_indices) { handle.sync_stream(); }
+        if (loop_stream_pool_indices) { handle.sync_stream(); }
 
         for (size_t j = 0; j < loop_count; ++j) {
           auto partition_idx = i + j;
-          auto loop_stream   = stream_pool_indices
-                                 ? handle.get_stream_from_stream_pool((*stream_pool_indices)[j])
+          auto loop_stream   = loop_stream_pool_indices
+                                 ? handle.get_stream_from_stream_pool((*loop_stream_pool_indices)[j])
                                  : handle.get_stream();
 
           std::optional<
@@ -3217,7 +3402,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
               loop_stream);
           }
         }
-        if (stream_pool_indices) { handle.sync_stream_pool(*stream_pool_indices); }
+        if (loop_stream_pool_indices) { handle.sync_stream_pool(*loop_stream_pool_indices); }
 #if PER_V_PERFORMANCE_MEASUREMENT
         auto subtime6 = std::chrono::steady_clock::now();
 #endif
@@ -3237,7 +3422,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
                            raft::comms::op_t::MIN,
                            handle.get_stream());
         }
-        if (stream_pool_indices) { handle.sync_stream(); }
+        if (loop_stream_pool_indices) { handle.sync_stream(); }
 #if PER_V_PERFORMANCE_MEASUREMENT
         auto subtime7 = std::chrono::steady_clock::now();
 #endif
@@ -3249,8 +3434,8 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
         edge_partition_selected_ranks_or_flags.reserve(loop_count);
         for (size_t j = 0; j < loop_count; ++j) {
           auto partition_idx = i + j;
-          auto loop_stream   = stream_pool_indices
-                                 ? handle.get_stream_from_stream_pool((*stream_pool_indices)[j])
+          auto loop_stream   = loop_stream_pool_indices
+                                 ? handle.get_stream_from_stream_pool((*loop_stream_pool_indices)[j])
                                  : handle.get_stream();
 
           auto const& output_buffer = edge_partition_major_output_buffers[j];
@@ -3314,7 +3499,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
           }
           edge_partition_selected_ranks_or_flags.push_back(std::move(selected_ranks_or_flags));
         }
-        if (stream_pool_indices) { handle.sync_stream_pool(*stream_pool_indices); }
+        if (loop_stream_pool_indices) { handle.sync_stream_pool(*loop_stream_pool_indices); }
         if (minor_comm_size <= std::numeric_limits<uint8_t>::max()) {  // priority == uint8_t
           std::get<0>(aggregate_priorities).resize(0, handle.get_stream());
           std::get<0>(aggregate_priorities).shrink_to_fit(handle.get_stream());
@@ -3322,7 +3507,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
           std::get<1>(aggregate_priorities).resize(0, handle.get_stream());
           std::get<1>(aggregate_priorities).shrink_to_fit(handle.get_stream());
         }
-        if (stream_pool_indices) { handle.sync_stream(); }
+        if (loop_stream_pool_indices) { handle.sync_stream(); }
 #if PER_V_PERFORMANCE_MEASUREMENT
         auto subtime8 = std::chrono::steady_clock::now();
 #endif
@@ -3332,8 +3517,8 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
 
         for (size_t j = 0; j < loop_count; ++j) {
           auto partition_idx = i + j;
-          auto loop_stream   = stream_pool_indices
-                                 ? handle.get_stream_from_stream_pool((*stream_pool_indices)[j])
+          auto loop_stream   = loop_stream_pool_indices
+                                 ? handle.get_stream_from_stream_pool((*loop_stream_pool_indices)[j])
                                  : handle.get_stream();
 
           auto& output_buffer = edge_partition_major_output_buffers[j];
@@ -3407,7 +3592,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
 
           edge_partition_values.push_back(std::move(values));
         }
-        if (stream_pool_indices) { handle.sync_stream_pool(*stream_pool_indices); }
+        if (loop_stream_pool_indices) { handle.sync_stream_pool(*loop_stream_pool_indices); }
 
         std::vector<size_t> copy_sizes(loop_count);
         raft::update_host(copy_sizes.data(), counters.data(), loop_count, handle.get_stream());
@@ -3423,9 +3608,10 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
           (*edge_partition_deg1_hypersparse_output_offset_vectors).reserve(loop_count);
 
           for (size_t j = 0; j < loop_count; ++j) {
-            auto loop_stream = stream_pool_indices
-                                 ? handle.get_stream_from_stream_pool((*stream_pool_indices)[j])
-                                 : handle.get_stream();
+            auto loop_stream =
+              loop_stream_pool_indices
+                ? handle.get_stream_from_stream_pool((*loop_stream_pool_indices)[j])
+                : handle.get_stream();
 
             auto& output_buffer = edge_partition_major_output_buffers[j];
             std::variant<rmm::device_uvector<uint32_t>, rmm::device_uvector<size_t>>
@@ -3538,7 +3724,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
             resize_dataframe_buffer(output_buffer, 0, loop_stream);
             shrink_to_fit_dataframe_buffer(output_buffer, loop_stream);
           }
-          if (stream_pool_indices) { handle.sync_stream_pool(*stream_pool_indices); }
+          if (loop_stream_pool_indices) { handle.sync_stream_pool(*loop_stream_pool_indices); }
 
           std::vector<size_t> deg1_copy_sizes(loop_count);
           raft::update_host(
@@ -3567,7 +3753,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
           }
         }
 #if PER_V_PERFORMANCE_MEASUREMENT
-        if (stream_pool_indices) { handle.sync_stream(); }
+        if (loop_stream_pool_indices) { handle.sync_stream(); }
         auto subtime9 = std::chrono::steady_clock::now();
 #endif
 
@@ -3665,7 +3851,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
                 if (k == (minor_comm_size - 1)) {
                   aligned_sizes[k] = (*rx_offset_sizes)[k];
                 } else {
-                  aligned_sizes[k] = raft::round_up_safe((*rx_offset_sizes)[k], value_alignment);
+                  aligned_sizes[k] = raft::round_up_safe((*rx_offset_sizes)[k], offset_alignment);
                 }
               }
               std::exclusive_scan(
@@ -3770,8 +3956,8 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
         }
         handle.sync_stream();  // this is required before edge_partition_values.clear();
         edge_partition_values.clear();
-        if (stream_pool_indices) {
-          handle.sync_stream_pool(*stream_pool_indices);
+        if (loop_stream_pool_indices) {
+          handle.sync_stream_pool(*loop_stream_pool_indices);
         }  // to ensure that memory is freed
 #if PER_V_PERFORMANCE_MEASUREMENT
         auto subtime11 = std::chrono::steady_clock::now();
@@ -4125,7 +4311,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
                         handle.get_stream());
         }
         device_group_end(minor_comm);
-        if (stream_pool_indices) { handle.sync_stream(); }
+        if (loop_stream_pool_indices) { handle.sync_stream(); }
       }
     }
   }
