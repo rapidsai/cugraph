@@ -705,8 +705,7 @@ void fill_edge_minor_property(raft::handle_t const& handle,
         std::vector<std::variant<rmm::device_uvector<vertex_t>, rmm::device_uvector<uint32_t>>>
           edge_partition_v_buffers{};
         edge_partition_v_buffers.reserve(loop_count);
-        std::vector<rmm::device_scalar<size_t>> edge_partition_dummy_counter_scalars{};
-        edge_partition_dummy_counter_scalars.reserve(loop_count);
+        rmm::device_uvector<size_t> dummy_counters(loop_count, handle.get_stream());
         for (size_t j = 0; j < loop_count; ++j) {
           auto partition_idx = i + j;
 
@@ -724,8 +723,6 @@ void fill_edge_minor_property(raft::handle_t const& handle,
             std::get<0>(v_buffer).resize(local_v_list_sizes[partition_idx], handle.get_stream());
           }
           edge_partition_v_buffers.push_back(std::move(v_buffer));
-          edge_partition_dummy_counter_scalars.push_back(
-            rmm::device_scalar<size_t>(size_t{0}, handle.get_stream()));
         }
 #if FILL_PERFORMANCE_MEASUREMENT
         RAFT_CUDA_TRY(cudaDeviceSynchronize());
@@ -779,11 +776,10 @@ void fill_edge_minor_property(raft::handle_t const& handle,
             auto const& rx_bitmap = std::get<1>(edge_partition_v_buffers[j]);
             rmm::device_uvector<vertex_t> rx_vertices(local_v_list_sizes[partition_idx],
                                                       loop_stream);
-            rmm::device_scalar<size_t> dummy(size_t{0}, loop_stream);
             retrieve_vertex_list_from_bitmap(
               raft::device_span<uint32_t const>(rx_bitmap.data(), rx_bitmap.size()),
               rx_vertices.begin(),
-              raft::device_span<size_t>(dummy.data(), size_t{1}),
+              raft::device_span<size_t>(dummy_counters.data() + j, size_t{1}),
               local_v_list_range_firsts[partition_idx],
               local_v_list_range_lasts[partition_idx],
               loop_stream);
