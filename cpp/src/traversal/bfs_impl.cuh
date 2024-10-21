@@ -222,8 +222,13 @@ void bfs(raft::handle_t const& handle,
   auto prep1 = std::chrono::steady_clock::now();
 #endif
 
-  constexpr double direction_optimizing_alpha  = 14.0;
-  constexpr vertex_t direction_optimizing_beta = 24;
+  double direction_optimizing_alpha =
+    (graph_view.number_of_vertices() > 0)
+      ? ((static_cast<double>(graph_view.compute_number_of_edges(handle)) /
+          static_cast<double>(graph_view.number_of_vertices())) *
+         (1.0 / 3.0) /* tuning parametger */)
+      : double{1.0};
+  constexpr vertex_t direction_optimizing_beta = 24;  // tuning parameter
 
   std::optional<rmm::device_uvector<edge_t>> approx_out_degrees{std::nullopt};
   std::optional<rmm::device_uvector<vertex_t>> nzd_unvisited_vertices{std::nullopt};
@@ -567,6 +572,7 @@ void bfs(raft::handle_t const& handle,
             : m_u;
 #if BFS_PERFORMANCE_MEASUREMENT  // FIXME: delete
         std::cerr << "m_f=" << m_f << " m_u=" << m_u
+                  << " direction_optimizing_alpha=" << direction_optimizing_alpha
                   << " aggregate_m_f * direction_optimzing_alpha="
                   << aggregate_m_f * direction_optimizing_alpha
                   << " aggregate_m_u=" << aggregate_m_u
