@@ -225,6 +225,12 @@ def test_create_undirected_graph_from_asymmetric_adj_list():
     G = cugraph.Graph(directed=False)
     G.from_cudf_adjlist(offsets, indices, None, symmetrize=True)
 
+    # FIXME: Since we have no mechanism to access the symmetrized edgelist
+    # from the graph_view_t, assert that the edgelist size is unchanged. Once
+    # exposing 'decompress_to_edgelist', ensure that
+    # G.number_of_edges() == 2 * karate_asymmetric.get_edgelist()?
+    assert G.number_of_edges() == len(karate_asymmetric.get_edgelist())
+
     # FIXME: Once 'decompress_to_edgelist' is exposed to the
     # python API, ensure that the derived edgelist is symmetric
     # if symmetrize = True.
