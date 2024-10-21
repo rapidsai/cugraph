@@ -1178,7 +1178,7 @@ create_graph_from_edgelist_impl(
     }
     bool compress{false};
     if (static_cast<size_t>(num_edges) * element_size >
-        static_cast<size_t>(total_global_mem * 0.65 /* tuning parameter */)) {
+        static_cast<size_t>(total_global_mem * 0.5 /* tuning parameter */)) {
       compress = true;
     }
 
