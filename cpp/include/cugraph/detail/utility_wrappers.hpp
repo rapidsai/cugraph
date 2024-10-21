@@ -65,6 +65,35 @@ void uniform_random_fill(rmm::cuda_stream_view const& stream_view,
 template <typename value_t>
 void scalar_fill(raft::handle_t const& handle, value_t* d_value, size_t size, value_t value);
 
+/**
+ * @brief    Sort a buffer
+ *
+ * @tparam      value_t      type of the value to operate on
+ *
+ * @param [in]  handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator,
+ * and handles to various CUDA libraries) to run graph algorithms.
+ * @param[out]  d_value      device array to sort
+ * @param[in]   size         number of elements in array
+ *
+ */
+template <typename value_t>
+void sort(raft::handle_t const& handle, value_t* d_value, size_t size);
+
+/**
+ * @brief    Keep unique element from a buffer
+ *
+ * @tparam      value_t      type of the value to operate on
+ *
+ * @param [in]  handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator,
+ * and handles to various CUDA libraries) to run graph algorithms.
+ * @param[in]  d_value      device array of unique elements.
+ * @param[in]   size         number of elements in array
+ * @return the number of unique elements.
+ *
+ */
+template <typename value_t>
+size_t unique(raft::handle_t const& handle, value_t* d_value, size_t size);
+
 
 /**
  * @brief    Increment the values of a buffer by a constant value
