@@ -444,38 +444,59 @@ void fill_edge_minor_property(raft::handle_t const& handle,
                packed_bool_offset(graph_view.local_vertex_partition_range_first() -
                                   minor_range_first)) &&
               (((local_v_list_range_firsts[major_comm_rank] - minor_range_first) %
-                packed_bools_per_word()) != 0)) {
+                packed_bools_per_word()) !=
+               0)) {  // there are unaligned bits (fewer than packed_bools_per_word()) in the vertex
+                      // partition boundary
             leading_boundary_words = packed_bool_word_bcast_alignment;
           }
           thrust::fill(handle.get_thrust_policy(),
                        boundary_words.begin(),
                        boundary_words.begin() + leading_boundary_words,
                        packed_bool_empty_mask());
-          // FIXME: this looks expensive...
-          thrust::for_each(
-            handle.get_thrust_policy(),
-            sorted_unique_vertex_first,
-            sorted_unique_vertex_last,
-            [input,
-             minor_range_first,
-             leading_boundary_words,
-             word_offset_first =
-               packed_bool_offset(local_v_list_range_firsts[major_comm_rank] - minor_range_first),
-             output_value_first = edge_partition_value_first,
-             boundary_words     = raft::device_span<uint32_t>(
-               boundary_words.data(), boundary_words.size())] __device__(auto v) {
-              auto v_offset    = v - minor_range_first;
-              auto word_offset = packed_bool_offset(v_offset);
-              cuda::atomic_ref<uint32_t, cuda::thread_scope_device> word(
-                (word_offset - word_offset_first < leading_boundary_words)
-                  ? boundary_words[word_offset - word_offset_first]
-                  : *(output_value_first + word_offset));
-              if (input) {
-                word.fetch_or(packed_bool_mask(v_offset), cuda::std::memory_order_relaxed);
-              } else {
-                word.fetch_and(~packed_bool_mask(v_offset), cuda::std::memory_order_relaxed);
-              }
-            });
+          if (local_v_list_range_firsts[major_comm_rank] <
+              local_v_list_range_lasts[major_comm_rank]) {
+            auto word_offset_first =
+              packed_bool_offset(local_v_list_range_firsts[major_comm_rank] - minor_range_first);
+            auto word_offset_last =
+              packed_bool_offset((local_v_list_range_lasts[major_comm_rank] - 1) -
+                                 minor_range_first) +
+              1;
+            thrust::for_each(
+              handle.get_thrust_policy(),
+              thrust::make_counting_iterator(word_offset_first),
+              thrust::make_counting_iterator(word_offset_last),
+              [sorted_unique_vertex_first,
+               sorted_unique_vertex_last,
+               input,
+               minor_range_first,
+               leading_boundary_words,
+               word_offset_first,
+               vertex_partition_range_last = graph_view.local_vertex_partition_range_last(),
+               output_value_first          = edge_partition_value_first,
+               boundary_words              = raft::device_span<uint32_t>(
+                 boundary_words.data(), boundary_words.size())] __device__(auto i) {
+                auto& word = ((i - word_offset_first) < leading_boundary_words)
+                               ? boundary_words[i - word_offset_first]
+                               : *(output_value_first + i);
+                auto word_v_first =
+                  minor_range_first + static_cast<vertex_t>(i * packed_bools_per_word());
+                auto word_v_last =
+                  ((vertex_partition_range_last - word_v_first) <= packed_bools_per_word())
+                    ? vertex_partition_range_last
+                    : (word_v_first + static_cast<vertex_t>(packed_bools_per_word()));
+                auto it = thrust::lower_bound(
+                  thrust::seq, sorted_unique_vertex_first, sorted_unique_vertex_last, word_v_first);
+                while ((it != sorted_unique_vertex_last) && (*it < word_v_last)) {
+                  auto v_offset = *it - minor_range_first;
+                  if (input) {
+                    word |= packed_bool_mask(v_offset);
+                  } else {
+                    word &= ~packed_bool_mask(v_offset);
+                  }
+                  ++it;
+                }
+              });
+          }
           rmm::device_uvector<uint32_t> aggregate_boundary_words(
             major_comm_size * packed_bool_word_bcast_alignment, handle.get_stream());
           device_allgather(major_comm,
