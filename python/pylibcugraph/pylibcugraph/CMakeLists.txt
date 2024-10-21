@@ -65,6 +65,7 @@ set(cython_sources
     all_pairs_sorensen_coefficients.pyx
     all_pairs_overlap_coefficients.pyx
     all_pairs_cosine_coefficients.pyx
+    edge_id_lookup_table.pyx
 )
 set(linked_libraries cugraph::cugraph;cugraph::cugraph_c)
 
