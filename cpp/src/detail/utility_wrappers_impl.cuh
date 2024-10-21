@@ -36,6 +36,7 @@
 #include <thrust/transform.h>
 #include <thrust/transform_reduce.h>
 #include <thrust/tuple.h>
+#include <thrust/unique.h>
 
 namespace cugraph {
 namespace detail {
@@ -62,6 +63,23 @@ void scalar_fill(raft::handle_t const& handle, value_t* d_value, size_t size, va
 {
   thrust::fill_n(handle.get_thrust_policy(), d_value, size, value);
 }
+
+template <typename value_t>
+void sort(raft::handle_t const& handle, value_t* d_value, size_t size)
+{
+  thrust::sort(handle.get_thrust_policy(), d_value, d_value + size);
+}
+
+template <typename value_t>
+size_t unique(raft::handle_t const& handle, value_t* d_value, size_t size)
+{
+  //auto unique_element_last = thrust::unique(handle.get_thrust_policy(), d_value, d_value + size);
+  auto unique_element_last = thrust::unique(handle.get_thrust_policy(), d_value, d_value + size);
+  //auto num_unique_element = 
+  return thrust::distance(d_value, unique_element_last);
+  //masked_edgelist_srcs.resize(2* masked_edgelist_srcs.size(), handle.get_stream());
+}
+
 
 template <typename value_t>
 void sequence_fill(rmm::cuda_stream_view const& stream_view,
