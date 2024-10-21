@@ -893,17 +893,41 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
 
       if constexpr (multi_gpu) {
         if (start_vertex_labels) {
+          rmm::device_uvector<label_t> unique_labels((*start_vertex_labels).size(), handle_.get_stream());
+          raft::copy(unique_labels.data(),
+                     (*start_vertex_labels).data(),
+                     unique_labels.size(),
+                     handle_.get_stream());
 
-          rmm::device_uvector<label_t> label_to_comm_rank_d_vector((*start_vertex_labels).size(), handle_.get_stream());
+          // Get unique labels
+          // sort the start_vertex_labels
+          cugraph::detail::sort(handle_.get_stream(), unique_labels.begin(), unique_labels.size());
+          auto num_unique_labels = cugraph::detail::unique(
+            handle_.get_stream(), unique_labels.begin(), unique_labels.size());
+          
+          (*label_to_comm_rank).resize(num_unique_labels, handle_.get_stream());
 
           cugraph::detail::scalar_fill(handle_.get_stream(),
-                                       label_to_comm_rank_d_vector.begin(),
-                                       label_to_comm_rank_d_vector.size(),
+                                       (*label_to_comm_rank).begin(), // This should be rename to rank
+                                       (*label_to_comm_rank).size(),
                                        label_t{handle_.get_comms().get_rank()});
           
-          std::tie(start_vertices, *start_vertex_labels, *label_to_comm_rank) =
-            cugraph::detail::shuffle_ext_vertex_values_pairs_to_local_gpu_by_vertex_partitioning(
-              handle_, std::move(start_vertices), std::move(*start_vertex_labels), std::move(label_to_comm_rank_d_vector));
+          // Perform allgather to get global_label_to_comm_rank_d_vector (not ere, after shuffling)
+          
+          // comm_rank instead of label_to_comm_rank
+          // THe C++ code is not expecting that I fill that with each vertex. need to fill that in by where the label goes
+          // size of the unique vertex labels
+
+          //Solution: Take the global start vertex labels on each GPU, 
+          // Perform sort unique, to get unoqiue labels,
+          // Perform allgather to get the same [0, 1, 2, 3], need 3 zeros and 3 1s
+          // The most important thing is to get the right lenght on each machine. Perform a thrust::fill (rank),
+          // then an allgatherv to get [0, 0, 0, 1, 1], [0, 0, 0, 1, 1]
+
+
+          std::tie(start_vertices, *start_vertex_labels) =
+            cugraph::detail::shuffle_ext_vertex_value_pairs_to_local_gpu_by_vertex_partitioning(
+              handle_, std::move(start_vertices), std::move(*start_vertex_labels));
           
         } else {
           start_vertices =
@@ -2082,7 +2106,7 @@ cugraph_error_code_t cugraph_homogeneous_uniform_neighbor_sample(
   cugraph_rng_state_t* rng_state,
   cugraph_graph_t* graph,
   const cugraph_type_erased_device_array_view_t* start_vertices,
-  const cugraph_type_erased_device_array_view_t* start_vertex_offsets,
+  const cugraph_type_erased_device_array_view_t* start_vertex_offsets, // RENAME?
   const cugraph_type_erased_host_array_view_t* fan_out,
   const cugraph_sampling_options_t* options,
   bool_t do_expensive_check,
