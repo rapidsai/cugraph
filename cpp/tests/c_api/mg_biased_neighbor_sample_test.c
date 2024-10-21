@@ -432,7 +432,7 @@ int generic_biased_neighbor_sample_test(const cugraph_resource_handle_t* handle,
   cugraph_sample_result_free(result);
 #endif
 
-  cugraph_mg_graph_free(graph);
+  cugraph_graph_free(graph);
   cugraph_error_free(ret_error);
   return test_ret_value;
 }
@@ -678,7 +678,7 @@ int test_biased_neighbor_from_alex(const cugraph_resource_handle_t* handle)
   cugraph_sample_result_free(result);
 
   cugraph_type_erased_host_array_view_free(h_fan_out_view);
-  cugraph_mg_graph_free(graph);
+  cugraph_graph_free(graph);
   cugraph_error_free(ret_error);
   cugraph_sampling_options_free(sampling_options);
 
@@ -941,7 +941,7 @@ int test_biased_neighbor_sample_alex_bug(const cugraph_resource_handle_t* handle
   cugraph_sample_result_free(result);
 #endif
 
-  cugraph_sg_graph_free(graph);
+  cugraph_graph_free(graph);
   cugraph_error_free(ret_error);
 }
 
@@ -1221,7 +1221,7 @@ int test_biased_neighbor_sample_sort_by_hop(const cugraph_resource_handle_t* han
   cugraph_sample_result_free(result);
 #endif
 
-  cugraph_sg_graph_free(graph);
+  cugraph_graph_free(graph);
   cugraph_error_free(ret_error);
 }
 

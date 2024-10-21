@@ -609,14 +609,14 @@ extern "C" cugraph_error_code_t cugraph_graph_create_sg(
                "Invalid input arguments: src size != weights size.",
                *error);
 
-  cugraph_data_type_id_t edge_type;
-  cugraph_data_type_id_t weight_type;
+  if (p_src->type_ == cugraph_data_type_id_t::INT32)
+    CAPI_EXPECTS(p_src->size_ < int32_threshold,
+                 CUGRAPH_INVALID_INPUT,
+                 "Number of edges won't fit in 32-bit integer, using 32-bit type",
+                 *error);
 
-  if (p_src->size_ < int32_threshold) {
-    edge_type = p_src->type_;
-  } else {
-    edge_type = cugraph_data_type_id_t::INT64;
-  }
+  cugraph_data_type_id_t edge_type = p_src->type_;
+  cugraph_data_type_id_t weight_type;
 
   if (weights != nullptr) {
     weight_type = p_weights->type_;
@@ -678,38 +678,6 @@ extern "C" cugraph_error_code_t cugraph_graph_create_sg(
   }
 
   return CUGRAPH_SUCCESS;
-}
-
-extern "C" cugraph_error_code_t cugraph_sg_graph_create(
-  const cugraph_resource_handle_t* handle,
-  const cugraph_graph_properties_t* properties,
-  const cugraph_type_erased_device_array_view_t* src,
-  const cugraph_type_erased_device_array_view_t* dst,
-  const cugraph_type_erased_device_array_view_t* weights,
-  const cugraph_type_erased_device_array_view_t* edge_ids,
-  const cugraph_type_erased_device_array_view_t* edge_type_ids,
-  bool_t store_transposed,
-  bool_t renumber,
-  bool_t do_expensive_check,
-  cugraph_graph_t** graph,
-  cugraph_error_t** error)
-{
-  return cugraph_graph_create_sg(handle,
-                                 properties,
-                                 NULL,
-                                 src,
-                                 dst,
-                                 weights,
-                                 edge_ids,
-                                 edge_type_ids,
-                                 store_transposed,
-                                 renumber,
-                                 FALSE,
-                                 FALSE,
-                                 FALSE,
-                                 do_expensive_check,
-                                 graph,
-                                 error);
 }
 
 cugraph_error_code_t cugraph_graph_create_sg_from_csr(
@@ -819,36 +787,6 @@ cugraph_error_code_t cugraph_graph_create_sg_from_csr(
   return CUGRAPH_SUCCESS;
 }
 
-cugraph_error_code_t cugraph_sg_graph_create_from_csr(
-  const cugraph_resource_handle_t* handle,
-  const cugraph_graph_properties_t* properties,
-  const cugraph_type_erased_device_array_view_t* offsets,
-  const cugraph_type_erased_device_array_view_t* indices,
-  const cugraph_type_erased_device_array_view_t* weights,
-  const cugraph_type_erased_device_array_view_t* edge_ids,
-  const cugraph_type_erased_device_array_view_t* edge_type_ids,
-  bool_t store_transposed,
-  bool_t renumber,
-  bool_t symmetrize,
-  bool_t do_expensive_check,
-  cugraph_graph_t** graph,
-  cugraph_error_t** error)
-{
-  return cugraph_graph_create_sg_from_csr(handle,
-                                          properties,
-                                          offsets,
-                                          indices,
-                                          weights,
-                                          edge_ids,
-                                          edge_type_ids,
-                                          store_transposed,
-                                          renumber,
-                                          symmetrize,
-                                          do_expensive_check,
-                                          graph,
-                                          error);
-}
-
 extern "C" void cugraph_graph_free(cugraph_graph_t* ptr_graph)
 {
   if (ptr_graph != NULL) {
@@ -871,5 +809,3 @@ extern "C" void cugraph_graph_free(cugraph_graph_t* ptr_graph)
     delete internal_pointer;
   }
 }
-
-extern "C" void cugraph_sg_graph_free(cugraph_graph_t* ptr_graph) { cugraph_graph_free(ptr_graph); }

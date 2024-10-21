@@ -102,7 +102,7 @@ int generic_triangle_count_test(vertex_t* h_src,
     cugraph_triangle_count_result_free(p_result);
   }
 
-  cugraph_sg_graph_free(p_graph);
+  cugraph_graph_free(p_graph);
   cugraph_free_resource_handle(p_handle);
   cugraph_error_free(ret_error);
 

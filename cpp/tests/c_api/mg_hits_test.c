@@ -154,7 +154,7 @@ int generic_hits_test(const cugraph_resource_handle_t* p_handle,
   }
 
   cugraph_hits_result_free(p_result);
-  cugraph_mg_graph_free(p_graph);
+  cugraph_graph_free(p_graph);
   cugraph_error_free(ret_error);
 
   return test_ret_value;
