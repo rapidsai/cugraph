@@ -41,6 +41,7 @@ namespace test {
 
 template <typename value_t>
 cugraph::dataframe_buffer_type_t<value_t> sort(
+  
   raft::handle_t const& handle, cugraph::dataframe_buffer_type_t<value_t> const& values)
 {
   auto sorted_values = cugraph::allocate_dataframe_buffer<value_t>(
@@ -402,6 +403,27 @@ template rmm::device_uvector<int64_t> sequence(raft::handle_t const& handle,
                                                size_t length,
                                                size_t repeat_count,
                                                int64_t init);
+
+template <typename value_t>
+cugraph::dataframe_buffer_type_t<value_t> scalar_fill(raft::handle_t const& handle,
+                                                      size_t length,
+                                                      value_t value)
+{
+  auto values = cugraph::allocate_dataframe_buffer<value_t>(length, handle.get_stream());
+  
+  thrust::tabulate(handle.get_thrust_policy(),
+                    values.begin(),
+                    values.end(),
+                    [value] __device__(size_t i) {
+                      return value;
+                    });
+  
+  return values;
+}
+
+template rmm::device_uvector<int32_t> scalar_fill(raft::handle_t const& handle,
+                                                  size_t length,
+                                                  int32_t value);
 
 template <typename value_t>
 cugraph::dataframe_buffer_type_t<value_t> modulo_sequence(raft::handle_t const& handle,
