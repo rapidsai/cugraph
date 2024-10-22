@@ -866,7 +866,8 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
                  handle_.get_stream());
 
       std::optional<rmm::device_uvector<label_t>> start_vertex_labels{std::nullopt};
-      std::optional<rmm::device_uvector<label_t>> label_to_comm_rank{std::nullopt};
+      std::optional<rmm::device_uvector<label_t>> local_label_to_comm_rank{std::nullopt};
+      std::optional<rmm::device_uvector<label_t>> label_to_comm_rank{std::nullopt}; // global after allgatherv
 
       if (start_vertex_offsets_ != nullptr) {
         // Get the number of labels on each GPU
@@ -905,26 +906,29 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
           auto num_unique_labels = cugraph::detail::unique(
             handle_.get_stream(), unique_labels.begin(), unique_labels.size());
           
-          (*label_to_comm_rank).resize(num_unique_labels, handle_.get_stream());
+          (*local_label_to_comm_rank).resize(num_unique_labels, handle_.get_stream());
 
           cugraph::detail::scalar_fill(handle_.get_stream(),
-                                       (*label_to_comm_rank).begin(), // This should be rename to rank
-                                       (*label_to_comm_rank).size(),
+                                       (*local_label_to_comm_rank).begin(), // This should be rename to rank
+                                       (*local_label_to_comm_rank).size(),
                                        label_t{handle_.get_comms().get_rank()});
           
-          // Perform allgather to get global_label_to_comm_rank_d_vector (not ere, after shuffling)
+          // Perform allgather to get global_label_to_comm_rank_d_vector
+          auto recvcounts = cugraph::host_scalar_allgather(
+            handle_.get_comms(), num_unique_labels, handle_.get_stream());
           
-          // comm_rank instead of label_to_comm_rank
-          // THe C++ code is not expecting that I fill that with each vertex. need to fill that in by where the label goes
-          // size of the unique vertex labels
+          std::vector<size_t> displacements(recvcounts.size());
+           std::exclusive_scan(recvcounts.begin(), recvcounts.end(), displacements.begin(), size_t{0});
+          
+          (*label_to_comm_rank).resize(displacements.back() + recvcounts.back(), handle_.get_stream());
 
-          //Solution: Take the global start vertex labels on each GPU, 
-          // Perform sort unique, to get unoqiue labels,
-          // Perform allgather to get the same [0, 1, 2, 3], need 3 zeros and 3 1s
-          // The most important thing is to get the right lenght on each machine. Perform a thrust::fill (rank),
-          // then an allgatherv to get [0, 0, 0, 1, 1], [0, 0, 0, 1, 1]
-
-
+          cugraph::device_allgatherv(handle_.get_comms(),
+                                   (*local_label_to_comm_rank).begin(),
+                                   (*label_to_comm_rank).begin(),
+                                   recvcounts,
+                                   displacements,
+                                   handle_.get_stream());
+        
           std::tie(start_vertices, *start_vertex_labels) =
             cugraph::detail::shuffle_ext_vertex_value_pairs_to_local_gpu_by_vertex_partitioning(
               handle_, std::move(start_vertices), std::move(*start_vertex_labels));
