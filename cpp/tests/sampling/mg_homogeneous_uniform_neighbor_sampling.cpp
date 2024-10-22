@@ -116,22 +116,6 @@ class Tests_MGHomogeneous_Uniform_Neighbor_Sampling
     //
     //  Now we'll assign the vertices to batches
     //
-    /*
-    rmm::device_uvector<float> random_numbers(random_sources.size(), handle_->get_stream());
-
-    cugraph::detail::uniform_random_fill(handle_->get_stream(),
-                                         random_numbers.data(),
-                                         random_numbers.size(),
-                                         float{0},
-                                         float{1},
-                                         rng_state);
-
-    std::tie(random_numbers, random_sources) = cugraph::test::sort_by_key<float, vertex_t>(
-      *handle_, std::move(random_numbers), std::move(random_sources));
-
-    random_numbers.resize(0, handle_->get_stream());
-    random_numbers.shrink_to_fit(handle_->get_stream());
-    */
 
     auto seed_sizes = cugraph::host_scalar_allgather(
       handle_->get_comms(), random_sources.size(), handle_->get_stream());
@@ -157,18 +141,6 @@ class Tests_MGHomogeneous_Uniform_Neighbor_Sampling
     label_list = cugraph::test::unique<int32_t>(*handle_, std::move(label_list));
 
     auto num_unique_labels = label_list.size();
-    
-    // 
-
-    /*
-    rmm::device_uvector<int32_t> unique_batches(num_batches, handle_->get_stream());
-    cugraph::detail::sequence_fill(
-      handle_->get_stream(), unique_batches.data(), unique_batches.size(), int32_t{0});
-    */
-    /*
-    auto comm_ranks = cugraph::test::modulo_sequence<int32_t>(
-      *handle_, num_batches, handle_->get_comms().get_size(), int32_t{0});
-    */
 
     auto comm_ranks = cugraph::test::scalar_fill<int32_t>(
       *handle_, num_unique_labels, int32_t{handle_->get_comms().get_rank()});
@@ -176,10 +148,6 @@ class Tests_MGHomogeneous_Uniform_Neighbor_Sampling
     // perform allgatherv
     comm_ranks =
       cugraph::test::device_allgatherv(*handle_, comm_ranks.data(), comm_ranks.size());
-    
-    
-    //raft::print_device_vector("random_sources", random_sources.data(), random_sources.size(), std::cout);
-    //raft::print_device_vector("comm_ranks", comm_ranks.data(), comm_ranks.size(), std::cout);
 
     rmm::device_uvector<vertex_t> random_sources_copy(random_sources.size(), handle_->get_stream());
 
@@ -190,23 +158,28 @@ class Tests_MGHomogeneous_Uniform_Neighbor_Sampling
 
 #ifdef NO_CUGRAPH_OPS
     EXPECT_THROW(
-      cugraph::uniform_neighbor_sample(
+      cugraph::homogeneous_uniform_neighbor_sample(
         *handle_,
+        rng_state,
         mg_graph_view,
         mg_edge_weight_view,
         std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
         std::optional<cugraph::edge_property_view_t<edge_t, int32_t const*>>{std::nullopt},
-        raft::device_span<vertex_t const>{random_sources_copy.data(), random_sources.size()},
+        raft::device_span<vertex_t const>{random_sources.data(), random_sources.size()},
         std::make_optional(
           raft::device_span<int32_t const>{batch_number.data(), batch_number.size()}),
-        std::make_optional(std::make_tuple(
-          raft::device_span<int32_t const>{unique_batches.data(), unique_batches.size()},
-          raft::device_span<int32_t const>{comm_ranks.data(), comm_ranks.size()})),
-        raft::host_span<int32_t const>(uniform_neighbor_sampling_usecase.fanout.data(),
-                                       uniform_neighbor_sampling_usecase.fanout.size()),
-        rng_state,
-        true,
-        uniform_neighbor_sampling_usecase.with_replacement),
+        std::make_optional(
+          raft::device_span<int32_t const>{comm_ranks.data(), comm_ranks.size()}),
+        raft::host_span<int32_t const>(homogeneous_uniform_neighbor_sampling_usecase.fanout.data(),
+                                       homogeneous_uniform_neighbor_sampling_usecase.fanout.size()),
+        
+        cugraph::sampling_flags_t{
+            cugraph::prior_sources_behavior_t{0},
+            true, // return_hops
+            false, // dedupe_sources
+            homogeneous_uniform_neighbor_sampling_usecase.with_replacement
+        }
+        ),
       std::exception);
 #else
     if (cugraph::test::g_perf) {
@@ -215,7 +188,7 @@ class Tests_MGHomogeneous_Uniform_Neighbor_Sampling
       hr_timer.start("MG uniform_neighbor_sample");
     }
     RAFT_CUDA_TRY(cudaDeviceSynchronize());
-    std::cout << "running homogeneous uniform neighbor sample" << std::endl;
+  
     auto&& [src_out, dst_out, wgt_out, edge_id, edge_type, hop, offsets] =
       cugraph::homogeneous_uniform_neighbor_sample(
         *handle_,
@@ -239,7 +212,6 @@ class Tests_MGHomogeneous_Uniform_Neighbor_Sampling
             homogeneous_uniform_neighbor_sampling_usecase.with_replacement
         }
         );
-    std::cout << "Done running homogeneous uniform neighbor sample" << std::endl;
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
