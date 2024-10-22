@@ -93,7 +93,7 @@ int generic_wcc_test(vertex_t* h_src,
   cugraph_type_erased_device_array_view_free(components);
   cugraph_type_erased_device_array_view_free(vertices);
   cugraph_labeling_result_free(p_result);
-  cugraph_sg_graph_free(p_graph);
+  cugraph_graph_free(p_graph);
   cugraph_free_resource_handle(p_handle);
   cugraph_error_free(ret_error);
 

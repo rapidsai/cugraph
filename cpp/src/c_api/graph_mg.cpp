@@ -71,6 +71,7 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
   bool_t renumber_;
   bool_t drop_self_loops_;
   bool_t drop_multi_edges_;
+  bool_t symmetrize_;
   bool_t do_expensive_check_;
   cugraph::c_api::cugraph_graph_t* result_{};
 
@@ -91,6 +92,7 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
     bool_t renumber,
     bool_t drop_self_loops,
     bool_t drop_multi_edges,
+    bool_t symmetrize,
     bool_t do_expensive_check)
     : abstract_functor(),
       properties_(properties),
@@ -109,6 +111,7 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
       renumber_(renumber),
       drop_self_loops_(drop_self_loops),
       drop_multi_edges_(drop_multi_edges),
+      symmetrize_(symmetrize),
       do_expensive_check_(do_expensive_check)
   {
   }
@@ -224,6 +227,22 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
                                         : false);
       }
 
+      if (symmetrize_) {
+        if (edgelist_edge_ids || edgelist_edge_types) {
+          // Currently doesn't support the symmetrization of edgelist with edge_ids and edge_types
+          unsupported();
+        }
+
+        // Symmetrize the edgelist
+        std::tie(edgelist_srcs, edgelist_dsts, edgelist_weights) =
+          cugraph::symmetrize_edgelist<vertex_t, weight_t, store_transposed, multi_gpu>(
+            handle_,
+            std::move(edgelist_srcs),
+            std::move(edgelist_dsts),
+            std::move(edgelist_weights),
+            false);
+      }
+
       std::tie(*graph, new_edge_weights, new_edge_ids, new_edge_types, new_number_map) =
         cugraph::create_graph_from_edgelist<vertex_t,
                                             edge_t,
@@ -290,6 +309,7 @@ extern "C" cugraph_error_code_t cugraph_graph_create_mg(
   size_t num_arrays,
   bool_t drop_self_loops,
   bool_t drop_multi_edges,
+  bool_t symmetrize,
   bool_t do_expensive_check,
   cugraph_graph_t** graph,
   cugraph_error_t** error)
@@ -358,6 +378,14 @@ extern "C" cugraph_error_code_t cugraph_graph_create_mg(
       if (weight_type == cugraph_data_type_id_t::NTYPES) weight_type = p_weights[i]->type_;
     }
 
+    if (symmetrize == TRUE) {
+      CAPI_EXPECTS((properties->is_symmetric == TRUE),
+                   CUGRAPH_INVALID_INPUT,
+                   "Invalid input arguments: The graph property must be symmetric if 'symmetrize' "
+                   "is set to True.",
+                   *error);
+    }
+
     CAPI_EXPECTS(p_src[i]->type_ == vertex_type,
                  CUGRAPH_INVALID_INPUT,
                  "Invalid input arguments: all vertex types must match",
@@ -373,6 +401,14 @@ extern "C" cugraph_error_code_t cugraph_graph_create_mg(
                                                     local_num_edges,
                                                     raft::comms::op_t::SUM,
                                                     p_handle->handle_->get_stream());
+
+  cugraph_data_type_id_t edge_type{vertex_type};
+
+  if (vertex_type == cugraph_data_type_id_t::INT32)
+    CAPI_EXPECTS(num_edges < int32_threshold,
+                 CUGRAPH_INVALID_INPUT,
+                 "Number of edges won't fit in 32-bit integer, using 32-bit type",
+                 *error);
 
   auto vertex_types = cugraph::host_scalar_allgather(
     p_handle->handle_->get_comms(), static_cast<int>(vertex_type), p_handle->handle_->get_stream());
@@ -405,14 +441,6 @@ extern "C" cugraph_error_code_t cugraph_graph_create_mg(
                CUGRAPH_INVALID_INPUT,
                "different weight type used on different GPUs",
                *error);
-
-  cugraph_data_type_id_t edge_type;
-
-  if (num_edges < int32_threshold) {
-    edge_type = static_cast<cugraph_data_type_id_t>(vertex_types[0]);
-  } else {
-    edge_type = cugraph_data_type_id_t::INT64;
-  }
 
   if (weight_type == cugraph_data_type_id_t::NTYPES) {
     weight_type = cugraph_data_type_id_t::FLOAT32;
@@ -488,6 +516,7 @@ extern "C" cugraph_error_code_t cugraph_graph_create_mg(
                                bool_t::TRUE,
                                drop_self_loops,
                                drop_multi_edges,
+                               symmetrize,
                                do_expensive_check);
 
   try {
@@ -506,40 +535,4 @@ extern "C" cugraph_error_code_t cugraph_graph_create_mg(
   }
 
   return CUGRAPH_SUCCESS;
-}
-
-extern "C" cugraph_error_code_t cugraph_mg_graph_create(
-  cugraph_resource_handle_t const* handle,
-  cugraph_graph_properties_t const* properties,
-  cugraph_type_erased_device_array_view_t const* src,
-  cugraph_type_erased_device_array_view_t const* dst,
-  cugraph_type_erased_device_array_view_t const* weights,
-  cugraph_type_erased_device_array_view_t const* edge_ids,
-  cugraph_type_erased_device_array_view_t const* edge_type_ids,
-  bool_t store_transposed,
-  size_t num_edges,
-  bool_t do_expensive_check,
-  cugraph_graph_t** graph,
-  cugraph_error_t** error)
-{
-  return cugraph_graph_create_mg(handle,
-                                 properties,
-                                 NULL,
-                                 &src,
-                                 &dst,
-                                 (weights == nullptr) ? nullptr : &weights,
-                                 (edge_ids == nullptr) ? nullptr : &edge_ids,
-                                 (edge_type_ids == nullptr) ? nullptr : &edge_type_ids,
-                                 store_transposed,
-                                 1,
-                                 FALSE,
-                                 FALSE,
-                                 do_expensive_check,
-                                 graph,
-                                 error);
-}
-
-extern "C" void cugraph_mg_graph_free(cugraph_graph_t* ptr_graph)
-{
-  if (ptr_graph != NULL) { cugraph_graph_free(ptr_graph); }
 }

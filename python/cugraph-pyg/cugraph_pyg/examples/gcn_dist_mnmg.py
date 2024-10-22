@@ -185,6 +185,8 @@ def run_train(
     wall_clock_start,
     tempdir=None,
     num_layers=3,
+    in_memory=False,
+    seeds_per_call=-1,
 ):
     optimizer = torch.optim.Adam(model.parameters(), lr=0.01, weight_decay=0.0005)
 
@@ -196,20 +198,23 @@ def run_train(
     from cugraph_pyg.loader import NeighborLoader
 
     ix_train = split_idx["train"].cuda()
-    train_path = os.path.join(tempdir, f"train_{global_rank}")
-    os.mkdir(train_path)
+    train_path = None if in_memory else os.path.join(tempdir, f"train_{global_rank}")
+    if train_path:
+        os.mkdir(train_path)
     train_loader = NeighborLoader(
         data,
         input_nodes=ix_train,
         directory=train_path,
         shuffle=True,
         drop_last=True,
+        local_seeds_per_call=seeds_per_call if seeds_per_call > 0 else None,
         **kwargs,
     )
 
     ix_test = split_idx["test"].cuda()
-    test_path = os.path.join(tempdir, f"test_{global_rank}")
-    os.mkdir(test_path)
+    test_path = None if in_memory else os.path.join(tempdir, f"test_{global_rank}")
+    if test_path:
+        os.mkdir(test_path)
     test_loader = NeighborLoader(
         data,
         input_nodes=ix_test,
@@ -221,14 +226,16 @@ def run_train(
     )
 
     ix_valid = split_idx["valid"].cuda()
-    valid_path = os.path.join(tempdir, f"valid_{global_rank}")
-    os.mkdir(valid_path)
+    valid_path = None if in_memory else os.path.join(tempdir, f"valid_{global_rank}")
+    if valid_path:
+        os.mkdir(valid_path)
     valid_loader = NeighborLoader(
         data,
         input_nodes=ix_valid,
         directory=valid_path,
         shuffle=True,
         drop_last=True,
+        local_seeds_per_call=seeds_per_call if seeds_per_call > 0 else None,
         **kwargs,
     )
 
@@ -347,6 +354,9 @@ def parse_args():
     parser.add_argument("--skip_partition", action="store_true")
     parser.add_argument("--wg_mem_type", type=str, default="distributed")
 
+    parser.add_argument("--in_memory", action="store_true", default=False)
+    parser.add_argument("--seeds_per_call", type=int, default=-1)
+
     return parser.parse_args()
 
 
@@ -429,6 +439,8 @@ if __name__ == "__main__":
                 wall_clock_start,
                 tempdir,
                 args.num_layers,
+                args.in_memory,
+                args.seeds_per_call,
             )
     else:
         warnings.warn("This script should be run with 'torchrun`.  Exiting.")

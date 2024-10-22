@@ -22,6 +22,7 @@ or
 
 $ python _nx_cugraph/__init__.py
 """
+import os
 
 from _nx_cugraph._version import __version__
 
@@ -35,7 +36,7 @@ _info = {
     "backend_name": "cugraph",
     "project": "nx-cugraph",
     "package": "nx_cugraph",
-    "url": f"https://github.com/rapidsai/cugraph/tree/branch-{_version_major:0>2}.{_version_minor:0>2}/python/nx-cugraph",
+    "url": "https://rapids.ai/nx-cugraph",
     "short_summary": "GPU-accelerated backend.",
     # "description": "TODO",
     "functions": {
@@ -179,7 +180,7 @@ _info = {
         "ego_graph": "Weighted ego_graph with negative cycles is not yet supported. `NotImplementedError` will be raised if there are negative `distance` edge weights.",
         "eigenvector_centrality": "`nstart` parameter is not used, but it is checked for validity.",
         "from_pandas_edgelist": "cudf.DataFrame inputs also supported; value columns with str is unsuppported.",
-        "generic_bfs_edges": "`neighbors` and `sort_neighbors` parameters are not yet supported.",
+        "generic_bfs_edges": "`neighbors` parameter is not yet supported.",
         "katz_centrality": "`nstart` isn't used (but is checked), and `normalized=False` is not supported.",
         "louvain_communities": "`seed` parameter is currently ignored, and self-loops are not yet supported.",
         "pagerank": "`dangling` parameter is not supported, but it is checked for validity.",
@@ -293,12 +294,59 @@ def get_info():
 
     for key in info_keys:
         del d[key]
+
+    d["default_config"] = {
+        "use_compat_graphs": os.environ.get("NX_CUGRAPH_USE_COMPAT_GRAPHS", "true")
+        .strip()
+        .lower()
+        == "true",
+    }
+
+    # Enable zero-code change usage with a simple environment variable
+    # by setting or updating other NETWORKX environment variables.
+    if os.environ.get("NX_CUGRAPH_AUTOCONFIG", "").strip().lower() == "true":
+        from itertools import chain
+
+        def update_env_var(varname):
+            """Add "cugraph" to a list of backend names environment variable."""
+            if varname not in os.environ:
+                os.environ[varname] = "cugraph"
+                return
+            string = os.environ[varname]
+            vals = [
+                stripped for x in string.strip().split(",") if (stripped := x.strip())
+            ]
+            if "cugraph" not in vals:
+                # Should we append or prepend? Let's be first!
+                os.environ[varname] = ",".join(chain(["cugraph"], vals))
+
+        # Automatically convert NetworkX Graphs to nx-cugraph for algorithms
+        if (varname := "NETWORKX_BACKEND_PRIORITY_ALGOS") in os.environ:
+            # "*_ALGOS" is given priority in NetworkX >=3.4
+            update_env_var(varname)
+            # But update this too to "just work" if users mix env vars and nx versions
+            os.environ["NETWORKX_BACKEND_PRIORITY"] = os.environ[varname]
+        else:
+            update_env_var("NETWORKX_BACKEND_PRIORITY")
+        # And for older NetworkX versions
+        update_env_var("NETWORKX_AUTOMATIC_BACKENDS")  # For NetworkX 3.2
+        update_env_var("NETWORKX_GRAPH_CONVERT")  # For NetworkX 3.0 and 3.1
+        # Automatically create nx-cugraph Graph from graph generators
+        update_env_var("NETWORKX_BACKEND_PRIORITY_GENERATORS")
+        # Run default NetworkX implementation (in >=3.4) if not implemented by nx-cugraph
+        if (varname := "NETWORKX_FALLBACK_TO_NX") not in os.environ:
+            os.environ[varname] = "true"
+        # Cache graph conversions (default is False in NetworkX 3.2
+        if (varname := "NETWORKX_CACHE_CONVERTED_GRAPHS") not in os.environ:
+            os.environ[varname] = "true"
+
     return d
 
 
-def _check_networkx_version():
-    import warnings
+def _check_networkx_version() -> tuple[int, int]:
+    """Check the version of networkx and return ``(major, minor)`` version tuple."""
     import re
+    import warnings
 
     import networkx as nx
 
@@ -320,6 +368,10 @@ def _check_networkx_version():
             f"nx-cugraph version {__version__} does not work with networkx version "
             f"{nx.__version__}. Please upgrade (or fix) your Python environment."
         )
+
+    nxver_major = int(version_major)
+    nxver_minor = int(re.match(r"^\d+", version_minor).group())
+    return (nxver_major, nxver_minor)
 
 
 if __name__ == "__main__":

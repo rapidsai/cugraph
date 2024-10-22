@@ -153,7 +153,7 @@ int generic_induced_subgraph_test(const cugraph_resource_handle_t* handle,
   cugraph_type_erased_device_array_free(subgraph_offsets);
   cugraph_type_erased_device_array_free(subgraph_vertices);
   cugraph_induced_subgraph_result_free(result);
-  cugraph_mg_graph_free(graph);
+  cugraph_graph_free(graph);
   cugraph_error_free(ret_error);
   return test_ret_value;
 }

@@ -48,7 +48,7 @@ struct test_predicate {
   test_predicate(int mod_count) : mod(mod_count) {}
   __device__ bool operator()(vertex_t, const vertex_t& val)
   {
-    cuco::detail::MurmurHash3_32<vertex_t> hash_func{};
+    cuco::murmurhash3_32<vertex_t> hash_func{};
     return (0 == (hash_func(val) % mod));
   }
 };
@@ -168,13 +168,6 @@ TEST_P(Tests_MGCountIfV_Rmat, CheckInt32Int32FloatTransposeFalse)
     std::get<0>(param), override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
 
-TEST_P(Tests_MGCountIfV_Rmat, CheckInt32Int64FloatTransposeFalse)
-{
-  auto param = GetParam();
-  run_current_test<int32_t, int64_t, float, false>(
-    std::get<0>(param), override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
-}
-
 TEST_P(Tests_MGCountIfV_Rmat, CheckInt64Int64FloatTransposeFalse)
 {
   auto param = GetParam();
@@ -192,13 +185,6 @@ TEST_P(Tests_MGCountIfV_Rmat, CheckInt32Int32FloatTransposeTrue)
 {
   auto param = GetParam();
   run_current_test<int32_t, int32_t, float, true>(
-    std::get<0>(param), override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
-}
-
-TEST_P(Tests_MGCountIfV_Rmat, CheckInt32Int64FloatTransposeTrue)
-{
-  auto param = GetParam();
-  run_current_test<int32_t, int64_t, float, true>(
     std::get<0>(param), override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
 

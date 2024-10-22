@@ -4,7 +4,6 @@
 set -eoxu pipefail
 
 package_name=$1
-package_dir=$2
 
 python_package_name=$(echo ${package_name}|sed 's/-/_/g')
 
@@ -37,6 +36,7 @@ else
     DASK_DISTRIBUTED__SCHEDULER__WORKER_TTL="1000s" \
     DASK_DISTRIBUTED__COMM__TIMEOUTS__CONNECT="1000s" \
     DASK_CUDA_WAIT_WORKERS_MIN_TIMEOUT="1000s" \
+    NX_CUGRAPH_USE_COMPAT_GRAPHS=False \
     python -m pytest \
        -v \
        --import-mode=append \

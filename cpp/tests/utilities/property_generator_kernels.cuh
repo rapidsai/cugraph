@@ -60,7 +60,7 @@ struct vertex_property_transform {
   {
     static_assert(cugraph::is_thrust_tuple_of_arithmetic<property_t>::value ||
                   std::is_arithmetic_v<property_t>);
-    cuco::detail::MurmurHash3_32<vertex_t> hash_func{};
+    cuco::murmurhash3_32<vertex_t> hash_func{};
     return make_property_value<property_t>(hash_func(v) % mod);
   }
 };
@@ -74,7 +74,7 @@ struct edge_property_transform {
   {
     static_assert(cugraph::is_thrust_tuple_of_arithmetic<property_t>::value ||
                   std::is_arithmetic_v<property_t>);
-    cuco::detail::MurmurHash3_32<vertex_t> hash_func{};
+    cuco::murmurhash3_32<vertex_t> hash_func{};
     return make_property_value<property_t>(hash_func(src + dst) % mod);
   }
 };

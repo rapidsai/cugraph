@@ -66,7 +66,7 @@ def train(epoch: int):
     torch.cuda.synchronize()
     print(
         f"Average Training Iteration Time (s/iter): \
-            {(time.perf_counter() - start_avg_time)/(i-warmup_steps):.6f}"
+            {(time.perf_counter() - start_avg_time) / (i - warmup_steps):.6f}"
     )
 
 
@@ -91,10 +91,20 @@ def test(loader: NeighborLoader, val_steps: Optional[int] = None):
 
 
 def create_loader(
-    data, num_neighbors, input_nodes, replace, batch_size, samples_dir, stage_name
+    data,
+    num_neighbors,
+    input_nodes,
+    replace,
+    batch_size,
+    samples_dir,
+    stage_name,
+    local_seeds_per_call,
 ):
-    directory = os.path.join(samples_dir, stage_name)
-    os.mkdir(directory)
+    if samples_dir is not None:
+        directory = os.path.join(samples_dir, stage_name)
+        os.mkdir(directory)
+    else:
+        directory = None
     return NeighborLoader(
         data,
         num_neighbors=num_neighbors,
@@ -102,6 +112,7 @@ def create_loader(
         replace=replace,
         batch_size=batch_size,
         directory=directory,
+        local_seeds_per_call=local_seeds_per_call,
     )
 
 
@@ -147,6 +158,8 @@ def parse_args():
     parser.add_argument("--tempdir_root", type=str, default=None)
     parser.add_argument("--dataset_root", type=str, default="dataset")
     parser.add_argument("--dataset", type=str, default="ogbn-products")
+    parser.add_argument("--in_memory", action="store_true", default=False)
+    parser.add_argument("--seeds_per_call", type=int, default=-1)
 
     return parser.parse_args()
 
@@ -170,7 +183,10 @@ if __name__ == "__main__":
             "num_neighbors": [args.fan_out] * args.num_layers,
             "replace": False,
             "batch_size": args.batch_size,
-            "samples_dir": samples_dir,
+            "samples_dir": None if args.in_memory else samples_dir,
+            "local_seeds_per_call": None
+            if args.seeds_per_call <= 0
+            else args.seeds_per_call,
         }
 
         train_loader = create_loader(

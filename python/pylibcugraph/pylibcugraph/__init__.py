@@ -21,6 +21,8 @@ from pylibcugraph.resource_handle import ResourceHandle
 
 from pylibcugraph.graph_properties import GraphProperties
 
+from pylibcugraph.edge_id_lookup_table import EdgeIdLookupTable
+
 from pylibcugraph.eigenvector_centrality import eigenvector_centrality
 
 from pylibcugraph.katz_centrality import katz_centrality
@@ -47,6 +49,8 @@ from pylibcugraph.heterogeneous_biased_neighbor_sample import heterogeneous_bias
 #FIXME: break down the API into homogeneous and heterogeneous neighbor sample
 #from pylibcugraph.uniform_neighbor_sample import neighbor_sample
 #from pylibcugraph.biased_neighbor_sample import biased_neighbor_sample
+
+from pylibcugraph.negative_sampling import negative_sampling
 
 from pylibcugraph.core_number import core_number
 

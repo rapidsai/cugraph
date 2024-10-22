@@ -136,6 +136,14 @@ cugraph_type_erased_device_array_view_t* cugraph_lookup_result_get_dsts(
  */
 void cugraph_lookup_result_free(cugraph_lookup_result_t* result);
 
+/**
+ * @ingroup samplingC
+ * @brief     Free a sampling lookup map
+ *
+ * @param [in] container     The sampling lookup map (a.k.a. container).
+ */
+void cugraph_lookup_container_free(cugraph_lookup_container_t* container);
+
 #ifdef __cplusplus
 }
 #endif

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2023, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -38,48 +38,6 @@ typedef struct {
 /**
  * @brief     Construct an SG graph
  *
- * @deprecated  This API will be deleted, use cugraph_graph_create_sg instead
- *
- * @param [in]  handle         Handle for accessing resources
- * @param [in]  properties     Properties of the constructed graph
- * @param [in]  src            Device array containing the source vertex ids.
- * @param [in]  dst            Device array containing the destination vertex ids
- * @param [in]  weights        Device array containing the edge weights.  Note that an unweighted
- *                             graph can be created by passing weights == NULL.
- * @param [in]  edge_ids       Device array containing the edge ids for each edge.  Optional
-                               argument that can be NULL if edge ids are not used.
- * @param [in]  edge_type_ids  Device array containing the edge types for each edge.  Optional
-                               argument that can be NULL if edge types are not used.
- * @param [in]  store_transposed If true create the graph initially in transposed format
- * @param [in]  renumber       If true, renumber vertices to make an efficient data structure.
- *    If false, do not renumber.  Renumbering enables some significant optimizations within
- *    the graph primitives library, so it is strongly encouraged.  Renumbering is required if
- *    the vertices are not sequential integer values from 0 to num_vertices.
- * @param [in]  do_expensive_check    If true, do expensive checks to validate the input data
- *    is consistent with software assumptions.  If false bypass these checks.
- * @param [out] graph          A pointer to the graph object
- * @param [out] error          Pointer to an error object storing details of any error.  Will
- *                             be populated if error code is not CUGRAPH_SUCCESS
- *
- * @return error code
- */
-cugraph_error_code_t cugraph_sg_graph_create(
-  const cugraph_resource_handle_t* handle,
-  const cugraph_graph_properties_t* properties,
-  const cugraph_type_erased_device_array_view_t* src,
-  const cugraph_type_erased_device_array_view_t* dst,
-  const cugraph_type_erased_device_array_view_t* weights,
-  const cugraph_type_erased_device_array_view_t* edge_ids,
-  const cugraph_type_erased_device_array_view_t* edge_type_ids,
-  bool_t store_transposed,
-  bool_t renumber,
-  bool_t do_expensive_check,
-  cugraph_graph_t** graph,
-  cugraph_error_t** error);
-
-/**
- * @brief     Construct an SG graph
- *
  * @param [in]  handle         Handle for accessing resources
  * @param [in]  properties     Properties of the constructed graph
  * @param [in]  vertices       Optional device array containing a list of vertex ids
@@ -105,6 +63,8 @@ cugraph_error_code_t cugraph_sg_graph_create(
  weights,
  *    or take the maximum weight), the caller should remove specific edges themselves and not rely
  *    on this flag.
+ * @param [in] symmetrize      If true, symmetrize the edgelist. The symmetrization of edges
+ * with edge_ids and/or edge_type_ids is currently not supported.
  * @param [in]  do_expensive_check    If true, do expensive checks to validate the input data
  *    is consistent with software assumptions.  If false bypass these checks.
  * @param [out] graph          A pointer to the graph object
@@ -126,48 +86,7 @@ cugraph_error_code_t cugraph_graph_create_sg(
   bool_t renumber,
   bool_t drop_self_loops,
   bool_t drop_multi_edges,
-  bool_t do_expensive_check,
-  cugraph_graph_t** graph,
-  cugraph_error_t** error);
-
-/**
- * @brief     Construct an SG graph from a CSR input
- *
- * @deprecated  This API will be deleted, use cugraph_graph_create_sg_from_csr instead
- *
- * @param [in]  handle         Handle for accessing resources
- * @param [in]  properties     Properties of the constructed graph
- * @param [in]  offsets        Device array containing the CSR offsets array
- * @param [in]  indices        Device array containing the destination vertex ids
- * @param [in]  weights        Device array containing the edge weights.  Note that an unweighted
- *                             graph can be created by passing weights == NULL.
- * @param [in]  edge_ids       Device array containing the edge ids for each edge.  Optional
-                               argument that can be NULL if edge ids are not used.
- * @param [in]  edge_type_ids  Device array containing the edge types for each edge.  Optional
-                               argument that can be NULL if edge types are not used.
- * @param [in]  store_transposed If true create the graph initially in transposed format
- * @param [in]  renumber       If true, renumber vertices to make an efficient data structure.
- *    If false, do not renumber.  Renumbering enables some significant optimizations within
- *    the graph primitives library, so it is strongly encouraged.  Renumbering is required if
- *    the vertices are not sequential integer values from 0 to num_vertices.
- * @param [in]  do_expensive_check    If true, do expensive checks to validate the input data
- *    is consistent with software assumptions.  If false bypass these checks.
- * @param [out] graph          A pointer to the graph object
- * @param [out] error          Pointer to an error object storing details of any error.  Will
- *                             be populated if error code is not CUGRAPH_SUCCESS
- *
- * @return error code
- */
-cugraph_error_code_t cugraph_sg_graph_create_from_csr(
-  const cugraph_resource_handle_t* handle,
-  const cugraph_graph_properties_t* properties,
-  const cugraph_type_erased_device_array_view_t* offsets,
-  const cugraph_type_erased_device_array_view_t* indices,
-  const cugraph_type_erased_device_array_view_t* weights,
-  const cugraph_type_erased_device_array_view_t* edge_ids,
-  const cugraph_type_erased_device_array_view_t* edge_type_ids,
-  bool_t store_transposed,
-  bool_t renumber,
+  bool_t symmetrize,
   bool_t do_expensive_check,
   cugraph_graph_t** graph,
   cugraph_error_t** error);
@@ -190,6 +109,8 @@ cugraph_error_code_t cugraph_sg_graph_create_from_csr(
  *    If false, do not renumber.  Renumbering enables some significant optimizations within
  *    the graph primitives library, so it is strongly encouraged.  Renumbering is required if
  *    the vertices are not sequential integer values from 0 to num_vertices.
+ * @param [in]  symmetrize     If true, symmetrize the edgelist. The symmetrization of edges
+ * with edge_ids and/or edge_type_ids is currently not supported.
  * @param [in]  do_expensive_check    If true, do expensive checks to validate the input data
  *    is consistent with software assumptions.  If false bypass these checks.
  * @param [out] graph          A pointer to the graph object
@@ -208,47 +129,7 @@ cugraph_error_code_t cugraph_graph_create_sg_from_csr(
   const cugraph_type_erased_device_array_view_t* edge_type_ids,
   bool_t store_transposed,
   bool_t renumber,
-  bool_t do_expensive_check,
-  cugraph_graph_t** graph,
-  cugraph_error_t** error);
-
-/**
- * @brief     Construct an MG graph
- *
- * @deprecated  This API will be deleted, use cugraph_graph_create_mg instead
- *
- * @param [in]  handle          Handle for accessing resources
- * @param [in]  properties      Properties of the constructed graph
- * @param [in]  src             Device array containing the source vertex ids
- * @param [in]  dst             Device array containing the destination vertex ids
- * @param [in]  weights         Device array containing the edge weights.  Note that an unweighted
- *                              graph can be created by passing weights == NULL.  If a weighted
- *                              graph is to be created, the weights device array should be created
- *                              on each rank, but the pointer can be NULL and the size 0
- *                              if there are no inputs provided by this rank
- * @param [in]  edge_ids        Device array containing the edge ids for each edge.  Optional
-                                argument that can be NULL if edge ids are not used.
- * @param [in]  edge_type_ids  Device array containing the edge types for each edge.  Optional
-                                argument that can be NULL if edge types are not used.
- * @param [in]  store_transposed If true create the graph initially in transposed format
- * @param [in]  num_edges       Number of edges
- * @param [in]  do_expensive_check  If true, do expensive checks to validate the input data
- *    is consistent with software assumptions.  If false bypass these checks.
- * @param [out] graph           A pointer to the graph object
- * @param [out] error           Pointer to an error object storing details of any error.  Will
- *                              be populated if error code is not CUGRAPH_SUCCESS
- * @return error code
- */
-cugraph_error_code_t cugraph_mg_graph_create(
-  const cugraph_resource_handle_t* handle,
-  const cugraph_graph_properties_t* properties,
-  const cugraph_type_erased_device_array_view_t* src,
-  const cugraph_type_erased_device_array_view_t* dst,
-  const cugraph_type_erased_device_array_view_t* weights,
-  const cugraph_type_erased_device_array_view_t* edge_ids,
-  const cugraph_type_erased_device_array_view_t* edge_type_ids,
-  bool_t store_transposed,
-  size_t num_edges,
+  bool_t symmetrize,
   bool_t do_expensive_check,
   cugraph_graph_t** graph,
   cugraph_error_t** error);
@@ -289,6 +170,8 @@ cugraph_error_code_t cugraph_mg_graph_create(
  *    Note that setting this flag will arbitrarily select one instance of a multi edge to be the
  *    edge that survives.  If the edges have properties that should be honored (e.g. sum the
  * weights, or take the maximum weight), the caller should do that on not rely on this flag.
+ * @param [in]  symmetrize      If true, symmetrize the edgelist. The symmetrization of edges
+ * with edge_ids and/or edge_type_ids is currently not supported.
  * @param [in]  do_expensive_check  If true, do expensive checks to validate the input data
  *    is consistent with software assumptions.  If false bypass these checks.
  * @param [out] graph           A pointer to the graph object
@@ -309,6 +192,7 @@ cugraph_error_code_t cugraph_graph_create_mg(
   size_t num_arrays,
   bool_t drop_self_loops,
   bool_t drop_multi_edges,
+  bool_t symmetrize,
   bool_t do_expensive_check,
   cugraph_graph_t** graph,
   cugraph_error_t** error);
@@ -319,24 +203,6 @@ cugraph_error_code_t cugraph_graph_create_mg(
  * @param [in]  graph  A pointer to the graph object to destroy
  */
 void cugraph_graph_free(cugraph_graph_t* graph);
-
-/**
- * @brief     Destroy an SG graph
- *
- * @deprecated  This API will be deleted, use cugraph_graph_free instead
- *
- * @param [in]  graph  A pointer to the graph object to destroy
- */
-void cugraph_sg_graph_free(cugraph_graph_t* graph);
-
-/**
- * @brief     Destroy an MG graph
- *
- * @deprecated  This API will be deleted, use cugraph_graph_free instead
- *
- * @param [in]  graph  A pointer to the graph object to destroy
- */
-void cugraph_mg_graph_free(cugraph_graph_t* graph);
 
 /**
  * @brief     Create a data mask

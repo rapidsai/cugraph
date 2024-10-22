@@ -18,6 +18,7 @@ import numpy as np
 import pylibcugraph as plc
 
 import nx_cugraph as nxcg
+from nx_cugraph import _nxver
 from nx_cugraph.convert import _to_graph
 from nx_cugraph.utils import _groupby, index_dtype, networkx_algorithm
 
@@ -57,7 +58,7 @@ def _bfs(G, source, *, depth_limit=None, reverse=False):
     return distances[mask], predecessors[mask], node_ids[mask]
 
 
-if nx.__version__[:3] <= "3.3":
+if _nxver <= (3, 3):
 
     @networkx_algorithm(is_incomplete=True, version_added="24.02", _plc="bfs")
     def generic_bfs_edges(
@@ -132,13 +133,15 @@ def bfs_tree(G, source, reverse=False, depth_limit=None, sort_neighbors=None):
         raise NotImplementedError(
             "sort_neighbors argument in bfs_tree is not currently supported"
         )
+    is_compat_graph = isinstance(G, nxcg.Graph)
     G = _check_G_and_source(G, source)
     if depth_limit is not None and depth_limit < 1:
-        return nxcg.DiGraph.from_coo(
+        return nxcg.CudaDiGraph.from_coo(
             1,
             cp.array([], dtype=index_dtype),
             cp.array([], dtype=index_dtype),
             id_to_key=[source],
+            use_compat_graph=is_compat_graph,
         )
 
     distances, predecessors, node_ids = _bfs(
@@ -148,11 +151,12 @@ def bfs_tree(G, source, reverse=False, depth_limit=None, sort_neighbors=None):
         reverse=reverse,
     )
     if predecessors.size == 0:
-        return nxcg.DiGraph.from_coo(
+        return nxcg.CudaDiGraph.from_coo(
             1,
             cp.array([], dtype=index_dtype),
             cp.array([], dtype=index_dtype),
             id_to_key=[source],
+            use_compat_graph=is_compat_graph,
         )
     # TODO: create renumbering helper function(s)
     unique_node_ids = cp.unique(cp.hstack((predecessors, node_ids)))
@@ -170,11 +174,12 @@ def bfs_tree(G, source, reverse=False, depth_limit=None, sort_neighbors=None):
             old_index: new_index
             for new_index, old_index in enumerate(unique_node_ids.tolist())
         }
-    return nxcg.DiGraph.from_coo(
+    return nxcg.CudaDiGraph.from_coo(
         unique_node_ids.size,
         src_indices,
         dst_indices,
         key_to_id=key_to_id,
+        use_compat_graph=is_compat_graph,
     )
 
 

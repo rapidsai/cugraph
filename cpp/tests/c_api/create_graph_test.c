@@ -104,6 +104,7 @@ int test_create_sg_graph_simple()
                                      FALSE,
                                      FALSE,
                                      FALSE,
+                                     FALSE,
                                      &graph,
                                      &ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "graph creation failed.");
@@ -203,13 +204,14 @@ int test_create_sg_graph_csr()
     handle, wgt_view, (byte_t*)h_wgt, &ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "wgt copy_from_host failed.");
 
-  ret_code = cugraph_sg_graph_create_from_csr(handle,
+  ret_code = cugraph_graph_create_sg_from_csr(handle,
                                               &properties,
                                               offsets_view,
                                               indices_view,
                                               wgt_view,
                                               NULL,
                                               NULL,
+                                              FALSE,
                                               FALSE,
                                               FALSE,
                                               FALSE,
@@ -408,6 +410,7 @@ int test_create_sg_graph_symmetric_error()
                                      FALSE,
                                      FALSE,
                                      FALSE,
+                                     FALSE,
                                      TRUE,
                                      &graph,
                                      &ret_error);
@@ -521,6 +524,7 @@ int test_create_sg_graph_with_isolated_vertices()
                                      wgt_view,
                                      NULL,
                                      NULL,
+                                     FALSE,
                                      FALSE,
                                      FALSE,
                                      FALSE,
@@ -665,13 +669,14 @@ int test_create_sg_graph_csr_with_isolated()
     handle, wgt_view, (byte_t*)h_wgt, &ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "wgt copy_from_host failed.");
 
-  ret_code = cugraph_sg_graph_create_from_csr(handle,
+  ret_code = cugraph_graph_create_sg_from_csr(handle,
                                               &properties,
                                               offsets_view,
                                               indices_view,
                                               wgt_view,
                                               NULL,
                                               NULL,
+                                              FALSE,
                                               FALSE,
                                               FALSE,
                                               FALSE,
@@ -839,6 +844,7 @@ int test_create_sg_graph_with_isolated_vertices_multi_input()
                                      FALSE,
                                      TRUE,
                                      TRUE,
+                                     FALSE,
                                      FALSE,
                                      &graph,
                                      &ret_error);

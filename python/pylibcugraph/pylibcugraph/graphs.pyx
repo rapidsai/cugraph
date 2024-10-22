@@ -26,12 +26,8 @@ from pylibcugraph._cugraph_c.array cimport (
 from pylibcugraph._cugraph_c.graph cimport (
     cugraph_graph_create_sg,
     cugraph_graph_create_mg,
-    cugraph_sg_graph_create_from_csr, #FIXME: Remove this once
-    # 'cugraph_graph_create_sg_from_csr' is exposed
     cugraph_graph_create_sg_from_csr,
-    cugraph_sg_graph_free, #FIXME: Remove this
     cugraph_graph_free,
-    cugraph_mg_graph_free, #FIXME: Remove this
 )
 from pylibcugraph.resource_handle cimport (
     ResourceHandle,
@@ -123,8 +119,16 @@ cdef class SGGraph(_GPUGraph):
     drop_self_loops : bool, optional (default='False')
         If true, drop any self loops that exist in the provided edge list.
 
+        Not supported for CSR graph.
+
     drop_multi_edges: bool, optional (default='False')
         If true, drop any multi edges that exist in the provided edge list
+
+        Not supported for CSR graph.
+
+    symmetrize: bool, optional (default='False')
+        If true, symmetrize the edge list
+
 
     Examples
     ---------
@@ -155,7 +159,8 @@ cdef class SGGraph(_GPUGraph):
                   input_array_format="COO",
                   vertices_array=None,
                   drop_self_loops=False,
-                  drop_multi_edges=False):
+                  drop_multi_edges=False,
+                  symmetrize=False):
 
         # FIXME: add tests for these
         if not(isinstance(store_transposed, (int, bool))):
@@ -217,6 +222,7 @@ cdef class SGGraph(_GPUGraph):
                 renumber,
                 drop_self_loops,
                 drop_multi_edges,
+                symmetrize,
                 do_expensive_check,
                 &(self.c_graph_ptr),
                 &error_ptr)
@@ -224,7 +230,7 @@ cdef class SGGraph(_GPUGraph):
                        "cugraph_graph_create_sg()")
 
         elif input_array_format == "CSR":
-            error_code = cugraph_sg_graph_create_from_csr(
+            error_code = cugraph_graph_create_sg_from_csr(
                 resource_handle.c_resource_handle_ptr,
                 &(graph_properties.c_graph_properties),
                 srcs_or_offsets_view_ptr,
@@ -234,6 +240,7 @@ cdef class SGGraph(_GPUGraph):
                 edge_type_view_ptr,
                 store_transposed,
                 renumber,
+                symmetrize,
                 # drop_self_loops, #FIXME: Not supported yet
                 # drop_multi_edges, #FIXME: Not supported yet
                 do_expensive_check,
@@ -259,7 +266,7 @@ cdef class SGGraph(_GPUGraph):
 
     def __dealloc__(self):
         if self.c_graph_ptr is not NULL:
-            cugraph_sg_graph_free(self.c_graph_ptr)
+            cugraph_graph_free(self.c_graph_ptr)
 
 
 cdef class MGGraph(_GPUGraph):
@@ -325,6 +332,10 @@ cdef class MGGraph(_GPUGraph):
 
     drop_multi_edges: bool, optional (default='False')
         If true, drop any multi edges that exist in the provided edge list
+
+    symmetrize: bool, optional (default='False')
+        If true, symmetrize the edge list
+
     """
     def __cinit__(self,
                   ResourceHandle resource_handle,
@@ -339,7 +350,8 @@ cdef class MGGraph(_GPUGraph):
                   vertices_array=None,
                   size_t num_arrays=1, # default value to not break users
                   drop_self_loops=False,
-                  drop_multi_edges=False):
+                  drop_multi_edges=False,
+                  symmetrize=False):
 
         if not(isinstance(store_transposed, (int, bool))):
             raise TypeError("expected int or bool for store_transposed, got "
@@ -465,6 +477,7 @@ cdef class MGGraph(_GPUGraph):
             num_arrays,
             drop_self_loops,
             drop_multi_edges,
+            symmetrize,
             do_expensive_check,
             &(self.c_graph_ptr),
             &error_ptr)
@@ -486,4 +499,4 @@ cdef class MGGraph(_GPUGraph):
 
     def __dealloc__(self):
         if self.c_graph_ptr is not NULL:
-            cugraph_mg_graph_free(self.c_graph_ptr)
+            cugraph_graph_free(self.c_graph_ptr)

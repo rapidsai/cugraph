@@ -189,7 +189,7 @@ int generic_similarity_test(const cugraph_resource_handle_t* handle,
 
   if (result != NULL) cugraph_similarity_result_free(result);
   if (vertex_pairs != NULL) cugraph_vertex_pairs_free(vertex_pairs);
-  cugraph_mg_graph_free(graph);
+  cugraph_graph_free(graph);
   cugraph_error_free(ret_error);
 
   return test_ret_value;
