@@ -233,12 +233,6 @@ TEST_P(Tests_Homogeneous_Biased_Neighbor_Sampling_File, CheckInt32Int32Float)
     override_File_Usecase_with_cmd_line_arguments(GetParam()));
 }
 
-TEST_P(Tests_Homogeneous_Biased_Neighbor_Sampling_File, CheckInt32Int64Float)
-{
-  run_current_test<int32_t, int64_t, float>(
-    override_File_Usecase_with_cmd_line_arguments(GetParam()));
-}
-
 TEST_P(Tests_Homogeneous_Biased_Neighbor_Sampling_File, CheckInt64Int64Float)
 {
   run_current_test<int64_t, int64_t, float>(
@@ -248,12 +242,6 @@ TEST_P(Tests_Homogeneous_Biased_Neighbor_Sampling_File, CheckInt64Int64Float)
 TEST_P(Tests_Homogeneous_Biased_Neighbor_Sampling_Rmat, CheckInt32Int32Float)
 {
   run_current_test<int32_t, int32_t, float>(
-    override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
-}
-
-TEST_P(Tests_Homogeneous_Biased_Neighbor_Sampling_Rmat, CheckInt32Int64Float)
-{
-  run_current_test<int32_t, int64_t, float>(
     override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
 }
 

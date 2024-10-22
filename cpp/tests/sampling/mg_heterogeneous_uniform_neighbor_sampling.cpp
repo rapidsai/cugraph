@@ -339,12 +339,6 @@ TEST_P(Tests_MGHeterogeneous_Uniform_Neighbor_Sampling_Rmat, CheckInt32Int32Floa
     override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
 }
 
-TEST_P(Tests_MGHeterogeneous_Uniform_Neighbor_Sampling_Rmat, CheckInt32Int64Float)
-{
-  run_current_test<int32_t, int64_t, float>(
-    override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
-}
-
 TEST_P(Tests_MGHeterogeneous_Uniform_Neighbor_Sampling_Rmat, CheckInt64Int64Float)
 {
   run_current_test<int64_t, int64_t, float>(

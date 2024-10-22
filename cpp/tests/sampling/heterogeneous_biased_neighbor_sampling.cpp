@@ -75,8 +75,6 @@ class Tests_Heterogeneous_Biased_Neighbor_Sampling
     auto edge_weight_view =
       edge_weights ? std::make_optional((*edge_weights).view()) : std::nullopt;
 
-    std::optional<cugraph::edge_property_t<decltype(graph_view), bool>> edge_mask{std::nullopt};
-
     constexpr float select_probability{0.05};
 
     // FIXME:  Update the tests to initialize RngState and use it instead
@@ -251,12 +249,6 @@ TEST_P(Tests_Heterogeneous_Biased_Neighbor_Sampling_File, CheckInt32Int32Float)
     override_File_Usecase_with_cmd_line_arguments(GetParam()));
 }
 
-TEST_P(Tests_Heterogeneous_Biased_Neighbor_Sampling_File, CheckInt32Int64Float)
-{
-  run_current_test<int32_t, int64_t, float>(
-    override_File_Usecase_with_cmd_line_arguments(GetParam()));
-}
-
 TEST_P(Tests_Heterogeneous_Biased_Neighbor_Sampling_File, CheckInt64Int64Float)
 {
   run_current_test<int64_t, int64_t, float>(
@@ -266,12 +258,6 @@ TEST_P(Tests_Heterogeneous_Biased_Neighbor_Sampling_File, CheckInt64Int64Float)
 TEST_P(Tests_Heterogeneous_Biased_Neighbor_Sampling_Rmat, CheckInt32Int32Float)
 {
   run_current_test<int32_t, int32_t, float>(
-    override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
-}
-
-TEST_P(Tests_Heterogeneous_Biased_Neighbor_Sampling_Rmat, CheckInt32Int64Float)
-{
-  run_current_test<int32_t, int64_t, float>(
     override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
 }
 

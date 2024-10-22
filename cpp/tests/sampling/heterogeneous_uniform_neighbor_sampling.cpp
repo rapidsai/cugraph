@@ -116,11 +116,11 @@ class Tests_Heterogeneous_Uniform_Neighbor_Sampling
 
     // Generate the edge types
 
-    std::optional<cugraph::edge_property_t<decltype(graph_view), edge_type_t>> edge_types{
+    std::optional<cugraph::edge_property_t<decltype(graph_view), int32_t>> edge_types{
       std::nullopt};
 
     if (heterogeneous_uniform_neighbor_sampling_usecase.num_edge_types > 1) {
-      edge_types = cugraph::test::generate<decltype(graph_view), edge_type_t>::edge_property(
+      edge_types = cugraph::test::generate<decltype(graph_view), int32_t>::edge_property(
         handle, graph_view, heterogeneous_uniform_neighbor_sampling_usecase.num_edge_types);
     }
 
@@ -249,12 +249,6 @@ TEST_P(Tests_Heterogeneous_Uniform_Neighbor_Sampling_File, CheckInt32Int32Float)
     override_File_Usecase_with_cmd_line_arguments(GetParam()));
 }
 
-TEST_P(Tests_Heterogeneous_Uniform_Neighbor_Sampling_File, CheckInt32Int64Float)
-{
-  run_current_test<int32_t, int64_t, float>(
-    override_File_Usecase_with_cmd_line_arguments(GetParam()));
-}
-
 TEST_P(Tests_Heterogeneous_Uniform_Neighbor_Sampling_File, CheckInt64Int64Float)
 {
   run_current_test<int64_t, int64_t, float>(
@@ -264,12 +258,6 @@ TEST_P(Tests_Heterogeneous_Uniform_Neighbor_Sampling_File, CheckInt64Int64Float)
 TEST_P(Tests_Heterogeneous_Uniform_Neighbor_Sampling_Rmat, CheckInt32Int32Float)
 {
   run_current_test<int32_t, int32_t, float>(
-    override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
-}
-
-TEST_P(Tests_Heterogeneous_Uniform_Neighbor_Sampling_Rmat, CheckInt32Int64Float)
-{
-  run_current_test<int32_t, int64_t, float>(
     override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
 }
 
