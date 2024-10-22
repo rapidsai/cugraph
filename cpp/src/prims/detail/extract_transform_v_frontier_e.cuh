@@ -1078,7 +1078,7 @@ extract_transform_v_frontier_e(raft::handle_t const& handle,
       std::conditional_t<try_bitmap,
                          std::optional<std::vector<rmm::device_uvector<uint32_t>>>,
                          std::byte /* dummy */>
-        edge_partition_bitmap_buffers{std::nullopt};
+        edge_partition_bitmap_buffers{};
       if constexpr (try_bitmap) {
         if (frontier_bitmap) {
           edge_partition_bitmap_buffers = std::vector<rmm::device_uvector<uint32_t>>{};
@@ -1269,7 +1269,7 @@ extract_transform_v_frontier_e(raft::handle_t const& handle,
                 num_keys  = std::get<1>(keys).size();
               } else {
                 key_first = get_dataframe_buffer_begin(keys);
-                num_keys  = keys.size();
+                num_keys  = size_dataframe_buffer(keys);
               }
               auto major_first = thrust_tuple_get_or_identity<decltype(key_first), 0>(key_first);
               edge_partition.compute_number_of_edges_async(
