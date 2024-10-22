@@ -128,12 +128,12 @@ biased_neighbor_sample(
   bool do_expensive_check);
 
 template std::tuple<rmm::device_uvector<int32_t>,
-                  rmm::device_uvector<int32_t>,
-                  std::optional<rmm::device_uvector<float>>,
-                  std::optional<rmm::device_uvector<int32_t>>,
-                  std::optional<rmm::device_uvector<int32_t>>,
-                  std::optional<rmm::device_uvector<int32_t>>,
-                  std::optional<rmm::device_uvector<size_t>>>
+                    rmm::device_uvector<int32_t>,
+                    std::optional<rmm::device_uvector<float>>,
+                    std::optional<rmm::device_uvector<int32_t>>,
+                    std::optional<rmm::device_uvector<int32_t>>,
+                    std::optional<rmm::device_uvector<int32_t>>,
+                    std::optional<rmm::device_uvector<size_t>>>
 heterogeneous_uniform_neighbor_sample(
   raft::handle_t const& handle,
   raft::random::RngState& rng_state,
@@ -150,12 +150,12 @@ heterogeneous_uniform_neighbor_sample(
   bool do_expensive_check);
 
 template std::tuple<rmm::device_uvector<int32_t>,
-                  rmm::device_uvector<int32_t>,
-                  std::optional<rmm::device_uvector<double>>,
-                  std::optional<rmm::device_uvector<int32_t>>,
-                  std::optional<rmm::device_uvector<int32_t>>,
-                  std::optional<rmm::device_uvector<int32_t>>,
-                  std::optional<rmm::device_uvector<size_t>>>
+                    rmm::device_uvector<int32_t>,
+                    std::optional<rmm::device_uvector<double>>,
+                    std::optional<rmm::device_uvector<int32_t>>,
+                    std::optional<rmm::device_uvector<int32_t>>,
+                    std::optional<rmm::device_uvector<int32_t>>,
+                    std::optional<rmm::device_uvector<size_t>>>
 heterogeneous_uniform_neighbor_sample(
   raft::handle_t const& handle,
   raft::random::RngState& rng_state,
@@ -218,12 +218,12 @@ heterogeneous_biased_neighbor_sample(
   bool do_expensive_check);
 
 template std::tuple<rmm::device_uvector<int32_t>,
-                  rmm::device_uvector<int32_t>,
-                  std::optional<rmm::device_uvector<float>>,
-                  std::optional<rmm::device_uvector<int32_t>>,
-                  std::optional<rmm::device_uvector<int32_t>>,
-                  std::optional<rmm::device_uvector<int32_t>>,
-                  std::optional<rmm::device_uvector<size_t>>>
+                    rmm::device_uvector<int32_t>,
+                    std::optional<rmm::device_uvector<float>>,
+                    std::optional<rmm::device_uvector<int32_t>>,
+                    std::optional<rmm::device_uvector<int32_t>>,
+                    std::optional<rmm::device_uvector<int32_t>>,
+                    std::optional<rmm::device_uvector<size_t>>>
 homogeneous_uniform_neighbor_sample(
   raft::handle_t const& handle,
   raft::random::RngState& rng_state,
@@ -239,12 +239,12 @@ homogeneous_uniform_neighbor_sample(
   bool do_expensive_check);
 
 template std::tuple<rmm::device_uvector<int32_t>,
-                  rmm::device_uvector<int32_t>,
-                  std::optional<rmm::device_uvector<double>>,
-                  std::optional<rmm::device_uvector<int32_t>>,
-                  std::optional<rmm::device_uvector<int32_t>>,
-                  std::optional<rmm::device_uvector<int32_t>>,
-                  std::optional<rmm::device_uvector<size_t>>>
+                    rmm::device_uvector<int32_t>,
+                    std::optional<rmm::device_uvector<double>>,
+                    std::optional<rmm::device_uvector<int32_t>>,
+                    std::optional<rmm::device_uvector<int32_t>>,
+                    std::optional<rmm::device_uvector<int32_t>>,
+                    std::optional<rmm::device_uvector<size_t>>>
 homogeneous_uniform_neighbor_sample(
   raft::handle_t const& handle,
   raft::random::RngState& rng_state,

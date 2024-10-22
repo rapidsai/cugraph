@@ -18,12 +18,10 @@
 
 #include "prims/fill_edge_property.cuh"
 #include "prims/transform_e.cuh"
-
 #include "sampling/detail/sampling_utils.hpp"
 
 #include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
-
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/sampling_functions.hpp>
@@ -101,16 +99,19 @@ neighbor_sample_impl(raft::handle_t const& handle,
     "Invalid input argument: number of levels should not overflow int32_t");  // as we use int32_t
                                                                               // to store hops
 
-  std::vector<cugraph::edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, bool>> edge_masks_vector{};
+  std::vector<
+    cugraph::edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, bool>>
+    edge_masks_vector{};
   graph_view_t<vertex_t, edge_t, false, multi_gpu> modified_graph_view = graph_view;
   edge_masks_vector.reserve(num_edge_types);
-  
+
   if (num_edge_types > 1) {
     for (int i = 0; i < num_edge_types; i++) {
+      cugraph::edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, bool>
+        edge_mask(handle, graph_view);
 
-      cugraph::edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, bool> edge_mask(handle, graph_view);
-      
-      cugraph::fill_edge_property(handle, modified_graph_view, edge_mask.mutable_view(), bool{true});
+      cugraph::fill_edge_property(
+        handle, modified_graph_view, edge_mask.mutable_view(), bool{true});
 
       cugraph::transform_e(
         handle,
@@ -118,12 +119,16 @@ neighbor_sample_impl(raft::handle_t const& handle,
         cugraph::edge_src_dummy_property_t{}.view(),
         cugraph::edge_dst_dummy_property_t{}.view(),
         *edge_type_view,
-        [valid_edge_type = i] __device__(auto src, auto dst, thrust::nullopt_t, thrust::nullopt_t, /*thrust::nullopt_t*/auto edge_type) {
+        [valid_edge_type = i] __device__(auto src,
+                                         auto dst,
+                                         thrust::nullopt_t,
+                                         thrust::nullopt_t,
+                                         /*thrust::nullopt_t*/ auto edge_type) {
           return edge_type == valid_edge_type;
         },
         edge_mask.mutable_view(),
         false);
-      
+
       edge_masks_vector.push_back(std::move(edge_mask));
     }
   }
@@ -172,11 +177,13 @@ neighbor_sample_impl(raft::handle_t const& handle,
   std::vector<size_t> level_sizes{};
 
   // Get the number of hop. If homogeneous neighbor sample, num_edge_types = 1
-  auto num_hops = ((fan_out.size() % num_edge_types) == 0) ? (fan_out.size() / num_edge_types) : ((fan_out.size() / num_edge_types) + 1);
+  auto num_hops = ((fan_out.size() % num_edge_types) == 0)
+                    ? (fan_out.size() / num_edge_types)
+                    : ((fan_out.size() / num_edge_types) + 1);
 
-  for (auto hop = 0; hop < num_hops; hop++){
+  for (auto hop = 0; hop < num_hops; hop++) {
     for (auto edge_type_id = 0; edge_type_id < num_edge_types; edge_type_id++) {
-      auto k_level = fan_out[(hop*num_edge_types) + edge_type_id];
+      auto k_level = fan_out[(hop * num_edge_types) + edge_type_id];
       rmm::device_uvector<vertex_t> srcs(0, handle.get_stream());
       rmm::device_uvector<vertex_t> dsts(0, handle.get_stream());
       std::optional<rmm::device_uvector<weight_t>> weights{std::nullopt};
@@ -191,16 +198,16 @@ neighbor_sample_impl(raft::handle_t const& handle,
       if (k_level > 0) {
         std::tie(srcs, dsts, weights, edge_ids, edge_types, labels) =
           sample_edges(handle,
-                      modified_graph_view,
-                      edge_weight_view,
-                      edge_id_view,
-                      edge_type_view,
-                      edge_bias_view,
-                      rng_state,
-                      starting_vertices,
-                      starting_vertex_labels,
-                      static_cast<size_t>(k_level),
-                      with_replacement);
+                       modified_graph_view,
+                       edge_weight_view,
+                       edge_id_view,
+                       edge_type_view,
+                       edge_bias_view,
+                       rng_state,
+                       starting_vertices,
+                       starting_vertex_labels,
+                       static_cast<size_t>(k_level),
+                       with_replacement);
       } else {
         std::tie(srcs, dsts, weights, edge_ids, edge_types, labels) =
           gather_one_hop_edgelist(handle,
@@ -232,10 +239,10 @@ neighbor_sample_impl(raft::handle_t const& handle,
         starting_vertex_labels,
         raft::device_span<vertex_t const>{level_result_dst_vectors.back().data(),
                                           level_result_dst_vectors.back().size()},
-        frontier_vertex_labels ? std::make_optional(raft::device_span<label_t const>(
-                                    level_result_label_vectors->back().data(),
-                                    level_result_label_vectors->back().size()))
-                                : std::nullopt,
+        frontier_vertex_labels
+          ? std::make_optional(raft::device_span<label_t const>(
+              level_result_label_vectors->back().data(), level_result_label_vectors->back().size()))
+          : std::nullopt,
         std::move(vertex_used_as_source),
         modified_graph_view.local_vertex_partition_view(),
         vertex_partition_range_lasts,
@@ -521,29 +528,30 @@ heterogeneous_uniform_neighbor_sample(
   edge_type_t num_edge_types,
   sampling_flags_t sampling_flags,
   bool do_expensive_check)
-{ 
-  using bias_t = weight_t; // dummy
-  
-  auto [majors, minors, weights, edge_ids, edge_types, hops, labels, offsets]
-    = detail::neighbor_sample_impl<vertex_t, edge_t, weight_t, edge_type_t, bias_t>(
-        handle,
-        rng_state,
-        graph_view,
-        edge_weight_view,
-        edge_id_view,
-        edge_type_view,
-        std::optional<edge_property_view_t<edge_t, bias_t const*>>{std::nullopt}, // Optional edge_bias_view
-        starting_vertices,
-        starting_vertex_labels,
-        label_to_output_comm_rank,
-        fan_out,
-        num_edge_types,
-        sampling_flags.return_hops,
-        sampling_flags.with_replacement,
-        sampling_flags.prior_sources_behavior,
-        sampling_flags.dedupe_sources,
-        do_expensive_check);
-  
+{
+  using bias_t = weight_t;  // dummy
+
+  auto [majors, minors, weights, edge_ids, edge_types, hops, labels, offsets] =
+    detail::neighbor_sample_impl<vertex_t, edge_t, weight_t, edge_type_t, bias_t>(
+      handle,
+      rng_state,
+      graph_view,
+      edge_weight_view,
+      edge_id_view,
+      edge_type_view,
+      std::optional<edge_property_view_t<edge_t, bias_t const*>>{
+        std::nullopt},  // Optional edge_bias_view
+      starting_vertices,
+      starting_vertex_labels,
+      label_to_output_comm_rank,
+      fan_out,
+      num_edge_types,
+      sampling_flags.return_hops,
+      sampling_flags.with_replacement,
+      sampling_flags.prior_sources_behavior,
+      sampling_flags.dedupe_sources,
+      do_expensive_check);
+
   return std::make_tuple(std::move(majors),
                          std::move(minors),
                          std::move(weights),
@@ -551,7 +559,6 @@ heterogeneous_uniform_neighbor_sample(
                          std::move(edge_types),
                          std::move(hops),
                          std::move(offsets));
-  
 }
 
 template <typename vertex_t,
@@ -583,28 +590,27 @@ heterogeneous_biased_neighbor_sample(
   edge_type_t num_edge_types,
   sampling_flags_t sampling_flags,
   bool do_expensive_check)
-{ 
-  
-  auto [majors, minors, weights, edge_ids, edge_types, hops, labels, offsets]
-    = detail::neighbor_sample_impl<vertex_t, edge_t, weight_t, edge_type_t, bias_t>(
-        handle,
-        rng_state,
-        graph_view,
-        edge_weight_view,
-        edge_id_view,
-        edge_type_view,
-        std::make_optional(edge_bias_view),
-        starting_vertices,
-        starting_vertex_labels,
-        label_to_output_comm_rank,
-        fan_out,
-        num_edge_types,
-        sampling_flags.return_hops,
-        sampling_flags.with_replacement,
-        sampling_flags.prior_sources_behavior,
-        sampling_flags.dedupe_sources,
-        do_expensive_check);
-  
+{
+  auto [majors, minors, weights, edge_ids, edge_types, hops, labels, offsets] =
+    detail::neighbor_sample_impl<vertex_t, edge_t, weight_t, edge_type_t, bias_t>(
+      handle,
+      rng_state,
+      graph_view,
+      edge_weight_view,
+      edge_id_view,
+      edge_type_view,
+      std::make_optional(edge_bias_view),
+      starting_vertices,
+      starting_vertex_labels,
+      label_to_output_comm_rank,
+      fan_out,
+      num_edge_types,
+      sampling_flags.return_hops,
+      sampling_flags.with_replacement,
+      sampling_flags.prior_sources_behavior,
+      sampling_flags.dedupe_sources,
+      do_expensive_check);
+
   return std::make_tuple(std::move(majors),
                          std::move(minors),
                          std::move(weights),
@@ -641,28 +647,29 @@ homogeneous_uniform_neighbor_sample(
   sampling_flags_t sampling_flags,
   bool do_expensive_check)
 {
-  using bias_t = weight_t; // dummy
+  using bias_t = weight_t;  // dummy
 
-  auto [majors, minors, weights, edge_ids, edge_types, hops, labels, offsets]
-    = detail::neighbor_sample_impl<vertex_t, edge_t, weight_t, edge_type_t, bias_t>(
-    handle,
-    rng_state,
-    graph_view,
-    edge_weight_view,
-    edge_id_view,
-    edge_type_view,
-    std::optional<edge_property_view_t<edge_t, bias_t const*>>{std::nullopt}, // Optional edge_bias_view
-    starting_vertices,
-    starting_vertex_labels,
-    label_to_output_comm_rank,
-    fan_out,
-    edge_type_t{1},
-    sampling_flags.return_hops,
-    sampling_flags.with_replacement,
-    sampling_flags.prior_sources_behavior,
-    sampling_flags.dedupe_sources,
-    do_expensive_check);
-  
+  auto [majors, minors, weights, edge_ids, edge_types, hops, labels, offsets] =
+    detail::neighbor_sample_impl<vertex_t, edge_t, weight_t, edge_type_t, bias_t>(
+      handle,
+      rng_state,
+      graph_view,
+      edge_weight_view,
+      edge_id_view,
+      edge_type_view,
+      std::optional<edge_property_view_t<edge_t, bias_t const*>>{
+        std::nullopt},  // Optional edge_bias_view
+      starting_vertices,
+      starting_vertex_labels,
+      label_to_output_comm_rank,
+      fan_out,
+      edge_type_t{1},
+      sampling_flags.return_hops,
+      sampling_flags.with_replacement,
+      sampling_flags.prior_sources_behavior,
+      sampling_flags.dedupe_sources,
+      do_expensive_check);
+
   return std::make_tuple(std::move(majors),
                          std::move(minors),
                          std::move(weights),
@@ -701,27 +708,26 @@ homogeneous_biased_neighbor_sample(
   sampling_flags_t sampling_flags,
   bool do_expensive_check)
 {
+  auto [majors, minors, weights, edge_ids, edge_types, hops, labels, offsets] =
+    detail::neighbor_sample_impl<vertex_t, edge_t, weight_t, edge_type_t, bias_t>(
+      handle,
+      rng_state,
+      graph_view,
+      edge_weight_view,
+      edge_id_view,
+      edge_type_view,
+      std::make_optional(edge_bias_view),
+      starting_vertices,
+      starting_vertex_labels,
+      label_to_output_comm_rank,
+      fan_out,
+      edge_type_t{1},
+      sampling_flags.return_hops,
+      sampling_flags.with_replacement,
+      sampling_flags.prior_sources_behavior,
+      sampling_flags.dedupe_sources,
+      do_expensive_check);
 
-  auto [majors, minors, weights, edge_ids, edge_types, hops, labels, offsets]
-    = detail::neighbor_sample_impl<vertex_t, edge_t, weight_t, edge_type_t, bias_t>(
-    handle,
-    rng_state,
-    graph_view,
-    edge_weight_view,
-    edge_id_view,
-    edge_type_view,
-    std::make_optional(edge_bias_view),
-    starting_vertices,
-    starting_vertex_labels,
-    label_to_output_comm_rank,
-    fan_out,
-    edge_type_t{1},
-    sampling_flags.return_hops,
-    sampling_flags.with_replacement,
-    sampling_flags.prior_sources_behavior,
-    sampling_flags.dedupe_sources,
-    do_expensive_check);
-  
   return std::make_tuple(std::move(majors),
                          std::move(minors),
                          std::move(weights),

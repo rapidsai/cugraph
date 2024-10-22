@@ -620,7 +620,7 @@ def uniform_neighbor_sample(
         # FIXME: Add expensive check to ensure all dict values are lists
         # Convert to a tuple of sequence (edge type size and fanout values)
 
-        fanout_vals = {2:[1], 3:[4, 5], 1:[6, 7], 0:[8, 9, 10]}
+        fanout_vals = {2: [1], 3: [4, 5], 1: [6, 7], 0: [8, 9, 10]}
         fanout_vals = collections.OrderedDict(sorted(fanout_vals.items()))
 
         edge_type_offsets = []

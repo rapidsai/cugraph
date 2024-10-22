@@ -112,14 +112,14 @@ def homogeneous_uniform_neighbor_sample(ResourceHandle resource_handle,
 
     start_vertex_list: device array type
         Device array containing the list of starting vertices for sampling.
-    
+
     start_vertex_offsets: list[int] (Optional)
         Offsets of each label within the start vertex list.
 
     h_fan_out: tuple of numpy array type
         Device array containing the branching out (fan-out) degrees per
         starting vertex for each hop level
-        
+
         The sampling method can use different fan_out values for each edge type
         which is not the case for homogeneous neighborhood sampling.
 

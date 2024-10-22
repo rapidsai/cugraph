@@ -113,23 +113,23 @@ def heterogeneous_biased_neighbor_sample(ResourceHandle resource_handle,
 
     input_graph : SGGraph or MGGraph
         The input graph, for either Single or Multi-GPU operations.
-    
+
     edge_biases: FIXE: update this - Create edge_biases of type
         'cugraph_edge_property_view_t' - edge biases not yet supported.
 
     start_vertex_list: device array type
         Device array containing the list of starting vertices for sampling.
-    
+
     start_vertex_offsets: list[int] (Optional)
         Offsets of each label within the start vertex list.
 
     h_fan_out: tuple of numpy array type
         Device array containing the branching out (fan-out) degrees per
         starting vertex for each hop level
-        
+
         The sampling method can use different fan_out values for each edge type
         which is not the case for homogeneous neighborhood sampling.
-    
+
     num_edge_types: Number of edge types where a value of 1 translates to homogeneous neighbor
         sample whereas a value greater than 1 translates to heterogeneous neighbor
         sample.

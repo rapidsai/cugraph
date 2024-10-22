@@ -46,8 +46,8 @@ class Tests_Homogeneous_Biased_Neighbor_Sampling
   virtual void TearDown() {}
 
   template <typename vertex_t, typename edge_t, typename weight_t>
-  void run_current_test(
-    std::tuple<Homogeneous_Biased_Neighbor_Sampling_Usecase const&, input_usecase_t const&> const& param)
+  void run_current_test(std::tuple<Homogeneous_Biased_Neighbor_Sampling_Usecase const&,
+                                   input_usecase_t const&> const& param)
   {
     auto [homogeneous_biased_neighbor_sampling_usecase, input_usecase] = param;
 
@@ -104,8 +104,10 @@ class Tests_Homogeneous_Biased_Neighbor_Sampling
 
     auto batch_number = std::make_optional<rmm::device_uvector<int32_t>>(0, handle.get_stream());
 
-    batch_number = cugraph::test::sequence(
-      handle, random_sources.size(), homogeneous_biased_neighbor_sampling_usecase.batch_size, int32_t{0});
+    batch_number = cugraph::test::sequence(handle,
+                                           random_sources.size(),
+                                           homogeneous_biased_neighbor_sampling_usecase.batch_size,
+                                           int32_t{0});
 
     rmm::device_uvector<vertex_t> random_sources_copy(random_sources.size(), handle.get_stream());
 
@@ -114,8 +116,7 @@ class Tests_Homogeneous_Biased_Neighbor_Sampling
                random_sources.size(),
                handle.get_stream());
 
-    std::optional<raft::device_span<int32_t const>>
-      label_to_output_comm_rank_mapping{std::nullopt};
+    std::optional<raft::device_span<int32_t const>> label_to_output_comm_rank_mapping{std::nullopt};
 
 #ifdef NO_CUGRAPH_OPS
     EXPECT_THROW(
@@ -134,13 +135,10 @@ class Tests_Homogeneous_Biased_Neighbor_Sampling
         label_to_output_comm_rank_mapping,
         raft::host_span<int32_t const>(homogeneous_biased_neighbor_sampling_usecase.fanout.data(),
                                        homogeneous_biased_neighbor_sampling_usecase.fanout.size()),
-        cugraph::sampling_flags_t{
-            cugraph::prior_sources_behavior_t{0},
-            true, // return_hops
-            false, // dedupe_sources
-            homogeneous_biased_neighbor_sampling_usecase.flag_replacement
-        }
-        ),
+        cugraph::sampling_flags_t{cugraph::prior_sources_behavior_t{0},
+                                  true,   // return_hops
+                                  false,  // dedupe_sources
+                                  homogeneous_biased_neighbor_sampling_usecase.flag_replacement}),
       std::exception);
 #else
     if (cugraph::test::g_perf) {
@@ -164,14 +162,10 @@ class Tests_Homogeneous_Biased_Neighbor_Sampling
         label_to_output_comm_rank_mapping,
         raft::host_span<int32_t const>(homogeneous_biased_neighbor_sampling_usecase.fanout.data(),
                                        homogeneous_biased_neighbor_sampling_usecase.fanout.size()),
-        cugraph::sampling_flags_t{
-            cugraph::prior_sources_behavior_t{0},
-            true, // return_hops
-            false, // dedupe_sources
-            homogeneous_biased_neighbor_sampling_usecase.flag_replacement
-        }
-        );
-    
+        cugraph::sampling_flags_t{cugraph::prior_sources_behavior_t{0},
+                                  true,   // return_hops
+                                  false,  // dedupe_sources
+                                  homogeneous_biased_neighbor_sampling_usecase.flag_replacement});
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -214,13 +208,13 @@ class Tests_Homogeneous_Biased_Neighbor_Sampling
 
       if (random_sources.size() < 100) {
         // This validation is too expensive for large number of vertices
-        ASSERT_TRUE(
-          cugraph::test::validate_sampling_depth(handle,
-                                                 std::move(src_out),
-                                                 std::move(dst_out),
-                                                 std::move(wgt_out),
-                                                 std::move(random_sources),
-                                                 homogeneous_biased_neighbor_sampling_usecase.fanout.size()));
+        ASSERT_TRUE(cugraph::test::validate_sampling_depth(
+          handle,
+          std::move(src_out),
+          std::move(dst_out),
+          std::move(wgt_out),
+          std::move(random_sources),
+          homogeneous_biased_neighbor_sampling_usecase.fanout.size()));
       }
     }
 #endif
@@ -232,7 +226,6 @@ using Tests_Homogeneous_Biased_Neighbor_Sampling_File =
 
 using Tests_Homogeneous_Biased_Neighbor_Sampling_Rmat =
   Tests_Homogeneous_Biased_Neighbor_Sampling<cugraph::test::Rmat_Usecase>;
-
 
 TEST_P(Tests_Homogeneous_Biased_Neighbor_Sampling_File, CheckInt32Int32Float)
 {
@@ -310,10 +303,11 @@ INSTANTIATE_TEST_SUITE_P(
                           factor (to avoid running same benchmarks more than once) */
   Tests_Homogeneous_Biased_Neighbor_Sampling_Rmat,
   ::testing::Combine(
-    ::testing::Values(Homogeneous_Biased_Neighbor_Sampling_Usecase{{4, 10}, 1024, false, false, false},
-                      Homogeneous_Biased_Neighbor_Sampling_Usecase{{4, 10}, 1024, false, true, false},
-                      Homogeneous_Biased_Neighbor_Sampling_Usecase{{4, 10}, 1024, true, false, false},
-                      Homogeneous_Biased_Neighbor_Sampling_Usecase{{4, 10}, 1024, true, true, false}),
+    ::testing::Values(
+      Homogeneous_Biased_Neighbor_Sampling_Usecase{{4, 10}, 1024, false, false, false},
+      Homogeneous_Biased_Neighbor_Sampling_Usecase{{4, 10}, 1024, false, true, false},
+      Homogeneous_Biased_Neighbor_Sampling_Usecase{{4, 10}, 1024, true, false, false},
+      Homogeneous_Biased_Neighbor_Sampling_Usecase{{4, 10}, 1024, true, true, false}),
     ::testing::Values(cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false, 0))));
 
 CUGRAPH_TEST_PROGRAM_MAIN()

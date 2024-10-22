@@ -14,8 +14,9 @@
 from __future__ import annotations
 
 from pylibcugraph import ResourceHandle
-from pylibcugraph import heterogeneous_uniform_neighbor_sample as \
-    pylibcugraph_heterogeneous_uniform_neighbor_sample
+from pylibcugraph import (
+    heterogeneous_uniform_neighbor_sample as pylibcugraph_heterogeneous_uniform_neighbor_sample,
+)
 
 from cugraph.sampling.sampling_utilities import sampling_results_from_cupy_array_dict
 
@@ -87,14 +88,14 @@ def heterogeneous_uniform_neighbor_sample(
 
     start_vertex_list : list or cudf.Series (int32)
         a list of starting vertices for sampling
-    
+
     start_vertex_offsets: list[int] (Optional)
         Offsets of each label within the start vertex list.
 
     fanout_vals : list (int32)
         List of branching out (fan-out) degrees per starting vertex for each
         hop level.
-    
+
     num_edge_types: int32
         Number of edge types where a value of 1 translates to homogeneous neighbor
         sample whereas a value greater than 1 translates to heterogeneous neighbor
@@ -107,7 +108,7 @@ def heterogeneous_uniform_neighbor_sample(
         Deprecated.
         Flag to specify whether to return edge properties (weight, edge id,
         edge type, batch id, hop id) with the sampled edges.
-    
+
     prior_sources_behavior: str, optional (default=None)
         Options are "carryover", and "exclude".
         Default will leave the source list as-is.
@@ -115,37 +116,37 @@ def heterogeneous_uniform_neighbor_sample(
         current hop.
         Exclude will exclude sources from previous hops from reappearing
         as sources in future hops.
-    
+
     deduplicate_sources: bool, optional (default=False)
         Whether to first deduplicate the list of possible sources
         from the previous destinations before performing next
         hop.
-    
+
     return_hops: bool, optional (default=True)
         Whether to return the sampling results with hop ids
         corresponding to the hop where the edge appeared.
         Defaults to True.
-    
+
     renumber: bool, optional (default=False)
         Whether to renumber on a per-batch basis.  If True,
         will return the renumber map and renumber map offsets
         as an additional dataframe.
-    
+
     retain_seeds: bool, optional (default=False)
         If True, will retain the original seeds (original source vertices)
         in the output even if they do not have outgoing neighbors.
-    
+
     compression: str, optional (default=COO)
         Sets the compression type for the output minibatches.
         Valid options are COO (default), CSR, CSC, DCSR, and DCSC.
-    
+
     compress_per_hop: bool, optional (default=False)
         Whether to compress globally (default), or to produce a separate
         compressed edgelist per hop.
 
     random_state: int, optional
         Random seed to use when making sampling calls.
-    
+
     return_offsets: bool, optional (default=False)
         Whether to return the sampling results with batch ids
         included as one dataframe, or to instead return two
@@ -216,8 +217,8 @@ def heterogeneous_uniform_neighbor_sample(
                         Contains the batch offsets for the renumber maps
     """
 
-    use_legacy_names = False # Deprecated parameter
-    include_hop_column=not return_offsets # Deprecated parameter
+    use_legacy_names = False  # Deprecated parameter
+    include_hop_column = not return_offsets  # Deprecated parameter
 
     major_col_name = "majors"
     minor_col_name = "minors"
@@ -243,7 +244,6 @@ def heterogeneous_uniform_neighbor_sample(
             " of the libcugraph C++ API"
         )
 
-
     if with_edge_properties:
         warning_msg = (
             "The with_edge_properties flag is deprecated"
@@ -260,8 +260,7 @@ def heterogeneous_uniform_neighbor_sample(
             start_vertex_list, dtype=G.edgelist.edgelist_df[G.srcCol].dtype
         )
 
-
-    """ 
+    """
     # No batch_ids, the rank owning the vertices will wom the final
     # result.
     if with_edge_properties and not with_batch_ids:
@@ -292,10 +291,8 @@ def heterogeneous_uniform_neighbor_sample(
 
     start_vertex_list = ensure_valid_dtype(G, start_vertex_list)
 
-
     if G.renumbered:
         start_vertex_list = G.lookup_internal_vertex_id(start_vertex_list)
-
 
     sampling_result_array_dict = pylibcugraph_heterogeneous_uniform_neighbor_sample(
         resource_handle=ResourceHandle(),
@@ -326,7 +323,7 @@ def heterogeneous_uniform_neighbor_sample(
         return_offsets=return_offsets,
         renumber=renumber,
         use_legacy_names=use_legacy_names,
-        include_hop_column=include_hop_column, # Deprecated flag
+        include_hop_column=include_hop_column,  # Deprecated flag
     )
 
     if G.renumbered and not renumber:

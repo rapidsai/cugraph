@@ -94,7 +94,6 @@ void sort(raft::handle_t const& handle, value_t* d_value, size_t size);
 template <typename value_t>
 size_t unique(raft::handle_t const& handle, value_t* d_value, size_t size);
 
-
 /**
  * @brief    Increment the values of a buffer by a constant value
  *

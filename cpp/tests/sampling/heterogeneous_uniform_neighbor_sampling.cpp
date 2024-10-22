@@ -46,8 +46,8 @@ class Tests_Heterogeneous_Uniform_Neighbor_Sampling
   virtual void TearDown() {}
 
   template <typename vertex_t, typename edge_t, typename weight_t>
-  void run_current_test(
-    std::tuple<Heterogeneous_Uniform_Neighbor_Sampling_Usecase const&, input_usecase_t const&> const& param)
+  void run_current_test(std::tuple<Heterogeneous_Uniform_Neighbor_Sampling_Usecase const&,
+                                   input_usecase_t const&> const& param)
   {
     using edge_type_t = int32_t;
 
@@ -99,8 +99,11 @@ class Tests_Heterogeneous_Uniform_Neighbor_Sampling
 
     auto batch_number = std::make_optional<rmm::device_uvector<int32_t>>(0, handle.get_stream());
 
-    batch_number = cugraph::test::sequence(
-      handle, random_sources.size(), heterogeneous_uniform_neighbor_sampling_usecase.batch_size, int32_t{0});
+    batch_number =
+      cugraph::test::sequence(handle,
+                              random_sources.size(),
+                              heterogeneous_uniform_neighbor_sampling_usecase.batch_size,
+                              int32_t{0});
 
     rmm::device_uvector<vertex_t> random_sources_copy(random_sources.size(), handle.get_stream());
 
@@ -109,9 +112,8 @@ class Tests_Heterogeneous_Uniform_Neighbor_Sampling
                random_sources.size(),
                handle.get_stream());
 
-    std::optional<raft::device_span<int32_t const>>
-      label_to_output_comm_rank_mapping{std::nullopt};
-    
+    std::optional<raft::device_span<int32_t const>> label_to_output_comm_rank_mapping{std::nullopt};
+
     // Generate the edge types
 
     std::optional<cugraph::edge_property_t<decltype(graph_view), edge_type_t>> edge_types{
@@ -119,9 +121,7 @@ class Tests_Heterogeneous_Uniform_Neighbor_Sampling
 
     if (heterogeneous_uniform_neighbor_sampling_usecase.num_edge_types > 1) {
       edge_types = cugraph::test::generate<decltype(graph_view), edge_type_t>::edge_property(
-          handle,
-          graph_view,
-          heterogeneous_uniform_neighbor_sampling_usecase.num_edge_types);
+        handle, graph_view, heterogeneous_uniform_neighbor_sampling_usecase.num_edge_types);
     }
 
 #ifdef NO_CUGRAPH_OPS
@@ -133,24 +133,23 @@ class Tests_Heterogeneous_Uniform_Neighbor_Sampling
         edge_weight_view,
         std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
         edge_types
-            ? std::optional<cugraph::edge_property_view_t<edge_t, edge_type_t const*>>{(*edge_types)
-                                                                                        .view()}
-            : std::nullopt,
+          ? std::optional<cugraph::edge_property_view_t<edge_t, edge_type_t const*>>{(*edge_types)
+                                                                                       .view()}
+          : std::nullopt,
         raft::device_span<vertex_t const>{random_sources_copy.data(), random_sources.size()},
         batch_number ? std::make_optional(raft::device_span<int32_t const>{batch_number->data(),
                                                                            batch_number->size()})
                      : std::nullopt,
         label_to_output_comm_rank_mapping,
-        raft::host_span<int32_t const>(heterogeneous_uniform_neighbor_sampling_usecase.fanout.data(),
-                                       heterogeneous_uniform_neighbor_sampling_usecase.fanout.size()),
+        raft::host_span<int32_t const>(
+          heterogeneous_uniform_neighbor_sampling_usecase.fanout.data(),
+          heterogeneous_uniform_neighbor_sampling_usecase.fanout.size()),
         heterogeneous_uniform_neighbor_sampling_usecase.num_edge_types,
         cugraph::sampling_flags_t{
-            cugraph::prior_sources_behavior_t{0},
-            true, // return_hops
-            false, // dedupe_sources
-            heterogeneous_uniform_neighbor_sampling_usecase.flag_replacement
-        }
-        ),
+          cugraph::prior_sources_behavior_t{0},
+          true,   // return_hops
+          false,  // dedupe_sources
+          heterogeneous_uniform_neighbor_sampling_usecase.flag_replacement}),
       std::exception);
 #else
     if (cugraph::test::g_perf) {
@@ -166,25 +165,24 @@ class Tests_Heterogeneous_Uniform_Neighbor_Sampling
         edge_weight_view,
         std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
         edge_types
-            ? std::optional<cugraph::edge_property_view_t<edge_t, edge_type_t const*>>{(*edge_types)
-                                                                                        .view()}
-            : std::nullopt,
+          ? std::optional<cugraph::edge_property_view_t<edge_t, edge_type_t const*>>{(*edge_types)
+                                                                                       .view()}
+          : std::nullopt,
         raft::device_span<vertex_t const>{random_sources_copy.data(), random_sources.size()},
         batch_number ? std::make_optional(raft::device_span<int32_t const>{batch_number->data(),
                                                                            batch_number->size()})
                      : std::nullopt,
         label_to_output_comm_rank_mapping,
-        raft::host_span<int32_t const>(heterogeneous_uniform_neighbor_sampling_usecase.fanout.data(),
-                                       heterogeneous_uniform_neighbor_sampling_usecase.fanout.size()),
+        raft::host_span<int32_t const>(
+          heterogeneous_uniform_neighbor_sampling_usecase.fanout.data(),
+          heterogeneous_uniform_neighbor_sampling_usecase.fanout.size()),
         heterogeneous_uniform_neighbor_sampling_usecase.num_edge_types,
         cugraph::sampling_flags_t{
-            cugraph::prior_sources_behavior_t{0},
-            true, // return_hops
-            false, // dedupe_sources
-            heterogeneous_uniform_neighbor_sampling_usecase.flag_replacement
-        }
-        );
-    
+          cugraph::prior_sources_behavior_t{0},
+          true,   // return_hops
+          false,  // dedupe_sources
+          heterogeneous_uniform_neighbor_sampling_usecase.flag_replacement});
+
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       hr_timer.stop();
@@ -220,22 +218,19 @@ class Tests_Heterogeneous_Uniform_Neighbor_Sampling
         raft::device_span<size_t const>(d_subgraph_offsets.data(), 2),
         raft::device_span<vertex_t const>(vertices.data(), vertices.size()),
         true);
-      
-      
-      
 
       ASSERT_TRUE(cugraph::test::validate_extracted_graph_is_subgraph(
         handle, src_compare, dst_compare, wgt_compare, src_out, dst_out, wgt_out));
 
       if (random_sources.size() < 100) {
         // This validation is too expensive for large number of vertices
-        ASSERT_TRUE(
-          cugraph::test::validate_sampling_depth(handle,
-                                                 std::move(src_out),
-                                                 std::move(dst_out),
-                                                 std::move(wgt_out),
-                                                 std::move(random_sources),
-                                                 heterogeneous_uniform_neighbor_sampling_usecase.fanout.size()));
+        ASSERT_TRUE(cugraph::test::validate_sampling_depth(
+          handle,
+          std::move(src_out),
+          std::move(dst_out),
+          std::move(wgt_out),
+          std::move(random_sources),
+          heterogeneous_uniform_neighbor_sampling_usecase.fanout.size()));
       }
     }
 #endif
@@ -247,7 +242,6 @@ using Tests_Heterogeneous_Uniform_Neighbor_Sampling_File =
 
 using Tests_Heterogeneous_Uniform_Neighbor_Sampling_Rmat =
   Tests_Heterogeneous_Uniform_Neighbor_Sampling<cugraph::test::Rmat_Usecase>;
-
 
 TEST_P(Tests_Heterogeneous_Uniform_Neighbor_Sampling_File, CheckInt32Int32Float)
 {
@@ -284,7 +278,6 @@ TEST_P(Tests_Heterogeneous_Uniform_Neighbor_Sampling_Rmat, CheckInt64Int64Float)
   run_current_test<int64_t, int64_t, float>(
     override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
 }
-
 
 INSTANTIATE_TEST_SUITE_P(
   file_test,
@@ -326,11 +319,16 @@ INSTANTIATE_TEST_SUITE_P(
                           factor (to avoid running same benchmarks more than once) */
   Tests_Heterogeneous_Uniform_Neighbor_Sampling_Rmat,
   ::testing::Combine(
-    ::testing::Values(Heterogeneous_Uniform_Neighbor_Sampling_Usecase{{4, 10, 7, 8, 1, 9, 5, 12}, 1024, 4, false, false},
-                      Heterogeneous_Uniform_Neighbor_Sampling_Usecase{{4, 10, 7, 8, 1, 9, 5, 12}, 1024, 4, false, false},
-                      Heterogeneous_Uniform_Neighbor_Sampling_Usecase{{4, 10, 7, 8, 1, 9, 5, 12}, 1024, 4, true, false},
-                      Heterogeneous_Uniform_Neighbor_Sampling_Usecase{{4, 10, 7, 8, 1, 9, 5, 12}, 1024, 4, true, false}),
+    ::testing::Values(
+      Heterogeneous_Uniform_Neighbor_Sampling_Usecase{
+        {4, 10, 7, 8, 1, 9, 5, 12}, 1024, 4, false, false},
+      Heterogeneous_Uniform_Neighbor_Sampling_Usecase{
+        {4, 10, 7, 8, 1, 9, 5, 12}, 1024, 4, false, false},
+      Heterogeneous_Uniform_Neighbor_Sampling_Usecase{
+        {4, 10, 7, 8, 1, 9, 5, 12}, 1024, 4, true, false},
+      Heterogeneous_Uniform_Neighbor_Sampling_Usecase{
+        {4, 10, 7, 8, 1, 9, 5, 12}, 1024, 4, true, false}),
     ::testing::Values(cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false, 0))));
-//#endif
+// #endif
 
 CUGRAPH_TEST_PROGRAM_MAIN()

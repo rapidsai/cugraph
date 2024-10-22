@@ -73,13 +73,12 @@ void sort(raft::handle_t const& handle, value_t* d_value, size_t size)
 template <typename value_t>
 size_t unique(raft::handle_t const& handle, value_t* d_value, size_t size)
 {
-  //auto unique_element_last = thrust::unique(handle.get_thrust_policy(), d_value, d_value + size);
+  // auto unique_element_last = thrust::unique(handle.get_thrust_policy(), d_value, d_value + size);
   auto unique_element_last = thrust::unique(handle.get_thrust_policy(), d_value, d_value + size);
-  //auto num_unique_element = 
+  // auto num_unique_element =
   return thrust::distance(d_value, unique_element_last);
-  //masked_edgelist_srcs.resize(2* masked_edgelist_srcs.size(), handle.get_stream());
+  // masked_edgelist_srcs.resize(2* masked_edgelist_srcs.size(), handle.get_stream());
 }
-
 
 template <typename value_t>
 void sequence_fill(rmm::cuda_stream_view const& stream_view,
@@ -104,7 +103,6 @@ void transform_increment(rmm::cuda_stream_view const& stream_view,
                       return static_cast<value_t>(value + incr);
                     }));
 }
-
 
 template <typename value_t>
 void stride_fill(rmm::cuda_stream_view const& stream_view,

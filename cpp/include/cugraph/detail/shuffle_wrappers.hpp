@@ -158,12 +158,13 @@ shuffle_ext_vertex_value_pairs_to_local_gpu_by_vertex_partitioning(
  * @return Tuple of vectors storing shuffled vertex & value pairs.
  */
 template <typename vertex_t, typename value0_t, typename value1_t>
-std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<value0_t>, rmm::device_uvector<value1_t>>
-shuffle_ext_vertex_values_pairs_to_local_gpu_by_vertex_partitioning(
-  raft::handle_t const& handle,
-  rmm::device_uvector<vertex_t>&& vertices,
-  rmm::device_uvector<value0_t>&& values_0,
-  rmm::device_uvector<value1_t>&& values_1);
+std::
+  tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<value0_t>, rmm::device_uvector<value1_t>>
+  shuffle_ext_vertex_values_pairs_to_local_gpu_by_vertex_partitioning(
+    raft::handle_t const& handle,
+    rmm::device_uvector<vertex_t>&& vertices,
+    rmm::device_uvector<value0_t>&& values_0,
+    rmm::device_uvector<value1_t>&& values_1);
 
 /**
  * @brief Permute a range.

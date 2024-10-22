@@ -46,10 +46,10 @@ rmm::device_uvector<int32_t> flatten_label_map(
 
   thrust::fill(handle.get_thrust_policy(), label_map.begin(), label_map.end(), int32_t{0});
   thrust::scatter(handle.get_thrust_policy(),
-                 std::get<0>(label_to_output_comm_rank).begin(),
-                 std::get<0>(label_to_output_comm_rank).end(),
-                 std::get<1>(label_to_output_comm_rank).begin(),
-                 label_map.begin());
+                  std::get<0>(label_to_output_comm_rank).begin(),
+                  std::get<0>(label_to_output_comm_rank).end(),
+                  std::get<1>(label_to_output_comm_rank).begin(),
+                  label_map.begin());
 
   return label_map;
 }
