@@ -130,10 +130,14 @@ class Tests_Heterogeneous_Uniform_Neighbor_Sampling
     EXPECT_THROW(
       cugraph::heterogeneous_uniform_neighbor_sample(
         handle,
+        rng_state,
         graph_view,
         edge_weight_view,
         std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
-        std::optional<cugraph::edge_property_view_t<edge_t, int32_t const*>>{std::nullopt},
+        edge_types
+            ? std::optional<cugraph::edge_property_view_t<edge_t, edge_type_t const*>>{(*edge_types)
+                                                                                        .view()}
+            : std::nullopt,
         raft::device_span<vertex_t const>{random_sources_copy.data(), random_sources.size()},
         batch_number ? std::make_optional(raft::device_span<int32_t const>{batch_number->data(),
                                                                            batch_number->size()})
@@ -141,9 +145,14 @@ class Tests_Heterogeneous_Uniform_Neighbor_Sampling
         label_to_output_comm_rank_mapping,
         raft::host_span<int32_t const>(heterogeneous_uniform_neighbor_sampling_usecase.fanout.data(),
                                        heterogeneous_uniform_neighbor_sampling_usecase.fanout.size()),
-        rng_state,
-        true,
-        heterogeneous_uniform_neighbor_sampling_usecase.flag_replacement),
+        heterogeneous_uniform_neighbor_sampling_usecase.num_edge_types,
+        cugraph::sampling_flags_t{
+            cugraph::prior_sources_behavior_t{0},
+            true, // return_hops
+            false, // dedupe_sources
+            heterogeneous_uniform_neighbor_sampling_usecase.flag_replacement
+        }
+        ),
       std::exception);
 #else
     if (cugraph::test::g_perf) {

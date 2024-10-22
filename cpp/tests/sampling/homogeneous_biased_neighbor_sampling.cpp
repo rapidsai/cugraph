@@ -121,10 +121,12 @@ class Tests_Homogeneous_Biased_Neighbor_Sampling
     EXPECT_THROW(
       cugraph::homogeneous_biased_neighbor_sample(
         handle,
+        rng_state,
         graph_view,
         edge_weight_view,
         std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
         std::optional<cugraph::edge_property_view_t<edge_t, int32_t const*>>{std::nullopt},
+        *edge_weight_view,
         raft::device_span<vertex_t const>{random_sources_copy.data(), random_sources.size()},
         batch_number ? std::make_optional(raft::device_span<int32_t const>{batch_number->data(),
                                                                            batch_number->size()})
@@ -132,9 +134,13 @@ class Tests_Homogeneous_Biased_Neighbor_Sampling
         label_to_output_comm_rank_mapping,
         raft::host_span<int32_t const>(homogeneous_biased_neighbor_sampling_usecase.fanout.data(),
                                        homogeneous_biased_neighbor_sampling_usecase.fanout.size()),
-        rng_state,
-        true,
-        homogeneous_biased_neighbor_sampling_usecase.flag_replacement),
+        cugraph::sampling_flags_t{
+            cugraph::prior_sources_behavior_t{0},
+            true, // return_hops
+            false, // dedupe_sources
+            homogeneous_biased_neighbor_sampling_usecase.flag_replacement
+        }
+        ),
       std::exception);
 #else
     if (cugraph::test::g_perf) {

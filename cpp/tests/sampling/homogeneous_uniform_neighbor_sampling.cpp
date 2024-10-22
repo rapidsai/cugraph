@@ -121,6 +121,7 @@ class Tests_Homogeneous_Uniform_Neighbor_Sampling
     EXPECT_THROW(
       cugraph::homogeneous_uniform_neighbor_sample(
         handle,
+        rng_state,
         graph_view,
         edge_weight_view,
         std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
@@ -132,9 +133,13 @@ class Tests_Homogeneous_Uniform_Neighbor_Sampling
         label_to_output_comm_rank_mapping,
         raft::host_span<int32_t const>(homogeneous_uniform_neighbor_sampling_usecase.fanout.data(),
                                        homogeneous_uniform_neighbor_sampling_usecase.fanout.size()),
-        rng_state,
-        true,
-        homogeneous_uniform_neighbor_sampling_usecase.flag_replacement),
+        cugraph::sampling_flags_t{
+            cugraph::prior_sources_behavior_t{0},
+            true, // return_hops
+            false, // dedupe_sources
+            homogeneous_uniform_neighbor_sampling_usecase.flag_replacement
+        }
+        ),
       std::exception);
 #else
     if (cugraph::test::g_perf) {
