@@ -15,7 +15,8 @@ from __future__ import annotations
 
 from pylibcugraph import ResourceHandle
 from pylibcugraph import (
-    heterogeneous_biased_neighbor_sample as pylibcugraph_heterogeneous_biased_neighbor_sample,
+    heterogeneous_biased_neighbor_sample as \
+        pylibcugraph_heterogeneous_biased_neighbor_sample,
 )
 
 from cugraph.sampling.sampling_utilities import sampling_results_from_cupy_array_dict
