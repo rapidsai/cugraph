@@ -75,8 +75,6 @@ class Tests_Heterogeneous_Uniform_Neighbor_Sampling
     auto edge_weight_view =
       edge_weights ? std::make_optional((*edge_weights).view()) : std::nullopt;
 
-    std::optional<cugraph::edge_property_t<decltype(graph_view), bool>> edge_mask{std::nullopt};
-
     constexpr float select_probability{0.05};
 
     // FIXME:  Update the tests to initialize RngState and use it instead
