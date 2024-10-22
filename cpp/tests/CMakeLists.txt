@@ -768,6 +768,26 @@ if(BUILD_CUGRAPH_MG_TESTS)
     ConfigureTestMG(MG_UNIFORM_NEIGHBOR_SAMPLING_TEST sampling/mg_uniform_neighbor_sampling.cpp)
 
     ###############################################################################################
+    # - MG HOMOGENEOUS UNIFORM NBR SAMPLING tests -------------------------------------------------
+    ConfigureTestMG(
+        MG_HOMOGENEOUS_UNIFORM_NEIGHBOR_SAMPLING_TEST sampling/mg_homogeneous_uniform_neighbor_sampling.cpp)
+    
+    ###############################################################################################
+    # - MG HETEROGENEOUS UNIFORM NBR SAMPLING tests -------------------------------------------------
+    ConfigureTestMG(
+        MG_HETEROGENEOUS_UNIFORM_NEIGHBOR_SAMPLING_TEST sampling/mg_heterogeneous_uniform_neighbor_sampling.cpp)
+    
+    ###############################################################################################
+    # - MG HOMOGENEOUS BIASED NBR SAMPLING tests --------------------------------------------------
+    ConfigureTestMG(
+        MG_HOMOGENEOUS_BIASED_NEIGHBOR_SAMPLING_TEST sampling/mg_homogeneous_biased_neighbor_sampling.cpp)
+    
+    ###############################################################################################
+    # - MG HETEROGENEOUS BIASED NBR SAMPLING tests --------------------------------------------------
+    ConfigureTestMG(
+        MG_HETEROGENEOUS_BIASED_NEIGHBOR_SAMPLING_TEST sampling/mg_heterogeneous_biased_neighbor_sampling.cpp)
+
+    ###############################################################################################
     # - MG BIASED NBR SAMPLING tests --------------------------------------------------------------
     ConfigureTestMG(MG_BIASED_NEIGHBOR_SAMPLING_TEST sampling/mg_biased_neighbor_sampling.cpp)
 
