@@ -31,7 +31,7 @@ ENV PYTHONDONTWRITEBYTECODE="1"
 
 ENV SCCACHE_REGION="us-east-2"
 ENV SCCACHE_BUCKET="rapids-sccache-devs"
-ENV VAULT_HOST="https://vault.ops.k8s.rapids.ai"
+ENV AWS_ROLE_ARN="arn:aws:iam::279114543810:role/nv-gha-token-sccache-devs"
 ENV HISTFILE="/home/coder/.cache/._bash_history"
 
 # cugraph_pyg's setup.py needs this defined when building in a conda env
