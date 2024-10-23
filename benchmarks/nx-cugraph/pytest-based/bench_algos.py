@@ -37,6 +37,40 @@ rounds = 1
 iterations = 1
 warmup_rounds = 1
 
+# FIXME: Add this to cugraph.datasets.  This is done here so these benchmarks
+# can be run without requiring an updated cugraph install.  This temporarily
+# adds a dataset based on an Amazon product co-purchasing network.
+amazon0302_metadata = """
+name: amazon0302
+description:
+  Network was collected by crawling Amazon website. It is based on Customers Who Bought This Item Also Bought feature of the Amazon website. If a product i is frequently co-purchased with product j, the graph contains a directed edge from i to j. The data was collected in March 02 2003.
+author: J. Leskovec, L. Adamic and B. Adamic
+refs: J. Leskovec, L. Adamic and B. Adamic. The Dynamics of Viral Marketing. ACM Transactions on the Web (ACM TWEB), 1(1), 2007.
+delim: "\t"
+header: 3
+col_names:
+  - FromNodeId
+  - ToNodeId
+col_types:
+  - int32
+  - int32
+has_loop: false
+is_directed: true
+is_multigraph: false
+is_symmetric: false
+number_of_edges: 1234877
+number_of_nodes: 262111
+url: https://snap.stanford.edu/data/amazon0302.txt.gz
+"""
+amazon0302_metadata_file_name = datasets.default_download_dir.path / "amazon0302.yaml"
+if not amazon0302_metadata_file_name.exists():
+    amazon0302_metadata_file_name.parent.mkdir(parents=True, exist_ok=True)
+    with open(amazon0302_metadata_file_name, "w") as f:
+        f.write(amazon0302_metadata)
+
+amazon0302_dataset = datasets.Dataset(amazon0302_metadata_file_name)
+amazon0302_dataset.metadata["file_type"] = ".gz"
+
 dataset_param_values = [
     # name: karate, nodes: 34, edges: 156
     pytest.param(datasets.karate, marks=[pytest.mark.small, pytest.mark.undirected]),
@@ -46,6 +80,8 @@ dataset_param_values = [
     pytest.param(
         datasets.email_Eu_core, marks=[pytest.mark.small, pytest.mark.directed]
     ),
+    # name: amazon0302, nodes: 262111, edges: 1234877
+    pytest.param(amazon0302_dataset, marks=[pytest.mark.medium, pytest.mark.directed]),
     # name: cit-Patents, nodes: 3774768, edges: 16518948
     pytest.param(
         datasets.cit_patents, marks=[pytest.mark.medium, pytest.mark.directed]
@@ -113,19 +149,7 @@ def nx_graph_from_dataset(dataset_obj):
     """
     create_using = nx.DiGraph if dataset_obj.metadata["is_directed"] else nx.Graph
     names = dataset_obj.metadata["col_names"]
-    dtypes = dataset_obj.metadata["col_types"]
-    if isinstance(dataset_obj.metadata["header"], int):
-        header = dataset_obj.metadata["header"]
-    else:
-        header = None
-
-    pandas_edgelist = pd.read_csv(
-        dataset_obj.get_path(),
-        delimiter=dataset_obj.metadata["delim"],
-        names=names,
-        dtype=dict(zip(names, dtypes)),
-        header=header,
-    )
+    pandas_edgelist = dataset_obj.get_edgelist(download=True, reader="pandas")
     G = nx.from_pandas_edgelist(
         pandas_edgelist, source=names[0], target=names[1], create_using=create_using
     )
@@ -272,7 +296,7 @@ def bench_from_networkx(benchmark, graph_obj):
 
 # normalized_param_values = [True, False]
 normalized_param_values = [True]
-k_param_values = [10, 100, 1000]
+k_param_values = [10, 20, 50, 100, 500, 1000]
 
 
 @pytest.mark.parametrize(
@@ -281,7 +305,6 @@ k_param_values = [10, 100, 1000]
 @pytest.mark.parametrize("k", k_param_values, ids=lambda k: f"{k=}")
 def bench_betweenness_centrality(benchmark, graph_obj, backend_wrapper, normalized, k):
     G = get_graph_obj_for_benchmark(graph_obj, backend_wrapper)
-
     if k > G.number_of_nodes():
         pytest.skip(reason=f"{k=} > {G.number_of_nodes()=}")
 

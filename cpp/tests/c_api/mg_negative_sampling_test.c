@@ -203,7 +203,7 @@ int generic_negative_sampling_test(const cugraph_resource_handle_t* handle,
   cugraph_type_erased_device_array_free(d_src_bias);
   cugraph_type_erased_device_array_free(d_dst_bias);
   cugraph_coo_free(result);
-  cugraph_mg_graph_free(graph);
+  cugraph_graph_free(graph);
   cugraph_error_free(ret_error);
   return test_ret_value;
 }

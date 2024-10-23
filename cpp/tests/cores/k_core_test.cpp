@@ -134,11 +134,6 @@ TEST_P(Tests_KCore_Rmat, CheckInt32Int32)
   run_current_test<int32_t, int32_t>(override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
 }
 
-TEST_P(Tests_KCore_Rmat, CheckInt32Int64)
-{
-  run_current_test<int32_t, int64_t>(override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
-}
-
 TEST_P(Tests_KCore_Rmat, CheckInt64Int64)
 {
   run_current_test<int64_t, int64_t>(override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));

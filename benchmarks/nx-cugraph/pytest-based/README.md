@@ -10,6 +10,7 @@ Our current benchmarks provide the following datasets:
 | --------    | ------- | ------- | ------- |
 | netscience  | 1,461    | 5,484 | Yes |
 | email-Eu-core  | 1,005    | 25,571 | Yes |
+| amazon0302  | 262,111  | 1,234,877 | Yes |
 | cit-Patents  | 3,774,768    | 16,518,948 | Yes |
 | hollywood  | 1,139,905    | 57,515,616 | No |
 | soc-LiveJournal1  | 4,847,571    | 68,993,773 | Yes |
@@ -21,7 +22,9 @@ Our current benchmarks provide the following datasets:
 #### 1. `run-main-benchmarks.sh`
 This script allows users to run a small set of commonly-used algorithms across multiple datasets and backends. All results are stored inside a sub-directory (`logs/`) and output files are named based on the combination of parameters for that benchmark.
 
-NOTE: If running with all algorithms and datasets using NetworkX without an accelerated backend, this script may take a few hours to finish running.
+NOTE:
+ - If running with all algorithms and datasets using NetworkX without an accelerated backend, this script may take a few hours to finish running.
+ - The `betweenness_centrality` benchmark will run with values `[10, 20, 50, 100, 500, 1000]` by default. You can specify only specific k-values to be run by editing `bc_k_values` (line 46) to be passed as a [pytest keyword object](https://docs.pytest.org/en/6.2.x/usage.html#specifying-tests-selecting-tests).
 
 **Usage:**
  - Run with `--cpu-only`:
@@ -37,16 +40,8 @@ NOTE: If running with all algorithms and datasets using NetworkX without an acce
   ./run-main-benchmarks.sh
   ```
 
-#### 2. `get_graph_bench_dataset.py`
-This script downloads the specified dataset using `cugraph.datasets`.
-
-**Usage:**
-  ```bash
-  python get_graph_bench_dataset.py [dataset]
-  ```
-
-#### 3. `create_results_summary_page.py`
-This script is designed to be run after `run-gap-benchmarks.sh` in order to generate an HTML page displaying a results table comparing default NetworkX to nx-cugraph. The script also provides information about the current system, so it should be run on the machine on which benchmarks were run.
+#### 2. `create_results_summary_page.py`
+This script is designed to be run after `run-main-benchmarks.sh` in order to generate an HTML page displaying a results table comparing default NetworkX to nx-cugraph. The script also provides information about the current system, so it should be run on the machine on which benchmarks were run.
 
 **Usage:**
   ```bash

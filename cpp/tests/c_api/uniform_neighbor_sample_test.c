@@ -460,7 +460,7 @@ int generic_uniform_neighbor_sample_test(const cugraph_resource_handle_t* handle
   cugraph_sample_result_free(result);
 #endif
 
-  cugraph_sg_graph_free(graph);
+  cugraph_graph_free(graph);
   cugraph_error_free(ret_error);
   return test_ret_value;
 }
@@ -528,8 +528,9 @@ int create_test_graph_with_edge_ids(const cugraph_resource_handle_t* p_handle,
   ret_code = cugraph_type_erased_device_array_view_as_type(ids, weight_tid, &wgt_view, ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "wgt cast from ids failed.");
 
-  ret_code = cugraph_sg_graph_create(p_handle,
+  ret_code = cugraph_graph_create_sg(p_handle,
                                      &properties,
+                                     NULL,
                                      src_view,
                                      dst_view,
                                      wgt_view,
@@ -537,6 +538,9 @@ int create_test_graph_with_edge_ids(const cugraph_resource_handle_t* p_handle,
                                      NULL,
                                      store_transposed,
                                      renumber,
+                                     FALSE,
+                                     FALSE,
+                                     FALSE,
                                      FALSE,
                                      p_graph,
                                      ret_error);
@@ -766,7 +770,7 @@ int test_uniform_neighbor_sample_with_labels(const cugraph_resource_handle_t* ha
   cugraph_sampling_options_free(sampling_options);
 #endif
 
-  cugraph_sg_graph_free(graph);
+  cugraph_graph_free(graph);
   cugraph_error_free(ret_error);
 }
 
