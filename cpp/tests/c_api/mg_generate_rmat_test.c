@@ -109,9 +109,9 @@ int test_rmat_generation(const cugraph_resource_handle_t* handle)
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "rng_state create failed.");
   TEST_ALWAYS_ASSERT(ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
 
-  data_type_id_t vertex_tid = INT32;
-  data_type_id_t edge_tid   = INT32;
-  data_type_id_t weight_tid = FLOAT32;
+  cugraph_data_type_id_t vertex_tid = INT32;
+  cugraph_data_type_id_t edge_tid   = INT32;
+  cugraph_data_type_id_t weight_tid = FLOAT32;
 
   ret_code = cugraph_generate_rmat_edgelist(
     handle, rng_state, 5, 30, 0.57, 0.19, 0.19, FALSE, &coo, &ret_error);
@@ -342,9 +342,9 @@ int test_rmat_list_generation(const cugraph_resource_handle_t* handle)
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "rng_state create failed.");
   TEST_ALWAYS_ASSERT(ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
 
-  data_type_id_t vertex_tid = INT32;
-  data_type_id_t edge_tid   = INT32;
-  data_type_id_t weight_tid = FLOAT32;
+  cugraph_data_type_id_t vertex_tid = INT32;
+  cugraph_data_type_id_t edge_tid   = INT32;
+  cugraph_data_type_id_t weight_tid = FLOAT32;
 
   ret_code = cugraph_generate_rmat_edgelists(
     handle, rng_state, num_lists, 4, 6, 4, UNIFORM, POWER_LAW, FALSE, &coo_list, &ret_error);

@@ -202,8 +202,8 @@ int generic_personalized_pagerank_test(const cugraph_resource_handle_t* handle,
   cugraph_type_erased_device_array_view_t* personalization_vertices_view = NULL;
   cugraph_type_erased_device_array_view_t* personalization_values_view   = NULL;
 
-  data_type_id_t vertex_tid = INT32;
-  data_type_id_t weight_tid = FLOAT32;
+  cugraph_data_type_id_t vertex_tid = INT32;
+  cugraph_data_type_id_t weight_tid = FLOAT32;
 
   ret_code = create_mg_test_graph(
     handle, h_src, h_dst, h_wgt, num_edges, store_transposed, FALSE, &p_graph, &ret_error);
@@ -311,8 +311,8 @@ int generic_personalized_pagerank_nonconverging_test(const cugraph_resource_hand
   cugraph_type_erased_device_array_view_t* personalization_vertices_view = NULL;
   cugraph_type_erased_device_array_view_t* personalization_values_view   = NULL;
 
-  data_type_id_t vertex_tid = INT32;
-  data_type_id_t weight_tid = FLOAT32;
+  cugraph_data_type_id_t vertex_tid = INT32;
+  cugraph_data_type_id_t weight_tid = FLOAT32;
 
   ret_code = create_mg_test_graph(
     handle, h_src, h_dst, h_wgt, num_edges, store_transposed, FALSE, &p_graph, &ret_error);
