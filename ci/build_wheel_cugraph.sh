@@ -33,7 +33,6 @@ export PIP_NO_BUILD_ISOLATION=0
 
 PARALLEL_LEVEL=$(python -c \
   "from math import ceil; from multiprocessing import cpu_count; print(ceil(cpu_count()/4))")
-
 case "${RAPIDS_CUDA_VERSION}" in
   12.*)
     EXTRA_CMAKE_ARGS=";-DUSE_CUDA_MATH_WHEELS=ON"
