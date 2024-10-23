@@ -46,8 +46,7 @@ refine_clustering(
   rmm::device_uvector<typename graph_view_t::vertex_type>&& next_clusters_v,
   edge_src_property_t<graph_view_t, weight_t> const& src_vertex_weights_cache,
   edge_src_property_t<graph_view_t, typename graph_view_t::vertex_type> const& src_clusters_cache,
-  edge_dst_property_t<graph_view_t, typename graph_view_t::vertex_type> const& dst_clusters_cache,
-  bool up_down);
+  edge_dst_property_t<graph_view_t, typename graph_view_t::vertex_type> const& dst_clusters_cache);
 
 }
 }  // namespace cugraph

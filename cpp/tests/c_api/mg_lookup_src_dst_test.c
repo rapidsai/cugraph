@@ -206,7 +206,7 @@ int generic_lookup_src_dst_test(const cugraph_resource_handle_t* handle,
 
   cugraph_lookup_result_free(result);
 
-  cugraph_mg_graph_free(graph);
+  cugraph_graph_free(graph);
   cugraph_error_free(ret_error);
 
   return test_ret_value;

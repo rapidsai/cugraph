@@ -278,14 +278,6 @@ TEST_P(Tests_MGTransformE_Rmat, CheckInt32Int32FloatTupleIntFloatTransposeFalse)
     cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
 
-TEST_P(Tests_MGTransformE_Rmat, CheckInt32Int64FloatTupleIntFloatTransposeFalse)
-{
-  auto param = GetParam();
-  run_current_test<int32_t, int64_t, float, thrust::tuple<int, float>, false>(
-    std::get<0>(param),
-    cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
-}
-
 TEST_P(Tests_MGTransformE_Rmat, CheckInt64Int64FloatTupleIntFloatTransposeFalse)
 {
   auto param = GetParam();
@@ -305,14 +297,6 @@ TEST_P(Tests_MGTransformE_Rmat, CheckInt32Int32FloatTupleIntFloatTransposeTrue)
 {
   auto param = GetParam();
   run_current_test<int32_t, int32_t, float, thrust::tuple<int, float>, true>(
-    std::get<0>(param),
-    cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
-}
-
-TEST_P(Tests_MGTransformE_Rmat, CheckInt32Int64FloatTupleIntFloatTransposeTrue)
-{
-  auto param = GetParam();
-  run_current_test<int32_t, int64_t, float, thrust::tuple<int, float>, true>(
     std::get<0>(param),
     cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
@@ -339,14 +323,6 @@ TEST_P(Tests_MGTransformE_Rmat, CheckInt32Int32FloatIntTransposeFalse)
     cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
 
-TEST_P(Tests_MGTransformE_Rmat, CheckInt32Int64FloatIntTransposeFalse)
-{
-  auto param = GetParam();
-  run_current_test<int32_t, int64_t, float, int, false>(
-    std::get<0>(param),
-    cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
-}
-
 TEST_P(Tests_MGTransformE_Rmat, CheckInt64Int64FloatIntTransposeFalse)
 {
   auto param = GetParam();
@@ -365,14 +341,6 @@ TEST_P(Tests_MGTransformE_Rmat, CheckInt32Int32FloatIntTransposeTrue)
 {
   auto param = GetParam();
   run_current_test<int32_t, int32_t, float, int, true>(
-    std::get<0>(param),
-    cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
-}
-
-TEST_P(Tests_MGTransformE_Rmat, CheckInt32Int64FloatIntTransposeTrue)
-{
-  auto param = GetParam();
-  run_current_test<int32_t, int64_t, float, int, true>(
     std::get<0>(param),
     cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
@@ -399,14 +367,6 @@ TEST_P(Tests_MGTransformE_Rmat, CheckInt32Int32FloatBoolTransposeFalse)
     cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
 
-TEST_P(Tests_MGTransformE_Rmat, CheckInt32Int64FloatBoolTransposeFalse)
-{
-  auto param = GetParam();
-  run_current_test<int32_t, int64_t, float, bool, false>(
-    std::get<0>(param),
-    cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
-}
-
 TEST_P(Tests_MGTransformE_Rmat, CheckInt64Int64FloatBoolTransposeFalse)
 {
   auto param = GetParam();
@@ -425,14 +385,6 @@ TEST_P(Tests_MGTransformE_Rmat, CheckInt32Int32FloatBoolTransposeTrue)
 {
   auto param = GetParam();
   run_current_test<int32_t, int32_t, float, bool, true>(
-    std::get<0>(param),
-    cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
-}
-
-TEST_P(Tests_MGTransformE_Rmat, CheckInt32Int64FloatBoolTransposeTrue)
-{
-  auto param = GetParam();
-  run_current_test<int32_t, int64_t, float, bool, true>(
     std::get<0>(param),
     cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }

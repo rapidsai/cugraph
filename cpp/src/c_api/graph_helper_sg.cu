@@ -48,12 +48,6 @@ create_constant_edge_property(
   cugraph::graph_view_t<int32_t, int32_t, false, false> const& graph_view,
   float constant_value);
 
-template edge_property_t<cugraph::graph_view_t<int32_t, int64_t, false, false>, float>
-create_constant_edge_property(
-  raft::handle_t const& handle,
-  cugraph::graph_view_t<int32_t, int64_t, false, false> const& graph_view,
-  float constant_value);
-
 template edge_property_t<cugraph::graph_view_t<int64_t, int64_t, false, false>, float>
 create_constant_edge_property(
   raft::handle_t const& handle,
@@ -64,12 +58,6 @@ template edge_property_t<cugraph::graph_view_t<int32_t, int32_t, true, false>, f
 create_constant_edge_property(
   raft::handle_t const& handle,
   cugraph::graph_view_t<int32_t, int32_t, true, false> const& graph_view,
-  float constant_value);
-
-template edge_property_t<cugraph::graph_view_t<int32_t, int64_t, true, false>, float>
-create_constant_edge_property(
-  raft::handle_t const& handle,
-  cugraph::graph_view_t<int32_t, int64_t, true, false> const& graph_view,
   float constant_value);
 
 template edge_property_t<cugraph::graph_view_t<int64_t, int64_t, true, false>, float>
@@ -84,12 +72,6 @@ create_constant_edge_property(
   cugraph::graph_view_t<int32_t, int32_t, false, false> const& graph_view,
   double constant_value);
 
-template edge_property_t<cugraph::graph_view_t<int32_t, int64_t, false, false>, double>
-create_constant_edge_property(
-  raft::handle_t const& handle,
-  cugraph::graph_view_t<int32_t, int64_t, false, false> const& graph_view,
-  double constant_value);
-
 template edge_property_t<cugraph::graph_view_t<int64_t, int64_t, false, false>, double>
 create_constant_edge_property(
   raft::handle_t const& handle,
@@ -100,12 +82,6 @@ template edge_property_t<cugraph::graph_view_t<int32_t, int32_t, true, false>, d
 create_constant_edge_property(
   raft::handle_t const& handle,
   cugraph::graph_view_t<int32_t, int32_t, true, false> const& graph_view,
-  double constant_value);
-
-template edge_property_t<cugraph::graph_view_t<int32_t, int64_t, true, false>, double>
-create_constant_edge_property(
-  raft::handle_t const& handle,
-  cugraph::graph_view_t<int32_t, int64_t, true, false> const& graph_view,
   double constant_value);
 
 template edge_property_t<cugraph::graph_view_t<int64_t, int64_t, true, false>, double>
