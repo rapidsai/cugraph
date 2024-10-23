@@ -1,4 +1,4 @@
-# Copyright (c) 2022-2023, NVIDIA CORPORATION.
+# Copyright (c) 2022-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -107,16 +107,16 @@ cdef assert_AI_type(obj, var_name, allow_None=False):
         raise TypeError(msg)
 
 
-cdef get_numpy_type_from_c_type(data_type_id_t c_type):
-    if c_type == data_type_id_t.INT32:
+cdef get_numpy_type_from_c_type(cugraph_data_type_id_t c_type):
+    if c_type == cugraph_data_type_id_t.INT32:
         return numpy.int32
-    elif c_type == data_type_id_t.INT64:
+    elif c_type == cugraph_data_type_id_t.INT64:
         return numpy.int64
-    elif c_type == data_type_id_t.FLOAT32:
+    elif c_type == cugraph_data_type_id_t.FLOAT32:
         return numpy.float32
-    elif c_type == data_type_id_t.FLOAT64:
+    elif c_type == cugraph_data_type_id_t.FLOAT64:
         return numpy.float64
-    elif c_type == data_type_id_t.SIZE_T:
+    elif c_type == cugraph_data_type_id_t.SIZE_T:
         return numpy.int64
     else:
         raise RuntimeError("Internal error: got invalid data type enum value "
@@ -126,25 +126,25 @@ cdef get_numpy_type_from_c_type(data_type_id_t c_type):
 cdef get_c_type_from_numpy_type(numpy_type):
     dt = numpy.dtype(numpy_type)
     if dt == numpy.int32:
-        return data_type_id_t.INT32
+        return cugraph_data_type_id_t.INT32
     elif dt == numpy.int64:
-        return data_type_id_t.INT64
+        return cugraph_data_type_id_t.INT64
     elif dt == numpy.float32:
-        return data_type_id_t.FLOAT32
+        return cugraph_data_type_id_t.FLOAT32
     elif dt == numpy.float64:
-        return data_type_id_t.FLOAT64
+        return cugraph_data_type_id_t.FLOAT64
     else:
         raise RuntimeError("Internal error: got invalid data type enum value "
                           f"from Numpy: {numpy_type}")
 
 cdef get_c_weight_type_from_numpy_edge_ids_type(numpy_type):
     if numpy_type == numpy.int32:
-        return data_type_id_t.FLOAT32
+        return cugraph_data_type_id_t.FLOAT32
     else:
-        return data_type_id_t.FLOAT64
+        return cugraph_data_type_id_t.FLOAT64
 
-cdef get_numpy_edge_ids_type_from_c_weight_type(data_type_id_t c_weight_type):
-    if c_weight_type == data_type_id_t.FLOAT32:
+cdef get_numpy_edge_ids_type_from_c_weight_type(cugraph_data_type_id_t c_weight_type):
+    if c_weight_type == cugraph_data_type_id_t.FLOAT32:
         return numpy.int32
     else:
         return numpy.int64

@@ -15,7 +15,7 @@
 # cython: language_level = 3
 
 from pylibcugraph._cugraph_c.resource_handle cimport (
-    data_type_id_t,
+    cugraph_data_type_id_t,
     cugraph_resource_handle_t,
 )
 from pylibcugraph._cugraph_c.array cimport (
@@ -35,13 +35,13 @@ cdef assert_CAI_type(obj, var_name, allow_None=*)
 
 cdef assert_AI_type(obj, var_name, allow_None=*)
 
-cdef get_numpy_type_from_c_type(data_type_id_t c_type)
+cdef get_numpy_type_from_c_type(cugraph_data_type_id_t c_type)
 
 cdef get_c_type_from_numpy_type(numpy_type)
 
 cdef get_c_weight_type_from_numpy_edge_ids_type(numpy_type)
 
-cdef get_numpy_edge_ids_type_from_c_weight_type(data_type_id_t c_type)
+cdef get_numpy_edge_ids_type_from_c_weight_type(cugraph_data_type_id_t c_type)
 
 cdef copy_to_cupy_array(
    cugraph_resource_handle_t* c_resource_handle_ptr,

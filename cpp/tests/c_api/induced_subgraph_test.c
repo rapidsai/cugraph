@@ -57,8 +57,8 @@ int generic_induced_subgraph_test(vertex_t* h_src,
 
   cugraph_induced_subgraph_result_t* result = NULL;
 
-  data_type_id_t vertex_tid = INT32;
-  data_type_id_t size_t_tid = SIZE_T;
+  cugraph_data_type_id_t vertex_tid = INT32;
+  cugraph_data_type_id_t size_t_tid = SIZE_T;
 
   handle = cugraph_create_resource_handle(NULL);
   TEST_ASSERT(test_ret_value, handle != NULL, "resource handle creation failed.");

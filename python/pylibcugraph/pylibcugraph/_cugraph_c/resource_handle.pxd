@@ -23,14 +23,12 @@ cdef extern from "cugraph_c/resource_handle.h":
         FALSE
         TRUE
 
-    ctypedef enum data_type_id_t:
+    ctypedef enum cugraph_data_type_id_t:
         INT32
         INT64
         FLOAT32
         FLOAT64
         SIZE_T
-
-    ctypedef data_type_id_t cugraph_data_type_id_t
 
     ctypedef int8_t byte_t
 
