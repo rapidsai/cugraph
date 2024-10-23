@@ -17,6 +17,8 @@ cd "${package_dir}"
 
 sccache --zero-stats
 
+rapids-logger "Building '${package_name}' wheel"
+
 python -m pip wheel \
     -w dist \
     -v \

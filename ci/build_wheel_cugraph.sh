@@ -14,7 +14,7 @@ rapids-dependency-file-generator \
   --matrix "cuda=${RAPIDS_CUDA_VERSION%.*};arch=$(arch);py=${RAPIDS_PY_VERSION};cuda_suffixed=true" \
 | tee /tmp/requirements-build.txt
 
-# Download the pylibcugraph wheel built in the previous step and install it in the build environment.
+# Download the pylibcugraph wheel built in the previous step and ensure it gets installed the build environment.
 #
 # Ensures 'cugraph' wheel builds always use the 'pylibcugraph' just built in the same CI run.
 RAPIDS_PY_CUDA_SUFFIX="$(rapids-wheel-ctk-name-gen ${RAPIDS_CUDA_VERSION})"
