@@ -3,7 +3,7 @@
 
 set -euo pipefail
 
-package_name="pylibcugraph"
+package_name="cugraph"
 
 rapids-logger "Generating build requirements"
 
@@ -46,4 +46,4 @@ esac
 export SKBUILD_CMAKE_ARGS="-DDETECT_CONDA_ENV=OFF;-DFIND_CUGRAPH_CPP=OFF;-DCPM_cugraph-ops_SOURCE=${GITHUB_WORKSPACE}/cugraph-ops/${EXTRA_CMAKE_ARGS}"
 export SKBUILD_BUILD_TOOL_ARGS="-j${PARALLEL_LEVEL};-l${PARALLEL_LEVEL}"
 
-./ci/build_wheel.sh cugraph python/cugraph
+./ci/build_wheel.sh "${package_name}" python/cugraph
