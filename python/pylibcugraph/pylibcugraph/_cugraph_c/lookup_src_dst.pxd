@@ -72,3 +72,5 @@ cdef extern from "cugraph_c/lookup_src_dst.h":
         const cugraph_lookup_result_t* result)
 
     cdef void cugraph_lookup_result_free(cugraph_lookup_result_t* result)
+
+    cdef void cugraph_lookup_container_free(cugraph_lookup_container_t* container)
