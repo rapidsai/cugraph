@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2023, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -123,6 +123,27 @@ struct cugraph_type_erased_host_array_t {
   {
     data_ = std::make_unique<std::byte[]>(num_bytes_);
     std::copy(vec.begin(), vec.end(), reinterpret_cast<T*>(data_.get()));
+  }
+
+  cugraph_type_erased_host_array_t(cugraph_type_erased_host_array_view_t const* view_p)
+    : data_(std::make_unique<std::byte[]>(view_p->num_bytes_)),
+      size_(view_p->size_),
+      num_bytes_(view_p->num_bytes_),
+      type_(view_p->type_)
+  {
+    std::copy(view_p->data_, view_p->data_ + num_bytes_, data_.get());
+  }
+
+  template <typename T>
+  T* as_type()
+  {
+    return reinterpret_cast<T*>(data_.get());
+  }
+
+  template <typename T>
+  T const* as_type() const
+  {
+    return reinterpret_cast<T const*>(data_.get());
   }
 
   auto view()

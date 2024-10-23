@@ -36,8 +36,7 @@ shuffle_and_organize_output(
   std::optional<rmm::device_uvector<int32_t>>&& edge_types,
   std::optional<rmm::device_uvector<int32_t>>&& hops,
   std::optional<rmm::device_uvector<int32_t>>&& labels,
-  std::optional<std::tuple<raft::device_span<int32_t const>, raft::device_span<int32_t const>>>
-    label_to_output_comm_rank);
+  std::optional<raft::device_span<int32_t const>> label_to_output_comm_rank);
 
 template std::tuple<rmm::device_uvector<int64_t>,
                     rmm::device_uvector<int64_t>,
@@ -56,8 +55,7 @@ shuffle_and_organize_output(
   std::optional<rmm::device_uvector<int32_t>>&& edge_types,
   std::optional<rmm::device_uvector<int32_t>>&& hops,
   std::optional<rmm::device_uvector<int32_t>>&& labels,
-  std::optional<std::tuple<raft::device_span<int32_t const>, raft::device_span<int32_t const>>>
-    label_to_output_comm_rank);
+  std::optional<raft::device_span<int32_t const>> label_to_output_comm_rank);
 
 }  // namespace detail
 }  // namespace cugraph

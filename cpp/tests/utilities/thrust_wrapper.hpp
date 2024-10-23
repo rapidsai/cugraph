@@ -73,6 +73,11 @@ cugraph::dataframe_buffer_type_t<value_t> sequence(raft::handle_t const& handle,
                                                    size_t repeat_count,
                                                    value_t init);
 
+template <typename value_t>
+cugraph::dataframe_buffer_type_t<value_t> scalar_fill(raft::handle_t const& handle,
+                                                      size_t length,
+                                                      value_t value);
+
 // return (init + i) % modulo, where i = [0, length)
 template <typename value_t>
 cugraph::dataframe_buffer_type_t<value_t> modulo_sequence(raft::handle_t const& handle,
