@@ -14,23 +14,20 @@
 # Have cython use python 3 syntax
 # cython: language_level = 3
 
-cdef extern from "cugraph_c/resource_handle.h":
+from libc.stdint cimport int8_t
 
-    ctypedef struct cugraph_resource_handle_t:
-        pass
 
-    # FIXME: the void* raft_handle arg will change in a future release
-    cdef cugraph_resource_handle_t* \
-        cugraph_create_resource_handle(
-	    void* raft_handle
-	)
+cdef extern from "cugraph_c/types.h":
 
-    cdef int \
-        cugraph_resource_handle_get_rank(
-	    const cugraph_resource_handle_t* handle
-	)
+    ctypedef enum bool_t:
+        FALSE
+        TRUE
 
-    cdef void \
-        cugraph_free_resource_handle(
-            cugraph_resource_handle_t* p_handle
-        )
+    ctypedef enum cugraph_data_type_id_t:
+        INT32
+        INT64
+        FLOAT32
+        FLOAT64
+        SIZE_T
+
+    ctypedef int8_t byte_t
