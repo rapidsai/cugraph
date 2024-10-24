@@ -130,7 +130,7 @@ int generic_edge_betweenness_centrality_test(const cugraph_resource_handle_t* ha
   }
 
   cugraph_edge_centrality_result_free(result);
-  cugraph_mg_graph_free(graph);
+  cugraph_graph_free(graph);
   cugraph_error_free(ret_error);
 
   return test_ret_value;

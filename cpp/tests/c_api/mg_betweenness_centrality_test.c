@@ -118,7 +118,7 @@ int generic_betweenness_centrality_test(const cugraph_resource_handle_t* handle,
 
   cugraph_type_erased_device_array_view_free(seeds_view);
   cugraph_type_erased_device_array_free(seeds);
-  cugraph_mg_graph_free(p_graph);
+  cugraph_graph_free(p_graph);
   cugraph_error_free(ret_error);
 
   return test_ret_value;

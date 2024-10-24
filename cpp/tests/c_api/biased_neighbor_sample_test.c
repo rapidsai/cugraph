@@ -461,7 +461,7 @@ int generic_biased_neighbor_sample_test(const cugraph_resource_handle_t* handle,
   cugraph_sample_result_free(result);
 #endif
 
-  cugraph_sg_graph_free(graph);
+  cugraph_graph_free(graph);
   cugraph_error_free(ret_error);
   return test_ret_value;
 }
@@ -680,7 +680,7 @@ int test_biased_neighbor_sample_with_labels(const cugraph_resource_handle_t* han
   cugraph_sampling_options_free(sampling_options);
 #endif
 
-  cugraph_sg_graph_free(graph);
+  cugraph_graph_free(graph);
   cugraph_error_free(ret_error);
 }
 
