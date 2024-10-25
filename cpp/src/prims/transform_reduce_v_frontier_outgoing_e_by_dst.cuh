@@ -157,8 +157,8 @@ sort_and_reduce_buffer_elements(
   dataframe_buffer_type_t<input_key_t>&& key_buffer,
   optional_dataframe_buffer_type_t<payload_t>&& payload_buffer,
   ReduceOp reduce_op,
-  std::conditional_t<std::is_integral_v<key_t>, std::tuple<key_t, key_t>, std::byte /* dummy */>
-    vertex_range,
+  std::conditional_t<std::is_integral_v<key_t>, std::vector<key_t>, std::byte /* dummy */>
+    vertex_range_offsets,
   std::optional<input_key_t> invalid_key /* drop (key, (payload)) pairs with invalid key */)
 {
   constexpr bool compressed =
@@ -173,7 +173,7 @@ sort_and_reduce_buffer_elements(
                                 reduce_op::any<typename ReduceOp::value_type>>)) {  // try to use
                                                                                     // bitmap for
                                                                                     // filtering
-    key_t range_size = std::get<1>(vertex_range) - std::get<0>(vertex_range);
+    key_t range_size = vertex_range_offsets.back() - vertex_range_offsets.front();
     if (static_cast<double>(size_dataframe_buffer(key_buffer)) >=
         static_cast<double>(range_size) *
           0.125 /* tuning parameter */) {  // use bitmap for filtering
@@ -190,7 +190,7 @@ sort_and_reduce_buffer_elements(
                        update_keep_flag_t<decltype(get_dataframe_buffer_begin(key_buffer)), key_t>{
                          raft::device_span<uint32_t>(bitmap.data(), bitmap.size()),
                          raft::device_span<uint32_t>(keep_flags.data(), keep_flags.size()),
-                         std::get<0>(vertex_range),
+                         vertex_range_offsets.front(),
                          get_dataframe_buffer_begin(key_buffer),
                          to_thrust_optional(invalid_key)});
       auto stencil_first = thrust::make_transform_iterator(
@@ -245,7 +245,7 @@ sort_and_reduce_buffer_elements(
                           key_buffer.end(),
                           output_key_buffer.begin(),
                           cuda::proclaim_return_type<key_t>(
-                            [v_first = std::get<0>(vertex_range)] __device__(uint32_t v_offset) {
+                            [v_first = vertex_range_offsets.front()] __device__(uint32_t v_offset) {
                               return static_cast<key_t>(v_first + v_offset);
                             }));
         return std::make_tuple(std::move(output_key_buffer), std::move(payload_buffer));
@@ -274,7 +274,7 @@ sort_and_reduce_buffer_elements(
       auto input_key_first = thrust::make_transform_iterator(
         get_dataframe_buffer_begin(key_buffer),
         cuda::proclaim_return_type<key_t>(
-          [v_first = std::get<0>(vertex_range)] __device__(auto v_offset) {
+          [v_first = vertex_range_offsets.front()] __device__(auto v_offset) {
             return static_cast<key_t>(v_first + v_offset);
           }));
       resize_dataframe_buffer(
@@ -331,7 +331,7 @@ sort_and_reduce_buffer_elements(
       auto input_key_first = thrust::make_transform_iterator(
         get_dataframe_buffer_begin(key_buffer),
         cuda::proclaim_return_type<key_t>(
-          [v_first = std::get<0>(vertex_range)] __device__(auto v_offset) {
+          [v_first = vertex_range_offsets.front()] __device__(auto v_offset) {
             return static_cast<key_t>(v_first + v_offset);
           }));
       auto tmp_payload_buffer = allocate_dataframe_buffer<payload_t>(
@@ -430,7 +430,7 @@ sort_and_reduce_buffer_elements(
       auto input_key_first = thrust::make_transform_iterator(
         get_dataframe_buffer_begin(key_buffer),
         cuda::proclaim_return_type<key_t>(
-          [v_first = std::get<0>(vertex_range)] __device__(auto v_offset) {
+          [v_first = vertex_range_offsets.front()] __device__(auto v_offset) {
             return static_cast<key_t>(v_first + v_offset);
           }));
       thrust::reduce_by_key(handle.get_thrust_policy(),
@@ -531,20 +531,36 @@ transform_reduce_v_frontier_outgoing_e_by_dst(raft::handle_t const& handle,
 
   // 2. reduce the buffer
 
-  std::
-    conditional_t<std::is_integral_v<key_t>, std::tuple<vertex_t, vertex_t>, std::byte /* dummy */>
-      vertex_range{};
-  if constexpr (std::is_integral_v<key_t>) {
-    vertex_range = std::make_tuple(graph_view.local_edge_partition_dst_range_first(),
-                                   graph_view.local_edge_partition_dst_range_last());
+  std::vector<vertex_t> vertex_range_offsets{};
+  if constexpr (GraphViewType::is_multi_gpu) {
+    auto& major_comm           = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
+    auto const major_comm_rank = major_comm.get_rank();
+    auto const major_comm_size = major_comm.get_size();
+    auto& minor_comm           = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
+    auto const minor_comm_rank = minor_comm.get_rank();
+    auto const minor_comm_size = minor_comm.get_size();
+    vertex_range_offsets       = std::vector<vertex_t>(major_comm_size + 1);
+    for (int i = 0; i < major_comm_size; ++i) {
+      auto vertex_partition_id =
+        detail::compute_local_edge_partition_minor_range_vertex_partition_id_t{
+          major_comm_size, minor_comm_size, major_comm_rank, minor_comm_rank}(i);
+      vertex_range_offsets[i] = graph_view.vertex_partition_range_first(vertex_partition_id);
+    }
+    vertex_range_offsets.back() = graph_view.local_edge_partition_dst_range_last();
+  } else {
+    vertex_range_offsets = std::vector<vertex_t>{graph_view.local_edge_partition_dst_range_first(),
+                                                 graph_view.local_edge_partition_dst_range_last()};
   }
+  std::conditional_t<std::is_integral_v<key_t>, std::vector<key_t>, std::byte /* dummy */>
+    aux_range_offsets{};
+  if constexpr (std::is_integral_v<key_t>) { aux_range_offsets = vertex_range_offsets; }
   std::tie(key_buffer, payload_buffer) =
     detail::sort_and_reduce_buffer_elements<key_t, key_t, payload_t, ReduceOp>(
       handle,
       std::move(key_buffer),
       std::move(payload_buffer),
       reduce_op,
-      vertex_range,
+      aux_range_offsets,
       std::nullopt);
 #if TRANSFORM_REDUCE_PERFORMANCE_MEASUREMENT
   RAFT_CUDA_TRY(cudaDeviceSynchronize());
@@ -557,179 +573,190 @@ transform_reduce_v_frontier_outgoing_e_by_dst(raft::handle_t const& handle,
   bool aligned_path = false;  // FIXME: delete
   double fill_ratio = 0.0;    // FIXME: delete
   if constexpr (GraphViewType::is_multi_gpu) {
-    // FIXME: this step is unnecessary if major_comm_size== 1
     auto& major_comm           = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
-    auto const major_comm_rank = major_comm.get_rank();
     auto const major_comm_size = major_comm.get_size();
-    auto& minor_comm           = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
-    auto const minor_comm_rank = minor_comm.get_rank();
-    auto const minor_comm_size = minor_comm.get_size();
+    if (major_comm_size > 1) {
+      constexpr bool try_compression = (sizeof(vertex_t) == 8) && std::is_same_v<key_t, vertex_t>;
 
-    constexpr bool try_compression = (sizeof(vertex_t) == 8) && std::is_same_v<key_t, vertex_t>;
-
-    std::conditional_t<try_compression, vertex_t, std::byte /* dummy */> max_vertex_partition_size{
-      0};
-    std::conditional_t<try_compression, std::vector<vertex_t>, std::byte /* dummy */>
-      h_vertex_firsts{};
-    if constexpr (try_compression) { h_vertex_firsts = std::vector<vertex_t>(major_comm_size); }
-    std::vector<vertex_t> h_vertex_lasts(major_comm_size);
-    for (size_t i = 0; i < h_vertex_lasts.size(); ++i) {
-      auto vertex_partition_id =
-        detail::compute_local_edge_partition_minor_range_vertex_partition_id_t{
-          major_comm_size, minor_comm_size, major_comm_rank, minor_comm_rank}(i);
+      std::conditional_t<try_compression, vertex_t, std::byte /* dummy */>
+        max_vertex_partition_size{0};
+      std::conditional_t<try_compression, std::vector<vertex_t>, std::byte /* dummy */>
+        h_vertex_firsts{};
       if constexpr (try_compression) {
-        max_vertex_partition_size = std::max(
-          graph_view.vertex_partition_range_size(vertex_partition_id), max_vertex_partition_size);
-        h_vertex_firsts[i] = graph_view.vertex_partition_range_first(vertex_partition_id);
+        h_vertex_firsts = std::vector<vertex_t>(vertex_range_offsets.begin(),
+                                                vertex_range_offsets.begin() + major_comm_size);
       }
-      h_vertex_lasts[i] = graph_view.vertex_partition_range_last(vertex_partition_id);
-    }
+      std::vector<vertex_t> h_vertex_lasts(vertex_range_offsets.begin() + 1,
+                                           vertex_range_offsets.end());
+      for (size_t i = 0; i < h_vertex_lasts.size(); ++i) {
+        if constexpr (try_compression) {
+          max_vertex_partition_size = std::max(
+            vertex_range_offsets[i + 1] - vertex_range_offsets[i], max_vertex_partition_size);
+        }
+      }
 
-    std::conditional_t<try_compression,
-                       std::optional<rmm::device_uvector<vertex_t>>,
-                       std::byte /* dummy */>
-      d_vertex_firsts{};
-    rmm::device_uvector<vertex_t> d_vertex_lasts(h_vertex_lasts.size(), handle.get_stream());
-    if constexpr (try_compression) {
-      if (max_vertex_partition_size <= std::numeric_limits<uint32_t>::max()) {
-        d_vertex_firsts =
-          rmm::device_uvector<vertex_t>(h_vertex_firsts.size(), handle.get_stream());
-        raft::update_device((*d_vertex_firsts).data(),
-                            h_vertex_firsts.data(),
-                            h_vertex_firsts.size(),
-                            handle.get_stream());
+      std::conditional_t<try_compression,
+                         std::optional<rmm::device_uvector<vertex_t>>,
+                         std::byte /* dummy */>
+        d_vertex_firsts{};
+      rmm::device_uvector<vertex_t> d_vertex_lasts(h_vertex_lasts.size(), handle.get_stream());
+      if constexpr (try_compression) {
+        if (max_vertex_partition_size <= std::numeric_limits<uint32_t>::max()) {
+          d_vertex_firsts =
+            rmm::device_uvector<vertex_t>(h_vertex_firsts.size(), handle.get_stream());
+          raft::update_device((*d_vertex_firsts).data(),
+                              h_vertex_firsts.data(),
+                              h_vertex_firsts.size(),
+                              handle.get_stream());
+        }
       }
-    }
-    raft::update_device(
-      d_vertex_lasts.data(), h_vertex_lasts.data(), h_vertex_lasts.size(), handle.get_stream());
-    rmm::device_uvector<edge_t> d_tx_buffer_last_boundaries(d_vertex_lasts.size(),
-                                                            handle.get_stream());
-    auto reduce_by_first =
-      thrust_tuple_get_or_identity<decltype(get_dataframe_buffer_begin(key_buffer)), 0>(
-        get_dataframe_buffer_begin(key_buffer));
-    thrust::lower_bound(handle.get_thrust_policy(),
-                        reduce_by_first,
-                        reduce_by_first + size_dataframe_buffer(key_buffer),
-                        d_vertex_lasts.begin(),
-                        d_vertex_lasts.end(),
-                        d_tx_buffer_last_boundaries.begin());
-    std::conditional_t<try_compression,
-                       std::optional<rmm::device_uvector<uint32_t>>,
-                       std::byte /* dummy */>
-      compressed_v_buffer{};
-    if constexpr (try_compression) {
-      if (d_vertex_firsts) {
-        compressed_v_buffer =
-          rmm::device_uvector<uint32_t>(size_dataframe_buffer(key_buffer), handle.get_stream());
-        thrust::transform(handle.get_thrust_policy(),
-                          get_dataframe_buffer_begin(key_buffer),
-                          get_dataframe_buffer_end(key_buffer),
-                          (*compressed_v_buffer).begin(),
-                          cuda::proclaim_return_type<uint32_t>(
-                            [firsts = raft::device_span<vertex_t const>((*d_vertex_firsts).data(),
-                                                                        (*d_vertex_firsts).size()),
-                             lasts  = raft::device_span<vertex_t const>(
-                               d_vertex_lasts.data(), d_vertex_lasts.size())] __device__(auto v) {
-                              auto major_comm_rank = thrust::distance(
-                                lasts.begin(),
-                                thrust::upper_bound(thrust::seq, lasts.begin(), lasts.end(), v));
-                              return static_cast<uint32_t>(v - firsts[major_comm_rank]);
-                            }));
-        resize_dataframe_buffer(key_buffer, 0, handle.get_stream());
-        shrink_to_fit_dataframe_buffer(key_buffer, handle.get_stream());
+      raft::update_device(
+        d_vertex_lasts.data(), h_vertex_lasts.data(), h_vertex_lasts.size(), handle.get_stream());
+      rmm::device_uvector<edge_t> d_tx_buffer_last_boundaries(d_vertex_lasts.size(),
+                                                              handle.get_stream());
+      auto key_v_first =
+        thrust_tuple_get_or_identity<decltype(get_dataframe_buffer_begin(key_buffer)), 0>(
+          get_dataframe_buffer_begin(key_buffer));
+      thrust::lower_bound(handle.get_thrust_policy(),
+                          key_v_first,
+                          key_v_first + size_dataframe_buffer(key_buffer),
+                          d_vertex_lasts.begin(),
+                          d_vertex_lasts.end(),
+                          d_tx_buffer_last_boundaries.begin());
+      std::conditional_t<try_compression,
+                         std::optional<rmm::device_uvector<uint32_t>>,
+                         std::byte /* dummy */>
+        compressed_v_buffer{};
+      if constexpr (try_compression) {
+        if (d_vertex_firsts) {
+          compressed_v_buffer =
+            rmm::device_uvector<uint32_t>(size_dataframe_buffer(key_buffer), handle.get_stream());
+          thrust::transform(handle.get_thrust_policy(),
+                            get_dataframe_buffer_begin(key_buffer),
+                            get_dataframe_buffer_end(key_buffer),
+                            (*compressed_v_buffer).begin(),
+                            cuda::proclaim_return_type<uint32_t>(
+                              [firsts = raft::device_span<vertex_t const>(
+                                 (*d_vertex_firsts).data(), (*d_vertex_firsts).size()),
+                               lasts = raft::device_span<vertex_t const>(
+                                 d_vertex_lasts.data(), d_vertex_lasts.size())] __device__(auto v) {
+                                auto major_comm_rank = thrust::distance(
+                                  lasts.begin(),
+                                  thrust::upper_bound(thrust::seq, lasts.begin(), lasts.end(), v));
+                                return static_cast<uint32_t>(v - firsts[major_comm_rank]);
+                              }));
+          resize_dataframe_buffer(key_buffer, 0, handle.get_stream());
+          shrink_to_fit_dataframe_buffer(key_buffer, handle.get_stream());
+        }
       }
-    }
-    std::vector<edge_t> h_tx_buffer_last_boundaries(d_tx_buffer_last_boundaries.size());
-    raft::update_host(h_tx_buffer_last_boundaries.data(),
-                      d_tx_buffer_last_boundaries.data(),
-                      d_tx_buffer_last_boundaries.size(),
-                      handle.get_stream());
-    handle.sync_stream();
-    std::vector<size_t> tx_counts(h_tx_buffer_last_boundaries.size());
-    std::adjacent_difference(
-      h_tx_buffer_last_boundaries.begin(), h_tx_buffer_last_boundaries.end(), tx_counts.begin());
+      std::vector<edge_t> h_tx_buffer_last_boundaries(d_tx_buffer_last_boundaries.size());
+      raft::update_host(h_tx_buffer_last_boundaries.data(),
+                        d_tx_buffer_last_boundaries.data(),
+                        d_tx_buffer_last_boundaries.size(),
+                        handle.get_stream());
+      handle.sync_stream();
+      std::vector<size_t> tx_counts(h_tx_buffer_last_boundaries.size());
+      std::adjacent_difference(
+        h_tx_buffer_last_boundaries.begin(), h_tx_buffer_last_boundaries.end(), tx_counts.begin());
 
 #if TRANSFORM_REDUCE_PERFORMANCE_MEASUREMENT
-    RAFT_CUDA_TRY(cudaDeviceSynchronize());
-    time3 = std::chrono::steady_clock::now();
+      RAFT_CUDA_TRY(cudaDeviceSynchronize());
+      time3 = std::chrono::steady_clock::now();
 #endif
-    size_t min_element_size{cache_line_size};
-    if constexpr (std::is_same_v<key_t, vertex_t>) {
-      if constexpr (try_compression) {
-        if (compressed_v_buffer) {
-          min_element_size = std::min(sizeof(uint32_t), min_element_size);
+      size_t min_element_size{cache_line_size};
+      if constexpr (std::is_same_v<key_t, vertex_t>) {
+        if constexpr (try_compression) {
+          if (compressed_v_buffer) {
+            min_element_size = std::min(sizeof(uint32_t), min_element_size);
+          } else {
+            min_element_size = std::min(sizeof(key_t), min_element_size);
+          }
         } else {
           min_element_size = std::min(sizeof(key_t), min_element_size);
         }
       } else {
-        min_element_size = std::min(sizeof(key_t), min_element_size);
+        static_assert(is_thrust_tuple_of_arithmetic<key_t>::value);
+        min_element_size =
+          std::min(cugraph::min_thrust_tuple_element_sizes<key_t>(), min_element_size);
       }
-    } else {
-      static_assert(is_thrust_tuple_of_arithmetic<key_t>::value);
-      min_element_size =
-        std::min(cugraph::min_thrust_tuple_element_sizes<key_t>(), min_element_size);
-    }
-    if constexpr (!std::is_same_v<payload_t, void>) {
-      if constexpr (std::is_arithmetic_v<payload_t>) {
-        min_element_size = std::min(sizeof(payload_t), min_element_size);
-      } else {
-        static_assert(is_thrust_tuple_of_arithmetic<payload_t>::value);
-        min_element_size = std::min(min_thrust_tuple_element_sizes<payload_t>(), min_element_size);
+      if constexpr (!std::is_same_v<payload_t, void>) {
+        if constexpr (std::is_arithmetic_v<payload_t>) {
+          min_element_size = std::min(sizeof(payload_t), min_element_size);
+        } else {
+          static_assert(is_thrust_tuple_of_arithmetic<payload_t>::value);
+          min_element_size =
+            std::min(min_thrust_tuple_element_sizes<payload_t>(), min_element_size);
+        }
       }
-    }
-    assert((cache_line_size % min_element_size) == 0);
-    auto alignment = cache_line_size / min_element_size;
-    std::optional<std::conditional_t<try_compression, std::variant<key_t, uint32_t>, key_t>>
-      invalid_key{std::nullopt};
+      assert((cache_line_size % min_element_size) == 0);
+      auto alignment = cache_line_size / min_element_size;
+      std::optional<std::conditional_t<try_compression, std::variant<key_t, uint32_t>, key_t>>
+        invalid_key{std::nullopt};
 
-    size_t local_key_buffer_size{};
-    if constexpr (try_compression) {
-      if (compressed_v_buffer) {
-        local_key_buffer_size = size_dataframe_buffer(*compressed_v_buffer);
+      size_t local_key_buffer_size{};
+      if constexpr (try_compression) {
+        if (compressed_v_buffer) {
+          local_key_buffer_size = size_dataframe_buffer(*compressed_v_buffer);
+        } else {
+          local_key_buffer_size = size_dataframe_buffer(key_buffer);
+        }
       } else {
         local_key_buffer_size = size_dataframe_buffer(key_buffer);
       }
-    } else {
-      local_key_buffer_size = size_dataframe_buffer(key_buffer);
-    }
-    auto avg_key_buffer_size =
-      host_scalar_allreduce(
-        major_comm, local_key_buffer_size, raft::comms::op_t::SUM, handle.get_stream()) /
-      major_comm_size;
-    if (avg_key_buffer_size >= alignment * size_t{128} /* 128 tuning parameter */) {
-      aligned_path = true;  // FIXME: delete
-      if constexpr (std::is_same_v<key_t, vertex_t>) {
-        if constexpr (try_compression) {
-          if (compressed_v_buffer) {
-            invalid_key = std::numeric_limits<uint32_t>::max();
+      auto avg_key_buffer_size =
+        host_scalar_allreduce(
+          major_comm, local_key_buffer_size, raft::comms::op_t::SUM, handle.get_stream()) /
+        major_comm_size;
+      if (avg_key_buffer_size >= alignment * size_t{128} /* 128 tuning parameter */) {
+        aligned_path = true;  // FIXME: delete
+        if constexpr (std::is_same_v<key_t, vertex_t>) {
+          if constexpr (try_compression) {
+            if (compressed_v_buffer) {
+              invalid_key = std::numeric_limits<uint32_t>::max();
+            } else {
+              invalid_key = invalid_vertex_id_v<vertex_t>;
+            }
           } else {
             invalid_key = invalid_vertex_id_v<vertex_t>;
           }
         } else {
-          invalid_key = invalid_vertex_id_v<vertex_t>;
+          invalid_key                  = key_t{};
+          thrust::get<0>(*invalid_key) = invalid_vertex_id_v<vertex_t>;
         }
-      } else {
-        invalid_key                  = key_t{};
-        thrust::get<0>(*invalid_key) = invalid_vertex_id_v<vertex_t>;
-      }
 
-      if constexpr (try_compression) {
-        if (compressed_v_buffer) {
-          auto rx_compressed_v_buffer =
-            allocate_dataframe_buffer<uint32_t>(size_t{0}, handle.get_stream());
-          std::tie(rx_compressed_v_buffer,
-                   std::ignore,
-                   std::ignore,
-                   std::ignore,
-                   std::ignore,
-                   std::ignore,
-                   std::ignore) = shuffle_values(major_comm,
-                                                 get_dataframe_buffer_begin(*compressed_v_buffer),
-                                                 tx_counts,
-                                                 alignment,
-                                                 std::make_optional(std::get<1>(*invalid_key)),
-                                                 handle.get_stream());
-          compressed_v_buffer   = std::move(rx_compressed_v_buffer);
+        if constexpr (try_compression) {
+          if (compressed_v_buffer) {
+            auto rx_compressed_v_buffer =
+              allocate_dataframe_buffer<uint32_t>(size_t{0}, handle.get_stream());
+            std::tie(rx_compressed_v_buffer,
+                     std::ignore,
+                     std::ignore,
+                     std::ignore,
+                     std::ignore,
+                     std::ignore,
+                     std::ignore) = shuffle_values(major_comm,
+                                                   get_dataframe_buffer_begin(*compressed_v_buffer),
+                                                   tx_counts,
+                                                   alignment,
+                                                   std::make_optional(std::get<1>(*invalid_key)),
+                                                   handle.get_stream());
+            compressed_v_buffer   = std::move(rx_compressed_v_buffer);
+          } else {
+            auto rx_key_buffer = allocate_dataframe_buffer<key_t>(size_t{0}, handle.get_stream());
+            std::tie(rx_key_buffer,
+                     std::ignore,
+                     std::ignore,
+                     std::ignore,
+                     std::ignore,
+                     std::ignore,
+                     std::ignore) = shuffle_values(major_comm,
+                                                   get_dataframe_buffer_begin(key_buffer),
+                                                   tx_counts,
+                                                   alignment,
+                                                   std::make_optional(std::get<0>(*invalid_key)),
+                                                   handle.get_stream());
+            key_buffer            = std::move(rx_key_buffer);
+          }
         } else {
           auto rx_key_buffer    = allocate_dataframe_buffer<key_t>(size_t{0}, handle.get_stream());
           std::tie(rx_key_buffer,
@@ -742,100 +769,108 @@ transform_reduce_v_frontier_outgoing_e_by_dst(raft::handle_t const& handle,
                                                  get_dataframe_buffer_begin(key_buffer),
                                                  tx_counts,
                                                  alignment,
-                                                 std::make_optional(std::get<0>(*invalid_key)),
+                                                 invalid_key,
                                                  handle.get_stream());
           key_buffer            = std::move(rx_key_buffer);
         }
+        if constexpr (!std::is_same_v<payload_t, void>) {
+          auto rx_payload_buffer =
+            allocate_dataframe_buffer<payload_t>(size_t{0}, handle.get_stream());
+          std::tie(rx_payload_buffer,
+                   std::ignore,
+                   std::ignore,
+                   std::ignore,
+                   std::ignore,
+                   std::ignore,
+                   std::ignore) = shuffle_values(major_comm,
+                                                 get_dataframe_buffer_begin(payload_buffer),
+                                                 tx_counts,
+                                                 alignment,
+                                                 std::nullopt,
+                                                 handle.get_stream());
+          payload_buffer        = std::move(rx_payload_buffer);
+        }
       } else {
-        auto rx_key_buffer    = allocate_dataframe_buffer<key_t>(size_t{0}, handle.get_stream());
-        std::tie(rx_key_buffer,
-                 std::ignore,
-                 std::ignore,
-                 std::ignore,
-                 std::ignore,
-                 std::ignore,
-                 std::ignore) = shuffle_values(major_comm,
-                                               get_dataframe_buffer_begin(key_buffer),
-                                               tx_counts,
-                                               alignment,
-                                               invalid_key,
-                                               handle.get_stream());
-        key_buffer            = std::move(rx_key_buffer);
-      }
-      if constexpr (!std::is_same_v<payload_t, void>) {
-        auto rx_payload_buffer =
-          allocate_dataframe_buffer<payload_t>(size_t{0}, handle.get_stream());
-        std::tie(rx_payload_buffer,
-                 std::ignore,
-                 std::ignore,
-                 std::ignore,
-                 std::ignore,
-                 std::ignore,
-                 std::ignore) = shuffle_values(major_comm,
-                                               get_dataframe_buffer_begin(payload_buffer),
-                                               tx_counts,
-                                               alignment,
-                                               std::nullopt,
-                                               handle.get_stream());
-        payload_buffer        = std::move(rx_payload_buffer);
-      }
-    } else {
-      if constexpr (try_compression) {
-        if (compressed_v_buffer) {
-          auto rx_compressed_v_buffer =
-            allocate_dataframe_buffer<uint32_t>(size_t{0}, handle.get_stream());
-          std::tie(rx_compressed_v_buffer, std::ignore) =
-            shuffle_values(major_comm,
-                           get_dataframe_buffer_begin(*compressed_v_buffer),
-                           tx_counts,
-                           handle.get_stream());
-          compressed_v_buffer = std::move(rx_compressed_v_buffer);
+        if constexpr (try_compression) {
+          if (compressed_v_buffer) {
+            auto rx_compressed_v_buffer =
+              allocate_dataframe_buffer<uint32_t>(size_t{0}, handle.get_stream());
+            std::tie(rx_compressed_v_buffer, std::ignore) =
+              shuffle_values(major_comm,
+                             get_dataframe_buffer_begin(*compressed_v_buffer),
+                             tx_counts,
+                             handle.get_stream());
+            compressed_v_buffer = std::move(rx_compressed_v_buffer);
+          } else {
+            auto rx_key_buffer = allocate_dataframe_buffer<key_t>(size_t{0}, handle.get_stream());
+            std::tie(rx_key_buffer, std::ignore) = shuffle_values(
+              major_comm, get_dataframe_buffer_begin(key_buffer), tx_counts, handle.get_stream());
+            key_buffer = std::move(rx_key_buffer);
+          }
         } else {
           auto rx_key_buffer = allocate_dataframe_buffer<key_t>(size_t{0}, handle.get_stream());
           std::tie(rx_key_buffer, std::ignore) = shuffle_values(
             major_comm, get_dataframe_buffer_begin(key_buffer), tx_counts, handle.get_stream());
           key_buffer = std::move(rx_key_buffer);
         }
-      } else {
-        auto rx_key_buffer = allocate_dataframe_buffer<key_t>(size_t{0}, handle.get_stream());
-        std::tie(rx_key_buffer, std::ignore) = shuffle_values(
-          major_comm, get_dataframe_buffer_begin(key_buffer), tx_counts, handle.get_stream());
-        key_buffer = std::move(rx_key_buffer);
-      }
 
-      if constexpr (!std::is_same_v<payload_t, void>) {
-        auto rx_payload_buffer =
-          allocate_dataframe_buffer<payload_t>(size_t{0}, handle.get_stream());
-        std::tie(rx_payload_buffer, std::ignore) = shuffle_values(
-          major_comm, get_dataframe_buffer_begin(payload_buffer), tx_counts, handle.get_stream());
-        payload_buffer = std::move(rx_payload_buffer);
+        if constexpr (!std::is_same_v<payload_t, void>) {
+          auto rx_payload_buffer =
+            allocate_dataframe_buffer<payload_t>(size_t{0}, handle.get_stream());
+          std::tie(rx_payload_buffer, std::ignore) = shuffle_values(
+            major_comm, get_dataframe_buffer_begin(payload_buffer), tx_counts, handle.get_stream());
+          payload_buffer = std::move(rx_payload_buffer);
+        }
       }
-    }
 #if TRANSFORM_REDUCE_PERFORMANCE_MEASUREMENT
-    RAFT_CUDA_TRY(cudaDeviceSynchronize());
-    time4               = std::chrono::steady_clock::now();
+      RAFT_CUDA_TRY(cudaDeviceSynchronize());
+      time4 = std::chrono::steady_clock::now();
 #endif
 
-    if constexpr (std::is_integral_v<key_t>) {
-      vertex_range = std::make_tuple(graph_view.local_vertex_partition_range_first(),
-                                     graph_view.local_vertex_partition_range_last());
-      fill_ratio   = static_cast<double>(size_dataframe_buffer(key_buffer)) /
-                   static_cast<double>(std::get<1>(vertex_range) -
-                                       std::get<0>(vertex_range));  // FIXME: delete
-    }
-    if constexpr (try_compression) {
-      if (compressed_v_buffer) {
-#if TRANSFORM_REDUCE_PERFORMANCE_MEASUREMENT
-        size_before_greduce = size_dataframe_buffer(*compressed_v_buffer);  // FIXME: delete
+      if constexpr (std::is_integral_v<key_t>) {
+        aux_range_offsets = std::vector<key_t>{graph_view.local_vertex_partition_range_first(),
+                                               graph_view.local_vertex_partition_range_last()};
+#if 1  // FIXME: delete
+        size_t key_buffer_size{};
+        if constexpr (try_compression) {
+          if (compressed_v_buffer) {
+            key_buffer_size = (*compressed_v_buffer).size();
+          } else {
+            key_buffer_size = size_dataframe_buffer(key_buffer);
+          }
+        } else {
+          key_buffer_size = size_dataframe_buffer(key_buffer);
+        }
+        fill_ratio = static_cast<double>(key_buffer_size) /
+                     static_cast<double>(aux_range_offsets.back() - aux_range_offsets.front());
 #endif
-        std::tie(key_buffer, payload_buffer) =
-          detail::sort_and_reduce_buffer_elements<uint32_t, key_t, payload_t, ReduceOp>(
-            handle,
-            std::move(*compressed_v_buffer),
-            std::move(payload_buffer),
-            reduce_op,
-            vertex_range,
-            invalid_key ? std::make_optional(std::get<1>(*invalid_key)) : std::nullopt);
+      }
+      if constexpr (try_compression) {
+        if (compressed_v_buffer) {
+#if TRANSFORM_REDUCE_PERFORMANCE_MEASUREMENT
+          size_before_greduce = size_dataframe_buffer(*compressed_v_buffer);  // FIXME: delete
+#endif
+          std::tie(key_buffer, payload_buffer) =
+            detail::sort_and_reduce_buffer_elements<uint32_t, key_t, payload_t, ReduceOp>(
+              handle,
+              std::move(*compressed_v_buffer),
+              std::move(payload_buffer),
+              reduce_op,
+              aux_range_offsets,
+              invalid_key ? std::make_optional(std::get<1>(*invalid_key)) : std::nullopt);
+        } else {
+#if TRANSFORM_REDUCE_PERFORMANCE_MEASUREMENT
+          size_before_greduce = size_dataframe_buffer(key_buffer);  // FIXME: delete
+#endif
+          std::tie(key_buffer, payload_buffer) =
+            detail::sort_and_reduce_buffer_elements<key_t, key_t, payload_t, ReduceOp>(
+              handle,
+              std::move(key_buffer),
+              std::move(payload_buffer),
+              reduce_op,
+              aux_range_offsets,
+              invalid_key ? std::make_optional(std::get<0>(*invalid_key)) : std::nullopt);
+        }
       } else {
 #if TRANSFORM_REDUCE_PERFORMANCE_MEASUREMENT
         size_before_greduce = size_dataframe_buffer(key_buffer);  // FIXME: delete
@@ -846,21 +881,9 @@ transform_reduce_v_frontier_outgoing_e_by_dst(raft::handle_t const& handle,
             std::move(key_buffer),
             std::move(payload_buffer),
             reduce_op,
-            vertex_range,
-            invalid_key ? std::make_optional(std::get<0>(*invalid_key)) : std::nullopt);
+            aux_range_offsets,
+            invalid_key);
       }
-    } else {
-#if TRANSFORM_REDUCE_PERFORMANCE_MEASUREMENT
-      size_before_greduce = size_dataframe_buffer(key_buffer);  // FIXME: delete
-#endif
-      std::tie(key_buffer, payload_buffer) =
-        detail::sort_and_reduce_buffer_elements<key_t, key_t, payload_t, ReduceOp>(
-          handle,
-          std::move(key_buffer),
-          std::move(payload_buffer),
-          reduce_op,
-          vertex_range,
-          invalid_key);
     }
   }
 #if TRANSFORM_REDUCE_PERFORMANCE_MEASUREMENT

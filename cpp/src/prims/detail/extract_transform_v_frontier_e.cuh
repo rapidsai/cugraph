@@ -750,14 +750,18 @@ extract_transform_v_frontier_e(raft::handle_t const& handle,
     }
     auto segment_offsets = graph_view.local_edge_partition_segment_offsets(partition_idx);
     if (segment_offsets) {
-      key_segment_offsets = compute_key_segment_offsets(
-        frontier_key_first,
-        frontier_key_last,
-        raft::host_span<vertex_t const>((*segment_offsets).data(), (*segment_offsets).size()),
-        graph_view.local_vertex_partition_range_first(),
-        handle.get_stream());
-      (*key_segment_offsets).back() = *((*key_segment_offsets).rbegin() + 1);
-      frontier_key_last             = frontier_key_first + (*key_segment_offsets).back();
+      if (thrust::distance(frontier_key_first, frontier_key_last) > 0) {
+        key_segment_offsets = compute_key_segment_offsets(
+          frontier_key_first,
+          frontier_key_last,
+          raft::host_span<vertex_t const>((*segment_offsets).data(), (*segment_offsets).size()),
+          graph_view.local_vertex_partition_range_first(),
+          handle.get_stream());
+        (*key_segment_offsets).back() = *((*key_segment_offsets).rbegin() + 1);
+        frontier_key_last             = frontier_key_first + (*key_segment_offsets).back();
+      } else {
+        key_segment_offsets = std::vector<size_t>((*segment_offsets).size(), 0);
+      }
     }
   }
 
@@ -931,10 +935,16 @@ extract_transform_v_frontier_e(raft::handle_t const& handle,
           (range_size > 0) ? (num_keys / static_cast<double>(range_size)) : double{0.0};
       }
       avg_fill_ratio /= static_cast<double>(minor_comm_size);
-
       constexpr double threshold_ratio =
         8.0 /* tuning parameter */ / static_cast<double>(sizeof(vertex_t) * 8);
-      if (avg_fill_ratio > threshold_ratio) {
+      auto avg_frontier_size =
+        std::reduce(local_frontier_sizes.begin(), local_frontier_sizes.end()) /
+        static_cast<vertex_t>(minor_comm_size);
+
+      if ((avg_fill_ratio > threshold_ratio) &&
+          (static_cast<size_t>(avg_frontier_size) >
+           packed_bools_per_word() *
+             32 /* tuning parameter, to consider additional kernel launch overhead */)) {
         frontier_bitmap =
           compute_vertex_list_bitmap_info(frontier_key_first,
                                           frontier_key_last,
@@ -972,18 +982,21 @@ extract_transform_v_frontier_e(raft::handle_t const& handle,
       auto max_tmp_buffer_size = static_cast<size_t>(
         static_cast<double>(handle.get_device_properties().totalGlobalMem) * 0.2);
 
-      auto aggregate_major_range_size = host_scalar_allreduce(
-        comm,
-        static_cast<size_t>(thrust::distance(frontier_key_first, frontier_key_last)),
-        raft::comms::op_t::SUM,
-        handle.get_stream());
-      auto aggregate_max_pushes = host_scalar_allreduce(
-        comm,
-        local_max_pushes,
-        raft::comms::op_t::SUM,
-        handle.get_stream());  // this is approximate as we only consider local edges for
-                               // [frontier_key_first, frontier_key_last), note that neighbor lists
-                               // are partitioned if minor_comm_size > 1
+      size_t aggregate_major_range_size{};
+      size_t aggregate_max_pushes{};  // this is approximate as we only consider local edges for
+                                      // [frontier_key_first, frontier_key_last), note that neighbor
+                                      // lists are partitioned if minor_comm_size > 1
+      {
+        auto tmp = host_scalar_allreduce(
+          comm,
+          thrust::make_tuple(
+            static_cast<size_t>(thrust::distance(frontier_key_first, frontier_key_last)),
+            local_max_pushes),
+          raft::comms::op_t::SUM,
+          handle.get_stream());
+        aggregate_major_range_size = thrust::get<0>(tmp);
+        aggregate_max_pushes       = thrust::get<1>(tmp);
+      }
 
       size_t key_size{0};
       if constexpr (std::is_arithmetic_v<key_t>) {
@@ -1290,6 +1303,10 @@ extract_transform_v_frontier_e(raft::handle_t const& handle,
         }
       }
     }
+#if EXTRACT_PERFORMANCE_MEASUREMENT
+    if (loop_stream_pool_indices) { handle.sync_stream_pool(*loop_stream_pool_indices); }
+    auto subtime2 = std::chrono::steady_clock::now();
+#endif
 
     if (key_segment_offset_vectors) {
       for (size_t j = 0; j < loop_count; ++j) {
@@ -1377,7 +1394,7 @@ extract_transform_v_frontier_e(raft::handle_t const& handle,
     }
     if (loop_stream_pool_indices) { handle.sync_stream_pool(*loop_stream_pool_indices); }
 #if EXTRACT_PERFORMANCE_MEASUREMENT
-    auto subtime2 = std::chrono::steady_clock::now();
+    auto subtime3 = std::chrono::steady_clock::now();
 #endif
 
     thrust::fill(
@@ -1501,14 +1518,14 @@ extract_transform_v_frontier_e(raft::handle_t const& handle,
 
     if (stream_pool_indices) { handle.sync_stream_pool(*stream_pool_indices); }
 #if EXTRACT_PERFORMANCE_MEASUREMENT
-    auto subtime3 = std::chrono::steady_clock::now();
+    auto subtime4 = std::chrono::steady_clock::now();
 #endif
 
     std::vector<size_t> h_counts(loop_count);
     raft::update_host(h_counts.data(), counters.data(), loop_count, handle.get_stream());
     handle.sync_stream();
 #if EXTRACT_PERFORMANCE_MEASUREMENT
-    auto subtime4 = std::chrono::steady_clock::now();
+    auto subtime5 = std::chrono::steady_clock::now();
 #endif
 
     for (size_t j = 0; j < loop_count; ++j) {
@@ -1535,15 +1552,16 @@ extract_transform_v_frontier_e(raft::handle_t const& handle,
     }
     if (loop_stream_pool_indices) { handle.sync_stream_pool(*loop_stream_pool_indices); }
 #if EXTRACT_PERFORMANCE_MEASUREMENT
-    auto subtime5                         = std::chrono::steady_clock::now();
+    auto subtime6                         = std::chrono::steady_clock::now();
     std::chrono::duration<double> subdur0 = subtime1 - subtime0;
     std::chrono::duration<double> subdur1 = subtime2 - subtime1;
     std::chrono::duration<double> subdur2 = subtime3 - subtime2;
     std::chrono::duration<double> subdur3 = subtime4 - subtime3;
     std::chrono::duration<double> subdur4 = subtime5 - subtime4;
+    std::chrono::duration<double> subdur5 = subtime6 - subtime5;
     std::cerr << "sub (extract) took (" << subdur0.count() << "," << subdur1.count() << ","
-              << subdur2.count() << "," << subdur3.count() << "," << subdur4.count()
-              << ") loop_count=" << loop_count << std::endl;
+              << subdur2.count() << "," << subdur3.count() << "," << subdur4.count() << ","
+              << subdur5.count() << ") loop_count=" << loop_count << std::endl;
 #endif
   }
 #if EXTRACT_PERFORMANCE_MEASUREMENT

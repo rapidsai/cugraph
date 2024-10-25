@@ -1944,11 +1944,17 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
           (range_size > 0) ? (num_keys / static_cast<double>(range_size)) : double{0.0};
       }
       avg_fill_ratio /= static_cast<double>(minor_comm_size);
-
       double threshold_ratio =
         2.0 /* tuning parameter (consider that we need to reprodce vertex list from bitmap)*/ /
         static_cast<double>((v_compressible ? sizeof(uint32_t) : sizeof(vertex_t)) * 8);
-      if (avg_fill_ratio > threshold_ratio) {
+      auto avg_key_list_size =
+        std::reduce(local_key_list_sizes.begin(), local_key_list_sizes.end()) /
+        static_cast<vertex_t>(minor_comm_size);
+
+      if ((avg_fill_ratio > threshold_ratio) &&
+          (static_cast<size_t>(avg_key_list_size) >
+           packed_bools_per_word() *
+             32 /* tuning parameter, to considerr additional kernel launch overhead */)) {
         v_list_bitmap = compute_vertex_list_bitmap_info(sorted_unique_key_first,
                                                         sorted_unique_nzd_key_last,
                                                         local_v_list_range_firsts[minor_comm_rank],
