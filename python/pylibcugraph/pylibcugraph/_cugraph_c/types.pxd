@@ -24,10 +24,17 @@ cdef extern from "cugraph_c/types.h":
         TRUE
 
     ctypedef enum cugraph_data_type_id_t:
+        INT8
+        INT16
         INT32
         INT64
+        UINT8
+        UINT16
+        UINT32
+        UINT64
         FLOAT32
         FLOAT64
         SIZE_T
+        BOOL
 
     ctypedef int8_t byte_t
