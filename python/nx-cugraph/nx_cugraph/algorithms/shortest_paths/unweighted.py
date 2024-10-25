@@ -221,7 +221,7 @@ class PathMapping(collections.abc.Mapping):
             key = self._key_to_pred[key]
         val = self._data[key]
         for key in reversed(stack):
-            val = self._data[key] = [*val, key]
+            val = self._data[key] = [*val, key]  # Switched in ReversePathMapping
         return val
 
     def __iter__(self):
@@ -251,7 +251,7 @@ class ReversePathMapping(collections.abc.Mapping):
             key = self._key_to_pred[key]
         val = self._data[key]
         for key in reversed(stack):
-            val = self._data[key] = [key, *val]
+            val = self._data[key] = [key, *val]  # Switched in PathMapping
         return val
 
     def __iter__(self):
