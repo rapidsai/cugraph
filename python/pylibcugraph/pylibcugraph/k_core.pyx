@@ -17,8 +17,10 @@
 from libc.stdint cimport uintptr_t
 import warnings
 
-from pylibcugraph._cugraph_c.resource_handle cimport (
+from pylibcugraph._cugraph_c.types cimport (
     bool_t,
+)
+from pylibcugraph._cugraph_c.resource_handle cimport (
     cugraph_resource_handle_t,
 )
 from pylibcugraph._cugraph_c.error cimport (

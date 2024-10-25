@@ -31,8 +31,10 @@ from pylibcugraph._cugraph_c.array cimport (
     cugraph_type_erased_device_array_view_t,
     cugraph_type_erased_device_array_view_create,
 )
-from pylibcugraph._cugraph_c.resource_handle cimport (
+from pylibcugraph._cugraph_c.types cimport (
     bool_t,
+)
+from pylibcugraph._cugraph_c.resource_handle cimport (
     cugraph_resource_handle_t,
 )
 from pylibcugraph._cugraph_c.error cimport (
