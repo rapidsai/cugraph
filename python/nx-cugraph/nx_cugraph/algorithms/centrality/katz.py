@@ -47,7 +47,7 @@ def katz_centrality(
     """`nstart` isn't used (but is checked), and `normalized=False` is not supported."""
     if not normalized:
         # Redundant with the `_can_run` check below when being dispatched by NetworkX,
-        # but we raise here in case this funcion is called directly.
+        # but we raise here in case this function is called directly.
         raise NotImplementedError("normalized=False is not supported.")
     G = _to_graph(G, weight, 1, np.float32)
     if (N := len(G)) == 0:

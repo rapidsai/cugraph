@@ -15,14 +15,9 @@ import numpy as np
 import pylibcugraph as plc
 
 from nx_cugraph.convert import _to_graph
-from nx_cugraph.utils import (
-    _dtype_param,
-    _get_float_dtype,
-    _groupby,
-    networkx_algorithm,
-)
+from nx_cugraph.utils import _dtype_param, _get_float_dtype, networkx_algorithm
 
-from .unweighted import _bfs
+from .unweighted import PathMapping, ReversePathMapping, _bfs
 
 __all__ = [
     "dijkstra_path",
@@ -378,22 +373,19 @@ def _sssp(
             elif not reverse_path:
                 paths.reverse()
         else:
-            groups = _groupby(predecessors[mask], node_ids)
-            if (id_to_key := G.id_to_key) is not None:
-                groups = {id_to_key[k]: v for k, v in groups.items() if k >= 0}
-            paths = {source: [source]}
-            preds = [source]
-            while preds:
-                pred = preds.pop()
-                pred_path = paths[pred]
-                nodes = G._nodearray_to_list(groups[pred])
-                if reverse_path:
-                    for node in nodes:
-                        paths[node] = [node, *pred_path]
-                else:
-                    for node in nodes:
-                        paths[node] = [*pred_path, node]
-                preds.extend(nodes & groups.keys())
+            # Computing paths to all nodes can be expensive, so let's delay
+            # computation until needed using `PathMapping`.
+            key_iter = node_ids.tolist()
+            pred_iter = predecessors[mask].tolist()
+            if G.key_to_id is not None:
+                key_iter = G._nodeiter_to_iter(key_iter)
+                pred_iter = G._nodeiter_to_iter(pred_iter)
+            key_to_pred = dict(zip(key_iter, pred_iter))
+            key_to_pred[source] = None
+            if reverse_path:
+                paths = ReversePathMapping({source: [source]}, key_to_pred)
+            else:
+                paths = PathMapping({source: [source]}, key_to_pred)
     if return_type == "path":
         return paths
     if return_type == "length":

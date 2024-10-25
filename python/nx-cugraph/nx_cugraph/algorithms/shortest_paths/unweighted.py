@@ -180,6 +180,8 @@ def _bfs(
             elif not reverse_path:
                 paths.reverse()
         else:
+            # Computing paths to all nodes can be expensive, so let's delay
+            # computation until needed using `PathMapping`.
             key_iter = node_ids.tolist()
             pred_iter = predecessors[mask].tolist()
             if G.key_to_id is not None:
@@ -202,7 +204,7 @@ def _bfs(
 class PathMapping(collections.abc.Mapping):
     """Compute path for nodes as needed using predecessors.
 
-    The path for each node contains itself at the beginning of tha path.
+    The path for each node contains itself at the beginning of the path.
     """
 
     def __init__(self, data, key_to_pred):
@@ -210,10 +212,17 @@ class PathMapping(collections.abc.Mapping):
         self._key_to_pred = key_to_pred
 
     def __getitem__(self, key):
-        if key not in self._data:
-            val = self._data[key] = [*self[self._key_to_pred[key]], key]
-            return val
-        return self._data[key]
+        if key in self._data:
+            return self._data[key]
+        stack = [key]
+        key = self._key_to_pred[key]
+        while key not in self._data:
+            stack.append(key)
+            key = self._key_to_pred[key]
+        val = self._data[key]
+        for key in reversed(stack):
+            val = self._data[key] = [*val, key]
+        return val
 
     def __iter__(self):
         return iter(self._key_to_pred)
@@ -225,7 +234,7 @@ class PathMapping(collections.abc.Mapping):
 class ReversePathMapping(collections.abc.Mapping):
     """Compute path for nodes as needed using predecessors.
 
-    The path for each node contains itself at the end of tha path.
+    The path for each node contains itself at the end of the path.
     """
 
     def __init__(self, data, key_to_pred):
@@ -233,10 +242,17 @@ class ReversePathMapping(collections.abc.Mapping):
         self._key_to_pred = key_to_pred
 
     def __getitem__(self, key):
-        if key not in self._data:
-            val = self._data[key] = [key, *self[self._key_to_pred[key]]]
-            return val
-        return self._data[key]
+        if key in self._data:
+            return self._data[key]
+        stack = [key]
+        key = self._key_to_pred[key]
+        while key not in self._data:
+            stack.append(key)
+            key = self._key_to_pred[key]
+        val = self._data[key]
+        for key in reversed(stack):
+            val = self._data[key] = [key, *val]
+        return val
 
     def __iter__(self):
         return iter(self._key_to_pred)
