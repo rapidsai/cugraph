@@ -22,7 +22,8 @@
 namespace cugraph {
 namespace c_api {
 
-size_t data_type_sz[] = {4, 8, 4, 8, 8};
+// FIXME: This is paired with type definition... better solution coming in 24.12 release.
+size_t data_type_sz[] = {1, 2, 4, 8, 1, 2, 4, 8, 4, 8, 8, 1};
 
 }  // namespace c_api
 }  // namespace cugraph
