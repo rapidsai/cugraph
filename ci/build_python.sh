@@ -20,6 +20,8 @@ export RAPIDS_PACKAGE_VERSION=$(head -1 ./VERSION)
 
 rapids-logger "Begin py build"
 
+sccache --zero-stats
+
 # TODO: Remove `--no-test` flags once importing on a CPU
 # node works correctly
 rapids-conda-retry mambabuild \
