@@ -44,11 +44,11 @@ int generic_k_truss_test(vertex_t* h_src,
   cugraph_error_code_t ret_code = CUGRAPH_SUCCESS;
   cugraph_error_t* ret_error;
 
-  data_type_id_t vertex_tid    = INT32;
-  data_type_id_t edge_tid      = INT32;
-  data_type_id_t weight_tid    = FLOAT32;
-  data_type_id_t edge_id_tid   = INT32;
-  data_type_id_t edge_type_tid = INT32;
+  cugraph_data_type_id_t vertex_tid    = INT32;
+  cugraph_data_type_id_t edge_tid      = INT32;
+  cugraph_data_type_id_t weight_tid    = FLOAT32;
+  cugraph_data_type_id_t edge_id_tid   = INT32;
+  cugraph_data_type_id_t edge_type_tid = INT32;
 
   cugraph_resource_handle_t* resource_handle          = NULL;
   cugraph_graph_t* graph                              = NULL;

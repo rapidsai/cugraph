@@ -50,8 +50,8 @@ int generic_k_truss_test(const cugraph_resource_handle_t* handle,
 
   cugraph_induced_subgraph_result_t* result = NULL;
 
-  data_type_id_t vertex_tid = INT32;
-  data_type_id_t size_t_tid = SIZE_T;
+  cugraph_data_type_id_t vertex_tid = INT32;
+  cugraph_data_type_id_t size_t_tid = SIZE_T;
 
   ret_code = create_mg_test_graph(
     handle, h_src, h_dst, h_wgt, num_edges, store_transposed, TRUE, &graph, &ret_error);
