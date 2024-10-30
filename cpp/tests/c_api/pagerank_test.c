@@ -202,8 +202,8 @@ int generic_personalized_pagerank_test(vertex_t* h_src,
   cugraph_type_erased_device_array_view_t* personalization_vertices_view = NULL;
   cugraph_type_erased_device_array_view_t* personalization_values_view   = NULL;
 
-  data_type_id_t vertex_tid = INT32;
-  data_type_id_t weight_tid = FLOAT32;
+  cugraph_data_type_id_t vertex_tid = INT32;
+  cugraph_data_type_id_t weight_tid = FLOAT32;
 
   p_handle = cugraph_create_resource_handle(NULL);
   TEST_ASSERT(test_ret_value, p_handle != NULL, "resource handle creation failed.");
@@ -311,8 +311,8 @@ int generic_personalized_pagerank_nonconverging_test(vertex_t* h_src,
   cugraph_type_erased_device_array_view_t* personalization_vertices_view = NULL;
   cugraph_type_erased_device_array_view_t* personalization_values_view   = NULL;
 
-  data_type_id_t vertex_tid = INT32;
-  data_type_id_t weight_tid = FLOAT32;
+  cugraph_data_type_id_t vertex_tid = INT32;
+  cugraph_data_type_id_t weight_tid = FLOAT32;
 
   p_handle = cugraph_create_resource_handle(NULL);
   TEST_ASSERT(test_ret_value, p_handle != NULL, "resource handle creation failed.");
