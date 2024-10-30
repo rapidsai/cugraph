@@ -863,7 +863,6 @@ cugraph_error_code_t cugraph_test_uniform_neighborhood_sample_result_create(
  *                                not CUGRAPH_SUCCESS
  * @return error code
  */
-
 cugraph_error_code_t cugraph_select_random_vertices(const cugraph_resource_handle_t* handle,
                                                     const cugraph_graph_t* graph,
                                                     cugraph_rng_state_t* rng_state,
