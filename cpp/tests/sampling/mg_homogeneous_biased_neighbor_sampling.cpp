@@ -153,29 +153,6 @@ class Tests_MGHomogeneous_Biased_Neighbor_Sampling
                random_sources.size(),
                handle_->get_stream());
 
-#ifdef NO_CUGRAPH_OPS
-    EXPECT_THROW(
-      cugraph::homogeneous_biased_neighbor_sample(
-        *handle_,
-        rng_state,
-        mg_graph_view,
-        mg_edge_weight_view,
-        std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
-        std::optional<cugraph::edge_property_view_t<edge_t, int32_t const*>>{std::nullopt},
-        mg_edge_weight_view raft::device_span<vertex_t const>{random_sources.data(),
-                                                              random_sources.size()},
-        std::make_optional(
-          raft::device_span<int32_t const>{batch_number.data(), batch_number.size()}),
-        std::make_optional(raft::device_span<int32_t const>{comm_ranks.data(), comm_ranks.size()}),
-        raft::host_span<int32_t const>(homogeneous_biased_neighbor_sampling_usecase.fanout.data(),
-                                       homogeneous_biased_neighbor_sampling_usecase.fanout.size()),
-
-        cugraph::sampling_flags_t{cugraph::prior_sources_behavior_t{0},
-                                  true,   // return_hops
-                                  false,  // dedupe_sources
-                                  homogeneous_biased_neighbor_sampling_usecase.with_replacement}),
-      std::exception);
-#else
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle_->get_comms().barrier();
@@ -294,7 +271,6 @@ class Tests_MGHomogeneous_Biased_Neighbor_Sampling
         }
       }
     }
-#endif
   }
 
  private:

@@ -159,33 +159,6 @@ class Tests_MGHeterogeneous_Biased_Neighbor_Sampling
         *handle_, mg_graph_view, heterogeneous_biased_neighbor_sampling_usecase.num_edge_types);
     }
 
-#ifdef NO_CUGRAPH_OPS
-    EXPECT_THROW(
-      ccugraph::heterogeneous_biased_neighbor_sample(
-        *handle_,
-        rng_state,
-        mg_graph_view,
-        mg_edge_weight_view,
-        std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
-        edge_types
-          ? std::optional<cugraph::edge_property_view_t<edge_t, edge_type_t const*>>{(*edge_types)
-                                                                                       .view()}
-          : std::nullopt,
-
-        raft::device_span<vertex_t const>{random_sources.data(), random_sources.size()},
-        std::make_optional(
-          raft::device_span<int32_t const>{batch_number.data(), batch_number.size()}),
-        std::make_optional(raft::device_span<int32_t const>{comm_ranks.data(), comm_ranks.size()}),
-        raft::host_span<int32_t const>(
-          heterogeneous_biased_neighbor_sampling_usecase.fanout.data(),
-          heterogeneous_biased_neighbor_sampling_usecase.fanout.size()),
-        heterogeneous_biased_neighbor_sampling_usecase.num_edge_types,
-        cugraph::sampling_flags_t{cugraph::prior_sources_behavior_t{0},
-                                  true,   // return_hops
-                                  false,  // dedupe_sources
-                                  heterogeneous_biased_neighbor_sampling_usecase.with_replacement}),
-      std::exception);
-#else
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle_->get_comms().barrier();
@@ -309,7 +282,6 @@ class Tests_MGHeterogeneous_Biased_Neighbor_Sampling
         }
       }
     }
-#endif
   }
 
  private:
