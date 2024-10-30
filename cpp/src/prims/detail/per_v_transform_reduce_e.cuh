@@ -1724,61 +1724,117 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
     }
   }
 
-  // 5. collect local_key_list_sizes & local_v_list_range_firsts & local_v_list_range_lasts &
+  // 5. collect max_tmp_buffer_size, approx_tmp_buffer_size_per_loop, local_key_list_sizes,
+  // local_v_list_range_firsts, local_v_list_range_lasts, local_key_list_deg1_sizes,
   // key_segment_offset_vectors
 
+  std::conditional_t<GraphViewType::is_multi_gpu, std::vector<size_t>, std::byte /* dummy */>
+    max_tmp_buffer_sizes{};
+  std::conditional_t<GraphViewType::is_multi_gpu, std::vector<size_t>, std::byte /* dummy */>
+    tmp_buffer_size_per_loop_approximations{};
   std::conditional_t<use_input_key, std::vector<size_t>, std::byte /* dummy */>
     local_key_list_sizes{};
   std::conditional_t<try_bitmap, std::vector<vertex_t>, std::byte /* dummy */>
     local_v_list_range_firsts{};
   std::conditional_t<try_bitmap, std::vector<vertex_t>, std::byte /* dummy */>
     local_v_list_range_lasts{};
-  std::conditional_t<use_input_key && std::is_same_v<ReduceOp, reduce_op::any<T>>,
-                     std::optional<std::vector<size_t>>,
-                     std::byte /* dummy */>
+  std::conditional_t<filter_input_key, std::optional<std::vector<size_t>>, std::byte /* dummy */>
     local_key_list_deg1_sizes{};  // if global degree is 1, any valid local value should be selected
   std::conditional_t<use_input_key,
                      std::optional<std::vector<std::vector<size_t>>>,
                      std::byte /* dummy */>
     key_segment_offset_vectors{};
-  if constexpr (use_input_key) {
-    if constexpr (GraphViewType::is_multi_gpu) {
-      auto& minor_comm = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
-      auto const minor_comm_rank = minor_comm.get_rank();
-      auto const minor_comm_size = minor_comm.get_size();
+  if constexpr (GraphViewType::is_multi_gpu) {
+    auto& minor_comm           = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
+    auto const minor_comm_rank = minor_comm.get_rank();
+    auto const minor_comm_size = minor_comm.get_size();
 
-      size_t num_scalars = 1;  // local_key_list_size
+    auto max_tmp_buffer_size =
+      static_cast<size_t>(static_cast<double>(handle.get_device_properties().totalGlobalMem) * 0.2);
+    size_t approx_tmp_buffer_size_per_loop{0};
+    if constexpr (update_major) {
+      size_t key_size{0};
+      if constexpr (use_input_key) {
+        if constexpr (std::is_arithmetic_v<key_t>) {
+          key_size = sizeof(key_t);
+        } else {
+          key_size = sum_thrust_tuple_element_sizes<key_t>();
+        }
+      }
+      size_t value_size{0};
+      if constexpr (std::is_arithmetic_v<key_t>) {
+        value_size = sizeof(T);
+      } else {
+        value_size = sum_thrust_tuple_element_sizes<T>();
+      }
+
+      size_t major_range_size{};
+      if constexpr (use_input_key) {
+        major_range_size = static_cast<size_t>(
+          thrust::distance(sorted_unique_key_first, sorted_unique_nzd_key_last));
+        ;
+      } else {
+        major_range_size = graph_view.local_vertex_partition_range_size();
+      }
+      size_t size_per_key{};
+      if constexpr (filter_input_key) {
+        size_per_key =
+          key_size +
+          value_size / 2;  // to reflect that many keys will be filtered out, note that this is a
+                           // simple approximation, memory requirement in this case is much more
+                           // complex as we store additional temporary variables
+
+      } else {
+        size_per_key = key_size + value_size;
+      }
+      approx_tmp_buffer_size_per_loop = major_range_size * size_per_key;
+    }
+
+    size_t num_scalars = 2;  // max_tmp_buffer_size, approx_tmp_buffer_size_per_loop
+    size_t num_scalars_less_key_segment_offsets = num_scalars;
+    if constexpr (use_input_key) {
+      num_scalars += 1;  // local_key_list_size
       if constexpr (try_bitmap) {
         num_scalars += 2;  // local_key_list_range_first, local_key_list_range_last
       }
       if (filter_input_key && graph_view.use_dcs()) {
         num_scalars += 1;  // local_key_list_degree_1_size
       }
+      num_scalars_less_key_segment_offsets = num_scalars;
       if (key_segment_offsets) { num_scalars += (*key_segment_offsets).size(); }
+    }
 
-      rmm::device_uvector<size_t> d_aggregate_tmps(minor_comm_size * num_scalars,
-                                                   handle.get_stream());
-      auto hypersparse_degree_offsets =
-        graph_view.local_vertex_partition_hypersparse_degree_offsets();
-      thrust::tabulate(
-        handle.get_thrust_policy(),
-        d_aggregate_tmps.begin() + minor_comm_rank * num_scalars,
-        d_aggregate_tmps.begin() + minor_comm_rank * num_scalars + (try_bitmap ? 3 : 1) +
-          (filter_input_key && graph_view.use_dcs() ? 1 : 0),
-        [sorted_unique_key_first,
-         v_list_size = static_cast<size_t>(
-           thrust::distance(sorted_unique_key_first, sorted_unique_nzd_key_last)),
-         deg1_v_first = (filter_input_key && graph_view.use_dcs())
-                          ? thrust::make_optional(graph_view.local_vertex_partition_range_first() +
-                                                  (*local_vertex_partition_segment_offsets)[3] +
-                                                  *((*hypersparse_degree_offsets).rbegin() + 1))
-                          : thrust::nullopt,
-         vertex_partition_range_first =
-           graph_view.local_vertex_partition_range_first()] __device__(size_t i) {
+    rmm::device_uvector<size_t> d_aggregate_tmps(minor_comm_size * num_scalars,
+                                                 handle.get_stream());
+    auto hypersparse_degree_offsets =
+      graph_view.local_vertex_partition_hypersparse_degree_offsets();
+    thrust::tabulate(
+      handle.get_thrust_policy(),
+      d_aggregate_tmps.begin() + num_scalars * minor_comm_rank,
+      d_aggregate_tmps.begin() + num_scalars * minor_comm_rank +
+        num_scalars_less_key_segment_offsets,
+      [max_tmp_buffer_size,
+       approx_tmp_buffer_size_per_loop,
+       sorted_unique_key_first,
+       sorted_unique_nzd_key_last,
+       deg1_v_first = (filter_input_key && graph_view.use_dcs())
+                        ? thrust::make_optional(graph_view.local_vertex_partition_range_first() +
+                                                (*local_vertex_partition_segment_offsets)[3] +
+                                                *((*hypersparse_degree_offsets).rbegin() + 1))
+                        : thrust::nullopt,
+       vertex_partition_range_first =
+         graph_view.local_vertex_partition_range_first()] __device__(size_t i) {
+        if (i == 0) {
+          return max_tmp_buffer_size;
+        } else if (i == 1) {
+          return approx_tmp_buffer_size_per_loop;
+        }
+        if constexpr (use_input_key) {
+          auto v_list_size = static_cast<size_t>(
+            thrust::distance(sorted_unique_key_first, sorted_unique_nzd_key_last));
+          if (i == 2) { return v_list_size; }
           if constexpr (try_bitmap) {
-            if (i == 0) {
-              return v_list_size;
-            } else if (i == 1) {
+            if (i == 3) {
               vertex_t first{};
               if (v_list_size > 0) {
                 first = *sorted_unique_key_first;
@@ -1787,8 +1843,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
               }
               assert(static_cast<vertex_t>(static_cast<size_t>(first)) == first);
               return static_cast<size_t>(first);
-            }
-            if (i == 2) {
+            } else if (i == 4) {
               vertex_t last{};
               if (v_list_size > 0) {
                 last = *(sorted_unique_key_first + (v_list_size - 1)) + 1;
@@ -1797,7 +1852,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
               }
               assert(static_cast<vertex_t>(static_cast<size_t>(last)) == last);
               return static_cast<size_t>(last);
-            } else {
+            } else if (i == 5) {
               if (deg1_v_first) {
                 auto sorted_unique_v_first = thrust::make_transform_iterator(
                   sorted_unique_key_first,
@@ -1810,15 +1865,10 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
                                                            sorted_unique_v_first,
                                                            sorted_unique_v_first + v_list_size,
                                                            deg1_v_first)));
-              } else {
-                assert(false);
-                return size_t{0};
               }
             }
           } else {
-            if (i == 0) {
-              return v_list_size;
-            } else {
+            if (i == 3) {
               if (deg1_v_first) {
                 auto sorted_unique_v_first = thrust::make_transform_iterator(
                   sorted_unique_key_first,
@@ -1831,36 +1881,40 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
                                                            sorted_unique_v_first,
                                                            sorted_unique_v_first + v_list_size,
                                                            deg1_v_first)));
-              } else {
-                assert(false);
-                return size_t{0};
               }
             }
           }
-        });
+        }
+        assert(false);
+        return size_t{0};
+      });
+    if constexpr (use_input_key) {
       if (key_segment_offsets) {
-        raft::update_device(
-          d_aggregate_tmps.data() + (minor_comm_rank * num_scalars + (try_bitmap ? 3 : 1) +
-                                     (filter_input_key && graph_view.use_dcs() ? 1 : 0)),
-          (*key_segment_offsets).data(),
-          (*key_segment_offsets).size(),
-          handle.get_stream());
+        raft::update_device(d_aggregate_tmps.data() + (num_scalars * minor_comm_rank +
+                                                       num_scalars_less_key_segment_offsets),
+                            (*key_segment_offsets).data(),
+                            (*key_segment_offsets).size(),
+                            handle.get_stream());
       }
+    }
 
-      if (minor_comm_size > 1) {
-        device_allgather(minor_comm,
-                         d_aggregate_tmps.data() + minor_comm_rank * num_scalars,
-                         d_aggregate_tmps.data(),
-                         num_scalars,
-                         handle.get_stream());
-      }
+    if (minor_comm_size > 1) {
+      device_allgather(minor_comm,
+                       d_aggregate_tmps.data() + minor_comm_rank * num_scalars,
+                       d_aggregate_tmps.data(),
+                       num_scalars,
+                       handle.get_stream());
+    }
 
-      std::vector<size_t> h_aggregate_tmps(d_aggregate_tmps.size());
-      raft::update_host(h_aggregate_tmps.data(),
-                        d_aggregate_tmps.data(),
-                        d_aggregate_tmps.size(),
-                        handle.get_stream());
-      handle.sync_stream();
+    std::vector<size_t> h_aggregate_tmps(d_aggregate_tmps.size());
+    raft::update_host(h_aggregate_tmps.data(),
+                      d_aggregate_tmps.data(),
+                      d_aggregate_tmps.size(),
+                      handle.get_stream());
+    handle.sync_stream();
+    max_tmp_buffer_sizes                    = std::vector<size_t>(minor_comm_size);
+    tmp_buffer_size_per_loop_approximations = std::vector<size_t>(minor_comm_size);
+    if constexpr (use_input_key) {
       local_key_list_sizes = std::vector<size_t>(minor_comm_size);
       if constexpr (try_bitmap) {
         local_v_list_range_firsts = std::vector<vertex_t>(minor_comm_size);
@@ -1875,30 +1929,35 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
         key_segment_offset_vectors = std::vector<std::vector<size_t>>{};
         (*key_segment_offset_vectors).reserve(minor_comm_size);
       }
-      for (int i = 0; i < minor_comm_size; ++i) {
-        local_key_list_sizes[i] = h_aggregate_tmps[i * num_scalars];
+    }
+    for (int i = 0; i < minor_comm_size; ++i) {
+      max_tmp_buffer_sizes[i]                    = h_aggregate_tmps[i * num_scalars];
+      tmp_buffer_size_per_loop_approximations[i] = h_aggregate_tmps[i * num_scalars + 1];
+      if constexpr (use_input_key) {
+        local_key_list_sizes[i] = h_aggregate_tmps[i * num_scalars + 2];
         if constexpr (try_bitmap) {
           local_v_list_range_firsts[i] =
-            static_cast<vertex_t>(h_aggregate_tmps[i * num_scalars + 1]);
+            static_cast<vertex_t>(h_aggregate_tmps[i * num_scalars + 3]);
           local_v_list_range_lasts[i] =
-            static_cast<vertex_t>(h_aggregate_tmps[i * num_scalars + 2]);
+            static_cast<vertex_t>(h_aggregate_tmps[i * num_scalars + 4]);
         }
         if constexpr (filter_input_key) {
           if (graph_view.use_dcs()) {
             (*local_key_list_deg1_sizes)[i] =
-              static_cast<vertex_t>(h_aggregate_tmps[i * num_scalars + (try_bitmap ? 3 : 1)]);
+              static_cast<vertex_t>(h_aggregate_tmps[i * num_scalars + (try_bitmap ? 5 : 3)]);
           }
         }
         if (key_segment_offsets) {
           (*key_segment_offset_vectors)
-            .emplace_back(h_aggregate_tmps.begin() + i * num_scalars + (try_bitmap ? 3 : 1) +
-                            ((filter_input_key && graph_view.use_dcs()) ? 1 : 0),
-                          h_aggregate_tmps.begin() + i * num_scalars + (try_bitmap ? 3 : 1) +
-                            ((filter_input_key && graph_view.use_dcs()) ? 1 : 0) +
-                            (*key_segment_offsets).size());
+            .emplace_back(
+              h_aggregate_tmps.begin() + i * num_scalars + num_scalars_less_key_segment_offsets,
+              h_aggregate_tmps.begin() + i * num_scalars + num_scalars_less_key_segment_offsets +
+                (*key_segment_offsets).size());
         }
       }
-    } else {
+    }
+  } else {
+    if constexpr (use_input_key) {
       local_key_list_sizes = std::vector<size_t>{
         static_cast<size_t>(thrust::distance(sorted_unique_key_first, sorted_unique_nzd_key_last))};
       if (key_segment_offsets) {
@@ -2008,63 +2067,17 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
   std::optional<std::vector<size_t>> stream_pool_indices{std::nullopt};
   if constexpr (GraphViewType::is_multi_gpu) {
     if (local_vertex_partition_segment_offsets && (handle.get_stream_pool_size() >= max_segments)) {
-      auto max_tmp_buffer_size = static_cast<size_t>(
-        static_cast<double>(handle.get_device_properties().totalGlobalMem) * 0.2);
-      size_t tmp_buffer_size_per_loop{0};
-      if constexpr (update_major) {
-        auto& minor_comm = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
-        auto const minor_comm_size = minor_comm.get_size();
-
-        size_t key_size{0};
-        if constexpr (use_input_key) {
-          if constexpr (std::is_arithmetic_v<key_t>) {
-            if (v_compressible) {
-              key_size = sizeof(uint32_t);
-            } else {
-              key_size = sizeof(key_t);
-            }
-          } else {
-            key_size = sum_thrust_tuple_element_sizes<key_t>();
-          }
-        }
-        size_t value_size{0};
-        if constexpr (std::is_arithmetic_v<key_t>) {
-          value_size = sizeof(T);
-        } else {
-          value_size = sum_thrust_tuple_element_sizes<T>();
-        }
-
-        size_t aggregate_major_range_size{};
-        if constexpr (use_input_key) {
-          aggregate_major_range_size =
-            std::reduce(local_key_list_sizes.begin(), local_key_list_sizes.end());
-        } else {
-          for (size_t i = 0; i < graph_view.number_of_local_edge_partitions(); ++i) {
-            if constexpr (GraphViewType::is_storage_transposed) {
-              aggregate_major_range_size += graph_view.local_edge_partition_dst_range_size(i);
-            } else {
-              aggregate_major_range_size += graph_view.local_edge_partition_src_range_size(i);
-            }
-          }
-        }
-        size_t size_per_key{};
-        if constexpr (filter_input_key) {
-          size_per_key =
-            key_size +
-            value_size / 2;  // to reflect that many keys will be filtered out, note that this is a
-                             // simple approximation, memory requirement in this case is much more
-                             // complex as we store additional temporary variables
-
-        } else {
-          size_per_key = key_size + value_size;
-        }
-        tmp_buffer_size_per_loop =
-          (aggregate_major_range_size / graph_view.number_of_local_edge_partitions()) *
-          size_per_key;
-      }
-
+      auto& minor_comm = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
+      auto const minor_comm_size = minor_comm.get_size();
+      auto max_tmp_buffer_size =
+        std::reduce(max_tmp_buffer_sizes.begin(), max_tmp_buffer_sizes.end()) /
+        static_cast<size_t>(minor_comm_size);
+      auto approx_tmp_buffer_size_per_loop =
+        std::reduce(tmp_buffer_size_per_loop_approximations.begin(),
+                    tmp_buffer_size_per_loop_approximations.end()) /
+        static_cast<size_t>(minor_comm_size);
       stream_pool_indices = init_stream_pool_indices(max_tmp_buffer_size,
-                                                     tmp_buffer_size_per_loop,
+                                                     approx_tmp_buffer_size_per_loop,
                                                      graph_view.number_of_local_edge_partitions(),
                                                      max_segments,
                                                      handle.get_stream_pool_size());

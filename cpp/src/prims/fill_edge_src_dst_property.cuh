@@ -335,60 +335,74 @@ void fill_edge_minor_property(raft::handle_t const& handle,
       sizeof(
         uint32_t);  // 128B cache line alignment (unaligned ncclBroadcast operations are slower)
 
+    std::vector<size_t> max_tmp_buffer_sizes{};
     std::vector<vertex_t> local_v_list_sizes{};
     std::vector<vertex_t> local_v_list_range_firsts{};
     std::vector<vertex_t> local_v_list_range_lasts{};
     {
       auto v_list_size = static_cast<vertex_t>(
         thrust::distance(sorted_unique_vertex_first, sorted_unique_vertex_last));
-      rmm::device_uvector<vertex_t> d_aggregate_tmps(major_comm_size * size_t{3},
-                                                     handle.get_stream());
-      thrust::tabulate(handle.get_thrust_policy(),
-                       d_aggregate_tmps.begin() + major_comm_rank * size_t{3},
-                       d_aggregate_tmps.begin() + (major_comm_rank + 1) * size_t{3},
-                       [sorted_unique_vertex_first,
-                        v_list_size,
-                        vertex_partition_range_first =
-                          graph_view.local_vertex_partition_range_first()] __device__(size_t i) {
-                         if (i == 0) {
-                           return v_list_size;
-                         } else if (i == 1) {
-                           if (v_list_size > 0) {
-                             return *sorted_unique_vertex_first;
-                           } else {
-                             return vertex_partition_range_first;
-                           }
-                         } else {
-                           if (v_list_size > 0) {
-                             return *(sorted_unique_vertex_first + (v_list_size - 1)) + 1;
-                           } else {
-                             return vertex_partition_range_first;
-                           }
-                         }
-                       });
+      rmm::device_uvector<size_t> d_aggregate_tmps(major_comm_size * size_t{4},
+                                                   handle.get_stream());
+      thrust::tabulate(
+        handle.get_thrust_policy(),
+        d_aggregate_tmps.begin() + major_comm_rank * size_t{4},
+        d_aggregate_tmps.begin() + (major_comm_rank + 1) * size_t{4},
+        [max_tmp_buffer_size = static_cast<size_t>(
+           static_cast<double>(handle.get_device_properties().totalGlobalMem) * 0.05),
+         sorted_unique_vertex_first,
+         v_list_size,
+         vertex_partition_range_first =
+           graph_view.local_vertex_partition_range_first()] __device__(size_t i) {
+          if (i == 0) {
+            return max_tmp_buffer_size;
+          } else if (i == 1) {
+            return static_cast<size_t>(v_list_size);
+          } else if (i == 2) {
+            vertex_t first{};
+            if (v_list_size > 0) {
+              first = *sorted_unique_vertex_first;
+            } else {
+              first = vertex_partition_range_first;
+            }
+            assert(static_cast<vertex_t>(static_cast<size_t>(first)) == first);
+            return static_cast<size_t>(first);
+          } else {
+            vertex_t last{};
+            if (v_list_size > 0) {
+              last = *(sorted_unique_vertex_first + (v_list_size - 1)) + 1;
+            } else {
+              last = vertex_partition_range_first;
+            }
+            assert(static_cast<vertex_t>(static_cast<size_t>(last)) == last);
+            return static_cast<size_t>(last);
+          }
+        });
 
-      if (major_comm_size > 1) {  // allgather v_list_size, v_list_range_first (inclusive),
-                                  // v_list_range_last (exclusive)
+      if (major_comm_size > 1) {  // allgather max_tmp_buffer_size, v_list_size, v_list_range_first
+                                  // (inclusive), v_list_range_last (exclusive)
         device_allgather(major_comm,
-                         d_aggregate_tmps.data() + major_comm_rank * size_t{3},
+                         d_aggregate_tmps.data() + major_comm_rank * size_t{4},
                          d_aggregate_tmps.data(),
-                         size_t{3},
+                         size_t{4},
                          handle.get_stream());
       }
 
-      std::vector<vertex_t> h_aggregate_tmps(d_aggregate_tmps.size());
+      std::vector<size_t> h_aggregate_tmps(d_aggregate_tmps.size());
       raft::update_host(h_aggregate_tmps.data(),
                         d_aggregate_tmps.data(),
                         d_aggregate_tmps.size(),
                         handle.get_stream());
       handle.sync_stream();
+      max_tmp_buffer_sizes      = std::vector<size_t>(major_comm_size);
       local_v_list_sizes        = std::vector<vertex_t>(major_comm_size);
       local_v_list_range_firsts = std::vector<vertex_t>(major_comm_size);
       local_v_list_range_lasts  = std::vector<vertex_t>(major_comm_size);
       for (int i = 0; i < major_comm_size; ++i) {
-        local_v_list_sizes[i]        = h_aggregate_tmps[i * size_t{3}];
-        local_v_list_range_firsts[i] = h_aggregate_tmps[i * size_t{3} + 1];
-        local_v_list_range_lasts[i]  = h_aggregate_tmps[i * size_t{3} + 2];
+        max_tmp_buffer_sizes[i]      = h_aggregate_tmps[i * size_t{4}];
+        local_v_list_sizes[i]        = static_cast<vertex_t>(h_aggregate_tmps[i * size_t{4} + 1]);
+        local_v_list_range_firsts[i] = static_cast<vertex_t>(h_aggregate_tmps[i * size_t{4} + 2]);
+        local_v_list_range_lasts[i]  = static_cast<vertex_t>(h_aggregate_tmps[i * size_t{4} + 3]);
       }
     }
 
@@ -546,8 +560,8 @@ void fill_edge_minor_property(raft::handle_t const& handle,
       }
       tmp_buffer_size_per_loop /= major_comm_size;
       stream_pool_indices = init_stream_pool_indices(
-        static_cast<size_t>(static_cast<double>(handle.get_device_properties().totalGlobalMem) *
-                            0.05),
+        std::reduce(max_tmp_buffer_sizes.begin(), max_tmp_buffer_sizes.end()) /
+          static_cast<size_t>(major_comm_size),
         tmp_buffer_size_per_loop,
         major_comm_size,
         1,
