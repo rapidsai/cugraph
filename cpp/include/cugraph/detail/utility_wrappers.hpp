@@ -104,7 +104,9 @@ size_t unique(raft::handle_t const& handle, raft::device_span<value_t> d_value);
  *
  */
 template <typename value_t>
-void transform_increment(rmm::cuda_stream_view const& stream_view, raft::device_span<value_t> d_value, value_t value);
+void transform_increment(rmm::cuda_stream_view const& stream_view,
+                         raft::device_span<value_t> d_value,
+                         value_t value);
 
 /**
  * @brief    Fill a buffer with a sequence of values

@@ -80,10 +80,9 @@ class Tests_Homogeneous_Uniform_Neighbor_Sampling
       graph_view.attach_edge_mask((*edge_mask).view());
     }
 
-    // FIXME: Read a tuple of two edge mask and mask out if edge mask is set in either 1 (OR) and create
-    // a new one.
-    // No graph view can have two mask and perform OR in itself, and need to OR the mask 
-    // manually by itself.
+    // FIXME: Read a tuple of two edge mask and mask out if edge mask is set in either 1 (OR) and
+    // create a new one. No graph view can have two mask and perform OR in itself, and need to OR
+    // the mask manually by itself.
 
     constexpr float select_probability{0.05};
 

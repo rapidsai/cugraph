@@ -73,7 +73,8 @@ void sort(raft::handle_t const& handle, raft::device_span<value_t> d_value)
 template <typename value_t>
 size_t unique(raft::handle_t const& handle, raft::device_span<value_t> d_value)
 {
-  auto unique_element_last = thrust::unique(handle.get_thrust_policy(), d_value.begin(), d_value.end());
+  auto unique_element_last =
+    thrust::unique(handle.get_thrust_policy(), d_value.begin(), d_value.end());
   return thrust::distance(d_value.begin(), unique_element_last);
 }
 
@@ -86,28 +87,24 @@ void sequence_fill(rmm::cuda_stream_view const& stream_view,
   thrust::sequence(rmm::exec_policy(stream_view), d_value, d_value + size, start_value);
 }
 
+template <typename value_t>
+void transform_increment(rmm::cuda_stream_view const& stream_view,
+                         raft::device_span<value_t> d_value,
+                         value_t incr)
+{
+  thrust::transform(rmm::exec_policy(stream_view),
+                    d_value.begin(),
+                    d_value.end(),
+                    d_value.begin(),
+                    cuda::proclaim_return_type<value_t>([incr] __device__(value_t value) {
+                      return static_cast<value_t>(value + incr);
+                    }));
+}
 
 template <typename value_t>
- void transform_increment(rmm::cuda_stream_view const& stream_view,
-                          raft::device_span<value_t> d_value,
-                          value_t incr)
- {
-   thrust::transform(rmm::exec_policy(stream_view),
-                     d_value.begin(),
-                     d_value.end(),
-                     d_value.begin(),
-                     cuda::proclaim_return_type<value_t>([incr] __device__(value_t value) {
-                       return static_cast<value_t>(value + incr);
-                     }));
- }
-
-
-template <typename value_t>
- void transform_increment_(rmm::cuda_stream_view const& stream_view,
-                           value_t d_value)
- {
-
- }
+void transform_increment_(rmm::cuda_stream_view const& stream_view, value_t d_value)
+{
+}
 
 template <typename value_t>
 void stride_fill(rmm::cuda_stream_view const& stream_view,

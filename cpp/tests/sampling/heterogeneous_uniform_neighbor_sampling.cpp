@@ -116,8 +116,7 @@ class Tests_Heterogeneous_Uniform_Neighbor_Sampling
 
     // Generate the edge types
 
-    std::optional<cugraph::edge_property_t<decltype(graph_view), int32_t>> edge_types{
-      std::nullopt};
+    std::optional<cugraph::edge_property_t<decltype(graph_view), int32_t>> edge_types{std::nullopt};
 
     if (heterogeneous_uniform_neighbor_sampling_usecase.num_edge_types > 1) {
       edge_types = cugraph::test::generate<decltype(graph_view), int32_t>::edge_property(

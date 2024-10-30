@@ -124,7 +124,6 @@ class Tests_Heterogeneous_Biased_Neighbor_Sampling
         handle, graph_view, heterogeneous_biased_neighbor_sampling_usecase.num_edge_types);
     }
 
-
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       hr_timer.start("Biased neighbor sampling");
