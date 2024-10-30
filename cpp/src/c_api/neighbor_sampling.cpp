@@ -1880,6 +1880,7 @@ cugraph_error_code_t cugraph_uniform_neighbor_sample(
     "fan_out should be of type int",
     *error);
 
+  //  Deprecated functor
   uniform_neighbor_sampling_functor functor{handle,
                                             graph,
                                             start_vertices,
@@ -1957,6 +1958,7 @@ cugraph_error_code_t cugraph_biased_neighbor_sample(
     "fan_out should be of type int",
     *error);
 
+  // Deprecated functor
   biased_neighbor_sampling_functor functor{handle,
                                            graph,
                                            edge_biases,
