@@ -339,7 +339,7 @@ neighbor_sample_impl(raft::handle_t const& handle,
   if (return_hops) {
     result_hops   = rmm::device_uvector<int32_t>(result_size, handle.get_stream());
     output_offset = 0;
-    for (size_t i = 0; i < (fan_out).size(); ++i) {
+    for (size_t i = 0; i < fan_out.size(); ++i) {
       scalar_fill(
         handle, result_hops->data() + output_offset, level_sizes[i], static_cast<int32_t>(i));
       output_offset += level_sizes[i];
