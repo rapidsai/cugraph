@@ -908,7 +908,7 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
 
           auto num_unique_labels = cugraph::detail::unique(
             handle_.get_stream(),
-            raft::device_span<label_t const>{unique_labels.data(), unique_labels.size()});
+            raft::device_span<label_t>{unique_labels.data(), unique_labels.size()});
 
           (*local_label_to_comm_rank).resize(num_unique_labels, handle_.get_stream());
 
