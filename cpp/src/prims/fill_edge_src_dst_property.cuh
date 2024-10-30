@@ -774,76 +774,49 @@ void fill_edge_minor_property(raft::handle_t const& handle,
           }
         }
         device_group_end(major_comm);
-        if (stream_pool_indices) { handle.sync_stream(); }
+        bool kernel_fusion =
+          !edge_partition_keys && !v_list_bitmap && (loop_count > 1) &&
+          (static_cast<size_t>(std::reduce(local_v_list_sizes.begin() + i,
+                                           local_v_list_sizes.begin() + (i + loop_count))) <
+           size_t{64 * 1024} /* tuning parameter */ *
+             loop_count);  // FIXME: kernle fusion can be useful even when
+                           // edge_partition_keys.has_value() is true
+
+        if (!kernel_fusion) {
+          if (stream_pool_indices) { handle.sync_stream(); }
+        }
 #if FILL_PERFORMANCE_MEASUREMENT
         RAFT_CUDA_TRY(cudaDeviceSynchronize());
         auto sub2 = std::chrono::steady_clock::now();
 #endif
 
-        for (size_t j = 0; j < loop_count; ++j) {
-          auto partition_idx = i + j;
-          auto loop_stream   = stream_pool_indices
-                                 ? handle.get_stream_from_stream_pool((*stream_pool_indices)[j])
-                                 : handle.get_stream();
+        if (!kernel_fusion) {
+          for (size_t j = 0; j < loop_count; ++j) {
+            auto partition_idx = i + j;
+            auto loop_stream   = stream_pool_indices
+                                   ? handle.get_stream_from_stream_pool((*stream_pool_indices)[j])
+                                   : handle.get_stream();
 
-          if (v_list_bitmap) {
-            auto const& rx_bitmap = std::get<1>(edge_partition_v_buffers[j]);
-            rmm::device_uvector<vertex_t> rx_vertices(local_v_list_sizes[partition_idx],
-                                                      loop_stream);
-            retrieve_vertex_list_from_bitmap(
-              raft::device_span<uint32_t const>(rx_bitmap.data(), rx_bitmap.size()),
-              rx_vertices.begin(),
-              raft::device_span<size_t>(dummy_counters.data() + j, size_t{1}),
-              local_v_list_range_firsts[partition_idx],
-              local_v_list_range_lasts[partition_idx],
-              loop_stream);
-            edge_partition_v_buffers[j] = std::move(rx_vertices);
-          }
+            if (v_list_bitmap) {
+              auto const& rx_bitmap = std::get<1>(edge_partition_v_buffers[j]);
+              rmm::device_uvector<vertex_t> rx_vertices(local_v_list_sizes[partition_idx],
+                                                        loop_stream);
+              retrieve_vertex_list_from_bitmap(
+                raft::device_span<uint32_t const>(rx_bitmap.data(), rx_bitmap.size()),
+                rx_vertices.begin(),
+                raft::device_span<size_t>(dummy_counters.data() + j, size_t{1}),
+                local_v_list_range_firsts[partition_idx],
+                local_v_list_range_lasts[partition_idx],
+                loop_stream);
+              edge_partition_v_buffers[j] = std::move(rx_vertices);
+            }
 
-          if (edge_partition_keys) {
-            thrust::for_each(
-              rmm::exec_policy_nosync(loop_stream),
-              thrust::make_counting_iterator(vertex_t{0}),
-              thrust::make_counting_iterator(local_v_list_sizes[partition_idx]),
-              [rx_vertex_first            = compressed_v_list
-                                              ? static_cast<vertex_t const*>(nullptr)
-                                              : std::get<0>(edge_partition_v_buffers[j]).data(),
-               rx_compressed_vertex_first = compressed_v_list
-                                              ? std::get<1>(edge_partition_v_buffers[j]).data()
-                                              : static_cast<uint32_t const*>(nullptr),
-               range_first                = local_v_list_range_firsts[partition_idx],
-               input,
-               subrange_key_first = (*edge_partition_keys).begin() + (*key_offsets)[partition_idx],
-               subrange_key_last =
-                 (*edge_partition_keys).begin() + (*key_offsets)[partition_idx + 1],
-               edge_partition_value_first = edge_partition_value_first,
-               subrange_start_offset      = (*key_offsets)[partition_idx]] __device__(auto i) {
-                vertex_t minor{};
-                if (rx_vertex_first != nullptr) {
-                  minor = *(rx_vertex_first + i);
-                } else {
-                  minor = range_first + *(rx_compressed_vertex_first + i);
-                }
-                auto it =
-                  thrust::lower_bound(thrust::seq, subrange_key_first, subrange_key_last, minor);
-                if ((it != subrange_key_last) && (*it == minor)) {
-                  auto subrange_offset = thrust::distance(subrange_key_first, it);
-                  if constexpr (contains_packed_bool_element) {
-                    fill_scalar_or_thrust_tuple(
-                      edge_partition_value_first, subrange_start_offset + subrange_offset, input);
-                  } else {
-                    *(edge_partition_value_first + subrange_start_offset + subrange_offset) = input;
-                  }
-                }
-              });
-          } else {
-            if constexpr (contains_packed_bool_element) {
+            if (edge_partition_keys) {
               thrust::for_each(
                 rmm::exec_policy_nosync(loop_stream),
                 thrust::make_counting_iterator(vertex_t{0}),
                 thrust::make_counting_iterator(local_v_list_sizes[partition_idx]),
-                [minor_range_first,
-                 rx_vertex_first            = compressed_v_list
+                [rx_vertex_first            = compressed_v_list
                                                 ? static_cast<vertex_t const*>(nullptr)
                                                 : std::get<0>(edge_partition_v_buffers[j]).data(),
                  rx_compressed_vertex_first = compressed_v_list
@@ -851,48 +824,191 @@ void fill_edge_minor_property(raft::handle_t const& handle,
                                                 : static_cast<uint32_t const*>(nullptr),
                  range_first                = local_v_list_range_firsts[partition_idx],
                  input,
-                 output_value_first = edge_partition_value_first] __device__(auto i) {
+                 subrange_key_first =
+                   (*edge_partition_keys).begin() + (*key_offsets)[partition_idx],
+                 subrange_key_last =
+                   (*edge_partition_keys).begin() + (*key_offsets)[partition_idx + 1],
+                 edge_partition_value_first = edge_partition_value_first,
+                 subrange_start_offset      = (*key_offsets)[partition_idx]] __device__(auto i) {
                   vertex_t minor{};
                   if (rx_vertex_first != nullptr) {
                     minor = *(rx_vertex_first + i);
                   } else {
                     minor = range_first + *(rx_compressed_vertex_first + i);
                   }
-                  auto minor_offset = minor - minor_range_first;
-                  fill_scalar_or_thrust_tuple(output_value_first, minor_offset, input);
+                  auto it =
+                    thrust::lower_bound(thrust::seq, subrange_key_first, subrange_key_last, minor);
+                  if ((it != subrange_key_last) && (*it == minor)) {
+                    auto subrange_offset = thrust::distance(subrange_key_first, it);
+                    if constexpr (contains_packed_bool_element) {
+                      fill_scalar_or_thrust_tuple(
+                        edge_partition_value_first, subrange_start_offset + subrange_offset, input);
+                    } else {
+                      *(edge_partition_value_first + subrange_start_offset + subrange_offset) =
+                        input;
+                    }
+                  }
                 });
             } else {
-              if (compressed_v_list) {
-                auto map_first = thrust::make_transform_iterator(
-                  std::get<1>(edge_partition_v_buffers[j]).begin(),
-                  cuda::proclaim_return_type<vertex_t>(
-                    [minor_range_first,
-                     range_first =
-                       local_v_list_range_firsts[partition_idx]] __device__(auto v_offset) {
-                      return static_cast<vertex_t>(v_offset + (range_first - minor_range_first));
-                    }));
-                auto val_first = thrust::make_constant_iterator(input);
-                thrust::scatter(rmm::exec_policy_nosync(loop_stream),
-                                val_first,
-                                val_first + local_v_list_sizes[partition_idx],
-                                map_first,
-                                edge_partition_value_first);
+              if constexpr (contains_packed_bool_element) {
+                thrust::for_each(
+                  rmm::exec_policy_nosync(loop_stream),
+                  thrust::make_counting_iterator(vertex_t{0}),
+                  thrust::make_counting_iterator(local_v_list_sizes[partition_idx]),
+                  [minor_range_first,
+                   rx_vertex_first            = compressed_v_list
+                                                  ? static_cast<vertex_t const*>(nullptr)
+                                                  : std::get<0>(edge_partition_v_buffers[j]).data(),
+                   rx_compressed_vertex_first = compressed_v_list
+                                                  ? std::get<1>(edge_partition_v_buffers[j]).data()
+                                                  : static_cast<uint32_t const*>(nullptr),
+                   range_first                = local_v_list_range_firsts[partition_idx],
+                   input,
+                   output_value_first = edge_partition_value_first] __device__(auto i) {
+                    vertex_t minor{};
+                    if (rx_vertex_first != nullptr) {
+                      minor = *(rx_vertex_first + i);
+                    } else {
+                      minor = range_first + *(rx_compressed_vertex_first + i);
+                    }
+                    auto minor_offset = minor - minor_range_first;
+                    fill_scalar_or_thrust_tuple(output_value_first, minor_offset, input);
+                  });
               } else {
-                auto map_first = thrust::make_transform_iterator(
-                  std::get<0>(edge_partition_v_buffers[j]).begin(),
-                  cuda::proclaim_return_type<vertex_t>(
-                    [minor_range_first] __device__(auto v) { return v - minor_range_first; }));
-                auto val_first = thrust::make_constant_iterator(input);
-                thrust::scatter(rmm::exec_policy_nosync(loop_stream),
-                                val_first,
-                                val_first + local_v_list_sizes[partition_idx],
-                                map_first,
-                                edge_partition_value_first);
+                if (compressed_v_list) {
+                  auto map_first = thrust::make_transform_iterator(
+                    std::get<1>(edge_partition_v_buffers[j]).begin(),
+                    cuda::proclaim_return_type<vertex_t>(
+                      [minor_range_first,
+                       range_first =
+                         local_v_list_range_firsts[partition_idx]] __device__(auto v_offset) {
+                        return static_cast<vertex_t>(v_offset + (range_first - minor_range_first));
+                      }));
+                  auto val_first = thrust::make_constant_iterator(input);
+                  thrust::scatter(rmm::exec_policy_nosync(loop_stream),
+                                  val_first,
+                                  val_first + local_v_list_sizes[partition_idx],
+                                  map_first,
+                                  edge_partition_value_first);
+                } else {
+                  auto map_first = thrust::make_transform_iterator(
+                    std::get<0>(edge_partition_v_buffers[j]).begin(),
+                    cuda::proclaim_return_type<vertex_t>(
+                      [minor_range_first] __device__(auto v) { return v - minor_range_first; }));
+                  auto val_first = thrust::make_constant_iterator(input);
+                  thrust::scatter(rmm::exec_policy_nosync(loop_stream),
+                                  val_first,
+                                  val_first + local_v_list_sizes[partition_idx],
+                                  map_first,
+                                  edge_partition_value_first);
+                }
               }
             }
           }
+          if (stream_pool_indices) { handle.sync_stream_pool(*stream_pool_indices); }
+        } else {  // kernel fusion
+          std::vector<vertex_t> h_vertex_vars(loop_count /* range_first values */ +
+                                              (loop_count + 1) /* loop offsets */);
+          std::copy(local_v_list_range_firsts.begin() + i,
+                    local_v_list_range_firsts.begin() + (i + loop_count),
+                    h_vertex_vars.begin());
+          h_vertex_vars[loop_count] = 0;
+          std::inclusive_scan(local_v_list_sizes.begin() + i,
+                              local_v_list_sizes.begin() + (i + loop_count),
+                              h_vertex_vars.begin() + (loop_count + 1));
+          std::vector<void const*> h_ptrs(loop_count);
+          if (compressed_v_list) {
+            for (size_t j = 0; j < loop_count; ++j) {
+              h_ptrs[j] = static_cast<void const*>(std::get<1>(edge_partition_v_buffers[j]).data());
+            }
+          } else {
+            for (size_t j = 0; j < loop_count; ++j) {
+              h_ptrs[j] = static_cast<void const*>(std::get<0>(edge_partition_v_buffers[j]).data());
+            }
+          }
+          rmm::device_uvector<vertex_t> d_vertex_vars(h_vertex_vars.size(), handle.get_stream());
+          rmm::device_uvector<void const*> d_ptrs(h_ptrs.size(), handle.get_stream());
+          raft::update_device(
+            d_vertex_vars.data(), h_vertex_vars.data(), h_vertex_vars.size(), handle.get_stream());
+          raft::update_device(d_ptrs.data(), h_ptrs.data(), h_ptrs.size(), handle.get_stream());
+
+          raft::device_span<vertex_t const> range_firsts(d_vertex_vars.data(), loop_count);
+          raft::device_span<vertex_t const> loop_offsets(d_vertex_vars.data() + loop_count,
+                                                         loop_count + 1);
+          if constexpr (contains_packed_bool_element) {
+            thrust::for_each(
+              handle.get_thrust_policy(),
+              thrust::make_counting_iterator(vertex_t{0}),
+              thrust::make_counting_iterator(h_vertex_vars.back()),
+              [range_firsts,
+               loop_offsets,
+               minor_range_first,
+               input,
+               rx_firsts = raft::device_span<void const* const>(d_ptrs.data(), d_ptrs.size()),
+               output_value_first = edge_partition_value_first,
+               compressed         = compressed_v_list.has_value()] __device__(auto i) {
+                auto loop_idx =
+                  thrust::distance(loop_offsets.begin() + 1,
+                                   thrust::upper_bound(
+                                     thrust::seq, loop_offsets.begin() + 1, loop_offsets.end(), i));
+                auto rx_first = rx_firsts[loop_idx];
+                vertex_t minor{};
+                if (compressed) {
+                  minor = range_firsts[loop_idx] +
+                          *(static_cast<uint32_t const*>(rx_first) + (i - loop_offsets[loop_idx]));
+                } else {
+                  minor = *(static_cast<vertex_t const*>(rx_first) + (i - loop_offsets[loop_idx]));
+                }
+                auto minor_offset = minor - minor_range_first;
+                fill_scalar_or_thrust_tuple(output_value_first, minor_offset, input);
+              });
+          } else {
+            auto val_first = thrust::make_constant_iterator(input);
+            if (compressed_v_list) {
+              auto map_first = thrust::make_transform_iterator(
+                thrust::make_counting_iterator(vertex_t{0}),
+                cuda::proclaim_return_type<vertex_t>(
+                  [range_firsts,
+                   loop_offsets,
+                   rx_firsts = raft::device_span<void const* const>(d_ptrs.data(), d_ptrs.size()),
+                   minor_range_first] __device__(auto i) {
+                    auto loop_idx = thrust::distance(
+                      loop_offsets.begin() + 1,
+                      thrust::upper_bound(
+                        thrust::seq, loop_offsets.begin() + 1, loop_offsets.end(), i));
+                    auto minor =
+                      range_firsts[loop_idx] + *(static_cast<uint32_t const*>(rx_firsts[loop_idx]) +
+                                                 (i - loop_offsets[loop_idx]));
+                    return minor - minor_range_first;
+                  }));
+              thrust::scatter(handle.get_thrust_policy(),
+                              val_first,
+                              val_first + h_vertex_vars.back(),
+                              map_first,
+                              edge_partition_value_first);
+            } else {
+              auto map_first = thrust::make_transform_iterator(
+                thrust::make_counting_iterator(vertex_t{0}),
+                cuda::proclaim_return_type<vertex_t>(
+                  [loop_offsets,
+                   rx_firsts = raft::device_span<void const* const>(d_ptrs.data(), d_ptrs.size()),
+                   minor_range_first] __device__(auto i) {
+                    auto loop_idx = thrust::distance(
+                      loop_offsets.begin() + 1,
+                      thrust::upper_bound(
+                        thrust::seq, loop_offsets.begin() + 1, loop_offsets.end(), i));
+                    auto minor = *(static_cast<vertex_t const*>(rx_firsts[loop_idx]) +
+                                   (i - loop_offsets[loop_idx]));
+                    return minor - minor_range_first;
+                  }));
+              thrust::scatter(handle.get_thrust_policy(),
+                              val_first,
+                              val_first + h_vertex_vars.back(),
+                              map_first,
+                              edge_partition_value_first);
+            }
+          }
         }
-        if (stream_pool_indices) { handle.sync_stream_pool(*stream_pool_indices); }
 #if FILL_PERFORMANCE_MEASUREMENT
         RAFT_CUDA_TRY(cudaDeviceSynchronize());
         auto sub3                             = std::chrono::steady_clock::now();
@@ -900,7 +1016,7 @@ void fill_edge_minor_property(raft::handle_t const& handle,
         std::chrono::duration<double> subdur1 = sub2 - sub1;
         std::chrono::duration<double> subdur2 = sub3 - sub2;
         std::cerr << "fill_edge_minor path B took (" << subdur0.count() << "," << subdur1.count()
-                  << "," << subdur2.count() << ")" << std::endl;
+                  << "," << subdur2.count() << ") kernel_fusion=" << kernel_fusion << std::endl;
 #endif
       }
     }
