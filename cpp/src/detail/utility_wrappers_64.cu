@@ -61,9 +61,10 @@ template void scalar_fill(raft::handle_t const& handle,
 
 template void scalar_fill(raft::handle_t const& handle, double* d_value, size_t size, double value);
 
-template void sort(raft::handle_t const& handle, int64_t* d_value, size_t size);
+template void sort(raft::handle_t const& handle, raft::device_span<int64_t> d_value);
 
-template size_t unique(raft::handle_t const& handle, int32_t* d_value, size_t size);
+template size_t unique(raft::handle_t const& handle, raft::device_span<int64_t> d_value);
+template size_t unique(raft::handle_t const& handle, raft::device_span<uint64_t> d_value);
 
 template void sequence_fill(rmm::cuda_stream_view const& stream_view,
                             int64_t* d_value,
@@ -76,14 +77,12 @@ template void sequence_fill(rmm::cuda_stream_view const& stream_view,
                             uint64_t start_value);
 
 template void transform_increment(rmm::cuda_stream_view const& stream_view,
-                                  int64_t* d_value,
-                                  size_t size,
-                                  size_t value);
+                                  raft::device_span<int64_t> d_value,
+                                  int64_t value);
 
 template void transform_increment(rmm::cuda_stream_view const& stream_view,
-                                  uint64_t* d_value,
-                                  size_t size,
-                                  size_t value);
+                                  raft::device_span<uint64_t> d_value,
+                                  uint64_t value);
 
 template void stride_fill(rmm::cuda_stream_view const& stream_view,
                           int64_t* d_value,

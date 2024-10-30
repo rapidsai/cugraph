@@ -65,19 +65,16 @@ void scalar_fill(raft::handle_t const& handle, value_t* d_value, size_t size, va
 }
 
 template <typename value_t>
-void sort(raft::handle_t const& handle, value_t* d_value, size_t size)
+void sort(raft::handle_t const& handle, raft::device_span<value_t> d_value)
 {
-  thrust::sort(handle.get_thrust_policy(), d_value, d_value + size);
+  thrust::sort(handle.get_thrust_policy(), d_value.begin(), d_value.end());
 }
 
 template <typename value_t>
-size_t unique(raft::handle_t const& handle, value_t* d_value, size_t size)
+size_t unique(raft::handle_t const& handle, raft::device_span<value_t> d_value)
 {
-  // auto unique_element_last = thrust::unique(handle.get_thrust_policy(), d_value, d_value + size);
-  auto unique_element_last = thrust::unique(handle.get_thrust_policy(), d_value, d_value + size);
-  // auto num_unique_element =
-  return thrust::distance(d_value, unique_element_last);
-  // masked_edgelist_srcs.resize(2* masked_edgelist_srcs.size(), handle.get_stream());
+  auto unique_element_last = thrust::unique(handle.get_thrust_policy(), d_value.begin(), d_value.end());
+  return thrust::distance(d_value.begin(), unique_element_last);
 }
 
 template <typename value_t>
@@ -89,20 +86,28 @@ void sequence_fill(rmm::cuda_stream_view const& stream_view,
   thrust::sequence(rmm::exec_policy(stream_view), d_value, d_value + size, start_value);
 }
 
+
 template <typename value_t>
-void transform_increment(rmm::cuda_stream_view const& stream_view,
-                         value_t* d_value,
-                         size_t size,
-                         size_t incr)
-{
-  thrust::transform(rmm::exec_policy(stream_view),
-                    d_value,
-                    d_value + size,
-                    d_value,
-                    cuda::proclaim_return_type<value_t>([incr] __device__(value_t value) {
-                      return static_cast<value_t>(value + incr);
-                    }));
-}
+ void transform_increment(rmm::cuda_stream_view const& stream_view,
+                          raft::device_span<value_t> d_value,
+                          value_t incr)
+ {
+   thrust::transform(rmm::exec_policy(stream_view),
+                     d_value.begin(),
+                     d_value.end(),
+                     d_value.begin(),
+                     cuda::proclaim_return_type<value_t>([incr] __device__(value_t value) {
+                       return static_cast<value_t>(value + incr);
+                     }));
+ }
+
+
+template <typename value_t>
+ void transform_increment_(rmm::cuda_stream_view const& stream_view,
+                           value_t d_value)
+ {
+
+ }
 
 template <typename value_t>
 void stride_fill(rmm::cuda_stream_view const& stream_view,
