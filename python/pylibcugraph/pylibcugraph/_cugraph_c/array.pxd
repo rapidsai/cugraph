@@ -1,4 +1,4 @@
-# Copyright (c) 2022, NVIDIA CORPORATION.
+# Copyright (c) 2022-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -18,10 +18,12 @@ from pylibcugraph._cugraph_c.error cimport (
     cugraph_error_code_t,
     cugraph_error_t,
 )
+from pylibcugraph._cugraph_c.types cimport (
+    cugraph_data_type_id_t,
+    byte_t,
+)
 from pylibcugraph._cugraph_c.resource_handle cimport (
     cugraph_resource_handle_t,
-    data_type_id_t,
-    byte_t,
 )
 
 
@@ -42,7 +44,7 @@ cdef extern from "cugraph_c/array.h":
     cdef cugraph_error_code_t \
         cugraph_type_erased_device_array_create(
             const cugraph_resource_handle_t* handle,
-            data_type_id_t dtype,
+            cugraph_data_type_id_t dtype,
             size_t n_elems,
             cugraph_type_erased_device_array_t** array,
             cugraph_error_t** error
@@ -67,7 +69,7 @@ cdef extern from "cugraph_c/array.h":
         cugraph_type_erased_device_array_view_create(
             void* pointer,
             size_t n_elems,
-            data_type_id_t dtype
+            cugraph_data_type_id_t dtype
         )
 
     cdef void \
@@ -80,7 +82,7 @@ cdef extern from "cugraph_c/array.h":
             const cugraph_type_erased_device_array_view_t* p
         )
 
-    cdef data_type_id_t \
+    cdef cugraph_data_type_id_t \
         cugraph_type_erased_device_array_view_type(
             const cugraph_type_erased_device_array_view_t* p
         )
@@ -93,7 +95,7 @@ cdef extern from "cugraph_c/array.h":
     cdef cugraph_error_code_t \
         cugraph_type_erased_host_array_create(
             const cugraph_resource_handle_t* handle,
-            data_type_id_t dtype,
+            cugraph_data_type_id_t dtype,
             size_t n_elems,
             cugraph_type_erased_host_array_t** array,
             cugraph_error_t** error
@@ -118,7 +120,7 @@ cdef extern from "cugraph_c/array.h":
         cugraph_type_erased_host_array_view_create(
             void* pointer,
             size_t n_elems,
-            data_type_id_t dtype
+            cugraph_data_type_id_t dtype
         )
 
     cdef void \
@@ -131,7 +133,7 @@ cdef extern from "cugraph_c/array.h":
             const cugraph_type_erased_host_array_t* p
         )
 
-    cdef data_type_id_t \
+    cdef cugraph_data_type_id_t \
         cugraph_type_erased_host_array_type(
             const cugraph_type_erased_host_array_t* p
         )
