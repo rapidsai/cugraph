@@ -252,9 +252,10 @@ INSTANTIATE_TEST_SUITE_P(
   ::testing::Combine(
     ::testing::Values(Heterogeneous_Biased_Neighbor_Sampling_Usecase{{4, 10, 7, 8}, 128, 2, false},
                       Heterogeneous_Biased_Neighbor_Sampling_Usecase{{4, 10, 7, 8}, 128, 2, true}),
-    ::testing::Values(cugraph::test::File_Usecase("/raid/seunghwak/datasets/test/datasets/web-Google.mtx"),
-                      cugraph::test::File_Usecase("/raid/seunghwak/datasets/test/datasets/ljournal-2008.mtx"),
-                      cugraph::test::File_Usecase("/raid/seunghwak/datasets/test/datasets/webbase-1M.mtx"))));
+    ::testing::Values(
+      cugraph::test::File_Usecase("test/datasets/web-Google.mtx"),
+      cugraph::test::File_Usecase("test/datasets/ljournal-2008.mtx"),
+      cugraph::test::File_Usecase("test/datasets/webbase-1M.mtx"))));
 
 INSTANTIATE_TEST_SUITE_P(
   rmat_small_test,
