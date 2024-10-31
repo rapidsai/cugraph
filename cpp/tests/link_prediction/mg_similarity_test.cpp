@@ -312,6 +312,7 @@ INSTANTIATE_TEST_SUITE_P(
                       Similarity_Usecase{false, true, false, 20, 100, 10},
                       Similarity_Usecase{false, true, true, 20, 100},
                       Similarity_Usecase{false, true, true, 20, 100},
+                      Similarity_Usecase{false, true, true, std::nullopt, 100, 10},
                       Similarity_Usecase{false, true, true, 20, 100, 10}),
     ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"),
                       cugraph::test::File_Usecase("test/datasets/netscience.mtx"))));
@@ -329,6 +330,7 @@ INSTANTIATE_TEST_SUITE_P(
                       Similarity_Usecase{false, true, false, 20, 100, 10},
                       Similarity_Usecase{false, true, true, 20, 100},
                       Similarity_Usecase{false, true, true, 20, 100},
+                      Similarity_Usecase{false, true, true, std::nullopt, 100, 10},
                       Similarity_Usecase{false, true, true, 20, 100, 10}),
     ::testing::Values(cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, true, false))));
 
