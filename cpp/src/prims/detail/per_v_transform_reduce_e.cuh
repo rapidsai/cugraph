@@ -1234,14 +1234,18 @@ void per_v_transform_reduce_e_edge_partition(
                        decltype(edge_partition_key_first),
                        decltype(thrust::make_counting_iterator(vertex_t{0}))>;
 
+  size_t stream_pool_size{0};
+  if (edge_partition_stream_pool_indices) {
+    stream_pool_size = (*edge_partition_stream_pool_indices).size();
+  }
   if (key_segment_offsets) {
     static_assert(detail::num_sparse_segments_per_vertex_partition == 3);
 
     if (edge_partition.dcs_nzd_vertex_count()) {
-      auto exec_stream =
-        edge_partition_stream_pool_indices
-          ? handle.get_stream_from_stream_pool((*edge_partition_stream_pool_indices)[0])
-          : handle.get_stream();
+      auto exec_stream = edge_partition_stream_pool_indices
+                           ? handle.get_stream_from_stream_pool(
+                               (*edge_partition_stream_pool_indices)[0 % stream_pool_size])
+                           : handle.get_stream();
 
       if constexpr (update_major && !use_input_key) {  // this is necessary as we don't visit
                                                        // every vertex in the hypersparse segment
@@ -1287,10 +1291,10 @@ void per_v_transform_reduce_e_edge_partition(
       }
     }
     if ((*key_segment_offsets)[3] - (*key_segment_offsets)[2]) {
-      auto exec_stream =
-        edge_partition_stream_pool_indices
-          ? handle.get_stream_from_stream_pool((*edge_partition_stream_pool_indices)[1])
-          : handle.get_stream();
+      auto exec_stream = edge_partition_stream_pool_indices
+                           ? handle.get_stream_from_stream_pool(
+                               (*edge_partition_stream_pool_indices)[1 % stream_pool_size])
+                           : handle.get_stream();
       raft::grid_1d_thread_t update_grid((*key_segment_offsets)[3] - (*key_segment_offsets)[2],
                                          detail::per_v_transform_reduce_e_kernel_block_size,
                                          handle.get_device_properties().maxGridSize[0]);
@@ -1321,10 +1325,10 @@ void per_v_transform_reduce_e_edge_partition(
           pred_op);
     }
     if ((*key_segment_offsets)[2] - (*key_segment_offsets)[1] > 0) {
-      auto exec_stream =
-        edge_partition_stream_pool_indices
-          ? handle.get_stream_from_stream_pool((*edge_partition_stream_pool_indices)[2])
-          : handle.get_stream();
+      auto exec_stream = edge_partition_stream_pool_indices
+                           ? handle.get_stream_from_stream_pool(
+                               (*edge_partition_stream_pool_indices)[2 % stream_pool_size])
+                           : handle.get_stream();
       raft::grid_1d_warp_t update_grid((*key_segment_offsets)[2] - (*key_segment_offsets)[1],
                                        detail::per_v_transform_reduce_e_kernel_block_size,
                                        handle.get_device_properties().maxGridSize[0]);
@@ -1356,10 +1360,10 @@ void per_v_transform_reduce_e_edge_partition(
           pred_op);
     }
     if ((*key_segment_offsets)[1] > 0) {
-      auto exec_stream =
-        edge_partition_stream_pool_indices
-          ? handle.get_stream_from_stream_pool((*edge_partition_stream_pool_indices)[3])
-          : handle.get_stream();
+      auto exec_stream = edge_partition_stream_pool_indices
+                           ? handle.get_stream_from_stream_pool(
+                               (*edge_partition_stream_pool_indices)[3 % stream_pool_size])
+                           : handle.get_stream();
       raft::grid_1d_block_t update_grid(
         (*key_segment_offsets)[1],
         std::is_same_v<ReduceOp, reduce_op::any<T>>
@@ -1391,7 +1395,11 @@ void per_v_transform_reduce_e_edge_partition(
           pred_op);
     }
   } else {
-    assert(!edge_partition_stream_pools);
+    auto exec_stream = edge_partition_stream_pool_indices
+                         ? handle.get_stream_from_stream_pool(
+                             (*edge_partition_stream_pool_indices)[0 % stream_pool_size])
+                         : handle.get_stream();
+
     size_t num_keys{};
     if constexpr (use_input_key) {
       num_keys =
@@ -1413,7 +1421,7 @@ void per_v_transform_reduce_e_edge_partition(
         segment_key_first = thrust::make_counting_iterator(edge_partition.major_range_first());
       }
       detail::per_v_transform_reduce_e_low_degree<update_major, GraphViewType>
-        <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
+        <<<update_grid.num_blocks, update_grid.block_size, 0, exec_stream>>>(
           edge_partition,
           *segment_key_first,
           *segment_key_first + num_keys,
@@ -2066,23 +2074,32 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
 
   std::optional<std::vector<size_t>> stream_pool_indices{std::nullopt};
   if constexpr (GraphViewType::is_multi_gpu) {
+    auto& minor_comm           = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
+    auto const minor_comm_size = minor_comm.get_size();
+    auto max_tmp_buffer_size =
+      std::reduce(max_tmp_buffer_sizes.begin(), max_tmp_buffer_sizes.end()) /
+      static_cast<size_t>(minor_comm_size);
+    auto approx_tmp_buffer_size_per_loop =
+      std::reduce(tmp_buffer_size_per_loop_approximations.begin(),
+                  tmp_buffer_size_per_loop_approximations.end()) /
+      static_cast<size_t>(minor_comm_size);
+    size_t num_streams_per_loop{1};
     if (local_vertex_partition_segment_offsets && (handle.get_stream_pool_size() >= max_segments)) {
-      auto& minor_comm = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
-      auto const minor_comm_size = minor_comm.get_size();
-      auto max_tmp_buffer_size =
-        std::reduce(max_tmp_buffer_sizes.begin(), max_tmp_buffer_sizes.end()) /
-        static_cast<size_t>(minor_comm_size);
-      auto approx_tmp_buffer_size_per_loop =
-        std::reduce(tmp_buffer_size_per_loop_approximations.begin(),
-                    tmp_buffer_size_per_loop_approximations.end()) /
-        static_cast<size_t>(minor_comm_size);
-      stream_pool_indices = init_stream_pool_indices(max_tmp_buffer_size,
-                                                     approx_tmp_buffer_size_per_loop,
-                                                     graph_view.number_of_local_edge_partitions(),
-                                                     max_segments,
-                                                     handle.get_stream_pool_size());
-      if ((*stream_pool_indices).size() <= 1) { stream_pool_indices = std::nullopt; }
+      num_streams_per_loop = std::max(
+        std::min(size_t{8} / graph_view.number_of_local_edge_partitions(), max_segments),
+        size_t{
+          1});  // Note that "CUDA_DEVICE_MAX_CONNECTIONS (default: 8, can be set to [1, 32])" sets
+                // the number of queues, if the total number of streams exceeds this number, jobs on
+                // different streams can be sent to one queue leading to false dependency. Setting
+                // num_concurrent_loops above the number of queues has some benefits in NCCL
+                // communications but creating too many streams just for compute may not help.
     }
+    stream_pool_indices = init_stream_pool_indices(max_tmp_buffer_size,
+                                                   approx_tmp_buffer_size_per_loop,
+                                                   graph_view.number_of_local_edge_partitions(),
+                                                   num_streams_per_loop,
+                                                   handle.get_stream_pool_size());
+    if ((*stream_pool_indices).size() <= 1) { stream_pool_indices = std::nullopt; }
   }
 
   // 8. set-up temporary buffers
@@ -2091,8 +2108,8 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
   std::optional<std::vector<size_t>> loop_stream_pool_indices{
     std::nullopt};  // first num_concurrent_loops streams from stream_pool_indices
   if (stream_pool_indices) {
-    assert(((*stream_pool_indices).size() % max_segments) == 0);
-    num_concurrent_loops     = (*stream_pool_indices).size() / max_segments;
+    num_concurrent_loops =
+      std::min(graph_view.number_of_local_edge_partitions(), (*stream_pool_indices).size());
     loop_stream_pool_indices = std::vector<size_t>(num_concurrent_loops);
     std::iota((*loop_stream_pool_indices).begin(), (*loop_stream_pool_indices).end(), size_t{0});
   }
@@ -3120,10 +3137,16 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
                 detail::edge_partition_edge_property_device_view_t<edge_t, uint32_t const*, bool>>(
                 *edge_mask_view, partition_idx)
             : thrust::nullopt;
+        size_t num_streams_per_loop{1};
+        if (stream_pool_indices) {
+          assert((*stream_pool_indices).size() >= num_concurrent_loops);
+          num_streams_per_loop = (*stream_pool_indices).size() / num_concurrent_loops;
+        }
         auto edge_partition_stream_pool_indices =
-          stream_pool_indices ? std::make_optional<raft::host_span<size_t const>>(
-                                  (*stream_pool_indices).data() + j * max_segments, max_segments)
-                              : std::nullopt;
+          stream_pool_indices
+            ? std::make_optional<raft::host_span<size_t const>>(
+                (*stream_pool_indices).data() + j * num_streams_per_loop, num_streams_per_loop)
+            : std::nullopt;
 
         T major_init{};
         T major_identity_element{};

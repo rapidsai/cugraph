@@ -542,6 +542,7 @@ void fill_edge_minor_property(raft::handle_t const& handle,
     }
 
     std::optional<std::vector<size_t>> stream_pool_indices{std::nullopt};
+    size_t num_concurrent_bcasts{1};
     {
       size_t tmp_buffer_size_per_loop{};
       for (int i = 0; i < major_comm_size; ++i) {
@@ -559,16 +560,22 @@ void fill_edge_minor_property(raft::handle_t const& handle,
         }
       }
       tmp_buffer_size_per_loop /= major_comm_size;
+      size_t max_streams =
+        static_cast<size_t>(major_comm_size);  // to allow setting num_concurrent_bcasts above
+                                               // hnadle.get_stream_pool_size()
       stream_pool_indices = init_stream_pool_indices(
         std::reduce(max_tmp_buffer_sizes.begin(), max_tmp_buffer_sizes.end()) /
           static_cast<size_t>(major_comm_size),
         tmp_buffer_size_per_loop,
         major_comm_size,
         1,
-        handle.get_stream_pool_size());
+        max_streams);
+      num_concurrent_bcasts = (*stream_pool_indices).size();
+      if ((*stream_pool_indices).size() > handle.get_stream_pool_size()) {
+        (*stream_pool_indices).resize(handle.get_stream_pool_size());
+      }
       if ((*stream_pool_indices).size() <= 1) { stream_pool_indices = std::nullopt; }
     }
-    size_t num_concurrent_bcasts = stream_pool_indices ? (*stream_pool_indices).size() : size_t{1};
 
 #if FILL_PERFORMANCE_MEASUREMENT
     std::cerr << "v_list_size=" << local_v_list_sizes[major_comm_rank] << " v_list_range=("
@@ -791,11 +798,14 @@ void fill_edge_minor_property(raft::handle_t const& handle,
 #endif
 
         if (!kernel_fusion) {
+          size_t stream_pool_size{0};
+          if (stream_pool_indices) { stream_pool_size = (*stream_pool_indices).size(); }
           for (size_t j = 0; j < loop_count; ++j) {
             auto partition_idx = i + j;
-            auto loop_stream   = stream_pool_indices
-                                   ? handle.get_stream_from_stream_pool((*stream_pool_indices)[j])
-                                   : handle.get_stream();
+            auto loop_stream =
+              stream_pool_indices
+                ? handle.get_stream_from_stream_pool((*stream_pool_indices)[j % stream_pool_size])
+                : handle.get_stream();
 
             if (v_list_bitmap) {
               auto const& rx_bitmap = std::get<1>(edge_partition_v_buffers[j]);
