@@ -2070,7 +2070,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
       (max_key_offset_size <= static_cast<size_t>(std::numeric_limits<uint32_t>::max()));
   }
 
-  // 7. set-up stream pool
+  // 7. set-up stream pool & events
 
   std::optional<std::vector<size_t>> stream_pool_indices{std::nullopt};
   if constexpr (GraphViewType::is_multi_gpu) {
@@ -2102,8 +2102,6 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
     if ((*stream_pool_indices).size() <= 1) { stream_pool_indices = std::nullopt; }
   }
 
-  // 8. set-up temporary buffers
-
   size_t num_concurrent_loops{1};
   std::optional<std::vector<size_t>> loop_stream_pool_indices{
     std::nullopt};  // first num_concurrent_loops streams from stream_pool_indices
@@ -2113,6 +2111,8 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
     loop_stream_pool_indices = std::vector<size_t>(num_concurrent_loops);
     std::iota((*loop_stream_pool_indices).begin(), (*loop_stream_pool_indices).end(), size_t{0});
   }
+
+  // 8. set-up temporary buffers
 
   using minor_tmp_buffer_type = std::conditional_t<GraphViewType::is_storage_transposed,
                                                    edge_src_property_t<GraphViewType, T>,
@@ -4450,6 +4450,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
       }
     }
   }
+
 #if PER_V_PERFORMANCE_MEASUREMENT
   RAFT_CUDA_TRY(cudaDeviceSynchronize());
   auto time5                         = std::chrono::steady_clock::now();
