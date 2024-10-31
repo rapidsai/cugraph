@@ -778,7 +778,7 @@ void fill_edge_minor_property(raft::handle_t const& handle,
           !edge_partition_keys && !v_list_bitmap && (loop_count > 1) &&
           (static_cast<size_t>(std::reduce(local_v_list_sizes.begin() + i,
                                            local_v_list_sizes.begin() + (i + loop_count))) <
-           size_t{64 * 1024} /* tuning parameter */ *
+           size_t{256 * 1024} /* tuning parameter (binary search vs kernel launch overhead) */ *
              loop_count);  // FIXME: kernle fusion can be useful even when
                            // edge_partition_keys.has_value() is true
 
