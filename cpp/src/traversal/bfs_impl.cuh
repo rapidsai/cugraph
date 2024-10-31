@@ -226,7 +226,7 @@ void bfs(raft::handle_t const& handle,
     (graph_view.number_of_vertices() > 0)
       ? ((static_cast<double>(graph_view.compute_number_of_edges(handle)) /
           static_cast<double>(graph_view.number_of_vertices())) *
-         (1.0 / 3.0) /* tuning parametger */)
+         (1.0 / 4.25) /* tuning parametger */)
       : double{1.0};
   constexpr vertex_t direction_optimizing_beta = 24;  // tuning parameter
 
