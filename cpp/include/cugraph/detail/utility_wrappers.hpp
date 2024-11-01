@@ -66,46 +66,46 @@ template <typename value_t>
 void scalar_fill(raft::handle_t const& handle, value_t* d_value, size_t size, value_t value);
 
 /**
- * @brief    Sort a buffer
+ * @brief    Sort a device span
  *
  * @tparam      value_t      type of the value to operate on
  *
  * @param [in]  handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator,
  * and handles to various CUDA libraries) to run graph algorithms.
- * @param[out]  d_value      device array to sort
+ * @param[out]  d_span      device span to sort
  *
  */
 template <typename value_t>
-void sort(raft::handle_t const& handle, raft::device_span<value_t> d_value);
+void sort(raft::handle_t const& handle, raft::device_span<value_t> d_span);
 
 /**
- * @brief    Keep unique element from a buffer
+ * @brief    Keep unique element from a device span
  *
  * @tparam      value_t      type of the value to operate on
  *
  * @param [in]  handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator,
  * and handles to various CUDA libraries) to run graph algorithms.
- * @param[in]  d_value      device array of unique elements.
+ * @param[in]  d_span      device span of unique elements.
  * @return the number of unique elements.
  *
  */
 template <typename value_t>
-size_t unique(raft::handle_t const& handle, raft::device_span<value_t> d_value);
+size_t unique(raft::handle_t const& handle, raft::device_span<value_t> d_span);
 
 /**
- * @brief    Increment the values of a buffer by a constant value
+ * @brief    Increment the values of a device span by a constant value
  *
  * @tparam      value_t      type of the value to operate on
  *
  * @param [in]  handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator,
  * and handles to various CUDA libraries) to run graph algorithms.
- * @param[out]  d_value      device array to update
+ * @param[out]  d_span       device span to update
  * @param[in]   value        value to be added to each element of the buffer
  *
  */
 template <typename value_t>
 void transform_increment(rmm::cuda_stream_view const& stream_view,
-                         raft::device_span<value_t> d_value,
+                         raft::device_span<value_t> d_span,
                          value_t value);
 
 /**
