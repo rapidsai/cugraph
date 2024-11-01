@@ -137,19 +137,39 @@ rmm::device_uvector<uint32_t> compute_vertex_list_bitmap_info(
 
   auto bitmap = rmm::device_uvector<uint32_t>(
     packed_bool_size(vertex_range_last - vertex_range_first), stream_view);
-  thrust::fill(
-    rmm::exec_policy_nosync(stream_view), bitmap.begin(), bitmap.end(), packed_bool_empty_mask());
-  thrust::for_each(rmm::exec_policy_nosync(stream_view),
-                   sorted_unique_vertex_first,
-                   sorted_unique_vertex_last,
-                   [bitmap  = raft::device_span<uint32_t>(bitmap.data(), bitmap.size()),
-                    v_first = vertex_range_first] __device__(vertex_t v) {
-                     auto v_offset = v - v_first;
-                     cuda::atomic_ref<uint32_t, cuda::thread_scope_device> word(
-                       bitmap[packed_bool_offset(v_offset)]);
-                     word.fetch_or(cugraph::packed_bool_mask(v_offset),
-                                   cuda::std::memory_order_relaxed);
-                   });
+  rmm::device_uvector<vertex_t> lasts(bitmap.size(), stream_view);
+  auto bdry_first = thrust::make_transform_iterator(
+    thrust::make_counting_iterator(vertex_t{1}),
+    cuda::proclaim_return_type<vertex_t>(
+      [vertex_range_first,
+       vertex_range_size = vertex_range_last - vertex_range_first] __device__(vertex_t i) {
+        return vertex_range_first +
+               static_cast<vertex_t>(
+                 std::min(packed_bools_per_word() * i, static_cast<size_t>(vertex_range_size)));
+      }));
+  thrust::lower_bound(rmm::exec_policy_nosync(stream_view),
+                      sorted_unique_vertex_first,
+                      sorted_unique_vertex_last,
+                      bdry_first,
+                      bdry_first + bitmap.size(),
+                      lasts.begin());
+  thrust::tabulate(
+    rmm::exec_policy_nosync(stream_view),
+    bitmap.begin(),
+    bitmap.end(),
+    cuda::proclaim_return_type<uint32_t>(
+      [sorted_unique_vertex_first,
+       vertex_range_first,
+       lasts = raft::device_span<vertex_t const>(lasts.data(), lasts.size())] __device__(size_t i) {
+        auto offset_first = (i != 0) ? lasts[i - 1] : vertex_t{0};
+        auto offset_last  = lasts[i];
+        auto ret          = packed_bool_empty_mask();
+        for (auto j = offset_first; j < offset_last; ++j) {
+          auto v_offset = *(sorted_unique_vertex_first + j) - vertex_range_first;
+          ret |= packed_bool_mask(v_offset);
+        }
+        return ret;
+      }));
 
   return bitmap;
 }
@@ -207,20 +227,19 @@ void retrieve_vertex_list_from_bitmap(
 {
   using vertex_t = typename thrust::iterator_traits<OutputVertexIterator>::value_type;
 
-    assert((comm.get_rank() != root) || (bitmap.size() >= packed_bool_size(vertex_range_last - vertex_ragne_first)));
-    detail::copy_if_nosync(
-      thrust::make_counting_iterator(vertex_range_first),
-      thrust::make_counting_iterator(vertex_range_last),
-      thrust::make_transform_iterator(
-        thrust::make_counting_iterator(vertex_t{0}),
-        cuda::proclaim_return_type<bool>(
-          [bitmap] __device__(vertex_t v_offset) {
-            return ((bitmap[packed_bool_offset(v_offset)] & packed_bool_mask(v_offset)) !=
-                    packed_bool_empty_mask());
-          })),
-      output_v_first,
-      count,
-      stream_view);
+  assert((comm.get_rank() != root) ||
+         (bitmap.size() >= packed_bool_size(vertex_range_last - vertex_ragne_first)));
+  detail::copy_if_nosync(thrust::make_counting_iterator(vertex_range_first),
+                         thrust::make_counting_iterator(vertex_range_last),
+                         thrust::make_transform_iterator(
+                           thrust::make_counting_iterator(vertex_t{0}),
+                           cuda::proclaim_return_type<bool>([bitmap] __device__(vertex_t v_offset) {
+                             return ((bitmap[packed_bool_offset(v_offset)] &
+                                      packed_bool_mask(v_offset)) != packed_bool_empty_mask());
+                           })),
+                         output_v_first,
+                         count,
+                         stream_view);
 }
 
 // key type is either vertex_t (tag_t == void) or thrust::tuple<vertex_t, tag_t> (tag_t != void)
