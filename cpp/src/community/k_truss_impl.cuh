@@ -138,18 +138,15 @@ struct generate_p_r_or_q_r_from_p_q {
     }
     
     // Check in the valid edge range
-    auto itr_pair = thrust::lower_bound(
+    auto has_edge = thrust::binary_search(
           thrust::seq, edgelist_first, weak_edgelist_first, edge);
     
-    if ((itr_pair == weak_edgelist_first) || *itr_pair != edge) { // FIXME: Do binary search instead
+    if (!has_edge) { // FIXME: Do binary search instead
       // Search in the weak edge partition.
-      itr_pair = thrust::lower_bound(
+      has_edge = thrust::binary_search(
           thrust::seq, weak_edgelist_first, edgelist_last, edge);
-      
-      //auto idx_ = thrust::distance(weak_edgelist_first, itr_pair); // FIXME: Only for debugging purposes
-      
 
-      if ((itr_pair == edgelist_last) || *itr_pair != edge) { // FIXME: Do binary search instead
+      if (!has_edge) { // FIXME: Do binary search instead
         edge = thrust::make_tuple(thrust::get<1>(edge), thrust::get<0>(edge)); // Edge must be in the other direction
       }
     }
@@ -451,6 +448,10 @@ k_truss(raft::handle_t const& handle,
       cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, false, multi_gpu>,
                                weight_t>>
       sg_edge_weights{std::nullopt};
+    
+    edge_weight_view =
+      edge_weight ? std::make_optional((*edge_weight).view())
+                  : std::optional<edge_property_view_t<edge_t, weight_t const*>>{std::nullopt};
   
     std::tie(*modified_graph, std::ignore, std::ignore) = 
       cugraph::symmetrize_graph<vertex_t, edge_t, weight_t, false, multi_gpu>(
@@ -479,10 +480,6 @@ k_truss(raft::handle_t const& handle,
     auto edge_triangle_count_pair_first =
       thrust::make_zip_iterator(edgelist_first, edgelist_cnts.begin());
 
-    edge_weight_view =
-      edge_weight ? std::make_optional((*edge_weight).view())
-                  : std::optional<edge_property_view_t<edge_t, weight_t const*>>{std::nullopt};
-
     cugraph::edge_bucket_t<vertex_t, void, true, multi_gpu, true> edges_to_mask(handle);
     cugraph::edge_property_t<decltype(cur_undirected_graph_view), bool> edge_mask_undirected_graph(handle, cur_undirected_graph_view);
     cugraph::fill_edge_property(handle, cur_undirected_graph_view, edge_mask_undirected_graph.mutable_view(), bool{true});
@@ -495,6 +492,7 @@ k_truss(raft::handle_t const& handle,
     //std::chrono::duration<double, std::milli> k_truss_ms = duration_cast<milliseconds> (s);
     
     std::chrono::duration<double, std::micro> k_truss_ms = duration_cast<microseconds> (s);
+    std::chrono::duration<double, std::micro> intersection_ms = duration_cast<microseconds> (s);
     RAFT_CUDA_TRY(cudaDeviceSynchronize());
     auto start = high_resolution_clock::now();
 
@@ -527,7 +525,9 @@ k_truss(raft::handle_t const& handle,
         auto weak_edgelist_last = edgelist_first + edgelist_srcs.size();
 
         // Once identifying the weak edges, perform nbr_intersection on the weak edges.
-
+        RAFT_CUDA_TRY(cudaDeviceSynchronize());
+        auto intersection_start = high_resolution_clock::now();
+        
         auto [intersection_offsets, intersection_indices] = \
             per_v_pair_dst_nbr_intersection(
                 handle,
@@ -535,6 +535,14 @@ k_truss(raft::handle_t const& handle,
                 weak_edgelist_first,
                 weak_edgelist_last,
                 false);
+        
+        RAFT_CUDA_TRY(cudaDeviceSynchronize());
+        auto intersection_stop = high_resolution_clock::now();
+
+        intersection_ms += duration_cast<microseconds>(intersection_stop - intersection_start);
+
+        
+
 
         // Identify (p, q) edges, and form edges (p, q), (p, r) and (q, r)
         // To avoid overcompensation for (q, r) edges, check whether None of the other edges were part of the (p, q) edges.
@@ -654,7 +662,6 @@ k_truss(raft::handle_t const& handle,
                 }
             });
       
-        
         thrust::sort(
           handle.get_thrust_policy(),
           triangles_first_,
@@ -723,7 +730,7 @@ k_truss(raft::handle_t const& handle,
                         decrease_count = decrease_count.begin(),
                         edgelist_cnts = edgelist_cnts.begin(),
                         edgelist_first,
-                        weak_edgelist_first = edgelist_first + num_valid_edges, // FIXME: No need to assign. simply pass weak_edgelist_first
+                        weak_edgelist_first = edgelist_first + num_valid_edges,
                         edgelist_last,
                         num_valid_edges
                        ] __device__(auto i) {
@@ -733,26 +740,9 @@ k_truss(raft::handle_t const& handle,
                         auto itr_pair = thrust::lower_bound(
                           thrust::seq, edgelist_first, weak_edgelist_first, vertex_pair_buffer_unique[i]);
                         
-                        auto idx = thrust::distance(edgelist_first, itr_pair);
-                          #if 0
-                            if ((itr_pair == weak_edgelist_first) || *itr_pair != *(vertex_pair_buffer_unique + i)) { // FIXME: Do binary search instead **********************
-                            //if ((itr_pair == weak_edgelist_first)) { // FIXME: Do binary search instead **********************
-                              // Search in the weak edge partition. FIXME: Future optimization might
-                              // be to simply ommit updating weak edges and just discard them per
-                              // iteration for performance reasons.
-                              
-                              
-                              // FIXMEEE: thrust::find
-                              itr_pair = thrust::lower_bound(
-                                  thrust::seq, weak_edgelist_first, edgelist_last, vertex_pair_buffer_unique[i]);
-                              
-                              idx = num_valid_edges + thrust::distance(weak_edgelist_first, itr_pair);
-                          
-                            }
-                          #endif
-
+                        // Update counts of valid edges only since weak edges will be deleted anyways
                         if ((itr_pair != weak_edgelist_first) && *itr_pair == *(vertex_pair_buffer_unique + i)) {
-                          // Update counts of valid edges only since weak edges will be deleted anyways
+                          auto idx = thrust::distance(edgelist_first, itr_pair);
                           edgelist_cnts[idx] -= decrease_count[i];
                         }
                        
@@ -806,25 +796,6 @@ k_truss(raft::handle_t const& handle,
         
         cur_undirected_graph_view.attach_edge_mask(edge_mask_undirected_graph.view());
 
-        // Need to unsort - FIXME: NO need to re-sort since those edges will be removed anyway
-        /*
-        thrust::sort(
-          handle.get_thrust_policy(),
-          thrust::make_zip_iterator(edgelist_srcs.begin() + num_valid_edges, edgelist_dsts.begin() + num_valid_edges),
-          thrust::make_zip_iterator(edgelist_srcs.end(), edgelist_dsts.end())
-        );
-        */
-
-        
-        auto [edgelist_srcs__, edgelist_dsts__, edgelist_cnts__] =
-            extract_transform_e(handle,
-                                cur_undirected_graph_view,
-                                edge_src_dummy_property_t{}.view(),
-                                edge_dst_dummy_property_t{}.view(),
-                                edge_triangle_counts.view(),
-                                // FIXME: Replace by lambda function
-                                extract_edges<vertex_t, edge_t>{});
-
         edgelist_srcs.resize(num_valid_edges, handle.get_stream());
         edgelist_dsts.resize(num_valid_edges, handle.get_stream());
         edgelist_cnts.resize(num_valid_edges, handle.get_stream());
@@ -833,7 +804,7 @@ k_truss(raft::handle_t const& handle,
         edgelist_last  = thrust::make_zip_iterator(edgelist_srcs.end(), edgelist_dsts.end());
 
 
-        number_edges = cur_undirected_graph_view.compute_number_of_edges(handle);
+        //number_edges = cur_undirected_graph_view.compute_number_of_edges(handle);
         if (prev_number_of_edges == cur_undirected_graph_view.compute_number_of_edges(handle)) { break; }
 
     }
@@ -842,8 +813,9 @@ k_truss(raft::handle_t const& handle,
     auto stop = high_resolution_clock::now();
     k_truss_ms = duration_cast<microseconds>(stop - start);
 
-    std::cout << "k_truss took " << k_truss_ms.count() / 1000 << " milliseconds" << std::endl;
-    std::cout << "The number of edges = " << number_edges << " and the num_iteration = " << iteration << std::endl;
+    std::cout << "k_truss took " << k_truss_ms.count() / 1000 << " milliseconds" <<  std::endl;
+    std::cout << "intersection took " << intersection_ms.count()/1000 << " milliseconds" << std::endl;
+    std::cout << "The number of edges = " << cur_undirected_graph_view.compute_number_of_edges(handle) << " and the num_iteration = " << iteration << std::endl;
 
     std::optional<rmm::device_uvector<weight_t>> edgelist_wgts{std::nullopt};
     
