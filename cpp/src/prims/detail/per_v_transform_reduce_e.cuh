@@ -2454,42 +2454,34 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
             }
           }
 
-          for (size_t j = 0; j < loop_count; ++j) {
-            auto partition_idx = i + j;
-            auto loop_stream =
-              loop_stream_pool_indices
-                ? handle.get_stream_from_stream_pool((*loop_stream_pool_indices)[j])
-                : handle.get_stream();
+          if constexpr (try_bitmap) {  // if we are using a bitmap buffer
+            if (v_list_bitmap) {
+              std::vector<rmm::device_uvector<vertex_t>> input_count_offset_vectors{};
+              input_count_offset_vectors.reserve(loop_count);
 
-            auto const& key_segment_offsets = (*key_segment_offset_vectors)[partition_idx];
+              std::vector<rmm::device_uvector<uint32_t>> filtered_bitmap_vectors{};
+              std::vector<rmm::device_uvector<vertex_t>> output_count_offset_vectors{};
+              filtered_bitmap_vectors.reserve(loop_count);
+              output_count_offset_vectors.reserve(loop_count);
 
-            auto& keys = edge_partition_key_buffers[j];
-            std::variant<rmm::device_uvector<uint32_t>, rmm::device_uvector<size_t>> offsets =
-              rmm::device_uvector<uint32_t>(0, loop_stream);
-            if (uint32_key_output_offset) {
-              std::get<0>(offsets).resize(process_local_edges[j]
-                                            ? (key_segment_offsets[4] - key_segment_offsets[3])
-                                            : vertex_t{0},
-                                          loop_stream);
-            } else {
-              offsets = rmm::device_uvector<size_t>(
-                process_local_edges[j] ? (key_segment_offsets[4] - key_segment_offsets[3])
-                                       : vertex_t{0},
-                loop_stream);
-            }
+              std::vector<vertex_t> range_offset_firsts(loop_count, 0);
+              std::vector<vertex_t> range_offset_lasts(loop_count, 0);
 
-            if (process_local_edges[j]) {
-              auto edge_partition =
-                edge_partition_device_view_t<vertex_t, edge_t, GraphViewType::is_multi_gpu>(
-                  graph_view.local_edge_partition_view(partition_idx));
-              auto const& segment_offsets =
-                graph_view.local_edge_partition_segment_offsets(partition_idx);
+              for (size_t j = 0; j < loop_count; ++j) {
+                auto partition_idx = i + j;
+                auto loop_stream =
+                  loop_stream_pool_indices
+                    ? handle.get_stream_from_stream_pool((*loop_stream_pool_indices)[j])
+                    : handle.get_stream();
 
-              auto segment_bitmap = *(edge_partition.dcs_nzd_range_bitmap());
+                rmm::device_uvector<vertex_t> input_count_offsets(0, loop_stream);
+                if (process_local_edges[j]) {
+                  auto edge_partition =
+                    edge_partition_device_view_t<vertex_t, edge_t, GraphViewType::is_multi_gpu>(
+                      graph_view.local_edge_partition_view(partition_idx));
+                  auto const& segment_offsets =
+                    graph_view.local_edge_partition_segment_offsets(partition_idx);
 
-              if constexpr (try_bitmap) {
-                if (v_list_bitmap) {
-                  auto const& rx_bitmap = (*edge_partition_bitmap_buffers)[j];
                   auto range_offset_first =
                     std::min((edge_partition.major_range_first() + (*segment_offsets)[3] >
                               local_v_list_range_firsts[partition_idx])
@@ -2507,6 +2499,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
                              local_v_list_range_lasts[partition_idx] -
                                local_v_list_range_firsts[partition_idx]);
                   if (range_offset_first < range_offset_last) {
+                    auto const& rx_bitmap  = (*edge_partition_bitmap_buffers)[j];
                     auto input_count_first = thrust::make_transform_iterator(
                       thrust::make_counting_iterator(packed_bool_offset(range_offset_first)),
                       cuda::proclaim_return_type<vertex_t>(
@@ -2521,7 +2514,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
                           }
                           return static_cast<vertex_t>(__popc(word));
                         }));
-                    rmm::device_uvector<vertex_t> input_count_offsets(
+                    input_count_offsets.resize(
                       (rx_bitmap.size() - packed_bool_offset(range_offset_first)) + 1, loop_stream);
                     input_count_offsets.set_element_to_zero_async(0, loop_stream);
                     thrust::inclusive_scan(
@@ -2530,7 +2523,34 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
                       input_count_first +
                         (rx_bitmap.size() - packed_bool_offset(range_offset_first)),
                       input_count_offsets.begin() + 1);
-                    rmm::device_uvector<uint32_t> filtered_bitmap(
+                  }
+                  range_offset_firsts[j] = range_offset_first;
+                  range_offset_lasts[j]  = range_offset_last;
+                }
+                input_count_offset_vectors.push_back(std::move(input_count_offsets));
+              }
+
+              for (size_t j = 0; j < loop_count; ++j) {
+                auto partition_idx = i + j;
+                auto loop_stream =
+                  loop_stream_pool_indices
+                    ? handle.get_stream_from_stream_pool((*loop_stream_pool_indices)[j])
+                    : handle.get_stream();
+
+                rmm::device_uvector<uint32_t> filtered_bitmap(0, loop_stream);
+                rmm::device_uvector<vertex_t> output_count_offsets(0, loop_stream);
+                if (process_local_edges[j]) {
+                  auto edge_partition =
+                    edge_partition_device_view_t<vertex_t, edge_t, GraphViewType::is_multi_gpu>(
+                      graph_view.local_edge_partition_view(partition_idx));
+
+                  auto segment_bitmap = *(edge_partition.dcs_nzd_range_bitmap());
+
+                  auto range_offset_first = range_offset_firsts[j];
+                  auto range_offset_last  = range_offset_lasts[j];
+                  if (range_offset_first < range_offset_last) {
+                    auto const& rx_bitmap = (*edge_partition_bitmap_buffers)[j];
+                    filtered_bitmap.resize(
                       rx_bitmap.size() - packed_bool_offset(range_offset_first), loop_stream);
                     thrust::tabulate(
                       rmm::exec_policy_nosync(loop_stream),
@@ -2593,13 +2613,51 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
                       cuda::proclaim_return_type<vertex_t>([] __device__(uint32_t word) {
                         return static_cast<vertex_t>(__popc(word));
                       }));
-                    rmm::device_uvector<vertex_t> output_count_offsets(filtered_bitmap.size() + 1,
-                                                                       loop_stream);
+                    output_count_offsets.resize(filtered_bitmap.size() + 1, loop_stream);
                     output_count_offsets.set_element_to_zero_async(0, loop_stream);
                     thrust::inclusive_scan(rmm::exec_policy_nosync(loop_stream),
                                            output_count_first,
                                            output_count_first + filtered_bitmap.size(),
                                            output_count_offsets.begin() + 1);
+                  }
+                }
+                filtered_bitmap_vectors.push_back(std::move(filtered_bitmap));
+                output_count_offset_vectors.push_back(std::move(output_count_offsets));
+              }
+
+              for (size_t j = 0; j < loop_count; ++j) {
+                auto partition_idx = i + j;
+                auto loop_stream =
+                  loop_stream_pool_indices
+                    ? handle.get_stream_from_stream_pool((*loop_stream_pool_indices)[j])
+                    : handle.get_stream();
+
+                auto const& key_segment_offsets = (*key_segment_offset_vectors)[partition_idx];
+
+                auto& keys = edge_partition_key_buffers[j];
+                std::variant<rmm::device_uvector<uint32_t>, rmm::device_uvector<size_t>> offsets =
+                  rmm::device_uvector<uint32_t>(0, loop_stream);
+                if (uint32_key_output_offset) {
+                  std::get<0>(offsets).resize(process_local_edges[j]
+                                                ? (key_segment_offsets[4] - key_segment_offsets[3])
+                                                : vertex_t{0},
+                                              loop_stream);
+                } else {
+                  offsets = rmm::device_uvector<size_t>(
+                    process_local_edges[j] ? (key_segment_offsets[4] - key_segment_offsets[3])
+                                           : vertex_t{0},
+                    loop_stream);
+                }
+
+                if (process_local_edges[j]) {
+                  auto range_offset_first = range_offset_firsts[j];
+                  auto range_offset_last  = range_offset_lasts[j];
+                  if (range_offset_first < range_offset_last) {
+                    auto const& rx_bitmap            = (*edge_partition_bitmap_buffers)[j];
+                    auto const& input_count_offsets  = input_count_offset_vectors[j];
+                    auto const& filtered_bitmap      = filtered_bitmap_vectors[j];
+                    auto const& output_count_offsets = output_count_offset_vectors[j];
+
                     if (keys.index() == 0) {
                       if (offsets.index() == 0) {
                         thrust::for_each(
@@ -2806,8 +2864,45 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
                                  size_t{0});
                   }
                 }
+
+                (*edge_partition_hypersparse_key_offset_vectors).push_back(std::move(offsets));
               }
-              if (edge_partition_new_key_buffers) {
+            }
+          }
+          if (edge_partition_new_key_buffers) {  // if there is no bitmap buffer
+            for (size_t j = 0; j < loop_count; ++j) {
+              auto partition_idx = i + j;
+              auto loop_stream =
+                loop_stream_pool_indices
+                  ? handle.get_stream_from_stream_pool((*loop_stream_pool_indices)[j])
+                  : handle.get_stream();
+
+              auto const& key_segment_offsets = (*key_segment_offset_vectors)[partition_idx];
+
+              auto& keys = edge_partition_key_buffers[j];
+              std::variant<rmm::device_uvector<uint32_t>, rmm::device_uvector<size_t>> offsets =
+                rmm::device_uvector<uint32_t>(0, loop_stream);
+              if (uint32_key_output_offset) {
+                std::get<0>(offsets).resize(process_local_edges[j]
+                                              ? (key_segment_offsets[4] - key_segment_offsets[3])
+                                              : vertex_t{0},
+                                            loop_stream);
+              } else {
+                offsets = rmm::device_uvector<size_t>(
+                  process_local_edges[j] ? (key_segment_offsets[4] - key_segment_offsets[3])
+                                         : vertex_t{0},
+                  loop_stream);
+              }
+
+              if (process_local_edges[j]) {
+                auto edge_partition =
+                  edge_partition_device_view_t<vertex_t, edge_t, GraphViewType::is_multi_gpu>(
+                    graph_view.local_edge_partition_view(partition_idx));
+                auto const& segment_offsets =
+                  graph_view.local_edge_partition_segment_offsets(partition_idx);
+
+                auto segment_bitmap = *(edge_partition.dcs_nzd_range_bitmap());
+
                 auto& new_keys = (*edge_partition_new_key_buffers)[j];
                 if constexpr (try_bitmap) {
                   assert(!v_list_bitmap);
@@ -2945,9 +3040,9 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
                   }
                 }
               }
-            }
 
-            (*edge_partition_hypersparse_key_offset_vectors).push_back(std::move(offsets));
+              (*edge_partition_hypersparse_key_offset_vectors).push_back(std::move(offsets));
+            }
           }
           if (loop_stream_pool_indices) { handle.sync_stream_pool(*loop_stream_pool_indices); }
           if (edge_partition_new_key_buffers) {
