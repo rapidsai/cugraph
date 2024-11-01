@@ -815,6 +815,7 @@ k_truss(raft::handle_t const& handle,
 
     std::cout << "k_truss took " << k_truss_ms.count() / 1000 << " milliseconds" <<  std::endl;
     std::cout << "intersection took " << intersection_ms.count()/1000 << " milliseconds" << std::endl;
+    std::cout << "percentage during intersection = " << ((intersection_ms.count()/1000) / (k_truss_ms.count() / 1000)) * 100 << std::endl;
     std::cout << "The number of edges = " << cur_undirected_graph_view.compute_number_of_edges(handle) << " and the num_iteration = " << iteration << std::endl;
 
     std::optional<rmm::device_uvector<weight_t>> edgelist_wgts{std::nullopt};
