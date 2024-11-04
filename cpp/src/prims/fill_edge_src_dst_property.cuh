@@ -287,7 +287,7 @@ void fill_edge_minor_property(raft::handle_t const& handle,
   }
 }
 
-#define FILL_PERFORMANCE_MEASUREMENT 1
+#define FILL_PERFORMANCE_MEASUREMENT 0
 
 template <typename GraphViewType,
           typename VertexIterator,
@@ -405,6 +405,9 @@ void fill_edge_minor_property(raft::handle_t const& handle,
         local_v_list_range_lasts[i]  = static_cast<vertex_t>(h_aggregate_tmps[i * size_t{4} + 3]);
       }
     }
+#if FILL_PERFORMANCE_MEASUREMENT
+  RAFT_CUDA_TRY(cudaDeviceSynchronize());
+#endif
 
     auto edge_partition_keys = edge_minor_property_output.keys();
 
@@ -540,6 +543,9 @@ void fill_edge_minor_property(raft::handle_t const& handle,
         compressed_v_list = std::move(tmps);
       }
     }
+#if FILL_PERFORMANCE_MEASUREMENT
+  RAFT_CUDA_TRY(cudaDeviceSynchronize());
+#endif
 
     std::optional<std::vector<size_t>> stream_pool_indices{std::nullopt};
     size_t num_concurrent_bcasts{1};

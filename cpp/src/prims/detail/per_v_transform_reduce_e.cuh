@@ -19,6 +19,7 @@
 #include "prims/detail/multi_stream_utils.cuh"
 #include "prims/detail/optional_dataframe_buffer.hpp"
 #include "prims/detail/prim_functors.cuh"
+#include "prims/detail/prim_utils.cuh"
 #include "prims/fill_edge_src_dst_property.cuh"
 #include "prims/property_op_utils.cuh"
 #include "prims/reduce_op.cuh"
@@ -890,82 +891,6 @@ __global__ static void per_v_transform_reduce_e_high_degree(
   }
 }
 
-template <typename vertex_t, typename priority_t>
-__host__ __device__ priority_t
-rank_to_priority(int rank,
-                 int root,
-                 int subgroup_size /* faster interconnect within a subgroup */,
-                 int comm_size,
-                 vertex_t offset /* to evenly distribute traffic */)
-{
-  static_assert(std::is_same_v<priority_t, uint8_t> || std::is_same_v<priority_t, uint32_t>);
-  using cast_t = std::conditional_t<std::is_same_v<priority_t, uint8_t>,
-                                    int16_t,
-                                    int64_t>;  // to prevent overflow (assuming that comm_size <=
-                                               // std::numeric_limits<priority_t>::max()) no need
-                                               // for communication (priority 0)
-  if (rank == root) {
-    return priority_t{0};
-  } else if (rank / subgroup_size ==
-             root / subgroup_size) {  // intra-subgroup communication is sufficient (priorities in
-                                      // [1, subgroup_size)
-    auto rank_dist =
-      static_cast<int>(((static_cast<cast_t>(rank) + subgroup_size) - root) % subgroup_size);
-    int modulo = subgroup_size - 1;
-    return static_cast<priority_t>(1 + (static_cast<cast_t>(rank_dist - 1) + (offset % modulo)) %
-                                         modulo);
-  } else {  // inter-subgroup communication is necessary (priorities in [subgroup_size, comm_size)
-    auto subgroup_dist =
-      static_cast<int>(((static_cast<cast_t>(rank / subgroup_size) + (comm_size / subgroup_size)) -
-                        (root / subgroup_size)) %
-                       (comm_size / subgroup_size));
-    auto intra_subgroup_rank_dist = static_cast<int>(
-      ((static_cast<cast_t>(rank % subgroup_size) + subgroup_size) - (root % subgroup_size)) %
-      subgroup_size);
-    auto rank_dist = subgroup_dist * subgroup_size + intra_subgroup_rank_dist;
-    int modulo     = comm_size - subgroup_size;
-    return static_cast<priority_t>(
-      subgroup_size +
-      (static_cast<cast_t>(rank_dist - subgroup_size) + (offset % modulo)) % modulo);
-  }
-}
-
-template <typename vertex_t, typename priority_t>
-__host__ __device__ int priority_to_rank(
-  priority_t priority,
-  int root,
-  int subgroup_size /* faster interconnect within a subgroup */,
-  int comm_size,
-  vertex_t offset /* to evenly distribute traffict */)
-{
-  static_assert(std::is_same_v<priority_t, uint8_t> || std::is_same_v<priority_t, uint32_t>);
-  using cast_t = std::conditional_t<std::is_same_v<priority_t, uint8_t>,
-                                    int16_t,
-                                    int64_t>;  // to prevent overflow (assuming that comm_size <=
-                                               // std::numeric_limits<priority_t>::max())
-  if (priority == priority_t{0}) {
-    return root;
-  } else if (priority < static_cast<priority_t>(subgroup_size)) {
-    int modulo     = subgroup_size - 1;
-    auto rank_dist = static_cast<int>(
-      1 + ((static_cast<cast_t>(priority - 1) + modulo) - (offset % modulo)) % modulo);
-    return static_cast<int>((root - (root % subgroup_size)) +
-                            ((static_cast<cast_t>(root) + rank_dist) % subgroup_size));
-  } else {
-    int modulo     = comm_size - subgroup_size;
-    auto rank_dist = static_cast<int>(
-      subgroup_size +
-      ((static_cast<cast_t>(priority) - subgroup_size) + (modulo - (offset % modulo))) % modulo);
-    auto subgroup_dist            = rank_dist / subgroup_size;
-    auto intra_subgroup_rank_dist = rank_dist % subgroup_size;
-    return static_cast<int>(
-      ((static_cast<cast_t>((root / subgroup_size) * subgroup_size) +
-        subgroup_dist * subgroup_size) +
-       (static_cast<cast_t>(root) + intra_subgroup_rank_dist) % subgroup_size) %
-      comm_size);
-  }
-}
-
 template <typename vertex_t, typename priority_t, typename ValueIterator>
 void compute_priorities(
   raft::comms::comms_t const& comm,
@@ -1438,7 +1363,7 @@ void per_v_transform_reduce_e_edge_partition(
   }
 }
 
-#define PER_V_PERFORMANCE_MEASUREMENT 1  // FIXME: delete performance logging code
+#define PER_V_PERFORMANCE_MEASUREMENT 0  // FIXME: delete performance logging code
 
 template <bool incoming,  // iterate over incoming edges (incoming == true) or outgoing edges
                           // (incoming == false)

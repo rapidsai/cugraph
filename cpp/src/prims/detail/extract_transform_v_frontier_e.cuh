@@ -630,7 +630,7 @@ void extract_transform_v_frontier_e_edge_partition(
   }
 }
 
-#define EXTRACT_PERFORMANCE_MEASUREMENT 1  // FIXME: delete
+#define EXTRACT_PERFORMANCE_MEASUREMENT 0  // FIXME: delete
 
 template <bool incoming,  // iterate over incoming edges (incoming == true) or outgoing edges
                           // (incoming == false)
