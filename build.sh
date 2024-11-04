@@ -43,7 +43,6 @@ VALIDARGS="
    --pydevelop
    --allgpuarch
    --skip_cpp_tests
-   --without_cugraphops
    --cmake_default_generator
    --clean
    -h
@@ -74,7 +73,6 @@ HELP="$0 [<target> ...] [<flag> ...]
    --pydevelop                - install the Python packages in editable mode
    --allgpuarch               - build for all supported GPU architectures
    --skip_cpp_tests           - do not build the SG test binaries as part of the libcugraph and libcugraph_etl targets
-   --without_cugraphops       - do not build algos that require cugraph-ops
    --cmake_default_generator  - use the default cmake generator instead of ninja
    --clean                    - clean an individual target (note: to do a complete rebuild, use the clean target described above)
    -h                         - print this text
@@ -107,7 +105,6 @@ BUILD_CPP_TESTS=ON
 BUILD_CPP_MG_TESTS=OFF
 BUILD_CPP_MTMG_TESTS=OFF
 BUILD_ALL_GPU_ARCH=0
-BUILD_WITH_CUGRAPHOPS=ON
 CMAKE_GENERATOR_OPTION="-G Ninja"
 PYTHON_ARGS_FOR_INSTALL="-m pip install --no-build-isolation --no-deps --config-settings rapidsai.disable-cuda=true"
 
@@ -169,9 +166,6 @@ if hasArg --allgpuarch; then
 fi
 if hasArg --skip_cpp_tests; then
     BUILD_CPP_TESTS=OFF
-fi
-if hasArg --without_cugraphops; then
-    BUILD_WITH_CUGRAPHOPS=OFF
 fi
 if hasArg cpp-mtmgtests; then
     BUILD_CPP_MTMG_TESTS=ON
@@ -268,7 +262,6 @@ if buildDefault || hasArg libcugraph || hasArg all; then
               -DBUILD_TESTS=${BUILD_CPP_TESTS} \
               -DBUILD_CUGRAPH_MG_TESTS=${BUILD_CPP_MG_TESTS} \
 	      -DBUILD_CUGRAPH_MTMG_TESTS=${BUILD_CPP_MTMG_TESTS} \
-	      -DUSE_CUGRAPH_OPS=${BUILD_WITH_CUGRAPHOPS} \
               ${CMAKE_GENERATOR_OPTION} \
               ${CMAKE_VERBOSE_OPTION}
         cmake --build "${LIBCUGRAPH_BUILD_DIR}" -j${PARALLEL_LEVEL} ${INSTALL_TARGET} ${VERBOSE_FLAG}
@@ -312,7 +305,7 @@ if buildDefault || hasArg pylibcugraph || hasArg all; then
     if hasArg --clean; then
         cleanPythonDir ${REPODIR}/python/pylibcugraph
     else
-        SKBUILD_CMAKE_ARGS="${SKBUILD_EXTRA_CMAKE_ARGS};-DUSE_CUGRAPH_OPS=${BUILD_WITH_CUGRAPHOPS}" \
+        SKBUILD_CMAKE_ARGS="${SKBUILD_EXTRA_CMAKE_ARGS}" \
             python ${PYTHON_ARGS_FOR_INSTALL} ${REPODIR}/python/pylibcugraph
     fi
 fi
@@ -322,7 +315,7 @@ if buildDefault || hasArg cugraph || hasArg all; then
     if hasArg --clean; then
         cleanPythonDir ${REPODIR}/python/cugraph
     else
-        SKBUILD_CMAKE_ARGS="${SKBUILD_EXTRA_CMAKE_ARGS};-DUSE_CUGRAPH_OPS=${BUILD_WITH_CUGRAPHOPS}" \
+        SKBUILD_CMAKE_ARGS="${SKBUILD_EXTRA_CMAKE_ARGS}" \
             python ${PYTHON_ARGS_FOR_INSTALL} ${REPODIR}/python/cugraph
     fi
 fi
