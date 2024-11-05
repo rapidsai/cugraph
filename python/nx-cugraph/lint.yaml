@@ -52,7 +52,7 @@ repos:
       - id: black
       # - id: black-jupyter
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.7.1
+    rev: v0.7.2
     hooks:
       - id: ruff
         args: [--fix-only, --show-fixes]  # --unsafe-fixes]
@@ -64,7 +64,7 @@ repos:
         additional_dependencies: &flake8_dependencies
           # These versions need updated manually
           - flake8==7.1.1
-          - flake8-bugbear==24.8.19
+          - flake8-bugbear==24.10.31
           - flake8-simplify==0.21.0
   - repo: https://github.com/asottile/yesqa
     rev: v1.5.0
@@ -80,7 +80,7 @@ repos:
         files: python/nx-cugraph/
         args: [-L, "coo,numer"]
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.7.1
+    rev: v0.7.2
     hooks:
       - id: ruff
   - repo: https://github.com/pre-commit/pre-commit-hooks

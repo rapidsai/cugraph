@@ -16,6 +16,8 @@ import random
 import networkx as nx
 import pandas as pd
 import pytest
+from collections.abc import Mapping
+
 from cugraph import datasets
 import nx_cugraph as nxcg
 
@@ -520,7 +522,7 @@ def bench_shortest_path(benchmark, graph_obj, backend_wrapper):
         iterations=iterations,
         warmup_rounds=warmup_rounds,
     )
-    assert type(result) is dict
+    assert isinstance(result, Mapping)  # dict in nx, but we duck-type
 
 
 def bench_single_source_shortest_path_length(benchmark, graph_obj, backend_wrapper):
