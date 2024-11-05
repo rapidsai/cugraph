@@ -19,9 +19,11 @@ from pylibcugraph._cugraph_c.error cimport (
     cugraph_error_t,
 )
 
+from pylibcugraph._cugraph_c.types cimport (
+    bool_t,
+)
 from pylibcugraph._cugraph_c.resource_handle cimport (
     cugraph_resource_handle_t,
-    bool_t,
 )
 
 from pylibcugraph._cugraph_c.similarity_algorithms cimport (
