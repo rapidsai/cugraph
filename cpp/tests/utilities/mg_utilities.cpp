@@ -51,16 +51,26 @@ std::unique_ptr<raft::handle_t> initialize_mg_handle(size_t pool_size)
   handle = std::make_unique<raft::handle_t>(rmm::cuda_stream_per_thread,
                                             std::make_shared<rmm::cuda_stream_pool>(pool_size));
 
-  raft::comms::initialize_mpi_comms(handle.get(), MPI_COMM_WORLD);
-  auto& comm           = handle->get_comms();
-  auto const comm_size = comm.get_size();
+  auto comm_rank = query_mpi_comm_world_rank();
+  auto comm_size = query_mpi_comm_world_size();
+  ncclUniqueId id{};
+  if (comm_rank == 0) {
+    RAFT_NCCL_TRY(ncclGetUniqueId(&id));
+  }
+  RAFT_MPI_TRY(MPI_Bcast((void*)&id, sizeof(id), MPI_BYTE, 0, MPI_COMM_WORLD));
+  ncclComm_t nccl_comm{};
+  ncclConfig_t nccl_config = NCCL_CONFIG_INITIALIZER;
+  nccl_config.splitShare = 1;
+  RAFT_NCCL_TRY(ncclCommInitRankConfig(&nccl_comm, comm_size, id, comm_rank, &nccl_config));
+
+  raft::comms::initialize_mpi_comms(handle.get(), MPI_COMM_WORLD, nccl_comm);
 
   auto gpu_row_comm_size = static_cast<int>(sqrt(static_cast<double>(comm_size)));
   while (comm_size % gpu_row_comm_size != 0) {
     --gpu_row_comm_size;
   }
 
-  cugraph::partition_manager::init_subcomm(*handle, std::max(comm_size / 8, 1));
+  cugraph::partition_manager::init_subcomm(*handle, std::max(comm_size / 16, 1));
 
   return std::move(handle);
 }
