@@ -40,6 +40,9 @@ from pylibcugraph.node2vec import node2vec
 from pylibcugraph.bfs import bfs
 
 from pylibcugraph.uniform_neighbor_sample import uniform_neighbor_sample
+
+from pylibcugraph.biased_neighbor_sample import biased_neighbor_sample
+
 from pylibcugraph.homogeneous_uniform_neighbor_sample import (
     homogeneous_uniform_neighbor_sample,
 )
