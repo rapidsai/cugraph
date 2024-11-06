@@ -1641,16 +1641,16 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
                 std::is_same_v<ReduceOp, reduce_op::any<T>>) {
     auto& comm           = handle.get_comms();
     auto const comm_size = comm.get_size();
+    auto& minor_comm           = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
+    auto const minor_comm_size = minor_comm.get_size();
 
     int num_gpus_per_node{};
     RAFT_CUDA_TRY(cudaGetDeviceCount(&num_gpus_per_node));
     if (comm_size <= num_gpus_per_node) {
-      subgroup_size = comm_size;
+      subgroup_size = minor_comm_size;
     } else {
       auto& major_comm = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
       auto const major_comm_size = major_comm.get_size();
-      auto& minor_comm = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
-      auto const minor_comm_size = minor_comm.get_size();
       subgroup_size              = partition_manager::map_major_comm_to_gpu_row_comm
                                      ? std::max(num_gpus_per_node / major_comm_size, int{1})
                                      : std::min(minor_comm_size, num_gpus_per_node);
