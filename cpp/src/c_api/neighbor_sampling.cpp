@@ -885,10 +885,10 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
 
         // Compute the global start_vertex_label_offsets
 
-        cugraph::detail::transform_increment(
-          handle_.get_stream(),
+        cugraph::detail::transform_increment_ints(
           raft::device_span<label_t>{(*start_vertex_labels).data(), (*start_vertex_labels).size()},
-          (label_t)global_labels[handle_.get_comms().get_rank()]);
+          (label_t)global_labels[handle_.get_comms().get_rank()],
+          handle_.get_stream());
       }
 
       if constexpr (multi_gpu) {
@@ -902,11 +902,11 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
 
           // Get unique labels
           // sort the start_vertex_labels
-          cugraph::detail::sort(
+          cugraph::detail::sort_ints(
             handle_.get_stream(),
             raft::device_span<label_t>{unique_labels.data(), unique_labels.size()});
 
-          auto num_unique_labels = cugraph::detail::unique(
+          auto num_unique_labels = cugraph::detail::unique_ints(
             handle_.get_stream(),
             raft::device_span<label_t>{unique_labels.data(), unique_labels.size()});
 

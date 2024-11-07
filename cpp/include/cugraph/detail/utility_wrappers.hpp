@@ -68,7 +68,7 @@ void scalar_fill(raft::handle_t const& handle, value_t* d_value, size_t size, va
 /**
  * @brief    Sort a device span
  *
- * @tparam      value_t      type of the value to operate on
+ * @tparam      value_t      type of the value to operate on. Must be either int32_t or int64_t.
  *
  * @param [in]  handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator,
  * and handles to various CUDA libraries) to run graph algorithms.
@@ -76,12 +76,12 @@ void scalar_fill(raft::handle_t const& handle, value_t* d_value, size_t size, va
  *
  */
 template <typename value_t>
-void sort(raft::handle_t const& handle, raft::device_span<value_t> values);
+void sort_ints(raft::handle_t const& handle, raft::device_span<value_t> values);
 
 /**
  * @brief    Keep unique element from a device span
  *
- * @tparam      value_t      type of the value to operate on
+ * @tparam      value_t      type of the value to operate on. Must be either int32_t or int64_t.
  *
  * @param [in]  handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator,
  * and handles to various CUDA libraries) to run graph algorithms.
@@ -90,23 +90,22 @@ void sort(raft::handle_t const& handle, raft::device_span<value_t> values);
  *
  */
 template <typename value_t>
-size_t unique(raft::handle_t const& handle, raft::device_span<value_t> values);
+size_t unique_ints(raft::handle_t const& handle, raft::device_span<value_t> values);
 
 /**
  * @brief    Increment the values of a device span by a constant value
  *
- * @tparam      value_t      type of the value to operate on
+ * @tparam      value_t      type of the value to operate on. Must be either int32_t or int64_t.
  *
- * @param [in]  handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator,
- * and handles to various CUDA libraries) to run graph algorithms.
  * @param[out]  values       device span to update
  * @param[in]   value        value to be added to each element of the buffer
+ * @param[in]   stream_view  stream view
  *
  */
 template <typename value_t>
-void transform_increment(rmm::cuda_stream_view const& stream_view,
-                         raft::device_span<value_t> values,
-                         value_t value);
+void transform_increment_ints(raft::device_span<value_t> values,
+                              value_t value,
+                              rmm::cuda_stream_view const& stream_view);
 
 /**
  * @brief    Fill a buffer with a sequence of values
@@ -116,7 +115,7 @@ void transform_increment(rmm::cuda_stream_view const& stream_view,
  *
  * Similar to the function std::iota, wraps the function thrust::sequence
  *
- * @tparam      value_t      type of the value to operate on
+ * @tparam      value_t      type of the value to operate on. 
  *
  * @param[in]   stream_view  stream view
  * @param[out]  d_value      device array to fill

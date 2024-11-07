@@ -65,17 +65,17 @@ void scalar_fill(raft::handle_t const& handle, value_t* d_value, size_t size, va
 }
 
 template <typename value_t>
-void sort(raft::handle_t const& handle, raft::device_span<value_t> d_span)
+void sort_ints(raft::handle_t const& handle, raft::device_span<value_t> values)
 {
-  thrust::sort(handle.get_thrust_policy(), d_span.begin(), d_span.end());
+  thrust::sort(handle.get_thrust_policy(), values.begin(), values.end());
 }
 
 template <typename value_t>
-size_t unique(raft::handle_t const& handle, raft::device_span<value_t> d_span)
+size_t unique_ints(raft::handle_t const& handle, raft::device_span<value_t> values)
 {
   auto unique_element_last =
-    thrust::unique(handle.get_thrust_policy(), d_span.begin(), d_span.end());
-  return thrust::distance(d_span.begin(), unique_element_last);
+    thrust::unique(handle.get_thrust_policy(), values.begin(), values.end());
+  return thrust::distance(values.begin(), unique_element_last);
 }
 
 template <typename value_t>
@@ -88,14 +88,14 @@ void sequence_fill(rmm::cuda_stream_view const& stream_view,
 }
 
 template <typename value_t>
-void transform_increment(rmm::cuda_stream_view const& stream_view,
-                         raft::device_span<value_t> d_span,
-                         value_t incr)
+void transform_increment_ints(raft::device_span<value_t> values,
+                              value_t incr,
+                              rmm::cuda_stream_view const& stream_view)
 {
   thrust::transform(rmm::exec_policy(stream_view),
-                    d_span.begin(),
-                    d_span.end(),
-                    d_span.begin(),
+                    values.begin(),
+                    values.end(),
+                    values.begin(),
                     cuda::proclaim_return_type<value_t>([incr] __device__(value_t value) {
                       return static_cast<value_t>(value + incr);
                     }));
