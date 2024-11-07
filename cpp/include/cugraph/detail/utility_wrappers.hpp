@@ -72,11 +72,11 @@ void scalar_fill(raft::handle_t const& handle, value_t* d_value, size_t size, va
  *
  * @param [in]  handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator,
  * and handles to various CUDA libraries) to run graph algorithms.
- * @param[out]  d_span      device span to sort
+ * @param[out]  values      device span to sort
  *
  */
 template <typename value_t>
-void sort(raft::handle_t const& handle, raft::device_span<value_t> d_span);
+void sort(raft::handle_t const& handle, raft::device_span<value_t> values);
 
 /**
  * @brief    Keep unique element from a device span
@@ -85,12 +85,12 @@ void sort(raft::handle_t const& handle, raft::device_span<value_t> d_span);
  *
  * @param [in]  handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator,
  * and handles to various CUDA libraries) to run graph algorithms.
- * @param[in]  d_span      device span of unique elements.
+ * @param[in]  values      device span of unique elements.
  * @return the number of unique elements.
  *
  */
 template <typename value_t>
-size_t unique(raft::handle_t const& handle, raft::device_span<value_t> d_span);
+size_t unique(raft::handle_t const& handle, raft::device_span<value_t> values);
 
 /**
  * @brief    Increment the values of a device span by a constant value
@@ -99,13 +99,13 @@ size_t unique(raft::handle_t const& handle, raft::device_span<value_t> d_span);
  *
  * @param [in]  handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator,
  * and handles to various CUDA libraries) to run graph algorithms.
- * @param[out]  d_span       device span to update
+ * @param[out]  values       device span to update
  * @param[in]   value        value to be added to each element of the buffer
  *
  */
 template <typename value_t>
 void transform_increment(rmm::cuda_stream_view const& stream_view,
-                         raft::device_span<value_t> d_span,
+                         raft::device_span<value_t> values,
                          value_t value);
 
 /**
