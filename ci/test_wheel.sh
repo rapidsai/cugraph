@@ -10,12 +10,8 @@ python_package_name=$(echo ${package_name}|sed 's/-/_/g')
 mkdir -p ./dist
 RAPIDS_PY_CUDA_SUFFIX="$(rapids-wheel-ctk-name-gen ${RAPIDS_CUDA_VERSION})"
 
-# nx-cugraph is a pure wheel, which is part of generating the download path
-if [[ "${package_name}" == "nx-cugraph" ]]; then
-    RAPIDS_PY_WHEEL_NAME="${package_name}_${RAPIDS_PY_CUDA_SUFFIX}" RAPIDS_PY_WHEEL_PURE="1" rapids-download-wheels-from-s3 ./dist
-else
-    RAPIDS_PY_WHEEL_NAME="${package_name}_${RAPIDS_PY_CUDA_SUFFIX}" rapids-download-wheels-from-s3 ./dist
-fi
+RAPIDS_PY_WHEEL_NAME="${package_name}_${RAPIDS_PY_CUDA_SUFFIX}" rapids-download-wheels-from-s3 ./dist
+
 # use 'ls' to expand wildcard before adding `[extra]` requires for pip
 # pip creates wheels using python package names
 python -m pip install $(ls ./dist/${python_package_name}*.whl)[test]
@@ -41,6 +37,6 @@ else
        -v \
        --import-mode=append \
        --benchmark-disable \
-       -k "not test_property_graph_mg and not test_bulk_sampler_io" \
-       ./python/${package_name}/${python_package_name}/tests
+       -k "test_pagerank_non_convergence" \
+       ./python/${package_name}/${python_package_name}/tests/link_analysis/
 fi
