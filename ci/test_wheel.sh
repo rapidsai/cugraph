@@ -37,6 +37,6 @@ else
        -v \
        --import-mode=append \
        --benchmark-disable \
-       -k "test_pagerank_non_convergence" \
-       ./python/${package_name}/${python_package_name}/tests/link_analysis/
+       -k "not test_property_graph_mg and not test_bulk_sampler_io" \
+       ./python/${package_name}/${python_package_name}/tests
 fi
