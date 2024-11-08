@@ -112,7 +112,6 @@ class Tests_MGSimilarity
         hr_timer.start("MG similarity test");
       }
 
-      std::cout << "running all-pairs" << std::endl;
       std::tie(v1, v2, result_score) = test_functor.run(*handle_,
                                                         mg_graph_view,
                                                         mg_edge_weight_view,
@@ -121,7 +120,6 @@ class Tests_MGSimilarity
                                                         similarity_usecase.topk);
     } else {
       if (!sources_span) {
-        std::cout << "populating sources" << std::endl;
         sources.resize(mg_graph_view.local_vertex_partition_range_size(), handle_->get_stream());
         cugraph::test::populate_vertex_ids(
           *handle_, sources, mg_graph_view.local_vertex_partition_range_first());
@@ -130,10 +128,7 @@ class Tests_MGSimilarity
 
       rmm::device_uvector<size_t> offsets(0, handle_->get_stream());
 
-      std::cout << "calling k_hop_nbrs" << std::endl;
       std::tie(offsets, v2) = cugraph::k_hop_nbrs(*handle_, mg_graph_view, *sources_span, 2);
-
-      std::cout << "calling expand_sparse_offsets" << std::endl;
 
       v1.resize(v2.size(), handle_->get_stream());
       cugraph::test::expand_sparse_offsets(
@@ -151,7 +146,6 @@ class Tests_MGSimilarity
                                              static_cast<vertex_t>(sources.size()),
                                              true);
 
-      std::cout << "calling remove_self_loops" << std::endl;
       std::tie(v1, v2) = cugraph::test::remove_self_loops(*handle_, std::move(v1), std::move(v2));
 
       std::tie(v1, v2, std::ignore, std::ignore, std::ignore, std::ignore) =

@@ -287,10 +287,9 @@ all_pairs_similarity(raft::handle_t const& handle,
     //  computing/updating topk with each batch
 
     //   FIXME: Experiment with this and adjust as necessary
-    // size_t const
-    // MAX_PAIRS_PER_BATCH{static_cast<size_t>(handle.get_device_properties().multiProcessorCount) *
-    // (1 << 15)};
-    size_t const MAX_PAIRS_PER_BATCH{100};
+    // size_t const MAX_PAIRS_PER_BATCH{100};
+    size_t const MAX_PAIRS_PER_BATCH{
+      static_cast<size_t>(handle.get_device_properties().multiProcessorCount) * (1 << 15)};
 
     rmm::device_uvector<edge_t> degrees = graph_view.compute_out_degrees(handle);
     rmm::device_uvector<size_t> two_hop_degrees(degrees.size() + 1, handle.get_stream());
@@ -361,6 +360,8 @@ all_pairs_similarity(raft::handle_t const& handle,
                       two_hop_degree_offsets.data() + two_hop_degree_offsets.size() - 1,
                       1,
                       handle.get_stream());
+
+    handle.sync_stream();
 
     std::tie(batch_offsets, std::ignore) = compute_offset_aligned_element_chunks(
       handle,
@@ -554,11 +555,10 @@ all_pairs_similarity(raft::handle_t const& handle,
       if (top_score.size() == *topk) {
         raft::update_host(
           &similarity_threshold, top_score.data() + *topk - 1, 1, handle.get_stream());
-
-        if constexpr (multi_gpu) {
-          similarity_threshold = host_scalar_bcast(
-            handle.get_comms(), similarity_threshold, int{0}, handle.get_stream());
-        }
+      }
+      if constexpr (multi_gpu) {
+        similarity_threshold =
+          host_scalar_bcast(handle.get_comms(), similarity_threshold, int{0}, handle.get_stream());
       }
     }
 
