@@ -58,9 +58,9 @@ extern "C" int create_test_graph(const cugraph_resource_handle_t* p_handle,
   properties.is_symmetric  = is_symmetric;
   properties.is_multigraph = FALSE;
 
-  data_type_id_t vertex_tid = INT32;
-  data_type_id_t edge_tid   = INT32;
-  data_type_id_t weight_tid = FLOAT32;
+  cugraph_data_type_id_t vertex_tid = INT32;
+  cugraph_data_type_id_t edge_tid   = INT32;
+  cugraph_data_type_id_t weight_tid = FLOAT32;
 
   cugraph_type_erased_device_array_t* src;
   cugraph_type_erased_device_array_t* dst;
@@ -144,9 +144,9 @@ extern "C" int create_test_graph_double(const cugraph_resource_handle_t* p_handl
   properties.is_symmetric  = is_symmetric;
   properties.is_multigraph = FALSE;
 
-  data_type_id_t vertex_tid = INT32;
-  data_type_id_t edge_tid   = INT32;
-  data_type_id_t weight_tid = FLOAT64;
+  cugraph_data_type_id_t vertex_tid = INT32;
+  cugraph_data_type_id_t edge_tid   = INT32;
+  cugraph_data_type_id_t weight_tid = FLOAT64;
 
   cugraph_type_erased_device_array_t* src;
   cugraph_type_erased_device_array_t* dst;
@@ -271,15 +271,15 @@ extern "C" int run_sg_test_new(int (*test)(const cugraph_resource_handle_t*),
 }
 
 int create_sg_test_graph(const cugraph_resource_handle_t* handle,
-                         data_type_id_t vertex_tid,
-                         data_type_id_t edge_tid,
+                         cugraph_data_type_id_t vertex_tid,
+                         cugraph_data_type_id_t edge_tid,
                          void* h_src,
                          void* h_dst,
-                         data_type_id_t weight_tid,
+                         cugraph_data_type_id_t weight_tid,
                          void* h_wgt,
-                         data_type_id_t edge_type_tid,
+                         cugraph_data_type_id_t edge_type_tid,
                          void* h_edge_type,
-                         data_type_id_t edge_id_tid,
+                         cugraph_data_type_id_t edge_id_tid,
                          void* h_edge_id,
                          size_t num_edges,
                          bool_t store_transposed,

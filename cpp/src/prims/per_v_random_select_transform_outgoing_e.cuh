@@ -235,7 +235,6 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
                                 std::optional<T> invalid_value,
                                 bool do_expensive_check)
 {
-#ifndef NO_CUGRAPH_OPS
   using vertex_t     = typename GraphViewType::vertex_type;
   using edge_t       = typename GraphViewType::edge_type;
   using key_t        = typename VertexFrontierBucketType::key_type;
@@ -590,11 +589,6 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
   }
 
   return std::make_tuple(std::move(sample_offsets), std::move(sample_e_op_results));
-#else
-  CUGRAPH_FAIL("unimplemented.");
-  return std::make_tuple(std::nullopt,
-                         allocate_dataframe_buffer<T>(size_t{0}, rmm::cuda_stream_view{}));
-#endif
 }
 
 }  // namespace detail
