@@ -284,12 +284,12 @@ struct sampling_flags_t {
  * id, edge_type (optional) identifies the edge type, hop identifies which hop the edge was
  * encountered in.  The offsets array (optional) identifies the offset for each label.
  *
- * If @p starting_vertex_label_offsets is not specified then no organization is applied to the output, the
- * offsets values in the return set will be std::nullopt.
+ * If @p starting_vertex_label_offsets is not specified then no organization is applied to the
+ * output, the offsets values in the return set will be std::nullopt.
  *
- * If @p starting_vertex_label_offsets is specified the offsets array will be populated. The offsets array
- * in the return will be a CSR-style offsets array to identify the beginning of each label range in
- * the output vectors.
+ * If @p starting_vertex_label_offsets is specified the offsets array will be populated. The offsets
+ * array in the return will be a CSR-style offsets array to identify the beginning of each label
+ * range in the output vectors.
  *
  * If @p label_to_output_comm_rank is specified then the data will be shuffled so that all entries
  * for a particular label are returned on the specified rank.  This will result in the offsets array
@@ -369,12 +369,12 @@ heterogeneous_uniform_neighbor_sample(
  * id, edge_type (optional) identifies the edge type, hop identifies which hop the edge was
  * encountered in.  The offsets array (optional) identifies the offset for each label.
  *
- * If @p starting_vertex_label_offsets is not specified then no organization is applied to the output, the
- * offsets values in the return set will be std::nullopt.
+ * If @p starting_vertex_label_offsets is not specified then no organization is applied to the
+ * output, the offsets values in the return set will be std::nullopt.
  *
- * If @p starting_vertex_label_offsets is specified the offsets array will be populated. The offsets array
- * in the return will be a CSR-style offsets array to identify the beginning of each label range in
- * the output vectors.
+ * If @p starting_vertex_label_offsets is specified the offsets array will be populated. The offsets
+ * array in the return will be a CSR-style offsets array to identify the beginning of each label
+ * range in the output vectors.
  *
  * If @p label_to_output_comm_rank is specified then the data will be shuffled so that all entries
  * for a particular label are returned on the specified rank.  This will result in the offsets array
@@ -459,12 +459,12 @@ heterogeneous_biased_neighbor_sample(
  * id, edge_type (optional) identifies the edge type, hop identifies which hop the edge was
  * encountered in.  The offsets array (optional) identifies the offset for each label.
  *
- * If @p starting_vertex_label_offsets is not specified then no organization is applied to the output, the
- * offsets values in the return set will be std::nullopt.
+ * If @p starting_vertex_label_offsets is not specified then no organization is applied to the
+ * output, the offsets values in the return set will be std::nullopt.
  *
- * If @p starting_vertex_label_offsets is specified the offsets array will be populated. The offsets array
- * in the return will be a CSR-style offsets array to identify the beginning of each label range in
- * the output vectors.
+ * If @p starting_vertex_label_offsets is specified the offsets array will be populated. The offsets
+ * array in the return will be a CSR-style offsets array to identify the beginning of each label
+ * range in the output vectors.
  *
  * If @p label_to_output_comm_rank is specified then the data will be shuffled so that all entries
  * for a particular label are returned on the specified rank.  This will result in the offsets array
@@ -540,12 +540,12 @@ homogeneous_uniform_neighbor_sample(
  * id, edge_type (optional) identifies the edge type, hop identifies which hop the edge was
  * encountered in.  The offsets array (optional) identifies the offset for each label.
  *
- * If @p starting_vertex_label_offsets is not specified then no organization is applied to the output, the
- * offsets values in the return set will be std::nullopt.
+ * If @p starting_vertex_label_offsets is not specified then no organization is applied to the
+ * output, the offsets values in the return set will be std::nullopt.
  *
- * If @p starting_vertex_label_offsets is specified the offsets array will be populated. The offsets array
- * in the return will be a CSR-style offsets array to identify the beginning of each label range in
- * the output vectors.
+ * If @p starting_vertex_label_offsets is specified the offsets array will be populated. The offsets
+ * array in the return will be a CSR-style offsets array to identify the beginning of each label
+ * range in the output vectors.
  *
  * If @p label_to_output_comm_rank is specified then the data will be shuffled so that all entries
  * for a particular label are returned on the specified rank.  This will result in the offsets array

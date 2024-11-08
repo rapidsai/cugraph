@@ -30,7 +30,7 @@ struct Heterogeneous_Biased_Neighbor_Sampling_Usecase {
   bool flag_replacement{true};
   // FIXME: Edge masking is currently not tested because it will
   // require attaching two masks (edge_type_t, bool_t) which
-  // is not currently supported. Once a primitive to support 
+  // is not currently supported. Once a primitive to support
   // heterogeneous sampling is added, maintaining two masks
   // won't be necessary
   // bool edge_masking{false};

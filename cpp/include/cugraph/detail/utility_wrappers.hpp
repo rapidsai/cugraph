@@ -115,7 +115,7 @@ void transform_increment_ints(raft::device_span<value_t> values,
  *
  * Similar to the function std::iota, wraps the function thrust::sequence
  *
- * @tparam      value_t      type of the value to operate on. 
+ * @tparam      value_t      type of the value to operate on.
  *
  * @param[in]   stream_view  stream view
  * @param[out]  d_value      device array to fill
