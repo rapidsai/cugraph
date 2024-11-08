@@ -271,6 +271,174 @@ struct sampling_flags_t {
 };
 
 /**
+ * @brief Homogeneous Uniform Neighborhood Sampling.
+ *
+ * This function traverses from a set of starting vertices, traversing outgoing edges and
+ * randomly selects (uniformly) from these outgoing neighbors to extract a subgraph.
+ * The branching out to select outgoing neighbors is performed with homogeneous fanouts
+ *
+ * Output from this function is a tuple of vectors (src, dst, weight, edge_id, edge_type, hop,
+ * offsets), identifying the randomly selected edges.  src is the source vertex, dst is the
+ * destination vertex, weight (optional) is the edge weight, edge_id (optional) identifies the edge
+ * id, edge_type (optional) identifies the edge type, hop identifies which hop the edge was
+ * encountered in.  The offsets array (optional) identifies the offset for each label.
+ *
+ * If @p starting_vertex_label_offsets is not specified then no organization is applied to the
+ * output, the offsets values in the return set will be std::nullopt.
+ *
+ * If @p starting_vertex_label_offsets is specified the offsets array will be populated. The offsets
+ * array in the return will be a CSR-style offsets array to identify the beginning of each label
+ * range in the output vectors.
+ *
+ * If @p label_to_output_comm_rank is specified then the data will be shuffled so that all entries
+ * for a particular label are returned on the specified rank.  This will result in the offsets array
+ * on other GPUs indicating that there are no entries for that label (`offsets[i] == offsets[i+1]`).
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
+ * @tparam weight_t Type of edge weights. Needs to be a floating point type.
+ * @tparam edge_type_t Type of edge type. Needs to be an integral type.
+ * @tparam bias_t Type of bias. Needs to be an integral type.
+ * @tparam store_transposed Flag indicating whether sources (if false) or destinations (if
+ * true) are major indices
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param rng_state A pre-initialized raft::RngState object for generating random numbers
+ * @param graph_view Graph View object to generate NBR Sampling on.
+ * @param edge_weight_view Optional view object holding edge weights for @p graph_view.
+ * @param edge_id_view Optional view object holding edge ids for @p graph_view.
+ * @param edge_type_view Optional view object holding edge types for @p graph_view.
+ * @param starting_vertices Device span of starting vertex IDs for the sampling.
+ * In a multi-gpu context the starting vertices should be local to this GPU.
+ * @param starting_vertex_labels Optional device span of labels associated with each starting vertex
+ * for the sampling.
+ * @param label_to_output_comm_rank Optional device span identifying which rank should get each
+ * vertex label.  This should be the same on each rank.
+ * @param fan_out Host span defining branching out (fan-out) degree per source vertex for each
+ * level.
+ * @param flags A set of flags indicating which sampling features should be used.
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
+ * @return tuple device vectors (vertex_t source_vertex, vertex_t destination_vertex,
+ * optional weight_t weight, optional edge_t edge id, optional edge_type_t edge type,
+ * optional int32_t hop, optional label_t label, optional size_t offsets)
+ */
+
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          typename edge_type_t,
+          bool store_transposed,
+          bool multi_gpu>
+std::tuple<rmm::device_uvector<vertex_t>,
+           rmm::device_uvector<vertex_t>,
+           std::optional<rmm::device_uvector<weight_t>>,
+           std::optional<rmm::device_uvector<edge_t>>,
+           std::optional<rmm::device_uvector<edge_type_t>>,
+           std::optional<rmm::device_uvector<int32_t>>,
+           std::optional<rmm::device_uvector<size_t>>>
+homogeneous_uniform_neighbor_sample(
+  raft::handle_t const& handle,
+  raft::random::RngState& rng_state,
+  graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
+  std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
+  std::optional<edge_property_view_t<edge_t, edge_t const*>> edge_id_view,
+  std::optional<edge_property_view_t<edge_t, edge_type_t const*>> edge_type_view,
+  raft::device_span<vertex_t const> starting_vertices,
+  std::optional<raft::device_span<int32_t const>> starting_vertex_labels,
+  std::optional<raft::device_span<int32_t const>> label_to_output_comm_rank,
+  raft::host_span<int32_t const> fan_out,
+  sampling_flags_t sampling_flags,
+  bool do_expensive_check = false);
+
+/**
+ * @brief Homogeneous Biased Neighborhood Sampling.
+ *
+ * This function traverses from a set of starting vertices, traversing outgoing edges and
+ * randomly selects (with edge biases) from these outgoing neighbors to extract a subgraph.
+ * The branching out to select outgoing neighbors is performed with homogeneous fanouts
+ *
+ * Output from this function is a tuple of vectors (src, dst, weight, edge_id, edge_type, hop,
+ * offsets), identifying the randomly selected edges.  src is the source vertex, dst is the
+ * destination vertex, weight (optional) is the edge weight, edge_id (optional) identifies the edge
+ * id, edge_type (optional) identifies the edge type, hop identifies which hop the edge was
+ * encountered in.  The offsets array (optional) identifies the offset for each label.
+ *
+ * If @p starting_vertex_label_offsets is not specified then no organization is applied to the
+ * output, the offsets values in the return set will be std::nullopt.
+ *
+ * If @p starting_vertex_label_offsets is specified the offsets array will be populated. The offsets
+ * array in the return will be a CSR-style offsets array to identify the beginning of each label
+ * range in the output vectors.
+ *
+ * If @p label_to_output_comm_rank is specified then the data will be shuffled so that all entries
+ * for a particular label are returned on the specified rank.  This will result in the offsets array
+ * on other GPUs indicating that there are no entries for that label (`offsets[i] == offsets[i+1]`).
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
+ * @tparam weight_t Type of edge weights. Needs to be a floating point type.
+ * @tparam edge_type_t Type of edge type. Needs to be an integral type.
+ * @tparam bias_t Type of bias. Needs to be an integral type.
+ * @tparam store_transposed Flag indicating whether sources (if false) or destinations (if
+ * true) are major indices
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param rng_state A pre-initialized raft::RngState object for generating random numbers
+ * @param graph_view Graph View object to generate NBR Sampling on.
+ * @param edge_weight_view Optional view object holding edge weights for @p graph_view.
+ * @param edge_id_view Optional view object holding edge ids for @p graph_view.
+ * @param edge_type_view Optional view object holding edge types for @p graph_view.
+ * @param edge_bias_view View object holding edge biases (to be used in biased sampling) for @p
+ * graph_view. Bias values should be non-negative and the sum of edge bias values from any vertex
+ * should not exceed std::numeric_limits<bias_t>::max(). 0 bias value indicates that the
+ * corresponding edge can never be selected.
+ * @param starting_vertices Device span of starting vertex IDs for the sampling.
+ * In a multi-gpu context the starting vertices should be local to this GPU.
+ * @param starting_vertex_labels Optional device span of labels associated with each starting vertex
+ * for the sampling.
+ * @param label_to_output_comm_rank Optional device span identifying which rank should get each
+ * vertex label.  This should be the same on each rank.
+ * @param fan_out Host span defining branching out (fan-out) degree per source vertex for each
+ * level.
+ * @param flags A set of flags indicating which sampling features should be used.
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
+ * @return tuple device vectors (vertex_t source_vertex, vertex_t destination_vertex,
+ * optional weight_t weight, optional edge_t edge id, optional edge_type_t edge type,
+ * optional int32_t hop, optional label_t label, optional size_t offsets)
+ */
+
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          typename edge_type_t,
+          typename bias_t,
+          bool store_transposed,
+          bool multi_gpu>
+std::tuple<rmm::device_uvector<vertex_t>,
+           rmm::device_uvector<vertex_t>,
+           std::optional<rmm::device_uvector<weight_t>>,
+           std::optional<rmm::device_uvector<edge_t>>,
+           std::optional<rmm::device_uvector<edge_type_t>>,
+           std::optional<rmm::device_uvector<int32_t>>,
+           std::optional<rmm::device_uvector<size_t>>>
+homogeneous_biased_neighbor_sample(
+  raft::handle_t const& handle,
+  raft::random::RngState& rng_state,
+  graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
+  std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
+  std::optional<edge_property_view_t<edge_t, edge_t const*>> edge_id_view,
+  std::optional<edge_property_view_t<edge_t, edge_type_t const*>> edge_type_view,
+  edge_property_view_t<edge_t, bias_t const*> edge_bias_view,
+  raft::device_span<vertex_t const> starting_vertices,
+  std::optional<raft::device_span<int32_t const>> starting_vertex_labels,
+  std::optional<raft::device_span<int32_t const>> label_to_output_comm_rank,
+  raft::host_span<int32_t const> fan_out,
+  sampling_flags_t sampling_flags,
+  bool do_expensive_check = false);
+
+/**
  * @brief Heterogeneous Uniform Neighborhood Sampling.
  *
  * This function traverses from a set of starting vertices, traversing outgoing edges and
@@ -443,174 +611,6 @@ heterogeneous_biased_neighbor_sample(
   std::optional<raft::device_span<int32_t const>> label_to_output_comm_rank,
   raft::host_span<int32_t const> fan_out,
   edge_type_t num_edge_types,
-  sampling_flags_t sampling_flags,
-  bool do_expensive_check = false);
-
-/**
- * @brief Homogeneous Uniform Neighborhood Sampling.
- *
- * This function traverses from a set of starting vertices, traversing outgoing edges and
- * randomly selects (uniformly) from these outgoing neighbors to extract a subgraph.
- * The branching out to select outgoing neighbors is performed with homogeneous fanouts
- *
- * Output from this function is a tuple of vectors (src, dst, weight, edge_id, edge_type, hop,
- * offsets), identifying the randomly selected edges.  src is the source vertex, dst is the
- * destination vertex, weight (optional) is the edge weight, edge_id (optional) identifies the edge
- * id, edge_type (optional) identifies the edge type, hop identifies which hop the edge was
- * encountered in.  The offsets array (optional) identifies the offset for each label.
- *
- * If @p starting_vertex_label_offsets is not specified then no organization is applied to the
- * output, the offsets values in the return set will be std::nullopt.
- *
- * If @p starting_vertex_label_offsets is specified the offsets array will be populated. The offsets
- * array in the return will be a CSR-style offsets array to identify the beginning of each label
- * range in the output vectors.
- *
- * If @p label_to_output_comm_rank is specified then the data will be shuffled so that all entries
- * for a particular label are returned on the specified rank.  This will result in the offsets array
- * on other GPUs indicating that there are no entries for that label (`offsets[i] == offsets[i+1]`).
- *
- * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
- * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
- * @tparam weight_t Type of edge weights. Needs to be a floating point type.
- * @tparam edge_type_t Type of edge type. Needs to be an integral type.
- * @tparam bias_t Type of bias. Needs to be an integral type.
- * @tparam store_transposed Flag indicating whether sources (if false) or destinations (if
- * true) are major indices
- * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
- * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
- * handles to various CUDA libraries) to run graph algorithms.
- * @param rng_state A pre-initialized raft::RngState object for generating random numbers
- * @param graph_view Graph View object to generate NBR Sampling on.
- * @param edge_weight_view Optional view object holding edge weights for @p graph_view.
- * @param edge_id_view Optional view object holding edge ids for @p graph_view.
- * @param edge_type_view Optional view object holding edge types for @p graph_view.
- * @param starting_vertices Device span of starting vertex IDs for the sampling.
- * In a multi-gpu context the starting vertices should be local to this GPU.
- * @param starting_vertex_labels Optional device span of labels associated with each starting vertex
- * for the sampling.
- * @param label_to_output_comm_rank Optional device span identifying which rank should get each
- * vertex label.  This should be the same on each rank.
- * @param fan_out Host span defining branching out (fan-out) degree per source vertex for each
- * level.
- * @param flags A set of flags indicating which sampling features should be used.
- * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
- * @return tuple device vectors (vertex_t source_vertex, vertex_t destination_vertex,
- * optional weight_t weight, optional edge_t edge id, optional edge_type_t edge type,
- * optional int32_t hop, optional label_t label, optional size_t offsets)
- */
-
-template <typename vertex_t,
-          typename edge_t,
-          typename weight_t,
-          typename edge_type_t,
-          bool store_transposed,
-          bool multi_gpu>
-std::tuple<rmm::device_uvector<vertex_t>,
-           rmm::device_uvector<vertex_t>,
-           std::optional<rmm::device_uvector<weight_t>>,
-           std::optional<rmm::device_uvector<edge_t>>,
-           std::optional<rmm::device_uvector<edge_type_t>>,
-           std::optional<rmm::device_uvector<int32_t>>,
-           std::optional<rmm::device_uvector<size_t>>>
-homogeneous_uniform_neighbor_sample(
-  raft::handle_t const& handle,
-  raft::random::RngState& rng_state,
-  graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
-  std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
-  std::optional<edge_property_view_t<edge_t, edge_t const*>> edge_id_view,
-  std::optional<edge_property_view_t<edge_t, edge_type_t const*>> edge_type_view,
-  raft::device_span<vertex_t const> starting_vertices,
-  std::optional<raft::device_span<int32_t const>> starting_vertex_labels,
-  std::optional<raft::device_span<int32_t const>> label_to_output_comm_rank,
-  raft::host_span<int32_t const> fan_out,
-  sampling_flags_t sampling_flags,
-  bool do_expensive_check = false);
-
-/**
- * @brief Homogeneous Biased Neighborhood Sampling.
- *
- * This function traverses from a set of starting vertices, traversing outgoing edges and
- * randomly selects (with edge biases) from these outgoing neighbors to extract a subgraph.
- * The branching out to select outgoing neighbors is performed with homogeneous fanouts
- *
- * Output from this function is a tuple of vectors (src, dst, weight, edge_id, edge_type, hop,
- * offsets), identifying the randomly selected edges.  src is the source vertex, dst is the
- * destination vertex, weight (optional) is the edge weight, edge_id (optional) identifies the edge
- * id, edge_type (optional) identifies the edge type, hop identifies which hop the edge was
- * encountered in.  The offsets array (optional) identifies the offset for each label.
- *
- * If @p starting_vertex_label_offsets is not specified then no organization is applied to the
- * output, the offsets values in the return set will be std::nullopt.
- *
- * If @p starting_vertex_label_offsets is specified the offsets array will be populated. The offsets
- * array in the return will be a CSR-style offsets array to identify the beginning of each label
- * range in the output vectors.
- *
- * If @p label_to_output_comm_rank is specified then the data will be shuffled so that all entries
- * for a particular label are returned on the specified rank.  This will result in the offsets array
- * on other GPUs indicating that there are no entries for that label (`offsets[i] == offsets[i+1]`).
- *
- * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
- * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
- * @tparam weight_t Type of edge weights. Needs to be a floating point type.
- * @tparam edge_type_t Type of edge type. Needs to be an integral type.
- * @tparam bias_t Type of bias. Needs to be an integral type.
- * @tparam store_transposed Flag indicating whether sources (if false) or destinations (if
- * true) are major indices
- * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
- * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
- * handles to various CUDA libraries) to run graph algorithms.
- * @param rng_state A pre-initialized raft::RngState object for generating random numbers
- * @param graph_view Graph View object to generate NBR Sampling on.
- * @param edge_weight_view Optional view object holding edge weights for @p graph_view.
- * @param edge_id_view Optional view object holding edge ids for @p graph_view.
- * @param edge_type_view Optional view object holding edge types for @p graph_view.
- * @param edge_bias_view View object holding edge biases (to be used in biased sampling) for @p
- * graph_view. Bias values should be non-negative and the sum of edge bias values from any vertex
- * should not exceed std::numeric_limits<bias_t>::max(). 0 bias value indicates that the
- * corresponding edge can never be selected.
- * @param starting_vertices Device span of starting vertex IDs for the sampling.
- * In a multi-gpu context the starting vertices should be local to this GPU.
- * @param starting_vertex_labels Optional device span of labels associated with each starting vertex
- * for the sampling.
- * @param label_to_output_comm_rank Optional device span identifying which rank should get each
- * vertex label.  This should be the same on each rank.
- * @param fan_out Host span defining branching out (fan-out) degree per source vertex for each
- * level.
- * @param flags A set of flags indicating which sampling features should be used.
- * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
- * @return tuple device vectors (vertex_t source_vertex, vertex_t destination_vertex,
- * optional weight_t weight, optional edge_t edge id, optional edge_type_t edge type,
- * optional int32_t hop, optional label_t label, optional size_t offsets)
- */
-
-template <typename vertex_t,
-          typename edge_t,
-          typename weight_t,
-          typename edge_type_t,
-          typename bias_t,
-          bool store_transposed,
-          bool multi_gpu>
-std::tuple<rmm::device_uvector<vertex_t>,
-           rmm::device_uvector<vertex_t>,
-           std::optional<rmm::device_uvector<weight_t>>,
-           std::optional<rmm::device_uvector<edge_t>>,
-           std::optional<rmm::device_uvector<edge_type_t>>,
-           std::optional<rmm::device_uvector<int32_t>>,
-           std::optional<rmm::device_uvector<size_t>>>
-homogeneous_biased_neighbor_sample(
-  raft::handle_t const& handle,
-  raft::random::RngState& rng_state,
-  graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
-  std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
-  std::optional<edge_property_view_t<edge_t, edge_t const*>> edge_id_view,
-  std::optional<edge_property_view_t<edge_t, edge_type_t const*>> edge_type_view,
-  edge_property_view_t<edge_t, bias_t const*> edge_bias_view,
-  raft::device_span<vertex_t const> starting_vertices,
-  std::optional<raft::device_span<int32_t const>> starting_vertex_labels,
-  std::optional<raft::device_span<int32_t const>> label_to_output_comm_rank,
-  raft::host_span<int32_t const> fan_out,
   sampling_flags_t sampling_flags,
   bool do_expensive_check = false);
 
