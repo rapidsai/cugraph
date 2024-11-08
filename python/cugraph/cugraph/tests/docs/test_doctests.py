@@ -1,4 +1,4 @@
-# Copyright (c) 2022-2023, NVIDIA CORPORATION.
+# Copyright (c) 2022-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -186,11 +186,4 @@ class TestDoctests:
                 f"{docstring.name}:\n{doctest_stdout.getvalue()}"
             )
         except AssertionError:
-            # If some failed but all the failures were due to lack of
-            # cugraph-ops support, we can skip.
-            out = doctest_stdout.getvalue()
-            if ("CUGRAPH_UNKNOWN_ERROR" in out and "unimplemented" in out) or (
-                "built with NO_CUGRAPH_OPS" in out
-            ):
-                pytest.skip("Doctest requires cugraph-ops support.")
             raise
