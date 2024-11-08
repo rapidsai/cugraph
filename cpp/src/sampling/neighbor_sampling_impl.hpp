@@ -227,6 +227,10 @@ neighbor_sample_impl(raft::handle_t const& handle,
       if (edge_ids) { (*level_result_edge_id_vectors).push_back(std::move(*edge_ids)); }
       if (edge_types) { (*level_result_edge_type_vectors).push_back(std::move(*edge_types)); }
       if (labels) { (*level_result_label_vectors).push_back(std::move(*labels)); }
+
+      if (num_edge_types > 1) {
+        modified_graph_view.clear_edge_mask();
+      }
     }
 
     // FIXME:  We should modify vertex_partition_range_lasts to return a raft::host_span
