@@ -82,8 +82,6 @@ class Tests_Heterogeneous_Uniform_Neighbor_Sampling
 
     constexpr float select_probability{0.05};
 
-    // FIXME:  Update the tests to initialize RngState and use it instead
-    //         of seed...
     constexpr uint64_t seed{0};
 
     raft::random::RngState rng_state(seed);
