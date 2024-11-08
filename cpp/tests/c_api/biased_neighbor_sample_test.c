@@ -149,10 +149,6 @@ int generic_biased_neighbor_sample_test(const cugraph_resource_handle_t* handle,
                                             &result,
                                             &ret_error);
 
-#ifdef NO_CUGRAPH_OPS
-  TEST_ASSERT(
-    test_ret_value, ret_code != CUGRAPH_SUCCESS, "biased_neighbor_sample should have failed")
-#else
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "biased_neighbor_sample failed.");
 
@@ -459,7 +455,6 @@ int generic_biased_neighbor_sample_test(const cugraph_resource_handle_t* handle,
   }
 
   cugraph_sample_result_free(result);
-#endif
 
   cugraph_graph_free(graph);
   cugraph_error_free(ret_error);
@@ -584,10 +579,6 @@ int test_biased_neighbor_sample_with_labels(const cugraph_resource_handle_t* han
                                             &result,
                                             &ret_error);
 
-#ifdef NO_CUGRAPH_OPS
-  TEST_ASSERT(
-    test_ret_value, ret_code != CUGRAPH_SUCCESS, "biased_neighbor_sample should have failed")
-#else
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "biased_neighbor_sample failed.");
 
@@ -678,7 +669,6 @@ int test_biased_neighbor_sample_with_labels(const cugraph_resource_handle_t* han
 
   cugraph_sample_result_free(result);
   cugraph_sampling_options_free(sampling_options);
-#endif
 
   cugraph_graph_free(graph);
   cugraph_error_free(ret_error);
