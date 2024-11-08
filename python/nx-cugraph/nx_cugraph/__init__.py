@@ -15,7 +15,7 @@ from networkx.exception import *
 from _nx_cugraph._version import __git_commit__, __version__
 from _nx_cugraph import _check_networkx_version
 
-_nxver: tuple[int, int] = _check_networkx_version()
+_nxver: tuple[int, int] | tuple[int, int, int] = _check_networkx_version()
 
 from . import utils
 

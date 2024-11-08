@@ -63,6 +63,8 @@ else:
         True,  # Include all node values
         # `.graph` attributes are always included now
     )
+_EDGE_KEY_INDEX = 0
+_NODE_KEY_INDEX = 1
 
 # Use to indicate when a full conversion to GPU failed so we don't try again.
 _CANT_CONVERT_TO_GPU = "_CANT_CONVERT_TO_GPU"
@@ -82,6 +84,56 @@ class _GraphCache(dict):
     def clear(self) -> None:
         self._graph._reify_networkx()
         super().clear()
+
+
+class _graph_property:
+    """Dispatch property to NetworkX or CudaGraph based on cache.
+
+    For example, this will use any cached CudaGraph for ``len(G)``, which
+    prevents creating NetworkX data structures.
+    """
+
+    def __init__(self, attr, *, edge_data=False, node_data=False):
+        self._attr = attr
+        self._edge_data = edge_data
+        self._node_data = node_data
+
+    def __get__(self, instance, owner=None):
+        nx_class = owner.to_networkx_class()
+        if instance is None:
+            # Let's handle e.g. `nxcg.Graph.__len__` to look and behave correctly.
+            #
+            # If you want the instance of `_graph_property`, get it from the class dict:
+            #     >>> nxcg.Graph.__dict__["__len__"]
+            #
+            # Alternatives:
+            #  - `return op.methodcaller(self._attr)`
+            #    - This dispatches, but does not have e.g. __name__
+            #  - `return getattr(nx_class, self._attr)`
+            #    - This does not dispatch--it always uses networkx--but does have attrs
+            prop = owner.__dict__[self._attr]
+
+            def inner(self, *args, **kwargs):
+                return prop.__get__(self, owner)(*args, **kwargs)
+
+            # Standard function-wrapping
+            nx_func = getattr(nx_class, self._attr)
+            inner.__name__ = nx_func.__name__
+            inner.__doc__ = nx_func.__doc__
+            inner.__qualname__ = nx_func.__qualname__
+            inner.__defaults__ = nx_func.__defaults__
+            inner.__kwdefaults__ = nx_func.__kwdefaults__
+            inner.__dict__.update(nx_func.__dict__)
+            inner.__module__ = owner.__module__
+            inner.__wrapped__ = nx_func
+            return inner
+
+        cuda_graph = instance._get_cudagraph(
+            edge_data=self._edge_data, node_data=self._node_data
+        )
+        if cuda_graph is not None:
+            return getattr(cuda_graph, self._attr)
+        return getattr(nx_class, self._attr).__get__(instance, owner)
 
 
 class Graph(nx.Graph):
@@ -211,8 +263,7 @@ class Graph(nx.Graph):
         cache[_CACHE_KEY] = Gcg
         return Gcg
 
-    @_cudagraph.setter
-    def _cudagraph(self, val, *, clear_cpu=True):
+    def _set_cudagraph(self, val, *, clear_cpu=True):
         """Set the full ``CudaGraph`` for this graph, or remove from device if None."""
         if (cache := getattr(self, "__networkx_cache__", None)) is None:
             # Should we warn?
@@ -228,6 +279,32 @@ class Graph(nx.Graph):
             if clear_cpu:
                 for key in self._nx_attrs:
                     self.__dict__[key] = None
+
+    def _get_cudagraph(self, *, edge_data=False, node_data=False):
+        """Get a valid cached ``CudaGraph``, optionally with edge or node data.
+
+        Returns None if no valid graph is found.
+
+        Parameters
+        ----------
+        edge_data : bool, default False
+            Whether to return a CudaGraph with edge data.
+        node_data : bool, default False
+            Whether to return a CudaGraph with node data.
+        """
+        nx_cache = getattr(self, "__networkx_cache__", None)
+        if nx_cache is None or _CANT_CONVERT_TO_GPU in nx_cache:
+            return None
+        cache = nx_cache.get("backends", {}).get("cugraph", {})
+        if _CACHE_KEY in cache:
+            # Always return the canonical CudaGraph if it exists
+            return cache[_CACHE_KEY]
+        for key, val in cache.items():
+            if (key[_EDGE_KEY_INDEX] is True or edge_data is False) and (
+                key[_NODE_KEY_INDEX] is True or node_data is False
+            ):
+                return val
+        return None
 
     @nx.Graph.name.setter
     def name(self, s):
@@ -509,6 +586,53 @@ class Graph(nx.Graph):
             use_compat_graph=use_compat_graph,
             **attr,
         )
+
+    ##########################
+    # Networkx graph methods #
+    ##########################
+
+    # Dispatch to nx.Graph or CudaGraph
+    __contains__ = _graph_property("__contains__")
+    __len__ = _graph_property("__len__")
+    __iter__ = _graph_property("__iter__")
+
+    @networkx_api
+    def clear(self) -> None:
+        cudagraph = self._cudagraph if self._is_on_gpu else None
+        if self._is_on_cpu:
+            super().clear()
+        if cudagraph is not None:
+            cudagraph.clear()
+            self._set_cudagraph(cudagraph, clear_cpu=False)
+
+    @networkx_api
+    def clear_edges(self) -> None:
+        cudagraph = self._cudagraph if self._is_on_gpu else None
+        if self._is_on_cpu:
+            super().clear_edges()
+        if cudagraph is not None:
+            cudagraph.clear_edges()
+            self._set_cudagraph(cudagraph, clear_cpu=False)
+
+    get_edge_data = _graph_property("get_edge_data", edge_data=True)
+    has_edge = _graph_property("has_edge")
+    neighbors = _graph_property("neighbors")
+    has_node = _graph_property("has_node")
+    nbunch_iter = _graph_property("nbunch_iter")
+
+    @networkx_api
+    def number_of_edges(
+        self, u: NodeKey | None = None, v: NodeKey | None = None
+    ) -> int:
+        if u is not None or v is not None:
+            # NotImplemented by CudaGraph
+            nx_class = self.to_networkx_class()
+            return nx_class.number_of_edges(self, u, v)
+        return _graph_property("number_of_edges").__get__(self, self.__class__)()
+
+    number_of_nodes = _graph_property("number_of_nodes")
+    order = _graph_property("order")
+    # Future work: implement more graph methods, and handle e.g. `copy`
 
 
 class CudaGraph:
@@ -805,7 +929,7 @@ class CudaGraph:
 
     def _to_compat_graph(self) -> Graph:
         rv = self._to_compat_graph_class()()
-        rv._cudagraph = self
+        rv._set_cudagraph(self)
         return rv
 
     # Not implemented...

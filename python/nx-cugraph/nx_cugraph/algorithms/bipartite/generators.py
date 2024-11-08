@@ -49,7 +49,7 @@ def complete_bipartite_graph(n1, n2, create_using=None):
         nodes.extend(range(n2) if nodes2 is None else nodes2)
         if len(set(nodes)) != len(nodes):
             raise nx.NetworkXError("Inputs n1 and n2 must contain distinct nodes")
-    if _nxver <= (3, 3):
+    if _nxver < (3, 4):
         name = f"complete_bipartite_graph({orig_n1}, {orig_n2})"
     else:
         name = f"complete_bipartite_graph({n1}, {n2})"

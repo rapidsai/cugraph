@@ -58,7 +58,7 @@ def _bfs(G, source, *, depth_limit=None, reverse=False):
     return distances[mask], predecessors[mask], node_ids[mask]
 
 
-if _nxver <= (3, 3):
+if _nxver < (3, 4):
 
     @networkx_algorithm(is_incomplete=True, version_added="24.02", _plc="bfs")
     def generic_bfs_edges(

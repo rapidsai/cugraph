@@ -64,7 +64,7 @@ def k_truss(G, k):
     else:
         is_compat_graph = False
     if nxcg.number_of_selfloops(G) > 0:
-        if _nxver <= (3, 2):
+        if _nxver < (3, 3):
             exc_class = nx.NetworkXError
         else:
             exc_class = nx.NetworkXNotImplemented

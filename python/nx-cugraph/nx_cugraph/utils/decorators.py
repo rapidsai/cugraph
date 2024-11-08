@@ -80,7 +80,7 @@ class networkx_algorithm:
                 _plc=_plc,
             )
         instance = object.__new__(cls)
-        if nodes_or_number is not None and _nxver > (3, 2):
+        if nodes_or_number is not None and _nxver >= (3, 3):
             func = nx.utils.decorators.nodes_or_number(nodes_or_number)(func)
         # update_wrapper sets __wrapped__, which will be used for the signature
         update_wrapper(instance, func)
@@ -121,7 +121,7 @@ class networkx_algorithm:
         # Set methods so they are in __dict__
         instance._can_run = instance._can_run
         instance._should_run = instance._should_run
-        if nodes_or_number is not None and _nxver <= (3, 2):
+        if nodes_or_number is not None and _nxver < (3, 3):
             instance = nx.utils.decorators.nodes_or_number(nodes_or_number)(instance)
         return instance
 

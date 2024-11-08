@@ -17,6 +17,8 @@ import nx_cugraph as nxcg
 
 from .testing_utils import assert_graphs_equal
 
+CREATE_USING = [nxcg.Graph, nxcg.DiGraph, nxcg.MultiGraph, nxcg.MultiDiGraph]
+
 
 def _create_Gs():
     rv = []
@@ -65,3 +67,46 @@ def test_multidigraph_to_undirected():
     Gcg = nxcg.CudaMultiDiGraph(Gnx)
     with pytest.raises(NotImplementedError):
         Gcg.to_undirected()
+
+
+@pytest.mark.parametrize("create_using", CREATE_USING)
+@pytest.mark.parametrize(
+    "method",
+    [
+        ("__iter__", ()),
+        ("__len__", ()),
+        ("clear", ()),
+        ("clear_edges", ()),
+        ("nbunch_iter", ()),
+        ("number_of_edges", ()),
+        ("number_of_nodes", ()),
+        ("order", ()),
+        ("__contains__", (0,)),
+        ("neighbors", (0,)),
+        ("has_node", (0,)),
+        ("successors", (0,)),
+        ("get_edge_data", (0, 1)),
+        ("has_edge", (0, 1)),
+        ("nbunch_iter", ([0, 1],)),
+    ],
+)
+def test_method_does_not_create_host_data(create_using, method):
+    attr, args = method
+    if attr == "successors" and not create_using.is_directed():
+        return
+    G = nxcg.complete_graph(3, create_using=create_using)
+    assert G._is_on_gpu
+    assert not G._is_on_cpu
+    getattr(G, attr)(*args)
+    assert G._is_on_gpu
+    assert not G._is_on_cpu
+    # Also usable from the class and dispatches correctly
+    func = getattr(create_using, attr)
+    func(G, *args)
+    assert G._is_on_gpu
+    assert not G._is_on_cpu
+    # Basic "looks like networkx" checks
+    nx_class = create_using.to_networkx_class()
+    nx_func = getattr(nx_class, attr)
+    assert func.__name__ == nx_func.__name__
+    assert func.__module__.startswith("nx_cugraph")

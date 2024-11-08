@@ -105,6 +105,27 @@ class DiGraph(nx.DiGraph, Graph):
     def to_networkx_class(cls) -> type[nx.DiGraph]:
         return nx.DiGraph
 
+    ##########################
+    # Networkx graph methods #
+    ##########################
+
+    # Dispatch to nx.DiGraph or CudaDiGraph
+    __contains__ = Graph.__dict__["__contains__"]
+    __len__ = Graph.__dict__["__len__"]
+    __iter__ = Graph.__dict__["__iter__"]
+    get_edge_data = Graph.__dict__["get_edge_data"]
+    has_edge = Graph.__dict__["has_edge"]
+    neighbors = Graph.__dict__["neighbors"]
+    has_node = Graph.__dict__["has_node"]
+    nbunch_iter = Graph.__dict__["nbunch_iter"]
+    number_of_nodes = Graph.__dict__["number_of_nodes"]
+    order = Graph.__dict__["order"]
+    successors = Graph.__dict__["neighbors"]  # Alias
+
+    clear = Graph.clear
+    clear_edges = Graph.clear_edges
+    number_of_edges = Graph.number_of_edges
+
 
 class CudaDiGraph(CudaGraph):
     #################
@@ -244,6 +265,7 @@ class CudaDiGraph(CudaGraph):
             rv.graph.update(deepcopy(self.graph))
         return rv
 
+    successors = CudaGraph.neighbors  # Alias
     # Many more methods to implement...
 
     ###################

@@ -343,14 +343,16 @@ def get_info():
     return d
 
 
-def _check_networkx_version() -> tuple[int, int]:
+def _check_networkx_version() -> tuple[int, int] | tuple[int, int, int]:
     """Check the version of networkx and return ``(major, minor)`` version tuple."""
     import re
     import warnings
 
     import networkx as nx
 
-    version_major, version_minor = nx.__version__.split(".")[:2]
+    version_major, version_minor, *version_bug = nx.__version__.split(".")[:3]
+    if has_bug := bool(version_bug):
+        version_bug = version_bug[0]
     if version_major != "3":
         warnings.warn(
             f"nx-cugraph version {__version__} is only known to work with networkx "
@@ -363,15 +365,19 @@ def _check_networkx_version() -> tuple[int, int]:
     # Allow single-digit minor versions, e.g. 3.4 and release candidates, e.g. 3.4rc0
     pattern = r"^\d(rc\d+)?$"
 
-    if not re.match(pattern, version_minor):
+    if not re.match(pattern, version_bug if has_bug else version_minor):
         raise RuntimeWarning(
             f"nx-cugraph version {__version__} does not work with networkx version "
             f"{nx.__version__}. Please upgrade (or fix) your Python environment."
         )
 
     nxver_major = int(version_major)
-    nxver_minor = int(re.match(r"^\d+", version_minor).group())
-    return (nxver_major, nxver_minor)
+    if not has_bug:
+        nxver_minor = int(re.match(r"^\d+", version_minor).group())
+        return (nxver_major, nxver_minor)
+    nxver_minor = int(version_minor)
+    nxver_bug = int(re.match(r"^\d+", version_bug).group())
+    return (nxver_major, nxver_minor, nxver_bug)
 
 
 if __name__ == "__main__":

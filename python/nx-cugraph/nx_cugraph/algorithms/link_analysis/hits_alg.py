@@ -54,7 +54,7 @@ def hits(
     if nstart is not None:
         nstart = G._dict_to_nodearray(nstart, 0, dtype)
     if max_iter <= 0:
-        if _nxver <= (3, 2):
+        if _nxver < (3, 3):
             raise ValueError("`maxiter` must be a positive integer.")
         raise nx.PowerIterationFailedConvergence(max_iter)
     try:

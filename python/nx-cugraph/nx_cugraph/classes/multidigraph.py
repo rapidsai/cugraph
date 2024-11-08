@@ -50,6 +50,27 @@ class MultiDiGraph(nx.MultiDiGraph, MultiGraph, DiGraph):
     def to_networkx_class(cls) -> type[nx.MultiDiGraph]:
         return nx.MultiDiGraph
 
+    ##########################
+    # Networkx graph methods #
+    ##########################
+
+    # Dispatch to nx.MultiDiGraph or CudaMultiDiGraph
+    __contains__ = Graph.__dict__["__contains__"]
+    __len__ = Graph.__dict__["__len__"]
+    __iter__ = Graph.__dict__["__iter__"]
+    get_edge_data = Graph.__dict__["get_edge_data"]
+    has_edge = Graph.__dict__["has_edge"]
+    neighbors = Graph.__dict__["neighbors"]
+    has_node = Graph.__dict__["has_node"]
+    nbunch_iter = Graph.__dict__["nbunch_iter"]
+    number_of_nodes = Graph.__dict__["number_of_nodes"]
+    order = Graph.__dict__["order"]
+    successors = Graph.__dict__["neighbors"]  # Alias
+
+    clear = Graph.clear
+    clear_edges = Graph.clear_edges
+    number_of_edges = Graph.number_of_edges
+
 
 class CudaMultiDiGraph(CudaMultiGraph, CudaDiGraph):
     is_directed = classmethod(MultiDiGraph.is_directed.__func__)

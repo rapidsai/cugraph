@@ -140,7 +140,7 @@ def from_pandas_edgelist(
         and (
             # In nx <= 3.3, `edge_key` was ignored if `edge_attr` is None
             edge_attr is not None
-            or _nxver > (3, 3)
+            or _nxver >= (3, 4)
         )
     ):
         try:

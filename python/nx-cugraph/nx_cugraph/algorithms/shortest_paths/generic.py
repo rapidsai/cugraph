@@ -58,7 +58,7 @@ def shortest_path(
                 paths = nxcg.all_pairs_dijkstra_path(G, weight=weight, dtype=dtype)
             else:  # method == 'bellman-ford':
                 paths = nxcg.all_pairs_bellman_ford_path(G, weight=weight, dtype=dtype)
-            if _nxver <= (3, 4):
+            if _nxver < (3, 5):
                 paths = dict(paths)
         # To target
         elif method == "unweighted":
@@ -130,7 +130,7 @@ def shortest_path_length(
         # To target
         elif method == "unweighted":
             lengths = nxcg.single_target_shortest_path_length(G, target)
-            if _nxver <= (3, 4):
+            if _nxver < (3, 5):
                 lengths = dict(lengths)
         elif method == "dijkstra":
             lengths = nxcg.single_source_dijkstra_path_length(

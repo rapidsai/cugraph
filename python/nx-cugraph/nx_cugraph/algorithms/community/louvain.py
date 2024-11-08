@@ -27,7 +27,7 @@ from nx_cugraph.utils import (
 __all__ = ["louvain_communities"]
 
 # max_level argument was added to NetworkX 3.3
-if _nxver <= (3, 2):
+if _nxver < (3, 3):
     _max_level_param = {
         "max_level : int, optional": (
             "Upper limit of the number of macro-iterations (max: 500)."

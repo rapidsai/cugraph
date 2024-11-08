@@ -277,6 +277,26 @@ class MultiGraph(nx.MultiGraph, Graph):
             **attr,
         )
 
+    ##########################
+    # Networkx graph methods #
+    ##########################
+
+    # Dispatch to nx.MultiGraph or CudaMultiGraph
+    __contains__ = Graph.__dict__["__contains__"]
+    __len__ = Graph.__dict__["__len__"]
+    __iter__ = Graph.__dict__["__iter__"]
+    get_edge_data = Graph.__dict__["get_edge_data"]
+    has_edge = Graph.__dict__["has_edge"]
+    neighbors = Graph.__dict__["neighbors"]
+    has_node = Graph.__dict__["has_node"]
+    nbunch_iter = Graph.__dict__["nbunch_iter"]
+    number_of_nodes = Graph.__dict__["number_of_nodes"]
+    order = Graph.__dict__["order"]
+
+    clear = Graph.clear
+    clear_edges = Graph.clear_edges
+    number_of_edges = Graph.number_of_edges
+
 
 class CudaMultiGraph(CudaGraph):
     # networkx properties
@@ -390,14 +410,13 @@ class CudaMultiGraph(CudaGraph):
         mask = (self.src_indices == u) & (self.dst_indices == v)
         if not mask.any():
             return default
-        if self.edge_keys is None:
+        if self.edge_keys is None and key is not None:
             if self.edge_indices is None:
                 self._calculate_edge_indices()
-            if key is not None:
-                try:
-                    mask = mask & (self.edge_indices == key)
-                except TypeError:
-                    return default
+            try:
+                mask = mask & (self.edge_indices == key)
+            except TypeError:
+                return default
         indices = cp.nonzero(mask)[0]
         if indices.size == 0:
             return default
