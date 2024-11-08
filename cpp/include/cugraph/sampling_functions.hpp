@@ -278,10 +278,12 @@ struct sampling_flags_t {
  * The branching out to select outgoing neighbors is performed with homogeneous fanouts
  *
  * Output from this function is a tuple of vectors (src, dst, weight, edge_id, edge_type, hop,
- * offsets), identifying the randomly selected edges.  src is the source vertex, dst is the
- * destination vertex, weight (optional) is the edge weight, edge_id (optional) identifies the edge
- * id, edge_type (optional) identifies the edge type, hop identifies which hop the edge was
- * encountered in.  The offsets array (optional) identifies the offset for each label.
+ * offsets), identifying the randomly selected edges where the size of src, dst, weight, edge_id,
+ * edge_type and hop is the number of sampled edges while the size of the offsets vector is the
+ * number of labels + 1.  src is the source vertex, dst is the destination vertex, weight
+ * (optional) is the edge weight, edge_id (optional) identifies the edge id, edge_type (optional)
+ * identifies the edge type, hop identifies which hop the edge was encountered in. 
+ * The offsets array (optional) identifies the offset for each label.
  *
  * If @p label_to_output_comm_rank is specified then the data will be shuffled so that all entries
  * for a particular label are returned on the specified rank.
@@ -350,10 +352,12 @@ homogeneous_uniform_neighbor_sample(
  * The branching out to select outgoing neighbors is performed with homogeneous fanouts
  *
  * Output from this function is a tuple of vectors (src, dst, weight, edge_id, edge_type, hop,
- * offsets), identifying the randomly selected edges.  src is the source vertex, dst is the
- * destination vertex, weight (optional) is the edge weight, edge_id (optional) identifies the edge
- * id, edge_type (optional) identifies the edge type, hop identifies which hop the edge was
- * encountered in.  The offsets array (optional) identifies the offset for each label.
+ * offsets), identifying the randomly selected edges where the size of src, dst, weight, edge_id,
+ * edge_type and hop is the number of sampled edges while the size of the offsets vector is the
+ * number of labels + 1.  src is the source vertex, dst is the destination vertex, weight
+ * (optional) is the edge weight, edge_id (optional) identifies the edge id, edge_type (optional)
+ * identifies the edge type, hop identifies which hop the edge was encountered in. 
+ * The offsets array (optional) identifies the offset for each label.
  *
  * If @p label_to_output_comm_rank is specified then the data will be shuffled so that all entries
  * for a particular label are returned on the specified rank.
@@ -430,10 +434,12 @@ homogeneous_biased_neighbor_sample(
  * where the number of edge types is bigger than 1.
  *
  * Output from this function is a tuple of vectors (src, dst, weight, edge_id, edge_type, hop,
- * offsets), identifying the randomly selected edges.  src is the source vertex, dst is the
- * destination vertex, weight (optional) is the edge weight, edge_id (optional) identifies the edge
- * id, edge_type (optional) identifies the edge type, hop identifies which hop the edge was
- * encountered in.  The offsets array (optional) identifies the offset for each label.
+ * offsets), identifying the randomly selected edges where the size of src, dst, weight, edge_id,
+ * edge_type and hop is the number of sampled edges while the size of the offsets vector is the
+ * number of labels + 1.  src is the source vertex, dst is the destination vertex, weight
+ * (optional) is the edge weight, edge_id (optional) identifies the edge id, edge_type (optional)
+ * identifies the edge type, hop identifies which hop the edge was encountered in. 
+ * The offsets array (optional) identifies the offset for each label.
  *
  * If @p label_to_output_comm_rank is specified then the data will be shuffled so that all entries
  * for a particular label are returned on the specified rank.
@@ -506,10 +512,12 @@ heterogeneous_uniform_neighbor_sample(
  * where the number of edge types is bigger than 1.
  *
  * Output from this function is a tuple of vectors (src, dst, weight, edge_id, edge_type, hop,
- * offsets), identifying the randomly selected edges.  src is the source vertex, dst is the
- * destination vertex, weight (optional) is the edge weight, edge_id (optional) identifies the edge
- * id, edge_type (optional) identifies the edge type, hop identifies which hop the edge was
- * encountered in.  The offsets array (optional) identifies the offset for each label.
+ * offsets), identifying the randomly selected edges where the size of src, dst, weight, edge_id,
+ * edge_type and hop is the number of sampled edges while the size of the offsets vector is the
+ * number of labels + 1.  src is the source vertex, dst is the destination vertex, weight
+ * (optional) is the edge weight, edge_id (optional) identifies the edge id, edge_type (optional)
+ * identifies the edge type, hop identifies which hop the edge was encountered in. 
+ * The offsets array (optional) identifies the offset for each label.
  *
  * If @p label_to_output_comm_rank is specified then the data will be shuffled so that all entries
  * for a particular label are returned on the specified rank.
