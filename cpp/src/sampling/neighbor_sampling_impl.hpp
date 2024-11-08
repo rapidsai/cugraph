@@ -147,14 +147,14 @@ neighbor_sample_impl(raft::handle_t const& handle,
     starting_vertex_labels ? std::make_optional(std::vector<rmm::device_uvector<label_t>>{})
                            : std::nullopt;
 
-  level_result_src_vectors.reserve((fan_out).size());
-  level_result_dst_vectors.reserve((fan_out).size());
-  if (level_result_weight_vectors) { (*level_result_weight_vectors).reserve((fan_out).size()); }
-  if (level_result_edge_id_vectors) { (*level_result_edge_id_vectors).reserve((fan_out).size()); }
+  level_result_src_vectors.reserve(fan_out.size());
+  level_result_dst_vectors.reserve(fan_out.size());
+  if (level_result_weight_vectors) { (*level_result_weight_vectors).reserve(fan_out.size()); }
+  if (level_result_edge_id_vectors) { (*level_result_edge_id_vectors).reserve(fan_out.size()); }
   if (level_result_edge_type_vectors) {
-    (*level_result_edge_type_vectors).reserve((fan_out).size());
+    (*level_result_edge_type_vectors).reserve(fan_out.size());
   }
-  if (level_result_label_vectors) { (*level_result_label_vectors).reserve((fan_out).size()); }
+  if (level_result_label_vectors) { (*level_result_label_vectors).reserve(fan_out.size()); }
 
   rmm::device_uvector<vertex_t> frontier_vertices(0, handle.get_stream());
   auto frontier_vertex_labels =
