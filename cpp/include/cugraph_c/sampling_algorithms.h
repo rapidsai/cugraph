@@ -450,6 +450,93 @@ cugraph_error_code_t cugraph_biased_neighbor_sample(
   cugraph_error_t** error);
 
 /**
+ * @brief     Homogeneous Uniform Neighborhood Sampling
+ *
+ * Returns a sample of the neighborhood around specified start vertices and heterogeneous
+ * fan_out types. The neighborhood is sampled uniformly.
+ * Optionally, each start vertex can be associated with a label, allowing the caller to specify
+ * multiple batches of sampling requests in the same function call - which should improve GPU
+ * utilization.
+ *
+ * If label is NULL then all start vertices will be considered part of the same batch and the
+ * return value will not have a label column.
+ *
+ * @param [in]  handle       Handle for accessing resources
+ *  * @param [in,out] rng_state State of the random number generator, updated with each call
+ * @param [in]  graph        Pointer to graph.  NOTE: Graph might be modified if the storage
+ *                           needs to be transposed
+ * @param [in]  start_vertices Device array of start vertices for the sampling
+ * @param [in]  start_vertex_offsets Device array of the offsets for each label in the seed list.
+ * This parameter is only used with the retain_seeds option.
+ * @param [in]  fan_out       Host array defining the fan out at each step in the sampling
+ * algorithm. We only support fan_out values of type INT32
+ * @param [in]  sampling_options
+ *                           Opaque pointer defining the sampling options.
+ * @param [in]  do_expensive_check
+ *                           A flag to run expensive checks for input arguments (if set to true)
+ * @param [out]  result      Output from the uniform_neighbor_sample call
+ * @param [out] error        Pointer to an error object storing details of any error.  Will
+ *                           be populated if error code is not CUGRAPH_SUCCESS
+ * @return error code
+ */
+cugraph_error_code_t cugraph_homogeneous_uniform_neighbor_sample(
+  const cugraph_resource_handle_t* handle,
+  cugraph_rng_state_t* rng_state,
+  cugraph_graph_t* graph,
+  const cugraph_type_erased_device_array_view_t* start_vertices,
+  const cugraph_type_erased_device_array_view_t* start_vertex_offsets,
+  const cugraph_type_erased_host_array_view_t* fan_out,
+  const cugraph_sampling_options_t* options,
+  bool_t do_expensive_check,
+  cugraph_sample_result_t** result,
+  cugraph_error_t** error);
+
+/**
+ * @brief     Homogeneous Biased Neighborhood Sampling
+ *
+ * Returns a sample of the neighborhood around specified start vertices and heterogeneous
+ * fan_out types. The neighborhood is sampled uniformly.
+ * Optionally, each start vertex can be associated with a label, allowing the caller to specify
+ * multiple batches of sampling requests in the same function call - which should improve GPU
+ * utilization.
+ *
+ * If label is NULL then all start vertices will be considered part of the same batch and the
+ * return value will not have a label column.
+ *
+ * @param [in]  handle       Handle for accessing resources
+ *  * @param [in,out] rng_state State of the random number generator, updated with each call
+ * @param [in]  graph        Pointer to graph.  NOTE: Graph might be modified if the storage
+ *                           needs to be transposed
+ * @param [in]  edge_biases  Device array of edge biases to use for sampling.  If NULL
+ * use the edge weight as the bias. If set to NULL, edges will be sampled uniformly.
+ * @param [in]  start_vertices Device array of start vertices for the sampling
+ * @param [in]  start_vertex_offsets Device array of the offsets for each label in the seed list.
+ * This parameter is only used with the retain_seeds option.
+ * @param [in]  fan_out       Host array defining the fan out at each step in the sampling
+ * algorithm. We only support fan_out values of type INT32
+ * @param [in]  sampling_options
+ *                           Opaque pointer defining the sampling options.
+ * @param [in]  do_expensive_check
+ *                           A flag to run expensive checks for input arguments (if set to true)
+ * @param [out]  result      Output from the uniform_neighbor_sample call
+ * @param [out] error        Pointer to an error object storing details of any error.  Will
+ *                           be populated if error code is not CUGRAPH_SUCCESS
+ * @return error code
+ */
+cugraph_error_code_t cugraph_homogeneous_biased_neighbor_sample(
+  const cugraph_resource_handle_t* handle,
+  cugraph_rng_state_t* rng_state,
+  cugraph_graph_t* graph,
+  const cugraph_edge_property_view_t* edge_biases,
+  const cugraph_type_erased_device_array_view_t* start_vertices,
+  const cugraph_type_erased_device_array_view_t* start_vertex_offsets,
+  const cugraph_type_erased_host_array_view_t* fan_out,
+  const cugraph_sampling_options_t* options,
+  bool_t do_expensive_check,
+  cugraph_sample_result_t** result,
+  cugraph_error_t** error);
+
+/**
  * @brief     Heterogeneous Uniform Neighborhood Sampling
  *
  * Returns a sample of the neighborhood around specified start vertices and heterogeneous
@@ -537,93 +624,6 @@ cugraph_error_code_t cugraph_heterogeneous_biased_neighbor_sample(
   const cugraph_type_erased_device_array_view_t* start_vertex_offsets,
   const cugraph_type_erased_host_array_view_t* fan_out,
   int num_edge_types,
-  const cugraph_sampling_options_t* options,
-  bool_t do_expensive_check,
-  cugraph_sample_result_t** result,
-  cugraph_error_t** error);
-
-/**
- * @brief     Homogeneous Uniform Neighborhood Sampling
- *
- * Returns a sample of the neighborhood around specified start vertices and heterogeneous
- * fan_out types. The neighborhood is sampled uniformly.
- * Optionally, each start vertex can be associated with a label, allowing the caller to specify
- * multiple batches of sampling requests in the same function call - which should improve GPU
- * utilization.
- *
- * If label is NULL then all start vertices will be considered part of the same batch and the
- * return value will not have a label column.
- *
- * @param [in]  handle       Handle for accessing resources
- *  * @param [in,out] rng_state State of the random number generator, updated with each call
- * @param [in]  graph        Pointer to graph.  NOTE: Graph might be modified if the storage
- *                           needs to be transposed
- * @param [in]  start_vertices Device array of start vertices for the sampling
- * @param [in]  start_vertex_offsets Device array of the offsets for each label in the seed list.
- * This parameter is only used with the retain_seeds option.
- * @param [in]  fan_out       Host array defining the fan out at each step in the sampling
- * algorithm. We only support fan_out values of type INT32
- * @param [in]  sampling_options
- *                           Opaque pointer defining the sampling options.
- * @param [in]  do_expensive_check
- *                           A flag to run expensive checks for input arguments (if set to true)
- * @param [out]  result      Output from the uniform_neighbor_sample call
- * @param [out] error        Pointer to an error object storing details of any error.  Will
- *                           be populated if error code is not CUGRAPH_SUCCESS
- * @return error code
- */
-cugraph_error_code_t cugraph_homogeneous_uniform_neighbor_sample(
-  const cugraph_resource_handle_t* handle,
-  cugraph_rng_state_t* rng_state,
-  cugraph_graph_t* graph,
-  const cugraph_type_erased_device_array_view_t* start_vertices,
-  const cugraph_type_erased_device_array_view_t* start_vertex_offsets,
-  const cugraph_type_erased_host_array_view_t* fan_out,
-  const cugraph_sampling_options_t* options,
-  bool_t do_expensive_check,
-  cugraph_sample_result_t** result,
-  cugraph_error_t** error);
-
-/**
- * @brief     Homogeneous Biased Neighborhood Sampling
- *
- * Returns a sample of the neighborhood around specified start vertices and heterogeneous
- * fan_out types. The neighborhood is sampled uniformly.
- * Optionally, each start vertex can be associated with a label, allowing the caller to specify
- * multiple batches of sampling requests in the same function call - which should improve GPU
- * utilization.
- *
- * If label is NULL then all start vertices will be considered part of the same batch and the
- * return value will not have a label column.
- *
- * @param [in]  handle       Handle for accessing resources
- *  * @param [in,out] rng_state State of the random number generator, updated with each call
- * @param [in]  graph        Pointer to graph.  NOTE: Graph might be modified if the storage
- *                           needs to be transposed
- * @param [in]  edge_biases  Device array of edge biases to use for sampling.  If NULL
- * use the edge weight as the bias. If set to NULL, edges will be sampled uniformly.
- * @param [in]  start_vertices Device array of start vertices for the sampling
- * @param [in]  start_vertex_offsets Device array of the offsets for each label in the seed list.
- * This parameter is only used with the retain_seeds option.
- * @param [in]  fan_out       Host array defining the fan out at each step in the sampling
- * algorithm. We only support fan_out values of type INT32
- * @param [in]  sampling_options
- *                           Opaque pointer defining the sampling options.
- * @param [in]  do_expensive_check
- *                           A flag to run expensive checks for input arguments (if set to true)
- * @param [out]  result      Output from the uniform_neighbor_sample call
- * @param [out] error        Pointer to an error object storing details of any error.  Will
- *                           be populated if error code is not CUGRAPH_SUCCESS
- * @return error code
- */
-cugraph_error_code_t cugraph_homogeneous_biased_neighbor_sample(
-  const cugraph_resource_handle_t* handle,
-  cugraph_rng_state_t* rng_state,
-  cugraph_graph_t* graph,
-  const cugraph_edge_property_view_t* edge_biases,
-  const cugraph_type_erased_device_array_view_t* start_vertices,
-  const cugraph_type_erased_device_array_view_t* start_vertex_offsets,
-  const cugraph_type_erased_host_array_view_t* fan_out,
   const cugraph_sampling_options_t* options,
   bool_t do_expensive_check,
   cugraph_sample_result_t** result,
