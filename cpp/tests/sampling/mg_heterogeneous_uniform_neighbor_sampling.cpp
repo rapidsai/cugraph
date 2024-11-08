@@ -31,7 +31,12 @@ struct Heterogeneous_Uniform_Neighbor_Sampling_Usecase {
   int32_t batch_size{10};
   int32_t num_edge_types{1};
   bool with_replacement{true};
-
+  // FIXME: Edge masking is currently not tested because it will
+  // require attaching two masks (edge_type_t, bool_t) which
+  // is not currently supported. Once a primitive to support 
+  // heterogeneous sampling is added, maintaining two masks
+  // won't be necessary
+  // bool edge_masking{false};
   bool check_correctness{true};
 };
 
