@@ -283,22 +283,13 @@ struct sampling_flags_t {
  * id, edge_type (optional) identifies the edge type, hop identifies which hop the edge was
  * encountered in.  The offsets array (optional) identifies the offset for each label.
  *
- * If @p starting_vertex_label_offsets is not specified then no organization is applied to the
- * output, the offsets values in the return set will be std::nullopt.
- *
- * If @p starting_vertex_label_offsets is specified the offsets array will be populated. The offsets
- * array in the return will be a CSR-style offsets array to identify the beginning of each label
- * range in the output vectors.
- *
  * If @p label_to_output_comm_rank is specified then the data will be shuffled so that all entries
- * for a particular label are returned on the specified rank.  This will result in the offsets array
- * on other GPUs indicating that there are no entries for that label (`offsets[i] == offsets[i+1]`).
+ * for a particular label are returned on the specified rank.
  *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
  * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
  * @tparam weight_t Type of edge weights. Needs to be a floating point type.
  * @tparam edge_type_t Type of edge type. Needs to be an integral type.
- * @tparam bias_t Type of bias. Needs to be an integral type.
  * @tparam store_transposed Flag indicating whether sources (if false) or destinations (if
  * true) are major indices
  * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
@@ -313,8 +304,8 @@ struct sampling_flags_t {
  * In a multi-gpu context the starting vertices should be local to this GPU.
  * @param starting_vertex_labels Optional device span of labels associated with each starting vertex
  * for the sampling.
- * @param label_to_output_comm_rank Optional device span identifying which rank should get each
- * vertex label.  This should be the same on each rank.
+ * @param label_to_output_comm_rank Optional device span identifying which rank should get sampling
+ * outputs of each vertex label.  This should be the same on each rank.
  * @param fan_out Host span defining branching out (fan-out) degree per source vertex for each
  * level.
  * @param flags A set of flags indicating which sampling features should be used.
@@ -364,16 +355,8 @@ homogeneous_uniform_neighbor_sample(
  * id, edge_type (optional) identifies the edge type, hop identifies which hop the edge was
  * encountered in.  The offsets array (optional) identifies the offset for each label.
  *
- * If @p starting_vertex_label_offsets is not specified then no organization is applied to the
- * output, the offsets values in the return set will be std::nullopt.
- *
- * If @p starting_vertex_label_offsets is specified the offsets array will be populated. The offsets
- * array in the return will be a CSR-style offsets array to identify the beginning of each label
- * range in the output vectors.
- *
  * If @p label_to_output_comm_rank is specified then the data will be shuffled so that all entries
- * for a particular label are returned on the specified rank.  This will result in the offsets array
- * on other GPUs indicating that there are no entries for that label (`offsets[i] == offsets[i+1]`).
+ * for a particular label are returned on the specified rank.
  *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
  * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
@@ -398,8 +381,8 @@ homogeneous_uniform_neighbor_sample(
  * In a multi-gpu context the starting vertices should be local to this GPU.
  * @param starting_vertex_labels Optional device span of labels associated with each starting vertex
  * for the sampling.
- * @param label_to_output_comm_rank Optional device span identifying which rank should get each
- * vertex label.  This should be the same on each rank.
+ * @param label_to_output_comm_rank Optional device span identifying which rank should get sampling
+ * outputs of each vertex label.  This should be the same on each rank.
  * @param fan_out Host span defining branching out (fan-out) degree per source vertex for each
  * level.
  * @param flags A set of flags indicating which sampling features should be used.
@@ -452,22 +435,13 @@ homogeneous_biased_neighbor_sample(
  * id, edge_type (optional) identifies the edge type, hop identifies which hop the edge was
  * encountered in.  The offsets array (optional) identifies the offset for each label.
  *
- * If @p starting_vertex_label_offsets is not specified then no organization is applied to the
- * output, the offsets values in the return set will be std::nullopt.
- *
- * If @p starting_vertex_label_offsets is specified the offsets array will be populated. The offsets
- * array in the return will be a CSR-style offsets array to identify the beginning of each label
- * range in the output vectors.
- *
  * If @p label_to_output_comm_rank is specified then the data will be shuffled so that all entries
- * for a particular label are returned on the specified rank.  This will result in the offsets array
- * on other GPUs indicating that there are no entries for that label (`offsets[i] == offsets[i+1]`).
+ * for a particular label are returned on the specified rank.
  *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
  * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
  * @tparam weight_t Type of edge weights. Needs to be a floating point type.
  * @tparam edge_type_t Type of edge type. Needs to be an integral type.
- * @tparam bias_t Type of bias. Needs to be an integral type.
  * @tparam store_transposed Flag indicating whether sources (if false) or destinations (if
  * true) are major indices
  * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
@@ -482,8 +456,8 @@ homogeneous_biased_neighbor_sample(
  * In a multi-gpu context the starting vertices should be local to this GPU.
  * @param starting_vertex_labels Optional device span of labels associated with each starting vertex
  * for the sampling.
- * @param label_to_output_comm_rank Optional device span identifying which rank should get each
- * vertex label.  This should be the same on each rank.
+ * @param label_to_output_comm_rank Optional device span identifying which rank should get sampling
+ * outputs of each vertex label.  This should be the same on each rank.
  * @param fan_out Host span defining branching out (fan-out) degree per source vertex for each
  * level. The fanout value at hop x is given by the expression 'fanout[x*num_edge_types +
  * edge_type_id]'
@@ -537,16 +511,8 @@ heterogeneous_uniform_neighbor_sample(
  * id, edge_type (optional) identifies the edge type, hop identifies which hop the edge was
  * encountered in.  The offsets array (optional) identifies the offset for each label.
  *
- * If @p starting_vertex_label_offsets is not specified then no organization is applied to the
- * output, the offsets values in the return set will be std::nullopt.
- *
- * If @p starting_vertex_label_offsets is specified the offsets array will be populated. The offsets
- * array in the return will be a CSR-style offsets array to identify the beginning of each label
- * range in the output vectors.
- *
  * If @p label_to_output_comm_rank is specified then the data will be shuffled so that all entries
- * for a particular label are returned on the specified rank.  This will result in the offsets array
- * on other GPUs indicating that there are no entries for that label (`offsets[i] == offsets[i+1]`).
+ * for a particular label are returned on the specified rank.
  *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
  * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
@@ -571,8 +537,8 @@ heterogeneous_uniform_neighbor_sample(
  * In a multi-gpu context the starting vertices should be local to this GPU.
  * @param starting_vertex_labels Optional device span of labels associated with each starting vertex
  * for the sampling.
- * @param label_to_output_comm_rank Optional device span identifying which rank should get each
- * vertex label.  This should be the same on each rank.
+ * @param label_to_output_comm_rank Optional device span identifying which rank should get sampling
+ * outputs of each vertex label.  This should be the same on each rank.
  * @param fan_out Host span defining branching out (fan-out) degree per source vertex for each
  * level. The fanout value at hop x is given by the expression 'fanout[x*num_edge_types +
  * edge_type_id]'
