@@ -878,7 +878,7 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
           global_labels.begin(), global_labels.end(), global_labels.begin(), label_t{0});
 
         // Retrieve the start_vertex_labels
-        start_vertex_labels = cugraph::detail::convert_starting_vertex_offsets_to_labels(
+        start_vertex_labels = cugraph::detail::convert_starting_vertex_label_offsets_to_labels(
           handle_,
           raft::device_span<size_t const>{start_vertex_offsets_->as_type<size_t>(),
                                           start_vertex_offsets_->size_});

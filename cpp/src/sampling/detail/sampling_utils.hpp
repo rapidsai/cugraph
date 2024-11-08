@@ -300,12 +300,12 @@ shuffle_and_organize_output(
  *
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
- * @param starting_vertex_offsets Offsets array defining where each vertex label begins
+ * @param starting_vertex_label_offsets Offsets array defining where each vertex label begins
  *
  * @returns device vector containing labels for each starting vertex
  */
-rmm::device_uvector<int32_t> convert_starting_vertex_offsets_to_labels(
-  raft::handle_t const& handle, raft::device_span<size_t const> starting_vertex_offsets);
+rmm::device_uvector<int32_t> convert_starting_vertex_label_offsets_to_labels(
+  raft::handle_t const& handle, raft::device_span<size_t const> starting_vertex_label_offsets);
 
 /**
  * @brief   Flatten the legacy label_to_output_comm_rank into the new structure
