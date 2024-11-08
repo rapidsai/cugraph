@@ -282,7 +282,7 @@ struct sampling_flags_t {
  * edge_type and hop is the number of sampled edges while the size of the offsets vector is the
  * number of labels + 1.  src is the source vertex, dst is the destination vertex, weight
  * (optional) is the edge weight, edge_id (optional) identifies the edge id, edge_type (optional)
- * identifies the edge type, hop identifies which hop the edge was encountered in. 
+ * identifies the edge type, hop identifies which hop the edge was encountered in.
  * The offsets array (optional) identifies the offset for each label.
  *
  * If @p label_to_output_comm_rank is specified then the data will be shuffled so that all entries
@@ -356,7 +356,7 @@ homogeneous_uniform_neighbor_sample(
  * edge_type and hop is the number of sampled edges while the size of the offsets vector is the
  * number of labels + 1.  src is the source vertex, dst is the destination vertex, weight
  * (optional) is the edge weight, edge_id (optional) identifies the edge id, edge_type (optional)
- * identifies the edge type, hop identifies which hop the edge was encountered in. 
+ * identifies the edge type, hop identifies which hop the edge was encountered in.
  * The offsets array (optional) identifies the offset for each label.
  *
  * If @p label_to_output_comm_rank is specified then the data will be shuffled so that all entries
@@ -438,7 +438,7 @@ homogeneous_biased_neighbor_sample(
  * edge_type and hop is the number of sampled edges while the size of the offsets vector is the
  * number of labels + 1.  src is the source vertex, dst is the destination vertex, weight
  * (optional) is the edge weight, edge_id (optional) identifies the edge id, edge_type (optional)
- * identifies the edge type, hop identifies which hop the edge was encountered in. 
+ * identifies the edge type, hop identifies which hop the edge was encountered in.
  * The offsets array (optional) identifies the offset for each label.
  *
  * If @p label_to_output_comm_rank is specified then the data will be shuffled so that all entries
@@ -516,7 +516,7 @@ heterogeneous_uniform_neighbor_sample(
  * edge_type and hop is the number of sampled edges while the size of the offsets vector is the
  * number of labels + 1.  src is the source vertex, dst is the destination vertex, weight
  * (optional) is the edge weight, edge_id (optional) identifies the edge id, edge_type (optional)
- * identifies the edge type, hop identifies which hop the edge was encountered in. 
+ * identifies the edge type, hop identifies which hop the edge was encountered in.
  * The offsets array (optional) identifies the offset for each label.
  *
  * If @p label_to_output_comm_rank is specified then the data will be shuffled so that all entries

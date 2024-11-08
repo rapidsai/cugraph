@@ -151,9 +151,7 @@ neighbor_sample_impl(raft::handle_t const& handle,
   level_result_dst_vectors.reserve(fan_out.size());
   if (level_result_weight_vectors) { (*level_result_weight_vectors).reserve(fan_out.size()); }
   if (level_result_edge_id_vectors) { (*level_result_edge_id_vectors).reserve(fan_out.size()); }
-  if (level_result_edge_type_vectors) {
-    (*level_result_edge_type_vectors).reserve(fan_out.size());
-  }
+  if (level_result_edge_type_vectors) { (*level_result_edge_type_vectors).reserve(fan_out.size()); }
   if (level_result_label_vectors) { (*level_result_label_vectors).reserve(fan_out.size()); }
 
   rmm::device_uvector<vertex_t> frontier_vertices(0, handle.get_stream());
@@ -228,9 +226,7 @@ neighbor_sample_impl(raft::handle_t const& handle,
       if (edge_types) { (*level_result_edge_type_vectors).push_back(std::move(*edge_types)); }
       if (labels) { (*level_result_label_vectors).push_back(std::move(*labels)); }
 
-      if (num_edge_types > 1) {
-        modified_graph_view.clear_edge_mask();
-      }
+      if (num_edge_types > 1) { modified_graph_view.clear_edge_mask(); }
     }
 
     // FIXME:  We should modify vertex_partition_range_lasts to return a raft::host_span
