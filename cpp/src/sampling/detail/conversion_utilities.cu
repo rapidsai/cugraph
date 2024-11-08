@@ -33,15 +33,13 @@ rmm::device_uvector<int32_t> flatten_label_map(
   std::tuple<raft::device_span<label_t const>, raft::device_span<int32_t const>>
     label_to_output_comm_rank)
 {
-  rmm::device_uvector<int32_t> label_map(0, handle.get_stream());
-
   label_t max_label = thrust::reduce(handle.get_thrust_policy(),
                                      std::get<0>(label_to_output_comm_rank).begin(),
                                      std::get<0>(label_to_output_comm_rank).end(),
                                      label_t{0},
                                      thrust::maximum<label_t>());
 
-  label_map.resize(max_label + 1, handle.get_stream());
+  rmm::device_uvector<int32_t> label_map(max_label + 1, handle.get_stream());
 
   thrust::fill(handle.get_thrust_policy(), label_map.begin(), label_map.end(), int32_t{0});
   thrust::scatter(handle.get_thrust_policy(),
