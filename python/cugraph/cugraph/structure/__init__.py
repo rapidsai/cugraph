@@ -30,6 +30,7 @@ from cugraph.structure.replicate_edgelist import (
     replicate_cudf_dataframe,
     replicate_cudf_series,
 )
+from cugraph.structure.decompress_to_edgelist import decompress_to_edgelist
 from cugraph.structure.convert_matrix import (
     from_edgelist,
     from_cudf_edgelist,
