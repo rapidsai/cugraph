@@ -325,6 +325,25 @@ cugraph_error_code_t cugraph_degrees(const cugraph_resource_handle_t* handle,
                                      cugraph_error_t** error);
 
 /**
+ * @brief       Construct the edge list from the graph view object.
+ *
+ * @param [in]  handle              Handle for accessing resources
+ * @param [in]  graph               Graph to operate on
+ * @param [in]  do_expensive_check  A flag to run expensive checks for input arguments (if set to
+ * true)
+ * @param [out] result              Opaque pointer to induced subgraph result
+ * @param [out] error               Pointer to an error object storing details of any error.  Will
+ *                                  be populated if error code is not CUGRAPH_SUCCESS
+ * @return error code
+ */
+cugraph_error_code_t cugraph_decompress_to_edgelist(
+  const cugraph_resource_handle_t* handle,
+  cugraph_graph_t* graph,
+  bool_t do_expensive_check,
+  cugraph_induced_subgraph_result_t** result,
+  cugraph_error_t** error);
+
+/**
  * @brief       Get the vertex ids
  *
  * @param [in]     degrees_result   Opaque pointer to degree result
