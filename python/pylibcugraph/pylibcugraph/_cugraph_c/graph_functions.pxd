@@ -250,3 +250,14 @@ cdef extern from "cugraph_c/graph_functions.h":
         cugraph_degrees_result_free(
             cugraph_degrees_result_t* degrees_result
         )
+    
+    ###########################################################################
+    # decompress to edgelist
+    cdef cugraph_error_code_t \
+        cugraph_decompress_to_edgelist(
+            const cugraph_resource_handle_t* handle,
+            cugraph_graph_t* graph,
+            bool_t do_expensive_check,
+            cugraph_induced_subgraph_result_t** result,
+            cugraph_error_t** error
+        )

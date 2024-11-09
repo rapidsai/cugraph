@@ -113,6 +113,8 @@ from pylibcugraph.all_pairs_cosine_coefficients import all_pairs_cosine_coeffici
 
 from pylibcugraph.degrees import in_degrees, out_degrees, degrees
 
+from pylibcugraph.decompress_to_edgelist import decompress_to_edgelist
+
 
 from pylibcugraph import exceptions
 
