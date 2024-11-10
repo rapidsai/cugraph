@@ -67,9 +67,6 @@ def decompress_to_edgelist(
         do_expensive_check=do_expensive_check
     )
 
-    print("source = ", source)
-    print("detaination = ", destination)
-
     df = cudf.DataFrame()
     df["src"] = source
     df["dst"] = destination
