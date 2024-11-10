@@ -90,7 +90,7 @@ struct decompress_to_edgelist_functor : public cugraph::c_api::abstract_functor 
       auto number_map = reinterpret_cast<rmm::device_uvector<vertex_t>*>(graph_->number_map_);
 
 
-      auto [result_src, result_dst, result_wgt, edge_id, edge_type] =
+      auto [result_src, result_dst, result_wgt, result_edge_id, result_edge_type] =
         cugraph::decompress_to_edgelist<vertex_t, edge_t, weight_t, edge_type_type_t, store_transposed, multi_gpu>(
           handle_,
           graph_view,
@@ -102,30 +102,16 @@ struct decompress_to_edgelist_functor : public cugraph::c_api::abstract_functor 
                                   : std::nullopt,
           do_expensive_check_);
     
-      // FIXME: Is it neccessary to un-renumber here after passing number_map to deomcpress_to_edge_list
-      cugraph::unrenumber_int_vertices<vertex_t, multi_gpu>(
-        handle_,
-        result_src.data(),
-        result_src.size(),
-        number_map->data(),
-        graph_view.vertex_partition_range_lasts(),
-        do_expensive_check_);
-
-      cugraph::unrenumber_int_vertices<vertex_t, multi_gpu>(
-        handle_,
-        result_dst.data(),
-        result_dst.size(),
-        number_map->data(),
-        graph_view.vertex_partition_range_lasts(),
-        do_expensive_check_);
 
       result_ = new cugraph::c_api::cugraph_induced_subgraph_result_t{
         new cugraph::c_api::cugraph_type_erased_device_array_t(result_src, graph_->vertex_type_),
         new cugraph::c_api::cugraph_type_erased_device_array_t(result_dst, graph_->vertex_type_),
         result_wgt ? new cugraph::c_api::cugraph_type_erased_device_array_t(*result_wgt, graph_->weight_type_)
             : NULL,
-        NULL, // FIXME: replace by edge_ids
-        NULL, // FIXME: replace by edge_types
+        result_edge_id ? new cugraph::c_api::cugraph_type_erased_device_array_t(*result_edge_id, graph_->edge_type_)
+            : NULL,
+        result_edge_type ? new cugraph::c_api::cugraph_type_erased_device_array_t(*result_edge_type, graph_->edge_type_id_type_)
+            : NULL,
         NULL};
     }
   }
