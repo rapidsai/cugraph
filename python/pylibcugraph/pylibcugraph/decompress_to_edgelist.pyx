@@ -151,10 +151,10 @@ def decompress_to_edgelist(ResourceHandle resource_handle,
         cupy_edge_weights = copy_to_cupy_array(
             c_resource_handle_ptr, edge_weights_ptr)
     if edge_ids_ptr != NULL:
-        cupy_edge_weights = copy_to_cupy_array(
+        cupy_edge_ids = copy_to_cupy_array(
             c_resource_handle_ptr, edge_ids_ptr)
     if edge_type_ids_ptr != NULL:
-        cupy_edge_weights = copy_to_cupy_array(
+        cupy_edge_type_ids = copy_to_cupy_array(
             c_resource_handle_ptr, edge_type_ids_ptr)
     
     """
