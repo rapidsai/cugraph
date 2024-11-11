@@ -28,7 +28,6 @@ from .centrality.katz_centrality import katz_centrality
 from .components.connectivity import weakly_connected_components
 from .sampling.uniform_neighbor_sample import uniform_neighbor_sample
 from .sampling.random_walks import random_walks
-from .structure.decompress_to_edgelist import decompress_to_edgelist
 from .centrality.eigenvector_centrality import eigenvector_centrality
 from .cores.core_number import core_number
 from .centrality.betweenness_centrality import betweenness_centrality
