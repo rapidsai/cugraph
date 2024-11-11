@@ -19,8 +19,7 @@ from cugraph.structure import Graph
 
 
 def decompress_to_edgelist(
-    G: Graph,
-    do_expensive_check: bool
+    G: Graph
 ) -> cudf.DataFrame:
     """
     Extract a the edgelist from a graph.
@@ -30,8 +29,6 @@ def decompress_to_edgelist(
     G : cugraph.Graph
         cuGraph graph descriptor, should contain the connectivity information
         as an edge list.
-
-    do_expensive_check: bool
 
     Returns
     -------

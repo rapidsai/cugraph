@@ -57,8 +57,7 @@ def convert_to_cudf(cp_arrays: cp.ndarray) -> cudf.DataFrame:
 
 
 def decompress_to_edgelist(
-    input_graph,
-    do_expensive_check: bool
+    input_graph
 ) -> dask_cudf.DataFrame:
     """
     Extract a the edgelist from a graph.
@@ -69,8 +68,6 @@ def decompress_to_edgelist(
         Graph or matrix object, which should contain the connectivity
         information. Edge weights, if present, should be single or double
         precision floating point values.
-
-    do_expensive_check: bool
 
     Returns
     -------
