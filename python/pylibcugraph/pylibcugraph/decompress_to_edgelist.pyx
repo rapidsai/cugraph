@@ -60,7 +60,7 @@ def decompress_to_edgelist(ResourceHandle resource_handle,
                            _GPUGraph graph,
                            bool_t do_expensive_check):
     """
-    extract a the edgelist from a graph
+    Extract a the edgelist from a graph
 
     Parameters
     ----------

@@ -23,19 +23,13 @@ def decompress_to_edgelist(
     do_expensive_check: bool
 ) -> cudf.DataFrame:
     """
-    Compute a subgraph of the existing graph including only the specified
-    vertices.  This algorithm works with both directed and undirected graphs
-    and does not actually traverse the edges, but instead simply pulls out any
-    edges that are incident on vertices that are both contained in the vertices
-    list.
-
-    If no subgraph can be extracted from the vertices provided, a 'None' value
-    will be returned.
+    Extract a the edgelist from a graph.
 
     Parameters
     ----------
-    G : cugraph.Graph or networkx.Graph
-        The current implementation only supports weighted graphs.
+    G : cugraph.Graph
+        cuGraph graph descriptor, should contain the connectivity information
+        as an edge list.
 
     do_expensive_check: bool
 
@@ -54,7 +48,6 @@ def decompress_to_edgelist(
     >>> verts[0] = 0
     >>> verts[1] = 1
     >>> verts[2] = 2
-    >>> sverts = cudf.Series(verts)
     >>> edgelist = cugraph.decompress_to_edgelist(G, False)
 
     """
