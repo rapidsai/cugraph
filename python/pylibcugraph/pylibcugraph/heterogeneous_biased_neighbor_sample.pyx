@@ -101,7 +101,6 @@ def heterogeneous_biased_neighbor_sample(ResourceHandle resource_handle,
                                          random_state=None,
                                          return_dict=False,):
     """
-    # FIXME: Deprecate biased_neighbor_sample
     Performs biased neighborhood sampling, which samples nodes from
     a graph based on the current node's neighbors, with a corresponding fan_out
     value at each hop. The edges are sampled with biases.
