@@ -328,10 +328,6 @@ void cugraph_sampling_set_dedupe_sources(cugraph_sampling_options_t* options, bo
 void cugraph_sampling_options_free(cugraph_sampling_options_t* options);
 
 /**
- * @brief     Opaque neighborhood sampling heterogeneous fan_out type
- */
-
-/**
  * @brief     Uniform Neighborhood Sampling
  *
  * @deprecated  This API will be deleted, use cugraph_homogeneous_uniform_neighbor_sample
@@ -452,8 +448,8 @@ cugraph_error_code_t cugraph_biased_neighbor_sample(
 /**
  * @brief     Homogeneous Uniform Neighborhood Sampling
  *
- * Returns a sample of the neighborhood around specified start vertices and heterogeneous
- * fan_out types. The neighborhood is sampled uniformly.
+ * Returns a sample of the neighborhood around specified start vertices and fan_out.
+ * The neighborhood is sampled uniformly.
  * Optionally, each start vertex can be associated with a label, allowing the caller to specify
  * multiple batches of sampling requests in the same function call - which should improve GPU
  * utilization.
@@ -494,8 +490,8 @@ cugraph_error_code_t cugraph_homogeneous_uniform_neighbor_sample(
 /**
  * @brief     Homogeneous Biased Neighborhood Sampling
  *
- * Returns a sample of the neighborhood around specified start vertices and heterogeneous
- * fan_out types. The neighborhood is sampled uniformly.
+ * Returns a sample of the neighborhood around specified start vertices and fan_out.
+ * The neighborhood is sampled uniformly.
  * Optionally, each start vertex can be associated with a label, allowing the caller to specify
  * multiple batches of sampling requests in the same function call - which should improve GPU
  * utilization.
@@ -539,8 +535,8 @@ cugraph_error_code_t cugraph_homogeneous_biased_neighbor_sample(
 /**
  * @brief     Heterogeneous Uniform Neighborhood Sampling
  *
- * Returns a sample of the neighborhood around specified start vertices and heterogeneous
- * fan_out types. The neighborhood is sampled uniformly.
+ * Returns a sample of the neighborhood around specified start vertices and fan_out.
+ * The neighborhood is sampled uniformly.
  * Optionally, each start vertex can be associated with a label, allowing the caller to specify
  * multiple batches of sampling requests in the same function call - which should improve GPU
  * utilization.
@@ -584,8 +580,8 @@ cugraph_error_code_t cugraph_heterogeneous_uniform_neighbor_sample(
 /**
  * @brief     Heterogeneous Biased Neighborhood Sampling
  *
- * Returns a sample of the neighborhood around specified start vertices and heterogeneous
- * fan_out types. The neighborhood is sampled with biases.
+ * Returns a sample of the neighborhood around specified start vertices and fan_out.
+ * The neighborhood is sampled uniformly.
  * Optionally, each start vertex can be associated with a label, allowing the caller to specify
  * multiple batches of sampling requests in the same function call - which should improve GPU
  * utilization.
