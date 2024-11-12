@@ -21,6 +21,7 @@
 
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_functions.hpp>
+#include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/host_scalar_comm.hpp>
 #include <cugraph/utilities/shuffle_comm.cuh>
@@ -363,7 +364,7 @@ void renumber_ext_vertices(raft::handle_t const& handle,
   }
 
   std::unique_ptr<kv_store_t<vertex_t, vertex_t, false>> renumber_map_ptr{nullptr};
-  if (multi_gpu) {
+  if constexpr (multi_gpu) {
     auto& comm                 = handle.get_comms();
     auto const comm_size       = comm.get_size();
     auto& major_comm           = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
@@ -402,11 +403,12 @@ void renumber_ext_vertices(raft::handle_t const& handle,
     rmm::device_uvector<vertex_t> int_vertices_for_sorted_unique_ext_vertices(0,
                                                                               handle.get_stream());
     auto [unique_ext_vertices, int_vertices_for_unique_ext_vertices] =
-      collect_values_for_unique_keys(handle,
+      collect_values_for_unique_keys(comm,
                                      local_renumber_map.view(),
                                      std::move(sorted_unique_ext_vertices),
                                      detail::compute_gpu_id_from_ext_vertex_t<vertex_t>{
-                                       comm_size, major_comm_size, minor_comm_size});
+                                       comm_size, major_comm_size, minor_comm_size},
+                                     handle.get_stream());
 
     renumber_map_ptr = std::make_unique<kv_store_t<vertex_t, vertex_t, false>>(
       unique_ext_vertices.begin(),
@@ -573,7 +575,6 @@ void unrenumber_int_vertices(raft::handle_t const& handle,
     auto local_int_vertex_first = vertex_partition_id == 0
                                     ? vertex_t{0}
                                     : vertex_partition_range_lasts[vertex_partition_id - 1];
-    auto local_int_vertex_last  = vertex_partition_range_lasts[vertex_partition_id];
 
     rmm::device_uvector<vertex_t> sorted_unique_int_vertices(num_vertices, handle.get_stream());
     sorted_unique_int_vertices.resize(
@@ -595,16 +596,20 @@ void unrenumber_int_vertices(raft::handle_t const& handle,
                                       sorted_unique_int_vertices.end())),
       handle.get_stream());
 
-    auto [unique_int_vertices, ext_vertices_for_unique_int_vertices] =
-      collect_values_for_unique_int_vertices(handle,
-                                             std::move(sorted_unique_int_vertices),
-                                             renumber_map_labels,
-                                             vertex_partition_range_lasts);
+    auto ext_vertices_for_sorted_unique_int_vertices =
+      collect_values_for_sorted_unique_int_vertices(
+        comm,
+        raft::device_span<vertex_t const>(sorted_unique_int_vertices.data(),
+                                          sorted_unique_int_vertices.size()),
+        renumber_map_labels,
+        vertex_partition_range_lasts,
+        local_int_vertex_first,
+        handle.get_stream());
 
     kv_store_t<vertex_t, vertex_t, false> renumber_map(
-      unique_int_vertices.begin(),
-      unique_int_vertices.begin() + unique_int_vertices.size(),
-      ext_vertices_for_unique_int_vertices.begin(),
+      sorted_unique_int_vertices.begin(),
+      sorted_unique_int_vertices.end(),
+      ext_vertices_for_sorted_unique_int_vertices.begin(),
       invalid_vertex_id<vertex_t>::value,
       invalid_vertex_id<vertex_t>::value,
       handle.get_stream());
@@ -665,6 +670,104 @@ std::enable_if_t<!multi_gpu, void> unrenumber_local_int_edges(raft::handle_t con
                                 vertex_t{0},
                                 num_vertices,
                                 do_expensive_check);
+}
+
+template <typename vertex_t, bool store_transposed, bool multi_gpu>
+void unrenumber_sorted_unique_local_int_edge_dsts(
+  raft::handle_t const& handle,
+  raft::device_span<vertex_t> sorted_unique_edge_dsts /* [INOUT] */,
+  raft::device_span<vertex_t const> renumber_map,
+  std::vector<vertex_t> const& vertex_partition_range_lasts,
+  bool do_expensive_check)
+{
+  if (do_expensive_check) {
+    CUGRAPH_EXPECTS(
+      thrust::count_if(handle.get_thrust_policy(),
+                       sorted_unique_edge_dsts.begin(),
+                       sorted_unique_edge_dsts.end(),
+                       [int_vertex_last = vertex_partition_range_lasts.back()] __device__(auto v) {
+                         return v != invalid_vertex_id_v<vertex_t> &&
+                                !is_valid_vertex(int_vertex_last, v);
+                       }) == 0,
+      "Invalid input arguments: there are out-of-range vertices in sorted_unique_edge_dsts.");
+    CUGRAPH_EXPECTS(
+      thrust::is_sorted(
+        handle.get_thrust_policy(), sorted_unique_edge_dsts.begin(), sorted_unique_edge_dsts.end()),
+      "Invalid input arguments: the input internal edge destinations are not sorted.");
+    CUGRAPH_EXPECTS(
+      static_cast<size_t>(thrust::count_if(
+        handle.get_thrust_policy(),
+        thrust::make_counting_iterator(size_t{0}),
+        thrust::make_counting_iterator(sorted_unique_edge_dsts.size()),
+        detail::is_first_in_run_t<vertex_t const*>{sorted_unique_edge_dsts.data()})) ==
+        sorted_unique_edge_dsts.size(),
+      "Invalid input arguments: the input internal edge destinations have duplicates.");
+  }
+
+  if constexpr (multi_gpu) {
+    auto& major_comm           = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
+    auto const major_comm_size = major_comm.get_size();
+    auto const major_comm_rank = major_comm.get_rank();
+    auto& minor_comm           = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
+    auto const minor_comm_size = minor_comm.get_size();
+    auto const minor_comm_rank = minor_comm.get_rank();
+
+    auto vertex_partition_id =
+      partition_manager::compute_vertex_partition_id_from_graph_subcomm_ranks(
+        major_comm_size, minor_comm_size, major_comm_rank, minor_comm_rank);
+    auto local_int_vertex_first = vertex_partition_id == 0
+                                    ? vertex_t{0}
+                                    : vertex_partition_range_lasts[vertex_partition_id - 1];
+
+    rmm::device_uvector<vertex_t> ext_vertices_for_sorted_unique_edge_dsts(0, handle.get_stream());
+    if constexpr (store_transposed) {
+      std::vector<vertex_t> minor_comm_vertex_partition_range_lasts(minor_comm_size);
+      for (int i = 0; i < minor_comm_size; ++i) {
+        auto vertex_partition_id =
+          partition_manager::compute_vertex_partition_id_from_graph_subcomm_ranks(
+            major_comm_size, minor_comm_size, major_comm_rank, i);
+        minor_comm_vertex_partition_range_lasts[i] =
+          vertex_partition_range_lasts[vertex_partition_id];
+      }
+      ext_vertices_for_sorted_unique_edge_dsts = collect_values_for_sorted_unique_int_vertices(
+        minor_comm,
+        raft::device_span<vertex_t const>(sorted_unique_edge_dsts.data(),
+                                          sorted_unique_edge_dsts.size()),
+        renumber_map.begin(),
+        minor_comm_vertex_partition_range_lasts,
+        local_int_vertex_first,
+        handle.get_stream());
+    } else {
+      std::vector<vertex_t> major_comm_vertex_partition_range_lasts(major_comm_size);
+      for (int i = 0; i < major_comm_size; ++i) {
+        auto vertex_partition_id =
+          partition_manager::compute_vertex_partition_id_from_graph_subcomm_ranks(
+            major_comm_size, minor_comm_size, i, minor_comm_rank);
+        major_comm_vertex_partition_range_lasts[i] =
+          vertex_partition_range_lasts[vertex_partition_id];
+      }
+      ext_vertices_for_sorted_unique_edge_dsts = collect_values_for_sorted_unique_int_vertices(
+        major_comm,
+        raft::device_span<vertex_t const>(sorted_unique_edge_dsts.data(),
+                                          sorted_unique_edge_dsts.size()),
+        renumber_map.begin(),
+        major_comm_vertex_partition_range_lasts,
+        local_int_vertex_first,
+        handle.get_stream());
+    }
+    thrust::copy(handle.get_thrust_policy(),
+                 ext_vertices_for_sorted_unique_edge_dsts.begin(),
+                 ext_vertices_for_sorted_unique_edge_dsts.end(),
+                 sorted_unique_edge_dsts.begin());
+  } else {
+    unrenumber_local_int_vertices(handle,
+                                  sorted_unique_edge_dsts.data(),
+                                  sorted_unique_edge_dsts.size(),
+                                  renumber_map.data(),
+                                  vertex_t{0},
+                                  vertex_partition_range_lasts[0],
+                                  do_expensive_check);
+  }
 }
 
 }  // namespace cugraph

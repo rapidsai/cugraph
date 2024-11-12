@@ -289,11 +289,12 @@ rmm::device_uvector<vertex_t> update_clustering_by_delta_modularity(
       invalid_vertex_id<vertex_t>::value,
       std::numeric_limits<weight_t>::max(),
       handle.get_stream());
-    vertex_cluster_weights_v = cugraph::collect_values_for_keys(handle,
+    vertex_cluster_weights_v = cugraph::collect_values_for_keys(comm,
                                                                 cluster_key_weight_map.view(),
                                                                 next_clusters_v.begin(),
                                                                 next_clusters_v.end(),
-                                                                vertex_to_gpu_id_op);
+                                                                vertex_to_gpu_id_op,
+                                                                handle.get_stream());
 
     src_cluster_weights =
       edge_src_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>, weight_t>(handle,

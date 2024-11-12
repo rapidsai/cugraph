@@ -22,6 +22,8 @@
 #include <raft/core/comms.hpp>
 #include <raft/core/handle.hpp>
 
+#include <stdlib.h>  // FIXME: temporarily added for setenv
+
 #include <string>
 
 namespace cugraph {
@@ -69,6 +71,30 @@ class partition_manager {
   {
     return map_major_comm_to_gpu_row_comm ? (minor_comm_rank * major_comm_size + major_comm_rank)
                                           : (major_comm_rank * minor_comm_size + minor_comm_rank);
+  }
+
+#ifdef __CUDACC__
+  __host__ __device__
+#endif
+    static int
+    compute_major_comm_rank_from_global_comm_rank(int major_comm_size,
+                                                  int minor_comm_size,
+                                                  int comm_rank)
+  {
+    return map_major_comm_to_gpu_row_comm ? comm_rank % major_comm_size
+                                          : comm_rank / minor_comm_size;
+  }
+
+#ifdef __CUDACC__
+  __host__ __device__
+#endif
+    static int
+    compute_minor_comm_rank_from_global_comm_rank(int major_comm_size,
+                                                  int minor_comm_size,
+                                                  int comm_rank)
+  {
+    return map_major_comm_to_gpu_row_comm ? comm_rank / major_comm_size
+                                          : comm_rank % minor_comm_size;
   }
 
 #ifdef __CUDACC__
@@ -137,10 +163,35 @@ class partition_manager {
     int row_idx = rank / gpu_row_comm_size;
     int col_idx = rank % gpu_row_comm_size;
 
+#if 1  // FIXME: a trick to use InfiniBand SHARP in a sub-communicator (currently, a GPU can
+       // participate in only one SHARP accelerated communicator)
+    comm.barrier();  // to enforce initialization in comm
+    std::cerr << "start intializing node_comm" << std::endl;
+    std::cerr << "start intializing major_comm" << std::endl;
+    handle.set_subcomm("gpu_row_comm",
+                       std::make_shared<raft::comms::comms_t>(comm.comm_split(row_idx, col_idx)));
+    auto& major_comm = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
+    major_comm.barrier();  /// to enforce initialization in major_comm
+    std::cerr << "major_comm initialized" << std::endl;
+#if 1 // for EOS
+    auto ret = setenv("NCCL_COLLNET_ENABLE", "1", 1);
+    if (ret != 0)
+      std::cerr << "setenv(\"NCCL_COLLNET_ENABLE\", \"1\", 1) returned " << ret << std::endl;
+    ret = setenv("NCCL_SHARP_DISABLE", "0", 1);
+    if (ret != 0)
+      std::cerr << "setenv(\"NCCL_SHARP_DISABLE\", \"0\", 1) returned " << ret << std::endl;
+#endif
+    handle.set_subcomm("gpu_col_comm",
+                       std::make_shared<raft::comms::comms_t>(comm.comm_split(col_idx, row_idx)));
+    auto& minor_comm = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
+    minor_comm.barrier();  /// to enforce initialization in minor_comm
+    std::cerr << "minor_comm initialized" << std::endl;
+#else
     handle.set_subcomm("gpu_row_comm",
                        std::make_shared<raft::comms::comms_t>(comm.comm_split(row_idx, col_idx)));
     handle.set_subcomm("gpu_col_comm",
                        std::make_shared<raft::comms::comms_t>(comm.comm_split(col_idx, row_idx)));
+#endif
   };
 };
 
