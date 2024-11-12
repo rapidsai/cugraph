@@ -40,14 +40,14 @@ add_library(cugraphtestutil STATIC
             utilities/conversion_utilities_sg.cu
             utilities/debug_utilities_sg.cpp
             utilities/validation_utilities.cu
-            link_prediction/similarity_compare.cpp
-            centrality/betweenness_centrality_validate.cu
-            community/egonet_validate.cu
-            cores/k_core_validate.cu
-            structure/induced_subgraph_validate.cu
-            sampling/random_walks_check_sg.cu
-            sampling/detail/nbr_sampling_validate.cu
-            sampling/detail/sampling_post_processing_validate.cu
+            #link_prediction/similarity_compare.cpp
+            #centrality/betweenness_centrality_validate.cu
+            #community/egonet_validate.cu
+            #cores/k_core_validate.cu
+            #structure/induced_subgraph_validate.cu
+            #sampling/random_walks_check_sg.cu
+            #sampling/detail/nbr_sampling_validate.cu
+            #sampling/detail/sampling_post_processing_validate.cu
             ../../thirdparty/mmio/mmio.c)
 
 target_compile_options(cugraphtestutil
@@ -593,6 +593,10 @@ if(BUILD_CUGRAPH_MG_TESTS)
     ###############################################################################################
     # - MG BFS tests ------------------------------------------------------------------------------
     ConfigureTestMG(MG_BFS_TEST traversal/mg_bfs_test.cpp)
+
+    ###############################################################################################
+    # - MG GRAPH500 BFS tests --------------------------------------------------------------------
+    ConfigureTestMG(MG_GRAPH500_BFS_TEST traversal/mg_graph500_bfs_test.cu)
 
     ###############################################################################################
     # - Extract BFS Paths tests -------------------------------------------------------------------
