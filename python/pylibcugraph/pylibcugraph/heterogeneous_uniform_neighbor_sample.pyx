@@ -96,7 +96,7 @@ def heterogeneous_uniform_neighbor_sample(ResourceHandle resource_handle,
                                           compression='COO',
                                           compress_per_hop=False,
                                           random_state=None,
-                                          return_dict=False,):
+                                          return_dict=True):
     """
     Performs uniform neighborhood sampling, which samples nodes from
     a graph based on the current node's neighbors, with a corresponding fan_out
@@ -122,12 +122,16 @@ def heterogeneous_uniform_neighbor_sample(ResourceHandle resource_handle,
 
     h_fan_out: numpy array type
         Device array containing the branching out (fan-out) degrees per
-        starting vertex for each hop level
+        starting vertex for each hop level. The fanout value at each hop for each
+        edge type is given by the relationship
+        h_fanout[x*num_edge_types + edge_type_id]
 
         The sampling method can use different fan_out values for each edge type
-        which is not the case for homogeneous neighborhood sampling.
+        which is not the case for homogeneous neighborhood sampling (both biased
+        and uniform).
 
-    num_edge_types: Number of edge types where a value of 1 translates to homogeneous neighbor
+    num_edge_types: int
+        Number of edge types where a value of 1 translates to homogeneous neighbor
         sample whereas a value greater than 1 translates to heterogeneous neighbor
         sample.
 
@@ -183,7 +187,7 @@ def heterogeneous_uniform_neighbor_sample(ResourceHandle resource_handle,
 
     return_dict: bool (Optional)
         Whether to return a dictionary instead of a tuple.
-        Optional argument, defaults to False, returning a tuple.
+        Optional argument, defaults to True, returning a dictionary.
         This argument will eventually be deprecated in favor
         of always returning a dictionary.
 

@@ -98,7 +98,7 @@ def homogeneous_biased_neighbor_sample(ResourceHandle resource_handle,
                                        compression='COO',
                                        compress_per_hop=False,
                                        random_state=None,
-                                       return_dict=False):
+                                       return_dict=True):
     """
     Performs biased neighborhood sampling, which samples nodes from
     a graph based on the current node's neighbors, with a corresponding fan_out
@@ -129,7 +129,8 @@ def homogeneous_biased_neighbor_sample(ResourceHandle resource_handle,
         starting vertex for each hop level
 
         The sampling method can use different fan_out values for each edge type
-        which is not the case for homogeneous neighborhood sampling.
+        which is not the case for homogeneous neighborhood sampling (both biased
+        and uniform).
 
     with_replacement: bool
         If true, sampling procedure is done with replacement (the same vertex
@@ -183,7 +184,7 @@ def homogeneous_biased_neighbor_sample(ResourceHandle resource_handle,
 
     return_dict: bool (Optional)
         Whether to return a dictionary instead of a tuple.
-        Optional argument, defaults to False, returning a tuple.
+        Optional argument, defaults to True, returning a dictionary.
         This argument will eventually be deprecated in favor
         of always returning a dictionary.
 
