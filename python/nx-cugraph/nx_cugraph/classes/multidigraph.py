@@ -23,6 +23,7 @@ from .multigraph import CudaMultiGraph, MultiGraph
 __all__ = ["CudaMultiDiGraph", "MultiDiGraph"]
 
 networkx_api = nxcg.utils.decorators.networkx_class(nx.MultiDiGraph)
+gpu_cpu_api = nxcg.utils.decorators._gpu_cpu_api(nx.MultiDiGraph, __name__)
 
 
 class MultiDiGraph(nx.MultiDiGraph, MultiGraph, DiGraph):
@@ -55,21 +56,20 @@ class MultiDiGraph(nx.MultiDiGraph, MultiGraph, DiGraph):
     ##########################
 
     # Dispatch to nx.MultiDiGraph or CudaMultiDiGraph
-    __contains__ = Graph.__dict__["__contains__"]
-    __len__ = Graph.__dict__["__len__"]
-    __iter__ = Graph.__dict__["__iter__"]
-    get_edge_data = Graph.__dict__["get_edge_data"]
-    has_edge = Graph.__dict__["has_edge"]
-    neighbors = Graph.__dict__["neighbors"]
-    has_node = Graph.__dict__["has_node"]
-    nbunch_iter = Graph.__dict__["nbunch_iter"]
-    number_of_nodes = Graph.__dict__["number_of_nodes"]
-    order = Graph.__dict__["order"]
-    successors = Graph.__dict__["neighbors"]  # Alias
-
-    clear = Graph.clear
-    clear_edges = Graph.clear_edges
-    number_of_edges = Graph.number_of_edges
+    __contains__ = gpu_cpu_api("__contains__")
+    __len__ = gpu_cpu_api("__len__")
+    __iter__ = gpu_cpu_api("__iter__")
+    clear = DiGraph.clear
+    clear_edges = DiGraph.clear_edges
+    get_edge_data = gpu_cpu_api("get_edge_data", edge_data=True)
+    has_edge = gpu_cpu_api("has_edge")
+    neighbors = gpu_cpu_api("neighbors")
+    has_node = gpu_cpu_api("has_node")
+    nbunch_iter = gpu_cpu_api("nbunch_iter")
+    number_of_edges = MultiGraph.number_of_edges
+    number_of_nodes = gpu_cpu_api("number_of_nodes")
+    order = gpu_cpu_api("order")
+    successors = gpu_cpu_api("successors")
 
 
 class CudaMultiDiGraph(CudaMultiGraph, CudaDiGraph):

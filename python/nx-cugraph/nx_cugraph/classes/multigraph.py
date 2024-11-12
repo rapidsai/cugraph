@@ -37,6 +37,7 @@ if TYPE_CHECKING:
 __all__ = ["MultiGraph", "CudaMultiGraph"]
 
 networkx_api = nxcg.utils.decorators.networkx_class(nx.MultiGraph)
+gpu_cpu_api = nxcg.utils.decorators._gpu_cpu_api(nx.MultiGraph, __name__)
 
 
 class MultiGraph(nx.MultiGraph, Graph):
@@ -282,20 +283,30 @@ class MultiGraph(nx.MultiGraph, Graph):
     ##########################
 
     # Dispatch to nx.MultiGraph or CudaMultiGraph
-    __contains__ = Graph.__dict__["__contains__"]
-    __len__ = Graph.__dict__["__len__"]
-    __iter__ = Graph.__dict__["__iter__"]
-    get_edge_data = Graph.__dict__["get_edge_data"]
-    has_edge = Graph.__dict__["has_edge"]
-    neighbors = Graph.__dict__["neighbors"]
-    has_node = Graph.__dict__["has_node"]
-    nbunch_iter = Graph.__dict__["nbunch_iter"]
-    number_of_nodes = Graph.__dict__["number_of_nodes"]
-    order = Graph.__dict__["order"]
-
+    __contains__ = gpu_cpu_api("__contains__")
+    __len__ = gpu_cpu_api("__len__")
+    __iter__ = gpu_cpu_api("__iter__")
     clear = Graph.clear
     clear_edges = Graph.clear_edges
-    number_of_edges = Graph.number_of_edges
+    get_edge_data = gpu_cpu_api("get_edge_data", edge_data=True)
+    has_edge = gpu_cpu_api("has_edge")
+    neighbors = gpu_cpu_api("neighbors")
+    has_node = gpu_cpu_api("has_node")
+    nbunch_iter = gpu_cpu_api("nbunch_iter")
+
+    @networkx_api
+    def number_of_edges(
+        self, u: NodeKey | None = None, v: NodeKey | None = None
+    ) -> int:
+        if u is not None or v is not None:
+            # NotImplemented by CudaGraph
+            nx_class = self.to_networkx_class()
+            return nx_class.number_of_edges(self, u, v)
+        return self._number_of_edges(u, v)
+
+    _number_of_edges = gpu_cpu_api("number_of_edges")
+    number_of_nodes = gpu_cpu_api("number_of_nodes")
+    order = gpu_cpu_api("order")
 
 
 class CudaMultiGraph(CudaGraph):

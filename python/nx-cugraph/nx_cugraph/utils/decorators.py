@@ -167,3 +167,31 @@ def _default_should_run(*args, **kwargs):
 
 def _restore_networkx_dispatched(name):
     return getattr(BackendInterface, name)
+
+
+def _gpu_cpu_api(nx_class, module_name):
+    def _gpu_cpu_graph_method(attr, *, edge_data=False, node_data=False):
+        """Dispatch property to NetworkX or CudaGraph based on cache.
+
+        For example, this will use any cached CudaGraph for ``len(G)``, which
+        prevents creating NetworkX data structures.
+        """
+        nx_func = getattr(nx_class, attr)
+
+        def inner(self, *args, **kwargs):
+            cuda_graph = self._get_cudagraph(edge_data=edge_data, node_data=node_data)
+            if cuda_graph is None:
+                return nx_func(self, *args, **kwargs)
+            return getattr(cuda_graph, attr)(*args, **kwargs)
+
+        inner.__name__ = nx_func.__name__
+        inner.__doc__ = nx_func.__doc__
+        inner.__qualname__ = nx_func.__qualname__
+        inner.__defaults__ = nx_func.__defaults__
+        inner.__kwdefaults__ = nx_func.__kwdefaults__
+        inner.__module__ = module_name
+        inner.__dict__.update(nx_func.__dict__)
+        inner.__wrapped__ = nx_func
+        return inner
+
+    return _gpu_cpu_graph_method

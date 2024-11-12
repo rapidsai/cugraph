@@ -90,21 +90,26 @@ def test_multidigraph_to_undirected():
         ("nbunch_iter", ([0, 1],)),
     ],
 )
-def test_method_does_not_create_host_data(create_using, method):
+@pytest.mark.parametrize("where", ["gpu", "cpu"])
+def test_method_does_not_convert_to_cpu_or_gpu(create_using, method, where):
     attr, args = method
     if attr == "successors" and not create_using.is_directed():
         return
     G = nxcg.complete_graph(3, create_using=create_using)
-    assert G._is_on_gpu
-    assert not G._is_on_cpu
+    is_on_gpu = where == "gpu"
+    is_on_cpu = where == "cpu"
+    if is_on_cpu:
+        G.add_edge(10, 20)
+    assert G._is_on_gpu == is_on_gpu
+    assert G._is_on_cpu == is_on_cpu
     getattr(G, attr)(*args)
-    assert G._is_on_gpu
-    assert not G._is_on_cpu
+    assert G._is_on_gpu == is_on_gpu
+    assert G._is_on_cpu == is_on_cpu
     # Also usable from the class and dispatches correctly
     func = getattr(create_using, attr)
     func(G, *args)
-    assert G._is_on_gpu
-    assert not G._is_on_cpu
+    assert G._is_on_gpu == is_on_gpu
+    assert G._is_on_cpu == is_on_cpu
     # Basic "looks like networkx" checks
     nx_class = create_using.to_networkx_class()
     nx_func = getattr(nx_class, attr)

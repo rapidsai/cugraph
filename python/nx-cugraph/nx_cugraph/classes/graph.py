@@ -48,6 +48,7 @@ if TYPE_CHECKING:  # pragma: no cover
 __all__ = ["CudaGraph", "Graph"]
 
 networkx_api = nxcg.utils.decorators.networkx_class(nx.Graph)
+gpu_cpu_api = nxcg.utils.decorators._gpu_cpu_api(nx.Graph, __name__)
 
 # The "everything" cache key is an internal implementation detail of NetworkX
 # that may change between releases.
@@ -84,56 +85,6 @@ class _GraphCache(dict):
     def clear(self) -> None:
         self._graph._reify_networkx()
         super().clear()
-
-
-class _graph_property:
-    """Dispatch property to NetworkX or CudaGraph based on cache.
-
-    For example, this will use any cached CudaGraph for ``len(G)``, which
-    prevents creating NetworkX data structures.
-    """
-
-    def __init__(self, attr, *, edge_data=False, node_data=False):
-        self._attr = attr
-        self._edge_data = edge_data
-        self._node_data = node_data
-
-    def __get__(self, instance, owner=None):
-        nx_class = owner.to_networkx_class()
-        if instance is None:
-            # Let's handle e.g. `nxcg.Graph.__len__` to look and behave correctly.
-            #
-            # If you want the instance of `_graph_property`, get it from the class dict:
-            #     >>> nxcg.Graph.__dict__["__len__"]
-            #
-            # Alternatives:
-            #  - `return op.methodcaller(self._attr)`
-            #    - This dispatches, but does not have e.g. __name__
-            #  - `return getattr(nx_class, self._attr)`
-            #    - This does not dispatch--it always uses networkx--but does have attrs
-            prop = owner.__dict__[self._attr]
-
-            def inner(self, *args, **kwargs):
-                return prop.__get__(self, owner)(*args, **kwargs)
-
-            # Standard function-wrapping
-            nx_func = getattr(nx_class, self._attr)
-            inner.__name__ = nx_func.__name__
-            inner.__doc__ = nx_func.__doc__
-            inner.__qualname__ = nx_func.__qualname__
-            inner.__defaults__ = nx_func.__defaults__
-            inner.__kwdefaults__ = nx_func.__kwdefaults__
-            inner.__dict__.update(nx_func.__dict__)
-            inner.__module__ = owner.__module__
-            inner.__wrapped__ = nx_func
-            return inner
-
-        cuda_graph = instance._get_cudagraph(
-            edge_data=self._edge_data, node_data=self._node_data
-        )
-        if cuda_graph is not None:
-            return getattr(cuda_graph, self._attr)
-        return getattr(nx_class, self._attr).__get__(instance, owner)
 
 
 class Graph(nx.Graph):
@@ -592,9 +543,9 @@ class Graph(nx.Graph):
     ##########################
 
     # Dispatch to nx.Graph or CudaGraph
-    __contains__ = _graph_property("__contains__")
-    __len__ = _graph_property("__len__")
-    __iter__ = _graph_property("__iter__")
+    __contains__ = gpu_cpu_api("__contains__")
+    __len__ = gpu_cpu_api("__len__")
+    __iter__ = gpu_cpu_api("__iter__")
 
     @networkx_api
     def clear(self) -> None:
@@ -614,11 +565,11 @@ class Graph(nx.Graph):
             cudagraph.clear_edges()
             self._set_cudagraph(cudagraph, clear_cpu=False)
 
-    get_edge_data = _graph_property("get_edge_data", edge_data=True)
-    has_edge = _graph_property("has_edge")
-    neighbors = _graph_property("neighbors")
-    has_node = _graph_property("has_node")
-    nbunch_iter = _graph_property("nbunch_iter")
+    get_edge_data = gpu_cpu_api("get_edge_data", edge_data=True)
+    has_edge = gpu_cpu_api("has_edge")
+    neighbors = gpu_cpu_api("neighbors")
+    has_node = gpu_cpu_api("has_node")
+    nbunch_iter = gpu_cpu_api("nbunch_iter")
 
     @networkx_api
     def number_of_edges(
@@ -628,10 +579,11 @@ class Graph(nx.Graph):
             # NotImplemented by CudaGraph
             nx_class = self.to_networkx_class()
             return nx_class.number_of_edges(self, u, v)
-        return _graph_property("number_of_edges").__get__(self, self.__class__)()
+        return self._number_of_edges(u, v)
 
-    number_of_nodes = _graph_property("number_of_nodes")
-    order = _graph_property("order")
+    _number_of_edges = gpu_cpu_api("number_of_edges")
+    number_of_nodes = gpu_cpu_api("number_of_nodes")
+    order = gpu_cpu_api("order")
     # Future work: implement more graph methods, and handle e.g. `copy`
 
 
