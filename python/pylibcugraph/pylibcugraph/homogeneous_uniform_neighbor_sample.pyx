@@ -82,7 +82,7 @@ import warnings
 def homogeneous_uniform_neighbor_sample(ResourceHandle resource_handle,
                                           _GPUGraph input_graph,
                                           start_vertex_list,
-                                          start_vertex_offsets,
+                                          starting_vertex_label_offsets,
                                           h_fan_out,
                                           bool_t with_replacement,
                                           bool_t do_expensive_check,
@@ -97,10 +97,10 @@ def homogeneous_uniform_neighbor_sample(ResourceHandle resource_handle,
                                           random_state=None,
                                           return_dict=False,):
     """
-    # FIXME: Deprecate uniform_neighbor_sample
     Performs biased neighborhood sampling, which samples nodes from
     a graph based on the current node's neighbors, with a corresponding fan_out
-    value at each hop. The edges are sampled uniformly.
+    value at each hop. The edges are sampled uniformly. Homogeneous
+    neighborhood sampling translates to 1 edge type.
 
     Parameters
     ----------
@@ -114,10 +114,12 @@ def homogeneous_uniform_neighbor_sample(ResourceHandle resource_handle,
     start_vertex_list: device array type
         Device array containing the list of starting vertices for sampling.
 
-    start_vertex_offsets: list[int] (Optional)
-        Offsets of each label within the start vertex list.
+    starting_vertex_label_offsets: device array type (Optional)
+        Offsets of each label within the start vertex list. Expanding
+        'starting_vertex_label_offsets' must lead to an array of
+        len(start_vertex_list)
 
-    h_fan_out: tuple of numpy array type
+    h_fan_out: numpy array type
         Device array containing the branching out (fan-out) degrees per
         starting vertex for each hop level
 
@@ -213,9 +215,14 @@ def homogeneous_uniform_neighbor_sample(ResourceHandle resource_handle,
     # FIXME: refactor the way we are creating pointer. Can use a single helper function to create
 
     assert_CAI_type(start_vertex_list, "start_vertex_list")
-    assert_CAI_type(start_vertex_offsets, "start_vertex_offsets", True)
+    assert_CAI_type(starting_vertex_label_offsets, "starting_vertex_label_offsets", True)
 
     assert_AI_type(h_fan_out, "h_fan_out")
+
+    if starting_vertex_label_offsets is not None:
+        if starting_vertex_label_offsets.iloc[-1] != len(start_vertex_list):
+            raise ValueError(
+                "'starting_vertex_label_offsets' and 'start_vertex_list' must be proportional")
 
     ai_fan_out_ptr = \
         h_fan_out.__array_interface__["data"][0]
@@ -233,10 +240,10 @@ def homogeneous_uniform_neighbor_sample(ResourceHandle resource_handle,
     cdef uintptr_t cai_start_ptr = \
         start_vertex_list.__cuda_array_interface__["data"][0]
 
-    cdef uintptr_t cai_start_vertex_offsets_ptr
-    if start_vertex_offsets is not None:
-        cai_start_vertex_offsets_ptr = \
-            start_vertex_offsets.__cuda_array_interface__['data'][0]
+    cdef uintptr_t cai_starting_vertex_label_offsets_ptr
+    if starting_vertex_label_offsets is not None:
+        cai_starting_vertex_label_offsets_ptr = \
+            starting_vertex_label_offsets.__cuda_array_interface__['data'][0]
 
 
     cdef cugraph_type_erased_device_array_view_t* start_vertex_list_ptr = \
@@ -246,18 +253,18 @@ def homogeneous_uniform_neighbor_sample(ResourceHandle resource_handle,
             get_c_type_from_numpy_type(start_vertex_list.dtype))
 
 
-    cdef cugraph_type_erased_device_array_view_t* start_vertex_offsets_ptr = <cugraph_type_erased_device_array_view_t*>NULL
-    if start_vertex_offsets is not None:
-        start_vertex_offsets_ptr = \
+    cdef cugraph_type_erased_device_array_view_t* starting_vertex_label_offsets_ptr = <cugraph_type_erased_device_array_view_t*>NULL
+    if starting_vertex_label_offsets is not None:
+        starting_vertex_label_offsets_ptr = \
             cugraph_type_erased_device_array_view_create(
-                <void*>cai_start_vertex_offsets_ptr,
-                len(start_vertex_offsets),
-                get_c_type_from_numpy_type(start_vertex_offsets.dtype)
+                <void*>cai_starting_vertex_label_offsets_ptr,
+                len(starting_vertex_label_offsets),
+                get_c_type_from_numpy_type(starting_vertex_label_offsets.dtype)
             )
 
     cdef cugraph_type_erased_device_array_view_t* label_offsets_ptr = <cugraph_type_erased_device_array_view_t*>NULL
     if retain_seeds:
-        if start_vertex_offsets is None:
+        if starting_vertex_label_offsets is None:
             raise ValueError("Must provide label offsets if retain_seeds is True")
 
     cg_rng_state = CuGraphRandomState(resource_handle, random_state)
@@ -313,7 +320,7 @@ def homogeneous_uniform_neighbor_sample(ResourceHandle resource_handle,
         rng_state_ptr,
         c_graph_ptr,
         start_vertex_list_ptr,
-        start_vertex_offsets_ptr,
+        starting_vertex_label_offsets_ptr,
         fan_out_ptr,
         sampling_options,
         do_expensive_check,
@@ -328,8 +335,8 @@ def homogeneous_uniform_neighbor_sample(ResourceHandle resource_handle,
     cugraph_type_erased_device_array_view_free(start_vertex_list_ptr)
     cugraph_type_erased_host_array_view_free(fan_out_ptr)
 
-    if start_vertex_offsets is not None:
-        cugraph_type_erased_device_array_view_free(start_vertex_offsets_ptr)
+    if starting_vertex_label_offsets is not None:
+        cugraph_type_erased_device_array_view_free(starting_vertex_label_offsets_ptr)
 
     # Have the SamplingResult instance assume ownership of the result data.
     result = SamplingResult()

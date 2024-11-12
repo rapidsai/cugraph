@@ -462,8 +462,8 @@ cugraph_error_code_t cugraph_biased_neighbor_sample(
  * @param [in]  graph        Pointer to graph.  NOTE: Graph might be modified if the storage
  *                           needs to be transposed
  * @param [in]  start_vertices Device array of start vertices for the sampling
- * @param [in]  start_vertex_offsets Device array of the offsets for each label in the seed list.
- * This parameter is only used with the retain_seeds option.
+ * @param [in]  starting_vertex_label_offsets Device array of the offsets for each label in
+ * the seed list. This parameter is only used with the retain_seeds option.
  * @param [in]  fan_out       Host array defining the fan out at each step in the sampling
  * algorithm. We only support fan_out values of type INT32
  * @param [in]  sampling_options
@@ -480,7 +480,7 @@ cugraph_error_code_t cugraph_homogeneous_uniform_neighbor_sample(
   cugraph_rng_state_t* rng_state,
   cugraph_graph_t* graph,
   const cugraph_type_erased_device_array_view_t* start_vertices,
-  const cugraph_type_erased_device_array_view_t* start_vertex_offsets,
+  const cugraph_type_erased_device_array_view_t* starting_vertex_label_offsets,
   const cugraph_type_erased_host_array_view_t* fan_out,
   const cugraph_sampling_options_t* options,
   bool_t do_expensive_check,
@@ -506,8 +506,8 @@ cugraph_error_code_t cugraph_homogeneous_uniform_neighbor_sample(
  * @param [in]  edge_biases  Device array of edge biases to use for sampling.  If NULL
  * use the edge weight as the bias. If set to NULL, edges will be sampled uniformly.
  * @param [in]  start_vertices Device array of start vertices for the sampling
- * @param [in]  start_vertex_offsets Device array of the offsets for each label in the seed list.
- * This parameter is only used with the retain_seeds option.
+ * @param [in]  starting_vertex_label_offsets Device array of the offsets for each label in
+ * the seed list. This parameter is only used with the retain_seeds option.
  * @param [in]  fan_out       Host array defining the fan out at each step in the sampling
  * algorithm. We only support fan_out values of type INT32
  * @param [in]  sampling_options
@@ -525,7 +525,7 @@ cugraph_error_code_t cugraph_homogeneous_biased_neighbor_sample(
   cugraph_graph_t* graph,
   const cugraph_edge_property_view_t* edge_biases,
   const cugraph_type_erased_device_array_view_t* start_vertices,
-  const cugraph_type_erased_device_array_view_t* start_vertex_offsets,
+  const cugraph_type_erased_device_array_view_t* starting_vertex_label_offsets,
   const cugraph_type_erased_host_array_view_t* fan_out,
   const cugraph_sampling_options_t* options,
   bool_t do_expensive_check,
@@ -549,8 +549,8 @@ cugraph_error_code_t cugraph_homogeneous_biased_neighbor_sample(
  * @param [in]  graph        Pointer to graph.  NOTE: Graph might be modified if the storage
  *                           needs to be transposed
  * @param [in]  start_vertices Device array of start vertices for the sampling
- * @param [in]  start_vertex_offsets Device array of the offsets for each label in the seed list.
- * This parameter is only used with the retain_seeds option.
+ * @param [in]  starting_vertex_label_offsets Device array of the offsets for each label in
+ * the seed list. This parameter is only used with the retain_seeds option.
  * @param [in]  fan_out       Host array defining the fan out at each step in the sampling
  * algorithm. We only support fan_out values of type INT32
  * @param [in]  num_edge_types Number of edge types where a value of 1 translates to homogeneous
@@ -569,7 +569,7 @@ cugraph_error_code_t cugraph_heterogeneous_uniform_neighbor_sample(
   cugraph_rng_state_t* rng_state,
   cugraph_graph_t* graph,
   const cugraph_type_erased_device_array_view_t* start_vertices,
-  const cugraph_type_erased_device_array_view_t* start_vertex_offsets,
+  const cugraph_type_erased_device_array_view_t* starting_vertex_label_offsets,
   const cugraph_type_erased_host_array_view_t* fan_out,
   int num_edge_types,
   const cugraph_sampling_options_t* options,
@@ -596,8 +596,8 @@ cugraph_error_code_t cugraph_heterogeneous_uniform_neighbor_sample(
  * @param [in]  edge_biases  Device array of edge biases to use for sampling.  If NULL
  * use the edge weight as the bias. If set to NULL, edges will be sampled uniformly.
  * @param [in]  start_vertices Device array of start vertices for the sampling
- * @param [in]  start_vertex_offsets Device array of the offsets for each label in the seed list.
- * This parameter is only used with the retain_seeds option.
+ * @param [in]  starting_vertex_label_offsets Device array of the offsets for each label in
+ * the seed list. This parameter is only used with the retain_seeds option.
  * @param [in]  fan_out       Host array defining the fan out at each step in the sampling
  * algorithm. We only support fan_out values of type INT32
  * @param [in]  num_edge_types Number of edge types where a value of 1 translates to homogeneous
@@ -617,7 +617,7 @@ cugraph_error_code_t cugraph_heterogeneous_biased_neighbor_sample(
   cugraph_graph_t* graph,
   const cugraph_edge_property_view_t* edge_biases,
   const cugraph_type_erased_device_array_view_t* start_vertices,
-  const cugraph_type_erased_device_array_view_t* start_vertex_offsets,
+  const cugraph_type_erased_device_array_view_t* starting_vertex_label_offsets,
   const cugraph_type_erased_host_array_view_t* fan_out,
   int num_edge_types,
   const cugraph_sampling_options_t* options,
