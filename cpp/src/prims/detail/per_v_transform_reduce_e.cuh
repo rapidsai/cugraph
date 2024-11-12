@@ -1363,8 +1363,6 @@ void per_v_transform_reduce_e_edge_partition(
   }
 }
 
-#define PER_V_PERFORMANCE_MEASUREMENT 0  // FIXME: delete performance logging code
-
 template <bool incoming,  // iterate over incoming edges (incoming == true) or outgoing edges
                           // (incoming == false)
           typename GraphViewType,
@@ -1390,10 +1388,6 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
                               PredOp pred_op,
                               VertexValueOutputIterator vertex_value_output_first)
 {
-#if PER_V_PERFORMANCE_MEASUREMENT
-  RAFT_CUDA_TRY(cudaDeviceSynchronize());
-  auto time0 = std::chrono::steady_clock::now();
-#endif
   constexpr bool update_major  = (incoming == GraphViewType::is_storage_transposed);
   constexpr bool use_input_key = !std::is_same_v<OptionalKeyIterator, void*>;
   static_assert(update_major || !use_input_key);
@@ -1503,10 +1497,6 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
   }
 
   // 3. filter input keys & update key_segment_offsets
-#if PER_V_PERFORMANCE_MEASUREMENT
-  RAFT_CUDA_TRY(cudaDeviceSynchronize());
-  auto time1 = std::chrono::steady_clock::now();
-#endif
 
   auto edge_mask_view = graph_view.edge_mask_view();
 
@@ -1627,10 +1617,6 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
   }
 
   /* 4. compute subgroup_size (used to compute priority in device_gatherv) */
-#if PER_V_PERFORMANCE_MEASUREMENT
-  RAFT_CUDA_TRY(cudaDeviceSynchronize());
-  auto time2 = std::chrono::steady_clock::now();
-#endif
 
   [[maybe_unused]] std::conditional_t<GraphViewType::is_multi_gpu && update_major &&
                                         std::is_same_v<ReduceOp, reduce_op::any<T>>,
@@ -2075,21 +2061,9 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
 
   // 9. process local edge partitions
 
-#if PER_V_PERFORMANCE_MEASUREMENT
-  RAFT_CUDA_TRY(cudaDeviceSynchronize());
-  auto time3 = std::chrono::steady_clock::now();
-#endif
   for (size_t i = 0; i < graph_view.number_of_local_edge_partitions(); i += num_concurrent_loops) {
-#if PER_V_PERFORMANCE_MEASUREMENT
-    auto subtime0 = std::chrono::steady_clock::now();
-    auto subtime1 = std::chrono::steady_clock::now();
-    auto subtime2 = std::chrono::steady_clock::now();
-#endif
     auto loop_count =
       std::min(num_concurrent_loops, graph_view.number_of_local_edge_partitions() - i);
-#if PER_V_PERFORMANCE_MEASUREMENT
-    std::vector<size_t> bcast_sizes(loop_count);
-#endif
 
     std::conditional_t<
       GraphViewType::is_multi_gpu && use_input_key,
@@ -2138,18 +2112,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
                                              local_v_list_range_firsts[partition_idx]),
                             handle.get_stream());
             use_bitmap_buffer = true;
-#if PER_V_PERFORMANCE_MEASUREMENT
-            bcast_sizes[j] = packed_bool_size(local_v_list_range_lasts[partition_idx] -
-                                              local_v_list_range_firsts[partition_idx]) *
-                             sizeof(uint32_t);
-#endif
           }
-#if PER_V_PERFORMANCE_MEASUREMENT
-          else {
-            bcast_sizes[j] = local_key_list_sizes[partition_idx] *
-                             (v_compressible ? sizeof(uint32_t) : sizeof(vertex_t));
-          }
-#endif
         }
         if (!use_bitmap_buffer) {
           bool allocated{false};
@@ -2172,10 +2135,6 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
           }
         }
       }
-#if PER_V_PERFORMANCE_MEASUREMENT
-      handle.sync_stream();
-      subtime1 = std::chrono::steady_clock::now();
-#endif
 
       device_group_start(minor_comm);
       for (size_t j = 0; j < loop_count; ++j) {
@@ -2214,9 +2173,6 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
       }
       device_group_end(minor_comm);
       if (loop_stream_pool_indices) { handle.sync_stream(); }
-#if PER_V_PERFORMANCE_MEASUREMENT
-      subtime2 = std::chrono::steady_clock::now();
-#endif
 
       if constexpr (try_bitmap) {
         if (edge_partition_bitmap_buffers) {
@@ -3089,10 +3045,6 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
         }
       }
     }
-#if PER_V_PERFORMANCE_MEASUREMENT
-    if (loop_stream_pool_indices) { handle.sync_stream_pool(*loop_stream_pool_indices); }
-    auto subtime3 = std::chrono::steady_clock::now();
-#endif
 
     std::conditional_t<GraphViewType::is_multi_gpu && update_major,
                        std::vector<dataframe_buffer_type_t<T>>,
@@ -3140,9 +3092,6 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
       }
     }
     if (loop_stream_pool_indices) { handle.sync_stream_pool(*loop_stream_pool_indices); }
-#if PER_V_PERFORMANCE_MEASUREMENT
-    auto subtime4 = std::chrono::steady_clock::now();
-#endif
 
     for (size_t j = 0; j < loop_count; ++j) {
       if (process_local_edges[j]) {
@@ -3317,9 +3266,6 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
       }
     }
     if (stream_pool_indices) { handle.sync_stream_pool(*stream_pool_indices); }
-#if PER_V_PERFORMANCE_MEASUREMENT
-    auto subtime5 = std::chrono::steady_clock::now();
-#endif
 
     if constexpr (GraphViewType::is_multi_gpu && update_major) {
       auto& minor_comm = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
@@ -3465,9 +3411,6 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
           }
         }
         if (loop_stream_pool_indices) { handle.sync_stream_pool(*loop_stream_pool_indices); }
-#if PER_V_PERFORMANCE_MEASUREMENT
-        auto subtime6 = std::chrono::steady_clock::now();
-#endif
 
         if (minor_comm_size <= std::numeric_limits<uint8_t>::max()) {  // priority == uint8_t
           device_allreduce(minor_comm,
@@ -3485,9 +3428,6 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
                            handle.get_stream());
         }
         if (loop_stream_pool_indices) { handle.sync_stream(); }
-#if PER_V_PERFORMANCE_MEASUREMENT
-        auto subtime7 = std::chrono::steady_clock::now();
-#endif
 
         std::vector<
           std::variant<std::variant<rmm::device_uvector<uint8_t>, rmm::device_uvector<int>>,
@@ -3570,9 +3510,6 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
           std::get<1>(aggregate_priorities).shrink_to_fit(handle.get_stream());
         }
         if (loop_stream_pool_indices) { handle.sync_stream(); }
-#if PER_V_PERFORMANCE_MEASUREMENT
-        auto subtime8 = std::chrono::steady_clock::now();
-#endif
 
         std::vector<dataframe_buffer_type_t<T>> edge_partition_values{};
         edge_partition_values.reserve(loop_count);
@@ -3814,10 +3751,6 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
             // skip shrink_to_fit() to cut execution time
           }
         }
-#if PER_V_PERFORMANCE_MEASUREMENT
-        if (loop_stream_pool_indices) { handle.sync_stream(); }
-        auto subtime9 = std::chrono::steady_clock::now();
-#endif
 
         size_t min_element_size{cache_line_size};
         if constexpr (std::is_arithmetic_v<T>) {
@@ -3933,10 +3866,6 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
             }
           }
         }
-#if PER_V_PERFORMANCE_MEASUREMENT
-        handle.sync_stream();
-        auto subtime10 = std::chrono::steady_clock::now();
-#endif
 
         device_group_start(minor_comm);
         for (size_t j = 0; j < loop_count; ++j) {
@@ -4021,9 +3950,6 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
         if (loop_stream_pool_indices) {
           handle.sync_stream_pool(*loop_stream_pool_indices);
         }  // to ensure that memory is freed
-#if PER_V_PERFORMANCE_MEASUREMENT
-        auto subtime11 = std::chrono::steady_clock::now();
-#endif
 
         if (rx_values && (size_dataframe_buffer(*rx_values) > 0)) {
           auto j             = static_cast<size_t>(minor_comm_rank % num_concurrent_loops);
@@ -4334,31 +4260,6 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
           }
         }
         handle.sync_stream();
-#if PER_V_PERFORMANCE_MEASUREMENT
-        auto subtime12                         = std::chrono::steady_clock::now();
-        std::chrono::duration<double> subdur0  = subtime1 - subtime0;
-        std::chrono::duration<double> subdur1  = subtime2 - subtime1;
-        std::chrono::duration<double> subdur2  = subtime3 - subtime2;
-        std::chrono::duration<double> subdur3  = subtime4 - subtime3;
-        std::chrono::duration<double> subdur4  = subtime5 - subtime4;
-        std::chrono::duration<double> subdur5  = subtime6 - subtime5;
-        std::chrono::duration<double> subdur6  = subtime7 - subtime6;
-        std::chrono::duration<double> subdur7  = subtime8 - subtime7;
-        std::chrono::duration<double> subdur8  = subtime9 - subtime8;
-        std::chrono::duration<double> subdur9  = subtime10 - subtime9;
-        std::chrono::duration<double> subdur10 = subtime11 - subtime10;
-        std::chrono::duration<double> subdur11 = subtime12 - subtime11;
-        std::cerr << "sub (per_v) took (" << subdur0.count() << "," << subdur1.count() << ","
-                  << subdur2.count() << "," << subdur3.count() << "," << subdur4.count() << ","
-                  << subdur5.count() << "," << subdur6.count() << "," << subdur7.count() << ","
-                  << subdur8.count() << "," << subdur9.count() << "," << subdur10.count() << ","
-                  << subdur11.count() << ")" << std::endl;
-        raft::print_host_vector("bcast_sizes", bcast_sizes.data(), bcast_sizes.size(), std::cerr);
-        raft::print_host_vector("edge_partition_allreduce_sizes",
-                                edge_partition_allreduce_sizes.data(),
-                                edge_partition_allreduce_sizes.size(),
-                                std::cerr);
-#endif
       } else {
         device_group_start(minor_comm);
         for (size_t j = 0; j < loop_count; ++j) {
@@ -4377,10 +4278,6 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
       }
     }
   }
-#if PER_V_PERFORMANCE_MEASUREMENT
-  RAFT_CUDA_TRY(cudaDeviceSynchronize());
-  auto time4 = std::chrono::steady_clock::now();
-#endif
 
   // 10. communication
 
@@ -4470,19 +4367,6 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
       }
     }
   }
-
-#if PER_V_PERFORMANCE_MEASUREMENT
-  RAFT_CUDA_TRY(cudaDeviceSynchronize());
-  auto time5                         = std::chrono::steady_clock::now();
-  std::chrono::duration<double> dur0 = time1 - time0;
-  std::chrono::duration<double> dur1 = time2 - time1;
-  std::chrono::duration<double> dur2 = time3 - time2;
-  std::chrono::duration<double> dur3 = time4 - time3;
-  std::chrono::duration<double> dur4 = time5 - time4;
-  std::cerr << "detail::per_v (pre, filter, post, ep, comm) took (" << dur0.count() << ","
-            << dur1.count() << "," << dur2.count() << "," << dur3.count() << "," << dur4.count()
-            << ") num_concurrent_loops=" << num_concurrent_loops << std::endl;
-#endif
 }
 
 }  // namespace detail

@@ -630,8 +630,6 @@ void extract_transform_v_frontier_e_edge_partition(
   }
 }
 
-#define EXTRACT_PERFORMANCE_MEASUREMENT 0  // FIXME: delete
-
 template <bool incoming,  // iterate over incoming edges (incoming == true) or outgoing edges
                           // (incoming == false)
           typename OutputKeyT,
@@ -653,10 +651,6 @@ extract_transform_v_frontier_e(raft::handle_t const& handle,
                                EdgeOp e_op,
                                bool do_expensive_check = false)
 {
-#if EXTRACT_PERFORMANCE_MEASUREMENT
-  RAFT_CUDA_TRY(cudaDeviceSynchronize());
-  auto time0 = std::chrono::steady_clock::now();
-#endif
   using vertex_t       = typename GraphViewType::vertex_type;
   using edge_t         = typename GraphViewType::edge_type;
   using key_t          = typename KeyBucketType::key_type;
@@ -1078,14 +1072,7 @@ extract_transform_v_frontier_e(raft::handle_t const& handle,
 
   auto edge_mask_view = graph_view.edge_mask_view();
 
-#if EXTRACT_PERFORMANCE_MEASUREMENT
-  RAFT_CUDA_TRY(cudaDeviceSynchronize());
-  auto time1 = std::chrono::steady_clock::now();
-#endif
   for (size_t i = 0; i < graph_view.number_of_local_edge_partitions(); i += num_concurrent_loops) {
-#if EXTRACT_PERFORMANCE_MEASUREMENT
-    auto subtime0 = std::chrono::steady_clock::now();
-#endif
     auto loop_count =
       std::min(num_concurrent_loops, graph_view.number_of_local_edge_partitions() - i);
 
@@ -1232,10 +1219,6 @@ extract_transform_v_frontier_e(raft::handle_t const& handle,
         }
       }
     }
-#if EXTRACT_PERFORMANCE_MEASUREMENT
-    if (loop_stream_pool_indices) { handle.sync_stream_pool(*loop_stream_pool_indices); }
-    auto subtime1 = std::chrono::steady_clock::now();
-#endif
 
     std::vector<optional_dataframe_buffer_type_t<output_key_t>> output_key_buffers{};
     output_key_buffers.reserve(loop_count);
@@ -1319,10 +1302,6 @@ extract_transform_v_frontier_e(raft::handle_t const& handle,
         }
       }
     }
-#if EXTRACT_PERFORMANCE_MEASUREMENT
-    if (loop_stream_pool_indices) { handle.sync_stream_pool(*loop_stream_pool_indices); }
-    auto subtime2 = std::chrono::steady_clock::now();
-#endif
 
     if (key_segment_offset_vectors) {
       for (size_t j = 0; j < loop_count; ++j) {
@@ -1409,9 +1388,6 @@ extract_transform_v_frontier_e(raft::handle_t const& handle,
         edge_partition_max_push_counts[j], loop_stream));
     }
     if (loop_stream_pool_indices) { handle.sync_stream_pool(*loop_stream_pool_indices); }
-#if EXTRACT_PERFORMANCE_MEASUREMENT
-    auto subtime3 = std::chrono::steady_clock::now();
-#endif
 
     thrust::fill(
       handle.get_thrust_policy(), counters.begin(), counters.begin() + loop_count, size_t{0});
@@ -1539,16 +1515,10 @@ extract_transform_v_frontier_e(raft::handle_t const& handle,
     }
 
     if (stream_pool_indices) { handle.sync_stream_pool(*stream_pool_indices); }
-#if EXTRACT_PERFORMANCE_MEASUREMENT
-    auto subtime4 = std::chrono::steady_clock::now();
-#endif
 
     std::vector<size_t> h_counts(loop_count);
     raft::update_host(h_counts.data(), counters.data(), loop_count, handle.get_stream());
     handle.sync_stream();
-#if EXTRACT_PERFORMANCE_MEASUREMENT
-    auto subtime5 = std::chrono::steady_clock::now();
-#endif
 
     for (size_t j = 0; j < loop_count; ++j) {
       auto loop_stream = loop_stream_pool_indices
@@ -1573,23 +1543,7 @@ extract_transform_v_frontier_e(raft::handle_t const& handle,
       }
     }
     if (loop_stream_pool_indices) { handle.sync_stream_pool(*loop_stream_pool_indices); }
-#if EXTRACT_PERFORMANCE_MEASUREMENT
-    auto subtime6                         = std::chrono::steady_clock::now();
-    std::chrono::duration<double> subdur0 = subtime1 - subtime0;
-    std::chrono::duration<double> subdur1 = subtime2 - subtime1;
-    std::chrono::duration<double> subdur2 = subtime3 - subtime2;
-    std::chrono::duration<double> subdur3 = subtime4 - subtime3;
-    std::chrono::duration<double> subdur4 = subtime5 - subtime4;
-    std::chrono::duration<double> subdur5 = subtime6 - subtime5;
-    std::cerr << "sub (extract) took (" << subdur0.count() << "," << subdur1.count() << ","
-              << subdur2.count() << "," << subdur3.count() << "," << subdur4.count() << ","
-              << subdur5.count() << ") loop_count=" << loop_count << std::endl;
-#endif
   }
-#if EXTRACT_PERFORMANCE_MEASUREMENT
-  RAFT_CUDA_TRY(cudaDeviceSynchronize());
-  auto time2 = std::chrono::steady_clock::now();
-#endif
 
   // 3. concatenate and return the buffers
 
@@ -1642,17 +1596,6 @@ extract_transform_v_frontier_e(raft::handle_t const& handle,
     }
     if (loop_stream_pool_indices) { handle.sync_stream_pool(*loop_stream_pool_indices); }
   }
-
-#if EXTRACT_PERFORMANCE_MEASUREMENT
-  RAFT_CUDA_TRY(cudaDeviceSynchronize());
-  auto time3                         = std::chrono::steady_clock::now();
-  std::chrono::duration<double> dur0 = time1 - time0;
-  std::chrono::duration<double> dur1 = time2 - time1;
-  std::chrono::duration<double> dur2 = time3 - time2;
-  std::cerr << "\t\t"
-            << "detail::extract (pre,fill,concat) took (" << dur0.count() << "," << dur1.count()
-            << "," << dur2.count() << ")" << std::endl;
-#endif
 
   return std::make_tuple(std::move(key_buffer), std::move(value_buffer));
 }

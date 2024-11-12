@@ -114,10 +114,6 @@ struct bottomup_pred_op_t {
 
 namespace detail {
 
-#if 1  // FIXME: delete
-#define BFS_PERFORMANCE_MEASUREMENT 0
-#endif
-
 template <typename GraphViewType, typename PredecessorIterator>
 void bfs(raft::handle_t const& handle,
          GraphViewType const& graph_view,
@@ -137,10 +133,6 @@ void bfs(raft::handle_t const& handle,
   static_assert(!GraphViewType::is_storage_transposed,
                 "GraphViewType should support the push model.");
 
-#if BFS_PERFORMANCE_MEASUREMENT
-  RAFT_CUDA_TRY(cudaDeviceSynchronize());
-  auto prep0 = std::chrono::steady_clock::now();
-#endif
   // direction optimizing BFS implementation is based on "S. Beamer, K. Asanovic, D. Patterson,
   // Direction-Optimizing Breadth-First Search, 2012"
 
@@ -235,10 +227,6 @@ void bfs(raft::handle_t const& handle,
   thrust::fill(handle.get_thrust_policy(), output_first, output_first + n_sources, vertex_t{0});
 
   // 3. update meta data for direction optimizing BFS
-#if BFS_PERFORMANCE_MEASUREMENT
-  RAFT_CUDA_TRY(cudaDeviceSynchronize());
-  auto prep1 = std::chrono::steady_clock::now();
-#endif
 
   auto segment_offsets = graph_view.local_vertex_partition_segment_offsets();
 
@@ -356,10 +344,6 @@ void bfs(raft::handle_t const& handle,
   }
 
   // 4. initialize BFS frontier
-#if BFS_PERFORMANCE_MEASUREMENT
-  RAFT_CUDA_TRY(cudaDeviceSynchronize());
-  auto prep2 = std::chrono::steady_clock::now();
-#endif
 
   constexpr size_t bucket_idx_cur  = 0;
   constexpr size_t bucket_idx_next = 1;
@@ -377,28 +361,12 @@ void bfs(raft::handle_t const& handle,
     handle, graph_view);  // this may mark some vertices visited in previous iterations as unvisited
                           // (but this is OK as we check prev_dst_visited_flags first)
   fill_edge_dst_property(handle, graph_view, dst_visited_flags.mutable_view(), false);
-#if BFS_PERFORMANCE_MEASUREMENT
-  RAFT_CUDA_TRY(cudaDeviceSynchronize());
-  auto prep3 = std::chrono::steady_clock::now();
-#endif
-
   fill_edge_dst_property(handle,
                          graph_view,
                          vertex_frontier.bucket(bucket_idx_cur).begin(),
                          vertex_frontier.bucket(bucket_idx_cur).end(),
                          prev_dst_visited_flags.mutable_view(),
                          true);
-#if BFS_PERFORMANCE_MEASUREMENT
-  RAFT_CUDA_TRY(cudaDeviceSynchronize());
-  auto prep4                         = std::chrono::steady_clock::now();
-  std::chrono::duration<double> dur0 = prep1 - prep0;
-  std::chrono::duration<double> dur1 = prep2 - prep1;
-  std::chrono::duration<double> dur2 = prep3 - prep2;
-  std::chrono::duration<double> dur3 = prep4 - prep3;
-  std::chrono::duration<double> dur  = prep4 - prep0;
-  std::cerr << "prep (init,meta,vf,fill) took " << dur.count() << " (" << dur0.count() << ","
-            << dur1.count() << "," << dur2.count() << "," << dur3.count() << ") s." << std::endl;
-#endif
 
   // 4. BFS iteration
   vertex_t depth{0};
@@ -408,10 +376,6 @@ void bfs(raft::handle_t const& handle,
   while (true) {
     vertex_t next_aggregate_frontier_size{};
     if (topdown) {
-#if BFS_PERFORMANCE_MEASUREMENT
-      RAFT_CUDA_TRY(cudaDeviceSynchronize());
-      auto topdown0 = std::chrono::steady_clock::now();
-#endif
       topdown_e_op_t<vertex_t, GraphViewType::is_multi_gpu> e_op{};
       e_op.prev_visited_flags =
         detail::edge_partition_endpoint_property_device_view_t<vertex_t, uint32_t*, bool>(
@@ -431,10 +395,6 @@ void bfs(raft::handle_t const& handle,
           edge_dummy_property_t{}.view(),
           e_op,
           reduce_op::any<vertex_t>());
-#if BFS_PERFORMANCE_MEASUREMENT
-      RAFT_CUDA_TRY(cudaDeviceSynchronize());
-      auto topdown1 = std::chrono::steady_clock::now();
-#endif
 
       auto input_pair_first = thrust::make_zip_iterator(thrust::make_constant_iterator(depth + 1),
                                                         predecessor_buffer.begin());
@@ -449,27 +409,10 @@ void bfs(raft::handle_t const& handle,
       vertex_frontier.bucket(bucket_idx_next) =
         key_bucket_t<vertex_t, void, GraphViewType::is_multi_gpu, true>(
           handle, std::move(new_frontier_vertex_buffer));
-#if BFS_PERFORMANCE_MEASUREMENT
-      RAFT_CUDA_TRY(cudaDeviceSynchronize());
-      auto topdown2 = std::chrono::steady_clock::now();
-#endif
 
       next_aggregate_frontier_size =
         static_cast<vertex_t>(vertex_frontier.bucket(bucket_idx_next).aggregate_size());
-#if BFS_PERFORMANCE_MEASUREMENT
-      RAFT_CUDA_TRY(cudaDeviceSynchronize());
-      auto topdown3 = std::chrono::steady_clock::now();
-#endif
       if (next_aggregate_frontier_size == 0) {
-#if BFS_PERFORMANCE_MEASUREMENT
-        std::chrono::duration<double> dur0 = topdown1 - topdown0;
-        std::chrono::duration<double> dur1 = topdown2 - topdown1;
-        std::chrono::duration<double> dur2 = topdown3 - topdown2;
-        std::chrono::duration<double> dur  = topdown3 - topdown0;
-        std::cerr << "depth=" << depth << " topdown (prim,vf,host) took " << dur.count() << " ("
-                  << dur0.count() << "," << dur1.count() << "," << dur2.count() << ") s."
-                  << std::endl;
-#endif
         break;
       }
 
@@ -479,11 +422,6 @@ void bfs(raft::handle_t const& handle,
                              vertex_frontier.bucket(bucket_idx_next).end(),
                              prev_dst_visited_flags.mutable_view(),
                              true);
-#if BFS_PERFORMANCE_MEASUREMENT
-      RAFT_CUDA_TRY(cudaDeviceSynchronize());
-      auto topdown4 = std::chrono::steady_clock::now();
-      auto topdown5 = std::chrono::steady_clock::now();
-#endif
 
       if (direction_optimizing) {
         if (vertex_frontier.bucket(bucket_idx_next).size() > 0) {
@@ -500,10 +438,6 @@ void bfs(raft::handle_t const& handle,
               word.fetch_or(packed_bool_mask(v_offset), cuda::std::memory_order_relaxed);
             });
         }
-#if BFS_PERFORMANCE_MEASUREMENT
-        RAFT_CUDA_TRY(cudaDeviceSynchronize());
-        topdown5 = std::chrono::steady_clock::now();
-#endif
 
         double m_f{0.0};
         double m_u{0.0};
@@ -599,15 +533,6 @@ void bfs(raft::handle_t const& handle,
           aggregate_m_f = thrust::get<0>(tmp);
           aggregate_m_u = thrust::get<1>(tmp);
         }
-#if BFS_PERFORMANCE_MEASUREMENT
-        std::cerr << "m_f=" << m_f << " m_u=" << m_u
-                  << " direction_optimizing_alpha=" << direction_optimizing_alpha
-                  << " aggregate_m_f * direction_optimzing_alpha="
-                  << aggregate_m_f * direction_optimizing_alpha
-                  << " aggregate_m_u=" << aggregate_m_u
-                  << " cur_aggregate_frontier_size=" << cur_aggregate_frontier_size
-                  << " next_aggregate_frontier_size=" << next_aggregate_frontier_size << std::endl;
-#endif
         if ((aggregate_m_f * direction_optimizing_alpha > aggregate_m_u) &&
             (next_aggregate_frontier_size >= cur_aggregate_frontier_size)) {
           topdown                            = false;
@@ -637,10 +562,6 @@ void bfs(raft::handle_t const& handle,
               handle.get_stream());
         }
       }
-#if BFS_PERFORMANCE_MEASUREMENT
-      RAFT_CUDA_TRY(cudaDeviceSynchronize());
-      auto topdown6 = std::chrono::steady_clock::now();
-#endif
 
       if (topdown) {  // staying in top-down
         vertex_frontier.bucket(bucket_idx_cur) =
@@ -655,29 +576,7 @@ void bfs(raft::handle_t const& handle,
         vertex_frontier.bucket(bucket_idx_next) =
           key_bucket_t<vertex_t, void, GraphViewType::is_multi_gpu, true>(handle);
       }
-#if BFS_PERFORMANCE_MEASUREMENT
-      RAFT_CUDA_TRY(cudaDeviceSynchronize());
-      auto topdown7                      = std::chrono::steady_clock::now();
-      std::chrono::duration<double> dur0 = topdown1 - topdown0;
-      std::chrono::duration<double> dur1 = topdown2 - topdown1;
-      std::chrono::duration<double> dur2 = topdown3 - topdown2;
-      std::chrono::duration<double> dur3 = topdown4 - topdown3;
-      std::chrono::duration<double> dur4 = topdown5 - topdown4;
-      std::chrono::duration<double> dur5 = topdown6 - topdown5;
-      std::chrono::duration<double> dur6 = topdown7 - topdown6;
-      std::chrono::duration<double> dur  = topdown7 - topdown0;
-      std::cerr << "depth=" << depth
-                << " topdown next_aggregate_frontier_size=" << next_aggregate_frontier_size
-                << " next topdown=" << topdown << " (prim,vf,host,fill,unvisited,dir,vf) took "
-                << dur.count() << " (" << dur0.count() << "," << dur1.count() << "," << dur2.count()
-                << "," << dur3.count() << "," << dur4.count() << "," << dur5.count() << ","
-                << dur6.count() << ") s." << std::endl;
-#endif
     } else {  // bottom up
-#if BFS_PERFORMANCE_MEASUREMENT
-      RAFT_CUDA_TRY(cudaDeviceSynchronize());
-      auto bottomup0 = std::chrono::steady_clock::now();
-#endif
       rmm::device_uvector<vertex_t> new_frontier_vertex_buffer(0, handle.get_stream());
       {
         bottomup_e_op_t<vertex_t> e_op{};
@@ -773,10 +672,6 @@ void bfs(raft::handle_t const& handle,
           }
         }
       }
-#if BFS_PERFORMANCE_MEASUREMENT
-      RAFT_CUDA_TRY(cudaDeviceSynchronize());
-      auto bottomup1 = std::chrono::steady_clock::now();
-#endif
 
       next_aggregate_frontier_size = static_cast<vertex_t>(new_frontier_vertex_buffer.size());
       auto aggregate_nzd_unvisited_vertices =
@@ -791,18 +686,7 @@ void bfs(raft::handle_t const& handle,
         aggregate_nzd_unvisited_vertices = thrust::get<1>(tmp);
       }
 
-#if BFS_PERFORMANCE_MEASUREMENT
-      RAFT_CUDA_TRY(cudaDeviceSynchronize());
-      auto bottomup2 = std::chrono::steady_clock::now();
-#endif
       if (next_aggregate_frontier_size == 0) {
-#if BFS_PERFORMANCE_MEASUREMENT
-        std::chrono::duration<double> dur0 = bottomup1 - bottomup0;
-        std::chrono::duration<double> dur1 = bottomup2 - bottomup1;
-        std::chrono::duration<double> dur  = bottomup2 - bottomup0;
-        std::cerr << "depth=" << depth << " bottomup (prim+,host) took " << dur.count() << " ("
-                  << dur0.count() << "," << dur1.count() << ") s." << std::endl;
-#endif
         break;
       }
 
@@ -812,10 +696,6 @@ void bfs(raft::handle_t const& handle,
                              new_frontier_vertex_buffer.end(),
                              prev_dst_visited_flags.mutable_view(),
                              true);
-#if BFS_PERFORMANCE_MEASUREMENT
-      RAFT_CUDA_TRY(cudaDeviceSynchronize());
-      auto bottomup3 = std::chrono::steady_clock::now();
-#endif
 
       if ((next_aggregate_frontier_size * direction_optimizing_beta <
            aggregate_nzd_unvisited_vertices) &&
@@ -834,21 +714,6 @@ void bfs(raft::handle_t const& handle,
             raft::device_span<vertex_t const>((*((*aux_info).nzd_unvisited_vertices)).data(),
                                               ((*(*aux_info).nzd_unvisited_vertices)).size()));
       }
-#if BFS_PERFORMANCE_MEASUREMENT
-      RAFT_CUDA_TRY(cudaDeviceSynchronize());
-      auto bottomup4                     = std::chrono::steady_clock::now();
-      std::chrono::duration<double> dur0 = bottomup1 - bottomup0;
-      std::chrono::duration<double> dur1 = bottomup2 - bottomup1;
-      std::chrono::duration<double> dur2 = bottomup3 - bottomup2;
-      std::chrono::duration<double> dur3 = bottomup4 - bottomup3;
-      std::chrono::duration<double> dur  = bottomup4 - bottomup0;
-      std::cerr << "depth=" << depth
-                << " bottomup next_aggregate_frontier_size=" << next_aggregate_frontier_size
-                << " aggregatee_nzd_unvisited_vertices=" << aggregate_nzd_unvisited_vertices
-                << " (prim+,host,fill,vf) took " << dur.count() << " (" << dur0.count() << ","
-                << dur1.count() << "," << dur2.count() << "," << dur3.count() << ") s."
-                << std::endl;
-#endif
     }
     cur_aggregate_frontier_size = next_aggregate_frontier_size;
 

@@ -579,10 +579,6 @@ sort_and_reduce_buffer_elements(
   return std::make_tuple(std::move(output_key_buffer), std::move(payload_buffer));
 }
 
-#if 1  // FIXME: delete
-#define TRANSFORM_REDUCE_PERFORMANCE_MEASUREMENT 0
-#endif
-
 template <typename GraphViewType,
           typename KeyBucketType,
           typename EdgeSrcValueInputWrapper,
@@ -621,10 +617,6 @@ transform_reduce_v_frontier_outgoing_e_by_dst(raft::handle_t const& handle,
 
   // 1. fill the buffer
 
-#if TRANSFORM_REDUCE_PERFORMANCE_MEASUREMENT
-  RAFT_CUDA_TRY(cudaDeviceSynchronize());
-  auto time0 = std::chrono::steady_clock::now();
-#endif
   detail::transform_reduce_v_frontier_call_e_op_t<key_t,
                                                   payload_t,
                                                   vertex_t,
@@ -643,12 +635,6 @@ transform_reduce_v_frontier_outgoing_e_by_dst(raft::handle_t const& handle,
                                                                     edge_value_input,
                                                                     e_op_wrapper,
                                                                     do_expensive_check);
-#if TRANSFORM_REDUCE_PERFORMANCE_MEASUREMENT
-  RAFT_CUDA_TRY(cudaDeviceSynchronize());
-  auto time1               = std::chrono::steady_clock::now();
-  auto size_before_lreduce = size_dataframe_buffer(key_buffer);
-#endif
-
   // 2. reduce the buffer
 
   std::vector<vertex_t> vertex_range_offsets{};
@@ -682,18 +668,6 @@ transform_reduce_v_frontier_outgoing_e_by_dst(raft::handle_t const& handle,
       reduce_op,
       aux_range_offsets,
       std::nullopt);
-#if TRANSFORM_REDUCE_PERFORMANCE_MEASUREMENT
-  RAFT_CUDA_TRY(cudaDeviceSynchronize());
-  auto time2               = std::chrono::steady_clock::now();
-  auto time3               = std::chrono::steady_clock::now();
-  auto time4               = std::chrono::steady_clock::now();
-  auto time5               = std::chrono::steady_clock::now();
-  auto size_after_lreduce  = size_dataframe_buffer(key_buffer);
-  auto size_after_filter   = size_after_lreduce;
-  auto size_before_greduce = size_after_lreduce;
-#endif
-  bool aligned_path = false;  // FIXME: delete
-  double fill_ratio = 0.0;    // FIXME: delete
   if constexpr (GraphViewType::is_multi_gpu) {
     auto& major_comm           = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
     auto const major_comm_size = major_comm.get_size();
@@ -779,12 +753,6 @@ transform_reduce_v_frontier_outgoing_e_by_dst(raft::handle_t const& handle,
           auto allreduce_size_per_node = p2p_size_per_node / 16 /* tuning parameter */;
           auto allreduce_size_per_rank =
             allreduce_size_per_node / (major_comm_size * (num_gpus_per_node / subgroup_size));
-#if TRANSFORM_REDUCE_PERFORMANCE_MEASUREMENT
-          std::cerr << "p2p_size_per_rank=" << p2p_size_per_rank
-                    << " p2p_size_per_node=" << p2p_size_per_node
-                    << " allreduce_size_per_node=" << allreduce_size_per_node
-                    << " allreduce_size_per_rank=" << allreduce_size_per_rank << std::endl;
-#endif
 
           if (major_comm_size <= std::numeric_limits<uint8_t>::max()) {  // priority = uint8_t
             std::tie(key_buffer, payload_buffer) =
@@ -810,14 +778,7 @@ transform_reduce_v_frontier_outgoing_e_by_dst(raft::handle_t const& handle,
                 subgroup_size);
           }
         }
-#if TRANSFORM_REDUCE_PERFORMANCE_MEASUREMENT
-        size_after_filter = size_dataframe_buffer(key_buffer);
-#endif
       }
-#if TRANSFORM_REDUCE_PERFORMANCE_MEASUREMENT
-      RAFT_CUDA_TRY(cudaDeviceSynchronize());
-      time3 = std::chrono::steady_clock::now();
-#endif
 
       rmm::device_uvector<edge_t> d_tx_buffer_last_boundaries(major_comm_size, handle.get_stream());
       auto key_v_first =
@@ -896,12 +857,7 @@ transform_reduce_v_frontier_outgoing_e_by_dst(raft::handle_t const& handle,
       std::optional<std::conditional_t<try_compression, std::variant<key_t, uint32_t>, key_t>>
         invalid_key{std::nullopt};
 
-#if TRANSFORM_REDUCE_PERFORMANCE_MEASUREMENT
-      RAFT_CUDA_TRY(cudaDeviceSynchronize());
-      time4 = std::chrono::steady_clock::now();
-#endif
       if (avg_key_buffer_size >= alignment * size_t{128} /* 128 tuning parameter */) {
-        aligned_path = true;  // FIXME: delete
         if constexpr (std::is_same_v<key_t, vertex_t>) {
           if constexpr (try_compression) {
             if (compressed_v_buffer) {
@@ -1015,34 +971,13 @@ transform_reduce_v_frontier_outgoing_e_by_dst(raft::handle_t const& handle,
           payload_buffer = std::move(rx_payload_buffer);
         }
       }
-#if TRANSFORM_REDUCE_PERFORMANCE_MEASUREMENT
-      RAFT_CUDA_TRY(cudaDeviceSynchronize());
-      time5 = std::chrono::steady_clock::now();
-#endif
 
       if constexpr (std::is_integral_v<key_t>) {
         aux_range_offsets = std::vector<key_t>{graph_view.local_vertex_partition_range_first(),
                                                graph_view.local_vertex_partition_range_last()};
-#if 1  // FIXME: delete
-        size_t key_buffer_size{};
-        if constexpr (try_compression) {
-          if (compressed_v_buffer) {
-            key_buffer_size = (*compressed_v_buffer).size();
-          } else {
-            key_buffer_size = size_dataframe_buffer(key_buffer);
-          }
-        } else {
-          key_buffer_size = size_dataframe_buffer(key_buffer);
-        }
-        fill_ratio = static_cast<double>(key_buffer_size) /
-                     static_cast<double>(aux_range_offsets.back() - aux_range_offsets.front());
-#endif
       }
       if constexpr (try_compression) {
         if (compressed_v_buffer) {
-#if TRANSFORM_REDUCE_PERFORMANCE_MEASUREMENT
-          size_before_greduce = size_dataframe_buffer(*compressed_v_buffer);  // FIXME: delete
-#endif
           std::tie(key_buffer, payload_buffer) =
             detail::sort_and_reduce_buffer_elements<uint32_t, key_t, payload_t, ReduceOp>(
               handle,
@@ -1052,9 +987,6 @@ transform_reduce_v_frontier_outgoing_e_by_dst(raft::handle_t const& handle,
               aux_range_offsets,
               invalid_key ? std::make_optional(std::get<1>(*invalid_key)) : std::nullopt);
         } else {
-#if TRANSFORM_REDUCE_PERFORMANCE_MEASUREMENT
-          size_before_greduce = size_dataframe_buffer(key_buffer);  // FIXME: delete
-#endif
           std::tie(key_buffer, payload_buffer) =
             detail::sort_and_reduce_buffer_elements<key_t, key_t, payload_t, ReduceOp>(
               handle,
@@ -1065,9 +997,6 @@ transform_reduce_v_frontier_outgoing_e_by_dst(raft::handle_t const& handle,
               invalid_key ? std::make_optional(std::get<0>(*invalid_key)) : std::nullopt);
         }
       } else {
-#if TRANSFORM_REDUCE_PERFORMANCE_MEASUREMENT
-        size_before_greduce = size_dataframe_buffer(key_buffer);  // FIXME: delete
-#endif
         std::tie(key_buffer, payload_buffer) =
           detail::sort_and_reduce_buffer_elements<key_t, key_t, payload_t, ReduceOp>(
             handle,
@@ -1079,23 +1008,6 @@ transform_reduce_v_frontier_outgoing_e_by_dst(raft::handle_t const& handle,
       }
     }
   }
-#if TRANSFORM_REDUCE_PERFORMANCE_MEASUREMENT
-  RAFT_CUDA_TRY(cudaDeviceSynchronize());
-  auto time6                         = std::chrono::steady_clock::now();
-  auto size_after_greduce            = size_dataframe_buffer(key_buffer);
-  std::chrono::duration<double> dur0 = time1 - time0;
-  std::chrono::duration<double> dur1 = time2 - time1;
-  std::chrono::duration<double> dur2 = time3 - time2;
-  std::chrono::duration<double> dur3 = time4 - time3;
-  std::chrono::duration<double> dur4 = time5 - time4;
-  std::chrono::duration<double> dur5 = time6 - time5;
-  std::cerr << "\tprim (fill,lreduce,filter,g-prep,g-shuffle,g-s&r) took (" << dur0.count() << ","
-            << dur1.count() << "," << dur2.count() << "," << dur3.count() << "," << dur4.count()
-            << "," << dur5.count() << ") l_size=(" << size_before_lreduce << ","
-            << size_after_lreduce << ") f_size=" << size_after_filter << " g_size=("
-            << size_before_greduce << "," << size_after_greduce << ")"
-            << " aligned_path=" << aligned_path << " fill_ratio=" << fill_ratio << std::endl;
-#endif
 
   if constexpr (!std::is_same_v<payload_t, void>) {
     return std::make_tuple(std::move(key_buffer), std::move(payload_buffer));

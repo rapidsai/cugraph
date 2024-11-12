@@ -59,8 +59,6 @@
 
 #include <random>
 
-// FIXME: replace std::cerr with std::cout
-
 struct Graph500_BFS_Usecase {
   bool unrenumber_predecessors{true};
   bool validate{true};
@@ -76,28 +74,28 @@ class Tests_GRAPH500_MGBFS
   {
 #if 1
     auto ret = setenv("NCCL_DEBUG", "WARN", 1);
-    if (ret != 0) std::cerr << "setenv(\"NCCL_DEBUG\", \"TRACE\", 1) returned " << ret << std::endl;
+    if (ret != 0) std::cout << "setenv(\"NCCL_DEBUG\", \"TRACE\", 1) returned " << ret << std::endl;
 #endif
 #if 0  // workstation
        // nothing
 #else
 #if 0  // for CW
     ret = setenv("NCCL_NET", "IB", 1);
-    if (ret != 0) std::cerr << "setenv(\"NCCL_NET\", \"IB\", 1) returned " << ret << std::endl;
+    if (ret != 0) std::cout << "setenv(\"NCCL_NET\", \"IB\", 1) returned " << ret << std::endl;
     ret = setenv("NCCL_SOCKET_IFNAME", "enp90s0f0np0", 1);
     if (ret != 0)
-      std::cerr << "setenv(\"NCCL_SOCKET_IFNAME\", \"enp90s0f0np0\", 1) returned " << ret
+      std::cout << "setenv(\"NCCL_SOCKET_IFNAME\", \"enp90s0f0np0\", 1) returned " << ret
                 << std::endl;
 #else  // for EOS
     ret = setenv("NCCL_COLLNET_ENABLE", "0", 1);
     if (ret != 0)
-      std::cerr << "setenv(\"NCCL_COLLNET_ENABLE\", \"0\", 1) returned " << ret << std::endl;
+      std::cout << "setenv(\"NCCL_COLLNET_ENABLE\", \"0\", 1) returned " << ret << std::endl;
     ret = setenv("NCCL_SHARP_DISABLE", "1", 1);
     if (ret != 0)
-      std::cerr << "setenv(\"NCCL_SHARP_DISABLE\", \"1\", 1) returned " << ret << std::endl;
+      std::cout << "setenv(\"NCCL_SHARP_DISABLE\", \"1\", 1) returned " << ret << std::endl;
     ret = setenv("NCCL_SHARP_GROUP_SIZE_THRESH", "8", 1);
     if (ret != 0)
-      std::cerr << "setenv(\"NCCL_SHARP_GROUP_SIZE_THRESH\", \"8\", 1) returned " << ret
+      std::cout << "setenv(\"NCCL_SHARP_GROUP_SIZE_THRESH\", \"8\", 1) returned " << ret
                 << std::endl;
 #endif
 #endif
@@ -127,7 +125,7 @@ class Tests_GRAPH500_MGBFS
                                      // should be shuffled in Kernel 1)
     size_t constexpr num_warmup_starting_vertices =
       1;  // to enforce all CUDA & NCCL initializations
-    size_t constexpr num_timed_starting_vertices = 64;  // Graph 500 requirement (64)
+    size_t constexpr num_timed_starting_vertices = 64;  // Graph 500 requirement
 
     HighResTimer hr_timer{};
 
@@ -139,9 +137,6 @@ class Tests_GRAPH500_MGBFS
     auto const major_comm_size = major_comm.get_size();
     auto& minor_comm = handle_->get_subcomm(cugraph::partition_manager::minor_comm_name());
     auto const minor_comm_size = minor_comm.get_size();
-
-    std::cerr << "comm_size=" << comm_size << " major_comm_size=" << major_comm_size
-              << " minor_comm_size=" << minor_comm_size << std::endl;
 
     constexpr auto invalid_distance = std::numeric_limits<vertex_t>::max();
     constexpr auto invalid_vertex   = cugraph::invalid_vertex_id<vertex_t>::value;
@@ -162,7 +157,7 @@ class Tests_GRAPH500_MGBFS
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       comm.barrier();
       hr_timer.stop();
-      hr_timer.display_and_clear(std::cerr);
+      hr_timer.display_and_clear(std::cout);
     }
 
     // 2. create an edge list
@@ -183,7 +178,7 @@ class Tests_GRAPH500_MGBFS
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       comm.barrier();
       hr_timer.stop();
-      hr_timer.display_and_clear(std::cerr);
+      hr_timer.display_and_clear(std::cout);
     }
 
     // 3. create an MG graph
@@ -195,12 +190,6 @@ class Tests_GRAPH500_MGBFS
     }
 
     for (size_t i = 0; i < src_chunks.size(); ++i) {  // shuffle edges
-#if 1                                                 // FIXME: delete
-      std::cerr << "i=" << i << " start shuffling external edges sizes=(" << src_chunks[i].size()
-                << "," << dst_chunks[i].size() << ")" << std::endl;
-      RAFT_CUDA_TRY(cudaDeviceSynchronize());
-      auto start = std::chrono::steady_clock::now();
-#endif
       std::tie(src_chunks[i], dst_chunks[i], std::ignore, std::ignore, std::ignore, std::ignore) =
         cugraph::shuffle_external_edges<vertex_t, edge_t, weight_t, edge_type_t>(
           *handle_,
@@ -209,13 +198,6 @@ class Tests_GRAPH500_MGBFS
           std::nullopt,
           std::nullopt,
           std::nullopt);
-#if 1  // FIXME: delete
-      RAFT_CUDA_TRY(cudaDeviceSynchronize());
-      auto end                          = std::chrono::steady_clock::now();
-      std::chrono::duration<double> dur = end - start;
-      std::cerr << "i=" << i << " shuffle_external_edges took " << dur.count() << " s."
-                << std::endl;
-#endif
     }
 
     cugraph::graph_t<vertex_t, edge_t, store_transposed, multi_gpu> mg_graph(*handle_);
@@ -245,19 +227,7 @@ class Tests_GRAPH500_MGBFS
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       comm.barrier();
       hr_timer.stop();
-      hr_timer.display_and_clear(std::cerr);
-    }
-
-    auto num_vertices = mg_graph_view.number_of_vertices();
-    {
-      auto num_self_loops  = mg_graph_view.count_self_loops(*handle_);
-      auto number_of_edges = mg_graph_view.compute_number_of_edges(*handle_);
-      if (mg_graph_view.is_symmetric()) {
-        std::cerr << "V=" << mg_graph_view.number_of_vertices() << " E=" << number_of_edges
-                  << " num_self_loops=" << num_self_loops
-                  << " undirected E=" << ((number_of_edges - num_self_loops) / 2 + num_self_loops)
-                  << std::endl;
-      }
+      hr_timer.display_and_clear(std::cout);
     }
 
     // 4. randomly select starting vertices
@@ -302,22 +272,6 @@ class Tests_GRAPH500_MGBFS
                      candidates.end(),
                      d_starting_vertices.begin() + old_size);
       }
-#if 1  // FIXME: delete
-      raft::print_device_vector(
-        "d_starting_vertices", d_starting_vertices.data(), d_starting_vertices.size(), std::cerr);
-      rmm::device_uvector<edge_t> d_starting_vertex_out_degrees(d_starting_vertices.size(),
-                                                                handle_->get_stream());
-      auto map_first = thrust::make_transform_iterator(
-        d_starting_vertices.begin(),
-        cugraph::detail::shift_left_t<vertex_t>{mg_graph_view.local_vertex_partition_range_first()});
-      thrust::gather(handle_->get_thrust_policy(),
-                     map_first,
-                     map_first + d_starting_vertex_out_degrees.size(),
-                     out_degrees.begin(),
-                     d_starting_vertex_out_degrees.begin());
-      raft::print_device_vector(
-        "d_starting_vertex_out_degrees", d_starting_vertex_out_degrees.data(), d_starting_vertex_out_degrees.size(), std::cerr);
-#endif
     }
     auto starting_vertex_counts =
       cugraph::host_scalar_allgather(comm, d_starting_vertices.size(), handle_->get_stream());
@@ -346,7 +300,6 @@ class Tests_GRAPH500_MGBFS
         d_starting_vertex = raft::device_span<vertex_t const>(
           d_starting_vertices.data() + (i - starting_vertex_offsets[comm_rank]), 1);
       }
-      std::cerr << "start running BFS i=" << i << std::endl;
       if (cugraph::test::g_perf) {
         RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
         comm.barrier();
@@ -367,17 +320,8 @@ class Tests_GRAPH500_MGBFS
         comm.barrier();
         auto elapsed = hr_timer.stop();
         if (i >= num_warmup_starting_vertices) { total_elapsed += elapsed; }
-        hr_timer.display_and_clear(std::cerr);
+        hr_timer.display_and_clear(std::cout);
       }
-#if 1
-      {
-        size_t free{};
-        size_t total{};
-        RAFT_CUDA_TRY(cudaMemGetInfo(&free, &total));
-        std::cerr << "After BFS CUDA memory free=" << (free / (1024.0 * 1024.0 * 1024.0))
-                  << " total=" << (total / (1024.0 * 1024.0 * 1024.0)) << std::endl;
-      }
-#endif
 
       /* compute the number of visisted edges */
 
@@ -403,7 +347,7 @@ class Tests_GRAPH500_MGBFS
                    cugraph::edge_dummy_property_t{}.view(),
                    [] __device__(auto, auto, auto src_flag, auto, auto) { return src_flag; }) /
                  edge_t{2};
-        std::cerr << "# visited undirected edges=" << m << std::endl;
+        std::cout << "# visited undirected edges=" << m << std::endl;
       }
 
       if (bfs_usecase.validate) {
@@ -449,7 +393,7 @@ class Tests_GRAPH500_MGBFS
           RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
           comm.barrier();
           hr_timer.stop();
-          hr_timer.display_and_clear(std::cerr);
+          hr_timer.display_and_clear(std::cout);
         }
 
         /* check for cycles (update predecessor to predecessor's predecessor till reaching the
@@ -528,7 +472,7 @@ class Tests_GRAPH500_MGBFS
           RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
           comm.barrier();
           hr_timer.stop();
-          hr_timer.display_and_clear(std::cerr);
+          hr_timer.display_and_clear(std::cout);
         }
 
         /* check that distance(src) = distance(predecssor(v)) + 1 */
@@ -591,7 +535,7 @@ class Tests_GRAPH500_MGBFS
           RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
           comm.barrier();
           hr_timer.stop();
-          hr_timer.display_and_clear(std::cerr);
+          hr_timer.display_and_clear(std::cout);
         }
 
         if (cugraph::test::g_perf) {
@@ -699,7 +643,7 @@ class Tests_GRAPH500_MGBFS
           RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
           comm.barrier();
           hr_timer.stop();
-          hr_timer.display_and_clear(std::cerr);
+          hr_timer.display_and_clear(std::cout);
         }
 
         /* check that predecessor->v edges exist in the input graph */
@@ -730,10 +674,6 @@ class Tests_GRAPH500_MGBFS
             handle_->get_stream());
           query_dsts.resize(query_srcs.size(), handle_->get_stream());
 
-#if 1
-          RAFT_CUDA_TRY(cudaDeviceSynchronize());
-          std::cerr << "start shuffling edges" << std::endl;
-#endif
           std::tie(query_srcs, query_dsts, std::ignore, std::ignore, std::ignore, std::ignore) =
             cugraph::detail::shuffle_int_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning<
               vertex_t,
@@ -746,10 +686,6 @@ class Tests_GRAPH500_MGBFS
                            std::nullopt,
                            std::nullopt,
                            mg_graph_view.vertex_partition_range_lasts());
-#if 1
-          RAFT_CUDA_TRY(cudaDeviceSynchronize());
-          std::cerr << "edges shuffled, calling has_edge()" << std::endl;
-#endif
 
           auto flags = mg_graph_view.has_edge(
             *handle_,
@@ -758,108 +694,21 @@ class Tests_GRAPH500_MGBFS
             true /* FIXME: remove */);
           auto num_invalids =
             thrust::count(handle_->get_thrust_policy(), flags.begin(), flags.end(), false);
-#if 1
-          RAFT_CUDA_TRY(cudaDeviceSynchronize());
-          std::cerr << "local # invalids=" << num_invalids << std::endl;
-#endif
           num_invalids = cugraph::host_scalar_allreduce(
             comm, num_invalids, raft::comms::op_t::SUM, handle_->get_stream());
-#if 1
-          RAFT_CUDA_TRY(cudaDeviceSynchronize());
-          std::cerr << "global # invalids=" << num_invalids << std::endl;
-          if (num_invalids > 0) {
-            rmm::device_uvector<vertex_t> d_pair(2, handle_->get_stream());
-            thrust::fill(
-              handle_->get_thrust_policy(), d_pair.begin(), d_pair.end(), invalid_vertex);
-            auto triplet_first =
-              thrust::make_zip_iterator(query_srcs.begin(), query_dsts.begin(), flags.begin());
-            thrust::for_each(handle_->get_thrust_policy(),
-                             triplet_first,
-                             triplet_first + query_srcs.size(),
-                             [pair = raft::device_span<vertex_t>(
-                                d_pair.data(), d_pair.size())] __device__(auto triplet) {
-                               if (thrust::get<2>(triplet) == false) {
-                                 auto src = thrust::get<0>(triplet);
-                                 auto dst = thrust::get<1>(triplet);
-                                 printf("missing edge from src=%lld to dst=%lld\n",
-                                        (long long)src,
-                                        (long long)dst);
-                                 pair[0] = src;
-                                 pair[1] = dst;
-                               }
-                             });
-            std::vector<vertex_t> h_pair(2);
-            raft::update_host(h_pair.data(), d_pair.data(), d_pair.size(), handle_->get_stream());
-            handle_->sync_stream();
-            auto min_comm_rank =
-              cugraph::host_scalar_allreduce(comm,
-                                             h_pair[0] == invalid_vertex ? comm_size : comm_rank,
-                                             raft::comms::op_t::MIN,
-                                             handle_->get_stream());
-            if (min_comm_rank != comm_size) {
-              if (comm_rank == min_comm_rank) {
-                std::cerr << "comm_rank=" << comm_rank << " has an invalid pair (" << h_pair[0]
-                          << "," << h_pair[1] << ")" << std::endl;
-              }
-              auto tup = cugraph::host_scalar_bcast(comm,
-                                                    thrust::make_tuple(h_pair[0], h_pair[1]),
-                                                    min_comm_rank,
-                                                    handle_->get_stream());
-              std::cerr << "tup=(" << thrust::get<0>(tup) << "," << thrust::get<1>(tup) << ")"
-                        << std::endl;
-              auto num_appears = cugraph::count_if_e(
-                *handle_,
-                mg_graph_view,
-                cugraph::edge_src_dummy_property_t{}.view(),
-                cugraph::edge_dst_dummy_property_t{}.view(),
-                cugraph::edge_dummy_property_t{}.view(),
-                [missing_src = thrust::get<0>(tup), missing_dst = thrust::get<1>(tup)] __device__(
-                  auto src, auto dst, auto src_dist, auto, auto) {
-                  if (src == missing_src && dst == missing_dst) {
-                    printf("edge %lld, %lld actually exists.\n", (long long)src, (long long)dst);
-                    return true;
-                  }
-                  return false;
-                });
-              std::cerr << "num_appears=" << num_appears << std::endl;
-              if (thrust::get<0>(tup) >= mg_graph_view.local_vertex_partition_range_first() &&
-                  thrust::get<0>(tup) < mg_graph_view.local_vertex_partition_range_last()) {
-                auto v_offset =
-                  thrust::get<0>(tup) - mg_graph_view.local_vertex_partition_range_first();
-                std::cerr << "thrust::get<0>(tup) v_offset=" << v_offset << std::endl;
-                raft::print_device_vector(
-                  "thrust::get<0>(tup) dist", d_mg_distances.data() + v_offset, 1, std::cerr);
-                raft::print_device_vector(
-                  "thrust::get<0>(tup) pred", d_mg_predecessors.data() + v_offset, 1, std::cerr);
-              }
-              if (thrust::get<1>(tup) >= mg_graph_view.local_vertex_partition_range_first() &&
-                  thrust::get<1>(tup) < mg_graph_view.local_vertex_partition_range_last()) {
-                auto v_offset =
-                  thrust::get<1>(tup) - mg_graph_view.local_vertex_partition_range_first();
-                std::cerr << "thrust::get<1>(tup) v_offset=" << v_offset << std::endl;
-                raft::print_device_vector(
-                  "thrust::get<1>(tup) dist", d_mg_distances.data() + v_offset, 1, std::cerr);
-                raft::print_device_vector(
-                  "thrust::get<1>(tup) pred", d_mg_predecessors.data() + v_offset, 1, std::cerr);
-              }
-            }
-            comm.barrier();
-          }
-#else
           ASSERT_EQ(num_invalids, 0) << "predecessor->v missing in the input graph.";
-#endif
         }
 
         if (cugraph::test::g_perf) {
           RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
           comm.barrier();
           hr_timer.stop();
-          hr_timer.display_and_clear(std::cerr);
+          hr_timer.display_and_clear(std::cout);
         }
       }
     }
 
-    std::cerr << "average MG BFS (Kernel 2) time: " << (total_elapsed / num_timed_starting_vertices)
+    std::cout << "average MG BFS (Kernel 2) time: " << (total_elapsed / num_timed_starting_vertices)
               << std::endl;
   }
 

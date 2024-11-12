@@ -287,8 +287,6 @@ void fill_edge_minor_property(raft::handle_t const& handle,
   }
 }
 
-#define FILL_PERFORMANCE_MEASUREMENT 0
-
 template <typename GraphViewType,
           typename VertexIterator,
           typename EdgeMinorPropertyOutputWrapper,
@@ -300,10 +298,6 @@ void fill_edge_minor_property(raft::handle_t const& handle,
                               EdgeMinorPropertyOutputWrapper edge_minor_property_output,
                               T input)
 {
-#if FILL_PERFORMANCE_MEASUREMENT
-  RAFT_CUDA_TRY(cudaDeviceSynchronize());
-  auto t0 = std::chrono::steady_clock::now();
-#endif
   constexpr bool contains_packed_bool_element =
     cugraph::has_packed_bool_element<typename EdgeMinorPropertyOutputWrapper::value_iterator,
                                      typename EdgeMinorPropertyOutputWrapper::value_type>();
@@ -405,9 +399,6 @@ void fill_edge_minor_property(raft::handle_t const& handle,
         local_v_list_range_lasts[i]  = static_cast<vertex_t>(h_aggregate_tmps[i * size_t{4} + 3]);
       }
     }
-#if FILL_PERFORMANCE_MEASUREMENT
-  RAFT_CUDA_TRY(cudaDeviceSynchronize());
-#endif
 
     auto edge_partition_keys = edge_minor_property_output.keys();
 
@@ -543,9 +534,6 @@ void fill_edge_minor_property(raft::handle_t const& handle,
         compressed_v_list = std::move(tmps);
       }
     }
-#if FILL_PERFORMANCE_MEASUREMENT
-  RAFT_CUDA_TRY(cudaDeviceSynchronize());
-#endif
 
     std::optional<std::vector<size_t>> stream_pool_indices{std::nullopt};
     size_t num_concurrent_bcasts{1};
@@ -583,15 +571,6 @@ void fill_edge_minor_property(raft::handle_t const& handle,
       if ((*stream_pool_indices).size() <= 1) { stream_pool_indices = std::nullopt; }
     }
 
-#if FILL_PERFORMANCE_MEASUREMENT
-    std::cerr << "v_list_size=" << local_v_list_sizes[major_comm_rank] << " v_list_range=("
-              << local_v_list_range_firsts[major_comm_rank] << ","
-              << local_v_list_range_lasts[major_comm_rank]
-              << ") v_list_bitmap.has_value()=" << v_list_bitmap.has_value()
-              << " compressed_v_list.has_value()=" << compressed_v_list.has_value()
-              << " num_concurrent_bcasts=" << num_concurrent_bcasts << std::endl;
-#endif
-
     std::optional<raft::host_span<vertex_t const>> key_offsets{};
     if constexpr (GraphViewType::is_storage_transposed) {
       key_offsets = graph_view.local_sorted_unique_edge_src_vertex_partition_offsets();
@@ -599,10 +578,6 @@ void fill_edge_minor_property(raft::handle_t const& handle,
       key_offsets = graph_view.local_sorted_unique_edge_dst_vertex_partition_offsets();
     }
 
-#if FILL_PERFORMANCE_MEASUREMENT
-    RAFT_CUDA_TRY(cudaDeviceSynchronize());
-    auto t1 = std::chrono::steady_clock::now();
-#endif
     for (size_t i = 0; i < static_cast<size_t>(major_comm_size); i += num_concurrent_bcasts) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());
       auto sub0       = std::chrono::steady_clock::now();
@@ -611,10 +586,6 @@ void fill_edge_minor_property(raft::handle_t const& handle,
       if (is_packed_bool<typename EdgeMinorPropertyOutputWrapper::value_iterator,
                          typename EdgeMinorPropertyOutputWrapper::value_type>() &&
           !edge_partition_keys && v_list_bitmap) {
-#if FILL_PERFORMANCE_MEASUREMENT
-        RAFT_CUDA_TRY(cudaDeviceSynchronize());
-        auto sub0 = std::chrono::steady_clock::now();
-#endif
         std::vector<size_t> leading_boundary_word_counts(loop_count);
         for (size_t j = 0; j < loop_count; ++j) {
           auto partition_idx = i + j;
@@ -636,10 +607,6 @@ void fill_edge_minor_property(raft::handle_t const& handle,
           }
           leading_boundary_word_counts[j] = leading_boundary_words;
         }
-#if FILL_PERFORMANCE_MEASUREMENT
-        RAFT_CUDA_TRY(cudaDeviceSynchronize());
-        auto sub1 = std::chrono::steady_clock::now();
-#endif
         device_group_start(major_comm);
         for (size_t j = 0; j < loop_count; ++j) {
           auto partition_idx = i + j;
@@ -665,10 +632,6 @@ void fill_edge_minor_property(raft::handle_t const& handle,
                        handle.get_stream());
         }
         device_group_end(major_comm);
-#if FILL_PERFORMANCE_MEASUREMENT
-        RAFT_CUDA_TRY(cudaDeviceSynchronize());
-        auto sub2 = std::chrono::steady_clock::now();
-#endif
 
         rmm::device_uvector<size_t> d_leading_boundary_word_counts(
           leading_boundary_word_counts.size(), handle.get_stream());
@@ -715,20 +678,7 @@ void fill_edge_minor_property(raft::handle_t const& handle,
               }
             }
           });
-#if FILL_PERFORMANCE_MEASUREMENT
-        RAFT_CUDA_TRY(cudaDeviceSynchronize());
-        auto sub3                             = std::chrono::steady_clock::now();
-        std::chrono::duration<double> subdur0 = sub1 - sub0;
-        std::chrono::duration<double> subdur1 = sub2 - sub1;
-        std::chrono::duration<double> subdur2 = sub3 - sub2;
-        std::cerr << "fill_edge_minor path A took (" << subdur0.count() << "," << subdur1.count()
-                  << "," << subdur2.count() << ")" << std::endl;
-#endif
       } else {
-#if FILL_PERFORMANCE_MEASUREMENT
-        RAFT_CUDA_TRY(cudaDeviceSynchronize());
-        auto sub0 = std::chrono::steady_clock::now();
-#endif
         std::vector<std::variant<rmm::device_uvector<vertex_t>, rmm::device_uvector<uint32_t>>>
           edge_partition_v_buffers{};
         edge_partition_v_buffers.reserve(loop_count);
@@ -751,10 +701,6 @@ void fill_edge_minor_property(raft::handle_t const& handle,
           }
           edge_partition_v_buffers.push_back(std::move(v_buffer));
         }
-#if FILL_PERFORMANCE_MEASUREMENT
-        RAFT_CUDA_TRY(cudaDeviceSynchronize());
-        auto sub1 = std::chrono::steady_clock::now();
-#endif
 
         device_group_start(major_comm);
         for (size_t j = 0; j < loop_count; ++j) {
@@ -798,10 +744,6 @@ void fill_edge_minor_property(raft::handle_t const& handle,
         if (!kernel_fusion) {
           if (stream_pool_indices) { handle.sync_stream(); }
         }
-#if FILL_PERFORMANCE_MEASUREMENT
-        RAFT_CUDA_TRY(cudaDeviceSynchronize());
-        auto sub2 = std::chrono::steady_clock::now();
-#endif
 
         if (!kernel_fusion) {
           size_t stream_pool_size{0};
@@ -1025,25 +967,8 @@ void fill_edge_minor_property(raft::handle_t const& handle,
             }
           }
         }
-#if FILL_PERFORMANCE_MEASUREMENT
-        RAFT_CUDA_TRY(cudaDeviceSynchronize());
-        auto sub3                             = std::chrono::steady_clock::now();
-        std::chrono::duration<double> subdur0 = sub1 - sub0;
-        std::chrono::duration<double> subdur1 = sub2 - sub1;
-        std::chrono::duration<double> subdur2 = sub3 - sub2;
-        std::cerr << "fill_edge_minor path B took (" << subdur0.count() << "," << subdur1.count()
-                  << "," << subdur2.count() << ") kernel_fusion=" << kernel_fusion << std::endl;
-#endif
       }
     }
-#if FILL_PERFORMANCE_MEASUREMENT
-    RAFT_CUDA_TRY(cudaDeviceSynchronize());
-    auto t2                            = std::chrono::steady_clock::now();
-    std::chrono::duration<double> dur0 = t1 - t0;
-    std::chrono::duration<double> dur1 = t2 - t1;
-    std::cerr << "fill_edge_minor took (" << dur0.count() << "," << dur1.count() << ")"
-              << std::endl;
-#endif
   } else {
     assert(graph_view.local_vertex_partition_range_size() ==
            (GraphViewType::is_storage_transposed
