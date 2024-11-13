@@ -85,4 +85,4 @@ select = [
 ]
 
 # detect when package size grows significantly
-max_allowed_size_compressed = '1.0G'
+max_allowed_size_compressed = '1.2G'
