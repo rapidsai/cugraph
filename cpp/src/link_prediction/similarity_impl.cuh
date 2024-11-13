@@ -287,7 +287,6 @@ all_pairs_similarity(raft::handle_t const& handle,
     //  computing/updating topk with each batch
 
     //   FIXME: Experiment with this and adjust as necessary
-    // size_t const MAX_PAIRS_PER_BATCH{100};
     size_t const MAX_PAIRS_PER_BATCH{
       static_cast<size_t>(handle.get_device_properties().multiProcessorCount) * (1 << 15)};
 

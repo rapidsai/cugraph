@@ -475,7 +475,7 @@ def test_all_pairs_sorensen_with_topk():
     # exists, and that any results better than the k-th result are included
     # in the result
 
-    # FIXME: This problem could exist in overlap, cosine and sorensen,
+    # FIXME: This problem could exist in overlap, cosine and jaccard,
     #        consider replicating this code or making a share comparison
     #        function
     worst_coeff = all_pairs_sorensen_results["sorensen_coeff"].min()
