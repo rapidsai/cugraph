@@ -153,7 +153,7 @@ filter_buffer_elements(
   rmm::device_uvector<vertex_t>&&
     unique_v_buffer,  // assumes that buffer elements are locally reduced first and unique
   optional_dataframe_buffer_type_t<payload_t>&& payload_buffer,
-  raft::device_span<vertex_t const> vertex_range_offsets,
+  raft::device_span<vertex_t const> vertex_partition_range_offsets,  // size = major_comm_size + 1
   vertex_t allreduce_count_per_rank,
   int subgroup_size)
 {
@@ -171,7 +171,7 @@ filter_buffer_elements(
     handle.get_thrust_policy(),
     unique_v_buffer.begin(),
     unique_v_buffer.end(),
-    [offsets    = vertex_range_offsets,
+    [offsets    = vertex_partition_range_offsets,
      priorities = raft::device_span<priority_t>(priorities.data(), priorities.size()),
      allreduce_count_per_rank,
      subgroup_size,
@@ -202,7 +202,7 @@ filter_buffer_elements(
           unique_v_buffer.begin(),
           unique_v_buffer.end(),
           unique_v_buffer.begin(),
-          [offsets    = vertex_range_offsets,
+          [offsets    = vertex_partition_range_offsets,
            priorities = raft::device_span<priority_t const>(priorities.data(), priorities.size()),
            allreduce_count_per_rank,
            subgroup_size,
@@ -236,7 +236,7 @@ filter_buffer_elements(
           kv_pair_first,
           kv_pair_first + unique_v_buffer.size(),
           unique_v_buffer.begin(),
-          [offsets    = vertex_range_offsets,
+          [offsets    = vertex_partition_range_offsets,
            priorities = raft::device_span<priority_t const>(priorities.data(), priorities.size()),
            allreduce_count_per_rank,
            subgroup_size,
@@ -277,8 +277,8 @@ sort_and_reduce_buffer_elements(
   dataframe_buffer_type_t<input_key_t>&& key_buffer,
   optional_dataframe_buffer_type_t<payload_t>&& payload_buffer,
   ReduceOp reduce_op,
-  std::conditional_t<std::is_integral_v<key_t>, std::vector<key_t>, std::byte /* dummy */>
-    vertex_range_offsets,
+  std::conditional_t<std::is_integral_v<key_t>, std::tuple<key_t, key_t>, std::byte /* dummy */>
+    vertex_range,
   std::optional<input_key_t> invalid_key /* drop (key, (payload)) pairs with invalid key */)
 {
   constexpr bool compressed =
@@ -293,7 +293,7 @@ sort_and_reduce_buffer_elements(
                                 reduce_op::any<typename ReduceOp::value_type>>)) {  // try to use
                                                                                     // bitmap for
                                                                                     // filtering
-    key_t range_size = vertex_range_offsets.back() - vertex_range_offsets.front();
+    key_t range_size = std::get<1>(vertex_range) - std::get<0>(vertex_range);
     if (static_cast<double>(size_dataframe_buffer(key_buffer)) >=
         static_cast<double>(range_size) *
           0.125 /* tuning parameter */) {  // use bitmap for filtering
@@ -310,7 +310,7 @@ sort_and_reduce_buffer_elements(
                        update_keep_flag_t<decltype(get_dataframe_buffer_begin(key_buffer)), key_t>{
                          raft::device_span<uint32_t>(bitmap.data(), bitmap.size()),
                          raft::device_span<uint32_t>(keep_flags.data(), keep_flags.size()),
-                         vertex_range_offsets.front(),
+                         std::get<0>(vertex_range),
                          get_dataframe_buffer_begin(key_buffer),
                          to_thrust_optional(invalid_key)});
       auto stencil_first = thrust::make_transform_iterator(
@@ -365,7 +365,7 @@ sort_and_reduce_buffer_elements(
                           key_buffer.end(),
                           output_key_buffer.begin(),
                           cuda::proclaim_return_type<key_t>(
-                            [v_first = vertex_range_offsets.front()] __device__(uint32_t v_offset) {
+                            [v_first = std::get<0>(vertex_range)] __device__(uint32_t v_offset) {
                               return static_cast<key_t>(v_first + v_offset);
                             }));
         return std::make_tuple(std::move(output_key_buffer), std::move(payload_buffer));
@@ -394,7 +394,7 @@ sort_and_reduce_buffer_elements(
       auto input_key_first = thrust::make_transform_iterator(
         get_dataframe_buffer_begin(key_buffer),
         cuda::proclaim_return_type<key_t>(
-          [v_first = vertex_range_offsets.front()] __device__(auto v_offset) {
+          [v_first = std::get<0>(vertex_range)] __device__(auto v_offset) {
             return static_cast<key_t>(v_first + v_offset);
           }));
       resize_dataframe_buffer(
@@ -451,7 +451,7 @@ sort_and_reduce_buffer_elements(
       auto input_key_first = thrust::make_transform_iterator(
         get_dataframe_buffer_begin(key_buffer),
         cuda::proclaim_return_type<key_t>(
-          [v_first = vertex_range_offsets.front()] __device__(auto v_offset) {
+          [v_first = std::get<0>(vertex_range)] __device__(auto v_offset) {
             return static_cast<key_t>(v_first + v_offset);
           }));
       auto tmp_payload_buffer = allocate_dataframe_buffer<payload_t>(
@@ -550,7 +550,7 @@ sort_and_reduce_buffer_elements(
       auto input_key_first = thrust::make_transform_iterator(
         get_dataframe_buffer_begin(key_buffer),
         cuda::proclaim_return_type<key_t>(
-          [v_first = vertex_range_offsets.front()] __device__(auto v_offset) {
+          [v_first = std::get<0>(vertex_range)] __device__(auto v_offset) {
             return static_cast<key_t>(v_first + v_offset);
           }));
       thrust::reduce_by_key(handle.get_thrust_policy(),
@@ -637,7 +637,7 @@ transform_reduce_v_frontier_outgoing_e_by_dst(raft::handle_t const& handle,
                                                                     do_expensive_check);
   // 2. reduce the buffer
 
-  std::vector<vertex_t> vertex_range_offsets{};
+  std::vector<vertex_t> vertex_partition_range_offsets{};
   if constexpr (GraphViewType::is_multi_gpu) {
     auto& major_comm           = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
     auto const major_comm_rank = major_comm.get_rank();
@@ -645,28 +645,33 @@ transform_reduce_v_frontier_outgoing_e_by_dst(raft::handle_t const& handle,
     auto& minor_comm           = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
     auto const minor_comm_rank = minor_comm.get_rank();
     auto const minor_comm_size = minor_comm.get_size();
-    vertex_range_offsets       = std::vector<vertex_t>(major_comm_size + 1);
+    vertex_partition_range_offsets = std::vector<vertex_t>(major_comm_size + 1);
     for (int i = 0; i < major_comm_size; ++i) {
       auto vertex_partition_id =
         detail::compute_local_edge_partition_minor_range_vertex_partition_id_t{
           major_comm_size, minor_comm_size, major_comm_rank, minor_comm_rank}(i);
-      vertex_range_offsets[i] = graph_view.vertex_partition_range_first(vertex_partition_id);
+      vertex_partition_range_offsets[i] =
+        graph_view.vertex_partition_range_first(vertex_partition_id);
     }
-    vertex_range_offsets.back() = graph_view.local_edge_partition_dst_range_last();
+    vertex_partition_range_offsets.back() = graph_view.local_edge_partition_dst_range_last();
   } else {
-    vertex_range_offsets = std::vector<vertex_t>{graph_view.local_edge_partition_dst_range_first(),
-                                                 graph_view.local_edge_partition_dst_range_last()};
+    vertex_partition_range_offsets =
+      std::vector<vertex_t>{graph_view.local_edge_partition_dst_range_first(),
+                            graph_view.local_edge_partition_dst_range_last()};
   }
-  std::conditional_t<std::is_integral_v<key_t>, std::vector<key_t>, std::byte /* dummy */>
-    aux_range_offsets{};
-  if constexpr (std::is_integral_v<key_t>) { aux_range_offsets = vertex_range_offsets; }
+  std::conditional_t<std::is_integral_v<key_t>, std::tuple<key_t, key_t>, std::byte /* dummy */>
+    vertex_range{};
+  if constexpr (std::is_integral_v<key_t>) {
+    vertex_range = std::make_tuple(vertex_partition_range_offsets.front(),
+                                   vertex_partition_range_offsets.back());
+  }
   std::tie(key_buffer, payload_buffer) =
     detail::sort_and_reduce_buffer_elements<key_t, key_t, payload_t, ReduceOp>(
       handle,
       std::move(key_buffer),
       std::move(payload_buffer),
       reduce_op,
-      aux_range_offsets,
+      vertex_range,
       std::nullopt);
   if constexpr (GraphViewType::is_multi_gpu) {
     auto& major_comm           = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
@@ -678,11 +683,11 @@ transform_reduce_v_frontier_outgoing_e_by_dst(raft::handle_t const& handle,
           major_comm, local_key_buffer_size, raft::comms::op_t::SUM, handle.get_stream()) /
         major_comm_size;
 
-      rmm::device_uvector<vertex_t> d_vertex_range_offsets(vertex_range_offsets.size(),
-                                                           handle.get_stream());
-      raft::update_device(d_vertex_range_offsets.data(),
-                          vertex_range_offsets.data(),
-                          vertex_range_offsets.size(),
+      rmm::device_uvector<vertex_t> d_vertex_partition_range_offsets(
+        vertex_partition_range_offsets.size(), handle.get_stream());
+      raft::update_device(d_vertex_partition_range_offsets.data(),
+                          vertex_partition_range_offsets.data(),
+                          vertex_partition_range_offsets.size(),
                           handle.get_stream());
 
       constexpr bool try_compression = (sizeof(vertex_t) == 8) && std::is_same_v<key_t, vertex_t>;
@@ -690,8 +695,9 @@ transform_reduce_v_frontier_outgoing_e_by_dst(raft::handle_t const& handle,
         max_vertex_partition_size{};
       if constexpr (try_compression) {
         for (int i = 0; i < major_comm_size; ++i) {
-          max_vertex_partition_size = std::max(
-            vertex_range_offsets[i + 1] - vertex_range_offsets[i], max_vertex_partition_size);
+          max_vertex_partition_size =
+            std::max(vertex_partition_range_offsets[i + 1] - vertex_partition_range_offsets[i],
+                     max_vertex_partition_size);
         }
       }
 
@@ -699,8 +705,9 @@ transform_reduce_v_frontier_outgoing_e_by_dst(raft::handle_t const& handle,
                     std::is_same_v<ReduceOp, reduce_op::any<typename ReduceOp::value_type>>) {
         vertex_t min_vertex_partition_size = std::numeric_limits<vertex_t>::max();
         for (int i = 0; i < major_comm_size; ++i) {
-          min_vertex_partition_size = std::min(
-            vertex_range_offsets[i + 1] - vertex_range_offsets[i], min_vertex_partition_size);
+          min_vertex_partition_size =
+            std::min(vertex_partition_range_offsets[i + 1] - vertex_partition_range_offsets[i],
+                     min_vertex_partition_size);
         }
 
         auto segment_offsets = graph_view.local_vertex_partition_segment_offsets();
@@ -760,8 +767,8 @@ transform_reduce_v_frontier_outgoing_e_by_dst(raft::handle_t const& handle,
                 handle,
                 std::move(key_buffer),
                 std::move(payload_buffer),
-                raft::device_span<vertex_t const>(d_vertex_range_offsets.data(),
-                                                  d_vertex_range_offsets.size()),
+                raft::device_span<vertex_t const>(d_vertex_partition_range_offsets.data(),
+                                                  d_vertex_partition_range_offsets.size()),
                 std::min(static_cast<vertex_t>(allreduce_size_per_rank / sizeof(uint8_t)),
                          min_vertex_partition_size),
                 subgroup_size);
@@ -771,8 +778,8 @@ transform_reduce_v_frontier_outgoing_e_by_dst(raft::handle_t const& handle,
                 handle,
                 std::move(key_buffer),
                 std::move(payload_buffer),
-                raft::device_span<vertex_t const>(d_vertex_range_offsets.data(),
-                                                  d_vertex_range_offsets.size()),
+                raft::device_span<vertex_t const>(d_vertex_partition_range_offsets.data(),
+                                                  d_vertex_partition_range_offsets.size()),
                 std::min(static_cast<vertex_t>(allreduce_size_per_rank / sizeof(uint32_t)),
                          min_vertex_partition_size),
                 subgroup_size);
@@ -787,8 +794,8 @@ transform_reduce_v_frontier_outgoing_e_by_dst(raft::handle_t const& handle,
       thrust::lower_bound(handle.get_thrust_policy(),
                           key_v_first,
                           key_v_first + size_dataframe_buffer(key_buffer),
-                          d_vertex_range_offsets.begin() + 1,
-                          d_vertex_range_offsets.end(),
+                          d_vertex_partition_range_offsets.begin() + 1,
+                          d_vertex_partition_range_offsets.end(),
                           d_tx_buffer_last_boundaries.begin());
       std::conditional_t<try_compression,
                          std::optional<rmm::device_uvector<uint32_t>>,
@@ -804,10 +811,10 @@ transform_reduce_v_frontier_outgoing_e_by_dst(raft::handle_t const& handle,
             get_dataframe_buffer_end(key_buffer),
             (*compressed_v_buffer).begin(),
             cuda::proclaim_return_type<uint32_t>(
-              [firsts = raft::device_span<vertex_t const>(d_vertex_range_offsets.data(),
+              [firsts = raft::device_span<vertex_t const>(d_vertex_partition_range_offsets.data(),
                                                           static_cast<size_t>(major_comm_size)),
                lasts  = raft::device_span<vertex_t const>(
-                 d_vertex_range_offsets.data() + 1,
+                 d_vertex_partition_range_offsets.data() + 1,
                  static_cast<size_t>(major_comm_size))] __device__(auto v) {
                 auto major_comm_rank = thrust::distance(
                   lasts.begin(), thrust::upper_bound(thrust::seq, lasts.begin(), lasts.end(), v));
@@ -849,7 +856,7 @@ transform_reduce_v_frontier_outgoing_e_by_dst(raft::handle_t const& handle,
         } else {
           static_assert(is_thrust_tuple_of_arithmetic<payload_t>::value);
           min_element_size =
-            std::min(min_thrust_tuple_element_sizes<payload_t>(), min_element_size);
+            std::min(cugraph::min_thrust_tuple_element_sizes<payload_t>(), min_element_size);
         }
       }
       assert((cache_line_size % min_element_size) == 0);
@@ -973,8 +980,8 @@ transform_reduce_v_frontier_outgoing_e_by_dst(raft::handle_t const& handle,
       }
 
       if constexpr (std::is_integral_v<key_t>) {
-        aux_range_offsets = std::vector<key_t>{graph_view.local_vertex_partition_range_first(),
-                                               graph_view.local_vertex_partition_range_last()};
+        vertex_range = std::make_tuple(graph_view.local_vertex_partition_range_first(),
+                                       graph_view.local_vertex_partition_range_last());
       }
       if constexpr (try_compression) {
         if (compressed_v_buffer) {
@@ -984,7 +991,7 @@ transform_reduce_v_frontier_outgoing_e_by_dst(raft::handle_t const& handle,
               std::move(*compressed_v_buffer),
               std::move(payload_buffer),
               reduce_op,
-              aux_range_offsets,
+              vertex_range,
               invalid_key ? std::make_optional(std::get<1>(*invalid_key)) : std::nullopt);
         } else {
           std::tie(key_buffer, payload_buffer) =
@@ -993,7 +1000,7 @@ transform_reduce_v_frontier_outgoing_e_by_dst(raft::handle_t const& handle,
               std::move(key_buffer),
               std::move(payload_buffer),
               reduce_op,
-              aux_range_offsets,
+              vertex_range,
               invalid_key ? std::make_optional(std::get<0>(*invalid_key)) : std::nullopt);
         }
       } else {
@@ -1003,7 +1010,7 @@ transform_reduce_v_frontier_outgoing_e_by_dst(raft::handle_t const& handle,
             std::move(key_buffer),
             std::move(payload_buffer),
             reduce_op,
-            aux_range_offsets,
+            vertex_range,
             invalid_key);
       }
     }

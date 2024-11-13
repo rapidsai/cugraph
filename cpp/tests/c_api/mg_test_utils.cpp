@@ -95,16 +95,9 @@ extern "C" void* create_mg_raft_handle(int argc, char** argv)
   C_MPI_TRY(MPI_Comm_size(MPI_COMM_WORLD, &comm_size));
   C_CUDA_TRY(cudaGetDeviceCount(&num_gpus_per_node));
   C_CUDA_TRY(cudaSetDevice(comm_rank % num_gpus_per_node));
-  ncclUniqueId id{};
-  if (comm_rank == 0) {
-    C_NCCL_TRY(ncclGetUniqueId(&id));
-  }
-  C_MPI_TRY(MPI_Bcast((void*)&id, sizeof(id), MPI_BYTE, 0, MPI_COMM_WORLD));
-  ncclComm_t nccl_comm{};
-  C_NCCL_TRY(ncclCommInitRank(&nccl_comm, comm_size, id, comm_rank));
 
   raft::handle_t* handle = new raft::handle_t{};
-  raft::comms::initialize_mpi_comms(handle, MPI_COMM_WORLD, nccl_comm);
+  raft::comms::initialize_mpi_comms(handle, MPI_COMM_WORLD);
 
 #if 1
   int gpu_row_comm_size = 1;

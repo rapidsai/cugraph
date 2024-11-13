@@ -674,12 +674,14 @@ rmm::device_uvector<weight_t> od_shortest_distances(
       resize_dataframe_buffer(new_frontier_tagged_vertex_buffer, 0, handle.get_stream());
       shrink_to_fit_dataframe_buffer(new_frontier_tagged_vertex_buffer, handle.get_stream());
 
-      std::tie(new_frontier_keys, distance_buffer) =
-        detail::sort_and_reduce_buffer_elements<key_t, weight_t, reduce_op::minimum<weight_t>>(
+      std::tie(new_frontier_keys, distance_buffer) = detail::
+        sort_and_reduce_buffer_elements<key_t, key_t, weight_t, reduce_op::minimum<weight_t>>(
           handle,
           std::move(new_frontier_keys),
           std::move(distance_buffer),
-          reduce_op::minimum<weight_t>());
+          reduce_op::minimum<weight_t>(),
+          std::make_tuple(vertex_t{0}, graph_view.number_of_vertices()),
+          std::nullopt);
     }
     vertex_frontier.bucket(bucket_idx_near).clear();
 

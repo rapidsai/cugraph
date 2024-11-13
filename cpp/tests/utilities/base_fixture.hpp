@@ -70,26 +70,14 @@ inline auto make_managed() { return std::make_shared<rmm::mr::managed_memory_res
 
 // use_max set to true will use half of available GPU memory for RMM, otherwise
 // otherwise we'll use 1/10.
-inline auto make_pool(bool use_max = false, int comm_size = 1)
+inline auto make_pool(bool use_max = false)
 {
   // Reduce the default pool allocation to 1/10 of GPU memory so that we can
   // run more than 2 tests in parallel at the same time. Changes to this value could
   // effect the maximum amount of parallel tests, and therefore `tests/CMakeLists.txt`
   // `_CUGRAPH_TEST_PERCENT` default value will need to be audited.
   auto const [free, total] = rmm::available_device_memory();
-  double init_alloc_ratio{0.0};
-  if (comm_size < 16) {
-    init_alloc_ratio = 0.9;
-  }
-  else if (comm_size < 512) {
-    init_alloc_ratio = 0.92;
-  }
-  else if (comm_size < 1024) {
-    init_alloc_ratio = 0.94;
-  }
-  else {
-    init_alloc_ratio = 0.95;
-  }
+  double init_alloc_ratio{0.92};
   auto const init_alloc =
     use_max ? rmm::align_down(std::min(free, static_cast<size_t>(total * init_alloc_ratio)), rmm::CUDA_ALLOCATION_ALIGNMENT)
             : rmm::align_down(std::min(free, total / 10), rmm::CUDA_ALLOCATION_ALIGNMENT);
@@ -126,12 +114,12 @@ inline auto make_binning()
  * @return Memory resource instance
  */
 inline std::shared_ptr<rmm::mr::device_memory_resource> create_memory_resource(
-  std::string const& allocation_mode, int comm_size)
+  std::string const& allocation_mode)
 {
   if (allocation_mode == "binning") return make_binning();
   if (allocation_mode == "cuda") return make_cuda();
   if (allocation_mode == "pool") return make_pool();
-  if (allocation_mode == "maxpool") return make_pool(true, comm_size);
+  if (allocation_mode == "maxpool") return make_pool(true);
   if (allocation_mode == "managed") return make_managed();
   CUGRAPH_FAIL("Invalid RMM allocation mode");
 }
@@ -228,7 +216,7 @@ inline auto parse_test_options(int argc, char** argv)
     ::testing::InitGoogleTest(&argc, argv);                                             \
     auto const cmd_opts = parse_test_options(argc, argv);                               \
     auto const rmm_mode = cmd_opts["rmm_mode"].as<std::string>();                       \
-    auto resource       = cugraph::test::create_memory_resource(rmm_mode, 1);           \
+    auto resource       = cugraph::test::create_memory_resource(rmm_mode);              \
     rmm::mr::set_current_device_resource(resource.get());                               \
     cugraph::test::g_perf = cmd_opts["perf"].as<bool>();                                \
     cugraph::test::g_rmat_scale =                                                       \
@@ -262,7 +250,7 @@ inline auto parse_test_options(int argc, char** argv)
     ::testing::InitGoogleTest(&argc, argv);                                             \
     auto const cmd_opts = parse_test_options(argc, argv);                               \
     auto const rmm_mode = cmd_opts["rmm_mode"].as<std::string>();                       \
-    auto resource       = cugraph::test::create_memory_resource(rmm_mode, comm_size);   \
+    auto resource       = cugraph::test::create_memory_resource(rmm_mode);              \
     rmm::mr::set_current_device_resource(resource.get());                               \
     cugraph::test::g_perf = cmd_opts["perf"].as<bool>();                                \
     cugraph::test::g_rmat_scale =                                                       \
