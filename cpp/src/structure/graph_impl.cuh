@@ -191,10 +191,6 @@ update_local_sorted_unique_edge_majors_minors(
       raft::comms::op_t::MAX,
       handle.get_stream());
 
-    std::cout << "max_minor_properties_fill_ratio=" << max_minor_properties_fill_ratio
-              << " detail::edge_partition_src_dst_property_values_kv_pair_fill_ratio_threshold="
-              << detail::edge_partition_src_dst_property_values_kv_pair_fill_ratio_threshold
-              << std::endl;
     if (max_minor_properties_fill_ratio <
         detail::edge_partition_src_dst_property_values_kv_pair_fill_ratio_threshold) {
       auto const chunk_size =
@@ -309,10 +305,6 @@ update_local_sorted_unique_edge_majors_minors(
                             raft::comms::op_t::MAX,
                             handle.get_stream());
 
-    std::cout << "max_major_properties_fill_ratio=" << max_major_properties_fill_ratio
-              << " detail::edge_partition_src_dst_property_values_kv_pair_fill_ratio_threshold="
-              << detail::edge_partition_src_dst_property_values_kv_pair_fill_ratio_threshold
-              << std::endl;
     if (max_major_properties_fill_ratio <
         detail::edge_partition_src_dst_property_values_kv_pair_fill_ratio_threshold) {
       auto const chunk_size =

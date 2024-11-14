@@ -250,10 +250,6 @@ compute_renumber_map(raft::handle_t const& handle,
   // 1. if local_vertices.has_value() is false, find unique vertices from edge majors & minors (to
   // construct local_vertices)
 
-#if 1
-  RAFT_CUDA_TRY(cudaDeviceSynchronize());
-  std::cerr << "compute_renumber_map 0" << std::endl;
-#endif
   rmm::device_uvector<vertex_t> sorted_local_vertices(0, handle.get_stream());
   if (!local_vertices) {
     constexpr size_t num_bins{
@@ -529,10 +525,6 @@ compute_renumber_map(raft::handle_t const& handle,
     thrust::sort(
       handle.get_thrust_policy(), sorted_local_vertices.begin(), sorted_local_vertices.end());
   }
-#if 1
-  RAFT_CUDA_TRY(cudaDeviceSynchronize());
-  std::cerr << "compute_renumber_map 1" << std::endl;
-#endif
 
   // 2. find an unused vertex ID
 
@@ -625,10 +617,6 @@ compute_renumber_map(raft::handle_t const& handle,
                        atomic_counter.fetch_add(edge_t{1}, cuda::std::memory_order_relaxed);
                      });
   }
-#if 1
-  RAFT_CUDA_TRY(cudaDeviceSynchronize());
-  std::cerr << "compute_renumber_map 2" << std::endl;
-#endif
 
   // 5. sort local vertices by degree (descending)
 
@@ -722,11 +710,6 @@ compute_renumber_map(raft::handle_t const& handle,
       *((*h_hypersparse_degree_offsets).rbegin()) = *(h_offsets.rbegin() + 1);
     }
   }
-
-#if 1
-  RAFT_CUDA_TRY(cudaDeviceSynchronize());
-  std::cerr << "compute_renumber_map 3" << std::endl;
-#endif
 
   return std::make_tuple(std::move(sorted_local_vertices),
                          h_segment_offsets,
@@ -1061,10 +1044,6 @@ renumber_edgelist(
 
   // 3. renumber edges
 
-#if 1
-  RAFT_CUDA_TRY(cudaDeviceSynchronize());
-  std::cerr << "renumber_edgelist 0" << std::endl;
-#endif
   {
     vertex_t max_edge_partition_major_range_size{0};
     for (size_t i = 0; i < edgelist_majors.size(); ++i) {
@@ -1104,14 +1083,6 @@ renumber_edgelist(
      +
      static_cast<double>(sizeof(vertex_t) * 2) *
        2.5 /* kv_store_t<vertex_t, vertex_t, false> renumber_map, * 2.5 to consider load factor */);
-#if 1
-  RAFT_CUDA_TRY(cudaDeviceSynchronize());
-  std::cerr << "renumber_edgelist 1 partition.local_edge_partition_minor_range_size()="
-            << partition.local_edge_partition_minor_range_size()
-            << " approx_mem_requirements=" << approx_mem_requirements << " threshold="
-            << (static_cast<double>(handle.get_device_properties().totalGlobalMem) * 0.05)
-            << std::endl;
-#endif
   if ((approx_mem_requirements >
        static_cast<double>(handle.get_device_properties().totalGlobalMem) * 0.05) &&
       edgelist_intra_partition_segment_offsets) {
@@ -1188,10 +1159,6 @@ renumber_edgelist(
     }
   }
 
-#if 1
-  RAFT_CUDA_TRY(cudaDeviceSynchronize());
-  std::cerr << "renumber_edgelist 2" << std::endl;
-#endif
   auto edge_partition_segment_offsets =
     detail::aggregate_offset_vectors(handle, vertex_partition_segment_offsets);
   auto edge_partition_hypersparse_degree_offsets =
