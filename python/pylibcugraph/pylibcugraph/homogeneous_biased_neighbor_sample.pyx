@@ -200,7 +200,7 @@ def homogeneous_biased_neighbor_sample(ResourceHandle resource_handle,
     array containing the renumber map, and the sixth item in the tuple is a
     device array containing the renumber map offsets (which delineate where
     the renumber map for each batch starts).
-    
+
     Examples
     --------
     >>> import pylibcugraph, cupy, numpy
@@ -222,7 +222,7 @@ def homogeneous_biased_neighbor_sample(ResourceHandle resource_handle,
     {'sources': array([2, 2, 5, 5], dtype=int32),
      'destinations': array([1, 3, 3, 4], dtype=int32),
      'indices': array([3.1, 4.1, 7.2, 3.2], dtype=float32)}
-    
+
     """
     cdef cugraph_resource_handle_t* c_resource_handle_ptr = (
         resource_handle.c_resource_handle_ptr

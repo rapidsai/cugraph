@@ -869,7 +869,6 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
         std::nullopt};  // global after allgatherv
 
       if (start_vertex_offsets_ != nullptr) {
-
         // Retrieve the start_vertex_labels
         start_vertex_labels = cugraph::detail::convert_starting_vertex_label_offsets_to_labels(
           handle_,
@@ -881,7 +880,7 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
         if constexpr (multi_gpu) {
           auto num_local_labels = start_vertex_offsets_->size_ - 1;
 
-          auto global_labels    = cugraph::host_scalar_allgather(
+          auto global_labels = cugraph::host_scalar_allgather(
             handle_.get_comms(), num_local_labels, handle_.get_stream());
 
           std::exclusive_scan(
@@ -890,10 +889,10 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
           // Compute the global start_vertex_label_offsets
 
           cugraph::detail::transform_increment_ints(
-            raft::device_span<label_t>{(*start_vertex_labels).data(), (*start_vertex_labels).size()},
+            raft::device_span<label_t>{(*start_vertex_labels).data(),
+                                       (*start_vertex_labels).size()},
             (label_t)global_labels[handle_.get_comms().get_rank()],
             handle_.get_stream());
-          
 
           rmm::device_uvector<label_t> unique_labels((*start_vertex_labels).size(),
                                                      handle_.get_stream());
@@ -941,14 +940,13 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
           std::tie(start_vertices, *start_vertex_labels) =
             cugraph::detail::shuffle_ext_vertex_value_pairs_to_local_gpu_by_vertex_partitioning(
               handle_, std::move(start_vertices), std::move(*start_vertex_labels));
-
-      }
+        }
       } else {
-          if constexpr (multi_gpu) {
-              start_vertices =
-                      cugraph::detail::shuffle_ext_vertices_to_local_gpu_by_vertex_partitioning(
-                        handle_, std::move(start_vertices));
-          }
+        if constexpr (multi_gpu) {
+          start_vertices =
+            cugraph::detail::shuffle_ext_vertices_to_local_gpu_by_vertex_partitioning(
+              handle_, std::move(start_vertices));
+        }
       }
       //
       // Need to renumber start_vertices
@@ -1064,11 +1062,11 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
               raft::device_span<vertex_t const>{start_vertices.data(), start_vertices.size()},
               (start_vertex_offsets_ != nullptr)
                 ? std::make_optional<raft::device_span<int const>>((*start_vertex_labels).data(),
-                                                                    (*start_vertex_labels).size())
+                                                                   (*start_vertex_labels).size())
                 : std::nullopt,
               label_to_comm_rank ? std::make_optional(raft::device_span<int const>{
-                                      (*label_to_comm_rank).data(), (*label_to_comm_rank).size()})
-                                  : std::nullopt,
+                                     (*label_to_comm_rank).data(), (*label_to_comm_rank).size()})
+                                 : std::nullopt,
               raft::host_span<const int>(fan_out_->as_type<const int>(), fan_out_->size_),
               cugraph::sampling_flags_t{options_.prior_sources_behavior_,
                                         options_.return_hops_,

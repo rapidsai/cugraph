@@ -55,19 +55,20 @@ enum class prior_sources_behavior_t { DEFAULT = 0, CARRY_OVER, EXCLUDE };
  * encountered in.  The label output (optional) identifes the vertex label.  The offsets array
  * (optional) will be described below and is dependent upon the input parameters.
  *
- * If @p starting_vertex_label_offsets is not specified then no organization is applied to the output, the
- * label and offsets values in the return set will be std::nullopt.
+ * If @p starting_vertex_label_offsets is not specified then no organization is applied to the
+ * output, the label and offsets values in the return set will be std::nullopt.
  *
- * If @p starting_vertex_label_offsets is specified and @p label_to_output_comm_rank is not specified then
- * the label output has values.  This will also result in the output being sorted by vertex label.
- * The offsets array in the return will be a CSR-style offsets array to identify the beginning of
- * each label range in the data.  `labels.size() == (offsets.size() - 1)`.
+ * If @p starting_vertex_label_offsets is specified and @p label_to_output_comm_rank is not
+ * specified then the label output has values.  This will also result in the output being sorted by
+ * vertex label. The offsets array in the return will be a CSR-style offsets array to identify the
+ * beginning of each label range in the data.  `labels.size() == (offsets.size() - 1)`.
  *
- * If @p starting_vertex_label_offsets is specified and @p label_to_output_comm_rank is specified then the
- * label output has values.  This will also result in the output being sorted by vertex label.  The
- * offsets array in the return will be a CSR-style offsets array to identify the beginning of each
- * label range in the data.  `labels.size() == (offsets.size() - 1)`.  Additionally, the data will
- * be shuffled so that all data with a particular label will be on the specified rank.
+ * If @p starting_vertex_label_offsets is specified and @p label_to_output_comm_rank is specified
+ * then the label output has values.  This will also result in the output being sorted by vertex
+ * label.  The offsets array in the return will be a CSR-style offsets array to identify the
+ * beginning of each label range in the data.  `labels.size() == (offsets.size() - 1)`.
+ * Additionally, the data will be shuffled so that all data with a particular label will be on the
+ * specified rank.
  *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
  * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
@@ -85,8 +86,8 @@ enum class prior_sources_behavior_t { DEFAULT = 0, CARRY_OVER, EXCLUDE };
  * @param edge_type_view Optional view object holding edge types for @p graph_view.
  * @param starting_vertices Device span of starting vertex IDs for the sampling.
  * In a multi-gpu context the starting vertices should be local to this GPU.
- * @param starting_vertex_label_offsets Optional device span of labels associated with each starting vertex
- * for the sampling.
+ * @param starting_vertex_label_offsets Optional device span of labels associated with each starting
+ * vertex for the sampling.
  * @param label_to_output_comm_rank Optional tuple of device spans mapping label to a particular
  * output rank.  Element 0 of the tuple identifes the label, Element 1 of the tuple identifies the
  * output rank.  The label span must be sorted in ascending order.
@@ -154,19 +155,20 @@ uniform_neighbor_sample(
  * encountered in.  The label output (optional) identifes the vertex label.  The offsets array
  * (optional) will be described below and is dependent upon the input parameters.
  *
- * If @p starting_vertex_label_offsets is not specified then no organization is applied to the output, the
- * label and offsets values in the return set will be std::nullopt.
+ * If @p starting_vertex_label_offsets is not specified then no organization is applied to the
+ * output, the label and offsets values in the return set will be std::nullopt.
  *
- * If @p starting_vertex_label_offsets is specified and @p label_to_output_comm_rank is not specified then
- * the label output has values.  This will also result in the output being sorted by vertex label.
- * The offsets array in the return will be a CSR-style offsets array to identify the beginning of
- * each label range in the data.  `labels.size() == (offsets.size() - 1)`.
+ * If @p starting_vertex_label_offsets is specified and @p label_to_output_comm_rank is not
+ * specified then the label output has values.  This will also result in the output being sorted by
+ * vertex label. The offsets array in the return will be a CSR-style offsets array to identify the
+ * beginning of each label range in the data.  `labels.size() == (offsets.size() - 1)`.
  *
- * If @p starting_vertex_label_offsets is specified and @p label_to_output_comm_rank is specified then the
- * label output has values.  This will also result in the output being sorted by vertex label.  The
- * offsets array in the return will be a CSR-style offsets array to identify the beginning of each
- * label range in the data.  `labels.size() == (offsets.size() - 1)`.  Additionally, the data will
- * be shuffled so that all data with a particular label will be on the specified rank.
+ * If @p starting_vertex_label_offsets is specified and @p label_to_output_comm_rank is specified
+ * then the label output has values.  This will also result in the output being sorted by vertex
+ * label.  The offsets array in the return will be a CSR-style offsets array to identify the
+ * beginning of each label range in the data.  `labels.size() == (offsets.size() - 1)`.
+ * Additionally, the data will be shuffled so that all data with a particular label will be on the
+ * specified rank.
  *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
  * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
@@ -189,8 +191,8 @@ uniform_neighbor_sample(
  * corresponding edge can never be selected.
  * @param starting_vertices Device span of starting vertex IDs for the sampling.
  * In a multi-gpu context the starting vertices should be local to this GPU.
- * @param starting_vertex_label_offsets Optional device span of labels associated with each starting vertex
- * for the sampling.
+ * @param starting_vertex_label_offsets Optional device span of labels associated with each starting
+ * vertex for the sampling.
  * @param label_to_output_comm_rank Optional tuple of device spans mapping label to a particular
  * output rank.  Element 0 of the tuple identifes the label, Element 1 of the tuple identifies the
  * output rank.  The label span must be sorted in ascending order.
@@ -304,8 +306,8 @@ struct sampling_flags_t {
  * @param edge_type_view Optional view object holding edge types for @p graph_view.
  * @param starting_vertices Device span of starting vertex IDs for the sampling.
  * In a multi-gpu context the starting vertices should be local to this GPU.
- * @param starting_vertex_label_offsets Optional device span of labels associated with each starting vertex
- * for the sampling.
+ * @param starting_vertex_label_offsets Optional device span of labels associated with each starting
+ * vertex for the sampling.
  * @param label_to_output_comm_rank Optional device span identifying which rank should get sampling
  * outputs of each vertex label.  This should be the same on each rank.
  * @param fan_out Host span defining branching out (fan-out) degree per source vertex for each
@@ -383,8 +385,8 @@ homogeneous_uniform_neighbor_sample(
  * corresponding edge can never be selected.
  * @param starting_vertices Device span of starting vertex IDs for the sampling.
  * In a multi-gpu context the starting vertices should be local to this GPU.
- * @param starting_vertex_label_offsets Optional device span of labels associated with each starting vertex
- * for the sampling.
+ * @param starting_vertex_label_offsets Optional device span of labels associated with each starting
+ * vertex for the sampling.
  * @param label_to_output_comm_rank Optional device span identifying which rank should get sampling
  * outputs of each vertex label.  This should be the same on each rank.
  * @param fan_out Host span defining branching out (fan-out) degree per source vertex for each
@@ -460,8 +462,8 @@ homogeneous_biased_neighbor_sample(
  * @param edge_type_view Optional view object holding edge types for @p graph_view.
  * @param starting_vertices Device span of starting vertex IDs for the sampling.
  * In a multi-gpu context the starting vertices should be local to this GPU.
- * @param starting_vertex_label_offsets Optional device span of labels associated with each starting vertex
- * for the sampling.
+ * @param starting_vertex_label_offsets Optional device span of labels associated with each starting
+ * vertex for the sampling.
  * @param label_to_output_comm_rank Optional device span identifying which rank should get sampling
  * outputs of each vertex label.  This should be the same on each rank.
  * @param fan_out Host span defining branching out (fan-out) degree per source vertex for each
@@ -543,8 +545,8 @@ heterogeneous_uniform_neighbor_sample(
  * corresponding edge can never be selected.
  * @param starting_vertices Device span of starting vertex IDs for the sampling.
  * In a multi-gpu context the starting vertices should be local to this GPU.
- * @param starting_vertex_label_offsets Optional device span of labels associated with each starting vertex
- * for the sampling.
+ * @param starting_vertex_label_offsets Optional device span of labels associated with each starting
+ * vertex for the sampling.
  * @param label_to_output_comm_rank Optional device span identifying which rank should get sampling
  * outputs of each vertex label.  This should be the same on each rank.
  * @param fan_out Host span defining branching out (fan-out) degree per source vertex for each
