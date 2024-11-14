@@ -1297,7 +1297,9 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
             offsets ? std::make_optional(
                         raft::device_span<size_t const>{offsets->data(), offsets->size()})
                     : std::nullopt,
-            edge_label ? edge_label->size() : size_t{1},  // FIXME: update edge_label
+            // derive label size from offset size instead of performing thrust::unique
+            // on edge_label.
+            edge_label ? (*offsets).size() - 1 : size_t{1},
             hop ? fan_out_->size_ : size_t{1},
             src_is_major,
             do_expensive_check_);
@@ -1331,7 +1333,7 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
           ? new cugraph::c_api::cugraph_type_erased_device_array_t(*label_hop_offsets, SIZE_T)
           : nullptr,
         (edge_label) ? new cugraph::c_api::cugraph_type_erased_device_array_t(
-                         edge_label.value(), INT32)  // FIXME: update edge_label
+                         edge_label.value(), INT32)
                      : nullptr,
         (renumber_map) ? new cugraph::c_api::cugraph_type_erased_device_array_t(
                            renumber_map.value(), graph_->vertex_type_)
@@ -1996,6 +1998,14 @@ cugraph_error_code_t cugraph_heterogeneous_uniform_neighbor_sample(
                CUGRAPH_INVALID_INPUT,
                "must specify start_vertex_offsets if retain_seeds is true",
                *error);
+  
+  CAPI_EXPECTS((start_vertex_offsets == nullptr) ||
+                  (reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(
+                     start_vertex_offsets)
+                     ->type_ == SIZE_T),
+                CUGRAPH_INVALID_INPUT,
+                "start_vertex_offsets should be of type size_t",
+                *error);
 
   CAPI_EXPECTS(
     reinterpret_cast<cugraph::c_api::cugraph_type_erased_host_array_view_t const*>(fan_out)
@@ -2054,6 +2064,14 @@ cugraph_error_code_t cugraph_heterogeneous_biased_neighbor_sample(
                CUGRAPH_INVALID_INPUT,
                "must specify start_vertex_offsets if retain_seeds is true",
                *error);
+            
+  CAPI_EXPECTS((start_vertex_offsets == nullptr) ||
+                  (reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(
+                     start_vertex_offsets)
+                     ->type_ == SIZE_T),
+                CUGRAPH_INVALID_INPUT,
+                "start_vertex_offsets should be of type size_t",
+                *error);
 
   CAPI_EXPECTS(
     reinterpret_cast<cugraph::c_api::cugraph_type_erased_host_array_view_t const*>(fan_out)
@@ -2103,6 +2121,14 @@ cugraph_error_code_t cugraph_homogeneous_uniform_neighbor_sample(
                CUGRAPH_INVALID_INPUT,
                "must specify start_vertex_offsets if retain_seeds is true",
                *error);
+  
+  CAPI_EXPECTS((start_vertex_offsets == nullptr) ||
+                  (reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(
+                     start_vertex_offsets)
+                     ->type_ == SIZE_T),
+                CUGRAPH_INVALID_INPUT,
+                "start_vertex_offsets should be of type size_t",
+                *error);
 
   CAPI_EXPECTS(
     reinterpret_cast<cugraph::c_api::cugraph_type_erased_host_array_view_t const*>(fan_out)
@@ -2160,6 +2186,14 @@ cugraph_error_code_t cugraph_homogeneous_biased_neighbor_sample(
                CUGRAPH_INVALID_INPUT,
                "must specify start_vertex_offsets if retain_seeds is true",
                *error);
+  
+  CAPI_EXPECTS((start_vertex_offsets == nullptr) ||
+                  (reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(
+                     start_vertex_offsets)
+                     ->type_ == SIZE_T),
+                CUGRAPH_INVALID_INPUT,
+                "start_vertex_offsets should be of type size_t",
+                *error);
 
   CAPI_EXPECTS(
     reinterpret_cast<cugraph::c_api::cugraph_type_erased_host_array_view_t const*>(fan_out)
