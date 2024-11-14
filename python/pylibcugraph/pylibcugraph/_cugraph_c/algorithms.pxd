@@ -244,6 +244,16 @@ cdef extern from "cugraph_c/algorithms.h":
             const cugraph_sample_result_t* result
         )
 
+    cdef cugraph_type_erased_device_array_view_t* \
+        cugraph_sample_result_get_edge_renumber_map(
+            const cugraph_sample_result_t* result
+        )
+
+    cdef cugraph_type_erased_device_array_view_t* \
+        cugraph_sample_result_get_edge_renumber_map_offsets(
+            const cugraph_sample_result_t* result
+        )
+
     cdef void \
         cugraph_sample_result_free(
             const cugraph_sample_result_t* result
@@ -285,6 +295,16 @@ cdef extern from "cugraph_c/algorithms.h":
             cugraph_sampling_options_t** options,
             cugraph_error_t** error,
         )
+
+    cdef void cugraph_sampling_set_num_vertex_types(
+        cugraph_sampling_options_t* options,
+        size_t value
+    );
+
+    cdef void cugraph_sampling_set_num_edge_types(
+        cugraph_sampling_options_t* options,
+        size_t value
+    );
 
     cdef void \
         cugraph_sampling_set_renumber_results(
@@ -333,6 +353,16 @@ cdef extern from "cugraph_c/algorithms.h":
             cugraph_sampling_options_t* options,
             cugraph_compression_type_t value,
         )
+
+    cdef void cugraph_sampling_set_num_edge_types(
+        cugraph_sampling_options_t* options,
+        size_t value,
+    )
+
+    cdef void cugraph_sampling_set_num_vertex_types(
+        cugraph_sampling_options_t* options,
+        size_t value,
+    )
 
     cdef void \
         cugraph_sampling_options_free(

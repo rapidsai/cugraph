@@ -50,6 +50,8 @@ from pylibcugraph._cugraph_c.algorithms cimport (
     cugraph_sampling_set_compress_per_hop,
     cugraph_sampling_set_compression_type,
     cugraph_sampling_set_retain_seeds,
+    cugraph_sampling_set_num_vertex_types,
+    cugraph_sampling_set_num_edge_types,
 )
 from pylibcugraph._cugraph_c.sampling_algorithms cimport (
     cugraph_biased_neighbor_sample,
@@ -91,6 +93,7 @@ def biased_neighbor_sample(ResourceHandle resource_handle,
                             label_list=None,
                             label_to_output_comm_rank=None,
                             label_offsets=None,
+                            vertex_type_offsets=None,
                             biases=None,
                             prior_sources_behavior=None,
                             deduplicate_sources=False,
@@ -99,6 +102,8 @@ def biased_neighbor_sample(ResourceHandle resource_handle,
                             retain_seeds=False,
                             compression='COO',
                             compress_per_hop=False,
+                            num_vertex_types=None,
+                            num_edge_types=None,
                             random_state=None,
                             return_dict=False,):
     """
@@ -150,6 +155,15 @@ def biased_neighbor_sample(ResourceHandle resource_handle,
     label_offsets: list[int] (Optional)
         Offsets of each label within the start vertex list.
 
+        vertex_type_offsets: device array type (Optional)
+        Offsets of each vertex type within the graph.
+        Vertices must be numbered in ascending order
+        by vertex type in order to properly renumber
+        heterogeneous graphs.  i.e. if there are two
+        vertex types, the 0th with 10 vertices and 1st
+        with 32 vertices, the offsets array should be
+        [0, 10, 42]
+
     biases: list[float32/64] (Optional)
         Edge biases.  If not provided, uses the weight property.
         Currently unsupported.
@@ -185,6 +199,15 @@ def biased_neighbor_sample(ResourceHandle resource_handle,
         entire batch.
         If True, will create a separate compressed edgelist per hop within
         a batch.
+
+    num_vertex_types: int (Optional)
+        If provided, sets the number of vertex types in the graph.
+        Otherwise, it is assumed that there is only one vertex
+        type.
+
+    num_edge_types: int (Optional)
+        If provided, sets the number of edge types in the graph.
+        Otherwise, it is assumed that there is only one edge type.
 
     random_state: int (Optional)
         Random state to use when generating samples.  Optional argument,
@@ -257,6 +280,11 @@ def biased_neighbor_sample(ResourceHandle resource_handle,
         cai_label_to_output_comm_rank_ptr = \
             label_to_output_comm_rank.__cuda_array_interface__['data'][0]
 
+    cdef uintptr_t cai_vertex_type_offsets_ptr
+    if vertex_type_offsets is not None:
+        cai_vertex_type_offsets_ptr = \
+            vertex_type_offsets.__cuda_array_interface__['data'][0]
+
     cdef uintptr_t cai_label_offsets_ptr
     if label_offsets is not None:
         cai_label_offsets_ptr = \
@@ -296,6 +324,15 @@ def biased_neighbor_sample(ResourceHandle resource_handle,
                 <void*>cai_label_to_output_comm_rank_ptr,
                 len(label_to_output_comm_rank),
                 get_c_type_from_numpy_type(label_to_output_comm_rank.dtype)
+            )
+
+    cdef cugraph_type_erased_device_array_view_t* vertex_type_offsets_ptr = <cugraph_type_erased_device_array_view_t*>NULL
+    if vertex_type_offsets is not None:
+        vertex_type_offsets_ptr = \
+            cugraph_type_erased_device_array_view_create(
+                <void*>cai_vertex_type_offsets_ptr,
+                len(vertex_type_offsets),
+                get_c_type_from_numpy_type(vertex_type_offsets.dtype)
             )
 
     cdef cugraph_type_erased_device_array_view_t* label_offsets_ptr = <cugraph_type_erased_device_array_view_t*>NULL
@@ -364,6 +401,11 @@ def biased_neighbor_sample(ResourceHandle resource_handle,
     cugraph_sampling_set_compress_per_hop(sampling_options, c_compress_per_hop)
     cugraph_sampling_set_retain_seeds(sampling_options, retain_seeds)
 
+    if num_vertex_types:
+        cugraph_sampling_set_num_vertex_types(sampling_options, num_vertex_types)
+    if num_edge_types:
+        cugraph_sampling_set_num_edge_types(sampling_options, num_edge_types)
+
     error_code = cugraph_biased_neighbor_sample(
         c_resource_handle_ptr,
         c_graph_ptr,
@@ -373,6 +415,7 @@ def biased_neighbor_sample(ResourceHandle resource_handle,
         label_list_ptr,
         label_to_output_comm_rank_ptr,
         label_offsets_ptr,
+        vertex_type_offsets_ptr,
         fan_out_ptr,
         rng_state_ptr,
         sampling_options,
@@ -411,6 +454,8 @@ def biased_neighbor_sample(ResourceHandle resource_handle,
     if renumber:
         cupy_renumber_map = result.get_renumber_map()
         cupy_renumber_map_offsets = result.get_renumber_map_offsets()
+        cupy_edge_renumber_map = result.get_edge_renumber_map()
+        cupy_edge_renumber_map_offsets = result.get_edge_renumber_map_offsets()
 
         if return_dict:
             return {
@@ -424,11 +469,13 @@ def biased_neighbor_sample(ResourceHandle resource_handle,
                 'label_hop_offsets': cupy_label_hop_offsets,
                 'hop_id': None,
                 'renumber_map': cupy_renumber_map,
-                'renumber_map_offsets': cupy_renumber_map_offsets
+                'renumber_map_offsets': cupy_renumber_map_offsets,
+                'edge_renumber_map': cupy_edge_renumber_map,
+                'edge_renumber_map_offsets': cupy_edge_renumber_map_offsets,
             }
         else:
             cupy_majors = cupy_major_offsets if cupy_majors is None else cupy_majors
-            return (cupy_majors, cupy_minors, cupy_edge_weights, cupy_edge_ids, cupy_edge_types, cupy_batch_ids, cupy_label_hop_offsets, None, cupy_renumber_map, cupy_renumber_map_offsets)
+            return (cupy_majors, cupy_minors, cupy_edge_weights, cupy_edge_ids, cupy_edge_types, cupy_batch_ids, cupy_label_hop_offsets, None, cupy_renumber_map, cupy_renumber_map_offsets, cupy_edge_renumber_map, cupy_edge_renumber_map_offsets)
     else:
         cupy_hop_ids = result.get_hop_ids()
         if return_dict:

@@ -314,6 +314,24 @@ void cugraph_sampling_set_dedupe_sources(cugraph_sampling_options_t* options, bo
 
 /**
  * @ingroup samplingC
+ * @brief   Set the number of vertex types in the graph.
+ *
+ * @param options - opaque pointer to the sampling options struct
+ * @param value - the number of vertex types to set
+ */
+void cugraph_sampling_set_num_vertex_types(cugraph_sampling_options_t* options, size_t value);
+
+/**
+ * @ingroup samplingC
+ * @brief   Set the number of edge types in the graph.
+ *
+ * @param options - opaque pointer to the sampling options struct
+ * @param value - the number of edge types to set
+ */
+void cugraph_sampling_set_num_edge_types(cugraph_sampling_options_t* options, size_t value);
+
+/**
+ * @ingroup samplingC
  * @brief     Free sampling options object
  *
  * @param [in]   options   Opaque pointer to sampling object
@@ -368,6 +386,7 @@ cugraph_error_code_t cugraph_uniform_neighbor_sample(
   const cugraph_type_erased_device_array_view_t* label_list,
   const cugraph_type_erased_device_array_view_t* label_to_comm_rank,
   const cugraph_type_erased_device_array_view_t* label_offsets,
+  const cugraph_type_erased_device_array_view_t* vertex_type_offsets,
   const cugraph_type_erased_host_array_view_t* fan_out,
   cugraph_rng_state_t* rng_state,
   const cugraph_sampling_options_t* options,
@@ -427,6 +446,7 @@ cugraph_error_code_t cugraph_biased_neighbor_sample(
   const cugraph_type_erased_device_array_view_t* label_list,
   const cugraph_type_erased_device_array_view_t* label_to_comm_rank,
   const cugraph_type_erased_device_array_view_t* label_offsets,
+  const cugraph_type_erased_device_array_view_t* vertex_type_offsets,
   const cugraph_type_erased_host_array_view_t* fan_out,
   cugraph_rng_state_t* rng_state,
   const cugraph_sampling_options_t* options,
@@ -582,6 +602,26 @@ cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_renumber_map(
  * @return type erased array pointing to the renumber map offsets
  */
 cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_renumber_map_offsets(
+  const cugraph_sample_result_t* result);
+
+/**
+ * @ingroup samplingC
+ * @brief     Get the edge renumber map
+ *
+ * @param [in]   result   The result from a sampling algorithm
+ * @return type erased array pointing to the edge renumber map
+ */
+cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_edge_renumber_map(
+  const cugraph_sample_result_t* result);
+
+/**
+ * @ingroup samplingC
+ * @brief     Get the edge renumber map offsets
+ *
+ * @param [in]   result   The result from a sampling algorithm
+ * @return type erased array pointing to the edge renumber map offsets
+ */
+cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_edge_renumber_map_offsets(
   const cugraph_sample_result_t* result);
 
 /**

@@ -1,4 +1,4 @@
-# Copyright (c) 2022-2023, NVIDIA CORPORATION.
+# Copyright (c) 2022-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -23,7 +23,7 @@ from pylibcugraph import (
     ResourceHandle,
     GraphProperties,
 )
-from pylibcugraph import uniform_neighbor_sample
+from pylibcugraph import uniform_neighbor_sample, biased_neighbor_sample
 
 # Set to True to disable memory leak assertions. This may be necessary when
 # running in environments that share a GPU (pytest-xdist), are using memory
@@ -337,3 +337,253 @@ def test_sample_result():
     del sources2
     gc.collect()
     assert (free_memory_before == device.mem_info[0]) or mem_leak_assert_disabled
+
+
+@pytest.mark.cugraph_ops
+def test_uniform_neighborhood_sampling_hetero():
+    # vtype 0: 0, 1, 2
+    # vtype 1: 3, 4, 5
+    v_offsets = cp.array([0, 3, 6])
+    num_vertex_types = 2
+
+    src = cp.array([0, 1, 2, 3, 5, 1, 2, 4])
+    dst = cp.array([1, 5, 4, 4, 4, 0, 5, 0])
+
+    eid = cp.array([0, 0, 1, 0, 1, 1, 2, 0])
+
+    # vtype0 -> vtype0: 0
+    # vtype0 -> vtype1: 1
+    # vtype1 -> vtype0: 2
+    # vtype1 -> vtype1: 3
+    etp = cp.array([0, 1, 1, 3, 3, 0, 1, 2], dtype="int32")
+    src_types = {
+        0: 0,
+        1: 0,
+        2: 1,
+        3: 1,
+    }
+    dst_types = {
+        0: 0,
+        1: 1,
+        2: 0,
+        3: 1,
+    }
+    num_edge_types = 4
+
+    resource_handle = ResourceHandle()
+    graph_props = GraphProperties(is_symmetric=False, is_multigraph=True)
+
+    graph = SGGraph(
+        resource_handle=resource_handle,
+        graph_properties=graph_props,
+        src_or_offset_array=src,
+        dst_or_index_array=dst,
+        vertices_array=cp.arange(6),
+        edge_id_array=eid,
+        edge_type_array=etp,
+        weight_array=None,
+        store_transposed=False,
+        do_expensive_check=False,
+    )
+
+    fanout = np.array([2, 2], dtype="int32")
+
+    out = uniform_neighbor_sample(
+        resource_handle,
+        graph,
+        cp.array([0, 2, 4]),
+        fanout,
+        with_replacement=False,
+        do_expensive_check=False,
+        with_edge_properties=True,
+        batch_id_list=cp.array([0, 0, 1], dtype="int32"),
+        label_offsets=cp.array([0, 2, 3], dtype="int64"),
+        vertex_type_offsets=v_offsets,
+        prior_sources_behavior="exclude",
+        deduplicate_sources=True,
+        return_hops=True,
+        retain_seeds=True,
+        renumber=True,
+        compression="COO",
+        compress_per_hop=False,
+        num_vertex_types=num_vertex_types,
+        num_edge_types=num_edge_types,
+        random_state=62,
+        return_dict=True,
+    )
+
+    assert out["major_offsets"] is None
+    assert out["edge_renumber_map"] is not None
+    assert out["edge_renumber_map_offsets"] is not None
+
+    # Label-hop offsets is now extended to separate each vertex type for each hop.
+    lho = out["label_hop_offsets"]
+
+    for batch in [0, 1]:
+        batch_ptr_start = batch * num_edge_types * len(fanout)
+        for etype in range(4):
+            etype_tree_ptr_start = batch_ptr_start + etype * len(fanout)
+            for hop in [0, 1]:
+                ix = etype_tree_ptr_start + hop
+                edge_ptr_beg, edge_ptr_end = lho[[ix, ix + 1]]
+
+                src_i = out["majors"][edge_ptr_beg:edge_ptr_end]
+                dst_i = out["minors"][edge_ptr_beg:edge_ptr_end]
+                eid_i = out["edge_id"][edge_ptr_beg:edge_ptr_end]
+
+                jx = src_types[etype] + batch * num_vertex_types
+                map_ptr_src_beg, map_ptr_src_end = out["renumber_map_offsets"][
+                    [jx, jx + 1]
+                ]
+                map_src = out["renumber_map"][map_ptr_src_beg:map_ptr_src_end]
+
+                kx = dst_types[etype] + batch * num_vertex_types
+                map_ptr_dst_beg, map_ptr_dst_end = out["renumber_map_offsets"][
+                    [kx, kx + 1]
+                ]
+                map_dst = out["renumber_map"][map_ptr_dst_beg:map_ptr_dst_end]
+
+                # edge renumber map
+                eirx = (batch * num_edge_types) + etype
+                edge_id_ptr_beg, edge_id_ptr_end = out["edge_renumber_map_offsets"][
+                    [eirx, eirx + 1]
+                ]
+                emap = out["edge_renumber_map"][edge_id_ptr_beg:edge_id_ptr_end]
+
+                src_i = map_src[src_i]
+                dst_i = map_dst[dst_i]
+                eid_i = emap[eid_i]
+
+                assert len(src_i) == len(dst_i)
+                assert len(eid_i) == len(dst_i)
+
+                for w in range(len(dst_i)):
+                    f = (src == src_i[w]) & (dst == dst_i[w]) & (eid == eid_i[w])
+                    assert f.sum() == 1
+
+                # print(f'b{batch}h{hop}e{etype}: {src_i} {dst_i} {eid_i}')
+
+
+@pytest.mark.cugraph_ops
+def test_biased_neighborhood_sampling_hetero():
+    # vtype 0: 0, 1, 2
+    # vtype 1: 3, 4, 5
+    v_offsets = cp.array([0, 3, 6])
+    num_vertex_types = 2
+
+    src = cp.array([0, 1, 2, 3, 5, 1, 2, 4])
+    dst = cp.array([1, 5, 4, 4, 4, 0, 5, 0])
+
+    eid = cp.array([0, 0, 1, 0, 1, 1, 2, 0])
+
+    # vtype0 -> vtype0: 0
+    # vtype0 -> vtype1: 1
+    # vtype1 -> vtype0: 2
+    # vtype1 -> vtype1: 3
+    etp = cp.array([0, 1, 1, 3, 3, 0, 1, 2], dtype="int32")
+    src_types = {
+        0: 0,
+        1: 0,
+        2: 1,
+        3: 1,
+    }
+    dst_types = {
+        0: 0,
+        1: 1,
+        2: 0,
+        3: 1,
+    }
+    num_edge_types = 4
+
+    resource_handle = ResourceHandle()
+    graph_props = GraphProperties(is_symmetric=False, is_multigraph=True)
+
+    graph = SGGraph(
+        resource_handle=resource_handle,
+        graph_properties=graph_props,
+        src_or_offset_array=src,
+        dst_or_index_array=dst,
+        vertices_array=cp.arange(6),
+        edge_id_array=eid,
+        edge_type_array=etp,
+        weight_array=cp.ones((src.shape[0],), dtype="float32"),
+        store_transposed=False,
+        do_expensive_check=False,
+    )
+
+    fanout = np.array([2, 2], dtype="int32")
+
+    out = biased_neighbor_sample(
+        resource_handle,
+        graph,
+        cp.array([0, 2, 4]),
+        fanout,
+        with_replacement=False,
+        do_expensive_check=False,
+        with_edge_properties=True,
+        batch_id_list=cp.array([0, 0, 1], dtype="int32"),
+        label_offsets=cp.array([0, 2, 3], dtype="int64"),
+        vertex_type_offsets=v_offsets,
+        prior_sources_behavior="exclude",
+        deduplicate_sources=True,
+        return_hops=True,
+        retain_seeds=True,
+        renumber=True,
+        compression="COO",
+        compress_per_hop=False,
+        num_vertex_types=num_vertex_types,
+        num_edge_types=num_edge_types,
+        random_state=62,
+        return_dict=True,
+    )
+
+    assert out["major_offsets"] is None
+    assert out["edge_renumber_map"] is not None
+    assert out["edge_renumber_map_offsets"] is not None
+
+    # Label-hop offsets is now extended to separate each vertex type for each hop.
+    lho = out["label_hop_offsets"]
+
+    for batch in [0, 1]:
+        batch_ptr_start = batch * num_edge_types * len(fanout)
+        for etype in range(4):
+            etype_tree_ptr_start = batch_ptr_start + etype * len(fanout)
+            for hop in [0, 1]:
+                ix = etype_tree_ptr_start + hop
+                edge_ptr_beg, edge_ptr_end = lho[[ix, ix + 1]]
+
+                src_i = out["majors"][edge_ptr_beg:edge_ptr_end]
+                dst_i = out["minors"][edge_ptr_beg:edge_ptr_end]
+                eid_i = out["edge_id"][edge_ptr_beg:edge_ptr_end]
+
+                jx = src_types[etype] + batch * num_vertex_types
+                map_ptr_src_beg, map_ptr_src_end = out["renumber_map_offsets"][
+                    [jx, jx + 1]
+                ]
+                map_src = out["renumber_map"][map_ptr_src_beg:map_ptr_src_end]
+
+                kx = dst_types[etype] + batch * num_vertex_types
+                map_ptr_dst_beg, map_ptr_dst_end = out["renumber_map_offsets"][
+                    [kx, kx + 1]
+                ]
+                map_dst = out["renumber_map"][map_ptr_dst_beg:map_ptr_dst_end]
+
+                # edge renumber map
+                eirx = (batch * num_edge_types) + etype
+                edge_id_ptr_beg, edge_id_ptr_end = out["edge_renumber_map_offsets"][
+                    [eirx, eirx + 1]
+                ]
+                emap = out["edge_renumber_map"][edge_id_ptr_beg:edge_id_ptr_end]
+
+                src_i = map_src[src_i]
+                dst_i = map_dst[dst_i]
+                eid_i = emap[eid_i]
+
+                assert len(src_i) == len(dst_i)
+                assert len(eid_i) == len(dst_i)
+
+                for w in range(len(dst_i)):
+                    f = (src == src_i[w]) & (dst == dst_i[w]) & (eid == eid_i[w])
+                    assert f.sum() == 1
+
+                # print(f'b{batch}h{hop}e{etype}: {src_i} {dst_i} {eid_i}')
