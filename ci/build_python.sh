@@ -52,7 +52,6 @@ rapids-conda-retry mambabuild \
 
 rapids-conda-retry mambabuild \
   --no-test \
-  --channel "${RAPIDS_CONDA_BLD_OUTPUT_DIR}" \
-  conda/recipes/cugraph-equivariant
+  --channel "${RAPIDS_CONDA_BLD_OUTPUT_DIR}"
 
 rapids-upload-conda-to-s3 python
