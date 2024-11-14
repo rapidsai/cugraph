@@ -869,13 +869,6 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
         std::nullopt};  // global after allgatherv
 
       if (start_vertex_offsets_ != nullptr) {
-        // Get the number of labels on each GPU
-        auto num_local_labels = start_vertex_offsets_->size_ - 1;
-        auto global_labels    = cugraph::host_scalar_allgather(
-          handle_.get_comms(), num_local_labels, handle_.get_stream());
-
-        std::exclusive_scan(
-          global_labels.begin(), global_labels.end(), global_labels.begin(), label_t{0});
 
         // Retrieve the start_vertex_labels
         start_vertex_labels = cugraph::detail::convert_starting_vertex_label_offsets_to_labels(
@@ -883,16 +876,25 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
           raft::device_span<size_t const>{start_vertex_offsets_->as_type<size_t>(),
                                           start_vertex_offsets_->size_});
 
-        // Compute the global start_vertex_label_offsets
+        // Get the number of labels on each GPU
 
-        cugraph::detail::transform_increment_ints(
-          raft::device_span<label_t>{(*start_vertex_labels).data(), (*start_vertex_labels).size()},
-          (label_t)global_labels[handle_.get_comms().get_rank()],
-          handle_.get_stream());
-      }
+        if constexpr (multi_gpu) {
+          auto num_local_labels = start_vertex_offsets_->size_ - 1;
 
-      if constexpr (multi_gpu) {
-        if (start_vertex_labels) {
+          auto global_labels    = cugraph::host_scalar_allgather(
+            handle_.get_comms(), num_local_labels, handle_.get_stream());
+
+          std::exclusive_scan(
+            global_labels.begin(), global_labels.end(), global_labels.begin(), label_t{0});
+
+          // Compute the global start_vertex_label_offsets
+
+          cugraph::detail::transform_increment_ints(
+            raft::device_span<label_t>{(*start_vertex_labels).data(), (*start_vertex_labels).size()},
+            (label_t)global_labels[handle_.get_comms().get_rank()],
+            handle_.get_stream());
+          
+
           rmm::device_uvector<label_t> unique_labels((*start_vertex_labels).size(),
                                                      handle_.get_stream());
           raft::copy(unique_labels.data(),
@@ -940,13 +942,14 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
             cugraph::detail::shuffle_ext_vertex_value_pairs_to_local_gpu_by_vertex_partitioning(
               handle_, std::move(start_vertices), std::move(*start_vertex_labels));
 
-        } else {
-          start_vertices =
-            cugraph::detail::shuffle_ext_vertices_to_local_gpu_by_vertex_partitioning(
-              handle_, std::move(start_vertices));
-        }
       }
-
+      } else {
+          if constexpr (multi_gpu) {
+              start_vertices =
+                      cugraph::detail::shuffle_ext_vertices_to_local_gpu_by_vertex_partitioning(
+                        handle_, std::move(start_vertices));
+          }
+      }
       //
       // Need to renumber start_vertices
       //
