@@ -385,7 +385,7 @@ def heterogeneous_biased_neighbor_sample(ResourceHandle resource_handle,
     # Get cupy "views" of the individual arrays to return. These each increment
     # the refcount on the SamplingResult instance which will keep the data alive
     # until all references are removed and the GC runs.
-    # TODO Return everything that isn't null in release 23.12
+    # TODO Return everything that isn't null in release 23.12.
     if with_edge_properties:
         cupy_majors = result.get_majors()
         cupy_major_offsets = result.get_major_offsets()
