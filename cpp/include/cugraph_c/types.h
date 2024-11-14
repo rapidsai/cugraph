@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,18 +14,34 @@
  * limitations under the License.
  */
 
-#include "traversal/extract_bfs_paths_impl.cuh"
+#pragma once
 
-namespace cugraph {
+#include <stdint.h>
 
-// MG instantiation
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-template std::tuple<rmm::device_uvector<int32_t>, int32_t> extract_bfs_paths(
-  raft::handle_t const& handle,
-  graph_view_t<int32_t, int64_t, false, true> const& graph_view,
-  int32_t const* distances,
-  int32_t const* predecessors,
-  int32_t const* destinations,
-  size_t n_destinations);
+typedef enum bool_ { FALSE = 0, TRUE = 1 } bool_t;
 
-}  // namespace cugraph
+typedef int8_t byte_t;
+
+typedef enum data_type_id_ {
+  INT8 = 0,
+  INT16,
+  INT32,
+  INT64,
+  UINT8,
+  UINT16,
+  UINT32,
+  UINT64,
+  FLOAT32,
+  FLOAT64,
+  SIZE_T,
+  BOOL,
+  NTYPES
+} cugraph_data_type_id_t;
+
+#ifdef __cplusplus
+}
+#endif

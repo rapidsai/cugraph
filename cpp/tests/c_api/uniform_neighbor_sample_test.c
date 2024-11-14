@@ -27,11 +27,11 @@ typedef int32_t vertex_t;
 typedef int32_t edge_t;
 typedef float weight_t;
 
-data_type_id_t vertex_tid    = INT32;
-data_type_id_t edge_tid      = INT32;
-data_type_id_t weight_tid    = FLOAT32;
-data_type_id_t edge_id_tid   = INT32;
-data_type_id_t edge_type_tid = INT32;
+cugraph_data_type_id_t vertex_tid    = INT32;
+cugraph_data_type_id_t edge_tid      = INT32;
+cugraph_data_type_id_t weight_tid    = FLOAT32;
+cugraph_data_type_id_t edge_id_tid   = INT32;
+cugraph_data_type_id_t edge_type_tid = INT32;
 
 int vertex_id_compare_function(const void* a, const void* b)
 {
@@ -149,10 +149,6 @@ int generic_uniform_neighbor_sample_test(const cugraph_resource_handle_t* handle
                                              &result,
                                              &ret_error);
 
-#ifdef NO_CUGRAPH_OPS
-  TEST_ASSERT(
-    test_ret_value, ret_code != CUGRAPH_SUCCESS, "uniform_neighbor_sample should have failed")
-#else
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "uniform_neighbor_sample failed.");
 
@@ -459,7 +455,6 @@ int generic_uniform_neighbor_sample_test(const cugraph_resource_handle_t* handle
   }
 
   cugraph_sample_result_free(result);
-#endif
 
   cugraph_graph_free(graph);
   cugraph_error_free(ret_error);
@@ -484,9 +479,9 @@ int create_test_graph_with_edge_ids(const cugraph_resource_handle_t* p_handle,
   properties.is_symmetric  = is_symmetric;
   properties.is_multigraph = FALSE;
 
-  data_type_id_t vertex_tid = INT32;
-  data_type_id_t edge_tid   = INT32;
-  data_type_id_t weight_tid = FLOAT32;
+  cugraph_data_type_id_t vertex_tid = INT32;
+  cugraph_data_type_id_t edge_tid   = INT32;
+  cugraph_data_type_id_t weight_tid = FLOAT32;
 
   cugraph_type_erased_device_array_t* src;
   cugraph_type_erased_device_array_t* dst;
@@ -560,11 +555,11 @@ int create_test_graph_with_edge_ids(const cugraph_resource_handle_t* p_handle,
 
 int test_uniform_neighbor_sample_with_labels(const cugraph_resource_handle_t* handle)
 {
-  data_type_id_t vertex_tid    = INT32;
-  data_type_id_t edge_tid      = INT32;
-  data_type_id_t weight_tid    = FLOAT32;
-  data_type_id_t edge_id_tid   = INT32;
-  data_type_id_t edge_type_tid = INT32;
+  cugraph_data_type_id_t vertex_tid    = INT32;
+  cugraph_data_type_id_t edge_tid      = INT32;
+  cugraph_data_type_id_t weight_tid    = FLOAT32;
+  cugraph_data_type_id_t edge_id_tid   = INT32;
+  cugraph_data_type_id_t edge_type_tid = INT32;
 
   size_t num_edges    = 8;
   size_t num_vertices = 6;
@@ -676,10 +671,6 @@ int test_uniform_neighbor_sample_with_labels(const cugraph_resource_handle_t* ha
                                              &result,
                                              &ret_error);
 
-#ifdef NO_CUGRAPH_OPS
-  TEST_ASSERT(
-    test_ret_value, ret_code != CUGRAPH_SUCCESS, "uniform_neighbor_sample should have failed")
-#else
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "uniform_neighbor_sample failed.");
 
@@ -770,7 +761,6 @@ int test_uniform_neighbor_sample_with_labels(const cugraph_resource_handle_t* ha
 
   cugraph_sample_result_free(result);
   cugraph_sampling_options_free(sampling_options);
-#endif
 
   cugraph_graph_free(graph);
   cugraph_error_free(ret_error);
@@ -778,11 +768,11 @@ int test_uniform_neighbor_sample_with_labels(const cugraph_resource_handle_t* ha
 
 int test_uniform_neighbor_sample_clean(const cugraph_resource_handle_t* handle)
 {
-  data_type_id_t vertex_tid    = INT32;
-  data_type_id_t edge_tid      = INT32;
-  data_type_id_t weight_tid    = FLOAT32;
-  data_type_id_t edge_id_tid   = INT32;
-  data_type_id_t edge_type_tid = INT32;
+  cugraph_data_type_id_t vertex_tid    = INT32;
+  cugraph_data_type_id_t edge_tid      = INT32;
+  cugraph_data_type_id_t weight_tid    = FLOAT32;
+  cugraph_data_type_id_t edge_id_tid   = INT32;
+  cugraph_data_type_id_t edge_type_tid = INT32;
 
   size_t num_edges        = 9;
   size_t num_vertices     = 6;
@@ -832,11 +822,11 @@ int test_uniform_neighbor_sample_clean(const cugraph_resource_handle_t* handle)
 
 int test_uniform_neighbor_sample_dedupe_sources(const cugraph_resource_handle_t* handle)
 {
-  data_type_id_t vertex_tid    = INT32;
-  data_type_id_t edge_tid      = INT32;
-  data_type_id_t weight_tid    = FLOAT32;
-  data_type_id_t edge_id_tid   = INT32;
-  data_type_id_t edge_type_tid = INT32;
+  cugraph_data_type_id_t vertex_tid    = INT32;
+  cugraph_data_type_id_t edge_tid      = INT32;
+  cugraph_data_type_id_t weight_tid    = FLOAT32;
+  cugraph_data_type_id_t edge_id_tid   = INT32;
+  cugraph_data_type_id_t edge_type_tid = INT32;
 
   size_t num_edges        = 9;
   size_t num_vertices     = 6;
@@ -886,11 +876,11 @@ int test_uniform_neighbor_sample_dedupe_sources(const cugraph_resource_handle_t*
 
 int test_uniform_neighbor_sample_unique_sources(const cugraph_resource_handle_t* handle)
 {
-  data_type_id_t vertex_tid    = INT32;
-  data_type_id_t edge_tid      = INT32;
-  data_type_id_t weight_tid    = FLOAT32;
-  data_type_id_t edge_id_tid   = INT32;
-  data_type_id_t edge_type_tid = INT32;
+  cugraph_data_type_id_t vertex_tid    = INT32;
+  cugraph_data_type_id_t edge_tid      = INT32;
+  cugraph_data_type_id_t weight_tid    = FLOAT32;
+  cugraph_data_type_id_t edge_id_tid   = INT32;
+  cugraph_data_type_id_t edge_type_tid = INT32;
 
   size_t num_edges        = 9;
   size_t num_vertices     = 6;
@@ -940,11 +930,11 @@ int test_uniform_neighbor_sample_unique_sources(const cugraph_resource_handle_t*
 
 int test_uniform_neighbor_sample_carry_over_sources(const cugraph_resource_handle_t* handle)
 {
-  data_type_id_t vertex_tid    = INT32;
-  data_type_id_t edge_tid      = INT32;
-  data_type_id_t weight_tid    = FLOAT32;
-  data_type_id_t edge_id_tid   = INT32;
-  data_type_id_t edge_type_tid = INT32;
+  cugraph_data_type_id_t vertex_tid    = INT32;
+  cugraph_data_type_id_t edge_tid      = INT32;
+  cugraph_data_type_id_t weight_tid    = FLOAT32;
+  cugraph_data_type_id_t edge_id_tid   = INT32;
+  cugraph_data_type_id_t edge_type_tid = INT32;
 
   size_t num_edges        = 9;
   size_t num_vertices     = 6;
@@ -994,11 +984,11 @@ int test_uniform_neighbor_sample_carry_over_sources(const cugraph_resource_handl
 
 int test_uniform_neighbor_sample_renumber_results(const cugraph_resource_handle_t* handle)
 {
-  data_type_id_t vertex_tid    = INT32;
-  data_type_id_t edge_tid      = INT32;
-  data_type_id_t weight_tid    = FLOAT32;
-  data_type_id_t edge_id_tid   = INT32;
-  data_type_id_t edge_type_tid = INT32;
+  cugraph_data_type_id_t vertex_tid    = INT32;
+  cugraph_data_type_id_t edge_tid      = INT32;
+  cugraph_data_type_id_t weight_tid    = FLOAT32;
+  cugraph_data_type_id_t edge_id_tid   = INT32;
+  cugraph_data_type_id_t edge_type_tid = INT32;
 
   size_t num_edges        = 9;
   size_t num_vertices     = 6;
