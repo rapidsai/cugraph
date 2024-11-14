@@ -223,7 +223,7 @@ def homogeneous_biased_neighbor_sample(ResourceHandle resource_handle,
     {'sources': array([2, 2, 5, 5], dtype=int32),
      'destinations': array([1, 3, 3, 4], dtype=int32),
      'indices': array([3.1, 4.1, 7.2, 3.2], dtype=float32)}
-    
+
     >>> start_vertices = cupy.asarray([2, 5, 1]).astype(numpy.int32)
     >>> starting_vertex_label_offsets = cupy.asarray([0, 2, 3])
     >>> sampling_results = pylibcugraph.homogeneous_biased_neighbor_sample(
