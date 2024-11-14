@@ -72,6 +72,11 @@ def minimum_spanning_tree(G, weight=None, algorithm="boruvka", ignore_nan=False)
     G : cuGraph.Graph or networkx.Graph
         cuGraph graph descriptor with connectivity information.
 
+        .. deprecated:: 24.12
+           Accepting a ``networkx.Graph`` is deprecated and will be removed in a
+           future version.  For ``networkx.Graph`` use networkx directly with
+           the ``nx-cugraph`` backend. See:  https://rapids.ai/nx-cugraph/
+
     weight : string
         default to the weights in the graph, if the graph edges do not have a
         weight attribute a default weight of 1 will be used.
@@ -114,6 +119,11 @@ def maximum_spanning_tree(G, weight=None, algorithm="boruvka", ignore_nan=False)
     ----------
     G : cuGraph.Graph or networkx.Graph
         cuGraph graph descriptor with connectivity information.
+
+        .. deprecated:: 24.12
+           Accepting a ``networkx.Graph`` is deprecated and will be removed in a
+           future version.  For ``networkx.Graph`` use networkx directly with
+           the ``nx-cugraph`` backend. See:  https://rapids.ai/nx-cugraph/
 
     weight : string
         default to the weights in the graph, if the graph edges do not have a

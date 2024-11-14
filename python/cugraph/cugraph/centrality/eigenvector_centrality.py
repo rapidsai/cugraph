@@ -37,6 +37,11 @@ def eigenvector_centrality(G, max_iter=100, tol=1.0e-6):
         cuGraph graph descriptor with connectivity information. The graph can
         contain either directed or undirected edges.
 
+        .. deprecated:: 24.12
+           Accepting a ``networkx.Graph`` is deprecated and will be removed in a
+           future version.  For ``networkx.Graph`` use networkx directly with
+           the ``nx-cugraph`` backend. See:  https://rapids.ai/nx-cugraph/
+
     max_iter : int, optional (default=100)
         The maximum number of iterations before an answer is returned. This can
         be used to limit the execution time and do an early exit before the

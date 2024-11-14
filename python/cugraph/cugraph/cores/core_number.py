@@ -37,6 +37,11 @@ def core_number(G, degree_type="bidirectional"):
         of the core numbers.
         The current implementation only supports undirected graphs.
 
+        .. deprecated:: 24.12
+           Accepting a ``networkx.Graph`` is deprecated and will be removed in a
+           future version.  For ``networkx.Graph`` use networkx directly with
+           the ``nx-cugraph`` backend. See:  https://rapids.ai/nx-cugraph/
+
     degree_type: str, (default="bidirectional")
         This option determines if the core number computation should be based
         on input, output, or both directed edges, with valid values being

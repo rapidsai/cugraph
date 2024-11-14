@@ -56,6 +56,11 @@ def leiden(
 
         The adjacency list will be computed if not already present.
 
+        .. deprecated:: 24.12
+           Accepting a ``networkx.Graph`` is deprecated and will be removed in a
+           future version.  For ``networkx.Graph`` use networkx directly with
+           the ``nx-cugraph`` backend. See:  https://rapids.ai/nx-cugraph/
+
     max_iter : integer, optional (default=100)
         This controls the maximum number of levels/iterations of the Leiden
         algorithm. When specified the algorithm will terminate after no more
