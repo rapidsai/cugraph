@@ -81,8 +81,6 @@ matrix-entry = "cuda_suffixed=true;use_cuda_wheels=true"
 
 [tool.pydistcheck]
 select = [
+    # NOTE: size threshold is managed via CLI args in CI scripts
     "distro-too-large-compressed",
 ]
-
-# detect when package size grows significantly
-max_allowed_size_compressed = '1.5G'
