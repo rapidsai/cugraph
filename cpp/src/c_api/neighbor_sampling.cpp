@@ -974,7 +974,7 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
       if (num_edge_types_ > 1) {
         // call heterogeneous neighbor sample
         if (is_biased_) {
-          auto&& [src, dst, wgt, edge_id, edge_type, hop, offsets] =
+          std::tie(src, dst, wgt, edge_id, edge_type, hop, offsets) =
             cugraph::heterogeneous_biased_neighbor_sample(
               handle_,
               rng_state_->rng_state_,
@@ -999,7 +999,7 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
                                         options_.with_replacement_},
               do_expensive_check_);
         } else {
-          auto&& [src, dst, wgt, edge_id, edge_type, hop, offsets] =
+          std::tie(src, dst, wgt, edge_id, edge_type, hop, offsets) =
             cugraph::heterogeneous_uniform_neighbor_sample(
               handle_,
               rng_state_->rng_state_,
@@ -1026,7 +1026,7 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
       } else {
         // Call homogeneous neighbor sample
         if (is_biased_) {
-          auto&& [src, dst, wgt, edge_id, edge_type, hop, offsets] =
+          std::tie(src, dst, wgt, edge_id, edge_type, hop, offsets) =
             cugraph::homogeneous_biased_neighbor_sample(
               handle_,
               rng_state_->rng_state_,
@@ -1050,30 +1050,28 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
                                         options_.with_replacement_},
               do_expensive_check_);
         } else {
-          if (is_biased_) {
-            auto&& [src, dst, wgt, edge_id, edge_type, hop, offsets] =
-              cugraph::homogeneous_uniform_neighbor_sample(
-                handle_,
-                rng_state_->rng_state_,
-                graph_view,
-                (edge_weights != nullptr) ? std::make_optional(edge_weights->view()) : std::nullopt,
-                (edge_ids != nullptr) ? std::make_optional(edge_ids->view()) : std::nullopt,
-                (edge_types != nullptr) ? std::make_optional(edge_types->view()) : std::nullopt,
-                raft::device_span<vertex_t const>{start_vertices.data(), start_vertices.size()},
-                (start_vertex_offsets_ != nullptr)
-                  ? std::make_optional<raft::device_span<int const>>((*start_vertex_labels).data(),
-                                                                     (*start_vertex_labels).size())
-                  : std::nullopt,
-                label_to_comm_rank ? std::make_optional(raft::device_span<int const>{
-                                       (*label_to_comm_rank).data(), (*label_to_comm_rank).size()})
-                                   : std::nullopt,
-                raft::host_span<const int>(fan_out_->as_type<const int>(), fan_out_->size_),
-                cugraph::sampling_flags_t{options_.prior_sources_behavior_,
-                                          options_.return_hops_,
-                                          options_.dedupe_sources_,
-                                          options_.with_replacement_},
-                do_expensive_check_);
-          }
+          std::tie(src, dst, wgt, edge_id, edge_type, hop, offsets) =
+            cugraph::homogeneous_uniform_neighbor_sample(
+              handle_,
+              rng_state_->rng_state_,
+              graph_view,
+              (edge_weights != nullptr) ? std::make_optional(edge_weights->view()) : std::nullopt,
+              (edge_ids != nullptr) ? std::make_optional(edge_ids->view()) : std::nullopt,
+              (edge_types != nullptr) ? std::make_optional(edge_types->view()) : std::nullopt,
+              raft::device_span<vertex_t const>{start_vertices.data(), start_vertices.size()},
+              (start_vertex_offsets_ != nullptr)
+                ? std::make_optional<raft::device_span<int const>>((*start_vertex_labels).data(),
+                                                                    (*start_vertex_labels).size())
+                : std::nullopt,
+              label_to_comm_rank ? std::make_optional(raft::device_span<int const>{
+                                      (*label_to_comm_rank).data(), (*label_to_comm_rank).size()})
+                                  : std::nullopt,
+              raft::host_span<const int>(fan_out_->as_type<const int>(), fan_out_->size_),
+              cugraph::sampling_flags_t{options_.prior_sources_behavior_,
+                                        options_.return_hops_,
+                                        options_.dedupe_sources_,
+                                        options_.with_replacement_},
+              do_expensive_check_);
         }
       }
 
@@ -1998,14 +1996,6 @@ cugraph_error_code_t cugraph_heterogeneous_uniform_neighbor_sample(
                "must specify start_vertex_offsets if retain_seeds is true",
                *error);
 
-  CAPI_EXPECTS((start_vertex_offsets == nullptr) ||
-                 (reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(
-                    start_vertex_offsets)
-                    ->type_ == SIZE_T),
-               CUGRAPH_INVALID_INPUT,
-               "start_vertex_offsets should be of type size_t",
-               *error);
-
   CAPI_EXPECTS(
     reinterpret_cast<cugraph::c_api::cugraph_type_erased_host_array_view_t const*>(fan_out)
         ->type_ == INT32,
@@ -2064,14 +2054,6 @@ cugraph_error_code_t cugraph_heterogeneous_biased_neighbor_sample(
                "must specify start_vertex_offsets if retain_seeds is true",
                *error);
 
-  CAPI_EXPECTS((start_vertex_offsets == nullptr) ||
-                 (reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(
-                    start_vertex_offsets)
-                    ->type_ == SIZE_T),
-               CUGRAPH_INVALID_INPUT,
-               "start_vertex_offsets should be of type size_t",
-               *error);
-
   CAPI_EXPECTS(
     reinterpret_cast<cugraph::c_api::cugraph_type_erased_host_array_view_t const*>(fan_out)
         ->type_ == INT32,
@@ -2119,14 +2101,6 @@ cugraph_error_code_t cugraph_homogeneous_uniform_neighbor_sample(
   CAPI_EXPECTS((!options_cpp.retain_seeds_) || (start_vertex_offsets != nullptr),
                CUGRAPH_INVALID_INPUT,
                "must specify start_vertex_offsets if retain_seeds is true",
-               *error);
-
-  CAPI_EXPECTS((start_vertex_offsets == nullptr) ||
-                 (reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(
-                    start_vertex_offsets)
-                    ->type_ == SIZE_T),
-               CUGRAPH_INVALID_INPUT,
-               "start_vertex_offsets should be of type size_t",
                *error);
 
   CAPI_EXPECTS(
@@ -2184,14 +2158,6 @@ cugraph_error_code_t cugraph_homogeneous_biased_neighbor_sample(
   CAPI_EXPECTS((!options_cpp.retain_seeds_) || (start_vertex_offsets != nullptr),
                CUGRAPH_INVALID_INPUT,
                "must specify start_vertex_offsets if retain_seeds is true",
-               *error);
-
-  CAPI_EXPECTS((start_vertex_offsets == nullptr) ||
-                 (reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(
-                    start_vertex_offsets)
-                    ->type_ == SIZE_T),
-               CUGRAPH_INVALID_INPUT,
-               "start_vertex_offsets should be of type size_t",
                *error);
 
   CAPI_EXPECTS(
