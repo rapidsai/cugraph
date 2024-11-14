@@ -4,7 +4,6 @@ channels:
 - rapidsai
 - rapidsai-nightly
 - dask/label/dev
-- dglteam/label/th23_cu118
 - conda-forge
 - nvidia
 dependencies:

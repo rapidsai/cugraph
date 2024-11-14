@@ -27,8 +27,6 @@ files:
       - depends_on_pytorch
       - python_run_cugraph
       - python_run_nx_cugraph
-      - python_run_cugraph_dgl
-      - python_run_cugraph_pyg
       - test_notebook
       - test_python_common
       - test_python_cugraph
@@ -176,60 +174,6 @@ files:
     includes:
       - test_python_common
       - test_python_nx_cugraph
-  py_build_cugraph_dgl:
-    output: pyproject
-    pyproject_dir: python/cugraph-dgl
-    extras:
-      table: build-system
-    includes:
-      - python_build_rapids
-      - python_build_wheel
-  py_run_cugraph_dgl:
-    output: pyproject
-    pyproject_dir: python/cugraph-dgl
-    extras:
-      table: project
-    includes:
-      - python_run_cugraph_dgl
-        # Deprecate pylibcugraphops
-      - depends_on_pylibcugraphops
-  py_test_cugraph_dgl:
-    output: pyproject
-    pyproject_dir: python/cugraph-dgl
-    extras:
-      table: project.optional-dependencies
-      key: test
-    includes:
-      - test_python_common
-      - depends_on_pylibwholegraph
-      - depends_on_pytorch
-  py_build_cugraph_pyg:
-    output: pyproject
-    pyproject_dir: python/cugraph-pyg
-    extras:
-      table: build-system
-    includes:
-      - python_build_rapids
-      - python_build_wheel
-  py_run_cugraph_pyg:
-    output: pyproject
-    pyproject_dir: python/cugraph-pyg
-    extras:
-      table: project
-    includes:
-      - python_run_cugraph_pyg
-        # Deprecate pylibcugraphops
-      - depends_on_pylibcugraphops
-  py_test_cugraph_pyg:
-    output: pyproject
-    pyproject_dir: python/cugraph-pyg
-    extras:
-      table: project.optional-dependencies
-      key: test
-    includes:
-      - test_python_common
-      - depends_on_pylibwholegraph
-      - depends_on_pytorch
   py_build_cugraph_equivariant:
     output: pyproject
     pyproject_dir: python/cugraph-equivariant
@@ -297,33 +241,10 @@ files:
     includes:
       - test_python_common
       - test_python_cugraph
-  cugraph_dgl_dev:
-    matrix:
-      cuda: ["11.8"]
-    output: conda
-    conda_dir: python/cugraph-dgl/conda
-    includes:
-      - checks
-        # Deprecate pylibcugraphops
-      - depends_on_pylibcugraphops
-      - cugraph_dgl_dev
-      - test_python_common
-  cugraph_pyg_dev:
-    matrix:
-      cuda: ["11.8"]
-    output: conda
-    conda_dir: python/cugraph-pyg/conda
-    includes:
-      - checks
-        # Deprecate pylibcugraphops
-      - depends_on_pylibcugraphops
-      - cugraph_pyg_dev
-      - test_python_common
 channels:
   - rapidsai
   - rapidsai-nightly
   - dask/label/dev
-  - dglteam/label/th23_cu118
   - conda-forge
   - nvidia
 dependencies:
@@ -559,50 +480,6 @@ dependencies:
         packages:
           - networkx>=3.0
           - *numpy
-  python_run_cugraph_dgl:
-    common:
-      - output_types: [conda, pyproject]
-        packages:
-          - *numba
-          - *numpy
-    specific:
-      - output_types: [pyproject]
-        matrices:
-          - matrix:
-              cuda: "11.*"
-              cuda_suffixed: "true"
-            packages:
-              - &cugraph_cu11 cugraph-cu11==24.12.*,>=0.0.0a0
-          - matrix:
-              cuda: "12.*"
-              cuda_suffixed: "true"
-            packages:
-              - &cugraph_cu12 cugraph-cu12==24.12.*,>=0.0.0a0
-          - matrix:
-            packages:
-              - &cugraph_unsuffixed cugraph==24.12.*,>=0.0.0a0
-  python_run_cugraph_pyg:
-    common:
-      - output_types: [conda, pyproject]
-        packages:
-          - *numba
-          - *numpy
-    specific:
-      - output_types: [pyproject]
-        matrices:
-          - matrix:
-              cuda: "11.*"
-              cuda_suffixed: "true"
-            packages:
-              - *cugraph_cu11
-          - matrix:
-              cuda: "12.*"
-              cuda_suffixed: "true"
-            packages:
-              - *cugraph_cu12
-          - matrix:
-            packages:
-              - *cugraph_unsuffixed
   python_run_cugraph_service_client:
     common:
       - output_types: [conda, pyproject]
@@ -627,19 +504,19 @@ dependencies:
               cuda: "11.*"
               cuda_suffixed: "true"
             packages:
-              - *cugraph_cu11
+              - &cugraph_cu11 cugraph-cu11==24.12.*,>=0.0.0a0
               - cugraph-service-client-cu11==24.12.*,>=0.0.0a0
               - *ucx_py_cu11
           - matrix:
               cuda: "12.*"
               cuda_suffixed: "true"
             packages:
-              - *cugraph_cu12
+              - &cugraph_cu12 cugraph-cu12==24.12.*,>=0.0.0a0
               - cugraph-service-client-cu12==24.12.*,>=0.0.0a0
               - *ucx_py_cu12
           - matrix:
             packages:
-              - *cugraph_unsuffixed
+              - &cugraph_unsuffixed cugraph==24.12.*,>=0.0.0a0
               - cugraph-service-client==24.12.*,>=0.0.0a0
               - *ucx_py_unsuffixed
   test_cpp:
@@ -689,32 +566,12 @@ dependencies:
         packages:
             # not needed by nx-cugraph tests, but is required for running networkx tests
           - pytest-mpl
-  cugraph_dgl_dev:
-    common:
-      - output_types: [conda]
-        packages:
-          - *cugraph_unsuffixed
-          # ceiling could be removed when this is fixed:
-          # https://github.com/conda-forge/pytorch-cpu-feedstock/issues/254
-          - &pytorch_conda pytorch>=2.3,<2.4.0a0
-          - pytorch-cuda==11.8
-          - &tensordict tensordict>=0.1.2
-          - dgl>=2.4.0.cu*
-  cugraph_pyg_dev:
-    common:
-      - output_types: [conda]
-        packages:
-          - *cugraph_unsuffixed
-          - *pytorch_conda
-          - pytorch-cuda==11.8
-          - *tensordict
-          - pytorch_geometric>=2.5,<2.6
 
   depends_on_pytorch:
     common:
       - output_types: [conda]
         packages:
-          - *pytorch_conda
+          - &pytorch_conda pytorch>=2.3,<2.4.0a0
           - torchdata
           - pydantic
           - ogb
@@ -735,7 +592,7 @@ dependencies:
           - matrix: {cuda: "12.*"}
             packages:
               - &pytorch_pip torch>=2.3,<2.4.0a0
-              - *tensordict
+              - &tensordict tensordict>=0.1.2
           - matrix: {cuda: "11.*"}
             packages:
               - *pytorch_pip
