@@ -72,33 +72,6 @@ class Tests_GRAPH500_MGBFS
 
   static void SetUpTestCase()
   {
-#if 1
-    auto ret = setenv("NCCL_DEBUG", "WARN", 1);
-    if (ret != 0) std::cout << "setenv(\"NCCL_DEBUG\", \"TRACE\", 1) returned " << ret << std::endl;
-#endif
-#if 0  // workstation
-       // nothing
-#else
-#if 0  // for CW
-    ret = setenv("NCCL_NET", "IB", 1);
-    if (ret != 0) std::cout << "setenv(\"NCCL_NET\", \"IB\", 1) returned " << ret << std::endl;
-    ret = setenv("NCCL_SOCKET_IFNAME", "enp90s0f0np0", 1);
-    if (ret != 0)
-      std::cout << "setenv(\"NCCL_SOCKET_IFNAME\", \"enp90s0f0np0\", 1) returned " << ret
-                << std::endl;
-#else  // for EOS
-    ret = setenv("NCCL_COLLNET_ENABLE", "0", 1);
-    if (ret != 0)
-      std::cout << "setenv(\"NCCL_COLLNET_ENABLE\", \"0\", 1) returned " << ret << std::endl;
-    ret = setenv("NCCL_SHARP_DISABLE", "1", 1);
-    if (ret != 0)
-      std::cout << "setenv(\"NCCL_SHARP_DISABLE\", \"1\", 1) returned " << ret << std::endl;
-    ret = setenv("NCCL_SHARP_GROUP_SIZE_THRESH", "8", 1);
-    if (ret != 0)
-      std::cout << "setenv(\"NCCL_SHARP_GROUP_SIZE_THRESH\", \"8\", 1) returned " << ret
-                << std::endl;
-#endif
-#endif
     size_t pool_size =
       16;  // note that CUDA_DEVICE_MAX_CONNECTIONS (default: 8) should be set to a value larger
            // than pool_size to avoid false dependency among different streams
