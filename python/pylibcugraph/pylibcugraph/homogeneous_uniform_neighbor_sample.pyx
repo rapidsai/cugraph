@@ -17,6 +17,7 @@
 from libc.stdint cimport uintptr_t
 from pylibcugraph._cugraph_c.types cimport (
     bool_t,
+    SIZE_T
 )
 from pylibcugraph._cugraph_c.resource_handle cimport (
     cugraph_resource_handle_t,
@@ -218,6 +219,16 @@ def homogeneous_uniform_neighbor_sample(ResourceHandle resource_handle,
      'destinations': array([1, 3, 3, 4], dtype=int32),
      'indices': array([3.1, 4.1, 7.2, 3.2], dtype=float32)}
 
+    >>> start_vertices = cupy.asarray([2, 5, 1]).astype(numpy.int32)
+    >>> starting_vertex_label_offsets = cupy.asarray([0, 2, 3])
+    >>> sampling_results = pylibcugraph.homogeneous_uniform_neighbor_sample(
+    ...         resource_handle, G, start_vertices, starting_vertex_label_offsets,
+    ...         h_fan_out, False, True)
+    >>> >>> sampling_results
+    {'sources': array([2, 2, 5, 5, 1, 1], dtype=int32),
+     'destinations': array([1, 3, 3, 4, 3, 4], dtype=int32),
+     'indices': array([3.1, 4.1, 7.2, 3.2, 2.1, 1.1], dtype=float32)}
+
     """
     cdef cugraph_resource_handle_t* c_resource_handle_ptr = (
         resource_handle.c_resource_handle_ptr
@@ -282,7 +293,7 @@ def homogeneous_uniform_neighbor_sample(ResourceHandle resource_handle,
             cugraph_type_erased_device_array_view_create(
                 <void*>cai_starting_vertex_label_offsets_ptr,
                 len(starting_vertex_label_offsets),
-                get_c_type_from_numpy_type(starting_vertex_label_offsets.dtype)
+                SIZE_T
             )
 
     cdef cugraph_type_erased_device_array_view_t* label_offsets_ptr = <cugraph_type_erased_device_array_view_t*>NULL

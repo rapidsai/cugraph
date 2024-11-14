@@ -17,6 +17,7 @@
 from libc.stdint cimport uintptr_t
 from pylibcugraph._cugraph_c.types cimport (
     bool_t,
+    SIZE_T
 )
 from pylibcugraph._cugraph_c.resource_handle cimport (
     cugraph_resource_handle_t,
@@ -212,25 +213,31 @@ def heterogeneous_biased_neighbor_sample(ResourceHandle resource_handle,
     Examples
     --------
     >>> import pylibcugraph, cupy, numpy
-    >>> srcs = cupy.asarray([0, 1, 1, 2, 2, 2, 3, 4, 1, 3, 4, 0, 1, 3, 5, 5], dtype=numpy.int32)
-    >>> dsts = cupy.asarray([1, 3, 4, 0, 1, 3, 5, 5, 0, 1, 1, 2, 2, 2, 3, 4], dtype=numpy.int32)
-    >>> weights = cupy.asarray([0.1, 2.1, 1.1, 5.1, 3.1, 4.1, 7.2, 3.2, 0.1, 2.1, 1.1, 5.1, 3.1,
-    ...                         4.1, 7.2, 3.2], dtype=numpy.float32)
-    >>> start_vertices = cupy.asarray([2, 5]).astype(numpy.int32)
-    >>> num_edge_types = 1
+    >>> srcs = cupy.asarray([0, 1, 1, 2, 2, 2, 3, 4, 1, 3, 4, 0, 1, 3, 5, 5],
+    ...                     dtype=numpy.int32)
+    >>> dsts = cupy.asarray([1, 3, 4, 0, 1, 3, 5, 5, 0, 1, 1, 2, 2, 2, 3, 4],
+    ...                     dtype=numpy.int32)
+    >>> weights = cupy.asarray([0.1, 2.1, 1.1, 5.1, 3.1, 4.1, 7.2, 3.2, 0.1, 2.1,
+    ...                         1.1, 5.1, 3.1,  4.1, 7.2, 3.2], dtype=numpy.float32)
+    >>> edge_types = cupy.asarray([0, 1, 1, 0, 0, 1, 1, 1, 0, 1, 0, 0, 1, 1, 1, 1],
+    ...                            dtype=numpy.int32)
+    >>> start_vertices = cupy.asarray([2, 5, 1]).astype(numpy.int32)
+    >>> num_edge_types = 2
+    >>> starting_vertex_label_offsets = cupy.asarray([0, 2, 3])
     >>> h_fan_out = numpy.array([2]).astype(numpy.int32)
     >>> resource_handle = pylibcugraph.ResourceHandle()
     >>> graph_props = pylibcugraph.GraphProperties(
     ...     is_symmetric=False, is_multigraph=False)
     >>> G = pylibcugraph.SGGraph(
     ...     resource_handle, graph_props, srcs, dsts, weight_array=weights,
-    ...     store_transposed=True, renumber=False, do_expensive_check=False)
+    ...     store_transposed=False, renumber=False, do_expensive_check=False)
     >>> sampling_results = pylibcugraph.heterogeneous_biased_neighbor_sample(
-    ...         resource_handle, G, start_vertices, None, h_fan_out, num_edge_types, False, True)
+    ...         resource_handle, G, start_vertices, starting_vertex_label_offsets,
+    ...         h_fan_out, num_edge_types, False, True)
     >>> sampling_results
-    {'sources': array([2, 2, 5, 5], dtype=int32),
-     'destinations': array([1, 3, 3, 4], dtype=int32),
-     'indices': array([3.1, 4.1, 7.2, 3.2], dtype=float32)}
+    {'sources': array([2, 2, 2, 5, 5, 1, 1, 1, 1], dtype=int32),
+     'destinations': array([0, 1, 3, 3, 4, 0, 2, 3, 4], dtype=int32),
+     'indices': array([5.1, 3.1, 4.1, 7.2, 3.2, 0.1, 3.1, 2.1, 1.1], dtype=float32)}
 
     """
     cdef cugraph_resource_handle_t* c_resource_handle_ptr = (
@@ -297,7 +304,7 @@ def heterogeneous_biased_neighbor_sample(ResourceHandle resource_handle,
             cugraph_type_erased_device_array_view_create(
                 <void*>cai_starting_vertex_label_offsets_ptr,
                 len(starting_vertex_label_offsets),
-                get_c_type_from_numpy_type(starting_vertex_label_offsets.dtype)
+                SIZE_T
             )
 
     cdef cugraph_type_erased_device_array_view_t* label_offsets_ptr = <cugraph_type_erased_device_array_view_t*>NULL
