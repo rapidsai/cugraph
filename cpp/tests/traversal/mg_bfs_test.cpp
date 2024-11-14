@@ -341,10 +341,10 @@ INSTANTIATE_TEST_SUITE_P(
     std::make_tuple(
       BFS_Usecase{0, false, false},
       cugraph::test::Rmat_Usecase(
-        20, 16, 0.57, 0.19, 0.19, 0, true /* undirected */, false /* scramble vertex IDs */)),
+        20, 16, 0.57, 0.19, 0.19, 0, false, false /* scramble vertex IDs */)),
     std::make_tuple(
       BFS_Usecase{0, true, false},
       cugraph::test::Rmat_Usecase(
-        20, 16, 0.57, 0.19, 0.19, 0, true /* undirected */, false /* scramble vertex IDs */))));
+        20, 16, 0.57, 0.19, 0.19, 0, false, false /* scramble vertex IDs */))));
 
 CUGRAPH_MG_TEST_PROGRAM_MAIN()

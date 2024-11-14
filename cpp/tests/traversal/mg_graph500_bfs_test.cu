@@ -73,8 +73,8 @@ class Tests_GRAPH500_MGBFS
   static void SetUpTestCase()
   {
     size_t pool_size =
-      16;  // note that CUDA_DEVICE_MAX_CONNECTIONS (default: 8) should be set to a value larger
-           // than pool_size to avoid false dependency among different streams
+      8;  // note that CUDA_DEVICE_MAX_CONNECTIONS (default: 8) should be set to a value larger than
+          // pool_size to avoid false dependency among different streams
     handle_ = cugraph::test::initialize_mg_handle(pool_size);
   }
 

@@ -77,14 +77,10 @@ inline auto make_pool(bool use_max = false)
   // effect the maximum amount of parallel tests, and therefore `tests/CMakeLists.txt`
   // `_CUGRAPH_TEST_PERCENT` default value will need to be audited.
   auto const [free, total] = rmm::available_device_memory();
-  auto const init_alloc =
+  auto const min_alloc =
     use_max ? rmm::align_down(std::min(free, total / 2), rmm::CUDA_ALLOCATION_ALIGNMENT)
             : rmm::align_down(std::min(free, total / 10), rmm::CUDA_ALLOCATION_ALIGNMENT);
-  std::optional<size_t> max_alloc{};
-  if (use_max) {
-    max_alloc = init_alloc;
-  }
-  return rmm::mr::make_owning_wrapper<rmm::mr::pool_memory_resource>(make_cuda(), init_alloc, max_alloc);
+  return rmm::mr::make_owning_wrapper<rmm::mr::pool_memory_resource>(make_cuda(), min_alloc);
 }
 
 inline auto make_binning()
@@ -236,9 +232,6 @@ inline auto parse_test_options(int argc, char** argv)
 #define CUGRAPH_MG_TEST_PROGRAM_MAIN()                                                  \
   int main(int argc, char** argv)                                                       \
   {                                                                                     \
-    if (setenv("CUDA_DEVICE_MAX_CONNECTIONS", "18", 1) != 0) {                          \
-      std::cerr << "setenv() returned ret" << std::endl;                                \
-    }                                                                                   \
     cugraph::test::initialize_mpi(argc, argv);                                          \
     auto comm_rank = cugraph::test::query_mpi_comm_world_rank();                        \
     auto comm_size = cugraph::test::query_mpi_comm_world_size();                        \
