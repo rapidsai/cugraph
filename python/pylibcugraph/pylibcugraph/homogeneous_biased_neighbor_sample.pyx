@@ -200,7 +200,29 @@ def homogeneous_biased_neighbor_sample(ResourceHandle resource_handle,
     array containing the renumber map, and the sixth item in the tuple is a
     device array containing the renumber map offsets (which delineate where
     the renumber map for each batch starts).
-
+    
+    Examples
+    --------
+    >>> import pylibcugraph, cupy, numpy
+    >>> srcs = cupy.asarray([0, 1, 1, 2, 2, 2, 3, 4, 1, 3, 4, 0, 1, 3, 5, 5], dtype=numpy.int32)
+    >>> dsts = cupy.asarray([1, 3, 4, 0, 1, 3, 5, 5, 0, 1, 1, 2, 2, 2, 3, 4], dtype=numpy.int32)
+    >>> weights = cupy.asarray([0.1, 2.1, 1.1, 5.1, 3.1, 4.1, 7.2, 3.2, 0.1, 2.1, 1.1, 5.1, 3.1,
+    ...                         4.1, 7.2, 3.2], dtype=numpy.float32)
+    >>> start_vertices = cupy.asarray([2, 5]).astype(numpy.int32)
+    >>> h_fan_out = numpy.array([2]).astype(numpy.int32)
+    >>> resource_handle = pylibcugraph.ResourceHandle()
+    >>> graph_props = pylibcugraph.GraphProperties(
+    ...     is_symmetric=False, is_multigraph=False)
+    >>> G = pylibcugraph.SGGraph(
+    ...     resource_handle, graph_props, srcs, dsts, weight_array=weights,
+    ...     store_transposed=True, renumber=False, do_expensive_check=False)
+    >>> sampling_results = pylibcugraph.homogeneous_biased_neighbor_sample(
+    ...         resource_handle, G, start_vertices, None, h_fan_out, False, True)
+    >>> sampling_results
+    {'sources': array([2, 2, 5, 5], dtype=int32),
+     'destinations': array([1, 3, 3, 4], dtype=int32),
+     'indices': array([3.1, 4.1, 7.2, 3.2], dtype=float32)}
+    
     """
     cdef cugraph_resource_handle_t* c_resource_handle_ptr = (
         resource_handle.c_resource_handle_ptr
@@ -226,7 +248,7 @@ def homogeneous_biased_neighbor_sample(ResourceHandle resource_handle,
     assert_AI_type(h_fan_out, "h_fan_out")
 
     if starting_vertex_label_offsets is not None:
-        if starting_vertex_label_offsets.iloc[-1] != len(start_vertex_list):
+        if starting_vertex_label_offsets[-1] != len(start_vertex_list):
             raise ValueError(
                 "'starting_vertex_label_offsets' and 'start_vertex_list' must be proportional")
 
