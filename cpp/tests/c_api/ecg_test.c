@@ -46,11 +46,11 @@ int generic_ecg_test(vertex_t* h_src,
   cugraph_graph_t* graph                           = NULL;
   cugraph_hierarchical_clustering_result_t* result = NULL;
 
-  data_type_id_t vertex_tid    = INT32;
-  data_type_id_t edge_tid      = INT32;
-  data_type_id_t weight_tid    = FLOAT32;
-  data_type_id_t edge_id_tid   = INT32;
-  data_type_id_t edge_type_tid = INT32;
+  cugraph_data_type_id_t vertex_tid    = INT32;
+  cugraph_data_type_id_t edge_tid      = INT32;
+  cugraph_data_type_id_t weight_tid    = FLOAT32;
+  cugraph_data_type_id_t edge_id_tid   = INT32;
+  cugraph_data_type_id_t edge_type_tid = INT32;
 
   handle = cugraph_create_resource_handle(NULL);
   TEST_ASSERT(test_ret_value, handle != NULL, "resource handle creation failed.");

@@ -15,6 +15,10 @@ rapids-generate-version > ./VERSION
 
 cd "${package_dir}"
 
+sccache --zero-stats
+
+rapids-logger "Building '${package_name}' wheel"
+
 python -m pip wheel \
     -w dist \
     -v \
@@ -23,12 +27,13 @@ python -m pip wheel \
     --extra-index-url https://pypi.nvidia.com \
     .
 
+sccache --show-adv-stats
+
 # pure-python packages should be marked as pure, and not have auditwheel run on them.
-if [[ ${package_name} == "nx-cugraph" ]] || \
-   [[ ${package_name} == "cugraph-dgl" ]] || \
+if [[ ${package_name} == "cugraph-dgl" ]] || \
    [[ ${package_name} == "cugraph-pyg" ]] || \
    [[ ${package_name} == "cugraph-equivariant" ]]; then
-    RAPIDS_PY_WHEEL_NAME="${package_name}_${RAPIDS_PY_CUDA_SUFFIX}" RAPIDS_PY_WHEEL_PURE="1" rapids-upload-wheels-to-s3 dist
+    RAPIDS_PY_WHEEL_NAME="${package_name}_${RAPIDS_PY_CUDA_SUFFIX}" RAPIDS_PY_WHEEL_PURE="1" rapids-upload-wheels-to-s3 python dist
 else
     case "${RAPIDS_CUDA_VERSION}" in
         12.*)
@@ -48,5 +53,5 @@ else
 
     mkdir -p final_dist
     python -m auditwheel repair -w final_dist "${EXCLUDE_ARGS[@]}" dist/*
-    RAPIDS_PY_WHEEL_NAME="${package_name}_${RAPIDS_PY_CUDA_SUFFIX}" rapids-upload-wheels-to-s3 final_dist
+    RAPIDS_PY_WHEEL_NAME="${package_name}_${RAPIDS_PY_CUDA_SUFFIX}" rapids-upload-wheels-to-s3 python final_dist
 fi

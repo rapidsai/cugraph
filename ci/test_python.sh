@@ -39,7 +39,6 @@ rapids-mamba-retry install \
   "libcugraph=${RAPIDS_VERSION_MAJOR_MINOR}.*" \
   "pylibcugraph=${RAPIDS_VERSION_MAJOR_MINOR}.*" \
   "cugraph=${RAPIDS_VERSION_MAJOR_MINOR}.*" \
-  "nx-cugraph=${RAPIDS_VERSION_MAJOR_MINOR}.*" \
   "cugraph-service-server=${RAPIDS_VERSION_MAJOR_MINOR}.*" \
   "cugraph-service-client=${RAPIDS_VERSION_MAJOR_MINOR}.*"
 
@@ -90,44 +89,6 @@ rapids-logger "pytest cugraph"
 
 rapids-logger "pytest cugraph benchmarks (run as tests)"
 ./ci/run_cugraph_benchmark_pytests.sh --verbose
-
-rapids-logger "pytest nx-cugraph"
-./ci/run_nx_cugraph_pytests.sh \
-  --verbose \
-  --junitxml="${RAPIDS_TESTS_DIR}/junit-nx-cugraph.xml" \
-  --cov-config=../../.coveragerc \
-  --cov=nx_cugraph \
-  --cov-report=xml:"${RAPIDS_COVERAGE_DIR}/nx-cugraph-coverage.xml" \
-  --cov-report=term
-
-rapids-logger "pytest networkx using nx-cugraph backend"
-pushd python/nx-cugraph/nx_cugraph
-../run_nx_tests.sh
-# run_nx_tests.sh outputs coverage data, so check that total coverage is >0.0%
-# in case nx-cugraph failed to load but fallback mode allowed the run to pass.
-_coverage=$(coverage report|grep "^TOTAL")
-echo "nx-cugraph coverage from networkx tests: $_coverage"
-echo $_coverage | awk '{ if ($NF == "0.0%") exit 1 }'
-# Ensure all algorithms were called by comparing covered lines to function lines.
-# Run our tests again (they're fast enough) to add their coverage, then create coverage.json
-NX_CUGRAPH_USE_COMPAT_GRAPHS=False pytest \
-  --pyargs nx_cugraph \
-  --config-file=../pyproject.toml \
-  --cov-config=../pyproject.toml \
-  --cov=nx_cugraph \
-  --cov-append \
-  --cov-report=
-coverage report \
-  --include="*/nx_cugraph/algorithms/*" \
-  --omit=__init__.py \
-  --show-missing \
-  --rcfile=../pyproject.toml
-coverage json --rcfile=../pyproject.toml
-python -m nx_cugraph.tests.ensure_algos_covered
-# Exercise (and show results of) scripts that show implemented networkx algorithms
-python -m nx_cugraph.scripts.print_tree --dispatch-name --plc --incomplete --different
-python -m nx_cugraph.scripts.print_table
-popd
 
 rapids-logger "pytest cugraph-service (single GPU)"
 ./ci/run_cugraph_service_pytests.sh \
