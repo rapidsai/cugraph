@@ -22,8 +22,6 @@
 #include <raft/core/comms.hpp>
 #include <raft/core/handle.hpp>
 
-#include <stdlib.h>  // FIXME: temporarily added for setenv
-
 #include <string>
 
 namespace cugraph {
