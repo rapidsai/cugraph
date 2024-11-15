@@ -187,6 +187,9 @@ set(CUGRAPH_SOURCES
     src/community/detail/maximal_independent_moves_mg_v32_e32.cu
     src/detail/utility_wrappers_32.cu
     src/detail/utility_wrappers_64.cu
+    src/structure/edge_properties_v32.cpp
+    src/structure/edge_properties_v64.cpp
+    src/utilities/cugraph_data_type_id.cpp
     src/structure/graph_view_mg_v64_e64.cu
     src/structure/graph_view_mg_v32_e32.cu
     src/structure/remove_self_loops_sg_v32_e32.cu
