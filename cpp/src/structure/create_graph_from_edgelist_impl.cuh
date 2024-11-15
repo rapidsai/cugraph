@@ -1189,9 +1189,7 @@ create_graph_from_edgelist_impl(
                                    thrust::minimum<size_t>{});
       }
       compressed_v_size = sizeof(vertex_t) - (min_clz / 8);
-      compressed_v_size = std::max(
-        compressed_v_size, size_t{5});  // FIXME: max(compressed_v_size, size_t{1}) is sufficient,
-                                        // but we need to check whether this works at scale 40
+      compressed_v_size = std::max(compressed_v_size, size_t{1});
     }
   }
 
@@ -1286,7 +1284,6 @@ create_graph_from_edgelist_impl(
   }
 
   // 4. compute additional copy_offset vectors
-  // FIXME: we can store chunk data in multiple rmm::device_uvector objects to free memory earlier
 
   std::vector<edge_t> edge_partition_edge_counts(minor_comm_size);
   std::vector<std::vector<edge_t>> edge_partition_intra_partition_segment_offset_vectors(
@@ -1414,60 +1411,32 @@ create_graph_from_edgelist_impl(
     assert(edge_partition_edgelist_compressed_srcs);
     assert(edge_partition_edgelist_compressed_dsts);
 
-    std::vector<std::vector<std::byte>> h_edge_partition_edgelist_compressed_srcs(minor_comm_size);
-    std::vector<std::vector<std::byte>> h_edge_partition_edgelist_compressed_dsts(minor_comm_size);
-    for (size_t i = 0; i < static_cast<size_t>(minor_comm_size); ++i) {
-      h_edge_partition_edgelist_compressed_srcs[i].resize(edge_partition_edge_counts[i] *
-                                                          compressed_v_size);
-      raft::update_host(h_edge_partition_edgelist_compressed_srcs[i].data(),
-                        (*edge_partition_edgelist_compressed_srcs)[i].data(),
-                        (*edge_partition_edgelist_compressed_srcs)[i].size(),
-                        handle.get_stream());
-
-      h_edge_partition_edgelist_compressed_dsts[i].resize(edge_partition_edge_counts[i] *
-                                                          compressed_v_size);
-      raft::update_host(h_edge_partition_edgelist_compressed_dsts[i].data(),
-                        (*edge_partition_edgelist_compressed_dsts)[i].data(),
-                        (*edge_partition_edgelist_compressed_dsts)[i].size(),
-                        handle.get_stream());
-    }
-    (*edge_partition_edgelist_compressed_srcs).clear();
-    (*edge_partition_edgelist_compressed_dsts).clear();
-
     edge_partition_edgelist_srcs.reserve(minor_comm_size);
     edge_partition_edgelist_dsts.reserve(minor_comm_size);
+
     for (int i = 0; i < minor_comm_size; ++i) {
-      edge_partition_edgelist_srcs.push_back(
-        rmm::device_uvector<vertex_t>(edge_partition_edge_counts[i], handle.get_stream()));
-      edge_partition_edgelist_dsts.push_back(
-        rmm::device_uvector<vertex_t>(edge_partition_edge_counts[i], handle.get_stream()));
+      rmm::device_uvector<vertex_t> tmp_srcs(edge_partition_edge_counts[i], handle.get_stream());
+      decompress_vertices(
+        handle,
+        raft::device_span<std::byte const>((*edge_partition_edgelist_compressed_srcs)[i].data(),
+                                           (*edge_partition_edgelist_compressed_srcs)[i].size()),
+        raft::device_span<vertex_t>(tmp_srcs.data(), tmp_srcs.size()),
+        compressed_v_size);
+      edge_partition_edgelist_srcs.push_back(std::move(tmp_srcs));
+      (*edge_partition_edgelist_compressed_srcs)[i].resize(0, handle.get_stream());
+      (*edge_partition_edgelist_compressed_srcs)[i].shrink_to_fit(handle.get_stream());
+
+      rmm::device_uvector<vertex_t> tmp_dsts(edge_partition_edge_counts[i], handle.get_stream());
+      decompress_vertices(
+        handle,
+        raft::device_span<std::byte const>((*edge_partition_edgelist_compressed_dsts)[i].data(),
+                                           (*edge_partition_edgelist_compressed_dsts)[i].size()),
+        raft::device_span<vertex_t>(tmp_dsts.data(), tmp_dsts.size()),
+        compressed_v_size);
+      edge_partition_edgelist_dsts.push_back(std::move(tmp_dsts));
+      (*edge_partition_edgelist_compressed_dsts)[i].resize(0, handle.get_stream());
+      (*edge_partition_edgelist_compressed_dsts)[i].shrink_to_fit(handle.get_stream());
     }
-    for (int i = 0; i < minor_comm_size; ++i) {
-      rmm::device_uvector<std::byte> tmp_bytes(edge_partition_edge_counts[i] * compressed_v_size,
-                                               handle.get_stream());
-
-      raft::update_device(tmp_bytes.data(),
-                          h_edge_partition_edgelist_compressed_srcs[i].data(),
-                          h_edge_partition_edgelist_compressed_srcs[i].size(),
-                          handle.get_stream());
-      decompress_vertices(handle,
-                          raft::device_span<std::byte const>(tmp_bytes.data(), tmp_bytes.size()),
-                          raft::device_span<vertex_t>(edge_partition_edgelist_srcs[i].data(),
-                                                      edge_partition_edgelist_srcs[i].size()),
-                          compressed_v_size);
-
-      raft::update_device(tmp_bytes.data(),
-                          h_edge_partition_edgelist_compressed_dsts[i].data(),
-                          h_edge_partition_edgelist_compressed_dsts[i].size(),
-                          handle.get_stream());
-      decompress_vertices(handle,
-                          raft::device_span<std::byte const>(tmp_bytes.data(), tmp_bytes.size()),
-                          raft::device_span<vertex_t>(edge_partition_edgelist_dsts[i].data(),
-                                                      edge_partition_edgelist_dsts[i].size()),
-                          compressed_v_size);
-    }
-
-    handle.sync_stream();
   }
 
   return create_graph_from_partitioned_edgelist<vertex_t,
