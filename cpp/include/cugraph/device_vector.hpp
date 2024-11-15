@@ -16,7 +16,7 @@
 
 #pragma once
 
-#include "cugraph_c/types.h"
+#include <cugraph_c/types.h>
 
 #include <cugraph/utilities/cugraph_data_type_id.hpp>
 #include <cugraph/utilities/error.hpp>
@@ -71,33 +71,77 @@ class device_vector_t {
     data_ = vector.release();
   }
 
+  /**
+   * Return a pointer of the specified type to the beginning of the vector
+   *
+   * @tparam T      type for the array vector
+   *
+   * @return pointer to the beginning of the vector
+   */
   template <typename T>
   T* begin()
   {
     return reinterpret_cast<T*>(data_.data());
   }
 
+  /**
+   * Return a const pointer of the specified type to the beginning of the vector
+   *
+   * @tparam T      type for the array vector
+   *
+   * @return const pointer to the beginning of the vector
+   */
   template <typename T>
   T const* begin() const
   {
     return reinterpret_cast<T const*>(data_.data());
   }
 
+  /**
+   * Return a pointer of the specified type to the end of the vector
+   *
+   * @tparam T      type for the array vector
+   *
+   * @return pointer to the end of the vector
+   */
   template <typename T>
   T* end()
   {
     return reinterpret_cast<T*>(data_.data()) + size_;
   }
 
+  /**
+   * Return a const pointer of the specified type to the end of the vector
+   *
+   * @tparam T      type for the array vector
+   *
+   * @return const pointer to the end of the vector
+   */
   template <typename T>
   T const* end() const
   {
     return reinterpret_cast<T const*>(data_.data()) + size_;
   }
 
+  /**
+   * Return the type of the vector
+   *
+   * @return type id of the type stored in the vector
+   */
   cugraph_data_type_id_t type() const { return type_; }
+
+  /**
+   * Return the number of elements in the vector
+   *
+   * @return number of elements in the vector
+   */
   size_t size() const { return size_; }
 
+  /**
+   * Release the vector and shrink the memory used
+   *
+   * @param stream_view  CUDA stream
+   */
   void clear(rmm::cuda_stream_view stream_view)
   {
     data_.resize(0, stream_view);

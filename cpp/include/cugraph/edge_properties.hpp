@@ -16,9 +16,9 @@
 
 #pragma once
 
-#include "cugraph/device_vector.hpp"
-#include "cugraph_c/types.h"
+#include <cugraph_c/types.h>
 
+#include <cugraph/device_vector.hpp>
 #include <cugraph/edge_property.hpp>
 #include <cugraph/utilities/cugraph_data_type_id.hpp>
 #include <cugraph/utilities/error.hpp>
@@ -139,7 +139,7 @@ class edge_properties_t {
    * @tparam value_t    Typename for the property
    * @param  idx        Index of the property
    *
-   * @returns a read-only view for accessing the property
+   * @return a read-only view for accessing the property
    */
   template <typename edge_t, typename value_t>
   edge_property_view_t<edge_t, value_t const*> view(size_t idx) const;
@@ -154,13 +154,15 @@ class edge_properties_t {
    * @tparam value_t    Typename for the property
    * @param  idx        Index of the property
    *
-   * @returns a read-write view for accessing the property
+   * @return a read-write view for accessing the property
    */
   template <typename edge_t, typename value_t>
   edge_property_view_t<edge_t, value_t*> mutable_view(size_t idx);
 
   /**
    * Return list of defined properties
+   *
+   * @return vector of defined property indexes
    */
   std::vector<size_t> defined() const;
 
