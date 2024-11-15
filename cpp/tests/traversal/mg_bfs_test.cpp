@@ -100,16 +100,6 @@ class Tests_MGBFS : public ::testing::TestWithParam<std::tuple<BFS_Usecase, inpu
         *handle_, mg_graph_view, 2);
       mg_graph_view.attach_edge_mask((*edge_mask).view());
     }
-    {  // FIXME: for testing, delete
-      auto num_self_loops  = mg_graph_view.count_self_loops(*handle_);
-      auto number_of_edges = mg_graph_view.compute_number_of_edges(*handle_);
-      std::cout << "V=" << mg_graph_view.number_of_vertices() << " E=" << number_of_edges
-                << " num_self_loops=" << num_self_loops;
-      if (mg_graph_view.is_symmetric()) {
-        std::cout << " undirected E=" << ((number_of_edges - num_self_loops) / 2 + num_self_loops)
-                  << std::endl;
-      }
-    }
 
     ASSERT_TRUE(static_cast<vertex_t>(bfs_usecase.source) >= 0 &&
                 static_cast<vertex_t>(bfs_usecase.source) < mg_graph_view.number_of_vertices())
