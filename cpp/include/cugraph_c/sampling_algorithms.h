@@ -777,6 +777,26 @@ cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_renumber_map_
 
 /**
  * @ingroup samplingC
+ * @brief     Get the edge renumber map
+ *
+ * @param [in]   result   The result from a sampling algorithm
+ * @return type erased array pointing to the renumber map
+ */
+cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_renumbered_and_sorted_edge_id_renumber_map(
+  const cugraph_sample_result_t* result);
+
+/**
+ * @ingroup samplingC
+ * @brief     Get the edge renumber map offets
+ *
+ * @param [in]   result   The result from a sampling algorithm
+ * @return type erased array pointing to the renumber map
+ */
+cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_renumbered_and_sorted_edge_id_renumber_map_label_type_offsets(
+  const cugraph_sample_result_t* result);
+
+/**
+ * @ingroup samplingC
  * @brief     Free a sampling result
  *
  * @param [in]   result   The result from a sampling algorithm
