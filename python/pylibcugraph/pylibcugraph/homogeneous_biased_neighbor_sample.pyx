@@ -224,9 +224,9 @@ def homogeneous_biased_neighbor_sample(ResourceHandle resource_handle,
     ...         resource_handle, G, start_vertices, starting_vertex_label_offsets,
     ...         h_fan_out, False, True)
     >>> >>> sampling_results
-    {'sources': array([2, 2, 5, 5, 1, 1], dtype=int32),
-     'destinations': array([1, 3, 3, 4, 3, 4], dtype=int32),
-     'indices': array([3.1, 4.1, 7.2, 3.2, 2.1, 1.1], dtype=float32)}
+    {'majors': array([2, 2, 5, 5, 1, 1], dtype=int32),
+     'minors': array([1, 3, 3, 4, 3, 4], dtype=int32),
+     'weight': array([3.1, 4.1, 7.2, 3.2, 2.1, 1.1], dtype=float32)}
 
     """
     cdef cugraph_resource_handle_t* c_resource_handle_ptr = (
