@@ -67,7 +67,8 @@ struct cugraph_sample_result_t {
   cugraph_type_erased_device_array_t* renumber_map_{nullptr};
   cugraph_type_erased_device_array_t* renumber_map_offsets_{nullptr};
   cugraph_type_erased_device_array_t* renumbered_and_sorted_edge_id_renumber_map_{nullptr};
-  cugraph_type_erased_device_array_t* renumbered_and_sorted_edge_id_renumber_map_label_type_offsets_{nullptr};
+  cugraph_type_erased_device_array_t*
+    renumbered_and_sorted_edge_id_renumber_map_label_type_offsets_{nullptr};
 };
 
 }  // namespace c_api
@@ -873,9 +874,9 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
       std::optional<rmm::device_uvector<label_t>> local_label_to_comm_rank{std::nullopt};
       std::optional<rmm::device_uvector<label_t>> label_to_comm_rank{
         std::nullopt};  // global after allgatherv
-      
+
       std::optional<rmm::device_uvector<edge_t>> renumbered_and_sorted_edge_id_renumber_map(
-            std::nullopt);
+        std::nullopt);
       std::optional<rmm::device_uvector<size_t>>
         renumbered_and_sorted_edge_id_renumber_map_label_type_offsets(std::nullopt);
 
@@ -1162,7 +1163,7 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
                 hop ? fan_out_->size_ : size_t{1},
                 src_is_major,
                 do_expensive_check_);
-            
+
             majors.emplace(std::move(output_majors));
             renumber_map.emplace(std::move(output_renumber_map));
           } else {
@@ -1226,8 +1227,8 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
           cugraph::detail::sequence_fill(handle_.get_stream(),
                                          vertex_type_offsets.begin(),
                                          vertex_type_offsets.size(),
-                                         vertex_t{0} // FIXME: Update array
-                                         );
+                                         vertex_t{0}  // FIXME: Update array
+          );
 
           rmm::device_uvector<vertex_t> output_majors(0, handle_.get_stream());
           rmm::device_uvector<vertex_t> output_renumber_map(0, handle_.get_stream());
@@ -1348,12 +1349,14 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
         (renumber_map_offsets) ? new cugraph::c_api::cugraph_type_erased_device_array_t(
                                    renumber_map_offsets.value(), SIZE_T)
                                : nullptr,
-        (renumbered_and_sorted_edge_id_renumber_map) ? new cugraph::c_api::cugraph_type_erased_device_array_t(
-                                   renumbered_and_sorted_edge_id_renumber_map.value(), graph_->edge_type_)
-                               : nullptr,
-        (renumbered_and_sorted_edge_id_renumber_map_label_type_offsets) ? new cugraph::c_api::cugraph_type_erased_device_array_t(
-                                   renumbered_and_sorted_edge_id_renumber_map_label_type_offsets.value(), SIZE_T)
-                               : nullptr};
+        (renumbered_and_sorted_edge_id_renumber_map)
+          ? new cugraph::c_api::cugraph_type_erased_device_array_t(
+              renumbered_and_sorted_edge_id_renumber_map.value(), graph_->edge_type_)
+          : nullptr,
+        (renumbered_and_sorted_edge_id_renumber_map_label_type_offsets)
+          ? new cugraph::c_api::cugraph_type_erased_device_array_t(
+              renumbered_and_sorted_edge_id_renumber_map_label_type_offsets.value(), SIZE_T)
+          : nullptr};
     }
   }
 };
@@ -1590,7 +1593,8 @@ extern "C" cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_re
                internal_pointer->renumber_map_offsets_->view());
 }
 
-extern "C" cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_renumbered_and_sorted_edge_id_renumber_map(
+extern "C" cugraph_type_erased_device_array_view_t*
+cugraph_sample_result_get_renumbered_and_sorted_edge_id_renumber_map(
   const cugraph_sample_result_t* result)
 {
   auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_sample_result_t const*>(result);
@@ -1600,14 +1604,16 @@ extern "C" cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_re
                internal_pointer->renumbered_and_sorted_edge_id_renumber_map_->view());
 }
 
-extern "C" cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_renumbered_and_sorted_edge_id_renumber_map_label_type_offsets(
+extern "C" cugraph_type_erased_device_array_view_t*
+cugraph_sample_result_get_renumbered_and_sorted_edge_id_renumber_map_label_type_offsets(
   const cugraph_sample_result_t* result)
 {
   auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_sample_result_t const*>(result);
   return internal_pointer->renumber_map_ == nullptr
            ? NULL
            : reinterpret_cast<cugraph_type_erased_device_array_view_t*>(
-               internal_pointer->renumbered_and_sorted_edge_id_renumber_map_label_type_offsets_->view());
+               internal_pointer->renumbered_and_sorted_edge_id_renumber_map_label_type_offsets_
+                 ->view());
 }
 
 extern "C" cugraph_error_code_t cugraph_test_uniform_neighborhood_sample_result_create(

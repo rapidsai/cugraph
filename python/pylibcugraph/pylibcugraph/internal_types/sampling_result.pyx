@@ -273,7 +273,7 @@ cdef class SamplingResult:
 
         return create_cupy_array_view_for_device_ptr(device_array_view_ptr,
                                                      self)
-    
+
     def get_renumbered_and_sorted_edge_id_renumber_map_label_type_offsets(self):
         if self.c_sample_result_ptr is NULL:
             raise ValueError("pointer not set, must call set_ptr() with a "

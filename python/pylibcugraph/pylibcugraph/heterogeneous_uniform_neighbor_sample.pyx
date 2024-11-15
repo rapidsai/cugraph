@@ -409,7 +409,7 @@ def heterogeneous_uniform_neighbor_sample(ResourceHandle resource_handle,
             'edge_renumber_map' : cupy_edge_renumber_map,
             'edge_renumber_map_offsets' : cupy_edge_renumber_map_offsets
         }
-       
+
     else:
         sampling_results = {
             'major_offsets': cupy_major_offsets,
@@ -421,6 +421,6 @@ def heterogeneous_uniform_neighbor_sample(ResourceHandle resource_handle,
             'batch_id': cupy_batch_ids,
             'label_hop_offsets': cupy_label_hop_offsets,
         }
-    
+
     # Return everything that isn't null
     return {k: v for k, v in sampling_results.items() if v is not None}

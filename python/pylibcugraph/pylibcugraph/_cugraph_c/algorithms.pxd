@@ -177,12 +177,12 @@ cdef extern from "cugraph_c/algorithms.h":
         cugraph_sample_result_get_renumber_map_offsets(
             const cugraph_sample_result_t* result
         )
-    
+
     cdef cugraph_type_erased_device_array_view_t* \
         cugraph_sample_result_get_renumbered_and_sorted_edge_id_renumber_map(
             const cugraph_sample_result_t* result
         )
-    
+
     cdef cugraph_type_erased_device_array_view_t* \
         cugraph_sample_result_get_renumbered_and_sorted_edge_id_renumber_map_label_type_offsets(
             const cugraph_sample_result_t* result
