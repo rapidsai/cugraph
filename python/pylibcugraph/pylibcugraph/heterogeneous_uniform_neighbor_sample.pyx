@@ -95,8 +95,7 @@ def heterogeneous_uniform_neighbor_sample(ResourceHandle resource_handle,
                                           retain_seeds=False,
                                           compression='COO',
                                           compress_per_hop=False,
-                                          random_state=None,
-                                          return_dict=True):
+                                          random_state=None):
     """
     Performs uniform neighborhood sampling, which samples nodes from
     a graph based on the current node's neighbors, with a corresponding fan_out
@@ -179,12 +178,6 @@ def heterogeneous_uniform_neighbor_sample(ResourceHandle resource_handle,
         Random state to use when generating samples.  Optional argument,
         defaults to a hash of process id, time, and hostname.
         (See pylibcugraph.random.CuGraphRandomState)
-
-    return_dict: bool (Optional)
-        Whether to return a dictionary instead of a tuple.
-        Optional argument, defaults to True, returning a dictionary.
-        This argument will eventually be deprecated in favor
-        of always returning a dictionary.
 
     Returns
     -------
