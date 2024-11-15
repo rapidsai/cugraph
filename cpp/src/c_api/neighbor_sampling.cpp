@@ -1283,6 +1283,7 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
           }
 
           majors.emplace(std::move(output_majors));
+          // FIXME: Need to update renumber_map because default values are being passed
           renumber_map.emplace(std::move(output_renumber_map));
         }
 
