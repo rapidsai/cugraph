@@ -426,7 +426,3 @@ def heterogeneous_biased_neighbor_sample(ResourceHandle resource_handle,
 
     # Return everything that isn't null
     return {k: v for k, v in sampling_results.items() if v is not None}
-
-
-
-
