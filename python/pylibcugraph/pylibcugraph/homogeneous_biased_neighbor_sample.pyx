@@ -383,8 +383,8 @@ def homogeneous_biased_neighbor_sample(ResourceHandle resource_handle,
     if renumber:
         cupy_renumber_map = result.get_renumber_map()
         cupy_renumber_map_offsets = result.get_renumber_map_offsets()
-        cupy_edge_renumber_map = result.get_renumbered_and_sorted_edge_id_renumber_map()
-        cupy_edge_renumber_map_offsets = result.get_renumbered_and_sorted_edge_id_renumber_map_label_type_offsets()
+        cupy_edge_renumber_map = result.get_edge_renumber_map()
+        cupy_edge_renumber_map_offsets = result.get_edge_renumber_map_offsets()
 
         sampling_results = {
             'major_offsets': cupy_major_offsets,

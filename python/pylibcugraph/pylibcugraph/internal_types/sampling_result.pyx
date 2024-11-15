@@ -34,8 +34,8 @@ from pylibcugraph._cugraph_c.algorithms cimport (
     cugraph_sample_result_get_offsets, # deprecated
     cugraph_sample_result_get_renumber_map,
     cugraph_sample_result_get_renumber_map_offsets,
-    cugraph_sample_result_get_renumbered_and_sorted_edge_id_renumber_map,
-    cugraph_sample_result_get_renumbered_and_sorted_edge_id_renumber_map_label_type_offsets,
+    cugraph_sample_result_get_edge_renumber_map,
+    cugraph_sample_result_get_edge_renumber_map_offsets,
     cugraph_sample_result_free,
 )
 from pylibcugraph.utils cimport (
@@ -261,12 +261,12 @@ cdef class SamplingResult:
                                                      self)
 
 
-    def get_renumbered_and_sorted_edge_id_renumber_map(self):
+    def get_edge_renumber_map(self):
         if self.c_sample_result_ptr is NULL:
             raise ValueError("pointer not set, must call set_ptr() with a "
                              "non-NULL value first.")
         cdef cugraph_type_erased_device_array_view_t* device_array_view_ptr = (
-            cugraph_sample_result_get_renumbered_and_sorted_edge_id_renumber_map(self.c_sample_result_ptr)
+            cugraph_sample_result_get_edge_renumber_map(self.c_sample_result_ptr)
         )
         if device_array_view_ptr is NULL:
             return None
@@ -274,12 +274,12 @@ cdef class SamplingResult:
         return create_cupy_array_view_for_device_ptr(device_array_view_ptr,
                                                      self)
 
-    def get_renumbered_and_sorted_edge_id_renumber_map_label_type_offsets(self):
+    def get_edge_renumber_map_offsets(self):
         if self.c_sample_result_ptr is NULL:
             raise ValueError("pointer not set, must call set_ptr() with a "
                              "non-NULL value first.")
         cdef cugraph_type_erased_device_array_view_t* device_array_view_ptr = (
-            cugraph_sample_result_get_renumbered_and_sorted_edge_id_renumber_map_label_type_offsets(self.c_sample_result_ptr)
+            cugraph_sample_result_get_edge_renumber_map_offsets(self.c_sample_result_ptr)
         )
         if device_array_view_ptr is NULL:
             return None
