@@ -67,8 +67,7 @@ struct cugraph_sample_result_t {
   cugraph_type_erased_device_array_t* renumber_map_{nullptr};
   cugraph_type_erased_device_array_t* renumber_map_offsets_{nullptr};
   cugraph_type_erased_device_array_t* edge_renumber_map_{nullptr};
-  cugraph_type_erased_device_array_t*
-    edge_renumber_map_offsets_{nullptr};
+  cugraph_type_erased_device_array_t* edge_renumber_map_offsets_{nullptr};
 };
 
 }  // namespace c_api
@@ -1593,8 +1592,7 @@ extern "C" cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_re
                internal_pointer->renumber_map_offsets_->view());
 }
 
-extern "C" cugraph_type_erased_device_array_view_t*
-cugraph_sample_result_get_edge_renumber_map(
+extern "C" cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_edge_renumber_map(
   const cugraph_sample_result_t* result)
 {
   auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_sample_result_t const*>(result);
@@ -1605,15 +1603,13 @@ cugraph_sample_result_get_edge_renumber_map(
 }
 
 extern "C" cugraph_type_erased_device_array_view_t*
-cugraph_sample_result_get_edge_renumber_map_offsets(
-  const cugraph_sample_result_t* result)
+cugraph_sample_result_get_edge_renumber_map_offsets(const cugraph_sample_result_t* result)
 {
   auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_sample_result_t const*>(result);
   return internal_pointer->renumber_map_ == nullptr
            ? NULL
            : reinterpret_cast<cugraph_type_erased_device_array_view_t*>(
-               internal_pointer->edge_renumber_map_offsets_
-                 ->view());
+               internal_pointer->edge_renumber_map_offsets_->view());
 }
 
 extern "C" cugraph_error_code_t cugraph_test_uniform_neighborhood_sample_result_create(
