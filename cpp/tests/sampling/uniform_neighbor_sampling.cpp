@@ -131,26 +131,6 @@ class Tests_Uniform_Neighbor_Sampling
     std::optional<std::tuple<raft::device_span<int32_t const>, raft::device_span<int32_t const>>>
       label_to_output_comm_rank_mapping{std::nullopt};
 
-#ifdef NO_CUGRAPH_OPS
-    EXPECT_THROW(
-      cugraph::uniform_neighbor_sample(
-        handle,
-        graph_view,
-        edge_weight_view,
-        std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
-        std::optional<cugraph::edge_property_view_t<edge_t, int32_t const*>>{std::nullopt},
-        raft::device_span<vertex_t const>{random_sources_copy.data(), random_sources.size()},
-        batch_number ? std::make_optional(raft::device_span<int32_t const>{batch_number->data(),
-                                                                           batch_number->size()})
-                     : std::nullopt,
-        label_to_output_comm_rank_mapping,
-        raft::host_span<int32_t const>(uniform_neighbor_sampling_usecase.fanout.data(),
-                                       uniform_neighbor_sampling_usecase.fanout.size()),
-        rng_state,
-        true,
-        uniform_neighbor_sampling_usecase.flag_replacement),
-      std::exception);
-#else
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       hr_timer.start("Uniform neighbor sampling");
@@ -224,7 +204,6 @@ class Tests_Uniform_Neighbor_Sampling
                                                  uniform_neighbor_sampling_usecase.fanout.size()));
       }
     }
-#endif
   }
 };
 
@@ -240,12 +219,6 @@ TEST_P(Tests_Uniform_Neighbor_Sampling_File, CheckInt32Int32Float)
     override_File_Usecase_with_cmd_line_arguments(GetParam()));
 }
 
-TEST_P(Tests_Uniform_Neighbor_Sampling_File, CheckInt32Int64Float)
-{
-  run_current_test<int32_t, int64_t, float>(
-    override_File_Usecase_with_cmd_line_arguments(GetParam()));
-}
-
 TEST_P(Tests_Uniform_Neighbor_Sampling_File, CheckInt64Int64Float)
 {
   run_current_test<int64_t, int64_t, float>(
@@ -255,12 +228,6 @@ TEST_P(Tests_Uniform_Neighbor_Sampling_File, CheckInt64Int64Float)
 TEST_P(Tests_Uniform_Neighbor_Sampling_Rmat, CheckInt32Int32Float)
 {
   run_current_test<int32_t, int32_t, float>(
-    override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
-}
-
-TEST_P(Tests_Uniform_Neighbor_Sampling_Rmat, CheckInt32Int64Float)
-{
-  run_current_test<int32_t, int64_t, float>(
     override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
 }
 

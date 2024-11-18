@@ -514,15 +514,6 @@ TEST_P(Tests_MGPerVTransformReduceDstKeyAggregatedOutgoingE_Rmat,
 }
 
 TEST_P(Tests_MGPerVTransformReduceDstKeyAggregatedOutgoingE_Rmat,
-       CheckInt32Int64FloatTupleIntFloatTransposeFalse)
-{
-  auto param = GetParam();
-  run_current_test<int32_t, int64_t, float, thrust::tuple<int, float>>(
-    std::get<0>(param),
-    cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
-}
-
-TEST_P(Tests_MGPerVTransformReduceDstKeyAggregatedOutgoingE_Rmat,
        CheckInt64Int64FloatTupleIntFloatTransposeFalse)
 {
   auto param = GetParam();
@@ -543,15 +534,6 @@ TEST_P(Tests_MGPerVTransformReduceDstKeyAggregatedOutgoingE_Rmat,
 {
   auto param = GetParam();
   run_current_test<int32_t, int32_t, float, int>(
-    std::get<0>(param),
-    cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
-}
-
-TEST_P(Tests_MGPerVTransformReduceDstKeyAggregatedOutgoingE_Rmat,
-       CheckInt32Int64FloatTransposeFalse)
-{
-  auto param = GetParam();
-  run_current_test<int32_t, int64_t, float, int>(
     std::get<0>(param),
     cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
