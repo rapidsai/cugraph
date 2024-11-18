@@ -44,22 +44,43 @@ rmm::device_uvector<vertex_t> shuffle_vertices_by_gpu_id_impl(
   return d_rx_vertices;
 }
 
-template <typename vertex_t, typename value_t, typename func_t>
-std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<value_t>>
-shuffle_vertices_and_values_by_gpu_id_impl(raft::handle_t const& handle,
-                                           rmm::device_uvector<vertex_t>&& d_vertices,
-                                           rmm::device_uvector<value_t>&& d_values,
-                                           func_t func)
+template <typename vertex_t, typename value0_t, typename value1_t, typename func_t>
+std::tuple<rmm::device_uvector<vertex_t>,
+           rmm::device_uvector<value0_t>,
+           std::optional<rmm::device_uvector<value1_t>>>
+shuffle_vertices_and_values_by_gpu_id_impl(
+  raft::handle_t const& handle,
+  rmm::device_uvector<vertex_t>&& d_vertices,
+  rmm::device_uvector<value0_t>&& d_values_0,
+  std::optional<rmm::device_uvector<value1_t>>&& d_values_1,
+  func_t func)
 {
-  std::tie(d_vertices, d_values, std::ignore) = cugraph::groupby_gpu_id_and_shuffle_kv_pairs(
-    handle.get_comms(),
-    d_vertices.begin(),
-    d_vertices.end(),
-    d_values.begin(),
-    [key_func = func] __device__(auto val) { return key_func(val); },
-    handle.get_stream());
+  if (d_values_1) {
+    auto [d_shuffled_vertices, d_values, counts] = cugraph::groupby_gpu_id_and_shuffle_kv_pairs(
+      handle.get_comms(),
+      d_vertices.begin(),
+      d_vertices.end(),
+      thrust::make_zip_iterator(d_values_0.begin(), (*d_values_1).begin()),
+      [key_func = func] __device__(auto val) { return key_func(val); },
+      handle.get_stream());
 
-  return std::make_tuple(std::move(d_vertices), std::move(d_values));
+    return std::make_tuple(std::move(d_shuffled_vertices),
+                           std::move(std::get<0>(d_values)),
+                           std::make_optional(std::move(std::get<1>(d_values))));
+  } else {
+    auto [d_shuffled_vertices, d_values, counts] = cugraph::groupby_gpu_id_and_shuffle_kv_pairs(
+      handle.get_comms(),
+      d_vertices.begin(),
+      d_vertices.end(),
+      d_values_0.begin(),
+      [key_func = func] __device__(auto val) { return key_func(val); },
+      handle.get_stream());
+
+    auto d_values_1 = std::optional<rmm::device_uvector<int32_t>>{std::nullopt};
+
+    return std::make_tuple(
+      std::move(d_shuffled_vertices), std::move(d_values), std::move(d_values_1));
+  }
 }
 
 }  // namespace
@@ -96,12 +117,18 @@ shuffle_ext_vertex_value_pairs_to_local_gpu_by_vertex_partitioning(
   auto& minor_comm           = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
   auto const minor_comm_size = minor_comm.get_size();
 
-  return shuffle_vertices_and_values_by_gpu_id_impl(
+  rmm::device_uvector<vertex_t> d_vertices(0, handle.get_stream());
+  rmm::device_uvector<value_t> d_values(0, handle.get_stream());
+
+  std::tie(d_vertices, d_values, std::ignore) = shuffle_vertices_and_values_by_gpu_id_impl(
     handle,
     std::move(vertices),
     std::move(values),
+    std::optional<rmm::device_uvector<int32_t>>{std::nullopt},
     cugraph::detail::compute_gpu_id_from_ext_vertex_t<vertex_t>{
       comm_size, major_comm_size, minor_comm_size});
+
+  return std::make_tuple(std::move(d_vertices), std::move(d_values));
 }
 
 template <typename vertex_t>
@@ -154,17 +181,21 @@ shuffle_int_vertex_value_pairs_to_local_gpu_by_vertex_partitioning(
   auto& minor_comm           = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
   auto const minor_comm_size = minor_comm.get_size();
 
-  auto return_value = shuffle_vertices_and_values_by_gpu_id_impl(
+  rmm::device_uvector<vertex_t> d_vertices(0, handle.get_stream());
+  rmm::device_uvector<value_t> d_values(0, handle.get_stream());
+
+  std::tie(d_vertices, d_values, std::ignore) = shuffle_vertices_and_values_by_gpu_id_impl(
     handle,
     std::move(vertices),
     std::move(values),
+    std::optional<rmm::device_uvector<int32_t>>{std::nullopt},
     cugraph::detail::compute_gpu_id_from_int_vertex_t<vertex_t>{
       raft::device_span<vertex_t const>(d_vertex_partition_range_lasts.data(),
                                         d_vertex_partition_range_lasts.size()),
       major_comm_size,
       minor_comm_size});
 
-  return return_value;
+  return std::make_tuple(std::move(d_vertices), std::move(d_values));
 }
 
 }  // namespace detail
