@@ -143,9 +143,9 @@ extern "C" int create_mg_test_graph(const cugraph_resource_handle_t* handle,
   properties.is_symmetric  = is_symmetric;
   properties.is_multigraph = FALSE;
 
-  data_type_id_t vertex_tid = INT32;
-  data_type_id_t edge_tid   = INT32;
-  data_type_id_t weight_tid = FLOAT32;
+  cugraph_data_type_id_t vertex_tid = INT32;
+  cugraph_data_type_id_t edge_tid   = INT32;
+  cugraph_data_type_id_t weight_tid = FLOAT32;
 
   cugraph_type_erased_device_array_t* src;
   cugraph_type_erased_device_array_t* dst;
@@ -191,15 +191,19 @@ extern "C" int create_mg_test_graph(const cugraph_resource_handle_t* handle,
     handle, wgt_view, (byte_t*)h_wgt, ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "wgt copy_from_host failed.");
 
-  ret_code = cugraph_mg_graph_create(handle,
+  ret_code = cugraph_graph_create_mg(handle,
                                      &properties,
-                                     src_view,
-                                     dst_view,
-                                     wgt_view,
+                                     NULL,
+                                     &src_view,
+                                     &dst_view,
+                                     &wgt_view,
                                      NULL,
                                      NULL,
                                      store_transposed,
                                      original_num_edges,  // UNUSED
+                                     FALSE,
+                                     FALSE,
+                                     FALSE,
                                      FALSE,
                                      p_graph,
                                      ret_error);
@@ -237,9 +241,9 @@ extern "C" int create_mg_test_graph_double(const cugraph_resource_handle_t* hand
   properties.is_symmetric  = is_symmetric;
   properties.is_multigraph = FALSE;
 
-  data_type_id_t vertex_tid = INT32;
-  data_type_id_t edge_tid   = INT32;
-  data_type_id_t weight_tid = FLOAT64;
+  cugraph_data_type_id_t vertex_tid = INT32;
+  cugraph_data_type_id_t edge_tid   = INT32;
+  cugraph_data_type_id_t weight_tid = FLOAT64;
 
   cugraph_type_erased_device_array_t* src;
   cugraph_type_erased_device_array_t* dst;
@@ -285,15 +289,19 @@ extern "C" int create_mg_test_graph_double(const cugraph_resource_handle_t* hand
     handle, wgt_view, (byte_t*)h_wgt, ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "wgt copy_from_host failed.");
 
-  ret_code = cugraph_mg_graph_create(handle,
+  ret_code = cugraph_graph_create_mg(handle,
                                      &properties,
-                                     src_view,
-                                     dst_view,
-                                     wgt_view,
+                                     NULL,
+                                     &src_view,
+                                     &dst_view,
+                                     &wgt_view,
                                      NULL,
                                      NULL,
                                      store_transposed,
                                      original_num_edges,  // UNUSED
+                                     FALSE,
+                                     FALSE,
+                                     FALSE,
                                      FALSE,
                                      p_graph,
                                      ret_error);
@@ -326,9 +334,9 @@ extern "C" int create_mg_test_graph_with_edge_ids(const cugraph_resource_handle_
   properties.is_symmetric  = is_symmetric;
   properties.is_multigraph = FALSE;
 
-  data_type_id_t vertex_tid = INT32;
-  data_type_id_t edge_tid   = INT32;
-  data_type_id_t weight_tid = FLOAT32;
+  cugraph_data_type_id_t vertex_tid = INT32;
+  cugraph_data_type_id_t edge_tid   = INT32;
+  cugraph_data_type_id_t weight_tid = FLOAT32;
 
   cugraph_type_erased_device_array_t* src;
   cugraph_type_erased_device_array_t* dst;
@@ -373,15 +381,19 @@ extern "C" int create_mg_test_graph_with_edge_ids(const cugraph_resource_handle_
     handle, idx_view, (byte_t*)h_idx, ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "wgt copy_from_host failed.");
 
-  ret_code = cugraph_mg_graph_create(handle,
+  ret_code = cugraph_graph_create_mg(handle,
                                      &properties,
-                                     src_view,
-                                     dst_view,
                                      NULL,
-                                     idx_view,
+                                     &src_view,
+                                     &dst_view,
+                                     NULL,
+                                     &idx_view,
                                      NULL,
                                      store_transposed,
                                      original_num_edges,  // UNUSED
+                                     FALSE,
+                                     FALSE,
+                                     FALSE,
                                      FALSE,
                                      p_graph,
                                      ret_error);
@@ -416,11 +428,11 @@ extern "C" int create_mg_test_graph_with_properties(const cugraph_resource_handl
   properties.is_symmetric  = is_symmetric;
   properties.is_multigraph = FALSE;
 
-  data_type_id_t vertex_tid = INT32;
-  data_type_id_t edge_tid   = INT32;
-  data_type_id_t index_tid  = INT32;
-  data_type_id_t type_tid   = INT32;
-  data_type_id_t weight_tid = FLOAT32;
+  cugraph_data_type_id_t vertex_tid = INT32;
+  cugraph_data_type_id_t edge_tid   = INT32;
+  cugraph_data_type_id_t index_tid  = INT32;
+  cugraph_data_type_id_t type_tid   = INT32;
+  cugraph_data_type_id_t weight_tid = FLOAT32;
 
   cugraph_type_erased_device_array_t* src            = NULL;
   cugraph_type_erased_device_array_t* dst            = NULL;
@@ -496,15 +508,19 @@ extern "C" int create_mg_test_graph_with_properties(const cugraph_resource_handl
     TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "wgt copy_from_host failed.");
   }
 
-  ret_code = cugraph_mg_graph_create(handle,
+  ret_code = cugraph_graph_create_mg(handle,
                                      &properties,
-                                     src_view,
-                                     dst_view,
-                                     wgt_view,
-                                     idx_view,
-                                     type_view,
+                                     NULL,
+                                     &src_view,
+                                     &dst_view,
+                                     &wgt_view,
+                                     &idx_view,
+                                     &type_view,
                                      store_transposed,
                                      original_num_edges,  // UNUSED
+                                     FALSE,
+                                     FALSE,
+                                     FALSE,
                                      FALSE,
                                      p_graph,
                                      ret_error);
@@ -525,15 +541,15 @@ extern "C" int create_mg_test_graph_with_properties(const cugraph_resource_handl
 }
 
 int create_mg_test_graph_new(const cugraph_resource_handle_t* handle,
-                             data_type_id_t vertex_tid,
-                             data_type_id_t edge_tid,
+                             cugraph_data_type_id_t vertex_tid,
+                             cugraph_data_type_id_t edge_tid,
                              void* h_src,
                              void* h_dst,
-                             data_type_id_t weight_tid,
+                             cugraph_data_type_id_t weight_tid,
                              void* h_wgt,
-                             data_type_id_t edge_type_tid,
+                             cugraph_data_type_id_t edge_type_tid,
                              void* h_edge_type,
-                             data_type_id_t edge_id_tid,
+                             cugraph_data_type_id_t edge_id_tid,
                              void* h_edge_id,
                              size_t num_edges,
                              bool_t store_transposed,
@@ -625,15 +641,19 @@ int create_mg_test_graph_new(const cugraph_resource_handle_t* handle,
     TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "edge_id copy_from_host failed.");
   }
 
-  ret_code = cugraph_mg_graph_create(handle,
+  ret_code = cugraph_graph_create_mg(handle,
                                      &properties,
-                                     src_view,
-                                     dst_view,
-                                     wgt_view,
-                                     edge_id_view,
-                                     edge_type_view,
+                                     NULL,
+                                     &src_view,
+                                     &dst_view,
+                                     &wgt_view,
+                                     &edge_id_view,
+                                     &edge_type_view,
                                      store_transposed,
                                      original_num_edges,  // UNUSED
+                                     FALSE,
+                                     FALSE,
+                                     FALSE,
                                      FALSE,
                                      graph,
                                      ret_error);

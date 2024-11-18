@@ -14,8 +14,10 @@
 # Have cython use python 3 syntax
 # cython: language_level = 3
 
-from pylibcugraph._cugraph_c.resource_handle cimport (
+from pylibcugraph._cugraph_c.types cimport (
     bool_t,
+)
+from pylibcugraph._cugraph_c.resource_handle cimport (
     cugraph_resource_handle_t,
 )
 from pylibcugraph._cugraph_c.error cimport (
@@ -37,21 +39,6 @@ cdef extern from "cugraph_c/graph.h":
         bool_t is_symmetric
         bool_t is_multigraph
 
-    cdef cugraph_error_code_t \
-         cugraph_sg_graph_create(
-             const cugraph_resource_handle_t* handle,
-             const cugraph_graph_properties_t* properties,
-             const cugraph_type_erased_device_array_view_t* src,
-             const cugraph_type_erased_device_array_view_t* dst,
-             const cugraph_type_erased_device_array_view_t* weights,
-             const cugraph_type_erased_device_array_view_t* edge_ids,
-             const cugraph_type_erased_device_array_view_t* edge_types,
-             bool_t store_transposed,
-             bool_t renumber,
-             bool_t check,
-             cugraph_graph_t** graph,
-             cugraph_error_t** error)
-
     # Supports isolated vertices
     cdef cugraph_error_code_t \
          cugraph_graph_create_sg(
@@ -72,56 +59,11 @@ cdef extern from "cugraph_c/graph.h":
              cugraph_graph_t** graph,
              cugraph_error_t** error)
 
-    # This may get renamed to cugraph_graph_free()
-    cdef void \
-        cugraph_sg_graph_free(
-            cugraph_graph_t* graph
-        )
-
     # FIXME: Might want to delete 'cugraph_sg_graph_free' and replace
     # 'cugraph_mg_graph_free' by 'cugraph_graph_free'
     cdef void \
         cugraph_graph_free(
             cugraph_graph_t* graph
-        )
-
-    cdef cugraph_error_code_t \
-        cugraph_mg_graph_create(
-            const cugraph_resource_handle_t* handle,
-            const cugraph_graph_properties_t* properties,
-            const cugraph_type_erased_device_array_view_t* src,
-            const cugraph_type_erased_device_array_view_t* dst,
-            const cugraph_type_erased_device_array_view_t* weights,
-            const cugraph_type_erased_device_array_view_t* edge_ids,
-            const cugraph_type_erased_device_array_view_t* edge_types,
-            bool_t store_transposed,
-            size_t num_edges,
-            bool_t check,
-            cugraph_graph_t** graph,
-            cugraph_error_t** error
-        )
-
-    # This may get renamed to or replaced with cugraph_graph_free()
-    cdef void \
-        cugraph_mg_graph_free(
-            cugraph_graph_t* graph
-        )
-
-    cdef cugraph_error_code_t \
-        cugraph_sg_graph_create_from_csr(
-            const cugraph_resource_handle_t* handle,
-            const cugraph_graph_properties_t* properties,
-            const cugraph_type_erased_device_array_view_t* offsets,
-            const cugraph_type_erased_device_array_view_t* indices,
-            const cugraph_type_erased_device_array_view_t* weights,
-            const cugraph_type_erased_device_array_view_t* edge_ids,
-            const cugraph_type_erased_device_array_view_t* edge_type_ids,
-            bool_t store_transposed,
-            bool_t renumber,
-            bool_t symmetrize,
-            bool_t check,
-            cugraph_graph_t** graph,
-            cugraph_error_t** error
         )
 
     cdef cugraph_error_code_t \
@@ -135,27 +77,7 @@ cdef extern from "cugraph_c/graph.h":
             const cugraph_type_erased_device_array_view_t* edge_type_ids,
             bool_t store_transposed,
             bool_t renumber,
-            bool_t check,
-            cugraph_graph_t** graph,
-            cugraph_error_t** error
-        )
-
-    cdef void \
-        cugraph_sg_graph_free(
-            cugraph_graph_t* graph
-        )
-
-    cdef cugraph_error_code_t \
-        cugraph_mg_graph_create(
-            const cugraph_resource_handle_t* handle,
-            const cugraph_graph_properties_t* properties,
-            const cugraph_type_erased_device_array_view_t* src,
-            const cugraph_type_erased_device_array_view_t* dst,
-            const cugraph_type_erased_device_array_view_t* weights,
-            const cugraph_type_erased_device_array_view_t* edge_ids,
-            const cugraph_type_erased_device_array_view_t* edge_type_ids,
-            bool_t store_transposed,
-            size_t num_edges,
+            bool_t symmetrize,
             bool_t check,
             cugraph_graph_t** graph,
             cugraph_error_t** error
@@ -179,8 +101,3 @@ cdef extern from "cugraph_c/graph.h":
             bool_t do_expensive_check,
             cugraph_graph_t** graph,
             cugraph_error_t** error)
-
-    cdef void \
-        cugraph_mg_graph_free(
-            cugraph_graph_t* graph
-        )

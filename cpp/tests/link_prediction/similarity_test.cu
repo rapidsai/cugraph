@@ -83,11 +83,6 @@ class Tests_Similarity
     auto edge_weight_view =
       edge_weights ? std::make_optional((*edge_weights).view()) : std::nullopt;
 
-    if (cugraph::test::g_perf) {
-      RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
-      hr_timer.start("Similarity test");
-    }
-
     rmm::device_uvector<vertex_t> v1(0, handle.get_stream());
     rmm::device_uvector<vertex_t> v2(0, handle.get_stream());
     rmm::device_uvector<weight_t> result_score(0, handle.get_stream());
@@ -111,6 +106,11 @@ class Tests_Similarity
     }
 
     if (similarity_usecase.all_pairs) {
+      if (cugraph::test::g_perf) {
+        RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+        hr_timer.start("Similarity test");
+      }
+
       std::tie(v1, v2, result_score) = test_functor.run(handle,
                                                         graph_view,
                                                         edge_weight_view,
@@ -141,20 +141,16 @@ class Tests_Similarity
                                              static_cast<vertex_t>(sources.size()),
                                              true);
 
-      auto new_size = thrust::distance(
-        thrust::make_zip_iterator(v1.begin(), v2.begin()),
-        thrust::remove_if(
-          handle.get_thrust_policy(),
-          thrust::make_zip_iterator(v1.begin(), v2.begin()),
-          thrust::make_zip_iterator(v1.end(), v2.end()),
-          [] __device__(auto tuple) { return thrust::get<0>(tuple) == thrust::get<1>(tuple); }));
-
-      v1.resize(new_size, handle.get_stream());
-      v2.resize(new_size, handle.get_stream());
+      std::tie(v1, v2) = cugraph::test::remove_self_loops(handle, std::move(v1), std::move(v2));
 
       // FIXME:  Need to add some tests that specify actual vertex pairs
       std::tuple<raft::device_span<vertex_t const>, raft::device_span<vertex_t const>> vertex_pairs{
         {v1.data(), v1.size()}, {v2.data(), v2.size()}};
+
+      if (cugraph::test::g_perf) {
+        RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+        hr_timer.start("Similarity test");
+      }
 
       result_score = test_functor.run(
         handle, graph_view, edge_weight_view, vertex_pairs, similarity_usecase.use_weights);
@@ -223,12 +219,6 @@ TEST_P(Tests_Similarity_Rmat, CheckInt32Int32FloatJaccard)
     override_Rmat_Usecase_with_cmd_line_arguments(GetParam()), cugraph::test::test_jaccard_t{});
 }
 
-TEST_P(Tests_Similarity_Rmat, CheckInt32Int64FloatJaccard)
-{
-  run_current_test<int32_t, int64_t, float>(
-    override_Rmat_Usecase_with_cmd_line_arguments(GetParam()), cugraph::test::test_jaccard_t{});
-}
-
 TEST_P(Tests_Similarity_Rmat, CheckInt64Int64FloatJaccard)
 {
   run_current_test<int64_t, int64_t, float>(
@@ -244,12 +234,6 @@ TEST_P(Tests_Similarity_File, CheckInt32Int32FloatSorensen)
 TEST_P(Tests_Similarity_Rmat, CheckInt32Int32FloatSorensen)
 {
   run_current_test<int32_t, int32_t, float>(
-    override_Rmat_Usecase_with_cmd_line_arguments(GetParam()), cugraph::test::test_sorensen_t{});
-}
-
-TEST_P(Tests_Similarity_Rmat, CheckInt32Int64FloatSorensen)
-{
-  run_current_test<int32_t, int64_t, float>(
     override_Rmat_Usecase_with_cmd_line_arguments(GetParam()), cugraph::test::test_sorensen_t{});
 }
 
@@ -271,12 +255,6 @@ TEST_P(Tests_Similarity_Rmat, CheckInt32Int32FloatOverlap)
     override_Rmat_Usecase_with_cmd_line_arguments(GetParam()), cugraph::test::test_overlap_t{});
 }
 
-TEST_P(Tests_Similarity_Rmat, CheckInt32Int64FloatOverlap)
-{
-  run_current_test<int32_t, int64_t, float>(
-    override_Rmat_Usecase_with_cmd_line_arguments(GetParam()), cugraph::test::test_overlap_t{});
-}
-
 TEST_P(Tests_Similarity_Rmat, CheckInt64Int64FloatOverlap)
 {
   run_current_test<int64_t, int64_t, float>(
@@ -292,12 +270,6 @@ TEST_P(Tests_Similarity_File, CheckInt32Int32FloatCosine)
 TEST_P(Tests_Similarity_Rmat, CheckInt32Int32FloatCosine)
 {
   run_current_test<int32_t, int32_t, float>(
-    override_Rmat_Usecase_with_cmd_line_arguments(GetParam()), cugraph::test::test_cosine_t{});
-}
-
-TEST_P(Tests_Similarity_Rmat, CheckInt32Int64FloatCosine)
-{
-  run_current_test<int32_t, int64_t, float>(
     override_Rmat_Usecase_with_cmd_line_arguments(GetParam()), cugraph::test::test_cosine_t{});
 }
 

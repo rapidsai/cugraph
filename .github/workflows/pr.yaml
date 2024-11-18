@@ -25,12 +25,6 @@ jobs:
       - wheel-tests-pylibcugraph
       - wheel-build-cugraph
       - wheel-tests-cugraph
-      - wheel-build-nx-cugraph
-      - wheel-tests-nx-cugraph
-      - wheel-build-cugraph-dgl
-      - wheel-tests-cugraph-dgl
-      - wheel-build-cugraph-pyg
-      - wheel-tests-cugraph-pyg
       - wheel-build-cugraph-equivariant
       - wheel-tests-cugraph-equivariant
       - devcontainer
@@ -55,16 +49,12 @@ jobs:
           - '!notebooks/**'
           - '!python/**'
           - '!readme_pages/**'
-          # TODO: Remove this before merging
-          - '!.github/**'
         test_notebooks:
           - '**'
           - '!.devcontainers/**'
           - '!CONTRIBUTING.md'
           - '!README.md'
           - '!docs/**'
-          # TODO: Remove this before merging
-          - '!.github/**'
         test_python:
           - '**'
           - '!.devcontainers/**'
@@ -73,8 +63,6 @@ jobs:
           - '!docs/**'
           - '!img/**'
           - '!notebooks/**'
-          # TODO: Remove this before merging
-          - '!.github/**'
   checks:
     secrets: inherit
     uses: rapidsai/shared-workflows/.github/workflows/checks.yaml@branch-24.12
@@ -173,53 +161,6 @@ jobs:
     with:
       build_type: pull-request
       script: ci/test_wheel_cugraph.sh
-  wheel-build-nx-cugraph:
-    needs: wheel-tests-pylibcugraph
-    secrets: inherit
-    uses: rapidsai/shared-workflows/.github/workflows/wheels-build.yaml@branch-24.12
-    with:
-      build_type: pull-request
-      script: ci/build_wheel_nx-cugraph.sh
-  wheel-tests-nx-cugraph:
-    needs: [wheel-build-nx-cugraph, changed-files]
-    secrets: inherit
-    uses: rapidsai/shared-workflows/.github/workflows/wheels-test.yaml@branch-24.12
-    if: fromJSON(needs.changed-files.outputs.changed_file_groups).test_python
-    with:
-      build_type: pull-request
-      script: ci/test_wheel_nx-cugraph.sh
-  wheel-build-cugraph-dgl:
-    needs: wheel-tests-cugraph
-    secrets: inherit
-    uses: rapidsai/shared-workflows/.github/workflows/wheels-build.yaml@branch-24.12
-    with:
-      build_type: pull-request
-      script: ci/build_wheel_cugraph-dgl.sh
-  wheel-tests-cugraph-dgl:
-    needs: [wheel-build-cugraph-dgl, changed-files]
-    secrets: inherit
-    uses: rapidsai/shared-workflows/.github/workflows/wheels-test.yaml@branch-24.12
-    if: fromJSON(needs.changed-files.outputs.changed_file_groups).test_python
-    with:
-      build_type: pull-request
-      script: ci/test_wheel_cugraph-dgl.sh
-      matrix_filter: map(select(.ARCH == "amd64"))
-  wheel-build-cugraph-pyg:
-    needs: wheel-tests-cugraph
-    secrets: inherit
-    uses: rapidsai/shared-workflows/.github/workflows/wheels-build.yaml@branch-24.12
-    with:
-      build_type: pull-request
-      script: ci/build_wheel_cugraph-pyg.sh
-  wheel-tests-cugraph-pyg:
-    needs: [wheel-build-cugraph-pyg, changed-files]
-    secrets: inherit
-    uses: rapidsai/shared-workflows/.github/workflows/wheels-test.yaml@branch-24.12
-    if: fromJSON(needs.changed-files.outputs.changed_file_groups).test_python
-    with:
-      build_type: pull-request
-      script: ci/test_wheel_cugraph-pyg.sh
-      matrix_filter: map(select(.ARCH == "amd64"))
   wheel-build-cugraph-equivariant:
     secrets: inherit
     uses: rapidsai/shared-workflows/.github/workflows/wheels-build.yaml@branch-24.12

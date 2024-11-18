@@ -48,9 +48,9 @@ int test_create_sg_graph_simple()
   properties.is_symmetric  = FALSE;
   properties.is_multigraph = FALSE;
 
-  data_type_id_t vertex_tid = INT32;
-  data_type_id_t edge_tid   = INT32;
-  data_type_id_t weight_tid = FLOAT32;
+  cugraph_data_type_id_t vertex_tid = INT32;
+  cugraph_data_type_id_t edge_tid   = INT32;
+  cugraph_data_type_id_t weight_tid = FLOAT32;
 
   handle = cugraph_create_resource_handle(NULL);
   TEST_ASSERT(test_ret_value, handle != NULL, "resource handle creation failed.");
@@ -161,9 +161,9 @@ int test_create_sg_graph_csr()
   properties.is_symmetric  = FALSE;
   properties.is_multigraph = FALSE;
 
-  data_type_id_t vertex_tid = INT32;
-  data_type_id_t edge_tid   = INT32;
-  data_type_id_t weight_tid = FLOAT32;
+  cugraph_data_type_id_t vertex_tid = INT32;
+  cugraph_data_type_id_t edge_tid   = INT32;
+  cugraph_data_type_id_t weight_tid = FLOAT32;
 
   handle = cugraph_create_resource_handle(NULL);
   TEST_ASSERT(test_ret_value, handle != NULL, "resource handle creation failed.");
@@ -204,7 +204,7 @@ int test_create_sg_graph_csr()
     handle, wgt_view, (byte_t*)h_wgt, &ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "wgt copy_from_host failed.");
 
-  ret_code = cugraph_sg_graph_create_from_csr(handle,
+  ret_code = cugraph_graph_create_sg_from_csr(handle,
                                               &properties,
                                               offsets_view,
                                               indices_view,
@@ -355,9 +355,9 @@ int test_create_sg_graph_symmetric_error()
   properties.is_symmetric  = TRUE;
   properties.is_multigraph = FALSE;
 
-  data_type_id_t vertex_tid = INT32;
-  data_type_id_t edge_tid   = INT32;
-  data_type_id_t weight_tid = FLOAT32;
+  cugraph_data_type_id_t vertex_tid = INT32;
+  cugraph_data_type_id_t edge_tid   = INT32;
+  cugraph_data_type_id_t weight_tid = FLOAT32;
 
   handle = cugraph_create_resource_handle(NULL);
   TEST_ASSERT(test_ret_value, handle != NULL, "resource handle creation failed.");
@@ -462,9 +462,9 @@ int test_create_sg_graph_with_isolated_vertices()
   properties.is_symmetric  = FALSE;
   properties.is_multigraph = FALSE;
 
-  data_type_id_t vertex_tid = INT32;
-  data_type_id_t edge_tid   = INT32;
-  data_type_id_t weight_tid = FLOAT32;
+  cugraph_data_type_id_t vertex_tid = INT32;
+  cugraph_data_type_id_t edge_tid   = INT32;
+  cugraph_data_type_id_t weight_tid = FLOAT32;
 
   handle = cugraph_create_resource_handle(NULL);
   TEST_ASSERT(test_ret_value, handle != NULL, "resource handle creation failed.");
@@ -626,9 +626,9 @@ int test_create_sg_graph_csr_with_isolated()
   properties.is_symmetric  = FALSE;
   properties.is_multigraph = FALSE;
 
-  data_type_id_t vertex_tid = INT32;
-  data_type_id_t edge_tid   = INT32;
-  data_type_id_t weight_tid = FLOAT32;
+  cugraph_data_type_id_t vertex_tid = INT32;
+  cugraph_data_type_id_t edge_tid   = INT32;
+  cugraph_data_type_id_t weight_tid = FLOAT32;
 
   handle = cugraph_create_resource_handle(NULL);
   TEST_ASSERT(test_ret_value, handle != NULL, "resource handle creation failed.");
@@ -669,7 +669,7 @@ int test_create_sg_graph_csr_with_isolated()
     handle, wgt_view, (byte_t*)h_wgt, &ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "wgt copy_from_host failed.");
 
-  ret_code = cugraph_sg_graph_create_from_csr(handle,
+  ret_code = cugraph_graph_create_sg_from_csr(handle,
                                               &properties,
                                               offsets_view,
                                               indices_view,
@@ -778,9 +778,9 @@ int test_create_sg_graph_with_isolated_vertices_multi_input()
   properties.is_symmetric  = FALSE;
   properties.is_multigraph = FALSE;
 
-  data_type_id_t vertex_tid = INT32;
-  data_type_id_t edge_tid   = INT32;
-  data_type_id_t weight_tid = FLOAT32;
+  cugraph_data_type_id_t vertex_tid = INT32;
+  cugraph_data_type_id_t edge_tid   = INT32;
+  cugraph_data_type_id_t weight_tid = FLOAT32;
 
   handle = cugraph_create_resource_handle(NULL);
   TEST_ASSERT(test_ret_value, handle != NULL, "resource handle creation failed.");

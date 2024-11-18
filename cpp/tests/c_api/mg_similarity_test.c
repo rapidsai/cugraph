@@ -54,8 +54,8 @@ int generic_similarity_test(const cugraph_resource_handle_t* handle,
                             bool_t use_weight,
                             similarity_t test_type)
 {
-  int test_ret_value        = 0;
-  data_type_id_t vertex_tid = INT32;
+  int test_ret_value                = 0;
+  cugraph_data_type_id_t vertex_tid = INT32;
 
   cugraph_error_code_t ret_code = CUGRAPH_SUCCESS;
   cugraph_error_t* ret_error;
@@ -189,7 +189,7 @@ int generic_similarity_test(const cugraph_resource_handle_t* handle,
 
   if (result != NULL) cugraph_similarity_result_free(result);
   if (vertex_pairs != NULL) cugraph_vertex_pairs_free(vertex_pairs);
-  cugraph_mg_graph_free(graph);
+  cugraph_graph_free(graph);
   cugraph_error_free(ret_error);
 
   return test_ret_value;

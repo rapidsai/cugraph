@@ -43,7 +43,7 @@ struct compute_gpu_id_from_ext_vertex_t {
 
   __host__ __device__ int operator()(vertex_t v) const
   {
-    cuco::detail::MurmurHash3_32<vertex_t> hash_func{};
+    cuco::murmurhash3_32<vertex_t> hash_func{};
     auto vertex_partition_id = static_cast<int>(hash_func(v) % comm_size);
     return partition_manager::compute_global_comm_rank_from_vertex_partition_id(
       major_comm_size, minor_comm_size, vertex_partition_id);
@@ -58,7 +58,7 @@ struct compute_gpu_id_from_ext_edge_id_t {
 
   __host__ __device__ int operator()(edge_t e) const
   {
-    cuco::detail::MurmurHash3_32<edge_t> hash_func{};
+    cuco::murmurhash3_32<edge_t> hash_func{};
     auto vertex_partition_id = static_cast<int>(hash_func(e) % comm_size);
     return partition_manager::compute_global_comm_rank_from_vertex_partition_id(
       major_comm_size, minor_comm_size, vertex_partition_id);
@@ -88,7 +88,7 @@ struct compute_vertex_partition_id_from_ext_vertex_t {
 
   __host__ __device__ int operator()(vertex_t v) const
   {
-    cuco::detail::MurmurHash3_32<vertex_t> hash_func{};
+    cuco::murmurhash3_32<vertex_t> hash_func{};
     return hash_func(v) % comm_size;
   }
 };
@@ -114,7 +114,7 @@ struct compute_gpu_id_from_ext_edge_endpoints_t {
 
   __host__ __device__ int operator()(vertex_t major, vertex_t minor) const
   {
-    cuco::detail::MurmurHash3_32<vertex_t> hash_func{};
+    cuco::murmurhash3_32<vertex_t> hash_func{};
     auto major_vertex_partition_id = static_cast<int>(hash_func(major) % comm_size);
     auto minor_vertex_partition_id = static_cast<int>(hash_func(minor) % comm_size);
     auto major_comm_rank           = major_vertex_partition_id % major_comm_size;
@@ -126,7 +126,7 @@ struct compute_gpu_id_from_ext_edge_endpoints_t {
   __host__ __device__ int operator()(
     thrust::tuple<vertex_t, vertex_t> pair /* major, minor */) const
   {
-    cuco::detail::MurmurHash3_32<vertex_t> hash_func{};
+    cuco::murmurhash3_32<vertex_t> hash_func{};
     auto major_vertex_partition_id = static_cast<int>(hash_func(thrust::get<0>(pair)) % comm_size);
     auto minor_vertex_partition_id = static_cast<int>(hash_func(thrust::get<1>(pair)) % comm_size);
     auto major_comm_rank           = major_vertex_partition_id % major_comm_size;
@@ -192,7 +192,7 @@ struct compute_edge_partition_id_from_ext_edge_endpoints_t {
 
   __host__ __device__ int operator()(vertex_t major, vertex_t minor) const
   {
-    cuco::detail::MurmurHash3_32<vertex_t> hash_func{};
+    cuco::murmurhash3_32<vertex_t> hash_func{};
     return (hash_func(major) % comm_size) * minor_comm_size +
            (hash_func(minor) % comm_size) / major_comm_size;
   }
@@ -200,7 +200,7 @@ struct compute_edge_partition_id_from_ext_edge_endpoints_t {
   __host__ __device__ int operator()(
     thrust::tuple<vertex_t, vertex_t> pair /* major, minor */) const
   {
-    cuco::detail::MurmurHash3_32<vertex_t> hash_func{};
+    cuco::murmurhash3_32<vertex_t> hash_func{};
     return (hash_func(thrust::get<0>(pair)) % comm_size) * minor_comm_size +
            (hash_func(thrust::get<1>(pair)) % comm_size) / major_comm_size;
   }

@@ -102,7 +102,8 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
   HighResTimer hr_timer{};
 #endif
 
-  weight_t best_modularity = weight_t{-1.0};
+  weight_t final_Q{-1};
+
   weight_t total_edge_weight =
     compute_total_edge_weight(handle, current_graph_view, *current_edge_weight_view);
 
@@ -368,9 +369,6 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
     detail::timer_stop<graph_view_t::is_multi_gpu>(handle, hr_timer);
 #endif
 
-    bool terminate = (cur_Q <= best_modularity);
-    if (!terminate) { best_modularity = cur_Q; }
-
 #ifdef TIMING
     detail::timer_start<graph_view_t::is_multi_gpu>(handle, hr_timer, "contract graph");
 #endif
@@ -386,8 +384,7 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
     auto nr_unique_louvain_clusters =
       remove_duplicates<vertex_t, multi_gpu>(handle, copied_louvain_partition);
 
-    terminate =
-      terminate || (nr_unique_louvain_clusters == current_graph_view.number_of_vertices());
+    bool terminate = (nr_unique_louvain_clusters == current_graph_view.number_of_vertices());
 
     rmm::device_uvector<vertex_t> refined_leiden_partition(0, handle.get_stream());
     std::pair<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> leiden_to_louvain_map{
@@ -426,11 +423,19 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
                                   std::move(louvain_assignment_for_vertices),
                                   src_vertex_weights_cache,
                                   src_louvain_assignment_cache,
-                                  dst_louvain_assignment_cache,
-                                  up_down);
+                                  dst_louvain_assignment_cache);
     }
 
     // Clear buffer and contract the graph
+    final_Q = detail::compute_modularity(handle,
+                                         current_graph_view,
+                                         current_edge_weight_view,
+                                         src_louvain_assignment_cache,
+                                         dst_louvain_assignment_cache,
+                                         louvain_assignment_for_vertices,
+                                         cluster_weights,
+                                         total_edge_weight,
+                                         resolution);
 
     cluster_keys.resize(0, handle.get_stream());
     cluster_weights.resize(0, handle.get_stream());
@@ -445,6 +450,9 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
     dst_louvain_assignment_cache.clear(handle);
 
     if (!terminate) {
+      src_louvain_assignment_cache.clear(handle);
+      dst_louvain_assignment_cache.clear(handle);
+
       auto nr_unique_leiden = static_cast<vertex_t>(leiden_to_louvain_map.first.size());
       if (graph_view_t::is_multi_gpu) {
         nr_unique_leiden = host_scalar_allreduce(
@@ -586,7 +594,7 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
   detail::timer_display<graph_view_t::is_multi_gpu>(handle, hr_timer, std::cout);
 #endif
 
-  return std::make_pair(std::move(dendrogram), best_modularity);
+  return std::make_pair(std::move(dendrogram), final_Q);
 }
 
 template <typename vertex_t, bool multi_gpu>

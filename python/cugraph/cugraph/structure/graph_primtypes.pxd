@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2023, NVIDIA CORPORATION.
+# Copyright (c) 2019-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -21,7 +21,7 @@ from libcpp.memory cimport unique_ptr
 from libcpp.utility cimport pair
 from libcpp.vector cimport vector
 from pylibraft.common.handle cimport *
-from rmm._lib.device_buffer cimport device_buffer
+from rmm.librmm.device_buffer cimport device_buffer
 
 cdef extern from "cugraph/legacy/graph.hpp" namespace "cugraph::legacy":
 

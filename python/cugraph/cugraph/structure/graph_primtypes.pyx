@@ -1,4 +1,4 @@
-# Copyright (c) 2020-2023, NVIDIA CORPORATION.
+# Copyright (c) 2020-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -20,7 +20,7 @@ import numpy as np
 from libc.stdint cimport uintptr_t
 from libcpp.utility cimport move
 
-from rmm._lib.device_buffer cimport DeviceBuffer
+from rmm.pylibrmm.device_buffer cimport DeviceBuffer
 from cudf.core.buffer import as_buffer
 import cudf
 
