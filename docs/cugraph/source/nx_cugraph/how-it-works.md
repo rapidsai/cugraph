@@ -110,4 +110,4 @@ This run will be much faster, typically around 5 seconds depending on your GPU.
 
 ---
 
-The latest list of algorithms supported by `nx-cugraph` can be found in [GitHub](https://github.com/rapidsai/cugraph/blob/HEAD/python/nx-cugraph/README.md#algorithms), or in the [Supported Algorithms Section](supported-algorithms.md).
+The latest list of algorithms supported by `nx-cugraph` can be found in [GitHub](https://github.com/rapidsai/nx-cugraph/blob/HEAD/README.md#supported-algorithms), or in the [Supported Algorithms Section](supported-algorithms.md).

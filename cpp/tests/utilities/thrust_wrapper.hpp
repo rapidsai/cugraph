@@ -73,6 +73,11 @@ cugraph::dataframe_buffer_type_t<value_t> sequence(raft::handle_t const& handle,
                                                    size_t repeat_count,
                                                    value_t init);
 
+template <typename value_t>
+cugraph::dataframe_buffer_type_t<value_t> scalar_fill(raft::handle_t const& handle,
+                                                      size_t length,
+                                                      value_t value);
+
 // return (init + i) % modulo, where i = [0, length)
 template <typename value_t>
 cugraph::dataframe_buffer_type_t<value_t> modulo_sequence(raft::handle_t const& handle,
@@ -106,6 +111,12 @@ void expand_hypersparse_offsets(raft::handle_t const& handle,
                                 raft::device_span<idx_t const> nzd_indices,
                                 raft::device_span<idx_t> indices,
                                 offset_t base_offset);
+
+template <typename vertex_t>
+std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> remove_self_loops(
+  raft::handle_t const& handle,
+  rmm::device_uvector<vertex_t>&& v1,
+  rmm::device_uvector<vertex_t>&& v2);
 
 }  // namespace test
 }  // namespace cugraph
