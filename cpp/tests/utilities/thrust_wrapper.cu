@@ -566,5 +566,35 @@ template void expand_hypersparse_offsets(raft::handle_t const& handle,
                                          raft::device_span<int64_t> indices,
                                          size_t base_offset);
 
+template <typename vertex_t>
+std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> remove_self_loops(
+  raft::handle_t const& handle,
+  rmm::device_uvector<vertex_t>&& v1,
+  rmm::device_uvector<vertex_t>&& v2)
+{
+  auto new_size = thrust::distance(
+    thrust::make_zip_iterator(v1.begin(), v2.begin()),
+    thrust::remove_if(
+      handle.get_thrust_policy(),
+      thrust::make_zip_iterator(v1.begin(), v2.begin()),
+      thrust::make_zip_iterator(v1.end(), v2.end()),
+      [] __device__(auto tuple) { return thrust::get<0>(tuple) == thrust::get<1>(tuple); }));
+
+  v1.resize(new_size, handle.get_stream());
+  v2.resize(new_size, handle.get_stream());
+
+  return std::make_tuple(std::move(v1), std::move(v2));
+}
+
+template std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<int32_t>> remove_self_loops(
+  raft::handle_t const& handle,
+  rmm::device_uvector<int32_t>&& v1,
+  rmm::device_uvector<int32_t>&& v2);
+
+template std::tuple<rmm::device_uvector<int64_t>, rmm::device_uvector<int64_t>> remove_self_loops(
+  raft::handle_t const& handle,
+  rmm::device_uvector<int64_t>&& v1,
+  rmm::device_uvector<int64_t>&& v2);
+
 }  // namespace test
 }  // namespace cugraph
