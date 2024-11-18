@@ -1349,17 +1349,17 @@ extract_transform_v_frontier_e(raft::handle_t const& handle,
             } else {
               key_first = get_dataframe_buffer_begin(keys);
             }
-            auto key_local_degree_first = thrust::make_transform_iterator(
-              key_first, cuda::proclaim_return_type<size_t>([edge_partition] __device__(auto key) {
-                auto major        = thrust_tuple_get_or_identity<key_t, 0>(key);
-                auto major_offset = edge_partition.major_offset_from_major_nocheck(major);
-                return static_cast<size_t>(edge_partition.local_degree(major_offset));
-              }));
-            thrust::inclusive_scan(rmm::exec_policy_nosync(loop_stream),
-                                   key_local_degree_first,
-                                   key_local_degree_first + key_segment_offsets[1],
-                                   high_segment_key_local_degree_offsets.begin() + 1);
           }
+          auto key_local_degree_first = thrust::make_transform_iterator(
+            key_first, cuda::proclaim_return_type<size_t>([edge_partition] __device__(auto key) {
+              auto major        = thrust_tuple_get_or_identity<key_t, 0>(key);
+              auto major_offset = edge_partition.major_offset_from_major_nocheck(major);
+              return static_cast<size_t>(edge_partition.local_degree(major_offset));
+            }));
+          thrust::inclusive_scan(rmm::exec_policy_nosync(loop_stream),
+                                 key_local_degree_first,
+                                 key_local_degree_first + key_segment_offsets[1],
+                                 high_segment_key_local_degree_offsets.begin() + 1);
         }
         raft::update_host((*high_segment_edge_counts).data() + j,
                           high_segment_key_local_degree_offsets.data() + key_segment_offsets[1],
