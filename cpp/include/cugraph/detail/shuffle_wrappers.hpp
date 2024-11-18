@@ -25,6 +25,9 @@
 namespace cugraph {
 namespace detail {
 
+// FIXME: Consider moving this file (or most of this file) into the src directory...
+//    at least some of these functions don't really belong in the public API
+
 /**
  * @brief Shuffle external (i.e. before renumbering) vertex pairs (which can be edge end points) to
  * their local GPUs based on edge partitioning.
@@ -220,7 +223,10 @@ shuffle_int_vertex_value_pairs_to_local_gpu_by_vertex_partitioning(
  * @param[in,out] d_edgelist_minors Vertex IDs for destinations (if we are internally storing edges
  * in the sparse 2D matrix using sources as major indices) or sources (otherwise)
  * @param[in,out] d_edgelist_weights Optional edge weights
- * @param[in,out] d_edgelist_id_type_pairs Optional edge (ID, type) pairs
+ * @param[in,out] d_edgelist_ids Optional edge ids
+ * @param[in,out] d_edgelist_types Optional edge types
+ * @param[in,out] d_edgelist_start_times Optional edge start times
+ * @param[in,out] d_edgelist_end_times Optional edge end times
  * @param[in] groupby_and_count_local_partition_by_minor If set to true, groupby and count edges
  * based on (local partition ID, GPU ID) pairs (where GPU IDs are computed by applying the
  * compute_gpu_id_from_vertex_t function to the minor vertex ID). If set to false, groupby and count
@@ -230,7 +236,11 @@ shuffle_int_vertex_value_pairs_to_local_gpu_by_vertex_partitioning(
  * groupby_and_count_local_partition is false) or in each segment with the same (local partition ID,
  * GPU ID) pair.
  */
-template <typename vertex_t, typename edge_t, typename weight_t, typename edge_type_t>
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          typename edge_type_t,
+          typename edge_time_t>
 rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partition_id(
   raft::handle_t const& handle,
   rmm::device_uvector<vertex_t>& d_edgelist_majors,
@@ -238,6 +248,8 @@ rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partition_id(
   std::optional<rmm::device_uvector<weight_t>>& d_edgelist_weights,
   std::optional<rmm::device_uvector<edge_t>>& d_edgelist_edge_ids,
   std::optional<rmm::device_uvector<edge_type_t>>& d_edgelist_edge_types,
+  std::optional<rmm::device_uvector<edge_time_t>>& d_edgelist_edge_start_times,
+  std::optional<rmm::device_uvector<edge_time_t>>& d_edgelist_edge_end_times,
   bool groupby_and_count_local_partition_by_minor = false);
 
 /**
