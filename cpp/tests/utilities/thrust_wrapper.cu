@@ -41,6 +41,7 @@ namespace test {
 
 template <typename value_t>
 cugraph::dataframe_buffer_type_t<value_t> sort(
+
   raft::handle_t const& handle, cugraph::dataframe_buffer_type_t<value_t> const& values)
 {
   auto sorted_values = cugraph::allocate_dataframe_buffer<value_t>(
@@ -404,6 +405,25 @@ template rmm::device_uvector<int64_t> sequence(raft::handle_t const& handle,
                                                int64_t init);
 
 template <typename value_t>
+cugraph::dataframe_buffer_type_t<value_t> scalar_fill(raft::handle_t const& handle,
+                                                      size_t length,
+                                                      value_t value)
+{
+  auto values = cugraph::allocate_dataframe_buffer<value_t>(length, handle.get_stream());
+
+  thrust::tabulate(
+    handle.get_thrust_policy(), values.begin(), values.end(), [value] __device__(size_t i) {
+      return value;
+    });
+
+  return values;
+}
+
+template rmm::device_uvector<int32_t> scalar_fill(raft::handle_t const& handle,
+                                                  size_t length,
+                                                  int32_t value);
+
+template <typename value_t>
 cugraph::dataframe_buffer_type_t<value_t> modulo_sequence(raft::handle_t const& handle,
                                                           size_t length,
                                                           value_t modulo,
@@ -545,6 +565,36 @@ template void expand_hypersparse_offsets(raft::handle_t const& handle,
                                          raft::device_span<int64_t const> nzd_indices,
                                          raft::device_span<int64_t> indices,
                                          size_t base_offset);
+
+template <typename vertex_t>
+std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> remove_self_loops(
+  raft::handle_t const& handle,
+  rmm::device_uvector<vertex_t>&& v1,
+  rmm::device_uvector<vertex_t>&& v2)
+{
+  auto new_size = thrust::distance(
+    thrust::make_zip_iterator(v1.begin(), v2.begin()),
+    thrust::remove_if(
+      handle.get_thrust_policy(),
+      thrust::make_zip_iterator(v1.begin(), v2.begin()),
+      thrust::make_zip_iterator(v1.end(), v2.end()),
+      [] __device__(auto tuple) { return thrust::get<0>(tuple) == thrust::get<1>(tuple); }));
+
+  v1.resize(new_size, handle.get_stream());
+  v2.resize(new_size, handle.get_stream());
+
+  return std::make_tuple(std::move(v1), std::move(v2));
+}
+
+template std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<int32_t>> remove_self_loops(
+  raft::handle_t const& handle,
+  rmm::device_uvector<int32_t>&& v1,
+  rmm::device_uvector<int32_t>&& v2);
+
+template std::tuple<rmm::device_uvector<int64_t>, rmm::device_uvector<int64_t>> remove_self_loops(
+  raft::handle_t const& handle,
+  rmm::device_uvector<int64_t>&& v1,
+  rmm::device_uvector<int64_t>&& v2);
 
 }  // namespace test
 }  // namespace cugraph
