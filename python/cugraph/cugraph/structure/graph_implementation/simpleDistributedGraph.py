@@ -986,10 +986,10 @@ class simpleDistributedGraphImpl:
 
         Parameters
         ----------
-        return_unrenumbered_edgelist    : bool (default=True)
-                                          Flag determining whether to return the original input edgelist
-                                          if 'True' or the renumbered one of 'False' and the edgelist was
-                                          renumbered.
+        return_unrenumbered_edgelist : bool (default=True)
+                                    Flag determining whether to return the original
+                                    input edgelist if 'True' or the renumbered one
+                                    of 'False' and the edgelist was renumbered.
 
         Returns
         -------

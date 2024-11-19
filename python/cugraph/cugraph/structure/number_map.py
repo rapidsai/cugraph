@@ -18,7 +18,6 @@ from collections.abc import Iterable
 import dask_cudf
 import numpy as np
 import cudf
-import warnings
 
 
 class NumberMap:
