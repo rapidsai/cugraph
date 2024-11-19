@@ -699,6 +699,7 @@ class NeighborSampler(DistSampler):
         compress_per_hop: bool = False,
         with_replacement: bool = False,
         biased: bool = False,
+        heterogeneous: bool = False,
     ):
         self.__fanout = fanout
         self.__prior_sources_behavior = prior_sources_behavior
@@ -713,11 +714,19 @@ class NeighborSampler(DistSampler):
         # change.
         # TODO allow func to be a call to a future remote sampling API
         # if the provided graph is in another process (rapidsai/cugraph#4623).
-        self.__func = (
-            pylibcugraph.biased_neighbor_sample
-            if biased
-            else pylibcugraph.uniform_neighbor_sample
-        )
+        if heterogeneous:
+            self.__func = (
+                pylibcugraph.heterogeneous_biased_neighbor_sample
+                if biased
+                else pylibcugraph.heterogeneous_uniform_neighbor_sample
+            )
+        else:
+            # TODO change this to the new API (rapidsai/cugraph#4773)
+            self.__func = (
+                pylibcugraph.biased_neighbor_sample
+                if biased
+                else pylibcugraph.uniform_neighbor_sample
+            )
 
         super().__init__(
             graph,
@@ -834,4 +843,5 @@ class NeighborSampler(DistSampler):
                 return_dict=True,
             )
 
+        sampling_results_dict["fanout"] = cupy.array(self.__fanout, dtype="int32")
         return sampling_results_dict
