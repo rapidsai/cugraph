@@ -391,9 +391,7 @@ class Rmat_Usecase : public detail::TranslateGraph_Usecase {
 
   void set_edge_factor(size_t edge_factor) { edge_factor_ = edge_factor; }
 
-  bool undirected() const {
-    return undirected_;
-  }
+  bool undirected() const { return undirected_; }
 
  private:
   size_t scale_{};

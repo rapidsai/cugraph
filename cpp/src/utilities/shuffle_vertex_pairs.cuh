@@ -62,9 +62,9 @@ shuffle_vertex_pairs_with_values_by_gpu_id_impl(
                       (edge_types ? sizeof(edge_type_t) : size_t{0});
   auto constexpr mem_frugal_ratio =
     0.05;  // if the expected temporary buffer size exceeds the mem_frugal_ratio of the
-          // total_global_mem, switch to the memory frugal approach (thrust::sort is used to
-          // group-by by default, and thrust::sort requires temporary buffer comparable to the input
-          // data size)
+           // total_global_mem, switch to the memory frugal approach (thrust::sort is used to
+           // group-by by default, and thrust::sort requires temporary buffer comparable to the
+           // input data size)
   auto mem_frugal_threshold =
     static_cast<size_t>(static_cast<double>(total_global_mem / element_size) * mem_frugal_ratio);
 
