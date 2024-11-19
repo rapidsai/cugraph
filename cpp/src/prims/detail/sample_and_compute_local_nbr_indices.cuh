@@ -597,8 +597,6 @@ rmm::device_uvector<edge_t> compute_uniform_sampling_index_without_replacement(
   raft::random::RngState& rng_state,
   size_t K)
 {
-  assert(cugraph::invalid_edge_id_v<edge_t> == cugraph::ops::graph::INVALID_ID<edge_t>);
-
   edge_t mid_partition_degree_range_last = static_cast<edge_t>(K * 10);  // tuning parameter
   assert(mid_partition_degree_range_last > K);
   size_t high_partition_oversampling_K = K * 2;  // tuning parameter
@@ -1568,9 +1566,6 @@ uniform_sample_and_compute_local_nbr_indices(
   bool with_replacement)
 {
   using edge_t = typename GraphViewType::edge_type;
-
-  assert(cugraph::invalid_edge_id_v<edge_t> == cugraph::ops::graph::INVALID_ID<edge_t>);
-
   using vertex_t = typename GraphViewType::vertex_type;
   using key_t    = typename thrust::iterator_traits<KeyIterator>::value_type;
 
