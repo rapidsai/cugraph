@@ -982,21 +982,21 @@ class simpleDistributedGraphImpl:
 
     def decompress_to_edgelist(
         self,
-        original: bool = True
+        return_unrenumbered_edgelist: bool = True
     ) -> dask_cudf.DataFrame:
         """
         Extract a the edgelist from a graph.
 
         Parameters
         ----------
-        original    : bool (default=True)
-                    Flag determining whether to return the original input edgelist
-                    if 'True' or the renumbered one of 'False' and the edgelist was
-                    renumbered.
+        return_unrenumbered_edgelist    : bool (default=True)
+                                          Flag determining whether to return the original input edgelist
+                                          if 'True' or the renumbered one of 'False' and the edgelist was
+                                          renumbered.
 
         Returns
         -------
-        ego_edge_lists : dask_cudf.DataFrame
+        df : dask_cudf.cudf.DataFrame
             Distributed GPU data frame containing all induced sources identifiers,
             destination identifiers, and if applicable edge weights, edge ids and
             edge types
@@ -1051,7 +1051,7 @@ class simpleDistributedGraphImpl:
         ddf = dask_cudf.from_delayed(cudf_result).persist()
         wait(ddf)
 
-        if self.properties.renumbered and original:
+        if self.properties.renumbered and return_unrenumbered_edgelist:
             ddf = self.renumber_map.unrenumber(ddf, "src")
             ddf = self.renumber_map.unrenumber(ddf, "dst")
 
