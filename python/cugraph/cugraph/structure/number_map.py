@@ -462,11 +462,7 @@ class NumberMap:
 
     @staticmethod
     def renumber_and_segment(
-        df,
-        src_col_names,
-        dst_col_names,
-        preserve_order=False,
-        store_transposed=False
+        df, src_col_names, dst_col_names, preserve_order=False, store_transposed=False
     ):
         """
         Given an input dataframe with its column names, this function returns the
@@ -578,18 +574,10 @@ class NumberMap:
 
     @staticmethod
     def renumber(
-        df,
-        src_col_names,
-        dst_col_names,
-        preserve_order=False,
-        store_transposed=False
+        df, src_col_names, dst_col_names, preserve_order=False, store_transposed=False
     ):
         return NumberMap.renumber_and_segment(
-            df,
-            src_col_names,
-            dst_col_names,
-            preserve_order,
-            store_transposed
+            df, src_col_names, dst_col_names, preserve_order, store_transposed
         )[0:2]
 
     def unrenumber(self, df, column_name, preserve_order=False, get_column_names=False):

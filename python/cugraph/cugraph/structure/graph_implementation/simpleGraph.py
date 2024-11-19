@@ -259,10 +259,7 @@ class simpleGraphImpl:
         if renumber:
             # FIXME: Should SG do lazy evaluation like MG?
             elist, renumber_map = NumberMap.renumber(
-                elist,
-                source,
-                destination,
-                store_transposed=False
+                elist, source, destination, store_transposed=False
             )
             source = renumber_map.renumbered_src_col_name
             destination = renumber_map.renumbered_dst_col_name
@@ -799,8 +796,7 @@ class simpleGraphImpl:
         return df
 
     def decompress_to_edgelist(
-        self,
-        return_unrenumbered_edgelist: bool = True
+        self, return_unrenumbered_edgelist: bool = True
     ) -> cudf.DataFrame:
         """
         Extract a the edgelist from a graph.
@@ -829,10 +825,16 @@ class simpleGraphImpl:
         """
 
         do_expensive_check = False
-        source, destination, weight, edge_ids, edge_type_ids = pylibcugraph_decompress_to_edgelist(
+        (
+            source,
+            destination,
+            weight,
+            edge_ids,
+            edge_type_ids,
+        ) = pylibcugraph_decompress_to_edgelist(
             resource_handle=ResourceHandle(),
             graph=self._plc_graph,
-            do_expensive_check=do_expensive_check
+            do_expensive_check=do_expensive_check,
         )
 
         df = cudf.DataFrame()

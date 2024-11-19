@@ -427,8 +427,8 @@ def test_graph_creation_properties(dask_client, graph_file, directed, renumber):
 @pytest.mark.parametrize("graph_file", datasets)
 def test_decompress_to_edgelist(dask_client, graph_file, directed, renumber):
     input_df = utils.read_csv_file(graph_file)
-    input_df = input_df.rename(columns={'0': 'src', '1': 'dst', '2': 'weight'})
-    
+    input_df = input_df.rename(columns={"0": "src", "1": "dst", "2": "weight"})
+
     G = cugraph.Graph(directed=directed)
     input_df_ = cudf.DataFrame()
     if renumber:
@@ -450,21 +450,27 @@ def test_decompress_to_edgelist(dask_client, graph_file, directed, renumber):
 
     G = cugraph.Graph(directed=True)
     G.from_dask_cudf_edgelist(
-        input_ddf,
-        source=source,
-        destination=destination,
-        weight="weight"
+        input_ddf, source=source, destination=destination, weight="weight"
     )
 
-    extracted_df = G.decompress_to_edgelist(
-        return_unrenumbered_edgelist = True
-    ).compute().reset_index(drop=True)
+    extracted_df = (
+        G.decompress_to_edgelist(return_unrenumbered_edgelist=True)
+        .compute()
+        .reset_index(drop=True)
+    )
 
     if renumber:
         extracted_df = extracted_df.rename(
-            columns={'0_src': 'src_0', '1_src': 'src_1',
-                     '0_dst': 'dst_0', '1_dst': 'dst_1'})
+            columns={
+                "0_src": "src_0",
+                "1_src": "src_1",
+                "0_dst": "dst_0",
+                "1_dst": "dst_1",
+            }
+        )
         extracted_df = extracted_df.sort_values(
-            ["src_0", "src_1", "dst_0", "dst_1"]).reset_index(drop=True)
+            ["src_0", "src_1", "dst_0", "dst_1"]
+        ).reset_index(drop=True)
         input_df = input_df.sort_values(
-            ["src_0", "src_1", "dst_0", "dst_1"]).reset_index(drop=True)
+            ["src_0", "src_1", "dst_0", "dst_1"]
+        ).reset_index(drop=True)

@@ -24,7 +24,7 @@
 #include <cugraph_c/algorithms.h>
 
 #include <cugraph/algorithms.hpp>
-#include <cugraph/detail/shuffle_wrappers.hpp> // FIXME: mihgt remove the shuffle headers because they are unsued
+#include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/graph_functions.hpp>
 
@@ -71,47 +71,54 @@ struct decompress_to_edgelist_functor : public cugraph::c_api::abstract_functor 
       // FIXME: Transpose_storage may have a bug, since if store_transposed is True it can reverse
       // the bool value of is_symmetric
       auto graph =
-        reinterpret_cast<cugraph::graph_t<vertex_t, edge_t, store_transposed, multi_gpu>*>(graph_->graph_);
+        reinterpret_cast<cugraph::graph_t<vertex_t, edge_t, store_transposed, multi_gpu>*>(
+          graph_->graph_);
 
       auto graph_view = graph->view();
 
-      auto edge_weights = reinterpret_cast<
-        cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>,
-                                 weight_t>*>(graph_->edge_weights_);
-      
-      auto edge_ids = reinterpret_cast<
-        cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>,
-                                 edge_t>*>(graph_->edge_ids_);
-      
-      auto edge_types = reinterpret_cast<
-        cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>,
-                                 edge_type_type_t>*>(graph_->edge_types_);
+      auto edge_weights = reinterpret_cast<cugraph::edge_property_t<
+        cugraph::graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>,
+        weight_t>*>(graph_->edge_weights_);
+
+      auto edge_ids = reinterpret_cast<cugraph::edge_property_t<
+        cugraph::graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>,
+        edge_t>*>(graph_->edge_ids_);
+
+      auto edge_types = reinterpret_cast<cugraph::edge_property_t<
+        cugraph::graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>,
+        edge_type_type_t>*>(graph_->edge_types_);
 
       auto number_map = reinterpret_cast<rmm::device_uvector<vertex_t>*>(graph_->number_map_);
 
-
       auto [result_src, result_dst, result_wgt, result_edge_id, result_edge_type] =
-        cugraph::decompress_to_edgelist<vertex_t, edge_t, weight_t, edge_type_type_t, store_transposed, multi_gpu>(
+        cugraph::decompress_to_edgelist<vertex_t,
+                                        edge_t,
+                                        weight_t,
+                                        edge_type_type_t,
+                                        store_transposed,
+                                        multi_gpu>(
           handle_,
           graph_view,
           (edge_weights != nullptr) ? std::make_optional(edge_weights->view()) : std::nullopt,
           (edge_ids != nullptr) ? std::make_optional(edge_ids->view()) : std::nullopt,
           (edge_types != nullptr) ? std::make_optional(edge_types->view()) : std::nullopt,
           (number_map != nullptr) ? std::make_optional<raft::device_span<vertex_t const>>(
-                                        number_map->data(), number_map->size())
+                                      number_map->data(), number_map->size())
                                   : std::nullopt,
           do_expensive_check_);
-    
 
       result_ = new cugraph::c_api::cugraph_induced_subgraph_result_t{
         new cugraph::c_api::cugraph_type_erased_device_array_t(result_src, graph_->vertex_type_),
         new cugraph::c_api::cugraph_type_erased_device_array_t(result_dst, graph_->vertex_type_),
-        result_wgt ? new cugraph::c_api::cugraph_type_erased_device_array_t(*result_wgt, graph_->weight_type_)
-            : NULL,
-        result_edge_id ? new cugraph::c_api::cugraph_type_erased_device_array_t(*result_edge_id, graph_->edge_type_)
-            : NULL,
-        result_edge_type ? new cugraph::c_api::cugraph_type_erased_device_array_t(*result_edge_type, graph_->edge_type_id_type_)
-            : NULL,
+        result_wgt ? new cugraph::c_api::cugraph_type_erased_device_array_t(*result_wgt,
+                                                                            graph_->weight_type_)
+                   : NULL,
+        result_edge_id ? new cugraph::c_api::cugraph_type_erased_device_array_t(*result_edge_id,
+                                                                                graph_->edge_type_)
+                       : NULL,
+        result_edge_type ? new cugraph::c_api::cugraph_type_erased_device_array_t(
+                             *result_edge_type, graph_->edge_type_id_type_)
+                         : NULL,
         NULL};
     }
   }
@@ -119,11 +126,12 @@ struct decompress_to_edgelist_functor : public cugraph::c_api::abstract_functor 
 
 }  // namespace
 
-extern "C" cugraph_error_code_t cugraph_decompress_to_edgelist(const cugraph_resource_handle_t* handle,
-                                                       cugraph_graph_t* graph,
-                                                       bool_t do_expensive_check,
-                                                       cugraph_induced_subgraph_result_t** result,
-                                                       cugraph_error_t** error)
+extern "C" cugraph_error_code_t cugraph_decompress_to_edgelist(
+  const cugraph_resource_handle_t* handle,
+  cugraph_graph_t* graph,
+  bool_t do_expensive_check,
+  cugraph_induced_subgraph_result_t** result,
+  cugraph_error_t** error)
 {
   decompress_to_edgelist_functor functor(handle, graph, do_expensive_check);
 

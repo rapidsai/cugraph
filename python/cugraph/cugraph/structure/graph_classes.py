@@ -296,7 +296,7 @@ class Graph:
         edge_id=None,
         edge_type=None,
         renumber=True,
-        store_transposed=False
+        store_transposed=False,
     ):
         """
         Initializes the distributed graph from the dask_cudf.DataFrame
@@ -360,7 +360,7 @@ class Graph:
             edge_id=edge_id,
             edge_type=edge_type,
             renumber=renumber,
-            store_transposed=store_transposed
+            store_transposed=store_transposed,
         )
 
     # Move to Compat Module
@@ -850,7 +850,7 @@ class NPartiteGraph(Graph):
         destination="destination",
         edge_attr=None,
         renumber=True,
-        store_transposed=False
+        store_transposed=False,
     ):
         """
         Initialize a graph from the edge list. It is an error to call this
@@ -918,7 +918,7 @@ class NPartiteGraph(Graph):
         destination="destination",
         edge_attr=None,
         renumber=True,
-        store_transposed=False
+        store_transposed=False,
     ):
         """
         Initializes the distributed graph from the dask_cudf.DataFrame

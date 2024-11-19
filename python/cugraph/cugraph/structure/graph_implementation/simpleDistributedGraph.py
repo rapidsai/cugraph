@@ -32,7 +32,7 @@ from pylibcugraph import (
     degrees as pylibcugraph_degrees,
     in_degrees as pylibcugraph_in_degrees,
     out_degrees as pylibcugraph_out_degrees,
-    decompress_to_edgelist as pylibcugraph_decompress_to_edgelist
+    decompress_to_edgelist as pylibcugraph_decompress_to_edgelist,
 )
 
 from cugraph.structure.number_map import NumberMap
@@ -334,9 +334,7 @@ class simpleDistributedGraphImpl:
         # the edgelist_df and not do any renumbering.
         # C++ renumbering is enabled by default for algorithms that
         # support it (but only called if renumbering is on)
-        self.compute_renumber_edge_list(
-            transposed=store_transposed
-        )
+        self.compute_renumber_edge_list(transposed=store_transposed)
 
         if renumber is False:
             self.properties.renumbered = False
@@ -981,8 +979,7 @@ class simpleDistributedGraphImpl:
         return ddf
 
     def decompress_to_edgelist(
-        self,
-        return_unrenumbered_edgelist: bool = True
+        self, return_unrenumbered_edgelist: bool = True
     ) -> dask_cudf.DataFrame:
         """
         Extract a the edgelist from a graph.
@@ -1011,19 +1008,19 @@ class simpleDistributedGraphImpl:
             sID: bytes,
             mg_graph_x,
             do_expensive_check: bool,
-            ) -> Tuple[cp.ndarray, cp.ndarray, cp.ndarray, cp.ndarray]:
-                return pylibcugraph_decompress_to_edgelist(
-                    resource_handle=ResourceHandle(Comms.get_handle(sID).getHandle()),
-                    graph=mg_graph_x,
-                    do_expensive_check=do_expensive_check,
-        )
+        ) -> Tuple[cp.ndarray, cp.ndarray, cp.ndarray, cp.ndarray]:
+            return pylibcugraph_decompress_to_edgelist(
+                resource_handle=ResourceHandle(Comms.get_handle(sID).getHandle()),
+                graph=mg_graph_x,
+                do_expensive_check=do_expensive_check,
+            )
 
         result = [
             client.submit(
                 _call_decompress_to_edgelist,
                 Comms.get_session_id(),
                 self._plc_graph[w],
-                do_expensive_check
+                do_expensive_check,
             )
             for w in Comms.get_workers()
         ]
@@ -1044,7 +1041,9 @@ class simpleDistributedGraphImpl:
 
             return df
 
-        cudf_result = [client.submit(convert_to_cudf, cp_arrays) for cp_arrays in result]
+        cudf_result = [
+            client.submit(convert_to_cudf, cp_arrays) for cp_arrays in result
+        ]
 
         wait(cudf_result)
 
@@ -1335,7 +1334,7 @@ class simpleDistributedGraphImpl:
                 self.input_df,
                 self.source_columns,
                 self.destination_columns,
-                store_transposed=transposed
+                store_transposed=transposed,
             )
 
             self.edgelist = self.EdgeList(renumbered_ddf)

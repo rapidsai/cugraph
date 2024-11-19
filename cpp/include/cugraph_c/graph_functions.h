@@ -336,12 +336,11 @@ cugraph_error_code_t cugraph_degrees(const cugraph_resource_handle_t* handle,
  *                                  be populated if error code is not CUGRAPH_SUCCESS
  * @return error code
  */
-cugraph_error_code_t cugraph_decompress_to_edgelist(
-  const cugraph_resource_handle_t* handle,
-  cugraph_graph_t* graph,
-  bool_t do_expensive_check,
-  cugraph_induced_subgraph_result_t** result,
-  cugraph_error_t** error);
+cugraph_error_code_t cugraph_decompress_to_edgelist(const cugraph_resource_handle_t* handle,
+                                                    cugraph_graph_t* graph,
+                                                    bool_t do_expensive_check,
+                                                    cugraph_induced_subgraph_result_t** result,
+                                                    cugraph_error_t** error);
 
 /**
  * @brief       Get the vertex ids

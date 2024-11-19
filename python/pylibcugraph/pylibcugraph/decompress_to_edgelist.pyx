@@ -126,13 +126,13 @@ def decompress_to_edgelist(ResourceHandle resource_handle,
         cugraph_induced_subgraph_get_destinations(result_ptr)
     cdef cugraph_type_erased_device_array_view_t* edge_weights_ptr = \
         cugraph_induced_subgraph_get_edge_weights(result_ptr)
-    
+
     cdef cugraph_type_erased_device_array_view_t* edge_ids_ptr = \
         cugraph_induced_subgraph_get_edge_ids(result_ptr)
     cdef cugraph_type_erased_device_array_view_t* edge_type_ids_ptr = \
         cugraph_induced_subgraph_get_edge_type_ids(result_ptr)
-    
-    
+
+
     """
     cdef cugraph_type_erased_device_array_view_t* subgraph_offsets_ptr = \
         cugraph_induced_subgraph_get_subgraph_offsets(result_ptr)
@@ -156,7 +156,7 @@ def decompress_to_edgelist(ResourceHandle resource_handle,
     if edge_type_ids_ptr != NULL:
         cupy_edge_type_ids = copy_to_cupy_array(
             c_resource_handle_ptr, edge_type_ids_ptr)
-    
+
     """
     cupy_subgraph_offsets = copy_to_cupy_array(
         c_resource_handle_ptr, subgraph_offsets_ptr)
