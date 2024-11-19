@@ -46,14 +46,6 @@ def setup_function():
     gc.collect()
 
 
-# =============================================================================
-# Parameters
-# =============================================================================
-
-
-IS_DIRECTED = [True, False]
-RENUMBER = [True, False]
-
 
 def compare_series(series_1, series_2):
     assert len(series_1) == len(series_2)
@@ -190,8 +182,8 @@ def test_add_edge_list_to_adj_list(graph_file):
 
 @pytest.mark.sg
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
-@pytest.mark.parametrize("is_directed", IS_DIRECTED)
-@pytest.mark.parametrize("renumber", RENUMBER)
+@pytest.mark.parametrize("is_directed", [True, False])
+@pytest.mark.parametrize("renumber", [True, False])
 def test_decompress_to_edgelist(graph_file, is_directed, renumber):
     input_df = utils.read_csv_file(graph_file)
     input_df = input_df.rename(columns={'0': 'src', '1': 'dst', '2': 'weight'})
