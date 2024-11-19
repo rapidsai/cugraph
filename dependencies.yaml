@@ -26,12 +26,10 @@ files:
       - depends_on_cupy
       - depends_on_pytorch
       - python_run_cugraph
-      - python_run_nx_cugraph
       - test_notebook
       - test_python_common
       - test_python_cugraph
       - test_python_pylibcugraph
-      - test_python_nx_cugraph
   checks:
     output: none
     includes:
@@ -148,32 +146,6 @@ files:
       - depends_on_cudf
       - test_python_common
       - test_python_pylibcugraph
-  py_build_nx_cugraph:
-    output: pyproject
-    pyproject_dir: python/nx-cugraph
-    extras:
-      table: build-system
-    includes:
-      - python_build_rapids
-      - python_build_wheel
-  py_run_nx_cugraph:
-    output: pyproject
-    pyproject_dir: python/nx-cugraph
-    extras:
-      table: project
-    includes:
-      - depends_on_pylibcugraph
-      - depends_on_cupy
-      - python_run_nx_cugraph
-  py_test_nx_cugraph:
-    output: pyproject
-    pyproject_dir: python/nx-cugraph
-    extras:
-      table: project.optional-dependencies
-      key: test
-    includes:
-      - test_python_common
-      - test_python_nx_cugraph
   py_build_cugraph_equivariant:
     output: pyproject
     pyproject_dir: python/cugraph-equivariant
@@ -474,12 +446,6 @@ dependencies:
           - matrix:
             packages:
               - *ucx_py_unsuffixed
-  python_run_nx_cugraph:
-    common:
-      - output_types: [conda, pyproject]
-        packages:
-          - networkx>=3.0
-          - *numpy
   python_run_cugraph_service_client:
     common:
       - output_types: [conda, pyproject]
@@ -560,12 +526,6 @@ dependencies:
       - output_types: [conda, pyproject]
         packages:
           - *numpy
-  test_python_nx_cugraph:
-    common:
-      - output_types: [conda, pyproject]
-        packages:
-            # not needed by nx-cugraph tests, but is required for running networkx tests
-          - pytest-mpl
 
   depends_on_pytorch:
     common:
