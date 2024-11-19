@@ -36,6 +36,7 @@
 #include <thrust/transform.h>
 #include <thrust/transform_reduce.h>
 #include <thrust/tuple.h>
+#include <thrust/unique.h>
 
 namespace cugraph {
 namespace detail {
@@ -64,12 +65,40 @@ void scalar_fill(raft::handle_t const& handle, value_t* d_value, size_t size, va
 }
 
 template <typename value_t>
+void sort_ints(raft::handle_t const& handle, raft::device_span<value_t> values)
+{
+  thrust::sort(handle.get_thrust_policy(), values.begin(), values.end());
+}
+
+template <typename value_t>
+size_t unique_ints(raft::handle_t const& handle, raft::device_span<value_t> values)
+{
+  auto unique_element_last =
+    thrust::unique(handle.get_thrust_policy(), values.begin(), values.end());
+  return thrust::distance(values.begin(), unique_element_last);
+}
+
+template <typename value_t>
 void sequence_fill(rmm::cuda_stream_view const& stream_view,
                    value_t* d_value,
                    size_t size,
                    value_t start_value)
 {
   thrust::sequence(rmm::exec_policy(stream_view), d_value, d_value + size, start_value);
+}
+
+template <typename value_t>
+void transform_increment_ints(raft::device_span<value_t> values,
+                              value_t incr,
+                              rmm::cuda_stream_view const& stream_view)
+{
+  thrust::transform(rmm::exec_policy(stream_view),
+                    values.begin(),
+                    values.end(),
+                    values.begin(),
+                    cuda::proclaim_return_type<value_t>([incr] __device__(value_t value) {
+                      return static_cast<value_t>(value + incr);
+                    }));
 }
 
 template <typename value_t>
