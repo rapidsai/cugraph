@@ -466,8 +466,7 @@ class NumberMap:
         src_col_names,
         dst_col_names,
         preserve_order=False,
-        store_transposed=False,
-        legacy_renum_only=False,
+        store_transposed=False
     ):
         """
         Given an input dataframe with its column names, this function returns the
@@ -475,11 +474,6 @@ class NumberMap:
         to external vertex IDs. the parameter 'preserve_order' ensures that the order
         of the edges is preserved during renumbering.
         """
-        if legacy_renum_only:
-            warning_msg = (
-                "The parameter 'legacy_renum_only' is deprecated and will be removed."
-            )
-            warnings.warn(warning_msg, DeprecationWarning)
 
         renumbered = False
 
@@ -588,16 +582,14 @@ class NumberMap:
         src_col_names,
         dst_col_names,
         preserve_order=False,
-        store_transposed=False,
-        legacy_renum_only=False,
+        store_transposed=False
     ):
         return NumberMap.renumber_and_segment(
             df,
             src_col_names,
             dst_col_names,
             preserve_order,
-            store_transposed,
-            legacy_renum_only,
+            store_transposed
         )[0:2]
 
     def unrenumber(self, df, column_name, preserve_order=False, get_column_names=False):
