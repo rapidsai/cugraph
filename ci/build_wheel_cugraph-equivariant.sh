@@ -3,4 +3,7 @@
 
 set -euo pipefail
 
-./ci/build_wheel.sh cugraph-equivariant python/cugraph-equivariant
+package_dir="python/cugraph-equivariant"
+
+./ci/build_wheel.sh cugraph-equivariant ${package_dir}
+./ci/validate_wheel.sh ${package_dir} dist

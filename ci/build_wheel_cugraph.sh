@@ -3,6 +3,8 @@
 
 set -euo pipefail
 
+package_dir="python/cugraph"
+
 RAPIDS_PY_CUDA_SUFFIX="$(rapids-wheel-ctk-name-gen ${RAPIDS_CUDA_VERSION})"
 
 # Download the pylibcugraph wheel built in the previous step and make it
@@ -31,4 +33,5 @@ esac
 export SKBUILD_CMAKE_ARGS="-DDETECT_CONDA_ENV=OFF;-DFIND_CUGRAPH_CPP=OFF;-DCPM_cugraph-ops_SOURCE=${GITHUB_WORKSPACE}/cugraph-ops/${EXTRA_CMAKE_ARGS}"
 export SKBUILD_BUILD_TOOL_ARGS="-j${PARALLEL_LEVEL};-l${PARALLEL_LEVEL}"
 
-./ci/build_wheel.sh cugraph python/cugraph
+./ci/build_wheel.sh cugraph ${package_dir}
+./ci/validate_wheel.sh ${package_dir} final_dist
