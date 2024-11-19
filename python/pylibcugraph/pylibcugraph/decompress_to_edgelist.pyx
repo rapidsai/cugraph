@@ -94,7 +94,7 @@ def decompress_to_edgelist(ResourceHandle resource_handle,
     ...     resource_handle, graph_props, srcs, dsts, weight_array=weights,
     ...     store_transposed=False, renumber=False, do_expensive_check=False)
     >>> (sources, destinations, edge_weights, _, _) =
-    ...     pylibcugraph.induced_subgraph(
+    ...     pylibcugraph.decompress_to_edgelist(
     ...         resource_handle, G, False)
     >>> sources
     [0, 1, 1, 2, 2, 2, 3, 4]
