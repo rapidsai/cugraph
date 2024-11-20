@@ -17,7 +17,7 @@
 #include "c_api/abstract_functor.hpp"
 #include "c_api/core_result.hpp"
 #include "c_api/graph.hpp"
-#include "c_api/induced_subgraph_result.hpp"
+#include "c_api/edgelist.hpp"
 #include "c_api/resource_handle.hpp"
 #include "c_api/utils.hpp"
 
@@ -38,7 +38,7 @@ struct decompress_to_edgelist_functor : public cugraph::c_api::abstract_functor 
 
   cugraph::c_api::cugraph_core_result_t const* core_result_{};
   bool do_expensive_check_{};
-  cugraph::c_api::cugraph_induced_subgraph_result_t* result_{};
+  cugraph::c_api::cugraph_edgelist_t* result_{};
 
   decompress_to_edgelist_functor(cugraph_resource_handle_t const* handle,
                                  cugraph_graph_t* graph,
@@ -105,7 +105,7 @@ struct decompress_to_edgelist_functor : public cugraph::c_api::abstract_functor 
                                   : std::nullopt,
           do_expensive_check_);
 
-      result_ = new cugraph::c_api::cugraph_induced_subgraph_result_t{
+      result_ = new cugraph::c_api::cugraph_edgelist_t{
         new cugraph::c_api::cugraph_type_erased_device_array_t(result_src, graph_->vertex_type_),
         new cugraph::c_api::cugraph_type_erased_device_array_t(result_dst, graph_->vertex_type_),
         result_wgt ? new cugraph::c_api::cugraph_type_erased_device_array_t(*result_wgt,
@@ -128,7 +128,7 @@ extern "C" cugraph_error_code_t cugraph_decompress_to_edgelist(
   const cugraph_resource_handle_t* handle,
   cugraph_graph_t* graph,
   bool_t do_expensive_check,
-  cugraph_induced_subgraph_result_t** result,
+  cugraph_edgelist_t** result,
   cugraph_error_t** error)
 {
   decompress_to_edgelist_functor functor(handle, graph, do_expensive_check);
