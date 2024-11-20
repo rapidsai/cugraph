@@ -1222,15 +1222,13 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
 
           // FIXME: If no 'vertex_type_offsets' is provided, all vertices are assumed to have
           // a vertex type of value 1. Update the API once 'vertex_type_offsets' is supported
-          rmm::device_uvector<vertex_t> vertex_type_offsets(
-            2, handle_.get_stream());
+          rmm::device_uvector<vertex_t> vertex_type_offsets(2, handle_.get_stream());
 
-          cugraph::detail::stride_fill(
-            handle_.get_stream(),
-            vertex_type_offsets.begin(),
-            vertex_type_offsets.size(),
-            vertex_t{0},
-            vertex_t{graph_view.local_vertex_partition_range_size()}
+          cugraph::detail::stride_fill(handle_.get_stream(),
+                                       vertex_type_offsets.begin(),
+                                       vertex_type_offsets.size(),
+                                       vertex_t{0},
+                                       vertex_t{graph_view.local_vertex_partition_range_size()}
 
           );
 
@@ -1272,7 +1270,9 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
 
               edge_label ? (*offsets).size() - 1 : size_t{1},
               hop ? fan_out_->size_ : size_t{1},
-              vertex_type_offsets.size() - 1, // num_vertex_type is by default 1 if not provided
+
+              vertex_type_offsets.size() -
+                1,  // num_vertex_type is by default 1 if 'vertex_type_offsets' is not provided
               num_edge_types_,
               src_is_major,
               do_expensive_check_);
