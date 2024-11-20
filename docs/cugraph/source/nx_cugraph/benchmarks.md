@@ -9,7 +9,7 @@ We ran several commonly used graph algorithms on both `networkx` and `nx-cugraph
 ![bench-image](../_static/bc_benchmark.png)
 
 <figcaption style="text-align: center;">Results from running this <a
-href="https://github.com/rapidsai/cugraph/blob/HEAD/benchmarks/nx-cugraph/pytest-based/bench_algos.py">Benchmark</a><span
+href="https://github.com/rapidsai/nx-cugraph/blob/HEAD/benchmarks/nx-cugraph/pytest-based/bench_algos.py">Benchmark</a><span
 class="title-ref"></span></figcaption>
 </figure>
 
@@ -23,4 +23,4 @@ Below are the steps to reproduce the results on your own.
 
 4. Install the latest `nx-cugraph` by following the [Installation Guide](installation.md)
 
-5. Follow the instructions written in the README [here](https://github.com/rapidsai/cugraph/blob/HEAD/benchmarks/nx-cugraph/pytest-based)
+5. Follow the instructions written in the README [here](https://github.com/rapidsai/nx-cugraph/blob/HEAD/benchmarks/nx-cugraph/pytest-based/README.md)
