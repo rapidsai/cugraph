@@ -122,41 +122,41 @@ cdef extern from "cugraph_c/graph_functions.h":
 
     ###########################################################################
     # induced_subgraph
-    ctypedef struct cugraph_induced_subgraph_result_t:
+    ctypedef struct cugraph_induced_subgraph_result_t: # Deprecated
         pass
 
     cdef cugraph_type_erased_device_array_view_t* \
-        cugraph_induced_subgraph_get_sources(
+        cugraph_induced_subgraph_get_sources( # Deprecated
             cugraph_induced_subgraph_result_t* induced_subgraph
         )
 
     cdef cugraph_type_erased_device_array_view_t* \
-        cugraph_induced_subgraph_get_destinations(
+        cugraph_induced_subgraph_get_destinations( # Deprecated
             cugraph_induced_subgraph_result_t* induced_subgraph
         )
 
     cdef cugraph_type_erased_device_array_view_t* \
-        cugraph_induced_subgraph_get_edge_weights(
+        cugraph_induced_subgraph_get_edge_weights( # Deprecated
             cugraph_induced_subgraph_result_t* induced_subgraph
         )
 
     cdef cugraph_type_erased_device_array_view_t* \
-        cugraph_induced_subgraph_get_edge_ids(
+        cugraph_induced_subgraph_get_edge_ids( # Deprecated
             cugraph_induced_subgraph_result_t* induced_subgraph
         )
 
     cdef cugraph_type_erased_device_array_view_t* \
-        cugraph_induced_subgraph_get_edge_type_ids(
+        cugraph_induced_subgraph_get_edge_type_ids( # Deprecated
             cugraph_induced_subgraph_result_t* induced_subgraph
         )
 
     cdef cugraph_type_erased_device_array_view_t* \
-        cugraph_induced_subgraph_get_subgraph_offsets(
+        cugraph_induced_subgraph_get_subgraph_offsets( # Deprecated
             cugraph_induced_subgraph_result_t* induced_subgraph
         )
 
     cdef void \
-        cugraph_induced_subgraph_result_free(
+        cugraph_induced_subgraph_result_free( # Deprecated
             cugraph_induced_subgraph_result_t* induced_subgraph
         )
 
@@ -253,11 +253,49 @@ cdef extern from "cugraph_c/graph_functions.h":
 
     ###########################################################################
     # decompress to edgelist
+    ctypedef struct cugraph_edgelist_t:
+        pass
+
+    cdef cugraph_type_erased_device_array_view_t* \
+        cugraph_edgelist_get_sources(
+            cugraph_edgelist_t* edgelist
+        )
+
+    cdef cugraph_type_erased_device_array_view_t* \
+        cugraph_edgelist_get_destinations(
+            cugraph_edgelist_t* edgelist
+        )
+
+    cdef cugraph_type_erased_device_array_view_t* \
+        cugraph_edgelist_get_edge_weights(
+            cugraph_edgelist_t* edgelist
+        )
+
+    cdef cugraph_type_erased_device_array_view_t* \
+        cugraph_edgelist_get_edge_ids(
+            cugraph_edgelist_t* edgelist
+        )
+
+    cdef cugraph_type_erased_device_array_view_t* \
+        cugraph_edgelist_get_edge_type_ids(
+            cugraph_edgelist_t* edgelist
+        )
+
+    cdef cugraph_type_erased_device_array_view_t* \
+        cugraph_edgelist_get_edge_offsets(
+            cugraph_edgelist_t* edgelist
+        )
+
+    cdef void \
+        cugraph_edgelist_free(
+            cugraph_edgelist_t* edgelist
+        )
+
     cdef cugraph_error_code_t \
         cugraph_decompress_to_edgelist(
             const cugraph_resource_handle_t* handle,
             cugraph_graph_t* graph,
             bool_t do_expensive_check,
-            cugraph_induced_subgraph_result_t** result,
+            cugraph_edgelist_t** result,
             cugraph_error_t** error
         )

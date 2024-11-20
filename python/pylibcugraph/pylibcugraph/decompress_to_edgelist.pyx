@@ -32,15 +32,15 @@ from pylibcugraph._cugraph_c.graph cimport (
     cugraph_graph_t,
 )
 from pylibcugraph._cugraph_c.graph_functions cimport (
-    cugraph_induced_subgraph_result_t,
+    cugraph_edgelist_t,
     cugraph_decompress_to_edgelist,
-    cugraph_induced_subgraph_get_sources,
-    cugraph_induced_subgraph_get_destinations,
-    cugraph_induced_subgraph_get_edge_weights,
-    cugraph_induced_subgraph_get_edge_ids,
-    cugraph_induced_subgraph_get_edge_type_ids,
-    cugraph_induced_subgraph_get_subgraph_offsets,
-    cugraph_induced_subgraph_result_free,
+    cugraph_edgelist_get_sources,
+    cugraph_edgelist_get_destinations,
+    cugraph_edgelist_get_edge_weights,
+    cugraph_edgelist_get_edge_ids,
+    cugraph_edgelist_get_edge_type_ids,
+    cugraph_edgelist_get_edge_offsets,
+    cugraph_edgelist_free,
 )
 
 from pylibcugraph.resource_handle cimport (
@@ -107,7 +107,7 @@ def decompress_to_edgelist(ResourceHandle resource_handle,
     cdef cugraph_resource_handle_t* c_resource_handle_ptr = \
         resource_handle.c_resource_handle_ptr
     cdef cugraph_graph_t* c_graph_ptr = graph.c_graph_ptr
-    cdef cugraph_induced_subgraph_result_t* result_ptr
+    cdef cugraph_edgelist_t* result_ptr
     cdef cugraph_error_code_t error_code
     cdef cugraph_error_t* error_ptr
 
@@ -121,21 +121,21 @@ def decompress_to_edgelist(ResourceHandle resource_handle,
     # Extract individual device array pointers from result and copy to cupy
     # arrays for returning.
     cdef cugraph_type_erased_device_array_view_t* sources_ptr = \
-        cugraph_induced_subgraph_get_sources(result_ptr)
+        cugraph_edgelist_get_sources(result_ptr)
     cdef cugraph_type_erased_device_array_view_t* destinations_ptr = \
-        cugraph_induced_subgraph_get_destinations(result_ptr)
+        cugraph_edgelist_get_destinations(result_ptr)
     cdef cugraph_type_erased_device_array_view_t* edge_weights_ptr = \
-        cugraph_induced_subgraph_get_edge_weights(result_ptr)
+        cugraph_edgelist_get_edge_weights(result_ptr)
 
     cdef cugraph_type_erased_device_array_view_t* edge_ids_ptr = \
-        cugraph_induced_subgraph_get_edge_ids(result_ptr)
+        cugraph_edgelist_get_edge_ids(result_ptr)
     cdef cugraph_type_erased_device_array_view_t* edge_type_ids_ptr = \
-        cugraph_induced_subgraph_get_edge_type_ids(result_ptr)
+        cugraph_edgelist_get_edge_type_ids(result_ptr)
 
 
     """
     cdef cugraph_type_erased_device_array_view_t* subgraph_offsets_ptr = \
-        cugraph_induced_subgraph_get_subgraph_offsets(result_ptr)
+        cugraph_edgelist_get_edge_offsets(result_ptr)
     """
 
     # FIXME: Get ownership of the result data instead of performing a copy
@@ -163,7 +163,7 @@ def decompress_to_edgelist(ResourceHandle resource_handle,
     """
 
     # Free pointer
-    cugraph_induced_subgraph_result_free(result_ptr)
+    cugraph_edgelist_free(result_ptr)
 
     return (cupy_sources, cupy_destinations,
                 cupy_edge_weights, cupy_edge_ids, cupy_edge_type_ids)
