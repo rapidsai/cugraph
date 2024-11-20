@@ -106,8 +106,6 @@ for FILE in .github/workflows/*.yaml; do
   sed_runner "s/dask-cuda.git@branch-[0-9][0-9].[0-9][0-9]/dask-cuda.git@branch-${NEXT_SHORT_TAG}/g" "${FILE}"
 done
 
-sed_runner "s/branch-.*/branch-${NEXT_SHORT_TAG}/g" python/nx-cugraph/README.md
-
 # .devcontainer files
 find .devcontainer/ -type f -name devcontainer.json -print0 | while IFS= read -r -d '' filename; do
     sed_runner "s@rapidsai/devcontainers:[0-9.]*@rapidsai/devcontainers:${NEXT_SHORT_TAG}@g" "${filename}"

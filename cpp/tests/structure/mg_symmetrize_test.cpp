@@ -262,20 +262,6 @@ TEST_P(Tests_MGSymmetrize_Rmat, CheckInt32Int32FloatTransposedTrue)
     std::get<0>(param), override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
 
-TEST_P(Tests_MGSymmetrize_Rmat, CheckInt32Int64FloatTransposedFalse)
-{
-  auto param = GetParam();
-  run_current_test<int32_t, int64_t, float, false>(
-    std::get<0>(param), override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
-}
-
-TEST_P(Tests_MGSymmetrize_Rmat, CheckInt32Int64FloatTransposedTrue)
-{
-  auto param = GetParam();
-  run_current_test<int32_t, int64_t, float, true>(
-    std::get<0>(param), override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
-}
-
 TEST_P(Tests_MGSymmetrize_Rmat, CheckInt64Int64FloatTransposedFalse)
 {
   auto param = GetParam();

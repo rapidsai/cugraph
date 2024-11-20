@@ -101,16 +101,6 @@ template void check_correctness(
 
 template void check_correctness(
   raft::handle_t const& handle,
-  graph_view_t<int32_t, int64_t, false, false> const& graph_view,
-  std::optional<edge_property_view_t<int64_t, float const*>> edge_weight_view,
-  rmm::device_uvector<int64_t> const& core_numbers,
-  std::tuple<rmm::device_uvector<int32_t>,
-             rmm::device_uvector<int32_t>,
-             std::optional<rmm::device_uvector<float>>> const& subgraph,
-  size_t k);
-
-template void check_correctness(
-  raft::handle_t const& handle,
   graph_view_t<int64_t, int64_t, false, false> const& graph_view,
   std::optional<edge_property_view_t<int64_t, float const*>> edge_weight_view,
   rmm::device_uvector<int64_t> const& core_numbers,

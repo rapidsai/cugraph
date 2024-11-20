@@ -261,20 +261,6 @@ TEST_P(Tests_MGTransposeStorage_Rmat, CheckInt32Int32FloatTransposeStoragedTrue)
     std::get<0>(param), override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
 
-TEST_P(Tests_MGTransposeStorage_Rmat, CheckInt32Int64FloatTransposeStoragedFalse)
-{
-  auto param = GetParam();
-  run_current_test<int32_t, int64_t, float, false>(
-    std::get<0>(param), override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
-}
-
-TEST_P(Tests_MGTransposeStorage_Rmat, CheckInt32Int64FloatTransposeStoragedTrue)
-{
-  auto param = GetParam();
-  run_current_test<int32_t, int64_t, float, true>(
-    std::get<0>(param), override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
-}
-
 TEST_P(Tests_MGTransposeStorage_Rmat, CheckInt64Int64FloatTransposeStoragedFalse)
 {
   auto param = GetParam();
