@@ -352,4 +352,4 @@ Generators
 
 
 To request nx-cugraph backend support for a NetworkX API that is not listed
-above, visit the `cuGraph GitHub repo <https://github.com/rapidsai/cugraph>`_.
+above, visit the `nx-cugraph GitHub repo <https://github.com/rapidsai/nx-cugraph>`_.
