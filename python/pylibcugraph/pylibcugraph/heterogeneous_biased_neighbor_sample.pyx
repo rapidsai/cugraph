@@ -88,6 +88,7 @@ def heterogeneous_biased_neighbor_sample(ResourceHandle resource_handle,
                                          start_vertex_list,
                                          starting_vertex_label_offsets,
                                          h_fan_out,
+                                         *
                                          num_edge_types,
                                          bool_t with_replacement,
                                          bool_t do_expensive_check,
