@@ -104,6 +104,8 @@ cugraph_error_code_t cugraph_two_hop_neighbors(
 
 /**
  * @brief       Opaque induced subgraph type
+ * 
+ * @deprecated  This API will be deleted, use cugraph_edgelist_t
  */
 typedef struct {
   int32_t align_;
@@ -112,6 +114,8 @@ typedef struct {
 /**
  * @brief       Get the source vertex ids
  *
+ * @deprecated  This API will be deleted, use cugraph_edgelist_get_sources
+ * 
  * @param [in]     induced_subgraph   Opaque pointer to induced subgraph
  * @return type erased array view of source vertex ids
  */
@@ -121,6 +125,8 @@ cugraph_type_erased_device_array_view_t* cugraph_induced_subgraph_get_sources(
 /**
  * @brief       Get the destination vertex ids
  *
+ * @deprecated  This API will be deleted, use cugraph_edgelist_get_destinations
+ * 
  * @param [in]     induced_subgraph   Opaque pointer to induced subgraph
  * @return type erased array view of destination vertex ids
  */
@@ -130,6 +136,8 @@ cugraph_type_erased_device_array_view_t* cugraph_induced_subgraph_get_destinatio
 /**
  * @brief       Get the edge weights
  *
+ * @deprecated  This API will be deleted, use cugraph_edgelist_get_edge_weights
+ * 
  * @param [in]     induced_subgraph   Opaque pointer to induced subgraph
  * @return type erased array view of edge weights
  */
@@ -139,6 +147,8 @@ cugraph_type_erased_device_array_view_t* cugraph_induced_subgraph_get_edge_weigh
 /**
  * @brief       Get the edge ids
  *
+ * @deprecated  This API will be deleted, use cugraph_edgelist_get_edge_ids
+ * 
  * @param [in]     induced_subgraph   Opaque pointer to induced subgraph
  * @return type erased array view of edge ids
  */
@@ -148,6 +158,7 @@ cugraph_type_erased_device_array_view_t* cugraph_induced_subgraph_get_edge_ids(
 /**
  * @brief       Get the edge types
  *
+ * @deprecated  This API will be deleted, use cugraph_edgelist_get_edge_type_ids
  * @param [in]     induced_subgraph   Opaque pointer to induced subgraph
  * @return type erased array view of edge types
  */
@@ -157,6 +168,8 @@ cugraph_type_erased_device_array_view_t* cugraph_induced_subgraph_get_edge_type_
 /**
  * @brief       Get the subgraph offsets
  *
+ * @deprecated  This API will be deleted, use cugraph_edgelist_get_edge_offsets
+ * 
  * @param [in]     induced_subgraph   Opaque pointer to induced subgraph
  * @return type erased array view of subgraph identifiers
  */
@@ -166,6 +179,8 @@ cugraph_type_erased_device_array_view_t* cugraph_induced_subgraph_get_subgraph_o
 /**
  * @brief     Free induced subgraph
  *
+ * @deprecated  This API will be deleted, use cugraph_edgelist_free
+ * 
  * @param [in]    induced subgraph   Opaque pointer to induced subgraph
  */
 void cugraph_induced_subgraph_result_free(cugraph_induced_subgraph_result_t* induced_subgraph);
