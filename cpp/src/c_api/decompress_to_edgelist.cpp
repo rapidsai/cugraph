@@ -16,8 +16,8 @@
 
 #include "c_api/abstract_functor.hpp"
 #include "c_api/core_result.hpp"
-#include "c_api/graph.hpp"
 #include "c_api/edgelist.hpp"
+#include "c_api/graph.hpp"
 #include "c_api/resource_handle.hpp"
 #include "c_api/utils.hpp"
 
