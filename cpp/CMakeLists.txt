@@ -539,6 +539,7 @@ add_library(cugraph_c
         src/c_api/strongly_connected_components.cpp
         src/c_api/allgather.cpp
         src/c_api/decompress_to_edgelist.cpp
+        src/c_api/edgelist.cpp
         )
 add_library(cugraph::cugraph_c ALIAS cugraph_c)
 

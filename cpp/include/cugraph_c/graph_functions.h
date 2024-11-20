@@ -159,6 +159,7 @@ cugraph_type_erased_device_array_view_t* cugraph_induced_subgraph_get_edge_ids(
  * @brief       Get the edge types
  *
  * @deprecated  This API will be deleted, use cugraph_edgelist_get_edge_type_ids
+ *
  * @param [in]     induced_subgraph   Opaque pointer to induced subgraph
  * @return type erased array view of edge types
  */
@@ -393,6 +394,75 @@ cugraph_type_erased_device_array_view_t* cugraph_degrees_result_get_out_degrees(
  * @param [in]    degrees_result   Opaque pointer to degree result
  */
 void cugraph_degrees_result_free(cugraph_degrees_result_t* degrees_result);
+
+/**
+ * @brief       Opaque edgelist type
+ * 
+ */
+typedef struct {
+  int32_t align_;
+} cugraph_edgelist_t;
+
+/**
+ * @brief       Get the source vertex ids
+ * 
+ * @param [in]     edgelist   Opaque pointer to edgelist
+ * @return type erased array view of source vertex ids
+ */
+cugraph_type_erased_device_array_view_t* cugraph_edgelist_get_sources(
+  cugraph_edgelist_t* edgelist);
+
+/**
+ * @brief       Get the destination vertex ids
+ * 
+ * @param [in]     edgelist   Opaque pointer to edgelist
+ * @return type erased array view of destination vertex ids
+ */
+cugraph_type_erased_device_array_view_t* cugraph_edgelist_get_destinations(
+  cugraph_edgelist_t* edgelist);
+
+/**
+ * @brief       Get the edge weights
+ * 
+ * @param [in]     edgelist   Opaque pointer to edgelist
+ * @return type erased array view of edge weights
+ */
+cugraph_type_erased_device_array_view_t* cugraph_edgelist_get_edge_weights(
+  cugraph_edgelist_t* edgelist);
+
+/**
+ * @brief       Get the edge ids
+ * 
+ * @param [in]     edgelist   Opaque pointer to edgelist
+ * @return type erased array view of edge ids
+ */
+cugraph_type_erased_device_array_view_t* cugraph_edgelist_get_edge_ids(
+  cugraph_edgelist_t* edgelist);
+
+/**
+ * @brief       Get the edge types
+ * 
+ * @param [in]     edgelist   Opaque pointer to edgelist
+ * @return type erased array view of edge types
+ */
+cugraph_type_erased_device_array_view_t* cugraph_edgelist_get_edge_type_ids(
+  cugraph_edgelist_t* edgelist);
+
+/**
+ * @brief       Get the edge offsets
+ * 
+ * @param [in]     edgelist   Opaque pointer to edgelist
+ * @return type erased array view of subgraph identifiers
+ */
+cugraph_type_erased_device_array_view_t* cugraph_edgelist_get_edge_offsets(
+  cugraph_edgelist_t* edgelist);
+
+/**
+ * @brief     Free edgelist
+ * 
+ * @param [in]    edgelist   Opaque pointer to edgelist
+ */
+void cugraph_edgelist_free(cugraph_edgelist_t* edgelist);
 
 #ifdef __cplusplus
 }
