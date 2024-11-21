@@ -155,27 +155,6 @@ class Tests_MGUniform_Neighbor_Sampling
                random_sources.size(),
                handle_->get_stream());
 
-#ifdef NO_CUGRAPH_OPS
-    EXPECT_THROW(
-      cugraph::uniform_neighbor_sample(
-        *handle_,
-        mg_graph_view,
-        mg_edge_weight_view,
-        std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
-        std::optional<cugraph::edge_property_view_t<edge_t, int32_t const*>>{std::nullopt},
-        raft::device_span<vertex_t const>{random_sources_copy.data(), random_sources.size()},
-        std::make_optional(
-          raft::device_span<int32_t const>{batch_number.data(), batch_number.size()}),
-        std::make_optional(std::make_tuple(
-          raft::device_span<int32_t const>{unique_batches.data(), unique_batches.size()},
-          raft::device_span<int32_t const>{comm_ranks.data(), comm_ranks.size()})),
-        raft::host_span<int32_t const>(uniform_neighbor_sampling_usecase.fanout.data(),
-                                       uniform_neighbor_sampling_usecase.fanout.size()),
-        rng_state,
-        true,
-        uniform_neighbor_sampling_usecase.with_replacement),
-      std::exception);
-#else
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle_->get_comms().barrier();
@@ -291,7 +270,6 @@ class Tests_MGUniform_Neighbor_Sampling
         }
       }
     }
-#endif
   }
 
  private:
