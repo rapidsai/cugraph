@@ -50,8 +50,4 @@ rapids-conda-retry mambabuild \
   --channel "${RAPIDS_CONDA_BLD_OUTPUT_DIR}" \
   conda/recipes/cugraph-service
 
-rapids-conda-retry mambabuild \
-  --no-test \
-  --channel "${RAPIDS_CONDA_BLD_OUTPUT_DIR}"
-
 rapids-upload-conda-to-s3 python
