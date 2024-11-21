@@ -45,6 +45,11 @@ def spectralBalancedCutClustering(
     G : cugraph.Graph or networkx.Graph
         Graph descriptor
 
+        .. deprecated:: 24.12
+           Accepting a ``networkx.Graph`` is deprecated and will be removed in a
+           future version.  For ``networkx.Graph`` use networkx directly with
+           the ``nx-cugraph`` backend. See:  https://rapids.ai/nx-cugraph/
+
     num_clusters : integer
         Specifies the number of clusters to find, must be greater than 1
 
@@ -142,6 +147,11 @@ def spectralModularityMaximizationClustering(
     G : cugraph.Graph or networkx.Graph
         cuGraph graph descriptor. This graph should have edge weights.
 
+        .. deprecated:: 24.12
+           Accepting a ``networkx.Graph`` is deprecated and will be removed in a
+           future version.  For ``networkx.Graph`` use networkx directly with
+           the ``nx-cugraph`` backend. See:  https://rapids.ai/nx-cugraph/
+
     num_clusters : integer
         Specifies the number of clusters to find
 
@@ -232,6 +242,11 @@ def analyzeClustering_modularity(
     ----------
     G : cugraph.Graph or networkx.Graph
         graph descriptor. This graph should have edge weights.
+
+        .. deprecated:: 24.12
+           Accepting a ``networkx.Graph`` is deprecated and will be removed in a
+           future version.  For ``networkx.Graph`` use networkx directly with
+           the ``nx-cugraph`` backend. See:  https://rapids.ai/nx-cugraph/
 
     n_clusters : integer
         Specifies the number of clusters in the given clustering

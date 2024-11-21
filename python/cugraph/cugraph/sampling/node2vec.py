@@ -60,6 +60,11 @@ def node2vec(G, start_vertices, max_depth=1, compress_result=True, p=1.0, q=1.0)
         The graph can be either directed or undirected.
         Weights in the graph are ignored.
 
+        .. deprecated:: 24.12
+           Accepting a ``networkx.Graph`` is deprecated and will be removed in a
+           future version.  For ``networkx.Graph`` use networkx directly with
+           the ``nx-cugraph`` backend. See:  https://rapids.ai/nx-cugraph/
+
     start_vertices: int or list or cudf.Series or cudf.DataFrame
         A single node or a list or a cudf.Series of nodes from which to run
         the random walks. In case of multi-column vertices it should be
