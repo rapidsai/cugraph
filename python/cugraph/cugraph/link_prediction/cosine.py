@@ -190,6 +190,11 @@ def cosine_coefficient(
 
         This implementation only supports undirected, non-multi Graphs.
 
+        .. deprecated:: 24.12
+           Accepting a ``networkx.Graph`` is deprecated and will be removed in a
+           future version.  For ``networkx.Graph`` use networkx directly with
+           the ``nx-cugraph`` backend. See:  https://rapids.ai/nx-cugraph/
+
     ebunch : cudf.DataFrame or iterable of node pairs, optional (default=None)
         A GPU dataframe consisting of two columns representing pairs of
         vertices or iterable of 2-tuples (u, v) where u and v are nodes in

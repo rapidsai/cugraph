@@ -71,6 +71,11 @@ def induced_subgraph(
     G : cugraph.Graph or networkx.Graph
         The current implementation only supports weighted graphs.
 
+        .. deprecated:: 24.12
+           Accepting a ``networkx.Graph`` is deprecated and will be removed in a
+           future version.  For ``networkx.Graph`` use networkx directly with
+           the ``nx-cugraph`` backend. See:  https://rapids.ai/nx-cugraph/
+
     vertices : cudf.Series or cudf.DataFrame
         Specifies the vertices of the induced subgraph. For multi-column
         vertices, vertices should be provided as a cudf.DataFrame
