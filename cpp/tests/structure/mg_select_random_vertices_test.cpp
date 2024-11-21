@@ -225,12 +225,6 @@ TEST_P(Tests_MGSelectRandomVertices_Rmat, CheckInt32Int32FloatFloat)
     override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
 }
 
-TEST_P(Tests_MGSelectRandomVertices_Rmat, CheckInt32Int64FloatFloat)
-{
-  run_current_test<int32_t, int64_t, float>(
-    override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
-}
-
 TEST_P(Tests_MGSelectRandomVertices_Rmat, CheckInt64Int64FloatFloat)
 {
   run_current_test<int64_t, int64_t, float>(

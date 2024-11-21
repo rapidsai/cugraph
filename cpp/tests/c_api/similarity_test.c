@@ -41,8 +41,8 @@ int generic_similarity_test(vertex_t* h_src,
                             bool_t use_weight,
                             similarity_t test_type)
 {
-  int test_ret_value        = 0;
-  data_type_id_t vertex_tid = INT32;
+  int test_ret_value                = 0;
+  cugraph_data_type_id_t vertex_tid = INT32;
 
   cugraph_error_code_t ret_code = CUGRAPH_SUCCESS;
   cugraph_error_t* ret_error;
@@ -149,8 +149,8 @@ int generic_all_pairs_similarity_test(vertex_t* h_src,
                                       size_t topk,
                                       similarity_t test_type)
 {
-  int test_ret_value        = 0;
-  data_type_id_t vertex_tid = INT32;
+  int test_ret_value                = 0;
+  cugraph_data_type_id_t vertex_tid = INT32;
 
   cugraph_error_code_t ret_code = CUGRAPH_SUCCESS;
   cugraph_error_t* ret_error;

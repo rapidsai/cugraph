@@ -150,8 +150,7 @@ refine_clustering(
   edge_src_property_t<GraphViewType, typename GraphViewType::vertex_type> const&
     src_louvain_assignment_cache,
   edge_dst_property_t<GraphViewType, typename GraphViewType::vertex_type> const&
-    dst_louvain_assignment_cache,
-  bool up_down)
+    dst_louvain_assignment_cache)
 {
   const weight_t POSITIVE_GAIN = 1e-6;
   using vertex_t               = typename GraphViewType::vertex_type;
@@ -230,6 +229,7 @@ refine_clustering(
     cugraph::reduce_op::plus<weight_t>{},
     weighted_cut_of_vertices_to_louvain.begin());
 
+  // FIXME: Consider using bit mask logic here.  Would reduce memory by 8x
   rmm::device_uvector<uint8_t> singleton_and_connected_flags(
     graph_view.local_vertex_partition_range_size(), handle.get_stream());
 
@@ -297,6 +297,11 @@ refine_clustering(
   edge_dst_property_t<GraphViewType, vertex_t> dst_leiden_assignment_cache(handle);
   edge_src_property_t<GraphViewType, uint8_t> src_singleton_and_connected_flag_cache(handle);
 
+  // FIXME:  Why is kvstore used here?  Can't this be accomplished by
+  //  a direct lookup in louvain_assignment_of_vertices using
+  //     leiden - graph_view.local_vertex_partition_range_first() as the
+  //     index?
+  // Changing this would save memory and time
   kv_store_t<vertex_t, vertex_t, false> leiden_to_louvain_map(
     leiden_assignment.begin(),
     leiden_assignment.end(),
