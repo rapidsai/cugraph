@@ -29,7 +29,6 @@ python -m pip wheel \
 
 sccache --show-adv-stats
 
-# pure-python packages should be marked as pure, and not have auditwheel run on them.
 case "${RAPIDS_CUDA_VERSION}" in
     12.*)
         EXCLUDE_ARGS=(
