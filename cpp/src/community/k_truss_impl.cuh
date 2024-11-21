@@ -624,14 +624,14 @@ k_truss(raft::handle_t const& handle,
                       thrust::get<0>(edge_q_r), thrust::get<1>(edge_q_r)
                     );
                   }              
-                } else if (thrust::get<1>(edge_p_q) == thrust::get<0>(edge_q_r)) {
-                  triangle = thrust::make_tuple(
-                    thrust::get<0>(edge_p_q), thrust::get<1>(edge_p_q),
-                    thrust::get<0>(edge_q_r), thrust::get<1>(edge_q_r),
-                    thrust::get<0>(edge_p_r), thrust::get<1>(edge_p_r)
-                  );
-                
-                }
+            } else if (thrust::get<1>(edge_p_q) == thrust::get<0>(edge_q_r)) {
+              triangle = thrust::make_tuple(
+                thrust::get<0>(edge_p_q), thrust::get<1>(edge_p_q),
+                thrust::get<0>(edge_q_r), thrust::get<1>(edge_q_r),
+                thrust::get<0>(edge_p_r), thrust::get<1>(edge_p_r)
+              );
+            
+            }
                 return triangle;
           }
         );
