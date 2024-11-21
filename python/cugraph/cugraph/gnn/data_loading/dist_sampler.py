@@ -718,6 +718,8 @@ class NeighborSampler(DistSampler):
         if self.__num_edge_types > 1:
             kwargs["num_edge_types"] = self.__num_edge_types
 
+        print(kwargs)
+
         sampling_results_dict = self.__func(**kwargs)
 
         sampling_results_dict["fanout"] = cupy.array(self.__fanout, dtype="int32")
