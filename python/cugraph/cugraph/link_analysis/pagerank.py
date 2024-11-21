@@ -107,6 +107,11 @@ def pagerank(
         as an edge list.
         The transposed adjacency list will be computed if not already present.
 
+        .. deprecated:: 24.12
+           Accepting a ``networkx.Graph`` is deprecated and will be removed in a
+           future version.  For ``networkx.Graph`` use networkx directly with
+           the ``nx-cugraph`` backend. See:  https://rapids.ai/nx-cugraph/
+
     alpha : float, optional (default=0.85)
         The damping factor alpha represents the probability to follow an
         outgoing edge, standard value is 0.85.

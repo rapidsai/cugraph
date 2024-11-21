@@ -76,7 +76,7 @@ struct core_number_functor : public cugraph::c_api::abstract_functor {
       rmm::device_uvector<edge_t> core_numbers(graph_view.local_vertex_partition_range_size(),
                                                handle_.get_stream());
 
-      auto degree_type = reinterpret_cast<cugraph::k_core_degree_type_t>(degree_type);
+      auto degree_type = reinterpret_cast<cugraph::k_core_degree_type_t>(degree_type_);
 
       cugraph::core_number<vertex_t, edge_t, multi_gpu>(handle_,
                                                         graph_view,

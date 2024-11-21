@@ -15,6 +15,7 @@
  */
 
 #include "c_test_utils.h" /* RUN_TEST */
+#include "cugraph_c/types.h"
 
 #include <cugraph_c/algorithms.h>
 #include <cugraph_c/graph.h>
@@ -47,11 +48,11 @@ int generic_leiden_test(vertex_t* h_src,
   cugraph_graph_t* p_graph                           = NULL;
   cugraph_hierarchical_clustering_result_t* p_result = NULL;
 
-  data_type_id_t vertex_tid    = INT32;
-  data_type_id_t edge_tid      = INT32;
-  data_type_id_t weight_tid    = FLOAT32;
-  data_type_id_t edge_id_tid   = INT32;
-  data_type_id_t edge_type_tid = INT32;
+  cugraph_data_type_id_t vertex_tid    = INT32;
+  cugraph_data_type_id_t edge_tid      = INT32;
+  cugraph_data_type_id_t weight_tid    = FLOAT32;
+  cugraph_data_type_id_t edge_id_tid   = INT32;
+  cugraph_data_type_id_t edge_type_tid = INT32;
 
   p_handle = cugraph_create_resource_handle(NULL);
   TEST_ASSERT(test_ret_value, p_handle != NULL, "resource handle creation failed.");

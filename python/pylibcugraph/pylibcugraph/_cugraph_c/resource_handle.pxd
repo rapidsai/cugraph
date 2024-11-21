@@ -14,25 +14,7 @@
 # Have cython use python 3 syntax
 # cython: language_level = 3
 
-from libc.stdint cimport int8_t
-
-
 cdef extern from "cugraph_c/resource_handle.h":
-
-    ctypedef enum bool_t:
-        FALSE
-        TRUE
-
-    ctypedef enum data_type_id_t:
-        INT32
-        INT64
-        FLOAT32
-        FLOAT64
-        SIZE_T
-
-    ctypedef data_type_id_t cugraph_data_type_id_t
-
-    ctypedef int8_t byte_t
 
     ctypedef struct cugraph_resource_handle_t:
         pass
