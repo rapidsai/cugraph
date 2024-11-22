@@ -202,30 +202,6 @@ files:
       - test_python_common
       - depends_on_pylibwholegraph
       - depends_on_pytorch
-  py_build_cugraph_equivariant:
-    output: pyproject
-    pyproject_dir: python/cugraph-equivariant
-    extras:
-      table: build-system
-    includes:
-      - python_build_rapids
-      - python_build_wheel
-  py_run_cugraph_equivariant:
-    output: pyproject
-    pyproject_dir: python/cugraph-equivariant
-    extras:
-      table: project
-    includes:
-        # Deprecate pylibcugraphops
-      - depends_on_pylibcugraphops
-  py_test_cugraph_equivariant:
-    output: pyproject
-    pyproject_dir: python/cugraph-equivariant
-    extras:
-      table: project.optional-dependencies
-      key: test
-    includes:
-      - test_python_common
   py_build_cugraph_service_client:
     output: pyproject
     pyproject_dir: python/cugraph-service/client
@@ -654,9 +630,7 @@ dependencies:
       - output_types: [conda]
         packages:
           - *cugraph_unsuffixed
-          # ceiling could be removed when this is fixed:
-          # https://github.com/conda-forge/pytorch-cpu-feedstock/issues/254
-          - &pytorch_conda pytorch>=2.3,<2.4.0a0
+          - &pytorch_conda pytorch>=2.3
           - pytorch-cuda==11.8
           - &tensordict tensordict>=0.1.2
           - dgl>=2.4.0.cu*
@@ -694,7 +668,7 @@ dependencies:
         matrices:
           - matrix: {cuda: "12.*"}
             packages:
-              - &pytorch_pip torch>=2.3,<2.4.0a0
+              - &pytorch_pip torch>=2.3
               - *tensordict
           - matrix: {cuda: "11.*"}
             packages:
