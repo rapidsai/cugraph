@@ -507,7 +507,7 @@ dependencies:
     common:
       - output_types: [conda]
         packages:
-          - &pytorch_conda pytorch>=2.3,<2.4.0a0
+          - &pytorch_conda pytorch>=2.3
           - torchdata
           - pydantic
           - ogb
@@ -527,7 +527,7 @@ dependencies:
         matrices:
           - matrix: {cuda: "12.*"}
             packages:
-              - &pytorch_pip torch>=2.3,<2.4.0a0
+              - &pytorch_pip torch>=2.3
               - &tensordict tensordict>=0.1.2
           - matrix: {cuda: "11.*"}
             packages:
