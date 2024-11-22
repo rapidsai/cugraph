@@ -119,7 +119,7 @@ def heterogeneous_uniform_neighbor_sample(ResourceHandle resource_handle,
         Offsets of each label within the start vertex list. Expanding
         'starting_vertex_label_offsets' must lead to an array of
         len(start_vertex_list)
-    
+
     vertex_type_offsets: device array type (Optional)
         Offsets for each vertex type in the graph.
 
@@ -275,7 +275,7 @@ def heterogeneous_uniform_neighbor_sample(ResourceHandle resource_handle,
     if starting_vertex_label_offsets is not None:
         cai_starting_vertex_label_offsets_ptr = \
             starting_vertex_label_offsets.__cuda_array_interface__['data'][0]
-    
+
     cdef uintptr_t cai_vertex_type_offsets_ptr
     if vertex_type_offsets is not None:
         cai_vertex_type_offsets_ptr = \

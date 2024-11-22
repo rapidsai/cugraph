@@ -124,7 +124,7 @@ def heterogeneous_biased_neighbor_sample(ResourceHandle resource_handle,
         Offsets of each label within the start vertex list. Expanding
         'starting_vertex_label_offsets' must lead to an array of
         len(start_vertex_list)
-    
+
     vertex_type_offsets: device array type (Optional)
         Offsets for each vertex type in the graph.
 
@@ -281,7 +281,7 @@ def heterogeneous_biased_neighbor_sample(ResourceHandle resource_handle,
     if starting_vertex_label_offsets is not None:
         cai_starting_vertex_label_offsets_ptr = \
             starting_vertex_label_offsets.__cuda_array_interface__['data'][0]
-    
+
     cdef uintptr_t cai_vertex_type_offsets_ptr
     if vertex_type_offsets is not None:
         cai_vertex_type_offsets_ptr = \
@@ -303,7 +303,7 @@ def heterogeneous_biased_neighbor_sample(ResourceHandle resource_handle,
                 len(starting_vertex_label_offsets),
                 SIZE_T
             )
-    
+
     cdef cugraph_type_erased_device_array_view_t* vertex_type_offsets_ptr = <cugraph_type_erased_device_array_view_t*>NULL
     if vertex_type_offsets is not None:
         vertex_type_offsets_ptr = \
