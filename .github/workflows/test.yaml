@@ -58,13 +58,3 @@ jobs:
       date: ${{ inputs.date }}
       sha: ${{ inputs.sha }}
       script: ci/test_wheel_cugraph.sh
-  wheel-tests-cugraph-equivariant:
-    secrets: inherit
-    uses: rapidsai/shared-workflows/.github/workflows/wheels-test.yaml@branch-24.12
-    with:
-      build_type: nightly
-      branch: ${{ inputs.branch }}
-      date: ${{ inputs.date }}
-      sha: ${{ inputs.sha }}
-      script: ci/test_wheel_cugraph-equivariant.sh
-      matrix_filter: map(select(.ARCH == "amd64"))
