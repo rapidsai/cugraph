@@ -1012,8 +1012,6 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
                                         options_.with_replacement_},
               do_expensive_check_);
         } else {
-          raft::print_device_vector(
-            "labels", (*start_vertex_labels).data(), (*start_vertex_labels).size(), std::cout);
           std::tie(src, dst, wgt, edge_id, edge_type, hop, offsets) =
             cugraph::heterogeneous_uniform_neighbor_sample(
               handle_,
