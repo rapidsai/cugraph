@@ -389,7 +389,7 @@ def heterogeneous_biased_neighbor_sample(ResourceHandle resource_handle,
     cupy_edge_types = result.get_edge_types()
     cupy_batch_ids = result.get_batch_ids()
     cupy_label_hop_offsets = result.get_label_hop_offsets()
-
+    cupy_label_type_hop_offsets = result.get_label_type_hop_offsets()
 
     if renumber:
         cupy_renumber_map = result.get_renumber_map()
@@ -406,6 +406,7 @@ def heterogeneous_biased_neighbor_sample(ResourceHandle resource_handle,
             'edge_type': cupy_edge_types,
             'batch_id': cupy_batch_ids,
             'label_hop_offsets': cupy_label_hop_offsets,
+            'label_type_hop_offsets': cupy_label_type_hop_offsets,
             'hop_id': None,
             'renumber_map': cupy_renumber_map,
             'renumber_map_offsets': cupy_renumber_map_offsets,
@@ -423,6 +424,7 @@ def heterogeneous_biased_neighbor_sample(ResourceHandle resource_handle,
             'edge_type': cupy_edge_types,
             'batch_id': cupy_batch_ids,
             'label_hop_offsets': cupy_label_hop_offsets,
+            'label_type_hop_offsets': cupy_label_type_hop_offsets,
         }
 
     # Return everything that isn't null

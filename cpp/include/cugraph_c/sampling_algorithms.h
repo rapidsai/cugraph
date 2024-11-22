@@ -737,6 +737,16 @@ cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_label_hop_off
 
 /**
  * @ingroup samplingC
+ * @brief     Get the label-type-hop offsets from the sampling algorithm result
+ *
+ * @param [in]   result   The result from a sampling algorithm
+ * @return type erased array pointing to the label-type-hop offsets
+ */
+cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_label_type_hop_offsets(
+  const cugraph_sample_result_t* result);
+
+/**
+ * @ingroup samplingC
  * @brief     Get the index from the sampling algorithm result
  *
  * @param [in]   result   The result from a sampling algorithm
