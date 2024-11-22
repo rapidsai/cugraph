@@ -778,7 +778,8 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
   cugraph::c_api::cugraph_graph_t* graph_{nullptr};
   cugraph::c_api::cugraph_edge_property_view_t const* edge_biases_{nullptr};
   cugraph::c_api::cugraph_type_erased_device_array_view_t const* start_vertices_{nullptr};
-  cugraph::c_api::cugraph_type_erased_device_array_view_t const* start_vertex_offsets_{nullptr};
+  cugraph::c_api::cugraph_type_erased_device_array_view_t const* starting_vertex_label_offsets_{
+    nullptr};
   cugraph::c_api::cugraph_type_erased_host_array_view_t const* fan_out_{nullptr};
   int num_edge_types_{};
   cugraph::c_api::cugraph_sampling_options_t options_{};
@@ -786,17 +787,18 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
   bool do_expensive_check_{false};
   cugraph::c_api::cugraph_sample_result_t* result_{nullptr};
 
-  neighbor_sampling_functor(cugraph_resource_handle_t const* handle,
-                            cugraph_rng_state_t* rng_state,
-                            cugraph_graph_t* graph,
-                            cugraph_edge_property_view_t const* edge_biases,
-                            cugraph_type_erased_device_array_view_t const* start_vertices,
-                            cugraph_type_erased_device_array_view_t const* start_vertex_offsets,
-                            cugraph_type_erased_host_array_view_t const* fan_out,
-                            int num_edge_types,
-                            cugraph::c_api::cugraph_sampling_options_t options,
-                            bool is_biased,
-                            bool do_expensive_check)
+  neighbor_sampling_functor(
+    cugraph_resource_handle_t const* handle,
+    cugraph_rng_state_t* rng_state,
+    cugraph_graph_t* graph,
+    cugraph_edge_property_view_t const* edge_biases,
+    cugraph_type_erased_device_array_view_t const* start_vertices,
+    cugraph_type_erased_device_array_view_t const* starting_vertex_label_offsets,
+    cugraph_type_erased_host_array_view_t const* fan_out,
+    int num_edge_types,
+    cugraph::c_api::cugraph_sampling_options_t options,
+    bool is_biased,
+    bool do_expensive_check)
     : abstract_functor(),
       handle_(*reinterpret_cast<cugraph::c_api::cugraph_resource_handle_t const*>(handle)->handle_),
       rng_state_(reinterpret_cast<cugraph::c_api::cugraph_rng_state_t*>(rng_state)),
@@ -806,9 +808,9 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
       start_vertices_(
         reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(
           start_vertices)),
-      start_vertex_offsets_(
+      starting_vertex_label_offsets_(
         reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(
-          start_vertex_offsets)),
+          starting_vertex_label_offsets)),
       fan_out_(
         reinterpret_cast<cugraph::c_api::cugraph_type_erased_host_array_view_t const*>(fan_out)),
       num_edge_types_(num_edge_types),
@@ -880,17 +882,17 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
       std::optional<rmm::device_uvector<size_t>>
         renumbered_and_sorted_edge_id_renumber_map_label_type_offsets(std::nullopt);
 
-      if (start_vertex_offsets_ != nullptr) {
+      if (starting_vertex_label_offsets_ != nullptr) {
         // Retrieve the start_vertex_labels
         start_vertex_labels = cugraph::detail::convert_starting_vertex_label_offsets_to_labels(
           handle_,
-          raft::device_span<size_t const>{start_vertex_offsets_->as_type<size_t>(),
-                                          start_vertex_offsets_->size_});
+          raft::device_span<size_t const>{starting_vertex_label_offsets_->as_type<size_t>(),
+                                          starting_vertex_label_offsets_->size_});
 
         // Get the number of labels on each GPU
 
         if constexpr (multi_gpu) {
-          auto num_local_labels = start_vertex_offsets_->size_ - 1;
+          auto num_local_labels = starting_vertex_label_offsets_->size_ - 1;
 
           auto global_labels = cugraph::host_scalar_allgather(
             handle_.get_comms(), num_local_labels, handle_.get_stream());
@@ -898,7 +900,7 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
           std::exclusive_scan(
             global_labels.begin(), global_labels.end(), global_labels.begin(), label_t{0});
 
-          // Compute the global start_vertex_label_offsets
+          // Compute the global starting_vertex_label_offsets
 
           cugraph::detail::transform_increment_ints(
             raft::device_span<label_t>{(*start_vertex_labels).data(),
@@ -997,7 +999,7 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
               (edge_types != nullptr) ? std::make_optional(edge_types->view()) : std::nullopt,
               (edge_biases != nullptr) ? *edge_biases : edge_weights->view(),
               raft::device_span<vertex_t const>{start_vertices.data(), start_vertices.size()},
-              (start_vertex_offsets_ != nullptr)
+              (starting_vertex_label_offsets_ != nullptr)
                 ? std::make_optional<raft::device_span<int const>>((*start_vertex_labels).data(),
                                                                    (*start_vertex_labels).size())
                 : std::nullopt,
@@ -1012,8 +1014,6 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
                                         options_.with_replacement_},
               do_expensive_check_);
         } else {
-          raft::print_device_vector(
-            "labels", (*start_vertex_labels).data(), (*start_vertex_labels).size(), std::cout);
           std::tie(src, dst, wgt, edge_id, edge_type, hop, offsets) =
             cugraph::heterogeneous_uniform_neighbor_sample(
               handle_,
@@ -1023,7 +1023,7 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
               (edge_ids != nullptr) ? std::make_optional(edge_ids->view()) : std::nullopt,
               (edge_types != nullptr) ? std::make_optional(edge_types->view()) : std::nullopt,
               raft::device_span<vertex_t const>{start_vertices.data(), start_vertices.size()},
-              (start_vertex_offsets_ != nullptr)
+              (starting_vertex_label_offsets_ != nullptr)
                 ? std::make_optional<raft::device_span<int const>>((*start_vertex_labels).data(),
                                                                    (*start_vertex_labels).size())
                 : std::nullopt,
@@ -1051,7 +1051,7 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
               (edge_types != nullptr) ? std::make_optional(edge_types->view()) : std::nullopt,
               (edge_biases != nullptr) ? *edge_biases : edge_weights->view(),
               raft::device_span<vertex_t const>{start_vertices.data(), start_vertices.size()},
-              (start_vertex_offsets_ != nullptr)
+              (starting_vertex_label_offsets_ != nullptr)
                 ? std::make_optional<raft::device_span<int const>>((*start_vertex_labels).data(),
                                                                    (*start_vertex_labels).size())
                 : std::nullopt,
@@ -1074,7 +1074,7 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
               (edge_ids != nullptr) ? std::make_optional(edge_ids->view()) : std::nullopt,
               (edge_types != nullptr) ? std::make_optional(edge_types->view()) : std::nullopt,
               raft::device_span<vertex_t const>{start_vertices.data(), start_vertices.size()},
-              (start_vertex_offsets_ != nullptr)
+              (starting_vertex_label_offsets_ != nullptr)
                 ? std::make_optional<raft::device_span<int const>>((*start_vertex_labels).data(),
                                                                    (*start_vertex_labels).size())
                 : std::nullopt,
@@ -1156,10 +1156,10 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
                     ? std::make_optional(raft::device_span<vertex_t const>{
                         start_vertices_->as_type<vertex_t>(), start_vertices_->size_})
                     : std::nullopt,
-                  options_.retain_seeds_
-                    ? std::make_optional(raft::device_span<size_t const>{
-                        start_vertex_offsets_->as_type<size_t>(), start_vertex_offsets_->size_})
-                    : std::nullopt,
+                  options_.retain_seeds_ ? std::make_optional(raft::device_span<size_t const>{
+                                             starting_vertex_label_offsets_->as_type<size_t>(),
+                                             starting_vertex_label_offsets_->size_})
+                                         : std::nullopt,
                   offsets ? std::make_optional(
                               raft::device_span<size_t const>{offsets->data(), offsets->size()})
                           : std::nullopt,
@@ -1201,10 +1201,10 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
                     ? std::make_optional(raft::device_span<vertex_t const>{
                         start_vertices_->as_type<vertex_t>(), start_vertices_->size_})
                     : std::nullopt,
-                  options_.retain_seeds_
-                    ? std::make_optional(raft::device_span<size_t const>{
-                        start_vertex_offsets_->as_type<size_t>(), start_vertex_offsets_->size_})
-                    : std::nullopt,
+                  options_.retain_seeds_ ? std::make_optional(raft::device_span<size_t const>{
+                                             starting_vertex_label_offsets_->as_type<size_t>(),
+                                             starting_vertex_label_offsets_->size_})
+                                         : std::nullopt,
                   offsets ? std::make_optional(
                               raft::device_span<size_t const>{offsets->data(), offsets->size()})
                           : std::nullopt,
@@ -1261,10 +1261,10 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
                   ? std::make_optional(raft::device_span<vertex_t const>{
                       start_vertices_->as_type<vertex_t>(), start_vertices_->size_})
                   : std::nullopt,
-                options_.retain_seeds_
-                  ? std::make_optional(raft::device_span<size_t const>{
-                      start_vertex_offsets_->as_type<size_t>(), start_vertex_offsets_->size_})
-                  : std::nullopt,
+                options_.retain_seeds_ ? std::make_optional(raft::device_span<size_t const>{
+                                           starting_vertex_label_offsets_->as_type<size_t>(),
+                                           starting_vertex_label_offsets_->size_})
+                                       : std::nullopt,
                 offsets ? std::make_optional(
                             raft::device_span<size_t const>{offsets->data(), offsets->size()})
                         : std::nullopt,
@@ -2040,7 +2040,7 @@ cugraph_error_code_t cugraph_heterogeneous_uniform_neighbor_sample(
   cugraph_rng_state_t* rng_state,
   cugraph_graph_t* graph,
   const cugraph_type_erased_device_array_view_t* start_vertices,
-  const cugraph_type_erased_device_array_view_t* start_vertex_offsets,
+  const cugraph_type_erased_device_array_view_t* starting_vertex_label_offsets,
   const cugraph_type_erased_host_array_view_t* fan_out,
   int num_edge_types,
   const cugraph_sampling_options_t* options,
@@ -2051,17 +2051,17 @@ cugraph_error_code_t cugraph_heterogeneous_uniform_neighbor_sample(
   auto options_cpp = *reinterpret_cast<cugraph::c_api::cugraph_sampling_options_t const*>(options);
 
   // FIXME: Should we maintain this contition?
-  CAPI_EXPECTS((!options_cpp.retain_seeds_) || (start_vertex_offsets != nullptr),
+  CAPI_EXPECTS((!options_cpp.retain_seeds_) || (starting_vertex_label_offsets != nullptr),
                CUGRAPH_INVALID_INPUT,
-               "must specify start_vertex_offsets if retain_seeds is true",
+               "must specify starting_vertex_label_offsets if retain_seeds is true",
                *error);
 
-  CAPI_EXPECTS((start_vertex_offsets == nullptr) ||
+  CAPI_EXPECTS((starting_vertex_label_offsets == nullptr) ||
                  (reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(
-                    start_vertex_offsets)
+                    starting_vertex_label_offsets)
                     ->type_ == SIZE_T),
                CUGRAPH_INVALID_INPUT,
-               "start_vertex_offsets should be of type size_t",
+               "starting_vertex_label_offsets should be of type size_t",
                *error);
 
   CAPI_EXPECTS(
@@ -2084,7 +2084,7 @@ cugraph_error_code_t cugraph_heterogeneous_uniform_neighbor_sample(
                                     graph,
                                     nullptr,
                                     start_vertices,
-                                    start_vertex_offsets,
+                                    starting_vertex_label_offsets,
                                     fan_out,
                                     num_edge_types,
                                     std::move(options_cpp),
@@ -2099,7 +2099,7 @@ cugraph_error_code_t cugraph_heterogeneous_biased_neighbor_sample(
   cugraph_graph_t* graph,
   const cugraph_edge_property_view_t* edge_biases,
   const cugraph_type_erased_device_array_view_t* start_vertices,
-  const cugraph_type_erased_device_array_view_t* start_vertex_offsets,
+  const cugraph_type_erased_device_array_view_t* starting_vertex_label_offsets,
   const cugraph_type_erased_host_array_view_t* fan_out,
   int num_edge_types,
   const cugraph_sampling_options_t* options,
@@ -2117,17 +2117,17 @@ cugraph_error_code_t cugraph_heterogeneous_biased_neighbor_sample(
     *error);
 
   // FIXME: Should we maintain this contition?
-  CAPI_EXPECTS((!options_cpp.retain_seeds_) || (start_vertex_offsets != nullptr),
+  CAPI_EXPECTS((!options_cpp.retain_seeds_) || (starting_vertex_label_offsets != nullptr),
                CUGRAPH_INVALID_INPUT,
-               "must specify start_vertex_offsets if retain_seeds is true",
+               "must specify starting_vertex_label_offsets if retain_seeds is true",
                *error);
 
-  CAPI_EXPECTS((start_vertex_offsets == nullptr) ||
+  CAPI_EXPECTS((starting_vertex_label_offsets == nullptr) ||
                  (reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(
-                    start_vertex_offsets)
+                    starting_vertex_label_offsets)
                     ->type_ == SIZE_T),
                CUGRAPH_INVALID_INPUT,
-               "start_vertex_offsets should be of type size_t",
+               "starting_vertex_label_offsets should be of type size_t",
                *error);
 
   CAPI_EXPECTS(
@@ -2150,7 +2150,7 @@ cugraph_error_code_t cugraph_heterogeneous_biased_neighbor_sample(
                                     graph,
                                     edge_biases,
                                     start_vertices,
-                                    start_vertex_offsets,
+                                    starting_vertex_label_offsets,
                                     fan_out,
                                     num_edge_types,
                                     std::move(options_cpp),
@@ -2164,7 +2164,7 @@ cugraph_error_code_t cugraph_homogeneous_uniform_neighbor_sample(
   cugraph_rng_state_t* rng_state,
   cugraph_graph_t* graph,
   const cugraph_type_erased_device_array_view_t* start_vertices,
-  const cugraph_type_erased_device_array_view_t* start_vertex_offsets,  // RENAME?
+  const cugraph_type_erased_device_array_view_t* starting_vertex_label_offsets,  // RENAME?
   const cugraph_type_erased_host_array_view_t* fan_out,
   const cugraph_sampling_options_t* options,
   bool_t do_expensive_check,
@@ -2174,17 +2174,17 @@ cugraph_error_code_t cugraph_homogeneous_uniform_neighbor_sample(
   auto options_cpp = *reinterpret_cast<cugraph::c_api::cugraph_sampling_options_t const*>(options);
 
   // FIXME: Should we maintain this contition?
-  CAPI_EXPECTS((!options_cpp.retain_seeds_) || (start_vertex_offsets != nullptr),
+  CAPI_EXPECTS((!options_cpp.retain_seeds_) || (starting_vertex_label_offsets != nullptr),
                CUGRAPH_INVALID_INPUT,
-               "must specify start_vertex_offsets if retain_seeds is true",
+               "must specify starting_vertex_label_offsets if retain_seeds is true",
                *error);
 
-  CAPI_EXPECTS((start_vertex_offsets == nullptr) ||
+  CAPI_EXPECTS((starting_vertex_label_offsets == nullptr) ||
                  (reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(
-                    start_vertex_offsets)
+                    starting_vertex_label_offsets)
                     ->type_ == SIZE_T),
                CUGRAPH_INVALID_INPUT,
-               "start_vertex_offsets should be of type size_t",
+               "starting_vertex_label_offsets should be of type size_t",
                *error);
 
   CAPI_EXPECTS(
@@ -2207,7 +2207,7 @@ cugraph_error_code_t cugraph_homogeneous_uniform_neighbor_sample(
                                     graph,
                                     nullptr,
                                     start_vertices,
-                                    start_vertex_offsets,
+                                    starting_vertex_label_offsets,
                                     fan_out,
                                     1,  // num_edge_types
                                     std::move(options_cpp),
@@ -2222,7 +2222,7 @@ cugraph_error_code_t cugraph_homogeneous_biased_neighbor_sample(
   cugraph_graph_t* graph,
   const cugraph_edge_property_view_t* edge_biases,
   const cugraph_type_erased_device_array_view_t* start_vertices,
-  const cugraph_type_erased_device_array_view_t* start_vertex_offsets,
+  const cugraph_type_erased_device_array_view_t* starting_vertex_label_offsets,
   const cugraph_type_erased_host_array_view_t* fan_out,
   const cugraph_sampling_options_t* options,
   bool_t do_expensive_check,
@@ -2239,17 +2239,17 @@ cugraph_error_code_t cugraph_homogeneous_biased_neighbor_sample(
     *error);
 
   // FIXME: Should we maintain this contition?
-  CAPI_EXPECTS((!options_cpp.retain_seeds_) || (start_vertex_offsets != nullptr),
+  CAPI_EXPECTS((!options_cpp.retain_seeds_) || (starting_vertex_label_offsets != nullptr),
                CUGRAPH_INVALID_INPUT,
-               "must specify start_vertex_offsets if retain_seeds is true",
+               "must specify starting_vertex_label_offsets if retain_seeds is true",
                *error);
 
-  CAPI_EXPECTS((start_vertex_offsets == nullptr) ||
+  CAPI_EXPECTS((starting_vertex_label_offsets == nullptr) ||
                  (reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(
-                    start_vertex_offsets)
+                    starting_vertex_label_offsets)
                     ->type_ == SIZE_T),
                CUGRAPH_INVALID_INPUT,
-               "start_vertex_offsets should be of type size_t",
+               "starting_vertex_label_offsets should be of type size_t",
                *error);
 
   CAPI_EXPECTS(
@@ -2272,7 +2272,7 @@ cugraph_error_code_t cugraph_homogeneous_biased_neighbor_sample(
                                     graph,
                                     edge_biases,
                                     start_vertices,
-                                    start_vertex_offsets,
+                                    starting_vertex_label_offsets,
                                     fan_out,
                                     1,  // num_edge_types
                                     std::move(options_cpp),

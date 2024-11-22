@@ -370,7 +370,18 @@ neighbor_sample_impl(raft::handle_t const& handle,
   }
 
   std::optional<rmm::device_uvector<size_t>> result_offsets{std::nullopt};
+  std::optional<rmm::device_uvector<label_t>> cp_result_labels{std::nullopt};
+  if (result_labels) {
+    cp_result_labels = rmm::device_uvector<label_t>(result_labels->size(), handle.get_stream());
 
+    thrust::copy(handle.get_thrust_policy(),
+                 result_labels->begin(),
+                 result_labels->end(),
+                 cp_result_labels->begin());
+  }
+
+  // FIXME: remove the offsets computation in 'shuffle_and_organize_output' as it doesn't
+  // account for missing labels that are not sampled.
   std::tie(result_srcs,
            result_dsts,
            result_weights,
@@ -388,16 +399,33 @@ neighbor_sample_impl(raft::handle_t const& handle,
                                                                  std::move(result_labels),
                                                                  label_to_output_comm_rank);
 
-  if (result_srcs.size() == 0) {
-    // Update the 'edgelist_label_offsets' array to be proportional to the
-    // number of labels
-    result_offsets->resize(num_labels + 1, handle.get_stream());
+  if (result_labels) {
+    // Re-compute the result_offsets and account for missing labels
+    result_offsets = rmm::device_uvector<size_t>(num_labels + 1, handle.get_stream());
+
+    // Sort labels
+    thrust::sort(handle.get_thrust_policy(), cp_result_labels->begin(), cp_result_labels->end());
 
     thrust::transform(handle.get_thrust_policy(),
                       thrust::make_counting_iterator<edge_t>(0),
-                      thrust::make_counting_iterator<edge_t>(result_offsets->size()),
-                      result_offsets->begin(),
-                      [] __device__(auto idx) { return 0; });
+                      thrust::make_counting_iterator<edge_t>(result_offsets->size() - 1),
+                      result_offsets->begin() + 1,
+                      [result_labels = raft::device_span<label_t const>(
+                         cp_result_labels->data(), cp_result_labels->size())] __device__(auto idx) {
+                        auto itr_lower = thrust::lower_bound(
+                          thrust::seq, result_labels.begin(), result_labels.end(), idx);
+
+                        auto itr_upper = thrust::upper_bound(
+                          thrust::seq, result_labels.begin(), result_labels.end(), idx);
+
+                        return thrust::distance(itr_lower, itr_upper);
+                      });
+
+    // Run inclusive scan
+    thrust::inclusive_scan(handle.get_thrust_policy(),
+                           result_offsets->begin() + 1,
+                           result_offsets->end(),
+                           result_offsets->begin() + 1);
   }
 
   return std::make_tuple(std::move(result_srcs),
