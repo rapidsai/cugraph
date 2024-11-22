@@ -52,6 +52,7 @@ Algorithms
 +--------------------------+
 | **Bipartite**            |
 +==========================+
+| betweenness_centrality   |
 | complete_bipartite_graph |
 +--------------------------+
 
