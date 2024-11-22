@@ -408,7 +408,7 @@ neighbor_sample_impl(raft::handle_t const& handle,
 
     thrust::transform(handle.get_thrust_policy(),
                       thrust::make_counting_iterator<edge_t>(0),
-                      thrust::make_counting_iterator<edge_t>(result_offsets->size()),
+                      thrust::make_counting_iterator<edge_t>(result_offsets->size() - 1),
                       result_offsets->begin() + 1,
                       [result_labels = raft::device_span<label_t const>(
                          cp_result_labels->data(), cp_result_labels->size())] __device__(auto idx) {
