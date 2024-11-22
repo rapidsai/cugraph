@@ -104,7 +104,7 @@ neighbor_sample_impl(raft::handle_t const& handle,
     edge_masks_vector{};
   graph_view_t<vertex_t, edge_t, false, multi_gpu> modified_graph_view = graph_view;
   edge_masks_vector.reserve(num_edge_types);
-  
+
   label_t num_labels = 0;
 
   if (starting_vertex_labels) {
@@ -370,34 +370,36 @@ neighbor_sample_impl(raft::handle_t const& handle,
   }
 
   std::optional<rmm::device_uvector<size_t>> result_offsets{std::nullopt};
-  
-  std::tie(result_srcs, result_dsts, result_weights, result_edge_ids,
-           result_edge_types, result_hops, result_labels, result_offsets)
-            = detail::shuffle_and_organize_output(handle,
-                                                  std::move(result_srcs),
-                                                  std::move(result_dsts),
-                                                  std::move(result_weights),
-                                                  std::move(result_edge_ids),
-                                                  std::move(result_edge_types),
-                                                  std::move(result_hops),
-                                                  std::move(result_labels),
-                                                  label_to_output_comm_rank);
-  
-  if (result_srcs.size() == 0){
+
+  std::tie(result_srcs,
+           result_dsts,
+           result_weights,
+           result_edge_ids,
+           result_edge_types,
+           result_hops,
+           result_labels,
+           result_offsets) = detail::shuffle_and_organize_output(handle,
+                                                                 std::move(result_srcs),
+                                                                 std::move(result_dsts),
+                                                                 std::move(result_weights),
+                                                                 std::move(result_edge_ids),
+                                                                 std::move(result_edge_types),
+                                                                 std::move(result_hops),
+                                                                 std::move(result_labels),
+                                                                 label_to_output_comm_rank);
+
+  if (result_srcs.size() == 0) {
     // Update the 'edgelist_label_offsets' array to be proportional to the
     // number of labels
-    result_offsets->resize(num_labels + 1 ,handle.get_stream());
+    result_offsets->resize(num_labels + 1, handle.get_stream());
 
-    thrust::transform(
-        handle.get_thrust_policy(),
-        thrust::make_counting_iterator<edge_t>(0),
-        thrust::make_counting_iterator<edge_t>(result_offsets->size()),
-        result_offsets->begin(),
-        [] __device__(auto idx) {
-          return 0;
-        });
-  } 
-  
+    thrust::transform(handle.get_thrust_policy(),
+                      thrust::make_counting_iterator<edge_t>(0),
+                      thrust::make_counting_iterator<edge_t>(result_offsets->size()),
+                      result_offsets->begin(),
+                      [] __device__(auto idx) { return 0; });
+  }
+
   return std::make_tuple(std::move(result_srcs),
                          std::move(result_dsts),
                          std::move(result_weights),

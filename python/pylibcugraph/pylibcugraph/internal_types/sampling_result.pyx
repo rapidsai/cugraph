@@ -206,7 +206,7 @@ cdef class SamplingResult:
 
         return create_cupy_array_view_for_device_ptr(device_array_view_ptr,
                                                      self)
-    
+
     def get_label_type_hop_offsets(self):
         if self.c_sample_result_ptr is NULL:
             raise ValueError("pointer not set, must call set_ptr() with a "

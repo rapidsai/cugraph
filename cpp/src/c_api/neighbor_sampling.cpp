@@ -1012,8 +1012,8 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
                                         options_.with_replacement_},
               do_expensive_check_);
         } else {
-
-          raft::print_device_vector("labels", (*start_vertex_labels).data(), (*start_vertex_labels).size(), std::cout);
+          raft::print_device_vector(
+            "labels", (*start_vertex_labels).data(), (*start_vertex_labels).size(), std::cout);
           std::tie(src, dst, wgt, edge_id, edge_type, hop, offsets) =
             cugraph::heterogeneous_uniform_neighbor_sample(
               handle_,
@@ -1129,7 +1129,7 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
       }
 
       if (options_.renumber_results_) {
-        if (src.size() > 0) { // Only renumber if there are edgelist to renumber
+        if (src.size() > 0) {          // Only renumber if there are edgelist to renumber
           if (num_edge_types_ == 1) {  // homogeneous renumbering
             if (options_.compression_type_ == cugraph_compression_type_t::COO) {
               // COO
@@ -1137,13 +1137,13 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
               rmm::device_uvector<vertex_t> output_majors(0, handle_.get_stream());
               rmm::device_uvector<vertex_t> output_renumber_map(0, handle_.get_stream());
               std::tie(output_majors,
-                      minors,
-                      wgt,
-                      edge_id,
-                      edge_type,
-                      label_hop_offsets,
-                      output_renumber_map,
-                      renumber_map_offsets) =
+                       minors,
+                       wgt,
+                       edge_id,
+                       edge_type,
+                       label_hop_offsets,
+                       output_renumber_map,
+                       renumber_map_offsets) =
                 cugraph::renumber_and_sort_sampled_edgelist<vertex_t>(
                   handle_,
                   std::move(src),
@@ -1181,14 +1181,14 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
               rmm::device_uvector<vertex_t> output_renumber_map(0, handle_.get_stream());
 
               std::tie(majors,
-                      output_major_offsets,
-                      minors,
-                      wgt,
-                      edge_id,
-                      edge_type,
-                      label_hop_offsets,
-                      output_renumber_map,
-                      renumber_map_offsets) =
+                       output_major_offsets,
+                       minors,
+                       wgt,
+                       edge_id,
+                       edge_type,
+                       label_hop_offsets,
+                       output_renumber_map,
+                       renumber_map_offsets) =
                 cugraph::renumber_and_compress_sampled_edgelist<vertex_t>(
                   handle_,
                   std::move(src),
@@ -1230,10 +1230,10 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
             rmm::device_uvector<vertex_t> vertex_type_offsets(2, handle_.get_stream());
 
             cugraph::detail::stride_fill(handle_.get_stream(),
-                                        vertex_type_offsets.begin(),
-                                        vertex_type_offsets.size(),
-                                        vertex_t{0},
-                                        vertex_t{graph_view.local_vertex_partition_range_size()}
+                                         vertex_type_offsets.begin(),
+                                         vertex_type_offsets.size(),
+                                         vertex_t{0},
+                                         vertex_t{graph_view.local_vertex_partition_range_size()}
 
             );
 
@@ -1241,14 +1241,14 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
             rmm::device_uvector<vertex_t> output_renumber_map(0, handle_.get_stream());
 
             std::tie(output_majors,
-                    minors,
-                    wgt,
-                    edge_id,
-                    label_type_hop_offsets,  // Contains information about the type and hop offsets
-                    output_renumber_map,
-                    renumber_map_offsets,
-                    renumbered_and_sorted_edge_id_renumber_map,
-                    renumbered_and_sorted_edge_id_renumber_map_label_type_offsets) =
+                     minors,
+                     wgt,
+                     edge_id,
+                     label_type_hop_offsets,  // Contains information about the type and hop offsets
+                     output_renumber_map,
+                     renumber_map_offsets,
+                     renumbered_and_sorted_edge_id_renumber_map,
+                     renumbered_and_sorted_edge_id_renumber_map_label_type_offsets) =
               cugraph::heterogeneous_renumber_and_sort_sampled_edgelist<vertex_t>(
                 handle_,
                 std::move(src),
@@ -1569,8 +1569,8 @@ extern "C" cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_la
            : NULL;
 }
 
-extern "C" cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_label_type_hop_offsets(
-  const cugraph_sample_result_t* result)
+extern "C" cugraph_type_erased_device_array_view_t*
+cugraph_sample_result_get_label_type_hop_offsets(const cugraph_sample_result_t* result)
 {
   auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_sample_result_t const*>(result);
   return internal_pointer->label_type_hop_offsets_ != nullptr
