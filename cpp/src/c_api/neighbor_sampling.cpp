@@ -1230,7 +1230,7 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
 
             rmm::device_uvector<vertex_t> vertex_type_offsets(2, handle_.get_stream());
 
-            if (vertex_type_offsets_ != nullptr) {
+            if (vertex_type_offsets_ == nullptr) {
               // If no 'vertex_type_offsets' is provided, all vertices are assumed to have
               // a vertex type of value 1.
               cugraph::detail::stride_fill(handle_.get_stream(),
