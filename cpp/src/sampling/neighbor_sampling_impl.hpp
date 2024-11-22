@@ -418,9 +418,7 @@ neighbor_sample_impl(raft::handle_t const& handle,
                         auto itr_upper = thrust::upper_bound(
                           thrust::seq, result_labels.begin(), result_labels.end(), idx);
 
-                        auto sampled_label_size = thrust::distance(itr_lower, itr_upper);
-
-                        return sampled_label_size;
+                        return thrust::distance(itr_lower, itr_upper);
                       });
 
     // Run inclusive scan
