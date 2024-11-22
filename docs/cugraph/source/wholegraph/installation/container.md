@@ -24,6 +24,7 @@ RUN pip3 install Cython setuputils3 scikit-build nanobind pytest-forked pytest
 To run GNN applications, you may also need cuGraphOps, DGL and/or PyG libraries to run the GNN layers.
 You may refer to [DGL](https://www.dgl.ai/pages/start.html) or [PyG](https://pytorch-geometric.readthedocs.io/en/latest/notes/installation.html)
 For example, to install DGL, you may need to add:
+
 ```dockerfile
-RUN pip3 install  dgl -f https://data.dgl.ai/wheels/cu118/repo.html
+RUN pip3 install  dgl -f https://data.dgl.ai/wheels/torch-2.3/cu118/repo.html
 ```

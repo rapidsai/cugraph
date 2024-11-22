@@ -14,8 +14,10 @@
 # Have cython use python 3 syntax
 # cython: language_level = 3
 
-from pylibcugraph._cugraph_c.resource_handle cimport (
+from pylibcugraph._cugraph_c.types cimport (
     bool_t,
+)
+from pylibcugraph._cugraph_c.resource_handle cimport (
     cugraph_resource_handle_t,
 )
 from pylibcugraph._cugraph_c.error cimport (
@@ -59,6 +61,62 @@ cdef extern from "cugraph_c/sampling_algorithms.h":
         const cugraph_type_erased_device_array_view_t* label_offsets,
         const cugraph_type_erased_host_array_view_t* fan_out,
         cugraph_rng_state_t* rng_state,
+        const cugraph_sampling_options_t* options,
+        bool_t do_expensive_check,
+        cugraph_sample_result_t** result,
+        cugraph_error_t** error
+    )
+
+    cdef cugraph_error_code_t cugraph_heterogeneous_uniform_neighbor_sample(
+        const cugraph_resource_handle_t* handle,
+        cugraph_rng_state_t* rng_state,
+        cugraph_graph_t* graph,
+        const cugraph_type_erased_device_array_view_t* start_vertices,
+        const cugraph_type_erased_device_array_view_t* starting_vertex_label_offsets,
+        const cugraph_type_erased_host_array_view_t* fan_out,
+        int num_edge_types,
+        const cugraph_sampling_options_t* options,
+        bool_t do_expensive_check,
+        cugraph_sample_result_t** result,
+        cugraph_error_t** error
+    )
+
+    cdef cugraph_error_code_t cugraph_heterogeneous_biased_neighbor_sample(
+        const cugraph_resource_handle_t* handle,
+        cugraph_rng_state_t* rng_state,
+        cugraph_graph_t* graph,
+        const cugraph_edge_property_view_t* edge_biases,
+        const cugraph_type_erased_device_array_view_t* start_vertices,
+        const cugraph_type_erased_device_array_view_t* starting_vertex_label_offsets,
+        const cugraph_type_erased_host_array_view_t* fan_out,
+        int num_edge_types,
+        const cugraph_sampling_options_t* options,
+        bool_t do_expensive_check,
+        cugraph_sample_result_t** result,
+        cugraph_error_t** error
+    )
+
+    cdef cugraph_error_code_t cugraph_homogeneous_uniform_neighbor_sample(
+        const cugraph_resource_handle_t* handle,
+        cugraph_rng_state_t* rng_state,
+        cugraph_graph_t* graph,
+        const cugraph_type_erased_device_array_view_t* start_vertices,
+        const cugraph_type_erased_device_array_view_t* starting_vertex_label_offsets,
+        const cugraph_type_erased_host_array_view_t* fan_out,
+        const cugraph_sampling_options_t* options,
+        bool_t do_expensive_check,
+        cugraph_sample_result_t** result,
+        cugraph_error_t** error
+    )
+
+    cdef cugraph_error_code_t cugraph_homogeneous_biased_neighbor_sample(
+        const cugraph_resource_handle_t* handle,
+        cugraph_rng_state_t* rng_state,
+        cugraph_graph_t* graph,
+        const cugraph_edge_property_view_t* edge_biases,
+        const cugraph_type_erased_device_array_view_t* start_vertices,
+        const cugraph_type_erased_device_array_view_t* starting_vertex_label_offsets,
+        const cugraph_type_erased_host_array_view_t* fan_out,
         const cugraph_sampling_options_t* options,
         bool_t do_expensive_check,
         cugraph_sample_result_t** result,
@@ -112,10 +170,10 @@ cdef extern from "cugraph_c/sampling_algorithms.h":
             const cugraph_resource_handle_t* handle,
             cugraph_rng_state_t* rng_state,
             cugraph_graph_t* graph,
-            size_t num_samples,
             const cugraph_type_erased_device_array_view_t* vertices,
             const cugraph_type_erased_device_array_view_t* src_bias,
             const cugraph_type_erased_device_array_view_t* dst_bias,
+            size_t num_samples,
             bool_t remove_duplicates,
             bool_t remove_false_negatives,
             bool_t exact_number_of_samples,

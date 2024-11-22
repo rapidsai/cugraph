@@ -55,6 +55,7 @@ set(cython_sources
     two_hop_neighbors.pyx
     uniform_neighbor_sample.pyx
     biased_neighbor_sample.pyx
+    negative_sampling.pyx
     uniform_random_walks.pyx
     utils.pyx
     weakly_connected_components.pyx
@@ -64,6 +65,11 @@ set(cython_sources
     all_pairs_sorensen_coefficients.pyx
     all_pairs_overlap_coefficients.pyx
     all_pairs_cosine_coefficients.pyx
+    heterogeneous_biased_neighbor_sample.pyx
+    heterogeneous_uniform_neighbor_sample.pyx
+    homogeneous_biased_neighbor_sample.pyx
+    homogeneous_uniform_neighbor_sample.pyx
+    edge_id_lookup_table.pyx
 )
 set(linked_libraries cugraph::cugraph;cugraph::cugraph_c)
 

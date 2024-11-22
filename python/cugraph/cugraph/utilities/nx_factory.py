@@ -1,4 +1,4 @@
-# Copyright (c) 2020-2023, NVIDIA CORPORATION.
+# Copyright (c) 2020-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -23,6 +23,8 @@ from .utils import import_optional
 import cudf
 from cudf import from_pandas
 from cudf.api.types import is_integer_dtype
+
+from cugraph.structure.symmetrize import symmetrize
 
 # nx will be a MissingModule instance if NetworkX is not installed (any
 # attribute access on a MissingModule instance results in a RuntimeError).
@@ -129,6 +131,17 @@ def convert_from_nx(
 
     if is_weighted is False:
         _gdf = convert_unweighted_to_gdf(nxG, vertex_type)
+        # FIXME: The legacy algorithms do not support the PLC graph
+        # hence, the symmetrization cannot be performed at the graph
+        # creation. Use the deprecated 'symmetrize' function for now.
+        source_col, dest_col = symmetrize(
+            _gdf, "src", "dst", symmetrize=not G.is_directed()
+        )
+
+        _gdf = cudf.DataFrame()
+
+        _gdf["src"] = source_col
+        _gdf["dst"] = dest_col
         G.from_cudf_edgelist(
             _gdf,
             source="src",
@@ -140,6 +153,18 @@ def convert_from_nx(
     else:
         if weight is None:
             _gdf = convert_weighted_unnamed_to_gdf(nxG, vertex_type)
+            # FIXME: The legacy algorithms do not support the PLC graph
+            # hence, the symmetrization cannot be performed at the graph
+            # creation. Use the deprecated 'symmetrize' function for now.
+            source_col, dest_col, value_col = symmetrize(
+                _gdf, "src", "target", "weight", symmetrize=not G.is_directed()
+            )
+
+            _gdf = cudf.DataFrame()
+
+            _gdf["src"] = source_col
+            _gdf["target"] = dest_col
+            _gdf["weight"] = value_col
             G.from_cudf_edgelist(
                 _gdf,
                 source="source",
@@ -148,8 +173,22 @@ def convert_from_nx(
                 renumber=do_renumber,
                 store_transposed=store_transposed,
             )
+
         else:
             _gdf = convert_weighted_named_to_gdf(nxG, weight, vertex_type)
+            # FIXME: The legacy algorithms do not support the PLC graph
+            # hence, the symmetrization cannot be performed at the graph
+            # creation. Use the deprecated 'symmetrize' function for now.
+            source_col, dest_col, value_col = symmetrize(
+                _gdf, "src", "dst", "weight", symmetrize=not G.is_directed()
+            )
+
+            _gdf = cudf.DataFrame()
+
+            _gdf["src"] = source_col
+            _gdf["dst"] = dest_col
+            _gdf["weight"] = value_col
+
             G.from_cudf_edgelist(
                 _gdf,
                 source="src",

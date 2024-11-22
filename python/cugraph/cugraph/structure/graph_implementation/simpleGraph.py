@@ -13,7 +13,7 @@
 
 from cugraph.structure import graph_primtypes_wrapper
 from cugraph.structure.replicate_edgelist import replicate_cudf_dataframe
-from cugraph.structure.symmetrize import symmetrize
+from cugraph.structure.symmetrize import symmetrize as symmetrize_df
 from cugraph.structure.number_map import NumberMap
 import cugraph.dask.common.mg_utils as mg_utils
 import cudf
@@ -134,6 +134,7 @@ class simpleGraphImpl:
         renumber=True,
         legacy_renum_only=False,
         store_transposed=False,
+        symmetrize=None,
     ):
         if legacy_renum_only:
             warning_msg = (
@@ -142,6 +143,35 @@ class simpleGraphImpl:
             warnings.warn(
                 warning_msg,
             )
+
+        if self.properties.directed and symmetrize:
+            raise ValueError(
+                "The edgelist can only be symmetrized for undirected graphs."
+            )
+
+        if self.properties.directed:
+            if symmetrize:
+                raise ValueError(
+                    "The edgelist can only be symmetrized for undirected graphs."
+                )
+        else:
+            if symmetrize or symmetrize is None:
+                unsupported = False
+                if edge_id is not None or edge_type is not None:
+                    unsupported = True
+                if isinstance(edge_attr, list):
+                    if len(edge_attr) > 1:
+                        unsupported = True
+                if unsupported:
+                    raise ValueError(
+                        "Edge list containing Edge Ids or Types can't be symmetrized. "
+                        "If the edges are already symmetric, set the 'symmetrize' "
+                        "flag to False"
+                    )
+
+        if symmetrize is None:
+            # default behavior
+            symmetrize = not self.properties.directed
 
         # Verify column names present in input DataFrame
         s_col = source
@@ -264,45 +294,27 @@ class simpleGraphImpl:
                     )
                 raise ValueError("set renumber to True for non integer columns ids")
 
-        # The dataframe will be symmetrized iff the graph is undirected
-        # otherwise the inital dataframe will be returned. Duplicated edges
-        # will be dropped unless the graph is a MultiGraph(Not Implemented yet)
-        # TODO: Update Symmetrize to work on Graph and/or DataFrame
+        # The dataframe will be symmetrized iff the graph is undirected with the
+        # symmetrize flag set to None or True otherwise, the inital dataframe will
+        # be returned. If set to False, the API will assume that the edges are already
+        # symmetric. Duplicated edges will be dropped unless the graph is a
+        # MultiGraph(Not Implemented yet)
+
         if edge_attr is not None:
-            source_col, dest_col, value_col = symmetrize(
-                elist,
-                source,
-                destination,
-                edge_attr,
-                multi=self.properties.multi_edge,  # Deprecated parameter
-                symmetrize=not self.properties.directed,
-            )
-
-            if isinstance(value_col, cudf.DataFrame):
-                value_dict = {}
-                for i in value_col.columns:
-                    value_dict[i] = value_col[i]
-                value_col = value_dict
-        else:
-            value_col = None
-            source_col, dest_col = symmetrize(
-                elist,
-                source,
-                destination,
-                multi=self.properties.multi_edge,  # Deprecated parameter
-                symmetrize=not self.properties.directed,
-            )
-
-        if isinstance(value_col, dict):
             value_col = {
-                self.edgeWeightCol: value_col[weight] if weight in value_col else None,
-                self.edgeIdCol: value_col[edge_id] if edge_id in value_col else None,
-                self.edgeTypeCol: value_col[edge_type]
-                if edge_type in value_col
-                else None,
+                self.edgeWeightCol: elist[weight] if weight in edge_attr else None,
+                self.edgeIdCol: elist[edge_id] if edge_id in edge_attr else None,
+                self.edgeTypeCol: elist[edge_type] if edge_type in edge_attr else None,
             }
 
-        self.edgelist = simpleGraphImpl.EdgeList(source_col, dest_col, value_col)
+        else:
+            value_col = None
+
+        # FIXME: if the user calls self.edgelist.edgelist_df after creating a
+        # symmetric graph, return the symmetric edgelist?
+        self.edgelist = simpleGraphImpl.EdgeList(
+            elist[source], elist[destination], value_col
+        )
 
         if self.batch_enabled:
             self._replicate_edgelist()
@@ -312,6 +324,7 @@ class simpleGraphImpl:
             store_transposed=store_transposed,
             renumber=renumber,
             drop_multi_edges=not self.properties.multi_edge,
+            symmetrize=symmetrize,
         )
 
     def to_pandas_edgelist(
@@ -549,13 +562,23 @@ class simpleGraphImpl:
         value_col=None,
         renumber=True,
         store_transposed=False,
+        symmetrize=None,
     ):
 
         self.adjlist = simpleGraphImpl.AdjList(offset_col, index_col, value_col)
+
+        if self.properties.directed and symmetrize:
+            raise ValueError("The edges can only be symmetrized for undirected graphs.")
+
         if value_col is not None:
             self.properties.weighted = True
         self._make_plc_graph(
-            value_col=value_col, store_transposed=store_transposed, renumber=renumber
+            value_col=value_col,
+            store_transposed=store_transposed,
+            renumber=renumber,
+            symmetrize=not self.properties.directed
+            if symmetrize is None
+            else symmetrize,
         )
 
         if self.batch_enabled:
@@ -1146,6 +1169,7 @@ class simpleGraphImpl:
         store_transposed: bool = False,
         renumber: bool = True,
         drop_multi_edges: bool = False,
+        symmetrize: bool = False,
     ):
         """
         Parameters
@@ -1164,6 +1188,8 @@ class simpleGraphImpl:
             int32 or int64 type.
         drop_multi_edges: bool (default=False)
             Whether to drop multi edges
+        symmetrize: bool (default=False)
+            Whether to symmetrize
         """
 
         if value_col is None:
@@ -1228,6 +1254,7 @@ class simpleGraphImpl:
             do_expensive_check=True,
             input_array_format=input_array_format,
             drop_multi_edges=drop_multi_edges,
+            symmetrize=symmetrize,
         )
 
     def to_directed(self, DiG, store_transposed=False):
@@ -1253,12 +1280,18 @@ class simpleGraphImpl:
         DiG._make_plc_graph(value_col, store_transposed)
 
     def to_undirected(self, G, store_transposed=False):
+
         """
         Return an undirected copy of the graph.
 
         Note: This will discard any edge ids or edge types but will
         preserve edge weights if present.
         """
+        # FIXME: Update this function to not call the deprecated
+        # symmetrize function.
+        #   1) Import the C++ function that symmetrize a graph
+        #   2) decompress the edgelist to update 'simpleGraphImpl.EdgeList'
+        # Doesn't work for edgelists with edge_ids and edge_types.
         G.properties.renumbered = self.properties.renumbered
         G.renumber_map = self.renumber_map
         if self.properties.directed is False:
@@ -1268,14 +1301,14 @@ class simpleGraphImpl:
         else:
             df = self.edgelist.edgelist_df
             if self.edgelist.weights:
-                source_col, dest_col, value_col = symmetrize(
+                source_col, dest_col, value_col = symmetrize_df(
                     df,
                     simpleGraphImpl.srcCol,
                     simpleGraphImpl.dstCol,
                     simpleGraphImpl.edgeWeightCol,
                 )
             else:
-                source_col, dest_col = symmetrize(
+                source_col, dest_col = symmetrize_df(
                     df, simpleGraphImpl.srcCol, simpleGraphImpl.dstCol
                 )
                 value_col = None
@@ -1310,6 +1343,28 @@ class simpleGraphImpl:
             v = tmp["id"][1]
 
         df = self.edgelist.edgelist_df
+
+        if self.edgelist.weights:
+            # FIXME: Update this function to not call the deprecated
+            # symmetrize function.
+            source_col, dest_col, value_col = symmetrize_df(
+                df,
+                simpleGraphImpl.srcCol,
+                simpleGraphImpl.dstCol,
+                simpleGraphImpl.edgeWeightCol,
+                symmetrize=not self.properties.directed,
+            )
+        else:
+            source_col, dest_col = symmetrize_df(
+                df,
+                simpleGraphImpl.srcCol,
+                simpleGraphImpl.dstCol,
+                symmetrize=not self.properties.directed,
+            )
+            value_col = None
+
+        self.edgelist = simpleGraphImpl.EdgeList(source_col, dest_col, value_col)
+
         return (
             (df[simpleGraphImpl.srcCol] == u) & (df[simpleGraphImpl.dstCol] == v)
         ).any()

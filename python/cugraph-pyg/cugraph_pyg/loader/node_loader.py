@@ -110,8 +110,10 @@ class NodeLoader:
             input_id,
         )
 
-        self.__input_data = torch_geometric.loader.node_loader.NodeSamplerInput(
-            input_id=input_id,
+        self.__input_data = torch_geometric.sampler.NodeSamplerInput(
+            input_id=torch.arange(len(input_nodes), dtype=torch.int64, device="cuda")
+            if input_id is None
+            else input_id,
             node=input_nodes,
             time=None,
             input_type=input_type,
@@ -135,10 +137,8 @@ class NodeLoader:
             d = perm.numel() % self.__batch_size
             perm = perm[:-d]
 
-        input_data = torch_geometric.loader.node_loader.NodeSamplerInput(
-            input_id=None
-            if self.__input_data.input_id is None
-            else self.__input_data.input_id[perm],
+        input_data = torch_geometric.sampler.NodeSamplerInput(
+            input_id=self.__input_data.input_id[perm],
             node=self.__input_data.node[perm],
             time=None
             if self.__input_data.time is None

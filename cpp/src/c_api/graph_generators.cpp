@@ -124,32 +124,41 @@ cugraph_error_code_t cugraph_generate_rmat_edgelists(
 extern "C" cugraph_type_erased_device_array_view_t* cugraph_coo_get_sources(cugraph_coo_t* coo)
 {
   auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_coo_t*>(coo);
-  return reinterpret_cast<cugraph_type_erased_device_array_view_t*>(internal_pointer->src_->view());
+  return (internal_pointer->src_) ? reinterpret_cast<cugraph_type_erased_device_array_view_t*>(
+                                      internal_pointer->src_->view())
+                                  : nullptr;
 }
 
 extern "C" cugraph_type_erased_device_array_view_t* cugraph_coo_get_destinations(cugraph_coo_t* coo)
 {
   auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_coo_t*>(coo);
-  return reinterpret_cast<cugraph_type_erased_device_array_view_t*>(internal_pointer->dst_->view());
+  return (internal_pointer->dst_) ? reinterpret_cast<cugraph_type_erased_device_array_view_t*>(
+                                      internal_pointer->dst_->view())
+                                  : nullptr;
 }
 
 extern "C" cugraph_type_erased_device_array_view_t* cugraph_coo_get_edge_weights(cugraph_coo_t* coo)
 {
   auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_coo_t*>(coo);
-  return reinterpret_cast<cugraph_type_erased_device_array_view_t*>(internal_pointer->wgt_->view());
+  return (internal_pointer->wgt_) ? reinterpret_cast<cugraph_type_erased_device_array_view_t*>(
+                                      internal_pointer->wgt_->view())
+                                  : nullptr;
 }
 
 extern "C" cugraph_type_erased_device_array_view_t* cugraph_coo_get_edge_id(cugraph_coo_t* coo)
 {
   auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_coo_t*>(coo);
-  return reinterpret_cast<cugraph_type_erased_device_array_view_t*>(internal_pointer->id_->view());
+  return (internal_pointer->id_) ? reinterpret_cast<cugraph_type_erased_device_array_view_t*>(
+                                     internal_pointer->id_->view())
+                                 : nullptr;
 }
 
 extern "C" cugraph_type_erased_device_array_view_t* cugraph_coo_get_edge_type(cugraph_coo_t* coo)
 {
   auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_coo_t*>(coo);
-  return reinterpret_cast<cugraph_type_erased_device_array_view_t*>(
-    internal_pointer->type_->view());
+  return (internal_pointer->type_) ? reinterpret_cast<cugraph_type_erased_device_array_view_t*>(
+                                       internal_pointer->type_->view())
+                                   : nullptr;
 }
 
 extern "C" size_t cugraph_coo_list_size(const cugraph_coo_list_t* coo_list)

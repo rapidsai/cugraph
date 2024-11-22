@@ -12,7 +12,6 @@
 # limitations under the License.
 
 import warnings
-import tempfile
 
 from typing import Union, Tuple, Optional, Callable, List, Dict
 
@@ -123,14 +122,14 @@ class NeighborLoader(NodeLoader):
             The number of input nodes per output minibatch.
             See torch.utils.dataloader.
         directory: str (optional, default=None)
-            The directory where samples will be temporarily stored.
-            It is recommend that this be set by the user, usually
-            setting it to a tempfile.TemporaryDirectory with a context
+            The directory where samples will be temporarily stored,
+            if spilling samples to disk.  If None, this loader
+            will perform buffered in-memory sampling.
+            If writing to disk, setting this argument
+            to a tempfile.TemporaryDirectory with a context
             manager is a good option but depending on the filesystem,
             you may want to choose an alternative location with fast I/O
             intead.
-            If not set, this will create a TemporaryDirectory that will
-            persist until this object is garbage collected.
             See cugraph.gnn.DistSampleWriter.
         batches_per_partition: int (optional, default=256)
             The number of batches per partition if writing samples to
@@ -182,20 +181,19 @@ class NeighborLoader(NodeLoader):
             # Will eventually automatically convert these objects to cuGraph objects.
             raise NotImplementedError("Currently can't accept non-cugraph graphs")
 
-        if directory is None:
-            warnings.warn("Setting a directory to store samples is recommended.")
-            self._tempdir = tempfile.TemporaryDirectory()
-            directory = self._tempdir.name
-
         if compression is None:
             compression = "CSR"
         elif compression not in ["CSR", "COO"]:
             raise ValueError("Invalid value for compression (expected 'CSR' or 'COO')")
 
-        writer = DistSampleWriter(
-            directory=directory,
-            batches_per_partition=batches_per_partition,
-            format=format,
+        writer = (
+            None
+            if directory is None
+            else DistSampleWriter(
+                directory=directory,
+                batches_per_partition=batches_per_partition,
+                format=format,
+            )
         )
 
         feature_store, graph_store = data

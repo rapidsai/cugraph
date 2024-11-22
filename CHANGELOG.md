@@ -1,3 +1,80 @@
+# cugraph 24.10.00 (9 Oct 2024)
+
+## 🚨 Breaking Changes
+
+- Add Additional Check for `NetworkX` Release Candidate Versions ([#4613](https://github.com/rapidsai/cugraph/pull/4613)) [@nv-rliu](https://github.com/nv-rliu)
+- Updates to `cugraph.hypergraph` (Duplicate Col Labels Bug) ([#4610](https://github.com/rapidsai/cugraph/pull/4610)) [@nv-rliu](https://github.com/nv-rliu)
+- Heterogeneous renumbering implementation ([#4602](https://github.com/rapidsai/cugraph/pull/4602)) [@seunghwak](https://github.com/seunghwak)
+- [FEA] DGL Examples ([#4583](https://github.com/rapidsai/cugraph/pull/4583)) [@alexbarghi-nv](https://github.com/alexbarghi-nv)
+
+## 🐛 Bug Fixes
+
+- Updates docs to describe nx-cugraph based on latest updates for 24.10 ([#4694](https://github.com/rapidsai/cugraph/pull/4694)) [@nv-rliu](https://github.com/nv-rliu)
+- Constrain versions of PyTorch and CI artifacts in CI Runs, upgrade to dgl 2.4 ([#4690](https://github.com/rapidsai/cugraph/pull/4690)) [@alexbarghi-nv](https://github.com/alexbarghi-nv)
+- Drops duplicate edges in non-MultiGraph PLC `SGGraph` instances ([#4658](https://github.com/rapidsai/cugraph/pull/4658)) [@rlratzel](https://github.com/rlratzel)
+- Install mg test executables ([#4656](https://github.com/rapidsai/cugraph/pull/4656)) [@KyleFromNVIDIA](https://github.com/KyleFromNVIDIA)
+- Fix build strings in nx-cugraph ([#4639](https://github.com/rapidsai/cugraph/pull/4639)) [@bdice](https://github.com/bdice)
+- Set CUDA_STATIC_MATH_LIBRARIES in Python builds ([#4612](https://github.com/rapidsai/cugraph/pull/4612)) [@KyleFromNVIDIA](https://github.com/KyleFromNVIDIA)
+- Updates to `cugraph.hypergraph` (Duplicate Col Labels Bug) ([#4610](https://github.com/rapidsai/cugraph/pull/4610)) [@nv-rliu](https://github.com/nv-rliu)
+- Biased sampling primitive bug fix ([#4607](https://github.com/rapidsai/cugraph/pull/4607)) [@seunghwak](https://github.com/seunghwak)
+- Fix `test_property_graph_mg` Usage of Util Function ([#4600](https://github.com/rapidsai/cugraph/pull/4600)) [@nv-rliu](https://github.com/nv-rliu)
+- Re-configure benchmarking devices &amp; add markers to `bench_cugraph_uniform_neighbor_sample` ([#4561](https://github.com/rapidsai/cugraph/pull/4561)) [@nv-rliu](https://github.com/nv-rliu)
+
+## 📖 Documentation
+
+- Implementing some of the VDR feedback ([#4674](https://github.com/rapidsai/cugraph/pull/4674)) [@acostadon](https://github.com/acostadon)
+- Add `nx-cugraph` Docs Pages ([#4669](https://github.com/rapidsai/cugraph/pull/4669)) [@nv-rliu](https://github.com/nv-rliu)
+- Recommending `miniforge` for conda install ([#4650](https://github.com/rapidsai/cugraph/pull/4650)) [@mmccarty](https://github.com/mmccarty)
+
+## 🚀 New Features
+
+- Add `nx-cugraph` introduction notebook to repo ([#4677](https://github.com/rapidsai/cugraph/pull/4677)) [@nv-rliu](https://github.com/nv-rliu)
+- Support Negative Sampling in pylibcugraph and cuGraph-PyG ([#4660](https://github.com/rapidsai/cugraph/pull/4660)) [@alexbarghi-nv](https://github.com/alexbarghi-nv)
+- Heterogeneous renumbering implementation ([#4602](https://github.com/rapidsai/cugraph/pull/4602)) [@seunghwak](https://github.com/seunghwak)
+- [FEA] Biased Sampling in cuGraph-DGL ([#4595](https://github.com/rapidsai/cugraph/pull/4595)) [@alexbarghi-nv](https://github.com/alexbarghi-nv)
+- [FEA] Biased Sampling in cuGraph-PyG ([#4586](https://github.com/rapidsai/cugraph/pull/4586)) [@alexbarghi-nv](https://github.com/alexbarghi-nv)
+- [FEA] DGL Examples ([#4583](https://github.com/rapidsai/cugraph/pull/4583)) [@alexbarghi-nv](https://github.com/alexbarghi-nv)
+
+## 🛠️ Improvements
+
+- `nx-cugraph`: add `NX_CUGRAPH_AUTOCONFIG=True` env var to enable full zero-code change ([#4685](https://github.com/rapidsai/cugraph/pull/4685)) [@eriknw](https://github.com/eriknw)
+- Fix `cit-patents` Dataset for `nx-cugraph` Benchmark ([#4666](https://github.com/rapidsai/cugraph/pull/4666)) [@nv-rliu](https://github.com/nv-rliu)
+- Update update-version.sh to use packaging lib ([#4664](https://github.com/rapidsai/cugraph/pull/4664)) [@AyodeAwe](https://github.com/AyodeAwe)
+- Swtch traceback to `--native` in `cugraph` ([#4663](https://github.com/rapidsai/cugraph/pull/4663)) [@galipremsagar](https://github.com/galipremsagar)
+- bump NCCL floor to 2.18.1.1, include nccl.h where it&#39;s needed ([#4661](https://github.com/rapidsai/cugraph/pull/4661)) [@jameslamb](https://github.com/jameslamb)
+- Use CI workflow branch &#39;branch-24.10&#39; again ([#4654](https://github.com/rapidsai/cugraph/pull/4654)) [@jameslamb](https://github.com/jameslamb)
+- Update flake8 to 7.1.1. ([#4652](https://github.com/rapidsai/cugraph/pull/4652)) [@bdice](https://github.com/bdice)
+- reduce pip verbosity in wheel builds ([#4651](https://github.com/rapidsai/cugraph/pull/4651)) [@jameslamb](https://github.com/jameslamb)
+- Refactor the python function symmetrizing the edgelist ([#4649](https://github.com/rapidsai/cugraph/pull/4649)) [@jnke2016](https://github.com/jnke2016)
+- Add `--cpu-only` or `--gpu-only` Arguments to `nx-cugraph` Benchmark ([#4648](https://github.com/rapidsai/cugraph/pull/4648)) [@nv-rliu](https://github.com/nv-rliu)
+- Add support for Python 3.12 ([#4647](https://github.com/rapidsai/cugraph/pull/4647)) [@jameslamb](https://github.com/jameslamb)
+- Biased Random Walks and Node2Vec implementation ([#4645](https://github.com/rapidsai/cugraph/pull/4645)) [@ChuckHastings](https://github.com/ChuckHastings)
+- update a few more Python references to Python 3.10 ([#4637](https://github.com/rapidsai/cugraph/pull/4637)) [@jameslamb](https://github.com/jameslamb)
+- Negative Sampling test needs whole GPU ([#4636](https://github.com/rapidsai/cugraph/pull/4636)) [@ChuckHastings](https://github.com/ChuckHastings)
+- Update rapidsai/pre-commit-hooks ([#4633](https://github.com/rapidsai/cugraph/pull/4633)) [@KyleFromNVIDIA](https://github.com/KyleFromNVIDIA)
+- Update examples to build with latest changes to cugraph ([#4632](https://github.com/rapidsai/cugraph/pull/4632)) [@ChuckHastings](https://github.com/ChuckHastings)
+- Remove Warnings and Timeout from `bench_cugraph_uniform_neighbor_sample.py` ([#4631](https://github.com/rapidsai/cugraph/pull/4631)) [@nv-rliu](https://github.com/nv-rliu)
+- Update edge triangle count to call a non detail primitive ([#4630](https://github.com/rapidsai/cugraph/pull/4630)) [@jnke2016](https://github.com/jnke2016)
+- nx-cugraph: Updates nxcg.Graph classes for API-compatibility with NetworkX Graph classes, needed for zero code change graph generators ([#4629](https://github.com/rapidsai/cugraph/pull/4629)) [@eriknw](https://github.com/eriknw)
+- Drop Python 3.9 support ([#4625](https://github.com/rapidsai/cugraph/pull/4625)) [@jameslamb](https://github.com/jameslamb)
+- Download fewer datasets for C/C++ unit tests ([#4624](https://github.com/rapidsai/cugraph/pull/4624)) [@ChuckHastings](https://github.com/ChuckHastings)
+- Use CUDA math wheels ([#4621](https://github.com/rapidsai/cugraph/pull/4621)) [@KyleFromNVIDIA](https://github.com/KyleFromNVIDIA)
+- Fix ListColumn constructor argument ([#4620](https://github.com/rapidsai/cugraph/pull/4620)) [@mroeschke](https://github.com/mroeschke)
+- Use CategoricalColumn instead of build_categorical_column ([#4618](https://github.com/rapidsai/cugraph/pull/4618)) [@mroeschke](https://github.com/mroeschke)
+- Add `nx-cugraph` Benchmarking Scripts ([#4616](https://github.com/rapidsai/cugraph/pull/4616)) [@nv-rliu](https://github.com/nv-rliu)
+- Remove NumPy &lt;2 pin ([#4615](https://github.com/rapidsai/cugraph/pull/4615)) [@seberg](https://github.com/seberg)
+- Add Additional Check for `NetworkX` Release Candidate Versions ([#4613](https://github.com/rapidsai/cugraph/pull/4613)) [@nv-rliu](https://github.com/nv-rliu)
+- Remove a bunch of legacy code that&#39;s no longer used ([#4609](https://github.com/rapidsai/cugraph/pull/4609)) [@ChuckHastings](https://github.com/ChuckHastings)
+- Update pre-commit hooks ([#4605](https://github.com/rapidsai/cugraph/pull/4605)) [@KyleFromNVIDIA](https://github.com/KyleFromNVIDIA)
+- Improve update-version.sh ([#4599](https://github.com/rapidsai/cugraph/pull/4599)) [@bdice](https://github.com/bdice)
+- Use tool.scikit-build.cmake.version, set scikit-build-core minimum-version ([#4597](https://github.com/rapidsai/cugraph/pull/4597)) [@jameslamb](https://github.com/jameslamb)
+- Migrate get_sampling_index function from cugraph-ops to cugraph ([#4594](https://github.com/rapidsai/cugraph/pull/4594)) [@ChuckHastings](https://github.com/ChuckHastings)
+- Merge branch-24.08 into branch-24.10 ([#4565](https://github.com/rapidsai/cugraph/pull/4565)) [@jameslamb](https://github.com/jameslamb)
+- Fix ucx-py version, use UCX 1.17.0 in pip devcontainers ([#4562](https://github.com/rapidsai/cugraph/pull/4562)) [@bdice](https://github.com/bdice)
+- Use stream_allocator_adaptor constructor instead of factory. ([#4557](https://github.com/rapidsai/cugraph/pull/4557)) [@bdice](https://github.com/bdice)
+- Add an Explanatory Error Message for uint Types ([#4556](https://github.com/rapidsai/cugraph/pull/4556)) [@alexbarghi-nv](https://github.com/alexbarghi-nv)
+- Define and Implement C++ API for negative sampling ([#4523](https://github.com/rapidsai/cugraph/pull/4523)) [@ChuckHastings](https://github.com/ChuckHastings)
+
 # cugraph 24.08.00 (7 Aug 2024)
 
 ## 🚨 Breaking Changes

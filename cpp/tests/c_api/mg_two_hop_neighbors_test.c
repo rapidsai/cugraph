@@ -110,7 +110,7 @@ int generic_two_hop_nbr_test(const cugraph_resource_handle_t* resource_handle,
   cugraph_vertex_pairs_free(result);
   cugraph_type_erased_device_array_view_free(start_vertices_view);
   cugraph_type_erased_device_array_free(start_vertices);
-  cugraph_mg_graph_free(graph);
+  cugraph_graph_free(graph);
   cugraph_error_free(ret_error);
 
   return test_ret_value;

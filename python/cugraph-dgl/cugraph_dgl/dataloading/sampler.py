@@ -20,7 +20,6 @@ from cugraph_dgl.dataloading.utils.sampling_helpers import (
     create_homogeneous_sampled_graphs_from_tensors_csc,
 )
 
-from cugraph.gnn import DistSampleReader
 
 from cugraph.utilities.utils import import_optional
 
@@ -33,14 +32,18 @@ class SampleReader:
     Iterator that processes results from the cuGraph distributed sampler.
     """
 
-    def __init__(self, base_reader: DistSampleReader, output_format: str = "dgl.Block"):
+    def __init__(
+        self,
+        base_reader: Iterator[Tuple[Dict[str, "torch.Tensor"], int, int]],
+        output_format: str = "dgl.Block",
+    ):
         """
         Constructs a new SampleReader.
 
         Parameters
         ----------
-        base_reader: DistSampleReader
-            The reader responsible for loading saved samples produced by
+        base_reader: Iterator[Tuple[Dict[str, "torch.Tensor"], int, int]]
+            The iterator responsible for loading saved samples produced by
             the cuGraph distributed sampler.
         """
         self.__output_format = output_format
@@ -83,7 +86,7 @@ class HomogeneousSampleReader(SampleReader):
 
     def __init__(
         self,
-        base_reader: DistSampleReader,
+        base_reader: Iterator[Tuple[Dict[str, "torch.Tensor"], int, int]],
         output_format: str = "dgl.Block",
         edge_dir="in",
     ):
@@ -92,7 +95,7 @@ class HomogeneousSampleReader(SampleReader):
 
         Parameters
         ----------
-        base_reader: DistSampleReader
+        base_reader: Iterator[Tuple[Dict[str, "torch.Tensor"], int, int]]
             The reader responsible for loading saved samples produced by
             the cuGraph distributed sampler.
         output_format: str

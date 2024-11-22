@@ -49,9 +49,9 @@ int test_create_mg_graph_simple(const cugraph_resource_handle_t* handle)
   properties.is_symmetric  = FALSE;
   properties.is_multigraph = FALSE;
 
-  data_type_id_t vertex_tid = INT32;
-  data_type_id_t edge_tid   = INT32;
-  data_type_id_t weight_tid = FLOAT32;
+  cugraph_data_type_id_t vertex_tid = INT32;
+  cugraph_data_type_id_t edge_tid   = INT32;
+  cugraph_data_type_id_t weight_tid = FLOAT32;
 
   cugraph_type_erased_device_array_t* src;
   cugraph_type_erased_device_array_t* dst;
@@ -109,6 +109,7 @@ int test_create_mg_graph_simple(const cugraph_resource_handle_t* handle)
                             1,
                             FALSE,
                             FALSE,
+                            FALSE,
                             TRUE,
                             &graph,
                             &ret_error);
@@ -158,9 +159,9 @@ int test_create_mg_graph_multiple_edge_lists(const cugraph_resource_handle_t* ha
   properties.is_symmetric  = FALSE;
   properties.is_multigraph = FALSE;
 
-  data_type_id_t vertex_tid = INT32;
-  data_type_id_t edge_tid   = INT32;
-  data_type_id_t weight_tid = FLOAT32;
+  cugraph_data_type_id_t vertex_tid = INT32;
+  cugraph_data_type_id_t edge_tid   = INT32;
+  cugraph_data_type_id_t weight_tid = FLOAT32;
 
   const size_t num_local_arrays = 2;
 
@@ -249,6 +250,7 @@ int test_create_mg_graph_multiple_edge_lists(const cugraph_resource_handle_t* ha
                             NULL,
                             FALSE,
                             num_local_arrays,
+                            FALSE,
                             FALSE,
                             FALSE,
                             TRUE,
@@ -353,9 +355,9 @@ int test_create_mg_graph_multiple_edge_lists_multi_edge(const cugraph_resource_h
   properties.is_symmetric  = FALSE;
   properties.is_multigraph = FALSE;
 
-  data_type_id_t vertex_tid = INT32;
-  data_type_id_t edge_tid   = INT32;
-  data_type_id_t weight_tid = FLOAT32;
+  cugraph_data_type_id_t vertex_tid = INT32;
+  cugraph_data_type_id_t edge_tid   = INT32;
+  cugraph_data_type_id_t weight_tid = FLOAT32;
 
   const size_t num_local_arrays = 2;
 
@@ -446,6 +448,7 @@ int test_create_mg_graph_multiple_edge_lists_multi_edge(const cugraph_resource_h
                             num_local_arrays,
                             TRUE,
                             TRUE,
+                            FALSE,
                             TRUE,
                             &graph,
                             &ret_error);

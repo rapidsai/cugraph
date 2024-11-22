@@ -26,6 +26,7 @@ from cugraph import datasets
 from cugraph.dask.common.mg_utils import is_single_gpu
 from cugraph.datasets import karate
 from cugraph.structure import Graph
+from cugraph.structure.symmetrize import symmetrize
 from cugraph.testing import (
     RAPIDS_DATASET_ROOT_DIR_PATH,
     ALL_DATASETS,
@@ -378,6 +379,29 @@ def test_node_and_edge_count(dataset):
     G = dataset.get_graph(
         download=True, create_using=Graph(directed=dataset_is_directed)
     )
+
+    df = cudf.DataFrame()
+    if "weights" in G.edgelist.edgelist_df:
+        source_col, dest_col, value_col = symmetrize(
+            G.edgelist.edgelist_df,
+            "src",
+            "dst",
+            "weights",
+            symmetrize=not G.is_directed(),
+        )
+
+        df["src"] = source_col
+        df["dst"] = dest_col
+        df["weights"] = value_col
+    else:
+        source_col, dest_col = symmetrize(
+            G.edgelist.edgelist_df, "src", "dst", symmetrize=not G.is_directed()
+        )
+
+        df["src"] = source_col
+        df["dst"] = dest_col
+
+    G.edgelist.edgelist_df = df
 
     assert G.number_of_nodes() == dataset.metadata["number_of_nodes"]
     assert G.number_of_edges() == dataset.metadata["number_of_edges"]

@@ -86,6 +86,8 @@ def run_train(
     wall_clock_start,
     tempdir=None,
     num_layers=3,
+    in_memory=False,
+    seeds_per_call=-1,
 ):
 
     init_pytorch_worker(
@@ -119,20 +121,23 @@ def run_train(
     dist.barrier()
 
     ix_train = torch.tensor_split(split_idx["train"], world_size)[rank].cuda()
-    train_path = os.path.join(tempdir, f"train_{rank}")
-    os.mkdir(train_path)
+    train_path = None if in_memory else os.path.join(tempdir, f"train_{rank}")
+    if train_path:
+        os.mkdir(train_path)
     train_loader = NeighborLoader(
         (feature_store, graph_store),
         input_nodes=ix_train,
         directory=train_path,
         shuffle=True,
         drop_last=True,
+        local_seeds_per_call=seeds_per_call if seeds_per_call > 0 else None,
         **kwargs,
     )
 
     ix_test = torch.tensor_split(split_idx["test"], world_size)[rank].cuda()
-    test_path = os.path.join(tempdir, f"test_{rank}")
-    os.mkdir(test_path)
+    test_path = None if in_memory else os.path.join(tempdir, f"test_{rank}")
+    if test_path:
+        os.mkdir(test_path)
     test_loader = NeighborLoader(
         (feature_store, graph_store),
         input_nodes=ix_test,
@@ -144,14 +149,16 @@ def run_train(
     )
 
     ix_valid = torch.tensor_split(split_idx["valid"], world_size)[rank].cuda()
-    valid_path = os.path.join(tempdir, f"valid_{rank}")
-    os.mkdir(valid_path)
+    valid_path = None if in_memory else os.path.join(tempdir, f"valid_{rank}")
+    if valid_path:
+        os.mkdir(valid_path)
     valid_loader = NeighborLoader(
         (feature_store, graph_store),
         input_nodes=ix_valid,
         directory=valid_path,
         shuffle=True,
         drop_last=True,
+        local_seeds_per_call=seeds_per_call if seeds_per_call > 0 else None,
         **kwargs,
     )
 
@@ -269,6 +276,8 @@ if __name__ == "__main__":
         parser.add_argument("--tempdir_root", type=str, default=None)
         parser.add_argument("--dataset_root", type=str, default="dataset")
         parser.add_argument("--dataset", type=str, default="ogbn-products")
+        parser.add_argument("--in_memory", action="store_true", default=False)
+        parser.add_argument("--seeds_per_call", type=int, default=-1)
 
         parser.add_argument(
             "--n_devices",
@@ -322,6 +331,8 @@ if __name__ == "__main__":
                     wall_clock_start,
                     tempdir,
                     args.num_layers,
+                    args.in_memory,
+                    args.seeds_per_call,
                 ),
                 nprocs=world_size,
                 join=True,

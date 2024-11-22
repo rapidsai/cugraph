@@ -27,6 +27,8 @@
 #include <rmm/mr/device/owning_wrapper.hpp>
 #include <rmm/mr/device/pool_memory_resource.hpp>
 
+#include <nccl.h>
+
 #include <execution>
 
 namespace cugraph {

@@ -110,7 +110,7 @@ int generic_k_core_test(const cugraph_resource_handle_t* resource_handle,
 
   cugraph_k_core_result_free(k_core_result);
   cugraph_core_result_free(core_result);
-  cugraph_mg_graph_free(graph);
+  cugraph_graph_free(graph);
   cugraph_error_free(ret_error);
 
   return test_ret_value;

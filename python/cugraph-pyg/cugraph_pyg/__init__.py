@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2023, NVIDIA CORPORATION.
+# Copyright (c) 2019-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -12,3 +12,8 @@
 # limitations under the License.
 
 from cugraph_pyg._version import __git_commit__, __version__
+
+import cugraph_pyg.data
+import cugraph_pyg.loader
+import cugraph_pyg.sampler
+import cugraph_pyg.nn

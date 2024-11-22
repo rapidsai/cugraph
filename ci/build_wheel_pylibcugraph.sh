@@ -3,6 +3,8 @@
 
 set -euo pipefail
 
+package_dir="python/pylibcugraph"
+
 PARALLEL_LEVEL=$(python -c \
   "from math import ceil; from multiprocessing import cpu_count; print(ceil(cpu_count()/4))")
 
@@ -18,4 +20,5 @@ esac
 export SKBUILD_CMAKE_ARGS="-DDETECT_CONDA_ENV=OFF;-DFIND_CUGRAPH_CPP=OFF;-DCPM_cugraph-ops_SOURCE=${GITHUB_WORKSPACE}/cugraph-ops/${EXTRA_CMAKE_ARGS}"
 export SKBUILD_BUILD_TOOL_ARGS="-j${PARALLEL_LEVEL};-l${PARALLEL_LEVEL}"
 
-./ci/build_wheel.sh pylibcugraph python/pylibcugraph
+./ci/build_wheel.sh pylibcugraph ${package_dir}
+./ci/validate_wheel.sh ${package_dir} final_dist
