@@ -179,6 +179,58 @@ def test_add_edge_list_to_adj_list(graph_file):
     assert values_cu is None
 
 
+@pytest.mark.sg
+@pytest.mark.parametrize("graph_file", utils.DATASETS)
+@pytest.mark.parametrize("is_directed", [True, False])
+@pytest.mark.parametrize("renumber", [True, False])
+def test_decompress_to_edgelist(graph_file, is_directed, renumber):
+    input_df = utils.read_csv_file(graph_file)
+    input_df = input_df.rename(columns={"0": "src", "1": "dst", "2": "weight"})
+
+    G = cugraph.Graph(directed=is_directed)
+    input_df_ = cudf.DataFrame()
+    if renumber:
+        input_df_["src_0"] = cudf.Series(input_df["src"])
+        input_df_["dst_0"] = cudf.Series(input_df["dst"])
+        input_df_["weight"] = cudf.Series(input_df["weight"])
+        input_df_["src_1"] = input_df_["src_0"] + 1000
+        input_df_["dst_1"] = input_df_["dst_0"] + 1000
+
+        input_df = input_df_
+        source = ["src_0", "src_1"]
+        destination = ["dst_0", "dst_1"]
+    else:
+        source = "src"
+        destination = "dst"
+
+    G.from_cudf_edgelist(
+        input_df, source=source, destination=destination, weight="weight", renumber=True
+    )
+
+    extracted_df = G.decompress_to_edgelist(return_unrenumbered_edgelist=True)
+
+    if renumber:
+        extracted_df = extracted_df.rename(
+            columns={
+                "0_src": "src_0",
+                "1_src": "src_1",
+                "0_dst": "dst_0",
+                "1_dst": "dst_1",
+            }
+        )
+        extracted_df = extracted_df.sort_values(
+            ["src_0", "src_1", "dst_0", "dst_1"]
+        ).reset_index(drop=True)
+        input_df = input_df.sort_values(
+            ["src_0", "src_1", "dst_0", "dst_1"]
+        ).reset_index(drop=True)
+    else:
+        extracted_df = extracted_df.sort_values(["src", "dst"]).reset_index(drop=True)
+        input_df = input_df.sort_values(["src", "dst"]).reset_index(drop=True)
+
+    assert_frame_equal(input_df, extracted_df, check_dtype=False, check_like=True)
+
+
 # Test
 @pytest.mark.sg
 @pytest.mark.parametrize("graph_file", utils.DATASETS)

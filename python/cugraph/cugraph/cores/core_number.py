@@ -34,6 +34,11 @@ def core_number(G, degree_type="bidirectional"):
         can contain edge weights, but they don't participate in the calculation
         of the core numbers.
 
+        .. deprecated:: 24.12
+           Accepting a ``networkx.Graph`` is deprecated and will be removed in a
+           future version.  For ``networkx.Graph`` use networkx directly with
+           the ``nx-cugraph`` backend. See:  https://rapids.ai/nx-cugraph/
+
     degree_type: str, (default="bidirectional")
         This option is currently ignored.  This option may eventually determine
         if the core number computation should be based on input, output, or

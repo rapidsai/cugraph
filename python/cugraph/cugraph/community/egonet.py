@@ -62,6 +62,11 @@ def ego_graph(G, n, radius=1, center=True, undirected=None, distance=None):
         information. Edge weights, if present, should be single or double
         precision floating point values.
 
+        .. deprecated:: 24.12
+           Accepting a ``networkx.Graph`` is deprecated and will be removed in a
+           future version.  For ``networkx.Graph`` use networkx directly with
+           the ``nx-cugraph`` backend. See:  https://rapids.ai/nx-cugraph/
+
     n : integer or list, cudf.Series, cudf.DataFrame
         A single node as integer or a cudf.DataFrame if nodes are
         represented with multiple columns. If a cudf.DataFrame is provided,
