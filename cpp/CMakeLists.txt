@@ -167,6 +167,7 @@ set(CUGRAPH_SOURCES
     src/detail/groupby_and_count_mg_v64_e64.cu
     src/detail/collect_comm_wrapper_mg_v32_e32.cu
     src/detail/collect_comm_wrapper_mg_v64_e64.cu
+    src/sampling/detail/conversion_utilities.cu
     src/sampling/random_walks_mg_v64_e64.cu
     src/sampling/random_walks_mg_v32_e32.cu
     src/community/detail/common_methods_mg_v64_e64.cu
@@ -264,10 +265,10 @@ set(CUGRAPH_SOURCES
     src/sampling/detail/sample_edges_mg_v32_e32.cu
     src/sampling/detail/shuffle_and_organize_output_mg_v64_e64.cu
     src/sampling/detail/shuffle_and_organize_output_mg_v32_e32.cu
-    src/sampling/neighbor_sampling_mg_v32_e32.cpp
-    src/sampling/neighbor_sampling_mg_v64_e64.cpp
-    src/sampling/neighbor_sampling_sg_v32_e32.cpp
-    src/sampling/neighbor_sampling_sg_v64_e64.cpp
+    src/sampling/neighbor_sampling_mg_v32_e32.cu
+    src/sampling/neighbor_sampling_mg_v64_e64.cu
+    src/sampling/neighbor_sampling_sg_v32_e32.cu
+    src/sampling/neighbor_sampling_sg_v64_e64.cu
     src/sampling/negative_sampling_sg_v32_e32.cu
     src/sampling/negative_sampling_sg_v64_e64.cu
     src/sampling/negative_sampling_mg_v32_e32.cu
@@ -537,6 +538,8 @@ add_library(cugraph_c
         src/c_api/weakly_connected_components.cpp
         src/c_api/strongly_connected_components.cpp
         src/c_api/allgather.cpp
+        src/c_api/decompress_to_edgelist.cpp
+        src/c_api/edgelist.cpp
         )
 add_library(cugraph::cugraph_c ALIAS cugraph_c)
 

@@ -4,7 +4,6 @@ channels:
 - rapidsai
 - rapidsai-nightly
 - dask/label/dev
-- dglteam/label/th23_cu118
 - conda-forge
 - nvidia
 dependencies:
@@ -34,7 +33,6 @@ dependencies:
 - nbsphinx
 - nccl>=2.19
 - networkx>=2.5.1
-- networkx>=3.0
 - ninja
 - notebook>=0.5.0
 - numba>=0.57
@@ -53,10 +51,9 @@ dependencies:
 - pytest
 - pytest-benchmark
 - pytest-cov
-- pytest-mpl
 - pytest-xdist
 - python-louvain
-- pytorch>=2.3,<2.4.0a0
+- pytorch>=2.3
 - raft-dask==25.2.*,>=0.0.0a0
 - rapids-build-backend>=0.3.1,<0.4.0.dev0
 - rapids-dask-dependency==25.2.*,>=0.0.0a0

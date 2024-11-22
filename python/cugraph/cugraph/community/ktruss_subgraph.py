@@ -50,6 +50,11 @@ def k_truss(
         defined for only undirected graphs as they are defined for
         undirected triangle in a graph.
 
+        .. deprecated:: 24.12
+           Accepting a ``networkx.Graph`` is deprecated and will be removed in a
+           future version.  For ``networkx.Graph`` use networkx directly with
+           the ``nx-cugraph`` backend. See:  https://rapids.ai/nx-cugraph/
+
     k : int
         The desired k to be used for extracting the k-truss subgraph.
 

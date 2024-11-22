@@ -37,7 +37,7 @@
 -----
 ## News
 
-___NEW!___   _[nx-cugraph](./python/nx-cugraph/README.md)_, a NetworkX backend that provides GPU acceleration to NetworkX with zero code change.
+___NEW!___   _[nx-cugraph](https://rapids.ai/nx-cugraph/)_, a NetworkX backend that provides GPU acceleration to NetworkX with zero code change.
 ```
 > pip install nx-cugraph-cu11 --extra-index-url https://pypi.nvidia.com
 > export NETWORKX_AUTOMATIC_BACKENDS=cugraph
@@ -62,9 +62,8 @@ That's it.  NetworkX now leverages cuGraph for accelerated graph algorithms.
     - [External Data Types](./readme_pages/data_types.md)
   - [pylibcugraph](./readme_pages/pylibcugraph.md)
   - [libcugraph (C/C++/CUDA)](./readme_pages/libcugraph.md)
-  - [nx-cugraph](./python/nx-cugraph/README.md)
+  - [nx-cugraph](https://rapids.ai/nx-cugraph/)
   - [cugraph-service](./readme_pages/cugraph_service.md)
-  - [cugraph-dgl](./readme_pages/cugraph_dgl.md)
   - [cugraph-ops](./readme_pages/cugraph_ops.md)
 - API Docs
   - Python
@@ -127,7 +126,7 @@ df_page.sort_values('pagerank', ascending=False).head(10)
 * ArangoDB - a free and open-source native multi-model database system  - https://www.arangodb.com/
 * CuPy - "NumPy/SciPy-compatible Array Library for GPU-accelerated Computing with Python" -  https://cupy.dev/
 * Memgraph - In-memory Graph database - https://memgraph.com/
-* NetworkX (via [nx-cugraph](./python/nx-cugraph/README.md) backend) - an extremely popular, free and open-source package for the creation, manipulation, and study of the structure, dynamics, and functions of complex networks - https://networkx.org/
+* NetworkX (via [nx-cugraph](https://rapids.ai/nx-cugraph/) backend) - an extremely popular, free and open-source package for the creation, manipulation, and study of the structure, dynamics, and functions of complex networks - https://networkx.org/
 * PyGraphistry - free and open-source GPU graph ETL, AI, and visualization, including native RAPIDS & cuGraph support - http://github.com/graphistry/pygraphistry
 * ScanPy - a scalable toolkit for analyzing single-cell gene expression data - https://scanpy.readthedocs.io/en/stable/
 
