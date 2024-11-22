@@ -31,7 +31,6 @@ cuGraph Conda packages
  * cugraph-service-server
  * cugraph-dgl
  * cugraph-pyg
- * cugraph-equivariant
  * nx-cugraph
 
 Replace the package name in the example below to the one you want to install.
@@ -61,7 +60,6 @@ Replace `-cu12` with `-cu11` for packages supporting CUDA 11.
 Also available:
  * cugraph-dgl-cu12
  * cugraph-pyg-cu12
- * cugraph-equivariant-cu12
  * nx-cugraph-cu12
 
 <br>
