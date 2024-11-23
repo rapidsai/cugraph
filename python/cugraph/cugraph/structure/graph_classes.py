@@ -115,7 +115,6 @@ class Graph:
         edge_type=None,
         renumber=True,
         store_transposed=False,
-        legacy_renum_only=False,
         symmetrize=None,
     ):
         """
@@ -168,13 +167,6 @@ class Graph:
             If True, stores the transpose of the adjacency matrix.  Required
             for certain algorithms.
 
-        legacy_renum_only : bool, optional (default=False)
-            If True, skips the C++ renumbering step.  Must be true for
-            pylibcugraph algorithms.  Must be false for algorithms
-            not yet converted to the pylibcugraph C API.
-
-            This parameter is deprecated and will be removed.
-
         symmetrize: bool, optional (default=None)
             If True, symmetrize the edge list for an undirected graph. Setting
             this flag to True for a directed graph returns an error. The default
@@ -210,7 +202,6 @@ class Graph:
             edge_type=edge_type,
             renumber=renumber,
             store_transposed=store_transposed,
-            legacy_renum_only=legacy_renum_only,
             symmetrize=symmetrize,
         )
 
@@ -306,7 +297,6 @@ class Graph:
         edge_type=None,
         renumber=True,
         store_transposed=False,
-        legacy_renum_only=False,
     ):
         """
         Initializes the distributed graph from the dask_cudf.DataFrame
@@ -353,13 +343,6 @@ class Graph:
             If True, stores the transpose of the adjacency matrix.  Required
             for certain algorithms.
 
-        legacy_renum_only : bool, optional (default=False)
-            If True, skips the C++ renumbering step.  Must be true for
-            pylibcugraph algorithms.  Must be false for algorithms
-            not yet converted to the pylibcugraph C API.
-
-            This parameter is deprecated and will be removed.
-
         """
 
         if self._Impl is None:
@@ -378,7 +361,6 @@ class Graph:
             edge_type=edge_type,
             renumber=renumber,
             store_transposed=store_transposed,
-            legacy_renum_only=legacy_renum_only,
         )
 
     # Move to Compat Module
@@ -869,7 +851,6 @@ class NPartiteGraph(Graph):
         edge_attr=None,
         renumber=True,
         store_transposed=False,
-        legacy_renum_only=False,
     ):
         """
         Initialize a graph from the edge list. It is an error to call this
@@ -909,13 +890,6 @@ class NPartiteGraph(Graph):
             If True, stores the transpose of the adjacency matrix.  Required
             for certain algorithms.
 
-        legacy_renum_only : bool, optional (default=False)
-            If True, skips the C++ renumbering step.  Must be true for
-            pylibcugraph algorithms.  Must be false for algorithms
-            not yet converted to the pylibcugraph C API.
-
-            This parameter is deprecated and will be removed.
-
         Examples
         --------
         >>> df = cudf.read_csv(datasets_path / 'karate.csv', delimiter=' ',
@@ -945,7 +919,6 @@ class NPartiteGraph(Graph):
         edge_attr=None,
         renumber=True,
         store_transposed=False,
-        legacy_renum_only=False,
     ):
         """
         Initializes the distributed graph from the dask_cudf.DataFrame
@@ -980,12 +953,6 @@ class NPartiteGraph(Graph):
             If True, stores the transpose of the adjacency matrix.  Required
             for certain algorithms.
 
-        legacy_renum_only : bool, optional (default=False)
-            If True, skips the C++ renumbering step.  Must be true for
-            pylibcugraph algorithms.  Must be false for algorithms
-            not yet converted to the pylibcugraph C API.
-
-            This parameter is deprecated and will be removed.
         """
         raise TypeError("Distributed N-partite graph not supported")
 

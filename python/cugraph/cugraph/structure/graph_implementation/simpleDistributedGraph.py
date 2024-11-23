@@ -14,6 +14,7 @@
 import gc
 from typing import Union, Iterable
 import warnings
+from typing import Tuple
 
 import cudf
 import cupy as cp
@@ -31,6 +32,7 @@ from pylibcugraph import (
     degrees as pylibcugraph_degrees,
     in_degrees as pylibcugraph_in_degrees,
     out_degrees as pylibcugraph_out_degrees,
+    decompress_to_edgelist as pylibcugraph_decompress_to_edgelist,
 )
 
 from cugraph.structure.number_map import NumberMap
@@ -172,7 +174,6 @@ class simpleDistributedGraphImpl:
         edge_type=None,
         renumber=True,
         store_transposed=False,
-        legacy_renum_only=False,
         symmetrize=None,
     ):
         if not isinstance(input_ddf, dask_cudf.DataFrame):
@@ -333,9 +334,7 @@ class simpleDistributedGraphImpl:
         # the edgelist_df and not do any renumbering.
         # C++ renumbering is enabled by default for algorithms that
         # support it (but only called if renumbering is on)
-        self.compute_renumber_edge_list(
-            transposed=store_transposed, legacy_renum_only=legacy_renum_only
-        )
+        self.compute_renumber_edge_list(transposed=store_transposed)
 
         if renumber is False:
             self.properties.renumbered = False
@@ -979,6 +978,84 @@ class simpleDistributedGraphImpl:
 
         return ddf
 
+    def decompress_to_edgelist(
+        self, return_unrenumbered_edgelist: bool = True
+    ) -> dask_cudf.DataFrame:
+        """
+        Extract a the edgelist from a graph.
+
+        Parameters
+        ----------
+        return_unrenumbered_edgelist : bool (default=True)
+                                    Flag determining whether to return the original
+                                    input edgelist if 'True' or the renumbered one
+                                    of 'False' and the edgelist was renumbered.
+
+        Returns
+        -------
+        df : dask_cudf.cudf.DataFrame
+            Distributed GPU data frame containing all induced sources identifiers,
+            destination identifiers, and if applicable edge weights, edge ids and
+            edge types
+        """
+
+        # Initialize dask client
+        client = default_client()
+
+        do_expensive_check = False
+
+        def _call_decompress_to_edgelist(
+            sID: bytes,
+            mg_graph_x,
+            do_expensive_check: bool,
+        ) -> Tuple[cp.ndarray, cp.ndarray, cp.ndarray, cp.ndarray]:
+            return pylibcugraph_decompress_to_edgelist(
+                resource_handle=ResourceHandle(Comms.get_handle(sID).getHandle()),
+                graph=mg_graph_x,
+                do_expensive_check=do_expensive_check,
+            )
+
+        result = [
+            client.submit(
+                _call_decompress_to_edgelist,
+                Comms.get_session_id(),
+                self._plc_graph[w],
+                do_expensive_check,
+            )
+            for w in Comms.get_workers()
+        ]
+        wait(result)
+
+        def convert_to_cudf(cp_arrays: cp.ndarray) -> cudf.DataFrame:
+            cp_src, cp_dst, cp_weight, cp_edge_ids, cp_edge_type_ids = cp_arrays
+
+            df = cudf.DataFrame()
+            df["src"] = cp_src
+            df["dst"] = cp_dst
+            if cp_weight is not None:
+                df["weight"] = cp_weight
+            if cp_edge_ids is not None:
+                df["edge_ids"] = cp_edge_ids
+            if cp_edge_type_ids is not None:
+                df["edge_type_ids"] = cp_edge_type_ids
+
+            return df
+
+        cudf_result = [
+            client.submit(convert_to_cudf, cp_arrays) for cp_arrays in result
+        ]
+
+        wait(cudf_result)
+
+        ddf = dask_cudf.from_delayed(cudf_result).persist()
+        wait(ddf)
+
+        if self.properties.renumbered and return_unrenumbered_edgelist:
+            ddf = self.renumber_map.unrenumber(ddf, "src")
+            ddf = self.renumber_map.unrenumber(ddf, "dst")
+
+        return ddf
+
     def select_random_vertices(
         self, random_state: int = None, num_vertices: int = None
     ) -> Union[dask_cudf.Series, dask_cudf.DataFrame]:
@@ -1214,7 +1291,7 @@ class simpleDistributedGraphImpl:
         ddf = self.edgelist.edgelist_df
         return ddf[ddf["src"] == n]["dst"].reset_index(drop=True)
 
-    def compute_renumber_edge_list(self, transposed=False, legacy_renum_only=False):
+    def compute_renumber_edge_list(self, transposed=False):
         """
         Compute a renumbered edge list
         This function works in the MNMG pipeline and will transform
@@ -1237,19 +1314,8 @@ class simpleDistributedGraphImpl:
             structure.  If False, renumber with the intent to make
             a CSR-like structure.  Defaults to False.
 
-        legacy_renum_only : (optional) bool
-            if True, The C++ renumbering will not be triggered.
-            This parameter is added for new algos following the
-            C/Pylibcugraph path
-
             This parameter is deprecated and will be removed.
         """
-
-        if legacy_renum_only:
-            warning_msg = (
-                "The parameter 'legacy_renum_only' is deprecated and will be removed."
-            )
-            warnings.warn(warning_msg, DeprecationWarning)
 
         if not self.properties.renumber:
             self.edgelist = self.EdgeList(self.input_df)
@@ -1269,7 +1335,6 @@ class simpleDistributedGraphImpl:
                 self.source_columns,
                 self.destination_columns,
                 store_transposed=transposed,
-                legacy_renum_only=legacy_renum_only,
             )
 
             self.edgelist = self.EdgeList(renumbered_ddf)
