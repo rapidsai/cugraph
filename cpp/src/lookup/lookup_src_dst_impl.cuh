@@ -115,12 +115,13 @@ struct lookup_container_t<edge_id_t, edge_type_t, vertex_t, value_t>::lookup_con
       auto const minor_comm_size = minor_comm.get_size();
 
       value_buffer = cugraph::collect_values_for_keys(
-        handle,
+        comm,
         kv_store_object->view(),
         edge_ids_to_lookup.begin(),
         edge_ids_to_lookup.end(),
         cugraph::detail::compute_gpu_id_from_ext_edge_id_t<edge_id_t>{
-          comm_size, major_comm_size, minor_comm_size});
+          comm_size, major_comm_size, minor_comm_size},
+        handle.get_stream());
     } else {
       cugraph::resize_dataframe_buffer(
         value_buffer, edge_ids_to_lookup.size(), handle.get_stream());

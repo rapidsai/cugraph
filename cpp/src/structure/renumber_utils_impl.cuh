@@ -21,6 +21,7 @@
 
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_functions.hpp>
+#include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/host_scalar_comm.hpp>
 #include <cugraph/utilities/shuffle_comm.cuh>
@@ -363,7 +364,7 @@ void renumber_ext_vertices(raft::handle_t const& handle,
   }
 
   std::unique_ptr<kv_store_t<vertex_t, vertex_t, false>> renumber_map_ptr{nullptr};
-  if (multi_gpu) {
+  if constexpr (multi_gpu) {
     auto& comm                 = handle.get_comms();
     auto const comm_size       = comm.get_size();
     auto& major_comm           = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
@@ -402,11 +403,12 @@ void renumber_ext_vertices(raft::handle_t const& handle,
     rmm::device_uvector<vertex_t> int_vertices_for_sorted_unique_ext_vertices(0,
                                                                               handle.get_stream());
     auto [unique_ext_vertices, int_vertices_for_unique_ext_vertices] =
-      collect_values_for_unique_keys(handle,
+      collect_values_for_unique_keys(comm,
                                      local_renumber_map.view(),
                                      std::move(sorted_unique_ext_vertices),
                                      detail::compute_gpu_id_from_ext_vertex_t<vertex_t>{
-                                       comm_size, major_comm_size, minor_comm_size});
+                                       comm_size, major_comm_size, minor_comm_size},
+                                     handle.get_stream());
 
     renumber_map_ptr = std::make_unique<kv_store_t<vertex_t, vertex_t, false>>(
       unique_ext_vertices.begin(),
@@ -573,7 +575,6 @@ void unrenumber_int_vertices(raft::handle_t const& handle,
     auto local_int_vertex_first = vertex_partition_id == 0
                                     ? vertex_t{0}
                                     : vertex_partition_range_lasts[vertex_partition_id - 1];
-    auto local_int_vertex_last  = vertex_partition_range_lasts[vertex_partition_id];
 
     rmm::device_uvector<vertex_t> sorted_unique_int_vertices(num_vertices, handle.get_stream());
     sorted_unique_int_vertices.resize(
@@ -595,16 +596,20 @@ void unrenumber_int_vertices(raft::handle_t const& handle,
                                       sorted_unique_int_vertices.end())),
       handle.get_stream());
 
-    auto [unique_int_vertices, ext_vertices_for_unique_int_vertices] =
-      collect_values_for_unique_int_vertices(handle,
-                                             std::move(sorted_unique_int_vertices),
-                                             renumber_map_labels,
-                                             vertex_partition_range_lasts);
+    auto ext_vertices_for_sorted_unique_int_vertices =
+      collect_values_for_sorted_unique_int_vertices(
+        comm,
+        raft::device_span<vertex_t const>(sorted_unique_int_vertices.data(),
+                                          sorted_unique_int_vertices.size()),
+        renumber_map_labels,
+        vertex_partition_range_lasts,
+        local_int_vertex_first,
+        handle.get_stream());
 
     kv_store_t<vertex_t, vertex_t, false> renumber_map(
-      unique_int_vertices.begin(),
-      unique_int_vertices.begin() + unique_int_vertices.size(),
-      ext_vertices_for_unique_int_vertices.begin(),
+      sorted_unique_int_vertices.begin(),
+      sorted_unique_int_vertices.end(),
+      ext_vertices_for_sorted_unique_int_vertices.begin(),
       invalid_vertex_id<vertex_t>::value,
       invalid_vertex_id<vertex_t>::value,
       handle.get_stream());
