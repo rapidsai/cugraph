@@ -26,7 +26,6 @@ dependencies:
 - graphviz
 - ipython
 - libcudf==25.2.*,>=0.0.0a0
-- libcugraphops==25.2.*,>=0.0.0a0
 - libraft-headers==25.2.*,>=0.0.0a0
 - libraft==25.2.*,>=0.0.0a0
 - librmm==25.2.*,>=0.0.0a0
