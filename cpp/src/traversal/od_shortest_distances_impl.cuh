@@ -22,7 +22,7 @@
 #include "prims/kv_store.cuh"
 #include "prims/reduce_op.cuh"
 #include "prims/transform_reduce_e.cuh"
-#include "prims/transform_reduce_v_frontier_outgoing_e_by_src_dst.cuh"
+#include "prims/transform_reduce_v_frontier_outgoing_e_by_dst.cuh"
 #include "prims/update_edge_src_dst_property.cuh"
 #include "prims/update_v_frontier.cuh"
 #include "prims/vertex_frontier.cuh"
@@ -641,7 +641,6 @@ rmm::device_uvector<weight_t> od_shortest_distances(
         cutoff,
         invalid_distance};
       detail::transform_reduce_v_frontier_call_e_op_t<
-        false,
         thrust::tuple<vertex_t, od_idx_t>,
         weight_t,
         vertex_t,
@@ -653,8 +652,8 @@ rmm::device_uvector<weight_t> od_shortest_distances(
 
       auto new_frontier_tagged_vertex_buffer =
         allocate_dataframe_buffer<thrust::tuple<vertex_t, od_idx_t>>(0, handle.get_stream());
-      std::tie(new_frontier_tagged_vertex_buffer, distance_buffer) = detail::
-        extract_transform_v_frontier_e<false, false, thrust::tuple<vertex_t, od_idx_t>, weight_t>(
+      std::tie(new_frontier_tagged_vertex_buffer, distance_buffer) =
+        detail::extract_transform_v_frontier_e<false, thrust::tuple<vertex_t, od_idx_t>, weight_t>(
           handle,
           graph_view,
           vertex_frontier.bucket(bucket_idx_near),
@@ -675,12 +674,14 @@ rmm::device_uvector<weight_t> od_shortest_distances(
       resize_dataframe_buffer(new_frontier_tagged_vertex_buffer, 0, handle.get_stream());
       shrink_to_fit_dataframe_buffer(new_frontier_tagged_vertex_buffer, handle.get_stream());
 
-      std::tie(new_frontier_keys, distance_buffer) =
-        detail::sort_and_reduce_buffer_elements<key_t, weight_t, reduce_op::minimum<weight_t>>(
+      std::tie(new_frontier_keys, distance_buffer) = detail::
+        sort_and_reduce_buffer_elements<key_t, key_t, weight_t, reduce_op::minimum<weight_t>>(
           handle,
           std::move(new_frontier_keys),
           std::move(distance_buffer),
-          reduce_op::minimum<weight_t>());
+          reduce_op::minimum<weight_t>(),
+          std::make_tuple(vertex_t{0}, graph_view.number_of_vertices()),
+          std::nullopt);
     }
     vertex_frontier.bucket(bucket_idx_near).clear();
 
