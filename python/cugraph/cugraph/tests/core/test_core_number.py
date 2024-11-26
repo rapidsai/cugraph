@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2023, NVIDIA CORPORATION.
+# Copyright (c) 2019-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -32,11 +32,15 @@ def setup_function():
 # =============================================================================
 # Pytest fixtures
 # =============================================================================
-degree_type = ["incoming", "outgoing"]
+# FIXME: degree_type is currently unsupported (ignored)
+# degree_type = ["incoming", "outgoing"]
 
+# fixture_params = gen_fixture_params_product(
+#     (UNDIRECTED_DATASETS, "graph_file"),
+#     (degree_type, "degree_type"),
+# )
 fixture_params = gen_fixture_params_product(
     (UNDIRECTED_DATASETS, "graph_file"),
-    (degree_type, "degree_type"),
 )
 
 
@@ -46,7 +50,9 @@ def input_combo(request):
     This fixture returns a dictionary containing all input params required to
     run a Core number algo
     """
-    parameters = dict(zip(("graph_file", "degree_type"), request.param))
+    # FIXME: degree_type is not supported so do not test with different values
+    # parameters = dict(zip(("graph_file", "degree_type"), request.param))
+    parameters = {"graph_file": request.param[0]}
 
     graph_file = parameters["graph_file"]
     G = graph_file.get_graph()
@@ -69,7 +75,8 @@ def input_combo(request):
 def test_core_number(input_combo):
     G = input_combo["G"]
     Gnx = input_combo["Gnx"]
-    degree_type = input_combo["degree_type"]
+    # FIXME: degree_type is currently unsupported (ignored)
+    # degree_type = input_combo["degree_type"]
     nx_core_number_results = cudf.DataFrame()
 
     dic_results = nx.core_number(Gnx)
@@ -80,7 +87,7 @@ def test_core_number(input_combo):
     )
 
     core_number_results = (
-        cugraph.core_number(G, degree_type)
+        cugraph.core_number(G)
         .sort_values("vertex")
         .reset_index(drop=True)
         .rename(columns={"core_number": "cugraph_core_number"})
@@ -109,8 +116,3 @@ def test_core_number_invalid_input(input_combo):
 
     with pytest.raises(ValueError):
         cugraph.core_number(G)
-
-    invalid_degree_type = "invalid"
-    G = input_combo["G"]
-    with pytest.raises(ValueError):
-        cugraph.core_number(G, invalid_degree_type)

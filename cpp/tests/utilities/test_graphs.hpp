@@ -24,7 +24,6 @@
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_generators.hpp>
-#include <cugraph/legacy/functions.hpp>  // legacy coo_to_csr
 
 #include <raft/random/rng_state.hpp>
 
@@ -234,7 +233,8 @@ class Rmat_Usecase : public detail::TranslateGraph_Usecase {
   construct_edgelist(raft::handle_t const& handle,
                      bool test_weighted,
                      bool store_transposed,
-                     bool multi_gpu) const
+                     bool multi_gpu,
+                     bool shuffle = true) const
   {
     CUGRAPH_EXPECTS(
       (size_t{1} << scale_) <= static_cast<size_t>(std::numeric_limits<vertex_t>::max()),
@@ -246,7 +246,7 @@ class Rmat_Usecase : public detail::TranslateGraph_Usecase {
     // cuMemAddressReserve
     // (https://developer.nvidia.com/blog/introducing-low-level-gpu-virtual-memory-management), we
     // can reduce the temporary memory requirement to (1 / num_partitions) * (original data size)
-    size_t constexpr num_partitions_per_gpu = 4;
+    size_t constexpr num_partitions_per_gpu = 8;
     size_t num_partitions =
       num_partitions_per_gpu * static_cast<size_t>(multi_gpu ? handle.get_comms().get_size() : 1);
 
@@ -330,7 +330,7 @@ class Rmat_Usecase : public detail::TranslateGraph_Usecase {
             handle, std::move(tmp_src_v), std::move(tmp_dst_v), std::move(tmp_weights_v));
       }
 
-      if (multi_gpu) {
+      if (multi_gpu && shuffle) {
         std::tie(store_transposed ? tmp_dst_v : tmp_src_v,
                  store_transposed ? tmp_src_v : tmp_dst_v,
                  tmp_weights_v,
@@ -375,7 +375,7 @@ class Rmat_Usecase : public detail::TranslateGraph_Usecase {
 
     translate(handle, vertex_v);
 
-    if (multi_gpu) {
+    if (multi_gpu && shuffle) {
       vertex_v = cugraph::detail::shuffle_ext_vertices_to_local_gpu_by_vertex_partitioning(
         handle, std::move(vertex_v));
     }
@@ -390,6 +390,8 @@ class Rmat_Usecase : public detail::TranslateGraph_Usecase {
   void set_scale(size_t scale) { scale_ = scale; }
 
   void set_edge_factor(size_t edge_factor) { edge_factor_ = edge_factor; }
+
+  bool undirected() const { return undirected_; }
 
  private:
   size_t scale_{};
@@ -762,39 +764,5 @@ construct_graph(raft::handle_t const& handle,
   return std::make_tuple(std::move(graph), std::move(edge_weights), std::move(renumber_map));
 }
 
-namespace legacy {
-
-template <typename vertex_t, typename edge_t, typename weight_t, typename input_usecase_t>
-std::unique_ptr<cugraph::legacy::GraphCSR<vertex_t, edge_t, weight_t>> construct_graph_csr(
-  raft::handle_t const& handle, input_usecase_t const& input_usecase, bool test_weighted)
-{
-  auto [d_src_v, d_dst_v, d_weight_v, d_vertices_v, is_symmetric] =
-    input_usecase.template construct_edgelist<vertex_t, weight_t>(
-      handle, test_weighted, false, false);
-  vertex_t num_vertices{};  // assuming that vertex IDs are non-negative consecutive integers
-  if (d_vertices_v) {
-    num_vertices =
-      max_element(
-        handle, raft::device_span<vertex_t const>((*d_vertices_v).data(), (*d_vertices_v).size())) +
-      1;
-  } else {
-    num_vertices =
-      std::max(
-        max_element(handle, raft::device_span<vertex_t const>(d_src_v.data(), d_src_v.size())),
-        max_element(handle, raft::device_span<vertex_t const>(d_dst_v.data(), d_dst_v.size()))) +
-      1;
-  }
-
-  cugraph::legacy::GraphCOOView<vertex_t, edge_t, weight_t> cooview(
-    d_src_v.data(),
-    d_dst_v.data(),
-    d_weight_v ? d_weight_v->data() : nullptr,
-    num_vertices,
-    static_cast<edge_t>(d_src_v.size()));
-
-  return cugraph::coo_to_csr(cooview);
-}
-
-}  // namespace legacy
 }  // namespace test
 }  // namespace cugraph
