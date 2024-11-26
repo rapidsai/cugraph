@@ -64,7 +64,6 @@ That's it.  NetworkX now leverages cuGraph for accelerated graph algorithms.
   - [libcugraph (C/C++/CUDA)](./readme_pages/libcugraph.md)
   - [nx-cugraph](https://rapids.ai/nx-cugraph/)
   - [cugraph-service](./readme_pages/cugraph_service.md)
-  - [cugraph-ops](./readme_pages/cugraph_ops.md)
 - API Docs
   - Python
     - [Python Nightly](https://docs.rapids.ai/api/cugraph/nightly/)

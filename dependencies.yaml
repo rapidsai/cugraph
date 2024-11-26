@@ -333,7 +333,6 @@ dependencies:
           - nbsphinx
           - numpydoc
           - pydata-sphinx-theme
-          - pylibcugraphops==25.2.*,>=0.0.0a0
           - recommonmark
           - sphinx-copybutton
           - sphinx-markdown-tables

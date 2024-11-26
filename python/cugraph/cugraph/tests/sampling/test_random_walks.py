@@ -1,4 +1,4 @@
-# Copyright (c) 2020-2023, NVIDIA CORPORATION.:
+# Copyright (c) 2020-2024, NVIDIA CORPORATION.:
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -222,7 +222,6 @@ def test_random_walks_invalid_max_dept(graph_file, directed, max_depth):
 
 
 @pytest.mark.sg
-@pytest.mark.cugraph_ops
 @pytest.mark.parametrize("graph_file", SMALL_DATASETS)
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
 def test_random_walks_coalesced(graph_file, directed):
@@ -246,7 +245,6 @@ def test_random_walks_coalesced(graph_file, directed):
 
 
 @pytest.mark.sg
-@pytest.mark.cugraph_ops
 @pytest.mark.parametrize("graph_file", SMALL_DATASETS)
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
 def test_random_walks_padded_0(graph_file, directed):
@@ -271,7 +269,6 @@ def test_random_walks_padded_0(graph_file, directed):
 
 
 @pytest.mark.sg
-@pytest.mark.cugraph_ops
 def test_random_walks_padded_1():
     max_depth = random.randint(2, 10)
 
@@ -294,7 +291,6 @@ def test_random_walks_padded_1():
 
 
 @pytest.mark.sg
-@pytest.mark.cugraph_ops
 @pytest.mark.parametrize("graph_file", SMALL_DATASETS)
 def test_random_walks_nx(graph_file):
     G = graph_file.get_graph(create_using=cugraph.Graph(directed=True))

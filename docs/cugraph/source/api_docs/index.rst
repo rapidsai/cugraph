@@ -24,7 +24,6 @@ Graph Neural Networks API Documentation
 
     cugraph-dgl/cugraph_dgl.rst
     cugraph-pyg/cugraph_pyg.rst
-    cugraph-ops/index.rst
     wholegraph/index.rst
 
 Additional Graph Packages API Documentation

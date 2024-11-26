@@ -57,12 +57,10 @@ DEPENDENCIES=(
   dask-cuda
   dask-cudf
   libcudf
-  libcugraphops
   libraft
   libraft-headers
   librmm
   pylibcugraph
-  pylibcugraphops
   pylibwholegraph
   pylibraft
   pyraft

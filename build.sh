@@ -331,7 +331,7 @@ if hasArg docs || hasArg all; then
               ${CMAKE_VERBOSE_OPTION}
     fi
 
-    for PROJECT in libcugraphops libwholegraph; do
+    for PROJECT in libwholegraph; do
         XML_DIR="${REPODIR}/docs/cugraph/${PROJECT}"
         rm -rf "${XML_DIR}"
         mkdir -p "${XML_DIR}"
