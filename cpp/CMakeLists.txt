@@ -54,17 +54,11 @@ option(BUILD_SHARED_LIBS "Build cuGraph shared libraries" ON)
 option(BUILD_CUGRAPH_MG_TESTS "Build cuGraph multigpu algorithm tests" OFF)
 option(CMAKE_CUDA_LINEINFO "Enable the -lineinfo option for nvcc (useful for cuda-memcheck / profiler" OFF)
 option(BUILD_TESTS "Configure CMake to build tests" ON)
-option(USE_CUGRAPH_OPS "Enable all functions that call cugraph-ops" ON)
 option(USE_RAFT_STATIC "Build raft as a static library" OFF)
 option(CUGRAPH_COMPILE_RAFT_LIB "Compile the raft library instead of using it header-only" ON)
 option(CUDA_STATIC_RUNTIME "Statically link the CUDA toolkit runtime and libraries" OFF)
-option(CUGRAPH_USE_CUGRAPH_OPS_STATIC "Build and statically link the cugraph-ops library" OFF)
-option(CUGRAPH_EXCLUDE_CUGRAPH_OPS_FROM_ALL "Exclude cugraph-ops targets from cuGraph's 'all' target" OFF)
-option(ALLOW_CLONE_CUGRAPH_OPS "Whether to attempt to clone cugraph-ops when a local version is not available" OFF)
 
 message(VERBOSE "CUGRAPH: CUDA_STATIC_RUNTIME=${CUDA_STATIC_RUNTIME}")
-message(VERBOSE "CUGRAPH: CUGRAPH_USE_CUGRAPH_OPS_STATIC=${CUGRAPH_USE_CUGRAPH_OPS_STATIC}")
-message(VERBOSE "CUGRAPH: CUGRAPH_EXCLUDE_CUGRAPH_OPS_FROM_ALL=${CUGRAPH_EXCLUDE_CUGRAPH_OPS_FROM_ALL}")
 
 ################################################################################
 # - compiler options -----------------------------------------------------------
@@ -115,13 +109,6 @@ if(CMAKE_BUILD_TYPE MATCHES Debug)
     list(APPEND CUGRAPH_CUDA_FLAGS -G -Xcompiler=-rdynamic)
 endif()
 
-if(NOT USE_CUGRAPH_OPS)
-    message(STATUS "Disabling functions that reference cugraph-ops")
-    list(APPEND CUGRAPH_C_FLAGS -DNO_CUGRAPH_OPS)
-    list(APPEND CUGRAPH_CXX_FLAGS -DNO_CUGRAPH_OPS)
-    list(APPEND CUGRAPH_CUDA_FLAGS -DNO_CUGRAPH_OPS)
-endif()
-
 ###################################################################################################
 # - find CPM based dependencies  ------------------------------------------------------------------
 
@@ -150,10 +137,6 @@ rapids_cpm_rmm(BUILD_EXPORT_SET cugraph-exports
 include(${rapids-cmake-dir}/cpm/cuco.cmake)
 rapids_cpm_cuco(BUILD_EXPORT_SET cugraph-exports INSTALL_EXPORT_SET cugraph-exports)
 include(cmake/thirdparty/get_raft.cmake)
-
-if(USE_CUGRAPH_OPS)
-  include(cmake/thirdparty/get_libcugraphops.cmake)
-endif()
 
 if(BUILD_TESTS)
   include(${rapids-cmake-dir}/cpm/gtest.cmake)
@@ -184,6 +167,7 @@ set(CUGRAPH_SOURCES
     src/detail/groupby_and_count_mg_v64_e64.cu
     src/detail/collect_comm_wrapper_mg_v32_e32.cu
     src/detail/collect_comm_wrapper_mg_v64_e64.cu
+    src/sampling/detail/conversion_utilities.cu
     src/sampling/random_walks_mg_v64_e64.cu
     src/sampling/random_walks_mg_v32_e32.cu
     src/community/detail/common_methods_mg_v64_e64.cu
@@ -281,10 +265,10 @@ set(CUGRAPH_SOURCES
     src/sampling/detail/sample_edges_mg_v32_e32.cu
     src/sampling/detail/shuffle_and_organize_output_mg_v64_e64.cu
     src/sampling/detail/shuffle_and_organize_output_mg_v32_e32.cu
-    src/sampling/neighbor_sampling_mg_v32_e32.cpp
-    src/sampling/neighbor_sampling_mg_v64_e64.cpp
-    src/sampling/neighbor_sampling_sg_v32_e32.cpp
-    src/sampling/neighbor_sampling_sg_v64_e64.cpp
+    src/sampling/neighbor_sampling_mg_v32_e32.cu
+    src/sampling/neighbor_sampling_mg_v64_e64.cu
+    src/sampling/neighbor_sampling_sg_v32_e32.cu
+    src/sampling/neighbor_sampling_sg_v64_e64.cu
     src/sampling/negative_sampling_sg_v32_e32.cu
     src/sampling/negative_sampling_sg_v64_e64.cu
     src/sampling/negative_sampling_mg_v32_e32.cu
@@ -438,12 +422,6 @@ set(CUGRAPH_SOURCES
     src/mtmg/vertex_pairs_result_mg_v64_e64.cu
 )
 
-if(USE_CUGRAPH_OPS)
-    list(APPEND CUGRAPH_SOURCES
-        src/sampling/neighborhood.cu
-    )
-endif()
-
 add_library(cugraph ${CUGRAPH_SOURCES})
 
 set_target_properties(cugraph
@@ -560,6 +538,8 @@ add_library(cugraph_c
         src/c_api/weakly_connected_components.cpp
         src/c_api/strongly_connected_components.cpp
         src/c_api/allgather.cpp
+        src/c_api/decompress_to_edgelist.cpp
+        src/c_api/edgelist.cpp
         )
 add_library(cugraph::cugraph_c ALIAS cugraph_c)
 

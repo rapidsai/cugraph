@@ -157,6 +157,8 @@ def networkx_call(M, benchmark_callable=None):
     return src, dst, coeff
 
 
+# FIXME: This compare is shared across several tests... it should be
+#        a general utility
 def compare(src1, dst1, val1, src2, dst2, val2):
     #
     #  We will do comparison computations by using dataframe
@@ -199,6 +201,8 @@ def compare(src1, dst1, val1, src2, dst2, val2):
         )
 
     assert len(df1) == len(join)
+
+    assert_series_equal(join["val1"], join["val2"], check_names=False)
 
 
 # =============================================================================
@@ -456,7 +460,7 @@ def test_all_pairs_sorensen_with_topk():
     sorensen_results = (
         sorensen_results[sorensen_results["first"] != sorensen_results["second"]]
         .sort_values(["sorensen_coeff", "first", "second"], ascending=False)
-        .reset_index(drop=True)[:topk]
+        .reset_index(drop=True)
     )
 
     # Call all-pairs sorensen
@@ -468,7 +472,14 @@ def test_all_pairs_sorensen_with_topk():
 
     # 1. All pair similarity might return different top pairs k pairs
     # which are still valid hence, ensure the pairs returned by all-pairs
-    # exists.
+    # exists, and that any results better than the k-th result are included
+    # in the result
+
+    # FIXME: This problem could exist in overlap, cosine and jaccard,
+    #        consider replicating this code or making a share comparison
+    #        function
+    worst_coeff = all_pairs_sorensen_results["sorensen_coeff"].min()
+    better_than_k = sorensen_results[sorensen_results["sorensen_coeff"] > worst_coeff]
 
     compare(
         all_pairs_sorensen_results["first"],
@@ -477,6 +488,15 @@ def test_all_pairs_sorensen_with_topk():
         sorensen_results["first"],
         sorensen_results["second"],
         sorensen_results["sorensen_coeff"],
+    )
+
+    compare(
+        better_than_k["first"],
+        better_than_k["second"],
+        better_than_k["sorensen_coeff"],
+        all_pairs_sorensen_results["first"],
+        all_pairs_sorensen_results["second"],
+        all_pairs_sorensen_results["sorensen_coeff"],
     )
 
     # 2. Ensure the coefficient scores are still the highest
