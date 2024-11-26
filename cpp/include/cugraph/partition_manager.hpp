@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2023, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -69,6 +69,30 @@ class partition_manager {
   {
     return map_major_comm_to_gpu_row_comm ? (minor_comm_rank * major_comm_size + major_comm_rank)
                                           : (major_comm_rank * minor_comm_size + minor_comm_rank);
+  }
+
+#ifdef __CUDACC__
+  __host__ __device__
+#endif
+    static int
+    compute_major_comm_rank_from_global_comm_rank(int major_comm_size,
+                                                  int minor_comm_size,
+                                                  int comm_rank)
+  {
+    return map_major_comm_to_gpu_row_comm ? comm_rank % major_comm_size
+                                          : comm_rank / minor_comm_size;
+  }
+
+#ifdef __CUDACC__
+  __host__ __device__
+#endif
+    static int
+    compute_minor_comm_rank_from_global_comm_rank(int major_comm_size,
+                                                  int minor_comm_size,
+                                                  int comm_rank)
+  {
+    return map_major_comm_to_gpu_row_comm ? comm_rank / major_comm_size
+                                          : comm_rank % minor_comm_size;
   }
 
 #ifdef __CUDACC__
