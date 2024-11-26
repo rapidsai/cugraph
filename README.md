@@ -35,16 +35,6 @@
 </div>
 
 -----
-## News
-
-___NEW!___   _[nx-cugraph](https://rapids.ai/nx-cugraph/)_, a NetworkX backend that provides GPU acceleration to NetworkX with zero code change.
-```
-> pip install nx-cugraph-cu11 --extra-index-url https://pypi.nvidia.com
-> export NETWORKX_AUTOMATIC_BACKENDS=cugraph
-```
-That's it.  NetworkX now leverages cuGraph for accelerated graph algorithms.
-
------
 
 ## Table of contents
 - Installation
