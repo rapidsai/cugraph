@@ -31,6 +31,8 @@
 
 #include <rmm/device_uvector.hpp>
 
+#include <thrust/unique.h>
+
 namespace cugraph {
 namespace detail {
 
@@ -105,11 +107,27 @@ neighbor_sample_impl(raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> modified_graph_view = graph_view;
   edge_masks_vector.reserve(num_edge_types);
 
-  label_t num_labels = 0;
+  label_t num_unique_labels = 0;
+
+  std::optional<rmm::device_uvector<label_t>> cp_starting_vertex_labels{std::nullopt};
 
   if (starting_vertex_labels) {
-    // Initial number of labels. Will be leveraged if there is no sampling result
-    num_labels = starting_vertex_labels->size();
+    // Find the number of unique lables
+    cp_starting_vertex_labels =
+      rmm::device_uvector<label_t>(starting_vertex_labels->size(), handle.get_stream());
+
+    thrust::copy(handle.get_thrust_policy(),
+                 starting_vertex_labels->begin(),
+                 starting_vertex_labels->end(),
+                 cp_starting_vertex_labels->begin());
+
+    thrust::sort(handle.get_thrust_policy(),
+                 cp_starting_vertex_labels->begin(),
+                 cp_starting_vertex_labels->end());
+
+    num_unique_labels = thrust::unique_count(handle.get_thrust_policy(),
+                                             cp_starting_vertex_labels->begin(),
+                                             cp_starting_vertex_labels->end());
   }
 
   if (num_edge_types > 1) {
@@ -379,9 +397,6 @@ neighbor_sample_impl(raft::handle_t const& handle,
                  result_labels->end(),
                  cp_result_labels->begin());
   }
-
-  // FIXME: remove the offsets computation in 'shuffle_and_organize_output' as it doesn't
-  // account for missing labels that are not sampled.
   std::tie(result_srcs,
            result_dsts,
            result_weights,
@@ -399,9 +414,9 @@ neighbor_sample_impl(raft::handle_t const& handle,
                                                                  std::move(result_labels),
                                                                  label_to_output_comm_rank);
 
-  if (result_labels) {
-    // Re-compute the result_offsets and account for missing labels
-    result_offsets = rmm::device_uvector<size_t>(num_labels + 1, handle.get_stream());
+  if (result_labels && (result_offsets->size() != num_unique_labels + 1)) {
+    // There are missing labels not sampled.
+    result_offsets = rmm::device_uvector<size_t>(num_unique_labels + 1, handle.get_stream());
 
     // Sort labels
     thrust::sort(handle.get_thrust_policy(), cp_result_labels->begin(), cp_result_labels->end());
@@ -418,7 +433,8 @@ neighbor_sample_impl(raft::handle_t const& handle,
                         auto itr_upper = thrust::upper_bound(
                           thrust::seq, result_labels.begin(), result_labels.end(), idx);
 
-                        return thrust::distance(itr_lower, itr_upper);
+                        auto sampled_label_size = thrust::distance(itr_lower, itr_upper);
+                        return sampled_label_size;
                       });
 
     // Run inclusive scan
@@ -427,7 +443,6 @@ neighbor_sample_impl(raft::handle_t const& handle,
                            result_offsets->end(),
                            result_offsets->begin() + 1);
   }
-
   return std::make_tuple(std::move(result_srcs),
                          std::move(result_dsts),
                          std::move(result_weights),

@@ -84,6 +84,7 @@ def heterogeneous_uniform_neighbor_sample(ResourceHandle resource_handle,
                                           _GPUGraph input_graph,
                                           start_vertex_list,
                                           starting_vertex_label_offsets,
+                                          vertex_type_offsets,
                                           h_fan_out,
                                           *,
                                           num_edge_types,
@@ -119,6 +120,9 @@ def heterogeneous_uniform_neighbor_sample(ResourceHandle resource_handle,
         Offsets of each label within the start vertex list. Expanding
         'starting_vertex_label_offsets' must lead to an array of
         len(start_vertex_list)
+
+    vertex_type_offsets: device array type (Optional)
+        Offsets for each vertex type in the graph.
 
     h_fan_out: numpy array type
         Device array containing the branching out (fan-out) degrees per
@@ -243,6 +247,7 @@ def heterogeneous_uniform_neighbor_sample(ResourceHandle resource_handle,
 
     assert_CAI_type(start_vertex_list, "start_vertex_list")
     assert_CAI_type(starting_vertex_label_offsets, "starting_vertex_label_offsets", True)
+    assert_CAI_type(vertex_type_offsets, "vertex_type_offsets", True)
 
     assert_AI_type(h_fan_out, "h_fan_out")
 
@@ -272,6 +277,11 @@ def heterogeneous_uniform_neighbor_sample(ResourceHandle resource_handle,
         cai_starting_vertex_label_offsets_ptr = \
             starting_vertex_label_offsets.__cuda_array_interface__['data'][0]
 
+    cdef uintptr_t cai_vertex_type_offsets_ptr
+    if vertex_type_offsets is not None:
+        cai_vertex_type_offsets_ptr = \
+            vertex_type_offsets.__cuda_array_interface__['data'][0]
+
 
     cdef cugraph_type_erased_device_array_view_t* start_vertex_list_ptr = \
         cugraph_type_erased_device_array_view_create(
@@ -286,6 +296,15 @@ def heterogeneous_uniform_neighbor_sample(ResourceHandle resource_handle,
             cugraph_type_erased_device_array_view_create(
                 <void*>cai_starting_vertex_label_offsets_ptr,
                 len(starting_vertex_label_offsets),
+                SIZE_T
+            )
+
+    cdef cugraph_type_erased_device_array_view_t* vertex_type_offsets_ptr = <cugraph_type_erased_device_array_view_t*>NULL
+    if vertex_type_offsets is not None:
+        vertex_type_offsets_ptr = \
+            cugraph_type_erased_device_array_view_create(
+                <void*>cai_vertex_type_offsets_ptr,
+                len(vertex_type_offsets),
                 SIZE_T
             )
 
@@ -348,6 +367,7 @@ def heterogeneous_uniform_neighbor_sample(ResourceHandle resource_handle,
         c_graph_ptr,
         start_vertex_list_ptr,
         starting_vertex_label_offsets_ptr,
+        vertex_type_offsets_ptr,
         fan_out_ptr,
         num_edge_types,
         sampling_options,
