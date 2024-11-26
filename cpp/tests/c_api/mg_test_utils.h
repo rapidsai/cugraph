@@ -36,6 +36,15 @@
     }                                                                       \
   } while (0)
 
+#define C_NCCL_TRY(call)                                                              \
+  do {                                                                                \
+    ncclResult_t status = call;                                                       \
+    if (ncclSuccess != status) {                                                      \
+      printf("NCCL call='%s' at file=%s line=%d failed.", #call, __FILE__, __LINE__); \
+      exit(1);                                                                        \
+    }                                                                                 \
+  } while (0)
+
 #define C_CUDA_TRY(call)              \
   do {                                \
     cudaError_t const status = call;  \

@@ -156,12 +156,10 @@ def networkx_call(M, benchmark_callable=None):
 
 # FIXME: This compare is shared across several tests... it should be
 #        a general utility
-def compare(src1, dst1, val1, src2, dst2, val2):
-    #
+def assert_results_equal(src1, dst1, val1, src2, dst2, val2):
     #  We will do comparison computations by using dataframe
     #  merge functions (essentially doing fast joins).  We
     #  start by making two data frames
-    #
     df1 = cudf.DataFrame()
     df1["src1"] = src1
     df1["dst1"] = dst1
@@ -174,19 +172,18 @@ def compare(src1, dst1, val1, src2, dst2, val2):
     if val2 is not None:
         df2["val2"] = val2
 
-    #
-    #  Check to see if all pairs in the original data frame
-    #  still exist in the new data frame.  If we join (merge)
-    #  the data frames where (src1[i]=src2[i]) and (dst1[i]=dst2[i])
-    #  then we should get exactly the same number of entries in
-    #  the data frame if we did not lose any data.
-    #
+    #  Check to see if all pairs in df1 still exist in the new (merged) data
+    #  frame.  If we join (merge) the data frames where (src1[i]=src2[i]) and
+    #  (dst1[i]=dst2[i]) then we should get exactly the same number of entries
+    #  in the data frame if we did not lose any data.
     join = df1.merge(df2, left_on=["src1", "dst1"], right_on=["src2", "dst2"])
 
+    # Print detailed differences on test failure
     if len(df1) != len(join):
         join2 = df1.merge(
             df2, how="left", left_on=["src1", "dst1"], right_on=["src2", "dst2"]
         )
+        orig_option = pd.get_option("display.max_rows")
         pd.set_option("display.max_rows", 500)
         print("df1 = \n", df1.sort_values(["src1", "dst1"]))
         print("df2 = \n", df2.sort_values(["src2", "dst2"]))
@@ -196,6 +193,7 @@ def compare(src1, dst1, val1, src2, dst2, val2):
             .to_pandas()
             .query("src2.isnull()", engine="python"),
         )
+        pd.set_option("display.max_rows", orig_option)
 
     assert len(df1) == len(join)
 
@@ -485,7 +483,7 @@ def test_all_pairs_jaccard_with_topk():
     worst_coeff = all_pairs_jaccard_results["jaccard_coeff"].min()
     better_than_k = jaccard_results[jaccard_results["jaccard_coeff"] > worst_coeff]
 
-    compare(
+    assert_results_equal(
         all_pairs_jaccard_results["first"],
         all_pairs_jaccard_results["second"],
         all_pairs_jaccard_results["jaccard_coeff"],
@@ -494,7 +492,7 @@ def test_all_pairs_jaccard_with_topk():
         jaccard_results["jaccard_coeff"],
     )
 
-    compare(
+    assert_results_equal(
         better_than_k["first"],
         better_than_k["second"],
         better_than_k["jaccard_coeff"],
