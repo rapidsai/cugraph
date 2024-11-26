@@ -252,8 +252,12 @@ neighbor_sample_impl(raft::handle_t const& handle,
       if (labels) { (*level_result_label_vectors).push_back(std::move(*labels)); }
 
       if (num_edge_types > 1) { modified_graph_view.clear_edge_mask(); }
+
+      //vector.push_back (raft::device_span(vertex_t const)) //<- // level_result_dst_vectors
     }
 
+
+    // Call prepare frontier for each hop. FIXME
     // FIXME:  We should modify vertex_partition_range_lasts to return a raft::host_span
     //  rather than making a copy.
     auto vertex_partition_range_lasts = modified_graph_view.vertex_partition_range_lasts();
@@ -262,7 +266,7 @@ neighbor_sample_impl(raft::handle_t const& handle,
         handle,
         starting_vertices,
         starting_vertex_labels,
-        raft::device_span<vertex_t const>{level_result_dst_vectors.back().data(),
+        raft::device_span<vertex_t const>{level_result_dst_vectors.back().data(), // define a vector . 
                                           level_result_dst_vectors.back().size()},
         frontier_vertex_labels
           ? std::make_optional(raft::device_span<label_t const>(
