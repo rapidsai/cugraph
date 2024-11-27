@@ -163,7 +163,7 @@ neighbor_sample_impl(raft::handle_t const& handle,
   rmm::device_uvector<vertex_t> level_result_src(0, handle.get_stream());
   rmm::device_uvector<vertex_t> level_result_dst(0, handle.get_stream());
 
-  // Get the number of hop. If homogeneous neighbor sample, num_edge_types = 1
+  // Get the number of hop. If homogeneous neighbor sample, num_edge_types = 1.
   auto num_hops = ((fan_out.size() % num_edge_types) == 0)
                     ? (fan_out.size() / num_edge_types)
                     : ((fan_out.size() / num_edge_types) + 1);
