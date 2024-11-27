@@ -1290,7 +1290,7 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
                 (vertex_type_offsets_ != nullptr) ? vertex_type_offsets_->size_ - 1
                                                   : vertex_type_offsets.size() - 1,
 
-                // num_vertex_type is by default 1 if 'vertex_type_offsets' is not provided
+                // num_vertex_type is by default 1 if 'vertex_type_offsets' is not provided.
                 num_edge_types_,
                 src_is_major,
                 do_expensive_check_);
