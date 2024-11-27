@@ -1284,8 +1284,8 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
 
                 edge_label ? (*offsets).size() - 1 : size_t{1},
                 hop ? (((fan_out_->size_ % num_edge_types_) == 0)
-                      ? (fan_out_->size_ / num_edge_types_)
-                      : ((fan_out_->size_ / num_edge_types_) + 1))
+                         ? (fan_out_->size_ / num_edge_types_)
+                         : ((fan_out_->size_ / num_edge_types_) + 1))
                     : size_t{1},
                 (vertex_type_offsets_ != nullptr) ? vertex_type_offsets_->size_ - 1
                                                   : vertex_type_offsets.size() - 1,
