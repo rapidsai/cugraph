@@ -224,7 +224,7 @@ neighbor_sample_impl(raft::handle_t const& handle,
   std::vector<size_t> level_sizes{};
   std::vector<size_t> level_sizes_edge_types{};
 
-  for (auto hop = 0; hop < num_hops; hop++) {
+  for (size_t hop = 0; hop < num_hops; ++hop) {
     for (auto edge_type_id = 0; edge_type_id < num_edge_types; edge_type_id++) {
       auto k_level = fan_out[(hop * num_edge_types) + edge_type_id];
       rmm::device_uvector<vertex_t> srcs(0, handle.get_stream());
