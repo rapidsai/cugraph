@@ -58,11 +58,12 @@ prepare_next_frontier(
   bool dedupe_sources,
   bool do_expensive_check)
 {
+  // Create a single new frontier.
   vertex_partition_device_view_t<vertex_t, multi_gpu> d_vertex_partition(vertex_partition);
 
-  size_t frontier_size = sampled_dst_vertices.size();
+  size_t frontier_size = sampled_dst_vertices.size(); // std:reduce for all edge typw within hop / Reduce the size of each of the span. std::reduce for each of the size - example code that concatenate device vectors (look at that)
   if (prior_sources_behavior == prior_sources_behavior_t::CARRY_OVER) {
-    frontier_size += sampled_src_vertices.size();
+    frontier_size += sampled_src_vertices.size(); // make room for all of the previous vertices.
   }
 
   rmm::device_uvector<vertex_t> frontier_vertices(frontier_size, handle.get_stream());
