@@ -23,19 +23,16 @@ from pylibcugraph import core_number as pylibcugraph_core_number, ResourceHandle
 def core_number(G, degree_type="bidirectional"):
     """
     Compute the core numbers for the nodes of the graph G. A k-core of a graph
-    is a maximal subgraph that contains nodes of degree k or more.
-    A node has a core number of k if it belongs a k-core but not to k+1-core.
-    This call does not support a graph with self-loops and parallel
-    edges.
+    is a maximal subgraph that contains nodes of degree k or more.  A node has
+    a core number of k if it belongs to a k-core but not to k+1-core.  This
+    call does not support a graph with self-loops and parallel edges.
 
     Parameters
     ----------
     G : cuGraph.Graph or networkx.Graph
-        The graph should contain undirected edges where undirected edges are
-        represented as directed edges in both directions. While this graph
-        can contain edge weights, they don't participate in the calculation
+        The current implementation only supports undirected graphs.  The graph
+        can contain edge weights, but they don't participate in the calculation
         of the core numbers.
-        The current implementation only supports undirected graphs.
 
         .. deprecated:: 24.12
            Accepting a ``networkx.Graph`` is deprecated and will be removed in a
@@ -43,9 +40,10 @@ def core_number(G, degree_type="bidirectional"):
            the ``nx-cugraph`` backend. See:  https://rapids.ai/nx-cugraph/
 
     degree_type: str, (default="bidirectional")
-        This option determines if the core number computation should be based
-        on input, output, or both directed edges, with valid values being
-        "incoming", "outgoing", and "bidirectional" respectively.
+        This option is currently ignored.  This option may eventually determine
+        if the core number computation should be based on input, output, or
+        both directed edges, with valid values being "incoming", "outgoing",
+        and "bidirectional" respectively.
 
     Returns
     -------
@@ -63,7 +61,13 @@ def core_number(G, degree_type="bidirectional"):
     >>> from cugraph.datasets import karate
     >>> G = karate.get_graph(download=True)
     >>> df = cugraph.core_number(G)
-
+    >>> df.head()
+       vertex  core_number
+    0      33            4
+    1       0            4
+    2      32            4
+    3       2            4
+    4       1            4
     """
 
     G, isNx = ensure_cugraph_obj_for_nx(G)
@@ -71,11 +75,14 @@ def core_number(G, degree_type="bidirectional"):
     if G.is_directed():
         raise ValueError("input graph must be undirected")
 
-    if degree_type not in ["incoming", "outgoing", "bidirectional"]:
-        raise ValueError(
-            f"'degree_type' must be either incoming, "
-            f"outgoing or bidirectional, got: {degree_type}"
-        )
+    # degree_type is currently ignored until libcugraph supports directed
+    # graphs for core_number. Once supporteed, degree_type should be checked
+    # like so:
+    # if degree_type not in ["incoming", "outgoing", "bidirectional"]:
+    #     raise ValueError(
+    #         f"'degree_type' must be either incoming, "
+    #         f"outgoing or bidirectional, got: {degree_type}"
+    #     )
 
     vertex, core_number = pylibcugraph_core_number(
         resource_handle=ResourceHandle(),

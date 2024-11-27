@@ -70,6 +70,7 @@ set(cython_sources
     homogeneous_biased_neighbor_sample.pyx
     homogeneous_uniform_neighbor_sample.pyx
     edge_id_lookup_table.pyx
+    decompress_to_edgelist.pyx
 )
 set(linked_libraries cugraph::cugraph;cugraph::cugraph_c)
 
