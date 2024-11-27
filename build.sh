@@ -331,17 +331,17 @@ if hasArg docs || hasArg all; then
               ${CMAKE_VERBOSE_OPTION}
     fi
 
-    for PROJECT in libwholegraph; do
-        XML_DIR="${REPODIR}/docs/cugraph/${PROJECT}"
-        rm -rf "${XML_DIR}"
-        mkdir -p "${XML_DIR}"
-        export XML_DIR_${PROJECT^^}="$XML_DIR"
+    # for PROJECT in libwholegraph; do
+    #     XML_DIR="${REPODIR}/docs/cugraph/${PROJECT}"
+    #     rm -rf "${XML_DIR}"
+    #     mkdir -p "${XML_DIR}"
+    #     export XML_DIR_${PROJECT^^}="$XML_DIR"
 
-        echo "downloading xml for ${PROJECT} into ${XML_DIR}. Environment variable XML_DIR_${PROJECT^^} is set to ${XML_DIR}"
-        curl -O "https://d1664dvumjb44w.cloudfront.net/${PROJECT}/xml_tar/${RAPIDS_VERSION}/xml.tar.gz"
-        tar -xzf xml.tar.gz -C "${XML_DIR}"
-        rm "./xml.tar.gz"
-    done
+    #     echo "downloading xml for ${PROJECT} into ${XML_DIR}. Environment variable XML_DIR_${PROJECT^^} is set to ${XML_DIR}"
+    #     curl -O "https://d1664dvumjb44w.cloudfront.net/${PROJECT}/xml_tar/${RAPIDS_VERSION}/xml.tar.gz"
+    #     tar -xzf xml.tar.gz -C "${XML_DIR}"
+    #     rm "./xml.tar.gz"
+    # done
 
     cd ${LIBCUGRAPH_BUILD_DIR}
     cmake --build "${LIBCUGRAPH_BUILD_DIR}" -j${PARALLEL_LEVEL} --target docs_cugraph ${VERBOSE_FLAG}

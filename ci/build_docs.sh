@@ -52,12 +52,12 @@ rapids-mamba-retry install \
 
 export RAPIDS_DOCS_DIR="$(mktemp -d)"
 
-for PROJECT in libwholegraph; do
-  rapids-logger "Download ${PROJECT} xml_tar"
-  TMP_DIR=$(mktemp -d)
-  export XML_DIR_${PROJECT^^}="$TMP_DIR"
-  curl "https://d1664dvumjb44w.cloudfront.net/${PROJECT}/xml_tar/${RAPIDS_VERSION_NUMBER}/xml.tar.gz" | tar -xzf - -C "${TMP_DIR}"
-done
+# for PROJECT in libwholegraph; do
+#   rapids-logger "Download ${PROJECT} xml_tar"
+#   TMP_DIR=$(mktemp -d)
+#   export XML_DIR_${PROJECT^^}="$TMP_DIR"
+#   curl "https://d1664dvumjb44w.cloudfront.net/${PROJECT}/xml_tar/${RAPIDS_VERSION_NUMBER}/xml.tar.gz" | tar -xzf - -C "${TMP_DIR}"
+# done
 
 rapids-logger "Build CPP docs"
 pushd cpp/doxygen
