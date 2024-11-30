@@ -404,6 +404,7 @@ struct uniform_neighbor_sampling_functor : public cugraph::c_api::abstract_funct
         (label_hop_offsets)
           ? new cugraph::c_api::cugraph_type_erased_device_array_t(*label_hop_offsets, SIZE_T)
           : nullptr,
+        nullptr,
         (edge_label)
           ? new cugraph::c_api::cugraph_type_erased_device_array_t(edge_label.value(), INT32)
           : nullptr,
@@ -757,6 +758,7 @@ struct biased_neighbor_sampling_functor : public cugraph::c_api::abstract_functo
         (label_hop_offsets)
           ? new cugraph::c_api::cugraph_type_erased_device_array_t(*label_hop_offsets, SIZE_T)
           : nullptr,
+        nullptr,
         (edge_label)
           ? new cugraph::c_api::cugraph_type_erased_device_array_t(edge_label.value(), INT32)
           : nullptr,

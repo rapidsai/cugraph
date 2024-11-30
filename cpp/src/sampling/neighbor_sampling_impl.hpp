@@ -335,7 +335,7 @@ neighbor_sample_impl(raft::handle_t const& handle,
         raft::device_span<vertex_t const>{level_result_dst_vectors.back().data(),
                                           level_result_dst_vectors.back().size()},
         frontier_vertex_labels ? std::make_optional(raft::device_span<label_t const>(
-                                   level_result_label->data(), level_result_label->size()))
+                                   level_result_label_vectors->back().data(), level_result_label_vectors->back().size()))
                                : std::nullopt,
         std::move(vertex_used_as_source),
         modified_graph_view.local_vertex_partition_view(),
