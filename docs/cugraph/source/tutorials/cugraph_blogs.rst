@@ -65,9 +65,9 @@ Academic Papers
 
  * Alex Fender, Brad Rees, Joe Eaton (2022) `Massive Graph Analytics <https://books.google.com/books?hl=en&lr=&id=QspxEAAAQBAJ&oi=fnd&pg=PT8&dq=book:%22Massive+Graph+Analytics%22&ots=3HAGJ0njKO&sig=8e4v0azmzA6LTQNUNgPw-uTLkoc#v=onepage&q&f=false>`_  Bader, D. (Editor) CRC Press
 
- * S Kang, A. Fender, J. Eaton, B. Rees:`Computing PageRank Scores of Web Crawl Data Using DGX A100 Clusters`. In IEEE HPEC, Sep. 2020
+ * S Kang, A. Fender, J. Eaton, B. Rees. `Computing PageRank Scores of Web Crawl Data Using DGX A100 Clusters <https://ieeexplore.ieee.org/abstract/document/9286216>`_. In IEEE HPEC, Sep. 2020
 
- * Hricik, T., Bader, D., & Green, O. (2020, September). `Using RAPIDS AI to accelerate graph data science workflows`. In 2020 IEEE High Performance Extreme Computing Conference (HPEC) (pp. 1-4). IEEE.
+ * Hricik, T., Bader, D., & Green, O. (2020, September). `Using RAPIDS AI to accelerate graph data science workflows <https://ieeexplore.ieee.org/abstract/document/9286224>`_. In 2020 IEEE High Performance Extreme Computing Conference (HPEC) (pp. 1-4). IEEE.
 
  * Richardson, B., Rees, B., Drabas, T., Oldridge, E., Bader, D. A., & Allen, R. (2020, August). Accelerating and Expanding End-to-End Data Science Workflows with DL/ML Interoperability Using RAPIDS. In Proceedings of the 26th ACM SIGKDD International Conference on Knowledge Discovery & Data Mining (pp. 3503-3504).
 
