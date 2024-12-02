@@ -250,7 +250,7 @@ neighbor_sample_impl(raft::handle_t const& handle,
                        starting_vertex_labels,
                        static_cast<size_t>(k_level),
                        with_replacement);
-      } else {
+      } else if (k_level < 0) {
         std::tie(srcs, dsts, weights, edge_ids, edge_types, labels) =
           gather_one_hop_edgelist(handle,
                                   modified_graph_view,
