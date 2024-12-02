@@ -32,7 +32,8 @@ namespace cugraph {
 /**
  * @brief Iterate over every vertex's incoming edges to update vertex properties.
  *
- * This function is inspired by thrust::transform_reduce.
+ * This function is inspired by thrust::transform_reduce. In addition, this function excludes the
+ * edges that return false when the predicate @p pred_op is applied.
  *
  * @tparam GraphViewType Type of the passed non-owning graph object.
  * @tparam EdgeSrcValueInputWrapper Type of the wrapper for edge source property values.
@@ -40,6 +41,7 @@ namespace cugraph {
  * @tparam EdgeValueInputWrapper Type of the wrapper for edge property values.
  * @tparam EdgeOp Type of the quinary edge operator.
  * @tparam ReduceOp Type of the binary reduction operator.
+ * @tparam PredOp Type of the quinary predicate operator.
  * @tparam T Type of the initial value for per-vertex reduction.
  * @tparam VertexValueOutputIterator Type of the iterator for vertex output property variables.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
@@ -70,6 +72,9 @@ namespace cugraph {
  * future) implementations of graph primitives may check whether @p ReduceOp is a known type (or has
  * known member variables) to take a more optimized code path. See the documentation in the
  * reduce_op.cuh file for instructions on writing custom reduction operators.
+ * @param pred_op Quinary operator takes edge source, edge destination, property values for the
+ * source, destination, and edge and returns whether this edge should be included (if true is
+ * returned) or excluded.
  * @param vertex_value_output_first Iterator pointing to the vertex property variables for the first
  * (inclusive) vertex (assigned to this process in multi-GPU). `vertex_value_output_last`
  * (exclusive) is deduced as @p vertex_value_output_first + @p
@@ -82,18 +87,20 @@ template <typename GraphViewType,
           typename EdgeValueInputWrapper,
           typename EdgeOp,
           typename ReduceOp,
+          typename PredOp,
           typename T,
           typename VertexValueOutputIterator>
-void per_v_transform_reduce_incoming_e(raft::handle_t const& handle,
-                                       GraphViewType const& graph_view,
-                                       EdgeSrcValueInputWrapper edge_src_value_input,
-                                       EdgeDstValueInputWrapper edge_dst_value_input,
-                                       EdgeValueInputWrapper edge_value_input,
-                                       EdgeOp e_op,
-                                       T init,
-                                       ReduceOp reduce_op,
-                                       VertexValueOutputIterator vertex_value_output_first,
-                                       bool do_expensive_check = false)
+void per_v_transform_reduce_if_incoming_e(raft::handle_t const& handle,
+                                          GraphViewType const& graph_view,
+                                          EdgeSrcValueInputWrapper edge_src_value_input,
+                                          EdgeDstValueInputWrapper edge_dst_value_input,
+                                          EdgeValueInputWrapper edge_value_input,
+                                          EdgeOp e_op,
+                                          T init,
+                                          ReduceOp reduce_op,
+                                          PredOp pred_op,
+                                          VertexValueOutputIterator vertex_value_output_first,
+                                          bool do_expensive_check = false)
 {
   if (do_expensive_check) {
     // currently, nothing to do
@@ -101,31 +108,26 @@ void per_v_transform_reduce_incoming_e(raft::handle_t const& handle,
 
   constexpr bool incoming = true;
 
-  detail::per_v_transform_reduce_e<incoming>(
-    handle,
-    graph_view,
-    static_cast<void*>(nullptr),
-    static_cast<void*>(nullptr),
-    edge_src_value_input,
-    edge_dst_value_input,
-    edge_value_input,
-    e_op,
-    init,
-    reduce_op,
-    detail::const_true_e_op_t<typename GraphViewType::vertex_type,
-                              typename GraphViewType::vertex_type,
-                              typename EdgeSrcValueInputWrapper::value_type,
-                              typename EdgeDstValueInputWrapper::value_type,
-                              typename EdgeValueInputWrapper::value_type,
-                              GraphViewType::is_storage_transposed>{},
-    vertex_value_output_first);
+  detail::per_v_transform_reduce_e<incoming>(handle,
+                                             graph_view,
+                                             static_cast<void*>(nullptr),
+                                             static_cast<void*>(nullptr),
+                                             edge_src_value_input,
+                                             edge_dst_value_input,
+                                             edge_value_input,
+                                             e_op,
+                                             init,
+                                             reduce_op,
+                                             pred_op,
+                                             vertex_value_output_first);
 }
 
 /**
  * @brief For each (tagged-)vertex in the input (tagged-)vertex list, iterate over the incoming
  * edges to update (tagged-)vertex properties.
  *
- * This function is inspired by thrust::transform_reduce().
+ * This function is inspired by thrust::transform_reduce(). In addition, this function excludes the
+ * edges that return false when the predicate @p pred_op is applied.
  *
  * @tparam GraphViewType Type of the passed non-owning graph object.
  * @tparam KeyBucketType Type of the key bucket class which abstracts the current (tagged-)vertex
@@ -135,6 +137,7 @@ void per_v_transform_reduce_incoming_e(raft::handle_t const& handle,
  * @tparam EdgeValueInputWrapper Type of the wrapper for edge property values.
  * @tparam EdgeOp Type of the quinary edge operator.
  * @tparam ReduceOp Type of the binary reduction operator.
+ * @tparam PredOp Type of the quinary predicate operator.
  * @tparam T Type of the initial value for per-vertex reduction.
  * @tparam VertexValueOutputIterator Type of the iterator for vertex output property variables.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
@@ -167,6 +170,9 @@ void per_v_transform_reduce_incoming_e(raft::handle_t const& handle,
  * future) implementations of graph primitives may check whether @p ReduceOp is a known type (or has
  * known member variables) to take a more optimized code path. See the documentation in the
  * reduce_op.cuh file for instructions on writing custom reduction operators.
+ * @param pred_op Quinary operator takes edge source, edge destination, property values for the
+ * source, destination, and edge and returns whether this edge should be included (if true is
+ * returned) or excluded.
  * @param vertex_value_output_first Iterator pointing to the (tagged-)vertex property variables for
  * the first (inclusive) (tagged-)vertex in @p key_list. `vertex_value_output_last` (exclusive) is
  * deduced as @p vertex_value_output_first + @p key_list.size().
@@ -179,19 +185,21 @@ template <typename GraphViewType,
           typename EdgeValueInputWrapper,
           typename EdgeOp,
           typename ReduceOp,
+          typename PredOp,
           typename T,
           typename VertexValueOutputIterator>
-void per_v_transform_reduce_incoming_e(raft::handle_t const& handle,
-                                       GraphViewType const& graph_view,
-                                       KeyBucketType const& key_list,
-                                       EdgeSrcValueInputWrapper edge_src_value_input,
-                                       EdgeDstValueInputWrapper edge_dst_value_input,
-                                       EdgeValueInputWrapper edge_value_input,
-                                       EdgeOp e_op,
-                                       T init,
-                                       ReduceOp reduce_op,
-                                       VertexValueOutputIterator vertex_value_output_first,
-                                       bool do_expensive_check = false)
+void per_v_transform_reduce_if_incoming_e(raft::handle_t const& handle,
+                                          GraphViewType const& graph_view,
+                                          KeyBucketType const& key_list,
+                                          EdgeSrcValueInputWrapper edge_src_value_input,
+                                          EdgeDstValueInputWrapper edge_dst_value_input,
+                                          EdgeValueInputWrapper edge_value_input,
+                                          EdgeOp e_op,
+                                          T init,
+                                          ReduceOp reduce_op,
+                                          PredOp pred_op,
+                                          VertexValueOutputIterator vertex_value_output_first,
+                                          bool do_expensive_check = false)
 {
   static_assert(GraphViewType::is_storage_transposed);
 
@@ -201,30 +209,25 @@ void per_v_transform_reduce_incoming_e(raft::handle_t const& handle,
 
   constexpr bool incoming = true;
 
-  detail::per_v_transform_reduce_e<incoming>(
-    handle,
-    graph_view,
-    key_list.begin(),
-    key_list.end(),
-    edge_src_value_input,
-    edge_dst_value_input,
-    edge_value_input,
-    e_op,
-    init,
-    reduce_op,
-    detail::const_true_e_op_t<typename KeyBucketType::key_type,
-                              typename GraphViewType::vertex_type,
-                              typename EdgeSrcValueInputWrapper::value_type,
-                              typename EdgeDstValueInputWrapper::value_type,
-                              typename EdgeValueInputWrapper::value_type,
-                              GraphViewType::is_storage_transposed>{},
-    vertex_value_output_first);
+  detail::per_v_transform_reduce_e<incoming>(handle,
+                                             graph_view,
+                                             key_list.begin(),
+                                             key_list.end(),
+                                             edge_src_value_input,
+                                             edge_dst_value_input,
+                                             edge_value_input,
+                                             e_op,
+                                             init,
+                                             reduce_op,
+                                             pred_op,
+                                             vertex_value_output_first);
 }
 
 /**
  * @brief Iterate over every vertex's outgoing edges to update vertex properties.
  *
- * This function is inspired by thrust::transform_reduce().
+ * This function is inspired by thrust::transform_reduce(). In addition, this function excludes the
+ * edges that return false when the predicate @p pred_op is applied.
  *
  * @tparam GraphViewType Type of the passed non-owning graph object.
  * @tparam EdgeSrcValueInputWrapper Type of the wrapper for edge source property values.
@@ -232,6 +235,7 @@ void per_v_transform_reduce_incoming_e(raft::handle_t const& handle,
  * @tparam EdgeValueInputWrapper Type of the wrapper for edge property values.
  * @tparam EdgeOp Type of the quinary edge operator.
  * @tparam ReduceOp Type of the binary reduction operator.
+ * @tparam PredOp Type of the quinary predicate operator.
  * @tparam T Type of the initial value for per-vertex reduction.
  * @tparam VertexValueOutputIterator Type of the iterator for vertex output property variables.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
@@ -262,6 +266,9 @@ void per_v_transform_reduce_incoming_e(raft::handle_t const& handle,
  * future) implementations of graph primitives may check whether @p ReduceOp is a known type (or has
  * known member variables) to take a more optimized code path. See the documentation in the
  * reduce_op.cuh file for instructions on writing custom reduction operators.
+ * @param pred_op Quinary operator takes edge source, edge destination, property values for the
+ * source, destination, and edge and returns whether this edge should be included (if true is
+ * returned) or excluded.
  * @param vertex_value_output_first Iterator pointing to the vertex property variables for the
  * first (inclusive) vertex (assigned to this process in multi-GPU). `vertex_value_output_last`
  * (exclusive) is deduced as @p vertex_value_output_first + @p
@@ -274,18 +281,20 @@ template <typename GraphViewType,
           typename EdgeValueInputWrapper,
           typename EdgeOp,
           typename ReduceOp,
+          typename PredOp,
           typename T,
           typename VertexValueOutputIterator>
-void per_v_transform_reduce_outgoing_e(raft::handle_t const& handle,
-                                       GraphViewType const& graph_view,
-                                       EdgeSrcValueInputWrapper edge_src_value_input,
-                                       EdgeDstValueInputWrapper edge_dst_value_input,
-                                       EdgeValueInputWrapper edge_value_input,
-                                       EdgeOp e_op,
-                                       T init,
-                                       ReduceOp reduce_op,
-                                       VertexValueOutputIterator vertex_value_output_first,
-                                       bool do_expensive_check = false)
+void per_v_transform_reduce_if_outgoing_e(raft::handle_t const& handle,
+                                          GraphViewType const& graph_view,
+                                          EdgeSrcValueInputWrapper edge_src_value_input,
+                                          EdgeDstValueInputWrapper edge_dst_value_input,
+                                          EdgeValueInputWrapper edge_value_input,
+                                          EdgeOp e_op,
+                                          T init,
+                                          ReduceOp reduce_op,
+                                          PredOp pred_op,
+                                          VertexValueOutputIterator vertex_value_output_first,
+                                          bool do_expensive_check = false)
 {
   if (do_expensive_check) {
     // currently, nothing to do
@@ -293,31 +302,26 @@ void per_v_transform_reduce_outgoing_e(raft::handle_t const& handle,
 
   constexpr bool incoming = false;
 
-  detail::per_v_transform_reduce_e<incoming>(
-    handle,
-    graph_view,
-    static_cast<void*>(nullptr),
-    static_cast<void*>(nullptr),
-    edge_src_value_input,
-    edge_dst_value_input,
-    edge_value_input,
-    e_op,
-    init,
-    reduce_op,
-    detail::const_true_e_op_t<typename GraphViewType::vertex_type,
-                              typename GraphViewType::vertex_type,
-                              typename EdgeSrcValueInputWrapper::value_type,
-                              typename EdgeDstValueInputWrapper::value_type,
-                              typename EdgeValueInputWrapper::value_type,
-                              GraphViewType::is_storage_transposed>{},
-    vertex_value_output_first);
+  detail::per_v_transform_reduce_e<incoming>(handle,
+                                             graph_view,
+                                             static_cast<void*>(nullptr),
+                                             static_cast<void*>(nullptr),
+                                             edge_src_value_input,
+                                             edge_dst_value_input,
+                                             edge_value_input,
+                                             e_op,
+                                             init,
+                                             reduce_op,
+                                             pred_op,
+                                             vertex_value_output_first);
 }
 
 /**
  * @brief For each (tagged-)vertex in the input (tagged-)vertex list, iterate over the outgoing
  * edges to update (tagged-)vertex properties.
  *
- * This function is inspired by thrust::transform_reduce().
+ * This function is inspired by thrust::transform_reduce(). In addition, this function excludes the
+ * edges that return false when the predicate @p pred_op is applied.
  *
  * @tparam GraphViewType Type of the passed non-owning graph object.
  * @tparam KeyBucketType Type of the key bucket class which abstracts the current (tagged-)vertex
@@ -327,6 +331,7 @@ void per_v_transform_reduce_outgoing_e(raft::handle_t const& handle,
  * @tparam EdgeValueInputWrapper Type of the wrapper for edge property values.
  * @tparam EdgeOp Type of the quinary edge operator.
  * @tparam ReduceOp Type of the binary reduction operator.
+ * @tparam PredOp Type of the quinary predicate operator.
  * @tparam T Type of the initial value for per-vertex reduction.
  * @tparam VertexValueOutputIterator Type of the iterator for vertex output property variables.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
@@ -359,6 +364,9 @@ void per_v_transform_reduce_outgoing_e(raft::handle_t const& handle,
  * future) implementations of graph primitives may check whether @p ReduceOp is a known type (or has
  * known member variables) to take a more optimized code path. See the documentation in the
  * reduce_op.cuh file for instructions on writing custom reduction operators.
+ * @param pred_op Quinary operator takes edge source, edge destination, property values for the
+ * source, destination, and edge and returns whether this edge should be included (if true is
+ * returned) or excluded.
  * @param vertex_value_output_first Iterator pointing to the (tagged-)vertex property variables for
  * the first (inclusive) (tagged-)vertex in @p key_list. `vertex_value_output_last` (exclusive) is
  * deduced as @p vertex_value_output_first + @p key_list.size().
@@ -371,19 +379,21 @@ template <typename GraphViewType,
           typename EdgeValueInputWrapper,
           typename EdgeOp,
           typename ReduceOp,
+          typename PredOp,
           typename T,
           typename VertexValueOutputIterator>
-void per_v_transform_reduce_outgoing_e(raft::handle_t const& handle,
-                                       GraphViewType const& graph_view,
-                                       KeyBucketType const& key_list,
-                                       EdgeSrcValueInputWrapper edge_src_value_input,
-                                       EdgeDstValueInputWrapper edge_dst_value_input,
-                                       EdgeValueInputWrapper edge_value_input,
-                                       EdgeOp e_op,
-                                       T init,
-                                       ReduceOp reduce_op,
-                                       VertexValueOutputIterator vertex_value_output_first,
-                                       bool do_expensive_check = false)
+void per_v_transform_reduce_if_outgoing_e(raft::handle_t const& handle,
+                                          GraphViewType const& graph_view,
+                                          KeyBucketType const& key_list,
+                                          EdgeSrcValueInputWrapper edge_src_value_input,
+                                          EdgeDstValueInputWrapper edge_dst_value_input,
+                                          EdgeValueInputWrapper edge_value_input,
+                                          EdgeOp e_op,
+                                          T init,
+                                          ReduceOp reduce_op,
+                                          PredOp pred_op,
+                                          VertexValueOutputIterator vertex_value_output_first,
+                                          bool do_expensive_check = false)
 {
   static_assert(!GraphViewType::is_storage_transposed);
   static_assert(KeyBucketType::is_sorted_unique);
@@ -394,24 +404,18 @@ void per_v_transform_reduce_outgoing_e(raft::handle_t const& handle,
 
   constexpr bool incoming = false;
 
-  detail::per_v_transform_reduce_e<incoming>(
-    handle,
-    graph_view,
-    key_list.begin(),
-    key_list.end(),
-    edge_src_value_input,
-    edge_dst_value_input,
-    edge_value_input,
-    e_op,
-    init,
-    reduce_op,
-    detail::const_true_e_op_t<typename KeyBucketType::key_type,
-                              typename GraphViewType::vertex_type,
-                              typename EdgeSrcValueInputWrapper::value_type,
-                              typename EdgeDstValueInputWrapper::value_type,
-                              typename EdgeValueInputWrapper::value_type,
-                              GraphViewType::is_storage_transposed>{},
-    vertex_value_output_first);
+  detail::per_v_transform_reduce_e<incoming>(handle,
+                                             graph_view,
+                                             key_list.begin(),
+                                             key_list.end(),
+                                             edge_src_value_input,
+                                             edge_dst_value_input,
+                                             edge_value_input,
+                                             e_op,
+                                             init,
+                                             reduce_op,
+                                             pred_op,
+                                             vertex_value_output_first);
 }
 
 }  // namespace cugraph

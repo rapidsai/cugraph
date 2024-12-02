@@ -116,8 +116,8 @@ extract_transform_e(raft::handle_t const& handle,
                   thrust::make_counting_iterator(graph_view.local_vertex_partition_range_last()));
 
   auto value_buffer = allocate_dataframe_buffer<payload_t>(size_t{0}, handle.get_stream());
-  std::tie(std::ignore, value_buffer) = detail::
-    extract_transform_v_frontier_e<GraphViewType::is_storage_transposed, false, void, payload_t>(
+  std::tie(std::ignore, value_buffer) =
+    detail::extract_transform_v_frontier_e<GraphViewType::is_storage_transposed, void, payload_t>(
       handle,
       graph_view,
       frontier,

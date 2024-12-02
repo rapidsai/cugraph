@@ -1,4 +1,4 @@
-# Copyright (c) 2022-2023, NVIDIA CORPORATION.
+# Copyright (c) 2022-2024, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -53,15 +53,15 @@ def core_number(input_graph, degree_type="bidirectional"):
     Parameters
     ----------
     input_graph : cugraph.graph
-        cuGraph graph descriptor, should contain the connectivity information,
-        (edge weights are not used in this algorithm).
-        The current implementation only supports undirected graphs.
+        The current implementation only supports undirected graphs.  The graph
+        can contain edge weights, but they don't participate in the calculation
+        of the core numbers.
 
     degree_type: str, (default="bidirectional")
-        This option determines if the core number computation should be based
-        on input, output, or both directed edges, with valid values being
-        "incoming", "outgoing", and "bidirectional" respectively.
-
+        This option is currently ignored.  This option may eventually determine
+        if the core number computation should be based on input, output, or
+        both directed edges, with valid values being "incoming", "outgoing",
+        and "bidirectional" respectively.
 
     Returns
     -------
@@ -77,11 +77,14 @@ def core_number(input_graph, degree_type="bidirectional"):
     if input_graph.is_directed():
         raise ValueError("input graph must be undirected")
 
-    if degree_type not in ["incoming", "outgoing", "bidirectional"]:
-        raise ValueError(
-            f"'degree_type' must be either incoming, "
-            f"outgoing or bidirectional, got: {degree_type}"
-        )
+    # degree_type is currently ignored until libcugraph supports directed
+    # graphs for core_number. Once supporteed, degree_type should be checked
+    # like so:
+    # if degree_type not in ["incoming", "outgoing", "bidirectional"]:
+    #     raise ValueError(
+    #         f"'degree_type' must be either incoming, "
+    #         f"outgoing or bidirectional, got: {degree_type}"
+    #     )
 
     # Initialize dask client
     client = default_client()

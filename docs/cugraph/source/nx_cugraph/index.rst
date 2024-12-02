@@ -49,7 +49,7 @@ Users can have GPU-based, large-scale performance **without** changing their fam
 +--------------------------------------------------------------------------------------------------------+
 | **Run the same code on CPU or GPU**                                                                    |
 |                                                                                                        |
-| Nothing changes, not even your `import` statements, when going from CPU to GPU.                        |
+| Nothing changes, not even your ``import`` statements, when going from CPU to GPU.                      |
 +--------------------------------------------------------------------------------------------------------+
 
 

@@ -100,16 +100,6 @@ class Tests_MGBFS : public ::testing::TestWithParam<std::tuple<BFS_Usecase, inpu
         *handle_, mg_graph_view, 2);
       mg_graph_view.attach_edge_mask((*edge_mask).view());
     }
-    {  // FIXME: for testing, delete
-      auto num_self_loops  = mg_graph_view.count_self_loops(*handle_);
-      auto number_of_edges = mg_graph_view.compute_number_of_edges(*handle_);
-      std::cout << "V=" << mg_graph_view.number_of_vertices() << " E=" << number_of_edges
-                << " num_self_loops=" << num_self_loops;
-      if (mg_graph_view.is_symmetric()) {
-        std::cout << " undirected E=" << ((number_of_edges - num_self_loops) / 2 + num_self_loops)
-                  << std::endl;
-      }
-    }
 
     ASSERT_TRUE(static_cast<vertex_t>(bfs_usecase.source) >= 0 &&
                 static_cast<vertex_t>(bfs_usecase.source) < mg_graph_view.number_of_vertices())
@@ -324,10 +314,12 @@ INSTANTIATE_TEST_SUITE_P(
   Tests_MGBFS_Rmat,
   ::testing::Values(
     // enable correctness checks
-    std::make_tuple(BFS_Usecase{0, false},
-                    cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, false, false)),
-    std::make_tuple(BFS_Usecase{0, true},
-                    cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, false, false))));
+    std::make_tuple(
+      BFS_Usecase{0, false},
+      cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, true /* undirected */, false)),
+    std::make_tuple(
+      BFS_Usecase{0, true},
+      cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, true /* undirected */, false))));
 
 INSTANTIATE_TEST_SUITE_P(
   rmat_benchmark_test, /* note that scale & edge factor can be overridden in benchmarking (with
@@ -338,13 +330,11 @@ INSTANTIATE_TEST_SUITE_P(
   Tests_MGBFS_Rmat,
   ::testing::Values(
     // disable correctness checks for large graphs
-    std::make_tuple(
-      BFS_Usecase{0, false, false},
-      cugraph::test::Rmat_Usecase(
-        20, 16, 0.57, 0.19, 0.19, 0, true /* undirected */, false /* scramble vertex IDs */)),
-    std::make_tuple(
-      BFS_Usecase{0, true, false},
-      cugraph::test::Rmat_Usecase(
-        20, 16, 0.57, 0.19, 0.19, 0, true /* undirected */, false /* scramble vertex IDs */))));
+    std::make_tuple(BFS_Usecase{0, false, false},
+                    cugraph::test::Rmat_Usecase(
+                      20, 16, 0.57, 0.19, 0.19, 0, false, false /* scramble vertex IDs */)),
+    std::make_tuple(BFS_Usecase{0, true, false},
+                    cugraph::test::Rmat_Usecase(
+                      20, 16, 0.57, 0.19, 0.19, 0, false, false /* scramble vertex IDs */))));
 
 CUGRAPH_MG_TEST_PROGRAM_MAIN()
