@@ -664,6 +664,7 @@ class NeighborSampler(DistSampler):
             self.__func_kwargs["vertex_type_offsets"] = cupy.asarray(
                 vertex_type_offsets
             )
+            print("selected heterogeneous sampling")
         else:
             self.__func = (
                 pylibcugraph.homogeneous_biased_neighbor_sample

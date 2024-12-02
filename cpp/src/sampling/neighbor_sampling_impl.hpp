@@ -225,6 +225,7 @@ neighbor_sample_impl(raft::handle_t const& handle,
   for (auto hop = 0; hop < num_hops; hop++) {
     for (auto edge_type_id = 0; edge_type_id < num_edge_types; edge_type_id++) {
       auto k_level = fan_out[(hop * num_edge_types) + edge_type_id];
+
       rmm::device_uvector<vertex_t> srcs(0, handle.get_stream());
       rmm::device_uvector<vertex_t> dsts(0, handle.get_stream());
       std::optional<rmm::device_uvector<weight_t>> weights{std::nullopt};
@@ -249,7 +250,7 @@ neighbor_sample_impl(raft::handle_t const& handle,
                        starting_vertex_labels,
                        static_cast<size_t>(k_level),
                        with_replacement);
-      } else {
+      } else if (k_level < 0) {
         std::tie(srcs, dsts, weights, edge_ids, edge_types, labels) =
           gather_one_hop_edgelist(handle,
                                   modified_graph_view,
@@ -258,6 +259,17 @@ neighbor_sample_impl(raft::handle_t const& handle,
                                   edge_type_view,
                                   starting_vertices,
                                   starting_vertex_labels);
+      } else {
+        if (edge_weight_view) {
+          weights.emplace(rmm::device_uvector<weight_t>(0, handle.get_stream()));
+        }
+        if (edge_id_view) { edge_ids.emplace(rmm::device_uvector<edge_t>(0, handle.get_stream())); }
+        if (edge_type_view) {
+          edge_types.emplace(rmm::device_uvector<edge_type_t>(0, handle.get_stream()));
+        }
+        if (starting_vertex_labels) {
+          labels.emplace(rmm::device_uvector<int32_t>(0, handle.get_stream()));
+        }
       }
 
       auto old_size = level_result_src.size();
