@@ -164,12 +164,12 @@ neighbor_sample_impl(raft::handle_t const& handle,
   if (level_result_label_vectors) { (*level_result_label_vectors).reserve(num_hops); }
 
   rmm::device_uvector<vertex_t> frontier_vertices(0, handle.get_stream());
-  
+
   auto frontier_vertex_labels =
     starting_vertex_labels
       ? std::make_optional(rmm::device_uvector<label_t>{0, handle.get_stream()})
       : std::nullopt;
-  
+
   if (starting_vertex_labels) {
     frontier_vertex_labels->resize(starting_vertex_labels->size(), handle.get_stream());
 
@@ -194,24 +194,23 @@ neighbor_sample_impl(raft::handle_t const& handle,
   std::vector<size_t> level_sizes{};
 
   for (auto hop = 0; hop < num_hops; hop++) {
-
     rmm::device_uvector<vertex_t> level_result_src(0, handle.get_stream());
     rmm::device_uvector<vertex_t> level_result_dst(0, handle.get_stream());
 
     auto level_result_weight =
-    edge_weight_view ? std::make_optional(rmm::device_uvector<weight_t>(0, handle.get_stream()))
-                     : std::nullopt;
+      edge_weight_view ? std::make_optional(rmm::device_uvector<weight_t>(0, handle.get_stream()))
+                       : std::nullopt;
     auto level_result_edge_id =
       edge_id_view ? std::make_optional(rmm::device_uvector<edge_t>(0, handle.get_stream()))
-                  : std::nullopt;
+                   : std::nullopt;
     auto level_result_edge_type =
       edge_type_view ? std::make_optional(rmm::device_uvector<edge_type_t>(0, handle.get_stream()))
-                    : std::nullopt;
+                     : std::nullopt;
     auto level_result_label =
       starting_vertex_labels
         ? std::make_optional(rmm::device_uvector<label_t>(0, handle.get_stream()))
         : std::nullopt;
-  
+
     for (auto edge_type_id = 0; edge_type_id < num_edge_types; edge_type_id++) {
       auto k_level = fan_out[(hop * num_edge_types) + edge_type_id];
       rmm::device_uvector<vertex_t> srcs(0, handle.get_stream());
@@ -320,10 +319,9 @@ neighbor_sample_impl(raft::handle_t const& handle,
       prepare_next_frontier(
         handle,
         starting_vertices,
-        frontier_vertex_labels
-          ? std::make_optional(raft::device_span<label_t const>(
-              frontier_vertex_labels->data(), frontier_vertex_labels->size()))
-          : std::nullopt,
+        frontier_vertex_labels ? std::make_optional(raft::device_span<label_t const>(
+                                   frontier_vertex_labels->data(), frontier_vertex_labels->size()))
+                               : std::nullopt,
         raft::device_span<vertex_t const>{level_result_dst_vectors.back().data(),
                                           level_result_dst_vectors.back().size()},
         frontier_vertex_labels
