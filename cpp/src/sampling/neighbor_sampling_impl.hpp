@@ -442,17 +442,6 @@ neighbor_sample_impl(raft::handle_t const& handle,
     level_result_label_vectors = std::nullopt;
   }
 
-  std::optional<rmm::device_uvector<size_t>> result_label_offsets{std::nullopt};
-  std::optional<rmm::device_uvector<label_t>> cp_result_labels{std::nullopt};
-  if (result_labels) {
-    cp_result_labels = rmm::device_uvector<label_t>(result_labels->size(), handle.get_stream());
-
-    thrust::copy(handle.get_thrust_policy(),
-                 result_labels->begin(),
-                 result_labels->end(),
-                 cp_result_labels->begin());
-  }
-
   return detail::shuffle_and_organize_output(handle,
                                              std::move(result_srcs),
                                              std::move(result_dsts),
