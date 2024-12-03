@@ -352,7 +352,9 @@ class Dataset:
             If True, stores the transpose of the adjacency matrix.  Required
             for certain algorithms.
         """
-        if self._edgelist is None:
+        if self._edgelist is None or not isinstance(
+            self._edgelist, dask_cudf.DataFrame
+        ):
             self.get_dask_edgelist(download=download)
 
         if create_using is None:

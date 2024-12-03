@@ -50,32 +50,4 @@ rapids-conda-retry mambabuild \
   --channel "${RAPIDS_CONDA_BLD_OUTPUT_DIR}" \
   conda/recipes/cugraph-service
 
-RAPIDS_CUDA_MAJOR="${RAPIDS_CUDA_VERSION%%.*}"
-
-if [[ ${RAPIDS_CUDA_MAJOR} == "11" ]]; then
-  # Only CUDA 11 is supported right now due to PyTorch requirement.
-  rapids-conda-retry mambabuild \
-    --no-test \
-    --channel "${CPP_CHANNEL}" \
-    --channel "${RAPIDS_CONDA_BLD_OUTPUT_DIR}" \
-    --channel pytorch \
-    --channel pytorch-nightly \
-    conda/recipes/cugraph-pyg
-
-  # Only CUDA 11 is supported right now due to PyTorch requirement.
-  rapids-conda-retry mambabuild \
-    --no-test \
-    --channel "${CPP_CHANNEL}" \
-    --channel "${RAPIDS_CONDA_BLD_OUTPUT_DIR}" \
-    --channel dglteam/label/th23_cu118 \
-    --channel pytorch \
-    --channel pytorch-nightly \
-    conda/recipes/cugraph-dgl
-fi
-
-rapids-conda-retry mambabuild \
-  --no-test \
-  --channel "${RAPIDS_CONDA_BLD_OUTPUT_DIR}" \
-  conda/recipes/cugraph-equivariant
-
 rapids-upload-conda-to-s3 python

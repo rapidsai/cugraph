@@ -29,7 +29,10 @@
 struct Similarity_Usecase {
   bool use_weights{false};
   bool check_correctness{true};
-  size_t max_seeds{std::numeric_limits<size_t>::max()};
+  bool all_pairs{false};
+  std::optional<size_t> max_seeds{std::nullopt};
+  std::optional<size_t> max_vertex_pairs_to_check{std::nullopt};
+  std::optional<size_t> topk{std::nullopt};
 };
 
 template <typename input_usecase_t>
@@ -80,56 +83,96 @@ class Tests_MGSimilarity
     auto mg_edge_weight_view =
       mg_edge_weights ? std::make_optional((*mg_edge_weights).view()) : std::nullopt;
 
-    rmm::device_uvector<vertex_t> d_start_vertices(
-      std::min(
-        static_cast<size_t>(mg_graph_view.local_vertex_partition_range_size()),
-        similarity_usecase.max_seeds / comm_size +
-          (static_cast<size_t>(comm_rank) < similarity_usecase.max_seeds % comm_size ? 1 : 0)),
-      handle_->get_stream());
-    cugraph::test::populate_vertex_ids(
-      *handle_, d_start_vertices, mg_graph_view.local_vertex_partition_range_first());
+    rmm::device_uvector<vertex_t> v1(0, handle_->get_stream());
+    rmm::device_uvector<vertex_t> v2(0, handle_->get_stream());
+    rmm::device_uvector<weight_t> result_score(0, handle_->get_stream());
 
-    auto [d_offsets, two_hop_nbrs] = cugraph::k_hop_nbrs(
-      *handle_,
-      mg_graph_view,
-      raft::device_span<vertex_t const>(d_start_vertices.data(), d_start_vertices.size()),
-      2);
+    raft::random::RngState rng_state{0};
 
-    auto h_start_vertices = cugraph::test::to_host(*handle_, d_start_vertices);
-    auto h_offsets        = cugraph::test::to_host(*handle_, d_offsets);
+    rmm::device_uvector<vertex_t> sources(0, handle_->get_stream());
+    std::optional<raft::device_span<vertex_t const>> sources_span{std::nullopt};
 
-    std::vector<vertex_t> h_v1(h_offsets.back());
-    for (size_t i = 0; i < h_start_vertices.size(); ++i) {
-      std::fill(h_v1.begin() + h_offsets[i], h_v1.begin() + h_offsets[i + 1], h_start_vertices[i]);
+    if (similarity_usecase.max_seeds) {
+      sources = cugraph::select_random_vertices(
+        *handle_,
+        mg_graph_view,
+        std::optional<raft::device_span<vertex_t const>>{std::nullopt},
+        rng_state,
+        std::min(*similarity_usecase.max_seeds,
+                 static_cast<size_t>(mg_graph_view.number_of_vertices())),
+        false,
+        false);
+      sources_span = raft::device_span<vertex_t const>{sources.data(), sources.size()};
     }
 
-    auto d_v1 = cugraph::test::to_device(*handle_, h_v1);
-    auto d_v2 = std::move(two_hop_nbrs);
+    if (similarity_usecase.all_pairs) {
+      if (cugraph::test::g_perf) {
+        RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+        handle_->get_comms().barrier();
+        hr_timer.start("MG similarity test");
+      }
 
-    std::tie(d_v1, d_v2, std::ignore, std::ignore, std::ignore, std::ignore) =
-      cugraph::detail::shuffle_int_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning<
-        vertex_t,
-        edge_t,
-        weight_t,
-        int32_t>(*handle_,
-                 std::move(d_v1),
-                 std::move(d_v2),
-                 std::nullopt,
-                 std::nullopt,
-                 std::nullopt,
-                 mg_graph_view.vertex_partition_range_lasts());
+      std::tie(v1, v2, result_score) = test_functor.run(*handle_,
+                                                        mg_graph_view,
+                                                        mg_edge_weight_view,
+                                                        sources_span,
+                                                        similarity_usecase.use_weights,
+                                                        similarity_usecase.topk);
+    } else {
+      if (!sources_span) {
+        sources.resize(mg_graph_view.local_vertex_partition_range_size(), handle_->get_stream());
+        cugraph::test::populate_vertex_ids(
+          *handle_, sources, mg_graph_view.local_vertex_partition_range_first());
+        sources_span = raft::device_span<vertex_t const>{sources.data(), sources.size()};
+      }
 
-    std::tuple<raft::device_span<vertex_t const>, raft::device_span<vertex_t const>> vertex_pairs{
-      {d_v1.data(), d_v1.size()}, {d_v2.data(), d_v2.size()}};
+      rmm::device_uvector<size_t> offsets(0, handle_->get_stream());
 
-    if (cugraph::test::g_perf) {
-      RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
-      handle_->get_comms().barrier();
-      hr_timer.start("MG similarity test");
+      std::tie(offsets, v2) = cugraph::k_hop_nbrs(*handle_, mg_graph_view, *sources_span, 2);
+
+      v1.resize(v2.size(), handle_->get_stream());
+      cugraph::test::expand_sparse_offsets(
+        *handle_,
+        raft::device_span<size_t const>{offsets.data(), offsets.size()},
+        raft::device_span<vertex_t>{v1.data(), v1.size()},
+        size_t{0},
+        vertex_t{0});
+
+      cugraph::unrenumber_local_int_vertices(*handle_,
+                                             v1.data(),
+                                             v1.size(),
+                                             sources.data(),
+                                             vertex_t{0},
+                                             static_cast<vertex_t>(sources.size()),
+                                             true);
+
+      std::tie(v1, v2) = cugraph::test::remove_self_loops(*handle_, std::move(v1), std::move(v2));
+
+      std::tie(v1, v2, std::ignore, std::ignore, std::ignore, std::ignore) =
+        cugraph::detail::shuffle_int_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning<
+          vertex_t,
+          edge_t,
+          weight_t,
+          int32_t>(*handle_,
+                   std::move(v1),
+                   std::move(v2),
+                   std::nullopt,
+                   std::nullopt,
+                   std::nullopt,
+                   mg_graph_view.vertex_partition_range_lasts());
+
+      std::tuple<raft::device_span<vertex_t const>, raft::device_span<vertex_t const>> vertex_pairs{
+        {v1.data(), v1.size()}, {v2.data(), v2.size()}};
+
+      if (cugraph::test::g_perf) {
+        RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+        handle_->get_comms().barrier();
+        hr_timer.start("MG similarity test");
+      }
+
+      result_score = test_functor.run(
+        *handle_, mg_graph_view, mg_edge_weight_view, vertex_pairs, similarity_usecase.use_weights);
     }
-
-    auto result_score = test_functor.run(
-      *handle_, mg_graph_view, mg_edge_weight_view, vertex_pairs, similarity_usecase.use_weights);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -147,14 +190,14 @@ class Tests_MGSimilarity
         mg_edge_weight_view,
         std::optional<raft::device_span<vertex_t const>>(std::nullopt));
 
-      d_v1 = cugraph::test::device_gatherv(*handle_, d_v1.data(), d_v1.size());
-      d_v2 = cugraph::test::device_gatherv(*handle_, d_v2.data(), d_v2.size());
+      v1 = cugraph::test::device_gatherv(*handle_, v1.data(), v1.size());
+      v2 = cugraph::test::device_gatherv(*handle_, v2.data(), v2.size());
       result_score =
         cugraph::test::device_gatherv(*handle_, result_score.data(), result_score.size());
 
-      if (d_v1.size() > 0) {
-        auto h_vertex_pair1 = cugraph::test::to_host(*handle_, d_v1);
-        auto h_vertex_pair2 = cugraph::test::to_host(*handle_, d_v2);
+      if (v1.size() > 0) {
+        auto h_vertex_pair1 = cugraph::test::to_host(*handle_, v1);
+        auto h_vertex_pair2 = cugraph::test::to_host(*handle_, v2);
         auto h_result_score = cugraph::test::to_host(*handle_, result_score);
 
         similarity_compare(mg_graph_view.number_of_vertices(),
@@ -258,10 +301,13 @@ INSTANTIATE_TEST_SUITE_P(
   file_test,
   Tests_MGSimilarity_File,
   ::testing::Combine(
-    // enable correctness checks
-    // Disable weighted computation testing in 22.10
-    //::testing::Values(Similarity_Usecase{true, true, 20}, Similarity_Usecase{false, true, 20}),
-    ::testing::Values(Similarity_Usecase{false, true, 20}),
+    ::testing::Values(Similarity_Usecase{false, true, false, 20, 100},
+                      Similarity_Usecase{false, true, false, 20, 100},
+                      Similarity_Usecase{false, true, false, 20, 100, 10},
+                      Similarity_Usecase{false, true, true, 20, 100},
+                      Similarity_Usecase{false, true, true, 20, 100},
+                      Similarity_Usecase{false, true, true, std::nullopt, 100, 10},
+                      Similarity_Usecase{false, true, true, 20, 100, 10}),
     ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"),
                       cugraph::test::File_Usecase("test/datasets/netscience.mtx"))));
 
@@ -273,7 +319,13 @@ INSTANTIATE_TEST_SUITE_P(
     // Disable weighted computation testing in 22.10
     //::testing::Values(Similarity_Usecase{true, true, 20},
     // Similarity_Usecase{false, true, 20}),
-    ::testing::Values(Similarity_Usecase{false, true, 20}),
+    ::testing::Values(Similarity_Usecase{false, true, false, 20, 100},
+                      Similarity_Usecase{false, true, false, 20, 100},
+                      Similarity_Usecase{false, true, false, 20, 100, 10},
+                      Similarity_Usecase{false, true, true, 20, 100},
+                      Similarity_Usecase{false, true, true, 20, 100},
+                      Similarity_Usecase{false, true, true, std::nullopt, 100, 10},
+                      Similarity_Usecase{false, true, true, 20, 100, 10}),
     ::testing::Values(cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, true, false))));
 
 INSTANTIATE_TEST_SUITE_P(
@@ -285,7 +337,12 @@ INSTANTIATE_TEST_SUITE_P(
   Tests_MGSimilarity_Rmat,
   ::testing::Combine(
     // disable correctness checks for large graphs
-    ::testing::Values(Similarity_Usecase{false, false, 20}),
+    ::testing::Values(Similarity_Usecase{false, true, false, 20, 100},
+                      Similarity_Usecase{false, true, false, 20, 100},
+                      Similarity_Usecase{false, true, false, 20, 100, 10},
+                      Similarity_Usecase{false, true, true, 20, 100},
+                      Similarity_Usecase{false, true, true, 20, 100},
+                      Similarity_Usecase{false, true, true, 20, 100, 10}),
     ::testing::Values(cugraph::test::Rmat_Usecase(20, 16, 0.57, 0.19, 0.19, 0, true, false))));
 
 CUGRAPH_MG_TEST_PROGRAM_MAIN()

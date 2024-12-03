@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2023, NVIDIA CORPORATION.
+# Copyright (c) 2019-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -47,6 +47,11 @@ def katz_centrality(
     G : cuGraph.Graph or networkx.Graph
         cuGraph graph descriptor with connectivity information. The graph can
         contain either directed or undirected edges.
+
+        .. deprecated:: 24.12
+           Accepting a ``networkx.Graph`` is deprecated and will be removed in a
+           future version.  For ``networkx.Graph`` use networkx directly with
+           the ``nx-cugraph`` backend. See:  https://rapids.ai/nx-cugraph/
 
     alpha : float, optional (default=None)
         Attenuation factor defaulted to None. If alpha is not specified then
