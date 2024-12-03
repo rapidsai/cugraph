@@ -15,6 +15,7 @@ files:
       - python_build_rapids
       - python_build_wheel
       - python_build_cythonize
+      - depends_on_librmm
       - depends_on_rmm
       - depends_on_cudf
       - depends_on_dask_cudf
@@ -79,6 +80,7 @@ files:
       key: requires
     includes:
       - common_build
+      - depends_on_libcugraph
       - depends_on_rmm
       - depends_on_pylibraft
       - depends_on_pylibcugraph
@@ -92,6 +94,7 @@ files:
       - depends_on_cudf
       - depends_on_dask_cudf
       - depends_on_raft_dask
+      - depends_on_libcugraph
       - depends_on_pylibcugraph
       - depends_on_cupy
       - python_run_cugraph
@@ -105,6 +108,32 @@ files:
       - test_python_common
       - test_python_cugraph
       - depends_on_pylibwholegraph
+  py_build_libcugraph:
+    output: pyproject
+    pyproject_dir: python/libcugraph
+    extras:
+      table: build-system
+    includes:
+      # TODO: split up scikit-build-core and cython
+      - python_build_cythonize
+      - python_build_rapids
+  py_rapids_build_libcugraph:
+    output: pyproject
+    pyproject_dir: python/libcugraph
+    extras:
+      table: tool.rapids-build-backend
+      key: requires
+    includes:
+      - common_build
+      - depends_on_pylibraft
+      - depends_on_librmm
+  py_run_libcugraph:
+    output: pyproject
+    pyproject_dir: python/libcugraph
+    extras:
+      table: project
+    includes:
+      - depends_on_rmm
   py_build_pylibcugraph:
     output: pyproject
     pyproject_dir: python/pylibcugraph
@@ -121,6 +150,7 @@ files:
       key: requires
     includes:
       - common_build
+      - depends_on_libcugraph
       - depends_on_rmm
       - depends_on_pylibraft
   py_run_pylibcugraph:
@@ -130,6 +160,7 @@ files:
       table: project
     includes:
       - cuda_wheels
+      - depends_on_libcugraph
       - depends_on_rmm
       - depends_on_pylibraft
   py_test_pylibcugraph:
@@ -293,7 +324,6 @@ dependencies:
           - libcudf==25.2.*,>=0.0.0a0
           - libraft-headers==25.2.*,>=0.0.0a0
           - libraft==25.2.*,>=0.0.0a0
-          - librmm==25.2.*,>=0.0.0a0
           - openmpi # Required for building cpp-mgtests (multi-GPU tests)
     specific:
       - output_types: [conda]
@@ -554,6 +584,31 @@ dependencies:
               - pylibwholegraph-cu11==25.2.*,>=0.0.0a0
           - {matrix: null, packages: [*pylibwholegraph_unsuffixed]}
 
+  depends_on_librmm:
+    common:
+      - output_types: conda
+        packages:
+          - &librmm_unsuffixed librmm==25.2.*,>=0.0.0a0
+      - output_types: requirements
+        packages:
+          # pip recognizes the index as a global option for the requirements.txt file
+          - --extra-index-url=https://pypi.nvidia.com
+          - --extra-index-url=https://pypi.anaconda.org/rapidsai-wheels-nightly/simple
+    specific:
+      - output_types: [requirements, pyproject]
+        matrices:
+          - matrix:
+              cuda: "12.*"
+              cuda_suffixed: "true"
+            packages:
+              - librmm-cu12==25.2.*,>=0.0.0a0
+          - matrix:
+              cuda: "11.*"
+              cuda_suffixed: "true"
+            packages:
+              - librmm-cu11==25.2.*,>=0.0.0a0
+          - {matrix: null, packages: [*librmm_unsuffixed]}
+
   depends_on_rmm:
     common:
       - output_types: conda
@@ -678,6 +733,31 @@ dependencies:
             packages:
               - raft-dask-cu11==25.2.*,>=0.0.0a0
           - {matrix: null, packages: [*raft_dask_unsuffixed]}
+
+  depends_on_libcugraph:
+    common:
+      - output_types: conda
+        packages:
+          - &libcugraph_unsuffixed libcugraph==25.2.*,>=0.0.0a0
+      - output_types: requirements
+        packages:
+          # pip recognizes the index as a global option for the requirements.txt file
+          - --extra-index-url=https://pypi.nvidia.com
+          - --extra-index-url=https://pypi.anaconda.org/rapidsai-wheels-nightly/simple
+    specific:
+      - output_types: [requirements, pyproject]
+        matrices:
+          - matrix:
+              cuda: "12.*"
+              cuda_suffixed: "true"
+            packages:
+              - libcugraph-cu12==25.2.*,>=0.0.0a0
+          - matrix:
+              cuda: "11.*"
+              cuda_suffixed: "true"
+            packages:
+              - libcugraph-cu11==25.2.*,>=0.0.0a0
+          - {matrix: null, packages: [*libcugraph_unsuffixed]}
 
   depends_on_pylibcugraph:
     common:
