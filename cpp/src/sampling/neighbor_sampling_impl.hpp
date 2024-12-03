@@ -179,7 +179,7 @@ neighbor_sample_impl(raft::handle_t const& handle,
                     ? (fan_out.size() / num_edge_types)
                     : ((fan_out.size() / num_edge_types) + 1);
 
-  for (auto hop = 0; hop < num_hops; hop++) {
+  for (size_t hop = 0; hop < num_hops; ++hop) {
     for (auto edge_type_id = 0; edge_type_id < num_edge_types; edge_type_id++) {
       auto k_level = fan_out[(hop * num_edge_types) + edge_type_id];
       rmm::device_uvector<vertex_t> srcs(0, handle.get_stream());
