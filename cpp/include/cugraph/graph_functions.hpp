@@ -41,11 +41,13 @@ struct renumber_meta_t<vertex_t, edge_t, multi_gpu, std::enable_if_t<multi_gpu>>
   edge_t number_of_edges{};
   partition_t<vertex_t> partition{};
   std::vector<vertex_t> edge_partition_segment_offsets{};
+  std::optional<std::vector<vertex_t>> edge_partition_hypersparse_degree_offsets{};
 };
 
 template <typename vertex_t, typename edge_t, bool multi_gpu>
 struct renumber_meta_t<vertex_t, edge_t, multi_gpu, std::enable_if_t<!multi_gpu>> {
   std::vector<vertex_t> segment_offsets{};
+  std::optional<std::vector<vertex_t>> hypersparse_degree_offsets{};
 };
 
 /**
@@ -244,7 +246,7 @@ void unrenumber_int_vertices(raft::handle_t const& handle,
  *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
  * @tparam store_transposed Flag indicating whether to use sources (if false) or destinations (if
- * true) as major indices in storing edges using a 2D sparse matrix. transposed.
+ * true) as major indices in storing edges using a 2D sparse matrix.
  * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
  * or multi-GPU (true).
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
@@ -284,7 +286,7 @@ std::enable_if_t<multi_gpu, void> unrenumber_local_int_edges(
  *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
  * @tparam store_transposed Flag indicating whether to use sources (if false) or destinations (if
- * true) as major indices in storing edges using a 2D sparse matrix. transposed.
+ * true) as major indices in storing edges using a 2D sparse matrix.
  * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
  * or multi-GPU (true).
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
@@ -346,7 +348,7 @@ void renumber_local_ext_vertices(raft::handle_t const& handle,
  * @tparam weight_t Type of edge weights. Needs to be a floating point type.
  * @tparam edge_type_t Type of edge types. Needs to be an integral type.
  * @tparam store_transposed Flag indicating whether to use sources (if false) or destinations (if
- * true) as major indices in storing edges using a 2D sparse matrix. transposed.
+ * true) as major indices in storing edges using a 2D sparse matrix.
  * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
  * or multi-GPU (true).
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
@@ -388,7 +390,7 @@ decompress_to_edgelist(
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
  * @tparam weight_t Type of edge weights. Needs to be a floating point type.
  * @tparam store_transposed Flag indicating whether to use sources (if false) or destinations (if
- * true) as major indices in storing edges using a 2D sparse matrix. transposed.
+ * true) as major indices in storing edges using a 2D sparse matrix.
  * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
  * or multi-GPU (true).
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
@@ -421,7 +423,7 @@ symmetrize_edgelist(raft::handle_t const& handle,
  * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
  * @tparam weight_t Type of edge weights. Needs to be a floating point type.
  * @tparam store_transposed Flag indicating whether to use sources (if false) or destinations (if
- * true) as major indices in storing edges using a 2D sparse matrix. transposed.
+ * true) as major indices in storing edges using a 2D sparse matrix.
  * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
  * or multi-GPU (true).
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
@@ -463,7 +465,7 @@ symmetrize_graph(
  * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
  * @tparam weight_t Type of edge weights. Needs to be a floating point type.
  * @tparam store_transposed Flag indicating whether to use sources (if false) or destinations (if
- * true) as major indices in storing edges using a 2D sparse matrix. transposed.
+ * true) as major indices in storing edges using a 2D sparse matrix.
  * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
  * or multi-GPU (true).
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
@@ -505,7 +507,7 @@ transpose_graph(
  * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
  * @tparam weight_t Type of edge weights. Needs to be a floating point type.
  * @tparam store_transposed Flag indicating whether to use sources (if false) or destinations (if
- * true) as major indices in storing edges using a 2D sparse matrix. transposed.
+ * true) as major indices in storing edges using a 2D sparse matrix.
  * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
  * or multi-GPU (true).
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
@@ -549,7 +551,7 @@ transpose_graph_storage(
  * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
  * @tparam weight_t Type of edge weights. Needs to be a floating point type.
  * @tparam store_transposed Flag indicating whether to use sources (if false) or destinations (if
- * true) as major indices in storing edges using a 2D sparse matrix. transposed.
+ * true) as major indices in storing edges using a 2D sparse matrix.
  * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
  * or multi-GPU (true).
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
@@ -625,7 +627,7 @@ void relabel(raft::handle_t const& handle,
  * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
  * @tparam weight_t Type of edge weights.
  * @tparam store_transposed Flag indicating whether to use sources (if false) or destinations (if
- * true) as major indices in storing edges using a 2D sparse matrix. transposed.
+ * true) as major indices in storing edges using a 2D sparse matrix.
  * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
  * or multi-GPU (true).
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
@@ -678,7 +680,7 @@ extract_induced_subgraphs(
  * @tparam edge_type_t Type of edge type.  Needs to be an integral type, currently only int32_t is
  * supported
  * @tparam store_transposed Flag indicating whether to use sources (if false) or destinations (if
- * true) as major indices in storing edges using a 2D sparse matrix. transposed.
+ * true) as major indices in storing edges using a 2D sparse matrix.
  * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
  * or multi-GPU (true).
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
@@ -816,7 +818,7 @@ create_graph_from_edgelist(
  * @tparam edge_type_t Type of edge type.  Needs to be an integral type, currently only int32_t is
  * supported
  * @tparam store_transposed Flag indicating whether to use sources (if false) or destinations (if
- * true) as major indices in storing edges using a 2D sparse matrix. transposed.
+ * true) as major indices in storing edges using a 2D sparse matrix.
  * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
  * or multi-GPU (true).
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
@@ -955,7 +957,7 @@ create_graph_from_edgelist(
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
  * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
  * @tparam store_transposed Flag indicating whether to use sources (if false) or destinations (if
- * true) as major indices in storing edges using a 2D sparse matrix. transposed.
+ * true) as major indices in storing edges using a 2D sparse matrix.
  * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
  * or multi-GPU (true).
  * @param  handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
@@ -977,7 +979,7 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> get_two
  * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
  * @tparam weight_t Type of edge weights. Needs to be a floating point type.
  * @tparam store_transposed Flag indicating whether to use sources (if false) or destinations (if
- * true) as major indices in storing edges using a 2D sparse matrix. transposed.
+ * true) as major indices in storing edges using a 2D sparse matrix.
  * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
  * or multi-GPU (true).
  * @param  handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
@@ -1004,7 +1006,7 @@ rmm::device_uvector<weight_t> compute_in_weight_sums(
  * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
  * @tparam weight_t Type of edge weights. Needs to be a floating point type.
  * @tparam store_transposed Flag indicating whether to use sources (if false) or destinations (if
- * true) as major indices in storing edges using a 2D sparse matrix. transposed.
+ * true) as major indices in storing edges using a 2D sparse matrix.
  * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
  * or multi-GPU (true).
  * @param  handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
@@ -1031,7 +1033,7 @@ rmm::device_uvector<weight_t> compute_out_weight_sums(
  * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
  * @tparam weight_t Type of edge weights. Needs to be a floating point type.
  * @tparam store_transposed Flag indicating whether to use sources (if false) or destinations (if
- * true) as major indices in storing edges using a 2D sparse matrix. transposed.
+ * true) as major indices in storing edges using a 2D sparse matrix.
  * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
  * or multi-GPU (true).
  * @param  handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
@@ -1058,7 +1060,7 @@ weight_t compute_max_in_weight_sum(
  * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
  * @tparam weight_t Type of edge weights. Needs to be a floating point type.
  * @tparam store_transposed Flag indicating whether to use sources (if false) or destinations (if
- * true) as major indices in storing edges using a 2D sparse matrix. transposed.
+ * true) as major indices in storing edges using a 2D sparse matrix.
  * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
  * or multi-GPU (true).
  * @param  handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
@@ -1085,7 +1087,7 @@ weight_t compute_max_out_weight_sum(
  * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
  * @tparam weight_t Type of edge weights. Needs to be a floating point type.
  * @tparam store_transposed Flag indicating whether to use sources (if false) or destinations (if
- * true) as major indices in storing edges using a 2D sparse matrix. transposed.
+ * true) as major indices in storing edges using a 2D sparse matrix.
  * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
  * or multi-GPU (true).
  * @param  handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
@@ -1111,7 +1113,7 @@ weight_t compute_total_edge_weight(
  * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
  * @tparam weight_t Type of edge weights. Needs to be a floating point type.
  * @tparam store_transposed Flag indicating whether to use sources (if false) or destinations (if
- * true) as major indices in storing edges using a 2D sparse matrix. transposed.
+ * true) as major indices in storing edges using a 2D sparse matrix.
  * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
  * or multi-GPU (true).
  * @param  handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
@@ -1262,7 +1264,8 @@ shuffle_external_vertex_value_pairs(raft::handle_t const& handle,
  * @param edge_ids  Optional list of edge ids
  * @param edge_types Optional list of edge types
  * @return Tuple of vectors storing edge sources, destinations, optional weights,
- *          optional edge ids, optional edge types mapped to this GPU.
+ *          optional edge ids, optional edge types mapped to this GPU and a vector storing the
+ *          number of edges received from each GPU.
  */
 template <typename vertex_t, typename edge_t, typename weight_t, typename edge_type_t>
 std::tuple<rmm::device_uvector<vertex_t>,

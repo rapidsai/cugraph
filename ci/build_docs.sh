@@ -46,19 +46,18 @@ rapids-mamba-retry install \
   "cugraph-service-server=${RAPIDS_VERSION_MAJOR_MINOR}.*" \
   "cugraph-service-client=${RAPIDS_VERSION_MAJOR_MINOR}.*" \
   "libcugraph_etl=${RAPIDS_VERSION_MAJOR_MINOR}.*" \
-  "pylibcugraphops=${RAPIDS_VERSION_MAJOR_MINOR}.*" \
   "pylibwholegraph=${RAPIDS_VERSION_MAJOR_MINOR}.*" \
-  "pytorch>=2.3,<2.4" \
+  'pytorch>=2.3' \
   "cuda-version=${CONDA_CUDA_VERSION}"
 
 export RAPIDS_DOCS_DIR="$(mktemp -d)"
 
-for PROJECT in libcugraphops libwholegraph; do
-  rapids-logger "Download ${PROJECT} xml_tar"
-  TMP_DIR=$(mktemp -d)
-  export XML_DIR_${PROJECT^^}="$TMP_DIR"
-  curl "https://d1664dvumjb44w.cloudfront.net/${PROJECT}/xml_tar/${RAPIDS_VERSION_NUMBER}/xml.tar.gz" | tar -xzf - -C "${TMP_DIR}"
-done
+# for PROJECT in libwholegraph; do
+#   rapids-logger "Download ${PROJECT} xml_tar"
+#   TMP_DIR=$(mktemp -d)
+#   export XML_DIR_${PROJECT^^}="$TMP_DIR"
+#   curl "https://d1664dvumjb44w.cloudfront.net/${PROJECT}/xml_tar/${RAPIDS_VERSION_NUMBER}/xml.tar.gz" | tar -xzf - -C "${TMP_DIR}"
+# done
 
 rapids-logger "Build CPP docs"
 pushd cpp/doxygen

@@ -15,15 +15,24 @@
  */
 #pragma once
 
+#include "prims/detail/multi_stream_utils.cuh"
+
+#include <cugraph/utilities/device_comm.hpp>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/host_scalar_comm.hpp>
+#include <cugraph/utilities/packed_bool_utils.hpp>
 
+#include <raft/core/device_span.hpp>
 #include <raft/core/handle.hpp>
+#include <raft/core/host_span.hpp>
 #include <raft/util/cudart_utils.hpp>
 
 #include <rmm/device_scalar.hpp>
 #include <rmm/device_uvector.hpp>
 
+#include <cuda/atomic>
+#include <cuda/functional>
+#include <thrust/binary_search.h>
 #include <thrust/copy.h>
 #include <thrust/distance.h>
 #include <thrust/fill.h>
@@ -47,6 +56,191 @@
 #include <vector>
 
 namespace cugraph {
+
+template <typename vertex_t, typename KeyIterator>
+KeyIterator compute_key_lower_bound(KeyIterator sorted_unique_key_first,
+                                    KeyIterator sorted_unique_key_last,
+                                    vertex_t v_threshold,
+                                    rmm::cuda_stream_view stream_view)
+{
+  using key_t = typename thrust::iterator_traits<KeyIterator>::value_type;
+
+  if constexpr (std::is_same_v<key_t, vertex_t>) {
+    return thrust::lower_bound(
+      rmm::exec_policy(stream_view), sorted_unique_key_first, sorted_unique_key_last, v_threshold);
+  } else {
+    key_t k_threshold{};
+    thrust::get<0>(k_threshold) = v_threshold;
+    return thrust::lower_bound(
+      rmm::exec_policy(stream_view),
+      sorted_unique_key_first,
+      sorted_unique_key_last,
+      k_threshold,
+      [] __device__(auto lhs, auto rhs) { return thrust::get<0>(lhs) < thrust::get<0>(rhs); });
+  }
+}
+
+template <typename vertex_t, typename KeyIterator>
+std::vector<size_t> compute_key_segment_offsets(KeyIterator sorted_key_first,
+                                                KeyIterator sorted_key_last,
+                                                raft::host_span<vertex_t const> segment_offsets,
+                                                vertex_t vertex_range_first,
+                                                rmm::cuda_stream_view stream_view)
+{
+  using key_t = typename thrust::iterator_traits<KeyIterator>::value_type;
+
+  std::vector<vertex_t> h_thresholds(segment_offsets.size() - 2);
+  for (size_t i = 0; i < h_thresholds.size(); ++i) {
+    h_thresholds[i] = vertex_range_first + segment_offsets[i + 1];
+  }
+
+  rmm::device_uvector<vertex_t> d_thresholds(h_thresholds.size(), stream_view);
+  raft::update_device(d_thresholds.data(), h_thresholds.data(), h_thresholds.size(), stream_view);
+
+  rmm::device_uvector<size_t> d_offsets(d_thresholds.size(), stream_view);
+  if constexpr (std::is_same_v<key_t, vertex_t>) {
+    thrust::lower_bound(rmm::exec_policy_nosync(stream_view),
+                        sorted_key_first,
+                        sorted_key_last,
+                        d_thresholds.begin(),
+                        d_thresholds.end(),
+                        d_offsets.begin());
+  } else {
+    auto sorted_vertex_first =
+      thrust::make_transform_iterator(sorted_key_first, thrust_tuple_get<key_t, 0>{});
+    thrust::lower_bound(rmm::exec_policy_nosync(stream_view),
+                        sorted_vertex_first,
+                        sorted_vertex_first + thrust::distance(sorted_key_first, sorted_key_last),
+                        d_thresholds.begin(),
+                        d_thresholds.end(),
+                        d_offsets.begin());
+  }
+
+  std::vector<size_t> h_offsets(d_offsets.size() + 2);
+  raft::update_host(h_offsets.data() + 1, d_offsets.data(), d_offsets.size(), stream_view);
+  RAFT_CUDA_TRY(cudaStreamSynchronize(stream_view));
+  h_offsets[0]     = size_t{0};
+  h_offsets.back() = static_cast<size_t>(thrust::distance(sorted_key_first, sorted_key_last));
+
+  return h_offsets;
+}
+
+template <typename VertexIterator>
+rmm::device_uvector<uint32_t> compute_vertex_list_bitmap_info(
+  VertexIterator sorted_unique_vertex_first,
+  VertexIterator sorted_unique_vertex_last,
+  typename thrust::iterator_traits<VertexIterator>::value_type vertex_range_first,
+  typename thrust::iterator_traits<VertexIterator>::value_type vertex_range_last,
+  rmm::cuda_stream_view stream_view)
+{
+  using vertex_t = typename thrust::iterator_traits<VertexIterator>::value_type;
+
+  auto bitmap = rmm::device_uvector<uint32_t>(
+    packed_bool_size(vertex_range_last - vertex_range_first), stream_view);
+  rmm::device_uvector<vertex_t> lasts(bitmap.size(), stream_view);
+  auto bdry_first = thrust::make_transform_iterator(
+    thrust::make_counting_iterator(vertex_t{1}),
+    cuda::proclaim_return_type<vertex_t>(
+      [vertex_range_first,
+       vertex_range_size = vertex_range_last - vertex_range_first] __device__(vertex_t i) {
+        return vertex_range_first +
+               static_cast<vertex_t>(
+                 std::min(packed_bools_per_word() * i, static_cast<size_t>(vertex_range_size)));
+      }));
+  thrust::lower_bound(rmm::exec_policy_nosync(stream_view),
+                      sorted_unique_vertex_first,
+                      sorted_unique_vertex_last,
+                      bdry_first,
+                      bdry_first + bitmap.size(),
+                      lasts.begin());
+  thrust::tabulate(
+    rmm::exec_policy_nosync(stream_view),
+    bitmap.begin(),
+    bitmap.end(),
+    cuda::proclaim_return_type<uint32_t>(
+      [sorted_unique_vertex_first,
+       vertex_range_first,
+       lasts = raft::device_span<vertex_t const>(lasts.data(), lasts.size())] __device__(size_t i) {
+        auto offset_first = (i != 0) ? lasts[i - 1] : vertex_t{0};
+        auto offset_last  = lasts[i];
+        auto ret          = packed_bool_empty_mask();
+        for (auto j = offset_first; j < offset_last; ++j) {
+          auto v_offset = *(sorted_unique_vertex_first + j) - vertex_range_first;
+          ret |= packed_bool_mask(v_offset);
+        }
+        return ret;
+      }));
+
+  return bitmap;
+}
+
+template <typename InputVertexIterator, typename OutputVertexIterator>
+void device_bcast_vertex_list(
+  raft::comms::comms_t const& comm,
+  std::variant<raft::device_span<uint32_t const>, InputVertexIterator> v_list,
+  OutputVertexIterator output_v_first,
+  typename thrust::iterator_traits<InputVertexIterator>::value_type vertex_range_first,
+  typename thrust::iterator_traits<InputVertexIterator>::value_type vertex_range_last,
+  size_t v_list_size,
+  int root,
+  rmm::cuda_stream_view stream_view)
+{
+  using vertex_t = typename thrust::iterator_traits<InputVertexIterator>::value_type;
+
+  static_assert(
+    std::is_same_v<typename thrust::iterator_traits<OutputVertexIterator>::value_type, vertex_t>);
+
+  if (v_list.index() == 0) {  // bitmap
+    rmm::device_uvector<uint32_t> tmp_bitmap(
+      packed_bool_size(vertex_range_last - vertex_range_first), stream_view);
+    assert((comm.get_rank() != root) || (std::get<0>(v_list).size() == tmp_bitmap.size()));
+    device_bcast(
+      comm, std::get<0>(v_list).data(), tmp_bitmap.data(), tmp_bitmap.size(), root, stream_view);
+    rmm::device_scalar<size_t> dummy(size_t{0}, stream_view);  // we already know the count
+    detail::copy_if_nosync(
+      thrust::make_counting_iterator(vertex_range_first),
+      thrust::make_counting_iterator(vertex_range_last),
+      thrust::make_transform_iterator(
+        thrust::make_counting_iterator(vertex_t{0}),
+        cuda::proclaim_return_type<bool>(
+          [bitmap = raft::device_span<uint32_t const>(
+             tmp_bitmap.data(), tmp_bitmap.size())] __device__(vertex_t v_offset) {
+            return ((bitmap[packed_bool_offset(v_offset)] & packed_bool_mask(v_offset)) !=
+                    packed_bool_empty_mask());
+          })),
+      output_v_first,
+      raft::device_span<size_t>(dummy.data(), size_t{1}),
+      stream_view);
+  } else {
+    device_bcast(comm, std::get<1>(v_list), output_v_first, v_list_size, root, stream_view);
+  }
+}
+
+template <typename OutputVertexIterator>
+void retrieve_vertex_list_from_bitmap(
+  raft::device_span<uint32_t const> bitmap,
+  OutputVertexIterator output_v_first,
+  raft::device_span<size_t> count /* size = 1 */,
+  typename thrust::iterator_traits<OutputVertexIterator>::value_type vertex_range_first,
+  typename thrust::iterator_traits<OutputVertexIterator>::value_type vertex_range_last,
+  rmm::cuda_stream_view stream_view)
+{
+  using vertex_t = typename thrust::iterator_traits<OutputVertexIterator>::value_type;
+
+  assert((comm.get_rank() != root) ||
+         (bitmap.size() >= packed_bool_size(vertex_range_last - vertex_ragne_first)));
+  detail::copy_if_nosync(thrust::make_counting_iterator(vertex_range_first),
+                         thrust::make_counting_iterator(vertex_range_last),
+                         thrust::make_transform_iterator(
+                           thrust::make_counting_iterator(vertex_t{0}),
+                           cuda::proclaim_return_type<bool>([bitmap] __device__(vertex_t v_offset) {
+                             return ((bitmap[packed_bool_offset(v_offset)] &
+                                      packed_bool_mask(v_offset)) != packed_bool_empty_mask());
+                           })),
+                         output_v_first,
+                         count,
+                         stream_view);
+}
 
 // key type is either vertex_t (tag_t == void) or thrust::tuple<vertex_t, tag_t> (tag_t != void)
 // if sorted_unique is true, stores unique key objects in the sorted (non-descending) order.
@@ -328,20 +522,6 @@ class key_bucket_t {
     }
   }
 
-  auto const begin() const
-  {
-    if constexpr (std::is_same_v<tag_t, void>) {
-      return vertices_.index() == 0 ? std::get<0>(vertices_).begin()
-                                    : std::get<1>(vertices_).begin();
-    } else {
-      return vertices_.index() == 0
-               ? thrust::make_zip_iterator(
-                   thrust::make_tuple(std::get<0>(vertices_).begin(), std::get<0>(tags_).begin()))
-               : thrust::make_zip_iterator(
-                   thrust::make_tuple(std::get<1>(vertices_).begin(), std::get<1>(tags_).begin()));
-    }
-  }
-
   auto begin()
   {
     CUGRAPH_EXPECTS(
@@ -355,11 +535,21 @@ class key_bucket_t {
     }
   }
 
-  auto const end() const
+  auto const cbegin() const
   {
-    return begin() +
-           (vertices_.index() == 0 ? std::get<0>(vertices_).size() : std::get<1>(vertices_).size());
+    if constexpr (std::is_same_v<tag_t, void>) {
+      return vertices_.index() == 0 ? std::get<0>(vertices_).begin()
+                                    : std::get<1>(vertices_).begin();
+    } else {
+      return vertices_.index() == 0
+               ? thrust::make_zip_iterator(
+                   thrust::make_tuple(std::get<0>(vertices_).begin(), std::get<0>(tags_).begin()))
+               : thrust::make_zip_iterator(
+                   thrust::make_tuple(std::get<1>(vertices_).begin(), std::get<1>(tags_).begin()));
+    }
   }
+
+  auto const begin() const { return cbegin(); }
 
   auto end()
   {
@@ -369,15 +559,13 @@ class key_bucket_t {
     return begin() + std::get<0>(vertices_).size();
   }
 
-  auto const vertex_begin() const
+  auto const cend() const
   {
-    return vertices_.index() == 0 ? std::get<0>(vertices_).begin() : std::get<1>(vertices_).begin();
+    return begin() +
+           (vertices_.index() == 0 ? std::get<0>(vertices_).size() : std::get<1>(vertices_).size());
   }
 
-  auto const vertex_end() const
-  {
-    return vertices_.index() == 0 ? std::get<0>(vertices_).end() : std::get<1>(vertices_).end();
-  }
+  auto const end() const { return cend(); }
 
   auto vertex_begin()
   {
@@ -387,6 +575,13 @@ class key_bucket_t {
     return std::get<0>(vertices_).begin();
   }
 
+  auto const vertex_cbegin() const
+  {
+    return vertices_.index() == 0 ? std::get<0>(vertices_).begin() : std::get<1>(vertices_).begin();
+  }
+
+  auto const vertex_begin() const { return vertex_cbegin(); }
+
   auto vertex_end()
   {
     CUGRAPH_EXPECTS(
@@ -394,6 +589,13 @@ class key_bucket_t {
       "non-const vertex_end() is supported only when this bucket holds an owning container.");
     return std::get<0>(vertices_).end();
   }
+
+  auto const vertex_cend() const
+  {
+    return vertices_.index() == 0 ? std::get<0>(vertices_).end() : std::get<1>(vertices_).end();
+  }
+
+  auto const vertex_end() const { return vertex_cend(); }
 
   bool is_owning() { return (vertices_.index() == 0); }
 

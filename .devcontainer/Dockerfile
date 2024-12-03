@@ -6,6 +6,7 @@ ARG PYTHON_PACKAGE_MANAGER=conda
 FROM ${BASE} as pip-base
 
 ENV DEFAULT_VIRTUAL_ENV=rapids
+ENV RAPIDS_LIBUCX_PREFER_SYSTEM_LIBRARY=true
 
 RUN apt update -y \
  && DEBIAN_FRONTEND=noninteractive apt install -y \
@@ -33,6 +34,3 @@ ENV SCCACHE_REGION="us-east-2"
 ENV SCCACHE_BUCKET="rapids-sccache-devs"
 ENV AWS_ROLE_ARN="arn:aws:iam::279114543810:role/nv-gha-token-sccache-devs"
 ENV HISTFILE="/home/coder/.cache/._bash_history"
-
-# cugraph_pyg's setup.py needs this defined when building in a conda env
-ENV CUDA_HOME="${CUDA_HOME:-/home/coder/.conda/envs/$DEFAULT_CONDA_ENV}"

@@ -48,6 +48,7 @@ struct graph_meta_t<vertex_t, edge_t, multi_gpu, std::enable_if_t<multi_gpu>> {
   partition_t<vertex_t> partition{};
 
   std::vector<vertex_t> edge_partition_segment_offsets{};
+  std::optional<std::vector<vertex_t>> edge_partition_hypersparse_degree_offsets{};
 
   vertex_t num_local_unique_edge_srcs{};
   vertex_t num_local_unique_edge_dsts{};
@@ -61,6 +62,7 @@ struct graph_meta_t<vertex_t, edge_t, multi_gpu, std::enable_if_t<!multi_gpu>> {
 
   // segment offsets based on vertex degree, relevant only if vertex IDs are renumbered
   std::optional<std::vector<vertex_t>> segment_offsets{std::nullopt};
+  std::optional<std::vector<vertex_t>> hypersparse_degree_offsets{std::nullopt};
 };
 
 // graph_t is an owning graph class (note that graph_view_t is a non-owning graph class)
@@ -101,6 +103,11 @@ class graph_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t<mu
                               ? std::make_optional<std::vector<raft::device_span<vertex_t const>>>(
                                   (*edge_partition_dcs_nzd_vertices_).size())
                               : std::nullopt;
+    auto dcs_nzd_range_bitmaps =
+      edge_partition_dcs_nzd_range_bitmaps_
+        ? std::make_optional<std::vector<raft::device_span<uint32_t const>>>(
+            (*edge_partition_dcs_nzd_range_bitmaps_).size())
+        : std::nullopt;
     for (size_t i = 0; i < offsets.size(); ++i) {
       offsets[i] = raft::device_span<edge_t const>(edge_partition_offsets_[i].data(),
                                                    edge_partition_offsets_[i].size());
@@ -110,6 +117,11 @@ class graph_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t<mu
         (*dcs_nzd_vertices)[i] =
           raft::device_span<vertex_t const>((*edge_partition_dcs_nzd_vertices_)[i].data(),
                                             (*edge_partition_dcs_nzd_vertices_)[i].size());
+      }
+      if (dcs_nzd_range_bitmaps) {
+        (*dcs_nzd_range_bitmaps)[i] =
+          raft::device_span<uint32_t const>((*edge_partition_dcs_nzd_range_bitmaps_)[i].data(),
+                                            (*edge_partition_dcs_nzd_range_bitmaps_)[i].size());
       }
     }
 
@@ -201,12 +213,14 @@ class graph_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t<mu
       offsets,
       indices,
       dcs_nzd_vertices,
+      dcs_nzd_range_bitmaps,
       graph_view_meta_t<vertex_t, edge_t, store_transposed, multi_gpu>{
         this->number_of_vertices(),
         this->number_of_edges(),
         this->properties_,
         partition_,
         edge_partition_segment_offsets_,
+        edge_partition_hypersparse_degree_offsets_,
         local_sorted_unique_edge_srcs,
         local_sorted_unique_edge_src_chunk_start_offsets,
         local_sorted_unique_edge_src_chunk_size_,
@@ -224,10 +238,13 @@ class graph_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t<mu
   // nzd: nonzero (local) degree
   std::optional<std::vector<rmm::device_uvector<vertex_t>>> edge_partition_dcs_nzd_vertices_{
     std::nullopt};
+  std::optional<std::vector<rmm::device_uvector<uint32_t>>> edge_partition_dcs_nzd_range_bitmaps_{
+    std::nullopt};
   partition_t<vertex_t> partition_{};
 
   // segment offsets within the vertex partition based on vertex degree
   std::vector<vertex_t> edge_partition_segment_offsets_{};
+  std::optional<std::vector<vertex_t>> edge_partition_hypersparse_degree_offsets_{};
 
   // if valid, store row/column properties in key/value pairs (this saves memory if # unique edge
   // sources/destinations << V / major_comm_size|minor_comm_size).
@@ -290,7 +307,11 @@ class graph_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t<!m
       raft::device_span<edge_t const>(offsets_.data(), offsets_.size()),
       raft::device_span<vertex_t const>(indices_.data(), indices_.size()),
       graph_view_meta_t<vertex_t, edge_t, store_transposed, multi_gpu>{
-        this->number_of_vertices(), this->number_of_edges(), this->properties_, segment_offsets_});
+        this->number_of_vertices(),
+        this->number_of_edges(),
+        this->properties_,
+        segment_offsets_,
+        hypersparse_degree_offsets_});
   }
 
  private:
@@ -299,6 +320,7 @@ class graph_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t<!m
 
   // segment offsets based on vertex degree, relevant only if sorted_by_global_degree is true
   std::optional<std::vector<vertex_t>> segment_offsets_{};
+  std::optional<std::vector<vertex_t>> hypersparse_degree_offsets_{};
 };
 
 template <typename T, typename Enable = void>
