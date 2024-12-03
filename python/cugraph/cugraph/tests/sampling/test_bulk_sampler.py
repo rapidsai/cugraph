@@ -119,7 +119,7 @@ def test_bulk_sampler_remainder(scratch_dir):
         assert b in recovered_samples["batch_id"].values_host.tolist()
 
     for x in range(0, 6, 2):
-        subdir = f"{x}-{x + 1}"
+        subdir = f"{x}-{x+1}"
         df = cudf.read_parquet(os.path.join(samples_path, f"batch={subdir}.parquet"))
 
         assert ((df.batch_id == x) | (df.batch_id == (x + 1))).all()
@@ -278,11 +278,7 @@ def test_bulk_sampler_empty_batches(scratch_dir):
 
     assert len(os.listdir(samples_path)) == 1
 
-    # There are 3 batches [0, 1, 2] where batch 1 has no results. In fact, seeds
-    # [7, 8, 9] have no outgoing edges. The previous implementation returned and
-    # offsets array omitting seeds with no outgoing edges from the
-    # edge_label_offsets which is no longer the case
-    df = cudf.read_parquet(os.path.join(samples_path, "batch=0-2.parquet"))
+    df = cudf.read_parquet(os.path.join(samples_path, "batch=0-1.parquet"))
 
     assert df[
         (df.batch_id == 0) & (df.hop_id == 0)
@@ -293,12 +289,12 @@ def test_bulk_sampler_empty_batches(scratch_dir):
     ].destinations.sort_values().values_host.tolist() == [2, 3, 7, 8]
 
     assert df[
-        (df.batch_id == 2) & (df.hop_id == 0)
+        (df.batch_id == 1) & (df.hop_id == 0)
     ].destinations.sort_values().values_host.tolist() == [7, 8]
 
     assert len(df[(df.batch_id == 1) & (df.hop_id == 1)]) == 0
 
-    assert df.batch_id.max() == 2
+    assert df.batch_id.max() == 1
 
     shutil.rmtree(samples_path)
 
