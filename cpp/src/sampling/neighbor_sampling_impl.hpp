@@ -216,41 +216,39 @@ neighbor_sample_impl(raft::handle_t const& handle,
       }
 
       if (k_level > 0) {
-        std::tie(srcs, dsts, weights, edge_ids, edge_types, labels) =
-          sample_edges(handle,
-                       modified_graph_view,
-                       edge_weight_view,
-                       edge_id_view,
-                       edge_type_view,
-                       edge_bias_view,
-                       rng_state,
-                       hop == 0
-                        ? starting_vertices
-                        : raft::device_span<vertex_t const>(frontier_vertices.data(), frontier_vertices.size()),
-                       hop == 0
-                        ? starting_vertex_labels
-                        : starting_vertex_labels
-                          ? std::make_optional(raft::device_span<label_t const>(
-                                   frontier_vertex_labels->data(), frontier_vertex_labels->size()))
-                          : std::nullopt,
-                       static_cast<size_t>(k_level),
-                       with_replacement);
+        std::tie(srcs, dsts, weights, edge_ids, edge_types, labels) = sample_edges(
+          handle,
+          modified_graph_view,
+          edge_weight_view,
+          edge_id_view,
+          edge_type_view,
+          edge_bias_view,
+          rng_state,
+          hop == 0
+            ? starting_vertices
+            : raft::device_span<vertex_t const>(frontier_vertices.data(), frontier_vertices.size()),
+          hop == 0 ? starting_vertex_labels
+          : starting_vertex_labels
+            ? std::make_optional(raft::device_span<label_t const>(frontier_vertex_labels->data(),
+                                                                  frontier_vertex_labels->size()))
+            : std::nullopt,
+          static_cast<size_t>(k_level),
+          with_replacement);
       } else if (k_level < 0) {
-        std::tie(srcs, dsts, weights, edge_ids, edge_types, labels) =
-          gather_one_hop_edgelist(handle,
-                                  modified_graph_view,
-                                  edge_weight_view,
-                                  edge_id_view,
-                                  edge_type_view,
-                                  hop == 0
-                                  ? starting_vertices
-                                  : raft::device_span<vertex_t const>(frontier_vertices.data(), frontier_vertices.size()),
-                                  hop == 0
-                                    ? starting_vertex_labels
-                                    : starting_vertex_labels
-                                      ? std::make_optional(raft::device_span<label_t const>(
-                                              frontier_vertex_labels->data(), frontier_vertex_labels->size()))
-                                      : std::nullopt);
+        std::tie(srcs, dsts, weights, edge_ids, edge_types, labels) = gather_one_hop_edgelist(
+          handle,
+          modified_graph_view,
+          edge_weight_view,
+          edge_id_view,
+          edge_type_view,
+          hop == 0
+            ? starting_vertices
+            : raft::device_span<vertex_t const>(frontier_vertices.data(), frontier_vertices.size()),
+          hop == 0 ? starting_vertex_labels
+          : starting_vertex_labels
+            ? std::make_optional(raft::device_span<label_t const>(frontier_vertex_labels->data(),
+                                                                  frontier_vertex_labels->size()))
+            : std::nullopt);
       }
 
       auto old_size = level_result_src.size();
@@ -326,12 +324,11 @@ neighbor_sample_impl(raft::handle_t const& handle,
         hop == 0
           ? starting_vertices
           : raft::device_span<vertex_t const>(frontier_vertices.data(), frontier_vertices.size()),
-        hop == 0
-          ? starting_vertex_labels
-          : starting_vertex_labels
-            ? std::make_optional(raft::device_span<label_t const>(
-                      frontier_vertex_labels->data(), frontier_vertex_labels->size()))
-            : std::nullopt,
+        hop == 0 ? starting_vertex_labels
+        : starting_vertex_labels
+          ? std::make_optional(raft::device_span<label_t const>(frontier_vertex_labels->data(),
+                                                                frontier_vertex_labels->size()))
+          : std::nullopt,
         raft::device_span<vertex_t const>{level_result_dst_vectors.back().data(),
                                           level_result_dst_vectors.back().size()},
         frontier_vertex_labels
@@ -344,7 +341,6 @@ neighbor_sample_impl(raft::handle_t const& handle,
         prior_sources_behavior,
         dedupe_sources,
         do_expensive_check);
-
   }
 
   auto result_size = std::reduce(level_sizes.begin(), level_sizes.end());
