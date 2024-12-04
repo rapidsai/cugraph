@@ -60,7 +60,7 @@ void order_edge_based_on_dodg(raft::handle_t const& handle,
   std::optional<rmm::device_uvector<vertex_t>> cp_edgelist_srcs{std::nullopt};
   std::optional<rmm::device_uvector<vertex_t>> cp_edgelist_dsts{std::nullopt};
 
-  // FIXME: Minor comm is not working for all cases so I believe some edges a beyong
+  // FIXME: Minor comm is not working for all cases so I believe some edges a beyond
   // the partitioning range
   if constexpr (multi_gpu) {
     auto& comm                 = handle.get_comms();
@@ -98,6 +98,18 @@ void order_edge_based_on_dodg(raft::handle_t const& handle,
     cp_edgelist_srcs = std::move(tmp_srcs);
     cp_edgelist_dsts = std::move(tmp_dsts);
 
+    auto unique_pair_end = thrust::unique(
+      handle.get_thrust_policy(),
+      thrust::make_zip_iterator(cp_edgelist_srcs->begin(), cp_edgelist_dsts->begin()),
+      thrust::make_zip_iterator(cp_edgelist_srcs->end(), cp_edgelist_dsts->end()));
+
+    auto num_unique_pair = thrust::distance(
+      thrust::make_zip_iterator(cp_edgelist_srcs->begin(), cp_edgelist_dsts->begin()),
+      unique_pair_end);
+
+    cp_edgelist_srcs->resize(num_unique_pair, handle.get_stream());
+    cp_edgelist_dsts->resize(num_unique_pair, handle.get_stream());
+
     auto d_tx_counts = cugraph::groupby_and_count(
       thrust::make_zip_iterator(cp_edgelist_srcs->begin(), cp_edgelist_dsts->begin()),
       thrust::make_zip_iterator(cp_edgelist_srcs->end(), cp_edgelist_dsts->end()),
@@ -108,16 +120,16 @@ void order_edge_based_on_dodg(raft::handle_t const& handle,
 
     std::vector<size_t> h_tx_counts(d_tx_counts.size());
 
-    handle.sync_stream();
-
     raft::update_host(
       h_tx_counts.data(), d_tx_counts.data(), d_tx_counts.size(), handle.get_stream());
 
-    std::tie(srcs, rx_counts) = shuffle_values(
-      handle.get_comms(), cp_edgelist_srcs->begin(), h_tx_counts, handle.get_stream());
+    handle.sync_stream();
 
-    std::tie(dsts, std::ignore) = shuffle_values(
-      handle.get_comms(), cp_edgelist_dsts->begin(), h_tx_counts, handle.get_stream());
+    std::tie(srcs, rx_counts) =
+      shuffle_values(comm, cp_edgelist_srcs->begin(), h_tx_counts, handle.get_stream());
+
+    std::tie(dsts, std::ignore) =
+      shuffle_values(comm, cp_edgelist_dsts->begin(), h_tx_counts, handle.get_stream());
   }
 
   std::optional<rmm::device_uvector<bool>> edge_exists{std::nullopt};
@@ -133,35 +145,11 @@ void order_edge_based_on_dodg(raft::handle_t const& handle,
     std::tie(edge_exists, std::ignore) =
       shuffle_values(handle.get_comms(), edge_exists->begin(), rx_counts, handle.get_stream());
 
-    // The 'edge_exists' array is ordered based on 'cp_edgelist_srcs' where the edges where grouped,
-    // however it needs to match 'edgelist_srcs', hence re-order 'edge_exists' accordingly.
     thrust::sort_by_key(
       handle.get_thrust_policy(),
       thrust::make_zip_iterator(cp_edgelist_srcs->begin(), cp_edgelist_dsts->begin()),
       thrust::make_zip_iterator(cp_edgelist_srcs->end(), cp_edgelist_dsts->end()),
       edge_exists->begin());
-
-    auto num_unique_pair = thrust::unique_count(
-      handle.get_thrust_policy(),
-      thrust::make_zip_iterator(cp_edgelist_srcs->begin(), cp_edgelist_dsts->begin()),
-      thrust::make_zip_iterator(cp_edgelist_srcs->end(), cp_edgelist_dsts->end()));
-
-    rmm::device_uvector<vertex_t> tmp_srcs(num_unique_pair, handle.get_stream());
-    rmm::device_uvector<vertex_t> tmp_dsts(num_unique_pair, handle.get_stream());
-    rmm::device_uvector<bool> tmp_edge_exists(num_unique_pair, handle.get_stream());
-
-    thrust::reduce_by_key(
-      handle.get_thrust_policy(),
-      thrust::make_zip_iterator(cp_edgelist_srcs->begin(), cp_edgelist_dsts->begin()),
-      thrust::make_zip_iterator(cp_edgelist_srcs->end(), cp_edgelist_dsts->end()),
-      edge_exists->begin(),
-      thrust::make_zip_iterator(tmp_srcs.begin(), tmp_dsts.begin()),
-      tmp_edge_exists.begin(),
-      thrust::equal_to<thrust::tuple<vertex_t, vertex_t>>{});
-
-    cp_edgelist_srcs = std::move(tmp_srcs);
-    cp_edgelist_dsts = std::move(tmp_dsts);
-    edge_exists      = std::move(tmp_edge_exists);
 
     // Match DODG edges
     thrust::transform(
@@ -178,11 +166,8 @@ void order_edge_based_on_dodg(raft::handle_t const& handle,
         auto src = thrust::get<0>(edgelist_first[idx]);
         auto dst = thrust::get<1>(edgelist_first[idx]);
 
-        auto itr_pair = thrust::find(  // FIXME: replace by lower bound
-          thrust::seq,
-          cp_edgelist_first,
-          cp_edgelist_last,
-          thrust::make_tuple(src, dst));
+        auto itr_pair = thrust::lower_bound(
+          thrust::seq, cp_edgelist_first, cp_edgelist_last, thrust::make_tuple(src, dst));
 
         auto idx_pair = thrust::distance(cp_edgelist_first, itr_pair);
 
@@ -324,20 +309,12 @@ k_truss(raft::handle_t const& handle,
 
   std::optional<graph_t<vertex_t, edge_t, false, multi_gpu>> modified_graph{std::nullopt};
   std::optional<graph_view_t<vertex_t, edge_t, false, multi_gpu>> modified_graph_view{std::nullopt};
-  std::optional<graph_view_t<vertex_t, edge_t, false, multi_gpu>> undirected_graph_view{
-    std::nullopt};
   std::optional<rmm::device_uvector<vertex_t>> renumber_map{std::nullopt};
   std::optional<edge_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>, weight_t>>
     edge_weight{std::nullopt};
   std::optional<rmm::device_uvector<weight_t>> wgts{std::nullopt};
 
   cugraph::edge_bucket_t<vertex_t, void, true, multi_gpu, true> edgelist_dodg(handle);
-
-  cugraph::edge_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>, bool> dodg_mask(
-    handle, graph_view);
-
-  // Ideally, leverage the undirected graph derived from k-core
-  undirected_graph_view = graph_view;
 
   if (graph_view.count_self_loops(handle) > edge_t{0}) {
     auto [srcs, dsts] = extract_transform_e(handle,
@@ -432,68 +409,68 @@ k_truss(raft::handle_t const& handle,
 
   // 3. Keep only the edges from a low-degree vertex to a high-degree vertex.
 
-  {
-    auto cur_graph_view = modified_graph_view ? *modified_graph_view : graph_view;
+  auto cur_graph_view = modified_graph_view ? *modified_graph_view : graph_view;
 
-    auto vertex_partition_range_lasts =
-      renumber_map
-        ? std::make_optional<std::vector<vertex_t>>(cur_graph_view.vertex_partition_range_lasts())
-        : std::nullopt;
+  auto vertex_partition_range_lasts =
+    renumber_map
+      ? std::make_optional<std::vector<vertex_t>>(cur_graph_view.vertex_partition_range_lasts())
+      : std::nullopt;
 
-    auto out_degrees = cur_graph_view.compute_out_degrees(handle);
-    edge_src_property_t<decltype(cur_graph_view), edge_t> edge_src_out_degrees(handle,
-                                                                               cur_graph_view);
-    edge_dst_property_t<decltype(cur_graph_view), edge_t> edge_dst_out_degrees(handle,
-                                                                               cur_graph_view);
-    update_edge_src_property(
-      handle, cur_graph_view, out_degrees.begin(), edge_src_out_degrees.mutable_view());
-    update_edge_dst_property(
-      handle, cur_graph_view, out_degrees.begin(), edge_dst_out_degrees.mutable_view());
+  auto out_degrees = cur_graph_view.compute_out_degrees(handle);
+  edge_src_property_t<decltype(cur_graph_view), edge_t> edge_src_out_degrees(handle,
+                                                                             cur_graph_view);
+  edge_dst_property_t<decltype(cur_graph_view), edge_t> edge_dst_out_degrees(handle,
+                                                                             cur_graph_view);
+  update_edge_src_property(
+    handle, cur_graph_view, out_degrees.begin(), edge_src_out_degrees.mutable_view());
+  update_edge_dst_property(
+    handle, cur_graph_view, out_degrees.begin(), edge_dst_out_degrees.mutable_view());
 
-    rmm::device_uvector<vertex_t> srcs(0, handle.get_stream());
-    rmm::device_uvector<vertex_t> dsts(0, handle.get_stream());
+  rmm::device_uvector<vertex_t> srcs(0, handle.get_stream());
+  rmm::device_uvector<vertex_t> dsts(0, handle.get_stream());
 
-    edge_weight_view =
-      edge_weight ? std::make_optional((*edge_weight).view())
-                  : std::optional<edge_property_view_t<edge_t, weight_t const*>>{std::nullopt};
-    if (edge_weight_view) {
-      std::tie(srcs, dsts, wgts) = extract_transform_e(
-        handle,
-        cur_graph_view,
-        edge_src_out_degrees.view(),
-        edge_dst_out_degrees.view(),
-        *edge_weight_view,
-        extract_low_to_high_degree_weighted_edges_t<vertex_t, weight_t, edge_t>{});
-    } else {
-      std::tie(srcs, dsts) =
-        extract_transform_e(handle,
-                            cur_graph_view,
-                            edge_src_out_degrees.view(),
-                            edge_dst_out_degrees.view(),
-                            edge_dummy_property_t{}.view(),
-                            extract_low_to_high_degree_edges_t<vertex_t, edge_t>{});
-    }
-
-    cugraph::fill_edge_property(handle, cur_graph_view, dodg_mask.mutable_view(), bool{false});
-
-    // Masking edges not part of the DODG
-    edgelist_dodg.insert(srcs.begin(), srcs.end(), dsts.begin());
-
-    cugraph::transform_e(
+  edge_weight_view = edge_weight
+                       ? std::make_optional((*edge_weight).view())
+                       : std::optional<edge_property_view_t<edge_t, weight_t const*>>{std::nullopt};
+  if (edge_weight_view) {
+    std::tie(srcs, dsts, wgts) = extract_transform_e(
       handle,
       cur_graph_view,
-      edgelist_dodg,
-      cugraph::edge_src_dummy_property_t{}.view(),
-      cugraph::edge_dst_dummy_property_t{}.view(),
-      cugraph::edge_dummy_property_t{}.view(),
-      [] __device__(auto src, auto dst, thrust::nullopt_t, thrust::nullopt_t, thrust::nullopt_t) {
-        return true;
-      },
-      dodg_mask.mutable_view(),
-      false);
-
-    edgelist_dodg.clear();
+      edge_src_out_degrees.view(),
+      edge_dst_out_degrees.view(),
+      *edge_weight_view,
+      extract_low_to_high_degree_weighted_edges_t<vertex_t, weight_t, edge_t>{});
+  } else {
+    std::tie(srcs, dsts) =
+      extract_transform_e(handle,
+                          cur_graph_view,
+                          edge_src_out_degrees.view(),
+                          edge_dst_out_degrees.view(),
+                          edge_dummy_property_t{}.view(),
+                          extract_low_to_high_degree_edges_t<vertex_t, edge_t>{});
   }
+
+  cugraph::edge_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>, bool> dodg_mask(
+    handle, cur_graph_view);
+  cugraph::fill_edge_property(handle, cur_graph_view, dodg_mask.mutable_view(), bool{false});
+
+  // Masking edges not part of the DODG
+  edgelist_dodg.insert(srcs.begin(), srcs.end(), dsts.begin());
+
+  cugraph::transform_e(
+    handle,
+    cur_graph_view,
+    edgelist_dodg,
+    cugraph::edge_src_dummy_property_t{}.view(),
+    cugraph::edge_dst_dummy_property_t{}.view(),
+    cugraph::edge_dummy_property_t{}.view(),
+    [] __device__(auto src, auto dst, thrust::nullopt_t, thrust::nullopt_t, thrust::nullopt_t) {
+      return true;
+    },
+    dodg_mask.mutable_view(),
+    false);
+
+  edgelist_dodg.clear();
 
   // 4. Compute triangle count using nbr_intersection and unroll weak edges
 
@@ -822,11 +799,8 @@ k_truss(raft::handle_t const& handle,
                                                                      thrust::nullopt_t,
                                                                      thrust::nullopt_t,
                                                                      edge_t count) {
-          auto itr_pair = thrust::find(  // FIXME: Update to lowerbound
-            thrust::seq,
-            edge_buffer_first,
-            edge_buffer_last,
-            thrust::make_tuple(src, dst));
+          auto itr_pair = thrust::lower_bound(
+            thrust::seq, edge_buffer_first, edge_buffer_last, thrust::make_tuple(src, dst));
 
           auto idx_pair = thrust::distance(edge_buffer_first, itr_pair);
 
@@ -835,7 +809,7 @@ k_truss(raft::handle_t const& handle,
           return count;
         },
         edge_triangle_counts.mutable_view(),
-        true);
+        false);
 
       edgelist_weak.clear();
 
@@ -928,7 +902,7 @@ k_truss(raft::handle_t const& handle,
         return count == 0 ? false : true;
       },
       dodg_mask.mutable_view(),
-      true);
+      false);
 
     rmm::device_uvector<vertex_t> edgelist_srcs(0, handle.get_stream());
     rmm::device_uvector<vertex_t> edgelist_dsts(0, handle.get_stream());
