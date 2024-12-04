@@ -152,7 +152,7 @@ jobs:
       build_type: pull-request
       script: ci/test_wheel_pylibcugraph.sh
   wheel-build-cugraph:
-    needs: wheel-tests-pylibcugraph
+    needs: wheel-build-pylibcugraph
     secrets: inherit
     uses: rapidsai/shared-workflows/.github/workflows/wheels-build.yaml@branch-25.02
     with:
