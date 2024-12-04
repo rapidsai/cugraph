@@ -46,6 +46,21 @@ case "${RAPIDS_CUDA_VERSION}" in
     ;;
 esac
 
+case "${package_dir}" in
+  python/pylibcugraph)
+    EXCLUDE_ARGS+=(
+      --exclude "libcugraph_c.so"
+      --exclude "libcugraph.so"
+    )
+  ;;
+  python/cugraph)
+    EXCLUDE_ARGS+=(
+      --exclude "libcugraph_c.so"
+      --exclude "libcugraph.so"
+    )
+  ;;
+esac
+
 mkdir -p final_dist
 python -m auditwheel repair -w final_dist "${EXCLUDE_ARGS[@]}" dist/*
 RAPIDS_PY_WHEEL_NAME="${package_name}_${RAPIDS_PY_CUDA_SUFFIX}" rapids-upload-wheels-to-s3 "${package_type}" final_dist
