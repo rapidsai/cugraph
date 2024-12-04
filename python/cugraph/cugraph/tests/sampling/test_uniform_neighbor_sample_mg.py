@@ -131,7 +131,6 @@ def input_combo(request):
 # Tests
 # =============================================================================
 @pytest.mark.mg
-@pytest.mark.cugraph_ops
 def test_mg_uniform_neighbor_sample_simple(dask_client, input_combo):
 
     dg = input_combo["MGGraph"]
@@ -220,7 +219,6 @@ def test_mg_uniform_neighbor_sample_simple(dask_client, input_combo):
 
 
 @pytest.mark.mg
-@pytest.mark.cugraph_ops
 @pytest.mark.parametrize("directed", IS_DIRECTED)
 def test_mg_uniform_neighbor_sample_tree(dask_client, directed):
 
@@ -286,7 +284,6 @@ def test_mg_uniform_neighbor_sample_tree(dask_client, directed):
 
 @pytest.mark.mg
 @pytest.mark.skipif(is_single_gpu(), reason="FIXME: MG test fails on single-GPU")
-@pytest.mark.cugraph_ops
 def test_mg_uniform_neighbor_sample_unweighted(dask_client):
     df = cudf.DataFrame(
         {
@@ -321,7 +318,6 @@ def test_mg_uniform_neighbor_sample_unweighted(dask_client):
 
 @pytest.mark.mg
 @pytest.mark.skipif(is_single_gpu(), reason="FIXME: MG test fails on single-GPU")
-@pytest.mark.cugraph_ops
 def test_mg_uniform_neighbor_sample_ensure_no_duplicates(dask_client):
     # See issue #2760
     # This ensures that the starts are properly distributed
@@ -347,7 +343,6 @@ def test_mg_uniform_neighbor_sample_ensure_no_duplicates(dask_client):
 
 
 @pytest.mark.mg
-@pytest.mark.cugraph_ops
 @pytest.mark.parametrize("return_offsets", [True, False])
 def test_uniform_neighbor_sample_edge_properties(dask_client, return_offsets):
     n_workers = len(dask_client.scheduler_info()["workers"])
