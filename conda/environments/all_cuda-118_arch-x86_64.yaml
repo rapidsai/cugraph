@@ -71,6 +71,5 @@ dependencies:
 - torchmetrics
 - ucx-proc=*=gpu
 - ucx-py==0.42.*,>=0.0.0a0
-- wget
 - wheel
 name: all_cuda-118_arch-x86_64
