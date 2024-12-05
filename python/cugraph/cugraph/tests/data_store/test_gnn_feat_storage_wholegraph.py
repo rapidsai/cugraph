@@ -15,6 +15,8 @@ import pytest
 import numpy as np
 import os
 
+from cuda import cudart
+
 from cugraph.gnn import FeatureStore
 
 from cugraph.utilities.utils import import_optional, MissingModule
@@ -66,6 +68,9 @@ def runtest(rank: int, world_size: int):
 @pytest.mark.skipif(
     isinstance(pylibwholegraph, MissingModule), reason="wholegraph not available"
 )
+@pytest.mark.skipif(
+    cudart.cudaRuntimeGetVersion()[1] < 11080, reason="not compatible with CUDA < 11.8"
+)
 def test_feature_storage_wholegraph_backend():
     world_size = torch.cuda.device_count()
     print("gpu count:", world_size)
@@ -80,6 +85,9 @@ def test_feature_storage_wholegraph_backend():
 @pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
 @pytest.mark.skipif(
     isinstance(pylibwholegraph, MissingModule), reason="wholegraph not available"
+)
+@pytest.mark.skipif(
+    cudart.cudaRuntimeGetVersion()[1] < 11080, reason="not compatible with CUDA < 11.8"
 )
 def test_feature_storage_wholegraph_backend_mg():
     world_size = torch.cuda.device_count()
