@@ -34,8 +34,7 @@ case "${RAPIDS_CUDA_VERSION}" in
   ;;
 esac
 
-export SKBUILD_CMAKE_ARGS="-DDETECT_CONDA_ENV=OFF;-DFIND_CUGRAPH_CPP=OFF${EXTRA_CMAKE_ARGS}"
-export SKBUILD_BUILD_TOOL_ARGS="-j${PARALLEL_LEVEL};-l${PARALLEL_LEVEL}"
+export SKBUILD_CMAKE_ARGS="-DDETECT_CONDA_ENV=OFF${EXTRA_CMAKE_ARGS}"
 
 ./ci/build_wheel.sh pylibcugraph ${package_dir} python
 ./ci/validate_wheel.sh ${package_dir} final_dist

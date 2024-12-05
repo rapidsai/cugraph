@@ -10,6 +10,7 @@ RAPIDS_CUDA_MAJOR="${RAPIDS_CUDA_VERSION%%.*}"
 
 # some packages are much larger on CUDA 11 than on CUDA 12
 if [[ "${package_dir}" == "python/libcugraph" ]]; then
+    # TODO: before merging, modify these thresholds
     if [[ "${RAPIDS_CUDA_MAJOR}" == "11" ]]; then
         PYDISTCHECK_ARGS=(
             --max-allowed-size-compressed '1.5G'
