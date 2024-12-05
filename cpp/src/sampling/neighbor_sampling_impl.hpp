@@ -109,9 +109,10 @@ neighbor_sample_impl(raft::handle_t const& handle,
 
   label_t num_unique_labels = 0;
 
+  std::optional<rmm::device_uvector<label_t>> cp_starting_vertex_labels{std::nullopt};
+
   if (starting_vertex_labels) {
     // Find the number of unique lables
-    std::optional<rmm::device_uvector<label_t>> cp_starting_vertex_labels{std::nullopt};
     cp_starting_vertex_labels =
       rmm::device_uvector<label_t>(starting_vertex_labels->size(), handle.get_stream());
 
@@ -346,9 +347,10 @@ neighbor_sample_impl(raft::handle_t const& handle,
         starting_vertex_labels,
         raft::device_span<vertex_t const>{level_result_dst_vectors.back().data(),
                                           level_result_dst_vectors.back().size()},
-        frontier_vertex_labels ? std::make_optional(raft::device_span<label_t const>(
-                                   level_result_label->data(), level_result_label->size()))
-                               : std::nullopt,
+        frontier_vertex_labels
+          ? std::make_optional(raft::device_span<label_t const>(
+              level_result_label_vectors->back().data(), level_result_label_vectors->back().size()))
+          : std::nullopt,
         std::move(vertex_used_as_source),
         modified_graph_view.local_vertex_partition_view(),
         vertex_partition_range_lasts,
@@ -497,8 +499,16 @@ neighbor_sample_impl(raft::handle_t const& handle,
                                                                  label_to_output_comm_rank);
 
   if (result_labels && (result_offsets->size() != num_unique_labels + 1)) {
-    result_offsets = rmm::device_uvector<size_t>(num_unique_labels + 1, handle.get_stream());
+    // If there are missing labels, still inlude it in the result_labels
+    result_labels = std::move(*cp_starting_vertex_labels);
+    auto unique_labels_end =
+      thrust::unique(handle.get_thrust_policy(), result_labels->begin(), result_labels->end());
 
+    auto num_unique_labels = thrust::distance(result_labels->begin(), unique_labels_end);
+
+    result_labels->resize(num_unique_labels, handle.get_stream());
+
+    result_offsets->resize(num_unique_labels + 1, handle.get_stream());
     // Sort labels
     thrust::sort(handle.get_thrust_policy(), cp_result_labels->begin(), cp_result_labels->end());
 

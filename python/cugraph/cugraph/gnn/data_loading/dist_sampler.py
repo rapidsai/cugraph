@@ -184,9 +184,6 @@ class DistSampler:
             ]
         ).cumsum(-1)
 
-        print(current_seeds)
-        print(input_offsets)
-
         minibatch_dict = self.sample_batches(
             seeds=current_seeds,
             batch_id_offsets=input_offsets,
@@ -210,7 +207,7 @@ class DistSampler:
                     (
                         minibatch_dict,
                         batch_id_start,
-                        batch_id_start + input_offsets.numel() - 1,
+                        batch_id_start + input_offsets.numel() - 2,
                     )
                 ]
             )
@@ -421,7 +418,7 @@ class DistSampler:
             current_seeds = torch.concat([a[0] for a, _ in u])
             current_inv = torch.concat([a[1][i] for a, i in u])
             current_batch_offsets = torch.tensor(
-                [a[0].numel() for (a, _) in u], dtype=torch.int64
+                [a[0].numel() for (a, _) in u], device="cuda", dtype=torch.int64
             )
         else:
             current_seeds = torch.tensor([], device="cuda", dtype=torch.int64)
@@ -438,16 +435,17 @@ class DistSampler:
         leftover_seeds, lui = leftover_seeds.unique_consecutive(return_inverse=True)
         leftover_inv = lui[lz]
 
-        current_seeds = torch.concat([current_seeds, leftover_seeds])
-        current_inv = torch.concat([current_inv, leftover_inv])
-        current_batch_offsets = torch.concat(
-            [
-                current_batch_offsets,
-                torch.tensor(
-                    [leftover_seeds.numel()], device="cuda", dtype=torch.int64
-                ),
-            ]
-        )
+        if leftover_seeds.numel() > 0:
+            current_seeds = torch.concat([current_seeds, leftover_seeds])
+            current_inv = torch.concat([current_inv, leftover_inv])
+            current_batch_offsets = torch.concat(
+                [
+                    current_batch_offsets,
+                    torch.tensor(
+                        [leftover_seeds.numel()], device="cuda", dtype=torch.int64
+                    ),
+                ]
+            )
         del leftover_seeds
         del lz
         del lui
@@ -486,7 +484,7 @@ class DistSampler:
                     (
                         minibatch_dict,
                         batch_id_start,
-                        batch_id_start + current_batch_offsets.numel() - 1,
+                        batch_id_start + current_batch_offsets.numel() - 2,
                     )
                 ]
             )
@@ -664,7 +662,6 @@ class NeighborSampler(DistSampler):
             self.__func_kwargs["vertex_type_offsets"] = cupy.asarray(
                 vertex_type_offsets
             )
-            print("selected heterogeneous sampling")
         else:
             self.__func = (
                 pylibcugraph.homogeneous_biased_neighbor_sample
@@ -739,11 +736,7 @@ class NeighborSampler(DistSampler):
             "random_state": random_state + rank,
         }
         kwargs.update(self.__func_kwargs)
-
-        print(kwargs)
-
         sampling_results_dict = self.__func(**kwargs)
-        print(sampling_results_dict)
 
         sampling_results_dict["fanout"] = cupy.array(self.__fanout, dtype="int32")
         return sampling_results_dict
