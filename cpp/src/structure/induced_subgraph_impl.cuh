@@ -15,8 +15,6 @@
  */
 #pragma once
 
-// #define TIMING
-
 #include "prims/extract_transform_v_frontier_outgoing_e.cuh"
 #include "prims/vertex_frontier.cuh"
 #include "structure/detail/structure_utils.cuh"
@@ -31,9 +29,6 @@
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/misc_utils.cuh>
 #include <cugraph/vertex_partition_device_view.cuh>
-#ifdef TIMING
-#include <cugraph/utilities/high_res_timer.hpp>
-#endif
 
 #include <raft/core/handle.hpp>
 
@@ -127,10 +122,6 @@ extract_induced_subgraphs(
   raft::device_span<vertex_t const> subgraph_vertices,
   bool do_expensive_check)
 {
-#ifdef TIMING
-  HighResTimer hr_timer;
-  hr_timer.start("extract_induced_subgraphs");
-#endif
   // 1. check input arguments
 
   if (do_expensive_check) {
@@ -281,10 +272,6 @@ extract_induced_subgraphs(
                                            true,
                                            handle.get_stream());
 
-#ifdef TIMING
-  hr_timer.stop();
-  hr_timer.display_and_clear(std::cout);
-#endif
   return std::make_tuple(std::move(edge_majors),
                          std::move(edge_minors),
                          std::move(edge_weights),
