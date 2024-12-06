@@ -61,12 +61,21 @@ for PROJECT in libcugraphops libwholegraph; do
 done
 
 rapids-logger "Build Doxygen docs"
-pushd cpp
+pushd cpp/doxygen
 doxygen Doxyfile
+export XML_DIR_LIBCUGRAPH="$(pwd)/xml"
 mkdir -p "${RAPIDS_DOCS_DIR}/libcugraph/xml_tar"
 tar -czf "${RAPIDS_DOCS_DIR}/libcugraph/xml_tar"/xml.tar.gz -C xml .
 popd
 
-rapids-logger "Output temp dir: ${RAPIDS_DOCS_DIR}"
+rapids-logger "Build Python docs"
+pushd docs/cugraph
+# Ensure cugraph is importable, since sphinx does not report details about this
+# type of failure well.
+python -c "import cugraph; print(f'Using cugraph: {cugraph}')"
+sphinx-build -b dirhtml source _html
+mkdir -p "${RAPIDS_DOCS_DIR}/cugraph/html"
+mv _html/* "${RAPIDS_DOCS_DIR}/cugraph/html"
+popd
 
 rapids-upload-docs
