@@ -71,6 +71,9 @@ def runtest(rank: int, world_size: int):
 @pytest.mark.sg
 @pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
 @pytest.mark.skipif(
+    isinstance(pylibwholegraph, MissingModule), reason="wholegraph not available"
+)
+@pytest.mark.skipif(
     get_cudart_version() < 11080, reason="not compatible with CUDA < 11.8"
 )
 def test_feature_storage_wholegraph_backend():
