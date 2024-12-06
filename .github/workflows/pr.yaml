@@ -142,9 +142,6 @@ jobs:
     with:
       build_type: pull-request
       script: ci/build_wheel_pylibcugraph.sh
-      extra-repo: rapidsai/cugraph-ops
-      extra-repo-sha: branch-25.02
-      extra-repo-deploy-key: CUGRAPH_OPS_SSH_PRIVATE_DEPLOY_KEY
       node_type: cpu32
   wheel-tests-pylibcugraph:
     needs: [wheel-build-pylibcugraph, changed-files]
@@ -161,9 +158,6 @@ jobs:
     with:
       build_type: pull-request
       script: ci/build_wheel_cugraph.sh
-      extra-repo: rapidsai/cugraph-ops
-      extra-repo-sha: branch-25.02
-      extra-repo-deploy-key: CUGRAPH_OPS_SSH_PRIVATE_DEPLOY_KEY
   wheel-tests-cugraph:
     needs: [wheel-build-cugraph, changed-files]
     secrets: inherit
@@ -180,7 +174,6 @@ jobs:
       arch: '["amd64"]'
       cuda: '["12.5"]'
       node_type: cpu32
-      extra-repo-deploy-key: CUGRAPH_OPS_SSH_PRIVATE_DEPLOY_KEY
       build_command: |
         sccache -z;
         build-all --verbose -j$(nproc --ignore=1) -DBUILD_CUGRAPH_MG_TESTS=ON;
