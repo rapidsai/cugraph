@@ -43,7 +43,7 @@ jobs:
       TELEMETRY_ENABLED: '1'
     steps:
       - name: Telemetry setup
-        uses: rapidsai/shared-actions/telemetry-dispatch-stash-base-env-vars@main
+        uses: rapidsai/shared-actions/telemetry-dispatch-stash-base-env-vars@empty-certs
 
   changed-files:
     secrets: inherit
