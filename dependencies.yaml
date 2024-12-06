@@ -81,6 +81,7 @@ files:
     includes:
       - common_build
       - depends_on_libcugraph
+      - depends_on_librmm
       - depends_on_rmm
       - depends_on_pylibraft
       - depends_on_pylibcugraph
@@ -151,6 +152,7 @@ files:
     includes:
       - common_build
       - depends_on_libcugraph
+      - depends_on_librmm
       - depends_on_rmm
       - depends_on_pylibraft
   py_run_pylibcugraph:
