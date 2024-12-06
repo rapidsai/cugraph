@@ -134,6 +134,7 @@ files:
     extras:
       table: project
     includes:
+      - cuda_wheels
       - depends_on_rmm
   py_build_pylibcugraph:
     output: pyproject
@@ -161,7 +162,6 @@ files:
     extras:
       table: project
     includes:
-      - cuda_wheels
       - depends_on_libcugraph
       - depends_on_rmm
       - depends_on_pylibraft
