@@ -33,14 +33,18 @@ jobs:
     if: always()
     with:
       needs: ${{ toJSON(needs) }}
+
   telemetry-setup:
     runs-on: ubuntu-latest
     continue-on-error: true
     env:
-        OTEL_SERVICE_NAME: "pr-cugraph"
+      OTEL_SERVICE_NAME: "pr-cugraph"
+      SHARED_ACTIONS_REF: empty-certs
+      TELEMETRY_ENABLED: '1'
     steps:
       - name: Telemetry setup
         uses: rapidsai/shared-actions/telemetry-dispatch-stash-base-env-vars@main
+
   changed-files:
     secrets: inherit
     needs: telemetry-setup
@@ -178,17 +182,14 @@ jobs:
         sccache -z;
         build-all --verbose -j$(nproc --ignore=1) -DBUILD_CUGRAPH_MG_TESTS=ON;
         sccache -s;
+
   telemetry-summarize:
-    runs-on: ubuntu-latest
+    runs-on: linux-amd64-cpu4
     needs: pr-builder
     if: always()
     continue-on-error: true
+    env:
+      SHARED_ACTIONS_REF: empty-certs
     steps:
-      - name: Load stashed telemetry env vars
-        uses: rapidsai/shared-actions/telemetry-dispatch-load-base-env-vars@main
-        with:
-            load_service_name: true
       - name: Telemetry summarize
-        uses: rapidsai/shared-actions/telemetry-dispatch-write-summary@main
-        with:
-          cert_concat: "${{ secrets.OTEL_EXPORTER_OTLP_CA_CERTIFICATE }};${{ secrets.OTEL_EXPORTER_OTLP_CLIENT_CERTIFICATE }};${{ secrets.OTEL_EXPORTER_OTLP_CLIENT_KEY }}"
+        uses: rapidsai/shared-actions/telemetry-dispatch-summarize@empty-certs
