@@ -126,7 +126,6 @@ files:
       key: requires
     includes:
       - common_build
-      - depends_on_pylibraft
       - depends_on_librmm
   py_run_libcugraph:
     output: pyproject
