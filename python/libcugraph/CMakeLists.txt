@@ -34,9 +34,6 @@ endif()
 
 unset(cugraph_FOUND)
 
-# Find Python early so that later commands can use it
-find_package(Python 3.10 REQUIRED COMPONENTS Interpreter)
-
 set(BUILD_TESTS OFF)
 set(BUILD_CUGRAPH_MG_TESTS OFF)
 set(CMAKE_CUDA_LINEINFO OFF)
@@ -45,7 +42,7 @@ set(CUDA_STATIC_MATH_LIBRARIES ON)
 set(USE_RAFT_STATIC ON)
 set(CUGRAPH_COMPILE_RAFT_LIB ON)
 
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/lib)
+# set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/lib)
 
 find_package(CUDAToolkit REQUIRED)
 
