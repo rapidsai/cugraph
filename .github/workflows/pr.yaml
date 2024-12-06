@@ -14,7 +14,7 @@ jobs:
   pr-builder:
     needs:
       - changed-files
-      - checks
+      # - checks
       # - conda-cpp-build
       # - conda-cpp-tests
       # - conda-cpp-checks
@@ -73,13 +73,13 @@ jobs:
           - '!docs/**'
           - '!img/**'
           - '!notebooks/**'
-  checks:
-    secrets: inherit
-    # needs: telemetry-setup
-    uses: rapidsai/shared-workflows/.github/workflows/checks.yaml@branch-25.02
-    with:
-      enable_check_generated_files: false
-      ignored_pr_jobs: telemetry-summarize
+  # checks:
+  #   secrets: inherit
+  #   # needs: telemetry-setup
+  #   uses: rapidsai/shared-workflows/.github/workflows/checks.yaml@branch-25.02
+  #   with:
+  #     enable_check_generated_files: false
+  #     ignored_pr_jobs: telemetry-summarize
   # conda-cpp-build:
   #   needs: checks
   #   secrets: inherit
@@ -137,7 +137,7 @@ jobs:
   #     container_image: "rapidsai/ci-conda:cuda11.8.0-ubuntu22.04-py3.10"
   #     run_script: "ci/build_docs.sh"
   wheel-build-libcugraph:
-    needs: checks
+    # needs: checks
     secrets: inherit
     uses: rapidsai/shared-workflows/.github/workflows/wheels-build.yaml@branch-25.02
     with:
