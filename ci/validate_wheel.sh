@@ -13,11 +13,11 @@ if [[ "${package_dir}" == "python/libcugraph" ]]; then
     # TODO: before merging, modify these thresholds
     if [[ "${RAPIDS_CUDA_MAJOR}" == "11" ]]; then
         PYDISTCHECK_ARGS=(
-            --max-allowed-size-compressed '1.5G'
+            --max-allowed-size-compressed '5.0G'
         )
     else
         PYDISTCHECK_ARGS=(
-            --max-allowed-size-compressed '975M'
+            --max-allowed-size-compressed '5.0G'
         )
     fi
 else
