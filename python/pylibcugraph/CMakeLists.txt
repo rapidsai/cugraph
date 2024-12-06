@@ -32,13 +32,7 @@ project(
 option(FIND_CUGRAPH_CPP "Search for existing CUGRAPH C++ installations before defaulting to local files"
        OFF
 )
-option(USE_CUGRAPH_OPS "Enable all functions that call cugraph-ops" ON)
 option(USE_CUDA_MATH_WHEELS "Use the CUDA math wheels instead of the system libraries" OFF)
-
-if(NOT USE_CUGRAPH_OPS)
-    message(STATUS "Disabling libcugraph functions that reference cugraph-ops")
-    add_compile_definitions(NO_CUGRAPH_OPS)
-endif()
 
 # If the user requested it we attempt to find CUGRAPH.
 if(FIND_CUGRAPH_CPP)
@@ -54,14 +48,10 @@ if (NOT cugraph_FOUND)
 
   set(BUILD_TESTS OFF)
   set(BUILD_CUGRAPH_MG_TESTS OFF)
-  set(BUILD_CUGRAPH_OPS_CPP_TESTS OFF)
   set(CUDA_STATIC_RUNTIME ON)
   set(CUDA_STATIC_MATH_LIBRARIES ON)
   set(USE_RAFT_STATIC ON)
   set(CUGRAPH_COMPILE_RAFT_LIB ON)
-  set(CUGRAPH_USE_CUGRAPH_OPS_STATIC ON)
-  set(CUGRAPH_EXCLUDE_CUGRAPH_OPS_FROM_ALL ON)
-  set(ALLOW_CLONE_CUGRAPH_OPS ON)
 
   if(CUDAToolkit_VERSION VERSION_GREATER_EQUAL 12.0)
     set(CUDA_STATIC_MATH_LIBRARIES OFF)

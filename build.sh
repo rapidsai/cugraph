@@ -29,8 +29,6 @@ VALIDARGS="
    pylibcugraph
    cugraph
    cugraph-service
-   cugraph-pyg
-   cugraph-dgl
    cpp-mgtests
    cpp-mtmgtests
    docs
@@ -56,8 +54,6 @@ HELP="$0 [<target> ...] [<flag> ...]
    pylibcugraph               - build the pylibcugraph Python package
    cugraph                    - build the cugraph Python package
    cugraph-service            - build the cugraph-service_client and cugraph-service_server Python package
-   cugraph-pyg                - build the cugraph-pyg Python package
-   cugraph-dgl                - build the cugraph-dgl extensions for DGL
    cpp-mgtests                - build libcugraph and libcugraph_etl MG tests. Builds MPI communicator, adding MPI as a dependency.
    cpp-mtmgtests              - build libcugraph MTMG tests. Adds UCX as a dependency (temporary).
    docs                       - build the docs
@@ -84,12 +80,10 @@ LIBCUGRAPH_ETL_BUILD_DIR=${LIBCUGRAPH_ETL_BUILD_DIR:=${REPODIR}/cpp/libcugraph_e
 CUGRAPH_SERVICE_BUILD_DIRS="${REPODIR}/python/cugraph-service/server/build
                             ${REPODIR}/python/cugraph-service/client/build
 "
-CUGRAPH_DGL_BUILD_DIR=${REPODIR}/python/cugraph-dgl/build
 
 BUILD_DIRS="${LIBCUGRAPH_BUILD_DIR}
             ${LIBCUGRAPH_ETL_BUILD_DIR}
             ${CUGRAPH_SERVICE_BUILD_DIRS}
-            ${CUGRAPH_DGL_BUILD_DIR}
 "
 
 # Set defaults for vars modified by flags to this script
@@ -325,24 +319,6 @@ if hasArg cugraph-service || hasArg all; then
     fi
 fi
 
-# Build and install the cugraph-pyg Python package
-if hasArg cugraph-pyg || hasArg all; then
-    if hasArg --clean; then
-        cleanPythonDir ${REPODIR}/python/cugraph-pyg
-    else
-        python ${PYTHON_ARGS_FOR_INSTALL} ${REPODIR}/python/cugraph-pyg
-    fi
-fi
-
-# Install the cugraph-dgl extensions for DGL
-if hasArg cugraph-dgl || hasArg all; then
-    if hasArg --clean; then
-        cleanPythonDir ${REPODIR}/python/cugraph-dgl
-    else
-        python ${PYTHON_ARGS_FOR_INSTALL} ${REPODIR}/python/cugraph-dgl
-    fi
-fi
-
 # Build the docs
 if hasArg docs || hasArg all; then
     if [ ! -d ${LIBCUGRAPH_BUILD_DIR} ]; then
@@ -355,17 +331,17 @@ if hasArg docs || hasArg all; then
               ${CMAKE_VERBOSE_OPTION}
     fi
 
-    for PROJECT in libcugraphops libwholegraph; do
-        XML_DIR="${REPODIR}/docs/cugraph/${PROJECT}"
-        rm -rf "${XML_DIR}"
-        mkdir -p "${XML_DIR}"
-        export XML_DIR_${PROJECT^^}="$XML_DIR"
+    # for PROJECT in libwholegraph; do
+    #     XML_DIR="${REPODIR}/docs/cugraph/${PROJECT}"
+    #     rm -rf "${XML_DIR}"
+    #     mkdir -p "${XML_DIR}"
+    #     export XML_DIR_${PROJECT^^}="$XML_DIR"
 
-        echo "downloading xml for ${PROJECT} into ${XML_DIR}. Environment variable XML_DIR_${PROJECT^^} is set to ${XML_DIR}"
-        curl -O "https://d1664dvumjb44w.cloudfront.net/${PROJECT}/xml_tar/${RAPIDS_VERSION}/xml.tar.gz"
-        tar -xzf xml.tar.gz -C "${XML_DIR}"
-        rm "./xml.tar.gz"
-    done
+    #     echo "downloading xml for ${PROJECT} into ${XML_DIR}. Environment variable XML_DIR_${PROJECT^^} is set to ${XML_DIR}"
+    #     curl -O "https://d1664dvumjb44w.cloudfront.net/${PROJECT}/xml_tar/${RAPIDS_VERSION}/xml.tar.gz"
+    #     tar -xzf xml.tar.gz -C "${XML_DIR}"
+    #     rm "./xml.tar.gz"
+    # done
 
     cd ${LIBCUGRAPH_BUILD_DIR}
     cmake --build "${LIBCUGRAPH_BUILD_DIR}" -j${PARALLEL_LEVEL} --target docs_cugraph ${VERBOSE_FLAG}

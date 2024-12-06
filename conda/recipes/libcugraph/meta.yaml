@@ -69,7 +69,6 @@ requirements:
     - cuda-version ={{ cuda_version }}
     - doxygen {{ doxygen_version }}
     - libcudf ={{ minor_version }}
-    - libcugraphops ={{ minor_version }}
     - libraft ={{ minor_version }}
     - libraft-headers ={{ minor_version }}
     - librmm ={{ minor_version }}
@@ -114,7 +113,6 @@ outputs:
         - libcusolver
         - libcusparse
        {% endif %}
-        - libcugraphops ={{ minor_version }}
         - libraft ={{ minor_version }}
         - libraft-headers ={{ minor_version }}
         - librmm ={{ minor_version }}

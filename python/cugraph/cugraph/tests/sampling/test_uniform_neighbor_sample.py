@@ -130,7 +130,6 @@ def simple_unweighted_input_expected_output(request):
 # Tests
 # =============================================================================
 @pytest.mark.sg
-@pytest.mark.cugraph_ops
 def test_uniform_neighbor_sample_simple(input_combo):
 
     G = input_combo["Graph"]
@@ -229,7 +228,6 @@ def test_uniform_neighbor_sample_simple(input_combo):
 
 
 @pytest.mark.sg
-@pytest.mark.cugraph_ops
 @pytest.mark.parametrize("directed", IS_DIRECTED)
 def test_uniform_neighbor_sample_tree(directed):
 
@@ -301,7 +299,6 @@ def test_uniform_neighbor_sample_tree(directed):
 
 
 @pytest.mark.sg
-@pytest.mark.cugraph_ops
 def test_uniform_neighbor_sample_unweighted(simple_unweighted_input_expected_output):
     test_data = simple_unweighted_input_expected_output
 
@@ -322,7 +319,6 @@ def test_uniform_neighbor_sample_unweighted(simple_unweighted_input_expected_out
 
 
 @pytest.mark.sg
-@pytest.mark.cugraph_ops
 @pytest.mark.parametrize("return_offsets", [True, False])
 @pytest.mark.parametrize("include_hop_column", [True, False])
 def test_uniform_neighbor_sample_edge_properties(return_offsets, include_hop_column):

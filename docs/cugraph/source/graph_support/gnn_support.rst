@@ -8,5 +8,4 @@ Graph Neural Network Support
 
    PyG_support.md
    DGL_support.md
-   cugraphops_support.rst
    wholegraph_support.md
