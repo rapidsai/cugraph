@@ -143,10 +143,10 @@ class edge_partition_edge_property_device_view_t {
       auto mask = cugraph::packed_bool_mask(offset);
       uint32_t old{};
       if (compare == val) {
-        old = word.load(cuda::std::meory_order_relaxed);
+        old = word.load(cuda::std::memory_order_relaxed);
       } else {
-        old = val ? world.fetch_or(mask, cuda::std::meory_order_relaxed)
-                  : world.fetch_and(~mask, cuda::std::meory_order_relaxed);
+        old = val ? word.fetch_or(mask, cuda::std::memory_order_relaxed)
+                  : word.fetch_and(~mask, cuda::std::memory_order_relaxed);
       }
       return static_cast<bool>(old & mask);
     } else {
