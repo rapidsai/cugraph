@@ -145,9 +145,16 @@ class edge_partition_endpoint_property_device_view_t {
     auto val_offset = value_offset(offset);
     if constexpr (has_packed_bool_element) {
       static_assert(is_packed_bool, "unimplemented for thrust::tuple types.");
+      cuda::atomic_ref<uint32_t, cuda::thread_scope_device> word(
+        *(value_first_ + cugraph::packed_bool_offset(val_offset)));
       auto mask = cugraph::packed_bool_mask(val_offset);
-      auto old  = val ? atomicOr(value_first_ + cugraph::packed_bool_offset(val_offset), mask)
-                      : atomicAnd(value_first_ + cugraph::packed_bool_offset(val_offset), ~mask);
+      uint32_t old{};
+      if (compare == val) {
+        old = word.load(cuda::std::memory_order_relaxed);
+      } else {
+        old = val ? word.fetch_or(mask, cuda::std::memory_order_relaxed)
+                  : word.fetch_and(~mask, cuda::std::memory_order_relaxed);
+      }
       return static_cast<bool>(old & mask);
     } else {
       return cugraph::elementwise_atomic_cas(value_first_ + val_offset, compare, val);
