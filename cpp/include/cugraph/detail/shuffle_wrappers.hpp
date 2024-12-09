@@ -36,6 +36,7 @@ namespace detail {
  * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
  * @tparam weight_t Type of edge weights. Needs to be a floating point type.
  * @tparam edge_type_t Type of edge type identifiers. Needs to be an integral type.
+ * @tparam edge_time_t The type of the edge time stamp
  *
  * @param[in] handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator,
  * and handles to various CUDA libraries) to run graph algorithms.
@@ -47,16 +48,24 @@ namespace detail {
  * @param[in] weights Optional vector of vertex pair weight values.
  * @param[in] edge_ids Optional vector of vertex pair edge id values.
  * @param[in] edge_types Optional vector of vertex pair edge type values.
+ * @param[in] edge_start_times Optional vector of vertex pair edge start time values.
+ * @param[in] edge_end_times Optional vector of vertex pair edge end time values.
  *
  * @return Tuple of vectors storing shuffled major vertices, minor vertices and optional weights,
  * edge ids and edge types
  */
-template <typename vertex_t, typename edge_t, typename weight_t, typename edge_type_id_t>
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          typename edge_type_t,
+          typename edge_time_t>
 std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<weight_t>>,
            std::optional<rmm::device_uvector<edge_t>>,
-           std::optional<rmm::device_uvector<edge_type_id_t>>,
+           std::optional<rmm::device_uvector<edge_type_t>>,
+           std::optional<rmm::device_uvector<edge_time_t>>,
+           std::optional<rmm::device_uvector<edge_time_t>>,
            std::vector<size_t>>
 shuffle_ext_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning(
   raft::handle_t const& handle,
@@ -64,7 +73,9 @@ shuffle_ext_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning(
   rmm::device_uvector<vertex_t>&& minors,
   std::optional<rmm::device_uvector<weight_t>>&& weights,
   std::optional<rmm::device_uvector<edge_t>>&& edge_ids,
-  std::optional<rmm::device_uvector<edge_type_id_t>>&& edge_types);
+  std::optional<rmm::device_uvector<edge_type_t>>&& edge_types,
+  std::optional<rmm::device_uvector<edge_time_t>>&& edge_start_times,
+  std::optional<rmm::device_uvector<edge_time_t>>&& edge_end_times);
 
 /**
  * @brief Shuffle internal (i.e. renumbered) vertex pairs (which can be edge end points) to their
@@ -74,6 +85,7 @@ shuffle_ext_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning(
  * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
  * @tparam weight_t Type of edge weights. Needs to be a floating point type.
  * @tparam edge_type_t Type of edge type identifiers. Needs to be an integral type.
+ * @tparam edge_time_t Type of edge time. Needs to be an integral type.
  *
  * @param[in] handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator,
  * and handles to various CUDA libraries) to run graph algorithms.
@@ -85,6 +97,8 @@ shuffle_ext_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning(
  * @param[in] weights Optional vector of vertex pair weight values.
  * @param[in] edge_ids Optional vector of vertex pair edge id values.
  * @param[in] edge_types Optional vector of vertex pair edge type values.
+ * @param[in] edge_start_times Optional vector of vertex pair start time values.
+ * @param[in] edge_end_times Optional vector of vertex pair end time values.
  *
  * @param[in] vertex_partition_range_lasts Vector of each GPU's vertex partition range's last
  * (exclusive) vertex ID.
@@ -92,12 +106,18 @@ shuffle_ext_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning(
  * @return Tuple of vectors storing shuffled major vertices, minor vertices and optional weights,
  * edge ids and edge types and rx counts
  */
-template <typename vertex_t, typename edge_t, typename weight_t, typename edge_type_id_t>
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          typename edge_type_t,
+          typename edge_time_t>
 std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<weight_t>>,
            std::optional<rmm::device_uvector<edge_t>>,
-           std::optional<rmm::device_uvector<edge_type_id_t>>,
+           std::optional<rmm::device_uvector<edge_type_t>>,
+           std::optional<rmm::device_uvector<edge_time_t>>,
+           std::optional<rmm::device_uvector<edge_time_t>>,
            std::vector<size_t>>
 shuffle_int_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning(
   raft::handle_t const& handle,
@@ -105,7 +125,9 @@ shuffle_int_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning(
   rmm::device_uvector<vertex_t>&& minors,
   std::optional<rmm::device_uvector<weight_t>>&& weights,
   std::optional<rmm::device_uvector<edge_t>>&& edge_ids,
-  std::optional<rmm::device_uvector<edge_type_id_t>>&& edge_types,
+  std::optional<rmm::device_uvector<edge_type_t>>&& edge_types,
+  std::optional<rmm::device_uvector<edge_time_t>>&& edge_start_times,
+  std::optional<rmm::device_uvector<edge_time_t>>&& edge_end_times,
   std::vector<vertex_t> const& vertex_partition_range_lasts);
 
 /**

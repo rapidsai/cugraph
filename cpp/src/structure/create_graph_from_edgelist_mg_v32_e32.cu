@@ -28,7 +28,7 @@ template std::tuple<
   std::optional<
     cugraph::edge_property_t<cugraph::graph_view_t<int32_t, int32_t, false, true>, int32_t>>,
   std::optional<rmm::device_uvector<int32_t>>>
-create_graph_from_edgelist<int32_t, int32_t, float, int32_t, int32_t, false, true>(
+create_graph_from_edgelist<int32_t, int32_t, float, int32_t, false, true>(
   raft::handle_t const& handle,
   std::optional<rmm::device_uvector<int32_t>>&& vertices,
   rmm::device_uvector<int32_t>&& edgelist_srcs,
@@ -49,7 +49,7 @@ template std::tuple<
   std::optional<
     cugraph::edge_property_t<cugraph::graph_view_t<int32_t, int32_t, true, true>, int32_t>>,
   std::optional<rmm::device_uvector<int32_t>>>
-create_graph_from_edgelist<int32_t, int32_t, float, int32_t, int32_t, true, true>(
+create_graph_from_edgelist<int32_t, int32_t, float, int32_t, true, true>(
   raft::handle_t const& handle,
   std::optional<rmm::device_uvector<int32_t>>&& vertices,
   rmm::device_uvector<int32_t>&& edgelist_srcs,
@@ -70,7 +70,7 @@ template std::tuple<
   std::optional<
     cugraph::edge_property_t<cugraph::graph_view_t<int32_t, int32_t, false, true>, int32_t>>,
   std::optional<rmm::device_uvector<int32_t>>>
-create_graph_from_edgelist<int32_t, int32_t, double, int32_t, int32_t, false, true>(
+create_graph_from_edgelist<int32_t, int32_t, double, int32_t, false, true>(
   raft::handle_t const& handle,
   std::optional<rmm::device_uvector<int32_t>>&& vertices,
   rmm::device_uvector<int32_t>&& edgelist_srcs,
@@ -91,7 +91,7 @@ template std::tuple<
   std::optional<
     cugraph::edge_property_t<cugraph::graph_view_t<int32_t, int32_t, true, true>, int32_t>>,
   std::optional<rmm::device_uvector<int32_t>>>
-create_graph_from_edgelist<int32_t, int32_t, double, int32_t, int32_t, true, true>(
+create_graph_from_edgelist<int32_t, int32_t, double, int32_t, true, true>(
   raft::handle_t const& handle,
   std::optional<rmm::device_uvector<int32_t>>&& vertices,
   rmm::device_uvector<int32_t>&& edgelist_srcs,
@@ -112,7 +112,7 @@ template std::tuple<
   std::optional<
     cugraph::edge_property_t<cugraph::graph_view_t<int32_t, int32_t, false, true>, int32_t>>,
   std::optional<rmm::device_uvector<int32_t>>>
-create_graph_from_edgelist<int32_t, int32_t, float, int32_t, int32_t, false, true>(
+create_graph_from_edgelist<int32_t, int32_t, float, int32_t, false, true>(
   raft::handle_t const& handle,
   std::optional<rmm::device_uvector<int32_t>>&& vertices,
   std::vector<rmm::device_uvector<int32_t>>&& edgelist_srcs,
@@ -133,7 +133,7 @@ template std::tuple<
   std::optional<
     cugraph::edge_property_t<cugraph::graph_view_t<int32_t, int32_t, true, true>, int32_t>>,
   std::optional<rmm::device_uvector<int32_t>>>
-create_graph_from_edgelist<int32_t, int32_t, float, int32_t, int32_t, true, true>(
+create_graph_from_edgelist<int32_t, int32_t, float, int32_t, true, true>(
   raft::handle_t const& handle,
   std::optional<rmm::device_uvector<int32_t>>&& vertices,
   std::vector<rmm::device_uvector<int32_t>>&& edgelist_srcs,
@@ -154,7 +154,7 @@ template std::tuple<
   std::optional<
     cugraph::edge_property_t<cugraph::graph_view_t<int32_t, int32_t, false, true>, int32_t>>,
   std::optional<rmm::device_uvector<int32_t>>>
-create_graph_from_edgelist<int32_t, int32_t, double, int32_t, int32_t, false, true>(
+create_graph_from_edgelist<int32_t, int32_t, double, int32_t, false, true>(
   raft::handle_t const& handle,
   std::optional<rmm::device_uvector<int32_t>>&& vertices,
   std::vector<rmm::device_uvector<int32_t>>&& edgelist_srcs,
@@ -175,7 +175,7 @@ template std::tuple<
   std::optional<
     cugraph::edge_property_t<cugraph::graph_view_t<int32_t, int32_t, true, true>, int32_t>>,
   std::optional<rmm::device_uvector<int32_t>>>
-create_graph_from_edgelist<int32_t, int32_t, double, int32_t, int32_t, true, true>(
+create_graph_from_edgelist<int32_t, int32_t, double, int32_t, true, true>(
   raft::handle_t const& handle,
   std::optional<rmm::device_uvector<int32_t>>&& vertices,
   std::vector<rmm::device_uvector<int32_t>>&& edgelist_srcs,

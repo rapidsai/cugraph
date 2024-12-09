@@ -333,14 +333,8 @@ mg_graph_to_sg_graph(
         handle.get_stream(), vertices.data(), vertices.size(), vertex_t{0});
     }
 
-    std::tie(sg_graph, sg_edge_weights, sg_edge_ids, std::ignore, sg_number_map) =
-      cugraph::create_graph_from_edgelist<vertex_t,
-                                          edge_t,
-                                          weight_t,
-                                          edge_t,
-                                          int32_t,
-                                          store_transposed,
-                                          false>(
+    std::tie(sg_graph, sg_edge_weights, sg_edge_ids, std::ignore, sg_number_map) = cugraph::
+      create_graph_from_edgelist<vertex_t, edge_t, weight_t, int32_t, store_transposed, false>(
         handle,
         std::make_optional(std::move(vertices)),
         std::move(d_src),

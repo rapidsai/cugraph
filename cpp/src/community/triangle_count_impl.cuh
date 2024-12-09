@@ -439,16 +439,25 @@ void triangle_count(raft::handle_t const& handle,
                                             extract_low_to_high_degree_edges_t<vertex_t, edge_t>{});
 
     if constexpr (multi_gpu) {
-      std::tie(srcs, dsts, std::ignore, std::ignore, std::ignore, std::ignore) =
+      std::tie(
+        srcs, dsts, std::ignore, std::ignore, std::ignore, std::ignore, std::ignore, std::ignore) =
         detail::shuffle_ext_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning<vertex_t,
                                                                                        edge_t,
                                                                                        weight_t,
+                                                                                       int32_t,
                                                                                        int32_t>(
-          handle, std::move(srcs), std::move(dsts), std::nullopt, std::nullopt, std::nullopt);
+          handle,
+          std::move(srcs),
+          std::move(dsts),
+          std::nullopt,
+          std::nullopt,
+          std::nullopt,
+          std::nullopt,
+          std::nullopt);
     }
 
     std::tie(modified_graph, std::ignore, std::ignore, std::ignore, renumber_map) =
-      create_graph_from_edgelist<vertex_t, edge_t, weight_t, edge_t, int32_t, false, multi_gpu>(
+      create_graph_from_edgelist<vertex_t, edge_t, weight_t, int32_t, false, multi_gpu>(
         handle,
         std::nullopt,
         std::move(srcs),

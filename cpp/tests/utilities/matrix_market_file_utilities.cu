@@ -418,11 +418,11 @@ read_graph_from_matrix_market_file(raft::handle_t const& handle,
     cugraph::edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, weight_t>>
     edge_weights{std::nullopt};
   std::optional<rmm::device_uvector<vertex_t>> renumber_map{std::nullopt};
-  std::tie(graph, edge_weights, std::ignore, std::ignore, renumber_map) =
+  std::tie(graph, edge_weights, std::ignore, std::ignore, std::ignore, std::ignore, renumber_map) =
     cugraph::create_graph_from_edgelist<vertex_t,
                                         edge_t,
                                         weight_t,
-                                        edge_t,
+                                        int32_t,
                                         int32_t,
                                         store_transposed,
                                         multi_gpu>(handle,
@@ -430,6 +430,8 @@ read_graph_from_matrix_market_file(raft::handle_t const& handle,
                                                    std::move(d_edgelist_srcs),
                                                    std::move(d_edgelist_dsts),
                                                    std::move(d_edgelist_weights),
+                                                   std::nullopt,
+                                                   std::nullopt,
                                                    std::nullopt,
                                                    std::nullopt,
                                                    cugraph::graph_properties_t{is_symmetric, false},

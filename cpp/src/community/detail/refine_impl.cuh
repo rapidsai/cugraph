@@ -635,36 +635,36 @@ refine_clustering(
                d_weights,
                std::ignore,
                std::ignore,
+               std::ignore,
+               std::ignore,
                std::ignore) =
         cugraph::detail::shuffle_ext_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning<
           vertex_t,
           vertex_t,
           weight_t,
+          int32_t,
           int32_t>(handle,
                    store_transposed ? std::move(d_dsts) : std::move(d_srcs),
                    store_transposed ? std::move(d_srcs) : std::move(d_dsts),
                    std::move(d_weights),
                    std::nullopt,
+                   std::nullopt,
+                   std::nullopt,
                    std::nullopt);
     }
 
     std::tie(decision_graph, coarse_edge_weights, std::ignore, std::ignore, renumber_map) =
-      create_graph_from_edgelist<vertex_t,
-                                 edge_t,
-                                 weight_t,
-                                 edge_t,
-                                 int32_t,
-                                 store_transposed,
-                                 multi_gpu>(handle,
-                                            std::nullopt,
-                                            std::move(d_srcs),
-                                            std::move(d_dsts),
-                                            std::move(d_weights),
-                                            std::nullopt,
-                                            std::nullopt,
-                                            cugraph::graph_properties_t{false, false},
-                                            true,
-                                            false);
+      create_graph_from_edgelist<vertex_t, edge_t, weight_t, int32_t, store_transposed, multi_gpu>(
+        handle,
+        std::nullopt,
+        std::move(d_srcs),
+        std::move(d_dsts),
+        std::move(d_weights),
+        std::nullopt,
+        std::nullopt,
+        cugraph::graph_properties_t{false, false},
+        true,
+        false);
 
     auto decision_graph_view = decision_graph.view();
 

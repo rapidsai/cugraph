@@ -32,18 +32,26 @@
 
 namespace cugraph {
 
-template <typename vertex_t, typename edge_t, typename weight_t, typename edge_type_t>
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          typename edge_type_t,
+          typename edge_time_t>
 std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<weight_t>>,
            std::optional<rmm::device_uvector<edge_t>>,
-           std::optional<rmm::device_uvector<edge_type_t>>>
+           std::optional<rmm::device_uvector<edge_type_t>>,
+           std::optional<rmm::device_uvector<edge_time_t>>,
+           std::optional<rmm::device_uvector<edge_time_t>>>
 remove_self_loops(raft::handle_t const& handle,
                   rmm::device_uvector<vertex_t>&& edgelist_srcs,
                   rmm::device_uvector<vertex_t>&& edgelist_dsts,
                   std::optional<rmm::device_uvector<weight_t>>&& edgelist_weights,
                   std::optional<rmm::device_uvector<edge_t>>&& edgelist_edge_ids,
-                  std::optional<rmm::device_uvector<edge_type_t>>&& edgelist_edge_types)
+                  std::optional<rmm::device_uvector<edge_type_t>>&& edgelist_edge_types,
+                  std::optional<rmm::device_uvector<edge_time_t>>&& edgelist_edge_start_times,
+                  std::optional<rmm::device_uvector<edge_time_t>>&& edgelist_edge_end_times)
 {
   auto [keep_count, keep_flags] =
     detail::mark_entries(handle,
@@ -83,13 +91,29 @@ remove_self_loops(raft::handle_t const& handle,
         std::move(*edgelist_edge_types),
         raft::device_span<uint32_t const>{keep_flags.data(), keep_flags.size()},
         keep_count);
+
+    if (edgelist_edge_start_times)
+      edgelist_edge_start_times = detail::keep_flagged_elements(
+        handle,
+        std::move(*edgelist_edge_start_times),
+        raft::device_span<uint32_t const>{keep_flags.data(), keep_flags.size()},
+        keep_count);
+
+    if (edgelist_edge_end_times)
+      edgelist_edge_end_times = detail::keep_flagged_elements(
+        handle,
+        std::move(*edgelist_edge_end_times),
+        raft::device_span<uint32_t const>{keep_flags.data(), keep_flags.size()},
+        keep_count);
   }
 
   return std::make_tuple(std::move(edgelist_srcs),
                          std::move(edgelist_dsts),
                          std::move(edgelist_weights),
                          std::move(edgelist_edge_ids),
-                         std::move(edgelist_edge_types));
+                         std::move(edgelist_edge_types),
+                         std::move(edgelist_edge_start_times),
+                         std::move(edgelist_edge_end_times));
 }
 
 }  // namespace cugraph

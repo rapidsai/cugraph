@@ -90,6 +90,9 @@ rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partition_id(
 
   if (edge_property_count > 1) { element_size = sizeof(vertex_t) * 2 + sizeof(size_t); }
 
+  std::cout << "edge_property_count = " << edge_property_count
+            << ", element size = " << element_size << std::endl;
+
   auto total_global_mem = handle.get_device_properties().totalGlobalMem;
   auto constexpr mem_frugal_ratio =
     0.1;  // if the expected temporary buffer size exceeds the mem_frugal_ratio of the
@@ -219,34 +222,12 @@ rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partition_id(
                                             mem_frugal_threshold,
                                             handle.get_stream());
       }
-      if (d_edgelist_edge_end_times) {
-        if (groupby_and_count_local_partition_by_minor) {
-          result = cugraph::groupby_and_count(pair_first,
-                                              pair_first + d_edgelist_majors.size(),
-                                              d_edgelist_edge_end_times->begin(),
-                                              by_minor_local_edge_and_vertex_partition_id_pair_op,
-                                              comm_size,
-                                              mem_frugal_threshold,
-                                              handle.get_stream());
-        } else {
-          result = cugraph::groupby_and_count(pair_first,
-                                              pair_first + d_edgelist_majors.size(),
-                                              d_edgelist_edge_end_times->begin(),
-                                              by_major_local_edge_and_vertex_partition_id_pair_op,
-                                              comm_size,
-                                              mem_frugal_threshold,
-                                              handle.get_stream());
-        }
-      }
-    } else {
-      rmm::device_uvector<edge_t> property_position(d_edgelist_majors.size(), handle.get_stream());
-      detail::sequence_fill(
-        handle.get_stream(), property_position.data(), property_position.size(), edge_t{0});
-
+    }
+    if (d_edgelist_edge_end_times) {
       if (groupby_and_count_local_partition_by_minor) {
         result = cugraph::groupby_and_count(pair_first,
                                             pair_first + d_edgelist_majors.size(),
-                                            property_position.begin(),
+                                            d_edgelist_edge_end_times->begin(),
                                             by_minor_local_edge_and_vertex_partition_id_pair_op,
                                             comm_size,
                                             mem_frugal_threshold,
@@ -254,79 +235,109 @@ rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partition_id(
       } else {
         result = cugraph::groupby_and_count(pair_first,
                                             pair_first + d_edgelist_majors.size(),
-                                            property_position.begin(),
+                                            d_edgelist_edge_end_times->begin(),
                                             by_major_local_edge_and_vertex_partition_id_pair_op,
                                             comm_size,
                                             mem_frugal_threshold,
                                             handle.get_stream());
       }
+    }
+  } else {
+    rmm::device_uvector<edge_t> property_position(d_edgelist_majors.size(), handle.get_stream());
+    detail::sequence_fill(
+      handle.get_stream(), property_position.data(), property_position.size(), edge_t{0});
 
-      if (d_edgelist_weights) {
-        rmm::device_uvector<weight_t> tmp(property_position.size(), handle.get_stream());
+    std::cout << "filled property_position" << std::endl;
 
-        thrust::gather(handle.get_thrust_policy(),
-                       property_position.begin(),
-                       property_position.end(),
-                       d_edgelist_weights->begin(),
-                       tmp.begin());
+    if (groupby_and_count_local_partition_by_minor) {
+      result = cugraph::groupby_and_count(pair_first,
+                                          pair_first + d_edgelist_majors.size(),
+                                          property_position.begin(),
+                                          by_minor_local_edge_and_vertex_partition_id_pair_op,
+                                          comm_size,
+                                          mem_frugal_threshold,
+                                          handle.get_stream());
+    } else {
+      result = cugraph::groupby_and_count(pair_first,
+                                          pair_first + d_edgelist_majors.size(),
+                                          property_position.begin(),
+                                          by_major_local_edge_and_vertex_partition_id_pair_op,
+                                          comm_size,
+                                          mem_frugal_threshold,
+                                          handle.get_stream());
+    }
 
-        thrust::copy(
-          handle.get_thrust_policy(), tmp.begin(), tmp.end(), d_edgelist_weights->begin());
-      }
+    if (d_edgelist_weights) {
+      std::cout << "gather weights" << std::endl;
+      rmm::device_uvector<weight_t> tmp(property_position.size(), handle.get_stream());
 
-      if (d_edgelist_edge_ids) {
-        rmm::device_uvector<weight_t> tmp(property_position.size(), handle.get_stream());
+      thrust::gather(handle.get_thrust_policy(),
+                     property_position.begin(),
+                     property_position.end(),
+                     d_edgelist_weights->begin(),
+                     tmp.begin());
 
-        thrust::gather(handle.get_thrust_policy(),
-                       property_position.begin(),
-                       property_position.end(),
-                       d_edgelist_edge_ids->begin(),
-                       tmp.begin());
+      thrust::copy(handle.get_thrust_policy(), tmp.begin(), tmp.end(), d_edgelist_weights->begin());
+    }
 
-        thrust::copy(
-          handle.get_thrust_policy(), tmp.begin(), tmp.end(), d_edgelist_edge_ids->begin());
-      }
+    if (d_edgelist_edge_ids) {
+      std::cout << "gather edge ids" << std::endl;
+      rmm::device_uvector<weight_t> tmp(property_position.size(), handle.get_stream());
 
-      if (d_edgelist_edge_types) {
-        rmm::device_uvector<weight_t> tmp(property_position.size(), handle.get_stream());
+      thrust::gather(handle.get_thrust_policy(),
+                     property_position.begin(),
+                     property_position.end(),
+                     d_edgelist_edge_ids->begin(),
+                     tmp.begin());
 
-        thrust::gather(handle.get_thrust_policy(),
-                       property_position.begin(),
-                       property_position.end(),
-                       d_edgelist_edge_types->begin(),
-                       tmp.begin());
+      thrust::copy(
+        handle.get_thrust_policy(), tmp.begin(), tmp.end(), d_edgelist_edge_ids->begin());
+    }
 
-        thrust::copy(
-          handle.get_thrust_policy(), tmp.begin(), tmp.end(), d_edgelist_edge_types->begin());
-      }
+    if (d_edgelist_edge_types) {
+      std::cout << "gather edge types" << std::endl;
+      rmm::device_uvector<weight_t> tmp(property_position.size(), handle.get_stream());
 
-      if (d_edgelist_edge_start_times) {
-        rmm::device_uvector<weight_t> tmp(property_position.size(), handle.get_stream());
+      thrust::gather(handle.get_thrust_policy(),
+                     property_position.begin(),
+                     property_position.end(),
+                     d_edgelist_edge_types->begin(),
+                     tmp.begin());
 
-        thrust::gather(handle.get_thrust_policy(),
-                       property_position.begin(),
-                       property_position.end(),
-                       d_edgelist_edge_start_times->begin(),
-                       tmp.begin());
+      thrust::copy(
+        handle.get_thrust_policy(), tmp.begin(), tmp.end(), d_edgelist_edge_types->begin());
+    }
 
-        thrust::copy(
-          handle.get_thrust_policy(), tmp.begin(), tmp.end(), d_edgelist_edge_start_times->begin());
-      }
+    if (d_edgelist_edge_start_times) {
+      std::cout << "gather start times" << std::endl;
+      rmm::device_uvector<weight_t> tmp(property_position.size(), handle.get_stream());
 
-      if (d_edgelist_edge_end_times) {
-        rmm::device_uvector<weight_t> tmp(property_position.size(), handle.get_stream());
+      thrust::gather(handle.get_thrust_policy(),
+                     property_position.begin(),
+                     property_position.end(),
+                     d_edgelist_edge_start_times->begin(),
+                     tmp.begin());
 
-        thrust::gather(handle.get_thrust_policy(),
-                       property_position.begin(),
-                       property_position.end(),
-                       d_edgelist_edge_end_times->begin(),
-                       tmp.begin());
+      thrust::copy(
+        handle.get_thrust_policy(), tmp.begin(), tmp.end(), d_edgelist_edge_start_times->begin());
+    }
 
-        thrust::copy(
-          handle.get_thrust_policy(), tmp.begin(), tmp.end(), d_edgelist_edge_end_times->begin());
-      }
+    if (d_edgelist_edge_end_times) {
+      std::cout << "gather end_times" << std::endl;
+      rmm::device_uvector<weight_t> tmp(property_position.size(), handle.get_stream());
+
+      thrust::gather(handle.get_thrust_policy(),
+                     property_position.begin(),
+                     property_position.end(),
+                     d_edgelist_edge_end_times->begin(),
+                     tmp.begin());
+
+      thrust::copy(
+        handle.get_thrust_policy(), tmp.begin(), tmp.end(), d_edgelist_edge_end_times->begin());
     }
   }
+
+  std::cout << "return result" << std::endl;
 
   return result;
 }

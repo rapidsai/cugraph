@@ -59,4 +59,76 @@ symmetrize_edgelist<int64_t, double, true, true>(
   std::optional<rmm::device_uvector<double>>&& edgelist_weights,
   bool reciprocal);
 
+template std::tuple<rmm::device_uvector<int64_t>,
+                    rmm::device_uvector<int64_t>,
+                    std::optional<rmm::device_uvector<float>>,
+                    std::optional<rmm::device_uvector<int64_t>>,
+                    std::optional<rmm::device_uvector<int32_t>>,
+                    std::optional<rmm::device_uvector<int32_t>>,
+                    std::optional<rmm::device_uvector<int32_t>>>
+symmetrize_edgelist<int64_t, int64_t, float, int32_t, int32_t, true>(
+  raft::handle_t const& handle,
+  rmm::device_uvector<int64_t>&& edgelist_srcs,
+  rmm::device_uvector<int64_t>&& edgelist_dsts,
+  std::optional<rmm::device_uvector<float>>&& edgelist_weights,
+  std::optional<rmm::device_uvector<int64_t>>&& edgelist_edge_ids,
+  std::optional<rmm::device_uvector<int32_t>>&& edgelist_edge_types,
+  std::optional<rmm::device_uvector<int32_t>>&& edgelist_edge_start_times,
+  std::optional<rmm::device_uvector<int32_t>>&& edgelist_edge_end_times,
+  bool reciprocal);
+
+template std::tuple<rmm::device_uvector<int64_t>,
+                    rmm::device_uvector<int64_t>,
+                    std::optional<rmm::device_uvector<double>>,
+                    std::optional<rmm::device_uvector<int64_t>>,
+                    std::optional<rmm::device_uvector<int32_t>>,
+                    std::optional<rmm::device_uvector<int32_t>>,
+                    std::optional<rmm::device_uvector<int32_t>>>
+symmetrize_edgelist<int64_t, int64_t, double, int32_t, int32_t, true>(
+  raft::handle_t const& handle,
+  rmm::device_uvector<int64_t>&& edgelist_srcs,
+  rmm::device_uvector<int64_t>&& edgelist_dsts,
+  std::optional<rmm::device_uvector<double>>&& edgelist_weights,
+  std::optional<rmm::device_uvector<int64_t>>&& edgelist_edge_ids,
+  std::optional<rmm::device_uvector<int32_t>>&& edgelist_edge_types,
+  std::optional<rmm::device_uvector<int32_t>>&& edgelist_edge_start_times,
+  std::optional<rmm::device_uvector<int32_t>>&& edgelist_edge_end_times,
+  bool reciprocal);
+
+template std::tuple<rmm::device_uvector<int64_t>,
+                    rmm::device_uvector<int64_t>,
+                    std::optional<rmm::device_uvector<float>>,
+                    std::optional<rmm::device_uvector<int64_t>>,
+                    std::optional<rmm::device_uvector<int32_t>>,
+                    std::optional<rmm::device_uvector<int64_t>>,
+                    std::optional<rmm::device_uvector<int64_t>>>
+symmetrize_edgelist<int64_t, int64_t, float, int32_t, int64_t, true>(
+  raft::handle_t const& handle,
+  rmm::device_uvector<int64_t>&& edgelist_srcs,
+  rmm::device_uvector<int64_t>&& edgelist_dsts,
+  std::optional<rmm::device_uvector<float>>&& edgelist_weights,
+  std::optional<rmm::device_uvector<int64_t>>&& edgelist_edge_ids,
+  std::optional<rmm::device_uvector<int32_t>>&& edgelist_edge_types,
+  std::optional<rmm::device_uvector<int64_t>>&& edgelist_edge_start_times,
+  std::optional<rmm::device_uvector<int64_t>>&& edgelist_edge_end_times,
+  bool reciprocal);
+
+template std::tuple<rmm::device_uvector<int64_t>,
+                    rmm::device_uvector<int64_t>,
+                    std::optional<rmm::device_uvector<double>>,
+                    std::optional<rmm::device_uvector<int64_t>>,
+                    std::optional<rmm::device_uvector<int32_t>>,
+                    std::optional<rmm::device_uvector<int64_t>>,
+                    std::optional<rmm::device_uvector<int64_t>>>
+symmetrize_edgelist<int64_t, int64_t, double, int32_t, int64_t, true>(
+  raft::handle_t const& handle,
+  rmm::device_uvector<int64_t>&& edgelist_srcs,
+  rmm::device_uvector<int64_t>&& edgelist_dsts,
+  std::optional<rmm::device_uvector<double>>&& edgelist_weights,
+  std::optional<rmm::device_uvector<int64_t>>&& edgelist_edge_ids,
+  std::optional<rmm::device_uvector<int32_t>>&& edgelist_edge_types,
+  std::optional<rmm::device_uvector<int64_t>>&& edgelist_edge_start_times,
+  std::optional<rmm::device_uvector<int64_t>>&& edgelist_edge_end_times,
+  bool reciprocal);
+
 }  // namespace cugraph

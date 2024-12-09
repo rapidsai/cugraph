@@ -16,6 +16,7 @@
 #pragma once
 
 #include <cugraph/detail/shuffle_wrappers.hpp>
+#include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/utilities/error.hpp>
 
 #include <raft/core/handle.hpp>
@@ -25,6 +26,7 @@
 #include <thrust/copy.h>
 #include <thrust/distance.h>
 #include <thrust/for_each.h>
+#include <thrust/gather.h>
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/iterator/iterator_traits.h>
 #include <thrust/iterator/zip_iterator.h>
@@ -96,7 +98,7 @@ struct symmetrize_op_t {
       if (i < min_run_length) {
         thrust::get<2>(*(edge_first + i)) = (thrust::get<2>(*(edge_first + i)) +
                                              thrust::get<2>(*(edge_first + lower_run_length + i))) /
-                                            weight_t{2.0};  // average
+                                            weight_t{2};  // average
         *(include_first + i)                    = true;
         *(include_first + lower_run_length + i) = false;
       } else {
@@ -175,71 +177,413 @@ struct to_lower_triangular_t {
   }
 };
 
+template <typename property_t>
+struct pick_from_lower_upper_t {
+  raft::device_span<property_t const> lower_{};
+  raft::device_span<property_t const> upper_{};
+
+  __device__ property_t operator()(size_t pos)
+  {
+    return (pos < lower_.size()) ? lower_[pos] : upper_[pos - lower_.size()];
+  }
+};
+
 }  // namespace
 
 namespace detail {
 
-// FIXME: This function should be modified to support edge id/type
-template <typename vertex_t, typename weight_t, bool multi_gpu>
+template <typename vertex_t, typename property_t>
 std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
-           std::optional<rmm::device_uvector<weight_t>>>
+           rmm::device_uvector<property_t>>
+merge_lower_triangular(raft::handle_t const& handle,
+                       rmm::device_uvector<vertex_t>&& lower_triangular_majors,
+                       rmm::device_uvector<vertex_t>&& lower_triangular_minors,
+                       rmm::device_uvector<property_t>&& lower_triangular_properties,
+                       rmm::device_uvector<vertex_t>&& upper_triangular_majors,
+                       rmm::device_uvector<vertex_t>&& upper_triangular_minors,
+                       rmm::device_uvector<property_t>&& upper_triangular_properties,
+                       size_t num_lower_triangular_edges,
+                       bool reciprocal)
+{
+  // FIXME: For multiple properties, consider adding a comparison functor to the function signature.
+  // We could create a comparison functor that took the tuple of optional properties and compared
+  // across them to get a unique sort
+  rmm::device_uvector<vertex_t> merged_majors(0, handle.get_stream());
+  rmm::device_uvector<vertex_t> merged_minors(0, handle.get_stream());
+  rmm::device_uvector<property_t> merged_properties(0, handle.get_stream());
+
+  auto lower_triangular_edge_first = thrust::make_zip_iterator(lower_triangular_majors.begin(),
+                                                               lower_triangular_minors.begin(),
+                                                               lower_triangular_properties.begin());
+  thrust::sort(handle.get_thrust_policy(),
+               lower_triangular_edge_first,
+               lower_triangular_edge_first + lower_triangular_majors.size());
+  auto upper_triangular_edge_first = thrust::make_zip_iterator(
+    upper_triangular_majors.begin(),
+    upper_triangular_minors.begin(),
+    upper_triangular_properties
+      .begin());  // do not flip here to use "lower_triangular = major > minor"
+  thrust::sort(handle.get_thrust_policy(),
+               upper_triangular_edge_first,
+               upper_triangular_edge_first + upper_triangular_majors.size(),
+               compare_upper_triangular_edges_as_lower_triangular_t<vertex_t, property_t>{});
+
+  merged_majors.resize(lower_triangular_majors.size() + upper_triangular_majors.size(),
+                       handle.get_stream());
+  merged_minors.resize(merged_majors.size(), handle.get_stream());
+  merged_properties.resize(merged_majors.size(), handle.get_stream());
+  auto merged_first = thrust::make_zip_iterator(
+    thrust::make_tuple(merged_majors.begin(), merged_minors.begin(), merged_properties.begin()));
+  thrust::merge(handle.get_thrust_policy(),
+                lower_triangular_edge_first,
+                lower_triangular_edge_first + lower_triangular_majors.size(),
+                upper_triangular_edge_first,
+                upper_triangular_edge_first + upper_triangular_majors.size(),
+                merged_first,
+                compare_lower_and_upper_triangular_edges_t<vertex_t, property_t>{});
+
+  lower_triangular_majors.resize(0, handle.get_stream());
+  lower_triangular_majors.shrink_to_fit(handle.get_stream());
+  lower_triangular_minors.resize(0, handle.get_stream());
+  lower_triangular_minors.shrink_to_fit(handle.get_stream());
+  lower_triangular_properties.resize(0, handle.get_stream());
+  lower_triangular_properties.shrink_to_fit(handle.get_stream());
+
+  upper_triangular_majors.resize(0, handle.get_stream());
+  upper_triangular_majors.shrink_to_fit(handle.get_stream());
+  upper_triangular_minors.resize(0, handle.get_stream());
+  upper_triangular_minors.shrink_to_fit(handle.get_stream());
+  upper_triangular_properties.resize(0, handle.get_stream());
+  upper_triangular_properties.shrink_to_fit(handle.get_stream());
+
+  rmm::device_uvector<uint8_t> includes(merged_majors.size(), handle.get_stream());
+  symmetrize_op_t<decltype(merged_first)> symm_op{reciprocal};
+  thrust::for_each(handle.get_thrust_policy(),
+                   thrust::make_counting_iterator(size_t{0}),
+                   thrust::make_counting_iterator(merged_majors.size()),
+                   update_edge_weights_and_flags_t<decltype(merged_first)>{
+                     merged_first, includes.data(), merged_majors.size(), symm_op});
+
+  auto merged_edge_and_flag_first = thrust::make_zip_iterator(
+    merged_majors.begin(), merged_minors.begin(), merged_properties.begin(), includes.begin());
+  merged_majors.resize(
+    thrust::distance(merged_edge_and_flag_first,
+                     thrust::remove_if(handle.get_thrust_policy(),
+                                       merged_edge_and_flag_first,
+                                       merged_edge_and_flag_first + merged_majors.size(),
+                                       [] __device__(auto t) { return !thrust::get<3>(t); })),
+    handle.get_stream());
+  merged_majors.shrink_to_fit(handle.get_stream());
+  merged_minors.resize(merged_majors.size(), handle.get_stream());
+  merged_minors.shrink_to_fit(handle.get_stream());
+  merged_properties.resize(merged_majors.size(), handle.get_stream());
+  merged_properties.shrink_to_fit(handle.get_stream());
+
+  auto merged_major_minor_range_first =
+    thrust::make_zip_iterator(merged_majors.begin(), merged_minors.begin());
+  thrust::transform(handle.get_thrust_policy(),
+                    merged_major_minor_range_first,
+                    merged_major_minor_range_first + merged_majors.size(),
+                    merged_major_minor_range_first,
+                    to_lower_triangular_t<vertex_t>{});
+
+  return std::make_tuple(
+    std::move(merged_majors), std::move(merged_minors), std::move(merged_properties));
+}
+
+template <typename vertex_t>
+std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> merge_lower_triangular(
+  raft::handle_t const& handle,
+  rmm::device_uvector<vertex_t>&& lower_triangular_majors,
+  rmm::device_uvector<vertex_t>&& lower_triangular_minors,
+  rmm::device_uvector<vertex_t>&& upper_triangular_majors,
+  rmm::device_uvector<vertex_t>&& upper_triangular_minors,
+  size_t num_lower_triangular_edges,
+  bool reciprocal)
+{
+  rmm::device_uvector<vertex_t> merged_majors(0, handle.get_stream());
+  rmm::device_uvector<vertex_t> merged_minors(0, handle.get_stream());
+
+  auto lower_triangular_edge_first = thrust::make_zip_iterator(
+    thrust::make_tuple(lower_triangular_majors.begin(), lower_triangular_minors.begin()));
+  thrust::sort(handle.get_thrust_policy(),
+               lower_triangular_edge_first,
+               lower_triangular_edge_first + lower_triangular_majors.size());
+  auto upper_triangular_edge_first = thrust::make_zip_iterator(
+    thrust::make_tuple(upper_triangular_minors.begin(), upper_triangular_majors.begin()));  // flip
+  thrust::sort(handle.get_thrust_policy(),
+               upper_triangular_edge_first,
+               upper_triangular_edge_first + upper_triangular_majors.size());
+
+  merged_majors.resize(reciprocal
+                         ? std::min(num_lower_triangular_edges, upper_triangular_majors.size())
+                         : num_lower_triangular_edges + upper_triangular_majors.size(),
+                       handle.get_stream());
+  merged_minors.resize(merged_majors.size(), handle.get_stream());
+  auto merged_first =
+    thrust::make_zip_iterator(thrust::make_tuple(merged_majors.begin(), merged_minors.begin()));
+  auto merged_last =
+    reciprocal
+      ? thrust::set_intersection(handle.get_thrust_policy(),
+                                 lower_triangular_edge_first,
+                                 lower_triangular_edge_first + lower_triangular_majors.size(),
+                                 upper_triangular_edge_first,
+                                 upper_triangular_edge_first + upper_triangular_majors.size(),
+                                 merged_first)
+      : thrust::set_union(handle.get_thrust_policy(),
+                          lower_triangular_edge_first,
+                          lower_triangular_edge_first + lower_triangular_majors.size(),
+                          upper_triangular_edge_first,
+                          upper_triangular_edge_first + upper_triangular_majors.size(),
+                          merged_first);
+
+  lower_triangular_majors.resize(0, handle.get_stream());
+  lower_triangular_majors.shrink_to_fit(handle.get_stream());
+  lower_triangular_minors.resize(0, handle.get_stream());
+  lower_triangular_minors.shrink_to_fit(handle.get_stream());
+
+  upper_triangular_majors.resize(0, handle.get_stream());
+  upper_triangular_majors.shrink_to_fit(handle.get_stream());
+  upper_triangular_minors.resize(0, handle.get_stream());
+  upper_triangular_minors.shrink_to_fit(handle.get_stream());
+
+  merged_majors.resize(thrust::distance(merged_first, merged_last), handle.get_stream());
+  merged_majors.shrink_to_fit(handle.get_stream());
+  merged_minors.resize(merged_majors.size(), handle.get_stream());
+  merged_minors.shrink_to_fit(handle.get_stream());
+
+  return std::make_tuple(std::move(merged_majors), std::move(merged_minors));
+}
+
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          typename edge_type_t,
+          typename edge_time_t,
+          bool multi_gpu>
+std::tuple<rmm::device_uvector<vertex_t>,
+           rmm::device_uvector<vertex_t>,
+           std::optional<rmm::device_uvector<weight_t>>,
+           std::optional<rmm::device_uvector<edge_t>>,
+           std::optional<rmm::device_uvector<edge_type_t>>,
+           std::optional<rmm::device_uvector<edge_time_t>>,
+           std::optional<rmm::device_uvector<edge_time_t>>>
 symmetrize_edgelist(raft::handle_t const& handle,
                     rmm::device_uvector<vertex_t>&& edgelist_majors,
                     rmm::device_uvector<vertex_t>&& edgelist_minors,
                     std::optional<rmm::device_uvector<weight_t>>&& edgelist_weights,
+                    std::optional<rmm::device_uvector<edge_t>>&& edgelist_edge_ids,
+                    std::optional<rmm::device_uvector<edge_type_t>>&& edgelist_edge_types,
+                    std::optional<rmm::device_uvector<edge_time_t>>&& edgelist_edge_start_times,
+                    std::optional<rmm::device_uvector<edge_time_t>>&& edgelist_edge_end_times,
                     bool reciprocal)
 {
+  int edge_property_count = 0;
+  if (edgelist_weights) ++edge_property_count;
+  if (edgelist_edge_ids) ++edge_property_count;
+  if (edgelist_edge_types) ++edge_property_count;
+  if (edgelist_edge_start_times) ++edge_property_count;
+  if (edgelist_edge_end_times) ++edge_property_count;
+
   // 1. separate lower triangular, diagonal (self-loop), and upper triangular edges
 
   size_t num_lower_triangular_edges{0};
   size_t num_diagonal_edges{0};
-  if (edgelist_weights) {
-    auto edge_first            = thrust::make_zip_iterator(thrust::make_tuple(
-      edgelist_majors.begin(), edgelist_minors.begin(), (*edgelist_weights).begin()));
+
+  auto lower_triangular_compare = [] __device__(auto e) {
+    auto major = thrust::get<0>(e);
+    auto minor = thrust::get<1>(e);
+    return major > minor;
+  };
+
+  auto diagonal_compare = [] __device__(auto e) {
+    auto major = thrust::get<0>(e);
+    auto minor = thrust::get<1>(e);
+    return major == minor;
+  };
+
+  if (edge_property_count == 0) {
+    auto edge_first = thrust::make_zip_iterator(edgelist_majors.begin(), edgelist_minors.begin());
     auto lower_triangular_last = thrust::partition(handle.get_thrust_policy(),
                                                    edge_first,
                                                    edge_first + edgelist_majors.size(),
-                                                   [] __device__(auto e) {
-                                                     auto major = thrust::get<0>(e);
-                                                     auto minor = thrust::get<1>(e);
-                                                     return major > minor;
-                                                   });
+                                                   lower_triangular_compare);
     num_lower_triangular_edges =
       static_cast<size_t>(thrust::distance(edge_first, lower_triangular_last));
     auto diagonal_last = thrust::partition(handle.get_thrust_policy(),
                                            edge_first + num_lower_triangular_edges,
                                            edge_first + edgelist_majors.size(),
-                                           [] __device__(auto e) {
-                                             auto major = thrust::get<0>(e);
-                                             auto minor = thrust::get<1>(e);
-                                             return major == minor;
-                                           });
+                                           diagonal_compare);
     num_diagonal_edges =
       static_cast<size_t>(thrust::distance(lower_triangular_last, diagonal_last));
+  } else if (edge_property_count == 1) {
+    if (edgelist_weights) {
+      auto edge_first = thrust::make_zip_iterator(
+        edgelist_majors.begin(), edgelist_minors.begin(), edgelist_weights->begin());
+      auto lower_triangular_last = thrust::partition(handle.get_thrust_policy(),
+                                                     edge_first,
+                                                     edge_first + edgelist_majors.size(),
+                                                     lower_triangular_compare);
+      num_lower_triangular_edges =
+        static_cast<size_t>(thrust::distance(edge_first, lower_triangular_last));
+      auto diagonal_last = thrust::partition(handle.get_thrust_policy(),
+                                             edge_first + num_lower_triangular_edges,
+                                             edge_first + edgelist_majors.size(),
+                                             diagonal_compare);
+      num_diagonal_edges =
+        static_cast<size_t>(thrust::distance(lower_triangular_last, diagonal_last));
+    }
+
+    if (edgelist_edge_ids) {
+      auto edge_first = thrust::make_zip_iterator(
+        edgelist_majors.begin(), edgelist_minors.begin(), edgelist_edge_ids->begin());
+      auto lower_triangular_last = thrust::partition(handle.get_thrust_policy(),
+                                                     edge_first,
+                                                     edge_first + edgelist_majors.size(),
+                                                     lower_triangular_compare);
+      num_lower_triangular_edges =
+        static_cast<size_t>(thrust::distance(edge_first, lower_triangular_last));
+      auto diagonal_last = thrust::partition(handle.get_thrust_policy(),
+                                             edge_first + num_lower_triangular_edges,
+                                             edge_first + edgelist_majors.size(),
+                                             diagonal_compare);
+      num_diagonal_edges =
+        static_cast<size_t>(thrust::distance(lower_triangular_last, diagonal_last));
+    }
+
+    if (edgelist_edge_types) {
+      auto edge_first = thrust::make_zip_iterator(
+        edgelist_majors.begin(), edgelist_minors.begin(), edgelist_edge_types->begin());
+      auto lower_triangular_last = thrust::partition(handle.get_thrust_policy(),
+                                                     edge_first,
+                                                     edge_first + edgelist_majors.size(),
+                                                     lower_triangular_compare);
+      num_lower_triangular_edges =
+        static_cast<size_t>(thrust::distance(edge_first, lower_triangular_last));
+      auto diagonal_last = thrust::partition(handle.get_thrust_policy(),
+                                             edge_first + num_lower_triangular_edges,
+                                             edge_first + edgelist_majors.size(),
+                                             diagonal_compare);
+      num_diagonal_edges =
+        static_cast<size_t>(thrust::distance(lower_triangular_last, diagonal_last));
+    }
+
+    if (edgelist_edge_start_times) {
+      auto edge_first = thrust::make_zip_iterator(
+        edgelist_majors.begin(), edgelist_minors.begin(), edgelist_edge_start_times->begin());
+      auto lower_triangular_last = thrust::partition(handle.get_thrust_policy(),
+                                                     edge_first,
+                                                     edge_first + edgelist_majors.size(),
+                                                     lower_triangular_compare);
+      num_lower_triangular_edges =
+        static_cast<size_t>(thrust::distance(edge_first, lower_triangular_last));
+      auto diagonal_last = thrust::partition(handle.get_thrust_policy(),
+                                             edge_first + num_lower_triangular_edges,
+                                             edge_first + edgelist_majors.size(),
+                                             diagonal_compare);
+      num_diagonal_edges =
+        static_cast<size_t>(thrust::distance(lower_triangular_last, diagonal_last));
+    }
+
+    if (edgelist_edge_end_times) {
+      auto edge_first = thrust::make_zip_iterator(
+        edgelist_majors.begin(), edgelist_minors.begin(), edgelist_edge_end_times->begin());
+      auto lower_triangular_last = thrust::partition(handle.get_thrust_policy(),
+                                                     edge_first,
+                                                     edge_first + edgelist_majors.size(),
+                                                     lower_triangular_compare);
+      num_lower_triangular_edges =
+        static_cast<size_t>(thrust::distance(edge_first, lower_triangular_last));
+      auto diagonal_last = thrust::partition(handle.get_thrust_policy(),
+                                             edge_first + num_lower_triangular_edges,
+                                             edge_first + edgelist_majors.size(),
+                                             diagonal_compare);
+      num_diagonal_edges =
+        static_cast<size_t>(thrust::distance(lower_triangular_last, diagonal_last));
+    }
   } else {
+    rmm::device_uvector<edge_t> property_position(edgelist_majors.size(), handle.get_stream());
+    detail::sequence_fill(
+      handle.get_stream(), property_position.data(), property_position.size(), edge_t{0});
+
     auto edge_first = thrust::make_zip_iterator(
-      thrust::make_tuple(edgelist_majors.begin(), edgelist_minors.begin()));
+      edgelist_majors.begin(), edgelist_minors.begin(), property_position.begin());
     auto lower_triangular_last = thrust::partition(handle.get_thrust_policy(),
                                                    edge_first,
                                                    edge_first + edgelist_majors.size(),
-                                                   [] __device__(auto e) {
-                                                     auto major = thrust::get<0>(e);
-                                                     auto minor = thrust::get<1>(e);
-                                                     return major > minor;
-                                                   });
+                                                   lower_triangular_compare);
     num_lower_triangular_edges =
       static_cast<size_t>(thrust::distance(edge_first, lower_triangular_last));
     auto diagonal_last = thrust::partition(handle.get_thrust_policy(),
                                            edge_first + num_lower_triangular_edges,
                                            edge_first + edgelist_majors.size(),
-                                           [] __device__(auto e) {
-                                             auto major = thrust::get<0>(e);
-                                             auto minor = thrust::get<1>(e);
-                                             return major == minor;
-                                           });
+                                           diagonal_compare);
     num_diagonal_edges =
       static_cast<size_t>(thrust::distance(lower_triangular_last, diagonal_last));
+
+    if (edgelist_weights) {
+      rmm::device_uvector<weight_t> tmp(property_position.size(), handle.get_stream());
+
+      thrust::gather(handle.get_thrust_policy(),
+                     property_position.begin(),
+                     property_position.end(),
+                     edgelist_weights->begin(),
+                     tmp.begin());
+
+      thrust::copy(handle.get_thrust_policy(), tmp.begin(), tmp.end(), edgelist_weights->begin());
+    }
+
+    if (edgelist_edge_ids) {
+      rmm::device_uvector<edge_t> tmp(property_position.size(), handle.get_stream());
+
+      thrust::gather(handle.get_thrust_policy(),
+                     property_position.begin(),
+                     property_position.end(),
+                     edgelist_edge_ids->begin(),
+                     tmp.begin());
+
+      thrust::copy(handle.get_thrust_policy(), tmp.begin(), tmp.end(), edgelist_edge_ids->begin());
+    }
+
+    if (edgelist_edge_types) {
+      rmm::device_uvector<edge_type_t> tmp(property_position.size(), handle.get_stream());
+
+      thrust::gather(handle.get_thrust_policy(),
+                     property_position.begin(),
+                     property_position.end(),
+                     edgelist_edge_types->begin(),
+                     tmp.begin());
+
+      thrust::copy(
+        handle.get_thrust_policy(), tmp.begin(), tmp.end(), edgelist_edge_types->begin());
+    }
+
+    if (edgelist_edge_start_times) {
+      rmm::device_uvector<edge_time_t> tmp(property_position.size(), handle.get_stream());
+
+      thrust::gather(handle.get_thrust_policy(),
+                     property_position.begin(),
+                     property_position.end(),
+                     edgelist_edge_start_times->begin(),
+                     tmp.begin());
+
+      thrust::copy(
+        handle.get_thrust_policy(), tmp.begin(), tmp.end(), edgelist_edge_start_times->begin());
+    }
+
+    if (edgelist_edge_end_times) {
+      rmm::device_uvector<edge_time_t> tmp(property_position.size(), handle.get_stream());
+
+      thrust::gather(handle.get_thrust_policy(),
+                     property_position.begin(),
+                     property_position.end(),
+                     edgelist_edge_end_times->begin(),
+                     tmp.begin());
+
+      thrust::copy(
+        handle.get_thrust_policy(), tmp.begin(), tmp.end(), edgelist_edge_end_times->begin());
+    }
   }
 
   rmm::device_uvector<vertex_t> diagonal_majors(num_diagonal_edges, handle.get_stream());
@@ -267,26 +611,105 @@ symmetrize_edgelist(raft::handle_t const& handle,
   edgelist_minors.shrink_to_fit(handle.get_stream());
   auto lower_triangular_minors = std::move(edgelist_minors);
 
-  auto diagonal_weights = edgelist_weights ? std::make_optional<rmm::device_uvector<weight_t>>(
-                                               diagonal_majors.size(), handle.get_stream())
-                                           : std::nullopt;
-  auto upper_triangular_weights = edgelist_weights
-                                    ? std::make_optional<rmm::device_uvector<weight_t>>(
-                                        upper_triangular_majors.size(), handle.get_stream())
-                                    : std::nullopt;
+  std::optional<rmm::device_uvector<weight_t>> diagonal_weights{std::nullopt};
+  std::optional<rmm::device_uvector<edge_t>> diagonal_edge_ids{std::nullopt};
+  std::optional<rmm::device_uvector<edge_type_t>> diagonal_edge_types{std::nullopt};
+  std::optional<rmm::device_uvector<edge_time_t>> diagonal_edge_start_times{std::nullopt};
+  std::optional<rmm::device_uvector<edge_time_t>> diagonal_edge_end_times{std::nullopt};
+  std::optional<rmm::device_uvector<weight_t>> upper_triangular_weights{std::nullopt};
+  std::optional<rmm::device_uvector<edge_t>> upper_triangular_edge_ids{std::nullopt};
+  std::optional<rmm::device_uvector<edge_type_t>> upper_triangular_edge_types{std::nullopt};
+  std::optional<rmm::device_uvector<edge_time_t>> upper_triangular_edge_start_times{std::nullopt};
+  std::optional<rmm::device_uvector<edge_time_t>> upper_triangular_edge_end_times{std::nullopt};
+
   if (edgelist_weights) {
+    diagonal_weights = rmm::device_uvector<weight_t>(num_diagonal_edges, handle.get_stream());
+    upper_triangular_weights =
+      rmm::device_uvector<weight_t>(upper_triangular_majors.size(), handle.get_stream());
     thrust::copy(handle.get_thrust_policy(),
-                 (*edgelist_weights).begin() + num_lower_triangular_edges,
-                 (*edgelist_weights).begin() + num_lower_triangular_edges + num_diagonal_edges,
-                 (*diagonal_weights).begin());
+                 edgelist_weights->begin() + num_lower_triangular_edges,
+                 edgelist_weights->begin() + num_lower_triangular_edges + num_diagonal_edges,
+                 diagonal_weights->begin());
     thrust::copy(handle.get_thrust_policy(),
-                 (*edgelist_weights).begin() + num_lower_triangular_edges + num_diagonal_edges,
-                 (*edgelist_weights).end(),
-                 (*upper_triangular_weights).begin());
-    (*edgelist_weights).resize(lower_triangular_majors.size(), handle.get_stream());
-    (*edgelist_weights).shrink_to_fit(handle.get_stream());
+                 edgelist_weights->begin() + num_lower_triangular_edges + num_diagonal_edges,
+                 edgelist_weights->end(),
+                 upper_triangular_weights->begin());
+    edgelist_weights->resize(lower_triangular_majors.size(), handle.get_stream());
+    edgelist_weights->shrink_to_fit(handle.get_stream());
   }
   auto lower_triangular_weights = std::move(edgelist_weights);
+
+  if (edgelist_edge_ids) {
+    diagonal_edge_ids = rmm::device_uvector<edge_t>(num_diagonal_edges, handle.get_stream());
+    upper_triangular_edge_ids =
+      rmm::device_uvector<edge_t>(upper_triangular_majors.size(), handle.get_stream());
+    thrust::copy(handle.get_thrust_policy(),
+                 edgelist_edge_ids->begin() + num_lower_triangular_edges,
+                 edgelist_edge_ids->begin() + num_lower_triangular_edges + num_diagonal_edges,
+                 diagonal_edge_ids->begin());
+    thrust::copy(handle.get_thrust_policy(),
+                 edgelist_edge_ids->begin() + num_lower_triangular_edges + num_diagonal_edges,
+                 edgelist_edge_ids->end(),
+                 upper_triangular_edge_ids->begin());
+    edgelist_edge_ids->resize(lower_triangular_majors.size(), handle.get_stream());
+    edgelist_edge_ids->shrink_to_fit(handle.get_stream());
+  }
+  auto lower_triangular_edge_ids = std::move(edgelist_edge_ids);
+
+  if (edgelist_edge_types) {
+    diagonal_edge_types = rmm::device_uvector<edge_type_t>(num_diagonal_edges, handle.get_stream());
+    upper_triangular_edge_types =
+      rmm::device_uvector<edge_type_t>(upper_triangular_majors.size(), handle.get_stream());
+    thrust::copy(handle.get_thrust_policy(),
+                 edgelist_edge_types->begin() + num_lower_triangular_edges,
+                 edgelist_edge_types->begin() + num_lower_triangular_edges + num_diagonal_edges,
+                 diagonal_edge_types->begin());
+    thrust::copy(handle.get_thrust_policy(),
+                 edgelist_edge_types->begin() + num_lower_triangular_edges + num_diagonal_edges,
+                 edgelist_edge_types->end(),
+                 upper_triangular_edge_types->begin());
+    edgelist_edge_types->resize(lower_triangular_majors.size(), handle.get_stream());
+    edgelist_edge_types->shrink_to_fit(handle.get_stream());
+  }
+  auto lower_triangular_edge_types = std::move(edgelist_edge_types);
+
+  if (edgelist_edge_start_times) {
+    diagonal_edge_start_times =
+      rmm::device_uvector<edge_time_t>(num_diagonal_edges, handle.get_stream());
+    upper_triangular_edge_start_times =
+      rmm::device_uvector<edge_time_t>(upper_triangular_majors.size(), handle.get_stream());
+    thrust::copy(
+      handle.get_thrust_policy(),
+      edgelist_edge_start_times->begin() + num_lower_triangular_edges,
+      edgelist_edge_start_times->begin() + num_lower_triangular_edges + num_diagonal_edges,
+      diagonal_edge_start_times->begin());
+    thrust::copy(
+      handle.get_thrust_policy(),
+      edgelist_edge_start_times->begin() + num_lower_triangular_edges + num_diagonal_edges,
+      edgelist_edge_start_times->end(),
+      upper_triangular_edge_start_times->begin());
+    edgelist_edge_start_times->resize(lower_triangular_majors.size(), handle.get_stream());
+    edgelist_edge_start_times->shrink_to_fit(handle.get_stream());
+  }
+  auto lower_triangular_edge_start_times = std::move(edgelist_edge_start_times);
+
+  if (edgelist_edge_end_times) {
+    diagonal_edge_end_times =
+      rmm::device_uvector<edge_time_t>(num_diagonal_edges, handle.get_stream());
+    upper_triangular_edge_end_times =
+      rmm::device_uvector<edge_time_t>(upper_triangular_majors.size(), handle.get_stream());
+    thrust::copy(handle.get_thrust_policy(),
+                 edgelist_edge_end_times->begin() + num_lower_triangular_edges,
+                 edgelist_edge_end_times->begin() + num_lower_triangular_edges + num_diagonal_edges,
+                 diagonal_edge_end_times->begin());
+    thrust::copy(handle.get_thrust_policy(),
+                 edgelist_edge_end_times->begin() + num_lower_triangular_edges + num_diagonal_edges,
+                 edgelist_edge_end_times->end(),
+                 upper_triangular_edge_end_times->begin());
+    edgelist_edge_end_times->resize(lower_triangular_majors.size(), handle.get_stream());
+    edgelist_edge_end_times->shrink_to_fit(handle.get_stream());
+  }
+  auto lower_triangular_edge_end_times = std::move(edgelist_edge_end_times);
 
   // 2. shuffle the (to-be-flipped) upper triangular edges
 
@@ -294,8 +717,10 @@ symmetrize_edgelist(raft::handle_t const& handle,
     std::tie(upper_triangular_minors,
              upper_triangular_majors,
              upper_triangular_weights,
-             std::ignore,
-             std::ignore,
+             upper_triangular_edge_ids,
+             upper_triangular_edge_types,
+             upper_triangular_edge_start_times,
+             upper_triangular_edge_end_times,
              std::ignore) =
       detail::shuffle_ext_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning<vertex_t,
                                                                                      vertex_t,
@@ -305,8 +730,10 @@ symmetrize_edgelist(raft::handle_t const& handle,
         std::move(upper_triangular_minors),
         std::move(upper_triangular_majors),
         std::move(upper_triangular_weights),
-        std::nullopt,
-        std::nullopt);
+        std::move(upper_triangular_edge_ids),
+        std::move(upper_triangular_edge_types),
+        std::move(upper_triangular_edge_start_times),
+        std::move(upper_triangular_edge_end_times));
   }
 
   // 3. merge the lower triangular and the (flipped) upper triangular edges
@@ -316,145 +743,202 @@ symmetrize_edgelist(raft::handle_t const& handle,
   auto merged_lower_triangular_weights =
     edgelist_weights ? std::make_optional<rmm::device_uvector<weight_t>>(0, handle.get_stream())
                      : std::nullopt;
-  if (edgelist_weights) {
-    auto lower_triangular_edge_first =
-      thrust::make_zip_iterator(thrust::make_tuple(lower_triangular_majors.begin(),
-                                                   lower_triangular_minors.begin(),
-                                                   (*lower_triangular_weights).begin()));
-    thrust::sort(handle.get_thrust_policy(),
-                 lower_triangular_edge_first,
-                 lower_triangular_edge_first + lower_triangular_majors.size());
-    auto upper_triangular_edge_first = thrust::make_zip_iterator(thrust::make_tuple(
-      upper_triangular_majors.begin(),
-      upper_triangular_minors.begin(),
-      (*upper_triangular_weights)
-        .begin()));  // do not flip here to use "lower_triangular = major > minor"
-    thrust::sort(handle.get_thrust_policy(),
-                 upper_triangular_edge_first,
-                 upper_triangular_edge_first + upper_triangular_majors.size(),
-                 compare_upper_triangular_edges_as_lower_triangular_t<vertex_t, weight_t>{});
+  auto merged_lower_triangular_edge_ids =
+    edgelist_edge_ids ? std::make_optional<rmm::device_uvector<edge_t>>(0, handle.get_stream())
+                      : std::nullopt;
+  auto merged_lower_triangular_edge_types =
+    edgelist_edge_types
+      ? std::make_optional<rmm::device_uvector<edge_type_t>>(0, handle.get_stream())
+      : std::nullopt;
+  auto merged_lower_triangular_edge_start_times =
+    edgelist_edge_start_times
+      ? std::make_optional<rmm::device_uvector<edge_time_t>>(0, handle.get_stream())
+      : std::nullopt;
+  auto merged_lower_triangular_edge_end_times =
+    edgelist_edge_end_times
+      ? std::make_optional<rmm::device_uvector<edge_time_t>>(0, handle.get_stream())
+      : std::nullopt;
 
-    merged_lower_triangular_majors.resize(
-      lower_triangular_majors.size() + upper_triangular_majors.size(), handle.get_stream());
-    merged_lower_triangular_minors.resize(merged_lower_triangular_majors.size(),
-                                          handle.get_stream());
-    (*merged_lower_triangular_weights)
-      .resize(merged_lower_triangular_majors.size(), handle.get_stream());
-    auto merged_first =
-      thrust::make_zip_iterator(thrust::make_tuple(merged_lower_triangular_majors.begin(),
-                                                   merged_lower_triangular_minors.begin(),
-                                                   (*merged_lower_triangular_weights).begin()));
-    thrust::merge(handle.get_thrust_policy(),
-                  lower_triangular_edge_first,
-                  lower_triangular_edge_first + lower_triangular_majors.size(),
-                  upper_triangular_edge_first,
-                  upper_triangular_edge_first + upper_triangular_majors.size(),
-                  merged_first,
-                  compare_lower_and_upper_triangular_edges_t<vertex_t, weight_t>{});
-
-    lower_triangular_majors.resize(0, handle.get_stream());
-    lower_triangular_majors.shrink_to_fit(handle.get_stream());
-    lower_triangular_minors.resize(0, handle.get_stream());
-    lower_triangular_minors.shrink_to_fit(handle.get_stream());
-    (*lower_triangular_weights).resize(0, handle.get_stream());
-    (*lower_triangular_weights).shrink_to_fit(handle.get_stream());
-
-    upper_triangular_majors.resize(0, handle.get_stream());
-    upper_triangular_majors.shrink_to_fit(handle.get_stream());
-    upper_triangular_minors.resize(0, handle.get_stream());
-    upper_triangular_minors.shrink_to_fit(handle.get_stream());
-    (*upper_triangular_weights).resize(0, handle.get_stream());
-    (*upper_triangular_weights).shrink_to_fit(handle.get_stream());
-
-    rmm::device_uvector<uint8_t> includes(merged_lower_triangular_majors.size(),
-                                          handle.get_stream());
-    symmetrize_op_t<decltype(merged_first)> symm_op{reciprocal};
-    thrust::for_each(
-      handle.get_thrust_policy(),
-      thrust::make_counting_iterator(size_t{0}),
-      thrust::make_counting_iterator(merged_lower_triangular_majors.size()),
-      update_edge_weights_and_flags_t<decltype(merged_first)>{
-        merged_first, includes.data(), merged_lower_triangular_majors.size(), symm_op});
-
-    auto merged_edge_and_flag_first =
-      thrust::make_zip_iterator(thrust::make_tuple(merged_lower_triangular_majors.begin(),
-                                                   merged_lower_triangular_minors.begin(),
-                                                   (*merged_lower_triangular_weights).begin(),
-                                                   includes.begin()));
-    merged_lower_triangular_majors.resize(
-      thrust::distance(
-        merged_edge_and_flag_first,
-        thrust::remove_if(handle.get_thrust_policy(),
-                          merged_edge_and_flag_first,
-                          merged_edge_and_flag_first + merged_lower_triangular_majors.size(),
-                          [] __device__(auto t) { return !thrust::get<3>(t); })),
-      handle.get_stream());
-    merged_lower_triangular_majors.shrink_to_fit(handle.get_stream());
-    merged_lower_triangular_minors.resize(merged_lower_triangular_majors.size(),
-                                          handle.get_stream());
-    merged_lower_triangular_minors.shrink_to_fit(handle.get_stream());
-    (*merged_lower_triangular_weights)
-      .resize(merged_lower_triangular_majors.size(), handle.get_stream());
-    (*merged_lower_triangular_weights).shrink_to_fit(handle.get_stream());
-
-    auto merged_major_minor_range_first = thrust::make_zip_iterator(thrust::make_tuple(
-      merged_lower_triangular_majors.begin(), merged_lower_triangular_minors.begin()));
-    thrust::transform(handle.get_thrust_policy(),
-                      merged_major_minor_range_first,
-                      merged_major_minor_range_first + merged_lower_triangular_majors.size(),
-                      merged_major_minor_range_first,
-                      to_lower_triangular_t<vertex_t>{});
+  if (edge_property_count == 0) {
+    std::tie(merged_lower_triangular_majors, merged_lower_triangular_minors) =
+      merge_lower_triangular(handle,
+                             std::move(lower_triangular_majors),
+                             std::move(lower_triangular_minors),
+                             std::move(upper_triangular_majors),
+                             std::move(upper_triangular_minors),
+                             num_lower_triangular_edges,
+                             reciprocal);
+  } else if (edge_property_count == 1) {
+    if (edgelist_weights) {
+      std::tie(merged_lower_triangular_majors,
+               merged_lower_triangular_minors,
+               merged_lower_triangular_weights) =
+        merge_lower_triangular(handle,
+                               std::move(lower_triangular_majors),
+                               std::move(lower_triangular_minors),
+                               std::move(*lower_triangular_weights),
+                               std::move(upper_triangular_majors),
+                               std::move(upper_triangular_minors),
+                               std::move(*upper_triangular_weights),
+                               num_lower_triangular_edges,
+                               reciprocal);
+    }
+    if (edgelist_edge_ids) {
+      std::tie(merged_lower_triangular_majors,
+               merged_lower_triangular_minors,
+               merged_lower_triangular_edge_ids) =
+        merge_lower_triangular(handle,
+                               std::move(lower_triangular_majors),
+                               std::move(lower_triangular_minors),
+                               std::move(*lower_triangular_edge_ids),
+                               std::move(upper_triangular_majors),
+                               std::move(upper_triangular_minors),
+                               std::move(*upper_triangular_edge_ids),
+                               num_lower_triangular_edges,
+                               reciprocal);
+    }
+    if (edgelist_edge_types) {
+      std::tie(merged_lower_triangular_majors,
+               merged_lower_triangular_minors,
+               merged_lower_triangular_edge_types) =
+        merge_lower_triangular(handle,
+                               std::move(lower_triangular_majors),
+                               std::move(lower_triangular_minors),
+                               std::move(*lower_triangular_edge_types),
+                               std::move(upper_triangular_majors),
+                               std::move(upper_triangular_minors),
+                               std::move(*upper_triangular_edge_types),
+                               num_lower_triangular_edges,
+                               reciprocal);
+    }
+    if (edgelist_edge_start_times) {
+      std::tie(merged_lower_triangular_majors,
+               merged_lower_triangular_minors,
+               merged_lower_triangular_edge_start_times) =
+        merge_lower_triangular(handle,
+                               std::move(lower_triangular_majors),
+                               std::move(lower_triangular_minors),
+                               std::move(*lower_triangular_edge_start_times),
+                               std::move(upper_triangular_majors),
+                               std::move(upper_triangular_minors),
+                               std::move(*upper_triangular_edge_start_times),
+                               num_lower_triangular_edges,
+                               reciprocal);
+    }
+    if (edgelist_edge_end_times) {
+      std::tie(merged_lower_triangular_majors,
+               merged_lower_triangular_minors,
+               merged_lower_triangular_edge_end_times) =
+        merge_lower_triangular(handle,
+                               std::move(lower_triangular_majors),
+                               std::move(lower_triangular_minors),
+                               std::move(*lower_triangular_edge_end_times),
+                               std::move(upper_triangular_majors),
+                               std::move(upper_triangular_minors),
+                               std::move(*upper_triangular_edge_end_times),
+                               num_lower_triangular_edges,
+                               reciprocal);
+    }
   } else {
-    auto lower_triangular_edge_first = thrust::make_zip_iterator(
-      thrust::make_tuple(lower_triangular_majors.begin(), lower_triangular_minors.begin()));
-    thrust::sort(handle.get_thrust_policy(),
-                 lower_triangular_edge_first,
-                 lower_triangular_edge_first + lower_triangular_majors.size());
-    auto upper_triangular_edge_first = thrust::make_zip_iterator(thrust::make_tuple(
-      upper_triangular_minors.begin(), upper_triangular_majors.begin()));  // flip
-    thrust::sort(handle.get_thrust_policy(),
-                 upper_triangular_edge_first,
-                 upper_triangular_edge_first + upper_triangular_majors.size());
+    rmm::device_uvector<edge_t> property_position(
+      lower_triangular_majors.size() + upper_triangular_majors.size(), handle.get_stream());
+    detail::sequence_fill(
+      handle.get_stream(), property_position.data(), property_position.size(), edge_t{0});
 
-    merged_lower_triangular_majors.resize(
-      reciprocal ? std::min(num_lower_triangular_edges, upper_triangular_majors.size())
-                 : num_lower_triangular_edges + upper_triangular_majors.size(),
-      handle.get_stream());
-    merged_lower_triangular_minors.resize(merged_lower_triangular_majors.size(),
-                                          handle.get_stream());
-    auto merged_first = thrust::make_zip_iterator(thrust::make_tuple(
-      merged_lower_triangular_majors.begin(), merged_lower_triangular_minors.begin()));
-    auto merged_last =
-      reciprocal
-        ? thrust::set_intersection(handle.get_thrust_policy(),
-                                   lower_triangular_edge_first,
-                                   lower_triangular_edge_first + lower_triangular_majors.size(),
-                                   upper_triangular_edge_first,
-                                   upper_triangular_edge_first + upper_triangular_majors.size(),
-                                   merged_first)
-        : thrust::set_union(handle.get_thrust_policy(),
-                            lower_triangular_edge_first,
-                            lower_triangular_edge_first + lower_triangular_majors.size(),
-                            upper_triangular_edge_first,
-                            upper_triangular_edge_first + upper_triangular_majors.size(),
-                            merged_first);
+    std::tie(merged_lower_triangular_majors, merged_lower_triangular_minors, property_position) =
+      merge_lower_triangular(handle,
+                             std::move(lower_triangular_majors),
+                             std::move(lower_triangular_minors),
+                             std::move(property_position),
+                             std::move(upper_triangular_majors),
+                             std::move(upper_triangular_minors),
+                             std::move(property_position),
+                             num_lower_triangular_edges,
+                             reciprocal);
 
-    lower_triangular_majors.resize(0, handle.get_stream());
-    lower_triangular_majors.shrink_to_fit(handle.get_stream());
-    lower_triangular_minors.resize(0, handle.get_stream());
-    lower_triangular_minors.shrink_to_fit(handle.get_stream());
+    if (edgelist_weights) {
+      merged_lower_triangular_weights->resize(merged_lower_triangular_majors.size(),
+                                              handle.get_stream());
 
-    upper_triangular_majors.resize(0, handle.get_stream());
-    upper_triangular_majors.shrink_to_fit(handle.get_stream());
-    upper_triangular_minors.resize(0, handle.get_stream());
-    upper_triangular_minors.shrink_to_fit(handle.get_stream());
+      thrust::gather(handle.get_thrust_policy(),
+                     property_position.begin(),
+                     property_position.end(),
+                     thrust::make_transform_iterator(
+                       edgelist_weights->begin(),
+                       pick_from_lower_upper_t<weight_t>{
+                         raft::device_span<weight_t const>{lower_triangular_weights->data(),
+                                                           lower_triangular_weights->size()},
+                         raft::device_span<weight_t const>{upper_triangular_weights->data(),
+                                                           upper_triangular_weights->size()}}),
+                     merged_lower_triangular_weights->begin());
+    }
+    if (edgelist_edge_ids) {
+      merged_lower_triangular_edge_ids->resize(merged_lower_triangular_majors.size(),
+                                               handle.get_stream());
 
-    merged_lower_triangular_majors.resize(thrust::distance(merged_first, merged_last),
-                                          handle.get_stream());
-    merged_lower_triangular_majors.shrink_to_fit(handle.get_stream());
-    merged_lower_triangular_minors.resize(merged_lower_triangular_majors.size(),
-                                          handle.get_stream());
-    merged_lower_triangular_minors.shrink_to_fit(handle.get_stream());
+      thrust::gather(handle.get_thrust_policy(),
+                     property_position.begin(),
+                     property_position.end(),
+                     thrust::make_transform_iterator(
+                       edgelist_edge_ids->begin(),
+                       pick_from_lower_upper_t<edge_t>{
+                         raft::device_span<edge_t const>{lower_triangular_edge_ids->data(),
+                                                         lower_triangular_edge_ids->size()},
+                         raft::device_span<edge_t const>{upper_triangular_edge_ids->data(),
+                                                         upper_triangular_edge_ids->size()}}),
+                     merged_lower_triangular_edge_ids->begin());
+    }
+    if (edgelist_edge_types) {
+      merged_lower_triangular_edge_types->resize(merged_lower_triangular_majors.size(),
+                                                 handle.get_stream());
+
+      thrust::gather(
+        handle.get_thrust_policy(),
+        property_position.begin(),
+        property_position.end(),
+        thrust::make_transform_iterator(
+          edgelist_edge_types->begin(),
+          pick_from_lower_upper_t<edge_type_t>{
+            raft::device_span<edge_type_t const>{lower_triangular_edge_types->data(),
+                                                 lower_triangular_edge_types->size()},
+            raft::device_span<edge_type_t const>{upper_triangular_edge_types->data(),
+                                                 upper_triangular_edge_types->size()}}),
+        merged_lower_triangular_edge_types->begin());
+    }
+    if (edgelist_edge_start_times) {
+      merged_lower_triangular_edge_start_times->resize(merged_lower_triangular_majors.size(),
+                                                       handle.get_stream());
+
+      thrust::gather(
+        handle.get_thrust_policy(),
+        property_position.begin(),
+        property_position.end(),
+        thrust::make_transform_iterator(
+          edgelist_edge_start_times->begin(),
+          pick_from_lower_upper_t<edge_time_t>{
+            raft::device_span<edge_time_t const>{lower_triangular_edge_start_times->data(),
+                                                 lower_triangular_edge_start_times->size()},
+            raft::device_span<edge_time_t const>{upper_triangular_edge_start_times->data(),
+                                                 upper_triangular_edge_start_times->size()}}),
+        merged_lower_triangular_edge_start_times->begin());
+    }
+    if (edgelist_edge_end_times) {
+      merged_lower_triangular_edge_end_times->resize(merged_lower_triangular_majors.size(),
+                                                     handle.get_stream());
+
+      thrust::gather(
+        handle.get_thrust_policy(),
+        property_position.begin(),
+        property_position.end(),
+        thrust::make_transform_iterator(
+          edgelist_edge_end_times->begin(),
+          pick_from_lower_upper_t<edge_time_t>{
+            raft::device_span<edge_time_t const>{lower_triangular_edge_end_times->data(),
+                                                 lower_triangular_edge_end_times->size()},
+            raft::device_span<edge_time_t const>{upper_triangular_edge_end_times->data(),
+                                                 upper_triangular_edge_end_times->size()}}),
+        merged_lower_triangular_edge_end_times->begin());
+    }
   }
 
   // 4. symmetrize from the merged lower triangular edges & diagonal edges
@@ -476,29 +960,67 @@ symmetrize_edgelist(raft::handle_t const& handle,
                  (*merged_lower_triangular_weights).end(),
                  (*upper_triangular_weights).begin());
   }
+  if (edgelist_edge_ids) {
+    (*upper_triangular_edge_ids).resize(upper_triangular_majors.size(), handle.get_stream());
+    thrust::copy(handle.get_thrust_policy(),
+                 (*merged_lower_triangular_edge_ids).begin(),
+                 (*merged_lower_triangular_edge_ids).end(),
+                 (*upper_triangular_edge_ids).begin());
+  }
+  if (edgelist_edge_types) {
+    (*upper_triangular_edge_types).resize(upper_triangular_majors.size(), handle.get_stream());
+    thrust::copy(handle.get_thrust_policy(),
+                 (*merged_lower_triangular_edge_types).begin(),
+                 (*merged_lower_triangular_edge_types).end(),
+                 (*upper_triangular_edge_types).begin());
+  }
+  if (edgelist_edge_start_times) {
+    (*upper_triangular_edge_start_times)
+      .resize(upper_triangular_majors.size(), handle.get_stream());
+    thrust::copy(handle.get_thrust_policy(),
+                 (*merged_lower_triangular_edge_start_times).begin(),
+                 (*merged_lower_triangular_edge_start_times).end(),
+                 (*upper_triangular_edge_start_times).begin());
+  }
+  if (edgelist_edge_end_times) {
+    (*upper_triangular_edge_end_times).resize(upper_triangular_majors.size(), handle.get_stream());
+    thrust::copy(handle.get_thrust_policy(),
+                 (*merged_lower_triangular_edge_end_times).begin(),
+                 (*merged_lower_triangular_edge_end_times).end(),
+                 (*upper_triangular_edge_end_times).begin());
+  }
 
   if constexpr (multi_gpu) {
     std::tie(upper_triangular_majors,
              upper_triangular_minors,
              upper_triangular_weights,
-             std::ignore,
-             std::ignore,
+             upper_triangular_edge_ids,
+             upper_triangular_edge_types,
+             upper_triangular_edge_start_times,
+             upper_triangular_edge_end_times,
              std::ignore) =
       detail::shuffle_ext_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning<vertex_t,
                                                                                      vertex_t,
                                                                                      weight_t,
-                                                                                     int32_t>(
+                                                                                     edge_type_t,
+                                                                                     edge_time_t>(
         handle,
         std::move(upper_triangular_majors),
         std::move(upper_triangular_minors),
         std::move(upper_triangular_weights),
-        std::nullopt,
-        std::nullopt);
+        std::move(upper_triangular_edge_ids),
+        std::move(upper_triangular_edge_types),
+        std::move(upper_triangular_edge_start_times),
+        std::move(upper_triangular_edge_end_times));
   }
 
-  edgelist_majors  = std::move(merged_lower_triangular_majors);
-  edgelist_minors  = std::move(merged_lower_triangular_minors);
-  edgelist_weights = std::move(merged_lower_triangular_weights);
+  edgelist_majors           = std::move(merged_lower_triangular_majors);
+  edgelist_minors           = std::move(merged_lower_triangular_minors);
+  edgelist_weights          = std::move(merged_lower_triangular_weights);
+  edgelist_edge_ids         = std::move(merged_lower_triangular_edge_ids);
+  edgelist_edge_types       = std::move(merged_lower_triangular_edge_types);
+  edgelist_edge_start_times = std::move(merged_lower_triangular_edge_start_times);
+  edgelist_edge_end_times   = std::move(merged_lower_triangular_edge_end_times);
 
   edgelist_majors.resize(
     edgelist_majors.size() + diagonal_majors.size() + upper_triangular_majors.size(),
@@ -546,8 +1068,81 @@ symmetrize_edgelist(raft::handle_t const& handle,
     (*upper_triangular_weights).shrink_to_fit(handle.get_stream());
   }
 
-  return std::make_tuple(
-    std::move(edgelist_majors), std::move(edgelist_minors), std::move(edgelist_weights));
+  if (edgelist_edge_ids) {
+    (*edgelist_edge_ids).resize(edgelist_majors.size(), handle.get_stream());
+    thrust::copy(handle.get_thrust_policy(),
+                 (*diagonal_edge_ids).begin(),
+                 (*diagonal_edge_ids).end(),
+                 (*edgelist_edge_ids).end() - (*diagonal_edge_ids).size() -
+                   (*upper_triangular_edge_ids).size());
+    thrust::copy(handle.get_thrust_policy(),
+                 (*upper_triangular_edge_ids).begin(),
+                 (*upper_triangular_edge_ids).end(),
+                 (*edgelist_edge_ids).end() - (*upper_triangular_edge_ids).size());
+    (*diagonal_edge_ids).resize(0, handle.get_stream());
+    (*diagonal_edge_ids).shrink_to_fit(handle.get_stream());
+    (*upper_triangular_edge_ids).resize(0, handle.get_stream());
+    (*upper_triangular_edge_ids).shrink_to_fit(handle.get_stream());
+  }
+
+  if (edgelist_edge_types) {
+    (*edgelist_edge_types).resize(edgelist_majors.size(), handle.get_stream());
+    thrust::copy(handle.get_thrust_policy(),
+                 (*diagonal_edge_types).begin(),
+                 (*diagonal_edge_types).end(),
+                 (*edgelist_edge_types).end() - (*diagonal_edge_types).size() -
+                   (*upper_triangular_edge_types).size());
+    thrust::copy(handle.get_thrust_policy(),
+                 (*upper_triangular_edge_types).begin(),
+                 (*upper_triangular_edge_types).end(),
+                 (*edgelist_edge_types).end() - (*upper_triangular_edge_types).size());
+    (*diagonal_edge_types).resize(0, handle.get_stream());
+    (*diagonal_edge_types).shrink_to_fit(handle.get_stream());
+    (*upper_triangular_edge_types).resize(0, handle.get_stream());
+    (*upper_triangular_edge_types).shrink_to_fit(handle.get_stream());
+  }
+
+  if (edgelist_edge_start_times) {
+    (*edgelist_edge_start_times).resize(edgelist_majors.size(), handle.get_stream());
+    thrust::copy(handle.get_thrust_policy(),
+                 (*diagonal_edge_start_times).begin(),
+                 (*diagonal_edge_start_times).end(),
+                 (*edgelist_edge_start_times).end() - (*diagonal_edge_start_times).size() -
+                   (*upper_triangular_edge_start_times).size());
+    thrust::copy(handle.get_thrust_policy(),
+                 (*upper_triangular_edge_start_times).begin(),
+                 (*upper_triangular_edge_start_times).end(),
+                 (*edgelist_edge_start_times).end() - (*upper_triangular_edge_start_times).size());
+    (*diagonal_edge_start_times).resize(0, handle.get_stream());
+    (*diagonal_edge_start_times).shrink_to_fit(handle.get_stream());
+    (*upper_triangular_edge_start_times).resize(0, handle.get_stream());
+    (*upper_triangular_edge_start_times).shrink_to_fit(handle.get_stream());
+  }
+
+  if (edgelist_edge_end_times) {
+    (*edgelist_edge_end_times).resize(edgelist_majors.size(), handle.get_stream());
+    thrust::copy(handle.get_thrust_policy(),
+                 (*diagonal_edge_end_times).begin(),
+                 (*diagonal_edge_end_times).end(),
+                 (*edgelist_edge_end_times).end() - (*diagonal_edge_end_times).size() -
+                   (*upper_triangular_edge_end_times).size());
+    thrust::copy(handle.get_thrust_policy(),
+                 (*upper_triangular_edge_end_times).begin(),
+                 (*upper_triangular_edge_end_times).end(),
+                 (*edgelist_edge_end_times).end() - (*upper_triangular_edge_end_times).size());
+    (*diagonal_edge_end_times).resize(0, handle.get_stream());
+    (*diagonal_edge_end_times).shrink_to_fit(handle.get_stream());
+    (*upper_triangular_edge_end_times).resize(0, handle.get_stream());
+    (*upper_triangular_edge_end_times).shrink_to_fit(handle.get_stream());
+  }
+
+  return std::make_tuple(std::move(edgelist_majors),
+                         std::move(edgelist_minors),
+                         std::move(edgelist_weights),
+                         std::move(edgelist_edge_ids),
+                         std::move(edgelist_edge_types),
+                         std::move(edgelist_edge_start_times),
+                         std::move(edgelist_edge_end_times));
 }
 
 }  // namespace detail
@@ -564,17 +1159,78 @@ symmetrize_edgelist(raft::handle_t const& handle,
 {
   rmm::device_uvector<vertex_t> edgelist_majors(0, handle.get_stream());
   rmm::device_uvector<vertex_t> edgelist_minors(0, handle.get_stream());
-  std::tie(edgelist_majors, edgelist_minors, edgelist_weights) =
-    detail::symmetrize_edgelist<vertex_t, weight_t, multi_gpu>(
+  std::tie(edgelist_majors,
+           edgelist_minors,
+           edgelist_weights,
+           std::ignore,
+           std::ignore,
+           std::ignore,
+           std::ignore) =
+    detail::symmetrize_edgelist<vertex_t, vertex_t, weight_t, int32_t, int32_t, multi_gpu>(
       handle,
-      store_transposed ? std::move(edgelist_dsts) : std::move(edgelist_srcs),
-      store_transposed ? std::move(edgelist_srcs) : std::move(edgelist_dsts),
+      std::move(edgelist_srcs),
+      std::move(edgelist_dsts),
       std::move(edgelist_weights),
+      std::nullopt,
+      std::nullopt,
+      std::nullopt,
+      std::nullopt,
       reciprocal);
 
-  return std::make_tuple(store_transposed ? std::move(edgelist_minors) : std::move(edgelist_majors),
-                         store_transposed ? std::move(edgelist_majors) : std::move(edgelist_minors),
-                         std::move(edgelist_weights));
+  return std::make_tuple(
+    std::move(edgelist_majors), std::move(edgelist_minors), std::move(edgelist_weights));
+}
+
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          typename edge_type_t,
+          typename edge_time_t,
+          bool multi_gpu>
+std::tuple<rmm::device_uvector<vertex_t>,
+           rmm::device_uvector<vertex_t>,
+           std::optional<rmm::device_uvector<weight_t>>,
+           std::optional<rmm::device_uvector<edge_t>>,
+           std::optional<rmm::device_uvector<edge_type_t>>,
+           std::optional<rmm::device_uvector<edge_time_t>>,
+           std::optional<rmm::device_uvector<edge_time_t>>>
+symmetrize_edgelist(raft::handle_t const& handle,
+                    rmm::device_uvector<vertex_t>&& edgelist_srcs,
+                    rmm::device_uvector<vertex_t>&& edgelist_dsts,
+                    std::optional<rmm::device_uvector<weight_t>>&& edgelist_weights,
+                    std::optional<rmm::device_uvector<edge_t>>&& edgelist_edge_ids,
+                    std::optional<rmm::device_uvector<edge_type_t>>&& edgelist_edge_types,
+                    std::optional<rmm::device_uvector<edge_time_t>>&& edgelist_edge_start_times,
+                    std::optional<rmm::device_uvector<edge_time_t>>&& edgelist_edge_end_times,
+                    bool reciprocal)
+{
+  rmm::device_uvector<vertex_t> edgelist_majors(0, handle.get_stream());
+  rmm::device_uvector<vertex_t> edgelist_minors(0, handle.get_stream());
+  std::tie(edgelist_majors,
+           edgelist_minors,
+           edgelist_weights,
+           edgelist_edge_ids,
+           edgelist_edge_types,
+           edgelist_edge_start_times,
+           edgelist_edge_end_times) =
+    detail::symmetrize_edgelist<vertex_t, vertex_t, weight_t, edge_type_t, edge_time_t, multi_gpu>(
+      handle,
+      std::move(edgelist_srcs),
+      std::move(edgelist_dsts),
+      std::move(edgelist_weights),
+      std::move(edgelist_edge_ids),
+      std::move(edgelist_edge_types),
+      std::move(edgelist_edge_start_times),
+      std::move(edgelist_edge_end_times),
+      reciprocal);
+
+  return std::make_tuple(std::move(edgelist_majors),
+                         std::move(edgelist_minors),
+                         std::move(edgelist_weights),
+                         std::move(edgelist_edge_ids),
+                         std::move(edgelist_edge_types),
+                         std::move(edgelist_edge_start_times),
+                         std::move(edgelist_edge_end_times));
 }
 
 }  // namespace cugraph

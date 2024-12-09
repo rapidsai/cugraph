@@ -196,11 +196,11 @@ extern "C" int create_mg_test_graph(const cugraph_resource_handle_t* handle,
                                      NULL,
                                      &src_view,
                                      &dst_view,
-                                     &wgt_view,
+                                     wgt_view == nullptr ? NULL : &wgt_view,
                                      NULL,
                                      NULL,
                                      store_transposed,
-                                     original_num_edges,  // UNUSED
+                                     1,
                                      FALSE,
                                      FALSE,
                                      FALSE,
@@ -294,11 +294,11 @@ extern "C" int create_mg_test_graph_double(const cugraph_resource_handle_t* hand
                                      NULL,
                                      &src_view,
                                      &dst_view,
-                                     &wgt_view,
+                                     wgt_view == nullptr ? NULL : &wgt_view,
                                      NULL,
                                      NULL,
                                      store_transposed,
-                                     original_num_edges,  // UNUSED
+                                     1,
                                      FALSE,
                                      FALSE,
                                      FALSE,
@@ -387,10 +387,10 @@ extern "C" int create_mg_test_graph_with_edge_ids(const cugraph_resource_handle_
                                      &src_view,
                                      &dst_view,
                                      NULL,
-                                     &idx_view,
+                                     idx_view == nullptr ? NULL : &idx_view,
                                      NULL,
                                      store_transposed,
-                                     original_num_edges,  // UNUSED
+                                     1,
                                      FALSE,
                                      FALSE,
                                      FALSE,
@@ -513,11 +513,11 @@ extern "C" int create_mg_test_graph_with_properties(const cugraph_resource_handl
                                      NULL,
                                      &src_view,
                                      &dst_view,
-                                     &wgt_view,
-                                     &idx_view,
-                                     &type_view,
+                                     wgt_view == nullptr ? NULL : &wgt_view,
+                                     idx_view == nullptr ? NULL : &idx_view,
+                                     type_view == nullptr ? NULL : &type_view,
                                      store_transposed,
-                                     original_num_edges,  // UNUSED
+                                     1,
                                      FALSE,
                                      FALSE,
                                      FALSE,
@@ -606,6 +606,7 @@ int create_mg_test_graph_new(const cugraph_resource_handle_t* handle,
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "dst copy_from_host failed.");
 
   if (h_wgt != NULL) {
+    std::cout << "has edge weight" << std::endl;
     ret_code =
       cugraph_type_erased_device_array_create(handle, num_edges, weight_tid, &wgt, ret_error);
     TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "wgt create failed.");
@@ -618,6 +619,7 @@ int create_mg_test_graph_new(const cugraph_resource_handle_t* handle,
   }
 
   if (h_edge_type != NULL) {
+    std::cout << "has edge type" << std::endl;
     ret_code = cugraph_type_erased_device_array_create(
       handle, num_edges, edge_type_tid, &edge_type, ret_error);
     TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "edge_type create failed.");
@@ -630,6 +632,7 @@ int create_mg_test_graph_new(const cugraph_resource_handle_t* handle,
   }
 
   if (h_edge_id != NULL) {
+    std::cout << "has edge id" << std::endl;
     ret_code =
       cugraph_type_erased_device_array_create(handle, num_edges, edge_id_tid, &edge_id, ret_error);
     TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "edge_id create failed.");
@@ -641,22 +644,24 @@ int create_mg_test_graph_new(const cugraph_resource_handle_t* handle,
     TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "edge_id copy_from_host failed.");
   }
 
+  std::cout << "calling cugraph_graph_create_mg" << std::endl;
   ret_code = cugraph_graph_create_mg(handle,
                                      &properties,
                                      NULL,
                                      &src_view,
                                      &dst_view,
-                                     &wgt_view,
-                                     &edge_id_view,
-                                     &edge_type_view,
+                                     wgt_view == nullptr ? NULL : &wgt_view,
+                                     edge_id_view == nullptr ? NULL : &edge_id_view,
+                                     edge_type_view == nullptr ? NULL : &edge_type_view,
                                      store_transposed,
-                                     original_num_edges,  // UNUSED
+                                     1,
                                      FALSE,
                                      FALSE,
                                      FALSE,
-                                     FALSE,
+                                     TRUE,
                                      graph,
                                      ret_error);
+  std::cout << "ret_code = " << ret_code << std::endl;
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "graph creation failed.");
 
   if (edge_id != NULL) {

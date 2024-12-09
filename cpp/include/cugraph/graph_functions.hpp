@@ -406,14 +406,27 @@ decompress_to_edgelist(
  * std::optional<rmm::device_uvector<weight_t>>> Tuple of symmetrized sources, destinations, and
  * optional weights (if @p edgelist_weights is valid).
  */
-template <typename vertex_t, typename weight_t, bool store_transposed, bool multi_gpu>
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          typename edge_type_t,
+          typename edge_time_t,
+          bool multi_gpu>
 std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
-           std::optional<rmm::device_uvector<weight_t>>>
+           std::optional<rmm::device_uvector<weight_t>>,
+           std::optional<rmm::device_uvector<edge_t>>,
+           std::optional<rmm::device_uvector<edge_type_t>>,
+           std::optional<rmm::device_uvector<edge_time_t>>,
+           std::optional<rmm::device_uvector<edge_time_t>>>
 symmetrize_edgelist(raft::handle_t const& handle,
                     rmm::device_uvector<vertex_t>&& edgelist_srcs,
                     rmm::device_uvector<vertex_t>&& edgelist_dsts,
                     std::optional<rmm::device_uvector<weight_t>>&& edgelist_weights,
+                    std::optional<rmm::device_uvector<edge_t>>&& edgelist_edge_ids,
+                    std::optional<rmm::device_uvector<edge_type_t>>&& edgelist_edge_types,
+                    std::optional<rmm::device_uvector<edge_time_t>>&& edgelist_edge_start_times,
+                    std::optional<rmm::device_uvector<edge_time_t>>&& edgelist_edge_end_times,
                     bool reciprocal);
 
 /**
@@ -676,7 +689,6 @@ extract_induced_subgraphs(
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
  * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
  * @tparam weight_t Type of edge weight.  Needs to be floating point type
- * @tparam edge_id_t Type of edge id.  Needs to be an integral type
  * @tparam edge_type_t Type of edge type.  Needs to be an integral type, currently only int32_t is
  * supported
  * @tparam store_transposed Flag indicating whether to use sources (if false) or destinations (if
@@ -708,7 +720,6 @@ extract_induced_subgraphs(
 template <typename vertex_t,
           typename edge_t,
           typename weight_t,
-          typename edge_id_t,
           typename edge_type_t,
           bool store_transposed,
           bool multi_gpu>
@@ -717,7 +728,7 @@ std::tuple<
   std::optional<
     edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, weight_t>>,
   std::optional<
-    edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, edge_id_t>>,
+    edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, edge_t>>,
   std::optional<
     edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, edge_type_t>>,
   std::optional<rmm::device_uvector<vertex_t>>>
@@ -726,7 +737,7 @@ create_graph_from_edgelist(raft::handle_t const& handle,
                            rmm::device_uvector<vertex_t>&& edgelist_srcs,
                            rmm::device_uvector<vertex_t>&& edgelist_dsts,
                            std::optional<rmm::device_uvector<weight_t>>&& edgelist_weights,
-                           std::optional<rmm::device_uvector<edge_id_t>>&& edgelist_edge_ids,
+                           std::optional<rmm::device_uvector<edge_t>>&& edgelist_edge_ids,
                            std::optional<rmm::device_uvector<edge_type_t>>&& edgelist_edge_types,
                            graph_properties_t graph_properties,
                            bool renumber,
@@ -739,7 +750,6 @@ create_graph_from_edgelist(raft::handle_t const& handle,
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
  * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
  * @tparam weight_t Type of edge weight.  Needs to be floating point type
- * @tparam edge_id_t Type of edge id.  Needs to be an integral type
  * @tparam edge_type_t Type of edge type.  Needs to be an integral type, currently only int32_t is
  * supported
  * @tparam store_transposed Flag indicating whether to use sources (if false) or destinations (if
@@ -773,7 +783,6 @@ create_graph_from_edgelist(raft::handle_t const& handle,
 template <typename vertex_t,
           typename edge_t,
           typename weight_t,
-          typename edge_id_t,
           typename edge_type_t,
           typename edge_time_t,
           bool store_transposed,
@@ -783,7 +792,7 @@ std::tuple<
   std::optional<
     edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, weight_t>>,
   std::optional<
-    edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, edge_id_t>>,
+    edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, edge_t>>,
   std::optional<
     edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, edge_type_t>>,
   std::optional<
@@ -797,7 +806,7 @@ create_graph_from_edgelist(
   rmm::device_uvector<vertex_t>&& edgelist_srcs,
   rmm::device_uvector<vertex_t>&& edgelist_dsts,
   std::optional<rmm::device_uvector<weight_t>>&& edgelist_weights,
-  std::optional<rmm::device_uvector<edge_id_t>>&& edgelist_edge_ids,
+  std::optional<rmm::device_uvector<edge_t>>&& edgelist_edge_ids,
   std::optional<rmm::device_uvector<edge_type_t>>&& edgelist_edge_types,
   std::optional<rmm::device_uvector<edge_time_t>>&& edgelist_edge_start_times,
   std::optional<rmm::device_uvector<edge_time_t>>&& edgelist_edge_end_times,
@@ -814,7 +823,6 @@ create_graph_from_edgelist(
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
  * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
  * @tparam weight_t Type of edge weight.  Needs to be floating point type
- * @tparam edge_id_t Type of edge id.  Needs to be an integral type
  * @tparam edge_type_t Type of edge type.  Needs to be an integral type, currently only int32_t is
  * supported
  * @tparam store_transposed Flag indicating whether to use sources (if false) or destinations (if
@@ -846,7 +854,6 @@ create_graph_from_edgelist(
 template <typename vertex_t,
           typename edge_t,
           typename weight_t,
-          typename edge_id_t,
           typename edge_type_t,
           bool store_transposed,
           bool multi_gpu>
@@ -855,7 +862,7 @@ std::tuple<
   std::optional<
     edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, weight_t>>,
   std::optional<
-    edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, edge_id_t>>,
+    edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, edge_t>>,
   std::optional<
     edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, edge_type_t>>,
   std::optional<rmm::device_uvector<vertex_t>>>
@@ -865,7 +872,7 @@ create_graph_from_edgelist(
   std::vector<rmm::device_uvector<vertex_t>>&& edgelist_srcs,
   std::vector<rmm::device_uvector<vertex_t>>&& edgelist_dsts,
   std::optional<std::vector<rmm::device_uvector<weight_t>>>&& edgelist_weights,
-  std::optional<std::vector<rmm::device_uvector<edge_id_t>>>&& edgelist_edge_ids,
+  std::optional<std::vector<rmm::device_uvector<edge_t>>>&& edgelist_edge_ids,
   std::optional<std::vector<rmm::device_uvector<edge_type_t>>>&& edgelist_edge_types,
   graph_properties_t graph_properties,
   bool renumber,
@@ -880,7 +887,6 @@ create_graph_from_edgelist(
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
  * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
  * @tparam weight_t Type of edge weight.  Needs to be floating point type
- * @tparam edge_id_t Type of edge id.  Needs to be an integral type
  * @tparam edge_type_t Type of edge type.  Needs to be an integral type, currently only int32_t is
  * supported
  * @tparam store_transposed Flag indicating whether to use sources (if false) or destinations (if
@@ -914,7 +920,6 @@ create_graph_from_edgelist(
 template <typename vertex_t,
           typename edge_t,
           typename weight_t,
-          typename edge_id_t,
           typename edge_type_t,
           typename edge_time_t,
           bool store_transposed,
@@ -924,7 +929,7 @@ std::tuple<
   std::optional<
     edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, weight_t>>,
   std::optional<
-    edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, edge_id_t>>,
+    edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, edge_t>>,
   std::optional<
     edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, edge_type_t>>,
   std::optional<
@@ -938,10 +943,10 @@ create_graph_from_edgelist(
   std::vector<rmm::device_uvector<vertex_t>>&& edgelist_srcs,
   std::vector<rmm::device_uvector<vertex_t>>&& edgelist_dsts,
   std::optional<std::vector<rmm::device_uvector<weight_t>>>&& edgelist_weights,
-  std::optional<std::vector<rmm::device_uvector<edge_id_t>>>&& edgelist_edge_ids,
+  std::optional<std::vector<rmm::device_uvector<edge_t>>>&& edgelist_edge_ids,
   std::optional<std::vector<rmm::device_uvector<edge_type_t>>>&& edgelist_edge_types,
-  std::optional<rmm::device_uvector<edge_time_t>>&& edgelist_edge_start_times,
-  std::optional<rmm::device_uvector<edge_time_t>>&& edgelist_edge_end_times,
+  std::optional<std::vector<rmm::device_uvector<edge_time_t>>>&& edgelist_edge_start_times,
+  std::optional<std::vector<rmm::device_uvector<edge_time_t>>>&& edgelist_edge_end_times,
   graph_properties_t graph_properties,
   bool renumber,
   bool do_expensive_check = false);
@@ -1156,18 +1161,26 @@ rmm::device_uvector<vertex_t> select_random_vertices(
  * @return Tuple of vectors storing edge sources, destinations, optional weights,
  *    optional edge ids, optional edge types.
  */
-template <typename vertex_t, typename edge_t, typename weight_t, typename edge_type_t>
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          typename edge_type_t,
+          typename edge_time_t>
 std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<weight_t>>,
            std::optional<rmm::device_uvector<edge_t>>,
-           std::optional<rmm::device_uvector<edge_type_t>>>
+           std::optional<rmm::device_uvector<edge_type_t>>,
+           std::optional<rmm::device_uvector<edge_time_t>>,
+           std::optional<rmm::device_uvector<edge_time_t>>>
 remove_self_loops(raft::handle_t const& handle,
                   rmm::device_uvector<vertex_t>&& edgelist_srcs,
                   rmm::device_uvector<vertex_t>&& edgelist_dsts,
                   std::optional<rmm::device_uvector<weight_t>>&& edgelist_weights,
                   std::optional<rmm::device_uvector<edge_t>>&& edgelist_edge_ids,
-                  std::optional<rmm::device_uvector<edge_type_t>>&& edgelist_edge_types);
+                  std::optional<rmm::device_uvector<edge_type_t>>&& edgelist_edge_types,
+                  std::optional<rmm::device_uvector<edge_time_t>>&& edgelist_edge_start_times,
+                  std::optional<rmm::device_uvector<edge_time_t>>&& edgelist_edge_end_times);
 
 /**
  * @brief Remove all but one edge when a multi-edge exists.
@@ -1202,18 +1215,26 @@ remove_self_loops(raft::handle_t const& handle,
  * @return Tuple of vectors storing edge sources, destinations, optional weights,
  *    optional edge ids, optional edge types.
  */
-template <typename vertex_t, typename edge_t, typename weight_t, typename edge_type_t>
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          typename edge_type_t,
+          typename edge_time_t>
 std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<weight_t>>,
            std::optional<rmm::device_uvector<edge_t>>,
-           std::optional<rmm::device_uvector<edge_type_t>>>
+           std::optional<rmm::device_uvector<edge_type_t>>,
+           std::optional<rmm::device_uvector<edge_time_t>>,
+           std::optional<rmm::device_uvector<edge_time_t>>>
 remove_multi_edges(raft::handle_t const& handle,
                    rmm::device_uvector<vertex_t>&& edgelist_srcs,
                    rmm::device_uvector<vertex_t>&& edgelist_dsts,
                    std::optional<rmm::device_uvector<weight_t>>&& edgelist_weights,
                    std::optional<rmm::device_uvector<edge_t>>&& edgelist_edge_ids,
                    std::optional<rmm::device_uvector<edge_type_t>>&& edgelist_edge_types,
+                   std::optional<rmm::device_uvector<edge_time_t>>&& edgelist_edge_start_times,
+                   std::optional<rmm::device_uvector<edge_time_t>>&& edgelist_edge_edge_times,
                    bool keep_min_value_edge = false);
 
 /**
