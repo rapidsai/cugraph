@@ -7,7 +7,7 @@ package_dir="python/cugraph"
 
 RAPIDS_PY_CUDA_SUFFIX="$(rapids-wheel-ctk-name-gen ${RAPIDS_CUDA_VERSION})"
 
-# Download the libcugraph and pylibcugraph wheesl built in the previous steps and make them
+# Download the libcugraph and pylibcugraph wheels built in the previous steps and make them
 # available for pip to find.
 #
 # ensure 'cugraph' wheel builds always use the 'libcugraph' and 'pylibcugraph' just built in the same CI run
