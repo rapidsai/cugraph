@@ -76,6 +76,9 @@ def runtest(rank: int, world_size: int):
 @pytest.mark.skipif(
     get_cudart_version() < 11080, reason="not compatible with CUDA < 11.8"
 )
+@pytest.mark.skipif(
+    not torch.cuda.is_available(), reason="PyTorch not installed with CUDA support"
+)
 def test_feature_storage_wholegraph_backend():
     world_size = torch.cuda.device_count()
     print("gpu count:", world_size)
@@ -93,6 +96,9 @@ def test_feature_storage_wholegraph_backend():
 )
 @pytest.mark.skipif(
     get_cudart_version() < 11080, reason="not compatible with CUDA < 11.8"
+)
+@pytest.mark.skipif(
+    not torch.cuda.is_available(), reason="PyTorch not installed with CUDA support"
 )
 def test_feature_storage_wholegraph_backend_mg():
     world_size = torch.cuda.device_count()
