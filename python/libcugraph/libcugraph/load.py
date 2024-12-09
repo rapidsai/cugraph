@@ -48,31 +48,33 @@ def load_library():
         os.getenv("RAPIDS_LIBCUGRAPH_PREFER_SYSTEM_LIBRARY", "false").lower() != "false"
     )
 
-    soname = "libcugraph.so"
-    libcugraph_lib = None
-    if prefer_system_installation:
-        # Prefer a system library if one is present to
-        # avoid clobbering symbols that other packages might expect, but if no
-        # other library is present use the one in the wheel.
-        try:
-            libcugraph_lib = _load_system_installation(soname)
-        except OSError:
-            libcugraph_lib = _load_wheel_installation(soname)
-    else:
-        # Prefer the libraries bundled in this package. If they aren't found
-        # (which might be the case in builds where the library was prebuilt before
-        # packaging the wheel), look for a system installation.
-        try:
-            libcugraph_lib = _load_wheel_installation(soname)
-            if libcugraph_lib is None:
+    for soname in ["libcugraph.so", "libcugraph_c.so"]:
+        libcugraph_lib = None
+        if prefer_system_installation:
+            # Prefer a system library if one is present to
+            # avoid clobbering symbols that other packages might expect, but if no
+            # other library is present use the one in the wheel.
+            try:
                 libcugraph_lib = _load_system_installation(soname)
-        except OSError:
-            # If none of the searches above succeed, just silently return None
-            # and rely on other mechanisms (like RPATHs on other DSOs) to
-            # help the loader find the library.
-            pass
+            except OSError:
+                libcugraph_lib = _load_wheel_installation(soname)
+        else:
+            # Prefer the libraries bundled in this package. If they aren't found
+            # (which might be the case in builds where the library was prebuilt before
+            # packaging the wheel), look for a system installation.
+            try:
+                libcugraph_lib = _load_wheel_installation(soname)
+                if libcugraph_lib is None:
+                    libcugraph_lib = _load_system_installation(soname)
+            except OSError:
+                # If none of the searches above succeed, just silently return None
+                # and rely on other mechanisms (like RPATHs on other DSOs) to
+                # help the loader find the library.
+                pass
 
     # The caller almost never needs to do anything with this library, but no
     # harm in offering the option since this object at least provides a handle
     # to inspect where libcugraph was loaded from.
-    return libcugraph_lib
+
+    # TODO: return something here?
+    # return libcugraph_lib
