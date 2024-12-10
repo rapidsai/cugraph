@@ -59,7 +59,6 @@ def karate_graph() -> SGGraph:
 @pytest.mark.parametrize("equal_input_size", [True, False])
 @pytest.mark.parametrize("fanout", [[2, 2], [4, 4], [4, 2, 1]])
 @pytest.mark.parametrize("batch_size", [1, 2, 4])
-@pytest.mark.skip(reason="bleh")
 @pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
 def test_dist_sampler_simple(
     scratch_dir, karate_graph, batch_size, fanout, equal_input_size
@@ -108,7 +107,6 @@ def test_dist_sampler_simple(
 @pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
 @pytest.mark.parametrize("seeds_per_call", [4, 5, 10])
 @pytest.mark.parametrize("compression", ["CSR", "COO"])
-@pytest.mark.skip(reason="bleh")
 def test_dist_sampler_buffered_in_memory(
     scratch_dir: str, karate_graph: SGGraph, seeds_per_call: int, compression: str
 ):
@@ -206,8 +204,6 @@ def test_dist_sampler_hetero_from_nodes():
     out = [z for z in out]
     assert len(out) == 1
     out, _, _ = out[0]
-
-    print(out)
 
     lho = out["label_type_hop_offsets"]
 

@@ -743,4 +743,5 @@ class NeighborSampler(DistSampler):
         sampling_results_dict = self.__func(**kwargs)
 
         sampling_results_dict["fanout"] = cupy.array(self.__fanout, dtype="int32")
+        sampling_results_dict["rank"] = rank
         return sampling_results_dict
