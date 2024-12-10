@@ -56,7 +56,7 @@ export RAPIDS_DOCS_DIR="$(mktemp -d)"
 #   curl "https://d1664dvumjb44w.cloudfront.net/${PROJECT}/xml_tar/${RAPIDS_VERSION_NUMBER}/xml.tar.gz" | tar -xzf - -C "${TMP_DIR}"
 # done
 
-rapids-logger "Build Doxygen docs"
+rapids-logger "Build CPP docs"
 pushd cpp/doxygen
 doxygen Doxyfile
 export XML_DIR_LIBCUGRAPH="$(pwd)/xml"
