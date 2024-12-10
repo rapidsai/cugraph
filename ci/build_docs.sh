@@ -24,20 +24,11 @@ rapids-logger "Downloading artifacts from previous jobs"
 CPP_CHANNEL=$(rapids-download-conda-from-s3 cpp)
 PYTHON_CHANNEL=$(rapids-download-conda-from-s3 python)
 
-if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
-  CONDA_CUDA_VERSION="11.8"
-  DGL_CHANNEL="dglteam/label/th23_cu118"
-else
-  CONDA_CUDA_VERSION="12.1"
-  DGL_CHANNEL="dglteam/label/th23_cu121"
-fi
-
 rapids-mamba-retry install \
   --channel "${CPP_CHANNEL}" \
   --channel "${PYTHON_CHANNEL}" \
   --channel conda-forge \
   --channel nvidia \
-  --channel "${DGL_CHANNEL}" \
   "libcugraph=${RAPIDS_VERSION_MAJOR_MINOR}.*" \
   "pylibcugraph=${RAPIDS_VERSION_MAJOR_MINOR}.*" \
   "cugraph=${RAPIDS_VERSION_MAJOR_MINOR}.*" \
