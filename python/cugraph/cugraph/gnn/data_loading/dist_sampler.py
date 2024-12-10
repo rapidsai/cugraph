@@ -212,8 +212,9 @@ class DistSampler:
                 ]
             )
         else:
+            minibatch_dict["batch_start"] = batch_id_start
             self.__writer.write_minibatches(minibatch_dict)
-            return None
+            return batch_id_start + input_offsets.numel() - 1
 
     def __get_call_groups(
         self,
@@ -307,13 +308,13 @@ class DistSampler:
             assume_equal_input_size=input_size_is_equal,
         )
 
-        sample_args = (
+        sample_args = [
             batch_id_start,
             batch_size,
             batches_per_call,
             random_state,
             input_size_is_equal,
-        )
+        ]
 
         if self.__writer is None:
             # Buffered sampling
@@ -327,7 +328,7 @@ class DistSampler:
             for i, current_seeds_and_ix in enumerate(
                 zip(nodes_call_groups, index_call_groups)
             ):
-                self.__sample_from_nodes_func(
+                sample_args[0] = self.__sample_from_nodes_func(
                     i,
                     current_seeds_and_ix,
                     *sample_args,
@@ -489,8 +490,9 @@ class DistSampler:
                 ]
             )
         else:
+            minibatch_dict["batch_start"] = batch_id_start
             self.__writer.write_minibatches(minibatch_dict)
-            return None
+            return batch_id_start + current_batch_offsets.numel() - 1
 
     def sample_from_edges(
         self,
@@ -547,13 +549,13 @@ class DistSampler:
             assume_equal_input_size=input_size_is_equal,
         )
 
-        sample_args = (
+        sample_args = [
             batch_id_start,
             batch_size,
             batches_per_call,
             random_state,
             input_size_is_equal,
-        )
+        ]
 
         if self.__writer is None:
             # Buffered sampling
@@ -567,7 +569,7 @@ class DistSampler:
             for i, current_seeds_and_ix in enumerate(
                 zip(edges_call_groups, index_call_groups)
             ):
-                self.__sample_from_edges_func(
+                sample_args[0] = self.__sample_from_edges_func(
                     i,
                     current_seeds_and_ix,
                     *sample_args,

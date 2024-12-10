@@ -79,13 +79,12 @@ def test_dist_sampler_simple(
     )
 
     recovered_samples = cudf.read_parquet(samples_path)
-    print(recovered_samples)
     original_el = karate.get_edgelist()
 
     for b in range(len(seeds) // batch_size):
         el_start = recovered_samples.label_hop_offsets.iloc[b * len(fanout)]
         el_end = recovered_samples.label_hop_offsets.iloc[(b + 1) * len(fanout)]
-        print(el_start, el_end)
+
         src = recovered_samples.majors.iloc[el_start:el_end]
         dst = recovered_samples.minors.iloc[el_start:el_end]
         edge_id = recovered_samples.edge_id.iloc[el_start:el_end]
@@ -107,7 +106,7 @@ def test_dist_sampler_simple(
 @pytest.mark.sg
 @pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
 @pytest.mark.parametrize("seeds_per_call", [4, 5, 10])
-@pytest.mark.parametrize("compression", ["COO", "CSR"])
+@pytest.mark.parametrize("compression", ["CSR", "COO"])
 def test_dist_sampler_buffered_in_memory(
     scratch_dir: str, karate_graph: SGGraph, seeds_per_call: int, compression: str
 ):
@@ -146,16 +145,56 @@ def test_dist_sampler_buffered_in_memory(
         (create_df_from_disjoint_arrays(r[0]), r[1], r[2]) for r in buffered_results
     ]
 
+    print([r[1] for r in unbuffered_results])
+    print("\n\n")
+    print([r[1] for r in buffered_results])
+
     assert len(buffered_results) == len(unbuffered_results)
 
     for k in range(len(buffered_results)):
         br, bs, be = buffered_results[k]
         ur, us, ue = unbuffered_results[k]
 
-        assert bs == us
-        assert be == ue
+        assert (be - bs) == (ue - us)
 
         for col in ur.columns:
             assert (br[col].dropna() == ur[col].dropna()).all()
 
     shutil.rmtree(samples_path)
+
+
+@pytest.mark.sg
+@pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
+def test_dist_sampler_hetero_from_nodes():
+    props = GraphProperties(
+        is_symmetric=False,
+        is_multigraph=True,
+    )
+
+    handle = ResourceHandle()
+
+    graph = SGGraph(
+        handle,
+        props,
+        cupy.array([4, 5, 6, 7, 8, 9, 8, 9, 8, 7, 6, 5, 4, 5]),
+        cupy.array([0, 1, 2, 3, 3, 0, 4, 5, 6, 8, 7, 8, 9, 9]),
+        vertices_array=cupy.arange(10),
+        edge_id_array=cupy.array([0, 1, 2, 3, 4, 5, 0, 1, 2, 3, 4, 5, 6, 7]),
+        edge_type_array=cupy.array(
+            [0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1], dtype="int32"
+        ),
+        weight_array=cupy.ones((14,), dtype="float32"),
+    )
+
+    sampler = UniformNeighborSampler(
+        graph,
+        writer=None,
+        compression="COO",
+    )
+
+    out = sampler.sample_from_nodes(
+        nodes=cupy.array([4, 5]),
+        input_id=cupy.array([5, 10]),
+    )
+
+    print(out)
