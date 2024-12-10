@@ -25,6 +25,10 @@ from rmm._cuda.gpu import getDeviceAttribute
 
 from warnings import warn
 
+import certifi
+from ssl import create_default_context
+from urllib.request import build_opener, HTTPSHandler, install_opener
+
 # optional dependencies
 try:
     import cupy as cp
@@ -549,3 +553,13 @@ def create_directory_with_overwrite(directory):
     if os.path.exists(directory):
         shutil.rmtree(directory)
     os.makedirs(directory)
+
+
+def install_ssl_cert():
+    """
+    Build and install an opener with the custom HTTPS handler. Use this when
+    downloading datasets to have the proper SSL certificate.
+    """
+    ssl_context = create_default_context(cafile=certifi.where())
+    https_handler = HTTPSHandler(context=ssl_context)
+    install_opener(build_opener(https_handler))

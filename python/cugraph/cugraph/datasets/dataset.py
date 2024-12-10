@@ -11,15 +11,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import cudf
-import dask_cudf
-import yaml
 import os
 import pandas as pd
-import cugraph.dask as dcg
+import yaml
 from pathlib import Path
-import urllib.request
+from urllib.requests import urlretrieve
+
+import cudf
+import cugraph.dask as dcg
+import dask_cudf
 from cugraph.structure.graph_classes import Graph
+from cugraph.utilities import install_ssl_cert
 
 
 class DefaultDownloadDir:
@@ -142,7 +144,8 @@ class Dataset:
         filename = self.metadata["name"] + self.metadata["file_type"]
         if self._dl_path.path.is_dir():
             self._path = self._dl_path.path / filename
-            urllib.request.urlretrieve(url, str(self._path))
+            install_ssl_cert()
+            urlretrieve(url, str(self._path))
 
         else:
             raise RuntimeError(
@@ -458,7 +461,8 @@ def download_all(force=False):
                 filename = meta["name"] + meta["file_type"]
                 save_to = default_download_dir.path / filename
                 if not save_to.is_file() or force:
-                    urllib.request.urlretrieve(meta["url"], str(save_to))
+                    install_ssl_cert()
+                    urlretrieve(meta["url"], str(save_to))
 
 
 def set_download_dir(path):

@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2022, NVIDIA CORPORATION.
+# Copyright (c) 2019-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -18,6 +18,7 @@ from cugraph.utilities.nx_factory import df_score_to_dictionary
 from cugraph.utilities.nx_factory import df_edge_score_to_dictionary
 from cugraph.utilities.nx_factory import cugraph_to_nx
 from cugraph.utilities.utils import (
+    install_ssl_cert,
     import_optional,
     ensure_cugraph_obj,
     ensure_cugraph_obj_for_nx,
