@@ -41,12 +41,9 @@ rapids-mamba-retry install \
   "libcugraph=${RAPIDS_VERSION_MAJOR_MINOR}.*" \
   "pylibcugraph=${RAPIDS_VERSION_MAJOR_MINOR}.*" \
   "cugraph=${RAPIDS_VERSION_MAJOR_MINOR}.*" \
-  "cugraph-pyg=${RAPIDS_VERSION_MAJOR_MINOR}.*" \
-  "cugraph-dgl=${RAPIDS_VERSION_MAJOR_MINOR}.*" \
   "cugraph-service-server=${RAPIDS_VERSION_MAJOR_MINOR}.*" \
   "cugraph-service-client=${RAPIDS_VERSION_MAJOR_MINOR}.*" \
   "libcugraph_etl=${RAPIDS_VERSION_MAJOR_MINOR}.*" \
-  "pylibwholegraph=${RAPIDS_VERSION_MAJOR_MINOR}.*" \
   'pytorch>=2.3' \
   "cuda-version=${CONDA_CUDA_VERSION}"
 
