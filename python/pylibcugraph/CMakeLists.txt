@@ -34,3 +34,6 @@ include(rapids-cython-core)
 rapids_cython_init()
 
 add_subdirectory(pylibcugraph)
+
+# TODO: revert before merging
+#set_property(GLOBAL PROPERTY GLOBAL_DEPENDS_DEBUG_MODE ON)

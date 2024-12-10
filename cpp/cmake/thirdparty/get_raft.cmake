@@ -39,12 +39,12 @@ function(find_and_configure_raft)
     endif()
 
     rapids_cpm_find(raft ${PKG_VERSION}
-      GLOBAL_TARGETS      raft::raft
-      BUILD_EXPORT_SET    cugraph-exports
-      INSTALL_EXPORT_SET  cugraph-exports
+      GLOBAL_TARGETS      raft raft_compiled_static
+      BUILD_EXPORT_SET    cugraph-raft-exports
+      INSTALL_EXPORT_SET  cugraph-raft-exports
       COMPONENTS ${RAFT_COMPONENTS}
         CPM_ARGS
-            # EXCLUDE_FROM_ALL TRUE
+            EXCLUDE_FROM_ALL TRUE
             GIT_REPOSITORY https://github.com/${PKG_FORK}/raft.git
             GIT_TAG        ${PKG_PINNED_TAG}
             SOURCE_SUBDIR  cpp
@@ -53,6 +53,36 @@ function(find_and_configure_raft)
                 "BUILD_TESTS OFF"
                 "BUILD_BENCH OFF"
                 "BUILD_CAGRA_HNSWLIB OFF"
+                "BUILD_PRIMS_BENCH OFF"
+    )
+
+    # _raft_include_dirs:
+    #  _raft_include_dirs-NOTFOUND
+    # get_target_property(_raft_include_dirs raft INCLUDE_DIRECTORIES)
+    # message(STATUS "_raft_include_dirs: ${_raft_include_dirs}")
+
+    # _raft_interface_include_dirs:
+    #   $<BUILD_INTERFACE:/tmp/cugraph/python/libcugraph/build/py3-none-linux_x86_64/_deps/raft-src/cpp/include>;$<INSTALL_INTERFACE:include>
+    # get_target_property(_raft_interface_include_dirs raft INTERFACE_INCLUDE_DIRECTORIES)
+    # message(FATAL_ERROR "_raft_interface_include_dirs: ${_raft_interface_include_dirs}")
+
+    # TODO: move this under if(raft_ADDED)?
+    # TODO: install just the headers
+    install(
+        TARGETS raft raft_lib_static
+        COMPONENT raft
+        DESTINATION include/raft-static/
+        INCLUDES DESTINATION include/raft
+        EXPORT cugraph-raft-exports
+    )
+
+    # TODO: maybe raft should be using target_sources instead?
+    #  ref: https://cmake.org/cmake/help/latest/command/install.html#directory
+    get_target_property(_raft_interface_include_dirs raft INTERFACE_INCLUDE_DIRECTORIES)
+    install(
+        DIRECTORY ${_raft_interface_include_dirs}
+        DESTINATION include/raft-headers/
+        # EXPORT cugraph-raft-exports
     )
 
     if(raft_ADDED)
