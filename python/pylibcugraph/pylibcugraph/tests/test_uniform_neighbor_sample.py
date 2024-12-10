@@ -1,4 +1,4 @@
-# Copyright (c) 2022-2023, NVIDIA CORPORATION.
+# Copyright (c) 2022-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -183,7 +183,6 @@ def test_neighborhood_sampling_cudf(
     )
 
 
-@pytest.mark.cugraph_ops
 def test_neighborhood_sampling_large_sg_graph(gpubenchmark):
     """
     Use a large SG graph and set input args accordingly to test/benchmark
