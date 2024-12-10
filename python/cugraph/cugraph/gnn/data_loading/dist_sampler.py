@@ -295,6 +295,8 @@ class DistSampler:
 
         if input_id is None:
             input_id = torch.arange(num_seeds, dtype=torch.int64, device="cpu")
+        else:
+            input_id = torch.as_tensor(input_id, device="cpu")
 
         local_num_batches = int(ceil(num_seeds / batch_size))
         batch_id_start, input_size_is_equal = self.get_start_batch_offset(
