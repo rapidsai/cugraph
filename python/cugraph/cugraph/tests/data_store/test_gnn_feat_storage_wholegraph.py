@@ -69,15 +69,15 @@ def runtest(rank: int, world_size: int):
 
 
 @pytest.mark.sg
-@pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
+@pytest.mark.skipif(
+    isinstance(torch, MissingModule) or not torch.cuda.is_available(),
+    reason="PyTorch with GPU support not available",
+)
 @pytest.mark.skipif(
     isinstance(pylibwholegraph, MissingModule), reason="wholegraph not available"
 )
 @pytest.mark.skipif(
     get_cudart_version() < 11080, reason="not compatible with CUDA < 11.8"
-)
-@pytest.mark.skipif(
-    not torch.cuda.is_available(), reason="PyTorch not installed with CUDA support"
 )
 def test_feature_storage_wholegraph_backend():
     world_size = torch.cuda.device_count()
@@ -90,15 +90,15 @@ def test_feature_storage_wholegraph_backend():
 
 
 @pytest.mark.mg
-@pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
+@pytest.mark.skipif(
+    isinstance(torch, MissingModule) or not torch.cuda.is_available(),
+    reason="PyTorch with GPU support not available",
+)
 @pytest.mark.skipif(
     isinstance(pylibwholegraph, MissingModule), reason="wholegraph not available"
 )
 @pytest.mark.skipif(
     get_cudart_version() < 11080, reason="not compatible with CUDA < 11.8"
-)
-@pytest.mark.skipif(
-    not torch.cuda.is_available(), reason="PyTorch not installed with CUDA support"
 )
 def test_feature_storage_wholegraph_backend_mg():
     world_size = torch.cuda.device_count()
