@@ -195,13 +195,6 @@ TEST_P(Tests_MGWeaklyConnectedComponents_Rmat, CheckInt32Int32)
     std::get<0>(param), override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
 
-TEST_P(Tests_MGWeaklyConnectedComponents_Rmat, CheckInt32Int64)
-{
-  auto param = GetParam();
-  run_current_test<int32_t, int64_t>(
-    std::get<0>(param), override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
-}
-
 TEST_P(Tests_MGWeaklyConnectedComponents_Rmat, CheckInt64Int64)
 {
   auto param = GetParam();

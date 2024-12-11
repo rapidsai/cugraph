@@ -16,9 +16,10 @@
 
 from libc.stdint cimport uintptr_t
 
-from pylibcugraph._cugraph_c.resource_handle cimport (
+from pylibcugraph._cugraph_c.types cimport (
     bool_t,
-    data_type_id_t,
+)
+from pylibcugraph._cugraph_c.resource_handle cimport (
     cugraph_resource_handle_t,
 )
 from pylibcugraph._cugraph_c.error cimport (
@@ -65,14 +66,14 @@ def core_number(ResourceHandle resource_handle,
         referencing data and running algorithms.
 
     graph : SGGraph or MGGraph
-        The input graph, for either Single or Multi-GPU operations.
+        The input graph, for either single or multi-GPU operations. The input
+        graph must be symmetric (the is_symmetric property must be True).
 
     degree_type: str
-        This option determines if the core number computation should be based
-        on input, output, or both directed edges, with valid values being
-        "incoming", "outgoing", and "bidirectional" respectively.
-        This option is currently ignored in this release, and setting it will
-        result in a warning.
+        This option is currently ignored.  This option may eventually determine
+        if the core number computation should be based on input, output, or
+        both directed edges, with valid values being "incoming", "outgoing",
+        and "bidirectional" respectively.
 
     do_expensive_check: bool
         If True, performs more extensive tests on the inputs to ensure
@@ -97,14 +98,14 @@ def core_number(ResourceHandle resource_handle,
     cdef cugraph_error_code_t error_code
     cdef cugraph_error_t* error_ptr
 
-    degree_type_map = {
-        "incoming": cugraph_k_core_degree_type_t.K_CORE_DEGREE_TYPE_IN,
-        "outgoing": cugraph_k_core_degree_type_t.K_CORE_DEGREE_TYPE_OUT,
-        "bidirectional": cugraph_k_core_degree_type_t.K_CORE_DEGREE_TYPE_INOUT}
-
+    # When supported, degree_type string should be mapped to constant like so:
+    # degree_type_map = {
+    #     "incoming": cugraph_k_core_degree_type_t.K_CORE_DEGREE_TYPE_IN,
+    #     "outgoing": cugraph_k_core_degree_type_t.K_CORE_DEGREE_TYPE_OUT,
+    #     "bidirectional": cugraph_k_core_degree_type_t.K_CORE_DEGREE_TYPE_INOUT}
     error_code = cugraph_core_number(c_resource_handle_ptr,
                                      c_graph_ptr,
-                                     degree_type_map[degree_type],
+                                     cugraph_k_core_degree_type_t.K_CORE_DEGREE_TYPE_IN,
                                      do_expensive_check,
                                      &result_ptr,
                                      &error_ptr)

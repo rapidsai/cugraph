@@ -100,7 +100,7 @@ int generic_scc_test(const cugraph_resource_handle_t* handle,
   cugraph_labeling_result_free(p_result);
 #endif
 
-  cugraph_mg_graph_free(p_graph);
+  cugraph_graph_free(p_graph);
   cugraph_error_free(ret_error);
 
   return test_ret_value;

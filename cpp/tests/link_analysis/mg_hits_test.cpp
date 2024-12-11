@@ -91,7 +91,7 @@ class Tests_MGHits : public ::testing::TestWithParam<std::tuple<Hits_Usecase, in
       mg_graph_view.attach_edge_mask((*edge_mask).view());
     }
 
-    auto maximum_iterations = 200;
+    auto maximum_iterations = 400;
     weight_t epsilon        = 1e-7;
     rmm::device_uvector<weight_t> d_mg_hubs(mg_graph_view.local_vertex_partition_range_size(),
                                             handle_->get_stream());
@@ -263,13 +263,6 @@ TEST_P(Tests_MGHits_Rmat, CheckInt32Int32FloatFloat)
 {
   auto param = GetParam();
   run_current_test<int32_t, int32_t, float, float>(
-    std::get<0>(param), override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
-}
-
-TEST_P(Tests_MGHits_Rmat, CheckInt32Int64FloatFloat)
-{
-  auto param = GetParam();
-  run_current_test<int32_t, int64_t, float, float>(
     std::get<0>(param), override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
 

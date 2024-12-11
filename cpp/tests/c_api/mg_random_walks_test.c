@@ -130,7 +130,7 @@ int generic_uniform_random_walks_test(const cugraph_resource_handle_t* handle,
   }
 
   cugraph_random_walk_result_free(result);
-  cugraph_mg_graph_free(graph);
+  cugraph_graph_free(graph);
   cugraph_error_free(ret_error);
 
   return test_ret_value;
@@ -232,7 +232,7 @@ int generic_biased_random_walks_test(const cugraph_resource_handle_t* handle,
   cugraph_random_walk_result_free(result);
 #endif
 
-  cugraph_mg_graph_free(graph);
+  cugraph_graph_free(graph);
   cugraph_error_free(ret_error);
 
   return test_ret_value;
@@ -338,7 +338,7 @@ int generic_node2vec_random_walks_test(const cugraph_resource_handle_t* handle,
   cugraph_random_walk_result_free(result);
 #endif
 
-  cugraph_mg_graph_free(graph);
+  cugraph_graph_free(graph);
   cugraph_error_free(ret_error);
 
   return test_ret_value;

@@ -26,6 +26,7 @@ from cugraph.testing import utils
 from cudf.testing import assert_series_equal
 from cudf.testing.testing import assert_frame_equal
 from cugraph.structure.symmetrize import symmetrize
+from cugraph.datasets import karate_asymmetric
 
 # MG
 import dask_cudf
@@ -178,6 +179,58 @@ def test_add_edge_list_to_adj_list(graph_file):
     assert values_cu is None
 
 
+@pytest.mark.sg
+@pytest.mark.parametrize("graph_file", utils.DATASETS)
+@pytest.mark.parametrize("is_directed", [True, False])
+@pytest.mark.parametrize("renumber", [True, False])
+def test_decompress_to_edgelist(graph_file, is_directed, renumber):
+    input_df = utils.read_csv_file(graph_file)
+    input_df = input_df.rename(columns={"0": "src", "1": "dst", "2": "weight"})
+
+    G = cugraph.Graph(directed=is_directed)
+    input_df_ = cudf.DataFrame()
+    if renumber:
+        input_df_["src_0"] = cudf.Series(input_df["src"])
+        input_df_["dst_0"] = cudf.Series(input_df["dst"])
+        input_df_["weight"] = cudf.Series(input_df["weight"])
+        input_df_["src_1"] = input_df_["src_0"] + 1000
+        input_df_["dst_1"] = input_df_["dst_0"] + 1000
+
+        input_df = input_df_
+        source = ["src_0", "src_1"]
+        destination = ["dst_0", "dst_1"]
+    else:
+        source = "src"
+        destination = "dst"
+
+    G.from_cudf_edgelist(
+        input_df, source=source, destination=destination, weight="weight", renumber=True
+    )
+
+    extracted_df = G.decompress_to_edgelist(return_unrenumbered_edgelist=True)
+
+    if renumber:
+        extracted_df = extracted_df.rename(
+            columns={
+                "0_src": "src_0",
+                "1_src": "src_1",
+                "0_dst": "dst_0",
+                "1_dst": "dst_1",
+            }
+        )
+        extracted_df = extracted_df.sort_values(
+            ["src_0", "src_1", "dst_0", "dst_1"]
+        ).reset_index(drop=True)
+        input_df = input_df.sort_values(
+            ["src_0", "src_1", "dst_0", "dst_1"]
+        ).reset_index(drop=True)
+    else:
+        extracted_df = extracted_df.sort_values(["src", "dst"]).reset_index(drop=True)
+        input_df = input_df.sort_values(["src", "dst"]).reset_index(drop=True)
+
+    assert_frame_equal(input_df, extracted_df, check_dtype=False, check_like=True)
+
+
 # Test
 @pytest.mark.sg
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
@@ -202,6 +255,37 @@ def test_add_adj_list_to_edge_list(graph_file):
     destinations_cu = edgelist["dst"]
     compare_series(sources_cu, sources_exp)
     compare_series(destinations_cu, destinations_exp)
+
+
+@pytest.mark.sg
+def test_create_undirected_graph_from_asymmetric_adj_list():
+    # karate_asymmetric.get_path()
+    Mnx = utils.read_csv_for_nx(karate_asymmetric.get_path())
+    N = max(max(Mnx["0"]), max(Mnx["1"])) + 1
+    Mcsr = scipy.sparse.csr_matrix((Mnx.weight, (Mnx["0"], Mnx["1"])), shape=(N, N))
+
+    offsets = cudf.Series(Mcsr.indptr)
+    indices = cudf.Series(Mcsr.indices)
+
+    G = cugraph.Graph(directed=False)
+
+    with pytest.raises(Exception):
+        # Ifan undirected graph is created with 'symmetrize' set to False, the
+        # edgelist provided by the user must be symmetric.
+        G.from_cudf_adjlist(offsets, indices, None, symmetrize=False)
+
+    G = cugraph.Graph(directed=False)
+    G.from_cudf_adjlist(offsets, indices, None, symmetrize=True)
+
+    # FIXME: Since we have no mechanism to access the symmetrized edgelist
+    # from the graph_view_t, assert that the edgelist size is unchanged. Once
+    # exposing 'decompress_to_edgelist', ensure that
+    # G.number_of_edges() == 2 * karate_asymmetric.get_edgelist()?
+    assert G.number_of_edges() == len(karate_asymmetric.get_edgelist())
+
+    # FIXME: Once 'decompress_to_edgelist' is exposed to the
+    # python API, ensure that the derived edgelist is symmetric
+    # if symmetrize = True.
 
 
 # Test

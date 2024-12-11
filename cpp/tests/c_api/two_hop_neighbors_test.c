@@ -117,7 +117,7 @@ int generic_two_hop_nbr_test(vertex_t* h_src,
   cugraph_vertex_pairs_free(result);
   cugraph_type_erased_device_array_view_free(start_vertices_view);
   cugraph_type_erased_device_array_free(start_vertices);
-  cugraph_sg_graph_free(graph);
+  cugraph_graph_free(graph);
   cugraph_free_resource_handle(resource_handle);
   cugraph_error_free(ret_error);
 

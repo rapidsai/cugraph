@@ -15,8 +15,10 @@
 # cython: language_level = 3
 
 
-from pylibcugraph._cugraph_c.resource_handle cimport (
+from pylibcugraph._cugraph_c.types cimport (
     bool_t,
+)
+from pylibcugraph._cugraph_c.resource_handle cimport (
     cugraph_resource_handle_t,
 )
 from pylibcugraph._cugraph_c.error cimport (
@@ -70,3 +72,5 @@ cdef extern from "cugraph_c/lookup_src_dst.h":
         const cugraph_lookup_result_t* result)
 
     cdef void cugraph_lookup_result_free(cugraph_lookup_result_t* result)
+
+    cdef void cugraph_lookup_container_free(cugraph_lookup_container_t* container)

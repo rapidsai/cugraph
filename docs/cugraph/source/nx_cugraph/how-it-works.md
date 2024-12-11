@@ -10,7 +10,7 @@ While NetworkX is a pure-Python implementation, backends may be written to use o
 
 ## Enabling nx-cugraph
 
-It is recommended to use `networkx>=3.4` for optimal zero code change performance, but `nx-cugraph` will also work with `networkx 3.0+`.
+It is recommended to use `networkx>=3.4` for optimal zero code change performance, but `nx-cugraph` will also work with `networkx 3.2+`.
 
 NetworkX will use `nx-cugraph` as the backend if any of the following are used:
 
@@ -110,4 +110,4 @@ This run will be much faster, typically around 5 seconds depending on your GPU.
 
 ---
 
-The latest list of algorithms supported by `nx-cugraph` can be found in [GitHub](https://github.com/rapidsai/cugraph/blob/HEAD/python/nx-cugraph/README.md#algorithms), or in the [Supported Algorithms Section](supported-algorithms.md).
+The latest list of algorithms supported by `nx-cugraph` can be found in [GitHub](https://github.com/rapidsai/nx-cugraph/blob/HEAD/README.md#supported-algorithms), or in the [Supported Algorithms Section](supported-algorithms.md).

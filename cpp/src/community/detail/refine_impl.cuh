@@ -150,8 +150,7 @@ refine_clustering(
   edge_src_property_t<GraphViewType, typename GraphViewType::vertex_type> const&
     src_louvain_assignment_cache,
   edge_dst_property_t<GraphViewType, typename GraphViewType::vertex_type> const&
-    dst_louvain_assignment_cache,
-  bool up_down)
+    dst_louvain_assignment_cache)
 {
   const weight_t POSITIVE_GAIN = 1e-6;
   using vertex_t               = typename GraphViewType::vertex_type;
@@ -182,11 +181,12 @@ refine_clustering(
       comm_size, major_comm_size, minor_comm_size};
 
     vertex_louvain_cluster_weights =
-      cugraph::collect_values_for_keys(handle,
+      cugraph::collect_values_for_keys(comm,
                                        cluster_key_weight_map.view(),
                                        louvain_assignment_of_vertices.begin(),
                                        louvain_assignment_of_vertices.end(),
-                                       vertex_to_gpu_id_op);
+                                       vertex_to_gpu_id_op,
+                                       handle.get_stream());
 
   } else {
     vertex_louvain_cluster_weights.resize(louvain_assignment_of_vertices.size(),
@@ -230,6 +230,7 @@ refine_clustering(
     cugraph::reduce_op::plus<weight_t>{},
     weighted_cut_of_vertices_to_louvain.begin());
 
+  // FIXME: Consider using bit mask logic here.  Would reduce memory by 8x
   rmm::device_uvector<uint8_t> singleton_and_connected_flags(
     graph_view.local_vertex_partition_range_size(), handle.get_stream());
 
@@ -297,6 +298,11 @@ refine_clustering(
   edge_dst_property_t<GraphViewType, vertex_t> dst_leiden_assignment_cache(handle);
   edge_src_property_t<GraphViewType, uint8_t> src_singleton_and_connected_flag_cache(handle);
 
+  // FIXME:  Why is kvstore used here?  Can't this be accomplished by
+  //  a direct lookup in louvain_assignment_of_vertices using
+  //     leiden - graph_view.local_vertex_partition_range_first() as the
+  //     index?
+  // Changing this would save memory and time
   kv_store_t<vertex_t, vertex_t, false> leiden_to_louvain_map(
     leiden_assignment.begin(),
     leiden_assignment.end(),
@@ -468,11 +474,12 @@ refine_clustering(
       //   comm_size, major_comm_size, minor_comm_size};
 
       louvain_of_leiden_keys_used_in_edge_reduction =
-        cugraph::collect_values_for_keys(handle,
+        cugraph::collect_values_for_keys(comm,
                                          leiden_to_louvain_map.view(),
                                          leiden_keys_used_in_edge_reduction.begin(),
                                          leiden_keys_used_in_edge_reduction.end(),
-                                         vertex_to_gpu_id_op);
+                                         vertex_to_gpu_id_op,
+                                         handle.get_stream());
     } else {
       louvain_of_leiden_keys_used_in_edge_reduction.resize(
         leiden_keys_used_in_edge_reduction.size(), handle.get_stream());
@@ -859,11 +866,12 @@ refine_clustering(
     //   comm_size, major_comm_size, minor_comm_size};
 
     lovain_of_leiden_cluster_keys =
-      cugraph::collect_values_for_keys(handle,
+      cugraph::collect_values_for_keys(comm,
                                        leiden_to_louvain_map.view(),
                                        leiden_keys_to_read_louvain.begin(),
                                        leiden_keys_to_read_louvain.end(),
-                                       vertex_to_gpu_id_op);
+                                       vertex_to_gpu_id_op,
+                                       handle.get_stream());
 
   } else {
     lovain_of_leiden_cluster_keys.resize(leiden_keys_to_read_louvain.size(), handle.get_stream());

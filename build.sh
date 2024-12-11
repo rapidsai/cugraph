@@ -29,10 +29,6 @@ VALIDARGS="
    pylibcugraph
    cugraph
    cugraph-service
-   cugraph-pyg
-   cugraph-dgl
-   cugraph-equivariant
-   nx-cugraph
    cpp-mgtests
    cpp-mtmgtests
    docs
@@ -43,7 +39,6 @@ VALIDARGS="
    --pydevelop
    --allgpuarch
    --skip_cpp_tests
-   --without_cugraphops
    --cmake_default_generator
    --clean
    -h
@@ -59,10 +54,6 @@ HELP="$0 [<target> ...] [<flag> ...]
    pylibcugraph               - build the pylibcugraph Python package
    cugraph                    - build the cugraph Python package
    cugraph-service            - build the cugraph-service_client and cugraph-service_server Python package
-   cugraph-pyg                - build the cugraph-pyg Python package
-   cugraph-dgl                - build the cugraph-dgl extensions for DGL
-   cugraph-equivariant        - build the cugraph-equivariant Python package
-   nx-cugraph                 - build the nx-cugraph Python package
    cpp-mgtests                - build libcugraph and libcugraph_etl MG tests. Builds MPI communicator, adding MPI as a dependency.
    cpp-mtmgtests              - build libcugraph MTMG tests. Adds UCX as a dependency (temporary).
    docs                       - build the docs
@@ -74,7 +65,6 @@ HELP="$0 [<target> ...] [<flag> ...]
    --pydevelop                - install the Python packages in editable mode
    --allgpuarch               - build for all supported GPU architectures
    --skip_cpp_tests           - do not build the SG test binaries as part of the libcugraph and libcugraph_etl targets
-   --without_cugraphops       - do not build algos that require cugraph-ops
    --cmake_default_generator  - use the default cmake generator instead of ninja
    --clean                    - clean an individual target (note: to do a complete rebuild, use the clean target described above)
    -h                         - print this text
@@ -90,12 +80,10 @@ LIBCUGRAPH_ETL_BUILD_DIR=${LIBCUGRAPH_ETL_BUILD_DIR:=${REPODIR}/cpp/libcugraph_e
 CUGRAPH_SERVICE_BUILD_DIRS="${REPODIR}/python/cugraph-service/server/build
                             ${REPODIR}/python/cugraph-service/client/build
 "
-CUGRAPH_DGL_BUILD_DIR=${REPODIR}/python/cugraph-dgl/build
 
 BUILD_DIRS="${LIBCUGRAPH_BUILD_DIR}
             ${LIBCUGRAPH_ETL_BUILD_DIR}
             ${CUGRAPH_SERVICE_BUILD_DIRS}
-            ${CUGRAPH_DGL_BUILD_DIR}
 "
 
 # Set defaults for vars modified by flags to this script
@@ -107,7 +95,6 @@ BUILD_CPP_TESTS=ON
 BUILD_CPP_MG_TESTS=OFF
 BUILD_CPP_MTMG_TESTS=OFF
 BUILD_ALL_GPU_ARCH=0
-BUILD_WITH_CUGRAPHOPS=ON
 CMAKE_GENERATOR_OPTION="-G Ninja"
 PYTHON_ARGS_FOR_INSTALL="-m pip install --no-build-isolation --no-deps --config-settings rapidsai.disable-cuda=true"
 
@@ -170,9 +157,6 @@ fi
 if hasArg --skip_cpp_tests; then
     BUILD_CPP_TESTS=OFF
 fi
-if hasArg --without_cugraphops; then
-    BUILD_WITH_CUGRAPHOPS=OFF
-fi
 if hasArg cpp-mtmgtests; then
     BUILD_CPP_MTMG_TESTS=ON
 fi
@@ -217,8 +201,7 @@ if hasArg uninstall; then
     # FIXME: if multiple versions of these packages are installed, this only
     # removes the latest one and leaves the others installed. build.sh uninstall
     # can be run multiple times to remove all of them, but that is not obvious.
-    pip uninstall -y pylibcugraph cugraph cugraph-service-client cugraph-service-server \
-        cugraph-dgl cugraph-pyg cugraph-equivariant nx-cugraph
+    pip uninstall -y pylibcugraph cugraph cugraph-service-client cugraph-service-server
 fi
 
 if hasArg clean; then
@@ -268,7 +251,6 @@ if buildDefault || hasArg libcugraph || hasArg all; then
               -DBUILD_TESTS=${BUILD_CPP_TESTS} \
               -DBUILD_CUGRAPH_MG_TESTS=${BUILD_CPP_MG_TESTS} \
 	      -DBUILD_CUGRAPH_MTMG_TESTS=${BUILD_CPP_MTMG_TESTS} \
-	      -DUSE_CUGRAPH_OPS=${BUILD_WITH_CUGRAPHOPS} \
               ${CMAKE_GENERATOR_OPTION} \
               ${CMAKE_VERBOSE_OPTION}
         cmake --build "${LIBCUGRAPH_BUILD_DIR}" -j${PARALLEL_LEVEL} ${INSTALL_TARGET} ${VERBOSE_FLAG}
@@ -312,7 +294,7 @@ if buildDefault || hasArg pylibcugraph || hasArg all; then
     if hasArg --clean; then
         cleanPythonDir ${REPODIR}/python/pylibcugraph
     else
-        SKBUILD_CMAKE_ARGS="${SKBUILD_EXTRA_CMAKE_ARGS};-DUSE_CUGRAPH_OPS=${BUILD_WITH_CUGRAPHOPS}" \
+        SKBUILD_CMAKE_ARGS="${SKBUILD_EXTRA_CMAKE_ARGS}" \
             python ${PYTHON_ARGS_FOR_INSTALL} ${REPODIR}/python/pylibcugraph
     fi
 fi
@@ -322,7 +304,7 @@ if buildDefault || hasArg cugraph || hasArg all; then
     if hasArg --clean; then
         cleanPythonDir ${REPODIR}/python/cugraph
     else
-        SKBUILD_CMAKE_ARGS="${SKBUILD_EXTRA_CMAKE_ARGS};-DUSE_CUGRAPH_OPS=${BUILD_WITH_CUGRAPHOPS}" \
+        SKBUILD_CMAKE_ARGS="${SKBUILD_EXTRA_CMAKE_ARGS}" \
             python ${PYTHON_ARGS_FOR_INSTALL} ${REPODIR}/python/cugraph
     fi
 fi
@@ -334,42 +316,6 @@ if hasArg cugraph-service || hasArg all; then
     else
         python ${PYTHON_ARGS_FOR_INSTALL} ${REPODIR}/python/cugraph-service/client
         python ${PYTHON_ARGS_FOR_INSTALL} ${REPODIR}/python/cugraph-service/server
-    fi
-fi
-
-# Build and install the cugraph-pyg Python package
-if hasArg cugraph-pyg || hasArg all; then
-    if hasArg --clean; then
-        cleanPythonDir ${REPODIR}/python/cugraph-pyg
-    else
-        python ${PYTHON_ARGS_FOR_INSTALL} ${REPODIR}/python/cugraph-pyg
-    fi
-fi
-
-# Install the cugraph-dgl extensions for DGL
-if hasArg cugraph-dgl || hasArg all; then
-    if hasArg --clean; then
-        cleanPythonDir ${REPODIR}/python/cugraph-dgl
-    else
-        python ${PYTHON_ARGS_FOR_INSTALL} ${REPODIR}/python/cugraph-dgl
-    fi
-fi
-
-# Build and install the cugraph-equivariant Python package
-if hasArg cugraph-equivariant || hasArg all; then
-    if hasArg --clean; then
-        cleanPythonDir ${REPODIR}/python/cugraph-equivariant
-    else
-        python ${PYTHON_ARGS_FOR_INSTALL} ${REPODIR}/python/cugraph-equivariant
-    fi
-fi
-
-# Build and install the nx-cugraph Python package
-if hasArg nx-cugraph || hasArg all; then
-    if hasArg --clean; then
-        cleanPythonDir ${REPODIR}/python/nx-cugraph
-    else
-        python ${PYTHON_ARGS_FOR_INSTALL} ${REPODIR}/python/nx-cugraph
     fi
 fi
 

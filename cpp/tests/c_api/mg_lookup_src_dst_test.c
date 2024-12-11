@@ -27,11 +27,11 @@ typedef int32_t edge_type_t;
 
 typedef float weight_t;
 
-data_type_id_t vertex_tid    = INT32;
-data_type_id_t edge_tid      = INT32;
-data_type_id_t weight_tid    = FLOAT32;
-data_type_id_t edge_id_tid   = INT32;
-data_type_id_t edge_type_tid = INT32;
+cugraph_data_type_id_t vertex_tid    = INT32;
+cugraph_data_type_id_t edge_tid      = INT32;
+cugraph_data_type_id_t weight_tid    = FLOAT32;
+cugraph_data_type_id_t edge_id_tid   = INT32;
+cugraph_data_type_id_t edge_type_tid = INT32;
 
 int generic_lookup_src_dst_test(const cugraph_resource_handle_t* handle,
                                 vertex_t* h_srcs,
@@ -206,7 +206,7 @@ int generic_lookup_src_dst_test(const cugraph_resource_handle_t* handle,
 
   cugraph_lookup_result_free(result);
 
-  cugraph_mg_graph_free(graph);
+  cugraph_graph_free(graph);
   cugraph_error_free(ret_error);
 
   return test_ret_value;

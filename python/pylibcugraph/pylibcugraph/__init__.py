@@ -21,6 +21,8 @@ from pylibcugraph.resource_handle import ResourceHandle
 
 from pylibcugraph.graph_properties import GraphProperties
 
+from pylibcugraph.edge_id_lookup_table import EdgeIdLookupTable
+
 from pylibcugraph.eigenvector_centrality import eigenvector_centrality
 
 from pylibcugraph.katz_centrality import katz_centrality
@@ -40,6 +42,19 @@ from pylibcugraph.bfs import bfs
 from pylibcugraph.uniform_neighbor_sample import uniform_neighbor_sample
 
 from pylibcugraph.biased_neighbor_sample import biased_neighbor_sample
+
+from pylibcugraph.homogeneous_uniform_neighbor_sample import (
+    homogeneous_uniform_neighbor_sample,
+)
+from pylibcugraph.homogeneous_biased_neighbor_sample import (
+    homogeneous_biased_neighbor_sample,
+)
+from pylibcugraph.heterogeneous_uniform_neighbor_sample import (
+    heterogeneous_uniform_neighbor_sample,
+)
+from pylibcugraph.heterogeneous_biased_neighbor_sample import (
+    heterogeneous_biased_neighbor_sample,
+)
 
 from pylibcugraph.negative_sampling import negative_sampling
 
@@ -110,6 +125,8 @@ from pylibcugraph.all_pairs_sorensen_coefficients import all_pairs_sorensen_coef
 from pylibcugraph.all_pairs_cosine_coefficients import all_pairs_cosine_coefficients
 
 from pylibcugraph.degrees import in_degrees, out_degrees, degrees
+
+from pylibcugraph.decompress_to_edgelist import decompress_to_edgelist
 
 
 from pylibcugraph import exceptions

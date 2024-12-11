@@ -1,7 +1,7 @@
 cugraph-ops Python API reference
 ================================
 
-This page provides a list of all publicly accessible modules, methods and classes through `pylibcugraphops.*` namespace.
+This page provides a list of all publicly accessible modules, methods and classes through ``pylibcugraphops.*`` namespace.
 
 .. toctree::
     :maxdepth: 2

@@ -24,6 +24,7 @@ from pylibcugraph._cugraph_c.algorithms cimport (
     cugraph_sample_result_get_majors,
     cugraph_sample_result_get_minors,
     cugraph_sample_result_get_label_hop_offsets,
+    cugraph_sample_result_get_label_type_hop_offsets,
     cugraph_sample_result_get_sources, # deprecated
     cugraph_sample_result_get_destinations, # deprecated
     cugraph_sample_result_get_edge_weight,
@@ -34,6 +35,8 @@ from pylibcugraph._cugraph_c.algorithms cimport (
     cugraph_sample_result_get_offsets, # deprecated
     cugraph_sample_result_get_renumber_map,
     cugraph_sample_result_get_renumber_map_offsets,
+    cugraph_sample_result_get_edge_renumber_map,
+    cugraph_sample_result_get_edge_renumber_map_offsets,
     cugraph_sample_result_free,
 )
 from pylibcugraph.utils cimport (
@@ -204,6 +207,19 @@ cdef class SamplingResult:
         return create_cupy_array_view_for_device_ptr(device_array_view_ptr,
                                                      self)
 
+    def get_label_type_hop_offsets(self):
+        if self.c_sample_result_ptr is NULL:
+            raise ValueError("pointer not set, must call set_ptr() with a "
+                             "non-NULL value first.")
+        cdef cugraph_type_erased_device_array_view_t* device_array_view_ptr = (
+            cugraph_sample_result_get_label_type_hop_offsets(self.c_sample_result_ptr)
+        )
+        if device_array_view_ptr is NULL:
+            return None
+
+        return create_cupy_array_view_for_device_ptr(device_array_view_ptr,
+                                                     self)
+
     # Deprecated
     def get_offsets(self):
         if self.c_sample_result_ptr is NULL:
@@ -251,6 +267,33 @@ cdef class SamplingResult:
                              "non-NULL value first.")
         cdef cugraph_type_erased_device_array_view_t* device_array_view_ptr = (
             cugraph_sample_result_get_renumber_map_offsets(self.c_sample_result_ptr)
+        )
+        if device_array_view_ptr is NULL:
+            return None
+
+        return create_cupy_array_view_for_device_ptr(device_array_view_ptr,
+                                                     self)
+
+
+    def get_edge_renumber_map(self):
+        if self.c_sample_result_ptr is NULL:
+            raise ValueError("pointer not set, must call set_ptr() with a "
+                             "non-NULL value first.")
+        cdef cugraph_type_erased_device_array_view_t* device_array_view_ptr = (
+            cugraph_sample_result_get_edge_renumber_map(self.c_sample_result_ptr)
+        )
+        if device_array_view_ptr is NULL:
+            return None
+
+        return create_cupy_array_view_for_device_ptr(device_array_view_ptr,
+                                                     self)
+
+    def get_edge_renumber_map_offsets(self):
+        if self.c_sample_result_ptr is NULL:
+            raise ValueError("pointer not set, must call set_ptr() with a "
+                             "non-NULL value first.")
+        cdef cugraph_type_erased_device_array_view_t* device_array_view_ptr = (
+            cugraph_sample_result_get_edge_renumber_map_offsets(self.c_sample_result_ptr)
         )
         if device_array_view_ptr is NULL:
             return None
