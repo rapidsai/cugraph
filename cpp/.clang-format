@@ -77,7 +77,7 @@ IncludeCategories:
     Priority:        1
   - Regex:           '^<cugraph_c/' # cuGraph C API includes
     Priority:        2
-  - Regex:           '^<(cugraph|cugraph-ops|cugraph_etl)/' # cuGraph includes
+  - Regex:           '^<(cugraph|cugraph_etl)/' # cuGraph includes
     Priority:        3
   - Regex:           '^<(cudf|raft|cuml|kvikio|cumlprims)' # Other RAPIDS includes
     Priority:        4

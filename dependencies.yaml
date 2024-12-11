@@ -20,8 +20,6 @@ files:
       - depends_on_dask_cudf
       - depends_on_pylibraft
       - depends_on_raft_dask
-        # Deprecate pylibcugraphops
-      - depends_on_pylibcugraphops
       - depends_on_pylibwholegraph
       - depends_on_cupy
       - depends_on_pytorch
@@ -41,8 +39,6 @@ files:
       - cuda_version
       - docs
       - py_version
-        # Deprecate pylibcugraphops
-      - depends_on_pylibcugraphops
   test_cpp:
     output: none
     includes:
@@ -294,12 +290,10 @@ dependencies:
         packages:
           - c-compiler
           - cxx-compiler
-          - libcudf==24.12.*,>=0.0.0a0
-          # Deprecate libcugraphops
-          - libcugraphops==24.12.*,>=0.0.0a0
-          - libraft-headers==24.12.*,>=0.0.0a0
-          - libraft==24.12.*,>=0.0.0a0
-          - librmm==24.12.*,>=0.0.0a0
+          - libcudf==25.2.*,>=0.0.0a0
+          - libraft-headers==25.2.*,>=0.0.0a0
+          - libraft==25.2.*,>=0.0.0a0
+          - librmm==25.2.*,>=0.0.0a0
           - openmpi # Required for building cpp-mgtests (multi-GPU tests)
     specific:
       - output_types: [conda]
@@ -389,8 +383,8 @@ dependencies:
     common:
       - output_types: [conda, pyproject]
         packages:
-          - &dask rapids-dask-dependency==24.12.*,>=0.0.0a0
-          - &dask_cuda dask-cuda==24.12.*,>=0.0.0a0
+          - &dask rapids-dask-dependency==25.2.*,>=0.0.0a0
+          - &dask_cuda dask-cuda==25.2.*,>=0.0.0a0
           - &numba numba>=0.57
           - &numpy numpy>=1.23,<3.0a0
       - output_types: conda
@@ -400,7 +394,7 @@ dependencies:
           - requests
           - nccl>=2.19
           - ucx-proc=*=gpu
-          - &ucx_py_unsuffixed ucx-py==0.41.*,>=0.0.0a0
+          - &ucx_py_unsuffixed ucx-py==0.42.*,>=0.0.0a0
       - output_types: pyproject
         packages:
             # cudf uses fsspec but is protocol independent. cugraph
@@ -413,12 +407,12 @@ dependencies:
               cuda: "11.*"
               cuda_suffixed: "true"
             packages:
-              - &ucx_py_cu11 ucx-py-cu11==0.41.*,>=0.0.0a0
+              - &ucx_py_cu11 ucx-py-cu11==0.42.*,>=0.0.0a0
           - matrix:
               cuda: "12.*"
               cuda_suffixed: "true"
             packages:
-              - &ucx_py_cu12 ucx-py-cu12==0.41.*,>=0.0.0a0
+              - &ucx_py_cu12 ucx-py-cu12==0.42.*,>=0.0.0a0
           - matrix:
             packages:
               - *ucx_py_unsuffixed
@@ -446,20 +440,20 @@ dependencies:
               cuda: "11.*"
               cuda_suffixed: "true"
             packages:
-              - &cugraph_cu11 cugraph-cu11==24.12.*,>=0.0.0a0
-              - cugraph-service-client-cu11==24.12.*,>=0.0.0a0
+              - &cugraph_cu11 cugraph-cu11==25.2.*,>=0.0.0a0
+              - cugraph-service-client-cu11==25.2.*,>=0.0.0a0
               - *ucx_py_cu11
           - matrix:
               cuda: "12.*"
               cuda_suffixed: "true"
             packages:
-              - &cugraph_cu12 cugraph-cu12==24.12.*,>=0.0.0a0
-              - cugraph-service-client-cu12==24.12.*,>=0.0.0a0
+              - &cugraph_cu12 cugraph-cu12==25.2.*,>=0.0.0a0
+              - cugraph-service-client-cu12==25.2.*,>=0.0.0a0
               - *ucx_py_cu12
           - matrix:
             packages:
-              - &cugraph_unsuffixed cugraph==24.12.*,>=0.0.0a0
-              - cugraph-service-client==24.12.*,>=0.0.0a0
+              - &cugraph_unsuffixed cugraph==25.2.*,>=0.0.0a0
+              - cugraph-service-client==25.2.*,>=0.0.0a0
               - *ucx_py_unsuffixed
   test_cpp:
     common:
@@ -495,7 +489,7 @@ dependencies:
           - scikit-learn>=0.23.1
       - output_types: [conda]
         packages:
-          - &pylibwholegraph_unsuffixed pylibwholegraph==24.12.*,>=0.0.0a0
+          - &pylibwholegraph_unsuffixed pylibwholegraph==25.2.*,>=0.0.0a0
           - *thrift
   test_python_pylibcugraph:
     common:
@@ -552,19 +546,19 @@ dependencies:
               cuda: "12.*"
               cuda_suffixed: "true"
             packages:
-              - pylibwholegraph-cu12==24.12.*,>=0.0.0a0
+              - pylibwholegraph-cu12==25.2.*,>=0.0.0a0
           - matrix:
               cuda: "11.*"
               cuda_suffixed: "true"
             packages:
-              - pylibwholegraph-cu11==24.12.*,>=0.0.0a0
+              - pylibwholegraph-cu11==25.2.*,>=0.0.0a0
           - {matrix: null, packages: [*pylibwholegraph_unsuffixed]}
 
   depends_on_rmm:
     common:
       - output_types: conda
         packages:
-          - &rmm_unsuffixed rmm==24.12.*,>=0.0.0a0
+          - &rmm_unsuffixed rmm==25.2.*,>=0.0.0a0
       - output_types: requirements
         packages:
           # pip recognizes the index as a global option for the requirements.txt file
@@ -577,19 +571,19 @@ dependencies:
               cuda: "12.*"
               cuda_suffixed: "true"
             packages:
-              - rmm-cu12==24.12.*,>=0.0.0a0
+              - rmm-cu12==25.2.*,>=0.0.0a0
           - matrix:
               cuda: "11.*"
               cuda_suffixed: "true"
             packages:
-              - rmm-cu11==24.12.*,>=0.0.0a0
+              - rmm-cu11==25.2.*,>=0.0.0a0
           - {matrix: null, packages: [*rmm_unsuffixed]}
 
   depends_on_cudf:
     common:
       - output_types: conda
         packages:
-          - &cudf_unsuffixed cudf==24.12.*,>=0.0.0a0
+          - &cudf_unsuffixed cudf==25.2.*,>=0.0.0a0
       - output_types: requirements
         packages:
           # pip recognizes the index as a global option for the requirements.txt file
@@ -602,19 +596,19 @@ dependencies:
               cuda: "12.*"
               cuda_suffixed: "true"
             packages:
-              - cudf-cu12==24.12.*,>=0.0.0a0
+              - cudf-cu12==25.2.*,>=0.0.0a0
           - matrix:
               cuda: "11.*"
               cuda_suffixed: "true"
             packages:
-              - cudf-cu11==24.12.*,>=0.0.0a0
+              - cudf-cu11==25.2.*,>=0.0.0a0
           - {matrix: null, packages: [*cudf_unsuffixed]}
 
   depends_on_dask_cudf:
     common:
       - output_types: conda
         packages:
-          - &dask_cudf_unsuffixed dask-cudf==24.12.*,>=0.0.0a0
+          - &dask_cudf_unsuffixed dask-cudf==25.2.*,>=0.0.0a0
       - output_types: requirements
         packages:
           # pip recognizes the index as a global option for the requirements.txt file
@@ -627,19 +621,19 @@ dependencies:
               cuda: "12.*"
               cuda_suffixed: "true"
             packages:
-              - dask-cudf-cu12==24.12.*,>=0.0.0a0
+              - dask-cudf-cu12==25.2.*,>=0.0.0a0
           - matrix:
               cuda: "11.*"
               cuda_suffixed: "true"
             packages:
-              - dask-cudf-cu11==24.12.*,>=0.0.0a0
+              - dask-cudf-cu11==25.2.*,>=0.0.0a0
           - {matrix: null, packages: [*dask_cudf_unsuffixed]}
 
   depends_on_pylibraft:
     common:
       - output_types: conda
         packages:
-          - &pylibraft_unsuffixed pylibraft==24.12.*,>=0.0.0a0
+          - &pylibraft_unsuffixed pylibraft==25.2.*,>=0.0.0a0
       - output_types: requirements
         packages:
           # pip recognizes the index as a global option for the requirements.txt file
@@ -652,19 +646,19 @@ dependencies:
               cuda: "12.*"
               cuda_suffixed: "true"
             packages:
-              - pylibraft-cu12==24.12.*,>=0.0.0a0
+              - pylibraft-cu12==25.2.*,>=0.0.0a0
           - matrix:
               cuda: "11.*"
               cuda_suffixed: "true"
             packages:
-              - pylibraft-cu11==24.12.*,>=0.0.0a0
+              - pylibraft-cu11==25.2.*,>=0.0.0a0
           - {matrix: null, packages: [*pylibraft_unsuffixed]}
 
   depends_on_raft_dask:
     common:
       - output_types: conda
         packages:
-          - &raft_dask_unsuffixed raft-dask==24.12.*,>=0.0.0a0
+          - &raft_dask_unsuffixed raft-dask==25.2.*,>=0.0.0a0
       - output_types: requirements
         packages:
           # pip recognizes the index as a global option for the requirements.txt file
@@ -677,19 +671,19 @@ dependencies:
               cuda: "12.*"
               cuda_suffixed: "true"
             packages:
-              - raft-dask-cu12==24.12.*,>=0.0.0a0
+              - raft-dask-cu12==25.2.*,>=0.0.0a0
           - matrix:
               cuda: "11.*"
               cuda_suffixed: "true"
             packages:
-              - raft-dask-cu11==24.12.*,>=0.0.0a0
+              - raft-dask-cu11==25.2.*,>=0.0.0a0
           - {matrix: null, packages: [*raft_dask_unsuffixed]}
 
   depends_on_pylibcugraph:
     common:
       - output_types: conda
         packages:
-          - &pylibcugraph_unsuffixed pylibcugraph==24.12.*,>=0.0.0a0
+          - &pylibcugraph_unsuffixed pylibcugraph==25.2.*,>=0.0.0a0
       - output_types: requirements
         packages:
           # pip recognizes the index as a global option for the requirements.txt file
@@ -702,39 +696,13 @@ dependencies:
               cuda: "12.*"
               cuda_suffixed: "true"
             packages:
-              - pylibcugraph-cu12==24.12.*,>=0.0.0a0
+              - pylibcugraph-cu12==25.2.*,>=0.0.0a0
           - matrix:
               cuda: "11.*"
               cuda_suffixed: "true"
             packages:
-              - pylibcugraph-cu11==24.12.*,>=0.0.0a0
+              - pylibcugraph-cu11==25.2.*,>=0.0.0a0
           - {matrix: null, packages: [*pylibcugraph_unsuffixed]}
-
-  # deprecate pylibcugraphops
-  depends_on_pylibcugraphops:
-    common:
-      - output_types: conda
-        packages:
-          - &pylibcugraphops_unsuffixed pylibcugraphops==24.12.*,>=0.0.0a0
-      - output_types: requirements
-        packages:
-          # pip recognizes the index as a global option for the requirements.txt file
-          - --extra-index-url=https://pypi.nvidia.com
-          - --extra-index-url=https://pypi.anaconda.org/rapidsai-wheels-nightly/simple
-    specific:
-      - output_types: [requirements, pyproject]
-        matrices:
-          - matrix:
-              cuda: "12.*"
-              cuda_suffixed: "true"
-            packages:
-              - pylibcugraphops-cu12==24.12.*,>=0.0.0a0
-          - matrix:
-              cuda: "11.*"
-              cuda_suffixed: "true"
-            packages:
-              - pylibcugraphops-cu11==24.12.*,>=0.0.0a0
-          - {matrix: null, packages: [*pylibcugraphops_unsuffixed]}
 
   depends_on_cupy:
     common:
