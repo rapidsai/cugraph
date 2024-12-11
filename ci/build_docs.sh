@@ -23,6 +23,7 @@ rapids-print-env
 rapids-logger "Downloading artifacts from previous jobs"
 CPP_CHANNEL=$(rapids-download-conda-from-s3 cpp)
 PYTHON_CHANNEL=$(rapids-download-conda-from-s3 python)
+
 if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
   CONDA_CUDA_VERSION="11.8"
   DGL_CHANNEL="dglteam/label/th23_cu118"
@@ -40,6 +41,7 @@ rapids-mamba-retry install \
   "libcugraph=${RAPIDS_VERSION_MAJOR_MINOR}.*" \
   "pylibcugraph=${RAPIDS_VERSION_MAJOR_MINOR}.*" \
   "cugraph=${RAPIDS_VERSION_MAJOR_MINOR}.*" \
+  "cugraph-pyg=${RAPIDS_VERSION_MAJOR_MINOR}.*" \
   "cugraph-dgl=${RAPIDS_VERSION_MAJOR_MINOR}.*" \
   "cugraph-service-server=${RAPIDS_VERSION_MAJOR_MINOR}.*" \
   "cugraph-service-client=${RAPIDS_VERSION_MAJOR_MINOR}.*" \
