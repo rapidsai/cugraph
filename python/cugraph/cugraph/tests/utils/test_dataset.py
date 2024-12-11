@@ -444,8 +444,6 @@ def test_benchmarking_datasets(dataset):
         download=True, create_using=Graph(directed=dataset_is_directed)
     )
 
-    breakpoint()
-
     assert G.is_directed() == dataset.metadata["is_directed"]
     assert G.number_of_nodes() == dataset.metadata["number_of_nodes"]
     assert G.number_of_edges() == dataset.metadata["number_of_edges"]
