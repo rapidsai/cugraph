@@ -20,7 +20,6 @@ from cugraph.datasets.dataset import (
     DefaultDownloadDir,
     default_download_dir,
 )
-from cugraph.utilities import install_ssl_cert
 
 
 class Resultset:
@@ -105,7 +104,6 @@ def load_resultset(resultset_name, resultset_download_url):
         if not curr_resultset_download_dir.exists():
             curr_resultset_download_dir.mkdir(parents=True, exist_ok=True)
         if not compressed_file_path.exists():
-            install_ssl_cert()
             urllib.request.urlretrieve(resultset_download_url, compressed_file_path)
         tar = tarfile.open(str(compressed_file_path), "r:gz")
         # TODO: pass filter="fully_trusted" when minimum supported Python version >=3.12

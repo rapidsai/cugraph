@@ -15,13 +15,12 @@ import os
 import pandas as pd
 import yaml
 from pathlib import Path
-from urllib.requests import urlretrieve
+from urllib.request import urlretrieve
 
 import cudf
 import cugraph.dask as dcg
 import dask_cudf
 from cugraph.structure.graph_classes import Graph
-from cugraph.utilities import install_ssl_cert
 
 
 class DefaultDownloadDir:
@@ -144,7 +143,6 @@ class Dataset:
         filename = self.metadata["name"] + self.metadata["file_type"]
         if self._dl_path.path.is_dir():
             self._path = self._dl_path.path / filename
-            install_ssl_cert()
             urlretrieve(url, str(self._path))
 
         else:
@@ -461,7 +459,6 @@ def download_all(force=False):
                 filename = meta["name"] + meta["file_type"]
                 save_to = default_download_dir.path / filename
                 if not save_to.is_file() or force:
-                    install_ssl_cert()
                     urlretrieve(meta["url"], str(save_to))
 
 

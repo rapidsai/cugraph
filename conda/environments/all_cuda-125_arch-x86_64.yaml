@@ -10,6 +10,7 @@ dependencies:
 - aiohttp
 - breathe
 - c-compiler
+- certifi
 - cmake>=3.26.4,!=3.30.0
 - cuda-cudart-dev
 - cuda-nvcc
