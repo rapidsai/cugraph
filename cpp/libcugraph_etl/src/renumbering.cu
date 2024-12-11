@@ -730,7 +730,7 @@ __global__ static void select_unrenumber_string(str_hash_value* idx_to_col_row,
 }
 
 struct struct_sort_descending {
-  __host__ __device__ bool operator()(str_hash_value& a, str_hash_value& b)
+  __host__ __device__ bool operator()(str_hash_value a, str_hash_value b)
   {
     return (a.count_ > b.count_);
   }

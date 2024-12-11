@@ -597,9 +597,6 @@ rmm::device_uvector<edge_t> compute_uniform_sampling_index_without_replacement(
   raft::random::RngState& rng_state,
   size_t K)
 {
-#ifndef NO_CUGRAPH_OPS
-  assert(cugraph::invalid_edge_id_v<edge_t> == cugraph::ops::graph::INVALID_ID<edge_t>);
-
   edge_t mid_partition_degree_range_last = static_cast<edge_t>(K * 10);  // tuning parameter
   assert(mid_partition_degree_range_last > K);
   size_t high_partition_oversampling_K = K * 2;  // tuning parameter
@@ -978,9 +975,6 @@ rmm::device_uvector<edge_t> compute_uniform_sampling_index_without_replacement(
   frontier_degrees.shrink_to_fit(handle.get_stream());
 
   return nbr_indices;
-#else
-  CUGRAPH_FAIL("unimplemented.");
-#endif
 }
 
 template <typename edge_t, typename bias_t>
@@ -1571,10 +1565,7 @@ uniform_sample_and_compute_local_nbr_indices(
   size_t K,
   bool with_replacement)
 {
-  using edge_t = typename GraphViewType::edge_type;
-#ifndef NO_CUGRAPH_OPS
-  assert(cugraph::invalid_edge_id_v<edge_t> == cugraph::ops::graph::INVALID_ID<edge_t>);
-
+  using edge_t   = typename GraphViewType::edge_type;
   using vertex_t = typename GraphViewType::vertex_type;
   using key_t    = typename thrust::iterator_traits<KeyIterator>::value_type;
 
@@ -1673,11 +1664,6 @@ uniform_sample_and_compute_local_nbr_indices(
 
   return std::make_tuple(
     std::move(local_nbr_indices), std::move(key_indices), std::move(local_frontier_sample_offsets));
-#else
-  CUGRAPH_FAIL("unimplemented.");
-  return std::make_tuple(
-    rmm::device_uvector<edge_t>(0, handle.get_stream()), std::nullopt, std::vector<size_t>());
-#endif
 }
 
 template <typename GraphViewType,

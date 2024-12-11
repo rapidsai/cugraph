@@ -17,6 +17,7 @@ import gc
 
 import pytest
 import networkx as nx
+import pandas as pd
 
 import cudf
 import cugraph
@@ -151,6 +152,52 @@ def networkx_call(M, benchmark_callable=None):
         dst.append(v)
         coeff.append(p)
     return src, dst, coeff
+
+
+# FIXME: This compare is shared across several tests... it should be
+#        a general utility
+def assert_results_equal(src1, dst1, val1, src2, dst2, val2):
+    #  We will do comparison computations by using dataframe
+    #  merge functions (essentially doing fast joins).  We
+    #  start by making two data frames
+    df1 = cudf.DataFrame()
+    df1["src1"] = src1
+    df1["dst1"] = dst1
+    if val1 is not None:
+        df1["val1"] = val1
+
+    df2 = cudf.DataFrame()
+    df2["src2"] = src2
+    df2["dst2"] = dst2
+    if val2 is not None:
+        df2["val2"] = val2
+
+    #  Check to see if all pairs in df1 still exist in the new (merged) data
+    #  frame.  If we join (merge) the data frames where (src1[i]=src2[i]) and
+    #  (dst1[i]=dst2[i]) then we should get exactly the same number of entries
+    #  in the data frame if we did not lose any data.
+    join = df1.merge(df2, left_on=["src1", "dst1"], right_on=["src2", "dst2"])
+
+    # Print detailed differences on test failure
+    if len(df1) != len(join):
+        join2 = df1.merge(
+            df2, how="left", left_on=["src1", "dst1"], right_on=["src2", "dst2"]
+        )
+        orig_option = pd.get_option("display.max_rows")
+        pd.set_option("display.max_rows", 500)
+        print("df1 = \n", df1.sort_values(["src1", "dst1"]))
+        print("df2 = \n", df2.sort_values(["src2", "dst2"]))
+        print(
+            "join2 = \n",
+            join2.sort_values(["src1", "dst1"])
+            .to_pandas()
+            .query("src2.isnull()", engine="python"),
+        )
+        pd.set_option("display.max_rows", orig_option)
+
+    assert len(df1) == len(join)
+
+    assert_series_equal(join["val1"], join["val2"], check_names=False)
 
 
 # =============================================================================
@@ -415,7 +462,7 @@ def test_all_pairs_jaccard_with_topk():
     jaccard_results = (
         jaccard_results[jaccard_results["first"] != jaccard_results["second"]]
         .sort_values(["jaccard_coeff", "first", "second"], ascending=False)
-        .reset_index(drop=True)[:topk]
+        .reset_index(drop=True)
     )
 
     # Call all-pairs Jaccard
@@ -425,6 +472,37 @@ def test_all_pairs_jaccard_with_topk():
         .reset_index(drop=True)
     )
 
-    assert_frame_equal(
-        jaccard_results, all_pairs_jaccard_results, check_dtype=False, check_like=True
+    # 1. All pair similarity might return different top pairs k pairs
+    # which are still valid hence, ensure the pairs returned by all-pairs
+    # exists, and that any results better than the k-th result are included
+    # in the result
+
+    # FIXME: This problem could exist in overlap, cosine and sorensen,
+    #        consider replicating this code or making a share comparison
+    #        function
+    worst_coeff = all_pairs_jaccard_results["jaccard_coeff"].min()
+    better_than_k = jaccard_results[jaccard_results["jaccard_coeff"] > worst_coeff]
+
+    assert_results_equal(
+        all_pairs_jaccard_results["first"],
+        all_pairs_jaccard_results["second"],
+        all_pairs_jaccard_results["jaccard_coeff"],
+        jaccard_results["first"],
+        jaccard_results["second"],
+        jaccard_results["jaccard_coeff"],
+    )
+
+    assert_results_equal(
+        better_than_k["first"],
+        better_than_k["second"],
+        better_than_k["jaccard_coeff"],
+        all_pairs_jaccard_results["first"],
+        all_pairs_jaccard_results["second"],
+        all_pairs_jaccard_results["jaccard_coeff"],
+    )
+
+    # 2. Ensure the coefficient scores are still the highest
+    assert_series_equal(
+        all_pairs_jaccard_results["jaccard_coeff"],
+        jaccard_results["jaccard_coeff"][:topk],
     )

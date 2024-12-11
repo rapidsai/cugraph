@@ -483,9 +483,28 @@ ConfigureTest(RANDOM_WALKS_TEST sampling/sg_random_walks_test.cpp)
 # - UNIFORM NBR SAMPLING tests --------------------------------------------------------------------
 ConfigureTest(UNIFORM_NEIGHBOR_SAMPLING_TEST sampling/uniform_neighbor_sampling.cpp)
 
+# - HOMOGENEOUS UNIFORM NBR SAMPLING tests --------------------------------------------------------
+ConfigureTest(
+    HOMOGENEOUS_UNIFORM_NEIGHBOR_SAMPLING_TEST sampling/homogeneous_uniform_neighbor_sampling.cpp)
+
+# - HETEROGENEOUS UNIFORM NBR SAMPLING tests -----------------------------------------------------
+ConfigureTest(
+    HETEROGENEOUS_UNIFORM_NEIGHBOR_SAMPLING_TEST sampling/heterogeneous_uniform_neighbor_sampling.cpp)
+
 ###################################################################################################
 # - BIASED NBR SAMPLING tests ---------------------------------------------------------------------
 ConfigureTest(BIASED_NEIGHBOR_SAMPLING_TEST sampling/biased_neighbor_sampling.cpp)
+
+###################################################################################################
+# - HOMOGENEOUS BIASED NBR SAMPLING tests ---------------------------------------------------------
+ConfigureTest(
+    HOMOGENEOUS_BIASED_NEIGHBOR_SAMPLING_TEST sampling/homogeneous_biased_neighbor_sampling.cpp)
+
+###################################################################################################
+# - HETEROGENEOUS BIASED NBR SAMPLING tests -------------------------------------------------------
+ConfigureTest(
+    HETEROGENEOUS_BIASED_NEIGHBOR_SAMPLING_TESTT sampling/heterogeneous_biased_neighbor_sampling.cpp
+        GPUS 1 PERCENT 75)
 
 ###################################################################################################
 # - SAMPLING_POST_PROCESSING tests ----------------------------------------------------------------
@@ -679,9 +698,9 @@ if(BUILD_CUGRAPH_MG_TESTS)
     ConfigureTestMG(MG_COUNT_IF_V_TEST prims/mg_count_if_v.cu)
 
     ###############################################################################################
-    # - MG PRIMS TRANSFORM_REDUCE_V_FRONTIER_OUTGOING_E_BY_SRC_DST tests --------------------------
-    ConfigureTestMG(MG_TRANSFORM_REDUCE_V_FRONTIER_OUTGOING_E_BY_SRC_DST_TEST
-                    prims/mg_transform_reduce_v_frontier_outgoing_e_by_src_dst.cu)
+    # - MG PRIMS TRANSFORM_REDUCE_V_FRONTIER_OUTGOING_E_BY_DST tests ------------------------------
+    ConfigureTestMG(MG_TRANSFORM_REDUCE_V_FRONTIER_OUTGOING_E_BY_DST_TEST
+                    prims/mg_transform_reduce_v_frontier_outgoing_e_by_dst.cu)
 
     ###############################################################################################
     # - MG PRIMS REDUCE_V tests -------------------------------------------------------------------
@@ -750,6 +769,26 @@ if(BUILD_CUGRAPH_MG_TESTS)
     ###############################################################################################
     # - MG UNIFORM NBR SAMPLING tests -------------------------------------------------------------
     ConfigureTestMG(MG_UNIFORM_NEIGHBOR_SAMPLING_TEST sampling/mg_uniform_neighbor_sampling.cpp)
+
+    ###############################################################################################
+    # - MG HOMOGENEOUS UNIFORM NBR SAMPLING tests -------------------------------------------------
+    ConfigureTestMG(
+        MG_HOMOGENEOUS_UNIFORM_NEIGHBOR_SAMPLING_TEST sampling/mg_homogeneous_uniform_neighbor_sampling.cpp)
+
+    ###############################################################################################
+    # - MG HETEROGENEOUS UNIFORM NBR SAMPLING tests -------------------------------------------------
+    ConfigureTestMG(
+        MG_HETEROGENEOUS_UNIFORM_NEIGHBOR_SAMPLING_TEST sampling/mg_heterogeneous_uniform_neighbor_sampling.cpp)
+
+    ###############################################################################################
+    # - MG HOMOGENEOUS BIASED NBR SAMPLING tests --------------------------------------------------
+    ConfigureTestMG(
+        MG_HOMOGENEOUS_BIASED_NEIGHBOR_SAMPLING_TEST sampling/mg_homogeneous_biased_neighbor_sampling.cpp)
+
+    ###############################################################################################
+    # - MG HETEROGENEOUS BIASED NBR SAMPLING tests --------------------------------------------------
+    ConfigureTestMG(
+        MG_HETEROGENEOUS_BIASED_NEIGHBOR_SAMPLING_TEST sampling/mg_heterogeneous_biased_neighbor_sampling.cpp)
 
     ###############################################################################################
     # - MG BIASED NBR SAMPLING tests --------------------------------------------------------------
