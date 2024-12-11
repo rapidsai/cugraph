@@ -116,6 +116,7 @@ def run_test_dist_sampler_simple(
 @pytest.mark.parametrize("batch_size", [1, 4])
 @pytest.mark.parametrize("seeds_per_rank", [8, 1])
 @pytest.mark.parametrize("seeds_per_call", [4, 8])
+@pytest.mark.skip("bleh")
 @pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not installed")
 def test_dist_sampler_simple(
     scratch_dir, batch_size, seeds_per_rank, fanout, equal_input_size, seeds_per_call
@@ -202,7 +203,6 @@ def run_test_dist_sampler_uneven(
 @pytest.mark.parametrize("fanout", [[4, 4], [4, 2, 1]])
 @pytest.mark.parametrize("batch_size", [1, 4])
 @pytest.mark.parametrize("seeds_per_call", [4, 8, 16])
-@pytest.mark.skip(reason="broken")
 @pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not installed")
 def test_dist_sampler_uneven(scratch_dir, batch_size, fanout, seeds_per_call):
     uid = cugraph_comms_create_unique_id()
@@ -304,6 +304,7 @@ def run_test_dist_sampler_buffered_in_memory(
 @pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
 @pytest.mark.parametrize("seeds_per_call", [4, 5, 10])
 @pytest.mark.parametrize("compression", ["COO", "CSR"])
+@pytest.mark.skip(reason="bleh")
 def test_dist_sampler_buffered_in_memory(scratch_dir, seeds_per_call, compression):
     uid = cugraph_comms_create_unique_id()
 

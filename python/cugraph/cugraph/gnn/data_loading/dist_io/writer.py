@@ -321,14 +321,20 @@ class DistSampleWriter:
             )
 
     def write_minibatches(self, minibatch_dict):
-        if ("majors" in minibatch_dict and minibatch_dict["majors"] is not None) and (
-            "minors" in minibatch_dict and minibatch_dict["minors"] is not None
-        ):
+        if "minors" not in minibatch_dict:
+            raise ValueError("invalid columns")
+
+        # PLC API specifies this behavior for empty input
+        # This needs to be handled here to avoid causing a hang
+        if len(minibatch_dict["minors"]) == 0:
+            return
+
+        if "majors" in minibatch_dict and minibatch_dict["majors"] is not None:
             self.__write_minibatches_coo(minibatch_dict)
         elif (
             "major_offsets" in minibatch_dict
             and minibatch_dict["major_offsets"] is not None
-        ) and ("minors" in minibatch_dict and minibatch_dict["minors"] is not None):
+        ):
             self.__write_minibatches_csr(minibatch_dict)
         else:
             raise ValueError("invalid columns")

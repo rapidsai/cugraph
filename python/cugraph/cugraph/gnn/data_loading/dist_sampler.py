@@ -189,6 +189,7 @@ class DistSampler:
             batch_id_offsets=input_offsets,
             random_state=random_state,
         )
+
         minibatch_dict["input_index"] = current_ix.cuda()
         minibatch_dict["input_offsets"] = input_offsets
 
