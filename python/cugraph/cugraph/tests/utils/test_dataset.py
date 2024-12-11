@@ -104,6 +104,7 @@ def is_symmetric(dataset):
         return True
     else:
         df = dataset.get_edgelist(download=True)
+        df.rename(columns={df.columns[0]: "src", df.columns[1]: "dst"}, inplace=True)
         df_a = df.sort_values("src")
 
         # create df with swapped src/dst columns
@@ -442,6 +443,8 @@ def test_benchmarking_datasets(dataset):
     G = dataset.get_graph(
         download=True, create_using=Graph(directed=dataset_is_directed)
     )
+
+    breakpoint()
 
     assert G.is_directed() == dataset.metadata["is_directed"]
     assert G.number_of_nodes() == dataset.metadata["number_of_nodes"]
