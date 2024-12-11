@@ -46,6 +46,7 @@ cugraph-service-server = "cugraph_service_server.__main__:main"
 
 [project.optional-dependencies]
 test = [
+    "certifi",
     "networkx>=2.5.1",
     "numpy>=1.23,<3.0a0",
     "pandas",
