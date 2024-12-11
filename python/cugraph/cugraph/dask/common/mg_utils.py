@@ -1,4 +1,4 @@
-# Copyright (c) 2020-2023, NVIDIA CORPORATION.
+# Copyright (c) 2020-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -13,7 +13,7 @@
 
 import os
 import gc
-import numba.cuda
+from cuda.bindings import runtime
 
 
 # FIXME: this raft import breaks the library if ucx-py is
@@ -53,11 +53,10 @@ def prepare_worker_to_parts(data, client=None):
 
 
 def is_single_gpu():
-    ngpus = len(numba.cuda.gpus)
-    if ngpus > 1:
-        return False
-    else:
-        return True
+    status, count = runtime.cudaGetDeviceCount()
+    if status != runtime.cudaError_t.cudaSuccess:
+        raise RuntimeError("Could not get CUDA device count.")
+    return count > 1
 
 
 def get_visible_devices():
