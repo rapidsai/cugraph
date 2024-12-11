@@ -207,7 +207,7 @@ def get_traversed_path_list(df, id):
     return answer
 
 
-def is_cuda_version_less_than(min_version=(10, 2)):
+def is_cuda_version_less_than(min_version):
     """
     Returns True if the version of CUDA being used is less than min_version
     """
@@ -219,7 +219,7 @@ def is_cuda_version_less_than(min_version=(10, 2)):
     return (major, minor) < min_version
 
 
-def is_device_version_less_than(min_version=(7, 0)):
+def is_device_version_less_than(min_version):
     """
     Returns True if the version of CUDA being used is less than min_version
     """
