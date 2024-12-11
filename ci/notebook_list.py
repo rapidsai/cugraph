@@ -37,8 +37,8 @@ def _get_cuda_version_string():
     status, version = runtime.getLocalRuntimeVersion()
     if status != runtime.cudaError_t.cudaSuccess:
         raise RuntimeError("Could not get CUDA runtime version.")
-    major = version // 1000
-    minor = (version % 1000) // 10
+    major, minor = divmod(version, 1000)
+    minor //= 10
     return f"{major}.{minor}"
 
 
