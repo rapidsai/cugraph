@@ -32,16 +32,16 @@ function(find_and_configure_raft)
 
     if(PKG_COMPILE_RAFT_LIB)
       if(NOT PKG_USE_RAFT_STATIC)
-        string(APPEND RAFT_COMPONENTS " raft compiled")
+        string(APPEND RAFT_COMPONENTS " compiled")
       else()
-        string(APPEND RAFT_COMPONENTS " raft compiled_static")
+        string(APPEND RAFT_COMPONENTS " compiled_static")
       endif()
     endif()
 
     rapids_cpm_find(raft ${PKG_VERSION}
       GLOBAL_TARGETS      raft::raft
-      # BUILD_EXPORT_SET    cugraph-exports
-      # INSTALL_EXPORT_SET  cugraph-exports
+      BUILD_EXPORT_SET    cugraph-exports
+      INSTALL_EXPORT_SET  cugraph-exports
       COMPONENTS ${RAFT_COMPONENTS}
         CPM_ARGS
             EXCLUDE_FROM_ALL TRUE
@@ -61,6 +61,7 @@ function(find_and_configure_raft)
     # TODO(jameslamb): move this under if(raft_ADDED)?
     install(
       TARGETS raft
+      EXPORT cugraph-exports
       FILE_SET raft_headers
       DESTINATION ${CMAKE_INSTALL_PREFIX}
     )
