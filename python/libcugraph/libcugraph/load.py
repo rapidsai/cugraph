@@ -76,5 +76,5 @@ def load_library():
     # harm in offering the option since this object at least provides a handle
     # to inspect where libcugraph was loaded from.
 
-    # TODO: return something here?
+    # TODO(jameslamb): return something here?
     # return libcugraph_lib

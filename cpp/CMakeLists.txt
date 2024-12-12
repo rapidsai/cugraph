@@ -658,6 +658,3 @@ if(Doxygen_FOUND)
 
     add_custom_target(docs_cugraph DEPENDS CUGRAPH_DOXYGEN)
 endif()
-
-# TODO: revert before merging
-# set_property(GLOBAL PROPERTY GLOBAL_DEPENDS_DEBUG_MODE ON)
