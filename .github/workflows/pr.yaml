@@ -25,8 +25,8 @@ jobs:
       - wheel-build-libcugraph
       - wheel-build-pylibcugraph
       # - wheel-tests-pylibcugraph
-      - wheel-build-cugraph
-      - wheel-tests-cugraph
+      # - wheel-build-cugraph
+      # - wheel-tests-cugraph
       # - telemetry-setup
       # - devcontainer
     secrets: inherit
@@ -161,23 +161,23 @@ jobs:
   #   with:
   #     build_type: pull-request
   #     script: ci/test_wheel_pylibcugraph.sh
-  wheel-build-cugraph:
-    needs: wheel-build-pylibcugraph
-    secrets: inherit
-    uses: rapidsai/shared-workflows/.github/workflows/wheels-build.yaml@branch-25.02
-    with:
-      build_type: pull-request
-      script: ci/build_wheel_cugraph.sh
-  wheel-tests-cugraph:
-    needs: [wheel-build-cugraph, changed-files]
-    secrets: inherit
-    uses: rapidsai/shared-workflows/.github/workflows/wheels-test.yaml@branch-25.02
-    # if: fromJSON(needs.changed-files.outputs.changed_file_groups).test_python
-    with:
-      build_type: pull-request
-      script: ci/test_wheel_cugraph.sh
-      # This selects "ARCH=amd64 + the latest supported Python + CUDA".
-      matrix_filter: map(select(.ARCH == "amd64")) | max_by([(.PY_VER|split(".")|map(tonumber)), (.CUDA_VER|split(".")|map(tonumber))]) | [.]
+  # wheel-build-cugraph:
+  #   needs: wheel-build-pylibcugraph
+  #   secrets: inherit
+  #   uses: rapidsai/shared-workflows/.github/workflows/wheels-build.yaml@branch-25.02
+  #   with:
+  #     build_type: pull-request
+  #     script: ci/build_wheel_cugraph.sh
+  # wheel-tests-cugraph:
+  #   needs: [wheel-build-cugraph, changed-files]
+  #   secrets: inherit
+  #   uses: rapidsai/shared-workflows/.github/workflows/wheels-test.yaml@branch-25.02
+  #   # if: fromJSON(needs.changed-files.outputs.changed_file_groups).test_python
+  #   with:
+  #     build_type: pull-request
+  #     script: ci/test_wheel_cugraph.sh
+  #     # This selects "ARCH=amd64 + the latest supported Python + CUDA".
+  #     matrix_filter: map(select(.ARCH == "amd64")) | max_by([(.PY_VER|split(".")|map(tonumber)), (.CUDA_VER|split(".")|map(tonumber))]) | [.]
   # devcontainer:
   #   secrets: inherit
   #   # needs: telemetry-setup

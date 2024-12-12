@@ -40,8 +40,8 @@ function(find_and_configure_raft)
 
     rapids_cpm_find(raft ${PKG_VERSION}
       GLOBAL_TARGETS      raft::raft
-      # BUILD_EXPORT_SET    cugraph-raft-exports
-      # INSTALL_EXPORT_SET  cugraph-raft-exports
+      # BUILD_EXPORT_SET    cugraph-exports
+      # INSTALL_EXPORT_SET  cugraph-exports
       COMPONENTS ${RAFT_COMPONENTS}
         CPM_ARGS
             EXCLUDE_FROM_ALL TRUE
@@ -97,14 +97,14 @@ function(find_and_configure_raft)
     # result: include/include/raft
 
     # rapids_export_package(
-    #   BUILD raft cugraph-raft-exports
+    #   BUILD raft cugraph-exports
     #   COMPONENTS
     #     raft
     #   GLOBAL_TARGETS
     #     raft::raft raft
     # )
     # rapids_export_package(
-    #   INSTALL raft cugraph-raft-exports
+    #   INSTALL raft cugraph-exports
     #   COMPONENTS
     #     raft
     #   GLOBAL_TARGETS
@@ -114,22 +114,35 @@ function(find_and_configure_raft)
     # install the RAFT headers
     install(
       TARGETS raft
-      #EXPORT cugraph-raft-exports
-      # these files already come through with a relative path like 'include/raft',
-      # so should end up alongside other cugraph includes
-      DESTINATION ${CMAKE_INSTALL_PREFIX}
       FILE_SET raft_headers
-        # COMPONENT raft
-      PUBLIC_HEADER
-        #DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/raft
-        #DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
-        # COMPONENT raft
-        FILE_SET raft_headers
-      INCLUDES
-        #DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/raft
-        #DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
-        # COMPONENT raft
+      DESTINATION ${CMAKE_INSTALL_PREFIX}
     )
+    # install(
+    #   TARGETS raft
+    #   # --- notes ---
+    #   #
+    #   #    If `EXPORT raft-exports` is included here, resuls in this:
+    #   #
+    #   #      CMake Error: install(EXPORT "raft-exports" ...) includes target "raft" more than once in the export set.
+    #   #
+    #   #EXPORT raft-exports
+    #   # EXPORT cugraph-exports
+    #   # these files already come through with a relative path like 'include/raft',
+    #   # so should end up alongside other cugraph includes
+    #   DESTINATION ${CMAKE_INSTALL_PREFIX}
+    #   FILE_SET raft_headers
+    #     # COMPONENT raft
+    #   PUBLIC_HEADER
+    #     #DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/raft
+    #     #DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+    #     # COMPONENT raft
+    #     FILE_SET raft_headers
+    #   INCLUDES
+    #     #DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/raft
+    #     #DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+    #     # COMPONENT raft
+    # )
+    # install(EXPORT raft-exports DESTINATION ${CMAKE_CURRENT_SOURCE_DIR})
 
     # rapids_export(
     #   BUILD raft
