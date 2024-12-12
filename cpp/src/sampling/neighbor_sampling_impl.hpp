@@ -184,7 +184,7 @@ neighbor_sample_impl(raft::handle_t const& handle,
 
   std::vector<size_t> level_sizes{};
 
-  for (auto hop = 0; hop < num_hops; hop++) {
+  for (size_t hop = 0; hop < num_hops; ++hop) {
     rmm::device_uvector<vertex_t> level_result_src(0, handle.get_stream());
     rmm::device_uvector<vertex_t> level_result_dst(0, handle.get_stream());
 
