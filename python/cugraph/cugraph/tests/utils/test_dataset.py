@@ -104,6 +104,7 @@ def is_symmetric(dataset):
         return True
     else:
         df = dataset.get_edgelist(download=True)
+        df.rename(columns={df.columns[0]: "src", df.columns[1]: "dst"}, inplace=True)
         df_a = df.sort_values("src")
 
         # create df with swapped src/dst columns
