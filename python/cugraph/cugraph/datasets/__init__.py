@@ -1,4 +1,4 @@
-# Copyright (c) 2022-2023, NVIDIA CORPORATION.
+# Copyright (c) 2022-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -49,3 +49,4 @@ cit_patents = Dataset(meta_path / "cit-patents.yaml")
 europe_osm = Dataset(meta_path / "europe_osm.yaml")
 # 1.5 GB
 hollywood = Dataset(meta_path / "hollywood.yaml")
+amazon0302 = Dataset(meta_path / "amazon0302.yaml")
