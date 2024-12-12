@@ -1,0 +1,26 @@
+name: amazon0302
+file_type: .gz
+description:
+  This network was collected by crawling the Amazon website. It is based on the
+  "Customers Who Bought This Item Also Bought" feature of the Amazon website.
+  If product i is frequently co-purchased with product j, the graph contains a
+  directed edge from i to j. The data was collected in March 02 2003.
+author: J. Leskovec, L. Adamic and B. Adamic
+refs:
+  J. Leskovec, L. Adamic and B. Adamic. The Dynamics of Viral Marketing.
+  ACM Transactions on the Web (ACM TWEB), 1(1), 2007.
+delim: "\t"
+header: 3
+col_names:
+  - FromNodeId
+  - ToNodeId
+col_types:
+  - int32
+  - int32
+has_loop: false
+is_directed: true
+is_multigraph: false
+is_symmetric: false
+number_of_edges: 1234877
+number_of_nodes: 262111
+url: https://snap.stanford.edu/data/amazon0302.txt.gz
