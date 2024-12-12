@@ -51,20 +51,16 @@ NEXT_UCXX_SHORT_TAG_PEP440=$(python -c "from packaging.version import Version; p
 DEPENDENCIES=(
   cudf
   cugraph
-  cugraph-dgl
-  cugraph-pyg
   cugraph-service-server
   cugraph-service-client
   cuxfilter
   dask-cuda
   dask-cudf
   libcudf
-  libcugraphops
   libraft
   libraft-headers
   librmm
   pylibcugraph
-  pylibcugraphops
   pylibwholegraph
   pylibraft
   pyraft
@@ -75,7 +71,7 @@ DEPENDENCIES=(
 UCXX_DEPENDENCIES=(
   ucx-py
 )
-for FILE in dependencies.yaml conda/environments/*.yaml python/cugraph-{pyg,dgl}/conda/*.yaml; do
+for FILE in dependencies.yaml conda/environments/*.yaml; do
   for DEP in "${DEPENDENCIES[@]}"; do
     sed_runner "/-.* ${DEP}\(-cu[[:digit:]]\{2\}\)\{0,1\}==/ s/==.*/==${NEXT_SHORT_TAG_PEP440}.*,>=0.0.0a0/g" "${FILE}"
   done
@@ -100,8 +96,6 @@ done
 # CI files
 for FILE in .github/workflows/*.yaml; do
   sed_runner "/shared-workflows/ s/@.*/@branch-${NEXT_SHORT_TAG}/g" "${FILE}"
-  # Wheel builds clone cugraph-ops, update its branch
-  sed_runner "s/extra-repo-sha: branch-.*/extra-repo-sha: branch-${NEXT_SHORT_TAG}/g" "${FILE}"
   # Wheel builds install dask-cuda from source, update its branch
   sed_runner "s/dask-cuda.git@branch-[0-9][0-9].[0-9][0-9]/dask-cuda.git@branch-${NEXT_SHORT_TAG}/g" "${FILE}"
 done

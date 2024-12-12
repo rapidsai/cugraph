@@ -551,6 +551,8 @@ cugraph_error_code_t cugraph_homogeneous_biased_neighbor_sample(
  * @param [in]  start_vertices Device array of start vertices for the sampling
  * @param [in]  starting_vertex_label_offsets Device array of the offsets for each label in
  * the seed list. This parameter is only used with the retain_seeds option.
+ * @param [in]  vertex_type_offsets Device array of the offsets for each vertex type in the
+ * graph.
  * @param [in]  fan_out       Host array defining the fan out at each step in the sampling
  * algorithm. We only support fan_out values of type INT32
  * @param [in]  num_edge_types Number of edge types where a value of 1 translates to homogeneous
@@ -570,6 +572,7 @@ cugraph_error_code_t cugraph_heterogeneous_uniform_neighbor_sample(
   cugraph_graph_t* graph,
   const cugraph_type_erased_device_array_view_t* start_vertices,
   const cugraph_type_erased_device_array_view_t* starting_vertex_label_offsets,
+  const cugraph_type_erased_device_array_view_t* vertex_type_offsets,
   const cugraph_type_erased_host_array_view_t* fan_out,
   int num_edge_types,
   const cugraph_sampling_options_t* options,
@@ -598,6 +601,8 @@ cugraph_error_code_t cugraph_heterogeneous_uniform_neighbor_sample(
  * @param [in]  start_vertices Device array of start vertices for the sampling
  * @param [in]  starting_vertex_label_offsets Device array of the offsets for each label in
  * the seed list. This parameter is only used with the retain_seeds option.
+ * @param [in]  vertex_type_offsets Device array of the offsets for each vertex type in the
+ * graph.
  * @param [in]  fan_out       Host array defining the fan out at each step in the sampling
  * algorithm. We only support fan_out values of type INT32
  * @param [in]  num_edge_types Number of edge types where a value of 1 translates to homogeneous
@@ -618,6 +623,7 @@ cugraph_error_code_t cugraph_heterogeneous_biased_neighbor_sample(
   const cugraph_edge_property_view_t* edge_biases,
   const cugraph_type_erased_device_array_view_t* start_vertices,
   const cugraph_type_erased_device_array_view_t* starting_vertex_label_offsets,
+  const cugraph_type_erased_device_array_view_t* vertex_type_offsets,
   const cugraph_type_erased_host_array_view_t* fan_out,
   int num_edge_types,
   const cugraph_sampling_options_t* options,
@@ -733,6 +739,16 @@ cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_hop(
  * @return type erased array pointing to the label-hop offsets
  */
 cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_label_hop_offsets(
+  const cugraph_sample_result_t* result);
+
+/**
+ * @ingroup samplingC
+ * @brief     Get the label-type-hop offsets from the sampling algorithm result
+ *
+ * @param [in]   result   The result from a sampling algorithm
+ * @return type erased array pointing to the label-type-hop offsets
+ */
+cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_label_type_hop_offsets(
   const cugraph_sample_result_t* result);
 
 /**

@@ -484,10 +484,10 @@ target_link_libraries(cugraph
         rmm::rmm
         raft::raft
         $<BUILD_LOCAL_INTERFACE:CUDA::toolkit>
-        $<TARGET_NAME_IF_EXISTS:cugraph-ops::cugraph-ops++>
     PRIVATE
         ${COMPILED_RAFT_LIB}
         cuco::cuco
+        rmm::rmm_logger_impl
     )
 
 ################################################################################
@@ -538,6 +538,8 @@ add_library(cugraph_c
         src/c_api/weakly_connected_components.cpp
         src/c_api/strongly_connected_components.cpp
         src/c_api/allgather.cpp
+        src/c_api/decompress_to_edgelist.cpp
+        src/c_api/edgelist.cpp
         )
 add_library(cugraph::cugraph_c ALIAS cugraph_c)
 

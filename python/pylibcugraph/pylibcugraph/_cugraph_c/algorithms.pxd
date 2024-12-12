@@ -246,6 +246,11 @@ cdef extern from "cugraph_c/algorithms.h":
         )
 
     cdef cugraph_type_erased_device_array_view_t* \
+        cugraph_sample_result_get_label_type_hop_offsets(
+            const cugraph_sample_result_t* result
+        )
+
+    cdef cugraph_type_erased_device_array_view_t* \
         cugraph_sample_result_get_start_labels(
             const cugraph_sample_result_t* result
         )

@@ -10,7 +10,7 @@ While NetworkX is a pure-Python implementation, backends may be written to use o
 
 ## Enabling nx-cugraph
 
-It is recommended to use `networkx>=3.4` for optimal zero code change performance, but `nx-cugraph` will also work with `networkx 3.0+`.
+It is recommended to use `networkx>=3.4` for optimal zero code change performance, but `nx-cugraph` will also work with `networkx 3.2+`.
 
 NetworkX will use `nx-cugraph` as the backend if any of the following are used:
 

@@ -14,6 +14,7 @@
 from cugraph.structure import graph_primtypes_wrapper
 from cugraph.structure.replicate_edgelist import replicate_cudf_dataframe
 from cugraph.structure.symmetrize import symmetrize as symmetrize_df
+from pylibcugraph import decompress_to_edgelist as pylibcugraph_decompress_to_edgelist
 from cugraph.structure.number_map import NumberMap
 import cugraph.dask.common.mg_utils as mg_utils
 import cudf
@@ -132,17 +133,9 @@ class simpleGraphImpl:
         edge_id=None,
         edge_type=None,
         renumber=True,
-        legacy_renum_only=False,
         store_transposed=False,
         symmetrize=None,
     ):
-        if legacy_renum_only:
-            warning_msg = (
-                "The parameter 'legacy_renum_only' is deprecated and will be removed."
-            )
-            warnings.warn(
-                warning_msg,
-            )
 
         if self.properties.directed and symmetrize:
             raise ValueError(
@@ -266,11 +259,7 @@ class simpleGraphImpl:
         if renumber:
             # FIXME: Should SG do lazy evaluation like MG?
             elist, renumber_map = NumberMap.renumber(
-                elist,
-                source,
-                destination,
-                store_transposed=False,
-                legacy_renum_only=legacy_renum_only,
+                elist, source, destination, store_transposed=False
             )
             source = renumber_map.renumbered_src_col_name
             destination = renumber_map.renumbered_dst_col_name
@@ -312,6 +301,8 @@ class simpleGraphImpl:
 
         # FIXME: if the user calls self.edgelist.edgelist_df after creating a
         # symmetric graph, return the symmetric edgelist?
+        # FIXME: For better memory footprint, avoid storing this edgelist and instead
+        # call decompress_to_edgelist to extract the edgelist from the graph
         self.edgelist = simpleGraphImpl.EdgeList(
             elist[source], elist[destination], value_col
         )
@@ -801,6 +792,64 @@ class simpleGraphImpl:
         if self.properties.renumbered is True:
             df = self.renumber_map.unrenumber(df, "first")
             df = self.renumber_map.unrenumber(df, "second")
+
+        return df
+
+    def decompress_to_edgelist(
+        self, return_unrenumbered_edgelist: bool = True
+    ) -> cudf.DataFrame:
+        """
+        Extract a the edgelist from a graph.
+
+        Parameters
+        ----------
+        return_unrenumbered_edgelist : bool (default=True)
+            Flag determining whether to return the original input edgelist
+            if 'True' or the renumbered one of 'False' and the edgelist was
+            renumbered.
+
+        Returns
+        -------
+
+        df : cudf.DataFrame
+            GPU data frame containing all sources identifiers,
+            destination identifiers and if applicable edge weights, edge ids and
+            edge types
+
+        Examples
+        --------
+        >>> from cugraph.datasets import karate
+        >>> G = karate.get_graph(download=True)
+        >>> edgelist = G.decompress_to_edgelist()
+
+        """
+
+        do_expensive_check = False
+        (
+            source,
+            destination,
+            weight,
+            edge_ids,
+            edge_type_ids,
+        ) = pylibcugraph_decompress_to_edgelist(
+            resource_handle=ResourceHandle(),
+            graph=self._plc_graph,
+            do_expensive_check=do_expensive_check,
+        )
+
+        df = cudf.DataFrame()
+        df["src"] = source
+        df["dst"] = destination
+        if weight is not None:
+            df["weight"] = weight
+        if edge_ids is not None:
+            df["edge_ids"] = edge_ids
+        if edge_type_ids is not None:
+            df["edge_type_ids"] = edge_type_ids
+
+        if self.properties.renumbered and return_unrenumbered_edgelist:
+            df, _ = self.renumber_map.unrenumber(df, "src", get_column_names=True)
+            df, _ = self.renumber_map.unrenumber(df, "dst", get_column_names=True)
 
         return df
 

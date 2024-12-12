@@ -420,3 +420,57 @@ def test_graph_creation_properties(dask_client, graph_file, directed, renumber):
     assert sG.number_of_nodes() == mG.number_of_nodes()
     assert sG.number_of_edges() == mG.number_of_edges()
     assert_frame_equal(sG_edgelist_view, mG_edgelist_view, check_dtype=False)
+
+
+@pytest.mark.parametrize("directed", [True, False])
+@pytest.mark.parametrize("renumber", [True, False])
+@pytest.mark.parametrize("graph_file", datasets)
+def test_decompress_to_edgelist(dask_client, graph_file, directed, renumber):
+    input_df = utils.read_csv_file(graph_file)
+    input_df = input_df.rename(columns={"0": "src", "1": "dst", "2": "weight"})
+
+    G = cugraph.Graph(directed=directed)
+    input_df_ = cudf.DataFrame()
+    if renumber:
+        input_df_["src_0"] = cudf.Series(input_df["src"])
+        input_df_["dst_0"] = cudf.Series(input_df["dst"])
+        input_df_["weight"] = cudf.Series(input_df["weight"])
+        input_df_["src_1"] = input_df_["src_0"] + 1000
+        input_df_["dst_1"] = input_df_["dst_0"] + 1000
+
+        input_df = input_df_
+        source = ["src_0", "src_1"]
+        destination = ["dst_0", "dst_1"]
+    else:
+        source = "src"
+        destination = "dst"
+    num_workers = len(Comms.get_workers())
+
+    input_ddf = dask_cudf.from_cudf(input_df, npartitions=num_workers)
+
+    G = cugraph.Graph(directed=True)
+    G.from_dask_cudf_edgelist(
+        input_ddf, source=source, destination=destination, weight="weight"
+    )
+
+    extracted_df = (
+        G.decompress_to_edgelist(return_unrenumbered_edgelist=True)
+        .compute()
+        .reset_index(drop=True)
+    )
+
+    if renumber:
+        extracted_df = extracted_df.rename(
+            columns={
+                "0_src": "src_0",
+                "1_src": "src_1",
+                "0_dst": "dst_0",
+                "1_dst": "dst_1",
+            }
+        )
+        extracted_df = extracted_df.sort_values(
+            ["src_0", "src_1", "dst_0", "dst_1"]
+        ).reset_index(drop=True)
+        input_df = input_df.sort_values(
+            ["src_0", "src_1", "dst_0", "dst_1"]
+        ).reset_index(drop=True)
