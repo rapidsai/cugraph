@@ -84,6 +84,7 @@ def heterogeneous_uniform_neighbor_sample(ResourceHandle resource_handle,
                                           _GPUGraph input_graph,
                                           start_vertex_list,
                                           starting_vertex_label_offsets,
+                                          vertex_type_offsets,
                                           h_fan_out,
                                           num_edge_types,
                                           bool_t with_replacement,
@@ -118,6 +119,9 @@ def heterogeneous_uniform_neighbor_sample(ResourceHandle resource_handle,
         Offsets of each label within the start vertex list. Expanding
         'starting_vertex_label_offsets' must lead to an array of
         len(start_vertex_list)
+
+    vertex_type_offsets: device array type (Optional)
+        Offsets for each vertex type in the graph.
 
     h_fan_out: numpy array type
         Device array containing the branching out (fan-out) degrees per
@@ -242,6 +246,7 @@ def heterogeneous_uniform_neighbor_sample(ResourceHandle resource_handle,
 
     assert_CAI_type(start_vertex_list, "start_vertex_list")
     assert_CAI_type(starting_vertex_label_offsets, "starting_vertex_label_offsets", True)
+    assert_CAI_type(vertex_type_offsets, "vertex_type_offsets", True)
 
     assert_AI_type(h_fan_out, "h_fan_out")
 
@@ -271,6 +276,11 @@ def heterogeneous_uniform_neighbor_sample(ResourceHandle resource_handle,
         cai_starting_vertex_label_offsets_ptr = \
             starting_vertex_label_offsets.__cuda_array_interface__['data'][0]
 
+    cdef uintptr_t cai_vertex_type_offsets_ptr
+    if vertex_type_offsets is not None:
+        cai_vertex_type_offsets_ptr = \
+            vertex_type_offsets.__cuda_array_interface__['data'][0]
+
 
     cdef cugraph_type_erased_device_array_view_t* start_vertex_list_ptr = \
         cugraph_type_erased_device_array_view_create(
@@ -285,6 +295,15 @@ def heterogeneous_uniform_neighbor_sample(ResourceHandle resource_handle,
             cugraph_type_erased_device_array_view_create(
                 <void*>cai_starting_vertex_label_offsets_ptr,
                 len(starting_vertex_label_offsets),
+                SIZE_T
+            )
+
+    cdef cugraph_type_erased_device_array_view_t* vertex_type_offsets_ptr = <cugraph_type_erased_device_array_view_t*>NULL
+    if vertex_type_offsets is not None:
+        vertex_type_offsets_ptr = \
+            cugraph_type_erased_device_array_view_create(
+                <void*>cai_vertex_type_offsets_ptr,
+                len(vertex_type_offsets),
                 SIZE_T
             )
 
@@ -347,6 +366,7 @@ def heterogeneous_uniform_neighbor_sample(ResourceHandle resource_handle,
         c_graph_ptr,
         start_vertex_list_ptr,
         starting_vertex_label_offsets_ptr,
+        vertex_type_offsets_ptr,
         fan_out_ptr,
         num_edge_types,
         sampling_options,
@@ -372,6 +392,7 @@ def heterogeneous_uniform_neighbor_sample(ResourceHandle resource_handle,
     # Get cupy "views" of the individual arrays to return. These each increment
     # the refcount on the SamplingResult instance which will keep the data alive
     # until all references are removed and the GC runs.
+
     cupy_majors = result.get_majors()
     cupy_major_offsets = result.get_major_offsets()
     cupy_minors = result.get_minors()
@@ -380,6 +401,7 @@ def heterogeneous_uniform_neighbor_sample(ResourceHandle resource_handle,
     cupy_edge_types = result.get_edge_types()
     cupy_batch_ids = result.get_batch_ids()
     cupy_label_hop_offsets = result.get_label_hop_offsets()
+    cupy_label_type_hop_offsets = result.get_label_type_hop_offsets()
 
     if renumber:
         cupy_renumber_map = result.get_renumber_map()
@@ -396,6 +418,7 @@ def heterogeneous_uniform_neighbor_sample(ResourceHandle resource_handle,
             'edge_type': cupy_edge_types,
             'batch_id': cupy_batch_ids,
             'label_hop_offsets': cupy_label_hop_offsets,
+            'label_type_hop_offsets': cupy_label_type_hop_offsets,
             'hop_id': None,
             'renumber_map': cupy_renumber_map,
             'renumber_map_offsets': cupy_renumber_map_offsets,
@@ -413,6 +436,7 @@ def heterogeneous_uniform_neighbor_sample(ResourceHandle resource_handle,
             'edge_type': cupy_edge_types,
             'batch_id': cupy_batch_ids,
             'label_hop_offsets': cupy_label_hop_offsets,
+            'label_type_hop_offsets': cupy_label_type_hop_offsets,
         }
 
     # Return everything that isn't null
