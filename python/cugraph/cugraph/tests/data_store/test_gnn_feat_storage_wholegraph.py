@@ -15,6 +15,8 @@ import pytest
 import numpy as np
 import os
 
+import numba.cuda
+
 from cugraph.gnn import FeatureStore
 
 from cugraph.utilities.utils import import_optional, MissingModule
@@ -23,6 +25,11 @@ pylibwholegraph = import_optional("pylibwholegraph")
 wmb = import_optional("pylibwholegraph.binding.wholememory_binding")
 torch = import_optional("torch")
 wgth = import_optional("pylibwholegraph.torch")
+
+
+def get_cudart_version():
+    major, minor = numba.cuda.runtime.get_version()
+    return major * 1000 + minor * 10
 
 
 def runtest(rank: int, world_size: int):
@@ -66,6 +73,9 @@ def runtest(rank: int, world_size: int):
 @pytest.mark.skipif(
     isinstance(pylibwholegraph, MissingModule), reason="wholegraph not available"
 )
+@pytest.mark.skipif(
+    get_cudart_version() < 11080, reason="not compatible with CUDA < 11.8"
+)
 def test_feature_storage_wholegraph_backend():
     world_size = torch.cuda.device_count()
     print("gpu count:", world_size)
@@ -80,6 +90,9 @@ def test_feature_storage_wholegraph_backend():
 @pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
 @pytest.mark.skipif(
     isinstance(pylibwholegraph, MissingModule), reason="wholegraph not available"
+)
+@pytest.mark.skipif(
+    get_cudart_version() < 11080, reason="not compatible with CUDA < 11.8"
 )
 def test_feature_storage_wholegraph_backend_mg():
     world_size = torch.cuda.device_count()
