@@ -158,17 +158,20 @@ class Tests_MsBfs : public ::testing::TestWithParam<MsBfs_Usecase> {
     thrust::sequence(
       rmm::exec_policy(handle.get_stream()), d_vertices.begin(), d_vertices.end(), vertex_t{0});
 
-    std::tie(graph, std::ignore, std::ignore, std::ignore, std::ignore) = cugraph::
-      create_graph_from_edgelist<vertex_t, edge_t, weight_t, edge_t, int32_t, false, false>(
-        handle,
-        std::move(d_vertices),
-        std::move(d_srcs),
-        std::move(d_dst),
-        std::nullopt,
-        std::nullopt,
-        std::nullopt,
-        cugraph::graph_properties_t{false, true},
-        false);
+    std::tie(graph, std::ignore, std::ignore, std::ignore, std::ignore, std::ignore, std::ignore) =
+      cugraph::
+        create_graph_from_edgelist<vertex_t, edge_t, weight_t, int32_t, int32_t, false, false>(
+          handle,
+          std::move(d_vertices),
+          std::move(d_srcs),
+          std::move(d_dst),
+          std::nullopt,
+          std::nullopt,
+          std::nullopt,
+          std::nullopt,
+          std::nullopt,
+          cugraph::graph_properties_t{false, true},
+          false);
 
     auto graph_view = graph.view();
 

@@ -184,7 +184,7 @@ neighbor_sample_impl(raft::handle_t const& handle,
 
   std::vector<size_t> level_sizes{};
 
-  for (auto hop = 0; hop < num_hops; hop++) {
+  for (size_t hop = 0; hop < num_hops; hop++) {
     rmm::device_uvector<vertex_t> level_result_src(0, handle.get_stream());
     rmm::device_uvector<vertex_t> level_result_dst(0, handle.get_stream());
 
@@ -202,7 +202,7 @@ neighbor_sample_impl(raft::handle_t const& handle,
         ? std::make_optional(rmm::device_uvector<label_t>(0, handle.get_stream()))
         : std::nullopt;
 
-    for (auto edge_type_id = 0; edge_type_id < num_edge_types; edge_type_id++) {
+    for (edge_type_t edge_type_id = 0; edge_type_id < num_edge_types; edge_type_id++) {
       auto k_level = fan_out[(hop * num_edge_types) + edge_type_id];
       rmm::device_uvector<vertex_t> srcs(0, handle.get_stream());
       rmm::device_uvector<vertex_t> dsts(0, handle.get_stream());

@@ -76,9 +76,17 @@ class Tests_Renumbering
       std::tie(src_chunks, dst_chunks, std::ignore, std::ignore, std::ignore) =
         input_usecase.template construct_edgelist<vertex_t, weight_t>(handle, false, false, false);
 
-      std::tie(src_v, dst_v, std::ignore) =
-        cugraph::test::detail::concatenate_edge_chunks<vertex_t, weight_t>(
-          handle, std::move(src_chunks), std::move(dst_chunks), std::nullopt);
+      std::tie(src_v, dst_v, std::ignore, std::ignore, std::ignore, std::ignore, std::ignore) =
+        cugraph::test::detail::
+          concatenate_edge_chunks<vertex_t, edge_t, weight_t, int32_t, int32_t>(
+            handle,
+            std::move(src_chunks),
+            std::move(dst_chunks),
+            std::nullopt,
+            std::nullopt,
+            std::nullopt,
+            std::nullopt,
+            std::nullopt);
     }
 
     if (renumbering_usecase.check_correctness) {

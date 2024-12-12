@@ -306,14 +306,24 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> negativ
     if constexpr (multi_gpu) {
       auto vertex_partition_range_lasts = graph_view.vertex_partition_range_lasts();
 
-      std::tie(batch_src, batch_dst, std::ignore, std::ignore, std::ignore, std::ignore) =
+      std::tie(batch_src,
+               batch_dst,
+               std::ignore,
+               std::ignore,
+               std::ignore,
+               std::ignore,
+               std::ignore,
+               std::ignore) =
         detail::shuffle_int_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning<vertex_t,
                                                                                        edge_t,
                                                                                        weight_t,
+                                                                                       int32_t,
                                                                                        int32_t>(
           handle,
           std::move(batch_src),
           std::move(batch_dst),
+          std::nullopt,
+          std::nullopt,
           std::nullopt,
           std::nullopt,
           std::nullopt,

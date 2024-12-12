@@ -148,14 +148,18 @@ class Tests_MGSimilarity
 
       std::tie(v1, v2) = cugraph::test::remove_self_loops(*handle_, std::move(v1), std::move(v2));
 
-      std::tie(v1, v2, std::ignore, std::ignore, std::ignore, std::ignore) =
+      std::tie(
+        v1, v2, std::ignore, std::ignore, std::ignore, std::ignore, std::ignore, std::ignore) =
         cugraph::detail::shuffle_int_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning<
           vertex_t,
           edge_t,
           weight_t,
+          int32_t,
           int32_t>(*handle_,
                    std::move(v1),
                    std::move(v2),
+                   std::nullopt,
+                   std::nullopt,
                    std::nullopt,
                    std::nullopt,
                    std::nullopt,
