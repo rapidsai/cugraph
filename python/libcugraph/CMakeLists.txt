@@ -52,28 +52,6 @@ endif()
 
 add_subdirectory(../../cpp cugraph-cpp)
 
-install(
-    TARGETS raft raft_lib_static
-    COMPONENT raft
-    DESTINATION include/raft-static/
-    INCLUDES DESTINATION include/raft
-    EXPORT cugraph-raft-exports
-)
-
-# install(
-#   DIRECTORY include/raft
-#   COMPONENT raft
-#   DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
-# )
-
-get_target_property(_raft_interface_include_dirs raft INTERFACE_INCLUDE_DIRECTORIES)
-install(
-    DIRECTORY ${_raft_interface_include_dirs}
-    DESTINATION include/raft-headers/
-    # EXPORT cugraph-raft-exports
-)
-
-
 if(NOT CUDA_STATIC_MATH_LIBRARIES AND USE_CUDA_MATH_WHEELS)
   set(rpaths
     "$ORIGIN/../nvidia/cublas/lib"

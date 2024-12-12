@@ -609,21 +609,6 @@ install(TARGETS cugraph_c
         DESTINATION ${lib_dir}
         EXPORT cugraph-exports)
 
-install(
-    TARGETS raft raft_lib_static
-    COMPONENT raft
-    DESTINATION include/raft-static/
-    INCLUDES DESTINATION include/raft
-    EXPORT cugraph-raft-exports
-)
-
-get_target_property(_raft_interface_include_dirs raft INTERFACE_INCLUDE_DIRECTORIES)
-install(
-    DIRECTORY ${_raft_interface_include_dirs}
-    DESTINATION include/raft-headers/
-    # EXPORT cugraph-raft-exports
-)
-
 install(DIRECTORY include/cugraph_c/
         DESTINATION include/cugraph_c)
 
