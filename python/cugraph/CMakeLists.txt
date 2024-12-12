@@ -46,6 +46,3 @@ add_subdirectory(cugraph/linear_assignment)
 add_subdirectory(cugraph/structure)
 add_subdirectory(cugraph/tree)
 add_subdirectory(cugraph/utilities)
-
-# TODO: revert before merging
-# set_property(GLOBAL PROPERTY GLOBAL_DEPENDS_DEBUG_MODE ON)

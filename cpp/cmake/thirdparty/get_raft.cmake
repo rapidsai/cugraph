@@ -56,119 +56,14 @@ function(find_and_configure_raft)
                 "BUILD_PRIMS_BENCH OFF"
     )
 
-    # _raft_include_dirs:
-    #  _raft_include_dirs-NOTFOUND
-    # get_target_property(_raft_include_dirs raft INCLUDE_DIRECTORIES)
-    # message(STATUS "_raft_include_dirs: ${_raft_include_dirs}")
-
-    # _raft_interface_include_dirs:
-    #   $<BUILD_INTERFACE:/tmp/cugraph/python/libcugraph/build/py3-none-linux_x86_64/_deps/raft-src/cpp/include>;$<INSTALL_INTERFACE:include>
-    # get_target_property(_raft_interface_include_dirs raft INTERFACE_INCLUDE_DIRECTORIES)
-    # message(FATAL_ERROR "_raft_interface_include_dirs: ${_raft_interface_include_dirs}")
-
-    # TODO: move this under if(raft_ADDED)?
-    # TODO: install just the headers
-    # install(
-    #     TARGETS raft raft_lib_static
-    #     COMPONENT raft
-    #     DESTINATION include/raft-static/
-    #     INCLUDES DESTINATION include/raft
-    #     EXPORT cugraph-raft-exports
-    # )
-
-    # TODO: maybe raft should be using target_sources instead?
-    #  ref: https://cmake.org/cmake/help/latest/command/install.html#directory
-    message(STATUS "--- CMAKE_INSTALL_INCLUDEDIR: ${CMAKE_INSTALL_INCLUDEDIR}")
-    get_target_property(_raft_interface_include_dirs raft INTERFACE_INCLUDE_DIRECTORIES)
-    message(STATUS "--- _raft_interface_include_dirs: ${_raft_interface_include_dirs}")
-    # install(
-    #     #DIRECTORY ${_raft_interface_include_dirs}
-    #     DIRECTORY "/tmp/cugraph/python/libcugraph/build/py3-none-linux_x86_64/_deps/raft-src/cpp/include/"
-    #     #DESTINATION include/raft-headers/
-    #     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
-    #     # EXPORT cugraph-raft-exports
-    # )
-
-    # TODO: add to PR description: https://cmake.org/cmake/help/latest/command/install.html#example-install-targets-with-per-artifact-components
-
-    #DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/raft
-    # result: include/raft/include/raft
-    # DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
-    # result: include/include/raft
-
-    # rapids_export_package(
-    #   BUILD raft cugraph-exports
-    #   COMPONENTS
-    #     raft
-    #   GLOBAL_TARGETS
-    #     raft::raft raft
-    # )
-    # rapids_export_package(
-    #   INSTALL raft cugraph-exports
-    #   COMPONENTS
-    #     raft
-    #   GLOBAL_TARGETS
-    #     raft::raft raft
-    # )
-
     # install the RAFT headers
+    # TODO(jameslamb): get exporting working
+    # TODO(jameslamb): move this under if(raft_ADDED)?
     install(
       TARGETS raft
       FILE_SET raft_headers
       DESTINATION ${CMAKE_INSTALL_PREFIX}
     )
-    # install(
-    #   TARGETS raft
-    #   # --- notes ---
-    #   #
-    #   #    If `EXPORT raft-exports` is included here, resuls in this:
-    #   #
-    #   #      CMake Error: install(EXPORT "raft-exports" ...) includes target "raft" more than once in the export set.
-    #   #
-    #   #EXPORT raft-exports
-    #   # EXPORT cugraph-exports
-    #   # these files already come through with a relative path like 'include/raft',
-    #   # so should end up alongside other cugraph includes
-    #   DESTINATION ${CMAKE_INSTALL_PREFIX}
-    #   FILE_SET raft_headers
-    #     # COMPONENT raft
-    #   PUBLIC_HEADER
-    #     #DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/raft
-    #     #DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
-    #     # COMPONENT raft
-    #     FILE_SET raft_headers
-    #   INCLUDES
-    #     #DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/raft
-    #     #DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
-    #     # COMPONENT raft
-    # )
-    # install(EXPORT raft-exports DESTINATION ${CMAKE_CURRENT_SOURCE_DIR})
-
-    # rapids_export(
-    #   BUILD raft
-    #   EXPORT_SET cugraph-raft-exports
-    #   COMPONENTS raft
-    #   COMPONENTS_EXPORT_SET cugraph-raft-exports
-    #   GLOBAL_TARGETS raft
-    #   NAMESPACE raft::
-    # )
-    # rapids_export(
-    #   INSTALL raft
-    #   EXPORT_SET cugraph-raft-exports
-    #   COMPONENTS raft
-    #   COMPONENTS_EXPORT_SET cugraph-raft-exports
-    #   GLOBAL_TARGETS raft
-    #   NAMESPACE raft::
-    # )
-
-    get_target_property(_raft_sources raft SOURCES)
-    message(STATUS "_raft_sources: ${_raft_sources}")
-    get_target_property(_raft_raft_sources raft::raft SOURCES)
-    message(STATUS "_raft_raft_sources: ${_raft_sources}")
-    foreach(source_file IN LISTS _raft_sources)
-        message(STATUS "-- ${source_file}")
-    endforeach()
-    # message(FATAL_ERROR "--- here beep boop ---")
 
     if(raft_ADDED)
         message(VERBOSE "CUGRAPH: Using RAFT located in ${raft_SOURCE_DIR}")
