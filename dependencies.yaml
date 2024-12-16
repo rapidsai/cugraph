@@ -466,6 +466,7 @@ dependencies:
     common:
       - output_types: [conda, requirements]
         packages:
+          - certifi
           - ipython
           - notebook>=0.5.0
   test_python_common:
@@ -482,6 +483,7 @@ dependencies:
     common:
       - output_types: [conda, pyproject]
         packages:
+          - certifi
           - networkx>=2.5.1
           - *numpy
           - python-louvain
@@ -500,7 +502,7 @@ dependencies:
     common:
       - output_types: [conda]
         packages:
-          - pytorch>=2.3
+          - pytorch>=2.3,<2.5a0
           - torchdata
           - pydantic
           - ogb
