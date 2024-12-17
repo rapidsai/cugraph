@@ -63,6 +63,8 @@ rapids-logger "Build CPP docs"
 pushd cpp/doxygen
 doxygen Doxyfile
 export XML_DIR_LIBCUGRAPH="$(pwd)/xml"
+mkdir -p "${RAPIDS_DOCS_DIR}/libcugraph/xml_tar"
+tar -czf "${RAPIDS_DOCS_DIR}/libcugraph/xml_tar"/xml.tar.gz -C xml .
 popd
 
 rapids-logger "Build Python docs"
