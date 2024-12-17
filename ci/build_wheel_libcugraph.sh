@@ -22,7 +22,8 @@ RAFT_COMMIT="6bf5ebacd362a898d2580e88e17113ddcfeafdae"
 LIBRAFT_CHANNEL=$(
   RAPIDS_PY_WHEEL_NAME="libraft_${RAPIDS_PY_CUDA_SUFFIX}" rapids-get-pr-wheel-artifact raft 2531 cpp "${RAFT_COMMIT:0:7}"
 )
-echo "libraft-${RAPIDS_PY_CUDA_SUFFIX} @ file://$(echo ${LIBRAFT_CHANNEL}/libraft_*.whl)" >> /tmp/requirements-build.txt
+echo "libraft-${RAPIDS_PY_CUDA_SUFFIX} @ file://$(echo ${LIBRAFT_CHANNEL}/libraft_*.whl)" >> /tmp/constraints.txt
+export PIP_CONSTRAINT=/tmp/constraints.txt
 
 ls ${LIBRAFT_CHANNEL}/
 
@@ -34,6 +35,8 @@ python -m pip install \
     -v \
     --prefer-binary \
     -r /tmp/requirements-build.txt
+
+rapids-logger "Done build requirements"
 
 # build with '--no-build-isolation', for better sccache hit rate
 # 0 really means "add --no-build-isolation" (ref: https://github.com/pypa/pip/issues/5735)
