@@ -16,6 +16,13 @@ rapids-dependency-file-generator \
   --matrix "${matrix_selectors}" \
 | tee /tmp/requirements-build.txt
 
+# TODO(jameslamb): remove this stuff from https://github.com/rapidsai/raft/pull/2531
+RAFT_COMMIT="f492d59978af3390e418796228aedb2601d03efc"
+LIBRAFT_CHANNEL=$(
+  RAPIDS_PY_WHEEL_NAME="libraft_${RAPIDS_PY_CUDA_SUFFIX}" rapids-get-pr-wheel-artifact raft 2531 cpp "${RAFT_COMMIT:0:7}"
+)
+echo "libraft-${RAPIDS_PY_CUDA_SUFFIX} @ file://$(echo ${LIBRAFT_CHANNEL}/libraft_*.whl)" >> /tmp/requirements-build.txt
+
 rapids-logger "Installing build requirements"
 python -m pip install \
     -v \
