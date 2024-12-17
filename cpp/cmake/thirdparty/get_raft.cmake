@@ -45,25 +45,14 @@ function(find_and_configure_raft)
       COMPONENTS ${RAFT_COMPONENTS}
         CPM_ARGS
             EXCLUDE_FROM_ALL TRUE
-            GIT_REPOSITORY https://github.com/jameslamb/raft.git
-            GIT_TAG        use-filesets
+            GIT_REPOSITORY https://github.com/${PKG_FORK}/raft.git
+            GIT_TAG        ${PKG_PINNED_TAG}
             SOURCE_SUBDIR  cpp
             OPTIONS
                 "RAFT_COMPILE_LIBRARY ${PKG_COMPILE_RAFT_LIB}"
                 "BUILD_TESTS OFF"
                 "BUILD_BENCH OFF"
                 "BUILD_CAGRA_HNSWLIB OFF"
-                "BUILD_PRIMS_BENCH OFF"
-    )
-
-    # install the RAFT headers
-    # TODO(jameslamb): get exporting working
-    # TODO(jameslamb): move this under if(raft_ADDED)?
-    install(
-      TARGETS raft
-      EXPORT cugraph-exports
-      FILE_SET raft_headers
-      DESTINATION ${CMAKE_INSTALL_PREFIX}
     )
 
     if(raft_ADDED)
