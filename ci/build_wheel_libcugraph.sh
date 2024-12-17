@@ -24,6 +24,11 @@ LIBRAFT_CHANNEL=$(
 )
 echo "libraft-${RAPIDS_PY_CUDA_SUFFIX} @ file://$(echo ${LIBRAFT_CHANNEL}/libraft_*.whl)" >> /tmp/requirements-build.txt
 
+ls ${LIBRAFT_CHANNEL}/
+
+rapids-logger "build reqs:"
+cat /tmp/requirements-build.txt
+
 rapids-logger "Installing build requirements"
 python -m pip install \
     -v \
