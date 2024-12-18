@@ -69,7 +69,10 @@ def runtest(rank: int, world_size: int):
 
 
 @pytest.mark.sg
-@pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
+@pytest.mark.skipif(
+    isinstance(torch, MissingModule) or not torch.cuda.is_available(),
+    reason="PyTorch with GPU support not available",
+)
 @pytest.mark.skipif(
     isinstance(pylibwholegraph, MissingModule), reason="wholegraph not available"
 )
@@ -87,7 +90,10 @@ def test_feature_storage_wholegraph_backend():
 
 
 @pytest.mark.mg
-@pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
+@pytest.mark.skipif(
+    isinstance(torch, MissingModule) or not torch.cuda.is_available(),
+    reason="PyTorch with GPU support not available",
+)
 @pytest.mark.skipif(
     isinstance(pylibwholegraph, MissingModule), reason="wholegraph not available"
 )
