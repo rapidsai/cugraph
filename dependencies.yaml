@@ -401,6 +401,15 @@ dependencies:
             # dataset APIs require [http] extras for use with cudf.
           - fsspec[http]>=0.6.0
     specific:
+      - output_types: [conda, requirements, pyproject]
+        matrices:
+          - matrix:
+              cuda: "12.*"
+            packages:
+              - cuda-python>=12.6.2,<13.0a0
+          - matrix: # All CUDA 11 versions
+            packages:
+              - cuda-python>=11.8.5,<12.0a0
       - output_types: pyproject
         matrices:
           - matrix:
