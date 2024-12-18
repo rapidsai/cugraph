@@ -1,3 +1,0 @@
-# Feature Store
-
-Coming Soon

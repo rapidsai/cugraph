@@ -1,3 +1,0 @@
-# Knowledge Store
-
-Coming Soon
