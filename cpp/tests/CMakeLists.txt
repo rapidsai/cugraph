@@ -70,7 +70,6 @@ target_link_libraries(cugraphtestutil
         cugraph::cugraph
     PRIVATE
         GTest::gtest
-        raft::raft_logger_impl
 )
 
 
@@ -189,6 +188,9 @@ function(ConfigureTest CMAKE_TEST_NAME)
     set_tests_properties(${CMAKE_TEST_NAME} PROPERTIES LABELS "CUGRAPH")
 endfunction()
 
+add_library(test_logger_impls OBJECT)
+target_link_libraries(test_logger_impls PRIVATE raft::raft_logger_impl)
+
 function(ConfigureTestMG CMAKE_TEST_NAME)
     add_executable(${CMAKE_TEST_NAME} ${ARGN})
     target_include_directories(${CMAKE_TEST_NAME} PRIVATE "${CUGRAPH_SOURCE_DIR}/src")
@@ -200,6 +202,7 @@ function(ConfigureTestMG CMAKE_TEST_NAME)
         GTest::gtest_main
         NCCL::NCCL
         MPI::MPI_CXX
+        test_logger_impls
     )
     set_target_properties(
         ${CMAKE_TEST_NAME}
