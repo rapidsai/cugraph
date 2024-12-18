@@ -70,6 +70,7 @@ target_link_libraries(cugraphtestutil
         cugraph::cugraph
     PRIVATE
         GTest::gtest
+        raft::raft_logger_impl
 )
 
 
