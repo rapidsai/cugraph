@@ -83,7 +83,6 @@ regex = "(?P<value>.*)"
 build-backend = "scikit_build_core.build"
 requires = [
     "cmake>=3.26.4,!=3.30.0",
-    "librmm==25.2.*,>=0.0.0a0",
     "ninja",
     "pylibcugraph==25.2.*,>=0.0.0a0",
     "pylibraft==25.2.*,>=0.0.0a0",

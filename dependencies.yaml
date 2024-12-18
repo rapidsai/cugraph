@@ -49,6 +49,7 @@ files:
     output: none
     includes:
       - cuda_version
+      - depends_on_pylibwholegraph
       - py_version
       - test_notebook
       - test_python_common
@@ -80,7 +81,6 @@ files:
       key: requires
     includes:
       - common_build
-      - depends_on_librmm
       - depends_on_pylibcugraph
       - depends_on_pylibraft
       - depends_on_rmm
@@ -123,7 +123,6 @@ files:
       key: requires
     includes:
       - common_build
-      - depends_on_librmm
       - depends_on_pylibraft
       - depends_on_rmm
   py_run_pylibcugraph:
@@ -499,7 +498,6 @@ dependencies:
           - scikit-learn>=0.23.1
       - output_types: [conda]
         packages:
-          - &pylibwholegraph_unsuffixed pylibwholegraph==25.2.*,>=0.0.0a0
           - *thrift
   test_python_pylibcugraph:
     common:
@@ -543,7 +541,7 @@ dependencies:
     common:
       - output_types: conda
         packages:
-          - *pylibwholegraph_unsuffixed
+          - &pylibwholegraph_unsuffixed pylibwholegraph==25.2.*,>=0.0.0a0
       - output_types: requirements
         packages:
           # pip recognizes the index as a global option for the requirements.txt file
