@@ -18,7 +18,7 @@ rapids-dependency-file-generator \
 
 # TODO(jameslamb): remove this stuff from https://github.com/rapidsai/raft/pull/2531
 RAPIDS_PY_CUDA_SUFFIX="$(rapids-wheel-ctk-name-gen ${RAPIDS_CUDA_VERSION})"
-RAFT_COMMIT="6bf5ebacd362a898d2580e88e17113ddcfeafdae"
+RAFT_COMMIT="d0b638579757deb74912e37785df3166f3be1109"
 LIBRAFT_CHANNEL=$(
   RAPIDS_PY_WHEEL_NAME="libraft_${RAPIDS_PY_CUDA_SUFFIX}" rapids-get-pr-wheel-artifact raft 2531 cpp "${RAFT_COMMIT:0:7}"
 )
