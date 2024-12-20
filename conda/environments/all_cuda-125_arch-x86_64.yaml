@@ -80,5 +80,5 @@ dependencies:
 - wget
 - wheel
 - pip:
-  - breathe>4.35.0
+  - breathe>=4.35.0
 name: all_cuda-125_arch-x86_64
