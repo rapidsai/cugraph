@@ -580,13 +580,13 @@ dependencies:
     common:
       - output_types: conda
         packages:
-          - libcudf=25.2.*,>=0.0.0a0
+          - libcudf==25.2.*,>=0.0.0a0
 
   depends_on_libraft:
     common:
       - output_types: conda
         packages:
-          - libraft=25.2.*,>=0.0.0a0
+          - libraft==25.2.*,>=0.0.0a0
 
   depends_on_librmm:
     common:
