@@ -57,6 +57,7 @@ DEPENDENCIES=(
   dask-cuda
   dask-cudf
   libcudf
+  libcugraph
   libraft
   libraft-headers
   librmm
