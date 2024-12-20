@@ -30,12 +30,11 @@ dependencies:
 - graphviz
 - ipython
 - libcublas-dev
-- libcudf==25.2.*,>=0.0.0a0
+- libcudf=25.2.*,>=0.0.0a0
 - libcurand-dev
 - libcusolver-dev
 - libcusparse-dev
-- libraft-headers==25.2.*,>=0.0.0a0
-- libraft==25.2.*,>=0.0.0a0
+- libraft=25.2.*,>=0.0.0a0
 - librmm==25.2.*,>=0.0.0a0
 - nbsphinx
 - nccl>=2.19

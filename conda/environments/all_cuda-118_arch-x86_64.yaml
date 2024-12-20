@@ -27,9 +27,8 @@ dependencies:
 - gcc_linux-64=11.*
 - graphviz
 - ipython
-- libcudf==25.2.*,>=0.0.0a0
-- libraft-headers==25.2.*,>=0.0.0a0
-- libraft==25.2.*,>=0.0.0a0
+- libcudf=25.2.*,>=0.0.0a0
+- libraft=25.2.*,>=0.0.0a0
 - librmm==25.2.*,>=0.0.0a0
 - nbsphinx
 - nccl>=2.19
