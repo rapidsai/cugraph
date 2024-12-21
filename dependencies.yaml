@@ -334,7 +334,6 @@ dependencies:
     common:
       - output_types: [conda]
         packages:
-          - breathe
           - doxygen
           - graphviz
           - ipython
@@ -344,8 +343,11 @@ dependencies:
           - recommonmark
           - sphinx-copybutton
           - sphinx-markdown-tables
-          - sphinx<6
+          - sphinx
           - sphinxcontrib-websupport
+          - pip:
+            # Need new enough breathe
+            - breathe>=4.35.0
   py_version:
     specific:
       - output_types: [conda]
