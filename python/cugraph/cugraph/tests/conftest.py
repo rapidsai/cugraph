@@ -23,8 +23,19 @@ import tempfile
 # Avoid timeout during shutdown
 from dask_cuda.utils_test import IncreasedCloseTimeoutNanny
 
-# module-wide fixtures
+import certifi
+from ssl import create_default_context
+from urllib.request import build_opener, HTTPSHandler, install_opener
 
+
+# Install SSL certificates
+def pytest_sessionstart(session):
+    ssl_context = create_default_context(cafile=certifi.where())
+    https_handler = HTTPSHandler(context=ssl_context)
+    install_opener(build_opener(https_handler))
+
+
+# module-wide fixtures
 
 # Spoof the gpubenchmark fixture if it's not available so that asvdb and
 # rapids-pytest-benchmark do not need to be installed to run tests.
