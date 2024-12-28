@@ -404,8 +404,6 @@ struct node2vec_random_walks_functor : public cugraph::c_api::abstract_functor {
     // FIXME: Think about how to handle SG vice MG
     if constexpr (!cugraph::is_candidate<vertex_t, edge_t, weight_t>::value) {
       unsupported();
-    } else if constexpr (multi_gpu) {
-      unsupported();
     } else {
       // random walks expects store_transposed == false
       if constexpr (store_transposed) {
