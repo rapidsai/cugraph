@@ -308,8 +308,12 @@ int generic_node2vec_random_walks_test(vertex_t* h_src,
 
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "start copy_from_host failed.");
 
+  cugraph_rng_state_t* rng_state;
+  ret_code = cugraph_rng_state_create(handle, 0, &rng_state, &ret_error);
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "rng_state create failed.");
+
   ret_code = cugraph_node2vec_random_walks(
-    handle, graph, d_start_view, max_depth, p, q, &result, &ret_error);
+    handle, rng_state, graph, d_start_view, max_depth, p, q, &result, &ret_error);
 
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "node2vec_random_walks failed.");
