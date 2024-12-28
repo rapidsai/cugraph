@@ -121,8 +121,8 @@ def node2vec(ResourceHandle resource_handle,
     >>> G = pylibcugraph.SGGraph(
     ...     resource_handle, graph_props, srcs, dsts, weight_array=weights,
     ...     store_transposed=False, renumber=False, do_expensive_check=False)
-    >>> (paths, weights, sizes) = pylibcugraph.node2vec(
-    ...                             resource_handle, G, seeds, 3, 1.0, 1.0)
+    >>> (paths, weights) = pylibcugraph.node2vec_random_walks(
+    ...                      resource_handle, G, seeds, 3, 1.0, 1.0)
 
     """
 
