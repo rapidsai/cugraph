@@ -365,7 +365,6 @@ struct biased_random_walks_functor : public cugraph::c_api::abstract_functor {
 
 struct node2vec_random_walks_functor : public cugraph::c_api::abstract_functor {
   raft::handle_t const& handle_;
-  //  FIXME: rng_state_ should be passed as a parameter
   cugraph::c_api::cugraph_rng_state_t* rng_state_{nullptr};
   cugraph::c_api::cugraph_graph_t* graph_{nullptr};
   cugraph::c_api::cugraph_type_erased_device_array_view_t const* start_vertices_{nullptr};
@@ -375,6 +374,7 @@ struct node2vec_random_walks_functor : public cugraph::c_api::abstract_functor {
   cugraph::c_api::cugraph_random_walk_result_t* result_{nullptr};
 
   node2vec_random_walks_functor(cugraph_resource_handle_t const* handle,
+                                cugraph_rng_state_t* rng_state,
                                 cugraph_graph_t* graph,
                                 cugraph_type_erased_device_array_view_t const* start_vertices,
                                 size_t max_length,
@@ -382,6 +382,7 @@ struct node2vec_random_walks_functor : public cugraph::c_api::abstract_functor {
                                 double q)
     : abstract_functor(),
       handle_(*reinterpret_cast<cugraph::c_api::cugraph_resource_handle_t const*>(handle)->handle_),
+      rng_state_(reinterpret_cast<cugraph::c_api::cugraph_rng_state_t*>(rng_state)),
       graph_(reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph)),
       start_vertices_(
         reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(
@@ -442,10 +443,6 @@ struct node2vec_random_walks_functor : public cugraph::c_api::abstract_functor {
         graph_view.local_vertex_partition_range_first(),
         graph_view.local_vertex_partition_range_last(),
         false);
-
-      //  FIXME: remove once rng_state passed as parameter
-      rng_state_ = reinterpret_cast<cugraph::c_api::cugraph_rng_state_t*>(
-        new cugraph::c_api::cugraph_rng_state_t{raft::random::RngState{0}});
 
       auto [paths, weights] = cugraph::node2vec_random_walks(
         handle_,
@@ -588,6 +585,7 @@ cugraph_error_code_t cugraph_biased_random_walks(
 
 cugraph_error_code_t cugraph_node2vec_random_walks(
   const cugraph_resource_handle_t* handle,
+  cugraph_rng_state_t* rng_state,
   cugraph_graph_t* graph,
   const cugraph_type_erased_device_array_view_t* start_vertices,
   size_t max_length,
@@ -604,7 +602,7 @@ cugraph_error_code_t cugraph_node2vec_random_walks(
                "vertex type of graph and start_vertices must match",
                *error);
 
-  node2vec_random_walks_functor functor(handle, graph, start_vertices, max_length, p, q);
+  node2vec_random_walks_functor functor(handle, rng_state, graph, start_vertices, max_length, p, q);
 
   return cugraph::c_api::run_algorithm(graph, functor, result, error);
 }
