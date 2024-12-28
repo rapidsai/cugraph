@@ -44,6 +44,7 @@ set(cython_sources
     leiden.pyx
     louvain.pyx
     node2vec.pyx
+    node2vec_random_walks.pyx
     pagerank.pyx
     personalized_pagerank.pyx
     random.pyx
