@@ -27,10 +27,6 @@ project(
   LANGUAGES CXX CUDA
 )
 
-################################################################################
-# - User Options  --------------------------------------------------------------
-option(USE_CUDA_MATH_WHEELS "Use the CUDA math wheels instead of the system libraries" OFF)
-
 find_package(cugraph "${RAPIDS_VERSION}" REQUIRED)
 
 include(rapids-cython-core)
