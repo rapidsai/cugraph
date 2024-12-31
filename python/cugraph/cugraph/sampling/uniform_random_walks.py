@@ -1,4 +1,4 @@
-# Copyright (c) 2024, NVIDIA CORPORATION.
+# Copyright (c) 2022-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -20,7 +20,6 @@ from pylibcugraph import (
 
 from cugraph.structure import Graph
 
-import warnings
 from typing import Union, Tuple
 
 
@@ -28,6 +27,7 @@ def uniform_random_walks(
     G: Graph,
     start_vertices: Union[int, list, cudf.Series, cudf.DataFrame] = None,
     max_depth: int = None,
+    random_state: int = None,
 ) -> Tuple[cudf.Series, cudf.Series, Union[None, int, cudf.Series]]:
     """
     Compute uniform random walks for each nodes in 'start_vertices'.
@@ -50,6 +50,9 @@ def uniform_random_walks(
         The max depth is relative to the number of edges hence the vertex_paths size
         is max_depth + 1. For instance, a 'max_depth' of 2 with only one seed will
         result in a vertex_path of size 3.
+    
+    random_state: int, optional
+        Random seed to use when making sampling calls.
 
 
     Returns
