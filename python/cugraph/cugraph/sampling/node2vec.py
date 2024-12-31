@@ -112,6 +112,12 @@ def node2vec(G, start_vertices, max_depth=1, compress_result=True, p=1.0, q=1.0)
     ...                                               True, 0.8, 0.5)
 
     """
+    warning_msg = (
+            "random_walks is deprecated and will be removed "
+            "in the next release in favor of uniform_random_walks"
+        )
+    warnings.warn(warning_msg, FutureWarning)
+
     if (not isinstance(max_depth, int)) or (max_depth < 1):
         raise ValueError(
             f"'max_depth' must be a positive integer, " f"got: {max_depth}"
