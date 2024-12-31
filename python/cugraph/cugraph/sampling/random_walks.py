@@ -291,6 +291,13 @@ def rw_path(
         edge weight sizes for each path.
     """
 
+    warning_msg = (
+            "This method is deprecated in favor of always returning "
+            "padded results."
+        )
+
+    warnings.warn(warning_msg, PendingDeprecationWarning)
+
     vertex_offsets = cudf.Series(0, dtype=sizes.dtype)
     vertex_offsets = cudf.concat(
         [vertex_offsets, sizes.cumsum()[:-1]], ignore_index=True
