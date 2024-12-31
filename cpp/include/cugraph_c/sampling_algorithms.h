@@ -41,6 +41,7 @@ typedef struct {
  * @brief  Compute uniform random walks
  *
  * @param [in]  handle          Handle for accessing resources
+ * @param [in,out] rng_state    State of the random number generator, updated with each call
  * @param [in]  graph           Pointer to graph.  NOTE: Graph might be modified if the storage
  *                              needs to be transposed
  * @param [in]  start_vertices  Array of source vertices
@@ -52,6 +53,7 @@ typedef struct {
  */
 cugraph_error_code_t cugraph_uniform_random_walks(
   const cugraph_resource_handle_t* handle,
+  cugraph_rng_state_t* rng_state,
   cugraph_graph_t* graph,
   const cugraph_type_erased_device_array_view_t* start_vertices,
   size_t max_length,
@@ -62,6 +64,7 @@ cugraph_error_code_t cugraph_uniform_random_walks(
  * @brief  Compute biased random walks
  *
  * @param [in]  handle          Handle for accessing resources
+ * @param [in,out] rng_state    State of the random number generator, updated with each call
  * @param [in]  graph           Pointer to graph.  NOTE: Graph might be modified if the storage
  *                              needs to be transposed
  * @param [in]  start_vertices  Array of source vertices
@@ -73,6 +76,7 @@ cugraph_error_code_t cugraph_uniform_random_walks(
  */
 cugraph_error_code_t cugraph_biased_random_walks(
   const cugraph_resource_handle_t* handle,
+  cugraph_rng_state_t* rng_state,
   cugraph_graph_t* graph,
   const cugraph_type_erased_device_array_view_t* start_vertices,
   size_t max_length,
@@ -83,7 +87,7 @@ cugraph_error_code_t cugraph_biased_random_walks(
  * @brief  Compute random walks using the node2vec framework.
  *
  * @param [in]  handle          Handle for accessing resources
- * @param [in,out] rng_state State of the random number generator, updated with each call
+ * @param [in,out] rng_state    State of the random number generator, updated with each call
  * @param [in]  graph           Pointer to graph.  NOTE: Graph might be modified if the storage
  *                              needs to be transposed
  * @param [in]  start_vertices  Array of source vertices
