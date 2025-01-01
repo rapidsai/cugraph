@@ -13,7 +13,7 @@
 
 from pylibcugraph import (
     ResourceHandle,
-    node2vec as pylibcugraph_node2vec_random_walks,
+    node2vec_random_walks as pylibcugraph_node2vec_random_walks,
 )
 import warnings
 
@@ -41,7 +41,7 @@ def ensure_valid_dtype(input_graph, start_vertices):
     return start_vertices
 
 
-def node2vec(G, start_vertices, max_depth=1, p=1.0, q=1.0, random_state=None):
+def node2vec_random_walks(G, start_vertices, max_depth=1, p=1.0, q=1.0, random_state=None):
     """
     Computes random walks for each node in 'start_vertices', under the
     node2vec sampling framework.
