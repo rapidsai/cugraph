@@ -15,7 +15,7 @@ import cudf
 import cupy as cp
 from pylibcugraph import ResourceHandle
 from pylibcugraph import (
-    uniform_random_walks as pylibcugraph_uniform_random_walks,
+    biased_random_walks as pylibcugraph_biased_random_walks,
 )
 
 from cugraph.structure import Graph
@@ -23,14 +23,14 @@ from cugraph.structure import Graph
 from typing import Union, Tuple
 
 
-def uniform_random_walks(
+def biased_random_walks(
     G: Graph,
     start_vertices: Union[int, list, cudf.Series, cudf.DataFrame] = None,
     max_depth: int = None,
     random_state: int = None,
 ) -> Tuple[cudf.Series, cudf.Series, Union[None, int, cudf.Series]]:
     """
-    Compute uniform random walks for each nodes in 'start_vertices'.
+    Compute biased random walks for each nodes in 'start_vertices'.
     Vertices with no outgoing edges will be padded with -1 and the corresponding
     edge weights with 0.0.
 
@@ -75,7 +75,7 @@ def uniform_random_walks(
     >>> M = karate.get_edgelist(download=True)
     >>> G = karate.get_graph()
     >>> start_vertices = G.nodes()[:4]
-    >>> _, _, _ = cugraph.uniform_random_walks(G, start_vertices, 3)
+    >>> _, _, _ = cugraph.biased_random_walks(G, start_vertices, 3)
 
     """
 
@@ -99,7 +99,7 @@ def uniform_random_walks(
         else:
             start_vertices = G.lookup_internal_vertex_id(start_vertices)
 
-    vertex_paths, edge_wgt_paths, max_path_length = pylibcugraph_uniform_random_walks(
+    vertex_paths, edge_wgt_paths, max_path_length = pylibcugraph_biased_random_walks(
         resource_handle=ResourceHandle(),
         input_graph=G._plc_graph,
         start_vertices=start_vertices,
