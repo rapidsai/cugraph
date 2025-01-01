@@ -71,8 +71,9 @@ def node2vec_random_walks(
     random_state=None
 ):
     """
-    Computes random walks for each node in 'start_vertices', under the
-    node2vec sampling framework.
+    compute random walks under the node2vec sampling framework for each nodes in
+    'start_vertices' and returns a padded result along with the maximum path length.
+    Vertices with no outgoing edges will be padded with -1.
 
     parameters
     ----------
@@ -112,6 +113,11 @@ def node2vec_random_walks(
     edge_weight_paths: dask_cudf.Series
         Series containing the edge weights of edges represented by the
         returned vertex_paths
+    
+    and
+
+    max_path_length : int
+        The maximum path length.
     """
     client = default_client()
 
@@ -194,5 +200,5 @@ def node2vec_random_walks(
         ]
     )
 
-    return ddf_vertex_paths, ddf_edge_wgt_paths
+    return ddf_vertex_paths, ddf_edge_wgt_paths, max_depth
     
