@@ -58,6 +58,7 @@ set(cython_sources
     biased_neighbor_sample.pyx
     negative_sampling.pyx
     uniform_random_walks.pyx
+    biased_random_walks.pyx
     utils.pyx
     weakly_connected_components.pyx
     replicate_edgelist.pyx

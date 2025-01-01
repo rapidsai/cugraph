@@ -363,6 +363,7 @@ cdef extern from "cugraph_c/algorithms.h":
     cdef cugraph_error_code_t \
         cugraph_uniform_random_walks(
             const cugraph_resource_handle_t* handle,
+            cugraph_rng_state_t* rng_state,
             cugraph_graph_t* graph,
             const cugraph_type_erased_device_array_view_t* start_vertices,
             size_t max_length,
@@ -374,6 +375,7 @@ cdef extern from "cugraph_c/algorithms.h":
     cdef cugraph_error_code_t \
         cugraph_biased_random_walks(
             const cugraph_resource_handle_t* handle,
+            cugraph_rng_state_t* rng_state,
             cugraph_graph_t* graph,
             const cugraph_type_erased_device_array_view_t* start_vertices,
             size_t max_length,

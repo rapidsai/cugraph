@@ -76,6 +76,8 @@ from pylibcugraph.weakly_connected_components import weakly_connected_components
 
 from pylibcugraph.uniform_random_walks import uniform_random_walks
 
+from pylibcugraph.biased_random_walks import biased_random_walks
+
 from pylibcugraph.betweenness_centrality import betweenness_centrality
 
 from pylibcugraph.induced_subgraph import induced_subgraph
