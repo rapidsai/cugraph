@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import warnings
 from dask.distributed import wait, default_client
 import dask_cudf
 import cudf
@@ -106,6 +107,13 @@ def random_walks(
     max_path_length : int
         The maximum path length
     """
+
+    warning_msg = (
+            "random_walks is deprecated and will be removed "
+            "in the next release in favor of uniform_random_walks"
+        )
+    warnings.warn(warning_msg, FutureWarning)
+
     client = default_client()
     if isinstance(start_vertices, int):
         start_vertices = [start_vertices]
