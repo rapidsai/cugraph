@@ -97,10 +97,18 @@ def random_walks(
     use_padding : bool, optional (default=False)
         If True, padded paths are returned else coalesced paths are returned.
 
+        Deprecated: only padded paths will be returned in the results 
+
     legacy_result_type : bool, optional (default=True)
         If True, will return a tuple of vertex_paths, edge_weight_paths and
-        sizes. If False, will return a tuple of vertex_paths, vertex_paths and
-        max_path_length
+        sizes where the 'max_depth' is proportional to the number of vertices.
+        If False, will return a tuple of vertex_paths, vertex_paths and
+        max_path_length where the 'max_depth' is propotional to the number of
+        edges.
+
+        Deprecated: only padded paths will be returned where the 'max_depth'
+        is proportional to the number of edges instead of the number of
+        vertices when 'legacy_result_type' is 'True'.
 
     Returns
     -------
