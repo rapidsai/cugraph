@@ -8,11 +8,12 @@ channels:
 - nvidia
 dependencies:
 - aiohttp
-- breathe
+- breathe>=4.35.0
 - c-compiler
 - certifi
 - cmake>=3.26.4,!=3.30.0
 - cuda-nvtx
+- cuda-python>=11.8.5,<12.0a0
 - cuda-version=11.8
 - cudatoolkit
 - cudf==25.2.*,>=0.0.0a0
@@ -27,7 +28,6 @@ dependencies:
 - graphviz
 - ipython
 - libcudf==25.2.*,>=0.0.0a0
-- libraft-headers==25.2.*,>=0.0.0a0
 - libraft==25.2.*,>=0.0.0a0
 - librmm==25.2.*,>=0.0.0a0
 - nbsphinx
@@ -63,15 +63,14 @@ dependencies:
 - scikit-learn>=0.23.1
 - scipy
 - setuptools>=61.0.0
+- sphinx
 - sphinx-copybutton
 - sphinx-markdown-tables
-- sphinx<6
 - sphinxcontrib-websupport
-- thriftpy2!=0.5.0,!=0.5.1
+- thriftpy2>=0.4.15,!=0.5.0,!=0.5.1
 - torchdata
 - torchmetrics
 - ucx-proc=*=gpu
 - ucx-py==0.42.*,>=0.0.0a0
-- wget
 - wheel
 name: all_cuda-118_arch-x86_64
