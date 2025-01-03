@@ -156,13 +156,13 @@ def leiden(
             input_graph._plc_graph[w],
             max_iter,
             resolution,
-            random_state,
+            random_state + i,
             theta,
             do_expensive_check,
             workers=[w],
             allow_other_workers=False,
         )
-        for w in Comms.get_workers()
+        for i, w in enumerate(Comms.get_workers())
     ]
 
     wait(result)
