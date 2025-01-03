@@ -713,6 +713,25 @@ std::pair<size_t, weight_t> leiden(
 
   detail::flatten_leiden_dendrogram(handle, graph_view, *dendrogram, clustering);
 
+  // Get unique cluster id
+  size_t local_num_verts = (*dendrogram).get_level_size_nocheck(0);
+  rmm::device_uvector<vertex_t> unique_cluster_ids(local_num_verts, handle.get_stream());
+
+  thrust::copy(handle.get_thrust_policy(),
+                     clustering,
+                     clustering + local_num_verts,
+                     unique_cluster_ids.begin());
+
+  thrust::sort(handle.get_thrust_policy(), unique_cluster_ids.begin(), unique_cluster_ids.end());
+
+  unique_cluster_ids.resize(
+        thrust::distance(
+          unique_cluster_ids.begin(),
+          thrust::unique(handle.get_thrust_policy(), unique_cluster_ids.begin(), unique_cluster_ids.end())),
+        handle.get_stream());
+
+  detail::relabel_cluster_ids<vertex_t, multi_gpu>(handle, unique_cluster_ids, clustering, local_num_verts);
+
   return std::make_pair(dendrogram->num_levels(), modularity);
 }
 
