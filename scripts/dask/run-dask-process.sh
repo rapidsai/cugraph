@@ -1,5 +1,5 @@
 #!/bin/bash
-# Copyright (c) 2024, NVIDIA CORPORATION.
+# Copyright (c) 2024-2025, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -21,9 +21,9 @@ HELP="$0 [<app> ...] [<flag> ...]
    scheduler               - start dask scheduler
    workers                 - start dask workers
  and <flag> is:
-   --tcp                   - initalize a tcp cluster (default)
-   --ucx                   - initialize a ucx cluster with NVLink
-   --ucxib | --ucx-ib      - initialize a ucx cluster with IB+NVLink
+   --tcp                   - initalize a TCP cluster (default)
+   --ucx                   - initialize a UCX cluster with NVLink
+   --ucxib | --ucx-ib      - initialize a UCX cluster with InfiniBand+NVLink
    -h | --help             - print this text
 
  The cluster config order of precedence is any specification on the

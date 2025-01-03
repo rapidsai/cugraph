@@ -26,11 +26,21 @@ the tools here.
  bash$ run-dask-process.sh workers
  ```
  The env var SCHEDULER_FILE must be set to the location where the scheduler
- will generate the scheduler JSON file. The same location is used by the
- workers to read the generated scheduler JSON file.
+ will generate the scheduler JSON file. The same env var is used by the
+ workers to locate the generated scheduler JSON file for reading.
 
  The script will ensure the scheduler is started before the workers when both
  are specified.
+
+ Additional options can be specified for using different communication
+ mechanisms:
+ ```
+   --tcp                   - initalize a TCP cluster (default)
+   --ucx                   - initialize a UCX cluster with NVLink
+   --ucxib | --ucx-ib      - initialize a UCX cluster with InfiniBand+NVLink
+ ```
+ Finally, the script can be run with `-h` or `--help` to see the full set of
+ options.
 
 ### wait_for_workers.py
 
