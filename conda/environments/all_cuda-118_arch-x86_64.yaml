@@ -8,7 +8,7 @@ channels:
 - nvidia
 dependencies:
 - aiohttp
-- breathe
+- breathe>=4.35.0
 - c-compiler
 - certifi
 - cmake>=3.26.4,!=3.30.0
@@ -63,9 +63,9 @@ dependencies:
 - scikit-learn>=0.23.1
 - scipy
 - setuptools>=61.0.0
+- sphinx
 - sphinx-copybutton
 - sphinx-markdown-tables
-- sphinx<6
 - sphinxcontrib-websupport
 - thriftpy2>=0.4.15,!=0.5.0,!=0.5.1
 - torchdata
