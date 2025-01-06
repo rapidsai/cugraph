@@ -948,10 +948,8 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
           std::exclusive_scan(
             recvcounts.begin(), recvcounts.end(), displacements.begin(), size_t{0});
 
-          rmm::device_uvector<label_t> tmp_label_to_comm_rank(
+          label_to_comm_rank = rmm::device_uvector<label_t>(
             displacements.back() + recvcounts.back(), handle_.get_stream());
-
-          label_to_comm_rank = std::move(tmp_label_to_comm_rank);
 
           cugraph::device_allgatherv(handle_.get_comms(),
                                      local_label_to_comm_rank.begin(),
