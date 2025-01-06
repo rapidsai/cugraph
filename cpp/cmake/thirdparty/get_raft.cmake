@@ -1,5 +1,5 @@
 #=============================================================================
-# Copyright (c) 2022-2024, NVIDIA CORPORATION.
+# Copyright (c) 2022-2025, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,8 +14,8 @@
 # limitations under the License.
 #=============================================================================
 
-set(CUGRAPH_MIN_VERSION_raft "${CUGRAPH_VERSION_MAJOR}.${CUGRAPH_VERSION_MINOR}.00")
-set(CUGRAPH_BRANCH_VERSION_raft "${CUGRAPH_VERSION_MAJOR}.${CUGRAPH_VERSION_MINOR}")
+set(CUGRAPH_MIN_VERSION_raft "${RAPIDS_VERSION_MAJOR}.${RAPIDS_VERSION_MINOR}.00")
+set(CUGRAPH_BRANCH_VERSION_raft "${RAPIDS_VERSION_MAJOR}.${RAPIDS_VERSION_MINOR}")
 
 function(find_and_configure_raft)
 
@@ -51,7 +51,7 @@ function(find_and_configure_raft)
             OPTIONS
                 "RAFT_COMPILE_LIBRARY ${PKG_COMPILE_RAFT_LIB}"
                 "BUILD_TESTS OFF"
-                "BUILD_BENCH OFF"
+                "BUILD_PRIMS_BENCH OFF"
                 "BUILD_CAGRA_HNSWLIB OFF"
     )
 
