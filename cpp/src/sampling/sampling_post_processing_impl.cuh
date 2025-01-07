@@ -1391,12 +1391,10 @@ compute_vertex_renumber_map(
           [offsets = *vertex_type_offsets] __device__(auto lhs, auto rhs) {
             auto lhs_v_type = thrust::distance(
               offsets.begin() + 1,
-              thrust::upper_bound(
-                thrust::seq, offsets.begin() + 1, offsets.end(), thrust::get<0>(lhs)));
+              thrust::upper_bound(thrust::seq, offsets.begin() + 1, offsets.end(), lhs));
             auto rhs_v_type = thrust::distance(
               offsets.begin() + 1,
-              thrust::upper_bound(
-                thrust::seq, offsets.begin() + 1, offsets.end(), thrust::get<0>(rhs)));
+              thrust::upper_bound(thrust::seq, offsets.begin() + 1, offsets.end(), rhs));
             return lhs_v_type < rhs_v_type;
           });
       }
