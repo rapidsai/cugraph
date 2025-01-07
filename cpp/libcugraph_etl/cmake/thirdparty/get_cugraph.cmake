@@ -34,8 +34,9 @@ function(find_and_configure_cugraph)
 
 endfunction()
 
-set(CUGRAPH_ETL_MIN_VERSION_cugraph "${RAPIDS_VERSION_MAJOR}.${RAPIDS_VERSION_MINOR}.00")
-set(CUGRAPH_ETL_BRANCH_VERSION_cugraph "${RAPIDS_VERSION_MAJOR}.${RAPIDS_VERSION_MINOR}")
+set(CUGRAPH_ETL_MIN_VERSION_cugraph "${CUGRAPH_ETL_VERSION_MAJOR}.${CUGRAPH_ETL_VERSION_MINOR}.00")
+set(CUGRAPH_ETL_BRANCH_VERSION_cugraph "${CUGRAPH_ETL_VERSION_MAJOR}.${CUGRAPH_ETL_VERSION_MINOR}")
+
 
 # Change pinned tag and fork here to test a commit in CI
 # To use a different cuGraph locally, set the CMake variable
