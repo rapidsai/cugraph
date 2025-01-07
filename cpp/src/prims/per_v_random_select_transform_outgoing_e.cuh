@@ -58,7 +58,7 @@ template <typename GraphViewType,
           typename EdgeDstValueInputWrapper,
           typename EdgeValueInputWrapper,
           typename key_t>
-struct constant_e_bias_op_t {
+struct constant_bias_e_op_t {
   __device__ float operator()(key_t,
                               typename GraphViewType::vertex_type,
                               typename EdgeSrcValueInputWrapper::value_type,
@@ -207,10 +207,10 @@ struct return_value_compute_offset_t {
 template <bool incoming,
           typename GraphViewType,
           typename KeyBucketType,
-          typename EdgeBiasSrcValueInputWrapper,
-          typename EdgeBiasDstValueInputWrapper,
-          typename EdgeBiasValueInputWrapper,
-          typename EdgeBiasOp,
+          typename BiasEdgeSrcValueInputWrapper,
+          typename BiasEdgeDstValueInputWrapper,
+          typename BiasEdgeValueInputWrapper,
+          typename BiasEdgeOp,
           typename EdgeSrcValueInputWrapper,
           typename EdgeDstValueInputWrapper,
           typename EdgeValueInputWrapper,
@@ -220,10 +220,10 @@ std::tuple<std::optional<rmm::device_uvector<size_t>>, dataframe_buffer_type_t<T
 per_v_random_select_transform_e(raft::handle_t const& handle,
                                 GraphViewType const& graph_view,
                                 KeyBucketType const& key_list,
-                                EdgeBiasSrcValueInputWrapper edge_bias_src_value_input,
-                                EdgeBiasDstValueInputWrapper edge_bias_dst_value_input,
-                                EdgeBiasValueInputWrapper edge_bias_value_input,
-                                EdgeBiasOp e_bias_op,
+                                BiasEdgeSrcValueInputWrapper bias_edge_src_value_input,
+                                BiasEdgeDstValueInputWrapper bias_edge_dst_value_input,
+                                BiasEdgeValueInputWrapper bias_edge_value_input,
+                                BiasEdgeOp bias_e_op,
                                 EdgeSrcValueInputWrapper edge_src_value_input,
                                 EdgeDstValueInputWrapper edge_dst_value_input,
                                 EdgeValueInputWrapper edge_value_input,
@@ -339,11 +339,11 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
   rmm::device_uvector<edge_t> sample_local_nbr_indices(0, handle.get_stream());
   std::optional<rmm::device_uvector<size_t>> sample_key_indices{std::nullopt};
   std::vector<size_t> local_key_list_sample_offsets{};
-  if constexpr (std::is_same_v<EdgeBiasOp,
-                               constant_e_bias_op_t<GraphViewType,
-                                                    EdgeBiasSrcValueInputWrapper,
-                                                    EdgeBiasDstValueInputWrapper,
-                                                    EdgeBiasValueInputWrapper,
+  if constexpr (std::is_same_v<BiasEdgeOp,
+                               constant_bias_e_op_t<GraphViewType,
+                                                    BiasEdgeSrcValueInputWrapper,
+                                                    BiasEdgeDstValueInputWrapper,
+                                                    BiasEdgeValueInputWrapper,
                                                     key_t>>) {
     std::tie(sample_local_nbr_indices, sample_key_indices, local_key_list_sample_offsets) =
       uniform_sample_and_compute_local_nbr_indices(
@@ -364,10 +364,10 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
         graph_view,
         (minor_comm_size > 1) ? get_dataframe_buffer_cbegin(*aggregate_local_key_list)
                               : key_list.begin(),
-        edge_bias_src_value_input,
-        edge_bias_dst_value_input,
-        edge_bias_value_input,
-        e_bias_op,
+        bias_edge_src_value_input,
+        bias_edge_dst_value_input,
+        bias_edge_value_input,
+        bias_e_op,
         raft::host_span<size_t const>(local_key_list_displacements.data(),
                                       local_key_list_displacements.size()),
         raft::host_span<size_t const>(local_key_list_sizes.data(), local_key_list_sizes.size()),
@@ -674,7 +674,7 @@ per_v_random_select_transform_outgoing_e(raft::handle_t const& handle,
     edge_src_dummy_property_t{}.view(),
     edge_dst_dummy_property_t{}.view(),
     edge_dummy_property_t{}.view(),
-    detail::constant_e_bias_op_t<GraphViewType,
+    detail::constant_bias_e_op_t<GraphViewType,
                                  detail::edge_endpoint_dummy_property_view_t,
                                  detail::edge_endpoint_dummy_property_view_t,
                                  edge_dummy_property_view_t,
@@ -699,7 +699,7 @@ per_v_random_select_transform_outgoing_e(raft::handle_t const& handle,
  * @tparam EdgeSrcValueInputWrapper Type of the wrapper for edge source property values.
  * @tparam EdgeDstValueInputWrapper Type of the wrapper for edge destination property values.
  * @tparam EdgeValueInputWrapper Type of the wrapper for edge property values.
- * @tparam EdgeBiasOp Type of the quinary edge operator to set-up selection bias
+ * @tparam BiasEdgeOp Type of the quinary edge operator to set-up selection bias
  * values.
  * @tparam EdgeOp Type of the quinary edge operator.
  * @tparam T Type of the selected and transformed edge output values.
@@ -722,7 +722,7 @@ per_v_random_select_transform_outgoing_e(raft::handle_t const& handle,
  * to this process in multi-GPU). Use either cugraph::edge_property_t::view() (if @p e_op needs to
  * access edge property values) or cugraph::edge_dummy_property_t::view() (if @p e_op does not
  * access edge property values).
- * @param e_bias_op Quinary operator takes (tagged-)edge source, edge destination, property values
+ * @param bias_e_op Quinary operator takes (tagged-)edge source, edge destination, property values
  * for the source, destination, and edge and returns a floating point bias value to be used in
  * biased random selection. The return value should be non-negative. The bias value of 0 indicates
  * that the corresponding edge cannot be selected. Assuming that the return value type is bias_t,
@@ -749,10 +749,10 @@ per_v_random_select_transform_outgoing_e(raft::handle_t const& handle,
  */
 template <typename GraphViewType,
           typename KeyBucketType,
-          typename EdgeBiasSrcValueInputWrapper,
-          typename EdgeBiasDstValueInputWrapper,
-          typename EdgeBiasValueInputWrapper,
-          typename EdgeBiasOp,
+          typename BiasEdgeSrcValueInputWrapper,
+          typename BiasEdgeDstValueInputWrapper,
+          typename BiasEdgeValueInputWrapper,
+          typename BiasEdgeOp,
           typename EdgeSrcValueInputWrapper,
           typename EdgeDstValueInputWrapper,
           typename EdgeValueInputWrapper,
@@ -762,10 +762,10 @@ std::tuple<std::optional<rmm::device_uvector<size_t>>, dataframe_buffer_type_t<T
 per_v_random_select_transform_outgoing_e(raft::handle_t const& handle,
                                          GraphViewType const& graph_view,
                                          KeyBucketType const& key_list,
-                                         EdgeBiasSrcValueInputWrapper edge_bias_src_value_input,
-                                         EdgeBiasDstValueInputWrapper edge_bias_dst_value_input,
-                                         EdgeBiasValueInputWrapper edge_bias_value_input,
-                                         EdgeBiasOp e_bias_op,
+                                         BiasEdgeSrcValueInputWrapper bias_edge_src_value_input,
+                                         BiasEdgeDstValueInputWrapper bias_edge_dst_value_input,
+                                         BiasEdgeValueInputWrapper bias_edge_value_input,
+                                         BiasEdgeOp bias_e_op,
                                          EdgeSrcValueInputWrapper edge_src_value_input,
                                          EdgeDstValueInputWrapper edge_dst_value_input,
                                          EdgeValueInputWrapper edge_value_input,
@@ -779,10 +779,10 @@ per_v_random_select_transform_outgoing_e(raft::handle_t const& handle,
   return detail::per_v_random_select_transform_e<false>(handle,
                                                         graph_view,
                                                         key_list,
-                                                        edge_bias_src_value_input,
-                                                        edge_bias_dst_value_input,
-                                                        edge_bias_value_input,
-                                                        e_bias_op,
+                                                        bias_edge_src_value_input,
+                                                        bias_edge_dst_value_input,
+                                                        bias_edge_value_input,
+                                                        bias_e_op,
                                                         edge_src_value_input,
                                                         edge_dst_value_input,
                                                         edge_value_input,

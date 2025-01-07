@@ -1295,14 +1295,14 @@ template <typename GraphViewType,
           typename EdgeSrcValueInputWrapper,
           typename EdgeDstValueInputWrapper,
           typename EdgeValueInputWrapper,
-          typename EdgeBiasOp>
+          typename BiasEdgeOp>
 std::tuple<rmm::device_uvector<
              typename edge_op_result_type<typename thrust::iterator_traits<KeyIterator>::value_type,
                                           typename GraphViewType::vertex_type,
                                           typename EdgeSrcValueInputWrapper::value_type,
                                           typename EdgeDstValueInputWrapper::value_type,
                                           typename EdgeValueInputWrapper::value_type,
-                                          EdgeBiasOp>::type>,
+                                          BiasEdgeOp>::type>,
            rmm::device_uvector<size_t>>
 compute_aggregate_local_frontier_biases(raft::handle_t const& handle,
                                         GraphViewType const& graph_view,
@@ -1310,7 +1310,7 @@ compute_aggregate_local_frontier_biases(raft::handle_t const& handle,
                                         EdgeSrcValueInputWrapper edge_src_value_input,
                                         EdgeDstValueInputWrapper edge_dst_value_input,
                                         EdgeValueInputWrapper edge_value_input,
-                                        EdgeBiasOp e_bias_op,
+                                        BiasEdgeOp bias_e_op,
                                         raft::host_span<size_t const> local_frontier_displacements,
                                         raft::host_span<size_t const> local_frontier_sizes,
                                         bool do_expensive_check)
@@ -1324,7 +1324,7 @@ compute_aggregate_local_frontier_biases(raft::handle_t const& handle,
                                               typename EdgeSrcValueInputWrapper::value_type,
                                               typename EdgeDstValueInputWrapper::value_type,
                                               typename EdgeValueInputWrapper::value_type,
-                                              EdgeBiasOp>::type;
+                                              BiasEdgeOp>::type;
 
   auto [aggregate_local_frontier_biases, aggregate_local_frontier_local_degree_offsets] =
     transform_v_frontier_e(
@@ -1334,7 +1334,7 @@ compute_aggregate_local_frontier_biases(raft::handle_t const& handle,
       edge_src_value_input,
       edge_dst_value_input,
       edge_value_input,
-      e_bias_op,
+      bias_e_op,
 #if 1  // FIXME: better update shuffle_values to take host_span
       std::vector<size_t>(local_frontier_displacements.begin(), local_frontier_displacements.end()),
       std::vector<size_t>(local_frontier_sizes.begin(), local_frontier_sizes.end())
@@ -1355,7 +1355,7 @@ compute_aggregate_local_frontier_biases(raft::handle_t const& handle,
         handle.get_comms(), num_invalid_biases, raft::comms::op_t::SUM, handle.get_stream());
     }
     CUGRAPH_EXPECTS(num_invalid_biases == 0,
-                    "invalid_input_argument: e_bias_op return values should be non-negative and "
+                    "invalid_input_argument: bias_e_op return values should be non-negative and "
                     "should not exceed std::numeirc_limits<bias_t>::max().");
   }
 
@@ -2586,7 +2586,7 @@ template <typename GraphViewType,
           typename EdgeSrcValueInputWrapper,
           typename EdgeDstValueInputWrapper,
           typename EdgeValueInputWrapper,
-          typename EdgeBiasOp>
+          typename BiasEdgeOp>
 std::tuple<rmm::device_uvector<typename GraphViewType::edge_type>,
            std::optional<rmm::device_uvector<size_t>>,
            std::vector<size_t>>
@@ -2597,13 +2597,13 @@ biased_sample_and_compute_local_nbr_indices(
   EdgeSrcValueInputWrapper edge_src_value_input,
   EdgeDstValueInputWrapper edge_dst_value_input,
   EdgeValueInputWrapper edge_value_input,
-  EdgeBiasOp e_bias_op,
+  BiasEdgeOp bias_e_op,
   raft::host_span<size_t const> local_frontier_displacements,
   raft::host_span<size_t const> local_frontier_sizes,
   raft::random::RngState& rng_state,
   size_t K,
   bool with_replacement,
-  bool do_expensive_check /* check e_bias_op return values */)
+  bool do_expensive_check /* check bias_e_op return values */)
 {
   using vertex_t = typename GraphViewType::vertex_type;
   using edge_t   = typename GraphViewType::edge_type;
@@ -2614,7 +2614,7 @@ biased_sample_and_compute_local_nbr_indices(
                                               typename EdgeSrcValueInputWrapper::value_type,
                                               typename EdgeDstValueInputWrapper::value_type,
                                               typename EdgeValueInputWrapper::value_type,
-                                              EdgeBiasOp>::type;
+                                              BiasEdgeOp>::type;
 
   int minor_comm_rank{0};
   int minor_comm_size{1};
@@ -2624,9 +2624,6 @@ biased_sample_and_compute_local_nbr_indices(
     minor_comm_size  = minor_comm.get_size();
   }
   assert(minor_comm_size == graph_view.number_of_local_edge_partitions());
-
-  auto aggregate_local_frontier_major_first =
-    thrust_tuple_get_or_identity<KeyIterator, 0>(aggregate_local_frontier_key_first);
 
   auto edge_mask_view = graph_view.edge_mask_view();
 
@@ -2649,7 +2646,7 @@ biased_sample_and_compute_local_nbr_indices(
       edge_src_value_input,
       edge_dst_value_input,
       edge_value_input,
-      e_bias_op,
+      bias_e_op,
       raft::host_span<size_t const>(local_frontier_unique_key_displacements.data(),
                                     local_frontier_unique_key_displacements.size()),
       raft::host_span<size_t const>(local_frontier_unique_key_sizes.data(),
@@ -2685,7 +2682,7 @@ biased_sample_and_compute_local_nbr_indices(
     local_nbr_indices = convert_to_unmasked_local_nbr_idx(
       handle,
       graph_view,
-      aggregate_local_frontier_major_first,
+      thrust_tuple_get_or_identity<KeyIterator, 0>(aggregate_local_frontier_key_first),
       std::move(local_nbr_indices),
       key_indices ? std::make_optional<raft::device_span<size_t const>>((*key_indices).data(),
                                                                         (*key_indices).size())
