@@ -1,5 +1,5 @@
 #!/bin/bash
-# Copyright (c) 2022-2024, NVIDIA CORPORATION.
+# Copyright (c) 2022-2025, NVIDIA CORPORATION.
 
 set -euo pipefail
 
@@ -9,6 +9,9 @@ cd "$(dirname "$(realpath "${BASH_SOURCE[0]}")")"/../
 . /opt/conda/etc/profile.d/conda.sh
 
 RAPIDS_VERSION_MAJOR_MINOR="$(rapids-version-major-minor)"
+
+# TODO(jameslamb): remove this when https://github.com/rapidsai/raft/pull/2531 is merged
+source ci/use_conda_packages_from_prs.sh
 
 rapids-logger "Generate C++ testing dependencies"
 rapids-dependency-file-generator \

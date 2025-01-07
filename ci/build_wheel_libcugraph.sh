@@ -1,5 +1,5 @@
 #!/bin/bash
-# Copyright (c) 2024, NVIDIA CORPORATION.
+# Copyright (c) 2024-2025, NVIDIA CORPORATION.
 
 set -euo pipefail
 
@@ -16,19 +16,8 @@ rapids-dependency-file-generator \
   --matrix "${matrix_selectors}" \
 | tee /tmp/requirements-build.txt
 
-# TODO(jameslamb): remove this stuff from https://github.com/rapidsai/raft/pull/2531
-RAPIDS_PY_CUDA_SUFFIX="$(rapids-wheel-ctk-name-gen ${RAPIDS_CUDA_VERSION})"
-RAFT_COMMIT="d0b638579757deb74912e37785df3166f3be1109"
-LIBRAFT_CHANNEL=$(
-  RAPIDS_PY_WHEEL_NAME="libraft_${RAPIDS_PY_CUDA_SUFFIX}" rapids-get-pr-wheel-artifact raft 2531 cpp "${RAFT_COMMIT:0:7}"
-)
-echo "libraft-${RAPIDS_PY_CUDA_SUFFIX} @ file://$(echo ${LIBRAFT_CHANNEL}/libraft_*.whl)" >> /tmp/constraints.txt
-export PIP_CONSTRAINT=/tmp/constraints.txt
-
-ls ${LIBRAFT_CHANNEL}/
-
-rapids-logger "build reqs:"
-cat /tmp/requirements-build.txt
+# TODO(jameslamb): remove this when https://github.com/rapidsai/raft/pull/2531 is merged
+source ./ci/use_wheels_from_prs.sh
 
 rapids-logger "Installing build requirements"
 python -m pip install \
