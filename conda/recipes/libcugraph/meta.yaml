@@ -70,7 +70,6 @@ requirements:
     - doxygen {{ doxygen_version }}
     - libcudf ={{ minor_version }}
     - libraft ={{ minor_version }}
-    - libraft-headers ={{ minor_version }}
     - librmm ={{ minor_version }}
     - nccl {{ nccl_version }}
     - ucx-proc=*=gpu
@@ -114,7 +113,6 @@ outputs:
         - libcusparse
        {% endif %}
         - libraft ={{ minor_version }}
-        - libraft-headers ={{ minor_version }}
         - librmm ={{ minor_version }}
         - nccl {{ nccl_version }}
         - ucx-proc=*=gpu

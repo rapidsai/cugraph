@@ -528,7 +528,7 @@ def create_list_series_from_2d_ar(ar, index):
         cp.arange(start=0, stop=len(data) + 1, step=n_cols), dtype="int32"
     )
     mask_col = cp.full(shape=n_rows, fill_value=True)
-    mask = cudf._lib.transform.bools_to_mask(as_column(mask_col))
+    mask = as_column(mask_col).as_mask()
     lc = cudf.core.column.ListColumn(
         data=None,
         size=n_rows,
