@@ -422,7 +422,11 @@ compute_frontier_value_sums_and_partitioned_local_value_sum_displacements(
   std::tie(frontier_gathered_local_value_sums, std::ignore) =
     shuffle_values(minor_comm,
                    aggregate_local_frontier_local_value_sums.begin(),
+#if 1  // FIXME: better update shuffle_values to take host_span
+                   std::vector<size_t>(local_frontier_sizes.begin(), local_frontier_sizes.end()),
+#else
                    local_frontier_sizes,
+#endif
                    handle.get_stream());
 
   rmm::device_uvector<value_t> frontier_value_sums(local_frontier_sizes[minor_comm_rank],
@@ -1323,15 +1327,22 @@ compute_aggregate_local_frontier_biases(raft::handle_t const& handle,
                                               EdgeBiasOp>::type;
 
   auto [aggregate_local_frontier_biases, aggregate_local_frontier_local_degree_offsets] =
-    transform_v_frontier_e(handle,
-                           graph_view,
-                           aggregate_local_frontier_key_first,
-                           edge_src_value_input,
-                           edge_dst_value_input,
-                           edge_value_input,
-                           e_bias_op,
-                           local_frontier_displacements,
-                           local_frontier_sizes);
+    transform_v_frontier_e(
+      handle,
+      graph_view,
+      aggregate_local_frontier_key_first,
+      edge_src_value_input,
+      edge_dst_value_input,
+      edge_value_input,
+      e_bias_op,
+#if 1  // FIXME: better update shuffle_values to take host_span
+      std::vector<size_t>(local_frontier_displacements.begin(), local_frontier_displacements.end()),
+      std::vector<size_t>(local_frontier_sizes.begin(), local_frontier_sizes.end())
+#else
+      local_frontier_displacements,
+      local_frontier_sizes
+#endif
+    );
 
   if (do_expensive_check) {
     auto num_invalid_biases = thrust::count_if(
