@@ -1,4 +1,4 @@
-# Copyright (c) 2020-2024, NVIDIA CORPORATION.
+# Copyright (c) 2020-2025, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -15,13 +15,10 @@ import importlib
 import os
 import shutil
 
-from numba import cuda
-
 import cudf
 from cudf.core.column import as_column
 
-from cuda.cudart import cudaDeviceAttr
-from rmm._cuda.gpu import getDeviceAttribute
+from cuda.bindings import runtime
 
 from warnings import warn
 
@@ -210,45 +207,42 @@ def get_traversed_path_list(df, id):
     return answer
 
 
-def is_cuda_version_less_than(min_version=(10, 2)):
+def is_cuda_version_less_than(min_version):
     """
     Returns True if the version of CUDA being used is less than min_version
     """
-    this_cuda_ver = cuda.runtime.get_version()  # returns (<major>, <minor>)
-    if this_cuda_ver[0] > min_version[0]:
-        return False
-    if this_cuda_ver[0] < min_version[0]:
-        return True
-    if this_cuda_ver[1] < min_version[1]:
-        return True
-    return False
+    status, version = runtime.getLocalRuntimeVersion()
+    if status != runtime.cudaError_t.cudaSuccess:
+        raise RuntimeError("Could not get CUDA runtime version.")
+    major = version // 1000
+    minor = (version % 1000) // 10
+    return (major, minor) < min_version
 
 
-def is_device_version_less_than(min_version=(7, 0)):
+def is_device_version_less_than(min_version):
     """
     Returns True if the version of CUDA being used is less than min_version
     """
-    major_version = getDeviceAttribute(
-        cudaDeviceAttr.cudaDevAttrComputeCapabilityMajor, 0
-    )
-    minor_version = getDeviceAttribute(
-        cudaDeviceAttr.cudaDevAttrComputeCapabilityMinor, 0
-    )
-    if major_version > min_version[0]:
-        return False
-    if major_version < min_version[0]:
-        return True
-    if minor_version < min_version[1]:
-        return True
-    return False
+    status, device_id = runtime.cudaGetDevice()
+    if status != runtime.cudaError_t.cudaSuccess:
+        raise RuntimeError("Could not get CUDA device.")
+    status, device_prop = runtime.cudaGetDeviceProperties(device_id)
+    if status != runtime.cudaError_t.cudaSuccess:
+        raise RuntimeError("Could not get CUDA device properties.")
+    return (device_prop.major, device_prop.minor) < min_version
 
 
 def get_device_memory_info():
     """
     Returns the total amount of global memory on the device in bytes
     """
-    meminfo = cuda.current_context().get_memory_info()
-    return meminfo[1]
+    status, device_id = runtime.cudaGetDevice()
+    if status != runtime.cudaError_t.cudaSuccess:
+        raise RuntimeError("Could not get CUDA device.")
+    status, device_prop = runtime.cudaGetDeviceProperties(device_id)
+    if status != runtime.cudaError_t.cudaSuccess:
+        raise RuntimeError("Could not get CUDA device properties.")
+    return device_prop.totalGlobalMem
 
 
 # FIXME: if G is a Nx type, the weight attribute is assumed to be "weight", if

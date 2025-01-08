@@ -58,7 +58,6 @@ DEPENDENCIES=(
   dask-cudf
   libcudf
   libraft
-  libraft-headers
   librmm
   pylibcugraph
   pylibwholegraph

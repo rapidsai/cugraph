@@ -52,27 +52,12 @@ rapids-mamba-retry install \
 
 export RAPIDS_DOCS_DIR="$(mktemp -d)"
 
-# for PROJECT in libwholegraph; do
-#   rapids-logger "Download ${PROJECT} xml_tar"
-#   TMP_DIR=$(mktemp -d)
-#   export XML_DIR_${PROJECT^^}="$TMP_DIR"
-#   curl "https://d1664dvumjb44w.cloudfront.net/${PROJECT}/xml_tar/${RAPIDS_VERSION_NUMBER}/xml.tar.gz" | tar -xzf - -C "${TMP_DIR}"
-# done
-
 rapids-logger "Build CPP docs"
 pushd cpp/doxygen
 doxygen Doxyfile
 export XML_DIR_LIBCUGRAPH="$(pwd)/xml"
-popd
-
-rapids-logger "Build Python docs"
-pushd docs/cugraph
-# Ensure cugraph is importable, since sphinx does not report details about this
-# type of failure well.
-python -c "import cugraph; print(f'Using cugraph: {cugraph}')"
-sphinx-build -b dirhtml source _html
-mkdir -p "${RAPIDS_DOCS_DIR}/cugraph/html"
-mv _html/* "${RAPIDS_DOCS_DIR}/cugraph/html"
+mkdir -p "${RAPIDS_DOCS_DIR}/libcugraph/xml_tar"
+tar -czf "${RAPIDS_DOCS_DIR}/libcugraph/xml_tar"/xml.tar.gz -C xml .
 popd
 
 rapids-upload-docs
