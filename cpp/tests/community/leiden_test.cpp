@@ -128,6 +128,21 @@ class Tests_Leiden : public ::testing::TestWithParam<std::tuple<Leiden_Usecase, 
       ASSERT_FLOAT_EQ(compare_modularity, expected_modularity);
       ASSERT_EQ(level, expected_level);
     }
+  
+    auto unique_clustering_v = cugraph::test::sort<vertex_t>(handle, clustering_v);
+
+    unique_clustering_v = cugraph::test::unique<vertex_t>(handle, std::move(unique_clustering_v));
+
+    auto expected_unique_clustering_v = cugraph::test::sequence<int32_t>(
+      handle, unique_clustering_v.size(), size_t{1}, int32_t{0});
+    
+    auto h_unique_clustering_v = cugraph::test::to_host(handle, unique_clustering_v);
+    auto h_expected_unique_clustering_v = cugraph::test::to_host(handle, expected_unique_clustering_v);
+
+    ASSERT_TRUE(std::equal(h_unique_clustering_v.begin(),
+                           h_unique_clustering_v.end(),
+                           h_expected_unique_clustering_v.begin()))
+      << "Returned cluster IDs are not numbered consecutively";
   }
 };
 
