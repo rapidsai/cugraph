@@ -73,7 +73,7 @@ def load_library():
                 pass
 
     # The caller almost never needs to do anything with this library, but no
-    # harm in offering the option since this object at least provides a handle
+    # harm in offering the option since these objects at least provide handles
     # to inspect where libcugraph was loaded from.
 
     # TODO(jameslamb): return something here?
