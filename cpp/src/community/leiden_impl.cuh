@@ -617,8 +617,7 @@ void relabel_cluster_ids(raft::handle_t const& handle,
                         cluster_ids_size_per_rank.end(),
                         cluster_ids_starts.begin(),
                         size_t{0});
-    auto& comm             = handle.get_comms();
-    local_cluster_id_first = cluster_ids_starts[comm.get_rank()];
+    local_cluster_id_first = cluster_ids_starts[handle.get_comms().get_rank()];
   }
 
   rmm::device_uvector<vertex_t> numbering_indices(unique_cluster_ids.size(), handle.get_stream());
