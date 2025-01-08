@@ -138,6 +138,7 @@ files:
       table: project
     includes:
       - cuda_wheels
+      - depends_on_cupy
       - depends_on_pylibraft
       - depends_on_rmm
   py_test_pylibcugraph:
