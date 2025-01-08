@@ -613,10 +613,12 @@ void relabel_cluster_ids(raft::handle_t const& handle,
       handle.get_comms(), unique_cluster_ids.size(), handle.get_stream());
 
     std::vector<vertex_t> cluster_ids_starts(cluster_ids_size_per_rank.size());
-    std::exclusive_scan(cluster_ids_size_per_rank.begin(), cluster_ids_size_per_rank.end(), cluster_ids_starts.begin(), size_t{0});
-    auto& comm                 = handle.get_comms();
-    local_cluster_id_first     = cluster_ids_starts[comm.get_rank()];
-
+    std::exclusive_scan(cluster_ids_size_per_rank.begin(),
+                        cluster_ids_size_per_rank.end(),
+                        cluster_ids_starts.begin(),
+                        size_t{0});
+    auto& comm             = handle.get_comms();
+    local_cluster_id_first = cluster_ids_starts[comm.get_rank()];
   }
 
   rmm::device_uvector<vertex_t> numbering_indices(unique_cluster_ids.size(), handle.get_stream());
@@ -714,9 +716,8 @@ std::pair<size_t, weight_t> leiden(
                clustering + local_num_verts,
                unique_cluster_ids.begin());
 
-
   detail::relabel_cluster_ids<vertex_t, multi_gpu>(
-      handle, unique_cluster_ids, clustering, local_num_verts);
+    handle, unique_cluster_ids, clustering, local_num_verts);
 
   return std::make_pair(dendrogram->num_levels(), modularity);
 }
