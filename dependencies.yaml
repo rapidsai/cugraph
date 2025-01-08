@@ -26,6 +26,7 @@ files:
       - depends_on_ucx_py
       - docs
       - python_build_cythonize
+      - python_build_skbuild
       - python_build_rapids
       - python_build_wheel
       - python_run_cugraph
@@ -77,6 +78,7 @@ files:
     includes:
       - python_build_cythonize
       - python_build_rapids
+      - python_build_skbuild
   py_rapids_build_cugraph:
     output: pyproject
     pyproject_dir: python/cugraph
@@ -121,6 +123,7 @@ files:
     includes:
       - python_build_cythonize
       - python_build_rapids
+      - python_build_skbuild
   py_rapids_build_pylibcugraph:
     output: pyproject
     pyproject_dir: python/pylibcugraph
@@ -370,6 +373,14 @@ dependencies:
       - output_types: [conda, pyproject, requirements]
         packages:
           - rapids-build-backend>=0.3.1,<0.4.0.dev0
+  python_build_skbuild:
+    common:
+      - output_types: conda
+        packages:
+          - scikit-build-core>=0.10.0
+      - output_types: [requirements, pyproject]
+        packages:
+          - scikit-build-core[pyproject]>=0.10.0
   python_build_wheel:
     common:
       - output_types: [conda, pyproject, requirements]
@@ -381,12 +392,6 @@ dependencies:
       - output_types: [conda, pyproject, requirements]
         packages:
           - cython>=3.0.0
-      - output_types: conda
-        packages:
-          - scikit-build-core>=0.10.0
-      - output_types: [pyproject, requirements]
-        packages:
-          - scikit-build-core[pyproject]>=0.10.0
   python_run_cugraph:
     common:
       - output_types: [conda, pyproject]
