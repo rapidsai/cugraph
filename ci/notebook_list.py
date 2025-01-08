@@ -17,8 +17,6 @@ import sys
 import glob
 from pathlib import Path
 
-from cuda.bindings import runtime
-
 # for adding another run type and skip file name add to this dictionary
 runtype_dict = {
     "all": "",
@@ -31,25 +29,6 @@ runtype_dict = {
 def skip_book_dir(runtype):
     # Add all run types here, currently only CI supported
     return runtype in runtype_dict and Path(runtype_dict.get(runtype)).is_file()
-
-
-def _get_cuda_version_string():
-    status, version = runtime.getLocalRuntimeVersion()
-    if status != runtime.cudaError_t.cudaSuccess:
-        raise RuntimeError("Could not get CUDA runtime version.")
-    major, minor = divmod(version, 1000)
-    minor //= 10
-    return f"{major}.{minor}"
-
-
-def _is_ampere_or_newer():
-    status, device_id = runtime.cudaGetDevice()
-    if status != runtime.cudaError_t.cudaSuccess:
-        raise RuntimeError("Could not get CUDA device.")
-    status, device_prop = runtime.cudaGetDeviceProperties(device_id)
-    if status != runtime.cudaError_t.cudaSuccess:
-        raise RuntimeError("Could not get CUDA device properties.")
-    return (device_prop.major, device_prop.minor) >= (8, 0)
 
 
 parser = argparse.ArgumentParser(description="Condition for running the notebook tests")
@@ -84,10 +63,6 @@ for filename in glob.iglob("**/*.ipynb", recursive=True):
                     "currently automatable)",
                     file=sys.stderr,
                 )
-                skip = True
-                break
-            elif _is_ampere_or_newer() and re.search("# Does not run on Ampere", line):
-                print(f"SKIPPING {filename} (does not run on Ampere)", file=sys.stderr)
                 skip = True
                 break
             elif re.search("# Does not run on CUDA ", line) and (
