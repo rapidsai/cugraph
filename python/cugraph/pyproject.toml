@@ -30,7 +30,6 @@ dependencies = [
     "dask-cudf==25.2.*,>=0.0.0a0",
     "fsspec[http]>=0.6.0",
     "numba>=0.57",
-    "numpy>=1.23,<3.0a0",
     "pylibcugraph==25.2.*,>=0.0.0a0",
     "raft-dask==25.2.*,>=0.0.0a0",
     "rapids-dask-dependency==25.2.*,>=0.0.0a0",
@@ -49,7 +48,6 @@ classifiers = [
 test = [
     "certifi",
     "networkx>=2.5.1",
-    "numpy>=1.23,<3.0a0",
     "pandas",
     "pylibwholegraph==25.2.*,>=0.0.0a0",
     "pytest",

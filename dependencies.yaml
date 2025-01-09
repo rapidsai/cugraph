@@ -18,6 +18,7 @@ files:
       - depends_on_libcudf
       - depends_on_libraft
       - depends_on_librmm
+      - depends_on_numpy
       - depends_on_pylibraft
       - depends_on_pylibwholegraph
       - depends_on_pytorch
@@ -33,7 +34,6 @@ files:
       - test_notebook
       - test_python_common
       - test_python_cugraph
-      - test_python_pylibcugraph
   checks:
     output: none
     includes:
@@ -64,12 +64,12 @@ files:
     includes:
       - cuda_version
       - depends_on_cudf
+      - depends_on_numpy
       - depends_on_pylibwholegraph
       - depends_on_pytorch
       - py_version
       - test_python_common
       - test_python_cugraph
-      - test_python_pylibcugraph
   py_build_cugraph:
     output: pyproject
     pyproject_dir: python/cugraph
@@ -142,6 +142,7 @@ files:
     includes:
       - cuda_wheels
       - depends_on_cupy
+      - depends_on_numpy
       - depends_on_pylibraft
       - depends_on_rmm
   py_test_pylibcugraph:
@@ -152,8 +153,8 @@ files:
       key: test
     includes:
       - depends_on_cudf
+      - depends_on_numpy
       - test_python_common
-      - test_python_pylibcugraph
   py_build_cugraph_service_client:
     output: pyproject
     pyproject_dir: python/cugraph-service/client
@@ -189,6 +190,7 @@ files:
       - depends_on_cupy
       - depends_on_dask_cuda
       - depends_on_dask_cudf
+      - depends_on_numpy
       - depends_on_rmm
       - depends_on_ucx_py
       - python_run_cugraph_service_server
@@ -399,7 +401,6 @@ dependencies:
         packages:
           - &dask rapids-dask-dependency==25.2.*,>=0.0.0a0
           - &numba numba>=0.57
-          - &numpy numpy>=1.23,<3.0a0
       - output_types: conda
         packages:
           - aiohttp
@@ -433,7 +434,6 @@ dependencies:
         packages:
           - *dask
           - *numba
-          - *numpy
           - *thrift
   test_cpp:
     common:
@@ -463,17 +463,11 @@ dependencies:
         packages:
           - certifi
           - networkx>=2.5.1
-          - *numpy
           - python-louvain
           - scikit-learn>=0.23.1
       - output_types: [conda]
         packages:
           - *thrift
-  test_python_pylibcugraph:
-    common:
-      - output_types: [conda, pyproject]
-        packages:
-          - *numpy
 
   depends_on_cugraph:
     common:
@@ -765,6 +759,12 @@ dependencies:
             packages: &cupy_packages_cu11
               - cupy-cuda11x>=12.0.0
           - {matrix: null, packages: *cupy_packages_cu11}
+
+  depends_on_numpy:
+    common:
+      - output_types: [conda, pyproject, requirements]
+        packages:
+          - numpy>=1.23,<3.0a0
 
   depends_on_ucx_py:
     common:

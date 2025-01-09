@@ -1,4 +1,4 @@
-# Copyright (c) 2022-2024, NVIDIA CORPORATION.
+# Copyright (c) 2022-2025, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -13,6 +13,9 @@
 
 # Have cython use python 3 syntax
 # cython: language_level = 3
+
+import cupy
+import numpy
 
 from pylibcugraph._cugraph_c.types cimport (
     bool_t,
@@ -166,20 +169,6 @@ def pagerank(ResourceHandle resource_handle,
     >>> pageranks
     array([0.11615585, 0.21488841, 0.2988108 , 0.3701449 ], dtype=float32)
     """
-
-    # FIXME: import these modules here for now until a better pattern can be
-    # used for optional imports (perhaps 'import_optional()' from cugraph), or
-    # these are made hard dependencies.
-    try:
-        import cupy
-    except ModuleNotFoundError:
-        raise RuntimeError("pagerank requires the cupy package, which could "
-                           "not be imported")
-    try:
-        import numpy
-    except ModuleNotFoundError:
-        raise RuntimeError("pagerank requires the numpy package, which could "
-                           "not be imported")
 
     cdef cugraph_type_erased_device_array_view_t* \
         initial_guess_vertices_view_ptr = \
