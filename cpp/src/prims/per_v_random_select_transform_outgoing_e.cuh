@@ -215,6 +215,7 @@ template <bool incoming,
           typename EdgeDstValueInputWrapper,
           typename EdgeValueInputWrapper,
           typename EdgeOp,
+          typename EdgeTypeInputWrapper,
           typename T>
 std::tuple<std::optional<rmm::device_uvector<size_t>>, dataframe_buffer_type_t<T>>
 per_v_random_select_transform_e(raft::handle_t const& handle,
@@ -228,8 +229,9 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
                                 EdgeDstValueInputWrapper edge_dst_value_input,
                                 EdgeValueInputWrapper edge_value_input,
                                 EdgeOp e_op,
+                                EdgeTypeInputWrapper edge_type_input,
                                 raft::random::RngState& rng_state,
-                                size_t K,
+                                raft::host_span<size_t const> Ks,
                                 bool with_replacement,
                                 std::optional<T> invalid_value,
                                 bool do_expensive_check)
@@ -271,11 +273,18 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
                                                      EdgeOp>::type,
                 T>);
 
-  CUGRAPH_EXPECTS(K >= size_t{1},
-                  "Invalid input argument: invalid K, K should be a positive integer.");
-  CUGRAPH_EXPECTS(K <= static_cast<size_t>(std::numeric_limits<int32_t>::max()),
-                  "Invalid input argument: the current implementation expects K to be no larger "
-                  "than std::numeric_limits<int32_t>::max().");
+  if constexpr (std::is_same_v<EdgeTypeInputWrapper, edge_dummy_property_view_t>) {  // homogeneous
+    CUGRAPH_EXPECTS(Ks.size() == 1,
+                    "Invalid input argument: Ks.size() should be 1 for homogeneous sampling.");
+  }
+
+  for (size_t i = 0; i < Ks.size(); ++i) {
+    CUGRAPH_EXPECTS(Ks[i] >= size_t{1},
+                    "Invalid input argument: invalid Ks, Ks[] should be a positive integer.");
+    CUGRAPH_EXPECTS(Ks[i] <= static_cast<size_t>(std::numeric_limits<int32_t>::max()),
+                    "Invalid input argument: the current implementation expects Ks[] to be no "
+                    "larger than std::numeric_limits<int32_t>::max().");
+  }
 
   auto minor_comm_size =
     GraphViewType::is_multi_gpu
@@ -345,36 +354,46 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
                                                     BiasEdgeDstValueInputWrapper,
                                                     BiasEdgeValueInputWrapper,
                                                     key_t>>) {
-    std::tie(sample_local_nbr_indices, sample_key_indices, local_key_list_sample_offsets) =
-      uniform_sample_and_compute_local_nbr_indices(
-        handle,
-        graph_view,
-        (minor_comm_size > 1) ? get_dataframe_buffer_cbegin(*aggregate_local_key_list)
-                              : key_list.begin(),
-        raft::host_span<size_t const>(local_key_list_displacements.data(),
-                                      local_key_list_displacements.size()),
-        raft::host_span<size_t const>(local_key_list_sizes.data(), local_key_list_sizes.size()),
-        rng_state,
-        K,
-        with_replacement);
+    if constexpr (std::is_same_v<EdgeTypeInputWrapper,
+                                 edge_dummy_property_view_t>) {  // homogeneous
+      std::tie(sample_local_nbr_indices, sample_key_indices, local_key_list_sample_offsets) =
+        uniform_sample_and_compute_local_nbr_indices(
+          handle,
+          graph_view,
+          (minor_comm_size > 1) ? get_dataframe_buffer_cbegin(*aggregate_local_key_list)
+                                : key_list.begin(),
+          raft::host_span<size_t const>(local_key_list_displacements.data(),
+                                        local_key_list_displacements.size()),
+          raft::host_span<size_t const>(local_key_list_sizes.data(), local_key_list_sizes.size()),
+          rng_state,
+          Ks[0],
+          with_replacement);
+    } else {  // heterogeneous
+      CUGRAPH_FAIL("unimplemented.");
+    }
   } else {
-    std::tie(sample_local_nbr_indices, sample_key_indices, local_key_list_sample_offsets) =
-      biased_sample_and_compute_local_nbr_indices(
-        handle,
-        graph_view,
-        (minor_comm_size > 1) ? get_dataframe_buffer_cbegin(*aggregate_local_key_list)
-                              : key_list.begin(),
-        bias_edge_src_value_input,
-        bias_edge_dst_value_input,
-        bias_edge_value_input,
-        bias_e_op,
-        raft::host_span<size_t const>(local_key_list_displacements.data(),
-                                      local_key_list_displacements.size()),
-        raft::host_span<size_t const>(local_key_list_sizes.data(), local_key_list_sizes.size()),
-        rng_state,
-        K,
-        with_replacement,
-        do_expensive_check);
+    if constexpr (std::is_same_v<EdgeTypeInputWrapper,
+                                 edge_dummy_property_view_t>) {  // homogeneous
+      std::tie(sample_local_nbr_indices, sample_key_indices, local_key_list_sample_offsets) =
+        biased_sample_and_compute_local_nbr_indices(
+          handle,
+          graph_view,
+          (minor_comm_size > 1) ? get_dataframe_buffer_cbegin(*aggregate_local_key_list)
+                                : key_list.begin(),
+          bias_edge_src_value_input,
+          bias_edge_dst_value_input,
+          bias_edge_value_input,
+          bias_e_op,
+          raft::host_span<size_t const>(local_key_list_displacements.data(),
+                                        local_key_list_displacements.size()),
+          raft::host_span<size_t const>(local_key_list_sizes.data(), local_key_list_sizes.size()),
+          rng_state,
+          Ks[0],
+          with_replacement,
+          do_expensive_check);
+    } else {  // heterogeneous
+      CUGRAPH_FAIL("unimplemented.");
+    }
   }
 
   std::vector<size_t> local_key_list_sample_counts(minor_comm_size);
@@ -383,6 +402,8 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
                            local_key_list_sample_counts.begin());
 
   // 3. transform
+
+  auto K_sum = std::accumulate(Ks.begin(), Ks.end(), size_t{0});
 
   auto sample_e_op_results =
     allocate_dataframe_buffer<T>(local_key_list_sample_offsets.back(), handle.get_stream());
@@ -440,12 +461,12 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
           e_op,
           cugraph::invalid_edge_id_v<edge_t>,
           to_thrust_optional(invalid_value),
-          K});
+          K_sum});
     } else {
       thrust::transform(
         handle.get_thrust_policy(),
         thrust::make_counting_iterator(size_t{0}),
-        thrust::make_counting_iterator(key_list.size() * K),
+        thrust::make_counting_iterator(key_list.size() * K_sum),
         edge_partition_sample_e_op_result_first,
         transform_local_nbr_indices_t<GraphViewType,
                                       decltype(edge_partition_key_list_first),
@@ -464,7 +485,7 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
                                          e_op,
                                          cugraph::invalid_edge_id_v<edge_t>,
                                          to_thrust_optional(invalid_value),
-                                         K});
+                                         K_sum});
     }
   }
   aggregate_local_key_list = std::nullopt;
@@ -474,7 +495,7 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
   auto sample_offsets = invalid_value ? std::nullopt
                                       : std::make_optional<rmm::device_uvector<size_t>>(
                                           key_list.size() + 1, handle.get_stream());
-  assert(K <= std::numeric_limits<int32_t>::max());
+  assert(K_sum <= std::numeric_limits<int32_t>::max());
   if (minor_comm_size > 1) {
     sample_local_nbr_indices.resize(0, handle.get_stream());
     sample_local_nbr_indices.shrink_to_fit(handle.get_stream());
@@ -505,7 +526,8 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
       sample_counts.resize(0, handle.get_stream());
       sample_counts.shrink_to_fit(handle.get_stream());
 
-      resize_dataframe_buffer(tmp_sample_e_op_results, key_list.size() * K, handle.get_stream());
+      resize_dataframe_buffer(
+        tmp_sample_e_op_results, key_list.size() * K_sum, handle.get_stream());
       thrust::fill(handle.get_thrust_policy(),
                    get_dataframe_buffer_begin(tmp_sample_e_op_results),
                    get_dataframe_buffer_end(tmp_sample_e_op_results),
@@ -521,7 +543,7 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
                                             (*sample_key_indices).size()),
             raft::device_span<int32_t const>(sample_intra_partition_displacements.data(),
                                              sample_intra_partition_displacements.size()),
-            K}),
+            K_sum}),
         get_dataframe_buffer_begin(tmp_sample_e_op_results));
     } else {
       (*sample_offsets).set_element_to_zero_async(size_t{0}, handle.get_stream());
@@ -561,7 +583,7 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
         sample_counts.end(),
         count_valids_t<edge_t>{raft::device_span<edge_t const>(sample_local_nbr_indices.data(),
                                                                sample_local_nbr_indices.size()),
-                               K,
+                               K_sum,
                                cugraph::invalid_edge_id_v<edge_t>});
       (*sample_offsets).set_element_to_zero_async(size_t{0}, handle.get_stream());
       auto typecasted_sample_count_first =
@@ -683,8 +705,56 @@ per_v_random_select_transform_outgoing_e(raft::handle_t const& handle,
     edge_dst_value_input,
     edge_value_input,
     e_op,
+    edge_dummy_property_view_t{},
     rng_state,
-    K,
+    raft::host_span<size_t const>(&K, size_t{1}),
+    with_replacement,
+    invalid_value,
+    do_expensive_check);
+}
+
+template <typename GraphViewType,
+          typename KeyBucketType,
+          typename EdgeSrcValueInputWrapper,
+          typename EdgeDstValueInputWrapper,
+          typename EdgeValueInputWrapper,
+          typename EdgeOp,
+          typename EdgeTypeInputWrapper,
+          typename T>
+std::tuple<std::optional<rmm::device_uvector<size_t>>, dataframe_buffer_type_t<T>>
+per_v_random_select_transform_outgoing_e(raft::handle_t const& handle,
+                                         GraphViewType const& graph_view,
+                                         KeyBucketType const& key_list,
+                                         EdgeSrcValueInputWrapper edge_src_value_input,
+                                         EdgeDstValueInputWrapper edge_dst_value_input,
+                                         EdgeValueInputWrapper edge_value_input,
+                                         EdgeOp e_op,
+                                         EdgeTypeInputWrapper edge_type_input,
+                                         raft::random::RngState& rng_state,
+                                         raft::host_span<size_t const> Ks,
+                                         bool with_replacement,
+                                         std::optional<T> invalid_value,
+                                         bool do_expensive_check = false)
+{
+  return detail::per_v_random_select_transform_e<false>(
+    handle,
+    graph_view,
+    key_list,
+    edge_src_dummy_property_t{}.view(),
+    edge_dst_dummy_property_t{}.view(),
+    edge_dummy_property_t{}.view(),
+    detail::constant_bias_e_op_t<GraphViewType,
+                                 detail::edge_endpoint_dummy_property_view_t,
+                                 detail::edge_endpoint_dummy_property_view_t,
+                                 edge_dummy_property_view_t,
+                                 typename KeyBucketType::key_type>{},
+    edge_src_value_input,
+    edge_dst_value_input,
+    edge_value_input,
+    e_op,
+    edge_type_input,
+    rng_state,
+    Ks,
     with_replacement,
     invalid_value,
     do_expensive_check);
@@ -776,6 +846,57 @@ per_v_random_select_transform_outgoing_e(raft::handle_t const& handle,
                                          std::optional<T> invalid_value,
                                          bool do_expensive_check = false)
 {
+  return detail::per_v_random_select_transform_e<false>(
+    handle,
+    graph_view,
+    key_list,
+    bias_edge_src_value_input,
+    bias_edge_dst_value_input,
+    bias_edge_value_input,
+    bias_e_op,
+    edge_src_value_input,
+    edge_dst_value_input,
+    edge_value_input,
+    e_op,
+    edge_dummy_property_view_t{},
+    rng_state,
+    raft::host_span<size_t const>(&K, size_t{1}),
+    with_replacement,
+    invalid_value,
+    do_expensive_check);
+}
+
+template <typename GraphViewType,
+          typename KeyBucketType,
+          typename BiasEdgeSrcValueInputWrapper,
+          typename BiasEdgeDstValueInputWrapper,
+          typename BiasEdgeValueInputWrapper,
+          typename BiasEdgeOp,
+          typename EdgeSrcValueInputWrapper,
+          typename EdgeDstValueInputWrapper,
+          typename EdgeValueInputWrapper,
+          typename EdgeOp,
+          typename EdgeTypeInputWrapper,
+          typename T>
+std::tuple<std::optional<rmm::device_uvector<size_t>>, dataframe_buffer_type_t<T>>
+per_v_random_select_transform_outgoing_e(raft::handle_t const& handle,
+                                         GraphViewType const& graph_view,
+                                         KeyBucketType const& key_list,
+                                         BiasEdgeSrcValueInputWrapper bias_edge_src_value_input,
+                                         BiasEdgeDstValueInputWrapper bias_edge_dst_value_input,
+                                         BiasEdgeValueInputWrapper bias_edge_value_input,
+                                         BiasEdgeOp bias_e_op,
+                                         EdgeSrcValueInputWrapper edge_src_value_input,
+                                         EdgeDstValueInputWrapper edge_dst_value_input,
+                                         EdgeValueInputWrapper edge_value_input,
+                                         EdgeOp e_op,
+                                         EdgeTypeInputWrapper edge_type_input,
+                                         raft::random::RngState& rng_state,
+                                         raft::host_span<size_t const> Ks,
+                                         bool with_replacement,
+                                         std::optional<T> invalid_value,
+                                         bool do_expensive_check = false)
+{
   return detail::per_v_random_select_transform_e<false>(handle,
                                                         graph_view,
                                                         key_list,
@@ -787,8 +908,9 @@ per_v_random_select_transform_outgoing_e(raft::handle_t const& handle,
                                                         edge_dst_value_input,
                                                         edge_value_input,
                                                         e_op,
+                                                        edge_type_input,
                                                         rng_state,
-                                                        K,
+                                                        Ks,
                                                         with_replacement,
                                                         invalid_value,
                                                         do_expensive_check);
