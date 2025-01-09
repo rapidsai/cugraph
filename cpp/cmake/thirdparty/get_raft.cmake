@@ -51,7 +51,7 @@ function(find_and_configure_raft)
             OPTIONS
                 "RAFT_COMPILE_LIBRARY ${PKG_COMPILE_RAFT_LIB}"
                 "BUILD_TESTS OFF"
-                "BUILD_BENCH OFF"
+                "BUILD_PRIMS_BENCH OFF"
                 "BUILD_CAGRA_HNSWLIB OFF"
     )
 
