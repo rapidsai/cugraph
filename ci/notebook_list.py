@@ -41,16 +41,7 @@ def _get_cuda_version_string():
     minor //= 10
     return f"{major}.{minor}"
 
-
-def _is_ampere_or_newer():
-    status, device_id = runtime.cudaGetDevice()
-    if status != runtime.cudaError_t.cudaSuccess:
-        raise RuntimeError("Could not get CUDA device.")
-    status, device_prop = runtime.cudaGetDeviceProperties(device_id)
-    if status != runtime.cudaError_t.cudaSuccess:
-        raise RuntimeError("Could not get CUDA device properties.")
-    return (device_prop.major, device_prop.minor) >= (8, 0)
-
+cuda_version_string = _get_cuda_version_string()
 
 parser = argparse.ArgumentParser(description="Condition for running the notebook tests")
 parser.add_argument("runtype", type=str)
@@ -84,10 +75,6 @@ for filename in glob.iglob("**/*.ipynb", recursive=True):
                     "currently automatable)",
                     file=sys.stderr,
                 )
-                skip = True
-                break
-            elif _is_ampere_or_newer() and re.search("# Does not run on Ampere", line):
-                print(f"SKIPPING {filename} (does not run on Ampere)", file=sys.stderr)
                 skip = True
                 break
             elif re.search("# Does not run on CUDA ", line) and (

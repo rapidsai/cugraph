@@ -88,10 +88,7 @@ docs/cugraph/lib*
 docs/cugraph/api/*
 
 # created by Dask tests
-python/dask-worker-space
-python/cugraph/dask-worker-space
-python/cugraph/cugraph/dask-worker-space
-python/cugraph/cugraph/tests/dask-worker-space
+dask-worker-space/
 
 # Sphinx docs & build artifacts
 docs/cugraph/source/api_docs/api/*
