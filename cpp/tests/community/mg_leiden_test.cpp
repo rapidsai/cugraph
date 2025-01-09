@@ -264,7 +264,6 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::Values(Leiden_Usecase{100, 1, 1, false}),
     ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"))));
 
-// #if 0
 INSTANTIATE_TEST_SUITE_P(rmat_small_tests,
                          Tests_MGLeiden_Rmat,
                          ::testing::Combine(::testing::Values(Leiden_Usecase{100, 1, false}),
@@ -294,6 +293,5 @@ INSTANTIATE_TEST_SUITE_P(
     // disable correctness checks for large graphs
     ::testing::Values(Leiden_Usecase{100, 1, 1, false}),
     ::testing::Values(cugraph::test::Rmat_Usecase(12, 32, 0.57, 0.19, 0.19, 0, true, false))));
-// #endif
 
 CUGRAPH_MG_TEST_PROGRAM_MAIN()
