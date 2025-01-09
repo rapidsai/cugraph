@@ -64,6 +64,7 @@ def load_library():
         os.getenv("RAPIDS_LIBCUGRAPH_PREFER_SYSTEM_LIBRARY", "false").lower() != "false"
     )
 
+    libs_to_return = []
     for soname in ["libcugraph.so", "libcugraph_c.so"]:
         libcugraph_lib = None
         if prefer_system_installation:
@@ -87,10 +88,11 @@ def load_library():
                 # and rely on other mechanisms (like RPATHs on other DSOs) to
                 # help the loader find the library.
                 pass
+        if libcugraph_lib:
+            libs_to_return.append(libcugraph_lib)
 
-    # The caller almost never needs to do anything with this library, but no
+    # The caller almost never needs to do anything with these libraries, but no
     # harm in offering the option since these objects at least provide handles
     # to inspect where libcugraph was loaded from.
 
-    # TODO(jameslamb): return something here?
-    # return libcugraph_lib
+    return libs_to_return

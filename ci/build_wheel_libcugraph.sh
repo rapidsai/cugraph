@@ -33,6 +33,7 @@ export PIP_NO_BUILD_ISOLATION=0
 
 RAPIDS_PY_CUDA_SUFFIX="$(rapids-wheel-ctk-name-gen ${RAPIDS_CUDA_VERSION})"
 
+# TODO(jameslamb): maybe we can remove this + the `cpu32` node type, now that we're not recompiling RAFT?
 PARALLEL_LEVEL=$(python -c \
   "from math import ceil; from multiprocessing import cpu_count; print(ceil(cpu_count()/4))")
 

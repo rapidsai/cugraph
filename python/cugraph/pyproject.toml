@@ -85,7 +85,7 @@ build-backend = "scikit_build_core.build"
 requires = [
     "cmake>=3.26.4,!=3.30.0",
     "libcugraph==25.2.*,>=0.0.0a0",
-    "libraft=25.2.*,>=0.0.0a0",
+    "libraft==25.2.*,>=0.0.0a0",
     "librmm==25.2.*,>=0.0.0a0",
     "ninja",
     "pylibcugraph==25.2.*,>=0.0.0a0",
