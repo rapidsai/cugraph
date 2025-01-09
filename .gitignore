@@ -34,7 +34,7 @@ dask-worker-space/
 htmlcov
 *.conda
 dist/
-.egg-info/
+*.egg-info/
 python/build
 python/cugraph/bindings/*.cpp
 wheels/
