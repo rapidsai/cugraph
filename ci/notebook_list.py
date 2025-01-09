@@ -17,6 +17,8 @@ import sys
 import glob
 from pathlib import Path
 
+from cuda.bindings import runtime
+
 # for adding another run type and skip file name add to this dictionary
 runtype_dict = {
     "all": "",
