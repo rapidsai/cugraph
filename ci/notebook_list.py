@@ -1,4 +1,4 @@
-# Copyright (c) 2021-2023, NVIDIA CORPORATION.
+# Copyright (c) 2021-2025, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -17,7 +17,7 @@ import sys
 import glob
 from pathlib import Path
 
-from numba import cuda
+from cuda.bindings import runtime
 
 # for adding another run type and skip file name add to this dictionary
 runtype_dict = {
@@ -30,20 +30,27 @@ runtype_dict = {
 
 def skip_book_dir(runtype):
     # Add all run types here, currently only CI supported
-
-    if runtype in runtype_dict.keys():
-        if Path(runtype_dict.get(runtype)).is_file():
-            return True
-    return False
+    return runtype in runtype_dict and Path(runtype_dict.get(runtype)).is_file()
 
 
-cuda_version_string = ".".join([str(n) for n in cuda.runtime.get_version()])
-#
-# Not strictly true... however what we mean is
-# Pascal or earlier
-#
-ampere = False
-device = cuda.get_current_device()
+def _get_cuda_version_string():
+    status, version = runtime.getLocalRuntimeVersion()
+    if status != runtime.cudaError_t.cudaSuccess:
+        raise RuntimeError("Could not get CUDA runtime version.")
+    major, minor = divmod(version, 1000)
+    minor //= 10
+    return f"{major}.{minor}"
+
+
+def _is_ampere_or_newer():
+    status, device_id = runtime.cudaGetDevice()
+    if status != runtime.cudaError_t.cudaSuccess:
+        raise RuntimeError("Could not get CUDA device.")
+    status, device_prop = runtime.cudaGetDeviceProperties(device_id)
+    if status != runtime.cudaError_t.cudaSuccess:
+        raise RuntimeError("Could not get CUDA device properties.")
+    return (device_prop.major, device_prop.minor) >= (8, 0)
+
 
 parser = argparse.ArgumentParser(description="Condition for running the notebook tests")
 parser.add_argument("runtype", type=str)
@@ -52,19 +59,10 @@ args = parser.parse_args()
 
 runtype = args.runtype
 
-if runtype not in runtype_dict.keys():
+if runtype not in runtype_dict:
     print(f"Unknown Run Type  = {runtype}", file=sys.stderr)
     exit()
 
-
-# check for the attribute using both pre and post numba 0.53 names
-cc = getattr(device, "COMPUTE_CAPABILITY", None) or getattr(
-    device, "compute_capability"
-)
-if cc[0] >= 8:
-    ampere = True
-
-skip = False
 for filename in glob.iglob("**/*.ipynb", recursive=True):
     skip = False
     if skip_book_dir(runtype):
@@ -88,7 +86,7 @@ for filename in glob.iglob("**/*.ipynb", recursive=True):
                 )
                 skip = True
                 break
-            elif ampere and re.search("# Does not run on Ampere", line):
+            elif _is_ampere_or_newer() and re.search("# Does not run on Ampere", line):
                 print(f"SKIPPING {filename} (does not run on Ampere)", file=sys.stderr)
                 skip = True
                 break
