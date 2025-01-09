@@ -1,4 +1,4 @@
-# Copyright (c) 2020-2024, NVIDIA CORPORATION.
+# Copyright (c) 2020-2025, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -42,7 +42,6 @@ import cugraph.dask as dask_cugraph
 from cugraph.structure.number_map import NumberMap
 from cugraph.generators import rmat
 from cugraph.testing import utils, mg_utils
-from cugraph.utilities.utils import is_device_version_less_than
 
 from cugraph_benchmarking.params import (
     directed_datasets,
@@ -362,9 +361,6 @@ def bench_sorensen(gpubenchmark, unweighted_graph):
     gpubenchmark(sorensen, G, vert_pairs)
 
 
-@pytest.mark.skipif(
-    is_device_version_less_than((7, 0)), reason="Not supported on Pascal"
-)
 def bench_louvain(gpubenchmark, graph):
     louvain = dask_cugraph.louvain if is_graph_distributed(graph) else cugraph.louvain
     gpubenchmark(louvain, graph)
