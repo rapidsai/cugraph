@@ -69,7 +69,7 @@
   /** @defgroup tree_cpp C++ tree algorithms
  */
 
-   /** @defgroup utility_cpp C++ utility algorithms
+  /** @defgroup utility_cpp C++ utility algorithms
  */
 namespace cugraph {
 
