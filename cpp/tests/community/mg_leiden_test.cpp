@@ -175,6 +175,7 @@ class Tests_MGLeiden
     if (leiden_usecase.check_correctness_) {
       SCOPED_TRACE("compare modularity input");
 
+      // FIXME: The dendrogram is unused
       compare_sg_results<vertex_t, edge_t, weight_t>(*handle_,
                                                      rng_state,
                                                      mg_graph_view,
@@ -184,6 +185,50 @@ class Tests_MGLeiden
                                                      leiden_usecase.theta_,
                                                      mg_modularity);
     }
+
+    // Check numbering
+    vertex_t num_vertices = mg_graph_view.local_vertex_partition_range_size();
+    rmm::device_uvector<vertex_t> clustering_v(num_vertices, handle_->get_stream());
+    cugraph::leiden<vertex_t, edge_t, weight_t, true>(
+      *handle_,
+      rng_state,
+      mg_graph_view,
+      mg_edge_weight_view,
+      clustering_v.data(),
+      leiden_usecase.max_level_,
+      leiden_usecase.resolution_);
+    
+    // Ensure each rank has consecutive labels
+
+    auto unique_clustering_v = cugraph::test::sort<vertex_t>(*handle_, clustering_v);
+
+    unique_clustering_v = cugraph::test::unique<vertex_t>(*handle_, std::move(unique_clustering_v));
+
+    auto h_unique_clustering_v = cugraph::test::to_host(*handle_, unique_clustering_v);
+
+    auto expected_unique_clustering_v = cugraph::test::sequence<int32_t>(
+      *handle_, unique_clustering_v.size(), size_t{1}, h_unique_clustering_v[0]);
+    
+    auto h_expected_unique_clustering_v = cugraph::test::to_host(*handle_, expected_unique_clustering_v);
+
+    ASSERT_TRUE(std::equal(h_unique_clustering_v.begin(),
+                           h_unique_clustering_v.end(),
+                           h_expected_unique_clustering_v.begin()))
+      << "Returned cluster IDs are not numbered consecutively in each rank";
+
+    // Check if cluster IDs are globally numbered consecutively
+    auto cluster_ids_size_per_rank = cugraph::host_scalar_allgather(
+      handle_->get_comms(), h_unique_clustering_v.size(), handle_->get_stream());
+
+    assert(
+      h_unique_clustering_v.back() == (cluster_ids_size_per_rank[handle_->get_comms().get_rank - 1]));
+
+    // Necessary condition for the culster IDs to be globally numbered consecutively and coupled with
+    // the first check, it is sufficient.
+    EXPECT_EQ(
+      h_unique_clustering_v.back(),
+      cluster_ids_size_per_rank[handle_->get_comms().get_rank()] - 1)
+      << "Returned cluster IDs are not globally numbered consecutively";
   }
 
  private:
