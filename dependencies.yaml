@@ -125,9 +125,8 @@ files:
     extras:
       table: build-system
     includes:
-      # TODO(jameslamb): split up scikit-build-core and cython
-      - python_build_cythonize
       - python_build_rapids
+      - python_build_skbuild
   py_rapids_build_libcugraph:
     output: pyproject
     pyproject_dir: python/libcugraph
@@ -138,6 +137,7 @@ files:
       - common_build
       - depends_on_librmm
       - depends_on_libraft
+      - python_build_cythonize
   py_run_libcugraph:
     output: pyproject
     pyproject_dir: python/libcugraph
@@ -153,7 +153,6 @@ files:
     extras:
       table: build-system
     includes:
-      - python_build_cythonize
       - python_build_rapids
       - python_build_skbuild
   py_rapids_build_pylibcugraph:
@@ -169,6 +168,7 @@ files:
       - depends_on_librmm
       - depends_on_pylibraft
       - depends_on_rmm
+      - python_build_cythonize
   py_run_pylibcugraph:
     output: pyproject
     pyproject_dir: python/pylibcugraph
