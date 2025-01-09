@@ -201,9 +201,9 @@ class Tests_MGLeiden
 
     unique_clustering_v = cugraph::test::unique<vertex_t>(*handle_, std::move(unique_clustering_v));
 
-    unique_clustering_v =
-      cugraph::test::device_allgatherv(*handle_, unique_clustering_v.data(), unique_clustering_v.size());
-    
+    unique_clustering_v = cugraph::test::device_allgatherv(
+      *handle_, unique_clustering_v.data(), unique_clustering_v.size());
+
     unique_clustering_v = cugraph::test::sort<vertex_t>(*handle_, unique_clustering_v);
 
     unique_clustering_v = cugraph::test::unique<vertex_t>(*handle_, std::move(unique_clustering_v));
@@ -215,8 +215,6 @@ class Tests_MGLeiden
 
     auto h_expected_unique_clustering_v =
       cugraph::test::to_host(*handle_, expected_unique_clustering_v);
-    
-
 
     ASSERT_TRUE(std::equal(h_unique_clustering_v.begin(),
                            h_unique_clustering_v.end(),
@@ -266,7 +264,7 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::Values(Leiden_Usecase{100, 1, 1, false}),
     ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"))));
 
-//#if 0
+// #if 0
 INSTANTIATE_TEST_SUITE_P(rmat_small_tests,
                          Tests_MGLeiden_Rmat,
                          ::testing::Combine(::testing::Values(Leiden_Usecase{100, 1, false}),
@@ -296,6 +294,6 @@ INSTANTIATE_TEST_SUITE_P(
     // disable correctness checks for large graphs
     ::testing::Values(Leiden_Usecase{100, 1, 1, false}),
     ::testing::Values(cugraph::test::Rmat_Usecase(12, 32, 0.57, 0.19, 0.19, 0, true, false))));
-//#endif
+// #endif
 
 CUGRAPH_MG_TEST_PROGRAM_MAIN()
