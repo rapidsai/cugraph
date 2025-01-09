@@ -197,9 +197,14 @@ class Tests_MGLeiden
                                                       leiden_usecase.max_level_,
                                                       leiden_usecase.resolution_);
 
-    // Ensure each rank has consecutive labels
-
     auto unique_clustering_v = cugraph::test::sort<vertex_t>(*handle_, clustering_v);
+
+    unique_clustering_v = cugraph::test::unique<vertex_t>(*handle_, std::move(unique_clustering_v));
+
+    unique_clustering_v =
+      cugraph::test::device_allgatherv(*handle_, unique_clustering_v.data(), unique_clustering_v.size());
+    
+    unique_clustering_v = cugraph::test::sort<vertex_t>(*handle_, unique_clustering_v);
 
     unique_clustering_v = cugraph::test::unique<vertex_t>(*handle_, std::move(unique_clustering_v));
 
@@ -210,24 +215,13 @@ class Tests_MGLeiden
 
     auto h_expected_unique_clustering_v =
       cugraph::test::to_host(*handle_, expected_unique_clustering_v);
+    
+
 
     ASSERT_TRUE(std::equal(h_unique_clustering_v.begin(),
                            h_unique_clustering_v.end(),
                            h_expected_unique_clustering_v.begin()))
-      << "Returned cluster IDs are not numbered consecutively in each rank";
-
-    // Check if cluster IDs are globally numbered consecutively
-    auto cluster_ids_size_per_rank = cugraph::host_scalar_allgather(
-      handle_->get_comms(), h_unique_clustering_v.size(), handle_->get_stream());
-
-    assert(h_unique_clustering_v.back() ==
-           (cluster_ids_size_per_rank[handle_->get_comms().get_rank - 1]));
-
-    // Necessary condition for the culster IDs to be globally numbered consecutively and coupled
-    // with the first check, it is sufficient.
-    EXPECT_EQ(h_unique_clustering_v.back(),
-              cluster_ids_size_per_rank[handle_->get_comms().get_rank()] - 1)
-      << "Returned cluster IDs are not globally numbered consecutively";
+      << "Returned cluster IDs are not numbered consecutively";
   }
 
  private:
@@ -272,6 +266,7 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::Values(Leiden_Usecase{100, 1, 1, false}),
     ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"))));
 
+//#if 0
 INSTANTIATE_TEST_SUITE_P(rmat_small_tests,
                          Tests_MGLeiden_Rmat,
                          ::testing::Combine(::testing::Values(Leiden_Usecase{100, 1, false}),
@@ -301,5 +296,6 @@ INSTANTIATE_TEST_SUITE_P(
     // disable correctness checks for large graphs
     ::testing::Values(Leiden_Usecase{100, 1, 1, false}),
     ::testing::Values(cugraph::test::Rmat_Usecase(12, 32, 0.57, 0.19, 0.19, 0, true, false))));
+//#endif
 
 CUGRAPH_MG_TEST_PROGRAM_MAIN()
