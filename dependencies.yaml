@@ -123,7 +123,7 @@ files:
     extras:
       table: build-system
     includes:
-      # TODO: split up scikit-build-core and cython
+      # TODO(jameslamb): split up scikit-build-core and cython
       - python_build_cythonize
       - python_build_rapids
   py_rapids_build_libcugraph:
@@ -143,6 +143,7 @@ files:
       table: project
     includes:
       - cuda_wheels
+      - depends_on_libraft
       - depends_on_rmm
   py_build_pylibcugraph:
     output: pyproject

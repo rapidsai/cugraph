@@ -30,9 +30,15 @@ python -m pip wheel \
 
 sccache --show-adv-stats
 
+# TODO(jameslamb): move all the auditwheel stuff into individual build_wheel_{project}.sh like cudf does?
+
+EXCLUDE_ARGS=(
+  --exclude "libraft.so"
+)
+
 case "${RAPIDS_CUDA_VERSION}" in
     12.*)
-        EXCLUDE_ARGS=(
+        EXCLUDE_ARGS+=(
             --exclude "libcublas.so.12"
             --exclude "libcublasLt.so.12"
             --exclude "libcurand.so.10"
@@ -40,9 +46,6 @@ case "${RAPIDS_CUDA_VERSION}" in
             --exclude "libcusparse.so.12"
             --exclude "libnvJitLink.so.12"
         )
-    ;;
-    11.*)
-        EXCLUDE_ARGS=()
     ;;
 esac
 

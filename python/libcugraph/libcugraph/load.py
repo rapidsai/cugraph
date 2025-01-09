@@ -44,6 +44,22 @@ def _load_wheel_installation(soname: str):
 
 def load_library():
     """Dynamically load libcugraph.so and its dependencies"""
+    try:
+        # libraft must be loaded before libcugraphl because libcugraph
+        # references its symbols
+        import libraft
+
+        libraft.load_library()
+    except ModuleNotFoundError:
+        # 'libcugraph' has a runtime dependency on 'libraft'. However,
+        # that dependency might be satisfied by the 'libraft' conda package
+        # (which does not have any Python modules), instead of the
+        # 'libraft' wheel.
+        #
+        # In that situation, assume that 'libraft.so' is in a place where
+        # the loader can find it.
+        pass
+
     prefer_system_installation = (
         os.getenv("RAPIDS_LIBCUGRAPH_PREFER_SYSTEM_LIBRARY", "false").lower() != "false"
     )

@@ -39,6 +39,7 @@ classifiers = [
     "Environment :: GPU :: NVIDIA CUDA",
 ]
 dependencies = [
+    "libraft=25.2.*,>=0.0.0a0",
     "nvidia-cublas",
     "nvidia-curand",
     "nvidia-cusolver",
