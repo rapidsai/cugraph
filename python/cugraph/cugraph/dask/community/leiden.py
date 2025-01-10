@@ -156,7 +156,7 @@ def leiden(
             input_graph._plc_graph[w],
             max_iter,
             resolution,
-            random_state + i,
+            (random_state + i) if random_state is not None else random_state,
             theta,
             do_expensive_check,
             workers=[w],
