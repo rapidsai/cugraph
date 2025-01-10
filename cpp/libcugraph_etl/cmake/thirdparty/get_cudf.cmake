@@ -1,5 +1,5 @@
 #=============================================================================
-# Copyright (c) 2021, NVIDIA CORPORATION.
+# Copyright (c) 2021-2025, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -27,7 +27,9 @@ function(find_and_configure_cudf)
             GIT_REPOSITORY https://github.com/${PKG_FORK}/cudf.git
             GIT_TAG        ${PKG_PINNED_TAG}
             SOURCE_SUBDIR  cpp
-            OPTIONS "BUILD_TESTS OFF"
+            OPTIONS
+              "BUILD_BENCHMARKS OFF"
+              "BUILD_TESTS OFF"
     )
 
     message(VERBOSE "CUGRAPH_ETL: Using CUDF located in ${cudf_SOURCE_DIR}")
@@ -39,8 +41,8 @@ set(CUGRAPH_ETL_BRANCH_VERSION_cudf "${CUGRAPH_ETL_VERSION_MAJOR}.${CUGRAPH_ETL_
 
 
 # Change pinned tag and fork here to test a commit in CI
-# To use a different RAFT locally, set the CMake variable
-# RPM_cudf_SOURCE=/path/to/local/cudf
+# To use a different cuDF locally, set the CMake variable
+# CPM_cudf_SOURCE=/path/to/local/cudf
 find_and_configure_cudf(VERSION    ${CUGRAPH_ETL_MIN_VERSION_cudf}
                         FORK       rapidsai
                         PINNED_TAG branch-${CUGRAPH_ETL_BRANCH_VERSION_cudf}
