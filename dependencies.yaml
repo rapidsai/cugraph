@@ -33,6 +33,7 @@ files:
       - test_notebook
       - test_python_common
       - test_python_cugraph
+      - test_python_pylibcugraph
   checks:
     output: none
     includes:
