@@ -113,6 +113,7 @@ files:
       table: project.optional-dependencies
       key: test
     includes:
+      - depends_on_numpy
       - depends_on_pylibwholegraph
       - test_python_common
       - test_python_cugraph
