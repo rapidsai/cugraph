@@ -137,7 +137,6 @@ files:
       - common_build
       - depends_on_librmm
       - depends_on_libraft
-      - python_build_cythonize
   py_run_libcugraph:
     output: pyproject
     pyproject_dir: python/libcugraph
@@ -146,7 +145,6 @@ files:
     includes:
       - cuda_wheels
       - depends_on_libraft
-      - depends_on_rmm
   py_build_pylibcugraph:
     output: pyproject
     pyproject_dir: python/pylibcugraph

@@ -7,13 +7,8 @@ package_dir="python/pylibcugraph"
 
 RAPIDS_PY_CUDA_SUFFIX="$(rapids-wheel-ctk-name-gen ${RAPIDS_CUDA_VERSION})"
 
-# Download the libcugraph and wheel built in the previous step and make it
+# Download the libcugraph wheel built in the previous step and make it
 # available for pip to find.
-#
-# ensure 'cugraph' wheel builds always use the 'libcugraph' just built in the same CI run
-#
-# using env variable PIP_CONSTRAINT is necessary to ensure the constraints
-# are used when creating the isolated build environment
 LIBCUGRAPH_WHEELHOUSE=$(RAPIDS_PY_WHEEL_NAME="libcugraph_${RAPIDS_PY_CUDA_SUFFIX}" rapids-download-wheels-from-s3 cpp /tmp/libcugraph_dist)
 
 # TODO(jameslamb): remove this when https://github.com/rapidsai/raft/pull/2531 is merged
@@ -23,6 +18,8 @@ cat >> ./constraints.txt <<EOF
 libcugraph-${RAPIDS_PY_CUDA_SUFFIX} @ file://$(echo ${LIBCUGRAPH_WHEELHOUSE}/libcugraph_*.whl)
 EOF
 
+# Using env variable PIP_CONSTRAINT is necessary to ensure the constraints
+# are used when creating the isolated build environment.
 export PIP_CONSTRAINT="${PWD}/constraints.txt"
 
 PARALLEL_LEVEL=$(python -c \

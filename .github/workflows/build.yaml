@@ -87,6 +87,7 @@ jobs:
       sha: ${{ inputs.sha }}
       date: ${{ inputs.date }}
       package-name: libcugraph
+      package-type: cpp
   wheel-build-pylibcugraph:
     needs: wheel-publish-libcugraph
     secrets: inherit
@@ -107,6 +108,7 @@ jobs:
       sha: ${{ inputs.sha }}
       date: ${{ inputs.date }}
       package-name: pylibcugraph
+      package-type: python
   wheel-build-cugraph:
     needs: wheel-publish-pylibcugraph
     secrets: inherit
@@ -127,3 +129,4 @@ jobs:
       sha: ${{ inputs.sha }}
       date: ${{ inputs.date }}
       package-name: cugraph
+      package-type: cpp

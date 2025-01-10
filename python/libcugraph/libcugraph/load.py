@@ -21,7 +21,7 @@ import os
 # namespace. This allows libraries that express a dependency on
 # this library to be loaded later and successfully satisfy this dependency
 # without polluting the global symbol table with symbols from
-# libcudf that could conflict with symbols from other DSOs.
+# libcugraph that could conflict with symbols from other DSOs.
 PREFERRED_LOAD_FLAG = ctypes.RTLD_LOCAL
 
 
@@ -45,7 +45,7 @@ def _load_wheel_installation(soname: str):
 def load_library():
     """Dynamically load libcugraph.so and its dependencies"""
     try:
-        # libraft must be loaded before libcugraphl because libcugraph
+        # libraft must be loaded before libcugraph because libcugraph
         # references its symbols
         import libraft
 

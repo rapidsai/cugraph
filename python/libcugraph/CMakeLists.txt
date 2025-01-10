@@ -25,7 +25,7 @@ project(
 option(USE_CUDA_MATH_WHEELS "Use the CUDA math wheels instead of the system libraries" OFF)
 
 # Check if cugraph is already available. If so, it is the user's responsibility to ensure that the
-# CMake package is also available at build time of the Python cugraph package.
+# CMake package is also available at build time of Python packages that need libcugraph.
 find_package(cugraph "${RAPIDS_VERSION}")
 
 if(cugraph_FOUND)
