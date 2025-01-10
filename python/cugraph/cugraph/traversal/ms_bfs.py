@@ -1,4 +1,4 @@
-# Copyright (c) 2021-2023, NVIDIA CORPORATION.
+# Copyright (c) 2021-2025, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -56,7 +56,6 @@ def _get_feasibility(G, sources, components=None, depth_limit=None):
 
     # Fixme not implemented in RMM yet
     # using 96GB upper bound for now
-    # mem = get_device_memory_info()
     mem = 9.6e10
     n_sources = sources.size
     V = G.number_of_vertices()
