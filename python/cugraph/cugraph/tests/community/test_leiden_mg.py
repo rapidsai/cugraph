@@ -66,14 +66,18 @@ def test_mg_leiden_with_edgevals_undirected_graph(dask_client, dataset):
     dg = get_mg_graph(dataset, directed=False)
     parts, mod = dcg.leiden(dg)
 
-    unique_parts = parts["partition"].compute().drop_duplicates().sort_values(
-        ascending=True).reset_index(drop=True)
-    
+    unique_parts = (
+        parts["partition"]
+        .compute()
+        .drop_duplicates()
+        .sort_values(ascending=True)
+        .reset_index(drop=True)
+    )
+
     idx_col = cudf.Series(unique_parts.index)
 
     # Ensure Leiden cluster's ID are numbered consecutively
-    assert_series_equal(
-        unique_parts, idx_col, check_dtype=False, check_names=False)
+    assert_series_equal(unique_parts, idx_col, check_dtype=False, check_names=False)
 
     # FIXME: either call Nx with the same dataset and compare results, or
     # hardcode golden results to compare to.

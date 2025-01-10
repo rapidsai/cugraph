@@ -186,14 +186,17 @@ def test_leiden(graph_file):
     leiden_parts, leiden_mod = cugraph_leiden(G)
     louvain_parts, louvain_mod = cugraph_louvain(G)
 
-    unique_parts = leiden_parts["partition"].drop_duplicates().sort_values(
-        ascending=True).reset_index(drop=True)
-    
+    unique_parts = (
+        leiden_parts["partition"]
+        .drop_duplicates()
+        .sort_values(ascending=True)
+        .reset_index(drop=True)
+    )
+
     idx_col = cudf.Series(unique_parts.index)
 
     # Ensure Leiden cluster's ID are numbered consecutively
-    assert_series_equal(
-        unique_parts, idx_col, check_dtype=False, check_names=False)
+    assert_series_equal(unique_parts, idx_col, check_dtype=False, check_names=False)
 
     # Leiden modularity score is smaller than Louvain's
     assert leiden_mod >= (0.75 * louvain_mod)
@@ -212,14 +215,17 @@ def test_leiden_nx(graph_file):
     leiden_parts, leiden_mod = cugraph_leiden(G)
     louvain_parts, louvain_mod = cugraph_louvain(G)
 
-    unique_parts = cudf.Series(leiden_parts.values()).drop_duplicates().sort_values(
-        ascending=True).reset_index(drop=True)
-    
+    unique_parts = (
+        cudf.Series(leiden_parts.values())
+        .drop_duplicates()
+        .sort_values(ascending=True)
+        .reset_index(drop=True)
+    )
+
     idx_col = cudf.Series(unique_parts.index)
 
     # Ensure Leiden cluster's ID are numbered consecutively
-    assert_series_equal(
-        unique_parts, idx_col, check_dtype=False, check_names=False)
+    assert_series_equal(unique_parts, idx_col, check_dtype=False, check_names=False)
 
     # Calculating modularity scores for comparison
     # Leiden modularity score is smaller than Louvain's
