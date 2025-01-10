@@ -104,7 +104,6 @@ files:
       - depends_on_rmm
       - depends_on_ucx_py
       - python_run_cugraph
-      - test_python_pylibcugraph
   py_test_cugraph:
     output: pyproject
     pyproject_dir: python/cugraph
