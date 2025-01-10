@@ -62,8 +62,15 @@ int generic_uniform_random_walks_test(const cugraph_resource_handle_t* handle,
 
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "start copy_from_host failed.");
 
+  int rank = cugraph_resource_handle_get_rank(handle);
+  cugraph_rng_state_t* rng_state;
+  ret_code = cugraph_rng_state_create(handle, rank, &rng_state, &ret_error);
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "rng_state create failed.");
+  TEST_ALWAYS_ASSERT(ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
+
   ret_code =
-    cugraph_uniform_random_walks(handle, graph, d_start_view, max_depth, &result, &ret_error);
+    cugraph_uniform_random_walks(
+      handle, rng_state, graph, d_start_view, max_depth, &result, &ret_error);
 
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "uniform_random_walks failed.");
@@ -173,7 +180,14 @@ int generic_biased_random_walks_test(const cugraph_resource_handle_t* handle,
 
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "start copy_from_host failed.");
 
-  ret_code = cugraph_biased_random_walks(handle, graph, d_start_view, FALSE, &result, &ret_error);
+  int rank = cugraph_resource_handle_get_rank(handle);
+  cugraph_rng_state_t* rng_state;
+  ret_code = cugraph_rng_state_create(handle, rank, &rng_state, &ret_error);
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "rng_state create failed.");
+  TEST_ALWAYS_ASSERT(ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
+
+  ret_code = cugraph_biased_random_walks(
+    handle, rng_state, graph, d_start_view, FALSE, &result, &ret_error);
 
 #if 1
   TEST_ASSERT(test_ret_value, ret_code != CUGRAPH_SUCCESS, "biased_random_walks should have failed")
@@ -277,8 +291,15 @@ int generic_node2vec_random_walks_test(const cugraph_resource_handle_t* handle,
 
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "start copy_from_host failed.");
 
+  int rank = cugraph_resource_handle_get_rank(handle);
+  cugraph_rng_state_t* rng_state;
+  ret_code = cugraph_rng_state_create(handle, rank, &rng_state, &ret_error);
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "rng_state create failed.");
+  TEST_ALWAYS_ASSERT(ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
+
   ret_code =
-    cugraph_node2vec_random_walks(handle, graph, d_start_view, FALSE, p, q, &result, &ret_error);
+    cugraph_node2vec_random_walks(
+      handle, rng_state, graph, d_start_view, FALSE, p, q, &result, &ret_error);
 
 #if 1
   TEST_ASSERT(
