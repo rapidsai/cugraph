@@ -34,7 +34,7 @@ endif()
 
 unset(cugraph_FOUND)
 
-# --- CUDA libraries -- #
+# --- CUDA -- #
 find_package(CUDAToolkit REQUIRED)
 set(CUDA_STATIC_RUNTIME ON)
 set(CUDA_STATIC_MATH_LIBRARIES ON)
