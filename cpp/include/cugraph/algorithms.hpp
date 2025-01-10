@@ -42,34 +42,34 @@
 /** @defgroup community_cpp C++ community Algorithms
  */
 
- /** @defgroup sampling_cpp C++ sampling algorithms
+/** @defgroup sampling_cpp C++ sampling algorithms
  */
 
- /** @defgroup similarity_cpp C++ similarity algorithms
+/** @defgroup similarity_cpp C++ similarity algorithms
  */
 
- /** @defgroup traversal_cpp C++ traversal algorithms
+/** @defgroup traversal_cpp C++ traversal algorithms
  */
 
- /** @defgroup labeling_cpp C++ labeling algorithms
+/** @defgroup labeling_cpp C++ labeling algorithms
  */
 
- /** @defgroup linear_cpp C++ linear assignment algorithms
+/** @defgroup linear_cpp C++ linear assignment algorithms
  */
 
- /** @defgroup link_analysis_cpp C++ link Analysis algorithms
+/** @defgroup link_analysis_cpp C++ link Analysis algorithms
  */
 
- /** @defgroup layout_cpp C++ layout algorithms
+/** @defgroup layout_cpp C++ layout algorithms
  */
 
-  /** @defgroup component_cpp C++ component algorithms
+/** @defgroup component_cpp C++ component algorithms
  */
 
-  /** @defgroup tree_cpp C++ tree algorithms
+/** @defgroup tree_cpp C++ tree algorithms
  */
 
-  /** @defgroup utility_cpp C++ utility algorithms
+/** @defgroup utility_cpp C++ utility algorithms
  */
 
 namespace cugraph {
