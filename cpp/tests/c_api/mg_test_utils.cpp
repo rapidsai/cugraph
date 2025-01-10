@@ -158,8 +158,6 @@ extern "C" int create_mg_test_graph(const cugraph_resource_handle_t* handle,
 
   rank = cugraph_resource_handle_get_rank(handle);
 
-  size_t original_num_edges = num_edges;
-
   if (rank != 0) num_edges = 0;
 
   ret_code =
@@ -191,6 +189,7 @@ extern "C" int create_mg_test_graph(const cugraph_resource_handle_t* handle,
     handle, wgt_view, (byte_t*)h_wgt, ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "wgt copy_from_host failed.");
 
+  printf("\n in 'mg_test_utils'\n");
   ret_code = cugraph_graph_create_mg(handle,
                                      &properties,
                                      NULL,
@@ -200,14 +199,15 @@ extern "C" int create_mg_test_graph(const cugraph_resource_handle_t* handle,
                                      NULL,
                                      NULL,
                                      store_transposed,
-                                     original_num_edges,  // UNUSED
+                                     size_t{1}, // num_arrays
                                      FALSE,
                                      FALSE,
                                      FALSE,
-                                     FALSE,
+                                     TRUE,
                                      p_graph,
                                      ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "graph creation failed.");
+  printf("\n completed 'mg_test_utils'\n");
 
   cugraph_type_erased_device_array_view_free(wgt_view);
   cugraph_type_erased_device_array_view_free(dst_view);
@@ -256,8 +256,6 @@ extern "C" int create_mg_test_graph_double(const cugraph_resource_handle_t* hand
 
   rank = cugraph_resource_handle_get_rank(handle);
 
-  size_t original_num_edges = num_edges;
-
   if (rank != 0) num_edges = 0;
 
   ret_code =
@@ -298,7 +296,7 @@ extern "C" int create_mg_test_graph_double(const cugraph_resource_handle_t* hand
                                      NULL,
                                      NULL,
                                      store_transposed,
-                                     original_num_edges,  // UNUSED
+                                     size_t{1}, // num_arrays
                                      FALSE,
                                      FALSE,
                                      FALSE,
@@ -349,8 +347,6 @@ extern "C" int create_mg_test_graph_with_edge_ids(const cugraph_resource_handle_
 
   rank = cugraph_resource_handle_get_rank(handle);
 
-  size_t original_num_edges = num_edges;
-
   if (rank != 0) num_edges = 0;
 
   ret_code =
@@ -390,7 +386,7 @@ extern "C" int create_mg_test_graph_with_edge_ids(const cugraph_resource_handle_
                                      &idx_view,
                                      NULL,
                                      store_transposed,
-                                     original_num_edges,  // UNUSED
+                                     size_t{1}, // num_arrays
                                      FALSE,
                                      FALSE,
                                      FALSE,
@@ -448,8 +444,6 @@ extern "C" int create_mg_test_graph_with_properties(const cugraph_resource_handl
   int rank = 0;
 
   rank = cugraph_resource_handle_get_rank(handle);
-
-  size_t original_num_edges = num_edges;
 
   if (rank != 0) num_edges = 0;
 
@@ -517,7 +511,7 @@ extern "C" int create_mg_test_graph_with_properties(const cugraph_resource_handl
                                      &idx_view,
                                      &type_view,
                                      store_transposed,
-                                     original_num_edges,  // UNUSED
+                                     size_t{1}, // num_arrays
                                      FALSE,
                                      FALSE,
                                      FALSE,
@@ -580,8 +574,6 @@ int create_mg_test_graph_new(const cugraph_resource_handle_t* handle,
   int rank = 0;
 
   rank = cugraph_resource_handle_get_rank(handle);
-
-  size_t original_num_edges = num_edges;
 
   if (rank != 0) num_edges = 0;
 
@@ -650,7 +642,7 @@ int create_mg_test_graph_new(const cugraph_resource_handle_t* handle,
                                      &edge_id_view,
                                      &edge_type_view,
                                      store_transposed,
-                                     original_num_edges,  // UNUSED
+                                     size_t{1}, // num_arrays
                                      FALSE,
                                      FALSE,
                                      FALSE,
