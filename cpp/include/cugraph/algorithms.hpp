@@ -71,6 +71,7 @@
 
   /** @defgroup utility_cpp C++ utility algorithms
  */
+
 namespace cugraph {
 
 /**
