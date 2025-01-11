@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -189,7 +189,6 @@ extern "C" int create_mg_test_graph(const cugraph_resource_handle_t* handle,
     handle, wgt_view, (byte_t*)h_wgt, ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "wgt copy_from_host failed.");
 
-  printf("\n in 'mg_test_utils'\n");
   ret_code = cugraph_graph_create_mg(handle,
                                      &properties,
                                      NULL,
@@ -207,7 +206,6 @@ extern "C" int create_mg_test_graph(const cugraph_resource_handle_t* handle,
                                      p_graph,
                                      ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "graph creation failed.");
-  printf("\n completed 'mg_test_utils'\n");
 
   cugraph_type_erased_device_array_view_free(wgt_view);
   cugraph_type_erased_device_array_view_free(dst_view);
