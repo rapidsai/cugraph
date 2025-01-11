@@ -12,7 +12,6 @@
 # limitations under the License.
 
 import cudf
-import cupy as cp
 from pylibcugraph import ResourceHandle
 from pylibcugraph import (
     biased_random_walks as pylibcugraph_biased_random_walks,

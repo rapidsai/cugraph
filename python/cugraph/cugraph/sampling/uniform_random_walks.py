@@ -12,7 +12,6 @@
 # limitations under the License.
 
 import cudf
-import cupy as cp
 from pylibcugraph import ResourceHandle
 from pylibcugraph import (
     uniform_random_walks as pylibcugraph_uniform_random_walks,
