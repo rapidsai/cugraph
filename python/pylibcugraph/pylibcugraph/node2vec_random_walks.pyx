@@ -1,4 +1,4 @@
-# Copyright (c) 2022-2024, NVIDIA CORPORATION.
+# Copyright (c) 2022-2025, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -94,7 +94,7 @@ def node2vec_random_walks(ResourceHandle resource_handle,
         further from the outgoing node. If q > 1, the random walk is likelier to
         visit nodes closer to the outgoing node. If q < 1, the random walk is
         likelier to visit nodes further from the outgoing node.
-    
+
     random_state: int (Optional)
         Random state to use when generating samples.  Optional argument,
         defaults to a hash of process id, time, and hostname.
@@ -152,7 +152,7 @@ def node2vec_random_walks(ResourceHandle resource_handle,
             get_c_type_from_numpy_type(seed_array.dtype))
 
     cg_rng_state = CuGraphRandomState(resource_handle, random_state)
-    
+
     cdef cugraph_rng_state_t* rng_state_ptr = \
         cg_rng_state.rng_state_ptr
 

@@ -1,4 +1,4 @@
-# Copyright (c) 2024, NVIDIA CORPORATION.
+# Copyright (c) 2024-2025, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -60,10 +60,7 @@ def _call_plc_uniform_random_walks(sID, mg_graph_x, st_x, max_depth, random_stat
 
 
 def uniform_random_walks(
-    input_graph,
-    start_vertices=None,
-    max_depth=None,
-    random_state=None
+    input_graph, start_vertices=None, max_depth=None, random_state=None
 ):
     """
     compute random walks under the uniform sampling framework for each nodes in
@@ -82,7 +79,7 @@ def uniform_random_walks(
 
     max_depth : int
         The maximum depth of the random walks
-    
+
     random_state: int, optional
         Random seed to use when making sampling calls.
 

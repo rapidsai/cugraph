@@ -1,4 +1,4 @@
-# Copyright (c) 2022-2024, NVIDIA CORPORATION.
+# Copyright (c) 2022-2025, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -50,7 +50,7 @@ def uniform_random_walks(
         The max depth is relative to the number of edges hence the vertex_paths size
         is max_depth + 1. For instance, a 'max_depth' of 2 with only one seed will
         result in a vertex_path of size 3.
-    
+
     random_state: int, optional
         Random seed to use when making sampling calls.
 
@@ -104,7 +104,7 @@ def uniform_random_walks(
         input_graph=G._plc_graph,
         start_vertices=start_vertices,
         max_length=max_depth,
-        random_state=random_state
+        random_state=random_state,
     )
 
     vertex_paths = cudf.Series(vertex_paths)

@@ -1,4 +1,4 @@
-# Copyright (c) 2024, NVIDIA CORPORATION.
+# Copyright (c) 2024-2025, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -48,7 +48,9 @@ def convert_to_cudf(cp_paths, number_map=None, is_vertex_paths=False):
     return cudf.Series(cp_paths)
 
 
-def _call_plc_node2vec_random_walks(sID, mg_graph_x, st_x, max_depth, p, q, random_state):
+def _call_plc_node2vec_random_walks(
+    sID, mg_graph_x, st_x, max_depth, p, q, random_state
+):
 
     return pylibcugraph_node2vec_random_walks(
         resource_handle=ResourceHandle(Comms.get_handle(sID).getHandle()),
@@ -57,18 +59,13 @@ def _call_plc_node2vec_random_walks(sID, mg_graph_x, st_x, max_depth, p, q, rand
         max_depth=max_depth,
         p=p,
         q=q,
-        random_state=random_state
+        random_state=random_state,
     )
 
 
 # FIXME: Add type anotation
 def node2vec_random_walks(
-    input_graph,
-    start_vertices=None,
-    max_depth=None,
-    p=1.0,
-    q=1.0,
-    random_state=None
+    input_graph, start_vertices=None, max_depth=None, p=1.0, q=1.0, random_state=None
 ):
     """
     compute random walks under the node2vec sampling framework for each nodes in
@@ -101,7 +98,7 @@ def node2vec_random_walks(
         is likelier to visit nodes closer to the outgoing node. If q < 1, the
         random walk is likelier to visit nodes further from the outgoing node.
         A positive float.
-    
+
     random_state: int, optional
         Random seed to use when making sampling calls.
 
@@ -113,7 +110,7 @@ def node2vec_random_walks(
     edge_weight_paths: dask_cudf.Series
         Series containing the edge weights of edges represented by the
         returned vertex_paths
-    
+
     and
 
     max_path_length : int
@@ -129,8 +126,6 @@ def node2vec_random_walks(
         raise ValueError(f"'p' must be a positive float, got: {p}")
     if (not isinstance(q, float)) or (q <= 0.0):
         raise ValueError(f"'q' must be a positive float, got: {q}")
-
-
 
     if isinstance(start_vertices, int):
         start_vertices = [start_vertices]
@@ -201,4 +196,3 @@ def node2vec_random_walks(
     )
 
     return ddf_vertex_paths, ddf_edge_wgt_paths, max_depth
-    

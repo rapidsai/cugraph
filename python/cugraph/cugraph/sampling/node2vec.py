@@ -1,4 +1,4 @@
-# Copyright (c) 2022-2024, NVIDIA CORPORATION.
+# Copyright (c) 2022-2025, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -113,9 +113,9 @@ def node2vec(G, start_vertices, max_depth=1, compress_result=True, p=1.0, q=1.0)
 
     """
     warning_msg = (
-            "node2vec is deprecated and will be removed "
-            "in the next release in favor of node2vec_random_walks"
-        )
+        "node2vec is deprecated and will be removed "
+        "in the next release in favor of node2vec_random_walks"
+    )
     warnings.warn(warning_msg, FutureWarning)
 
     if (not isinstance(max_depth, int)) or (max_depth < 1):

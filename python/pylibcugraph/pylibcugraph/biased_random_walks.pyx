@@ -1,4 +1,4 @@
-# Copyright (c) 2022-2023, NVIDIA CORPORATION.
+# Copyright (c) 2022-2025, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -82,7 +82,7 @@ def biased_random_walks(ResourceHandle resource_handle,
 
     max_length: size_t
         The maximum depth of the biased random walks
-    
+
     random_state: int (Optional)
         Random state to use when generating samples.  Optional argument,
         defaults to a hash of process id, time, and hostname.
@@ -114,9 +114,9 @@ def biased_random_walks(ResourceHandle resource_handle,
             <void*>cai_start_ptr,
             len(start_vertices),
             get_c_type_from_numpy_type(start_vertices.dtype))
-    
+
     cg_rng_state = CuGraphRandomState(resource_handle, random_state)
-    
+
     cdef cugraph_rng_state_t* rng_state_ptr = \
         cg_rng_state.rng_state_ptr
 

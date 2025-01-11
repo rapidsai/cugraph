@@ -68,9 +68,8 @@ int generic_uniform_random_walks_test(const cugraph_resource_handle_t* handle,
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "rng_state create failed.");
   TEST_ALWAYS_ASSERT(ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
 
-  ret_code =
-    cugraph_uniform_random_walks(
-      handle, rng_state, graph, d_start_view, max_depth, &result, &ret_error);
+  ret_code = cugraph_uniform_random_walks(
+    handle, rng_state, graph, d_start_view, max_depth, &result, &ret_error);
 
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "uniform_random_walks failed.");
@@ -128,7 +127,8 @@ int generic_uniform_random_walks_test(const cugraph_resource_handle_t* handle,
                       "uniform_random_walks found no edge when an edge exists");
         }
       } else {
-        //printf("\na_ = %f, b_ = %f\n", M[h_result_verts[src_index]][h_result_verts[dst_index]], h_result_wgts[i * max_depth + j]);
+        // printf("\na_ = %f, b_ = %f\n", M[h_result_verts[src_index]][h_result_verts[dst_index]],
+        // h_result_wgts[i * max_depth + j]);
         TEST_ASSERT(test_ret_value,
                     M[h_result_verts[src_index]][h_result_verts[dst_index]] ==
                       h_result_wgts[i * max_depth + j],
@@ -187,9 +187,8 @@ int generic_biased_random_walks_test(const cugraph_resource_handle_t* handle,
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "rng_state create failed.");
   TEST_ALWAYS_ASSERT(ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
 
-  ret_code =
-    cugraph_biased_random_walks(
-      handle, rng_state, graph, d_start_view, max_depth, &result, &ret_error);
+  ret_code = cugraph_biased_random_walks(
+    handle, rng_state, graph, d_start_view, max_depth, &result, &ret_error);
 
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "uniform_random_walks failed.");
@@ -308,10 +307,8 @@ int generic_node2vec_random_walks_test(const cugraph_resource_handle_t* handle,
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "rng_state create failed.");
   TEST_ALWAYS_ASSERT(ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
 
-  ret_code =
-    cugraph_node2vec_random_walks(
-      handle, rng_state, graph, d_start_view, max_depth, p, q, &result, &ret_error);
-
+  ret_code = cugraph_node2vec_random_walks(
+    handle, rng_state, graph, d_start_view, max_depth, p, q, &result, &ret_error);
 
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "node2vec_random_walks failed.");
@@ -328,8 +325,8 @@ int generic_node2vec_random_walks_test(const cugraph_resource_handle_t* handle,
   vertex_t h_result_verts[verts_size];
   weight_t h_result_wgts[wgts_size];
 
-  ret_code =
-    cugraph_type_erased_device_array_view_copy_to_host(handle, (byte_t*)h_result_verts, verts, &ret_error);
+  ret_code = cugraph_type_erased_device_array_view_copy_to_host(
+    handle, (byte_t*)h_result_verts, verts, &ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "copy_to_host failed.");
 
   ret_code = cugraph_type_erased_device_array_view_copy_to_host(

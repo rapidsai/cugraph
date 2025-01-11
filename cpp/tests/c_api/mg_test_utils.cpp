@@ -198,7 +198,7 @@ extern "C" int create_mg_test_graph(const cugraph_resource_handle_t* handle,
                                      NULL,
                                      NULL,
                                      store_transposed,
-                                     size_t{1}, // num_arrays
+                                     size_t{1},  // num_arrays
                                      FALSE,
                                      FALSE,
                                      FALSE,
@@ -294,7 +294,7 @@ extern "C" int create_mg_test_graph_double(const cugraph_resource_handle_t* hand
                                      NULL,
                                      NULL,
                                      store_transposed,
-                                     size_t{1}, // num_arrays
+                                     size_t{1},  // num_arrays
                                      FALSE,
                                      FALSE,
                                      FALSE,
@@ -384,7 +384,7 @@ extern "C" int create_mg_test_graph_with_edge_ids(const cugraph_resource_handle_
                                      &idx_view,
                                      NULL,
                                      store_transposed,
-                                     size_t{1}, // num_arrays
+                                     size_t{1},  // num_arrays
                                      FALSE,
                                      FALSE,
                                      FALSE,
@@ -509,7 +509,7 @@ extern "C" int create_mg_test_graph_with_properties(const cugraph_resource_handl
                                      &idx_view,
                                      &type_view,
                                      store_transposed,
-                                     size_t{1}, // num_arrays
+                                     size_t{1},  // num_arrays
                                      FALSE,
                                      FALSE,
                                      FALSE,
@@ -640,7 +640,7 @@ int create_mg_test_graph_new(const cugraph_resource_handle_t* handle,
                                      &edge_id_view,
                                      &edge_type_view,
                                      store_transposed,
-                                     size_t{1}, // num_arrays
+                                     size_t{1},  // num_arrays
                                      FALSE,
                                      FALSE,
                                      FALSE,

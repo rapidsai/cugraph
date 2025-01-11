@@ -1,4 +1,4 @@
-# Copyright (c) 2022-2024, NVIDIA CORPORATION.
+# Copyright (c) 2022-2025, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -97,7 +97,7 @@ def random_walks(
     use_padding : bool, optional (default=False)
         If True, padded paths are returned else coalesced paths are returned.
 
-        Deprecated: only padded paths will be returned in the results 
+        Deprecated: only padded paths will be returned in the results
 
     legacy_result_type : bool, optional (default=True)
         If True, will return a tuple of vertex_paths, edge_weight_paths and
@@ -137,9 +137,9 @@ def random_walks(
     """
 
     warning_msg = (
-            "random_walks is deprecated and will be removed "
-            "in the next release in favor of uniform_random_walks"
-        )
+        "random_walks is deprecated and will be removed "
+        "in the next release in favor of uniform_random_walks"
+    )
     warnings.warn(warning_msg, FutureWarning)
 
     # FIXME: Coalesced path results have been deprecated and should no longer be
@@ -151,7 +151,7 @@ def random_walks(
     # returning results paths proprtional to the number of edges. Furthermore,
     # Coalesced path results should also be removed in favor of always returning
     # padded results. The flags 'legacy_result_type' and 'use_padding" should be
-    # removed. 
+    # removed.
 
     if legacy_result_type or use_padding is False:
         warning_msg = (
@@ -160,7 +160,7 @@ def random_walks(
             "only padded paths will be returned instead"
         )
         warnings.warn(warning_msg, PendingDeprecationWarning)
-    
+
     if random_walks_type != "uniform":
         warning_msg = (
             "random_walks_type is deprecated and will be removed "
@@ -168,7 +168,6 @@ def random_walks(
             "call 'biased_random_walks' or 'node2vec_random_walks'."
         )
     warnings.warn(warning_msg, FutureWarning)
-
 
     if max_depth is None:
         raise TypeError("must specify a 'max_depth'")
@@ -180,7 +179,7 @@ def random_walks(
     # Consider a different return type if Nx types are passed in.
     # The new API for random walk should instead always return the triple
     # (vertex_paths, edge_wgt_paths, max_path_length)
-    
+
     G, _ = ensure_cugraph_obj_for_nx(G)
 
     if isinstance(start_vertices, int):
@@ -300,9 +299,8 @@ def rw_path(
     """
 
     warning_msg = (
-            "This method is deprecated in favor of always returning "
-            "padded results."
-        )
+        "This method is deprecated in favor of always returning " "padded results."
+    )
 
     warnings.warn(warning_msg, PendingDeprecationWarning)
 

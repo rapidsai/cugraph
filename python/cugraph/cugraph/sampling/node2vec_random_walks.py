@@ -1,4 +1,4 @@
-# Copyright (c) 2024, NVIDIA CORPORATION.
+# Copyright (c) 2024-2025, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -41,7 +41,9 @@ def ensure_valid_dtype(input_graph, start_vertices):
     return start_vertices
 
 
-def node2vec_random_walks(G, start_vertices, max_depth=1, p=1.0, q=1.0, random_state=None):
+def node2vec_random_walks(
+    G, start_vertices, max_depth=1, p=1.0, q=1.0, random_state=None
+):
     """
     Computes random walks for each node in 'start_vertices', under the
     node2vec sampling framework.
@@ -80,7 +82,7 @@ def node2vec_random_walks(G, start_vertices, max_depth=1, p=1.0, q=1.0, random_s
         is likelier to visit nodes closer to the outgoing node. If q < 1, the
         random walk is likelier to visit nodes further from the outgoing node.
         A positive float.
-    
+
     random_state: int, optional
         Random seed to use when making sampling calls.
 
@@ -117,7 +119,6 @@ def node2vec_random_walks(G, start_vertices, max_depth=1, p=1.0, q=1.0, random_s
     if (not isinstance(q, float)) or (q <= 0.0):
         raise ValueError(f"'q' must be a positive float, got: {q}")
 
-
     if isinstance(start_vertices, int):
         start_vertices = [start_vertices]
 
@@ -147,7 +148,7 @@ def node2vec_random_walks(G, start_vertices, max_depth=1, p=1.0, q=1.0, random_s
         max_depth=max_depth,
         p=p,
         q=q,
-        random_state=random_state
+        random_state=random_state,
     )
     vertex_set = cudf.Series(vertex_set)
     edge_set = cudf.Series(edge_set)

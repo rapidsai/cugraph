@@ -1,4 +1,4 @@
-# Copyright (c) 2022-2024, NVIDIA CORPORATION.
+# Copyright (c) 2022-2025, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -109,9 +109,9 @@ def random_walks(
     """
 
     warning_msg = (
-            "random_walks is deprecated and will be removed "
-            "in the next release in favor of uniform_random_walks"
-        )
+        "random_walks is deprecated and will be removed "
+        "in the next release in favor of uniform_random_walks"
+    )
     warnings.warn(warning_msg, FutureWarning)
 
     client = default_client()
