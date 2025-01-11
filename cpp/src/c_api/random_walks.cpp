@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -340,8 +340,13 @@ struct biased_random_walks_functor : public cugraph::c_api::abstract_functor {
       //
       // Need to unrenumber the vertices in the resulting paths
       //
-      cugraph::unrenumber_local_int_vertices<vertex_t>(
-        handle_, paths.data(), paths.size(), number_map->data(), 0, paths.size() - 1, false);
+      cugraph::unrenumber_int_vertices<vertex_t, multi_gpu>(
+        handle_,
+        paths.data(),
+        paths.size(),
+        number_map->data(),
+        graph_view.vertex_partition_range_lasts(),
+        false);
 
       result_ = new cugraph::c_api::cugraph_random_walk_result_t{
         false,
@@ -451,8 +456,13 @@ struct node2vec_random_walks_functor : public cugraph::c_api::abstract_functor {
       //
       // Need to unrenumber the vertices in the resulting paths
       //
-      cugraph::unrenumber_local_int_vertices<vertex_t>(
-        handle_, paths.data(), paths.size(), number_map->data(), 0, paths.size(), false);
+      cugraph::unrenumber_int_vertices<vertex_t, multi_gpu>(
+        handle_,
+        paths.data(),
+        paths.size(),
+        number_map->data(),
+        graph_view.vertex_partition_range_lasts(),
+        false);
 
       result_ = new cugraph::c_api::cugraph_random_walk_result_t{
         false,
