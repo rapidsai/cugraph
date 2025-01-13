@@ -32,10 +32,8 @@ from typing import Tuple, Union
 
 
 def convert_to_cudf(
-    cp_paths: cp.ndarray,
-    number_map=None,
-    is_vertex_paths: bool = False
-    ) -> cudf.Series:
+    cp_paths: cp.ndarray, number_map=None, is_vertex_paths: bool = False
+) -> cudf.Series:
     """
     Creates cudf Series from cupy arrays from pylibcugraph wrapper
     """
@@ -55,12 +53,8 @@ def convert_to_cudf(
 
 
 def _call_plc_uniform_random_walks(
-    sID: bytes,
-    mg_graph_x,
-    st_x: cudf.Series,
-    max_depth: int,
-    random_state: int
-    ) -> Tuple[cp.ndarray, cp.ndarray]:
+    sID: bytes, mg_graph_x, st_x: cudf.Series, max_depth: int, random_state: int
+) -> Tuple[cp.ndarray, cp.ndarray]:
 
     return pylibcugraph_uniform_random_walks(
         resource_handle=ResourceHandle(Comms.get_handle(sID).getHandle()),
@@ -73,10 +67,9 @@ def _call_plc_uniform_random_walks(
 
 def uniform_random_walks(
     input_graph,
-    start_vertices: Union[int, list, cudf.Series, cudf.DataFrame, cudf.Series
-    ] = None,
+    start_vertices: Union[int, list, cudf.Series, cudf.DataFrame, cudf.Series] = None,
     max_depth: int = 1,
-    random_state: int = None
+    random_state: int = None,
 ) -> Tuple[Union[dask_cudf.Series, dask_cudf.DataFrame], dask_cudf.Series, int]:
     """
     compute random walks under the uniform sampling framework for each nodes in

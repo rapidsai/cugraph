@@ -31,10 +31,8 @@ from typing import Tuple, Union
 
 
 def convert_to_cudf(
-    cp_paths: cp.ndarray,
-    number_map=None,
-    is_vertex_paths: bool = False
-    ) -> cudf.Series:
+    cp_paths: cp.ndarray, number_map=None, is_vertex_paths: bool = False
+) -> cudf.Series:
     """
     Creates cudf Series from cupy arrays from pylibcugraph wrapper
     """
@@ -58,9 +56,9 @@ def _call_plc_node2vec_random_walks(
     mg_graph_x,
     st_x: cudf.Series,
     max_depth: int,
-    p: float, 
+    p: float,
     q: float,
-    random_state: int
+    random_state: int,
 ) -> Tuple[cp.ndarray, cp.ndarray]:
 
     return pylibcugraph_node2vec_random_walks(
@@ -76,12 +74,11 @@ def _call_plc_node2vec_random_walks(
 
 def node2vec_random_walks(
     input_graph,
-    start_vertices: Union[int, list, cudf.Series, cudf.DataFrame, cudf.Series
-    ] = None,
+    start_vertices: Union[int, list, cudf.Series, cudf.DataFrame, cudf.Series] = None,
     max_depth: int = 1,
     p: float = 1.0,
     q: float = 1.0,
-    random_state: int = None
+    random_state: int = None,
 ) -> Tuple[Union[dask_cudf.Series, dask_cudf.DataFrame], dask_cudf.Series, int]:
     """
     compute random walks under the node2vec sampling framework for each nodes in
