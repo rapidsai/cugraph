@@ -1,3 +1,17 @@
+# ** NOTICE ** the cuGraph repository has been refactored to make it more efficient to build, maintain and use.
+
+Libraries supporting GNNs are now located in the [cugraph-gnn repository](https://github.com/rapidsai/cugraph-gnn)
+
+* [pylibwholegraph](https://github.com/rapidsai/cugraph-gnn/tree/branch-25.02/python/) - the [Wholegraph](https://docs.rapids.ai/api/cugraph/nightly/wholegraph/) library for client memory management supporting both cuGraph-DGL and cuGraph-PyG for even greater scalability
+* [cugraph_dgl](https://github.com/rapidsai/cugraph-gnn/blob/main/readme_pages/cugraph_dgl.md)  enables the ability to use cugraph Property Graphs with Deep Graph Library (DGL)
+* [cugraph_pyg](https://github.com/rapidsai/cugraph-gnn/blob/main/readme_pages/cugraph_pyg.md) enables the ability to use cugraph Property Graphs with PyTorch Geometric (PyG).
+
+[RAPIDS nx-cugraph](https://rapids.ai/nx-cugraph/) is now located in the nx-cugraph repository.
+* [nx-cugraph library](https://github.com/rapidsai/nx-cugraph) is a backend to NetworkX to run supported algorithms with GPU acceleration.
+
+The cugraph-docs repository contains code to generate cuGraph documentation. It is now located in the [cugraph-docs repository](https://docsgithub.com/rapidsai/cugraph-docs)
+
+
 <h1 align="center"; style="font-style: italic";>
   <br>
   <img src="img/cugraph_logo_2.png" alt="cuGraph" width="500">
@@ -23,21 +37,6 @@
 <br>
 
 [RAPIDS](https://rapids.ai) cuGraph is a repo that represents a collection of packages focused on GPU-accelerated graph analytics including support for property graphs and remote (graph as a service) operations.  cuGraph supports the creation and manipulation of graphs followed by the execution of scalable fast graph algorithms.
-
-# NOTICE -- the cuGraph repository has been refactored to make it more efficient to build, maintain and use.
-
-cuGraph code supporting GNNs is now located in the [cugraph-gnn repository](https://github.com/rapidsai/cugraph-gnn)
-
-This repository, cugraph-gnn, contains:
-
-* [pylibwholegraph](https://github.com/rapidsai/cugraph-gnn/tree/branch-25.02/python/) - the [Wholegraph](https://docs.rapids.ai/api/cugraph/nightly/wholegraph/) library for client memory management supporting both cuGraph-DGL and cuGraph-PyG for even greater scalability
-* [cugraph_dgl](https://github.com/rapidsai/cugraph-gnn/blob/main/readme_pages/cugraph_dgl.md)  enables the ability to use cugraph Property Graphs with Deep Graph Library (DGL)
-* [cugraph_pyg](https://github.com/rapidsai/cugraph-gnn/blob/main/readme_pages/cugraph_pyg.md) enables the ability to use cugraph Property Graphs with PyTorch Geometric (PyG).
-
-Code for cuGraph as a NetworkX backend is now located in the [RAPIDS nx-cugraph repository](https://github.com/rapidsai/nx-cugraph)
-* [nx-cugraph library](https://github.com/rapidsai/nx-cugraph) is a backend to NetworkX to run supported algorithms with GPU acceleration.
-
-The cugraph-docs repository contains code to generate cuGraph documentation. It is now located in the [cugraph-docs repository](https://docsgithub.com/rapidsai/cugraph-docs)
 
 <div align="center">
 
