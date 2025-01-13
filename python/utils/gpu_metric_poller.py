@@ -31,7 +31,7 @@ print("Max GPU utilization: %s" % gpuPollObj.maxGpuUtil)
 import os
 import sys
 import threading
-from pynvml_utils import smi
+import pynvml
 
 
 class GPUMetricPoller(threading.Thread):
@@ -91,18 +91,18 @@ class GPUMetricPoller(threading.Thread):
         childReadPipe = os.fdopen(readFileNo)
         childWritePipe = os.fdopen(writeFileNo, "w")
 
-        smi.nvmlInit()
+        pynvml.nvmlInit()
         # hack - get actual device ID somehow
-        devObj = smi.nvmlDeviceGetHandleByIndex(0)
-        memObj = smi.nvmlDeviceGetMemoryInfo(devObj)
-        utilObj = smi.nvmlDeviceGetUtilizationRates(devObj)
+        devObj = pynvml.nvmlDeviceGetHandleByIndex(0)
+        memObj = pynvml.nvmlDeviceGetMemoryInfo(devObj)
+        utilObj = pynvml.nvmlDeviceGetUtilizationRates(devObj)
         initialMemUsed = memObj.used
         initialGpuUtil = utilObj.gpu
 
         controlStr = self.__waitForInput(childReadPipe)
         while True:
-            memObj = smi.nvmlDeviceGetMemoryInfo(devObj)
-            utilObj = smi.nvmlDeviceGetUtilizationRates(devObj)
+            memObj = pynvml.nvmlDeviceGetMemoryInfo(devObj)
+            utilObj = pynvml.nvmlDeviceGetUtilizationRates(devObj)
 
             memUsed = memObj.used - initialMemUsed
             gpuUtil = utilObj.gpu - initialGpuUtil
@@ -113,7 +113,7 @@ class GPUMetricPoller(threading.Thread):
                 break
             controlStr = self.__waitForInput(childReadPipe)
 
-        smi.nvmlShutdown()
+        pynvml.nvmlShutdown()
         childReadPipe.close()
         childWritePipe.close()
 
