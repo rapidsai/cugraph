@@ -472,16 +472,16 @@ cugraph_error_code_t cugraph_decompress_to_edgelist(const cugraph_resource_handl
  *
  * @param [in]     handle         Handle for accessing resources
  * @param [in]     renumber_map   Host array with the renumber map
- * @param [in/out] src            Device array of src vertices to renumber
- * @param [in/out] dst            Device array of dst vertices to renumber
- * @param [out] error               Pointer to an error object storing details of any error.  Will
- *                                  be populated if error code is not CUGRAPH_SUCCESS
+ * @param [in/out] srcs           Device array of src vertices to renumber
+ * @param [in/out] dsts           Device array of dst vertices to renumber
+ * @param [out] error             Pointer to an error object storing details of any error.  Will
+ *                                be populated if error code is not CUGRAPH_SUCCESS
  */
 cugraph_error_code_t cugraph_renumber_arbitrary_edgelist(
   const cugraph_resource_handle_t* handle,
   const cugraph_type_erased_host_array_view_t* renumber_map,
-  cugraph_type_erased_device_array_view_t* src,
-  cugraph_type_erased_device_array_view_t* dst,
+  cugraph_type_erased_device_array_view_t* srcs,
+  cugraph_type_erased_device_array_view_t* dsts,
   cugraph_error_t** error);
 
 #ifdef __cplusplus
