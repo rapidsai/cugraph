@@ -173,9 +173,11 @@ files:
     extras:
       table: project
     includes:
+      - depends_on_cupy
       - depends_on_libcugraph
       - depends_on_pylibraft
       - depends_on_rmm
+      - python_run_pylibcugraph
   py_test_pylibcugraph:
     output: pyproject
     pyproject_dir: python/pylibcugraph
@@ -232,7 +234,7 @@ files:
       key: test
     includes:
       - test_python_common
-      - test_python_cugraph
+      - test_python_cugraph_service_server
 channels:
   - rapidsai
   - rapidsai-nightly
@@ -455,6 +457,11 @@ dependencies:
           - matrix: # All CUDA 11 versions
             packages:
               - cuda-python>=11.8.5,<12.0a0
+  python_run_pylibcugraph:
+    common:
+      - output_types: [conda, pyproject, requirements]
+        packages:
+          - *numpy
   python_run_cugraph_service_client:
     common:
       - output_types: [conda, pyproject]
@@ -502,6 +509,11 @@ dependencies:
       - output_types: [conda]
         packages:
           - *thrift
+  test_python_cugraph_service_server:
+    common:
+      - output_types: [conda, pyproject]
+        packages:
+          - *numpy
   test_python_pylibcugraph:
     common:
       - output_types: [conda, pyproject]
