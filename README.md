@@ -6,7 +6,7 @@ Libraries supporting GNNs are now located in the [cugraph-gnn repository](https:
 * [cugraph_dgl](https://github.com/rapidsai/cugraph-gnn/blob/main/readme_pages/cugraph_dgl.md)  enables the ability to use cugraph Property Graphs with Deep Graph Library (DGL)
 * [cugraph_pyg](https://github.com/rapidsai/cugraph-gnn/blob/main/readme_pages/cugraph_pyg.md) enables the ability to use cugraph Property Graphs with PyTorch Geometric (PyG).
 
-The [nx-cugraph repository](https://github.com/rapidsai/nx-cugraph) is a backend to NetworkX to run supported algorithms with GPU acceleration.
+[RAPIDS nx-cugraph](https://rapids.ai/nx-cugraph/) is now located in the [nx-cugraph repository](https://github.com/rapidsai/nx-cugraph) containing a backend to NetworkX for running supported algorithms with GPU acceleration.
 
 The [cugraph-docs repository](https://github.com/rapidsai/cugraph-docs) contains code to generate cuGraph documentation.
 
