@@ -15,6 +15,7 @@
 from dask.distributed import wait, default_client
 import dask_cudf
 import cudf
+import cupy as cp
 import operator as op
 from cugraph.dask.common.part_utils import (
     persist_dask_df_equal_parts_per_worker,
@@ -27,9 +28,14 @@ from pylibcugraph import (
 )
 
 from cugraph.dask.comms import comms as Comms
+from typing import Tuple, Union
 
 
-def convert_to_cudf(cp_paths, number_map=None, is_vertex_paths=False):
+def convert_to_cudf(
+    cp_paths: cp.ndarray,
+    number_map=None,
+    is_vertex_paths: bool = False
+    ) -> cudf.Series:
     """
     Creates cudf Series from cupy arrays from pylibcugraph wrapper
     """
@@ -48,7 +54,13 @@ def convert_to_cudf(cp_paths, number_map=None, is_vertex_paths=False):
     return cudf.Series(cp_paths)
 
 
-def _call_plc_uniform_random_walks(sID, mg_graph_x, st_x, max_depth, random_state):
+def _call_plc_uniform_random_walks(
+    sID: bytes,
+    mg_graph_x,
+    st_x: cudf.Series,
+    max_depth: int,
+    random_state: int
+    ) -> Tuple[cp.ndarray, cp.ndarray]:
 
     return pylibcugraph_uniform_random_walks(
         resource_handle=ResourceHandle(Comms.get_handle(sID).getHandle()),
@@ -60,8 +72,12 @@ def _call_plc_uniform_random_walks(sID, mg_graph_x, st_x, max_depth, random_stat
 
 
 def uniform_random_walks(
-    input_graph, start_vertices=None, max_depth=None, random_state=None
-):
+    input_graph,
+    start_vertices: Union[int, list, cudf.Series, cudf.DataFrame, cudf.Series
+    ] = None,
+    max_depth: int = 1,
+    random_state: int = None
+) -> Tuple[Union[dask_cudf.Series, dask_cudf.DataFrame], dask_cudf.Series, int]:
     """
     compute random walks under the uniform sampling framework for each nodes in
     'start_vertices' and returns a padded result along with the maximum path length.
