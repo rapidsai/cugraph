@@ -9,8 +9,9 @@ Libraries supporting GNNs are now located in the [cugraph-gnn repository](https:
 [RAPIDS nx-cugraph](https://rapids.ai/nx-cugraph/) is now located in the nx-cugraph repository.
 * [nx-cugraph library](https://github.com/rapidsai/nx-cugraph) is a backend to NetworkX to run supported algorithms with GPU acceleration.
 
-The cugraph-docs repository contains code to generate cuGraph documentation. It is now located in the [cugraph-docs repository](https://docsgithub.com/rapidsai/cugraph-docs)
+The cugraph-docs repository contains code to generate cuGraph documentation. It is now located in the [cugraph-docs repository](https://github.com/rapidsai/cugraph-docs)
 
+#
 
 <h1 align="center"; style="font-style: italic";>
   <br>
