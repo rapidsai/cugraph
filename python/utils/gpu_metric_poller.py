@@ -147,34 +147,3 @@ def startGpuMetricPolling():
 def stopGpuMetricPolling(gpuPollObj):
     gpuPollObj.stop()
     gpuPollObj.join()  # consider using timeout and reporting errors
-
-
-"""
-smi.nvmlInit()
-# hack - get actual device ID somehow
-devObj = smi.nvmlDeviceGetHandleByIndex(0)
-memObj = smi.nvmlDeviceGetMemoryInfo(devObj)
-utilObj = smi.nvmlDeviceGetUtilizationRates(devObj)
-initialMemUsed = memObj.used
-initialGpuUtil = utilObj.gpu
-
-while not self.__stop:
-    time.sleep(0.01)
-
-    memObj = smi.nvmlDeviceGetMemoryInfo(devObj)
-    utilObj = smi.nvmlDeviceGetUtilizationRates(devObj)
-
-    memUsed = memObj.used - initialMemUsed
-    gpuUtil = utilObj.gpu - initialGpuUtil
-    if memUsed > self.maxGpuMemUsed:
-        self.maxGpuMemUsed = memUsed
-    if gpuUtil > self.maxGpuUtil:
-        self.maxGpuUtil = gpuUtil
-
-    smi.nvmlShutdown()
-"""
-
-
-# if __name__ == "__main__":
-#     sto=stopGpuMetricPolling
-#     po = startGpuMetricPolling()
