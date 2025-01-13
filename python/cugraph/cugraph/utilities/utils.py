@@ -18,8 +18,6 @@ import shutil
 import cudf
 from cudf.core.column import as_column
 
-from cuda.bindings import runtime
-
 from warnings import warn
 
 # optional dependencies
@@ -205,44 +203,6 @@ def get_traversed_path_list(df, id):
         pred = ddf["predecessor"].iloc[0]
 
     return answer
-
-
-def is_cuda_version_less_than(min_version):
-    """
-    Returns True if the version of CUDA being used is less than min_version
-    """
-    status, version = runtime.getLocalRuntimeVersion()
-    if status != runtime.cudaError_t.cudaSuccess:
-        raise RuntimeError("Could not get CUDA runtime version.")
-    major = version // 1000
-    minor = (version % 1000) // 10
-    return (major, minor) < min_version
-
-
-def is_device_version_less_than(min_version):
-    """
-    Returns True if the version of CUDA being used is less than min_version
-    """
-    status, device_id = runtime.cudaGetDevice()
-    if status != runtime.cudaError_t.cudaSuccess:
-        raise RuntimeError("Could not get CUDA device.")
-    status, device_prop = runtime.cudaGetDeviceProperties(device_id)
-    if status != runtime.cudaError_t.cudaSuccess:
-        raise RuntimeError("Could not get CUDA device properties.")
-    return (device_prop.major, device_prop.minor) < min_version
-
-
-def get_device_memory_info():
-    """
-    Returns the total amount of global memory on the device in bytes
-    """
-    status, device_id = runtime.cudaGetDevice()
-    if status != runtime.cudaError_t.cudaSuccess:
-        raise RuntimeError("Could not get CUDA device.")
-    status, device_prop = runtime.cudaGetDeviceProperties(device_id)
-    if status != runtime.cudaError_t.cudaSuccess:
-        raise RuntimeError("Could not get CUDA device properties.")
-    return device_prop.totalGlobalMem
 
 
 # FIXME: if G is a Nx type, the weight attribute is assumed to be "weight", if
