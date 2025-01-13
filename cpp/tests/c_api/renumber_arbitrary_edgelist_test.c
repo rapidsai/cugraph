@@ -66,9 +66,8 @@ int generic_renumber_arbitrary_edgelist_test(vertex_t* h_src,
   renumber_map_view =
     cugraph_type_erased_host_array_view_create(h_renumber_map, renumber_map_size, INT32);
 
-ret_code = cugraph_renumber_arbitrary_edgelist(
-  p_handle,
-  renumber_map_view, srcs_view, dsts_view, &ret_error);
+  ret_code = cugraph_renumber_arbitrary_edgelist(
+    p_handle, renumber_map_view, srcs_view, dsts_view, &ret_error);
 
   vertex_t h_renumbered_srcs[num_edges];
   vertex_t h_renumbered_dsts[num_edges];
@@ -77,25 +76,22 @@ ret_code = cugraph_renumber_arbitrary_edgelist(
     p_handle, (byte_t*)h_renumbered_srcs, srcs_view, &ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "copy_to_host failed.");
 
-  ret_code =
-    cugraph_type_erased_device_array_view_copy_to_host(p_handle, (byte_t*)h_renumbered_dsts, dsts_view, &ret_error);
+  ret_code = cugraph_type_erased_device_array_view_copy_to_host(
+    p_handle, (byte_t*)h_renumbered_dsts, dsts_view, &ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "copy_to_host failed.");
 
   for (int i = 0; (i < num_edges) && (test_ret_value == 0); ++i) {
     vertex_t renumbered_src = -1;
     vertex_t renumbered_dst = -1;
-    
-    for (size_t j = 0 ; (j < renumber_map_size) && ((renumbered_src < 0) || (renumbered_dst < 0)) ; ++j) {
-      if (h_src[i] == h_renumber_map[j]) renumbered_src = (vertex_t) j;
-      if (h_dst[i] == h_renumber_map[j]) renumbered_dst = (vertex_t) j;
+
+    for (size_t j = 0; (j < renumber_map_size) && ((renumbered_src < 0) || (renumbered_dst < 0));
+         ++j) {
+      if (h_src[i] == h_renumber_map[j]) renumbered_src = (vertex_t)j;
+      if (h_dst[i] == h_renumber_map[j]) renumbered_dst = (vertex_t)j;
     }
 
-    TEST_ASSERT(test_ret_value,
-                h_renumbered_srcs[i] == renumbered_src,
-                "src results don't match");
-    TEST_ASSERT(test_ret_value,
-                h_renumbered_dsts[i] == renumbered_dst,
-                "dst results don't match");
+    TEST_ASSERT(test_ret_value, h_renumbered_srcs[i] == renumbered_src, "src results don't match");
+    TEST_ASSERT(test_ret_value, h_renumbered_dsts[i] == renumbered_dst, "dst results don't match");
   }
 
   cugraph_type_erased_device_array_free(dsts);
@@ -108,19 +104,15 @@ ret_code = cugraph_renumber_arbitrary_edgelist(
 
 int test_renumbering()
 {
-  size_t num_edges    = 8;
+  size_t num_edges         = 8;
   size_t renumber_map_size = 6;
 
-  vertex_t h_src[]         = {0, 1, 1, 2, 2, 2, 3, 4};
-  vertex_t h_dst[]         = {1, 3, 4, 0, 1, 3, 5, 5};
+  vertex_t h_src[]          = {0, 1, 1, 2, 2, 2, 3, 4};
+  vertex_t h_dst[]          = {1, 3, 4, 0, 1, 3, 5, 5};
   vertex_t h_renumber_map[] = {5, 3, 1, 2, 4, 0};
 
-return generic_renumber_arbitrary_edgelist_test(h_src,
-                                             h_dst,
-                                             h_renumber_map,
-                                              num_edges,
-                                              renumber_map_size);
-
+  return generic_renumber_arbitrary_edgelist_test(
+    h_src, h_dst, h_renumber_map, num_edges, renumber_map_size);
 }
 
 int main(int argc, char** argv)
