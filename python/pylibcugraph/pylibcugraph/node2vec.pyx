@@ -1,4 +1,4 @@
-# Copyright (c) 2022-2024, NVIDIA CORPORATION.
+# Copyright (c) 2022-2025, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -13,6 +13,8 @@
 
 # Have cython use python 3 syntax
 # cython: language_level = 3
+
+import cupy
 
 from libc.stdint cimport uintptr_t
 
@@ -124,14 +126,6 @@ def node2vec(ResourceHandle resource_handle,
 
     """
 
-    # FIXME: import these modules here for now until a better pattern can be
-    # used for optional imports (perhaps 'import_optional()' from cugraph), or
-    # these are made hard dependencies.
-    try:
-        import cupy
-    except ModuleNotFoundError:
-        raise RuntimeError("node2vec requires the cupy package, which could not "
-                           "be imported")
     assert_CAI_type(seed_array, "seed_array")
 
     cdef cugraph_resource_handle_t* c_resource_handle_ptr = \

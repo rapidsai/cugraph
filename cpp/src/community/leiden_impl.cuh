@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -604,26 +604,20 @@ void relabel_cluster_ids(raft::handle_t const& handle,
                          size_t num_nodes)
 {
   vertex_t local_cluster_id_first{0};
+
+  // Get unique cluster id and shuffle
+  remove_duplicates<vertex_t, multi_gpu>(handle, unique_cluster_ids);
+
   if constexpr (multi_gpu) {
-    auto unique_cluster_range_lasts = cugraph::partition_manager::compute_partition_range_lasts(
-      handle, static_cast<vertex_t>(unique_cluster_ids.size()));
+    auto cluster_ids_size_per_rank = cugraph::host_scalar_allgather(
+      handle.get_comms(), unique_cluster_ids.size(), handle.get_stream());
 
-    auto& comm                 = handle.get_comms();
-    auto const comm_size       = comm.get_size();
-    auto const comm_rank       = comm.get_rank();
-    auto& major_comm           = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
-    auto const major_comm_size = major_comm.get_size();
-    auto const major_comm_rank = major_comm.get_rank();
-    auto& minor_comm           = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
-    auto const minor_comm_size = minor_comm.get_size();
-    auto const minor_comm_rank = minor_comm.get_rank();
-
-    auto vertex_partition_id =
-      partition_manager::compute_vertex_partition_id_from_graph_subcomm_ranks(
-        major_comm_size, minor_comm_size, major_comm_rank, minor_comm_rank);
-
-    local_cluster_id_first =
-      vertex_partition_id == 0 ? vertex_t{0} : unique_cluster_range_lasts[vertex_partition_id - 1];
+    std::vector<vertex_t> cluster_ids_starts(cluster_ids_size_per_rank.size());
+    std::exclusive_scan(cluster_ids_size_per_rank.begin(),
+                        cluster_ids_size_per_rank.end(),
+                        cluster_ids_starts.begin(),
+                        size_t{0});
+    local_cluster_id_first = cluster_ids_starts[handle.get_comms().get_rank()];
   }
 
   rmm::device_uvector<vertex_t> numbering_indices(unique_cluster_ids.size(), handle.get_stream());
@@ -712,6 +706,17 @@ std::pair<size_t, weight_t> leiden(
     detail::leiden(handle, rng_state, graph_view, edge_weight_view, max_level, resolution, theta);
 
   detail::flatten_leiden_dendrogram(handle, graph_view, *dendrogram, clustering);
+
+  size_t local_num_verts = (*dendrogram).get_level_size_nocheck(0);
+  rmm::device_uvector<vertex_t> unique_cluster_ids(local_num_verts, handle.get_stream());
+
+  thrust::copy(handle.get_thrust_policy(),
+               clustering,
+               clustering + local_num_verts,
+               unique_cluster_ids.begin());
+
+  detail::relabel_cluster_ids<vertex_t, multi_gpu>(
+    handle, unique_cluster_ids, clustering, local_num_verts);
 
   return std::make_pair(dendrogram->num_levels(), modularity);
 }
