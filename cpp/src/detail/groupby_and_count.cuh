@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -89,9 +89,6 @@ rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partition_id(
   }
 
   if (edge_property_count > 1) { element_size = sizeof(vertex_t) * 2 + sizeof(size_t); }
-
-  std::cout << "edge_property_count = " << edge_property_count
-            << ", element size = " << element_size << std::endl;
 
   auto total_global_mem = handle.get_device_properties().totalGlobalMem;
   auto constexpr mem_frugal_ratio =
@@ -247,8 +244,6 @@ rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partition_id(
     detail::sequence_fill(
       handle.get_stream(), property_position.data(), property_position.size(), edge_t{0});
 
-    std::cout << "filled property_position" << std::endl;
-
     if (groupby_and_count_local_partition_by_minor) {
       result = cugraph::groupby_and_count(pair_first,
                                           pair_first + d_edgelist_majors.size(),
@@ -268,7 +263,6 @@ rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partition_id(
     }
 
     if (d_edgelist_weights) {
-      std::cout << "gather weights" << std::endl;
       rmm::device_uvector<weight_t> tmp(property_position.size(), handle.get_stream());
 
       thrust::gather(handle.get_thrust_policy(),
@@ -281,7 +275,6 @@ rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partition_id(
     }
 
     if (d_edgelist_edge_ids) {
-      std::cout << "gather edge ids" << std::endl;
       rmm::device_uvector<weight_t> tmp(property_position.size(), handle.get_stream());
 
       thrust::gather(handle.get_thrust_policy(),
@@ -295,7 +288,6 @@ rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partition_id(
     }
 
     if (d_edgelist_edge_types) {
-      std::cout << "gather edge types" << std::endl;
       rmm::device_uvector<weight_t> tmp(property_position.size(), handle.get_stream());
 
       thrust::gather(handle.get_thrust_policy(),
@@ -309,7 +301,6 @@ rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partition_id(
     }
 
     if (d_edgelist_edge_start_times) {
-      std::cout << "gather start times" << std::endl;
       rmm::device_uvector<weight_t> tmp(property_position.size(), handle.get_stream());
 
       thrust::gather(handle.get_thrust_policy(),
@@ -323,7 +314,6 @@ rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partition_id(
     }
 
     if (d_edgelist_edge_end_times) {
-      std::cout << "gather end_times" << std::endl;
       rmm::device_uvector<weight_t> tmp(property_position.size(), handle.get_stream());
 
       thrust::gather(handle.get_thrust_policy(),
@@ -336,8 +326,6 @@ rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partition_id(
         handle.get_thrust_policy(), tmp.begin(), tmp.end(), d_edgelist_edge_end_times->begin());
     }
   }
-
-  std::cout << "return result" << std::endl;
 
   return result;
 }

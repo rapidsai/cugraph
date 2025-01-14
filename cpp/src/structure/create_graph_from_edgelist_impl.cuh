@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -396,6 +396,7 @@ std::vector<rmm::device_uvector<T>> split_edge_chunk_elements_to_local_edge_part
         auto output_offset =
           edge_partition_intra_partition_segment_offset_vectors[i][j] +
           edge_partition_intra_segment_copy_output_displacement_vectors[i][j * num_chunks + k];
+
         thrust::copy(handle.get_thrust_policy(),
                      edgelist_elements[k].begin() + segment_offset,
                      edgelist_elements[k].begin() + (segment_offset + segment_size),
@@ -1423,7 +1424,6 @@ create_graph_from_edgelist_impl(
   // 2. groupby each edge chunks to their target local adjacency matrix partition (and further
   // groupby within the local partition by applying the compute_gpu_id_from_vertex_t to minor vertex
   // IDs).
-
   std::vector<std::vector<edge_t>> edgelist_edge_offset_vectors(num_chunks);
   for (size_t i = 0; i < num_chunks; ++i) {  // iterate over input edge chunks
     std::optional<rmm::device_uvector<weight_t>> this_chunk_weights{std::nullopt};
@@ -1438,8 +1438,9 @@ create_graph_from_edgelist_impl(
     }
     std::optional<rmm::device_uvector<edge_time_t>> this_chunk_edge_end_times{std::nullopt};
     if (edgelist_edge_end_times) {
-      this_chunk_edge_start_times = std::move((*edgelist_edge_end_times)[i]);
+      this_chunk_edge_end_times = std::move((*edgelist_edge_end_times)[i]);
     }
+
     auto d_this_chunk_edge_counts =
       cugraph::detail::groupby_and_count_edgelist_by_local_partition_id(
         handle,
@@ -1478,7 +1479,6 @@ create_graph_from_edgelist_impl(
   }
 
   // 3. compress edge chunk source/destination vertices to cut intermediate peak memory requirement
-
   std::optional<std::vector<rmm::device_uvector<std::byte>>> edgelist_compressed_srcs{std::nullopt};
   std::optional<std::vector<rmm::device_uvector<std::byte>>> edgelist_compressed_dsts{std::nullopt};
   if (compressed_v_size < sizeof(vertex_t)) {
@@ -1527,7 +1527,6 @@ create_graph_from_edgelist_impl(
   }
 
   // 4. compute additional copy_offset vectors
-
   std::vector<edge_t> edge_partition_edge_counts(minor_comm_size);
   std::vector<std::vector<edge_t>> edge_partition_intra_partition_segment_offset_vectors(
     minor_comm_size);
@@ -1561,7 +1560,6 @@ create_graph_from_edgelist_impl(
   }
 
   // 5. split the grouped edge chunks to local partitions
-
   std::vector<rmm::device_uvector<vertex_t>> edge_partition_edgelist_srcs{};
   std::vector<rmm::device_uvector<vertex_t>> edge_partition_edgelist_dsts{};
   std::optional<std::vector<rmm::device_uvector<weight_t>>> edge_partition_edgelist_weights{
@@ -1673,7 +1671,6 @@ create_graph_from_edgelist_impl(
 
   // 6. decompress edge chunk source/destination vertices to cut intermediate peak memory
   // requirement
-
   if (compressed_v_size < sizeof(vertex_t)) {
     assert(edge_partition_edgelist_compressed_srcs);
     assert(edge_partition_edgelist_compressed_dsts);
@@ -1817,7 +1814,6 @@ create_graph_from_edgelist_impl(
   }
 
   // 1. renumber
-
   auto renumber_map_labels =
     renumber ? std::make_optional<rmm::device_uvector<vertex_t>>(0, handle.get_stream())
              : std::nullopt;

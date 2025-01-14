@@ -16,7 +16,10 @@
 
 #include "utilities/base_fixture.hpp"
 #include "utilities/conversion_utilities.hpp"
+#include "utilities/device_comm_wrapper.hpp"
 #include "utilities/property_generator_utilities.hpp"
+#include "utilities/test_graphs.hpp"
+#include "utilities/thrust_wrapper.hpp"
 #include "utilities/validation_utilities.hpp"
 
 #include <cugraph_c/types.h>
@@ -52,13 +55,14 @@ using edge_type_t = int32_t;
 using edge_time_t = int32_t;
 
 template <typename input_usecase_t>
-class Tests_TemporalGraph
+class Tests_MGTemporalGraph
   : public ::testing::TestWithParam<std::tuple<TemporalGraph_Usecase, input_usecase_t>> {
  public:
-  Tests_TemporalGraph() {}
+  Tests_MGTemporalGraph() {}
 
-  static void SetUpTestCase() {}
-  static void TearDownTestCase() {}
+  static void SetUpTestCase() { handle_ = cugraph::test::initialize_mg_handle(); }
+
+  static void TearDownTestCase() { handle_.reset(); }
 
   virtual void SetUp() {}
   virtual void TearDown() {}
@@ -70,7 +74,6 @@ class Tests_TemporalGraph
     constexpr bool renumber                      = true;
     auto [temporal_graph_usecase, input_usecase] = param;
 
-    raft::handle_t handle{};
     HighResTimer hr_timer{};
 
     if (cugraph::test::g_perf) {
@@ -80,7 +83,7 @@ class Tests_TemporalGraph
 
     auto [edge_src_chunks, edge_dst_chunks, edge_weight_chunks, d_vertices_v, is_symmetric] =
       input_usecase.template construct_edgelist<vertex_t, weight_t>(
-        handle, temporal_graph_usecase.weight_type.has_value(), store_transposed, false);
+        *handle_, temporal_graph_usecase.weight_type.has_value(), store_transposed, true);
 
     size_t num_edges{0};
     for (size_t i = 0; i < edge_src_chunks.size(); ++i) {
@@ -89,6 +92,13 @@ class Tests_TemporalGraph
 
     CUGRAPH_EXPECTS(num_edges <= static_cast<size_t>(std::numeric_limits<edge_t>::max()),
                     "Invalid template parameter: edge_t overflow.");
+
+    size_t base_offset{0};
+    auto base_offsets =
+      cugraph::host_scalar_allgather(handle_->get_comms(), num_edges, handle_->get_stream());
+    handle_->sync_stream();
+    std::exclusive_scan(base_offsets.begin(), base_offsets.end(), base_offsets.begin(), size_t{0});
+    base_offset = base_offsets[handle_->get_comms().get_rank()];
 
     auto edge_start_time_chunks =
       std::make_optional<std::vector<rmm::device_uvector<edge_time_t>>>();
@@ -101,8 +111,8 @@ class Tests_TemporalGraph
 
     for (size_t i = 0; i < edge_src_chunks.size(); ++i) {
       edge_start_time_chunks->push_back(
-        rmm::device_uvector<edge_time_t>(edge_src_chunks[i].size(), handle.get_stream()));
-      cugraph::detail::uniform_random_fill(handle.get_stream(),
+        rmm::device_uvector<edge_time_t>(edge_src_chunks[i].size(), handle_->get_stream()));
+      cugraph::detail::uniform_random_fill(handle_->get_stream(),
                                            edge_start_time_chunks->back().data(),
                                            edge_start_time_chunks->back().size(),
                                            edge_time_t{0},
@@ -111,27 +121,27 @@ class Tests_TemporalGraph
 
       if (temporal_graph_usecase.use_end_time) {
         edge_end_time_chunks->push_back(
-          rmm::device_uvector<edge_time_t>(edge_src_chunks[i].size(), handle.get_stream()));
-        cugraph::detail::uniform_random_fill(handle.get_stream(),
-                                             edge_start_time_chunks->back().data(),
-                                             edge_start_time_chunks->back().size(),
+          rmm::device_uvector<edge_time_t>(edge_src_chunks[i].size(), handle_->get_stream()));
+        cugraph::detail::uniform_random_fill(handle_->get_stream(),
+                                             edge_end_time_chunks->back().data(),
+                                             edge_end_time_chunks->back().size(),
                                              edge_time_t{20000},
                                              edge_time_t{40000},
                                              rng_state);
       }
     }
 
-    cugraph::graph_t<vertex_t, edge_t, store_transposed, false> graph(handle);
+    cugraph::graph_t<vertex_t, edge_t, store_transposed, true> graph(*handle_);
     std::optional<
-      cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, store_transposed, false>,
+      cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, store_transposed, true>,
                                weight_t>>
       edge_weights{std::nullopt};
     std::optional<
-      cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, store_transposed, false>,
+      cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, store_transposed, true>,
                                edge_time_t>>
       edge_start_times{std::nullopt};
     std::optional<
-      cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, store_transposed, false>,
+      cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, store_transposed, true>,
                                edge_time_t>>
       edge_end_times{std::nullopt};
     std::optional<rmm::device_uvector<vertex_t>> renumber_map{std::nullopt};
@@ -142,44 +152,44 @@ class Tests_TemporalGraph
                                         std::plus<size_t>(),
                                         [](auto const& vector) { return vector.size(); });
 
-    rmm::device_uvector<vertex_t> original_srcs(size, handle.get_stream());
-    rmm::device_uvector<vertex_t> original_dsts(size, handle.get_stream());
-    auto original_wgts =
+    rmm::device_uvector<vertex_t> local_original_srcs(size, handle_->get_stream());
+    rmm::device_uvector<vertex_t> local_original_dsts(size, handle_->get_stream());
+    auto local_original_wgts =
       temporal_graph_usecase.weight_type.has_value()
-        ? std::make_optional<rmm::device_uvector<weight_t>>(size, handle.get_stream())
+        ? std::make_optional<rmm::device_uvector<weight_t>>(size, handle_->get_stream())
         : std::nullopt;
-    auto original_start_times =
-      std::make_optional<rmm::device_uvector<edge_time_t>>(size, handle.get_stream());
-    auto original_end_times =
+    auto local_original_start_times =
+      std::make_optional<rmm::device_uvector<edge_time_t>>(size, handle_->get_stream());
+    auto local_original_end_times =
       temporal_graph_usecase.use_end_time
-        ? std::make_optional<rmm::device_uvector<edge_time_t>>(size, handle.get_stream())
+        ? std::make_optional<rmm::device_uvector<edge_time_t>>(size, handle_->get_stream())
         : std::nullopt;
 
     size_t last_pos = 0;
     for (size_t i = 0; i < edge_src_chunks.size(); ++i) {
-      raft::copy(original_srcs.data() + last_pos,
+      raft::copy(local_original_srcs.data() + last_pos,
                  edge_src_chunks[i].data(),
                  edge_src_chunks[i].size(),
-                 handle.get_stream());
-      raft::copy(original_dsts.data() + last_pos,
+                 handle_->get_stream());
+      raft::copy(local_original_dsts.data() + last_pos,
                  edge_dst_chunks[i].data(),
                  edge_dst_chunks[i].size(),
-                 handle.get_stream());
-      if (original_wgts)
-        raft::copy(original_wgts->data() + last_pos,
+                 handle_->get_stream());
+      if (local_original_wgts)
+        raft::copy(local_original_wgts->data() + last_pos,
                    (*edge_weight_chunks)[i].data(),
                    (*edge_weight_chunks)[i].size(),
-                   handle.get_stream());
-      if (original_start_times)
-        raft::copy(original_start_times->data() + last_pos,
+                   handle_->get_stream());
+      if (local_original_start_times)
+        raft::copy(local_original_start_times->data() + last_pos,
                    (*edge_start_time_chunks)[i].data(),
                    (*edge_start_time_chunks)[i].size(),
-                   handle.get_stream());
-      if (original_end_times)
-        raft::copy(original_end_times->data() + last_pos,
+                   handle_->get_stream());
+      if (local_original_end_times)
+        raft::copy(local_original_end_times->data() + last_pos,
                    (*edge_end_time_chunks)[i].data(),
                    (*edge_end_time_chunks)[i].size(),
-                   handle.get_stream());
+                   handle_->get_stream());
 
       last_pos += edge_src_chunks[i].size();
     }
@@ -197,17 +207,17 @@ class Tests_TemporalGraph
                                           edge_type_t,
                                           edge_time_t,
                                           store_transposed,
-                                          false>(handle,
-                                                 std::move(d_vertices_v),
-                                                 std::move(edge_src_chunks),
-                                                 std::move(edge_dst_chunks),
-                                                 std::move(edge_weight_chunks),
-                                                 std::nullopt,
-                                                 std::nullopt,
-                                                 std::move(edge_start_time_chunks),
-                                                 std::move(edge_end_time_chunks),
-                                                 cugraph::graph_properties_t{is_symmetric, true},
-                                                 renumber);
+                                          true>(*handle_,
+                                                std::move(d_vertices_v),
+                                                std::move(edge_src_chunks),
+                                                std::move(edge_dst_chunks),
+                                                std::move(edge_weight_chunks),
+                                                std::nullopt,
+                                                std::nullopt,
+                                                std::move(edge_start_time_chunks),
+                                                std::move(edge_end_time_chunks),
+                                                cugraph::graph_properties_t{is_symmetric, true},
+                                                renumber);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -220,9 +230,13 @@ class Tests_TemporalGraph
     if (temporal_graph_usecase.check_correctness) {
       // FIXME:  decompress_to_edgelist should support all properties
       //  This hack only works if edge_t == edge_time_t
-      auto [result_srcs, result_dsts, result_wgts, result_start_times, result_end_times] = cugraph::
-        decompress_to_edgelist<vertex_t, edge_t, weight_t, edge_time_t, store_transposed, false>(
-          handle,
+      auto [local_result_srcs,
+            local_result_dsts,
+            local_result_wgts,
+            local_result_start_times,
+            local_result_end_times] = cugraph::
+        decompress_to_edgelist<vertex_t, edge_t, weight_t, edge_time_t, store_transposed, true>(
+          *handle_,
           graph.view(),
           edge_weights ? std::make_optional(edge_weights->view()) : std::nullopt,
           edge_start_times ? std::make_optional(edge_start_times->view()) : std::nullopt,
@@ -231,95 +245,141 @@ class Tests_TemporalGraph
                                                                            renumber_map->size())
                    : std::nullopt);
 
-      cugraph::test::sort<vertex_t, edge_t, weight_t, int32_t, edge_time_t>(
-        handle,
-        raft::device_span<vertex_t>{result_srcs.data(), result_srcs.size()},
-        raft::device_span<vertex_t>{result_dsts.data(), result_dsts.size()},
-        result_wgts ? std::make_optional<raft::device_span<weight_t>>(result_wgts->data(),
-                                                                      result_wgts->size())
-                    : std::nullopt,
-        std::nullopt,
-        std::nullopt,
-        result_start_times ? std::make_optional<raft::device_span<edge_time_t>>(
-                               result_start_times->data(), result_start_times->size())
-                           : std::nullopt,
-        result_end_times ? std::make_optional<raft::device_span<edge_time_t>>(
-                             result_end_times->data(), result_end_times->size())
-                         : std::nullopt);
+      auto result_srcs =
+        cugraph::test::device_gatherv(*handle_, local_result_srcs.data(), local_result_srcs.size());
+      auto result_dsts =
+        cugraph::test::device_gatherv(*handle_, local_result_dsts.data(), local_result_dsts.size());
 
-      cugraph::test::sort<vertex_t, edge_t, weight_t, int32_t, edge_time_t>(
-        handle,
-        raft::device_span<vertex_t>{original_srcs.data(), original_srcs.size()},
-        raft::device_span<vertex_t>{original_dsts.data(), original_dsts.size()},
-        original_wgts ? std::make_optional<raft::device_span<weight_t>>(original_wgts->data(),
-                                                                        original_wgts->size())
+      std::optional<rmm::device_uvector<weight_t>> result_wgts{std::nullopt};
+      std::optional<rmm::device_uvector<edge_time_t>> result_start_times{std::nullopt};
+      std::optional<rmm::device_uvector<edge_time_t>> result_end_times{std::nullopt};
+
+      if (local_result_wgts)
+        result_wgts = cugraph::test::device_gatherv(
+          *handle_, local_result_wgts->data(), local_result_wgts->size());
+      if (local_result_start_times)
+        result_start_times = cugraph::test::device_gatherv(
+          *handle_, local_result_start_times->data(), local_result_start_times->size());
+      if (local_result_end_times)
+        result_end_times = cugraph::test::device_gatherv(
+          *handle_, local_result_end_times->data(), local_result_end_times->size());
+
+      auto original_srcs = cugraph::test::device_gatherv(
+        *handle_, local_original_srcs.data(), local_original_srcs.size());
+      auto original_dsts = cugraph::test::device_gatherv(
+        *handle_, local_original_dsts.data(), local_original_dsts.size());
+
+      std::optional<rmm::device_uvector<weight_t>> original_wgts{std::nullopt};
+      std::optional<rmm::device_uvector<edge_time_t>> original_start_times{std::nullopt};
+      std::optional<rmm::device_uvector<edge_time_t>> original_end_times{std::nullopt};
+
+      if (local_original_wgts)
+        original_wgts = cugraph::test::device_gatherv(
+          *handle_, local_original_wgts->data(), local_original_wgts->size());
+      if (local_original_start_times)
+        original_start_times = cugraph::test::device_gatherv(
+          *handle_, local_original_start_times->data(), local_original_start_times->size());
+      if (local_original_end_times)
+        original_end_times = cugraph::test::device_gatherv(
+          *handle_, local_original_end_times->data(), local_original_end_times->size());
+
+      if (handle_->get_comms().get_rank() == 0) {
+        cugraph::test::sort<vertex_t, edge_t, weight_t, int32_t, edge_time_t>(
+          *handle_,
+          raft::device_span<vertex_t>{result_srcs.data(), result_srcs.size()},
+          raft::device_span<vertex_t>{result_dsts.data(), result_dsts.size()},
+          result_wgts ? std::make_optional<raft::device_span<weight_t>>(result_wgts->data(),
+                                                                        result_wgts->size())
                       : std::nullopt,
-        std::nullopt,
-        std::nullopt,
-        original_start_times ? std::make_optional<raft::device_span<edge_time_t>>(
-                                 original_start_times->data(), original_start_times->size())
+          std::nullopt,
+          std::nullopt,
+          result_start_times ? std::make_optional<raft::device_span<edge_time_t>>(
+                                 result_start_times->data(), result_start_times->size())
                              : std::nullopt,
-        original_end_times ? std::make_optional<raft::device_span<edge_time_t>>(
-                               original_end_times->data(), original_end_times->size())
+          result_end_times ? std::make_optional<raft::device_span<edge_time_t>>(
+                               result_end_times->data(), result_end_times->size())
                            : std::nullopt);
 
-      ASSERT_TRUE(cugraph::test::device_spans_equal(
-        handle,
-        raft::device_span<vertex_t const>{result_srcs.data(), result_srcs.size()},
-        raft::device_span<vertex_t const>{original_srcs.data(), original_srcs.size()}));
-      ASSERT_TRUE(cugraph::test::device_spans_equal(
-        handle,
-        raft::device_span<vertex_t const>{result_srcs.data(), result_srcs.size()},
-        raft::device_span<vertex_t const>{original_srcs.data(), original_srcs.size()}));
-      if (result_wgts)
-        ASSERT_TRUE(
-          result_wgts.has_value() == original_wgts.has_value() &&
-          cugraph::test::device_spans_equal(
-            handle,
-            raft::device_span<weight_t const>{result_wgts->data(), result_wgts->size()},
-            raft::device_span<weight_t const>{original_wgts->data(), original_wgts->size()}));
-      if (result_start_times)
-        ASSERT_TRUE(result_start_times.has_value() == original_start_times.has_value() &&
-                    cugraph::test::device_spans_equal(
-                      handle,
-                      raft::device_span<edge_time_t const>{result_start_times->data(),
-                                                           result_start_times->size()},
-                      raft::device_span<edge_time_t const>{original_start_times->data(),
-                                                           original_start_times->size()}));
-      if (result_end_times)
-        ASSERT_TRUE(result_end_times.has_value() == original_end_times.has_value() &&
-                    cugraph::test::device_spans_equal(
-                      handle,
-                      raft::device_span<edge_time_t const>{result_end_times->data(),
-                                                           result_end_times->size()},
-                      raft::device_span<edge_time_t const>{original_end_times->data(),
-                                                           original_end_times->size()}));
+        cugraph::test::sort<vertex_t, edge_t, weight_t, int32_t, edge_time_t>(
+          *handle_,
+          raft::device_span<vertex_t>{original_srcs.data(), original_srcs.size()},
+          raft::device_span<vertex_t>{original_dsts.data(), original_dsts.size()},
+          original_wgts ? std::make_optional<raft::device_span<weight_t>>(original_wgts->data(),
+                                                                          original_wgts->size())
+                        : std::nullopt,
+          std::nullopt,
+          std::nullopt,
+          original_start_times ? std::make_optional<raft::device_span<edge_time_t>>(
+                                   original_start_times->data(), original_start_times->size())
+                               : std::nullopt,
+          original_end_times ? std::make_optional<raft::device_span<edge_time_t>>(
+                                 original_end_times->data(), original_end_times->size())
+                             : std::nullopt);
+
+        ASSERT_TRUE(cugraph::test::device_spans_equal(
+          *handle_,
+          raft::device_span<vertex_t const>{result_srcs.data(), result_srcs.size()},
+          raft::device_span<vertex_t const>{original_srcs.data(), original_srcs.size()}));
+        ASSERT_TRUE(cugraph::test::device_spans_equal(
+          *handle_,
+          raft::device_span<vertex_t const>{result_srcs.data(), result_srcs.size()},
+          raft::device_span<vertex_t const>{original_srcs.data(), original_srcs.size()}));
+        if (result_wgts)
+          ASSERT_TRUE(
+            result_wgts.has_value() == original_wgts.has_value() &&
+            cugraph::test::device_spans_equal(
+              *handle_,
+              raft::device_span<weight_t const>{result_wgts->data(), result_wgts->size()},
+              raft::device_span<weight_t const>{original_wgts->data(), original_wgts->size()}));
+        if (result_start_times)
+          ASSERT_TRUE(result_start_times.has_value() == original_start_times.has_value() &&
+                      cugraph::test::device_spans_equal(
+                        *handle_,
+                        raft::device_span<edge_time_t const>{result_start_times->data(),
+                                                             result_start_times->size()},
+                        raft::device_span<edge_time_t const>{original_start_times->data(),
+                                                             original_start_times->size()}));
+        if (result_end_times)
+          ASSERT_TRUE(result_end_times.has_value() == original_end_times.has_value() &&
+                      cugraph::test::device_spans_equal(
+                        *handle_,
+                        raft::device_span<edge_time_t const>{result_end_times->data(),
+                                                             result_end_times->size()},
+                        raft::device_span<edge_time_t const>{original_end_times->data(),
+                                                             original_end_times->size()}));
+      }
     }
   }
+
+ private:
+  static std::unique_ptr<raft::handle_t> handle_;
 };
 
-using Tests_TemporalGraph_File = Tests_TemporalGraph<cugraph::test::File_Usecase>;
-using Tests_TemporalGraph_Rmat = Tests_TemporalGraph<cugraph::test::Rmat_Usecase>;
+template <typename input_usecase_t>
+std::unique_ptr<raft::handle_t> Tests_MGTemporalGraph<input_usecase_t>::handle_ = nullptr;
 
-TEST_P(Tests_TemporalGraph_File, CheckInt32Int32FloatTransposeFalse)
+using Tests_MGTemporalGraph_File = Tests_MGTemporalGraph<cugraph::test::File_Usecase>;
+using Tests_MGTemporalGraph_Rmat = Tests_MGTemporalGraph<cugraph::test::Rmat_Usecase>;
+
+TEST_P(Tests_MGTemporalGraph_File, CheckInt32Int32FloatTransposeFalse)
 {
   run_current_test<int32_t, int32_t, float, false>(
     override_File_Usecase_with_cmd_line_arguments(GetParam()));
 }
 
-TEST_P(Tests_TemporalGraph_File, CheckInt32Int32FloatTransposeTrue)
+TEST_P(Tests_MGTemporalGraph_File, CheckInt32Int32FloatTransposeTrue)
 {
   run_current_test<int32_t, int32_t, float, true>(
     override_File_Usecase_with_cmd_line_arguments(GetParam()));
 }
 
-TEST_P(Tests_TemporalGraph_Rmat, CheckInt32Int32FloatTransposeFalse)
+TEST_P(Tests_MGTemporalGraph_Rmat, CheckInt32Int32FloatTransposeFalse)
 {
   run_current_test<int32_t, int32_t, float, false>(
     override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
 }
 
-TEST_P(Tests_TemporalGraph_Rmat, CheckInt32Int32FloatTransposeTrue)
+TEST_P(Tests_MGTemporalGraph_Rmat, CheckInt32Int32FloatTransposeTrue)
 {
   run_current_test<int32_t, int32_t, float, true>(
     override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
@@ -327,7 +387,7 @@ TEST_P(Tests_TemporalGraph_Rmat, CheckInt32Int32FloatTransposeTrue)
 
 INSTANTIATE_TEST_SUITE_P(
   file_test,
-  Tests_TemporalGraph_File,
+  Tests_MGTemporalGraph_File,
   ::testing::Combine(
     // enable correctness check
     ::testing::Values(
@@ -344,7 +404,7 @@ INSTANTIATE_TEST_SUITE_P(
 
 INSTANTIATE_TEST_SUITE_P(
   rmat_small_test,
-  Tests_TemporalGraph_Rmat,
+  Tests_MGTemporalGraph_Rmat,
   ::testing::Combine(
     // enable correctness checks
     ::testing::Values(
@@ -365,7 +425,7 @@ INSTANTIATE_TEST_SUITE_P(
                           vertex & edge type combination) by command line arguments and do not
                           include more than one File_Usecase that differ only in filename
                           (to avoid running same benchmarks more than once) */
-  Tests_TemporalGraph_File,
+  Tests_MGTemporalGraph_File,
   ::testing::Combine(
     ::testing::Values(
       TemporalGraph_Usecase{
@@ -384,7 +444,7 @@ INSTANTIATE_TEST_SUITE_P(
                           vertex & edge type combination) by command line arguments and do not
                           include more than one Rmat_Usecase that differ only in scale or edge
                           factor (to avoid running same benchmarks more than once) */
-  Tests_TemporalGraph_Rmat,
+  Tests_MGTemporalGraph_Rmat,
   ::testing::Combine(
     // disable correctness checks for large graphs
     ::testing::Values(
@@ -399,4 +459,4 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::Values(cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false),
                       cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, true, false))));
 
-CUGRAPH_TEST_PROGRAM_MAIN()
+CUGRAPH_MG_TEST_PROGRAM_MAIN()
