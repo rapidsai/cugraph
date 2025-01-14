@@ -59,7 +59,7 @@ jobs:
           repo: cugraph
   changed-files:
     secrets: inherit
-    # needs: telemetry-setup
+    needs: telemetry-setup
     uses: rapidsai/shared-workflows/.github/workflows/changed-files.yaml@branch-25.02
     with:
       files_yaml: |
@@ -90,7 +90,7 @@ jobs:
           - '!notebooks/**'
   checks:
     secrets: inherit
-    # needs: telemetry-setup
+    needs: telemetry-setup
     uses: rapidsai/shared-workflows/.github/workflows/checks.yaml@branch-25.02
     with:
       enable_check_generated_files: false
