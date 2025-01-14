@@ -886,7 +886,10 @@ class simpleGraphImpl:
             df_ = cudf.DataFrame()
             df_["vertex"] = vertices
             df_ = self.renumber_map.unrenumber(df_, "vertex")
-            vertices = df_["vertex"]
+            if len(df_.columns) > 1:
+                vertices = df_
+            else:
+                vertices = df_["vertex"]
 
         return vertices
 
