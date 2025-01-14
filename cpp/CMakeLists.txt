@@ -496,6 +496,7 @@ target_link_libraries(cugraph
         ${COMPILED_RAFT_LIB}
         cuco::cuco
         rmm::rmm_logger_impl
+        raft::raft_logger_impl
     )
 
 ################################################################################
