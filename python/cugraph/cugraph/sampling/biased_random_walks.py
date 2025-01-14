@@ -112,7 +112,10 @@ def biased_random_walks(
         df_ = cudf.DataFrame()
         df_["vertex_paths"] = vertex_paths
         df_ = G.unrenumber(df_, "vertex_paths", preserve_order=True)
-        vertex_paths = cudf.Series(df_["vertex_paths"]).fillna(-1)
+        if len(df_.columns) > 1:
+            vertex_paths = df_.fillna(-1)
+        else:
+            vertex_paths = cudf.Series(df_["vertex_paths"]).fillna(-1)
 
     edge_wgt_paths = cudf.Series(edge_wgt_paths)
 

@@ -141,7 +141,7 @@ def node2vec_random_walks(
 
     start_vertices = ensure_valid_dtype(G, start_vertices)
 
-    vertex_set, edge_set = pylibcugraph_node2vec_random_walks(
+    vertex_paths, edge_wgt_paths = pylibcugraph_node2vec_random_walks(
         resource_handle=ResourceHandle(),
         graph=G._plc_graph,
         seed_array=start_vertices,
@@ -150,12 +150,16 @@ def node2vec_random_walks(
         q=q,
         random_state=random_state,
     )
-    vertex_set = cudf.Series(vertex_set)
-    edge_set = cudf.Series(edge_set)
+    vertex_paths = cudf.Series(vertex_paths)
+    edge_wgt_paths = cudf.Series(edge_wgt_paths)
 
     if G.renumbered:
         df_ = cudf.DataFrame()
-        df_["vertex_set"] = vertex_set
-        df_ = G.unrenumber(df_, "vertex_set", preserve_order=True)
-        vertex_set = cudf.Series(df_["vertex_set"])
-    return vertex_set, edge_set, max_depth
+        df_["vertex_paths"] = vertex_paths
+        df_ = G.unrenumber(df_, "vertex_paths", preserve_order=True)
+        if len(df_.columns) > 1:
+            vertex_paths = df_.fillna(-1)
+        else:
+            vertex_paths = cudf.Series(df_["vertex_paths"]).fillna(-1)
+    
+    return vertex_paths, edge_wgt_paths, max_depth
