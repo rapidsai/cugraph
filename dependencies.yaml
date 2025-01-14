@@ -298,7 +298,6 @@ dependencies:
             packages:
               - cudatoolkit
               - cuda-nvtx
-  # TODO(jameslamb): maybe the CUDA wheels were just here to transitively satisfy RAFT's dependencies, and these could be dropped?
   cuda_wheels:
     specific:
       - output_types: pyproject

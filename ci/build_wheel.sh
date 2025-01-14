@@ -30,8 +30,6 @@ python -m pip wheel \
 
 sccache --show-adv-stats
 
-# TODO(jameslamb): move all the auditwheel stuff into individual build_wheel_{project}.sh like cudf does?
-
 EXCLUDE_ARGS=(
   --exclude "libraft.so"
 )
