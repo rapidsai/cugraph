@@ -201,7 +201,6 @@ class PyGTrainer(Trainer):
                         )
                         logger.info(f"total time: {total_time_iter}")
 
-
                     y_true = data.y
                     y_true = y_true.reshape((y_true.shape[0],))
                     x = data.x.to(torch.float32)
