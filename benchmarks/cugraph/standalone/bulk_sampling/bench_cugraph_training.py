@@ -36,9 +36,7 @@ from cugraph.testing.mg_utils import enable_spilling
 def init_pytorch_worker(rank: int, use_rmm_torch_allocator: bool = False) -> None:
     import cupy
     import rmm
-    from pynvml_utils.smi import nvidia_smi
 
-    smi = nvidia_smi.getInstance()
     pool_size = 16e9  # FIXME calculate this
 
     rmm.reinitialize(
