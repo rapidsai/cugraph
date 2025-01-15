@@ -201,9 +201,6 @@ class PyGTrainer(Trainer):
                         )
                         logger.info(f"total time: {total_time_iter}")
 
-                        # from pynvml_utils.smi import nvidia_smi
-                        # mem_info = nvidia_smi.getInstance().DeviceQuery('memory.free, memory.total')['gpu'][self.rank % 8]['fb_memory_usage']
-                        # logger.info(f"rank {self.rank} memory: {mem_info}")
 
                     y_true = data.y
                     y_true = y_true.reshape((y_true.shape[0],))
