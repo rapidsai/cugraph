@@ -31,6 +31,9 @@ from cugraph_benchmarking.params import (
     pool_allocator,
 )
 
+def setFixtureParamNames(*args, **kwargs):
+    pass
+
 # duck-type compatible Dataset for RMAT data
 class RmatDataset:
     def __init__(self, scale=4, edgefactor=2, mg=False):
