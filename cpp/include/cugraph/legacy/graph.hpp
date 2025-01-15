@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -47,6 +47,13 @@ enum class DegreeDirection {
   OUT,              ///> Compute out degree
   DEGREE_DIRECTION_COUNT
 };
+
+/** @defgroup legacy_graph_cpp C++ Legacy Graph
+ */
+
+/** @ingroup legacy_graph_cpp
+ *  @{
+ */
 
 /**
  * @brief       Base class graphs, all but vertices and edges
@@ -575,3 +582,7 @@ struct invalid_edge_id : invalid_idx<edge_t> {};
 }  // namespace cugraph
 
 #include "eidecl_graph.hpp"
+
+/**
+ * @}
+ */

@@ -25,8 +25,12 @@
 namespace cugraph {
 namespace detail {
 
-// FIXME: Consider moving this file (or most of this file) into the src directory...
-//    at least some of these functions don't really belong in the public API
+/** @defgroup shuffle_wrappers_cpp C++ Shuffle Wrappers
+ */
+
+/** @ingroup shuffle_wrappers_cpp
+ *  @{
+ */
 
 /**
  * @brief Shuffle external (i.e. before renumbering) vertex pairs (which can be edge end points) to
@@ -313,3 +317,7 @@ rmm::device_uvector<value_t> collect_local_vertex_values_from_ext_vertex_value_p
 
 }  // namespace detail
 }  // namespace cugraph
+
+/**
+ * @}
+ */

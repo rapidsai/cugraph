@@ -30,6 +30,9 @@
 #include <tuple>
 #include <vector>
 
+/** @defgroup graph_functions_cpp C++ Graph Funtions
+ */
+
 namespace cugraph {
 
 template <typename vertex_t, typename edge_t, bool multi_gpu, typename Enable = void>
@@ -51,6 +54,7 @@ struct renumber_meta_t<vertex_t, edge_t, multi_gpu, std::enable_if_t<!multi_gpu>
 };
 
 /**
+ * @ingroup graph_functions_cpp
  * @brief renumber edgelist (multi-GPU)
  *
  * This function assumes that vertices are pre-shuffled to their target processes and edges are
@@ -113,6 +117,7 @@ renumber_edgelist(
   bool do_expensive_check = false);
 
 /**
+ * @ingroup graph_functions_cpp
  * @brief renumber edgelist (single-GPU)
  *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
@@ -151,6 +156,7 @@ renumber_edgelist(raft::handle_t const& handle,
                   bool do_expensive_check = false);
 
 /**
+ * @ingroup graph_functions_cpp
  * @brief Renumber external vertices to internal vertices based on the provided @p
  * renumber_map_labels.
  *
@@ -182,6 +188,7 @@ void renumber_ext_vertices(raft::handle_t const& handle,
                            bool do_expensive_check = false);
 
 /**
+ * @ingroup graph_functions_cpp
  * @brief Unrenumber local internal vertices to external vertices based on the providied @p
  * renumber_map_labels.
  *
@@ -213,6 +220,7 @@ void unrenumber_local_int_vertices(
   bool do_expensive_check = false);
 
 /**
+ * @ingroup graph_functions_cpp
  * @brief Unrenumber (possibly non-local) internal vertices to external vertices based on the
  * providied @p renumber_map_labels.
  *
@@ -241,6 +249,7 @@ void unrenumber_int_vertices(raft::handle_t const& handle,
                              bool do_expensive_check = false);
 
 /**
+ * @ingroup graph_functions_cpp
  * @brief Unrenumber local edges' internal source & destination IDs to external IDs based on the
  * provided @p renumber_map_labels (multi-GPU).
  *
@@ -281,6 +290,7 @@ std::enable_if_t<multi_gpu, void> unrenumber_local_int_edges(
   bool do_expensive_check = false);
 
 /**
+ * @ingroup graph_functions_cpp
  * @brief Unrenumber local edges' internal source & destination IDs to external IDs based on the
  * provided @p renumber_map_labels (single-GPU).
  *
@@ -311,6 +321,7 @@ std::enable_if_t<!multi_gpu, void> unrenumber_local_int_edges(raft::handle_t con
                                                               bool do_expensive_check = false);
 
 /**
+ * @ingroup graph_functions_cpp
  * @brief Renumber local external vertices to internal vertices based on the provided @p
  * renumber_map_labels.
  *
@@ -341,6 +352,7 @@ void renumber_local_ext_vertices(raft::handle_t const& handle,
                                  vertex_t local_int_vertex_last,
                                  bool do_expensive_check = false);
 /**
+ * @ingroup graph_functions_cpp
  * @brief Construct the edge list from the graph view object.
  *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
@@ -385,6 +397,7 @@ decompress_to_edgelist(
   bool do_expensive_check = false);
 
 /**
+ * @ingroup graph_functions_cpp
  * @brief Symmetrize edgelist.
  *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
@@ -437,6 +450,7 @@ symmetrize_edgelist(raft::handle_t const& handle,
                     bool reciprocal);
 
 /**
+ * @ingroup graph_functions_cpp
  * @brief Symmetrize the input graph.
  *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
@@ -479,6 +493,7 @@ symmetrize_graph(
   bool do_expensive_check = false);
 
 /**
+ * @ingroup graph_functions_cpp
  * @brief Transpose the input graph.
  *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
@@ -518,6 +533,7 @@ transpose_graph(
   bool do_expensive_check = false);
 
 /**
+ * @ingroup graph_functions_cpp
  * @brief Transpose the storage format (no change in an actual graph topology).
  *
  * In SG, convert between CSR and CSC. In multi-GPU, currently convert between CSR + DCSR hybrid
@@ -561,6 +577,7 @@ transpose_graph_storage(
   bool do_expensive_check = false);
 
 /**
+ * @ingroup graph_functions_cpp
  * @brief Compute the coarsened graph.
  *
  * Aggregates the vertices with the same label to a new vertex in the output coarsened graph.
@@ -608,6 +625,7 @@ coarsen_graph(raft::handle_t const& handle,
               bool do_expensive_check = false);
 
 /**
+ * @ingroup graph_functions_cpp
  * @brief Relabel old labels to new labels.
  *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
@@ -641,6 +659,7 @@ void relabel(raft::handle_t const& handle,
 // FIXME: the first two elements of the returned tuple should be source & destination instead of
 // major & minor. Major & minor shouldn't be used in the non-detail public API.
 /**
+ * @ingroup graph_functions_cpp
  * @brief extract induced subgraph(s).
  *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
@@ -690,6 +709,7 @@ extract_induced_subgraphs(
 // implementation) to support different types (arithmetic types or thrust tuple of arithmetic types)
 // of edge properties.
 /**
+ * @ingroup graph_functions_cpp
  * @brief create a graph from (the optional vertex list and) the given edge list (with optional edge
  * IDs and types).
  *
@@ -751,6 +771,7 @@ create_graph_from_edgelist(raft::handle_t const& handle,
                            bool do_expensive_check = false);
 
 /**
+ * @ingroup graph_functions_cpp
  * @brief create a graph from (the optional vertex list and) the given edge list (with optional edge
  * IDs and types).
  *
@@ -823,6 +844,7 @@ create_graph_from_edgelist(
   bool do_expensive_check = false);
 
 /**
+ * @ingroup graph_functions_cpp
  * @brief create a graph from (the optional vertex list and) the given edge list (with optional edge
  * IDs and types).
  *
@@ -887,6 +909,7 @@ create_graph_from_edgelist(
   bool do_expensive_check = false);
 
 /**
+ * @ingroup graph_functions_cpp
  * @brief create a graph from (the optional vertex list and) the given edge list (with optional edge
  * IDs, types, start and end times).
  *
@@ -961,6 +984,7 @@ create_graph_from_edgelist(
   bool do_expensive_check = false);
 
 /**
+ * @ingroup graph_functions_cpp
  * @brief      Find all 2-hop neighbors in the graph
  *
  * Find pairs of vertices in the input graph such that each pair is connected by
@@ -987,6 +1011,7 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> get_two
   std::optional<raft::device_span<vertex_t const>> start_vertices);
 
 /**
+ * @ingroup graph_functions_cpp
  * @brief Compute per-vertex incoming edge weight sums.
  *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
@@ -1014,6 +1039,7 @@ rmm::device_uvector<weight_t> compute_in_weight_sums(
   edge_property_view_t<edge_t, weight_t const*> edge_weight_view);
 
 /**
+ * @ingroup graph_functions_cpp
  * @brief Compute per-vertex outgoing edge weight sums.
  *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
@@ -1041,6 +1067,7 @@ rmm::device_uvector<weight_t> compute_out_weight_sums(
   edge_property_view_t<edge_t, weight_t const*> edge_weight_view);
 
 /**
+ * @ingroup graph_functions_cpp
  * @brief Compute maximum per-vertex incoming edge weight sums.
  *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
@@ -1068,6 +1095,7 @@ weight_t compute_max_in_weight_sum(
   edge_property_view_t<edge_t, weight_t const*> edge_weight_view);
 
 /**
+ * @ingroup graph_functions_cpp
  * @brief Compute maximum per-vertex outgoing edge weight sums.
  *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
@@ -1095,6 +1123,7 @@ weight_t compute_max_out_weight_sum(
   edge_property_view_t<edge_t, weight_t const*> edge_weight_view);
 
 /**
+ * @ingroup graph_functions_cpp
  * @brief Sum the weights of the entire set of edges.
  *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
@@ -1121,6 +1150,7 @@ weight_t compute_total_edge_weight(
   edge_property_view_t<edge_t, weight_t const*> edge_weight_view);
 
 /**
+ * @ingroup graph_functions_cpp
  * @brief Select random vertices
  *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
@@ -1153,6 +1183,7 @@ rmm::device_uvector<vertex_t> select_random_vertices(
   bool do_expensive_check = false);
 
 /**
+ * @ingroup graph_functions_cpp
  * @brief Remove self loops from an edge list
  *
  * @tparam vertex_t    Type of vertex identifiers. Needs to be an integral type.
@@ -1195,6 +1226,7 @@ remove_self_loops(raft::handle_t const& handle,
                   std::optional<rmm::device_uvector<edge_time_t>>&& edgelist_edge_end_times);
 
 /**
+ * @ingroup graph_functions_cpp
  * @brief Remove all but one edge when a multi-edge exists.
  *
  * When a multi-edge exists, one of the edges will remain. If @p keep_min_value_edge is false, an
@@ -1253,6 +1285,7 @@ remove_multi_edges(raft::handle_t const& handle,
                    bool keep_min_value_edge = false);
 
 /**
+ * @ingroup graph_functions_cpp
  * @brief Shuffle external vertex ids to the proper GPU.
  *
  * @tparam vertex_t    Type of vertex identifiers. Needs to be an integral type.
@@ -1267,6 +1300,7 @@ rmm::device_uvector<vertex_t> shuffle_external_vertices(raft::handle_t const& ha
                                                         rmm::device_uvector<vertex_t>&& vertices);
 
 /**
+ * @ingroup graph_functions_cpp
  * @brief Shuffle external vertex ids and values to the proper GPU.
  *
  * @tparam vertex_t   Type of vertex identifiers. Needs to be an integral type.
@@ -1286,6 +1320,7 @@ shuffle_external_vertex_value_pairs(raft::handle_t const& handle,
                                     rmm::device_uvector<value_t>&& values);
 
 /**
+ * @ingroup graph_functions_cpp
  * @brief Shuffle external edges to the proper GPU.
  *
  * @tparam vertex_t    Type of vertex identifiers. Needs to be an integral type.
