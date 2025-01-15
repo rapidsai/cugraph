@@ -143,7 +143,7 @@ read_edgelist_from_csv_file(raft::handle_t const& handle,
   file.read(buffer.data(), length);
   CUGRAPH_EXPECTS(file, "File read failure.");
 
-  buffer.back() = '\0';  // null termination
+  buffer[length] = '\0';  // null termination
 
   file.close();
 

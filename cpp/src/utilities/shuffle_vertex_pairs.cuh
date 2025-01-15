@@ -191,7 +191,7 @@ shuffle_vertex_pairs_with_values_by_gpu_id_impl(
     }
 
     if (edge_ids) {
-      rmm::device_uvector<weight_t> tmp(property_position.size(), handle.get_stream());
+      rmm::device_uvector<edge_t> tmp(property_position.size(), handle.get_stream());
 
       thrust::gather(handle.get_thrust_policy(),
                      property_position.begin(),
@@ -203,7 +203,7 @@ shuffle_vertex_pairs_with_values_by_gpu_id_impl(
     }
 
     if (edge_types) {
-      rmm::device_uvector<weight_t> tmp(property_position.size(), handle.get_stream());
+      rmm::device_uvector<edge_type_t> tmp(property_position.size(), handle.get_stream());
 
       thrust::gather(handle.get_thrust_policy(),
                      property_position.begin(),
@@ -215,7 +215,7 @@ shuffle_vertex_pairs_with_values_by_gpu_id_impl(
     }
 
     if (edge_start_times) {
-      rmm::device_uvector<weight_t> tmp(property_position.size(), handle.get_stream());
+      rmm::device_uvector<edge_time_t> tmp(property_position.size(), handle.get_stream());
 
       thrust::gather(handle.get_thrust_policy(),
                      property_position.begin(),
@@ -227,7 +227,7 @@ shuffle_vertex_pairs_with_values_by_gpu_id_impl(
     }
 
     if (edge_end_times) {
-      rmm::device_uvector<weight_t> tmp(property_position.size(), handle.get_stream());
+      rmm::device_uvector<edge_time_t> tmp(property_position.size(), handle.get_stream());
 
       thrust::gather(handle.get_thrust_policy(),
                      property_position.begin(),

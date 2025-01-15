@@ -835,7 +835,7 @@ create_graph_from_partitioned_edgelist(
         (*edge_partition_edgelist_weights)[i] = std::move(tmp);
       }
       if (edge_partition_edgelist_edge_ids) {
-        rmm::device_uvector<weight_t> tmp(property_position.size(), handle.get_stream());
+        rmm::device_uvector<edge_t> tmp(property_position.size(), handle.get_stream());
         thrust::gather(handle.get_thrust_policy(),
                        property_position.begin(),
                        property_position.end(),
@@ -844,7 +844,7 @@ create_graph_from_partitioned_edgelist(
         (*edge_partition_edgelist_edge_ids)[i] = std::move(tmp);
       }
       if (edge_partition_edgelist_edge_types) {
-        rmm::device_uvector<weight_t> tmp(property_position.size(), handle.get_stream());
+        rmm::device_uvector<edge_type_t> tmp(property_position.size(), handle.get_stream());
         thrust::gather(handle.get_thrust_policy(),
                        property_position.begin(),
                        property_position.end(),
@@ -853,7 +853,7 @@ create_graph_from_partitioned_edgelist(
         (*edge_partition_edgelist_edge_types)[i] = std::move(tmp);
       }
       if (edge_partition_edgelist_edge_end_times) {
-        rmm::device_uvector<weight_t> tmp(property_position.size(), handle.get_stream());
+        rmm::device_uvector<edge_time_t> tmp(property_position.size(), handle.get_stream());
         thrust::gather(handle.get_thrust_policy(),
                        property_position.begin(),
                        property_position.end(),
@@ -862,7 +862,7 @@ create_graph_from_partitioned_edgelist(
         (*edge_partition_edgelist_edge_end_times)[i] = std::move(tmp);
       }
       if (edge_partition_edgelist_edge_end_times) {
-        rmm::device_uvector<weight_t> tmp(property_position.size(), handle.get_stream());
+        rmm::device_uvector<edge_time_t> tmp(property_position.size(), handle.get_stream());
         thrust::gather(handle.get_thrust_policy(),
                        property_position.begin(),
                        property_position.end(),

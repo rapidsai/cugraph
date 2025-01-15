@@ -271,7 +271,7 @@ rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partition_id(
     }
 
     if (d_edgelist_edge_ids) {
-      rmm::device_uvector<weight_t> tmp(property_position.size(), handle.get_stream());
+      rmm::device_uvector<edge_t> tmp(property_position.size(), handle.get_stream());
 
       thrust::gather(handle.get_thrust_policy(),
                      property_position.begin(),
@@ -283,7 +283,7 @@ rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partition_id(
     }
 
     if (d_edgelist_edge_types) {
-      rmm::device_uvector<weight_t> tmp(property_position.size(), handle.get_stream());
+      rmm::device_uvector<edge_type_t> tmp(property_position.size(), handle.get_stream());
 
       thrust::gather(handle.get_thrust_policy(),
                      property_position.begin(),
@@ -295,7 +295,7 @@ rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partition_id(
     }
 
     if (d_edgelist_edge_start_times) {
-      rmm::device_uvector<weight_t> tmp(property_position.size(), handle.get_stream());
+      rmm::device_uvector<edge_time_t> tmp(property_position.size(), handle.get_stream());
 
       thrust::gather(handle.get_thrust_policy(),
                      property_position.begin(),
@@ -307,7 +307,7 @@ rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partition_id(
     }
 
     if (d_edgelist_edge_end_times) {
-      rmm::device_uvector<weight_t> tmp(property_position.size(), handle.get_stream());
+      rmm::device_uvector<edge_time_t> tmp(property_position.size(), handle.get_stream());
 
       thrust::gather(handle.get_thrust_policy(),
                      property_position.begin(),
