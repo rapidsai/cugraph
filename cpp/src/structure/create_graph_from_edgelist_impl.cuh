@@ -15,6 +15,7 @@
  */
 #pragma once
 
+#include "cugraph/edge_partition_view.hpp"
 #include "detail/graph_partition_utils.cuh"
 #include "structure/detail/structure_utils.cuh"
 
@@ -620,8 +621,7 @@ create_graph_from_partitioned_edgelist(
             minor_range_last,
             mem_frugal_threshold,
             handle.get_stream());
-      }
-      if (edge_partition_edgelist_edge_ids) {
+      } else if (edge_partition_edgelist_edge_ids) {
         std::tie(offsets, indices, edge_ids, dcs_nzd_vertices) =
           detail::sort_and_compress_edgelist<vertex_t, edge_t, edge_t, store_transposed>(
             std::move(edge_partition_edgelist_srcs[i]),
@@ -634,8 +634,7 @@ create_graph_from_partitioned_edgelist(
             minor_range_last,
             mem_frugal_threshold,
             handle.get_stream());
-      }
-      if (edge_partition_edgelist_edge_types) {
+      } else if (edge_partition_edgelist_edge_types) {
         std::tie(offsets, indices, edge_types, dcs_nzd_vertices) =
           detail::sort_and_compress_edgelist<vertex_t, edge_t, edge_type_t, store_transposed>(
             std::move(edge_partition_edgelist_srcs[i]),
@@ -648,8 +647,7 @@ create_graph_from_partitioned_edgelist(
             minor_range_last,
             mem_frugal_threshold,
             handle.get_stream());
-      }
-      if (edge_partition_edgelist_edge_start_times) {
+      } else if (edge_partition_edgelist_edge_start_times) {
         std::tie(offsets, indices, edge_start_times, dcs_nzd_vertices) =
           detail::sort_and_compress_edgelist<vertex_t, edge_t, edge_time_t, store_transposed>(
             std::move(edge_partition_edgelist_srcs[i]),
@@ -662,8 +660,7 @@ create_graph_from_partitioned_edgelist(
             minor_range_last,
             mem_frugal_threshold,
             handle.get_stream());
-      }
-      if (edge_partition_edgelist_edge_end_times) {
+      } else if (edge_partition_edgelist_edge_end_times) {
         std::tie(offsets, indices, edge_end_times, dcs_nzd_vertices) =
           detail::sort_and_compress_edgelist<vertex_t, edge_t, edge_time_t, store_transposed>(
             std::move(edge_partition_edgelist_srcs[i]),
@@ -782,9 +779,7 @@ create_graph_from_partitioned_edgelist(
           edge_partition_indices[i].begin(),
           edge_partition_indices[i].end(),
           (*edge_partition_weights)[i].begin());
-      }
-
-      if (edge_partition_edgelist_edge_ids) {
+      } else if (edge_partition_edgelist_edge_ids) {
         detail::sort_adjacency_list(
           handle,
           raft::device_span<edge_t const>(edge_partition_offsets[i].data(),
@@ -792,9 +787,7 @@ create_graph_from_partitioned_edgelist(
           edge_partition_indices[i].begin(),
           edge_partition_indices[i].end(),
           (*edge_partition_edge_ids)[i].begin());
-      }
-
-      if (edge_partition_edgelist_edge_types) {
+      } else if (edge_partition_edgelist_edge_types) {
         detail::sort_adjacency_list(
           handle,
           raft::device_span<edge_t const>(edge_partition_offsets[i].data(),
@@ -802,9 +795,7 @@ create_graph_from_partitioned_edgelist(
           edge_partition_indices[i].begin(),
           edge_partition_indices[i].end(),
           (*edge_partition_edge_types)[i].begin());
-      }
-
-      if (edge_partition_edgelist_edge_start_times) {
+      } else if (edge_partition_edgelist_edge_start_times) {
         detail::sort_adjacency_list(
           handle,
           raft::device_span<edge_t const>(edge_partition_offsets[i].data(),
@@ -812,9 +803,7 @@ create_graph_from_partitioned_edgelist(
           edge_partition_indices[i].begin(),
           edge_partition_indices[i].end(),
           (*edge_partition_edge_start_times)[i].begin());
-      }
-
-      if (edge_partition_edgelist_edge_end_times) {
+      } else if (edge_partition_edgelist_edge_end_times) {
         detail::sort_adjacency_list(
           handle,
           raft::device_span<edge_t const>(edge_partition_offsets[i].data(),
@@ -843,10 +832,7 @@ create_graph_from_partitioned_edgelist(
                        property_position.end(),
                        (*edge_partition_edgelist_weights)[i].begin(),
                        tmp.begin());
-        thrust::copy(handle.get_thrust_policy(),
-                     tmp.begin(),
-                     tmp.end(),
-                     (*edge_partition_edgelist_weights)[i].begin());
+        (*edge_partition_edgelist_weights)[i] = std::move(tmp);
       }
       if (edge_partition_edgelist_edge_ids) {
         rmm::device_uvector<weight_t> tmp(property_position.size(), handle.get_stream());
@@ -855,10 +841,7 @@ create_graph_from_partitioned_edgelist(
                        property_position.end(),
                        (*edge_partition_edgelist_edge_ids)[i].begin(),
                        tmp.begin());
-        thrust::copy(handle.get_thrust_policy(),
-                     tmp.begin(),
-                     tmp.end(),
-                     (*edge_partition_edgelist_edge_ids)[i].begin());
+        (*edge_partition_edgelist_edge_ids)[i] = std::move(tmp);
       }
       if (edge_partition_edgelist_edge_types) {
         rmm::device_uvector<weight_t> tmp(property_position.size(), handle.get_stream());
@@ -867,10 +850,7 @@ create_graph_from_partitioned_edgelist(
                        property_position.end(),
                        (*edge_partition_edgelist_edge_types)[i].begin(),
                        tmp.begin());
-        thrust::copy(handle.get_thrust_policy(),
-                     tmp.begin(),
-                     tmp.end(),
-                     (*edge_partition_edgelist_edge_types)[i].begin());
+        (*edge_partition_edgelist_edge_types)[i] = std::move(tmp);
       }
       if (edge_partition_edgelist_edge_end_times) {
         rmm::device_uvector<weight_t> tmp(property_position.size(), handle.get_stream());
@@ -879,10 +859,7 @@ create_graph_from_partitioned_edgelist(
                        property_position.end(),
                        (*edge_partition_edgelist_edge_end_times)[i].begin(),
                        tmp.begin());
-        thrust::copy(handle.get_thrust_policy(),
-                     tmp.begin(),
-                     tmp.end(),
-                     (*edge_partition_edgelist_edge_end_times)[i].begin());
+        (*edge_partition_edgelist_edge_end_times)[i] = std::move(tmp);
       }
       if (edge_partition_edgelist_edge_end_times) {
         rmm::device_uvector<weight_t> tmp(property_position.size(), handle.get_stream());
@@ -891,10 +868,7 @@ create_graph_from_partitioned_edgelist(
                        property_position.end(),
                        (*edge_partition_edgelist_edge_end_times)[i].begin(),
                        tmp.begin());
-        thrust::copy(handle.get_thrust_policy(),
-                     tmp.begin(),
-                     tmp.end(),
-                     (*edge_partition_edgelist_edge_end_times)[i].begin());
+        (*edge_partition_edgelist_edge_end_times)[i] = std::move(tmp);
       }
     }
   }
@@ -1909,8 +1883,7 @@ create_graph_from_edgelist_impl(
           num_vertices,
           mem_frugal_threshold,
           handle.get_stream());
-    }
-    if (edgelist_edge_ids) {
+    } else if (edgelist_edge_ids) {
       std::forward_as_tuple(offsets, indices, ids, std::ignore) =
         detail::sort_and_compress_edgelist<vertex_t, edge_t, edge_t, store_transposed>(
           std::move(edgelist_srcs),
@@ -1923,8 +1896,7 @@ create_graph_from_edgelist_impl(
           num_vertices,
           mem_frugal_threshold,
           handle.get_stream());
-    }
-    if (edgelist_edge_types) {
+    } else if (edgelist_edge_types) {
       std::forward_as_tuple(offsets, indices, types, std::ignore) =
         detail::sort_and_compress_edgelist<vertex_t, edge_t, edge_type_t, store_transposed>(
           std::move(edgelist_srcs),
@@ -1937,8 +1909,7 @@ create_graph_from_edgelist_impl(
           num_vertices,
           mem_frugal_threshold,
           handle.get_stream());
-    }
-    if (edgelist_edge_start_times) {
+    } else if (edgelist_edge_start_times) {
       std::forward_as_tuple(offsets, indices, start_times, std::ignore) =
         detail::sort_and_compress_edgelist<vertex_t, edge_t, edge_time_t, store_transposed>(
           std::move(edgelist_srcs),
@@ -1951,8 +1922,7 @@ create_graph_from_edgelist_impl(
           num_vertices,
           mem_frugal_threshold,
           handle.get_stream());
-    }
-    if (edgelist_edge_end_times) {
+    } else if (edgelist_edge_end_times) {
       std::forward_as_tuple(offsets, indices, end_times, std::ignore) =
         detail::sort_and_compress_edgelist<vertex_t, edge_t, edge_time_t, store_transposed>(
           std::move(edgelist_srcs),
@@ -2068,7 +2038,7 @@ create_graph_from_edgelist_impl(
   std::optional<
     edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, edge_time_t>>
     edge_start_times{std::nullopt};
-  if (types) {
+  if (start_times) {
     std::vector<rmm::device_uvector<edge_time_t>> buffers{};
     buffers.push_back(std::move(*start_times));
     edge_start_times =
@@ -2079,7 +2049,7 @@ create_graph_from_edgelist_impl(
   std::optional<
     edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, edge_time_t>>
     edge_end_times{std::nullopt};
-  if (types) {
+  if (end_times) {
     std::vector<rmm::device_uvector<edge_time_t>> buffers{};
     buffers.push_back(std::move(*end_times));
     edge_end_times =

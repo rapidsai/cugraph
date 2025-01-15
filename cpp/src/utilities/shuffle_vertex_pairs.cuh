@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -132,9 +132,7 @@ shuffle_vertex_pairs_with_values_by_gpu_id_impl(
         comm_size,
         mem_frugal_threshold,
         handle.get_stream());
-    }
-
-    if (edge_ids) {
+    } else if (edge_ids) {
       d_tx_value_counts = cugraph::groupby_and_count(
         thrust::make_zip_iterator(majors.begin(), minors.begin(), edge_ids->begin()),
         thrust::make_zip_iterator(majors.end(), minors.end(), edge_ids->end()),
@@ -142,9 +140,7 @@ shuffle_vertex_pairs_with_values_by_gpu_id_impl(
         comm_size,
         mem_frugal_threshold,
         handle.get_stream());
-    }
-
-    if (edge_types) {
+    } else if (edge_types) {
       d_tx_value_counts = cugraph::groupby_and_count(
         thrust::make_zip_iterator(majors.begin(), minors.begin(), edge_types->begin()),
         thrust::make_zip_iterator(majors.end(), minors.end(), edge_types->end()),
@@ -152,9 +148,7 @@ shuffle_vertex_pairs_with_values_by_gpu_id_impl(
         comm_size,
         mem_frugal_threshold,
         handle.get_stream());
-    }
-
-    if (edge_start_times) {
+    } else if (edge_start_times) {
       d_tx_value_counts = cugraph::groupby_and_count(
         thrust::make_zip_iterator(majors.begin(), minors.begin(), edge_start_times->begin()),
         thrust::make_zip_iterator(majors.end(), minors.end(), edge_start_times->end()),
@@ -162,9 +156,7 @@ shuffle_vertex_pairs_with_values_by_gpu_id_impl(
         comm_size,
         mem_frugal_threshold,
         handle.get_stream());
-    }
-
-    if (edge_end_times) {
+    } else if (edge_end_times) {
       d_tx_value_counts = cugraph::groupby_and_count(
         thrust::make_zip_iterator(majors.begin(), minors.begin(), edge_end_times->begin()),
         thrust::make_zip_iterator(majors.end(), minors.end(), edge_end_times->end()),
@@ -195,7 +187,7 @@ shuffle_vertex_pairs_with_values_by_gpu_id_impl(
                      weights->begin(),
                      tmp.begin());
 
-      thrust::copy(handle.get_thrust_policy(), tmp.begin(), tmp.end(), weights->begin());
+      weights = std::move(tmp);
     }
 
     if (edge_ids) {
@@ -207,7 +199,7 @@ shuffle_vertex_pairs_with_values_by_gpu_id_impl(
                      edge_ids->begin(),
                      tmp.begin());
 
-      thrust::copy(handle.get_thrust_policy(), tmp.begin(), tmp.end(), edge_ids->begin());
+      edge_ids = std::move(tmp);
     }
 
     if (edge_types) {
@@ -219,7 +211,7 @@ shuffle_vertex_pairs_with_values_by_gpu_id_impl(
                      edge_types->begin(),
                      tmp.begin());
 
-      thrust::copy(handle.get_thrust_policy(), tmp.begin(), tmp.end(), edge_types->begin());
+      edge_types = std::move(tmp);
     }
 
     if (edge_start_times) {
@@ -231,7 +223,7 @@ shuffle_vertex_pairs_with_values_by_gpu_id_impl(
                      edge_start_times->begin(),
                      tmp.begin());
 
-      thrust::copy(handle.get_thrust_policy(), tmp.begin(), tmp.end(), edge_start_times->begin());
+      edge_start_times = std::move(tmp);
     }
 
     if (edge_end_times) {
@@ -243,7 +235,7 @@ shuffle_vertex_pairs_with_values_by_gpu_id_impl(
                      edge_end_times->begin(),
                      tmp.begin());
 
-      thrust::copy(handle.get_thrust_policy(), tmp.begin(), tmp.end(), edge_end_times->begin());
+      edge_end_times = std::move(tmp);
     }
   }
 

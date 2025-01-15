@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -388,11 +388,15 @@ decompress_to_edgelist(
  * @brief Symmetrize edgelist.
  *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
  * @tparam weight_t Type of edge weights. Needs to be a floating point type.
+ * @tparam edge_type_t Type of edge type identifiers. Needs to be an integral type.
+ * @tparam edge_time_t Type of edge time. Needs to be an integral type.
  * @tparam store_transposed Flag indicating whether to use sources (if false) or destinations (if
  * true) as major indices in storing edges using a 2D sparse matrix.
  * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
  * or multi-GPU (true).
+ *
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param edgelist_srcs Vector of edge source vertex IDs. If multi-GPU, applying the
@@ -400,11 +404,14 @@ decompress_to_edgelist(
  * function to work (edges should be pre-shuffled).
  * @param edgelist_dsts Vector of edge destination vertex IDs.
  * @param edgelist_weights Vector of edge weights.
+ * @param edgelist_edge_ids Vector of edge ids
+ * @param edgelist_edge_types Vector of edge types
+ * @param edgelist_edge_start_times Vector of edge start times
+ * @param edgelist_edge_end_times Vector of edge end times
  * @param reciprocal Flag indicating whether to keep (if set to `false`) or discard (if set to
  * `true`) edges that appear only in one direction.
- * @return std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>,
- * std::optional<rmm::device_uvector<weight_t>>> Tuple of symmetrized sources, destinations, and
- * optional weights (if @p edgelist_weights is valid).
+ * @return Tuple of symmetrized sources, destinations, optional weights, optional edge ids, optional
+ * edge types, optional edge start times and optional edge end times
  */
 template <typename vertex_t,
           typename edge_t,
@@ -752,6 +759,7 @@ create_graph_from_edgelist(raft::handle_t const& handle,
  * @tparam weight_t Type of edge weight.  Needs to be floating point type
  * @tparam edge_type_t Type of edge type.  Needs to be an integral type, currently only int32_t is
  * supported
+ * @tparam edge_time_t Type of edge time.  Needs to be an integral type.
  * @tparam store_transposed Flag indicating whether to use sources (if false) or destinations (if
  * true) as major indices in storing edges using a 2D sparse matrix. transposed.
  * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
@@ -889,6 +897,7 @@ create_graph_from_edgelist(
  * @tparam weight_t Type of edge weight.  Needs to be floating point type
  * @tparam edge_type_t Type of edge type.  Needs to be an integral type, currently only int32_t is
  * supported
+ * @tparam edge_time_t Type of edge time.  Needs to be an integral type.
  * @tparam store_transposed Flag indicating whether to use sources (if false) or destinations (if
  * true) as major indices in storing edges using a 2D sparse matrix. transposed.
  * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
@@ -1150,6 +1159,7 @@ rmm::device_uvector<vertex_t> select_random_vertices(
  * @tparam edge_t      Type of edge identifiers. Needs to be an integral type.
  * @tparam weight_t    Type of edge weight. Currently float and double are supported.
  * @tparam edge_type_t Type of edge type. Needs to be an integral type.
+ * @tparam edge_time_t Type of edge time.  Needs to be an integral type.
  *
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
@@ -1158,8 +1168,10 @@ rmm::device_uvector<vertex_t> select_random_vertices(
  * @param edgelist_weights  Optional list of edge weights
  * @param edgelist_edge_ids  Optional list of edge ids
  * @param edgelist_edge_types  Optional list of edge types
- * @return Tuple of vectors storing edge sources, destinations, optional weights,
- *    optional edge ids, optional edge types.
+ * @param edgelist_edge_start_times  Optional list of edge start times
+ * @param edgelist_edge_end_times  Optional list of edge end times
+ * @return Tuple of vectors storing edge sources, destinations, optional weights, optional edge ids,
+ * optional edge types, optional edge start times and optional edge end times.
  */
 template <typename vertex_t,
           typename edge_t,
@@ -1199,6 +1211,7 @@ remove_self_loops(raft::handle_t const& handle,
  * @tparam edge_t      Type of edge identifiers. Needs to be an integral type.
  * @tparam weight_t    Type of edge weight. Currently float and double are supported.
  * @tparam edge_type_t Type of edge type. Needs to be an integral type.
+ * @tparam edge_time_t Type of edge time.  Needs to be an integral type.
  *
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
@@ -1207,13 +1220,15 @@ remove_self_loops(raft::handle_t const& handle,
  * @param edgelist_weights  Optional list of edge weights
  * @param edgelist_edge_ids  Optional list of edge ids
  * @param edgelist_edge_types  Optional list of edge types
+ * @param edgelist_edge_start_times  Optional list of edge start times
+ * @param edgelist_edge_end_times  Optional list of edge end times
  * @param keep_min_value_edge Flag indicating whether to keep an arbitrary edge (false) or the
  * minimum value edge (true) among the edges in a multi-edge. Relevant only if @p
  * edgelist_weights.has_value() | @p edgelist_edge_ids.has_value() | @p
  * edgelist_edge_types.has_value() is true. Setting this to true incurs performance overhead as this
  * requires more comparisons.
- * @return Tuple of vectors storing edge sources, destinations, optional weights,
- *    optional edge ids, optional edge types.
+ * @return Tuple of vectors storing edge sources, destinations, optional weights, optional edge ids,
+ * optional edge types, optional edge start times and optional edge end times.
  */
 template <typename vertex_t,
           typename edge_t,

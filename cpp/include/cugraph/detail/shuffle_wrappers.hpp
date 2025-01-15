@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -36,7 +36,7 @@ namespace detail {
  * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
  * @tparam weight_t Type of edge weights. Needs to be a floating point type.
  * @tparam edge_type_t Type of edge type identifiers. Needs to be an integral type.
- * @tparam edge_time_t The type of the edge time stamp
+ * @tparam edge_time_t The type of the edge time stamp.  Needts to be an integral type.
  *
  * @param[in] handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator,
  * and handles to various CUDA libraries) to run graph algorithms.
@@ -97,8 +97,8 @@ shuffle_ext_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning(
  * @param[in] weights Optional vector of vertex pair weight values.
  * @param[in] edge_ids Optional vector of vertex pair edge id values.
  * @param[in] edge_types Optional vector of vertex pair edge type values.
- * @param[in] edge_start_times Optional vector of vertex pair start time values.
- * @param[in] edge_end_times Optional vector of vertex pair end time values.
+ * @param[in] edge_start_times Optional vector of vertex pair edge start time values.
+ * @param[in] edge_end_times Optional vector of vertex pair edge end time values.
  *
  * @param[in] vertex_partition_range_lasts Vector of each GPU's vertex partition range's last
  * (exclusive) vertex ID.
@@ -236,7 +236,10 @@ shuffle_int_vertex_value_pairs_to_local_gpu_by_vertex_partitioning(
  * ID for an edge.
  *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
  * @tparam weight_t Type of edge weights. Needs to be a floating point type.
+ * @tparam edge_type_t Type of edge type identifiers. Needs to be an integral type.
+ * @tparam edge_time_t Type of edge time. Needs to be an integral type.
  *
  * @param[in] handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator,
  * and handles to various CUDA libraries) to run graph algorithms.

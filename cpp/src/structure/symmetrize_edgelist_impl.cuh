@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -206,9 +206,6 @@ merge_lower_triangular(raft::handle_t const& handle,
                        size_t num_lower_triangular_edges,
                        bool reciprocal)
 {
-  // FIXME: For multiple properties, consider adding a comparison functor to the function signature.
-  // We could create a comparison functor that took the tuple of optional properties and compared
-  // across them to get a unique sort
   rmm::device_uvector<vertex_t> merged_majors(0, handle.get_stream());
   rmm::device_uvector<vertex_t> merged_minors(0, handle.get_stream());
   rmm::device_uvector<property_t> merged_properties(0, handle.get_stream());
@@ -530,8 +527,7 @@ symmetrize_edgelist(raft::handle_t const& handle,
                      property_position.end(),
                      edgelist_weights->begin(),
                      tmp.begin());
-
-      thrust::copy(handle.get_thrust_policy(), tmp.begin(), tmp.end(), edgelist_weights->begin());
+      edgelist_weights = std::move(tmp);
     }
 
     if (edgelist_edge_ids) {
@@ -543,7 +539,7 @@ symmetrize_edgelist(raft::handle_t const& handle,
                      edgelist_edge_ids->begin(),
                      tmp.begin());
 
-      thrust::copy(handle.get_thrust_policy(), tmp.begin(), tmp.end(), edgelist_edge_ids->begin());
+      edgelist_edge_ids = std::move(tmp);
     }
 
     if (edgelist_edge_types) {
@@ -555,8 +551,7 @@ symmetrize_edgelist(raft::handle_t const& handle,
                      edgelist_edge_types->begin(),
                      tmp.begin());
 
-      thrust::copy(
-        handle.get_thrust_policy(), tmp.begin(), tmp.end(), edgelist_edge_types->begin());
+      edgelist_edge_types = std::move(tmp);
     }
 
     if (edgelist_edge_start_times) {
@@ -568,8 +563,7 @@ symmetrize_edgelist(raft::handle_t const& handle,
                      edgelist_edge_start_times->begin(),
                      tmp.begin());
 
-      thrust::copy(
-        handle.get_thrust_policy(), tmp.begin(), tmp.end(), edgelist_edge_start_times->begin());
+      edgelist_edge_start_times = std::move(tmp);
     }
 
     if (edgelist_edge_end_times) {
@@ -581,8 +575,7 @@ symmetrize_edgelist(raft::handle_t const& handle,
                      edgelist_edge_end_times->begin(),
                      tmp.begin());
 
-      thrust::copy(
-        handle.get_thrust_policy(), tmp.begin(), tmp.end(), edgelist_edge_end_times->begin());
+      edgelist_edge_end_times = std::move(tmp);
     }
   }
 
@@ -782,8 +775,7 @@ symmetrize_edgelist(raft::handle_t const& handle,
                                std::move(*upper_triangular_weights),
                                num_lower_triangular_edges,
                                reciprocal);
-    }
-    if (edgelist_edge_ids) {
+    } else if (edgelist_edge_ids) {
       std::tie(merged_lower_triangular_majors,
                merged_lower_triangular_minors,
                merged_lower_triangular_edge_ids) =
@@ -796,8 +788,7 @@ symmetrize_edgelist(raft::handle_t const& handle,
                                std::move(*upper_triangular_edge_ids),
                                num_lower_triangular_edges,
                                reciprocal);
-    }
-    if (edgelist_edge_types) {
+    } else if (edgelist_edge_types) {
       std::tie(merged_lower_triangular_majors,
                merged_lower_triangular_minors,
                merged_lower_triangular_edge_types) =
@@ -810,8 +801,7 @@ symmetrize_edgelist(raft::handle_t const& handle,
                                std::move(*upper_triangular_edge_types),
                                num_lower_triangular_edges,
                                reciprocal);
-    }
-    if (edgelist_edge_start_times) {
+    } else if (edgelist_edge_start_times) {
       std::tie(merged_lower_triangular_majors,
                merged_lower_triangular_minors,
                merged_lower_triangular_edge_start_times) =
@@ -824,8 +814,7 @@ symmetrize_edgelist(raft::handle_t const& handle,
                                std::move(*upper_triangular_edge_start_times),
                                num_lower_triangular_edges,
                                reciprocal);
-    }
-    if (edgelist_edge_end_times) {
+    } else if (edgelist_edge_end_times) {
       std::tie(merged_lower_triangular_majors,
                merged_lower_triangular_minors,
                merged_lower_triangular_edge_end_times) =
