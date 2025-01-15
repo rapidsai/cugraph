@@ -32,10 +32,6 @@ from cugraph_benchmarking.params import (
 )
 
 
-def setFixtureParamNames(*args, **kwargs):
-    pass
-
-
 # duck-type compatible Dataset for RMAT data
 class RmatDataset:
     def __init__(self, scale=4, edgefactor=2, mg=False):
@@ -184,11 +180,6 @@ def reinitRMM(managed_mem, pool_alloc):
 
 @pytest.fixture(scope="module", params=rmm_fixture_params)
 def rmm_config(request):
-    # Since parameterized fixtures do not assign param names to param values,
-    # manually call the helper to do so. Ensure the order of the name list
-    # passed to it matches if there are >1 params.
-    # If the request only contains n params, only the first n names are set.
-    setFixtureParamNames(request, ["managed_mem", "pool_allocator"])
     reinitRMM(request.param[0], request.param[1])
 
 
@@ -201,7 +192,6 @@ def dataset(request, rmm_config):
     tests/fixtures are done with the Dataset, it has the Dask cluster and
     client torn down (if MG) and all data loaded is freed.
     """
-    setFixtureParamNames(request, ["dataset"])
     dataset = request.param[0]
     client = cluster = None
     # For now, only RmatDataset instanaces support MG and have a "mg" attr.
