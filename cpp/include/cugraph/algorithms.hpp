@@ -51,9 +51,6 @@
 /** @defgroup traversal_cpp C++ traversal algorithms
  */
 
-/** @defgroup labeling_cpp C++ labeling algorithms
- */
-
 /** @defgroup linear_cpp C++ linear assignment algorithms
  */
 
@@ -63,7 +60,7 @@
 /** @defgroup layout_cpp C++ layout algorithms
  */
 
-/** @defgroup component_cpp C++ component algorithms
+/** @defgroup components_cpp C++ component algorithms
  */
 
 /** @defgroup tree_cpp C++ tree algorithms
@@ -127,7 +124,7 @@ void jaccard_list(legacy::GraphCSRView<VT, ET, WT> const& graph,
                   WT* result);
 
 /**
-.* @ingroup similarity_cpp
+ * @ingroup similarity_cpp
  * @brief     Compute overlap coefficient for all vertices in the graph
  *
  * Computes the Overlap Coefficient for every pair of vertices in the graph which are
