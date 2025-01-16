@@ -48,6 +48,8 @@ def _get_param_args(param_name, param_values):
     return (param_name, [pytest.param(v, id=f"{param_name}={v}") for v in param_values])
 
 
+# FIXME: This test suite must be removed once node2vec is removed from
+# the python API in favor of node2vecrandom walks
 def calc_node2vec(G, start_vertices, max_depth, compress_result, p=1.0, q=1.0):
     """
     Compute node2vec for each nodes in 'start_vertices'

@@ -50,6 +50,8 @@ fixture_params = gen_fixture_params_product(
 )
 
 
+# FIXME: This test suite must be removed once random_walks is removed from
+# the python API in favor of uniform random walks
 def calc_random_walks(G):
     """
     compute random walks
