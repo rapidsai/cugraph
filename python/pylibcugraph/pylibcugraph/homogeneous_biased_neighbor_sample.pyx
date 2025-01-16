@@ -1,4 +1,4 @@
-# Copyright (c) 2022-2024, NVIDIA CORPORATION.
+# Copyright (c) 2022-2025, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -88,6 +88,7 @@ def homogeneous_biased_neighbor_sample(ResourceHandle resource_handle,
                                        start_vertex_list,
                                        starting_vertex_label_offsets,
                                        h_fan_out,
+                                       *,
                                        bool_t with_replacement,
                                        bool_t do_expensive_check,
                                        prior_sources_behavior=None,
@@ -216,7 +217,7 @@ def homogeneous_biased_neighbor_sample(ResourceHandle resource_handle,
     >>> sampling_results = pylibcugraph.homogeneous_biased_neighbor_sample(
     ...         resource_handle, G, start_vertices, starting_vertex_label_offsets,
     ...         h_fan_out, False, True)
-    >>> >>> sampling_results
+    >>> sampling_results
     {'majors': array([2, 2, 5, 5, 1, 1], dtype=int32),
      'minors': array([1, 3, 3, 4, 3, 4], dtype=int32),
      'weight': array([3.1, 4.1, 7.2, 3.2, 2.1, 1.1], dtype=float32)}
@@ -383,8 +384,6 @@ def homogeneous_biased_neighbor_sample(ResourceHandle resource_handle,
     if renumber:
         cupy_renumber_map = result.get_renumber_map()
         cupy_renumber_map_offsets = result.get_renumber_map_offsets()
-        cupy_edge_renumber_map = result.get_edge_renumber_map()
-        cupy_edge_renumber_map_offsets = result.get_edge_renumber_map_offsets()
 
         sampling_results = {
             'major_offsets': cupy_major_offsets,
@@ -397,9 +396,7 @@ def homogeneous_biased_neighbor_sample(ResourceHandle resource_handle,
             'label_hop_offsets': cupy_label_hop_offsets,
             'hop_id': None,
             'renumber_map': cupy_renumber_map,
-            'renumber_map_offsets': cupy_renumber_map_offsets,
-            'edge_renumber_map' : cupy_edge_renumber_map,
-            'edge_renumber_map_offsets' : cupy_edge_renumber_map_offsets
+            'renumber_map_offsets': cupy_renumber_map_offsets
         }
 
     else:

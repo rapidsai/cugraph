@@ -203,7 +203,6 @@ def input_graph(request):
 
 
 @pytest.mark.mg
-@pytest.mark.cugraph_ops
 def test_dask_mg_random_walks(dask_client, input_graph):
     path_data, seeds, max_depth = calc_random_walks(input_graph)
     df_G = input_graph.input_df.compute().reset_index(drop=True)
