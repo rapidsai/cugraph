@@ -16,13 +16,14 @@ cmake_minimum_required(VERSION 3.26.4 FATAL_ERROR)
 
 include(../../rapids_config.cmake)
 
+include(rapids-cuda)
+rapids_cuda_init_architectures(libcugraph-python)
+
 project(
   libcugraph-python
   VERSION "${RAPIDS_VERSION}"
   LANGUAGES CXX
 )
-
-option(USE_CUDA_MATH_WHEELS "Use the CUDA math wheels instead of the system libraries" OFF)
 
 # Check if cugraph is already available. If so, it is the user's responsibility to ensure that the
 # CMake package is also available at build time of Python packages that need libcugraph.
@@ -35,14 +36,7 @@ endif()
 unset(cugraph_FOUND)
 
 # --- CUDA -- #
-find_package(CUDAToolkit REQUIRED)
 set(CUDA_STATIC_RUNTIME ON)
-set(CUDA_STATIC_MATH_LIBRARIES ON)
-if(CUDAToolkit_VERSION VERSION_GREATER_EQUAL 12.0)
-  set(CUDA_STATIC_MATH_LIBRARIES OFF)
-elseif(USE_CUDA_MATH_WHEELS)
-  message(FATAL_ERROR "Cannot use CUDA math wheels with CUDA < 12.0")
-endif()
 
 # --- cugraph ---#
 set(BUILD_TESTS OFF)
@@ -54,15 +48,3 @@ set(USE_RAFT_STATIC OFF)
 set(CUGRAPH_COMPILE_RAFT_LIB ON)
 
 add_subdirectory(../../cpp cugraph-cpp)
-
-if(NOT CUDA_STATIC_MATH_LIBRARIES AND USE_CUDA_MATH_WHEELS)
-  set(rpaths
-    "$ORIGIN/../nvidia/cublas/lib"
-    "$ORIGIN/../nvidia/cufft/lib"
-    "$ORIGIN/../nvidia/curand/lib"
-    "$ORIGIN/../nvidia/cusolver/lib"
-    "$ORIGIN/../nvidia/cusparse/lib"
-    "$ORIGIN/../nvidia/nvjitlink/lib"
-  )
-  set_property(TARGET cugraph PROPERTY INSTALL_RPATH ${rpaths} APPEND)
-endif()

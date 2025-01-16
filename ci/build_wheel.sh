@@ -34,33 +34,26 @@ EXCLUDE_ARGS=(
   --exclude "libraft.so"
 )
 
-case "${RAPIDS_CUDA_VERSION}" in
-    12.*)
-        EXCLUDE_ARGS+=(
-            --exclude "libcublas.so.12"
-            --exclude "libcublasLt.so.12"
-            --exclude "libcurand.so.10"
-            --exclude "libcusolver.so.11"
-            --exclude "libcusparse.so.12"
-            --exclude "libnvJitLink.so.12"
-        )
-    ;;
-esac
+# Avoid picking up dependencies on CUDA wheels that come through
+# transitively from 'libraft'.
+#
+# 'libraft' wheels are responsible for carrying a runtime dependency on
+# these based on RAFT's needs.
+EXCLUDE_ARGS+=(
+  --exclude "libcublas.so.12"
+  --exclude "libcublasLt.so.12"
+  --exclude "libcurand.so.10"
+  --exclude "libcusolver.so.11"
+  --exclude "libcusparse.so.12"
+  --exclude "libnvJitLink.so.12"
+)
 
-case "${package_dir}" in
-  python/pylibcugraph)
+if [[ "${package_dir}" != "python/libcugraph" ]]; then
     EXCLUDE_ARGS+=(
       --exclude "libcugraph_c.so"
       --exclude "libcugraph.so"
     )
-  ;;
-  python/cugraph)
-    EXCLUDE_ARGS+=(
-      --exclude "libcugraph_c.so"
-      --exclude "libcugraph.so"
-    )
-  ;;
-esac
+fi
 
 mkdir -p final_dist
 python -m auditwheel repair -w final_dist "${EXCLUDE_ARGS[@]}" dist/*

@@ -89,7 +89,7 @@ jobs:
       package-name: libcugraph
       package-type: cpp
   wheel-build-pylibcugraph:
-    needs: wheel-publish-libcugraph
+    needs: wheel-build-libcugraph
     secrets: inherit
     uses: rapidsai/shared-workflows/.github/workflows/wheels-build.yaml@branch-25.02
     with:
@@ -110,7 +110,7 @@ jobs:
       package-name: pylibcugraph
       package-type: python
   wheel-build-cugraph:
-    needs: wheel-publish-pylibcugraph
+    needs: wheel-build-pylibcugraph
     secrets: inherit
     uses: rapidsai/shared-workflows/.github/workflows/wheels-build.yaml@branch-25.02
     with:

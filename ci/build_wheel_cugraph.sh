@@ -24,7 +24,5 @@ EOF
 # are used when creating the isolated build environment.
 export PIP_CONSTRAINT="${PWD}/constraints.txt"
 
-export SKBUILD_CMAKE_ARGS="-DDETECT_CONDA_ENV=OFF"
-
 ./ci/build_wheel.sh cugraph ${package_dir} python
 ./ci/validate_wheel.sh ${package_dir} final_dist
