@@ -1,4 +1,4 @@
-# Copyright (c) 2018-2022, NVIDIA CORPORATION.
+# Copyright (c) 2018-2025, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -31,7 +31,7 @@ print("Max GPU utilization: %s" % gpuPollObj.maxGpuUtil)
 import os
 import sys
 import threading
-from pynvml import smi
+import pynvml
 
 
 class GPUMetricPoller(threading.Thread):
@@ -91,18 +91,18 @@ class GPUMetricPoller(threading.Thread):
         childReadPipe = os.fdopen(readFileNo)
         childWritePipe = os.fdopen(writeFileNo, "w")
 
-        smi.nvmlInit()
+        pynvml.nvmlInit()
         # hack - get actual device ID somehow
-        devObj = smi.nvmlDeviceGetHandleByIndex(0)
-        memObj = smi.nvmlDeviceGetMemoryInfo(devObj)
-        utilObj = smi.nvmlDeviceGetUtilizationRates(devObj)
+        devObj = pynvml.nvmlDeviceGetHandleByIndex(0)
+        memObj = pynvml.nvmlDeviceGetMemoryInfo(devObj)
+        utilObj = pynvml.nvmlDeviceGetUtilizationRates(devObj)
         initialMemUsed = memObj.used
         initialGpuUtil = utilObj.gpu
 
         controlStr = self.__waitForInput(childReadPipe)
         while True:
-            memObj = smi.nvmlDeviceGetMemoryInfo(devObj)
-            utilObj = smi.nvmlDeviceGetUtilizationRates(devObj)
+            memObj = pynvml.nvmlDeviceGetMemoryInfo(devObj)
+            utilObj = pynvml.nvmlDeviceGetUtilizationRates(devObj)
 
             memUsed = memObj.used - initialMemUsed
             gpuUtil = utilObj.gpu - initialGpuUtil
@@ -113,7 +113,7 @@ class GPUMetricPoller(threading.Thread):
                 break
             controlStr = self.__waitForInput(childReadPipe)
 
-        smi.nvmlShutdown()
+        pynvml.nvmlShutdown()
         childReadPipe.close()
         childWritePipe.close()
 
@@ -147,34 +147,3 @@ def startGpuMetricPolling():
 def stopGpuMetricPolling(gpuPollObj):
     gpuPollObj.stop()
     gpuPollObj.join()  # consider using timeout and reporting errors
-
-
-"""
-smi.nvmlInit()
-# hack - get actual device ID somehow
-devObj = smi.nvmlDeviceGetHandleByIndex(0)
-memObj = smi.nvmlDeviceGetMemoryInfo(devObj)
-utilObj = smi.nvmlDeviceGetUtilizationRates(devObj)
-initialMemUsed = memObj.used
-initialGpuUtil = utilObj.gpu
-
-while not self.__stop:
-    time.sleep(0.01)
-
-    memObj = smi.nvmlDeviceGetMemoryInfo(devObj)
-    utilObj = smi.nvmlDeviceGetUtilizationRates(devObj)
-
-    memUsed = memObj.used - initialMemUsed
-    gpuUtil = utilObj.gpu - initialGpuUtil
-    if memUsed > self.maxGpuMemUsed:
-        self.maxGpuMemUsed = memUsed
-    if gpuUtil > self.maxGpuUtil:
-        self.maxGpuUtil = gpuUtil
-
-    smi.nvmlShutdown()
-"""
-
-
-# if __name__ == "__main__":
-#     sto=stopGpuMetricPolling
-#     po = startGpuMetricPolling()

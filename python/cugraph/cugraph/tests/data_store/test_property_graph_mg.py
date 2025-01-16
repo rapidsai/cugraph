@@ -1,4 +1,4 @@
-# Copyright (c) 2021-2024, NVIDIA CORPORATION.
+# Copyright (c) 2021-2025, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -27,18 +27,6 @@ from cudf.testing import assert_frame_equal, assert_series_equal
 from pylibcugraph.testing.utils import gen_fixture_params_product
 from cugraph.dask.common.mg_utils import is_single_gpu
 from cugraph.datasets import cyber, netscience
-
-# If the rapids-pytest-benchmark plugin is installed, the "gpubenchmark"
-# fixture will be available automatically. Check that this fixture is available
-# by trying to import rapids_pytest_benchmark, and if that fails, set
-# "gpubenchmark" to the standard "benchmark" fixture provided by
-# pytest-benchmark.
-try:
-    import rapids_pytest_benchmark  # noqa: F401
-except ImportError:
-    import pytest_benchmark
-
-    gpubenchmark = pytest_benchmark.plugin.benchmark
 
 
 def type_is_categorical(pG):
@@ -1517,7 +1505,7 @@ def test_renumber_by_type_only_default_type(dask_client):
 
 @pytest.mark.slow
 @pytest.mark.parametrize("N", [1, 3, 10, 30])
-def bench_add_edges_cyber(gpubenchmark, dask_client, N):
+def bench_add_edges_cyber(benchmark, dask_client, N):
     from cugraph.experimental import MGPropertyGraph
 
     # Partition the dataframe to add in chunks
@@ -1535,13 +1523,13 @@ def bench_add_edges_cyber(gpubenchmark, dask_client, N):
         df = mpG.get_edge_data().compute()
         assert len(df) == len(cyber_df)
 
-    gpubenchmark(func)
+    benchmark(func)
 
 
 @pytest.mark.slow
 @pytest.mark.parametrize("n_rows", [1_000_000])
 @pytest.mark.parametrize("n_feats", [128])
-def bench_get_vector_features(gpubenchmark, dask_client, n_rows, n_feats):
+def bench_get_vector_features(benchmark, dask_client, n_rows, n_feats):
     from cugraph.experimental import MGPropertyGraph
 
     df = cudf.DataFrame(
@@ -1564,4 +1552,4 @@ def bench_get_vector_features(gpubenchmark, dask_client, n_rows, n_feats):
         df = pG.get_edge_data(edge_ids=cp.arange(0, 100_000))
         df = df.compute()
 
-    gpubenchmark(func, pG)
+    benchmark(func, pG)

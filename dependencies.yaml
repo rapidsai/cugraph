@@ -105,6 +105,7 @@ files:
       - depends_on_dask_cudf
       - depends_on_libcugraph
       - depends_on_pylibcugraph
+      - depends_on_pylibraft
       - depends_on_raft_dask
       - depends_on_rmm
       - depends_on_ucx_py

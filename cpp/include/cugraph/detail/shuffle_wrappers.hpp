@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,6 +24,13 @@
 
 namespace cugraph {
 namespace detail {
+
+/** @defgroup shuffle_wrappers_cpp C++ Shuffle Wrappers
+ */
+
+/** @ingroup shuffle_wrappers_cpp
+ *  @{
+ */
 
 /**
  * @brief Shuffle external (i.e. before renumbering) vertex pairs (which can be edge end points) to
@@ -276,3 +283,7 @@ rmm::device_uvector<value_t> collect_local_vertex_values_from_ext_vertex_value_p
 
 }  // namespace detail
 }  // namespace cugraph
+
+/**
+ * @}
+ */
