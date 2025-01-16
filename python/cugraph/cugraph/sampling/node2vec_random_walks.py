@@ -161,5 +161,5 @@ def node2vec_random_walks(
             vertex_paths = df_.fillna(-1)
         else:
             vertex_paths = cudf.Series(df_["vertex_paths"]).fillna(-1)
-    
+
     return vertex_paths, edge_wgt_paths, max_depth

@@ -1,4 +1,4 @@
-# Copyright (c) 2020-2024, NVIDIA CORPORATION.
+# Copyright (c) 2020-2025, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -77,7 +77,15 @@ def golden_call(filename):
 @pytest.mark.parametrize("resolution", RESOLUTIONS)
 @pytest.mark.parametrize("random_state", RANDOM_STATES)
 def test_mg_ecg(
-    dask_client, dataset, min_weight, ensemble_size, max_level, threshold, resolution, random_state):
+    dask_client,
+    dataset,
+    min_weight,
+    ensemble_size,
+    max_level,
+    threshold,
+    resolution,
+    random_state,
+):
     filename = dataset.metadata["name"]
     dg = get_mg_graph(dataset, directed=False)
     parts, mod = dcg.ecg(
@@ -87,7 +95,8 @@ def test_mg_ecg(
         max_level=max_level,
         threshold=threshold,
         resolution=resolution,
-        random_state=random_state)
+        random_state=random_state,
+    )
 
     filename = dataset.metadata["name"]
     golden_score = golden_call(filename)
@@ -96,7 +105,7 @@ def test_mg_ecg(
     # assignment
     assert mod > (0.80 * golden_score)
 
-    #print("mod score = ", mod)
+    # print("mod score = ", mod)
 
     # FIXME: either call Nx with the same dataset and compare results, or
     # hardcode golden results to compare to.

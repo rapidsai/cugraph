@@ -19,10 +19,9 @@ import networkx as nx
 
 import cudf
 import cugraph
-from cudf.testing import assert_series_equal
 from cudf.testing.testing import assert_frame_equal
 from cugraph.utilities import ensure_cugraph_obj_for_nx
-from cugraph.testing import SMALL_DATASETS, DEFAULT_DATASETS, utils
+from cugraph.testing import SMALL_DATASETS, DEFAULT_DATASETS
 
 
 # =============================================================================
@@ -74,8 +73,6 @@ def calc_uniform_random_walks(G, max_depth=None):
 
     k = random.randint(1, 6)
 
-    random_walks_type = "uniform"
-
     start_vertices = G.select_random_vertices(num_vertices=k)
 
     print("\nstart_vertices is \n", start_vertices)
@@ -84,8 +81,6 @@ def calc_uniform_random_walks(G, max_depth=None):
     )
 
     return (vertex_paths, edge_weights, vertex_path_sizes), start_vertices
-
-
 
 
 def check_uniform_random_walks(G, path_data, seeds, max_depth):
@@ -118,33 +113,51 @@ def check_uniform_random_walks(G, path_data, seeds, max_depth):
         if i % (max_depth + 1) == 0:
             if isinstance(seeds, cudf.DataFrame):
                 assert_frame_equal(
-                    vertex_1.rename(columns={x:y for x,y in zip(vertex_1.columns,range(0,len(vertex_1.columns)))}),
-                    seeds.iloc[[i // (max_depth + 1)]].reset_index(drop=True).rename(columns={x:y for x,y in zip(seeds.columns,range(0,len(seeds.columns)))}),
-                    check_dtype=False, check_like=True)
+                    vertex_1.rename(
+                        columns={
+                            x: y
+                            for x, y in zip(
+                                vertex_1.columns, range(0, len(vertex_1.columns))
+                            )
+                        }
+                    ),
+                    seeds.iloc[[i // (max_depth + 1)]]
+                    .reset_index(drop=True)
+                    .rename(
+                        columns={
+                            x: y
+                            for x, y in zip(seeds.columns, range(0, len(seeds.columns)))
+                        }
+                    ),
+                    check_dtype=False,
+                    check_like=True,
+                )
             else:
                 if i % (max_depth + 1) == 0 and vertex_1 != seeds[i // (max_depth + 1)]:
                     invalid_seeds += 1
                     print(
                         "[ERR] Invalid seed: "
-                        " src {} != src {}".format(vertex_1, seeds[i // (max_depth + 1)])
-                )
+                        " src {} != src {}".format(
+                            vertex_1, seeds[i // (max_depth + 1)]
+                        )
+                    )
 
         if (i % (max_depth + 1)) != (max_depth):
             # These are the edges
             src = vertex_1
             dst = vertex_2
-            
+
             # check for valid edge.
             if isinstance(seeds, cudf.DataFrame):
-                if (-1 not in src.iloc[0].reset_index(drop=True)) and (-1 not in dst.iloc[0].reset_index(drop=True)):
+                if (-1 not in src.iloc[0].reset_index(drop=True)) and (
+                    -1 not in dst.iloc[0].reset_index(drop=True)
+                ):
                     edge = cudf.DataFrame()
                     edge["src"] = vertex_1["0_vertex_paths"]
                     edge["src_0"] = vertex_1["1_vertex_paths"]
                     edge["dst"] = vertex_2["0_vertex_paths"]
                     edge["dst_0"] = vertex_2["1_vertex_paths"]
 
-                    join1 = cudf.merge(df_G, edge, on=[*edge.columns])
-                    
                     assert len(cudf.merge(df_G, edge, on=[*edge.columns])) > 0
             else:
                 edge = df_G.loc[
@@ -185,7 +198,6 @@ def check_uniform_random_walks(G, path_data, seeds, max_depth):
         assert invalid_edge_wgt == 0
         assert len(e_wgt_paths) == (max_depth) * len(seeds)
 
-    
     max_path_lenth = path_data[2]
     assert max_path_lenth == max_depth
 
@@ -209,9 +221,7 @@ def test_uniform_random_walks(graph_file, directed):
     print("max_depth is ", max_depth)
     input_graph = graph_file.get_graph(create_using=cugraph.Graph(directed=directed))
 
-    path_data, seeds = calc_uniform_random_walks(
-        input_graph, max_depth=max_depth
-    )
+    path_data, seeds = calc_uniform_random_walks(input_graph, max_depth=max_depth)
 
     check_uniform_random_walks(input_graph, path_data, seeds, max_depth)
 
@@ -243,32 +253,28 @@ def test_uniform_random_walks_nx(graph_file):
 @pytest.mark.sg
 @pytest.mark.parametrize("graph_file", SMALL_DATASETS)
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
-def test_uniform_random_walks_multi_column_seeds(
-    graph_file,
-    directed
-):
+def test_uniform_random_walks_multi_column_seeds(graph_file, directed):
     max_depth = random.randint(2, 10)
     df_G = graph_file.get_edgelist()
-    df_G.rename(
-        columns={"wgt": "weight"}, inplace=True)
-    df_G['src_0'] = df_G['src'] + 1000
-    df_G['dst_0'] = df_G['dst'] + 1000
+    df_G.rename(columns={"wgt": "weight"}, inplace=True)
+    df_G["src_0"] = df_G["src"] + 1000
+    df_G["dst_0"] = df_G["dst"] + 1000
 
     if directed:
         G = cugraph.Graph(directed=True)
     else:
         G = cugraph.Graph()
-    G.from_cudf_edgelist(df_G, source=['src', 'src_0'],
-                         destination=['dst', 'dst_0'],
-                         edge_attr="weight")
+    G.from_cudf_edgelist(
+        df_G, source=["src", "src_0"], destination=["dst", "dst_0"], edge_attr="weight"
+    )
 
     k = random.randint(1, 10)
 
     seeds = G.select_random_vertices(num_vertices=k)
     vertex_paths, edge_weights, vertex_path_sizes = cugraph.uniform_random_walks(
-        G, seeds, max_depth)
-    
+        G, seeds, max_depth
+    )
+
     path_data = (vertex_paths, edge_weights, vertex_path_sizes)
-    
+
     check_uniform_random_walks(G, path_data, seeds, max_depth)
-    

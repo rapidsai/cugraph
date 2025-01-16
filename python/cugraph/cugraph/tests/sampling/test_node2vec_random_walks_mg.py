@@ -1,4 +1,4 @@
-# Copyright (c) 2022-2024, NVIDIA CORPORATION.
+# Copyright (c) 2022-2025, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -19,10 +19,8 @@ import pytest
 import cugraph
 import dask_cudf
 import cugraph.dask as dcg
-import cudf
 from cugraph.testing import SMALL_DATASETS
 from cugraph.datasets import karate_asymmetric
-from cugraph.structure.symmetrize import symmetrize
 from pylibcugraph.testing.utils import gen_fixture_params_product
 
 
@@ -206,7 +204,10 @@ def test_dask_mg_node2vec_random_walks(dask_client, input_graph):
     path_data, seeds, max_depth = calc_node2vec_random_walks(input_graph)
     df_G = input_graph.input_df.compute().reset_index(drop=True)
 
-    df_G = input_graph.decompress_to_edgelist(
-        return_unrenumbered_edgelist=True).compute().reset_index(drop=True)
+    df_G = (
+        input_graph.decompress_to_edgelist(return_unrenumbered_edgelist=True)
+        .compute()
+        .reset_index(drop=True)
+    )
 
     check_node2vec_random_walks(input_graph, path_data, seeds, max_depth, df_G)

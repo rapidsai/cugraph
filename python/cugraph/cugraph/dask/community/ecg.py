@@ -1,4 +1,4 @@
-# Copyright (c) 2022-2024, NVIDIA CORPORATION.
+# Copyright (c) 2022-2025, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -26,10 +26,7 @@ from pylibcugraph import ResourceHandle
 from pylibcugraph import ecg as pylibcugraph_ecg
 import numpy
 import cupy as cp
-from typing import Tuple, TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from cugraph import Graph
+from typing import Tuple
 
 
 def convert_to_cudf(result: cp.ndarray) -> Tuple[cudf.DataFrame, float]:
@@ -75,7 +72,7 @@ def ecg(
     max_level: int = 10,
     threshold: float = 1e-7,
     resolution: float = 1.0,
-    random_state: int = None
+    random_state: int = None,
 ) -> Tuple[dask_cudf.DataFrame, float]:
     """
     Compute the Ensemble Clustering for Graphs (ECG) partition of the input
