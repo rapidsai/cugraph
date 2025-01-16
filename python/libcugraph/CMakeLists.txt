@@ -22,7 +22,7 @@ rapids_cuda_init_architectures(libcugraph-python)
 project(
   libcugraph-python
   VERSION "${RAPIDS_VERSION}"
-  LANGUAGES CXX
+  LANGUAGES CXX CUDA
 )
 
 # Check if cugraph is already available. If so, it is the user's responsibility to ensure that the
