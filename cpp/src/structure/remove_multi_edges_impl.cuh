@@ -99,18 +99,19 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> group_m
   return std::make_tuple(std::move(edgelist_srcs), std::move(edgelist_dsts));
 }
 
-template <typename vertex_t, typename value_t>
-std::
-  tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>, rmm::device_uvector<value_t>>
-  group_multi_edges(raft::handle_t const& handle,
-                    rmm::device_uvector<vertex_t>&& edgelist_srcs,
-                    rmm::device_uvector<vertex_t>&& edgelist_dsts,
-                    rmm::device_uvector<value_t>&& edgelist_values,
-                    size_t mem_frugal_threshold,
-                    bool keep_min_value_edge)
+template <typename vertex_t, typename edge_value_t>
+std::tuple<rmm::device_uvector<vertex_t>,
+           rmm::device_uvector<vertex_t>,
+           dataframe_buffer_type_t<edge_value_t>>
+group_multi_edges(raft::handle_t const& handle,
+                  rmm::device_uvector<vertex_t>&& edgelist_srcs,
+                  rmm::device_uvector<vertex_t>&& edgelist_dsts,
+                  dataframe_buffer_type_t<edge_value_t>&& edgelist_values,
+                  size_t mem_frugal_threshold,
+                  bool keep_min_value_edge)
 {
   auto pair_first  = thrust::make_zip_iterator(edgelist_srcs.begin(), edgelist_dsts.begin());
-  auto value_first = edgelist_values.begin();
+  auto value_first = get_dataframe_buffer_begin(edgelist_values);
   auto edge_first  = thrust::make_zip_iterator(pair_first, value_first);
 
   if (edgelist_srcs.size() > mem_frugal_threshold) {
@@ -152,7 +153,7 @@ std::
       thrust::sort_by_key(handle.get_thrust_policy(),
                           pair_first,
                           pair_first + edgelist_srcs.size(),
-                          edgelist_values.begin());
+                          get_dataframe_buffer_begin(edgelist_values));
     }
   }
 

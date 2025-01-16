@@ -202,8 +202,8 @@ neighbor_sample_impl(raft::handle_t const& handle,
         ? std::make_optional(rmm::device_uvector<label_t>(0, handle.get_stream()))
         : std::nullopt;
 
-    for (edge_type_t edge_type_id = 0; edge_type_id < num_edge_types; edge_type_id++) {
-      auto k_level = fan_out[(hop * num_edge_types) + edge_type_id];
+    for (edge_type_t edge_type = 0; edge_type < num_edge_types; edge_type++) {
+      auto k_level = fan_out[(hop * num_edge_types) + edge_type];
       rmm::device_uvector<vertex_t> srcs(0, handle.get_stream());
       rmm::device_uvector<vertex_t> dsts(0, handle.get_stream());
       std::optional<rmm::device_uvector<weight_t>> weights{std::nullopt};
@@ -212,7 +212,7 @@ neighbor_sample_impl(raft::handle_t const& handle,
       std::optional<rmm::device_uvector<int32_t>> labels{std::nullopt};
 
       if (num_edge_types > 1) {
-        modified_graph_view.attach_edge_mask(edge_masks_vector[edge_type_id].view());
+        modified_graph_view.attach_edge_mask(edge_masks_vector[edge_type].view());
       }
 
       if (k_level > 0) {

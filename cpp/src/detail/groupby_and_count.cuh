@@ -126,7 +126,6 @@ rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partition_id(
     };
 
   if (edge_property_count == 0) {
-    // TODO: Consider flipping the outer if and doing edge_property_count test first...
     if (groupby_and_count_local_partition_by_minor) {
       result = cugraph::groupby_and_count(pair_first,
                                           pair_first + d_edgelist_majors.size(),

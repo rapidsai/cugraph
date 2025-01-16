@@ -40,7 +40,7 @@ namespace detail {
  * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
  * @tparam weight_t Type of edge weights. Needs to be a floating point type.
  * @tparam edge_type_t Type of edge type identifiers. Needs to be an integral type.
- * @tparam edge_time_t The type of the edge time stamp.  Needts to be an integral type.
+ * @tparam edge_time_t The type of the edge time stamp.  Needs to be an integral type.
  *
  * @param[in] handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator,
  * and handles to various CUDA libraries) to run graph algorithms.
