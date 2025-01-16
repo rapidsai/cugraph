@@ -1,4 +1,4 @@
-# Copyright (c) 2021-2024, NVIDIA CORPORATION.
+# Copyright (c) 2021-2025, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -17,7 +17,6 @@ from cugraph.testing.mg_utils import (
     stop_dask_client,
 )
 
-import os
 import tempfile
 
 # Avoid timeout during shutdown
@@ -36,17 +35,6 @@ def pytest_sessionstart(session):
 
 
 # module-wide fixtures
-
-# Spoof the gpubenchmark fixture if it's not available so that asvdb and
-# rapids-pytest-benchmark do not need to be installed to run tests.
-if "gpubenchmark" not in globals():
-
-    def benchmark_func(func, *args, **kwargs):
-        return func(*args, **kwargs)
-
-    @pytest.fixture
-    def gpubenchmark():
-        return benchmark_func
 
 
 @pytest.fixture(scope="module")
@@ -82,9 +70,7 @@ def dask_client_non_p2p():
 def scratch_dir():
     # This should always be set if doing MG testing, since temporary
     # directories are only accessible from the current process.
-    tempdir_object = os.getenv(
-        "RAPIDS_PYTEST_SCRATCH_DIR", tempfile.TemporaryDirectory()
-    )
+    tempdir_object = tempfile.TemporaryDirectory()
 
     if isinstance(tempdir_object, tempfile.TemporaryDirectory):
         yield tempdir_object.name
