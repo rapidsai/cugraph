@@ -41,7 +41,7 @@ def setup_function():
     gc.collect()
 
 
-def calc_biased_random_walks(G, max_depth=None):
+def calc_node2vec_random_walks(G, max_depth=None):
     """
     compute random walks for each nodes in 'start_vertices'
 
@@ -74,12 +74,12 @@ def calc_biased_random_walks(G, max_depth=None):
 
     k = random.randint(1, 6)
 
-    random_walks_type = "biased"
+    random_walks_type = "node2vec"
 
     start_vertices = G.select_random_vertices(num_vertices=k)
 
     print("\nstart_vertices is \n", start_vertices)
-    vertex_paths, edge_weights, vertex_path_sizes = cugraph.biased_random_walks(
+    vertex_paths, edge_weights, vertex_path_sizes = cugraph.node2vec_random_walks(
         G, start_vertices, max_depth
     )
 
@@ -88,7 +88,7 @@ def calc_biased_random_walks(G, max_depth=None):
 
 
 
-def check_biased_random_walks(G, path_data, seeds, max_depth):
+def check_node2vec_random_walks(G, path_data, seeds, max_depth):
     invalid_edge = 0
     invalid_seeds = 0
     invalid_edge_wgt = 0
@@ -194,32 +194,56 @@ def check_biased_random_walks(G, path_data, seeds, max_depth):
 @pytest.mark.parametrize("graph_file", SMALL_DATASETS)
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
 @pytest.mark.parametrize("max_depth", [None])
-def test_biased_random_walks_invalid_max_dept(graph_file, directed, max_depth):
+def test_node2vec_random_walks_invalid_max_dept(graph_file, directed, max_depth):
 
     input_graph = graph_file.get_graph(create_using=cugraph.Graph(directed=directed))
-    with pytest.raises(TypeError):
-        _, _, _ = calc_biased_random_walks(input_graph, max_depth=max_depth)
+    with pytest.raises(ValueError):
+        _, _, _ = calc_node2vec_random_walks(input_graph, max_depth=max_depth)
 
 
 @pytest.mark.sg
 @pytest.mark.parametrize("graph_file", SMALL_DATASETS)
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
-def test_biased_random_walks(graph_file, directed):
+def test_node2vec_random_walks(graph_file, directed):
     max_depth = random.randint(2, 10)
     print("max_depth is ", max_depth)
     input_graph = graph_file.get_graph(create_using=cugraph.Graph(directed=directed))
 
-    path_data, seeds = calc_biased_random_walks(
+    path_data, seeds = calc_node2vec_random_walks(
         input_graph, max_depth=max_depth
     )
 
-    check_biased_random_walks(input_graph, path_data, seeds, max_depth)
+    check_node2vec_random_walks(input_graph, path_data, seeds, max_depth)
+
+
+@pytest.mark.sg
+@pytest.mark.parametrize("graph_file", SMALL_DATASETS)
+def test_node2vec_random_walks_nx(graph_file):
+    G = graph_file.get_graph(create_using=cugraph.Graph(directed=True))
+
+    M = G.to_pandas_edgelist()
+
+    source = G.source_columns
+    target = G.destination_columns
+    edge_attr = G.weight_column
+
+    Gnx = nx.from_pandas_edgelist(
+        M,
+        source=source,
+        target=target,
+        edge_attr=edge_attr,
+        create_using=nx.DiGraph(),
+    )
+    max_depth = random.randint(2, 10)
+    path_data, seeds = calc_node2vec_random_walks(Gnx, max_depth=max_depth)
+
+    check_node2vec_random_walks(Gnx, path_data, seeds, max_depth)
 
 
 @pytest.mark.sg
 @pytest.mark.parametrize("graph_file", SMALL_DATASETS)
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
-def test_biased_random_walks_multi_column_seeds(
+def test_node2vec_random_walks_multi_column_seeds(
     graph_file,
     directed
 ):
@@ -241,10 +265,10 @@ def test_biased_random_walks_multi_column_seeds(
     k = random.randint(1, 10)
 
     seeds = G.select_random_vertices(num_vertices=k)
-    vertex_paths, edge_weights, vertex_path_sizes = cugraph.biased_random_walks(
+    vertex_paths, edge_weights, vertex_path_sizes = cugraph.node2vec_random_walks(
         G, seeds, max_depth)
     
     path_data = (vertex_paths, edge_weights, vertex_path_sizes)
     
-    check_biased_random_walks(G, path_data, seeds, max_depth)
+    check_node2vec_random_walks(G, path_data, seeds, max_depth)
     

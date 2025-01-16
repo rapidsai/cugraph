@@ -243,7 +243,7 @@ def test_uniform_random_walks_nx(graph_file):
 @pytest.mark.sg
 @pytest.mark.parametrize("graph_file", SMALL_DATASETS)
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
-def test_random_walks_multi_column_seeds(
+def test_uniform_random_walks_multi_column_seeds(
     graph_file,
     directed
 ):
