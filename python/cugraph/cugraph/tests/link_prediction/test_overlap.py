@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2024, NVIDIA CORPORATION.
+# Copyright (c) 2019-2025, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -198,11 +198,11 @@ def extract_two_hop(read_csv):
 # Test
 @pytest.mark.sg
 @pytest.mark.parametrize("use_weight", [False, True])
-def test_overlap(gpubenchmark, read_csv, extract_two_hop, use_weight):
+def test_overlap(benchmark, read_csv, extract_two_hop, use_weight):
     M, graph_file = read_csv
     pairs = extract_two_hop
 
-    cu_coeff = cugraph_call(gpubenchmark, graph_file, pairs, use_weight=use_weight)
+    cu_coeff = cugraph_call(benchmark, graph_file, pairs, use_weight=use_weight)
     cpu_coeff = cpu_call(M, pairs[VERTEX_PAIR_FIRST_COL], pairs[VERTEX_PAIR_SECOND_COL])
 
     compare_overlap(cu_coeff, cpu_coeff)
