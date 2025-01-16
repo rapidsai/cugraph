@@ -14,6 +14,8 @@
 # Have cython use python 3 syntax
 # cython: language_level = 3
 
+import cupy
+
 from libc.stdint cimport uintptr_t
 
 from pylibcugraph._cugraph_c.types cimport (
@@ -126,14 +128,6 @@ def node2vec(ResourceHandle resource_handle,
 
     """
 
-    # FIXME: import these modules here for now until a better pattern can be
-    # used for optional imports (perhaps 'import_optional()' from cugraph), or
-    # these are made hard dependencies.
-    try:
-        import cupy
-    except ModuleNotFoundError:
-        raise RuntimeError("node2vec requires the cupy package, which could not "
-                           "be imported")
     assert_CAI_type(seed_array, "seed_array")
 
     cdef cugraph_resource_handle_t* c_resource_handle_ptr = \

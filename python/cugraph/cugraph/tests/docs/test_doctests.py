@@ -1,4 +1,4 @@
-# Copyright (c) 2022-2024, NVIDIA CORPORATION.
+# Copyright (c) 2022-2025, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -25,14 +25,21 @@ import pytest
 import cugraph
 import pylibcugraph
 import cudf
-from numba import cuda
+from cuda.bindings import runtime
 from cugraph.testing import utils
 
 
 modules_to_skip = ["dask", "proto", "raft"]
 datasets = utils.RAPIDS_DATASET_ROOT_DIR_PATH
 
-cuda_version_string = ".".join([str(n) for n in cuda.runtime.get_version()])
+
+def _get_cuda_version_string():
+    status, version = runtime.getLocalRuntimeVersion()
+    if status != runtime.cudaError_t.cudaSuccess:
+        raise RuntimeError("Could not get CUDA runtime version.")
+    major = version // 1000
+    minor = (version % 1000) // 10
+    return f"{major}.{minor}"
 
 
 def _is_public_name(name):
@@ -131,6 +138,7 @@ def skip_docstring(docstring_obj):
     NOTE: this function is currently not available on CUDA 11.4 systems.
     """
     docstring = docstring_obj.docstring
+    cuda_version_string = _get_cuda_version_string()
     for line in docstring.splitlines():
         if f"currently not available on CUDA {cuda_version_string} systems" in line:
             return f"docstring example not supported on CUDA {cuda_version_string}"
