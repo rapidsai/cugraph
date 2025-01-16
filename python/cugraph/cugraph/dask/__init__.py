@@ -45,6 +45,7 @@ from .link_prediction.overlap import all_pairs_overlap
 from .link_prediction.cosine import cosine
 from .link_prediction.cosine import all_pairs_cosine
 from .community.leiden import leiden
+from .community.ecg import ecg
 
 # Avoid "p2p" shuffling in dask for now
 config.set({"dataframe.shuffle.method": "tasks"})

@@ -47,19 +47,23 @@ def convert_to_cudf(result: cp.ndarray) -> Tuple[cudf.DataFrame, float]:
 def _call_plc_ecg(
     sID: bytes,
     mg_graph_x,
-    max_iter: int,
+    min_weight: float,
+    ensemble_size: int,
+    max_level: int,
+    threshold: float,
     resolution: int,
     random_state: int,
-    theta: int,
     do_expensive_check: bool,
 ) -> Tuple[cp.ndarray, cp.ndarray, float]:
     return pylibcugraph_ecg(
         resource_handle=ResourceHandle(Comms.get_handle(sID).getHandle()),
         random_state=random_state,
         graph=mg_graph_x,
-        max_level=max_iter,
+        min_weight=min_weight,
+        ensemble_size=ensemble_size,
+        max_level=max_level,
+        threshold=threshold,
         resolution=resolution,
-        theta=theta,
         do_expensive_check=do_expensive_check,
     )
 
@@ -71,8 +75,7 @@ def ecg(
     max_level: int = 10,
     threshold: float = 1e-7,
     resolution: float = 1.0,
-    random_state: int = None,
-    weight=None,
+    random_state: int = None
 ) -> Tuple[dask_cudf.DataFrame, float]:
     """
     Compute the Ensemble Clustering for Graphs (ECG) partition of the input
@@ -123,10 +126,6 @@ def ecg(
         Random state to use when generating samples.  Optional argument,
         defaults to a hash of process id, time, and hostname.
 
-    weight : str, optional (default=None)
-        Deprecated.
-        This parameter is here for NetworkX compatibility and
-        represents which NetworkX data column represents Edge weights.
 
     Returns
     -------
@@ -161,9 +160,6 @@ def ecg(
 
     """
 
-    if input_graph.is_directed():
-        raise ValueError("input graph must be undirected")
-
     # Return a client if one has started
     client = default_client()
 
@@ -174,10 +170,12 @@ def ecg(
             _call_plc_ecg,
             Comms.get_session_id(),
             input_graph._plc_graph[w],
-            max_iter,
+            min_weight,
+            ensemble_size,
+            max_level,
+            threshold,
             resolution,
             random_state,
-            theta,
             do_expensive_check,
             workers=[w],
             allow_other_workers=False,
