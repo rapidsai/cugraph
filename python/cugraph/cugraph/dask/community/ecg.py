@@ -175,12 +175,12 @@ def ecg(
             max_level,
             threshold,
             resolution,
-            random_state,
+            (random_state + i) if random_state is not None else random_state,
             do_expensive_check,
             workers=[w],
             allow_other_workers=False,
         )
-        for w in Comms.get_workers()
+        for i, w in enumerate(Comms.get_workers())
     ]
 
     wait(result)
