@@ -145,43 +145,58 @@ compute_tx_rx_counts_offsets_ranks(raft::comms::comms_t const& comm,
 
 template <typename key_type, typename KeyToGroupIdOp>
 struct key_group_id_less_t {
-  KeyToGroupIdOp key_to_group_id_op{};
-  int pivot{};
+  key_group_id_less_t(KeyToGroupIdOp op, int pivot_) : key_to_group_id_op(::std::move(op)), pivot(pivot_) {}
   __device__ bool operator()(key_type k) const { return key_to_group_id_op(k) < pivot; }
+
+private:
+  KeyToGroupIdOp key_to_group_id_op;
+  int pivot;
 };
 
 template <typename value_type, typename ValueToGroupIdOp>
 struct value_group_id_less_t {
-  ValueToGroupIdOp value_to_group_id_op{};
-  int pivot{};
+  value_group_id_less_t(ValueToGroupIdOp op, int pivot_) : value_to_group_id_op(::std::move(op)), pivot(pivot_) {}
   __device__ bool operator()(value_type v) const { return value_to_group_id_op(v) < pivot; }
+
+private:
+  ValueToGroupIdOp value_to_group_id_op;
+  int pivot;
 };
 
 template <typename key_type, typename value_type, typename KeyToGroupIdOp>
 struct kv_pair_group_id_less_t {
-  KeyToGroupIdOp key_to_group_id_op{};
-  int pivot{};
+  kv_pair_group_id_less_t(KeyToGroupIdOp op, int pivot_) : key_to_group_id_op(::std::move(op)), pivot(pivot_) {}
   __device__ bool operator()(thrust::tuple<key_type, value_type> t) const
   {
     return key_to_group_id_op(thrust::get<0>(t)) < pivot;
   }
+
+private:
+  KeyToGroupIdOp key_to_group_id_op;
+  int pivot;
 };
 
 template <typename value_type, typename ValueToGroupIdOp>
 struct value_group_id_greater_equal_t {
-  ValueToGroupIdOp value_to_group_id_op{};
-  int pivot{};
+  value_group_id_greater_equal_t(ValueToGroupIdOp op, int pivot_) : value_to_group_id_op(::std::move(op)), pivot(pivot_) {}
   __device__ bool operator()(value_type v) const { return value_to_group_id_op(v) >= pivot; }
+
+private:
+  ValueToGroupIdOp value_to_group_id_op;
+  int pivot;
 };
 
 template <typename key_type, typename value_type, typename KeyToGroupIdOp>
 struct kv_pair_group_id_greater_equal_t {
-  KeyToGroupIdOp key_to_group_id_op{};
-  int pivot{};
+  kv_pair_group_id_greater_equal_t(KeyToGroupIdOp op, int pivot_) : key_to_group_id_op(::std::move(op)), pivot(pivot_) {}
   __device__ bool operator()(thrust::tuple<key_type, value_type> t) const
   {
     return key_to_group_id_op(thrust::get<0>(t)) >= pivot;
   }
+
+private:
+  KeyToGroupIdOp key_to_group_id_op;
+  int pivot;
 };
 
 template <typename ValueIterator, typename ValueToGroupIdOp>
