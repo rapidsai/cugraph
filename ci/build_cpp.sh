@@ -9,9 +9,6 @@ source rapids-configure-sccache
 
 source rapids-date-string
 
-# TODO(jameslamb): remove this when https://github.com/rapidsai/raft/pull/2531 is merged
-source ci/use_conda_packages_from_prs.sh
-
 export CMAKE_GENERATOR=Ninja
 
 rapids-print-env

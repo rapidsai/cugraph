@@ -10,9 +10,6 @@ RAPIDS_PY_WHEEL_NAME="cugraph_${RAPIDS_PY_CUDA_SUFFIX}" rapids-download-wheels-f
 RAPIDS_PY_WHEEL_NAME="libcugraph_${RAPIDS_PY_CUDA_SUFFIX}" rapids-download-wheels-from-s3 cpp ./local-libcugraph-dep
 RAPIDS_PY_WHEEL_NAME="pylibcugraph_${RAPIDS_PY_CUDA_SUFFIX}" rapids-download-wheels-from-s3 python ./local-pylibcugraph-dep
 
-# TODO(jameslamb): remove this when https://github.com/rapidsai/raft/pull/2531 is merged
-source ./ci/use_wheels_from_prs.sh
-
 # echo to expand wildcard before adding `[extra]` requires for pip
 python -m pip install \
     "$(echo ./dist/cugraph*.whl)[test]" \

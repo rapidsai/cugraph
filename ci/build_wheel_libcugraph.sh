@@ -16,9 +16,6 @@ rapids-dependency-file-generator \
   --matrix "${matrix_selectors}" \
 | tee /tmp/requirements-build.txt
 
-# TODO(jameslamb): remove this when https://github.com/rapidsai/raft/pull/2531 is merged
-source ./ci/use_wheels_from_prs.sh
-
 rapids-logger "Installing build requirements"
 python -m pip install \
     -v \

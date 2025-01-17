@@ -10,9 +10,6 @@ cd "$(dirname "$(realpath "${BASH_SOURCE[0]}")")"/../
 
 RAPIDS_VERSION_MAJOR_MINOR="$(rapids-version-major-minor)"
 
-# TODO(jameslamb): remove this when https://github.com/rapidsai/raft/pull/2531 is merged
-source ci/use_conda_packages_from_prs.sh
-
 rapids-logger "Generate Python testing dependencies"
 rapids-dependency-file-generator \
   --output conda \
