@@ -1,4 +1,4 @@
-# Copyright (c) 2022-2023, NVIDIA CORPORATION.
+# Copyright (c) 2022-2025, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -21,10 +21,6 @@ import os
 import pytest
 import numpy as np
 import cupy as cp
-
-# Facing issues with rapids-pytest-benchmark plugin
-# pytest-benchmark.
-import pytest_benchmark
 
 from cugraph.generators import rmat
 from cugraph.experimental import datasets

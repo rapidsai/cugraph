@@ -1,4 +1,4 @@
-# Copyright (c) 2021-2024, NVIDIA CORPORATION.
+# Copyright (c) 2021-2025, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -223,10 +223,10 @@ def read_csv(request):
 
 @pytest.mark.sg
 @pytest.mark.parametrize("use_weight", [False, True])
-def test_sorensen(gpubenchmark, read_csv, use_weight):
+def test_sorensen(benchmark, read_csv, use_weight):
     M_cu, M, graph_file = read_csv
     cu_src, cu_dst, cu_coeff = cugraph_call(
-        gpubenchmark, graph_file, input_df=M_cu, use_weight=use_weight
+        benchmark, graph_file, input_df=M_cu, use_weight=use_weight
     )
     nx_src, nx_dst, nx_coeff = networkx_call(M)
 
@@ -244,9 +244,9 @@ def test_sorensen(gpubenchmark, read_csv, use_weight):
 
 
 @pytest.mark.sg
-def test_nx_sorensen_time(gpubenchmark, read_csv):
+def test_nx_sorensen_time(benchmark, read_csv):
     _, M, _ = read_csv
-    nx_src, nx_dst, nx_coeff = networkx_call(M, gpubenchmark)
+    nx_src, nx_dst, nx_coeff = networkx_call(M, benchmark)
 
 
 @pytest.mark.sg
@@ -277,12 +277,12 @@ def test_directed_graph_check(read_csv, use_weight):
 @pytest.mark.parametrize("graph_file", [netscience])
 @pytest.mark.parametrize("use_weight", [False, True])
 @pytest.mark.skip(reason="Skipping because this datasets is unrenumbered")
-def test_sorensen_edgevals(gpubenchmark, graph_file, use_weight):
+def test_sorensen_edgevals(benchmark, graph_file, use_weight):
     dataset_path = netscience.get_path()
     M = utils.read_csv_for_nx(dataset_path)
     M_cu = utils.read_csv_file(dataset_path)
     cu_src, cu_dst, cu_coeff = cugraph_call(
-        gpubenchmark, netscience, input_df=M_cu, use_weight=use_weight
+        benchmark, netscience, input_df=M_cu, use_weight=use_weight
     )
     nx_src, nx_dst, nx_coeff = networkx_call(M)
 
