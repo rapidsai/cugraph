@@ -28,6 +28,7 @@
 #include <rmm/device_scalar.hpp>
 #include <rmm/device_uvector.hpp>
 
+#include <cuda/std/functional>
 #include <thrust/count.h>
 #include <thrust/distance.h>
 #include <thrust/equal.h>
@@ -40,8 +41,6 @@
 #include <thrust/transform.h>
 #include <thrust/tuple.h>
 #include <thrust/unique.h>
-
-#include <cuda/std/functional>
 
 #include <algorithm>
 #include <functional>
