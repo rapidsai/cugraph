@@ -30,10 +30,5 @@ export PIP_NO_BUILD_ISOLATION=0
 
 RAPIDS_PY_CUDA_SUFFIX="$(rapids-wheel-ctk-name-gen ${RAPIDS_CUDA_VERSION})"
 
-PARALLEL_LEVEL=$(python -c \
-  "from math import ceil; from multiprocessing import cpu_count; print(ceil(cpu_count()/4))")
-
-export SKBUILD_BUILD_TOOL_ARGS="-j${PARALLEL_LEVEL};-l${PARALLEL_LEVEL}"
-
 ./ci/build_wheel.sh libcugraph ${package_dir} cpp
 ./ci/validate_wheel.sh ${package_dir} final_dist
