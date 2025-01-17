@@ -29,8 +29,7 @@ jobs:
       - wheel-build-cugraph
       - wheel-tests-cugraph
       - telemetry-setup
-      # TODO(jameslamb): restore 'devcontainers' job before merging
-      # - devcontainer
+      - devcontainer
     secrets: inherit
     uses: rapidsai/shared-workflows/.github/workflows/pr-builder.yaml@branch-25.02
     if: always()
@@ -152,7 +151,7 @@ jobs:
       container_image: "rapidsai/ci-conda:cuda11.8.0-ubuntu22.04-py3.10"
       run_script: "ci/build_docs.sh"
   wheel-build-libcugraph:
-    # needs: checks
+    needs: checks
     secrets: inherit
     uses: rapidsai/shared-workflows/.github/workflows/wheels-build.yaml@branch-25.02
     with:
@@ -186,24 +185,24 @@ jobs:
     needs: [wheel-build-cugraph, changed-files]
     secrets: inherit
     uses: rapidsai/shared-workflows/.github/workflows/wheels-test.yaml@branch-25.02
-    # if: fromJSON(needs.changed-files.outputs.changed_file_groups).test_python
+    if: fromJSON(needs.changed-files.outputs.changed_file_groups).test_python
     with:
       build_type: pull-request
       script: ci/test_wheel_cugraph.sh
       # This selects "ARCH=amd64 + the latest supported Python + CUDA".
       matrix_filter: map(select(.ARCH == "amd64")) | max_by([(.PY_VER|split(".")|map(tonumber)), (.CUDA_VER|split(".")|map(tonumber))]) | [.]
-  # devcontainer:
-  #   secrets: inherit
-  #   # needs: telemetry-setup
-  #   uses: rapidsai/shared-workflows/.github/workflows/build-in-devcontainer.yaml@branch-25.02
-  #   with:
-  #     arch: '["amd64"]'
-  #     cuda: '["12.5"]'
-  #     node_type: cpu32
-  #     build_command: |
-  #       sccache -z;
-  #       build-all --verbose -j$(nproc --ignore=1) -DBUILD_CUGRAPH_MG_TESTS=ON;
-  #       sccache -s;
+  devcontainer:
+    secrets: inherit
+    # needs: telemetry-setup
+    uses: rapidsai/shared-workflows/.github/workflows/build-in-devcontainer.yaml@branch-25.02
+    with:
+      arch: '["amd64"]'
+      cuda: '["12.5"]'
+      node_type: cpu32
+      build_command: |
+        sccache -z;
+        build-all --verbose -j$(nproc --ignore=1) -DBUILD_CUGRAPH_MG_TESTS=ON;
+        sccache -s;
   telemetry-summarize:
     # This job must use a self-hosted runner to record telemetry traces.
     runs-on: linux-amd64-cpu4

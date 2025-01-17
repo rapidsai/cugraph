@@ -110,4 +110,3 @@ find .devcontainer/ -type f -name devcontainer.json -print0 | while IFS= read -r
 done
 
 sed_runner "s/:[0-9][0-9]\.[0-9][0-9]/:${NEXT_SHORT_TAG}/" ./notebooks/README.md
-sed_runner "s/branch-[0-9][0-9].[0-9][0-9]/branch-${NEXT_SHORT_TAG}/" ./docs/cugraph/source/nx_cugraph/nx_cugraph.md

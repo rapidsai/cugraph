@@ -78,7 +78,7 @@ jobs:
       script: ci/build_wheel_libcugraph.sh
       node_type: cpu32
   wheel-publish-libcugraph:
-    needs: wheel-publish-libcugraph
+    needs: wheel-build-libcugraph
     secrets: inherit
     uses: rapidsai/shared-workflows/.github/workflows/wheels-publish.yaml@branch-25.02
     with:
