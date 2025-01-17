@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -40,6 +40,8 @@
 #include <thrust/transform.h>
 #include <thrust/tuple.h>
 #include <thrust/unique.h>
+
+#include <cuda/std/functional>
 
 #include <algorithm>
 #include <functional>
@@ -273,7 +275,7 @@ bool validate_sampling_depth(raft::handle_t const& handle,
                         tuple_iter + d_distances.size(),
                         d_distances.begin(),
                         [] __device__(auto tuple) {
-                          return thrust::min(thrust::get<0>(tuple), thrust::get<1>(tuple));
+                          return cuda::std::min(thrust::get<0>(tuple), thrust::get<1>(tuple));
                         });
     }
   }
