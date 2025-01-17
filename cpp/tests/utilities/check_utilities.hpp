@@ -19,6 +19,7 @@
 
 #include <raft/core/handle.hpp>
 #include <raft/core/span.hpp>
+#include <thrust/extrema.h>
 
 #include <numeric>
 #include <type_traits>
