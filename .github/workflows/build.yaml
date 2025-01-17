@@ -129,4 +129,4 @@ jobs:
       sha: ${{ inputs.sha }}
       date: ${{ inputs.date }}
       package-name: cugraph
-      package-type: cpp
+      package-type: python
