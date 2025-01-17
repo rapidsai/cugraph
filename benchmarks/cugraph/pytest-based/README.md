@@ -13,9 +13,6 @@ directory under the root of the `cuGraph` source tree.
 * cugraph built and installed (or `cugraph` sources and built C++ extensions
   available on `PYTHONPATH`)
 
-* rapids-pytest-benchmark pytest plugin (`conda install -c rapidsai
-  rapids-pytest-benchmark`)
-
 * The benchmark datasets downloaded and installed in <cugraph>/datasets. Run the
 script below from the <cugraph>/datasets directory:
 ```
@@ -25,8 +22,7 @@ cd <cugraph>/datasets
 
 ## Usage (Python)
 ### Python
-* Run `pytest --help` (with the rapids-pytest-benchmark plugin installed) for
-  the full list of options
+* Run `pytest --help` for the full list of options
 
 * See also the `pytest.ini` file in this directory for examples of how to enable
   options by default and define marks
@@ -44,9 +40,9 @@ _**NOTE: these commands must be run from the `<cugraph_root>/benchmarks` directo
 (rapids) user@machine:/cugraph/benchmarks> pytest -x
 ```
 
-* Run all the benchmarks but do not reinit RMM with different configurations
+* Run all the benchmarks and allow RMM to reinit with different configurations
 ```
-(rapids) user@machine:/cugraph/benchmarks> pytest --no-rmm-reinit
+(rapids) user@machine:/cugraph/benchmarks> pytest --allow-rmm-reinit
 ```
 
 * Show what benchmarks would be run with the given options, but do not run them
