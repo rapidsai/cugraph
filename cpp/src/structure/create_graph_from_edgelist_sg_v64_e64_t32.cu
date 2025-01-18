@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2025, NVIDIA CORPORATION.
+ * Copyright (c) 2024-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,8 +27,12 @@ template std::tuple<
     cugraph::edge_property_t<cugraph::graph_view_t<int64_t, int64_t, false, false>, int64_t>>,
   std::optional<
     cugraph::edge_property_t<cugraph::graph_view_t<int64_t, int64_t, false, false>, int32_t>>,
+  std::optional<
+    cugraph::edge_property_t<cugraph::graph_view_t<int64_t, int64_t, false, false>, int32_t>>,
+  std::optional<
+    cugraph::edge_property_t<cugraph::graph_view_t<int64_t, int64_t, false, false>, int32_t>>,
   std::optional<rmm::device_uvector<int64_t>>>
-create_graph_from_edgelist<int64_t, int64_t, float, int32_t, false, false>(
+create_graph_from_edgelist<int64_t, int64_t, float, int32_t, int32_t, false, false>(
   raft::handle_t const& handle,
   std::optional<rmm::device_uvector<int64_t>>&& vertices,
   rmm::device_uvector<int64_t>&& edgelist_srcs,
@@ -36,6 +40,8 @@ create_graph_from_edgelist<int64_t, int64_t, float, int32_t, false, false>(
   std::optional<rmm::device_uvector<float>>&& edgelist_weights,
   std::optional<rmm::device_uvector<int64_t>>&& edgelist_edge_ids,
   std::optional<rmm::device_uvector<int32_t>>&& edgelist_edge_types,
+  std::optional<rmm::device_uvector<int32_t>>&& edgelist_edge_start_times,
+  std::optional<rmm::device_uvector<int32_t>>&& edgelist_edge_end_times,
   graph_properties_t graph_properties,
   bool renumber,
   bool do_expensive_check);
@@ -48,8 +54,12 @@ template std::tuple<
     cugraph::edge_property_t<cugraph::graph_view_t<int64_t, int64_t, true, false>, int64_t>>,
   std::optional<
     cugraph::edge_property_t<cugraph::graph_view_t<int64_t, int64_t, true, false>, int32_t>>,
+  std::optional<
+    cugraph::edge_property_t<cugraph::graph_view_t<int64_t, int64_t, true, false>, int32_t>>,
+  std::optional<
+    cugraph::edge_property_t<cugraph::graph_view_t<int64_t, int64_t, true, false>, int32_t>>,
   std::optional<rmm::device_uvector<int64_t>>>
-create_graph_from_edgelist<int64_t, int64_t, float, int32_t, true, false>(
+create_graph_from_edgelist<int64_t, int64_t, float, int32_t, int32_t, true, false>(
   raft::handle_t const& handle,
   std::optional<rmm::device_uvector<int64_t>>&& vertices,
   rmm::device_uvector<int64_t>&& edgelist_srcs,
@@ -57,6 +67,8 @@ create_graph_from_edgelist<int64_t, int64_t, float, int32_t, true, false>(
   std::optional<rmm::device_uvector<float>>&& edgelist_weights,
   std::optional<rmm::device_uvector<int64_t>>&& edgelist_edge_ids,
   std::optional<rmm::device_uvector<int32_t>>&& edgelist_edge_types,
+  std::optional<rmm::device_uvector<int32_t>>&& edgelist_edge_start_times,
+  std::optional<rmm::device_uvector<int32_t>>&& edgelist_edge_end_times,
   graph_properties_t graph_properties,
   bool renumber,
   bool do_expensive_check);
@@ -69,8 +81,12 @@ template std::tuple<
     cugraph::edge_property_t<cugraph::graph_view_t<int64_t, int64_t, false, false>, int64_t>>,
   std::optional<
     cugraph::edge_property_t<cugraph::graph_view_t<int64_t, int64_t, false, false>, int32_t>>,
+  std::optional<
+    cugraph::edge_property_t<cugraph::graph_view_t<int64_t, int64_t, false, false>, int32_t>>,
+  std::optional<
+    cugraph::edge_property_t<cugraph::graph_view_t<int64_t, int64_t, false, false>, int32_t>>,
   std::optional<rmm::device_uvector<int64_t>>>
-create_graph_from_edgelist<int64_t, int64_t, double, int32_t, false, false>(
+create_graph_from_edgelist<int64_t, int64_t, double, int32_t, int32_t, false, false>(
   raft::handle_t const& handle,
   std::optional<rmm::device_uvector<int64_t>>&& vertices,
   rmm::device_uvector<int64_t>&& edgelist_srcs,
@@ -78,6 +94,8 @@ create_graph_from_edgelist<int64_t, int64_t, double, int32_t, false, false>(
   std::optional<rmm::device_uvector<double>>&& edgelist_weights,
   std::optional<rmm::device_uvector<int64_t>>&& edgelist_edge_ids,
   std::optional<rmm::device_uvector<int32_t>>&& edgelist_edge_types,
+  std::optional<rmm::device_uvector<int32_t>>&& edgelist_edge_start_times,
+  std::optional<rmm::device_uvector<int32_t>>&& edgelist_edge_end_times,
   graph_properties_t graph_properties,
   bool renumber,
   bool do_expensive_check);
@@ -90,8 +108,12 @@ template std::tuple<
     cugraph::edge_property_t<cugraph::graph_view_t<int64_t, int64_t, true, false>, int64_t>>,
   std::optional<
     cugraph::edge_property_t<cugraph::graph_view_t<int64_t, int64_t, true, false>, int32_t>>,
+  std::optional<
+    cugraph::edge_property_t<cugraph::graph_view_t<int64_t, int64_t, true, false>, int32_t>>,
+  std::optional<
+    cugraph::edge_property_t<cugraph::graph_view_t<int64_t, int64_t, true, false>, int32_t>>,
   std::optional<rmm::device_uvector<int64_t>>>
-create_graph_from_edgelist<int64_t, int64_t, double, int32_t, true, false>(
+create_graph_from_edgelist<int64_t, int64_t, double, int32_t, int32_t, true, false>(
   raft::handle_t const& handle,
   std::optional<rmm::device_uvector<int64_t>>&& vertices,
   rmm::device_uvector<int64_t>&& edgelist_srcs,
@@ -99,6 +121,8 @@ create_graph_from_edgelist<int64_t, int64_t, double, int32_t, true, false>(
   std::optional<rmm::device_uvector<double>>&& edgelist_weights,
   std::optional<rmm::device_uvector<int64_t>>&& edgelist_edge_ids,
   std::optional<rmm::device_uvector<int32_t>>&& edgelist_edge_types,
+  std::optional<rmm::device_uvector<int32_t>>&& edgelist_edge_start_times,
+  std::optional<rmm::device_uvector<int32_t>>&& edgelist_edge_end_times,
   graph_properties_t graph_properties,
   bool renumber,
   bool do_expensive_check);
@@ -111,8 +135,12 @@ template std::tuple<
     cugraph::edge_property_t<cugraph::graph_view_t<int64_t, int64_t, false, false>, int64_t>>,
   std::optional<
     cugraph::edge_property_t<cugraph::graph_view_t<int64_t, int64_t, false, false>, int32_t>>,
+  std::optional<
+    cugraph::edge_property_t<cugraph::graph_view_t<int64_t, int64_t, false, false>, int32_t>>,
+  std::optional<
+    cugraph::edge_property_t<cugraph::graph_view_t<int64_t, int64_t, false, false>, int32_t>>,
   std::optional<rmm::device_uvector<int64_t>>>
-create_graph_from_edgelist<int64_t, int64_t, float, int32_t, false, false>(
+create_graph_from_edgelist<int64_t, int64_t, float, int32_t, int32_t, false, false>(
   raft::handle_t const& handle,
   std::optional<rmm::device_uvector<int64_t>>&& vertices,
   std::vector<rmm::device_uvector<int64_t>>&& edgelist_srcs,
@@ -120,6 +148,8 @@ create_graph_from_edgelist<int64_t, int64_t, float, int32_t, false, false>(
   std::optional<std::vector<rmm::device_uvector<float>>>&& edgelist_weights,
   std::optional<std::vector<rmm::device_uvector<int64_t>>>&& edgelist_edge_ids,
   std::optional<std::vector<rmm::device_uvector<int32_t>>>&& edgelist_edge_types,
+  std::optional<std::vector<rmm::device_uvector<int32_t>>>&& edgelist_edge_start_times,
+  std::optional<std::vector<rmm::device_uvector<int32_t>>>&& edgelist_edge_end_times,
   graph_properties_t graph_properties,
   bool renumber,
   bool do_expensive_check);
@@ -132,8 +162,12 @@ template std::tuple<
     cugraph::edge_property_t<cugraph::graph_view_t<int64_t, int64_t, true, false>, int64_t>>,
   std::optional<
     cugraph::edge_property_t<cugraph::graph_view_t<int64_t, int64_t, true, false>, int32_t>>,
+  std::optional<
+    cugraph::edge_property_t<cugraph::graph_view_t<int64_t, int64_t, true, false>, int32_t>>,
+  std::optional<
+    cugraph::edge_property_t<cugraph::graph_view_t<int64_t, int64_t, true, false>, int32_t>>,
   std::optional<rmm::device_uvector<int64_t>>>
-create_graph_from_edgelist<int64_t, int64_t, float, int32_t, true, false>(
+create_graph_from_edgelist<int64_t, int64_t, float, int32_t, int32_t, true, false>(
   raft::handle_t const& handle,
   std::optional<rmm::device_uvector<int64_t>>&& vertices,
   std::vector<rmm::device_uvector<int64_t>>&& edgelist_srcs,
@@ -141,6 +175,8 @@ create_graph_from_edgelist<int64_t, int64_t, float, int32_t, true, false>(
   std::optional<std::vector<rmm::device_uvector<float>>>&& edgelist_weights,
   std::optional<std::vector<rmm::device_uvector<int64_t>>>&& edgelist_edge_ids,
   std::optional<std::vector<rmm::device_uvector<int32_t>>>&& edgelist_edge_types,
+  std::optional<std::vector<rmm::device_uvector<int32_t>>>&& edgelist_edge_start_times,
+  std::optional<std::vector<rmm::device_uvector<int32_t>>>&& edgelist_edge_end_times,
   graph_properties_t graph_properties,
   bool renumber,
   bool do_expensive_check);
@@ -153,8 +189,12 @@ template std::tuple<
     cugraph::edge_property_t<cugraph::graph_view_t<int64_t, int64_t, false, false>, int64_t>>,
   std::optional<
     cugraph::edge_property_t<cugraph::graph_view_t<int64_t, int64_t, false, false>, int32_t>>,
+  std::optional<
+    cugraph::edge_property_t<cugraph::graph_view_t<int64_t, int64_t, false, false>, int32_t>>,
+  std::optional<
+    cugraph::edge_property_t<cugraph::graph_view_t<int64_t, int64_t, false, false>, int32_t>>,
   std::optional<rmm::device_uvector<int64_t>>>
-create_graph_from_edgelist<int64_t, int64_t, double, int32_t, false, false>(
+create_graph_from_edgelist<int64_t, int64_t, double, int32_t, int32_t, false, false>(
   raft::handle_t const& handle,
   std::optional<rmm::device_uvector<int64_t>>&& vertices,
   std::vector<rmm::device_uvector<int64_t>>&& edgelist_srcs,
@@ -162,6 +202,8 @@ create_graph_from_edgelist<int64_t, int64_t, double, int32_t, false, false>(
   std::optional<std::vector<rmm::device_uvector<double>>>&& edgelist_weights,
   std::optional<std::vector<rmm::device_uvector<int64_t>>>&& edgelist_edge_ids,
   std::optional<std::vector<rmm::device_uvector<int32_t>>>&& edgelist_edge_types,
+  std::optional<std::vector<rmm::device_uvector<int32_t>>>&& edgelist_edge_start_times,
+  std::optional<std::vector<rmm::device_uvector<int32_t>>>&& edgelist_edge_end_times,
   graph_properties_t graph_properties,
   bool renumber,
   bool do_expensive_check);
@@ -174,8 +216,12 @@ template std::tuple<
     cugraph::edge_property_t<cugraph::graph_view_t<int64_t, int64_t, true, false>, int64_t>>,
   std::optional<
     cugraph::edge_property_t<cugraph::graph_view_t<int64_t, int64_t, true, false>, int32_t>>,
+  std::optional<
+    cugraph::edge_property_t<cugraph::graph_view_t<int64_t, int64_t, true, false>, int32_t>>,
+  std::optional<
+    cugraph::edge_property_t<cugraph::graph_view_t<int64_t, int64_t, true, false>, int32_t>>,
   std::optional<rmm::device_uvector<int64_t>>>
-create_graph_from_edgelist<int64_t, int64_t, double, int32_t, true, false>(
+create_graph_from_edgelist<int64_t, int64_t, double, int32_t, int32_t, true, false>(
   raft::handle_t const& handle,
   std::optional<rmm::device_uvector<int64_t>>&& vertices,
   std::vector<rmm::device_uvector<int64_t>>&& edgelist_srcs,
@@ -183,6 +229,8 @@ create_graph_from_edgelist<int64_t, int64_t, double, int32_t, true, false>(
   std::optional<std::vector<rmm::device_uvector<double>>>&& edgelist_weights,
   std::optional<std::vector<rmm::device_uvector<int64_t>>>&& edgelist_edge_ids,
   std::optional<std::vector<rmm::device_uvector<int32_t>>>&& edgelist_edge_types,
+  std::optional<std::vector<rmm::device_uvector<int32_t>>>&& edgelist_edge_start_times,
+  std::optional<std::vector<rmm::device_uvector<int32_t>>>&& edgelist_edge_end_times,
   graph_properties_t graph_properties,
   bool renumber,
   bool do_expensive_check);

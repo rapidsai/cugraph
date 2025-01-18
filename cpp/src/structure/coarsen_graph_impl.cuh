@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -349,16 +349,25 @@ coarsen_graph(raft::handle_t const& handle,
 
     // 1-2. globally shuffle
 
-    std::tie(
-      edgelist_majors, edgelist_minors, edgelist_weights, std::ignore, std::ignore, std::ignore) =
+    std::tie(edgelist_majors,
+             edgelist_minors,
+             edgelist_weights,
+             std::ignore,
+             std::ignore,
+             std::ignore,
+             std::ignore,
+             std::ignore) =
       cugraph::detail::shuffle_ext_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning<
         vertex_t,
         edge_t,
         weight_t,
+        int32_t,
         int32_t>(handle,
                  std::move(edgelist_majors),
                  std::move(edgelist_minors),
                  std::move(edgelist_weights),
+                 std::nullopt,
+                 std::nullopt,
                  std::nullopt,
                  std::nullopt);
 
@@ -477,15 +486,20 @@ coarsen_graph(raft::handle_t const& handle,
              reversed_edgelist_weights,
              std::ignore,
              std::ignore,
+             std::ignore,
+             std::ignore,
              std::ignore) =
       cugraph::detail::shuffle_ext_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning<
         vertex_t,
         edge_t,
         weight_t,
+        int32_t,
         int32_t>(handle,
                  std::move(reversed_edgelist_majors),
                  std::move(reversed_edgelist_minors),
                  std::move(reversed_edgelist_weights),
+                 std::nullopt,
+                 std::nullopt,
                  std::nullopt,
                  std::nullopt);
 
@@ -551,13 +565,7 @@ coarsen_graph(raft::handle_t const& handle,
     edge_weights{std::nullopt};
   std::optional<rmm::device_uvector<vertex_t>> renumber_map{std::nullopt};
   std::tie(coarsened_graph, edge_weights, std::ignore, std::ignore, renumber_map) =
-    create_graph_from_edgelist<vertex_t,
-                               edge_t,
-                               weight_t,
-                               edge_t,
-                               int32_t,
-                               store_transposed,
-                               multi_gpu>(
+    create_graph_from_edgelist<vertex_t, edge_t, weight_t, int32_t, store_transposed, multi_gpu>(
       handle,
       std::move(unique_labels),
       store_transposed ? std::move(concatenated_edgelist_minors)
@@ -714,13 +722,7 @@ coarsen_graph(raft::handle_t const& handle,
     edge_weights{std::nullopt};
   std::optional<rmm::device_uvector<vertex_t>> renumber_map{std::nullopt};
   std::tie(coarsened_graph, edge_weights, std::ignore, std::ignore, renumber_map) =
-    create_graph_from_edgelist<vertex_t,
-                               edge_t,
-                               weight_t,
-                               edge_t,
-                               int32_t,
-                               store_transposed,
-                               multi_gpu>(
+    create_graph_from_edgelist<vertex_t, edge_t, weight_t, int32_t, store_transposed, multi_gpu>(
       handle,
       std::optional<rmm::device_uvector<vertex_t>>{std::move(vertices)},
       store_transposed ? std::move(coarsened_edgelist_minors)
