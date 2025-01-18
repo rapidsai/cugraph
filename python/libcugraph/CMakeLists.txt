@@ -1,5 +1,5 @@
 # =============================================================================
-# Copyright (c) 2022-2025, NVIDIA CORPORATION.
+# Copyright (c) 2025, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
 # in compliance with the License. You may obtain a copy of the License at
@@ -16,29 +16,35 @@ cmake_minimum_required(VERSION 3.26.4 FATAL_ERROR)
 
 include(../../rapids_config.cmake)
 
-# We always need CUDA for cuML because the raft dependency brings in a
-# header-only cuco dependency that enables CUDA unconditionally.
 include(rapids-cuda)
-rapids_cuda_init_architectures(cugraph-python)
+rapids_cuda_init_architectures(libcugraph-python)
 
 project(
-  cugraph-python
+  libcugraph-python
   VERSION "${RAPIDS_VERSION}"
   LANGUAGES CXX CUDA
 )
 
-find_package(cugraph "${RAPIDS_VERSION}" REQUIRED)
+# Check if cugraph is already available. If so, it is the user's responsibility to ensure that the
+# CMake package is also available at build time of Python packages that need libcugraph.
+find_package(cugraph "${RAPIDS_VERSION}")
 
-include(rapids-cython-core)
+if(cugraph_FOUND)
+  return()
+endif()
 
-rapids_cython_init()
+unset(cugraph_FOUND)
 
-add_subdirectory(cugraph/components)
-add_subdirectory(cugraph/dask/comms)
-add_subdirectory(cugraph/dask/structure)
-add_subdirectory(cugraph/internals)
-add_subdirectory(cugraph/layout)
-add_subdirectory(cugraph/linear_assignment)
-add_subdirectory(cugraph/structure)
-add_subdirectory(cugraph/tree)
-add_subdirectory(cugraph/utilities)
+# --- CUDA -- #
+set(CUDA_STATIC_RUNTIME ON)
+
+# --- cugraph ---#
+set(BUILD_TESTS OFF)
+set(BUILD_CUGRAPH_MG_TESTS OFF)
+set(CMAKE_CUDA_LINEINFO OFF)
+
+# --- raft -- #
+set(USE_RAFT_STATIC OFF)
+set(CUGRAPH_COMPILE_RAFT_LIB ON)
+
+add_subdirectory(../../cpp cugraph-cpp)
