@@ -538,7 +538,7 @@ auto transform_v_frontier_e(raft::handle_t const& handle,
         raft::grid_1d_block_t update_grid(high_size,
                                           detail::transform_v_frontier_e_kernel_block_size,
                                           handle.get_device_properties().maxGridSize[0]);
-        cudastf_ctx.task(l_tv_buffers[0].write())->*[&](cudaStream_t stream, auto /* aggregate_value_buffer */) {
+        cudastf_ctx.task(l_tv_buffers[0].write())->*[&](cudaStream_t stream) {
 
 
         detail::transform_v_frontier_e_high_degree<GraphViewType>
@@ -562,7 +562,7 @@ auto transform_v_frontier_e(raft::handle_t const& handle,
         raft::grid_1d_warp_t update_grid(mid_size,
                                          detail::transform_v_frontier_e_kernel_block_size,
                                          handle.get_device_properties().maxGridSize[0]);
-        cudastf_ctx.task(l_tv_buffers[1].write())->*[&](cudaStream_t stream, auto ) {
+        cudastf_ctx.task(l_tv_buffers[1].write())->*[&](cudaStream_t stream) {
         detail::transform_v_frontier_e_mid_degree<GraphViewType>
           <<<update_grid.num_blocks, update_grid.block_size, 0, stream>>>(
             edge_partition,
@@ -584,7 +584,7 @@ auto transform_v_frontier_e(raft::handle_t const& handle,
         raft::grid_1d_thread_t update_grid(low_size,
                                            detail::transform_v_frontier_e_kernel_block_size,
                                            handle.get_device_properties().maxGridSize[0]);
-        cudastf_ctx.task(l_tv_buffers[2].write())->*[&](cudaStream_t stream, auto) {
+        cudastf_ctx.task(l_tv_buffers[2].write())->*[&](cudaStream_t stream) {
         detail::transform_v_frontier_e_hypersparse_or_low_degree<false, GraphViewType>
           <<<update_grid.num_blocks, update_grid.block_size, 0, stream>>>(
             edge_partition,
@@ -606,7 +606,7 @@ auto transform_v_frontier_e(raft::handle_t const& handle,
         raft::grid_1d_thread_t update_grid(hypersparse_size,
                                            detail::transform_v_frontier_e_kernel_block_size,
                                            handle.get_device_properties().maxGridSize[0]);
-        cudastf_ctx.task(l_tv_buffers[3].write())->*[&](cudaStream_t stream, auto) {
+        cudastf_ctx.task(l_tv_buffers[3].write())->*[&](cudaStream_t stream) {
         detail::transform_v_frontier_e_hypersparse_or_low_degree<true, GraphViewType>
           <<<update_grid.num_blocks, update_grid.block_size, 0, stream>>>(
             edge_partition,
@@ -627,7 +627,7 @@ auto transform_v_frontier_e(raft::handle_t const& handle,
                                          detail::transform_v_frontier_e_kernel_block_size,
                                          handle.get_device_properties().maxGridSize[0]);
 
-      cudastf_ctx.task(l_tv_buffers[4].write())->*[&,i](cudaStream_t stream, auto) {
+      cudastf_ctx.task(l_tv_buffers[4].write())->*[&,i](cudaStream_t stream) {
       detail::transform_v_frontier_e_hypersparse_or_low_degree<false, GraphViewType>
         <<<update_grid.num_blocks, update_grid.block_size, 0, stream>>>(
           edge_partition,
