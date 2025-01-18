@@ -59,6 +59,10 @@
 #include <utility>
 #include <vector>
 
+#include <cuda/experimental/stf.cuh>
+
+using namespace cuda::experimental::stf;
+
 namespace cugraph {
 
 namespace detail {
@@ -701,6 +705,8 @@ extract_transform_v_frontier_e(raft::handle_t const& handle,
 
   constexpr bool try_bitmap = GraphViewType::is_multi_gpu && std::is_same_v<key_t, vertex_t> &&
                               KeyBucketType::is_sorted_unique;
+
+  stream_ctx cudastf_ctx(handle.get_stream());
 
   if (do_expensive_check) {
     auto frontier_vertex_first =
@@ -1596,6 +1602,8 @@ extract_transform_v_frontier_e(raft::handle_t const& handle,
     }
     if (loop_stream_pool_indices) { handle.sync_stream_pool(*loop_stream_pool_indices); }
   }
+
+  cudastf_ctx.finalize();
 
   return std::make_tuple(std::move(key_buffer), std::move(value_buffer));
 }
