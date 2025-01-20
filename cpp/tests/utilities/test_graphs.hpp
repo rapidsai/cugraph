@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,6 +15,7 @@
  */
 #pragma once
 
+#include "cugraph/utilities/host_scalar_comm.hpp"
 #include "utilities/csv_file_utilities.hpp"
 #include "utilities/matrix_market_file_utilities.hpp"
 #include "utilities/misc_utilities.hpp"
@@ -28,27 +29,54 @@
 #include <raft/random/rng_state.hpp>
 
 #include <memory>
+#include <numeric>
 
 namespace cugraph {
 namespace test {
 
 namespace detail {
 
-template <typename vertex_t, typename weight_t>
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          typename edge_type_t,
+          typename edge_time_t>
 std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
-           std::optional<rmm::device_uvector<weight_t>>>
-concatenate_edge_chunks(raft::handle_t const& handle,
-                        std::vector<rmm::device_uvector<vertex_t>>&& src_chunks,
-                        std::vector<rmm::device_uvector<vertex_t>>&& dst_chunks,
-                        std::optional<std::vector<rmm::device_uvector<weight_t>>> weight_chunks)
+           std::optional<rmm::device_uvector<weight_t>>,
+           std::optional<rmm::device_uvector<edge_t>>,
+           std::optional<rmm::device_uvector<edge_type_t>>,
+           std::optional<rmm::device_uvector<edge_time_t>>,
+           std::optional<rmm::device_uvector<edge_time_t>>>
+concatenate_edge_chunks(
+  raft::handle_t const& handle,
+  std::vector<rmm::device_uvector<vertex_t>>&& src_chunks,
+  std::vector<rmm::device_uvector<vertex_t>>&& dst_chunks,
+  std::optional<std::vector<rmm::device_uvector<weight_t>>>&& weight_chunks,
+  std::optional<std::vector<rmm::device_uvector<edge_t>>>&& edge_id_chunks,
+  std::optional<std::vector<rmm::device_uvector<edge_type_t>>>&& edge_type_chunks,
+  std::optional<std::vector<rmm::device_uvector<edge_time_t>>>&& edge_start_time_chunks,
+  std::optional<std::vector<rmm::device_uvector<edge_time_t>>>&& edge_end_time_chunks)
 {
   if (src_chunks.size() == 1) {
-    return std::make_tuple(std::move(src_chunks[0]),
-                           std::move(dst_chunks[0]),
-                           weight_chunks ? std::make_optional<rmm::device_uvector<weight_t>>(
-                                             std::move((*weight_chunks)[0]))
-                                         : std::nullopt);
+    return std::make_tuple(
+      std::move(src_chunks[0]),
+      std::move(dst_chunks[0]),
+      weight_chunks
+        ? std::make_optional<rmm::device_uvector<weight_t>>(std::move((*weight_chunks)[0]))
+        : std::nullopt,
+      edge_id_chunks
+        ? std::make_optional<rmm::device_uvector<edge_t>>(std::move((*edge_id_chunks)[0]))
+        : std::nullopt,
+      edge_type_chunks
+        ? std::make_optional<rmm::device_uvector<edge_type_t>>(std::move((*edge_type_chunks)[0]))
+        : std::nullopt,
+      edge_start_time_chunks ? std::make_optional<rmm::device_uvector<edge_time_t>>(
+                                 std::move((*edge_start_time_chunks)[0]))
+                             : std::nullopt,
+      edge_end_time_chunks ? std::make_optional<rmm::device_uvector<edge_time_t>>(
+                               std::move((*edge_end_time_chunks)[0]))
+                           : std::nullopt);
   } else {
     size_t edge_count{0};
     for (size_t i = 0; i < src_chunks.size(); ++i) {
@@ -98,7 +126,83 @@ concatenate_edge_chunks(raft::handle_t const& handle,
       (*weight_chunks).clear();
     }
 
-    return std::make_tuple(std::move(srcs), std::move(dsts), std::move(weights));
+    auto edge_ids = edge_id_chunks ? std::make_optional<rmm::device_uvector<edge_t>>(
+                                       edge_count, handle.get_stream())
+                                   : std::nullopt;
+    if (edge_ids) {
+      size_t offset{0};
+      for (size_t i = 0; i < (*edge_id_chunks).size(); ++i) {
+        raft::copy((*edge_ids).data() + offset,
+                   (*edge_id_chunks)[i].data(),
+                   (*edge_id_chunks)[i].size(),
+                   handle.get_stream());
+        offset += (*edge_id_chunks)[i].size();
+        (*edge_id_chunks)[i].resize(0, handle.get_stream());
+        (*edge_id_chunks)[i].shrink_to_fit(handle.get_stream());
+      }
+      (*edge_id_chunks).clear();
+    }
+
+    auto edge_types = edge_type_chunks ? std::make_optional<rmm::device_uvector<edge_type_t>>(
+                                           edge_count, handle.get_stream())
+                                       : std::nullopt;
+    if (edge_types) {
+      size_t offset{0};
+      for (size_t i = 0; i < (*edge_type_chunks).size(); ++i) {
+        raft::copy((*edge_types).data() + offset,
+                   (*edge_type_chunks)[i].data(),
+                   (*edge_type_chunks)[i].size(),
+                   handle.get_stream());
+        offset += (*edge_type_chunks)[i].size();
+        (*edge_type_chunks)[i].resize(0, handle.get_stream());
+        (*edge_type_chunks)[i].shrink_to_fit(handle.get_stream());
+      }
+      (*edge_type_chunks).clear();
+    }
+
+    auto edge_start_times =
+      edge_start_time_chunks
+        ? std::make_optional<rmm::device_uvector<edge_time_t>>(edge_count, handle.get_stream())
+        : std::nullopt;
+    if (edge_start_times) {
+      size_t offset{0};
+      for (size_t i = 0; i < (*edge_start_time_chunks).size(); ++i) {
+        raft::copy((*edge_start_times).data() + offset,
+                   (*edge_start_time_chunks)[i].data(),
+                   (*edge_start_time_chunks)[i].size(),
+                   handle.get_stream());
+        offset += (*edge_start_time_chunks)[i].size();
+        (*edge_start_time_chunks)[i].resize(0, handle.get_stream());
+        (*edge_start_time_chunks)[i].shrink_to_fit(handle.get_stream());
+      }
+      (*edge_start_time_chunks).clear();
+    }
+
+    auto edge_end_times =
+      edge_end_time_chunks
+        ? std::make_optional<rmm::device_uvector<edge_time_t>>(edge_count, handle.get_stream())
+        : std::nullopt;
+    if (edge_end_times) {
+      size_t offset{0};
+      for (size_t i = 0; i < (*edge_end_time_chunks).size(); ++i) {
+        raft::copy((*edge_end_times).data() + offset,
+                   (*edge_end_time_chunks)[i].data(),
+                   (*edge_end_time_chunks)[i].size(),
+                   handle.get_stream());
+        offset += (*edge_end_time_chunks)[i].size();
+        (*edge_end_time_chunks)[i].resize(0, handle.get_stream());
+        (*edge_end_time_chunks)[i].shrink_to_fit(handle.get_stream());
+      }
+      (*edge_end_time_chunks).clear();
+    }
+
+    return std::make_tuple(std::move(srcs),
+                           std::move(dsts),
+                           std::move(weights),
+                           std::move(edge_ids),
+                           std::move(edge_types),
+                           std::move(edge_start_times),
+                           std::move(edge_end_times));
   }
 }
 
@@ -336,15 +440,20 @@ class Rmat_Usecase : public detail::TranslateGraph_Usecase {
                  tmp_weights_v,
                  std::ignore,
                  std::ignore,
+                 std::ignore,
+                 std::ignore,
                  std::ignore) =
           cugraph::detail::shuffle_ext_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning<
             vertex_t,
             vertex_t,
             weight_t,
+            int32_t,
             int32_t>(handle,
                      store_transposed ? std::move(tmp_dst_v) : std::move(tmp_src_v),
                      store_transposed ? std::move(tmp_src_v) : std::move(tmp_dst_v),
                      std::move(tmp_weights_v),
+                     std::nullopt,
+                     std::nullopt,
                      std::nullopt,
                      std::nullopt);
       }
@@ -651,6 +760,252 @@ class CombinedGenerator_Usecase {
 template <typename vertex_t,
           typename edge_t,
           typename weight_t,
+          typename edge_type_t,
+          typename edge_time_t,
+          bool store_transposed,
+          bool multi_gpu,
+          typename input_usecase_t>
+std::tuple<
+  cugraph::graph_t<vertex_t, edge_t, store_transposed, multi_gpu>,
+  std::optional<
+    cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>,
+                             weight_t>>,
+  std::optional<
+    cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>,
+                             edge_t>>,
+  std::optional<
+    cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>,
+                             edge_type_t>>,
+  std::optional<
+    cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>,
+                             edge_time_t>>,
+  std::optional<
+    cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>,
+                             edge_time_t>>,
+  std::optional<rmm::device_uvector<vertex_t>>>
+construct_graph(
+  raft::handle_t const& handle,
+  input_usecase_t const& input_usecase,
+  bool test_weighted,
+  std::optional<std::function<rmm::device_uvector<edge_t>(raft::handle_t const&, size_t, size_t)>>
+    edge_ids_functor,
+  std::optional<
+    std::function<rmm::device_uvector<edge_type_t>(raft::handle_t const&, size_t, size_t)>>
+    edge_types_functor,
+  std::optional<
+    std::function<rmm::device_uvector<edge_time_t>(raft::handle_t const&, size_t, size_t)>>
+    edge_start_times_functor,
+  std::optional<
+    std::function<rmm::device_uvector<edge_time_t>(raft::handle_t const&, size_t, size_t)>>
+    edge_end_times_functor,
+  bool renumber         = true,
+  bool drop_self_loops  = false,
+  bool drop_multi_edges = false)
+{
+  auto [edge_src_chunks, edge_dst_chunks, edge_weight_chunks, d_vertices_v, is_symmetric] =
+    input_usecase.template construct_edgelist<vertex_t, weight_t>(
+      handle, test_weighted, store_transposed, multi_gpu);
+
+  size_t num_edges{0};
+  for (size_t i = 0; i < edge_src_chunks.size(); ++i) {
+    num_edges += edge_src_chunks[i].size();
+  }
+  CUGRAPH_EXPECTS(num_edges <= static_cast<size_t>(std::numeric_limits<edge_t>::max()),
+                  "Invalid template parameter: edge_t overflow.");
+
+  size_t base_offset{0};
+  if constexpr (multi_gpu) {
+    auto base_offsets = host_scalar_allgather(handle.get_comms(), num_edges, handle.get_stream());
+    handle.sync_stream();
+    std::exclusive_scan(base_offsets.begin(), base_offsets.end(), base_offsets.begin(), size_t{0});
+    base_offset = base_offsets[handle.get_comms().get_rank()];
+  }
+
+  std::optional<std::vector<rmm::device_uvector<edge_t>>> edge_id_chunks{std::nullopt};
+  std::optional<std::vector<rmm::device_uvector<edge_type_t>>> edge_type_chunks{std::nullopt};
+  std::optional<std::vector<rmm::device_uvector<edge_time_t>>> edge_start_time_chunks{std::nullopt};
+  std::optional<std::vector<rmm::device_uvector<edge_time_t>>> edge_end_time_chunks{std::nullopt};
+
+  if (edge_ids_functor) edge_id_chunks = std::vector<rmm::device_uvector<edge_t>>{};
+  if (edge_types_functor) edge_type_chunks = std::vector<rmm::device_uvector<edge_type_t>>{};
+  if (edge_start_times_functor)
+    edge_start_time_chunks = std::vector<rmm::device_uvector<edge_time_t>>{};
+  if (edge_end_times_functor)
+    edge_end_time_chunks = std::vector<rmm::device_uvector<edge_time_t>>{};
+
+  for (size_t i = 0; i < edge_src_chunks.size(); ++i) {
+    if (edge_ids_functor) {
+      edge_id_chunks->push_back(
+        (*edge_ids_functor)(handle, edge_src_chunks[i].size(), base_offset));
+    }
+    if (edge_types_functor) {
+      edge_type_chunks->push_back(
+        (*edge_types_functor)(handle, edge_src_chunks[i].size(), base_offset));
+    }
+    if (edge_start_times_functor) {
+      edge_start_time_chunks->push_back(
+        (*edge_start_times_functor)(handle, edge_src_chunks[i].size(), base_offset));
+    }
+    if (edge_end_times_functor) {
+      edge_end_time_chunks->push_back(
+        (*edge_end_times_functor)(handle, edge_src_chunks[i].size(), base_offset));
+    }
+  }
+
+  if (drop_self_loops) {
+    for (size_t i = 0; i < edge_src_chunks.size(); ++i) {
+      std::optional<rmm::device_uvector<weight_t>> tmp_weights{std::nullopt};
+      std::optional<rmm::device_uvector<edge_t>> tmp_ids{std::nullopt};
+      std::optional<rmm::device_uvector<edge_type_t>> tmp_types{std::nullopt};
+      std::optional<rmm::device_uvector<edge_time_t>> tmp_start_times{std::nullopt};
+      std::optional<rmm::device_uvector<edge_time_t>> tmp_end_times{std::nullopt};
+      std::tie(edge_src_chunks[i],
+               edge_dst_chunks[i],
+               tmp_weights,
+               tmp_ids,
+               tmp_types,
+               tmp_start_times,
+               tmp_end_times) =
+        cugraph::remove_self_loops<vertex_t, edge_t, weight_t, edge_type_t, edge_time_t>(
+          handle,
+          std::move(edge_src_chunks[i]),
+          std::move(edge_dst_chunks[i]),
+          edge_weight_chunks
+            ? std::make_optional<rmm::device_uvector<weight_t>>(std::move((*edge_weight_chunks)[i]))
+            : std::nullopt,
+          edge_id_chunks ? std::make_optional(std::move((*edge_id_chunks)[i])) : std::nullopt,
+          edge_type_chunks ? std::make_optional(std::move((*edge_type_chunks)[i])) : std::nullopt,
+          edge_start_time_chunks ? std::make_optional(std::move((*edge_start_time_chunks)[i]))
+                                 : std::nullopt,
+          edge_end_time_chunks ? std::make_optional(std::move((*edge_end_time_chunks)[i]))
+                               : std::nullopt);
+      if (tmp_weights) { (*edge_weight_chunks)[i] = std::move(*tmp_weights); }
+    }
+  }
+
+  if (drop_multi_edges) {
+    auto [srcs, dsts, weights, edge_ids, edge_types, edge_start_times, edge_end_times] =
+      detail::concatenate_edge_chunks(handle,
+                                      std::move(edge_src_chunks),
+                                      std::move(edge_dst_chunks),
+                                      std::move(edge_weight_chunks),
+                                      std::move(edge_id_chunks),
+                                      std::move(edge_type_chunks),
+                                      std::move(edge_start_time_chunks),
+                                      std::move(edge_end_time_chunks));
+    std::tie(srcs, dsts, weights, edge_ids, edge_types, edge_start_times, edge_end_times) =
+      cugraph::remove_multi_edges<vertex_t, edge_t, weight_t, int32_t>(
+        handle,
+        std::move(srcs),
+        std::move(dsts),
+        std::move(weights),
+        std::move(edge_ids),
+        std::move(edge_types),
+        std::move(edge_start_times),
+        std::move(edge_end_times),
+        is_symmetric ? true /* keep minimum weight edges to maintain symmetry */ : false);
+    edge_src_chunks = std::vector<rmm::device_uvector<vertex_t>>{};
+    edge_src_chunks.push_back(std::move(srcs));
+    edge_dst_chunks = std::vector<rmm::device_uvector<vertex_t>>{};
+    edge_dst_chunks.push_back(std::move(dsts));
+    edge_weight_chunks = std::nullopt;
+    if (weights) {
+      edge_weight_chunks = std::vector<rmm::device_uvector<weight_t>>{};
+      (*edge_weight_chunks).push_back(std::move(*weights));
+    }
+    if (edge_ids) {
+      edge_id_chunks = std::vector<rmm::device_uvector<edge_t>>{};
+      (*edge_id_chunks).push_back(std::move(*edge_ids));
+    }
+    if (edge_types) {
+      edge_type_chunks = std::vector<rmm::device_uvector<edge_type_t>>{};
+      (*edge_type_chunks).push_back(std::move(*edge_types));
+    }
+    if (edge_start_times) {
+      edge_start_time_chunks = std::vector<rmm::device_uvector<edge_time_t>>{};
+      (*edge_start_time_chunks).push_back(std::move(*edge_start_times));
+    }
+    if (edge_end_times) {
+      edge_end_time_chunks = std::vector<rmm::device_uvector<edge_time_t>>{};
+      (*edge_end_time_chunks).push_back(std::move(*edge_end_times));
+    }
+  }
+
+  graph_t<vertex_t, edge_t, store_transposed, multi_gpu> graph(handle);
+  std::optional<
+    edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, weight_t>>
+    edge_weights{std::nullopt};
+  std::optional<
+    edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, edge_t>>
+    edge_ids{std::nullopt};
+  std::optional<
+    edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, edge_type_t>>
+    edge_types{std::nullopt};
+  std::optional<
+    edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, edge_time_t>>
+    edge_start_times{std::nullopt};
+  std::optional<
+    edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, edge_time_t>>
+    edge_end_times{std::nullopt};
+  std::optional<rmm::device_uvector<vertex_t>> renumber_map{std::nullopt};
+  if (edge_src_chunks.size() == 1) {
+    std::tie(
+      graph, edge_weights, edge_ids, edge_types, edge_start_times, edge_end_times, renumber_map) =
+      cugraph::create_graph_from_edgelist<vertex_t,
+                                          edge_t,
+                                          weight_t,
+                                          edge_type_t,
+                                          edge_time_t,
+                                          store_transposed,
+                                          multi_gpu>(
+        handle,
+        std::move(d_vertices_v),
+        std::move(edge_src_chunks[0]),
+        std::move(edge_dst_chunks[0]),
+        edge_weight_chunks ? std::make_optional(std::move((*edge_weight_chunks)[0])) : std::nullopt,
+        edge_id_chunks ? std::make_optional(std::move((*edge_id_chunks)[0])) : std::nullopt,
+        edge_type_chunks ? std::make_optional(std::move((*edge_type_chunks)[0])) : std::nullopt,
+        edge_start_time_chunks ? std::make_optional(std::move((*edge_start_time_chunks)[0]))
+                               : std::nullopt,
+        edge_end_time_chunks ? std::make_optional(std::move((*edge_end_time_chunks)[0]))
+                             : std::nullopt,
+        cugraph::graph_properties_t{is_symmetric, drop_multi_edges ? false : true},
+        renumber);
+  } else {
+    std::tie(
+      graph, edge_weights, edge_ids, edge_types, edge_start_times, edge_end_times, renumber_map) =
+      cugraph::create_graph_from_edgelist<vertex_t,
+                                          edge_t,
+                                          weight_t,
+                                          edge_type_t,
+                                          edge_time_t,
+                                          store_transposed,
+                                          multi_gpu>(
+        handle,
+        std::move(d_vertices_v),
+        std::move(edge_src_chunks),
+        std::move(edge_dst_chunks),
+        std::move(edge_weight_chunks),
+        std::move(edge_id_chunks),
+        std::move(edge_type_chunks),
+        std::move(edge_start_time_chunks),
+        std::move(edge_end_time_chunks),
+        cugraph::graph_properties_t{is_symmetric, drop_multi_edges ? false : true},
+        renumber);
+  }
+
+  return std::make_tuple(std::move(graph),
+                         std::move(edge_weights),
+                         std::move(edge_ids),
+                         std::move(edge_types),
+                         std::move(edge_start_times),
+                         std::move(edge_end_times),
+                         std::move(renumber_map));
+}
+
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
           bool store_transposed,
           bool multi_gpu,
           typename input_usecase_t>
@@ -666,100 +1021,31 @@ construct_graph(raft::handle_t const& handle,
                 bool drop_self_loops  = false,
                 bool drop_multi_edges = false)
 {
-  auto [edge_src_chunks, edge_dst_chunks, edge_weight_chunks, d_vertices_v, is_symmetric] =
-    input_usecase.template construct_edgelist<vertex_t, weight_t>(
-      handle, test_weighted, store_transposed, multi_gpu);
-
-  size_t num_edges{0};
-  for (size_t i = 0; i < edge_src_chunks.size(); ++i) {
-    num_edges += edge_src_chunks[i].size();
-  }
-  CUGRAPH_EXPECTS(num_edges <= static_cast<size_t>(std::numeric_limits<edge_t>::max()),
-                  "Invalid template parameter: edge_t overflow.");
-  if (drop_self_loops) {
-    for (size_t i = 0; i < edge_src_chunks.size(); ++i) {
-      std::optional<rmm::device_uvector<weight_t>> tmp_weights{std::nullopt};
-      std::tie(edge_src_chunks[i], edge_dst_chunks[i], tmp_weights, std::ignore, std::ignore) =
-        cugraph::remove_self_loops<vertex_t, edge_t, weight_t, int32_t>(
-          handle,
-          std::move(edge_src_chunks[i]),
-          std::move(edge_dst_chunks[i]),
-          edge_weight_chunks
-            ? std::make_optional<rmm::device_uvector<weight_t>>(std::move((*edge_weight_chunks)[i]))
-            : std::nullopt,
-          std::nullopt,
-          std::nullopt);
-      if (tmp_weights) { (*edge_weight_chunks)[i] = std::move(*tmp_weights); }
-    }
-  }
-
-  if (drop_multi_edges) {
-    auto [srcs, dsts, weights] = detail::concatenate_edge_chunks(handle,
-                                                                 std::move(edge_src_chunks),
-                                                                 std::move(edge_dst_chunks),
-                                                                 std::move(edge_weight_chunks));
-    std::tie(srcs, dsts, weights, std::ignore, std::ignore) =
-      cugraph::remove_multi_edges<vertex_t, edge_t, weight_t, int32_t>(
-        handle,
-        std::move(srcs),
-        std::move(dsts),
-        std::move(weights),
-        std::nullopt,
-        std::nullopt,
-        is_symmetric ? true /* keep minimum weight edges to maintain symmetry */ : false);
-    edge_src_chunks = std::vector<rmm::device_uvector<vertex_t>>{};
-    edge_src_chunks.push_back(std::move(srcs));
-    edge_dst_chunks = std::vector<rmm::device_uvector<vertex_t>>{};
-    edge_dst_chunks.push_back(std::move(dsts));
-    edge_weight_chunks = std::nullopt;
-    if (weights) {
-      edge_weight_chunks = std::vector<rmm::device_uvector<weight_t>>{};
-      (*edge_weight_chunks).push_back(std::move(*weights));
-    }
-  }
-
-  graph_t<vertex_t, edge_t, store_transposed, multi_gpu> graph(handle);
+  cugraph::graph_t<vertex_t, edge_t, store_transposed, multi_gpu> graph(handle);
   std::optional<
-    edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, weight_t>>
+    cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>,
+                             weight_t>>
     edge_weights{std::nullopt};
   std::optional<rmm::device_uvector<vertex_t>> renumber_map{std::nullopt};
-  if (edge_src_chunks.size() == 1) {
-    std::tie(graph, edge_weights, std::ignore, std::ignore, renumber_map) =
-      cugraph::create_graph_from_edgelist<vertex_t,
-                                          edge_t,
-                                          weight_t,
-                                          edge_t,
-                                          int32_t,
-                                          store_transposed,
-                                          multi_gpu>(
-        handle,
-        std::move(d_vertices_v),
-        std::move(edge_src_chunks[0]),
-        std::move(edge_dst_chunks[0]),
-        edge_weight_chunks ? std::make_optional(std::move((*edge_weight_chunks)[0])) : std::nullopt,
-        std::nullopt,
-        std::nullopt,
-        cugraph::graph_properties_t{is_symmetric, drop_multi_edges ? false : true},
-        renumber);
-  } else {
-    std::tie(graph, edge_weights, std::ignore, std::ignore, renumber_map) =
-      cugraph::create_graph_from_edgelist<vertex_t,
-                                          edge_t,
-                                          weight_t,
-                                          edge_t,
-                                          int32_t,
-                                          store_transposed,
-                                          multi_gpu>(
-        handle,
-        std::move(d_vertices_v),
-        std::move(edge_src_chunks),
-        std::move(edge_dst_chunks),
-        std::move(edge_weight_chunks),
-        std::nullopt,
-        std::nullopt,
-        cugraph::graph_properties_t{is_symmetric, drop_multi_edges ? false : true},
-        renumber);
-  }
+
+  std::tie(graph, edge_weights, std::ignore, std::ignore, std::ignore, std::ignore, renumber_map) =
+    construct_graph<vertex_t,
+                    edge_t,
+                    weight_t,
+                    int32_t,
+                    int32_t,
+                    store_transposed,
+                    multi_gpu,
+                    input_usecase_t>(handle,
+                                     input_usecase,
+                                     test_weighted,
+                                     std::nullopt,
+                                     std::nullopt,
+                                     std::nullopt,
+                                     std::nullopt,
+                                     renumber,
+                                     drop_self_loops,
+                                     drop_multi_edges);
 
   return std::make_tuple(std::move(graph), std::move(edge_weights), std::move(renumber_map));
 }

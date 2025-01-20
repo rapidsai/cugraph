@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2023-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@
 
 #include "structure/detail/structure_utils.cuh"
 
+#include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/utilities/dataframe_buffer.hpp>
 // FIXME: mem_frugal_partition should probably not be in shuffle_comm.hpp
 //        It's used here without any notion of shuffling
@@ -101,14 +102,13 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> group_m
 template <typename vertex_t, typename edge_value_t>
 std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
-           decltype(allocate_dataframe_buffer<edge_value_t>(size_t{0}, rmm::cuda_stream_view{}))>
-group_multi_edges(
-  raft::handle_t const& handle,
-  rmm::device_uvector<vertex_t>&& edgelist_srcs,
-  rmm::device_uvector<vertex_t>&& edgelist_dsts,
-  decltype(allocate_dataframe_buffer<edge_value_t>(0, rmm::cuda_stream_view{}))&& edgelist_values,
-  size_t mem_frugal_threshold,
-  bool keep_min_value_edge)
+           dataframe_buffer_type_t<edge_value_t>>
+group_multi_edges(raft::handle_t const& handle,
+                  rmm::device_uvector<vertex_t>&& edgelist_srcs,
+                  rmm::device_uvector<vertex_t>&& edgelist_dsts,
+                  dataframe_buffer_type_t<edge_value_t>&& edgelist_values,
+                  size_t mem_frugal_threshold,
+                  bool keep_min_value_edge)
 {
   auto pair_first  = thrust::make_zip_iterator(edgelist_srcs.begin(), edgelist_dsts.begin());
   auto value_first = get_dataframe_buffer_begin(edgelist_values);
@@ -163,25 +163,55 @@ group_multi_edges(
 
 }  // namespace detail
 
-template <typename vertex_t, typename edge_t, typename weight_t, typename edge_type_t>
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          typename edge_type_t,
+          typename edge_time_t>
 std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<weight_t>>,
            std::optional<rmm::device_uvector<edge_t>>,
-           std::optional<rmm::device_uvector<edge_type_t>>>
+           std::optional<rmm::device_uvector<edge_type_t>>,
+           std::optional<rmm::device_uvector<edge_time_t>>,
+           std::optional<rmm::device_uvector<edge_time_t>>>
 remove_multi_edges(raft::handle_t const& handle,
                    rmm::device_uvector<vertex_t>&& edgelist_srcs,
                    rmm::device_uvector<vertex_t>&& edgelist_dsts,
                    std::optional<rmm::device_uvector<weight_t>>&& edgelist_weights,
                    std::optional<rmm::device_uvector<edge_t>>&& edgelist_edge_ids,
                    std::optional<rmm::device_uvector<edge_type_t>>&& edgelist_edge_types,
+                   std::optional<rmm::device_uvector<edge_time_t>>&& edgelist_edge_start_times,
+                   std::optional<rmm::device_uvector<edge_time_t>>&& edgelist_edge_end_times,
                    bool keep_min_value_edge)
 {
-  auto total_global_mem = handle.get_device_properties().totalGlobalMem;
-  size_t element_size   = sizeof(vertex_t) * 2;
-  if (edgelist_weights) { element_size += sizeof(weight_t); }
-  if (edgelist_edge_ids) { element_size += sizeof(edge_t); }
-  if (edgelist_edge_types) { element_size += sizeof(edge_type_t); }
+  auto total_global_mem   = handle.get_device_properties().totalGlobalMem;
+  int edge_property_count = 0;
+  size_t element_size     = sizeof(vertex_t) * 2;
+
+  if (edgelist_weights) {
+    ++edge_property_count;
+    element_size += sizeof(weight_t);
+  }
+
+  if (edgelist_edge_ids) {
+    ++edge_property_count;
+    element_size += sizeof(edge_t);
+  }
+  if (edgelist_edge_types) {
+    ++edge_property_count;
+    element_size += sizeof(edge_type_t);
+  }
+  if (edgelist_edge_start_times) {
+    ++edge_property_count;
+    element_size += sizeof(edge_time_t);
+  }
+  if (edgelist_edge_end_times) {
+    ++edge_property_count;
+    element_size += sizeof(edge_time_t);
+  }
+
+  if (edge_property_count > 1) { element_size = sizeof(vertex_t) * 2 + sizeof(size_t); }
 
   auto constexpr mem_frugal_ratio =
     0.25;  // if the expected temporary buffer size exceeds the mem_frugal_ratio of the
@@ -189,90 +219,122 @@ remove_multi_edges(raft::handle_t const& handle,
   auto mem_frugal_threshold =
     static_cast<size_t>(static_cast<double>(total_global_mem / element_size) * mem_frugal_ratio);
 
-  if (edgelist_weights) {
-    if (edgelist_edge_ids) {
-      if (edgelist_edge_types) {
-        std::forward_as_tuple(edgelist_srcs,
-                              edgelist_dsts,
-                              std::tie(edgelist_weights, edgelist_edge_ids, edgelist_edge_types)) =
-          detail::group_multi_edges<vertex_t, thrust::tuple<weight_t, edge_t, edge_type_t>>(
-            handle,
-            std::move(edgelist_srcs),
-            std::move(edgelist_dsts),
-            std::make_tuple(std::move(*edgelist_weights),
-                            std::move(*edgelist_edge_ids),
-                            std::move(*edgelist_edge_types)),
-            mem_frugal_threshold,
-            keep_min_value_edge);
-      } else {
-        std::forward_as_tuple(
-          edgelist_srcs, edgelist_dsts, std::tie(edgelist_weights, edgelist_edge_ids)) =
-          detail::group_multi_edges<vertex_t, thrust::tuple<weight_t, edge_t>>(
-            handle,
-            std::move(edgelist_srcs),
-            std::move(edgelist_dsts),
-            std::make_tuple(std::move(*edgelist_weights), std::move(*edgelist_edge_ids)),
-            mem_frugal_threshold,
-            keep_min_value_edge);
-      }
-    } else {
-      if (edgelist_edge_types) {
-        std::forward_as_tuple(
-          edgelist_srcs, edgelist_dsts, std::tie(edgelist_weights, edgelist_edge_types)) =
-          detail::group_multi_edges<vertex_t, thrust::tuple<weight_t, edge_type_t>>(
-            handle,
-            std::move(edgelist_srcs),
-            std::move(edgelist_dsts),
-            std::make_tuple(std::move(*edgelist_weights), std::move(*edgelist_edge_types)),
-            mem_frugal_threshold,
-            keep_min_value_edge);
-      } else {
-        std::forward_as_tuple(edgelist_srcs, edgelist_dsts, std::tie(edgelist_weights)) =
-          detail::group_multi_edges<vertex_t, thrust::tuple<weight_t>>(
-            handle,
-            std::move(edgelist_srcs),
-            std::move(edgelist_dsts),
-            std::make_tuple(std::move(*edgelist_weights)),
-            mem_frugal_threshold,
-            keep_min_value_edge);
-      }
+  if (edge_property_count == 0) {
+    std::tie(edgelist_srcs, edgelist_dsts) = detail::group_multi_edges(
+      handle, std::move(edgelist_srcs), std::move(edgelist_dsts), mem_frugal_threshold);
+  } else if (edge_property_count == 1) {
+    if (edgelist_weights) {
+      std::tie(edgelist_srcs, edgelist_dsts, edgelist_weights) =
+        detail::group_multi_edges<vertex_t, weight_t>(handle,
+                                                      std::move(edgelist_srcs),
+                                                      std::move(edgelist_dsts),
+                                                      std::move(*edgelist_weights),
+                                                      mem_frugal_threshold,
+                                                      keep_min_value_edge);
+    } else if (edgelist_edge_ids) {
+      std::tie(edgelist_srcs, edgelist_dsts, edgelist_edge_ids) =
+        detail::group_multi_edges<vertex_t, edge_t>(handle,
+                                                    std::move(edgelist_srcs),
+                                                    std::move(edgelist_dsts),
+                                                    std::move(*edgelist_edge_ids),
+                                                    mem_frugal_threshold,
+                                                    keep_min_value_edge);
+    } else if (edgelist_edge_types) {
+      std::tie(edgelist_srcs, edgelist_dsts, edgelist_edge_types) =
+        detail::group_multi_edges<vertex_t, edge_type_t>(handle,
+                                                         std::move(edgelist_srcs),
+                                                         std::move(edgelist_dsts),
+                                                         std::move(*edgelist_edge_types),
+                                                         mem_frugal_threshold,
+                                                         keep_min_value_edge);
+    } else if (edgelist_edge_start_times) {
+      std::tie(edgelist_srcs, edgelist_dsts, edgelist_edge_start_times) =
+        detail::group_multi_edges<vertex_t, edge_time_t>(handle,
+                                                         std::move(edgelist_srcs),
+                                                         std::move(edgelist_dsts),
+                                                         std::move(*edgelist_edge_start_times),
+                                                         mem_frugal_threshold,
+                                                         keep_min_value_edge);
+    } else if (edgelist_edge_end_times) {
+      std::tie(edgelist_srcs, edgelist_dsts, edgelist_edge_end_times) =
+        detail::group_multi_edges<vertex_t, edge_time_t>(handle,
+                                                         std::move(edgelist_srcs),
+                                                         std::move(edgelist_dsts),
+                                                         std::move(*edgelist_edge_end_times),
+                                                         mem_frugal_threshold,
+                                                         keep_min_value_edge);
     }
   } else {
+    rmm::device_uvector<edge_t> property_position(edgelist_srcs.size(), handle.get_stream());
+    detail::sequence_fill(
+      handle.get_stream(), property_position.data(), property_position.size(), edge_t{0});
+
+    std::tie(edgelist_srcs, edgelist_dsts, property_position) =
+      detail::group_multi_edges<vertex_t, edge_t>(handle,
+                                                  std::move(edgelist_srcs),
+                                                  std::move(edgelist_dsts),
+                                                  std::move(property_position),
+                                                  mem_frugal_threshold,
+                                                  keep_min_value_edge);
+
+    if (edgelist_weights) {
+      rmm::device_uvector<weight_t> tmp(property_position.size(), handle.get_stream());
+
+      thrust::gather(handle.get_thrust_policy(),
+                     property_position.begin(),
+                     property_position.end(),
+                     edgelist_weights->begin(),
+                     tmp.begin());
+
+      edgelist_weights = std::move(tmp);
+    }
+
     if (edgelist_edge_ids) {
-      if (edgelist_edge_types) {
-        std::forward_as_tuple(
-          edgelist_srcs, edgelist_dsts, std::tie(edgelist_edge_ids, edgelist_edge_types)) =
-          detail::group_multi_edges<vertex_t, thrust::tuple<edge_t, edge_type_t>>(
-            handle,
-            std::move(edgelist_srcs),
-            std::move(edgelist_dsts),
-            std::make_tuple(std::move(*edgelist_edge_ids), std::move(*edgelist_edge_types)),
-            mem_frugal_threshold,
-            keep_min_value_edge);
-      } else {
-        std::forward_as_tuple(edgelist_srcs, edgelist_dsts, std::tie(edgelist_edge_ids)) =
-          detail::group_multi_edges<vertex_t, thrust::tuple<edge_t>>(
-            handle,
-            std::move(edgelist_srcs),
-            std::move(edgelist_dsts),
-            std::make_tuple(std::move(*edgelist_edge_ids)),
-            mem_frugal_threshold,
-            keep_min_value_edge);
-      }
-    } else {
-      if (edgelist_edge_types) {
-        std::forward_as_tuple(edgelist_srcs, edgelist_dsts, std::tie(edgelist_edge_types)) =
-          detail::group_multi_edges<vertex_t, thrust::tuple<edge_type_t>>(
-            handle,
-            std::move(edgelist_srcs),
-            std::move(edgelist_dsts),
-            std::make_tuple(std::move(*edgelist_edge_types)),
-            mem_frugal_threshold,
-            keep_min_value_edge);
-      } else {
-        std::tie(edgelist_srcs, edgelist_dsts) = detail::group_multi_edges(
-          handle, std::move(edgelist_srcs), std::move(edgelist_dsts), mem_frugal_threshold);
-      }
+      rmm::device_uvector<edge_t> tmp(property_position.size(), handle.get_stream());
+
+      thrust::gather(handle.get_thrust_policy(),
+                     property_position.begin(),
+                     property_position.end(),
+                     edgelist_edge_ids->begin(),
+                     tmp.begin());
+
+      edgelist_edge_ids = std::move(tmp);
+    }
+
+    if (edgelist_edge_types) {
+      rmm::device_uvector<edge_type_t> tmp(property_position.size(), handle.get_stream());
+
+      thrust::gather(handle.get_thrust_policy(),
+                     property_position.begin(),
+                     property_position.end(),
+                     edgelist_edge_types->begin(),
+                     tmp.begin());
+
+      edgelist_edge_types = std::move(tmp);
+    }
+
+    if (edgelist_edge_start_times) {
+      rmm::device_uvector<edge_time_t> tmp(property_position.size(), handle.get_stream());
+
+      thrust::gather(handle.get_thrust_policy(),
+                     property_position.begin(),
+                     property_position.end(),
+                     edgelist_edge_start_times->begin(),
+                     tmp.begin());
+
+      edgelist_edge_start_times = std::move(tmp);
+    }
+
+    if (edgelist_edge_end_times) {
+      rmm::device_uvector<edge_time_t> tmp(property_position.size(), handle.get_stream());
+
+      thrust::gather(handle.get_thrust_policy(),
+                     property_position.begin(),
+                     property_position.end(),
+                     edgelist_edge_end_times->begin(),
+                     tmp.begin());
+
+      edgelist_edge_end_times = std::move(tmp);
     }
   }
 
@@ -323,7 +385,9 @@ remove_multi_edges(raft::handle_t const& handle,
                          std::move(edgelist_dsts),
                          std::move(edgelist_weights),
                          std::move(edgelist_edge_ids),
-                         std::move(edgelist_edge_types));
+                         std::move(edgelist_edge_types),
+                         std::move(edgelist_edge_start_times),
+                         std::move(edgelist_edge_end_times));
 }
 
 }  // namespace cugraph

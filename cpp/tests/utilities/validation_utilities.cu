@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, NVIDIA CORPORATION.
+ * Copyright (c) 2024-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -65,6 +65,320 @@ void sort(raft::handle_t const& handle,
   thrust::sort(handle.get_thrust_policy(),
                thrust::make_zip_iterator(srcs.begin(), dsts.begin()),
                thrust::make_zip_iterator(srcs.end(), dsts.end()));
+}
+
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          typename edge_type_t,
+          typename edge_time_t>
+void sort(raft::handle_t const& handle,
+          raft::device_span<vertex_t> srcs,
+          raft::device_span<vertex_t> dsts,
+          std::optional<raft::device_span<weight_t>> wgts,
+          std::optional<raft::device_span<edge_t>> ids,
+          std::optional<raft::device_span<edge_type_t>> types,
+          std::optional<raft::device_span<edge_time_t>> start_times,
+          std::optional<raft::device_span<edge_time_t>> end_times)
+{
+  if (wgts) {
+    if (ids) {
+      if (types) {
+        if (start_times) {
+          if (end_times) {
+            thrust::sort(handle.get_thrust_policy(),
+                         thrust::make_zip_iterator(srcs.begin(),
+                                                   dsts.begin(),
+                                                   wgts->begin(),
+                                                   ids->begin(),
+                                                   types->begin(),
+                                                   start_times->begin(),
+                                                   end_times->begin()),
+                         thrust::make_zip_iterator(srcs.end(),
+                                                   dsts.end(),
+                                                   wgts->end(),
+                                                   ids->end(),
+                                                   types->end(),
+                                                   start_times->end(),
+                                                   end_times->end()));
+          } else {
+            thrust::sort(
+              handle.get_thrust_policy(),
+              thrust::make_zip_iterator(srcs.begin(),
+                                        dsts.begin(),
+                                        wgts->begin(),
+                                        ids->begin(),
+                                        types->begin(),
+                                        start_times->begin()),
+              thrust::make_zip_iterator(
+                srcs.end(), dsts.end(), wgts->end(), ids->end(), types->end(), start_times->end()));
+          }
+        } else {
+          if (end_times) {
+            thrust::sort(
+              handle.get_thrust_policy(),
+              thrust::make_zip_iterator(srcs.begin(),
+                                        dsts.begin(),
+                                        wgts->begin(),
+                                        ids->begin(),
+                                        types->begin(),
+                                        end_times->begin()),
+              thrust::make_zip_iterator(
+                srcs.end(), dsts.end(), wgts->end(), ids->end(), types->end(), end_times->end()));
+          } else {
+            thrust::sort(handle.get_thrust_policy(),
+                         thrust::make_zip_iterator(
+                           srcs.begin(), dsts.begin(), wgts->begin(), ids->begin(), types->begin()),
+                         thrust::make_zip_iterator(
+                           srcs.end(), dsts.end(), wgts->end(), ids->end(), types->end()));
+          }
+        }
+      } else {
+        if (start_times) {
+          if (end_times) {
+            thrust::sort(handle.get_thrust_policy(),
+                         thrust::make_zip_iterator(srcs.begin(),
+                                                   dsts.begin(),
+                                                   wgts->begin(),
+                                                   ids->begin(),
+                                                   start_times->begin(),
+                                                   end_times->begin()),
+                         thrust::make_zip_iterator(srcs.end(),
+                                                   dsts.end(),
+                                                   wgts->end(),
+                                                   ids->end(),
+                                                   start_times->end(),
+                                                   end_times->end()));
+          } else {
+            thrust::sort(
+              handle.get_thrust_policy(),
+              thrust::make_zip_iterator(
+                srcs.begin(), dsts.begin(), wgts->begin(), ids->begin(), start_times->begin()),
+              thrust::make_zip_iterator(
+                srcs.end(), dsts.end(), wgts->end(), ids->end(), start_times->end()));
+          }
+        } else {
+          if (end_times) {
+            thrust::sort(
+              handle.get_thrust_policy(),
+              thrust::make_zip_iterator(
+                srcs.begin(), dsts.begin(), wgts->begin(), ids->begin(), end_times->begin()),
+              thrust::make_zip_iterator(
+                srcs.end(), dsts.end(), wgts->end(), ids->end(), end_times->end()));
+          } else {
+            thrust::sort(
+              handle.get_thrust_policy(),
+              thrust::make_zip_iterator(srcs.begin(), dsts.begin(), wgts->begin(), ids->begin()),
+              thrust::make_zip_iterator(srcs.end(), dsts.end(), wgts->end(), ids->end()));
+          }
+        }
+      }
+    } else {
+      if (types) {
+        if (start_times) {
+          if (end_times) {
+            thrust::sort(handle.get_thrust_policy(),
+                         thrust::make_zip_iterator(srcs.begin(),
+                                                   dsts.begin(),
+                                                   wgts->begin(),
+                                                   types->begin(),
+                                                   start_times->begin(),
+                                                   end_times->begin()),
+                         thrust::make_zip_iterator(srcs.end(),
+                                                   dsts.end(),
+                                                   wgts->end(),
+                                                   types->end(),
+                                                   start_times->end(),
+                                                   end_times->end()));
+          } else {
+            thrust::sort(
+              handle.get_thrust_policy(),
+              thrust::make_zip_iterator(
+                srcs.begin(), dsts.begin(), wgts->begin(), types->begin(), start_times->begin()),
+              thrust::make_zip_iterator(
+                srcs.end(), dsts.end(), wgts->end(), types->end(), start_times->end()));
+          }
+        } else {
+          if (end_times) {
+            thrust::sort(
+              handle.get_thrust_policy(),
+              thrust::make_zip_iterator(
+                srcs.begin(), dsts.begin(), wgts->begin(), types->begin(), end_times->begin()),
+              thrust::make_zip_iterator(
+                srcs.end(), dsts.end(), wgts->end(), types->end(), end_times->end()));
+          } else {
+            thrust::sort(
+              handle.get_thrust_policy(),
+              thrust::make_zip_iterator(srcs.begin(), dsts.begin(), wgts->begin(), types->begin()),
+              thrust::make_zip_iterator(srcs.end(), dsts.end(), wgts->end(), types->end()));
+          }
+        }
+      } else {
+        if (start_times) {
+          if (end_times) {
+            thrust::sort(
+              handle.get_thrust_policy(),
+              thrust::make_zip_iterator(srcs.begin(),
+                                        dsts.begin(),
+                                        wgts->begin(),
+                                        start_times->begin(),
+                                        end_times->begin()),
+              thrust::make_zip_iterator(
+                srcs.end(), dsts.end(), wgts->end(), start_times->end(), end_times->end()));
+          } else {
+            thrust::sort(
+              handle.get_thrust_policy(),
+              thrust::make_zip_iterator(
+                srcs.begin(), dsts.begin(), wgts->begin(), start_times->begin()),
+              thrust::make_zip_iterator(srcs.end(), dsts.end(), wgts->end(), start_times->end()));
+          }
+        } else {
+          if (end_times) {
+            thrust::sort(
+              handle.get_thrust_policy(),
+              thrust::make_zip_iterator(
+                srcs.begin(), dsts.begin(), wgts->begin(), end_times->begin()),
+              thrust::make_zip_iterator(srcs.end(), dsts.end(), wgts->end(), end_times->end()));
+          } else {
+            thrust::sort(handle.get_thrust_policy(),
+                         thrust::make_zip_iterator(srcs.begin(), dsts.begin(), wgts->begin()),
+                         thrust::make_zip_iterator(srcs.end(), dsts.end(), wgts->end()));
+          }
+        }
+      }
+    }
+  } else {
+    if (ids) {
+      if (types) {
+        if (start_times) {
+          if (end_times) {
+            thrust::sort(handle.get_thrust_policy(),
+                         thrust::make_zip_iterator(srcs.begin(),
+                                                   dsts.begin(),
+                                                   ids->begin(),
+                                                   types->begin(),
+                                                   start_times->begin(),
+                                                   end_times->begin()),
+                         thrust::make_zip_iterator(srcs.end(),
+                                                   dsts.end(),
+                                                   ids->end(),
+                                                   types->end(),
+                                                   start_times->end(),
+                                                   end_times->end()));
+          } else {
+            thrust::sort(
+              handle.get_thrust_policy(),
+              thrust::make_zip_iterator(
+                srcs.begin(), dsts.begin(), ids->begin(), types->begin(), start_times->begin()),
+              thrust::make_zip_iterator(
+                srcs.end(), dsts.end(), ids->end(), types->end(), start_times->end()));
+          }
+        } else {
+          if (end_times) {
+            thrust::sort(
+              handle.get_thrust_policy(),
+              thrust::make_zip_iterator(
+                srcs.begin(), dsts.begin(), ids->begin(), types->begin(), end_times->begin()),
+              thrust::make_zip_iterator(
+                srcs.end(), dsts.end(), ids->end(), types->end(), end_times->end()));
+          } else {
+            thrust::sort(
+              handle.get_thrust_policy(),
+              thrust::make_zip_iterator(srcs.begin(), dsts.begin(), ids->begin(), types->begin()),
+              thrust::make_zip_iterator(srcs.end(), dsts.end(), ids->end(), types->end()));
+          }
+        }
+      } else {
+        if (start_times) {
+          if (end_times) {
+            thrust::sort(
+              handle.get_thrust_policy(),
+              thrust::make_zip_iterator(
+                srcs.begin(), dsts.begin(), ids->begin(), start_times->begin(), end_times->begin()),
+              thrust::make_zip_iterator(
+                srcs.end(), dsts.end(), ids->end(), start_times->end(), end_times->end()));
+          } else {
+            thrust::sort(
+              handle.get_thrust_policy(),
+              thrust::make_zip_iterator(
+                srcs.begin(), dsts.begin(), ids->begin(), start_times->begin()),
+              thrust::make_zip_iterator(srcs.end(), dsts.end(), ids->end(), start_times->end()));
+          }
+        } else {
+          if (end_times) {
+            thrust::sort(
+              handle.get_thrust_policy(),
+              thrust::make_zip_iterator(
+                srcs.begin(), dsts.begin(), ids->begin(), end_times->begin()),
+              thrust::make_zip_iterator(srcs.end(), dsts.end(), ids->end(), end_times->end()));
+          } else {
+            thrust::sort(handle.get_thrust_policy(),
+                         thrust::make_zip_iterator(srcs.begin(), dsts.begin(), ids->begin()),
+                         thrust::make_zip_iterator(srcs.end(), dsts.end(), ids->end()));
+          }
+        }
+      }
+    } else {
+      if (types) {
+        if (start_times) {
+          if (end_times) {
+            thrust::sort(
+              handle.get_thrust_policy(),
+              thrust::make_zip_iterator(srcs.begin(),
+                                        dsts.begin(),
+                                        types->begin(),
+                                        start_times->begin(),
+                                        end_times->begin()),
+              thrust::make_zip_iterator(
+                srcs.end(), dsts.end(), types->end(), start_times->end(), end_times->end()));
+          } else {
+            thrust::sort(
+              handle.get_thrust_policy(),
+              thrust::make_zip_iterator(
+                srcs.begin(), dsts.begin(), types->begin(), start_times->begin()),
+              thrust::make_zip_iterator(srcs.end(), dsts.end(), types->end(), start_times->end()));
+          }
+        } else {
+          if (end_times) {
+            thrust::sort(
+              handle.get_thrust_policy(),
+              thrust::make_zip_iterator(
+                srcs.begin(), dsts.begin(), types->begin(), end_times->begin()),
+              thrust::make_zip_iterator(srcs.end(), dsts.end(), types->end(), end_times->end()));
+          } else {
+            thrust::sort(handle.get_thrust_policy(),
+                         thrust::make_zip_iterator(srcs.begin(), dsts.begin(), types->begin()),
+                         thrust::make_zip_iterator(srcs.end(), dsts.end(), types->end()));
+          }
+        }
+      } else {
+        if (start_times) {
+          if (end_times) {
+            thrust::sort(handle.get_thrust_policy(),
+                         thrust::make_zip_iterator(
+                           srcs.begin(), dsts.begin(), start_times->begin(), end_times->begin()),
+                         thrust::make_zip_iterator(
+                           srcs.end(), dsts.end(), start_times->end(), end_times->end()));
+          } else {
+            thrust::sort(
+              handle.get_thrust_policy(),
+              thrust::make_zip_iterator(srcs.begin(), dsts.begin(), start_times->begin()),
+              thrust::make_zip_iterator(srcs.end(), dsts.end(), start_times->end()));
+          }
+        } else {
+          if (end_times) {
+            thrust::sort(handle.get_thrust_policy(),
+                         thrust::make_zip_iterator(srcs.begin(), dsts.begin(), end_times->begin()),
+                         thrust::make_zip_iterator(srcs.end(), dsts.end(), end_times->end()));
+          } else {
+            thrust::sort(handle.get_thrust_policy(),
+                         thrust::make_zip_iterator(srcs.begin(), dsts.begin()),
+                         thrust::make_zip_iterator(srcs.end(), dsts.end()));
+          }
+        }
+      }
+    }
+  }
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t, typename edge_type_t>
@@ -177,6 +491,78 @@ template void sort(raft::handle_t const& handle,
 template void sort(raft::handle_t const& handle,
                    raft::device_span<int64_t> srcs,
                    raft::device_span<int64_t> dsts);
+
+template void sort(raft::handle_t const& handle,
+                   raft::device_span<int32_t> srcs,
+                   raft::device_span<int32_t> dsts,
+                   std::optional<raft::device_span<float>> wgts,
+                   std::optional<raft::device_span<int32_t>> ids,
+                   std::optional<raft::device_span<int32_t>> types,
+                   std::optional<raft::device_span<int32_t>> start_times,
+                   std::optional<raft::device_span<int32_t>> end_times);
+
+template void sort(raft::handle_t const& handle,
+                   raft::device_span<int32_t> srcs,
+                   raft::device_span<int32_t> dsts,
+                   std::optional<raft::device_span<double>> wgts,
+                   std::optional<raft::device_span<int32_t>> ids,
+                   std::optional<raft::device_span<int32_t>> types,
+                   std::optional<raft::device_span<int32_t>> start_times,
+                   std::optional<raft::device_span<int32_t>> end_times);
+
+template void sort(raft::handle_t const& handle,
+                   raft::device_span<int32_t> srcs,
+                   raft::device_span<int32_t> dsts,
+                   std::optional<raft::device_span<float>> wgts,
+                   std::optional<raft::device_span<int32_t>> ids,
+                   std::optional<raft::device_span<int32_t>> types,
+                   std::optional<raft::device_span<int64_t>> start_times,
+                   std::optional<raft::device_span<int64_t>> end_times);
+
+template void sort(raft::handle_t const& handle,
+                   raft::device_span<int32_t> srcs,
+                   raft::device_span<int32_t> dsts,
+                   std::optional<raft::device_span<double>> wgts,
+                   std::optional<raft::device_span<int32_t>> ids,
+                   std::optional<raft::device_span<int32_t>> types,
+                   std::optional<raft::device_span<int64_t>> start_times,
+                   std::optional<raft::device_span<int64_t>> end_times);
+
+template void sort(raft::handle_t const& handle,
+                   raft::device_span<int64_t> srcs,
+                   raft::device_span<int64_t> dsts,
+                   std::optional<raft::device_span<float>> wgts,
+                   std::optional<raft::device_span<int64_t>> ids,
+                   std::optional<raft::device_span<int32_t>> types,
+                   std::optional<raft::device_span<int32_t>> start_times,
+                   std::optional<raft::device_span<int32_t>> end_times);
+
+template void sort(raft::handle_t const& handle,
+                   raft::device_span<int64_t> srcs,
+                   raft::device_span<int64_t> dsts,
+                   std::optional<raft::device_span<double>> wgts,
+                   std::optional<raft::device_span<int64_t>> ids,
+                   std::optional<raft::device_span<int32_t>> types,
+                   std::optional<raft::device_span<int32_t>> start_times,
+                   std::optional<raft::device_span<int32_t>> end_times);
+
+template void sort(raft::handle_t const& handle,
+                   raft::device_span<int64_t> srcs,
+                   raft::device_span<int64_t> dsts,
+                   std::optional<raft::device_span<float>> wgts,
+                   std::optional<raft::device_span<int64_t>> ids,
+                   std::optional<raft::device_span<int32_t>> types,
+                   std::optional<raft::device_span<int64_t>> start_times,
+                   std::optional<raft::device_span<int64_t>> end_times);
+
+template void sort(raft::handle_t const& handle,
+                   raft::device_span<int64_t> srcs,
+                   raft::device_span<int64_t> dsts,
+                   std::optional<raft::device_span<double>> wgts,
+                   std::optional<raft::device_span<int64_t>> ids,
+                   std::optional<raft::device_span<int32_t>> types,
+                   std::optional<raft::device_span<int64_t>> start_times,
+                   std::optional<raft::device_span<int64_t>> end_times);
 
 template size_t count_intersection(raft::handle_t const& handle,
                                    raft::device_span<int32_t const> srcs1,
