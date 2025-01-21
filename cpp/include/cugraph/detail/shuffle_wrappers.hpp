@@ -28,11 +28,8 @@ namespace detail {
 /** @defgroup shuffle_wrappers_cpp C++ Shuffle Wrappers
  */
 
-/** @ingroup shuffle_wrappers_cpp
- *  @{
- */
-
 /**
+ * @ingroup shuffle_wrappers_cpp
  * @brief Shuffle external (i.e. before renumbering) vertex pairs (which can be edge end points) to
  * their local GPUs based on edge partitioning.
  *
@@ -82,6 +79,7 @@ shuffle_ext_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning(
   std::optional<rmm::device_uvector<edge_time_t>>&& edge_end_times);
 
 /**
+ * @ingroup shuffle_wrappers_cpp
  * @brief Shuffle internal (i.e. renumbered) vertex pairs (which can be edge end points) to their
  * local GPUs based on edge partitioning.
  *
@@ -135,6 +133,7 @@ shuffle_int_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning(
   std::vector<vertex_t> const& vertex_partition_range_lasts);
 
 /**
+ * @ingroup shuffle_wrappers_cpp
  * @brief Shuffle external (i.e. before renumbering) vertices to their local GPU based on vertex
  * partitioning.
  *
@@ -151,6 +150,7 @@ rmm::device_uvector<vertex_t> shuffle_ext_vertices_to_local_gpu_by_vertex_partit
   raft::handle_t const& handle, rmm::device_uvector<vertex_t>&& vertices);
 
 /**
+ * @ingroup shuffle_wrappers_cpp
  * @brief Shuffle external (i.e. before renumbering) vertex & value pairs to their local GPU based
  * on vertex partitioning.
  *
@@ -172,6 +172,7 @@ shuffle_ext_vertex_value_pairs_to_local_gpu_by_vertex_partitioning(
   rmm::device_uvector<value_t>&& values);
 
 /**
+ * @ingroup shuffle_wrappers_cpp
  * @brief Permute a range.
  *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
@@ -194,6 +195,7 @@ rmm::device_uvector<vertex_t> permute_range(raft::handle_t const& handle,
                                             bool do_expensive_check = false);
 
 /**
+ * @ingroup shuffle_wrappers_cpp
  * @brief Shuffle internal (i.e. renumbered) vertices to their local GPUs based on vertex
  * partitioning.
  *
@@ -214,6 +216,7 @@ rmm::device_uvector<vertex_t> shuffle_int_vertices_to_local_gpu_by_vertex_partit
   std::vector<vertex_t> const& vertex_partition_range_lasts);
 
 /**
+ * @ingroup shuffle_wrappers_cpp
  * @brief Shuffle vertices using the internal vertex key function which returns the target GPU ID.
  *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
@@ -236,6 +239,7 @@ shuffle_int_vertex_value_pairs_to_local_gpu_by_vertex_partitioning(
   std::vector<vertex_t> const& vertex_partition_range_lasts);
 
 /**
+ * @ingroup shuffle_wrappers_cpp
  * @brief Groupby and count edgelist using the key function which returns the target local partition
  * ID for an edge.
  *
@@ -282,6 +286,7 @@ rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partition_id(
   bool groupby_and_count_local_partition_by_minor = false);
 
 /**
+ * @ingroup shuffle_wrappers_cpp
  * @brief Collect vertex values (represented as k/v pairs across cluster) and return
  *        local value arrays on the GPU responsible for each vertex.
  *
@@ -317,7 +322,3 @@ rmm::device_uvector<value_t> collect_local_vertex_values_from_ext_vertex_value_p
 
 }  // namespace detail
 }  // namespace cugraph
-
-/**
- * @}
- */
