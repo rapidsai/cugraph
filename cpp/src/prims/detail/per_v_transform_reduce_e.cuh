@@ -69,7 +69,7 @@ namespace cugraph {
 
 namespace detail {
 
-int32_t constexpr per_v_transform_reduce_e_kernel_block_size                        = 512;
+int32_t constexpr per_v_transform_reduce_e_kernel_block_size                        = 256;
 int32_t constexpr per_v_transform_reduce_e_kernel_high_degree_reduce_any_block_size = 128;
 
 template <typename Iterator, typename default_t, typename Enable = void>
