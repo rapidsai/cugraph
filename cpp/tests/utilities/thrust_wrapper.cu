@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -595,6 +595,28 @@ template std::tuple<rmm::device_uvector<int64_t>, rmm::device_uvector<int64_t>> 
   raft::handle_t const& handle,
   rmm::device_uvector<int64_t>&& v1,
   rmm::device_uvector<int64_t>&& v2);
+
+template <typename T>
+bool device_spans_equal(raft::handle_t const& handle,
+                        raft::device_span<T const> array_left,
+                        raft::device_span<T const> array_right)
+{
+  return thrust::equal(
+    handle.get_thrust_policy(), array_left.begin(), array_left.end(), array_right.begin());
+}
+
+template bool device_spans_equal(raft::handle_t const& handle,
+                                 raft::device_span<int32_t const> array_left,
+                                 raft::device_span<int32_t const> array_right);
+template bool device_spans_equal(raft::handle_t const& handle,
+                                 raft::device_span<int64_t const> array_left,
+                                 raft::device_span<int64_t const> array_right);
+template bool device_spans_equal(raft::handle_t const& handle,
+                                 raft::device_span<float const> array_left,
+                                 raft::device_span<float const> array_right);
+template bool device_spans_equal(raft::handle_t const& handle,
+                                 raft::device_span<double const> array_left,
+                                 raft::device_span<double const> array_right);
 
 }  // namespace test
 }  // namespace cugraph

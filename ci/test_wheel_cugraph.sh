@@ -7,11 +7,13 @@ set -eoxu pipefail
 mkdir -p ./dist
 RAPIDS_PY_CUDA_SUFFIX="$(rapids-wheel-ctk-name-gen ${RAPIDS_CUDA_VERSION})"
 RAPIDS_PY_WHEEL_NAME="cugraph_${RAPIDS_PY_CUDA_SUFFIX}" rapids-download-wheels-from-s3 python ./dist
+RAPIDS_PY_WHEEL_NAME="libcugraph_${RAPIDS_PY_CUDA_SUFFIX}" rapids-download-wheels-from-s3 cpp ./local-libcugraph-dep
 RAPIDS_PY_WHEEL_NAME="pylibcugraph_${RAPIDS_PY_CUDA_SUFFIX}" rapids-download-wheels-from-s3 python ./local-pylibcugraph-dep
 
 # echo to expand wildcard before adding `[extra]` requires for pip
 python -m pip install \
     "$(echo ./dist/cugraph*.whl)[test]" \
-    ./local-pylibcugraph-dep/pylibcugraph*.whl
+    ./local-pylibcugraph-dep/pylibcugraph*.whl \
+    ./local-libcugraph-dep/libcugraph*.whl
 
 ./ci/test_wheel.sh cugraph
