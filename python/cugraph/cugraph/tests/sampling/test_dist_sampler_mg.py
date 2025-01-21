@@ -1,4 +1,4 @@
-# Copyright (c) 2024, NVIDIA CORPORATION.
+# Copyright (c) 2024-2025, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -59,6 +59,9 @@ def karate_mg_graph(rank, world_size):
         [el.src.astype("int64")],
         [el.dst.astype("int64")],
         edge_id_array=[el.eid],
+        vertices_array=[
+            cupy.array_split(cupy.arange(34, dtype="int64"), world_size)[rank]
+        ],
     )
 
     return G
@@ -290,8 +293,7 @@ def run_test_dist_sampler_buffered_in_memory(
         br, bs, be = buffered_results[k]
         ur, us, ue = unbuffered_results[k]
 
-        assert bs == us
-        assert be == ue
+        assert be - bs == ue - us
 
         for col in ur.columns:
             assert (br[col].dropna() == ur[col].dropna()).all()

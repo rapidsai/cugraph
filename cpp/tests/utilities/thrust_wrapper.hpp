@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -117,6 +117,11 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> remove_
   raft::handle_t const& handle,
   rmm::device_uvector<vertex_t>&& v1,
   rmm::device_uvector<vertex_t>&& v2);
+
+template <typename T>
+bool device_spans_equal(raft::handle_t const& handle,
+                        raft::device_span<T const> array_left,
+                        raft::device_span<T const> array_right);
 
 }  // namespace test
 }  // namespace cugraph

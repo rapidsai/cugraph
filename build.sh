@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright (c) 2019-2024, NVIDIA CORPORATION.
+# Copyright (c) 2019-2025, NVIDIA CORPORATION.
 
 # cugraph build script
 
@@ -174,11 +174,6 @@ SKBUILD_EXTRA_CMAKE_ARGS="${EXTRA_CMAKE_ARGS}"
 
 # Replace spaces with semicolons in SKBUILD_EXTRA_CMAKE_ARGS
 SKBUILD_EXTRA_CMAKE_ARGS=$(echo ${SKBUILD_EXTRA_CMAKE_ARGS} | sed 's/ /;/g')
-
-# Append `-DFIND_CUGRAPH_CPP=ON` to EXTRA_CMAKE_ARGS unless a user specified the option.
-if [[ "${EXTRA_CMAKE_ARGS}" != *"DFIND_CUGRAPH_CPP"* ]]; then
-    SKBUILD_EXTRA_CMAKE_ARGS="${SKBUILD_EXTRA_CMAKE_ARGS};-DFIND_CUGRAPH_CPP=ON"
-fi
 
 # If clean or uninstall targets given, run them prior to any other steps
 if hasArg uninstall; then

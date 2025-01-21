@@ -1,4 +1,4 @@
-# Copyright (c) 2022-2023, NVIDIA CORPORATION.
+# Copyright (c) 2022-2025, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -17,18 +17,6 @@ from pathlib import Path
 
 import pytest
 import numpy as np
-
-# If the rapids-pytest-benchmark plugin is installed, the "gpubenchmark"
-# fixture will be available automatically. Check that this fixture is available
-# by trying to import rapids_pytest_benchmark, and if that fails, set
-# "gpubenchmark" to the standard "benchmark" fixture provided by
-# pytest-benchmark.
-try:
-    import rapids_pytest_benchmark  # noqa: F401
-except ImportError:
-    import pytest_benchmark
-
-    gpubenchmark = pytest_benchmark.plugin.benchmark
 
 from cugraph_service_client import CugraphServiceClient
 from cugraph_service_client.exceptions import CugraphServiceError
@@ -178,7 +166,7 @@ def remote_graph_objs(request):
     "with_replacement", [False], ids=lambda v: f"with_replacement={v}"
 )
 def bench_cgs_uniform_neighbor_sample(
-    gpubenchmark, remote_graph_objs, batch_size, fanout, with_replacement
+    benchmark, remote_graph_objs, batch_size, fanout, with_replacement
 ):
     (G, num_verts, uniform_neighbor_sample_func) = remote_graph_objs
 
@@ -188,7 +176,7 @@ def bench_cgs_uniform_neighbor_sample(
         )
     # print(f"\n{uns_args}")
     # FIXME: uniform_neighbor_sample cannot take a np.ndarray for start_list
-    result = gpubenchmark(
+    result = benchmark(
         uniform_neighbor_sample_func,
         G,
         start_list=uns_args["start_list"],

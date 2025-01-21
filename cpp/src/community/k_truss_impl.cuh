@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, NVIDIA CORPORATION.
+ * Copyright (c) 2024-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -130,16 +130,25 @@ k_truss(raft::handle_t const& handle,
                                             exclude_self_loop_t<vertex_t>{});
 
     if constexpr (multi_gpu) {
-      std::tie(srcs, dsts, std::ignore, std::ignore, std::ignore, std::ignore) =
+      std::tie(
+        srcs, dsts, std::ignore, std::ignore, std::ignore, std::ignore, std::ignore, std::ignore) =
         detail::shuffle_ext_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning<vertex_t,
                                                                                        edge_t,
                                                                                        weight_t,
+                                                                                       int32_t,
                                                                                        int32_t>(
-          handle, std::move(srcs), std::move(dsts), std::nullopt, std::nullopt, std::nullopt);
+          handle,
+          std::move(srcs),
+          std::move(dsts),
+          std::nullopt,
+          std::nullopt,
+          std::nullopt,
+          std::nullopt,
+          std::nullopt);
     }
 
     std::tie(*modified_graph, std::ignore, std::ignore, std::ignore, renumber_map) =
-      create_graph_from_edgelist<vertex_t, edge_t, weight_t, edge_t, int32_t, false, multi_gpu>(
+      create_graph_from_edgelist<vertex_t, edge_t, weight_t, int32_t, false, multi_gpu>(
         handle,
         std::nullopt,
         std::move(srcs),
@@ -178,17 +187,25 @@ k_truss(raft::handle_t const& handle,
                                      std::make_optional(core_number_span));
 
     if constexpr (multi_gpu) {
-      std::tie(srcs, dsts, wgts, std::ignore, std::ignore, std::ignore) =
+      std::tie(srcs, dsts, wgts, std::ignore, std::ignore, std::ignore, std::ignore, std::ignore) =
         detail::shuffle_ext_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning<vertex_t,
                                                                                        edge_t,
                                                                                        weight_t,
+                                                                                       int32_t,
                                                                                        int32_t>(
-          handle, std::move(srcs), std::move(dsts), std::move(wgts), std::nullopt, std::nullopt);
+          handle,
+          std::move(srcs),
+          std::move(dsts),
+          std::move(wgts),
+          std::nullopt,
+          std::nullopt,
+          std::nullopt,
+          std::nullopt);
     }
 
     std::optional<rmm::device_uvector<vertex_t>> tmp_renumber_map{std::nullopt};
     std::tie(*modified_graph, edge_weight, std::ignore, std::ignore, tmp_renumber_map) =
-      create_graph_from_edgelist<vertex_t, edge_t, weight_t, edge_t, int32_t, false, multi_gpu>(
+      create_graph_from_edgelist<vertex_t, edge_t, weight_t, int32_t, false, multi_gpu>(
         handle,
         std::nullopt,
         std::move(srcs),
@@ -257,18 +274,26 @@ k_truss(raft::handle_t const& handle,
     }
 
     if constexpr (multi_gpu) {
-      std::tie(srcs, dsts, wgts, std::ignore, std::ignore, std::ignore) =
+      std::tie(srcs, dsts, wgts, std::ignore, std::ignore, std::ignore, std::ignore, std::ignore) =
         detail::shuffle_ext_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning<vertex_t,
                                                                                        edge_t,
                                                                                        weight_t,
+                                                                                       int32_t,
                                                                                        int32_t>(
-          handle, std::move(srcs), std::move(dsts), std::move(wgts), std::nullopt, std::nullopt);
+          handle,
+          std::move(srcs),
+          std::move(dsts),
+          std::move(wgts),
+          std::nullopt,
+          std::nullopt,
+          std::nullopt,
+          std::nullopt);
     }
 
     std::optional<rmm::device_uvector<vertex_t>> tmp_renumber_map{std::nullopt};
 
     std::tie(*modified_graph, edge_weight, std::ignore, std::ignore, tmp_renumber_map) =
-      create_graph_from_edgelist<vertex_t, edge_t, weight_t, edge_t, int32_t, false, multi_gpu>(
+      create_graph_from_edgelist<vertex_t, edge_t, weight_t, int32_t, false, multi_gpu>(
         handle,
         std::nullopt,
         std::move(srcs),
@@ -343,12 +368,23 @@ k_truss(raft::handle_t const& handle,
         std::make_optional(
           raft::device_span<vertex_t const>((*renumber_map).data(), (*renumber_map).size())));
 
-    std::tie(edgelist_srcs, edgelist_dsts, edgelist_wgts) =
-      symmetrize_edgelist<vertex_t, weight_t, false, multi_gpu>(handle,
-                                                                std::move(edgelist_srcs),
-                                                                std::move(edgelist_dsts),
-                                                                std::move(edgelist_wgts),
-                                                                false);
+    std::tie(edgelist_srcs,
+             edgelist_dsts,
+             edgelist_wgts,
+             std::ignore,
+             std::ignore,
+             std::ignore,
+             std::ignore) =
+      symmetrize_edgelist<vertex_t, edge_t, weight_t, int32_t, int32_t, multi_gpu>(
+        handle,
+        std::move(edgelist_srcs),
+        std::move(edgelist_dsts),
+        std::move(edgelist_wgts),
+        std::nullopt,
+        std::nullopt,
+        std::nullopt,
+        std::nullopt,
+        false);
 
     return std::make_tuple(
       std::move(edgelist_srcs), std::move(edgelist_dsts), std::move(edgelist_wgts));

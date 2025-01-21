@@ -1,5 +1,5 @@
 #!/bin/bash
-# Copyright (c) 2018-2020, NVIDIA CORPORATION.
+# Copyright (c) 2018-2025, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -21,11 +21,6 @@ DATASET_DIR=${DATASET_DIR:=${THISDIR}/../../datasets}
 MACHINE_NAME=${MACHINE_NAME:="mymachine"}
 CONDA=${CONDA:=conda}
 
-# To output results for use with ASV, set
-# ASV_OUTPUT_OPTION="--update_asv_dir=/asv/cugraph-e2e" (update /asv/cugraph-e2e
-# to the desired results dir)
-ASV_OUTPUT_OPTION=${ASV_OUTPUT_OPTION:=""}
-
 ERROR=0
 for ds in ${DATASET_DIR}/csv/undirected/*; do
    echo "================================ ${ds}"
@@ -35,7 +30,6 @@ for ds in ${DATASET_DIR}/csv/undirected/*; do
       echo
    else
        python ${UTILS_DIR}/run_benchmarks.py \
-              ${ASV_OUTPUT_OPTION} \
               --report_cuda_ver=${CUDA_VERSION} \
               --report_python_ver=${PYTHON_VERSION} \
               --report_os_type=${LINUX_VERSION} \
@@ -57,7 +51,6 @@ for ds in ${DATASET_DIR}/csv/undirected/*; do
               \
               ${ds}
        python ${UTILS_DIR}/run_benchmarks.py \
-              ${ASV_OUTPUT_OPTION} \
               --report_cuda_ver=${CUDA_VERSION} \
               --report_python_ver=${PYTHON_VERSION} \
               --report_os_type=${LINUX_VERSION} \
@@ -78,7 +71,6 @@ done
 for ds in ${DATASET_DIR}/csv/directed/*; do
    echo "================================ ${ds}"
    python ${UTILS_DIR}/run_benchmarks.py \
-          ${ASV_OUTPUT_OPTION} \
           --report_cuda_ver=${CUDA_VERSION} \
           --report_python_ver=${PYTHON_VERSION} \
           --report_os_type=${LINUX_VERSION} \
@@ -95,7 +87,6 @@ for ds in ${DATASET_DIR}/csv/directed/*; do
           \
           ${ds}
    python ${UTILS_DIR}/run_benchmarks.py \
-          ${ASV_OUTPUT_OPTION} \
           --report_cuda_ver=${CUDA_VERSION} \
           --report_python_ver=${PYTHON_VERSION} \
           --report_os_type=${LINUX_VERSION} \
