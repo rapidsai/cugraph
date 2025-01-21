@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, NVIDIA CORPORATION.
+ * Copyright (c) 2024-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -65,8 +65,9 @@ class Tests_MGHasEdgeAndComputeMultiplicity
     HasEdgeAndComputeMultiplicity_Usecase const& has_edge_and_compute_multiplicity_usecase,
     input_usecase_t const& input_usecase)
   {
-    using weight_t       = float;
-    using edge_type_id_t = int32_t;
+    using weight_t    = float;
+    using edge_type_t = int32_t;
+    using edge_time_t = int32_t;
 
     HighResTimer hr_timer{};
 
@@ -124,18 +125,23 @@ class Tests_MGHasEdgeAndComputeMultiplicity
              std::ignore,
              std::ignore,
              std::ignore,
+             std::ignore,
+             std::ignore,
              std::ignore) =
       cugraph::detail::shuffle_int_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning<
         vertex_t,
         edge_t,
         weight_t,
-        edge_type_id_t>(*handle_,
-                        std::move(store_transposed ? d_mg_edge_dsts : d_mg_edge_srcs),
-                        std::move(store_transposed ? d_mg_edge_srcs : d_mg_edge_dsts),
-                        std::nullopt,
-                        std::nullopt,
-                        std::nullopt,
-                        mg_graph_view.vertex_partition_range_lasts());
+        edge_type_t,
+        edge_time_t>(*handle_,
+                     std::move(store_transposed ? d_mg_edge_dsts : d_mg_edge_srcs),
+                     std::move(store_transposed ? d_mg_edge_srcs : d_mg_edge_dsts),
+                     std::nullopt,
+                     std::nullopt,
+                     std::nullopt,
+                     std::nullopt,
+                     std::nullopt,
+                     mg_graph_view.vertex_partition_range_lasts());
 
     // 3. run MG has_edge & compute_multiplicity
 

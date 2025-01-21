@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,6 +30,9 @@
 #include <tuple>
 #include <vector>
 
+/** @defgroup graph_functions_cpp C++ Graph Funtions
+ */
+
 namespace cugraph {
 
 template <typename vertex_t, typename edge_t, bool multi_gpu, typename Enable = void>
@@ -51,6 +54,7 @@ struct renumber_meta_t<vertex_t, edge_t, multi_gpu, std::enable_if_t<!multi_gpu>
 };
 
 /**
+ * @ingroup graph_functions_cpp
  * @brief renumber edgelist (multi-GPU)
  *
  * This function assumes that vertices are pre-shuffled to their target processes and edges are
@@ -113,6 +117,7 @@ renumber_edgelist(
   bool do_expensive_check = false);
 
 /**
+ * @ingroup graph_functions_cpp
  * @brief renumber edgelist (single-GPU)
  *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
@@ -151,6 +156,7 @@ renumber_edgelist(raft::handle_t const& handle,
                   bool do_expensive_check = false);
 
 /**
+ * @ingroup graph_functions_cpp
  * @brief Renumber external vertices to internal vertices based on the provided @p
  * renumber_map_labels.
  *
@@ -182,6 +188,7 @@ void renumber_ext_vertices(raft::handle_t const& handle,
                            bool do_expensive_check = false);
 
 /**
+ * @ingroup graph_functions_cpp
  * @brief Unrenumber local internal vertices to external vertices based on the providied @p
  * renumber_map_labels.
  *
@@ -213,6 +220,7 @@ void unrenumber_local_int_vertices(
   bool do_expensive_check = false);
 
 /**
+ * @ingroup graph_functions_cpp
  * @brief Unrenumber (possibly non-local) internal vertices to external vertices based on the
  * providied @p renumber_map_labels.
  *
@@ -241,6 +249,7 @@ void unrenumber_int_vertices(raft::handle_t const& handle,
                              bool do_expensive_check = false);
 
 /**
+ * @ingroup graph_functions_cpp
  * @brief Unrenumber local edges' internal source & destination IDs to external IDs based on the
  * provided @p renumber_map_labels (multi-GPU).
  *
@@ -281,6 +290,7 @@ std::enable_if_t<multi_gpu, void> unrenumber_local_int_edges(
   bool do_expensive_check = false);
 
 /**
+ * @ingroup graph_functions_cpp
  * @brief Unrenumber local edges' internal source & destination IDs to external IDs based on the
  * provided @p renumber_map_labels (single-GPU).
  *
@@ -311,6 +321,7 @@ std::enable_if_t<!multi_gpu, void> unrenumber_local_int_edges(raft::handle_t con
                                                               bool do_expensive_check = false);
 
 /**
+ * @ingroup graph_functions_cpp
  * @brief Renumber local external vertices to internal vertices based on the provided @p
  * renumber_map_labels.
  *
@@ -341,6 +352,7 @@ void renumber_local_ext_vertices(raft::handle_t const& handle,
                                  vertex_t local_int_vertex_last,
                                  bool do_expensive_check = false);
 /**
+ * @ingroup graph_functions_cpp
  * @brief Construct the edge list from the graph view object.
  *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
@@ -385,14 +397,19 @@ decompress_to_edgelist(
   bool do_expensive_check = false);
 
 /**
+ * @ingroup graph_functions_cpp
  * @brief Symmetrize edgelist.
  *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
  * @tparam weight_t Type of edge weights. Needs to be a floating point type.
+ * @tparam edge_type_t Type of edge type identifiers. Needs to be an integral type.
+ * @tparam edge_time_t Type of edge time. Needs to be an integral type.
  * @tparam store_transposed Flag indicating whether to use sources (if false) or destinations (if
  * true) as major indices in storing edges using a 2D sparse matrix.
  * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
  * or multi-GPU (true).
+ *
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param edgelist_srcs Vector of edge source vertex IDs. If multi-GPU, applying the
@@ -400,23 +417,40 @@ decompress_to_edgelist(
  * function to work (edges should be pre-shuffled).
  * @param edgelist_dsts Vector of edge destination vertex IDs.
  * @param edgelist_weights Vector of edge weights.
+ * @param edgelist_edge_ids Vector of edge ids
+ * @param edgelist_edge_types Vector of edge types
+ * @param edgelist_edge_start_times Vector of edge start times
+ * @param edgelist_edge_end_times Vector of edge end times
  * @param reciprocal Flag indicating whether to keep (if set to `false`) or discard (if set to
  * `true`) edges that appear only in one direction.
- * @return std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>,
- * std::optional<rmm::device_uvector<weight_t>>> Tuple of symmetrized sources, destinations, and
- * optional weights (if @p edgelist_weights is valid).
+ * @return Tuple of symmetrized sources, destinations, optional weights, optional edge ids, optional
+ * edge types, optional edge start times and optional edge end times
  */
-template <typename vertex_t, typename weight_t, bool store_transposed, bool multi_gpu>
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          typename edge_type_t,
+          typename edge_time_t,
+          bool multi_gpu>
 std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
-           std::optional<rmm::device_uvector<weight_t>>>
+           std::optional<rmm::device_uvector<weight_t>>,
+           std::optional<rmm::device_uvector<edge_t>>,
+           std::optional<rmm::device_uvector<edge_type_t>>,
+           std::optional<rmm::device_uvector<edge_time_t>>,
+           std::optional<rmm::device_uvector<edge_time_t>>>
 symmetrize_edgelist(raft::handle_t const& handle,
                     rmm::device_uvector<vertex_t>&& edgelist_srcs,
                     rmm::device_uvector<vertex_t>&& edgelist_dsts,
                     std::optional<rmm::device_uvector<weight_t>>&& edgelist_weights,
+                    std::optional<rmm::device_uvector<edge_t>>&& edgelist_edge_ids,
+                    std::optional<rmm::device_uvector<edge_type_t>>&& edgelist_edge_types,
+                    std::optional<rmm::device_uvector<edge_time_t>>&& edgelist_edge_start_times,
+                    std::optional<rmm::device_uvector<edge_time_t>>&& edgelist_edge_end_times,
                     bool reciprocal);
 
 /**
+ * @ingroup graph_functions_cpp
  * @brief Symmetrize the input graph.
  *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
@@ -459,6 +493,7 @@ symmetrize_graph(
   bool do_expensive_check = false);
 
 /**
+ * @ingroup graph_functions_cpp
  * @brief Transpose the input graph.
  *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
@@ -498,6 +533,7 @@ transpose_graph(
   bool do_expensive_check = false);
 
 /**
+ * @ingroup graph_functions_cpp
  * @brief Transpose the storage format (no change in an actual graph topology).
  *
  * In SG, convert between CSR and CSC. In multi-GPU, currently convert between CSR + DCSR hybrid
@@ -541,6 +577,7 @@ transpose_graph_storage(
   bool do_expensive_check = false);
 
 /**
+ * @ingroup graph_functions_cpp
  * @brief Compute the coarsened graph.
  *
  * Aggregates the vertices with the same label to a new vertex in the output coarsened graph.
@@ -588,6 +625,7 @@ coarsen_graph(raft::handle_t const& handle,
               bool do_expensive_check = false);
 
 /**
+ * @ingroup graph_functions_cpp
  * @brief Relabel old labels to new labels.
  *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
@@ -621,6 +659,7 @@ void relabel(raft::handle_t const& handle,
 // FIXME: the first two elements of the returned tuple should be source & destination instead of
 // major & minor. Major & minor shouldn't be used in the non-detail public API.
 /**
+ * @ingroup graph_functions_cpp
  * @brief extract induced subgraph(s).
  *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
@@ -670,13 +709,13 @@ extract_induced_subgraphs(
 // implementation) to support different types (arithmetic types or thrust tuple of arithmetic types)
 // of edge properties.
 /**
+ * @ingroup graph_functions_cpp
  * @brief create a graph from (the optional vertex list and) the given edge list (with optional edge
  * IDs and types).
  *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
  * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
  * @tparam weight_t Type of edge weight.  Needs to be floating point type
- * @tparam edge_id_t Type of edge id.  Needs to be an integral type
  * @tparam edge_type_t Type of edge type.  Needs to be an integral type, currently only int32_t is
  * supported
  * @tparam store_transposed Flag indicating whether to use sources (if false) or destinations (if
@@ -708,7 +747,6 @@ extract_induced_subgraphs(
 template <typename vertex_t,
           typename edge_t,
           typename weight_t,
-          typename edge_id_t,
           typename edge_type_t,
           bool store_transposed,
           bool multi_gpu>
@@ -717,7 +755,7 @@ std::tuple<
   std::optional<
     edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, weight_t>>,
   std::optional<
-    edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, edge_id_t>>,
+    edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, edge_t>>,
   std::optional<
     edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, edge_type_t>>,
   std::optional<rmm::device_uvector<vertex_t>>>
@@ -726,13 +764,87 @@ create_graph_from_edgelist(raft::handle_t const& handle,
                            rmm::device_uvector<vertex_t>&& edgelist_srcs,
                            rmm::device_uvector<vertex_t>&& edgelist_dsts,
                            std::optional<rmm::device_uvector<weight_t>>&& edgelist_weights,
-                           std::optional<rmm::device_uvector<edge_id_t>>&& edgelist_edge_ids,
+                           std::optional<rmm::device_uvector<edge_t>>&& edgelist_edge_ids,
                            std::optional<rmm::device_uvector<edge_type_t>>&& edgelist_edge_types,
                            graph_properties_t graph_properties,
                            bool renumber,
                            bool do_expensive_check = false);
 
 /**
+ * @ingroup graph_functions_cpp
+ * @brief create a graph from (the optional vertex list and) the given edge list (with optional edge
+ * IDs and types).
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
+ * @tparam weight_t Type of edge weight.  Needs to be floating point type
+ * @tparam edge_type_t Type of edge type.  Needs to be an integral type, currently only int32_t is
+ * supported
+ * @tparam edge_time_t Type of edge time.  Needs to be an integral type.
+ * @tparam store_transposed Flag indicating whether to use sources (if false) or destinations (if
+ * true) as major indices in storing edges using a 2D sparse matrix. transposed.
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
+ * or multi-GPU (true).
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param vertices  If valid, part of the entire set of vertices in the graph to be renumbered.
+ * This parameter can be used to include isolated vertices. If @p renumber is false and @p vertices
+ * is valid, @p vertices elements should be consecutive integers starting from 0. If multi-GPU,
+ * applying the compute_gpu_id_from_vertex_t to every vertex should return the local GPU ID for this
+ * function to work (vertices should be pre-shuffled).
+ * @param edgelist_srcs Vector of edge source vertex IDs. If multi-GPU, applying the
+ * compute_gpu_id_from_ext_edge_endpoints_t to every edge should return the local GPU ID for this
+ * function to work (edges should be pre-shuffled).
+ * @param edgelist_dsts Vector of edge destination vertex IDs.
+ * @param edgelist_weights Vector of weight values for edges
+ * @param edgelist_edge_ids Vector of edge_id values for edges
+ * @param edgelist_edge_types Vector of edge_type values for edges
+ * @param edgelist_edge_start_times Vector of start time values for edges
+ * @param edgelist_edge_end_times Vector of end time values for edges
+ * @param graph_properties Properties of the graph represented by the input (optional vertex list
+ * and) edge list.
+ * @param renumber Flag indicating whether to renumber vertices or not (must be true if @p multi_gpu
+ * is true).
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
+ * @return Tuple of the generated graph and optional edge_property_t objects storing the provided
+ * edge properties and a renumber map (if @p renumber is true).
+ */
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          typename edge_type_t,
+          typename edge_time_t,
+          bool store_transposed,
+          bool multi_gpu>
+std::tuple<
+  graph_t<vertex_t, edge_t, store_transposed, multi_gpu>,
+  std::optional<
+    edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, weight_t>>,
+  std::optional<
+    edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, edge_t>>,
+  std::optional<
+    edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, edge_type_t>>,
+  std::optional<
+    edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, edge_time_t>>,
+  std::optional<
+    edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, edge_time_t>>,
+  std::optional<rmm::device_uvector<vertex_t>>>
+create_graph_from_edgelist(
+  raft::handle_t const& handle,
+  std::optional<rmm::device_uvector<vertex_t>>&& vertices,
+  rmm::device_uvector<vertex_t>&& edgelist_srcs,
+  rmm::device_uvector<vertex_t>&& edgelist_dsts,
+  std::optional<rmm::device_uvector<weight_t>>&& edgelist_weights,
+  std::optional<rmm::device_uvector<edge_t>>&& edgelist_edge_ids,
+  std::optional<rmm::device_uvector<edge_type_t>>&& edgelist_edge_types,
+  std::optional<rmm::device_uvector<edge_time_t>>&& edgelist_edge_start_times,
+  std::optional<rmm::device_uvector<edge_time_t>>&& edgelist_edge_end_times,
+  graph_properties_t graph_properties,
+  bool renumber,
+  bool do_expensive_check = false);
+
+/**
+ * @ingroup graph_functions_cpp
  * @brief create a graph from (the optional vertex list and) the given edge list (with optional edge
  * IDs and types).
  *
@@ -741,7 +853,6 @@ create_graph_from_edgelist(raft::handle_t const& handle,
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
  * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
  * @tparam weight_t Type of edge weight.  Needs to be floating point type
- * @tparam edge_id_t Type of edge id.  Needs to be an integral type
  * @tparam edge_type_t Type of edge type.  Needs to be an integral type, currently only int32_t is
  * supported
  * @tparam store_transposed Flag indicating whether to use sources (if false) or destinations (if
@@ -773,7 +884,6 @@ create_graph_from_edgelist(raft::handle_t const& handle,
 template <typename vertex_t,
           typename edge_t,
           typename weight_t,
-          typename edge_id_t,
           typename edge_type_t,
           bool store_transposed,
           bool multi_gpu>
@@ -782,7 +892,7 @@ std::tuple<
   std::optional<
     edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, weight_t>>,
   std::optional<
-    edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, edge_id_t>>,
+    edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, edge_t>>,
   std::optional<
     edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, edge_type_t>>,
   std::optional<rmm::device_uvector<vertex_t>>>
@@ -792,13 +902,89 @@ create_graph_from_edgelist(
   std::vector<rmm::device_uvector<vertex_t>>&& edgelist_srcs,
   std::vector<rmm::device_uvector<vertex_t>>&& edgelist_dsts,
   std::optional<std::vector<rmm::device_uvector<weight_t>>>&& edgelist_weights,
-  std::optional<std::vector<rmm::device_uvector<edge_id_t>>>&& edgelist_edge_ids,
+  std::optional<std::vector<rmm::device_uvector<edge_t>>>&& edgelist_edge_ids,
   std::optional<std::vector<rmm::device_uvector<edge_type_t>>>&& edgelist_edge_types,
   graph_properties_t graph_properties,
   bool renumber,
   bool do_expensive_check = false);
 
 /**
+ * @ingroup graph_functions_cpp
+ * @brief create a graph from (the optional vertex list and) the given edge list (with optional edge
+ * IDs, types, start and end times).
+ *
+ * This version takes edge list in multiple chunks (e.g. edge data from multiple files).
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
+ * @tparam weight_t Type of edge weight.  Needs to be floating point type
+ * @tparam edge_type_t Type of edge type.  Needs to be an integral type, currently only int32_t is
+ * supported
+ * @tparam edge_time_t Type of edge time.  Needs to be an integral type.
+ * @tparam store_transposed Flag indicating whether to use sources (if false) or destinations (if
+ * true) as major indices in storing edges using a 2D sparse matrix. transposed.
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
+ * or multi-GPU (true).
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param vertices  If valid, part of the entire set of vertices in the graph to be renumbered.
+ * This parameter can be used to include isolated vertices. If @p renumber is false and @p vertices
+ * is valid, @p vertices elements should be consecutive integers starting from 0. If multi-GPU,
+ * applying the compute_gpu_id_from_vertex_t to every vertex should return the local GPU ID for this
+ * function to work (vertices should be pre-shuffled).
+ * @param edgelist_srcs Vectors of edge source vertex IDs. If multi-GPU, applying the
+ * compute_gpu_id_from_ext_edge_endpoints_t to every edge should return the local GPU ID for this
+ * function to work (edges should be pre-shuffled).
+ * @param edgelist_dsts Vectors of edge destination vertex IDs.
+ * @param edgelist_weights Vectors of weight values for edges
+ * @param edgelist_edge_ids Vectors of edge_id values for edges
+ * @param edgelist_edge_types Vectors of edge_type values for edges
+ * @param edgelist_edge_start_times Vector of start time values for edges
+ * @param edgelist_edge_end_times Vector of end time values for edges
+ * @param graph_properties Properties of the graph represented by the input (optional vertex list
+ * and) edge list.
+ * @param renumber Flag indicating whether to renumber vertices or not (must be true if @p multi_gpu
+ * is true).
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
+ * @return Tuple of the generated graph and optional edge_property_t objects storing the provided
+ * edge properties and a renumber map (if @p renumber is true).
+ */
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          typename edge_type_t,
+          typename edge_time_t,
+          bool store_transposed,
+          bool multi_gpu>
+std::tuple<
+  graph_t<vertex_t, edge_t, store_transposed, multi_gpu>,
+  std::optional<
+    edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, weight_t>>,
+  std::optional<
+    edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, edge_t>>,
+  std::optional<
+    edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, edge_type_t>>,
+  std::optional<
+    edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, edge_time_t>>,
+  std::optional<
+    edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, edge_time_t>>,
+  std::optional<rmm::device_uvector<vertex_t>>>
+create_graph_from_edgelist(
+  raft::handle_t const& handle,
+  std::optional<rmm::device_uvector<vertex_t>>&& vertices,
+  std::vector<rmm::device_uvector<vertex_t>>&& edgelist_srcs,
+  std::vector<rmm::device_uvector<vertex_t>>&& edgelist_dsts,
+  std::optional<std::vector<rmm::device_uvector<weight_t>>>&& edgelist_weights,
+  std::optional<std::vector<rmm::device_uvector<edge_t>>>&& edgelist_edge_ids,
+  std::optional<std::vector<rmm::device_uvector<edge_type_t>>>&& edgelist_edge_types,
+  std::optional<std::vector<rmm::device_uvector<edge_time_t>>>&& edgelist_edge_start_times,
+  std::optional<std::vector<rmm::device_uvector<edge_time_t>>>&& edgelist_edge_end_times,
+  graph_properties_t graph_properties,
+  bool renumber,
+  bool do_expensive_check = false);
+
+/**
+ * @ingroup graph_functions_cpp
  * @brief      Find all 2-hop neighbors in the graph
  *
  * Find pairs of vertices in the input graph such that each pair is connected by
@@ -825,6 +1011,7 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> get_two
   std::optional<raft::device_span<vertex_t const>> start_vertices);
 
 /**
+ * @ingroup graph_functions_cpp
  * @brief Compute per-vertex incoming edge weight sums.
  *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
@@ -852,6 +1039,7 @@ rmm::device_uvector<weight_t> compute_in_weight_sums(
   edge_property_view_t<edge_t, weight_t const*> edge_weight_view);
 
 /**
+ * @ingroup graph_functions_cpp
  * @brief Compute per-vertex outgoing edge weight sums.
  *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
@@ -879,6 +1067,7 @@ rmm::device_uvector<weight_t> compute_out_weight_sums(
   edge_property_view_t<edge_t, weight_t const*> edge_weight_view);
 
 /**
+ * @ingroup graph_functions_cpp
  * @brief Compute maximum per-vertex incoming edge weight sums.
  *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
@@ -906,6 +1095,7 @@ weight_t compute_max_in_weight_sum(
   edge_property_view_t<edge_t, weight_t const*> edge_weight_view);
 
 /**
+ * @ingroup graph_functions_cpp
  * @brief Compute maximum per-vertex outgoing edge weight sums.
  *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
@@ -933,6 +1123,7 @@ weight_t compute_max_out_weight_sum(
   edge_property_view_t<edge_t, weight_t const*> edge_weight_view);
 
 /**
+ * @ingroup graph_functions_cpp
  * @brief Sum the weights of the entire set of edges.
  *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
@@ -959,6 +1150,7 @@ weight_t compute_total_edge_weight(
   edge_property_view_t<edge_t, weight_t const*> edge_weight_view);
 
 /**
+ * @ingroup graph_functions_cpp
  * @brief Select random vertices
  *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
@@ -991,12 +1183,14 @@ rmm::device_uvector<vertex_t> select_random_vertices(
   bool do_expensive_check = false);
 
 /**
+ * @ingroup graph_functions_cpp
  * @brief Remove self loops from an edge list
  *
  * @tparam vertex_t    Type of vertex identifiers. Needs to be an integral type.
  * @tparam edge_t      Type of edge identifiers. Needs to be an integral type.
  * @tparam weight_t    Type of edge weight. Currently float and double are supported.
  * @tparam edge_type_t Type of edge type. Needs to be an integral type.
+ * @tparam edge_time_t Type of edge time.  Needs to be an integral type.
  *
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
@@ -1005,23 +1199,34 @@ rmm::device_uvector<vertex_t> select_random_vertices(
  * @param edgelist_weights  Optional list of edge weights
  * @param edgelist_edge_ids  Optional list of edge ids
  * @param edgelist_edge_types  Optional list of edge types
- * @return Tuple of vectors storing edge sources, destinations, optional weights,
- *    optional edge ids, optional edge types.
+ * @param edgelist_edge_start_times  Optional list of edge start times
+ * @param edgelist_edge_end_times  Optional list of edge end times
+ * @return Tuple of vectors storing edge sources, destinations, optional weights, optional edge ids,
+ * optional edge types, optional edge start times and optional edge end times.
  */
-template <typename vertex_t, typename edge_t, typename weight_t, typename edge_type_t>
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          typename edge_type_t,
+          typename edge_time_t>
 std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<weight_t>>,
            std::optional<rmm::device_uvector<edge_t>>,
-           std::optional<rmm::device_uvector<edge_type_t>>>
+           std::optional<rmm::device_uvector<edge_type_t>>,
+           std::optional<rmm::device_uvector<edge_time_t>>,
+           std::optional<rmm::device_uvector<edge_time_t>>>
 remove_self_loops(raft::handle_t const& handle,
                   rmm::device_uvector<vertex_t>&& edgelist_srcs,
                   rmm::device_uvector<vertex_t>&& edgelist_dsts,
                   std::optional<rmm::device_uvector<weight_t>>&& edgelist_weights,
                   std::optional<rmm::device_uvector<edge_t>>&& edgelist_edge_ids,
-                  std::optional<rmm::device_uvector<edge_type_t>>&& edgelist_edge_types);
+                  std::optional<rmm::device_uvector<edge_type_t>>&& edgelist_edge_types,
+                  std::optional<rmm::device_uvector<edge_time_t>>&& edgelist_edge_start_times,
+                  std::optional<rmm::device_uvector<edge_time_t>>&& edgelist_edge_end_times);
 
 /**
+ * @ingroup graph_functions_cpp
  * @brief Remove all but one edge when a multi-edge exists.
  *
  * When a multi-edge exists, one of the edges will remain. If @p keep_min_value_edge is false, an
@@ -1038,6 +1243,7 @@ remove_self_loops(raft::handle_t const& handle,
  * @tparam edge_t      Type of edge identifiers. Needs to be an integral type.
  * @tparam weight_t    Type of edge weight. Currently float and double are supported.
  * @tparam edge_type_t Type of edge type. Needs to be an integral type.
+ * @tparam edge_time_t Type of edge time.  Needs to be an integral type.
  *
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
@@ -1046,29 +1252,40 @@ remove_self_loops(raft::handle_t const& handle,
  * @param edgelist_weights  Optional list of edge weights
  * @param edgelist_edge_ids  Optional list of edge ids
  * @param edgelist_edge_types  Optional list of edge types
+ * @param edgelist_edge_start_times  Optional list of edge start times
+ * @param edgelist_edge_end_times  Optional list of edge end times
  * @param keep_min_value_edge Flag indicating whether to keep an arbitrary edge (false) or the
  * minimum value edge (true) among the edges in a multi-edge. Relevant only if @p
  * edgelist_weights.has_value() | @p edgelist_edge_ids.has_value() | @p
  * edgelist_edge_types.has_value() is true. Setting this to true incurs performance overhead as this
  * requires more comparisons.
- * @return Tuple of vectors storing edge sources, destinations, optional weights,
- *    optional edge ids, optional edge types.
+ * @return Tuple of vectors storing edge sources, destinations, optional weights, optional edge ids,
+ * optional edge types, optional edge start times and optional edge end times.
  */
-template <typename vertex_t, typename edge_t, typename weight_t, typename edge_type_t>
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          typename edge_type_t,
+          typename edge_time_t>
 std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<weight_t>>,
            std::optional<rmm::device_uvector<edge_t>>,
-           std::optional<rmm::device_uvector<edge_type_t>>>
+           std::optional<rmm::device_uvector<edge_type_t>>,
+           std::optional<rmm::device_uvector<edge_time_t>>,
+           std::optional<rmm::device_uvector<edge_time_t>>>
 remove_multi_edges(raft::handle_t const& handle,
                    rmm::device_uvector<vertex_t>&& edgelist_srcs,
                    rmm::device_uvector<vertex_t>&& edgelist_dsts,
                    std::optional<rmm::device_uvector<weight_t>>&& edgelist_weights,
                    std::optional<rmm::device_uvector<edge_t>>&& edgelist_edge_ids,
                    std::optional<rmm::device_uvector<edge_type_t>>&& edgelist_edge_types,
+                   std::optional<rmm::device_uvector<edge_time_t>>&& edgelist_edge_start_times,
+                   std::optional<rmm::device_uvector<edge_time_t>>&& edgelist_edge_edge_times,
                    bool keep_min_value_edge = false);
 
 /**
+ * @ingroup graph_functions_cpp
  * @brief Shuffle external vertex ids to the proper GPU.
  *
  * @tparam vertex_t    Type of vertex identifiers. Needs to be an integral type.
@@ -1083,6 +1300,7 @@ rmm::device_uvector<vertex_t> shuffle_external_vertices(raft::handle_t const& ha
                                                         rmm::device_uvector<vertex_t>&& vertices);
 
 /**
+ * @ingroup graph_functions_cpp
  * @brief Shuffle external vertex ids and values to the proper GPU.
  *
  * @tparam vertex_t   Type of vertex identifiers. Needs to be an integral type.
@@ -1102,6 +1320,7 @@ shuffle_external_vertex_value_pairs(raft::handle_t const& handle,
                                     rmm::device_uvector<value_t>&& values);
 
 /**
+ * @ingroup graph_functions_cpp
  * @brief Shuffle external edges to the proper GPU.
  *
  * @tparam vertex_t    Type of vertex identifiers. Needs to be an integral type.

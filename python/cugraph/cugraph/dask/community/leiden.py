@@ -1,4 +1,4 @@
-# Copyright (c) 2022-2024, NVIDIA CORPORATION.
+# Copyright (c) 2022-2025, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -156,13 +156,13 @@ def leiden(
             input_graph._plc_graph[w],
             max_iter,
             resolution,
-            random_state,
+            (random_state + i) if random_state is not None else random_state,
             theta,
             do_expensive_check,
             workers=[w],
             allow_other_workers=False,
         )
-        for w in Comms.get_workers()
+        for i, w in enumerate(Comms.get_workers())
     ]
 
     wait(result)
