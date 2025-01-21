@@ -1,24 +1,23 @@
 #!/bin/bash
-# Copyright (c) 2023-2024, NVIDIA CORPORATION.
+# Copyright (c) 2023-2025, NVIDIA CORPORATION.
 
 set -euo pipefail
 
 package_dir="python/pylibcugraph"
 
-PARALLEL_LEVEL=$(python -c \
-  "from math import ceil; from multiprocessing import cpu_count; print(ceil(cpu_count()/4))")
+RAPIDS_PY_CUDA_SUFFIX="$(rapids-wheel-ctk-name-gen ${RAPIDS_CUDA_VERSION})"
 
-case "${RAPIDS_CUDA_VERSION}" in
-  12.*)
-    EXTRA_CMAKE_ARGS=";-DUSE_CUDA_MATH_WHEELS=ON"
-  ;;
-  11.*)
-    EXTRA_CMAKE_ARGS=";-DUSE_CUDA_MATH_WHEELS=OFF"
-  ;;
-esac
+# Download the libcugraph wheel built in the previous step and make it
+# available for pip to find.
+LIBCUGRAPH_WHEELHOUSE=$(RAPIDS_PY_WHEEL_NAME="libcugraph_${RAPIDS_PY_CUDA_SUFFIX}" rapids-download-wheels-from-s3 cpp /tmp/libcugraph_dist)
 
-export SKBUILD_CMAKE_ARGS="-DDETECT_CONDA_ENV=OFF;-DFIND_CUGRAPH_CPP=OFF;-DCPM_cugraph-ops_SOURCE=${GITHUB_WORKSPACE}/cugraph-ops/${EXTRA_CMAKE_ARGS}"
-export SKBUILD_BUILD_TOOL_ARGS="-j${PARALLEL_LEVEL};-l${PARALLEL_LEVEL}"
+cat >> ./constraints.txt <<EOF
+libcugraph-${RAPIDS_PY_CUDA_SUFFIX} @ file://$(echo ${LIBCUGRAPH_WHEELHOUSE}/libcugraph_*.whl)
+EOF
 
-./ci/build_wheel.sh pylibcugraph ${package_dir}
+# Using env variable PIP_CONSTRAINT is necessary to ensure the constraints
+# are used when creating the isolated build environment.
+export PIP_CONSTRAINT="${PWD}/constraints.txt"
+
+./ci/build_wheel.sh pylibcugraph ${package_dir} python
 ./ci/validate_wheel.sh ${package_dir} final_dist

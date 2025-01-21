@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -184,7 +184,7 @@ neighbor_sample_impl(raft::handle_t const& handle,
 
   std::vector<size_t> level_sizes{};
 
-  for (auto hop = 0; hop < num_hops; hop++) {
+  for (size_t hop = 0; hop < num_hops; ++hop) {
     rmm::device_uvector<vertex_t> level_result_src(0, handle.get_stream());
     rmm::device_uvector<vertex_t> level_result_dst(0, handle.get_stream());
 
@@ -202,8 +202,8 @@ neighbor_sample_impl(raft::handle_t const& handle,
         ? std::make_optional(rmm::device_uvector<label_t>(0, handle.get_stream()))
         : std::nullopt;
 
-    for (auto edge_type_id = 0; edge_type_id < num_edge_types; edge_type_id++) {
-      auto k_level = fan_out[(hop * num_edge_types) + edge_type_id];
+    for (edge_type_t edge_type = 0; edge_type < num_edge_types; edge_type++) {
+      auto k_level = fan_out[(hop * num_edge_types) + edge_type];
       rmm::device_uvector<vertex_t> srcs(0, handle.get_stream());
       rmm::device_uvector<vertex_t> dsts(0, handle.get_stream());
       std::optional<rmm::device_uvector<weight_t>> weights{std::nullopt};
@@ -212,7 +212,7 @@ neighbor_sample_impl(raft::handle_t const& handle,
       std::optional<rmm::device_uvector<int32_t>> labels{std::nullopt};
 
       if (num_edge_types > 1) {
-        modified_graph_view.attach_edge_mask(edge_masks_vector[edge_type_id].view());
+        modified_graph_view.attach_edge_mask(edge_masks_vector[edge_type].view());
       }
 
       if (k_level > 0) {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -97,15 +97,20 @@ transpose_graph_storage_impl(
            edgelist_weights,
            std::ignore,
            std::ignore,
+           std::ignore,
+           std::ignore,
            std::ignore) =
     detail::shuffle_ext_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning<vertex_t,
                                                                                    edge_t,
                                                                                    weight_t,
+                                                                                   int32_t,
                                                                                    int32_t>(
       handle,
       std::move(!store_transposed ? edgelist_dsts : edgelist_srcs),
       std::move(!store_transposed ? edgelist_srcs : edgelist_dsts),
       std::move(edgelist_weights),
+      std::nullopt,
+      std::nullopt,
       std::nullopt,
       std::nullopt);
 
@@ -119,21 +124,16 @@ transpose_graph_storage_impl(
            std::ignore,
            std::ignore,
            new_renumber_map) =
-    create_graph_from_edgelist<vertex_t,
-                               edge_t,
-                               weight_t,
-                               edge_t,
-                               int32_t,
-                               !store_transposed,
-                               multi_gpu>(handle,
-                                          std::move(renumber_map),
-                                          std::move(edgelist_srcs),
-                                          std::move(edgelist_dsts),
-                                          std::move(edgelist_weights),
-                                          std::nullopt,
-                                          std::nullopt,
-                                          graph_properties_t{is_symmetric, is_multigraph},
-                                          true);
+    create_graph_from_edgelist<vertex_t, edge_t, weight_t, int32_t, !store_transposed, multi_gpu>(
+      handle,
+      std::move(renumber_map),
+      std::move(edgelist_srcs),
+      std::move(edgelist_dsts),
+      std::move(edgelist_weights),
+      std::nullopt,
+      std::nullopt,
+      graph_properties_t{is_symmetric, is_multigraph},
+      true);
 
   return std::make_tuple(std::move(storage_transposed_graph),
                          std::move(storage_transposed_edge_weights),
@@ -214,21 +214,16 @@ transpose_graph_storage_impl(
            std::ignore,
            std::ignore,
            new_renumber_map) =
-    create_graph_from_edgelist<vertex_t,
-                               edge_t,
-                               weight_t,
-                               edge_t,
-                               int32_t,
-                               !store_transposed,
-                               multi_gpu>(handle,
-                                          std::move(vertices),
-                                          std::move(edgelist_srcs),
-                                          std::move(edgelist_dsts),
-                                          std::move(edgelist_weights),
-                                          std::nullopt,
-                                          std::nullopt,
-                                          graph_properties_t{is_symmetric, is_multigraph},
-                                          renumber);
+    create_graph_from_edgelist<vertex_t, edge_t, weight_t, int32_t, !store_transposed, multi_gpu>(
+      handle,
+      std::move(vertices),
+      std::move(edgelist_srcs),
+      std::move(edgelist_dsts),
+      std::move(edgelist_weights),
+      std::nullopt,
+      std::nullopt,
+      graph_properties_t{is_symmetric, is_multigraph},
+      renumber);
 
   return std::make_tuple(std::move(storage_transposed_graph),
                          std::move(storage_transposed_edge_weights),

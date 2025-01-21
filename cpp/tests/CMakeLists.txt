@@ -1,5 +1,5 @@
 ﻿#=============================================================================
-# Copyright (c) 2019-2024, NVIDIA CORPORATION.
+# Copyright (c) 2019-2025, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -169,6 +169,7 @@ function(ConfigureTest CMAKE_TEST_NAME)
             cugraphtestutil
             GTest::gtest
             GTest::gtest_main
+            test_logger_impls
     )
     set_target_properties(
         ${CMAKE_TEST_NAME}
@@ -199,6 +200,7 @@ function(ConfigureTestMG CMAKE_TEST_NAME)
         GTest::gtest_main
         NCCL::NCCL
         MPI::MPI_CXX
+        test_logger_impls
     )
     set_target_properties(
         ${CMAKE_TEST_NAME}
@@ -250,6 +252,7 @@ function(ConfigureCTest CMAKE_TEST_NAME)
             cugraph_c_testutil
             GTest::gtest
             GTest::gtest_main
+            test_logger_impls
     )
     set_target_properties(
         ${CMAKE_TEST_NAME}
@@ -282,6 +285,7 @@ function(ConfigureCTestMG CMAKE_TEST_NAME)
             GTest::gtest_main
             NCCL::NCCL
             MPI::MPI_CXX
+            test_logger_impls
     )
     set_target_properties(
         ${CMAKE_TEST_NAME}
@@ -309,6 +313,10 @@ function(ConfigureCTestMG CMAKE_TEST_NAME)
 
 
 endfunction()
+
+add_library(test_logger_impls OBJECT)
+target_link_libraries(test_logger_impls PRIVATE raft::raft_logger_impl)
+
 
 ###################################################################################################
 ### test sources ##################################################################################
@@ -409,6 +417,10 @@ ConfigureTest(COARSEN_GRAPH_TEST structure/coarsen_graph_test.cpp)
 ###################################################################################################
 # - Induced subgraph tests ------------------------------------------------------------------------
 ConfigureTest(INDUCED_SUBGRAPH_TEST structure/induced_subgraph_test.cpp)
+
+##################################################################################################
+# - Temporal tests -------------------------------------------------------------------------------
+ConfigureTest(TEMPORAL_GRAPH_TEST structure/temporal_graph_test.cpp)
 
 ###################################################################################################
 # - BFS tests -------------------------------------------------------------------------------------
@@ -570,6 +582,10 @@ if(BUILD_CUGRAPH_MG_TESTS)
     ###############################################################################################
     # - MG SYMMETRIZE tests -----------------------------------------------------------------------
     ConfigureTestMG(MG_SYMMETRIZE_TEST structure/mg_symmetrize_test.cpp)
+
+    ###############################################################################################
+    # - MG Temporal Graph tests -----------------------------------------------------------------------
+    ConfigureTestMG(MG_TEMPORAL_GRAPH_TEST structure/mg_temporal_graph_test.cpp)
 
     ###############################################################################################
     # - MG Transpose tests ------------------------------------------------------------------------

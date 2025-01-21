@@ -1,4 +1,4 @@
-# Copyright (c) 2023-2024, NVIDIA CORPORATION.
+# Copyright (c) 2023-2025, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -228,6 +228,10 @@ def test_bulk_sampler_empty_batches(dask_client, scratch_dir):
 
     assert len(os.listdir(samples_path)) == 1
 
+    # There are 3 batches [0, 1, 2] where batch 1 has no results. In fact, seeds
+    # [7, 8, 9] have no outgoing edges. The previous implementation returned and
+    # offsets array omitting seeds with no outgoing edges from the
+    # edge_label_offsets which is no longer the case
     df = cudf.read_parquet(os.path.join(samples_path, "batch=0-1.parquet"))
 
     assert df[

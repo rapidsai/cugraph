@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,6 +23,13 @@
 #include <rmm/resource_ref.hpp>
 
 namespace cugraph {
+
+/** @defgroup legacy_functions_cpp C++ Shuffle Wrappers
+ */
+
+/** @ingroup shuffle_wrappers_cpp
+ *  @{
+ */
 
 /**
  * @brief    Convert COO to CSR
@@ -68,3 +75,7 @@ void comms_bcast(const raft::handle_t& handle, value_t* value, size_t count)
 }
 
 }  // namespace cugraph
+
+/**
+ * @}
+ */

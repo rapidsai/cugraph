@@ -46,151 +46,6 @@
 using namespace std::chrono;
 
 namespace cugraph {
-template <typename vertex_t, typename edge_t, bool multi_gpu>
-void order_edge_based_on_dodg(raft::handle_t const& handle,
-                              graph_view_t<vertex_t, edge_t, false, multi_gpu>& graph_view,
-                              raft::device_span<vertex_t> edgelist_srcs,
-                              raft::device_span<vertex_t> edgelist_dsts)
-
-{
-  std::vector<size_t> rx_counts{};
-  std::optional<rmm::device_uvector<vertex_t>> srcs{std::nullopt};
-  std::optional<rmm::device_uvector<vertex_t>> dsts{std::nullopt};
-
-  std::optional<rmm::device_uvector<vertex_t>> cp_edgelist_srcs{std::nullopt};
-  std::optional<rmm::device_uvector<vertex_t>> cp_edgelist_dsts{std::nullopt};
-
-  // FIXME: Minor comm is not working for all cases so I believe some edges a beyond
-  // the partitioning range
-  if constexpr (multi_gpu) {
-    auto& comm                 = handle.get_comms();
-    auto const comm_size       = comm.get_size();
-    auto& major_comm           = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
-    auto const major_comm_size = major_comm.get_size();
-    auto& minor_comm           = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
-    auto const minor_comm_size = minor_comm.get_size();
-
-    auto vertex_partition_range_lasts = graph_view.vertex_partition_range_lasts();
-
-    rmm::device_uvector<vertex_t> d_vertex_partition_range_lasts(
-      vertex_partition_range_lasts.size(), handle.get_stream());
-
-    raft::update_device(d_vertex_partition_range_lasts.data(),
-                        vertex_partition_range_lasts.data(),
-                        vertex_partition_range_lasts.size(),
-                        handle.get_stream());
-
-    auto func = cugraph::detail::compute_gpu_id_from_int_edge_endpoints_t<vertex_t>{
-      raft::device_span<vertex_t const>(d_vertex_partition_range_lasts.data(),
-                                        d_vertex_partition_range_lasts.size()),
-      comm_size,
-      major_comm_size,
-      minor_comm_size};
-
-    rmm::device_uvector<vertex_t> tmp_srcs(edgelist_srcs.size(), handle.get_stream());
-    rmm::device_uvector<vertex_t> tmp_dsts(edgelist_srcs.size(), handle.get_stream());
-
-    thrust::copy(handle.get_thrust_policy(),
-                 thrust::make_zip_iterator(edgelist_srcs.begin(), edgelist_dsts.begin()),
-                 thrust::make_zip_iterator(edgelist_srcs.end(), edgelist_dsts.end()),
-                 thrust::make_zip_iterator(tmp_srcs.begin(), tmp_dsts.begin()));
-
-    cp_edgelist_srcs = std::move(tmp_srcs);
-    cp_edgelist_dsts = std::move(tmp_dsts);
-
-    auto unique_pair_end = thrust::unique(
-      handle.get_thrust_policy(),
-      thrust::make_zip_iterator(cp_edgelist_srcs->begin(), cp_edgelist_dsts->begin()),
-      thrust::make_zip_iterator(cp_edgelist_srcs->end(), cp_edgelist_dsts->end()));
-
-    auto num_unique_pair = thrust::distance(
-      thrust::make_zip_iterator(cp_edgelist_srcs->begin(), cp_edgelist_dsts->begin()),
-      unique_pair_end);
-
-    cp_edgelist_srcs->resize(num_unique_pair, handle.get_stream());
-    cp_edgelist_dsts->resize(num_unique_pair, handle.get_stream());
-
-    auto d_tx_counts = cugraph::groupby_and_count(
-      thrust::make_zip_iterator(cp_edgelist_srcs->begin(), cp_edgelist_dsts->begin()),
-      thrust::make_zip_iterator(cp_edgelist_srcs->end(), cp_edgelist_dsts->end()),
-      [func] __device__(auto val) { return func(val); },
-      comm_size,
-      std::numeric_limits<size_t>::max(),
-      handle.get_stream());
-
-    std::vector<size_t> h_tx_counts(d_tx_counts.size());
-
-    raft::update_host(
-      h_tx_counts.data(), d_tx_counts.data(), d_tx_counts.size(), handle.get_stream());
-
-    handle.sync_stream();
-
-    std::tie(srcs, rx_counts) =
-      shuffle_values(comm, cp_edgelist_srcs->begin(), h_tx_counts, handle.get_stream());
-
-    std::tie(dsts, std::ignore) =
-      shuffle_values(comm, cp_edgelist_dsts->begin(), h_tx_counts, handle.get_stream());
-  }
-
-  std::optional<rmm::device_uvector<bool>> edge_exists{std::nullopt};
-  edge_exists = graph_view.has_edge(
-    handle,
-    srcs ? raft::device_span<vertex_t const>(srcs->data(), srcs->size())
-         : raft::device_span<vertex_t const>(edgelist_srcs.data(), edgelist_srcs.size()),
-    dsts ? raft::device_span<vertex_t const>(dsts->data(), dsts->size())
-         : raft::device_span<vertex_t const>(edgelist_dsts.data(), edgelist_dsts.size()));
-
-  if constexpr (multi_gpu) {
-    // Send the result back
-    std::tie(edge_exists, std::ignore) =
-      shuffle_values(handle.get_comms(), edge_exists->begin(), rx_counts, handle.get_stream());
-
-    thrust::sort_by_key(
-      handle.get_thrust_policy(),
-      thrust::make_zip_iterator(cp_edgelist_srcs->begin(), cp_edgelist_dsts->begin()),
-      thrust::make_zip_iterator(cp_edgelist_srcs->end(), cp_edgelist_dsts->end()),
-      edge_exists->begin());
-
-    // Match DODG edges
-    thrust::transform(
-      handle.get_thrust_policy(),
-      thrust::make_counting_iterator<edge_t>(0),
-      thrust::make_counting_iterator<edge_t>(edgelist_srcs.size()),
-      thrust::make_zip_iterator(edgelist_srcs.begin(), edgelist_dsts.begin()),
-      [edge_exists    = edge_exists->data(),
-       edgelist_first = thrust::make_zip_iterator(edgelist_srcs.begin(), edgelist_dsts.begin()),
-       cp_edgelist_first =
-         thrust::make_zip_iterator(cp_edgelist_srcs->begin(), cp_edgelist_dsts->begin()),
-       cp_edgelist_last = thrust::make_zip_iterator(cp_edgelist_srcs->end(),
-                                                    cp_edgelist_dsts->end())] __device__(auto idx) {
-        auto src = thrust::get<0>(edgelist_first[idx]);
-        auto dst = thrust::get<1>(edgelist_first[idx]);
-
-        auto itr_pair = thrust::lower_bound(
-          thrust::seq, cp_edgelist_first, cp_edgelist_last, thrust::make_tuple(src, dst));
-
-        auto idx_pair = thrust::distance(cp_edgelist_first, itr_pair);
-
-        return edge_exists[idx_pair] ? thrust::make_tuple(src, dst) : thrust::make_tuple(dst, src);
-      });
-
-  } else {
-    // Match DODG edges
-    thrust::transform(handle.get_thrust_policy(),
-                      thrust::make_counting_iterator<edge_t>(0),
-                      thrust::make_counting_iterator<edge_t>(edgelist_srcs.size()),
-                      thrust::make_zip_iterator(edgelist_srcs.begin(), edgelist_dsts.begin()),
-                      [edge_exists    = edge_exists->data(),
-                       edgelist_first = thrust::make_zip_iterator(
-                         edgelist_srcs.begin(), edgelist_dsts.begin())] __device__(auto idx) {
-                        auto src = thrust::get<0>(edgelist_first[idx]);
-                        auto dst = thrust::get<1>(edgelist_first[idx]);
-
-                        return edge_exists[idx] ? thrust::make_tuple(src, dst)
-                                                : thrust::make_tuple(dst, src);
-                      });
-  }
-}
 
 template <typename vertex_t, typename edge_t>
 struct extract_weak_edges {
@@ -205,34 +60,57 @@ struct extract_weak_edges {
 };
 
 template <typename vertex_t, typename edge_t>
-struct extract_triangles_from_weak_edges {
+struct extract_edges_with_positive_count {
+  __device__ thrust::optional<thrust::tuple<vertex_t, vertex_t>> operator()(
+    vertex_t src, vertex_t dst, thrust::nullopt_t, thrust::nullopt_t, edge_t count) const
+  {
+    return (count > 0)
+             ? thrust::optional<thrust::tuple<vertex_t, vertex_t>>{thrust::make_tuple(src, dst)}
+             : thrust::nullopt;
+  }
+};
+
+template <typename vertex_t, typename edge_t>
+struct extract_triangles_endpoints {
   size_t chunk_start{};
   raft::device_span<size_t const> intersection_offsets{};
   raft::device_span<vertex_t const> intersection_indices{};
   raft::device_span<vertex_t const> weak_srcs{};
   raft::device_span<vertex_t const> weak_dsts{};
 
-  __device__ thrust::tuple<vertex_t, vertex_t, vertex_t, vertex_t, vertex_t, vertex_t> operator()(
+  __device__ thrust::tuple<vertex_t, vertex_t, vertex_t> operator()(
     edge_t i) const
   {
     auto itr = thrust::upper_bound(
       thrust::seq, intersection_offsets.begin() + 1, intersection_offsets.end(), i);
     auto idx = thrust::distance(intersection_offsets.begin() + 1, itr);
 
-    auto edge_p_q = thrust::make_tuple(weak_srcs[chunk_start + idx], weak_dsts[chunk_start + idx]);
+    auto endpoints = thrust::make_tuple(
+      weak_srcs[chunk_start + idx], // p
+      weak_dsts[chunk_start + idx], // q
+      intersection_indices[i]       // r
+    );
 
-    // Extract (p, r) edges
-    auto edge_p_r = thrust::make_tuple(weak_srcs[chunk_start + idx], intersection_indices[i]);
+    // Re-order the endpoints such that p < q < r in order to identify duplicate triangles
+    // which will cause overcompensation. comparing the vertex IDs is cheaper than comparing the
+    // degrees (d(p) < d(q) < d(r)) which will be done once in the latter stage to retrieve the
+    // direction of the edges once the triplet dependency is broken.
+    if (thrust::get<0>(endpoints) > thrust::get<2>(endpoints)){ // (a > c) 
+      endpoints = thrust::make_tuple(
+        thrust::get<2>(endpoints), thrust::get<1>(endpoints), thrust::get<0>(endpoints)); // swap(a, c)
+    }
 
-    // Extract (q, r) edges
-    auto edge_q_r = thrust::make_tuple(weak_dsts[chunk_start + idx], intersection_indices[i]);
+    if (thrust::get<0>(endpoints) > thrust::get<1>(endpoints)){  // (a > b) 
+      endpoints = thrust::make_tuple(
+        thrust::get<1>(endpoints), thrust::get<0>(endpoints), thrust::get<2>(endpoints)); // swap(a, b);
+    }
 
-    return thrust::make_tuple(thrust::get<0>(edge_p_q),
-                              thrust::get<1>(edge_p_q),
-                              thrust::get<0>(edge_p_r),
-                              thrust::get<1>(edge_p_r),
-                              thrust::get<0>(edge_q_r),
-                              thrust::get<1>(edge_q_r));
+    if (thrust::get<1>(endpoints) > thrust::get<2>(endpoints)){ // (b > c)
+      endpoints = thrust::make_tuple(
+        thrust::get<0>(endpoints), thrust::get<2>(endpoints), thrust::get<1>(endpoints)); //swap(b, c);
+    }
+
+    return endpoints;
   }
 };
 
@@ -267,6 +145,51 @@ struct extract_low_to_high_degree_weighted_edges_t {
 };
 
 template <typename vertex_t, typename edge_t>
+struct extract_low_to_high_degree_edges_from_endpoints_t {
+
+  raft::device_span<vertex_t const> srcs{};
+  raft::device_span<vertex_t const> dsts{};
+  raft::device_span<edge_t const> count{};
+  __device__ thrust::optional<thrust::tuple<vertex_t, vertex_t, edge_t>> operator()(vertex_t src,
+                                                                            vertex_t dst,
+                                                                            edge_t src_out_degree,
+                                                                            edge_t dst_out_degree,
+                                                                            thrust::nullopt_t) const
+  {
+    
+    // FIXME: Not the most efficient way because the entire edgelist is scan just to find
+    // the direction of the edges
+    auto itr = thrust::lower_bound(
+                thrust::seq,
+                thrust::make_zip_iterator(srcs.begin(), dsts.begin()),
+                thrust::make_zip_iterator(srcs.end(), dsts.end()),
+                thrust::make_tuple(src, dst)
+              );
+    
+    if ((itr != thrust::make_zip_iterator(srcs.end(), dsts.end())) && (*itr == thrust::make_tuple(src, dst))) {
+      
+      auto idx = thrust::distance(
+        thrust::make_zip_iterator(srcs.begin(), dsts.begin()), itr);
+
+      if (src_out_degree < dst_out_degree) {
+        return thrust::optional<thrust::tuple<vertex_t, vertex_t, edge_t>>{thrust::make_tuple(src, dst, count[idx])};
+      } else if (dst_out_degree < src_out_degree){
+        return thrust::optional<thrust::tuple<vertex_t, vertex_t, edge_t>>{thrust::make_tuple(dst, src, count[idx])};
+      } else {
+        if ((src_out_degree == dst_out_degree) && (src < dst) /* tie-breaking using vertex ID */){
+          return thrust::optional<thrust::tuple<vertex_t, vertex_t, edge_t>>{thrust::make_tuple(src, dst, count[idx])};
+        } else if ((src_out_degree == dst_out_degree) && (src > dst) /* tie-breaking using vertex ID */) {
+          return thrust::optional<thrust::tuple<vertex_t, vertex_t, edge_t>>{thrust::make_tuple(dst, src, count[idx])};
+        }
+      }
+    } else {
+      return thrust::nullopt;
+    }
+    
+  }
+};
+
+template <typename vertex_t, typename edge_t>
 struct extract_low_to_high_degree_edges_t {
   __device__ thrust::optional<thrust::tuple<vertex_t, vertex_t>> operator()(vertex_t src,
                                                                             vertex_t dst,
@@ -296,6 +219,8 @@ k_truss(raft::handle_t const& handle,
         edge_t k,
         bool do_expensive_check)
 {
+
+  std::cout<< "initial number of edges " << graph_view.compute_number_of_edges(handle) << std::endl;
   // 1. Check input arguments.
 
   CUGRAPH_EXPECTS(graph_view.is_symmetric(),
@@ -365,10 +290,13 @@ k_truss(raft::handle_t const& handle,
 
     raft::device_span<edge_t const> core_number_span{core_numbers.data(), core_numbers.size()};
 
+    //std::cout<<"k = " << k << std::endl;
     auto [srcs, dsts, wgts] = k_core(handle,
                                      cur_graph_view,
                                      edge_weight_view,
                                      k - 1,
+                                     //1160,
+                                     //1000, // working for scale 19 and init_k = 210
                                      std::make_optional(k_core_degree_type_t::OUT),
                                      std::make_optional(core_number_span));
 
@@ -410,6 +338,8 @@ k_truss(raft::handle_t const& handle,
   // 3. Keep only the edges from a low-degree vertex to a high-degree vertex.
 
   auto cur_graph_view = modified_graph_view ? *modified_graph_view : graph_view;
+
+  std::cout<< "after k-core number of edges " << cur_graph_view.compute_number_of_edges(handle) << std::endl;
 
   auto vertex_partition_range_lasts =
     renumber_map
@@ -469,6 +399,7 @@ k_truss(raft::handle_t const& handle,
     },
     dodg_mask.mutable_view(),
     false);
+  
 
   edgelist_dodg.clear();
 
@@ -484,19 +415,50 @@ k_truss(raft::handle_t const& handle,
     // Attach mask
     cur_graph_view.attach_edge_mask(dodg_mask.view());
 
+
+    std::chrono::seconds s (0);             // 1 second
+    std::chrono::duration<double, std::micro> nbr_intersection_tc_ms = duration_cast<microseconds> (s);
+    std::chrono::duration<double, std::micro> edge_unrolling_ms = duration_cast<microseconds> (s);
+      std::chrono::duration<double, std::micro> nbr_intersection_unrolling_ms = duration_cast<microseconds> (s);
+      std::chrono::duration<double, std::micro>  update_counter_and_mask_ms = duration_cast<microseconds> (s);
+      std::chrono::duration<double, std::micro>  weak_edge_extraction_ms = duration_cast<microseconds> (s);
+    
+    std::chrono::duration<double, std::micro>  extract_endpoints_ms = duration_cast<microseconds> (s);
+    std::chrono::duration<double, std::micro>  flattening_ep_ms = duration_cast<microseconds> (s);
+    std::chrono::duration<double, std::micro>  sort_reduce_direct_e_ms = duration_cast<microseconds> (s);
+
+    RAFT_CUDA_TRY(cudaDeviceSynchronize());
+    auto start = high_resolution_clock::now();
     auto edge_triangle_counts =
       edge_triangle_count<vertex_t, edge_t, multi_gpu>(handle, cur_graph_view, false);
+    RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+    auto stop = high_resolution_clock::now();
+    nbr_intersection_tc_ms = duration_cast<microseconds>(stop - start);
 
     cugraph::edge_bucket_t<vertex_t, void, true, multi_gpu, true> edgelist_weak(handle);
     cugraph::edge_bucket_t<vertex_t, void, true, multi_gpu, true> edges_to_decrement_count(handle);
 
     size_t prev_chunk_size = 0;  // FIXME: Add support for chunking
+  
+    //while(cur_graph_view.compute_number_of_edges(handle) != 0) {
+    auto num_strong_edges = cur_graph_view.compute_number_of_edges(handle);
+    auto iteration = -1;
 
+    RAFT_CUDA_TRY(cudaDeviceSynchronize());
+    start = high_resolution_clock::now();
+  
     while (true) {
-      cur_graph_view.clear_edge_mask();
-      cur_graph_view.attach_edge_mask(dodg_mask.view());
+      iteration += 1;
+      std::cout<< "iteration = " << iteration << " k = " << k << std::endl;
+      //std::cout<<"number of strong edges = " << num_strong_edges << " k = " << k << std::endl;
+      if (iteration > 0) {
+        cur_graph_view.clear_edge_mask();
+        cur_graph_view.attach_edge_mask(dodg_mask.view());
+      }
 
       // Extract weak edges
+      RAFT_CUDA_TRY(cudaDeviceSynchronize());
+      auto start_weak_e_extract = high_resolution_clock::now();
       auto [weak_edgelist_srcs, weak_edgelist_dsts] =
         extract_transform_e(handle,
                             cur_graph_view,
@@ -504,6 +466,15 @@ k_truss(raft::handle_t const& handle,
                             edge_dst_dummy_property_t{}.view(),
                             edge_triangle_counts.view(),
                             extract_weak_edges<vertex_t, edge_t>{k});
+      
+      RAFT_CUDA_TRY(cudaDeviceSynchronize());
+      auto stop_weak_e_extract = high_resolution_clock::now();
+      weak_edge_extraction_ms += duration_cast<microseconds>(stop_weak_e_extract - start_weak_e_extract);
+      
+      if (weak_edgelist_srcs.size() == 0){
+        break;
+      }
+
 
       auto weak_edgelist_first =
         thrust::make_zip_iterator(weak_edgelist_srcs.begin(), weak_edgelist_dsts.begin());
@@ -517,24 +488,29 @@ k_truss(raft::handle_t const& handle,
       // Attach the weak edge mask
       cur_graph_view.attach_edge_mask(weak_edges_mask.view());
 
+      RAFT_CUDA_TRY(cudaDeviceSynchronize());
+      auto start_nbr_unrolling = high_resolution_clock::now();
       auto [intersection_offsets, intersection_indices] = per_v_pair_dst_nbr_intersection(
         handle, cur_graph_view, weak_edgelist_first, weak_edgelist_last, false);
+      RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      auto stop_nbr_unrolling = high_resolution_clock::now();
 
-      // Identify (p, q) edges, and form edges (p, q), (p, r) and (q, r)
-      // To avoid overcompensation, redirect all edges in the triangle to follow this unique
-      // pattern: (p, q) then (q, r) then (p, r)
+      nbr_intersection_unrolling_ms += duration_cast<microseconds>(stop_nbr_unrolling - start_nbr_unrolling);
 
-      auto triangles_from_weak_edges = allocate_dataframe_buffer<
-        thrust::tuple<vertex_t, vertex_t, vertex_t, vertex_t, vertex_t, vertex_t>>(
+      // This array stores (p, q, r) which are endpoints for the triangles with weak edges
+
+      RAFT_CUDA_TRY(cudaDeviceSynchronize());
+      auto start_extract_ep = high_resolution_clock::now();
+      auto triangles_endpoints = allocate_dataframe_buffer<
+        thrust::tuple<vertex_t, vertex_t, vertex_t>>(
         intersection_indices.size(), handle.get_stream());
 
-      // Form (p, q) edges
-      // Extract triangle from weak
+      // Extract endpoints for weak edges in triangles
       thrust::tabulate(
         handle.get_thrust_policy(),
-        get_dataframe_buffer_begin(triangles_from_weak_edges),
-        get_dataframe_buffer_end(triangles_from_weak_edges),
-        extract_triangles_from_weak_edges<vertex_t, edge_t>{
+        get_dataframe_buffer_begin(triangles_endpoints),
+        get_dataframe_buffer_end(triangles_endpoints),
+        extract_triangles_endpoints<vertex_t, edge_t>{
           prev_chunk_size,
           raft::device_span<size_t const>(intersection_offsets.data(), intersection_offsets.size()),
           raft::device_span<vertex_t const>(intersection_indices.data(),
@@ -542,92 +518,24 @@ k_truss(raft::handle_t const& handle,
           raft::device_span<vertex_t const>(weak_edgelist_srcs.data(), weak_edgelist_srcs.size()),
           raft::device_span<vertex_t const>(weak_edgelist_dsts.data(), weak_edgelist_dsts.size())});
 
-      cur_graph_view.clear_edge_mask();
-      // Check for edge existance on the directed graph view
-      cur_graph_view.attach_edge_mask(dodg_mask.view());
-
-      rmm::device_uvector<bool> edge_exists(0, handle.get_stream());
-
-      // Handling (p, r) edges
-
-      // (p, q) edges are owned by the current GPU while (p, r) and (q, r)
-      // can be owned by different GPUs
-      // Ordering (p, r) edges based on the DODG
-      order_edge_based_on_dodg<vertex_t, edge_t, multi_gpu>(
-        handle,
-        cur_graph_view,
-        raft::device_span<vertex_t>(std::get<2>(triangles_from_weak_edges).data(),
-                                    std::get<2>(triangles_from_weak_edges).size()),
-        raft::device_span<vertex_t>(std::get<3>(triangles_from_weak_edges).data(),
-                                    std::get<3>(triangles_from_weak_edges).size()));
-
-      // Handling (q, r) edges
-
-      // (p, q) edges are owned by the current GPU while (p, r) and (q, r)
-      // can be owned by different GPUs
-      // Ordering (q, r) edges based on the DODG
-      order_edge_based_on_dodg<vertex_t, edge_t, multi_gpu>(
-        handle,
-        cur_graph_view,
-        raft::device_span<vertex_t>(std::get<4>(triangles_from_weak_edges).data(),
-                                    std::get<4>(triangles_from_weak_edges).size()),
-        raft::device_span<vertex_t>(std::get<5>(triangles_from_weak_edges).data(),
-                                    std::get<5>(triangles_from_weak_edges).size()));
-
-      // re-order triangles
-      // To avoid overcompensation, redirect all edges in the triangle to follow this unique
-      // pattern: (p, q) then (q, r) then (p, r)
-      thrust::transform(
-        handle.get_thrust_policy(),
-        get_dataframe_buffer_begin(triangles_from_weak_edges),
-        get_dataframe_buffer_end(triangles_from_weak_edges),
-        get_dataframe_buffer_begin(triangles_from_weak_edges),
-        [] __device__(auto triangle) {
-          auto edge_p_q = thrust::make_tuple(thrust::get<0>(triangle), thrust::get<1>(triangle));
-          auto edge_p_r = thrust::make_tuple(thrust::get<2>(triangle), thrust::get<3>(triangle));
-          auto edge_q_r = thrust::make_tuple(thrust::get<4>(triangle), thrust::get<5>(triangle));
-
-          if (thrust::get<1>(edge_p_q) == thrust::get<1>(edge_q_r)) {
-            if (thrust::get<0>(edge_p_q) == thrust::get<0>(edge_p_r)) {
-              triangle = thrust::make_tuple(thrust::get<0>(edge_p_r),
-                                            thrust::get<1>(edge_p_r),
-                                            thrust::get<0>(edge_q_r),
-                                            thrust::get<1>(edge_q_r),
-                                            thrust::get<0>(edge_p_q),
-                                            thrust::get<1>(edge_p_q));
-
-            } else {
-              triangle = thrust::make_tuple(thrust::get<0>(edge_p_r),
-                                            thrust::get<1>(edge_p_r),
-                                            thrust::get<0>(edge_p_q),
-                                            thrust::get<1>(edge_p_q),
-                                            thrust::get<0>(edge_q_r),
-                                            thrust::get<1>(edge_q_r));
-            }
-          } else if (thrust::get<1>(edge_p_q) == thrust::get<0>(edge_q_r)) {
-            triangle = thrust::make_tuple(thrust::get<0>(edge_p_q),
-                                          thrust::get<1>(edge_p_q),
-                                          thrust::get<0>(edge_q_r),
-                                          thrust::get<1>(edge_q_r),
-                                          thrust::get<0>(edge_p_r),
-                                          thrust::get<1>(edge_p_r));
-          }
-          return triangle;
-        });
-
       thrust::sort(handle.get_thrust_policy(),
-                   get_dataframe_buffer_begin(triangles_from_weak_edges),
-                   get_dataframe_buffer_end(triangles_from_weak_edges));
+                   get_dataframe_buffer_begin(triangles_endpoints),
+                   get_dataframe_buffer_end(triangles_endpoints));
 
       auto unique_triangle_end =
         thrust::unique(handle.get_thrust_policy(),
-                       get_dataframe_buffer_begin(triangles_from_weak_edges),
-                       get_dataframe_buffer_end(triangles_from_weak_edges));
+                       get_dataframe_buffer_begin(triangles_endpoints),
+                       get_dataframe_buffer_end(triangles_endpoints));
 
-      auto num_unique_triangles = thrust::distance(
-        get_dataframe_buffer_begin(triangles_from_weak_edges), unique_triangle_end);
+      auto num_unique_triangles = thrust::distance( // Triangles are represented by their endpoints
+        get_dataframe_buffer_begin(triangles_endpoints), unique_triangle_end);
 
-      resize_dataframe_buffer(triangles_from_weak_edges, num_unique_triangles, handle.get_stream());
+      resize_dataframe_buffer(triangles_endpoints, num_unique_triangles, handle.get_stream());
+
+      RAFT_CUDA_TRY(cudaDeviceSynchronize());
+      auto stop_extract_ep = high_resolution_clock::now();
+
+      extract_endpoints_ms += duration_cast<microseconds>(stop_extract_ep - start_extract_ep);
 
       if constexpr (multi_gpu) {
         auto& comm           = handle.get_comms();
@@ -648,10 +556,14 @@ k_truss(raft::handle_t const& handle,
                             handle.get_stream());
 
         // FIXME: put the redundant code above in a function
-        std::tie(triangles_from_weak_edges, std::ignore) = groupby_gpu_id_and_shuffle_values(
+        // FIXME: Shuffle the edges with respect to the undirected graph view to the GPU
+        // owning edge (p, q). Remember that the triplet (p, q, r) is ordered based on the
+        // vertex ID and not the degree so (p, q) might not be an edge in the DODG but is
+        // surely an edge in the undirected graph
+        std::tie(triangles_endpoints, std::ignore) = groupby_gpu_id_and_shuffle_values(
           handle.get_comms(),
-          get_dataframe_buffer_begin(triangles_from_weak_edges),
-          get_dataframe_buffer_end(triangles_from_weak_edges),
+          get_dataframe_buffer_begin(triangles_endpoints),
+          get_dataframe_buffer_end(triangles_endpoints),
 
           [key_func =
              cugraph::detail::compute_gpu_id_from_int_edge_endpoints_t<vertex_t>{
@@ -666,34 +578,65 @@ k_truss(raft::handle_t const& handle,
           handle.get_stream());
 
         thrust::sort(handle.get_thrust_policy(),
-                     get_dataframe_buffer_begin(triangles_from_weak_edges),
-                     get_dataframe_buffer_end(triangles_from_weak_edges));
+                     get_dataframe_buffer_begin(triangles_endpoints),
+                     get_dataframe_buffer_end(triangles_endpoints));
 
         unique_triangle_end = thrust::unique(handle.get_thrust_policy(),
-                                             get_dataframe_buffer_begin(triangles_from_weak_edges),
-                                             get_dataframe_buffer_end(triangles_from_weak_edges));
+                                             get_dataframe_buffer_begin(triangles_endpoints),
+                                             get_dataframe_buffer_end(triangles_endpoints));
 
         num_unique_triangles = thrust::distance(
-          get_dataframe_buffer_begin(triangles_from_weak_edges), unique_triangle_end);
+          get_dataframe_buffer_begin(triangles_endpoints), unique_triangle_end);
         resize_dataframe_buffer(
-          triangles_from_weak_edges, num_unique_triangles, handle.get_stream());
+          triangles_endpoints, num_unique_triangles, handle.get_stream());
       }
 
+      // FIXME: Remove as it might not be used.
+
+      RAFT_CUDA_TRY(cudaDeviceSynchronize());
+      auto start_flattening_ep = high_resolution_clock::now();
       auto edgelist_to_update_count = allocate_dataframe_buffer<thrust::tuple<vertex_t, vertex_t>>(
         3 * num_unique_triangles, handle.get_stream());
 
-      // Flatten the triangle to a list of egdes.
+      // Flatten the triangle to a list of egdes by directing the edges from low degree to high
+      // This operation should be done on the original graph
+
+      // FIXME: The outdegree needs to be computed on the original graph without masking any edges.
+      // because it is from the original degree distribution that the DODG is created.
+      cur_graph_view.clear_edge_mask();
+
+      /*
+      // FIXME: No need to recompute it. Simply make the one from DODG global and reuse it
+      // FIXME: Same for the 4 statements below
+
+      auto out_degrees = cur_graph_view.compute_out_degrees(handle);
+      edge_src_property_t<decltype(cur_graph_view), edge_t> edge_src_out_degrees(handle,
+                                                                             cur_graph_view);
+      edge_dst_property_t<decltype(cur_graph_view), edge_t> edge_dst_out_degrees(handle,
+                                                                             cur_graph_view);
+      
+      update_edge_src_property(
+        handle, cur_graph_view, out_degrees.begin(), edge_src_out_degrees.mutable_view());
+      update_edge_dst_property(
+        handle, cur_graph_view, out_degrees.begin(), edge_dst_out_degrees.mutable_view());
+      */
+
+      rmm::device_uvector<vertex_t> srcs(0, handle.get_stream());
+      rmm::device_uvector<vertex_t> dsts(0, handle.get_stream());
+
+      // The order no longer matters since triangle duplicates have been removed
+      // Flatten the endpoints to a list of egdes.
       thrust::transform(
         handle.get_thrust_policy(),
         thrust::make_counting_iterator<edge_t>(0),
         thrust::make_counting_iterator<edge_t>(size_dataframe_buffer(edgelist_to_update_count)),
         get_dataframe_buffer_begin(edgelist_to_update_count),
         [num_unique_triangles,
-         triangles_from_weak_edges =
-           get_dataframe_buffer_begin(triangles_from_weak_edges)] __device__(auto idx) {
+         triangles_endpoints =
+           get_dataframe_buffer_begin(triangles_endpoints)] __device__(auto idx) {
           auto idx_triangle           = idx % num_unique_triangles;
           auto idx_vertex_in_triangle = idx / num_unique_triangles;
-          auto triangle = (triangles_from_weak_edges + idx_triangle).get_iterator_tuple();
+          auto triangle = (triangles_endpoints + idx_triangle).get_iterator_tuple();
           vertex_t src;
           vertex_t dst;
 
@@ -703,53 +646,60 @@ k_truss(raft::handle_t const& handle,
           }
 
           if (idx_vertex_in_triangle == 1) {
-            src = *(thrust::get<2>(triangle));
-            dst = *(thrust::get<3>(triangle));
+            src = *(thrust::get<0>(triangle));
+            dst = *(thrust::get<2>(triangle));
           }
 
           if (idx_vertex_in_triangle == 2) {
-            src = *(thrust::get<4>(triangle));
-            dst = *(thrust::get<5>(triangle));
+            src = *(thrust::get<1>(triangle));
+            dst = *(thrust::get<2>(triangle));
           }
 
           return thrust::make_tuple(src, dst);
         });
+      
+      RAFT_CUDA_TRY(cudaDeviceSynchronize());
+      auto stop_flattening_ep = high_resolution_clock::now();
 
-      // If multi-GPU, shuffle and reduce
+      flattening_ep_ms += duration_cast<microseconds>(stop_flattening_ep - start_flattening_ep);
+
+      // Instead of leveraging the endpoints, simply flatten it endpoints and
+      // use degree to re-order the edges
+      /*
+      // FIXME: Is this sorting necessary********************************************************
+      thrust::sort(handle.get_thrust_policy(),
+                   get_dataframe_buffer_begin(edgelist_to_update_count),
+                   get_dataframe_buffer_end(edgelist_to_update_count));
+      */
+
+      // Attach the weak edge mask
+      // mask edges with count = 0 when shuffling since they are not needed and reduce the search space
+      // It is necessary to shuffle with the undirected graph view because the edges are not yet
+      // directed by degree.
+      cur_graph_view.attach_edge_mask(weak_edges_mask.view());
+      
       if constexpr (multi_gpu) {
-        auto& comm           = handle.get_comms();
-        auto const comm_size = comm.get_size();
-        auto& major_comm     = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
-        auto const major_comm_size = major_comm.get_size();
-        auto& minor_comm = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
-        auto const minor_comm_size = minor_comm.get_size();
-
-        auto vertex_partition_range_lasts = cur_graph_view.vertex_partition_range_lasts();
-
-        rmm::device_uvector<vertex_t> d_vertex_partition_range_lasts(
-          vertex_partition_range_lasts.size(), handle.get_stream());
-        raft::update_device(d_vertex_partition_range_lasts.data(),
-                            vertex_partition_range_lasts.data(),
-                            vertex_partition_range_lasts.size(),
-                            handle.get_stream());
-
-        std::tie(edgelist_to_update_count, std::ignore) = groupby_gpu_id_and_shuffle_values(
-          handle.get_comms(),
-          get_dataframe_buffer_begin(edgelist_to_update_count),
-          get_dataframe_buffer_end(edgelist_to_update_count),
-
-          [key_func =
-             cugraph::detail::compute_gpu_id_from_int_edge_endpoints_t<vertex_t>{
-               raft::device_span<vertex_t const>(d_vertex_partition_range_lasts.data(),
-                                                 d_vertex_partition_range_lasts.size()),
-               comm_size,
-               major_comm_size,
-               minor_comm_size}] __device__(auto val) {
-            return key_func(thrust::get<0>(val), thrust::get<1>(val));
-          },
-
-          handle.get_stream());
+        std::tie(std::get<0>(edgelist_to_update_count),
+                  std::get<1>(edgelist_to_update_count),
+                  std::ignore,
+                  std::ignore,
+                  std::ignore,
+                  std::ignore) =
+          detail::shuffle_int_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning<vertex_t,
+                                                                                          edge_t,
+                                                                                          weight_t,
+                                                                                          int32_t>(
+            handle,
+            std::move(std::get<0>(edgelist_to_update_count)),
+            std::move(std::get<1>(edgelist_to_update_count)),
+            std::nullopt,
+            std::nullopt,
+            std::nullopt,
+            cur_graph_view.vertex_partition_range_lasts());
       }
+
+      RAFT_CUDA_TRY(cudaDeviceSynchronize());
+      auto start_sort_reduce_direct_e = high_resolution_clock::now();
 
       thrust::sort(handle.get_thrust_policy(),
                    get_dataframe_buffer_begin(edgelist_to_update_count),
@@ -772,14 +722,98 @@ k_truss(raft::handle_t const& handle,
                             get_dataframe_buffer_begin(vertex_pair_buffer_unique),
                             decrease_count.begin(),
                             thrust::equal_to<thrust::tuple<vertex_t, vertex_t>>{});
+      
+      std::tie(
+        std::get<0>(vertex_pair_buffer_unique),
+        std::get<1>(vertex_pair_buffer_unique),
+        decrease_count) =
+      extract_transform_e(handle,
+                          cur_graph_view,
+                          edge_src_out_degrees.view(),
+                          edge_dst_out_degrees.view(),
+                          edge_dummy_property_t{}.view(),
+                          extract_low_to_high_degree_edges_from_endpoints_t<vertex_t, edge_t>{
+                            raft::device_span<vertex_t const>(
+                              std::get<0>(vertex_pair_buffer_unique).data(),
+                              std::get<0>(vertex_pair_buffer_unique).size()),
+                            raft::device_span<vertex_t const>(
+                              std::get<1>(vertex_pair_buffer_unique).data(),
+                              std::get<1>(vertex_pair_buffer_unique).size()),
+                            raft::device_span<edge_t const>(
+                              decrease_count.data(),
+                              decrease_count.size())
+                          });
+      
+      RAFT_CUDA_TRY(cudaDeviceSynchronize());
+      auto stop_sort_reduce_direct_e = high_resolution_clock::now();
+
+      sort_reduce_direct_e_ms += duration_cast<microseconds>(stop_sort_reduce_direct_e - start_sort_reduce_direct_e);
+      
+      if constexpr (multi_gpu) {
+
+        auto& comm           = handle.get_comms();
+        auto const comm_size = comm.get_size();
+        auto& major_comm     = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
+        auto const major_comm_size = major_comm.get_size();
+        auto& minor_comm = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
+        auto const minor_comm_size = minor_comm.get_size();
+        auto vertex_partition_range_lasts = cur_graph_view.vertex_partition_range_lasts();
+
+        rmm::device_uvector<vertex_t> d_vertex_partition_range_lasts(
+          vertex_partition_range_lasts.size(), handle.get_stream());
+        raft::update_device(d_vertex_partition_range_lasts.data(),
+                            vertex_partition_range_lasts.data(),
+                            vertex_partition_range_lasts.size(),
+                            handle.get_stream());
+
+          
+        std::forward_as_tuple(
+          std::tie(std::get<0>(vertex_pair_buffer_unique),
+            std::get<1>(vertex_pair_buffer_unique),
+              decrease_count),
+                          std::ignore)
+          = groupby_gpu_id_and_shuffle_values(
+        handle.get_comms(),
+        thrust::make_zip_iterator(
+          std::get<0>(vertex_pair_buffer_unique).begin(),
+          std::get<1>(vertex_pair_buffer_unique).begin(),
+          decrease_count.begin()),
+        thrust::make_zip_iterator(
+          std::get<0>(vertex_pair_buffer_unique).end(),
+          std::get<1>(vertex_pair_buffer_unique).end(),
+          decrease_count.end()),
+        [key_func =
+            cugraph::detail::compute_gpu_id_from_int_edge_endpoints_t<vertex_t>{
+              raft::device_span<vertex_t const>(d_vertex_partition_range_lasts.data(),
+                                                d_vertex_partition_range_lasts.size()),
+              comm_size,
+              major_comm_size,
+              minor_comm_size}] __device__(auto val) {
+          return key_func(thrust::get<0>(val), thrust::get<1>(val));
+        },
+        handle.get_stream());
+      }
+
+      thrust::sort_by_key(handle.get_thrust_policy(),
+        get_dataframe_buffer_begin(vertex_pair_buffer_unique),
+        get_dataframe_buffer_end(vertex_pair_buffer_unique),
+        decrease_count.begin()
+      );
 
       // Update count of weak edges
       edges_to_decrement_count.clear();
 
+      //RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      RAFT_CUDA_TRY(cudaDeviceSynchronize());
+      auto update_counter_and_mask_start = high_resolution_clock::now();
       edges_to_decrement_count.insert(std::get<0>(vertex_pair_buffer_unique).begin(),
                                       std::get<0>(vertex_pair_buffer_unique).end(),
                                       std::get<1>(vertex_pair_buffer_unique).begin());
-
+      
+      cur_graph_view.clear_edge_mask();
+      // Check for edge existance on the directed graph view
+      cur_graph_view.attach_edge_mask(dodg_mask.view());
+      
       // Update count of weak edges from the DODG view
       cugraph::transform_e(
         handle,
@@ -801,6 +835,7 @@ k_truss(raft::handle_t const& handle,
                                                                      edge_t count) {
           auto itr_pair = thrust::lower_bound(
             thrust::seq, edge_buffer_first, edge_buffer_last, thrust::make_tuple(src, dst));
+
 
           auto idx_pair = thrust::distance(edge_buffer_first, itr_pair);
 
@@ -886,8 +921,34 @@ k_truss(raft::handle_t const& handle,
 
       cur_graph_view.attach_edge_mask(weak_edges_mask.view());
 
+      RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      auto update_counter_and_mask_stop= high_resolution_clock::now();
+
+      update_counter_and_mask_ms += duration_cast<microseconds>(update_counter_and_mask_stop - update_counter_and_mask_start);
+
+      std::cout<<"prev_num_edges = " << prev_number_of_edges << " cur_num_edges = " << cur_graph_view.compute_number_of_edges(handle) << std::endl;
+      std::cout<<"weak edgelist size = " << weak_edgelist_srcs.size() << std::endl;
+      //if (cur_graph_view.compute_number_of_edges(handle) == 0) { break; }
       if (prev_number_of_edges == cur_graph_view.compute_number_of_edges(handle)) { break; }
     }
+
+    //#if 0
+    RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+    stop = high_resolution_clock::now();
+
+    edge_unrolling_ms = duration_cast<microseconds>(stop - start);
+
+    auto workflow_runtime = ((nbr_intersection_tc_ms.count()/1000) + (edge_unrolling_ms.count()/1000));
+    std::cout<<"kmax = " << k << std::endl;
+    std::cout << "1) entire workflow took: " << workflow_runtime << " milliseconds" << std::endl;
+    std::cout << "2) edge triangle count took: " << nbr_intersection_tc_ms.count()/1000 << " milliseconds" << std::endl;
+    std::cout << "3) while loop - edge unrolling took: " << edge_unrolling_ms.count()/1000 << " milliseconds" << std::endl;
+    std::cout << "3.1) weak edge extraction took: " << weak_edge_extraction_ms.count()/1000 << " milliseconds" << std::endl;
+    std::cout << "3.2) nbr_intersection_unrolling took: " << nbr_intersection_unrolling_ms.count()/1000 << " milliseconds" << std::endl;
+    std::cout << "3.3) extract_endpoints took: " << extract_endpoints_ms.count()/1000 << " milliseconds" << std::endl;
+    std::cout << "3.4) flattening_ep took: " << flattening_ep_ms.count()/1000 << " milliseconds" << std::endl;
+    std::cout << "3.5) sort_reduce_direct_e took: " << sort_reduce_direct_e_ms.count()/1000 << " milliseconds" << std::endl;
+    std::cout << "3.6) update counter and mask took: " << update_counter_and_mask_ms.count()/1000 << " milliseconds" << std::endl;
 
     cur_graph_view.clear_edge_mask();
     cur_graph_view.attach_edge_mask(dodg_mask.view());
@@ -908,6 +969,7 @@ k_truss(raft::handle_t const& handle,
     rmm::device_uvector<vertex_t> edgelist_dsts(0, handle.get_stream());
     std::optional<rmm::device_uvector<weight_t>> edgelist_wgts{std::nullopt};
 
+    //#if 0
     std::tie(edgelist_srcs, edgelist_dsts, edgelist_wgts, std::ignore, std::ignore) =
       decompress_to_edgelist(
         handle,
@@ -925,6 +987,9 @@ k_truss(raft::handle_t const& handle,
                                                                 std::move(edgelist_dsts),
                                                                 std::move(edgelist_wgts),
                                                                 false);
+    //#endif
+
+    std::cout<< "result size = " << edgelist_srcs.size() << std::endl;
 
     return std::make_tuple(
       std::move(edgelist_srcs), std::move(edgelist_dsts), std::move(edgelist_wgts));

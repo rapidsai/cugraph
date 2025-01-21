@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,9 +27,13 @@
 #include <optional>
 #include <tuple>
 
+/** @defgroup sampling_functions_cpp C++ Sampling Functions
+ */
+
 namespace cugraph {
 
 /**
+ * @ingroup sampling_functions_cpp
  * @brief Controls how we treat prior sources in sampling
  *
  * @param DEFAULT    Add vertices encountered while sampling to the new frontier
@@ -41,6 +45,7 @@ namespace cugraph {
 enum class prior_sources_behavior_t { DEFAULT = 0, CARRY_OVER, EXCLUDE };
 
 /**
+ * @ingroup sampling_functions_cpp
  * @brief Uniform Neighborhood Sampling.
  *
  * @deprecated Replaced with homogeneous_uniform_neighbor_sample
@@ -141,6 +146,7 @@ uniform_neighbor_sample(
   bool do_expensive_check                         = false);
 
 /**
+ * @ingroup sampling_functions_cpp
  * @brief Biased Neighborhood Sampling.
  *
  * @deprecated Replaced with homogeneous_biased_neighbor_sample
@@ -273,6 +279,7 @@ struct sampling_flags_t {
 };
 
 /**
+ * @ingroup sampling_functions_cpp
  * @brief Homogeneous Uniform Neighborhood Sampling.
  *
  * This function traverses from a set of starting vertices, traversing outgoing edges and
@@ -347,6 +354,7 @@ homogeneous_uniform_neighbor_sample(
   bool do_expensive_check = false);
 
 /**
+ * @ingroup sampling_functions_cpp
  * @brief Homogeneous Biased Neighborhood Sampling.
  *
  * This function traverses from a set of starting vertices, traversing outgoing edges and
@@ -428,6 +436,7 @@ homogeneous_biased_neighbor_sample(
   bool do_expensive_check = false);
 
 /**
+ * @ingroup sampling_functions_cpp
  * @brief Heterogeneous Uniform Neighborhood Sampling.
  *
  * This function traverses from a set of starting vertices, traversing outgoing edges and
@@ -506,6 +515,7 @@ heterogeneous_uniform_neighbor_sample(
   bool do_expensive_check = false);
 
 /**
+ * @ingroup sampling_functions_cpp
  * @brief Heterogeneous Biased Neighborhood Sampling.
  *
  * This function traverses from a set of starting vertices, traversing outgoing edges and
@@ -590,7 +600,8 @@ heterogeneous_biased_neighbor_sample(
   sampling_flags_t sampling_flags,
   bool do_expensive_check = false);
 
-/*
+/**
+ * @ingroup sampling_functions_cpp
  * @brief renumber sampled edge list and compress to the (D)CSR|(D)CSC format.
  *
  * This function renumbers sampling function (e.g. uniform_neighbor_sample) output edges fulfilling
@@ -715,7 +726,8 @@ renumber_and_compress_sampled_edgelist(
   bool doubly_compress    = false,
   bool do_expensive_check = false);
 
-/*
+/**
+ * @ingroup sampling_functions_cpp
  * @brief renumber sampled edge list and sort the renumbered edges.
  *
  * This function renumbers sampling function (e.g. uniform_neighbor_sample) output edges fulfilling
@@ -815,7 +827,8 @@ renumber_and_sort_sampled_edgelist(
   bool src_is_major       = true,
   bool do_expensive_check = false);
 
-/*
+/**
+ * @ingroup sampling_functions_cpp
  * @brief renumber sampled edge list (vertex & edge IDs) per vertex/edge type and sort the
  * renumbered edges.
  *
@@ -957,7 +970,8 @@ heterogeneous_renumber_and_sort_sampled_edgelist(
   bool src_is_major       = true,
   bool do_expensive_check = false);
 
-/*
+/**
+ * @ingroup sampling_functions_cpp
  * @brief sort sampled edge list.
  *
  * Sampled edges are sorted based on the following rules.
@@ -1024,7 +1038,8 @@ sort_sampled_edgelist(raft::handle_t const& handle,
                       size_t num_hops,
                       bool src_is_major       = true,
                       bool do_expensive_check = false);
-/*
+/**
+ * @ingroup sampling_functions_cpp
  * @brief Build map to lookup source and destination using edge id and type
  *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
@@ -1047,7 +1062,8 @@ lookup_container_t<edge_t, edge_type_t, vertex_t> build_edge_id_and_type_to_src_
   edge_property_view_t<edge_t, edge_t const*> edge_id_view,
   edge_property_view_t<edge_t, edge_type_t const*> edge_type_view);
 
-/*
+/**
+ * @ingroup sampling_functions_cpp
  * @brief Lookup edge sources and destinations using edge ids and a single edge type.
  * Use this function to lookup endpoints of edges belonging to the same edge type.
  *
@@ -1074,7 +1090,8 @@ lookup_endpoints_from_edge_ids_and_single_type(
   raft::device_span<edge_t const> edge_ids_to_lookup,
   edge_type_t edge_type_to_lookup);
 
-/*
+/**
+ * @ingroup sampling_functions_cpp
  * @brief Lookup edge sources and destinations using edge ids and edge types.
  * Use this function to lookup endpoints of edges belonging to different edge types.
  *
@@ -1104,6 +1121,7 @@ lookup_endpoints_from_edge_ids_and_types(
   raft::device_span<edge_type_t const> edge_types_to_lookup);
 
 /**
+ * @ingroup sampling_functions_cpp
  * @brief Negative Sampling
  *
  * This function generates negative samples for graph.
