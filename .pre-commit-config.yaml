@@ -59,7 +59,7 @@ repos:
       - id: sphinx-lint
         args: ["--enable=all", "--disable=line-too-long"]
   - repo: https://github.com/rapidsai/dependency-file-generator
-    rev: v1.16.0
+    rev: v1.17.0
     hooks:
         - id: rapids-dependency-file-generator
           args: ["--clean"]
