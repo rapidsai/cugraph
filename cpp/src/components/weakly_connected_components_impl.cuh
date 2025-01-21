@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -684,17 +684,22 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
                  std::ignore,
                  std::ignore,
                  std::ignore,
+                 std::ignore,
+                 std::ignore,
                  std::ignore) =
           detail::shuffle_ext_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning<
             vertex_t,
             edge_t,
             weight_t,
-            edge_type_t>(handle,
-                         std::move(std::get<0>(edge_buffer)),
-                         std::move(std::get<1>(edge_buffer)),
-                         std::nullopt,
-                         std::nullopt,
-                         std::nullopt);
+            edge_type_t,
+            int32_t>(handle,
+                     std::move(std::get<0>(edge_buffer)),
+                     std::move(std::get<1>(edge_buffer)),
+                     std::nullopt,
+                     std::nullopt,
+                     std::nullopt,
+                     std::nullopt,
+                     std::nullopt);
         auto edge_first = get_dataframe_buffer_begin(edge_buffer);
         auto edge_last  = get_dataframe_buffer_end(edge_buffer);
         thrust::sort(handle.get_thrust_policy(), edge_first, edge_last);
@@ -710,7 +715,6 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
         create_graph_from_edgelist<vertex_t,
                                    edge_t,
                                    float /* dummy */,
-                                   edge_t /* dummy */,
                                    int32_t /* dummy */,
                                    GraphViewType::is_storage_transposed,
                                    GraphViewType::is_multi_gpu>(handle,
