@@ -1610,7 +1610,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
         edge_partition.major_range_first(),
         handle.get_stream());
       assert((*key_segment_offsets).back() == *((*key_segment_offsets).rbegin() + 1));
-      assert(sorted_uniue_nzd_key_last == sorted_unique_key_first + (*key_segment_offsets).back());
+      assert(sorted_unique_nzd_key_last == sorted_unique_key_first + (*key_segment_offsets).back());
     }
   } else {
     tmp_vertex_value_output_first = vertex_value_output_first;
