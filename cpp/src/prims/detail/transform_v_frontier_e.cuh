@@ -37,6 +37,7 @@
 #include <type_traits>
 
 #include <cuda/experimental/stf.cuh>
+#include <raft/core/resource/custom_resource.hpp>
 
 using namespace cuda::experimental::stf;
 
@@ -415,8 +416,8 @@ auto transform_v_frontier_e(raft::handle_t const& handle,
       typename EdgeValueInputWrapper::value_iterator,
       typename EdgeValueInputWrapper::value_type>>;
 
-//  cudastf::async_resources_handle& cudastf_handle = *raft::resource::get_custom_resource<cudastf::async_resources_handle>(handle);
-  stream_ctx cudastf_ctx(handle.get_stream());
+  async_resources_handle& cudastf_handle = *raft::resource::get_custom_resource<async_resources_handle>(handle);
+  stream_ctx cudastf_ctx(handle.get_stream(), cudastf_handle);
 
   auto edge_mask_view = graph_view.edge_mask_view();
 
