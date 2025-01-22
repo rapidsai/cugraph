@@ -447,6 +447,10 @@ ConfigureTest(SSSP_TEST traversal/sssp_test.cpp)
 # - OD_SHORTEST_DISTANCES tests -------------------------------------------------------------------
 ConfigureTest(OD_SHORTEST_DISTANCES_TEST traversal/od_shortest_distances_test.cpp)
 
+###################################################################################################
+# - K-hop Neighbors tests -------------------------------------------------------------------------
+ConfigureTest(K_HOP_NBRS_TEST traversal/k_hop_nbrs_test.cpp)
+
 endif() # BUILD_CUGRAPH_TRAVERSAL_ALGORITHMS
 
 if (BUILD_CUGRAPH_LINK_ANALYSIS_ALGORITHMS)
@@ -577,11 +581,6 @@ endif() # BUILD_CUGRAPH_COMMUNITY_ALGORITHMS
 ###################################################################################################
 # - EDGE SOURCE DESTINATION LOOKUP tests ----------------------------------------------------------
 ConfigureTest(LOOKUP_SRC_DST_TEST lookup/lookup_src_dst_test.cpp)
-
-###################################################################################################
-# - K-hop Neighbors tests -------------------------------------------------------------------------
-ConfigureTest(K_HOP_NBRS_TEST traversal/k_hop_nbrs_test.cpp)
-
 
 ###################################################################################################
 # - install tests ---------------------------------------------------------------------------------
