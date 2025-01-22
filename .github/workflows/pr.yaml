@@ -174,6 +174,9 @@ jobs:
     with:
       build_type: pull-request
       script: ci/test_wheel_pylibcugraph.sh
+      # CUDA 11 wheel CI is disabled until
+      # https://github.com/rapidsai/build-planning/issues/137 is resolved.
+      matrix_filter: map(select(.CUDA_VER | startswith("11") | not))
   wheel-build-cugraph:
     needs: wheel-build-pylibcugraph
     secrets: inherit
@@ -189,6 +192,9 @@ jobs:
     with:
       build_type: pull-request
       script: ci/test_wheel_cugraph.sh
+      # CUDA 11 wheel CI is disabled until
+      # https://github.com/rapidsai/build-planning/issues/137 is resolved.
+      matrix_filter: map(select(.CUDA_VER | startswith("11") | not))
   devcontainer:
     secrets: inherit
     needs: telemetry-setup
