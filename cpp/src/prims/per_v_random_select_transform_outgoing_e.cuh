@@ -320,11 +320,10 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
   } else {
     local_key_list_sizes = std::vector<size_t>{key_list.size()};
   }
-  std::vector<size_t> local_key_list_displacements(local_key_list_sizes.size());
-  std::exclusive_scan(local_key_list_sizes.begin(),
-                      local_key_list_sizes.end(),
-                      local_key_list_displacements.begin(),
-                      size_t{0});
+  std::vector<size_t> local_key_list_offsets(local_key_list_sizes.size() + 1);
+  local_key_list_offsets[0] = 0;
+  std::inclusive_scan(
+    local_key_list_sizes.begin(), local_key_list_sizes.end(), local_key_list_offsets.begin() + 1);
 
   // 1. aggregate key_list
 
@@ -332,14 +331,15 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
   if (minor_comm_size > 1) {
     auto& minor_comm = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
 
-    aggregate_local_key_list = allocate_dataframe_buffer<key_t>(
-      local_key_list_displacements.back() + local_key_list_sizes.back(), handle.get_stream());
-    device_allgatherv(minor_comm,
-                      key_list.begin(),
-                      get_dataframe_buffer_begin(*aggregate_local_key_list),
-                      local_key_list_sizes,
-                      local_key_list_displacements,
-                      handle.get_stream());
+    aggregate_local_key_list =
+      allocate_dataframe_buffer<key_t>(local_key_list_offsets.back(), handle.get_stream());
+    device_allgatherv(
+      minor_comm,
+      key_list.begin(),
+      get_dataframe_buffer_begin(*aggregate_local_key_list),
+      local_key_list_sizes,
+      std::vector<size_t>(local_key_list_offsets.begin(), local_key_list_offsets.end() - 1),
+      handle.get_stream());
   }
 
   // 2. randomly select neighbor indices and compute local neighbor indices for every local edge
@@ -362,9 +362,8 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
           graph_view,
           (minor_comm_size > 1) ? get_dataframe_buffer_cbegin(*aggregate_local_key_list)
                                 : key_list.begin(),
-          raft::host_span<size_t const>(local_key_list_displacements.data(),
-                                        local_key_list_displacements.size()),
-          raft::host_span<size_t const>(local_key_list_sizes.data(), local_key_list_sizes.size()),
+          raft::host_span<size_t const>(local_key_list_offsets.data(),
+                                        local_key_list_offsets.size()),
           rng_state,
           Ks[0],
           with_replacement);
@@ -384,15 +383,30 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
           bias_edge_dst_value_input,
           bias_edge_value_input,
           bias_e_op,
-          raft::host_span<size_t const>(local_key_list_displacements.data(),
-                                        local_key_list_displacements.size()),
-          raft::host_span<size_t const>(local_key_list_sizes.data(), local_key_list_sizes.size()),
+          raft::host_span<size_t const>(local_key_list_offsets.data(),
+                                        local_key_list_offsets.size()),
           rng_state,
           Ks[0],
           with_replacement,
           do_expensive_check);
     } else {  // heterogeneous
-      CUGRAPH_FAIL("unimplemented.");
+      std::tie(sample_local_nbr_indices, sample_key_indices, local_key_list_sample_offsets) =
+        biased_sample_and_compute_local_nbr_indices(
+          handle,
+          graph_view,
+          (minor_comm_size > 1) ? get_dataframe_buffer_cbegin(*aggregate_local_key_list)
+                                : key_list.begin(),
+          bias_edge_src_value_input,
+          bias_edge_dst_value_input,
+          bias_edge_value_input,
+          bias_e_op,
+          edge_type_input,
+          raft::host_span<size_t const>(local_key_list_offsets.data(),
+                                        local_key_list_offsets.size()),
+          rng_state,
+          Ks,
+          with_replacement,
+          do_expensive_check);
     }
   }
 
@@ -415,7 +429,7 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
     auto edge_partition_key_list_first =
       ((minor_comm_size > 1) ? get_dataframe_buffer_cbegin(*aggregate_local_key_list)
                              : key_list.begin()) +
-      local_key_list_displacements[i];
+      local_key_list_offsets[i];
     auto edge_partition_sample_local_nbr_index_first =
       sample_local_nbr_indices.begin() + local_key_list_sample_offsets[i];
 
