@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -973,7 +973,7 @@ void fill_edge_minor_property(raft::handle_t const& handle,
     assert(graph_view.local_vertex_partition_range_size() ==
            (GraphViewType::is_storage_transposed
               ? graph_view.local_edge_partition_src_range_size()
-              : graph_view.local_edge_partition_dst_range_sizse()));
+              : graph_view.local_edge_partition_dst_range_size()));
     if constexpr (contains_packed_bool_element) {
       thrust::for_each(handle.get_thrust_policy(),
                        sorted_unique_vertex_first,

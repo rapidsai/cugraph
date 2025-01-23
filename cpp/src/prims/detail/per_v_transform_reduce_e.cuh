@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -69,7 +69,7 @@ namespace cugraph {
 
 namespace detail {
 
-int32_t constexpr per_v_transform_reduce_e_kernel_block_size                        = 512;
+int32_t constexpr per_v_transform_reduce_e_kernel_block_size                        = 256;
 int32_t constexpr per_v_transform_reduce_e_kernel_high_degree_reduce_any_block_size = 128;
 
 template <typename Iterator, typename default_t, typename Enable = void>
@@ -1610,7 +1610,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
         edge_partition.major_range_first(),
         handle.get_stream());
       assert((*key_segment_offsets).back() == *((*key_segment_offsets).rbegin() + 1));
-      assert(sorted_uniue_nzd_key_last == sorted_unique_key_first + (*key_segment_offsets).back());
+      assert(sorted_unique_nzd_key_last == sorted_unique_key_first + (*key_segment_offsets).back());
     }
   } else {
     tmp_vertex_value_output_first = vertex_value_output_first;
