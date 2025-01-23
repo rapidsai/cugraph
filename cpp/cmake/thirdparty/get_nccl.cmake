@@ -1,5 +1,5 @@
 # =============================================================================
-# Copyright (c) 2021-2024, NVIDIA CORPORATION.
+# Copyright (c) 2021-2025, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
 # in compliance with the License. You may obtain a copy of the License at
@@ -18,11 +18,7 @@ function(find_and_configure_nccl)
     return()
   endif()
 
-  rapids_find_generate_module(
-    NCCL
-    HEADER_NAMES nccl.h
-    LIBRARY_NAMES nccl
-  )
+  rapids_find_generate_module(NCCL HEADER_NAMES nccl.h LIBRARY_NAMES nccl)
 
   # Currently NCCL has no CMake build-system so we require it built and installed on the machine
   # already

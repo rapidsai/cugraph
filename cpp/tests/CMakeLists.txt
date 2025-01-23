@@ -34,7 +34,7 @@ endif(RAPIDS_DATASET_ROOT_DIR)
 
 # ##################################################################################################
 # * common C++ test utils
-#   -----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
 add_library(
   cugraphtestutil STATIC
@@ -107,7 +107,7 @@ if(BUILD_CUGRAPH_MG_TESTS)
 
   # ################################################################################################
   # * common C++ mg test utils
-  #   -----------------------------------------------------------------------
+  # -----------------------------------------------------------------------
   add_library(
     cugraphmgtestutil STATIC
     utilities/device_comm_wrapper.cu
@@ -170,11 +170,8 @@ function(ConfigureTest CMAKE_TEST_NAME)
   )
 
   rapids_test_add(
-    NAME ${CMAKE_TEST_NAME}
-    COMMAND ${CMAKE_TEST_NAME}
-    GPUS ${_CUGRAPH_TEST_GPUS}
-    PERCENT ${_CUGRAPH_TEST_PERCENT}
-    INSTALL_COMPONENT_SET testing
+    NAME ${CMAKE_TEST_NAME} COMMAND ${CMAKE_TEST_NAME} GPUS ${_CUGRAPH_TEST_GPUS} PERCENT
+    ${_CUGRAPH_TEST_PERCENT} INSTALL_COMPONENT_SET testing
   )
   set_tests_properties(${CMAKE_TEST_NAME} PROPERTIES LABELS "CUGRAPH")
 endfunction()
@@ -196,12 +193,24 @@ function(ConfigureTestMG CMAKE_TEST_NAME)
   )
 
   rapids_test_add(
-    NAME ${CMAKE_TEST_NAME}
-    COMMAND ${MPIEXEC_EXECUTABLE} "--noprefix" ${MPIEXEC_NUMPROC_FLAG} ${GPU_COUNT}
-            ${MPIEXEC_PREFLAGS} ${CMAKE_TEST_NAME} ${MPIEXEC_POSTFLAGS}
-    GPUS ${GPU_COUNT}
-    PERCENT 100
-    INSTALL_COMPONENT_SET testing_mg INSTALL_TARGET ${CMAKE_TEST_NAME}
+    NAME
+    ${CMAKE_TEST_NAME}
+    COMMAND
+    ${MPIEXEC_EXECUTABLE}
+    "--noprefix"
+    ${MPIEXEC_NUMPROC_FLAG}
+    ${GPU_COUNT}
+    ${MPIEXEC_PREFLAGS}
+    ${CMAKE_TEST_NAME}
+    ${MPIEXEC_POSTFLAGS}
+    GPUS
+    ${GPU_COUNT}
+    PERCENT
+    100
+    INSTALL_COMPONENT_SET
+    testing_mg
+    INSTALL_TARGET
+    ${CMAKE_TEST_NAME}
   )
   set_tests_properties(${CMAKE_TEST_NAME} PROPERTIES LABELS "CUGRAPH_MG")
 
@@ -239,11 +248,8 @@ function(ConfigureCTest CMAKE_TEST_NAME)
   )
 
   rapids_test_add(
-    NAME ${CMAKE_TEST_NAME}
-    COMMAND ${CMAKE_TEST_NAME}
-    GPUS ${_CUGRAPH_TEST_GPUS}
-    PERCENT ${_CUGRAPH_TEST_PERCENT}
-    INSTALL_COMPONENT_SET testing_c
+    NAME ${CMAKE_TEST_NAME} COMMAND ${CMAKE_TEST_NAME} GPUS ${_CUGRAPH_TEST_GPUS} PERCENT
+    ${_CUGRAPH_TEST_PERCENT} INSTALL_COMPONENT_SET testing_c
   )
   set_tests_properties(${CMAKE_TEST_NAME} PROPERTIES LABELS "CUGRAPH_C")
 
@@ -266,12 +272,24 @@ function(ConfigureCTestMG CMAKE_TEST_NAME)
   )
 
   rapids_test_add(
-    NAME ${CMAKE_TEST_NAME}
-    COMMAND ${MPIEXEC_EXECUTABLE} "--noprefix" ${MPIEXEC_NUMPROC_FLAG} ${GPU_COUNT}
-            ${MPIEXEC_PREFLAGS} ${CMAKE_TEST_NAME} ${MPIEXEC_POSTFLAGS}
-    GPUS ${GPU_COUNT}
-    PERCENT 100
-    INSTALL_COMPONENT_SET testing_mg INSTALL_TARGET ${CMAKE_TEST_NAME}
+    NAME
+    ${CMAKE_TEST_NAME}
+    COMMAND
+    ${MPIEXEC_EXECUTABLE}
+    "--noprefix"
+    ${MPIEXEC_NUMPROC_FLAG}
+    ${GPU_COUNT}
+    ${MPIEXEC_PREFLAGS}
+    ${CMAKE_TEST_NAME}
+    ${MPIEXEC_POSTFLAGS}
+    GPUS
+    ${GPU_COUNT}
+    PERCENT
+    100
+    INSTALL_COMPONENT_SET
+    testing_mg
+    INSTALL_TARGET
+    ${CMAKE_TEST_NAME}
   )
   set_tests_properties(${CMAKE_TEST_NAME} PROPERTIES LABELS "CUGRAPH_C_MG")
 
@@ -553,7 +571,7 @@ if(BUILD_CUGRAPH_MG_TESTS)
 
   # ################################################################################################
   # * MG Temporal Graph tests
-  #   -----------------------------------------------------------------------
+  # -----------------------------------------------------------------------
   ConfigureTestMG(MG_TEMPORAL_GRAPH_TEST structure/mg_temporal_graph_test.cpp)
 
   # ################################################################################################

@@ -18,14 +18,23 @@ function(find_and_configure_cugraph)
   cmake_parse_arguments(PKG "" "${oneValueArgs}" "" ${ARGN})
 
   rapids_cpm_find(
-    cugraph ${PKG_VERSION}
-    GLOBAL_TARGETS cugraph::cugraph
-    BUILD_EXPORT_SET cugraph_etl-exports
-    INSTALL_EXPORT_SET cugraph_etl-exports
+    cugraph
+    ${PKG_VERSION}
+    GLOBAL_TARGETS
+    cugraph::cugraph
+    BUILD_EXPORT_SET
+    cugraph_etl-exports
+    INSTALL_EXPORT_SET
+    cugraph_etl-exports
     CPM_ARGS
-    GIT_REPOSITORY https://github.com/${PKG_FORK}/cugraph.git
-    GIT_TAG ${PKG_PINNED_TAG} SOURCE_SUBDIR cpp
-    OPTIONS "BUILD_TESTS OFF"
+    GIT_REPOSITORY
+    https://github.com/${PKG_FORK}/cugraph.git
+    GIT_TAG
+    ${PKG_PINNED_TAG}
+    SOURCE_SUBDIR
+    cpp
+    OPTIONS
+    "BUILD_TESTS OFF"
   )
 
   message(VERBOSE "CUGRAPH_ETL: Using CUGRAPH located in ${cugraph_SOURCE_DIR}")

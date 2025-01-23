@@ -69,9 +69,7 @@ message(VERBOSE "CUGRAPH: CUDA_STATIC_RUNTIME=${CUDA_STATIC_RUNTIME}")
 rapids_cuda_init_runtime(USE_STATIC ${CUDA_STATIC_RUNTIME})
 
 rapids_find_package(
-  CUDAToolkit REQUIRED
-  BUILD_EXPORT_SET cugraph-exports
-  INSTALL_EXPORT_SET cugraph-exports
+  CUDAToolkit REQUIRED BUILD_EXPORT_SET cugraph-exports INSTALL_EXPORT_SET cugraph-exports
 )
 
 if(BUILD_CUGRAPH_MTMG_TESTS)
@@ -640,20 +638,14 @@ cuGraph library is a collection of GPU accelerated graph algorithms that process
 )
 
 rapids_export(
-  INSTALL cugraph
-  EXPORT_SET cugraph-exports
-  GLOBAL_TARGETS cugraph cugraph_c
-  NAMESPACE cugraph::
+  INSTALL cugraph EXPORT_SET cugraph-exports GLOBAL_TARGETS cugraph cugraph_c NAMESPACE cugraph::
   DOCUMENTATION doc_string
 )
 
 # ##################################################################################################
 # * build export ---------------------------------------------------------------
 rapids_export(
-  BUILD cugraph
-  EXPORT_SET cugraph-exports
-  GLOBAL_TARGETS cugraph cugraph_c
-  NAMESPACE cugraph::
+  BUILD cugraph EXPORT_SET cugraph-exports GLOBAL_TARGETS cugraph cugraph_c NAMESPACE cugraph::
   DOCUMENTATION doc_string
 )
 

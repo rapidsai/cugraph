@@ -1,5 +1,5 @@
 # =============================================================================
-# Copyright (c) 2021-2024, NVIDIA CORPORATION.
+# Copyright (c) 2021-2025, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
 # in compliance with the License. You may obtain a copy of the License at
@@ -70,9 +70,7 @@ endif()
 rapids_cuda_init_runtime(USE_STATIC ${CUDA_STATIC_RUNTIME})
 
 rapids_find_package(
-  CUDAToolkit REQUIRED
-  BUILD_EXPORT_SET cugraph_etl-exports
-  INSTALL_EXPORT_SET cugraph_etl-exports
+  CUDAToolkit REQUIRED BUILD_EXPORT_SET cugraph_etl-exports INSTALL_EXPORT_SET cugraph_etl-exports
 )
 
 set(CUGRAPH_ETL_CXX_FLAGS "")
@@ -181,19 +179,13 @@ cuGraph.
 )
 
 rapids_export(
-  INSTALL cugraph_etl
-  EXPORT_SET cugraph_etl-exports
-  GLOBAL_TARGETS cugraph_etl
-  NAMESPACE cugraph::
+  INSTALL cugraph_etl EXPORT_SET cugraph_etl-exports GLOBAL_TARGETS cugraph_etl NAMESPACE cugraph::
   DOCUMENTATION doc_string
 )
 
 # ##################################################################################################
 # * build export ---------------------------------------------------------------
 rapids_export(
-  BUILD cugraph_etl
-  EXPORT_SET cugraph_etl-exports
-  GLOBAL_TARGETS cugraph cugraph_c cugraph_etl
-  NAMESPACE cugraph::
-  DOCUMENTATION doc_string
+  BUILD cugraph_etl EXPORT_SET cugraph_etl-exports GLOBAL_TARGETS cugraph cugraph_c cugraph_etl
+  NAMESPACE cugraph:: DOCUMENTATION doc_string
 )

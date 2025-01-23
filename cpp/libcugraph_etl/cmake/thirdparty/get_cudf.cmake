@@ -18,14 +18,24 @@ function(find_and_configure_cudf)
   cmake_parse_arguments(PKG "" "${oneValueArgs}" "" ${ARGN})
 
   rapids_cpm_find(
-    cudf ${PKG_VERSION}
-    GLOBAL_TARGETS cudf::cudf
-    BUILD_EXPORT_SET cugraph_etl-exports
-    INSTALL_EXPORT_SET cugraph_etl-exports
+    cudf
+    ${PKG_VERSION}
+    GLOBAL_TARGETS
+    cudf::cudf
+    BUILD_EXPORT_SET
+    cugraph_etl-exports
+    INSTALL_EXPORT_SET
+    cugraph_etl-exports
     CPM_ARGS
-    GIT_REPOSITORY https://github.com/${PKG_FORK}/cudf.git
-    GIT_TAG ${PKG_PINNED_TAG} SOURCE_SUBDIR cpp
-    OPTIONS "BUILD_BENCHMARKS OFF" "BUILD_TESTS OFF"
+    GIT_REPOSITORY
+    https://github.com/${PKG_FORK}/cudf.git
+    GIT_TAG
+    ${PKG_PINNED_TAG}
+    SOURCE_SUBDIR
+    cpp
+    OPTIONS
+    "BUILD_BENCHMARKS OFF"
+    "BUILD_TESTS OFF"
   )
 
   message(VERBOSE "CUGRAPH_ETL: Using CUDF located in ${cudf_SOURCE_DIR}")
