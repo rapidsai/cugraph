@@ -15,6 +15,7 @@
 set(cython_sources mg_connectivity_wrapper.pyx)
 set(linked_libraries cugraph::cugraph)
 rapids_cython_create_modules(
-  CXX SOURCE_FILES "${cython_sources}" LINKED_LIBRARIES "${linked_libraries}" MODULE_PREFIX
-  components_ ASSOCIATED_TARGETS cugraph
+  CXX
+  SOURCE_FILES "${cython_sources}"
+  LINKED_LIBRARIES "${linked_libraries}" MODULE_PREFIX components_ ASSOCIATED_TARGETS cugraph
 )

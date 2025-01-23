@@ -70,7 +70,9 @@ endif()
 rapids_cuda_init_runtime(USE_STATIC ${CUDA_STATIC_RUNTIME})
 
 rapids_find_package(
-  CUDAToolkit REQUIRED BUILD_EXPORT_SET cugraph_etl-exports INSTALL_EXPORT_SET cugraph_etl-exports
+  CUDAToolkit REQUIRED
+  BUILD_EXPORT_SET cugraph_etl-exports
+  INSTALL_EXPORT_SET cugraph_etl-exports
 )
 
 set(CUGRAPH_ETL_CXX_FLAGS "")
@@ -179,13 +181,19 @@ cuGraph.
 )
 
 rapids_export(
-  INSTALL cugraph_etl EXPORT_SET cugraph_etl-exports GLOBAL_TARGETS cugraph_etl NAMESPACE cugraph::
+  INSTALL cugraph_etl
+  EXPORT_SET cugraph_etl-exports
+  GLOBAL_TARGETS cugraph_etl
+  NAMESPACE cugraph::
   DOCUMENTATION doc_string
 )
 
 # ##################################################################################################
 # * build export ---------------------------------------------------------------
 rapids_export(
-  BUILD cugraph_etl EXPORT_SET cugraph_etl-exports GLOBAL_TARGETS cugraph cugraph_c cugraph_etl
-  NAMESPACE cugraph:: DOCUMENTATION doc_string
+  BUILD cugraph_etl
+  EXPORT_SET cugraph_etl-exports
+  GLOBAL_TARGETS cugraph cugraph_c cugraph_etl
+  NAMESPACE cugraph::
+  DOCUMENTATION doc_string
 )

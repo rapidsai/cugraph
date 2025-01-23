@@ -15,6 +15,7 @@
 set(cython_sources path_retrieval_wrapper.pyx)
 set(linked_libraries cugraph::cugraph)
 rapids_cython_create_modules(
-  CXX SOURCE_FILES "${cython_sources}" LINKED_LIBRARIES "${linked_libraries}" MODULE_PREFIX
-  utilities_ ASSOCIATED_TARGETS cugraph
+  CXX
+  SOURCE_FILES "${cython_sources}"
+  LINKED_LIBRARIES "${linked_libraries}" MODULE_PREFIX utilities_ ASSOCIATED_TARGETS cugraph
 )
