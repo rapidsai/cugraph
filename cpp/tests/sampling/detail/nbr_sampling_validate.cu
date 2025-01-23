@@ -28,6 +28,7 @@
 #include <rmm/device_scalar.hpp>
 #include <rmm/device_uvector.hpp>
 
+#include <cuda/std/functional>
 #include <thrust/count.h>
 #include <thrust/distance.h>
 #include <thrust/equal.h>
@@ -275,7 +276,7 @@ bool validate_sampling_depth(raft::handle_t const& handle,
                         tuple_iter + d_distances.size(),
                         d_distances.begin(),
                         [] __device__(auto tuple) {
-                          return thrust::min(thrust::get<0>(tuple), thrust::get<1>(tuple));
+                          return cuda::std::min(thrust::get<0>(tuple), thrust::get<1>(tuple));
                         });
     }
   }
