@@ -16,8 +16,8 @@ cmake_minimum_required(VERSION 3.26.4 FATAL_ERROR)
 
 include(../../rapids_config.cmake)
 
-# We always need CUDA for cuML because the raft dependency brings in a
-# header-only cuco dependency that enables CUDA unconditionally.
+# We always need CUDA for cuML because the raft dependency brings in a header-only cuco dependency
+# that enables CUDA unconditionally.
 include(rapids-cuda)
 rapids_cuda_init_architectures(pylibcugraph-python)
 
