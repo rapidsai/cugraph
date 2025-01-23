@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -447,7 +447,7 @@ ValueIterator mem_frugal_partition(
     value_first,
     value_last,
     value_group_id_less_t<typename thrust::iterator_traits<ValueIterator>::value_type,
-                            ValueToGroupIdOp>{value_to_group_id_op, pivot}));
+                          ValueToGroupIdOp>{value_to_group_id_op, pivot}));
   auto second_size  = num_elements - first_size;
 
   auto tmp_buffer =
