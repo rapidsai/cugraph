@@ -22,13 +22,15 @@ else()
   string(REPLACE "\n" "\n  " _rapids_version_formatted "  ${_rapids_version}")
   message(
     FATAL_ERROR
-      "Could not determine RAPIDS version. Contents of VERSION file:\n${_rapids_version_formatted}")
+      "Could not determine RAPIDS version. Contents of VERSION file:\n${_rapids_version_formatted}"
+  )
 endif()
 
 if(NOT EXISTS "${CMAKE_CURRENT_BINARY_DIR}/CUGRAPH_RAPIDS-${RAPIDS_VERSION_MAJOR_MINOR}.cmake")
   file(
     DOWNLOAD
     "https://raw.githubusercontent.com/rapidsai/rapids-cmake/branch-${RAPIDS_VERSION_MAJOR_MINOR}/RAPIDS.cmake"
-    "${CMAKE_CURRENT_BINARY_DIR}/CUGRAPH_RAPIDS-${RAPIDS_VERSION_MAJOR_MINOR}.cmake")
+    "${CMAKE_CURRENT_BINARY_DIR}/CUGRAPH_RAPIDS-${RAPIDS_VERSION_MAJOR_MINOR}.cmake"
+  )
 endif()
 include("${CMAKE_CURRENT_BINARY_DIR}/CUGRAPH_RAPIDS-${RAPIDS_VERSION_MAJOR_MINOR}.cmake")

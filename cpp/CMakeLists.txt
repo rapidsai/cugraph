@@ -25,16 +25,18 @@ include(rapids-find)
 
 rapids_cuda_init_architectures(CUGRAPH)
 
-project(CUGRAPH VERSION "${RAPIDS_VERSION}" LANGUAGES C CXX CUDA)
+project(
+  CUGRAPH
+  VERSION "${RAPIDS_VERSION}"
+  LANGUAGES C CXX CUDA
+)
 
-if(CMAKE_CUDA_COMPILER_ID STREQUAL "NVIDIA" AND
-   CMAKE_CUDA_COMPILER_VERSION VERSION_LESS 11.0)
-    message(FATAL_ERROR "CUDA compiler version must be at least 11.0")
+if(CMAKE_CUDA_COMPILER_ID STREQUAL "NVIDIA" AND CMAKE_CUDA_COMPILER_VERSION VERSION_LESS 11.0)
+  message(FATAL_ERROR "CUDA compiler version must be at least 11.0")
 endif()
 
-if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND
-   CMAKE_CXX_COMPILER_VERSION VERSION_LESS 9.3)
-    message(FATAL_ERROR "GCC compiler must be at least 9.3")
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 9.3)
+  message(FATAL_ERROR "GCC compiler must be at least 9.3")
 endif()
 
 # Write the version header
@@ -52,7 +54,9 @@ rapids_cmake_build_type(Release)
 
 option(BUILD_SHARED_LIBS "Build cuGraph shared libraries" ON)
 option(BUILD_CUGRAPH_MG_TESTS "Build cuGraph multigpu algorithm tests" OFF)
-option(CMAKE_CUDA_LINEINFO "Enable the -lineinfo option for nvcc (useful for cuda-memcheck / profiler" OFF)
+option(CMAKE_CUDA_LINEINFO
+       "Enable the -lineinfo option for nvcc (useful for cuda-memcheck / profiler" OFF
+)
 option(BUILD_TESTS "Configure CMake to build tests" ON)
 option(USE_RAFT_STATIC "Build raft as a static library" OFF)
 option(CUGRAPH_COMPILE_RAFT_LIB "Compile the raft library instead of using it header-only" ON)
@@ -66,19 +70,20 @@ message(VERBOSE "CUGRAPH: CUDA_STATIC_RUNTIME=${CUDA_STATIC_RUNTIME}")
 # CUDA runtime
 rapids_cuda_init_runtime(USE_STATIC ${CUDA_STATIC_RUNTIME})
 
-rapids_find_package(CUDAToolkit REQUIRED
-    BUILD_EXPORT_SET    cugraph-exports
-    INSTALL_EXPORT_SET  cugraph-exports
-    )
+rapids_find_package(
+  CUDAToolkit REQUIRED
+  BUILD_EXPORT_SET cugraph-exports
+  INSTALL_EXPORT_SET cugraph-exports
+)
 
-if (BUILD_CUGRAPH_MTMG_TESTS)
-    if(NOT TARGET ucx::ucp)
-        find_package(ucx REQUIRED)
-    endif()
+if(BUILD_CUGRAPH_MTMG_TESTS)
+  if(NOT TARGET ucx::ucp)
+    find_package(ucx REQUIRED)
+  endif()
 
-    if(NOT TARGET ucxx::ucxx)
-        find_package(ucxx REQUIRED)
-    endif()
+  if(NOT TARGET ucxx::ucxx)
+    find_package(ucxx REQUIRED)
+  endif()
 endif()
 
 set(CUGRAPH_C_FLAGS "")
@@ -86,27 +91,32 @@ set(CUGRAPH_CXX_FLAGS "")
 set(CUGRAPH_CUDA_FLAGS "")
 
 if(CMAKE_COMPILER_IS_GNUCXX)
-    list(APPEND CUGRAPH_CXX_FLAGS -Werror -Wno-error=deprecated-declarations -Wno-deprecated-declarations -DRAFT_HIDE_DEPRECATION_WARNINGS)
+  list(APPEND CUGRAPH_CXX_FLAGS -Werror -Wno-error=deprecated-declarations
+       -Wno-deprecated-declarations -DRAFT_HIDE_DEPRECATION_WARNINGS
+  )
 endif(CMAKE_COMPILER_IS_GNUCXX)
-
 
 message("-- Building for GPU_ARCHS = ${CMAKE_CUDA_ARCHITECTURES}")
 
 list(APPEND CUGRAPH_CUDA_FLAGS --expt-extended-lambda --expt-relaxed-constexpr)
-list(APPEND CUGRAPH_CUDA_FLAGS -Werror=cross-execution-space-call -Wno-deprecated-declarations -DRAFT_HIDE_DEPRECATION_WARNINGS -Xptxas=--disable-warnings)
-list(APPEND CUGRAPH_CUDA_FLAGS -Xcompiler=-Wall,-Wno-error=sign-compare,-Wno-error=unused-but-set-variable)
+list(APPEND CUGRAPH_CUDA_FLAGS -Werror=cross-execution-space-call -Wno-deprecated-declarations
+     -DRAFT_HIDE_DEPRECATION_WARNINGS -Xptxas=--disable-warnings
+)
+list(APPEND CUGRAPH_CUDA_FLAGS
+     -Xcompiler=-Wall,-Wno-error=sign-compare,-Wno-error=unused-but-set-variable
+)
 list(APPEND CUGRAPH_CUDA_FLAGS -Xfatbin=-compress-all)
 
 # Option to enable line info in CUDA device compilation to allow introspection when profiling /
 # memchecking
-if (CMAKE_CUDA_LINEINFO)
-    list(APPEND CUGRAPH_CUDA_FLAGS -lineinfo)
+if(CMAKE_CUDA_LINEINFO)
+  list(APPEND CUGRAPH_CUDA_FLAGS -lineinfo)
 endif()
 
 # Debug options
 if(CMAKE_BUILD_TYPE MATCHES Debug)
-    message(STATUS "Building with debugging flags")
-    list(APPEND CUGRAPH_CUDA_FLAGS -G -Xcompiler=-rdynamic)
+  message(STATUS "Building with debugging flags")
+  list(APPEND CUGRAPH_CUDA_FLAGS -G -Xcompiler=-rdynamic)
 endif()
 
 ###################################################################################################
@@ -431,35 +441,38 @@ set(CUGRAPH_SOURCES
 
 add_library(cugraph ${CUGRAPH_SOURCES})
 
-set_target_properties(cugraph
-    PROPERTIES BUILD_RPATH                         "\$ORIGIN"
-               INSTALL_RPATH                       "\$ORIGIN"
-               # set target compile options
-               CXX_STANDARD                        17
-               CXX_STANDARD_REQUIRED               ON
-               CUDA_STANDARD                       17
-               CUDA_STANDARD_REQUIRED              ON
-               POSITION_INDEPENDENT_CODE           ON
-               INTERFACE_POSITION_INDEPENDENT_CODE ON
+set_target_properties(
+  cugraph
+  PROPERTIES BUILD_RPATH "\$ORIGIN"
+             INSTALL_RPATH "\$ORIGIN"
+             # set target compile options
+             CXX_STANDARD 17
+             CXX_STANDARD_REQUIRED ON
+             CUDA_STANDARD 17
+             CUDA_STANDARD_REQUIRED ON
+             POSITION_INDEPENDENT_CODE ON
+             INTERFACE_POSITION_INDEPENDENT_CODE ON
 )
 
-target_compile_options(cugraph
-            PRIVATE "$<$<COMPILE_LANGUAGE:CXX>:${CUGRAPH_CXX_FLAGS}>"
-                    "$<$<COMPILE_LANGUAGE:CUDA>:${CUGRAPH_CUDA_FLAGS}>"
+target_compile_options(
+  cugraph PRIVATE "$<$<COMPILE_LANGUAGE:CXX>:${CUGRAPH_CXX_FLAGS}>"
+                  "$<$<COMPILE_LANGUAGE:CUDA>:${CUGRAPH_CUDA_FLAGS}>"
 )
 
 # Per-thread default stream option see https://docs.nvidia.com/cuda/cuda-runtime-api/stream-sync-behavior.html
 # The per-thread default stream does not synchronize with other streams
 target_compile_definitions(cugraph PUBLIC CUDA_API_PER_THREAD_DEFAULT_STREAM)
 
-file(WRITE "${CUGRAPH_BINARY_DIR}/fatbin.ld"
-[=[
+file(
+  WRITE "${CUGRAPH_BINARY_DIR}/fatbin.ld"
+  [=[
 SECTIONS
 {
   .nvFatBinSegment : { *(.nvFatBinSegment) }
   .nv_fatbin : { *(.nv_fatbin) }
 }
-]=])
+]=]
+)
 target_link_options(cugraph PRIVATE "${CUGRAPH_BINARY_DIR}/fatbin.ld")
 
 add_library(cugraph::cugraph ALIAS cugraph)
@@ -467,16 +480,13 @@ add_library(cugraph::cugraph ALIAS cugraph)
 ################################################################################
 # - include paths --------------------------------------------------------------
 
-target_include_directories(cugraph
-    PRIVATE
-        "${CMAKE_CURRENT_SOURCE_DIR}/../thirdparty"
-        "${CMAKE_CURRENT_SOURCE_DIR}/src"
-    PUBLIC
-        "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
-        "$<INSTALL_INTERFACE:include>"
+target_include_directories(
+  cugraph
+  PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../thirdparty" "${CMAKE_CURRENT_SOURCE_DIR}/src"
+  PUBLIC "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>" "$<INSTALL_INTERFACE:include>"
 )
 
-set(COMPILED_RAFT_LIB )
+set(COMPILED_RAFT_LIB)
 if(CUGRAPH_COMPILE_RAFT_LIB)
   set(COMPILED_RAFT_LIB raft::compiled)
   if(USE_RAFT_STATIC)
@@ -486,88 +496,84 @@ endif()
 
 ################################################################################
 # - link libraries -------------------------------------------------------------
-target_link_libraries(cugraph
-    PUBLIC
-        rmm::rmm
-        raft::raft
-        $<BUILD_LOCAL_INTERFACE:CUDA::toolkit>
-    PRIVATE
-        ${COMPILED_RAFT_LIB}
-        cuco::cuco
-        rmm::rmm_logger_impl
-        raft::raft_logger_impl
-    )
+target_link_libraries(
+  cugraph
+  PUBLIC rmm::rmm raft::raft $<BUILD_LOCAL_INTERFACE:CUDA::toolkit>
+  PRIVATE ${COMPILED_RAFT_LIB} cuco::cuco rmm::rmm_logger_impl raft::raft_logger_impl
+)
 
 ################################################################################
 # - C-API library --------------------------------------------------------------
 
-add_library(cugraph_c
-        src/c_api/resource_handle.cpp
-        src/c_api/array.cpp
-        src/c_api/degrees.cu
-        src/c_api/degrees_result.cpp
-        src/c_api/error.cpp
-        src/c_api/graph_sg.cpp
-        src/c_api/graph_mg.cpp
-        src/c_api/graph_functions.cpp
-        src/c_api/pagerank.cpp
-        src/c_api/katz.cpp
-        src/c_api/centrality_result.cpp
-        src/c_api/eigenvector_centrality.cpp
-        src/c_api/betweenness_centrality.cpp
-        src/c_api/core_number.cpp
-        src/c_api/k_truss.cpp
-        src/c_api/core_result.cpp
-        src/c_api/extract_ego.cpp
-        src/c_api/ecg.cpp
-        src/c_api/k_core.cpp
-        src/c_api/hierarchical_clustering_result.cpp
-        src/c_api/induced_subgraph.cpp
-        src/c_api/capi_helper.cu
-        src/c_api/legacy_spectral.cpp
-        src/c_api/graph_helper_sg.cu
-        src/c_api/graph_helper_mg.cu
-        src/c_api/graph_generators.cpp
-        src/c_api/induced_subgraph_result.cpp
-        src/c_api/hits.cpp
-        src/c_api/bfs.cpp
-        src/c_api/sssp.cpp
-        src/c_api/extract_paths.cpp
-        src/c_api/random_walks.cpp
-        src/c_api/random.cpp
-        src/c_api/similarity.cpp
-        src/c_api/leiden.cpp
-        src/c_api/lookup_src_dst.cpp
-        src/c_api/louvain.cpp
-        src/c_api/triangle_count.cpp
-        src/c_api/neighbor_sampling.cpp
-        src/c_api/negative_sampling.cpp
-        src/c_api/labeling_result.cpp
-        src/c_api/weakly_connected_components.cpp
-        src/c_api/strongly_connected_components.cpp
-        src/c_api/allgather.cpp
-        src/c_api/decompress_to_edgelist.cpp
-        src/c_api/edgelist.cpp
-        )
+add_library(
+  cugraph_c
+  src/c_api/resource_handle.cpp
+  src/c_api/array.cpp
+  src/c_api/degrees.cu
+  src/c_api/degrees_result.cpp
+  src/c_api/error.cpp
+  src/c_api/graph_sg.cpp
+  src/c_api/graph_mg.cpp
+  src/c_api/graph_functions.cpp
+  src/c_api/pagerank.cpp
+  src/c_api/katz.cpp
+  src/c_api/centrality_result.cpp
+  src/c_api/eigenvector_centrality.cpp
+  src/c_api/betweenness_centrality.cpp
+  src/c_api/core_number.cpp
+  src/c_api/k_truss.cpp
+  src/c_api/core_result.cpp
+  src/c_api/extract_ego.cpp
+  src/c_api/ecg.cpp
+  src/c_api/k_core.cpp
+  src/c_api/hierarchical_clustering_result.cpp
+  src/c_api/induced_subgraph.cpp
+  src/c_api/capi_helper.cu
+  src/c_api/legacy_spectral.cpp
+  src/c_api/graph_helper_sg.cu
+  src/c_api/graph_helper_mg.cu
+  src/c_api/graph_generators.cpp
+  src/c_api/induced_subgraph_result.cpp
+  src/c_api/hits.cpp
+  src/c_api/bfs.cpp
+  src/c_api/sssp.cpp
+  src/c_api/extract_paths.cpp
+  src/c_api/random_walks.cpp
+  src/c_api/random.cpp
+  src/c_api/similarity.cpp
+  src/c_api/leiden.cpp
+  src/c_api/lookup_src_dst.cpp
+  src/c_api/louvain.cpp
+  src/c_api/triangle_count.cpp
+  src/c_api/neighbor_sampling.cpp
+  src/c_api/negative_sampling.cpp
+  src/c_api/labeling_result.cpp
+  src/c_api/weakly_connected_components.cpp
+  src/c_api/strongly_connected_components.cpp
+  src/c_api/allgather.cpp
+  src/c_api/decompress_to_edgelist.cpp
+  src/c_api/edgelist.cpp
+)
 add_library(cugraph::cugraph_c ALIAS cugraph_c)
 
 # Currently presuming we aren't calling any CUDA kernels in cugraph_c
 
-set_target_properties(cugraph_c
-    PROPERTIES BUILD_RPATH                         "\$ORIGIN"
-               INSTALL_RPATH                       "\$ORIGIN"
-               # set target compile options
-               CXX_STANDARD                        17
-               CXX_STANDARD_REQUIRED               ON
-               CUDA_STANDARD                       17
-               CUDA_STANDARD_REQUIRED              ON
-               POSITION_INDEPENDENT_CODE           ON
-               INTERFACE_POSITION_INDEPENDENT_CODE ON
+set_target_properties(
+  cugraph_c
+  PROPERTIES BUILD_RPATH "\$ORIGIN"
+             INSTALL_RPATH "\$ORIGIN"
+             # set target compile options
+             CXX_STANDARD 17
+             CXX_STANDARD_REQUIRED ON
+             CUDA_STANDARD 17
+             CUDA_STANDARD_REQUIRED ON
+             POSITION_INDEPENDENT_CODE ON
+             INTERFACE_POSITION_INDEPENDENT_CODE ON
 )
 
-target_compile_options(cugraph_c
-             PRIVATE "$<$<COMPILE_LANGUAGE:CXX>:${CUGRAPH_CXX_FLAGS}>"
-                     "$<$<COMPILE_LANGUAGE:CUDA>:${CUGRAPH_CUDA_FLAGS}>"
+target_compile_options(
+  cugraph_c PRIVATE "$<$<COMPILE_LANGUAGE:CXX>:${CUGRAPH_CXX_FLAGS}>"
+                    "$<$<COMPILE_LANGUAGE:CUDA>:${CUGRAPH_CUDA_FLAGS}>"
 )
 
 # Per-thread default stream option see https://docs.nvidia.com/cuda/cuda-runtime-api/stream-sync-behavior.html
@@ -578,12 +584,10 @@ target_link_options(cugraph_c PRIVATE "${CUGRAPH_BINARY_DIR}/fatbin.ld")
 
 ################################################################################
 # - C-API include paths --------------------------------------------------------
-target_include_directories(cugraph_c
-    PRIVATE
-        "${CMAKE_CURRENT_SOURCE_DIR}/src"
-    PUBLIC
-        "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
-        "$<INSTALL_INTERFACE:include>"
+target_include_directories(
+  cugraph_c
+  PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src"
+  PUBLIC "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>" "$<INSTALL_INTERFACE:include>"
 )
 
 ################################################################################
@@ -600,56 +604,63 @@ endif()
 
 ################################################################################
 # - install targets ------------------------------------------------------------
-rapids_cmake_install_lib_dir( lib_dir )
+rapids_cmake_install_lib_dir(lib_dir)
 include(CPack)
 
-install(TARGETS cugraph
-        DESTINATION ${lib_dir}
-        EXPORT cugraph-exports)
+install(
+  TARGETS cugraph
+  DESTINATION ${lib_dir}
+  EXPORT cugraph-exports
+)
 
-install(DIRECTORY include/cugraph/
-        DESTINATION include/cugraph)
+install(DIRECTORY include/cugraph/ DESTINATION include/cugraph)
 
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/include/cugraph/version_config.hpp
-        DESTINATION include/cugraph)
+        DESTINATION include/cugraph
+)
 
-install(TARGETS cugraph_c
-        DESTINATION ${lib_dir}
-        EXPORT cugraph-exports)
+install(
+  TARGETS cugraph_c
+  DESTINATION ${lib_dir}
+  EXPORT cugraph-exports
+)
 
-install(DIRECTORY include/cugraph_c/
-        DESTINATION include/cugraph_c)
+install(DIRECTORY include/cugraph_c/ DESTINATION include/cugraph_c)
 
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/include/cugraph_c/version_config.hpp
-        DESTINATION include/cugraph_c)
+        DESTINATION include/cugraph_c
+)
 
 ################################################################################
 # - install export -------------------------------------------------------------
 
 set(doc_string
-[=[
+    [=[
 Provide targets for cuGraph.
 
 cuGraph library is a collection of GPU accelerated graph algorithms that process data found in
 [GPU DataFrames](https://github.com/rapidsai/cudf).
 
-]=])
+]=]
+)
 
-rapids_export(INSTALL cugraph
-    EXPORT_SET cugraph-exports
-    GLOBAL_TARGETS cugraph cugraph_c
-    NAMESPACE cugraph::
-    DOCUMENTATION doc_string
-    )
+rapids_export(
+  INSTALL cugraph
+  EXPORT_SET cugraph-exports
+  GLOBAL_TARGETS cugraph cugraph_c
+  NAMESPACE cugraph::
+  DOCUMENTATION doc_string
+)
 
 ################################################################################
 # - build export ---------------------------------------------------------------
-rapids_export(BUILD cugraph
-    EXPORT_SET cugraph-exports
-    GLOBAL_TARGETS cugraph cugraph_c
-    NAMESPACE cugraph::
-    DOCUMENTATION doc_string
-    )
+rapids_export(
+  BUILD cugraph
+  EXPORT_SET cugraph-exports
+  GLOBAL_TARGETS cugraph cugraph_c
+  NAMESPACE cugraph::
+  DOCUMENTATION doc_string
+)
 
 ################################################################################
 # - make documentation ---------------------------------------------------------
@@ -659,10 +670,13 @@ rapids_export(BUILD cugraph
 # doc targets for cugraph
 find_package(Doxygen 1.8.11)
 if(Doxygen_FOUND)
-    add_custom_command(OUTPUT CUGRAPH_DOXYGEN
-                       WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/doxygen
-                       COMMAND ${CMAKE_COMMAND} -E env "RAPIDS_VERSION_MAJOR_MINOR=${RAPIDS_VERSION_MAJOR_MINOR}" doxygen Doxyfile
-                       VERBATIM)
+  add_custom_command(
+    OUTPUT CUGRAPH_DOXYGEN
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/doxygen
+    COMMAND ${CMAKE_COMMAND} -E env "RAPIDS_VERSION_MAJOR_MINOR=${RAPIDS_VERSION_MAJOR_MINOR}"
+            doxygen Doxyfile
+    VERBATIM
+  )
 
-    add_custom_target(docs_cugraph DEPENDS CUGRAPH_DOXYGEN)
+  add_custom_target(docs_cugraph DEPENDS CUGRAPH_DOXYGEN)
 endif()

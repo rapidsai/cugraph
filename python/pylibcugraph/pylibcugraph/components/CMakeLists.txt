@@ -12,9 +12,7 @@
 # the License.
 # =============================================================================
 
-set(cython_sources
-    _connectivity.pyx
-)
+set(cython_sources _connectivity.pyx)
 set(linked_libraries cugraph::cugraph)
 
 rapids_cython_create_modules(

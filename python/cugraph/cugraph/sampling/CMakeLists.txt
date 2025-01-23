@@ -17,6 +17,7 @@ set(linked_libraries cugraph::cugraph)
 rapids_cython_create_modules(
   CXX
   SOURCE_FILES "${cython_sources}"
-  LINKED_LIBRARIES "${linked_libraries}" MODULE_PREFIX sampling_
+  LINKED_LIBRARIES "${linked_libraries}"
+  MODULE_PREFIX sampling_
   ASSOCIATED_TARGETS cugraph
 )

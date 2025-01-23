@@ -11,8 +11,19 @@
                     "OPTIONS": "*",
                     "FIND_PACKAGE_ARGUMENTS": "*"
                 }
+            },
+            "rapids_cython_create_modules": {
+                "kwargs": {
+                    "SOURCE_FILES": "?",
+                    "LINKED_LIBRARIES": "?",
+                    "MODULE_PREFIX": "?",
+                    "ASSOCIATED_TARGETS": "?"
+                }
             }
         }
+    },
+    "markup": {
+        "enable_markup": false
     },
     "format": {
         "line_width": 100,

@@ -12,11 +12,7 @@
 # the License.
 # =============================================================================
 
-set(cython_sources
-    sampling_result.pyx
-    coo.pyx
-    edge_id_lookup_result.pyx
-)
+set(cython_sources sampling_result.pyx coo.pyx edge_id_lookup_result.pyx)
 set(linked_libraries cugraph::cugraph;cugraph::cugraph_c)
 
 rapids_cython_create_modules(
