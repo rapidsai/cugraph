@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, NVIDIA CORPORATION.
+ * Copyright (c) 2024-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -52,7 +52,8 @@ rmm::device_uvector<vertex_t> vertex_coloring(
     edge_src_dummy_property_t{}.view(),
     edge_dst_dummy_property_t{}.view(),
     cugraph::edge_dummy_property_t{}.view(),
-    [] __device__(auto src, auto dst, thrust::nullopt_t, thrust::nullopt_t, thrust::nullopt_t) {
+    [] __device__(
+      auto src, auto dst, cuda::std::nullopt_t, cuda::std::nullopt_t, cuda::std::nullopt_t) {
       return !(src == dst);  // mask out self-loop
     },
     edge_masks_even.mutable_view());
@@ -119,7 +120,7 @@ rmm::device_uvector<vertex_t> vertex_coloring(
                                        is_vertex_in_mis.begin(), vertex_t{0}),
         cugraph::edge_dummy_property_t{}.view(),
         [color_id] __device__(
-          auto src, auto dst, auto is_src_in_mis, auto is_dst_in_mis, thrust::nullopt_t) {
+          auto src, auto dst, auto is_src_in_mis, auto is_dst_in_mis, cuda::std::nullopt_t) {
           return !((is_src_in_mis == uint8_t{true}) || (is_dst_in_mis == uint8_t{true}));
         },
         edge_masks_odd.mutable_view());
@@ -140,7 +141,7 @@ rmm::device_uvector<vertex_t> vertex_coloring(
                                        is_vertex_in_mis.begin(), vertex_t{0}),
         cugraph::edge_dummy_property_t{}.view(),
         [color_id] __device__(
-          auto src, auto dst, auto is_src_in_mis, auto is_dst_in_mis, thrust::nullopt_t) {
+          auto src, auto dst, auto is_src_in_mis, auto is_dst_in_mis, cuda::std::nullopt_t) {
           return !((is_src_in_mis == uint8_t{true}) || (is_dst_in_mis == uint8_t{true}));
         },
         edge_masks_even.mutable_view());

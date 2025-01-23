@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2023-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -106,7 +106,7 @@ std::tuple<rmm::device_uvector<vertex_t>, size_t, weight_t> ecg(
     edge_dst_dummy_property_t{}.view(),
     view_concat(*edge_weight_view, modified_edge_weights.view()),
     [min_weight, ensemble_size = static_cast<weight_t>(ensemble_size)] __device__(
-      auto, auto, thrust::nullopt_t, thrust::nullopt_t, auto edge_properties) {
+      auto, auto, cuda::std::nullopt_t, cuda::std::nullopt_t, auto edge_properties) {
       auto e_weight    = thrust::get<0>(edge_properties);
       auto e_frequency = thrust::get<1>(edge_properties);
       return min_weight + (e_weight - min_weight) * e_frequency / ensemble_size;

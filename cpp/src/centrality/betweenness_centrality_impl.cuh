@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -36,8 +36,8 @@
 
 #include <raft/core/handle.hpp>
 
+#include <cuda/std/optional>
 #include <thrust/functional.h>
-#include <thrust/optional.h>
 #include <thrust/reduce.h>
 
 //
@@ -52,10 +52,11 @@ struct brandes_e_op_t {
   const vertex_t invalid_distance_{std::numeric_limits<vertex_t>::max()};
 
   template <typename value_t, typename ignore_t>
-  __device__ thrust::optional<value_t> operator()(
+  __device__ cuda::std::optional<value_t> operator()(
     vertex_t, vertex_t, value_t src_sigma, vertex_t dst_distance, ignore_t) const
   {
-    return (dst_distance == invalid_distance_) ? thrust::make_optional(src_sigma) : thrust::nullopt;
+    return (dst_distance == invalid_distance_) ? cuda::std::make_optional(src_sigma)
+                                               : cuda::std::nullopt;
   }
 };
 
@@ -64,7 +65,7 @@ struct extract_edge_e_op_t {
   vertex_t d{};
 
   template <typename edge_t, typename weight_t>
-  __device__ thrust::optional<thrust::tuple<vertex_t, vertex_t>> operator()(
+  __device__ cuda::std::optional<thrust::tuple<vertex_t, vertex_t>> operator()(
     vertex_t src,
     vertex_t dst,
     thrust::tuple<vertex_t, edge_t, weight_t> src_props,
@@ -72,8 +73,8 @@ struct extract_edge_e_op_t {
     weight_t edge_centrality) const
   {
     return ((thrust::get<0>(dst_props) == d) && (thrust::get<0>(src_props) == (d - 1)))
-             ? thrust::optional<thrust::tuple<vertex_t, vertex_t>>{thrust::make_tuple(src, dst)}
-             : thrust::nullopt;
+             ? cuda::std::optional<thrust::tuple<vertex_t, vertex_t>>{thrust::make_tuple(src, dst)}
+             : cuda::std::nullopt;
   }
 };
 
@@ -153,8 +154,8 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<edge_t>> brandes_b
                       thrust::make_zip_iterator(distances.begin(), sigmas.begin()),
                       [hop] __device__(auto v, auto old_values, auto v_sigma) {
                         return thrust::make_tuple(
-                          thrust::make_optional(bucket_idx_next),
-                          thrust::make_optional(thrust::make_tuple(hop + 1, v_sigma)));
+                          cuda::std::make_optional(bucket_idx_next),
+                          cuda::std::make_optional(thrust::make_tuple(hop + 1, v_sigma)));
                       });
 
     vertex_frontier.bucket(bucket_idx_cur).clear();

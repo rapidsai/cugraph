@@ -27,6 +27,7 @@
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/host_scalar_comm.hpp>
 
+#include <cuda/std/optional>
 #include <thrust/binary_search.h>
 #include <thrust/copy.h>
 #include <thrust/count.h>
@@ -34,7 +35,6 @@
 #include <thrust/execution_policy.h>
 #include <thrust/fill.h>
 #include <thrust/iterator/transform_iterator.h>
-#include <thrust/optional.h>
 #include <thrust/scatter.h>
 #include <thrust/sort.h>
 #include <thrust/transform.h>
@@ -64,19 +64,20 @@ struct is_two_or_greater_t {
 
 template <typename vertex_t, typename edge_t>
 struct extract_low_to_high_degree_edges_t {
-  __device__ thrust::optional<thrust::tuple<vertex_t, vertex_t>> operator()(vertex_t src,
-                                                                            vertex_t dst,
-                                                                            edge_t src_out_degree,
-                                                                            edge_t dst_out_degree,
-                                                                            thrust::nullopt_t) const
+  __device__ cuda::std::optional<thrust::tuple<vertex_t, vertex_t>> operator()(
+    vertex_t src,
+    vertex_t dst,
+    edge_t src_out_degree,
+    edge_t dst_out_degree,
+    cuda::std::nullopt_t) const
   {
     return (src_out_degree < dst_out_degree)
-             ? thrust::optional<thrust::tuple<vertex_t, vertex_t>>{thrust::make_tuple(src, dst)}
+             ? cuda::std::optional<thrust::tuple<vertex_t, vertex_t>>{thrust::make_tuple(src, dst)}
              : (((src_out_degree == dst_out_degree) &&
                  (src < dst) /* tie-breaking using vertex ID */)
-                  ? thrust::optional<thrust::tuple<vertex_t, vertex_t>>{thrust::make_tuple(src,
-                                                                                           dst)}
-                  : thrust::nullopt);
+                  ? cuda::std::optional<thrust::tuple<vertex_t, vertex_t>>{thrust::make_tuple(src,
+                                                                                              dst)}
+                  : cuda::std::nullopt);
   }
 };
 
@@ -85,8 +86,8 @@ struct intersection_op_t {
   __device__ thrust::tuple<edge_t, edge_t, edge_t> operator()(
     vertex_t,
     vertex_t,
-    thrust::nullopt_t,
-    thrust::nullopt_t,
+    cuda::std::nullopt_t,
+    cuda::std::nullopt_t,
     raft::device_span<vertex_t const> intersection) const
   {
     return thrust::make_tuple(static_cast<edge_t>(intersection.size()),

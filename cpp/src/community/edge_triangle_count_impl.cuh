@@ -353,9 +353,9 @@ edge_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>, edge_t> edge_t
      num_edges     = edgelist_srcs.size(),
      num_triangles = num_triangles.data()] __device__(auto src,
                                                       auto dst,
-                                                      thrust::nullopt_t,
-                                                      thrust::nullopt_t,
-                                                      thrust::nullopt_t) {
+                                                      cuda::std::nullopt_t,
+                                                      cuda::std::nullopt_t,
+                                                      cuda::std::nullopt_t) {
       auto pair = thrust::make_tuple(src, dst);
 
       // Find its position in 'edges'

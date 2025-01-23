@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,10 +26,10 @@
 #include <rmm/device_uvector.hpp>
 #include <rmm/exec_policy.hpp>
 
+#include <cuda/std/optional>
 #include <thrust/binary_search.h>
 #include <thrust/distance.h>
 #include <thrust/execution_policy.h>
-#include <thrust/optional.h>
 #include <thrust/transform.h>
 #include <thrust/transform_reduce.h>
 #include <thrust/tuple.h>
@@ -43,7 +43,7 @@ namespace cugraph {
 namespace detail {
 
 template <typename vertex_t>
-__device__ thrust::optional<vertex_t> major_hypersparse_idx_from_major_nocheck_impl(
+__device__ cuda::std::optional<vertex_t> major_hypersparse_idx_from_major_nocheck_impl(
   raft::device_span<vertex_t const> dcs_nzd_vertices, vertex_t major)
 {
   // we can avoid binary search (and potentially improve performance) if we add an auxiliary array
@@ -51,10 +51,10 @@ __device__ thrust::optional<vertex_t> major_hypersparse_idx_from_major_nocheck_i
   auto it =
     thrust::lower_bound(thrust::seq, dcs_nzd_vertices.begin(), dcs_nzd_vertices.end(), major);
   return it != dcs_nzd_vertices.end()
-           ? (*it == major ? thrust::optional<vertex_t>{static_cast<vertex_t>(
+           ? (*it == major ? cuda::std::optional<vertex_t>{static_cast<vertex_t>(
                                thrust::distance(dcs_nzd_vertices.begin(), it))}
-                           : thrust::nullopt)
-           : thrust::nullopt;
+                           : cuda::std::nullopt)
+           : cuda::std::nullopt;
 }
 
 template <typename vertex_t, typename edge_t, typename return_type_t, bool multi_gpu, bool use_dcs>
@@ -490,7 +490,7 @@ class edge_partition_device_view_t<vertex_t, edge_t, multi_gpu, std::enable_if_t
     return major_value_start_offset_;
   }
 
-  __host__ __device__ thrust::optional<vertex_t> major_hypersparse_first() const noexcept
+  __host__ __device__ cuda::std::optional<vertex_t> major_hypersparse_first() const noexcept
   {
     return major_hypersparse_first_;
   }
@@ -528,15 +528,16 @@ class edge_partition_device_view_t<vertex_t, edge_t, multi_gpu, std::enable_if_t
     return major_range_first_ + major_offset;
   }
 
-  __device__ thrust::optional<vertex_t> major_idx_from_major_nocheck(vertex_t major) const noexcept
+  __device__ cuda::std::optional<vertex_t> major_idx_from_major_nocheck(
+    vertex_t major) const noexcept
   {
     if (major_hypersparse_first_ && (major >= *major_hypersparse_first_)) {
       auto major_hypersparse_idx =
         detail::major_hypersparse_idx_from_major_nocheck_impl(*dcs_nzd_vertices_, major);
       return major_hypersparse_idx
-               ? thrust::make_optional((*major_hypersparse_first_ - major_range_first_) +
-                                       *major_hypersparse_idx)
-               : thrust::nullopt;
+               ? cuda::std::make_optional((*major_hypersparse_first_ - major_range_first_) +
+                                          *major_hypersparse_idx)
+               : cuda::std::nullopt;
     } else {
       return major - major_range_first_;
     }
@@ -554,23 +555,23 @@ class edge_partition_device_view_t<vertex_t, edge_t, multi_gpu, std::enable_if_t
   }
 
   // major_hypersparse_idx: index within the hypersparse segment
-  __device__ thrust::optional<vertex_t> major_hypersparse_idx_from_major_nocheck(
+  __device__ cuda::std::optional<vertex_t> major_hypersparse_idx_from_major_nocheck(
     vertex_t major) const noexcept
   {
     if (dcs_nzd_vertices_) {
       return detail::major_hypersparse_idx_from_major_nocheck_impl(*dcs_nzd_vertices_, major);
     } else {
-      return thrust::nullopt;
+      return cuda::std::nullopt;
     }
   }
 
   // major_hypersparse_idx: index within the hypersparse segment
-  __device__ thrust::optional<vertex_t> major_from_major_hypersparse_idx_nocheck(
+  __device__ cuda::std::optional<vertex_t> major_from_major_hypersparse_idx_nocheck(
     vertex_t major_hypersparse_idx) const noexcept
   {
     return dcs_nzd_vertices_
-             ? thrust::optional<vertex_t>{(*dcs_nzd_vertices_)[major_hypersparse_idx]}
-             : thrust::nullopt;
+             ? cuda::std::optional<vertex_t>{(*dcs_nzd_vertices_)[major_hypersparse_idx]}
+             : cuda::std::nullopt;
   }
 
   __host__ __device__ vertex_t minor_from_minor_offset_nocheck(vertex_t minor_offset) const noexcept
@@ -578,36 +579,36 @@ class edge_partition_device_view_t<vertex_t, edge_t, multi_gpu, std::enable_if_t
     return minor_range_first_ + minor_offset;
   }
 
-  // FIxME: better return thrust::optional<raft::device_span<vertex_t const>> for consistency (see
-  // dcs_nzd_range_bitmap())
-  __host__ __device__ thrust::optional<vertex_t const*> dcs_nzd_vertices() const
+  // FIxME: better return cuda::std::optional<raft::device_span<vertex_t const>> for consistency
+  // (see dcs_nzd_range_bitmap())
+  __host__ __device__ cuda::std::optional<vertex_t const*> dcs_nzd_vertices() const
   {
-    return dcs_nzd_vertices_ ? thrust::optional<vertex_t const*>{(*dcs_nzd_vertices_).data()}
-                             : thrust::nullopt;
+    return dcs_nzd_vertices_ ? cuda::std::optional<vertex_t const*>{(*dcs_nzd_vertices_).data()}
+                             : cuda::std::nullopt;
   }
 
-  __host__ __device__ thrust::optional<vertex_t> dcs_nzd_vertex_count() const
+  __host__ __device__ cuda::std::optional<vertex_t> dcs_nzd_vertex_count() const
   {
     return dcs_nzd_vertices_
-             ? thrust::optional<vertex_t>{static_cast<vertex_t>((*dcs_nzd_vertices_).size())}
-             : thrust::nullopt;
+             ? cuda::std::optional<vertex_t>{static_cast<vertex_t>((*dcs_nzd_vertices_).size())}
+             : cuda::std::nullopt;
   }
 
-  __host__ __device__ thrust::optional<raft::device_span<uint32_t const>> dcs_nzd_range_bitmap()
+  __host__ __device__ cuda::std::optional<raft::device_span<uint32_t const>> dcs_nzd_range_bitmap()
     const
   {
     return dcs_nzd_range_bitmap_
-             ? thrust::make_optional<raft::device_span<uint32_t const>>(
+             ? cuda::std::make_optional<raft::device_span<uint32_t const>>(
                  (*dcs_nzd_range_bitmap_).data(), (*dcs_nzd_range_bitmap_).size())
-             : thrust::nullopt;
+             : cuda::std::nullopt;
   }
 
  private:
   // should be trivially copyable to device
 
-  thrust::optional<raft::device_span<vertex_t const>> dcs_nzd_vertices_{thrust::nullopt};
-  thrust::optional<raft::device_span<uint32_t const>> dcs_nzd_range_bitmap_{thrust::nullopt};
-  thrust::optional<vertex_t> major_hypersparse_first_{thrust::nullopt};
+  cuda::std::optional<raft::device_span<vertex_t const>> dcs_nzd_vertices_{cuda::std::nullopt};
+  cuda::std::optional<raft::device_span<uint32_t const>> dcs_nzd_range_bitmap_{cuda::std::nullopt};
+  cuda::std::optional<vertex_t> major_hypersparse_first_{cuda::std::nullopt};
 
   vertex_t major_range_first_{0};
   vertex_t major_range_last_{0};
@@ -790,10 +791,10 @@ class edge_partition_device_view_t<vertex_t, edge_t, multi_gpu, std::enable_if_t
 
   __host__ __device__ vertex_t major_value_start_offset() const { return vertex_t{0}; }
 
-  __host__ __device__ thrust::optional<vertex_t> major_hypersparse_first() const noexcept
+  __host__ __device__ cuda::std::optional<vertex_t> major_hypersparse_first() const noexcept
   {
     assert(false);
-    return thrust::nullopt;
+    return cuda::std::nullopt;
   }
 
   __host__ __device__ constexpr vertex_t major_range_first() const noexcept { return vertex_t{0}; }
@@ -823,7 +824,8 @@ class edge_partition_device_view_t<vertex_t, edge_t, multi_gpu, std::enable_if_t
     return major_offset;
   }
 
-  __device__ thrust::optional<vertex_t> major_idx_from_major_nocheck(vertex_t major) const noexcept
+  __device__ cuda::std::optional<vertex_t> major_idx_from_major_nocheck(
+    vertex_t major) const noexcept
   {
     return major_offset_from_major_nocheck(major);
   }
@@ -834,19 +836,19 @@ class edge_partition_device_view_t<vertex_t, edge_t, multi_gpu, std::enable_if_t
   }
 
   // major_hypersparse_idx: index within the hypersparse segment
-  __device__ thrust::optional<vertex_t> major_hypersparse_idx_from_major_nocheck(
+  __device__ cuda::std::optional<vertex_t> major_hypersparse_idx_from_major_nocheck(
     vertex_t major) const noexcept
   {
     assert(false);
-    return thrust::nullopt;
+    return cuda::std::nullopt;
   }
 
   // major_hypersparse_idx: index within the hypersparse segment
-  __device__ thrust::optional<vertex_t> major_from_major_hypersparse_idx_nocheck(
+  __device__ cuda::std::optional<vertex_t> major_from_major_hypersparse_idx_nocheck(
     vertex_t major_hypersparse_idx) const noexcept
   {
     assert(false);
-    return thrust::nullopt;
+    return cuda::std::nullopt;
   }
 
   __host__ __device__ vertex_t minor_from_minor_offset_nocheck(vertex_t minor_offset) const noexcept
@@ -854,14 +856,14 @@ class edge_partition_device_view_t<vertex_t, edge_t, multi_gpu, std::enable_if_t
     return minor_offset;
   }
 
-  __host__ __device__ thrust::optional<vertex_t const*> dcs_nzd_vertices() const
+  __host__ __device__ cuda::std::optional<vertex_t const*> dcs_nzd_vertices() const
   {
-    return thrust::nullopt;
+    return cuda::std::nullopt;
   }
 
-  __host__ __device__ thrust::optional<vertex_t> dcs_nzd_vertex_count() const
+  __host__ __device__ cuda::std::optional<vertex_t> dcs_nzd_vertex_count() const
   {
-    return thrust::nullopt;
+    return cuda::std::nullopt;
   }
 
  private:

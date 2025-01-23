@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, NVIDIA CORPORATION.
+ * Copyright (c) 2024-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -370,7 +370,7 @@ EdgeTypeAndIdToSrcDstLookupContainerType build_edge_id_and_type_to_src_dst_looku
   EdgeIdInputWrapper edge_id_view,
   EdgeTypeInputWrapper edge_type_view)
 {
-  static_assert(!std::is_same_v<typename EdgeIdInputWrapper::value_type, thrust::nullopt_t>,
+  static_assert(!std::is_same_v<typename EdgeIdInputWrapper::value_type, cuda::std::nullopt_t>,
                 "Can not create edge id lookup table without edge ids");
 
   using vertex_t    = typename GraphViewType::vertex_type;
@@ -411,17 +411,17 @@ EdgeTypeAndIdToSrcDstLookupContainerType build_edge_id_and_type_to_src_dst_looku
         cugraph::edge_src_dummy_property_t{}.view(),
         cugraph::edge_dst_dummy_property_t{}.view(),
         view_concat(edge_id_view, edge_type_view),
-        cuda::proclaim_return_type<thrust::optional<thrust::tuple<int, edge_type_t>>>(
+        cuda::proclaim_return_type<cuda::std::optional<thrust::tuple<int, edge_type_t>>>(
           [key_func =
              cugraph::detail::compute_gpu_id_from_ext_edge_id_t<edge_t>{
                comm_size,
                major_comm_size,
                minor_comm_size}] __device__(auto,
                                             auto,
-                                            thrust::nullopt_t,
-                                            thrust::nullopt_t,
+                                            cuda::std::nullopt_t,
+                                            cuda::std::nullopt_t,
                                             thrust::tuple<edge_t, edge_type_t> id_and_type) {
-            return thrust::optional<thrust::tuple<int, edge_type_t>>{thrust::make_tuple(
+            return cuda::std::optional<thrust::tuple<int, edge_type_t>>{thrust::make_tuple(
               key_func(thrust::get<0>(id_and_type)), thrust::get<1>(id_and_type))};
           }));
 
@@ -518,9 +518,9 @@ EdgeTypeAndIdToSrcDstLookupContainerType build_edge_id_and_type_to_src_dst_looku
       cugraph::edge_src_dummy_property_t{}.view(),
       cugraph::edge_dst_dummy_property_t{}.view(),
       edge_type_view,
-      cuda::proclaim_return_type<thrust::optional<edge_type_t>>(
-        [] __device__(auto, auto, thrust::nullopt_t, thrust::nullopt_t, edge_type_t et) {
-          return thrust::optional<edge_type_t>{et};
+      cuda::proclaim_return_type<cuda::std::optional<edge_type_t>>(
+        [] __device__(auto, auto, cuda::std::nullopt_t, cuda::std::nullopt_t, edge_type_t et) {
+          return cuda::std::optional<edge_type_t>{et};
         }));
 
     thrust::sort(handle.get_thrust_policy(), edge_types.begin(), edge_types.end());

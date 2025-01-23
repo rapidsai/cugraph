@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, NVIDIA CORPORATION.
+ * Copyright (c) 2024-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -130,7 +130,7 @@ class Tests_MGGraphColoring
                   : cugraph::detail::edge_minor_property_view_t<vertex_t, vertex_t const*>(
                       d_colors.data(), vertex_t{0}),
         cugraph::edge_dummy_property_t{}.view(),
-        [] __device__(auto src, auto dst, auto src_color, auto dst_color, thrust::nullopt_t) {
+        [] __device__(auto src, auto dst, auto src_color, auto dst_color, cuda::std::nullopt_t) {
           if ((src != dst) && (src_color == dst_color)) {
             return uint8_t{1};
           } else {
@@ -168,7 +168,7 @@ class Tests_MGGraphColoring
                       d_colors.begin(), vertex_t{0}),
         cugraph::edge_dummy_property_t{}.view(),
         [renumber_map = (*mg_renumber_map).data()] __device__(
-          auto src, auto dst, auto src_color, auto dst_color, thrust::nullopt_t) {
+          auto src, auto dst, auto src_color, auto dst_color, cuda::std::nullopt_t) {
           if ((src != dst) && (src_color == dst_color)) {
             return vertex_t{1};
           } else {

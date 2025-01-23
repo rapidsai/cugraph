@@ -33,12 +33,12 @@
 #include <raft/random/rng_device.cuh>
 
 #include <cuda/functional>
+#include <cuda/std/optional>
 #include <thrust/binary_search.h>
 #include <thrust/distance.h>
 #include <thrust/execution_policy.h>
 #include <thrust/functional.h>
 #include <thrust/iterator/zip_iterator.h>
-#include <thrust/optional.h>
 #include <thrust/random.h>
 #include <thrust/sequence.h>
 #include <thrust/shuffle.h>

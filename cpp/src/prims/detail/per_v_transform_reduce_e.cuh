@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -46,6 +46,7 @@
 
 #include <cub/cub.cuh>
 #include <cuda/functional>
+#include <cuda/std/optional>
 #include <thrust/copy.h>
 #include <thrust/distance.h>
 #include <thrust/execution_policy.h>
@@ -54,7 +55,6 @@
 #include <thrust/functional.h>
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/iterator/transform_iterator.h>
-#include <thrust/optional.h>
 #include <thrust/scatter.h>
 #include <thrust/set_operations.h>
 #include <thrust/transform_reduce.h>
@@ -265,7 +265,7 @@ __global__ static void per_v_transform_reduce_e_hypersparse(
   EdgePartitionSrcValueInputWrapper edge_partition_src_value_input,
   EdgePartitionDstValueInputWrapper edge_partition_dst_value_input,
   EdgePartitionEdgeValueInputWrapper edge_partition_e_value_input,
-  thrust::optional<EdgePartitionEdgeMaskWrapper> edge_partition_e_mask,
+  cuda::std::optional<EdgePartitionEdgeMaskWrapper> edge_partition_e_mask,
   ResultValueOutputIteratorOrWrapper result_value_output,
   EdgeOp e_op,
   T init /* relevant only if update_major == true */,
@@ -296,7 +296,7 @@ __global__ static void per_v_transform_reduce_e_hypersparse(
   while (idx < key_count) {
     key_t key{};
     vertex_t major{};
-    thrust::optional<vertex_t> major_idx{};
+    cuda::std::optional<vertex_t> major_idx{};
     if constexpr (use_input_key) {
       key       = *(key_first + idx);
       major     = thrust_tuple_get_or_identity<key_t, 0>(key);
@@ -402,7 +402,7 @@ __global__ static void per_v_transform_reduce_e_low_degree(
   EdgePartitionSrcValueInputWrapper edge_partition_src_value_input,
   EdgePartitionDstValueInputWrapper edge_partition_dst_value_input,
   EdgePartitionEdgeValueInputWrapper edge_partition_e_value_input,
-  thrust::optional<EdgePartitionEdgeMaskWrapper> edge_partition_e_mask,
+  cuda::std::optional<EdgePartitionEdgeMaskWrapper> edge_partition_e_mask,
   ResultValueOutputIteratorOrWrapper result_value_output,
   EdgeOp e_op,
   T init /* relevant only if update_major == true */,
@@ -512,7 +512,7 @@ __global__ static void per_v_transform_reduce_e_mid_degree(
   EdgePartitionSrcValueInputWrapper edge_partition_src_value_input,
   EdgePartitionDstValueInputWrapper edge_partition_dst_value_input,
   EdgePartitionEdgeValueInputWrapper edge_partition_e_value_input,
-  thrust::optional<EdgePartitionEdgeMaskWrapper> edge_partition_e_mask,
+  cuda::std::optional<EdgePartitionEdgeMaskWrapper> edge_partition_e_mask,
   ResultValueOutputIteratorOrWrapper result_value_output,
   EdgeOp e_op,
   T init /* relevant only if update_major == true */,
@@ -596,7 +596,7 @@ __global__ static void per_v_transform_reduce_e_mid_degree(
           ((static_cast<size_t>(local_degree) + (raft::warp_size() - 1)) / raft::warp_size()) *
           raft::warp_size();
         for (size_t i = lane_id; i < rounded_up_local_degree; i += raft::warp_size()) {
-          thrust::optional<T> e_op_result{thrust::nullopt};
+          cuda::std::optional<T> e_op_result{cuda::std::nullopt};
           if ((i < static_cast<size_t>(local_degree)) &&
               (*edge_partition_e_mask).get(edge_offset + i) && call_pred_op(i)) {
             e_op_result = call_e_op(i);
@@ -630,7 +630,7 @@ __global__ static void per_v_transform_reduce_e_mid_degree(
           ((static_cast<size_t>(local_degree) + (raft::warp_size() - 1)) / raft::warp_size()) *
           raft::warp_size();
         for (size_t i = lane_id; i < rounded_up_local_degree; i += raft::warp_size()) {
-          thrust::optional<T> e_op_result{thrust::nullopt};
+          cuda::std::optional<T> e_op_result{cuda::std::nullopt};
           if (i < static_cast<size_t>(local_degree) && call_pred_op(i)) {
             e_op_result = call_e_op(i);
           }
@@ -699,7 +699,7 @@ __global__ static void per_v_transform_reduce_e_high_degree(
   EdgePartitionSrcValueInputWrapper edge_partition_src_value_input,
   EdgePartitionDstValueInputWrapper edge_partition_dst_value_input,
   EdgePartitionEdgeValueInputWrapper edge_partition_e_value_input,
-  thrust::optional<EdgePartitionEdgeMaskWrapper> edge_partition_e_mask,
+  cuda::std::optional<EdgePartitionEdgeMaskWrapper> edge_partition_e_mask,
   ResultValueOutputIteratorOrWrapper result_value_output,
   EdgeOp e_op,
   T init /* relevant only if update_major == true */,
@@ -790,7 +790,7 @@ __global__ static void per_v_transform_reduce_e_high_degree(
            per_v_transform_reduce_e_kernel_high_degree_reduce_any_block_size) *
           per_v_transform_reduce_e_kernel_high_degree_reduce_any_block_size;
         for (size_t i = threadIdx.x; i < rounded_up_local_degree; i += blockDim.x) {
-          thrust::optional<T> e_op_result{thrust::nullopt};
+          cuda::std::optional<T> e_op_result{cuda::std::nullopt};
           if ((i < static_cast<size_t>(local_degree)) &&
               (*edge_partition_e_mask).get(edge_offset + i) && call_pred_op(i)) {
             e_op_result = call_e_op(i);
@@ -835,7 +835,7 @@ __global__ static void per_v_transform_reduce_e_high_degree(
            per_v_transform_reduce_e_kernel_high_degree_reduce_any_block_size) *
           per_v_transform_reduce_e_kernel_high_degree_reduce_any_block_size;
         for (size_t i = threadIdx.x; i < rounded_up_local_degree; i += blockDim.x) {
-          thrust::optional<T> e_op_result{thrust::nullopt};
+          cuda::std::optional<T> e_op_result{cuda::std::nullopt};
           if ((i < static_cast<size_t>(local_degree)) && call_pred_op(i)) {
             e_op_result = call_e_op(i);
           }
@@ -1141,7 +1141,7 @@ void per_v_transform_reduce_e_edge_partition(
   EdgePartitionSrcValueInputWrapper edge_partition_src_value_input,
   EdgePartitionDstValueInputWrapper edge_partition_dst_value_input,
   EdgePartitionValueInputWrapper edge_partition_e_value_input,
-  thrust::optional<EdgePartitionEdgeMaskWrapper> edge_partition_e_mask,
+  cuda::std::optional<EdgePartitionEdgeMaskWrapper> edge_partition_e_mask,
   ResultValueOutputIteratorOrWrapper output_buffer,
   EdgeOp e_op,
   T major_init,
@@ -1415,21 +1415,21 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
     typename iterator_value_type_or_default_t<OptionalKeyIterator, vertex_t>::value_type;
 
   using edge_partition_src_input_device_view_t = std::conditional_t<
-    std::is_same_v<typename EdgeSrcValueInputWrapper::value_type, thrust::nullopt_t>,
+    std::is_same_v<typename EdgeSrcValueInputWrapper::value_type, cuda::std::nullopt_t>,
     detail::edge_partition_endpoint_dummy_property_device_view_t<vertex_t>,
     detail::edge_partition_endpoint_property_device_view_t<
       vertex_t,
       typename EdgeSrcValueInputWrapper::value_iterator,
       typename EdgeSrcValueInputWrapper::value_type>>;
   using edge_partition_dst_input_device_view_t = std::conditional_t<
-    std::is_same_v<typename EdgeDstValueInputWrapper::value_type, thrust::nullopt_t>,
+    std::is_same_v<typename EdgeDstValueInputWrapper::value_type, cuda::std::nullopt_t>,
     detail::edge_partition_endpoint_dummy_property_device_view_t<vertex_t>,
     detail::edge_partition_endpoint_property_device_view_t<
       vertex_t,
       typename EdgeDstValueInputWrapper::value_iterator,
       typename EdgeDstValueInputWrapper::value_type>>;
   using edge_partition_e_input_device_view_t = std::conditional_t<
-    std::is_same_v<typename EdgeValueInputWrapper::value_type, thrust::nullopt_t>,
+    std::is_same_v<typename EdgeValueInputWrapper::value_type, cuda::std::nullopt_t>,
     detail::edge_partition_edge_dummy_property_device_view_t<vertex_t>,
     detail::edge_partition_edge_property_device_view_t<
       edge_t,
@@ -1519,10 +1519,10 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
         graph_view.local_edge_partition_view(static_cast<size_t>(minor_comm_rank)));
     auto edge_partition_e_mask =
       edge_mask_view
-        ? thrust::make_optional<
+        ? cuda::std::make_optional<
             detail::edge_partition_edge_property_device_view_t<edge_t, uint32_t const*, bool>>(
             *edge_mask_view, static_cast<size_t>(minor_comm_rank))
-        : thrust::nullopt;
+        : cuda::std::nullopt;
 
     std::optional<std::vector<size_t>> edge_partition_stream_pool_indices{std::nullopt};
     if (local_vertex_partition_segment_offsets && (handle.get_stream_pool_size() >= max_segments)) {
@@ -1737,10 +1737,10 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
        sorted_unique_key_first,
        sorted_unique_nzd_key_last,
        deg1_v_first = (filter_input_key && graph_view.use_dcs())
-                        ? thrust::make_optional(graph_view.local_vertex_partition_range_first() +
-                                                (*local_vertex_partition_segment_offsets)[3] +
-                                                *((*hypersparse_degree_offsets).rbegin() + 1))
-                        : thrust::nullopt,
+                        ? cuda::std::make_optional(graph_view.local_vertex_partition_range_first() +
+                                                   (*local_vertex_partition_segment_offsets)[3] +
+                                                   *((*hypersparse_degree_offsets).rbegin() + 1))
+                        : cuda::std::nullopt,
        vertex_partition_range_first =
          graph_view.local_vertex_partition_range_first()] __device__(size_t i) {
         if (i == 0) {
@@ -3102,10 +3102,10 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
             graph_view.local_edge_partition_view(partition_idx));
         auto edge_partition_e_mask =
           edge_mask_view
-            ? thrust::make_optional<
+            ? cuda::std::make_optional<
                 detail::edge_partition_edge_property_device_view_t<edge_t, uint32_t const*, bool>>(
                 *edge_mask_view, partition_idx)
-            : thrust::nullopt;
+            : cuda::std::nullopt;
         size_t num_streams_per_loop{1};
         if (stream_pool_indices) {
           assert((*stream_pool_indices).size() >= num_concurrent_loops);

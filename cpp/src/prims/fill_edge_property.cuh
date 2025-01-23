@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2023-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -50,10 +50,10 @@ void fill_edge_property(raft::handle_t const& handle,
   for (size_t i = 0; i < graph_view.number_of_local_edge_partitions(); ++i) {
     auto edge_partition_e_mask =
       edge_mask_view
-        ? thrust::make_optional<
+        ? cuda::std::make_optional<
             detail::edge_partition_edge_property_device_view_t<edge_t, uint32_t const*, bool>>(
             *edge_mask_view, i)
-        : thrust::nullopt;
+        : cuda::std::nullopt;
 
     if constexpr (cugraph::has_packed_bool_element<
                     std::remove_reference_t<decltype(value_firsts[i])>,

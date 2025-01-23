@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, NVIDIA CORPORATION.
+ * Copyright (c) 2024-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -37,12 +37,12 @@
 #include <raft/util/cudart_utils.hpp>
 #include <raft/util/integer_utils.hpp>
 
+#include <cuda/std/optional>
 #include <thrust/fill.h>
 #include <thrust/functional.h>
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/iterator/discard_iterator.h>
 #include <thrust/iterator/zip_iterator.h>
-#include <thrust/optional.h>
 #include <thrust/set_operations.h>
 #include <thrust/transform.h>
 #include <thrust/tuple.h>
@@ -133,11 +133,11 @@ struct e_op_t {
   weight_t cutoff{};
   weight_t invalid_distance{};
 
-  __device__ thrust::optional<thrust::tuple<tag_t, weight_t>> operator()(
+  __device__ cuda::std::optional<thrust::tuple<tag_t, weight_t>> operator()(
     thrust::tuple<vertex_t, tag_t> tagged_src,
     vertex_t dst,
-    thrust::nullopt_t,
-    thrust::nullopt_t,
+    cuda::std::nullopt_t,
+    cuda::std::nullopt_t,
     weight_t w) const
   {
     aggregate_vi_t<vertex_t, tag_t, key_t> aggregator{num_origins};
@@ -150,9 +150,9 @@ struct e_op_t {
     auto dst_val      = key_to_dist_map.find(aggregator(thrust::make_tuple(dst, origin_idx)));
     if (dst_val != invalid_distance) { threshold = dst_val < threshold ? dst_val : threshold; }
     return (new_distance < threshold)
-             ? thrust::optional<thrust::tuple<tag_t, weight_t>>{thrust::make_tuple(origin_idx,
-                                                                                   new_distance)}
-             : thrust::nullopt;
+             ? cuda::std::optional<thrust::tuple<tag_t, weight_t>>{thrust::make_tuple(origin_idx,
+                                                                                      new_distance)}
+             : cuda::std::nullopt;
   }
 };
 
@@ -644,8 +644,8 @@ rmm::device_uvector<weight_t> od_shortest_distances(
         thrust::tuple<vertex_t, od_idx_t>,
         weight_t,
         vertex_t,
-        thrust::nullopt_t,
-        thrust::nullopt_t,
+        cuda::std::nullopt_t,
+        cuda::std::nullopt_t,
         weight_t,
         e_op_t<vertex_t, od_idx_t, key_t, weight_t, GraphViewType::is_multi_gpu>>
         e_op_wrapper{e_op};

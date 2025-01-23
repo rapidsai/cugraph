@@ -1,6 +1,6 @@
 
 /*
- * Copyright (c) 2023-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2023-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -28,11 +28,11 @@
 #include <cugraph/utilities/host_scalar_comm.hpp>
 
 #include <cuda/functional>
+#include <cuda/std/optional>
 #include <thrust/count.h>
 #include <thrust/distance.h>
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/merge.h>
-#include <thrust/optional.h>
 #include <thrust/remove.h>
 #include <thrust/set_operations.h>
 #include <thrust/transform.h>
