@@ -24,6 +24,7 @@
 
 #include <rmm/exec_policy.hpp>
 
+#include <cuda/std/optional>
 #include <thrust/fill.h>
 #include <thrust/iterator/constant_iterator.h>
 

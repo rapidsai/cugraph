@@ -29,10 +29,11 @@
 
 #include <rmm/device_uvector.hpp>
 
-#include <cuda/std/optional>
 #include <thrust/sort.h>
 #include <thrust/tuple.h>
 #include <thrust/unique.h>
+
+#include <optional>
 
 namespace cugraph {
 namespace detail {

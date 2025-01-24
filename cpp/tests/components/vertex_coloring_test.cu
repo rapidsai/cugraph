@@ -30,6 +30,8 @@
 
 #include <raft/random/rng_state.hpp>
 
+#include <cuda/std/optional>
+
 #include <gtest/gtest.h>
 
 #include <chrono>

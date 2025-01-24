@@ -28,7 +28,6 @@
 #include <cugraph/utilities/host_scalar_comm.hpp>
 
 #include <cuda/functional>
-#include <cuda/std/optional>
 #include <thrust/count.h>
 #include <thrust/distance.h>
 #include <thrust/iterator/counting_iterator.h>
@@ -39,6 +38,7 @@
 #include <thrust/transform_reduce.h>
 
 #include <cmath>
+#include <optional>
 
 namespace cugraph {
 

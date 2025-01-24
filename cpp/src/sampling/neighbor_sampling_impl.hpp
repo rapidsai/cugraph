@@ -31,6 +31,7 @@
 
 #include <rmm/device_uvector.hpp>
 
+#include <cuda/std/optional>
 #include <thrust/unique.h>
 
 namespace cugraph {

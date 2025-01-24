@@ -29,6 +29,8 @@
 
 #include <raft/core/handle.hpp>
 
+#include <cuda/std/optional>
+
 namespace cugraph {
 
 template <typename edge_id_t, typename edge_type_t, typename vertex_t, typename value_t>

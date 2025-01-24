@@ -24,6 +24,8 @@
 #include <raft/core/handle.hpp>
 #include <raft/random/rng_state.hpp>
 
+#include <cuda/std/optional>
+
 namespace cugraph {
 
 namespace detail {

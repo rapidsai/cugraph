@@ -19,10 +19,11 @@
 
 #include <rmm/device_uvector.hpp>
 
-#include <cuda/std/optional>
 #include <thrust/binary_search.h>
 #include <thrust/remove.h>
 #include <thrust/tuple.h>
+
+#include <optional>
 
 namespace cugraph {
 namespace detail {

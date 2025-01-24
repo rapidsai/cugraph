@@ -22,7 +22,7 @@
 
 #include <rmm/device_uvector.hpp>
 
-#include <cuda/std/optional>
+#include <optional>
 
 namespace cugraph {
 namespace detail {

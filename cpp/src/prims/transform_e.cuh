@@ -28,6 +28,7 @@
 
 #include <rmm/exec_policy.hpp>
 
+#include <cuda/std/optional>
 #include <thrust/binary_search.h>
 #include <thrust/count.h>
 #include <thrust/distance.h>

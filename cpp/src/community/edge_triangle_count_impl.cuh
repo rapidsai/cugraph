@@ -28,6 +28,7 @@
 
 #include <raft/util/integer_utils.hpp>
 
+#include <cuda/std/optional>
 #include <thrust/adjacent_difference.h>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/sort.h>

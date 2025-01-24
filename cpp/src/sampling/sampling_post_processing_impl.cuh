@@ -29,6 +29,7 @@
 
 #include <cub/cub.cuh>
 #include <cuda/functional>
+#include <cuda/std/optional>
 #include <thrust/binary_search.h>
 #include <thrust/copy.h>
 #include <thrust/count.h>

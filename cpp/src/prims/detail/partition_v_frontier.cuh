@@ -31,7 +31,6 @@
 #include <cub/cub.cuh>
 #include <cuda/atomic>
 #include <cuda/functional>
-#include <cuda/std/optional>
 #include <thrust/copy.h>
 #include <thrust/count.h>
 #include <thrust/iterator/constant_iterator.h>
@@ -42,7 +41,6 @@
 #include <thrust/tuple.h>
 #include <thrust/unique.h>
 
-#include <optional>
 #include <tuple>
 
 namespace cugraph {

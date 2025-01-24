@@ -24,7 +24,6 @@
 
 #include <rmm/device_uvector.hpp>
 
-#include <cuda/std/optional>
 #include <thrust/copy.h>
 #include <thrust/execution_policy.h>
 #include <thrust/fill.h>

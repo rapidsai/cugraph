@@ -33,7 +33,6 @@
 #include <raft/random/rng_device.cuh>
 
 #include <cuda/functional>
-#include <cuda/std/optional>
 #include <thrust/binary_search.h>
 #include <thrust/distance.h>
 #include <thrust/execution_policy.h>
@@ -47,6 +46,8 @@
 #include <thrust/transform.h>
 #include <thrust/transform_reduce.h>
 #include <thrust/tuple.h>
+
+#include <optional>
 
 CUCO_DECLARE_BITWISE_COMPARABLE(float)
 CUCO_DECLARE_BITWISE_COMPARABLE(double)
