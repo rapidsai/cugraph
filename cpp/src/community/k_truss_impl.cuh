@@ -60,6 +60,16 @@ struct extract_weak_edges {
 };
 
 
+template <typename vertex_t, typename weight_t>
+struct extract_edges {
+  __device__ thrust::optional<thrust::tuple<vertex_t, vertex_t, weight_t>> operator()(
+    vertex_t src, vertex_t dst, thrust::nullopt_t, thrust::nullopt_t, weight_t wgt) const
+  {
+    return thrust::optional<thrust::tuple<vertex_t, vertex_t, weight_t>>{thrust::make_tuple(src, dst, wgt)};
+  }
+};
+
+
 template <typename vertex_t, typename edge_t>
 struct extract_triangles_endpoints {
   size_t chunk_start{};
@@ -349,72 +359,53 @@ k_truss(raft::handle_t const& handle,
 
   auto cur_graph_view = modified_graph_view ? *modified_graph_view : graph_view;
 
-  auto vertex_partition_range_lasts =
-    renumber_map
-      ? std::make_optional<std::vector<vertex_t>>(cur_graph_view.vertex_partition_range_lasts())
-      : std::nullopt;
-
-  auto out_degrees = cur_graph_view.compute_out_degrees(handle);
   edge_src_property_t<decltype(cur_graph_view), edge_t> edge_src_out_degrees(handle,
                                                                              cur_graph_view);
   edge_dst_property_t<decltype(cur_graph_view), edge_t> edge_dst_out_degrees(handle,
                                                                              cur_graph_view);
-  update_edge_src_property(
-    handle, cur_graph_view, out_degrees.begin(), edge_src_out_degrees.mutable_view());
-  update_edge_dst_property(
-    handle, cur_graph_view, out_degrees.begin(), edge_dst_out_degrees.mutable_view());
-
-  rmm::device_uvector<vertex_t> srcs(0, handle.get_stream());
-  rmm::device_uvector<vertex_t> dsts(0, handle.get_stream());
-
-  edge_weight_view = edge_weight
+  
+  cugraph::edge_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>, bool> dodg_mask(
+      handle, cur_graph_view);
+  { 
+    auto out_degrees = cur_graph_view.compute_out_degrees(handle);
+    update_edge_src_property(
+      handle, cur_graph_view, out_degrees.begin(), edge_src_out_degrees.mutable_view());
+    update_edge_dst_property(
+      handle, cur_graph_view, out_degrees.begin(), edge_dst_out_degrees.mutable_view());
+    
+    edge_weight_view = edge_weight
                        ? std::make_optional((*edge_weight).view())
                        : std::optional<edge_property_view_t<edge_t, weight_t const*>>{std::nullopt};
-  if (edge_weight_view) {
-    std::tie(srcs, dsts, wgts) = extract_transform_e(
+
+    cugraph::fill_edge_property(handle, cur_graph_view, dodg_mask.mutable_view(), bool{false});
+
+    std::cout<<"number of edges before dodg= " << cur_graph_view.compute_number_of_edges(handle) << std::endl;
+    cugraph::transform_e(
       handle,
       cur_graph_view,
       edge_src_out_degrees.view(),
       edge_dst_out_degrees.view(),
-      *edge_weight_view,
-      extract_low_to_high_degree_weighted_edges_t<vertex_t, weight_t, edge_t>{});
-  } else {
-    std::tie(srcs, dsts) =
-      extract_transform_e(handle,
-                          cur_graph_view,
-                          edge_src_out_degrees.view(),
-                          edge_dst_out_degrees.view(),
-                          edge_dummy_property_t{}.view(),
-                          extract_low_to_high_degree_edges_t<vertex_t, edge_t>{});
+      edge_dummy_property_t{}.view(),
+      [] __device__(auto src, auto dst, auto src_out_degree, auto dst_out_degree, thrust::nullopt_t) {
+        return (src_out_degree < dst_out_degree)
+                ? true
+                : ((src_out_degree == dst_out_degree) &&
+                  (src < dst) /* tie-breaking using vertex ID */)
+                    ? true : false;
+      },
+      dodg_mask.mutable_view(),
+      false);
+    
+    if (cur_graph_view.has_edge_mask()) { cur_graph_view.clear_edge_mask(); }
+      cur_graph_view.attach_edge_mask(dodg_mask.view());
   }
-
-  cugraph::edge_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>, bool> dodg_mask(
-    handle, cur_graph_view);
-  cugraph::fill_edge_property(handle, cur_graph_view, dodg_mask.mutable_view(), bool{false});
-
-  // Masking edges not part of the DODG
-  edgelist_dodg.insert(srcs.begin(), srcs.end(), dsts.begin());
-
-  cugraph::transform_e(
-    handle,
-    cur_graph_view,
-    edgelist_dodg,
-    cugraph::edge_src_dummy_property_t{}.view(),
-    cugraph::edge_dst_dummy_property_t{}.view(),
-    cugraph::edge_dummy_property_t{}.view(),
-    [] __device__(auto src, auto dst, thrust::nullopt_t, thrust::nullopt_t, thrust::nullopt_t) {
-      return true;
-    },
-    dodg_mask.mutable_view(),
-    false);
-  
-
-  edgelist_dodg.clear();
 
   // 4. Compute triangle count using nbr_intersection and unroll weak edges
 
   {
     auto cur_graph_view = modified_graph_view ? *modified_graph_view : graph_view;
+
+    std::cout<<"num_edges = " << cur_graph_view.compute_number_of_edges(handle) << std::endl;
 
     cugraph::edge_property_t<decltype(cur_graph_view), bool> weak_edges_mask(handle,
                                                                              cur_graph_view);
@@ -853,6 +844,7 @@ k_truss(raft::handle_t const& handle,
     rmm::device_uvector<vertex_t> edgelist_dsts(0, handle.get_stream());
     std::optional<rmm::device_uvector<weight_t>> edgelist_wgts{std::nullopt};
 
+    
     std::tie(edgelist_srcs, edgelist_dsts, edgelist_wgts, std::ignore, std::ignore) =
       decompress_to_edgelist(
         handle,
@@ -863,6 +855,26 @@ k_truss(raft::handle_t const& handle,
         renumber_map ? std::make_optional(raft::device_span<vertex_t const>((*renumber_map).data(),
                                                                             (*renumber_map).size()))
                      : std::nullopt);
+    
+
+    /*
+    std::tie(edgelist_srcs, edgelist_dsts, edgelist_wgts) = extract_transform_e(handle,
+                                              cur_graph_view,
+                                              edge_src_dummy_property_t{}.view(),
+                                              edge_dst_dummy_property_t{}.view(),
+                                              *edge_weight_view,
+                                              extract_edges<vertex_t, weight_t>{});
+    */
+
+
+    
+    auto weight_size = 0;
+    if (edge_weight_view){
+      weight_size = edgelist_wgts->size();
+      //raft::print_device_vector("edgelist_wgts", edgelist_wgts->data(), 20, std::cout);
+    }
+
+    std::cout<<"edgelist size = " << edgelist_srcs.size() << " edgelist weight size = " << weight_size << std::endl;
 
     std::tie(edgelist_srcs, edgelist_dsts, edgelist_wgts) =
       symmetrize_edgelist<vertex_t, weight_t, false, multi_gpu>(handle,
@@ -870,9 +882,17 @@ k_truss(raft::handle_t const& handle,
                                                                 std::move(edgelist_dsts),
                                                                 std::move(edgelist_wgts),
                                                                 false);
-
+    
+    if (edge_weight_view){
+      weight_size = edgelist_wgts->size();
+    }
+    std::cout<<"after sym - edgelist size = " << edgelist_srcs.size() << " edgelist weight size = " << weight_size << std::endl;
     return std::make_tuple(
       std::move(edgelist_srcs), std::move(edgelist_dsts), std::move(edgelist_wgts));
   }
 }
 }  // namespace cugraph
+
+
+
+// Current state of k-truss as of Thursday. the next version will be leveraging edge masking
