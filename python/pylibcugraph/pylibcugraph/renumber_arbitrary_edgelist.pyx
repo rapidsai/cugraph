@@ -14,6 +14,8 @@
 # Have cython use python 3 syntax
 # cython: language_level = 3
 
+from libc.stdint cimport uintptr_t
+
 from pylibcugraph.resource_handle cimport ResourceHandle
 
 from pylibcugraph._cugraph_c.resource_handle cimport (
@@ -74,23 +76,29 @@ def renumber_arbitrary_edgelist(
 
     assert_AI_type(renumber_map, "renumber_map")
 
+    cdef uintptr_t cai_renumber_map_ptr = \
+        renumber_map.__array_interface__['data'][0]
     cdef cugraph_type_erased_host_array_view_t* map_view = \
         cugraph_type_erased_host_array_view_create(
-            <void*>renumber_map,
+            <void*>cai_renumber_map_ptr,
             len(renumber_map),
             get_c_type_from_numpy_type(renumber_map.dtype)
         )
 
+    cdef uintptr_t cai_srcs_ptr = \
+        srcs.__cuda_array_interface__['data'][0]
     cdef cugraph_type_erased_device_array_view_t* srcs_view = \
         cugraph_type_erased_device_array_view_create(
-            <void*>srcs,
+            <void*>cai_srcs_ptr,
             len(srcs),
             get_c_type_from_numpy_type(srcs.dtype)
         )
 
+    cdef uintptr_t cai_dsts_ptr = \
+        dsts.__cuda_array_interface__['data'][0]
     cdef cugraph_type_erased_device_array_view_t* dsts_view = \
         cugraph_type_erased_device_array_view_create(
-            <void*>dsts,
+            <void*>cai_dsts_ptr,
             len(dsts),
             get_c_type_from_numpy_type(dsts.dtype)
         )
@@ -108,7 +116,7 @@ def renumber_arbitrary_edgelist(
     )
 
     # Verify that the C API call completed successfully and fail if it did not.
-    assert_success(err_code, err_cptr, "cugraph_sampling_options_create")
+    assert_success(err_code, err_cptr, "cugraph_renumber_arbitrary_edgelist")
 
     # Free the views
     cugraph_type_erased_device_array_view_free(srcs_view)

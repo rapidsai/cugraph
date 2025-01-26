@@ -1,5 +1,5 @@
 # =============================================================================
-# Copyright (c) 2022-2024, NVIDIA CORPORATION.
+# Copyright (c) 2022-2025, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
 # in compliance with the License. You may obtain a copy of the License at
@@ -71,6 +71,7 @@ set(cython_sources
     homogeneous_uniform_neighbor_sample.pyx
     edge_id_lookup_table.pyx
     decompress_to_edgelist.pyx
+    renumber_arbitrary_edgelist.pyx
 )
 set(linked_libraries cugraph::cugraph;cugraph::cugraph_c)
 

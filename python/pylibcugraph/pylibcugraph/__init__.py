@@ -139,6 +139,8 @@ from pylibcugraph.degrees import in_degrees, out_degrees, degrees
 
 from pylibcugraph.decompress_to_edgelist import decompress_to_edgelist
 
+from pylibcugraph.renumber_arbitrary_edgelist import renumber_arbitrary_edgelist
+
 
 from pylibcugraph import exceptions
 

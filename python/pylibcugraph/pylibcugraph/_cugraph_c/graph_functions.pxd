@@ -1,4 +1,4 @@
-# Copyright (c) 2022-2024, NVIDIA CORPORATION.
+# Copyright (c) 2022-2025, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -34,7 +34,8 @@ from pylibcugraph._cugraph_c.similarity_algorithms cimport (
 from pylibcugraph._cugraph_c.graph cimport cugraph_graph_t
 
 from pylibcugraph._cugraph_c.array cimport (
-    cugraph_type_erased_device_array_view_t
+    cugraph_type_erased_device_array_view_t,
+    cugraph_type_erased_host_array_view_t,
 )
 
 cdef extern from "cugraph_c/graph_functions.h":
@@ -119,6 +120,14 @@ cdef extern from "cugraph_c/graph_functions.h":
             cugraph_vertex_pairs_t** result,
             cugraph_error_t** error
         )
+
+    cdef cugraph_error_code_t cugraph_renumber_arbitrary_edgelist(
+        const cugraph_resource_handle_t* handle,
+        const cugraph_type_erased_host_array_view_t* renumber_map,
+        cugraph_type_erased_device_array_view_t* srcs,
+        cugraph_type_erased_device_array_view_t* dsts,
+        cugraph_error_t** error
+    )
 
     ###########################################################################
     # induced_subgraph

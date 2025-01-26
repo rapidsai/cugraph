@@ -15,7 +15,7 @@ import numpy as np
 import cupy
 
 from pylibcugraph import renumber_arbitrary_edgelist
-from pylibcugrph.resource_handle import ResourceHandle
+from pylibcugraph.resource_handle import ResourceHandle
 
 
 def test_renumber_arbitrary_edgelist():
