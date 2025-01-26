@@ -357,7 +357,7 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
     if constexpr (std::is_same_v<EdgeTypeInputWrapper,
                                  edge_dummy_property_view_t>) {  // homogeneous
       std::tie(sample_local_nbr_indices, sample_key_indices, local_key_list_sample_offsets) =
-        uniform_sample_and_compute_local_nbr_indices(
+        homogeneous_uniform_sample_and_compute_local_nbr_indices(
           handle,
           graph_view,
           (minor_comm_size > 1) ? get_dataframe_buffer_cbegin(*aggregate_local_key_list)
@@ -374,7 +374,7 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
     if constexpr (std::is_same_v<EdgeTypeInputWrapper,
                                  edge_dummy_property_view_t>) {  // homogeneous
       std::tie(sample_local_nbr_indices, sample_key_indices, local_key_list_sample_offsets) =
-        biased_sample_and_compute_local_nbr_indices(
+        homogeneous_biased_sample_and_compute_local_nbr_indices(
           handle,
           graph_view,
           (minor_comm_size > 1) ? get_dataframe_buffer_cbegin(*aggregate_local_key_list)
@@ -391,7 +391,7 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
           do_expensive_check);
     } else {  // heterogeneous
       std::tie(sample_local_nbr_indices, sample_key_indices, local_key_list_sample_offsets) =
-        biased_sample_and_compute_local_nbr_indices(
+        heterogeneous_biased_sample_and_compute_local_nbr_indices(
           handle,
           graph_view,
           (minor_comm_size > 1) ? get_dataframe_buffer_cbegin(*aggregate_local_key_list)
