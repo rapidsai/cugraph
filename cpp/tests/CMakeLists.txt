@@ -418,6 +418,10 @@ ConfigureTest(COARSEN_GRAPH_TEST structure/coarsen_graph_test.cpp)
 # - Induced subgraph tests ------------------------------------------------------------------------
 ConfigureTest(INDUCED_SUBGRAPH_TEST structure/induced_subgraph_test.cpp)
 
+##################################################################################################
+# - Temporal tests -------------------------------------------------------------------------------
+ConfigureTest(TEMPORAL_GRAPH_TEST structure/temporal_graph_test.cpp)
+
 ###################################################################################################
 # - BFS tests -------------------------------------------------------------------------------------
 ConfigureTest(BFS_TEST traversal/bfs_test.cpp)
@@ -578,6 +582,10 @@ if(BUILD_CUGRAPH_MG_TESTS)
     ###############################################################################################
     # - MG SYMMETRIZE tests -----------------------------------------------------------------------
     ConfigureTestMG(MG_SYMMETRIZE_TEST structure/mg_symmetrize_test.cpp)
+
+    ###############################################################################################
+    # - MG Temporal Graph tests -----------------------------------------------------------------------
+    ConfigureTestMG(MG_TEMPORAL_GRAPH_TEST structure/mg_temporal_graph_test.cpp)
 
     ###############################################################################################
     # - MG Transpose tests ------------------------------------------------------------------------

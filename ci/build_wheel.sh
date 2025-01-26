@@ -1,10 +1,11 @@
 #!/bin/bash
-# Copyright (c) 2023-2024, NVIDIA CORPORATION.
+# Copyright (c) 2023-2025, NVIDIA CORPORATION.
 
 set -euo pipefail
 
 package_name=$1
 package_dir=$2
+package_type=$3
 
 source rapids-configure-sccache
 source rapids-date-string
@@ -29,22 +30,31 @@ python -m pip wheel \
 
 sccache --show-adv-stats
 
-case "${RAPIDS_CUDA_VERSION}" in
-    12.*)
-        EXCLUDE_ARGS=(
-            --exclude "libcublas.so.12"
-            --exclude "libcublasLt.so.12"
-            --exclude "libcurand.so.10"
-            --exclude "libcusolver.so.11"
-            --exclude "libcusparse.so.12"
-            --exclude "libnvJitLink.so.12"
-        )
-    ;;
-    11.*)
-        EXCLUDE_ARGS=()
-    ;;
-esac
+EXCLUDE_ARGS=(
+  --exclude "libraft.so"
+)
+
+# Avoid picking up dependencies on CUDA wheels that come through
+# transitively from 'libraft'.
+#
+# 'libraft' wheels are responsible for carrying a runtime dependency on
+# these based on RAFT's needs.
+EXCLUDE_ARGS+=(
+  --exclude "libcublas.so.*"
+  --exclude "libcublasLt.so.*"
+  --exclude "libcurand.so.*"
+  --exclude "libcusolver.so.*"
+  --exclude "libcusparse.so.*"
+  --exclude "libnvJitLink.so.*"
+)
+
+if [[ "${package_dir}" != "python/libcugraph" ]]; then
+    EXCLUDE_ARGS+=(
+      --exclude "libcugraph_c.so"
+      --exclude "libcugraph.so"
+    )
+fi
 
 mkdir -p final_dist
 python -m auditwheel repair -w final_dist "${EXCLUDE_ARGS[@]}" dist/*
-RAPIDS_PY_WHEEL_NAME="${package_name}_${RAPIDS_PY_CUDA_SUFFIX}" rapids-upload-wheels-to-s3 python final_dist
+RAPIDS_PY_WHEEL_NAME="${package_name}_${RAPIDS_PY_CUDA_SUFFIX}" rapids-upload-wheels-to-s3 "${package_type}" final_dist
