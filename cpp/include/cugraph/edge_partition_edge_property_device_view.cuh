@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -138,9 +138,16 @@ class edge_partition_edge_property_device_view_t {
   {
     if constexpr (has_packed_bool_element) {
       static_assert(is_packed_bool, "unimplemented for thrust::tuple types.");
+      cuda::atomic_ref<uint32_t, cuda::thread_scope_device> word(
+        *(value_first_ + cugraph::packed_bool_offset(offset)));
       auto mask = cugraph::packed_bool_mask(offset);
-      auto old  = val ? atomicOr(value_first_ + cugraph::packed_bool_offset(offset), mask)
-                      : atomicAnd(value_first_ + cugraph::packed_bool_offset(offset), ~mask);
+      uint32_t old{};
+      if (compare == val) {
+        old = word.load(cuda::std::memory_order_relaxed);
+      } else {
+        old = val ? word.fetch_or(mask, cuda::std::memory_order_relaxed)
+                  : word.fetch_and(~mask, cuda::std::memory_order_relaxed);
+      }
       return static_cast<bool>(old & mask);
     } else {
       return cugraph::elementwise_atomic_cas(value_first_ + offset, compare, val);
