@@ -42,9 +42,6 @@
 #include <thrust/transform.h>
 #include <thrust/tuple.h>
 
-#include <chrono>
-using namespace std::chrono;
-
 namespace cugraph {
 
 template <typename vertex_t, typename edge_t>
@@ -743,9 +740,7 @@ k_truss(raft::handle_t const& handle,
         edge_weight_view,
         std::optional<edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
         std::optional<cugraph::edge_property_view_t<edge_t, int32_t const*>>{std::nullopt},
-        renumber_map ? std::make_optional(raft::device_span<vertex_t const>((*renumber_map).data(),
-                                                                            (*renumber_map).size()))
-                     : std::nullopt);
+        std::optional<raft::device_span<vertex_t const>>{std::nullopt});
 
     std::tie(edgelist_srcs, edgelist_dsts, edgelist_wgts) =
       symmetrize_edgelist<vertex_t, weight_t, false, multi_gpu>(handle,
