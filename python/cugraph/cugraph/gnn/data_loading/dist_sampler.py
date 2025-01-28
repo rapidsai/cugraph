@@ -256,7 +256,7 @@ class DistSampler:
             )
             if label is not None:
                 label_call_groups = list(label_call_groups) + (
-                    [torch.tensor([], dtype=torch.int64, device=input_id.device)]
+                    [torch.tensor([], dtype=label.dtype, device=label.device)]
                     * (int(num_call_groups) - len(label_call_groups))
                 )
 
@@ -366,6 +366,7 @@ class DistSampler:
 
         current_seeds, current_ix, current_label = current_seeds_and_ix
         num_seed_edges = current_ix.numel()
+        print(current_label)
 
         # The index gets stored as-is regardless of what makes it into
         # the final batch and in what order.
