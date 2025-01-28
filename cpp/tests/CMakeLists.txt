@@ -148,7 +148,7 @@ endif()
 
 function(ConfigureTest CMAKE_TEST_NAME)
     set(options)
-    set(one_value GPUS PERCENT)
+    set(one_value GPUS PERCENT ENABLE_IF)
     set(multi_value)
     cmake_parse_arguments(_CUGRAPH_TEST "${options}" "${one_value}" "${multi_value}" ${ARGN})
     if(NOT DEFINED _CUGRAPH_TEST_GPUS AND NOT DEFINED _CUGRAPH_TEST_PERCENT)
@@ -160,6 +160,12 @@ function(ConfigureTest CMAKE_TEST_NAME)
     endif()
     if(NOT DEFINED _CUGRAPH_TEST_PERCENT)
         set(_CUGRAPH_TEST_PERCENT 100)
+    endif()
+
+    # Skip the test if ENABLE_IF evaluates to OFF
+    if(DEFINED _CUGRAPH_TEST_ENABLE_IF AND _CUGRAPH_TEST_ENABLE_IF STREQUAL "OFF")
+        message(STATUS "Skipping test ${CMAKE_TEST_NAME} due to ENABLE_IF condition")
+        return()
     endif()
 
     add_executable(${CMAKE_TEST_NAME} ${_CUGRAPH_TEST_UNPARSED_ARGUMENTS})
@@ -190,7 +196,18 @@ function(ConfigureTest CMAKE_TEST_NAME)
 endfunction()
 
 function(ConfigureTestMG CMAKE_TEST_NAME)
-    add_executable(${CMAKE_TEST_NAME} ${ARGN})
+    set(options)
+    set(one_value ENABLE_IF)
+    set(multi_value)
+    cmake_parse_arguments(_CUGRAPH_TEST "${options}" "${one_value}" "${multi_value}" ${ARGN})
+
+    # Skip the test if ENABLE_IF evaluates to OFF
+    if(DEFINED _CUGRAPH_TEST_ENABLE_IF AND _CUGRAPH_TEST_ENABLE_IF STREQUAL "OFF")
+        message(STATUS "Skipping test ${CMAKE_TEST_NAME} due to ENABLE_IF condition")
+        return()
+    endif()
+
+    add_executable(${CMAKE_TEST_NAME} ${_CUGRAPH_TEST_UNPARSED_ARGUMENTS})
     target_include_directories(${CMAKE_TEST_NAME} PRIVATE "${CUGRAPH_SOURCE_DIR}/src")
     target_link_libraries(${CMAKE_TEST_NAME}
         PRIVATE
@@ -230,7 +247,7 @@ endfunction()
 
 function(ConfigureCTest CMAKE_TEST_NAME)
     set(options)
-    set(one_value GPUS PERCENT)
+    set(one_value GPUS PERCENT ENABLE_IF)
     set(multi_value)
     cmake_parse_arguments(_CUGRAPH_TEST "${options}" "${one_value}" "${multi_value}" ${ARGN})
     if(NOT DEFINED _CUGRAPH_TEST_GPUS AND NOT DEFINED _CUGRAPH_TEST_PERCENT)
@@ -242,6 +259,12 @@ function(ConfigureCTest CMAKE_TEST_NAME)
     endif()
     if(NOT DEFINED _CUGRAPH_TEST_PERCENT)
         set(_CUGRAPH_TEST_PERCENT 100)
+    endif()
+
+    # Skip the test if ENABLE_IF evaluates to OFF
+    if(DEFINED _CUGRAPH_TEST_ENABLE_IF AND _CUGRAPH_TEST_ENABLE_IF STREQUAL "OFF")
+        message(STATUS "Skipping test ${CMAKE_TEST_NAME} due to ENABLE_IF condition")
+        return()
     endif()
 
     add_executable(${CMAKE_TEST_NAME} ${_CUGRAPH_TEST_UNPARSED_ARGUMENTS})
@@ -332,23 +355,23 @@ ConfigureTest(ERDOS_RENYI_GENERATOR_TEST generators/erdos_renyi_test.cpp)
 
 ###################################################################################################
 # - LOUVAIN tests ---------------------------------------------------------------------------------
-ConfigureTest(LOUVAIN_TEST community/louvain_test.cpp)
+ConfigureTest(LOUVAIN_TEST community/louvain_test.cpp ENABLE_IF ${BUILD_CUGRAPH_COMMUNITY_ALGORITHMS})
 
 ###################################################################################################
 # - LEIDEN tests ----------------------------------------------------------------------------------
-ConfigureTest(LEIDEN_TEST community/leiden_test.cpp)
+ConfigureTest(LEIDEN_TEST community/leiden_test.cpp ENABLE_IF ${BUILD_CUGRAPH_COMMUNITY_ALGORITHMS})
 
 ###################################################################################################
 # - WEIGHTED MATCHING tests -----------------------------------------------------------------------
-ConfigureTest(WEIGHTED_MATCHING_TEST community/weighted_matching_test.cpp)
+ConfigureTest(WEIGHTED_MATCHING_TEST community/weighted_matching_test.cpp ENABLE_IF ${BUILD_CUGRAPH_COMMUNITY_ALGORITHMS})
 
 ###################################################################################################
 # - Balanced cut clustering tests -----------------------------------------------------------------
-ConfigureTest(BALANCED_TEST community/balanced_edge_test.cpp)
+ConfigureTest(BALANCED_TEST community/balanced_edge_test.cpp ENABLE_IF ${BUILD_CUGRAPH_COMMUNITY_ALGORITHMS})
 
 ###################################################################################################
 # - EGO tests -------------------------------------------------------------------------------------
-ConfigureTest(EGONET_TEST community/egonet_test.cpp GPUS 1 PERCENT 75)
+ConfigureTest(EGONET_TEST community/egonet_test.cpp GPUS 1 PERCENT 75 ENABLE_IF ${BUILD_CUGRAPH_COMMUNITY_ALGORITHMS})
 
 ###################################################################################################
 # - FORCE ATLAS 2  tests --------------------------------------------------------------------------
@@ -424,45 +447,49 @@ ConfigureTest(TEMPORAL_GRAPH_TEST structure/temporal_graph_test.cpp)
 
 ###################################################################################################
 # - BFS tests -------------------------------------------------------------------------------------
-ConfigureTest(BFS_TEST traversal/bfs_test.cpp)
+ConfigureTest(BFS_TEST traversal/bfs_test.cpp ENABLE_IF ${BUILD_CUGRAPH_TRAVERSAL_ALGORITHMS})
 
 ###################################################################################################
 # - Extract BFS Paths tests -----------------------------------------------------------------------
 ConfigureTest(EXTRACT_BFS_PATHS_TEST
-              traversal/extract_bfs_paths_test.cu)
+              traversal/extract_bfs_paths_test.cu ENABLE_IF ${BUILD_CUGRAPH_TRAVERSAL_ALGORITHMS})
 
 ###################################################################################################
 # - Multi-source BFS tests ------------------------------------------------------------------------
-ConfigureTest(MSBFS_TEST traversal/ms_bfs_test.cu)
+ConfigureTest(MSBFS_TEST traversal/ms_bfs_test.cu ENABLE_IF ${BUILD_CUGRAPH_TRAVERSAL_ALGORITHMS})
 
 ###################################################################################################
 # - SSSP tests ------------------------------------------------------------------------------------
-ConfigureTest(SSSP_TEST traversal/sssp_test.cpp)
+ConfigureTest(SSSP_TEST traversal/sssp_test.cpp ENABLE_IF ${BUILD_CUGRAPH_TRAVERSAL_ALGORITHMS})
 
 ###################################################################################################
 # - OD_SHORTEST_DISTANCES tests -------------------------------------------------------------------
-ConfigureTest(OD_SHORTEST_DISTANCES_TEST traversal/od_shortest_distances_test.cpp)
+ConfigureTest(OD_SHORTEST_DISTANCES_TEST traversal/od_shortest_distances_test.cpp ENABLE_IF ${BUILD_CUGRAPH_TRAVERSAL_ALGORITHMS})
+
+###################################################################################################
+# - K-hop Neighbors tests -------------------------------------------------------------------------
+ConfigureTest(K_HOP_NBRS_TEST traversal/k_hop_nbrs_test.cpp ENABLE_IF ${BUILD_CUGRAPH_TRAVERSAL_ALGORITHMS})
 
 ###################################################################################################
 # - HITS tests ------------------------------------------------------------------------------------
-ConfigureTest(HITS_TEST link_analysis/hits_test.cpp)
+ConfigureTest(HITS_TEST link_analysis/hits_test.cpp ENABLE_IF ${BUILD_CUGRAPH_LINK_ANALYSIS_ALGORITHMS})
 
 ###################################################################################################
 # - PAGERANK tests --------------------------------------------------------------------------------
-ConfigureTest(PAGERANK_TEST link_analysis/pagerank_test.cpp)
+ConfigureTest(PAGERANK_TEST link_analysis/pagerank_test.cpp ENABLE_IF ${BUILD_CUGRAPH_LINK_ANALYSIS_ALGORITHMS})
 
 ###################################################################################################
 # - KATZ_CENTRALITY tests -------------------------------------------------------------------------
-ConfigureTest(KATZ_CENTRALITY_TEST centrality/katz_centrality_test.cpp)
+ConfigureTest(KATZ_CENTRALITY_TEST centrality/katz_centrality_test.cpp ENABLE_IF ${BUILD_CUGRAPH_CENTRALITY_ALGORITHMS})
 
 ###################################################################################################
 # - EIGENVECTOR_CENTRALITY tests ------------------------------------------------------------------
-ConfigureTest(EIGENVECTOR_CENTRALITY_TEST centrality/eigenvector_centrality_test.cpp)
+ConfigureTest(EIGENVECTOR_CENTRALITY_TEST centrality/eigenvector_centrality_test.cpp ENABLE_IF ${BUILD_CUGRAPH_CENTRALITY_ALGORITHMS})
 
 ###################################################################################################
 # - BETWEENNESS_CENTRALITY tests ------------------------------------------------------------------
-ConfigureTest(BETWEENNESS_CENTRALITY_TEST centrality/betweenness_centrality_test.cpp)
-ConfigureTest(EDGE_BETWEENNESS_CENTRALITY_TEST centrality/edge_betweenness_centrality_test.cpp)
+ConfigureTest(BETWEENNESS_CENTRALITY_TEST centrality/betweenness_centrality_test.cpp ENABLE_IF ${BUILD_CUGRAPH_CENTRALITY_ALGORITHMS})
+ConfigureTest(EDGE_BETWEENNESS_CENTRALITY_TEST centrality/edge_betweenness_centrality_test.cpp ENABLE_IF ${BUILD_CUGRAPH_CENTRALITY_ALGORITHMS})
 
 ###################################################################################################
 # - WEAKLY CONNECTED COMPONENTS tests -------------------------------------------------------------
@@ -480,56 +507,56 @@ target_include_directories(VERTEX_COLORING_TEST PRIVATE "${CUGRAPH_SOURCE_DIR}/s
 
 ###################################################################################################
 # - SIMILARITY tests ------------------------------------------------------------------------------
-ConfigureTest(SIMILARITY_TEST link_prediction/similarity_test.cu)
+ConfigureTest(SIMILARITY_TEST link_prediction/similarity_test.cu ENABLE_IF ${BUILD_CUGRAPH_LINK_PREDICTION_ALGORITHMS})
 
 ###################################################################################################
 # - WEIGHTED_SIMILARITY tests ---------------------------------------------------------------------
-ConfigureTest(WEIGHTED_SIMILARITY_TEST link_prediction/weighted_similarity_test.cpp)
+ConfigureTest(WEIGHTED_SIMILARITY_TEST link_prediction/weighted_similarity_test.cpp ENABLE_IF ${BUILD_CUGRAPH_LINK_PREDICTION_ALGORITHMS})
 
 ###################################################################################################
 # - RANDOM_WALKS tests ----------------------------------------------------------------------------
 #  FIXME: Rename to random_walks_test.cu once the legacy implementation is deleted
-ConfigureTest(RANDOM_WALKS_TEST sampling/sg_random_walks_test.cpp)
+ConfigureTest(RANDOM_WALKS_TEST sampling/sg_random_walks_test.cpp ENABLE_IF ${BUILD_CUGRAPH_SAMPLING_ALGORITHMS})
 
 ###################################################################################################
 # - UNIFORM NBR SAMPLING tests --------------------------------------------------------------------
-ConfigureTest(UNIFORM_NEIGHBOR_SAMPLING_TEST sampling/uniform_neighbor_sampling.cpp)
+ConfigureTest(UNIFORM_NEIGHBOR_SAMPLING_TEST sampling/uniform_neighbor_sampling.cpp ENABLE_IF ${BUILD_CUGRAPH_SAMPLING_ALGORITHMS})
 
 # - HOMOGENEOUS UNIFORM NBR SAMPLING tests --------------------------------------------------------
 ConfigureTest(
-    HOMOGENEOUS_UNIFORM_NEIGHBOR_SAMPLING_TEST sampling/homogeneous_uniform_neighbor_sampling.cpp)
+    HOMOGENEOUS_UNIFORM_NEIGHBOR_SAMPLING_TEST sampling/homogeneous_uniform_neighbor_sampling.cpp ENABLE_IF ${BUILD_CUGRAPH_SAMPLING_ALGORITHMS})
 
 # - HETEROGENEOUS UNIFORM NBR SAMPLING tests -----------------------------------------------------
 ConfigureTest(
-    HETEROGENEOUS_UNIFORM_NEIGHBOR_SAMPLING_TEST sampling/heterogeneous_uniform_neighbor_sampling.cpp)
+    HETEROGENEOUS_UNIFORM_NEIGHBOR_SAMPLING_TEST sampling/heterogeneous_uniform_neighbor_sampling.cpp ENABLE_IF ${BUILD_CUGRAPH_SAMPLING_ALGORITHMS})
 
 ###################################################################################################
 # - BIASED NBR SAMPLING tests ---------------------------------------------------------------------
-ConfigureTest(BIASED_NEIGHBOR_SAMPLING_TEST sampling/biased_neighbor_sampling.cpp)
+ConfigureTest(BIASED_NEIGHBOR_SAMPLING_TEST sampling/biased_neighbor_sampling.cpp ENABLE_IF ${BUILD_CUGRAPH_SAMPLING_ALGORITHMS})
 
 ###################################################################################################
 # - HOMOGENEOUS BIASED NBR SAMPLING tests ---------------------------------------------------------
 ConfigureTest(
-    HOMOGENEOUS_BIASED_NEIGHBOR_SAMPLING_TEST sampling/homogeneous_biased_neighbor_sampling.cpp)
+    HOMOGENEOUS_BIASED_NEIGHBOR_SAMPLING_TEST sampling/homogeneous_biased_neighbor_sampling.cpp ENABLE_IF ${BUILD_CUGRAPH_SAMPLING_ALGORITHMS})
 
 ###################################################################################################
 # - HETEROGENEOUS BIASED NBR SAMPLING tests -------------------------------------------------------
 ConfigureTest(
     HETEROGENEOUS_BIASED_NEIGHBOR_SAMPLING_TESTT sampling/heterogeneous_biased_neighbor_sampling.cpp
-        GPUS 1 PERCENT 75)
+        GPUS 1 PERCENT 75 ENABLE_IF ${BUILD_CUGRAPH_SAMPLING_ALGORITHMS})
 
 ###################################################################################################
 # - SAMPLING_POST_PROCESSING tests ----------------------------------------------------------------
-ConfigureTest(SAMPLING_POST_PROCESSING_TEST sampling/sampling_post_processing_test.cpp)
+ConfigureTest(SAMPLING_POST_PROCESSING_TEST sampling/sampling_post_processing_test.cpp ENABLE_IF ${BUILD_CUGRAPH_SAMPLING_ALGORITHMS})
 
 ###################################################################################################
 # - SAMPLING_HETEROGENEOUS_POST_PROCESSING tests --------------------------------------------------
 ConfigureTest(SAMPLING_HETEROGENEOUS_POST_PROCESSING_TEST
-              sampling/sampling_heterogeneous_post_processing_test.cpp)
+              sampling/sampling_heterogeneous_post_processing_test.cpp ENABLE_IF ${BUILD_CUGRAPH_SAMPLING_ALGORITHMS})
 
 ###################################################################################################
 # - NEGATIVE SAMPLING tests --------------------------------------------------------------------
-ConfigureTest(NEGATIVE_SAMPLING_TEST sampling/negative_sampling.cpp PERCENT 100)
+ConfigureTest(NEGATIVE_SAMPLING_TEST sampling/negative_sampling.cpp PERCENT 100 ENABLE_IF ${BUILD_CUGRAPH_SAMPLING_ALGORITHMS})
 
 ###################################################################################################
 # - Renumber tests --------------------------------------------------------------------------------
@@ -545,24 +572,19 @@ ConfigureTest(K_CORE_TEST cores/k_core_test.cpp)
 
 ###################################################################################################
 # - K-truss tests --------------------------------------------------------------------------
-ConfigureTest(K_TRUSS_TEST community/k_truss_test.cpp)
+ConfigureTest(K_TRUSS_TEST community/k_truss_test.cpp ENABLE_IF ${BUILD_CUGRAPH_COMMUNITY_ALGORITHMS})
 
 ###################################################################################################
 # - Triangle Count tests --------------------------------------------------------------------------
-ConfigureTest(TRIANGLE_COUNT_TEST community/triangle_count_test.cpp)
+ConfigureTest(TRIANGLE_COUNT_TEST community/triangle_count_test.cpp ENABLE_IF ${BUILD_CUGRAPH_COMMUNITY_ALGORITHMS})
 
 ###################################################################################################
 # - Edge Triangle Count tests ---------------------------------------------------------------------
-ConfigureTest(EDGE_TRIANGLE_COUNT_TEST community/edge_triangle_count_test.cpp)
+ConfigureTest(EDGE_TRIANGLE_COUNT_TEST community/edge_triangle_count_test.cpp ENABLE_IF ${BUILD_CUGRAPH_COMMUNITY_ALGORITHMS})
 
 ###################################################################################################
 # - EDGE SOURCE DESTINATION LOOKUP tests ----------------------------------------------------------
 ConfigureTest(LOOKUP_SRC_DST_TEST lookup/lookup_src_dst_test.cpp)
-
-###################################################################################################
-# - K-hop Neighbors tests -------------------------------------------------------------------------
-ConfigureTest(K_HOP_NBRS_TEST traversal/k_hop_nbrs_test.cpp)
-
 
 ###################################################################################################
 # - install tests ---------------------------------------------------------------------------------
@@ -607,70 +629,61 @@ if(BUILD_CUGRAPH_MG_TESTS)
 
     ###############################################################################################
     # - MG PAGERANK tests -------------------------------------------------------------------------
-    ConfigureTestMG(MG_PAGERANK_TEST link_analysis/mg_pagerank_test.cpp)
+    ConfigureTestMG(MG_PAGERANK_TEST link_analysis/mg_pagerank_test.cpp ENABLE_IF ${BUILD_CUGRAPH_LINK_ANALYSIS_ALGORITHMS})
 
     ###############################################################################################
     # - MG HITS tests -----------------------------------------------------------------------------
-    ConfigureTestMG(MG_HITS_TEST link_analysis/mg_hits_test.cpp)
+    ConfigureTestMG(MG_HITS_TEST link_analysis/mg_hits_test.cpp ENABLE_IF ${BUILD_CUGRAPH_LINK_ANALYSIS_ALGORITHMS})
 
     ###############################################################################################
     # - MG KATZ CENTRALITY tests ------------------------------------------------------------------
-    ConfigureTestMG(MG_KATZ_CENTRALITY_TEST centrality/mg_katz_centrality_test.cpp)
+    ConfigureTestMG(MG_KATZ_CENTRALITY_TEST centrality/mg_katz_centrality_test.cpp ENABLE_IF ${BUILD_CUGRAPH_CENTRALITY_ALGORITHMS})
 
     ###############################################################################################
     # - MG EIGENVECTOR CENTRALITY tests -----------------------------------------------------------
-    ConfigureTestMG(MG_EIGENVECTOR_CENTRALITY_TEST centrality/mg_eigenvector_centrality_test.cpp)
+    ConfigureTestMG(MG_EIGENVECTOR_CENTRALITY_TEST centrality/mg_eigenvector_centrality_test.cpp ENABLE_IF ${BUILD_CUGRAPH_CENTRALITY_ALGORITHMS})
 
     ###############################################################################################
     # - MG BETWEENNESS CENTRALITY tests -----------------------------------------------------------
-    ConfigureTestMG(MG_BETWEENNESS_CENTRALITY_TEST centrality/mg_betweenness_centrality_test.cpp)
+    ConfigureTestMG(MG_BETWEENNESS_CENTRALITY_TEST centrality/mg_betweenness_centrality_test.cpp ENABLE_IF ${BUILD_CUGRAPH_CENTRALITY_ALGORITHMS})
     ConfigureTestMG(MG_EDGE_BETWEENNESS_CENTRALITY_TEST
-                    centrality/mg_edge_betweenness_centrality_test.cpp)
-
-    ###############################################################################################
-    # - MG BFS tests ------------------------------------------------------------------------------
-    ConfigureTestMG(MG_BFS_TEST traversal/mg_bfs_test.cpp)
-
-    ###############################################################################################
-    # - Extract BFS Paths tests -------------------------------------------------------------------
-    ConfigureTestMG(MG_EXTRACT_BFS_PATHS_TEST
-                    traversal/mg_extract_bfs_paths_test.cu)
-
-    ###############################################################################################
-    # - MG SSSP tests -----------------------------------------------------------------------------
-    ConfigureTestMG(MG_SSSP_TEST traversal/mg_sssp_test.cpp)
+                    centrality/mg_edge_betweenness_centrality_test.cpp ENABLE_IF ${BUILD_CUGRAPH_CENTRALITY_ALGORITHMS})
 
     ###############################################################################################
     # - MG LOUVAIN tests --------------------------------------------------------------------------
-    ConfigureTestMG(MG_LOUVAIN_TEST community/mg_louvain_test.cpp)
+    ConfigureTestMG(MG_LOUVAIN_TEST community/mg_louvain_test.cpp ENABLE_IF ${BUILD_CUGRAPH_COMMUNITY_ALGORITHMS})
 
     ###############################################################################################
     # - MG LEIDEN tests --------------------------------------------------------------------------
-    ConfigureTestMG(MG_LEIDEN_TEST community/mg_leiden_test.cpp)
+    ConfigureTestMG(MG_LEIDEN_TEST community/mg_leiden_test.cpp ENABLE_IF ${BUILD_CUGRAPH_COMMUNITY_ALGORITHMS})
 
     ###############################################################################################
     # - MG WEIGHTED MATCHING tests ----------------------------------------------------------------
-    ConfigureTestMG(MG_WEIGHTED_MATCHING_TEST community/mg_weighted_matching_test.cpp)
+    ConfigureTestMG(MG_WEIGHTED_MATCHING_TEST community/mg_weighted_matching_test.cpp ENABLE_IF ${BUILD_CUGRAPH_COMMUNITY_ALGORITHMS})
 
     ###############################################################################################
     # - MG ECG tests --------------------------------------------------------------------------
-    ConfigureTestMG(MG_ECG_TEST community/mg_ecg_test.cpp)
+    ConfigureTestMG(MG_ECG_TEST community/mg_ecg_test.cpp ENABLE_IF ${BUILD_CUGRAPH_COMMUNITY_ALGORITHMS})
+
+    ###############################################################################################
+    # - MG LOUVAIN tests --------------------------------------------------------------------------
+    ConfigureTestMG(MG_EGONET_TEST community/mg_egonet_test.cu ENABLE_IF ${BUILD_CUGRAPH_COMMUNITY_ALGORITHMS})
+
+    ###############################################################################################
+    # - MG EDGE TRIANGLE COUNT tests --------------------------------------------------------------
+    ConfigureTestMG(MG_EDGE_TRIANGLE_COUNT_TEST community/mg_edge_triangle_count_test.cpp ENABLE_IF ${BUILD_CUGRAPH_COMMUNITY_ALGORITHMS})
+
+    ###############################################################################################
+    # - MG K-TRUSS tests --------------------------------------------------------------------------
+    ConfigureTestMG(MG_K_TRUSS_TEST community/mg_k_truss_test.cpp ENABLE_IF ${BUILD_CUGRAPH_COMMUNITY_ALGORITHMS})
+
+    ###############################################################################################
+    # - MG TRIANGLE COUNT tests -------------------------------------------------------------------
+    ConfigureTestMG(MG_TRIANGLE_COUNT_TEST community/mg_triangle_count_test.cpp ENABLE_IF ${BUILD_CUGRAPH_COMMUNITY_ALGORITHMS})
 
     ###############################################################################################
     # - MG SELECT RANDOM VERTICES tests -----------------------------------------------------------
     ConfigureTestMG(MG_SELECT_RANDOM_VERTICES structure/mg_select_random_vertices_test.cpp)
-
-    ###############################################################################################
-    # - MG LOUVAIN tests --------------------------------------------------------------------------
-    ConfigureTestMG(MG_EGONET_TEST community/mg_egonet_test.cu)
-
-    ###############################################################################################
-    # - MG EDGE TRIANGLE COUNT tests --------------------------------------------------------------
-    ConfigureTestMG(MG_EDGE_TRIANGLE_COUNT_TEST community/mg_edge_triangle_count_test.cpp)
-
-    ###############################################################################################
-    # - MG K-TRUSS tests --------------------------------------------------------------------------
-    ConfigureTestMG(MG_K_TRUSS_TEST community/mg_k_truss_test.cpp)
 
     ###############################################################################################
     # - MG WEAKLY CONNECTED COMPONENTS tests ------------------------------------------------------
@@ -696,10 +709,6 @@ if(BUILD_CUGRAPH_MG_TESTS)
     ###############################################################################################
     # - MG K Core tests ---------------------------------------------------------------------------
     ConfigureTestMG(MG_K_CORE_TEST cores/mg_k_core_test.cpp)
-
-    ###############################################################################################
-    # - MG TRIANGLE COUNT tests -------------------------------------------------------------------
-    ConfigureTestMG(MG_TRIANGLE_COUNT_TEST community/mg_triangle_count_test.cpp)
 
     ###############################################################################################
     # - MG coarsening tests -----------------------------------------------------------------------
@@ -784,52 +793,65 @@ if(BUILD_CUGRAPH_MG_TESTS)
 
     ###############################################################################################
     # - MG UNIFORM NBR SAMPLING tests -------------------------------------------------------------
-    ConfigureTestMG(MG_UNIFORM_NEIGHBOR_SAMPLING_TEST sampling/mg_uniform_neighbor_sampling.cpp)
+    ConfigureTestMG(MG_UNIFORM_NEIGHBOR_SAMPLING_TEST sampling/mg_uniform_neighbor_sampling.cpp ENABLE_IF ${BUILD_CUGRAPH_SAMPLING_ALGORITHMS})
 
     ###############################################################################################
     # - MG HOMOGENEOUS UNIFORM NBR SAMPLING tests -------------------------------------------------
     ConfigureTestMG(
-        MG_HOMOGENEOUS_UNIFORM_NEIGHBOR_SAMPLING_TEST sampling/mg_homogeneous_uniform_neighbor_sampling.cpp)
+        MG_HOMOGENEOUS_UNIFORM_NEIGHBOR_SAMPLING_TEST sampling/mg_homogeneous_uniform_neighbor_sampling.cpp ENABLE_IF ${BUILD_CUGRAPH_SAMPLING_ALGORITHMS})
 
     ###############################################################################################
     # - MG HETEROGENEOUS UNIFORM NBR SAMPLING tests -------------------------------------------------
     ConfigureTestMG(
-        MG_HETEROGENEOUS_UNIFORM_NEIGHBOR_SAMPLING_TEST sampling/mg_heterogeneous_uniform_neighbor_sampling.cpp)
+        MG_HETEROGENEOUS_UNIFORM_NEIGHBOR_SAMPLING_TEST sampling/mg_heterogeneous_uniform_neighbor_sampling.cpp ENABLE_IF ${BUILD_CUGRAPH_SAMPLING_ALGORITHMS})
 
     ###############################################################################################
     # - MG HOMOGENEOUS BIASED NBR SAMPLING tests --------------------------------------------------
     ConfigureTestMG(
-        MG_HOMOGENEOUS_BIASED_NEIGHBOR_SAMPLING_TEST sampling/mg_homogeneous_biased_neighbor_sampling.cpp)
+        MG_HOMOGENEOUS_BIASED_NEIGHBOR_SAMPLING_TEST sampling/mg_homogeneous_biased_neighbor_sampling.cpp ENABLE_IF ${BUILD_CUGRAPH_SAMPLING_ALGORITHMS})
 
     ###############################################################################################
     # - MG HETEROGENEOUS BIASED NBR SAMPLING tests --------------------------------------------------
     ConfigureTestMG(
-        MG_HETEROGENEOUS_BIASED_NEIGHBOR_SAMPLING_TEST sampling/mg_heterogeneous_biased_neighbor_sampling.cpp)
+        MG_HETEROGENEOUS_BIASED_NEIGHBOR_SAMPLING_TEST sampling/mg_heterogeneous_biased_neighbor_sampling.cpp ENABLE_IF ${BUILD_CUGRAPH_SAMPLING_ALGORITHMS})
 
     ###############################################################################################
     # - MG BIASED NBR SAMPLING tests --------------------------------------------------------------
-    ConfigureTestMG(MG_BIASED_NEIGHBOR_SAMPLING_TEST sampling/mg_biased_neighbor_sampling.cpp)
+    ConfigureTestMG(MG_BIASED_NEIGHBOR_SAMPLING_TEST sampling/mg_biased_neighbor_sampling.cpp ENABLE_IF ${BUILD_CUGRAPH_SAMPLING_ALGORITHMS})
 
     ###################################################################################################
     # - NEGATIVE SAMPLING tests --------------------------------------------------------------------
-    ConfigureTestMG(MG_NEGATIVE_SAMPLING_TEST sampling/mg_negative_sampling.cpp)
+    ConfigureTestMG(MG_NEGATIVE_SAMPLING_TEST sampling/mg_negative_sampling.cpp ENABLE_IF ${BUILD_CUGRAPH_SAMPLING_ALGORITHMS})
 
 
     ###############################################################################################
     # - MG RANDOM_WALKS tests ---------------------------------------------------------------------
-    ConfigureTestMG(MG_RANDOM_WALKS_TEST sampling/mg_random_walks_test.cpp)
+    ConfigureTestMG(MG_RANDOM_WALKS_TEST sampling/mg_random_walks_test.cpp ENABLE_IF ${BUILD_CUGRAPH_SAMPLING_ALGORITHMS})
 
     ###############################################################################################
     # - MG WEIGHTED_SIMILARITY tests --------------------------------------------------------------
-    ConfigureTestMG(MG_WEIGHTED_SIMILARITY_TEST link_prediction/mg_weighted_similarity_test.cpp)
+    ConfigureTestMG(MG_WEIGHTED_SIMILARITY_TEST link_prediction/mg_weighted_similarity_test.cpp ENABLE_IF ${BUILD_CUGRAPH_LINK_PREDICTION_ALGORITHMS})
 
     ###############################################################################################
     # - MG SIMILARITY tests -----------------------------------------------------------------------
-    ConfigureTestMG(MG_SIMILARITY_TEST link_prediction/mg_similarity_test.cpp)
+    ConfigureTestMG(MG_SIMILARITY_TEST link_prediction/mg_similarity_test.cpp ENABLE_IF ${BUILD_CUGRAPH_LINK_PREDICTION_ALGORITHMS})
 
     ###############################################################################################
     # - MG K_HOP_NBRS tests -----------------------------------------------------------------------
-    ConfigureTestMG(MG_K_HOP_NBRS_TEST traversal/mg_k_hop_nbrs_test.cpp)
+    ConfigureTestMG(MG_K_HOP_NBRS_TEST traversal/mg_k_hop_nbrs_test.cpp ENABLE_IF ${BUILD_CUGRAPH_TRAVERSAL_ALGORITHMS})
+
+    ###############################################################################################
+    # - MG BFS tests ------------------------------------------------------------------------------
+    ConfigureTestMG(MG_BFS_TEST traversal/mg_bfs_test.cpp ENABLE_IF ${BUILD_CUGRAPH_TRAVERSAL_ALGORITHMS})
+
+    ###############################################################################################
+    # - Extract BFS Paths tests -------------------------------------------------------------------
+    ConfigureTestMG(MG_EXTRACT_BFS_PATHS_TEST
+                    traversal/mg_extract_bfs_paths_test.cu ENABLE_IF ${BUILD_CUGRAPH_TRAVERSAL_ALGORITHMS})
+
+    ###############################################################################################
+    # - MG SSSP tests -----------------------------------------------------------------------------
+    ConfigureTestMG(MG_SSSP_TEST traversal/mg_sssp_test.cpp ENABLE_IF ${BUILD_CUGRAPH_TRAVERSAL_ALGORITHMS})
 
     ###############################################################################################
     # - MG C API tests ----------------------------------------------------------------------------
@@ -873,8 +895,8 @@ endif()
 
 ConfigureCTest(CAPI_CREATE_GRAPH_TEST c_api/create_graph_test.c)
 ConfigureCTest(CAPI_GENERATE_RMAT_TEST c_api/generate_rmat_test.c)
-ConfigureCTest(CAPI_PAGERANK_TEST c_api/pagerank_test.c)
-ConfigureCTest(CAPI_KATZ_TEST c_api/katz_test.c)
+ConfigureCTest(CAPI_PAGERANK_TEST c_api/pagerank_test.c ENABLE_IF ${BUILD_CUGRAPH_LINK_ANALYSIS_ALGORITHMS})
+ConfigureCTest(CAPI_KATZ_TEST c_api/katz_test.c ENABLE_IF ${BUILD_CUGRAPH_LINK_ANALYSIS_ALGORITHMS})
 ConfigureCTest(CAPI_EIGENVECTOR_CENTRALITY_TEST c_api/eigenvector_centrality_test.c)
 ConfigureCTest(CAPI_BETWEENNESS_CENTRALITY_TEST c_api/betweenness_centrality_test.c)
 ConfigureCTest(CAPI_EDGE_BETWEENNESS_CENTRALITY_TEST c_api/edge_betweenness_centrality_test.c)
