@@ -366,7 +366,6 @@ class DistSampler:
 
         current_seeds, current_ix, current_label = current_seeds_and_ix
         num_seed_edges = current_ix.numel()
-        print(current_label)
 
         # The index gets stored as-is regardless of what makes it into
         # the final batch and in what order.
@@ -577,6 +576,8 @@ class DistSampler:
             )
         else:
             edges_call_groups, index_call_groups, label_call_groups = groups
+
+        print(input_label, label_call_groups, flush=True)
 
         sample_args = [
             batch_id_start,
