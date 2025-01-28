@@ -283,8 +283,7 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> negativ
 
   if constexpr (multi_gpu) {
     samples_per_gpu = host_scalar_allgather(handle.get_comms(), num_samples, handle.get_stream());
-    handle.sync_stream();
-    total_samples = std::reduce(samples_per_gpu.begin(), samples_per_gpu.end());
+    total_samples   = std::reduce(samples_per_gpu.begin(), samples_per_gpu.end());
   }
 
   size_t samples_in_this_batch = total_samples;
@@ -496,33 +495,23 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> negativ
                         gpu_assignment.end(),
                         thrust::make_zip_iterator(srcs.begin(), dsts.begin()));
 
-    rmm::device_uvector<int> reduced_ranks(comm_size, handle.get_stream());
-    rmm::device_uvector<size_t> reduced_counts(comm_size, handle.get_stream());
-
-    reduced_ranks.resize(
-      thrust::distance(reduced_ranks.begin(),
-                       thrust::reduce_by_key(handle.get_thrust_policy(),
-                                             gpu_assignment.begin(),
-                                             gpu_assignment.end(),
-                                             thrust::make_constant_iterator(size_t{1}),
-                                             reduced_ranks.begin(),
-                                             reduced_counts.begin(),
-                                             thrust::equal_to<int>())
-                         .first),
-      handle.get_stream());
-    reduced_counts.resize(reduced_ranks.size(), handle.get_stream());
-
-    rmm::device_uvector<size_t> send_count(comm_size, handle.get_stream());
-    thrust::fill(handle.get_thrust_policy(), send_count.begin(), send_count.end(), 0);
-    thrust::scatter(handle.get_thrust_policy(),
-                    reduced_counts.begin(),
-                    reduced_counts.end(),
-                    reduced_ranks.begin(),
-                    send_count.begin());
+    rmm::device_uvector<size_t> d_send_counts(comm_size, handle.get_stream());
+    thrust::tabulate(
+      handle.get_thrust_policy(),
+      d_send_counts.begin(),
+      d_send_counts.end(),
+      [gpu_assignment_span = raft::device_span<const int>{
+         gpu_assignment.data(), gpu_assignment.size()}] __device__(size_t i) {
+        auto begin = thrust::lower_bound(
+          thrust::seq, gpu_assignment_span.begin(), gpu_assignment_span.end(), static_cast<int>(i));
+        auto end =
+          thrust::upper_bound(thrust::seq, begin, gpu_assignment_span.end(), static_cast<int>(i));
+        return thrust::distance(begin, end);
+      });
 
     std::vector<size_t> tx_value_counts(comm_size, 0);
     raft::update_host(
-      tx_value_counts.data(), send_count.data(), send_count.size(), handle.get_stream());
+      tx_value_counts.data(), d_send_counts.data(), d_send_counts.size(), handle.get_stream());
 
     std::forward_as_tuple(std::tie(srcs, dsts), std::ignore) =
       cugraph::shuffle_values(handle.get_comms(),
