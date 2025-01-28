@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -32,6 +32,7 @@
 
 #include <rmm/exec_policy.hpp>
 
+#include <cuda/std/optional>
 #include <thrust/binary_search.h>
 #include <thrust/copy.h>
 #include <thrust/count.h>
@@ -43,7 +44,6 @@
 #include <thrust/iterator/iterator_traits.h>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/merge.h>
-#include <thrust/optional.h>
 #include <thrust/reduce.h>
 #include <thrust/sort.h>
 #include <thrust/tabulate.h>
@@ -109,7 +109,7 @@ struct call_intersection_op_t {
                                typename GraphViewType::edge_type,
                                GraphViewType::is_multi_gpu>
     edge_partition{};
-  thrust::optional<raft::device_span<typename GraphViewType::vertex_type const>> unique_vertices;
+  cuda::std::optional<raft::device_span<typename GraphViewType::vertex_type const>> unique_vertices;
   VertexValueInputIterator vertex_property_first;
   IntersectionOp intersection_op{};
   size_t const* nbr_offsets{nullptr};
@@ -135,17 +135,17 @@ struct call_intersection_op_t {
     auto intersection = raft::device_span<typename GraphViewType::vertex_type const>(
       nbr_indices + nbr_offsets[i], nbr_indices + nbr_offsets[i + 1]);
 
-    std::conditional_t<!std::is_same_v<edge_property_value_t, thrust::nullopt_t>,
+    std::conditional_t<!std::is_same_v<edge_property_value_t, cuda::std::nullopt_t>,
                        raft::device_span<edge_property_value_t const>,
                        std::byte /* dummy */>
       property_values0{};
 
-    std::conditional_t<!std::is_same_v<edge_property_value_t, thrust::nullopt_t>,
+    std::conditional_t<!std::is_same_v<edge_property_value_t, cuda::std::nullopt_t>,
                        raft::device_span<edge_property_value_t const>,
                        std::byte /* dummy */>
       property_values1{};
 
-    if constexpr (!std::is_same_v<edge_property_value_t, thrust::nullopt_t>) {
+    if constexpr (!std::is_same_v<edge_property_value_t, cuda::std::nullopt_t>) {
       property_values0 = raft::device_span<edge_property_value_t const>(
         nbr_intersection_property_values0 + nbr_offsets[i],
         nbr_intersection_property_values0 + +nbr_offsets[i + 1]);
@@ -392,7 +392,7 @@ void per_v_pair_transform_dst_nbr_intersection(
       [[maybe_unused]] rmm::device_uvector<edge_property_value_t>
         r_nbr_intersection_property_values1(size_t{0}, handle.get_stream());
 
-      if constexpr (!std::is_same_v<edge_property_value_t, thrust::nullopt_t>) {
+      if constexpr (!std::is_same_v<edge_property_value_t, cuda::std::nullopt_t>) {
         std::tie(intersection_offsets,
                  intersection_indices,
                  r_nbr_intersection_property_values0,
@@ -430,7 +430,7 @@ void per_v_pair_transform_dst_nbr_intersection(
                            VertexPairIterator,
                            VertexPairValueOutputIterator>{
                            edge_partition,
-                           thrust::make_optional<raft::device_span<vertex_t const>>(
+                           cuda::std::make_optional<raft::device_span<vertex_t const>>(
                              (*sorted_unique_vertices).data(), (*sorted_unique_vertices).size()),
                            vertex_value_input_for_sorted_unique_vertices_first,
                            intersection_op,
@@ -442,28 +442,29 @@ void per_v_pair_transform_dst_nbr_intersection(
                            vertex_pair_first,
                            vertex_pair_value_output_first});
       } else {
-        thrust::for_each(handle.get_thrust_policy(),
-                         thrust::make_counting_iterator(size_t{0}),
-                         thrust::make_counting_iterator(this_chunk_size),
-                         detail::call_intersection_op_t<
-                           GraphViewType,
-                           VertexValueInputIterator,
-                           typename decltype(r_nbr_intersection_property_values0)::const_pointer,
-                           IntersectionOp,
-                           decltype(chunk_vertex_pair_index_first),
-                           VertexPairIterator,
-                           VertexPairValueOutputIterator>{
-                           edge_partition,
-                           thrust::optional<raft::device_span<vertex_t const>>{thrust::nullopt},
-                           vertex_value_input_first,
-                           intersection_op,
-                           intersection_offsets.data(),
-                           intersection_indices.data(),
-                           r_nbr_intersection_property_values0.data(),
-                           r_nbr_intersection_property_values1.data(),
-                           chunk_vertex_pair_index_first,
-                           vertex_pair_first,
-                           vertex_pair_value_output_first});
+        thrust::for_each(
+          handle.get_thrust_policy(),
+          thrust::make_counting_iterator(size_t{0}),
+          thrust::make_counting_iterator(this_chunk_size),
+          detail::call_intersection_op_t<
+            GraphViewType,
+            VertexValueInputIterator,
+            typename decltype(r_nbr_intersection_property_values0)::const_pointer,
+            IntersectionOp,
+            decltype(chunk_vertex_pair_index_first),
+            VertexPairIterator,
+            VertexPairValueOutputIterator>{
+            edge_partition,
+            cuda::std::optional<raft::device_span<vertex_t const>>{cuda::std::nullopt},
+            vertex_value_input_first,
+            intersection_op,
+            intersection_offsets.data(),
+            intersection_indices.data(),
+            r_nbr_intersection_property_values0.data(),
+            r_nbr_intersection_property_values1.data(),
+            chunk_vertex_pair_index_first,
+            vertex_pair_first,
+            vertex_pair_value_output_first});
       }
 
       chunk_vertex_pair_index_first += this_chunk_size;

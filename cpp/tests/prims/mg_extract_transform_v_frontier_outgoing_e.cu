@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -39,11 +39,11 @@
 #include <rmm/device_scalar.hpp>
 #include <rmm/device_uvector.hpp>
 
+#include <cuda/std/optional>
 #include <thrust/copy.h>
 #include <thrust/count.h>
 #include <thrust/equal.h>
 #include <thrust/iterator/counting_iterator.h>
-#include <thrust/optional.h>
 #include <thrust/sequence.h>
 #include <thrust/sort.h>
 #include <thrust/tabulate.h>
@@ -65,7 +65,7 @@ struct e_op_t {
   static_assert(std::is_same_v<output_payload_t, int32_t> ||
                 std::is_same_v<output_payload_t, thrust::tuple<float, int32_t>>);
 
-  using return_type = thrust::optional<typename std::conditional_t<
+  using return_type = cuda::std::optional<typename std::conditional_t<
     std::is_same_v<key_t, vertex_t>,
     std::conditional_t<std::is_arithmetic_v<output_payload_t>,
                        thrust::tuple<vertex_t, vertex_t, int32_t>,
@@ -78,7 +78,7 @@ struct e_op_t {
                                     vertex_t dst,
                                     property_t src_val,
                                     property_t dst_val,
-                                    thrust::nullopt_t) const
+                                    cuda::std::nullopt_t) const
   {
     auto output_payload = static_cast<output_payload_t>(1);
     if (src_val < dst_val) {
@@ -109,7 +109,7 @@ struct e_op_t {
         }
       }
     } else {
-      return thrust::nullopt;
+      return cuda::std::nullopt;
     }
   }
 };

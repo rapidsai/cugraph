@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,11 +23,11 @@
 
 #include <cuda/atomic>
 #include <cuda/functional>
+#include <cuda/std/optional>
 #include <thrust/binary_search.h>
 #include <thrust/gather.h>
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/iterator/transform_iterator.h>
-#include <thrust/optional.h>
 
 #include <optional>
 #include <tuple>
@@ -87,15 +87,15 @@ std::tuple<std::vector<vertex_t>, std::vector<offset_t>> compute_offset_aligned_
 }
 
 template <typename T>
-thrust::optional<T> to_thrust_optional(std::optional<T> val)
+cuda::std::optional<T> to_thrust_optional(std::optional<T> val)
 {
-  thrust::optional<T> ret{thrust::nullopt};
+  cuda::std::optional<T> ret{cuda::std::nullopt};
   if (val) { ret = *val; }
   return ret;
 }
 
 template <typename T>
-std::optional<T> to_std_optional(thrust::optional<T> val)
+std::optional<T> to_std_optional(cuda::std::optional<T> val)
 {
   std::optional<T> ret{std::nullopt};
   if (val) { ret = *val; }

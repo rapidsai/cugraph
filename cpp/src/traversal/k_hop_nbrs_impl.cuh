@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,13 +30,13 @@
 
 #include <rmm/exec_policy.hpp>
 
+#include <cuda/std/optional>
 #include <thrust/count.h>
 #include <thrust/fill.h>
 #include <thrust/iterator/constant_iterator.h>
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/iterator/transform_iterator.h>
 #include <thrust/iterator/zip_iterator.h>
-#include <thrust/optional.h>
 #include <thrust/tuple.h>
 
 #include <limits>
@@ -48,11 +48,11 @@ namespace {
 
 template <typename vertex_t>
 struct e_op_t {
-  __device__ thrust::optional<size_t> operator()(thrust::tuple<vertex_t, size_t> tagged_src,
-                                                 vertex_t,
-                                                 thrust::nullopt_t,
-                                                 thrust::nullopt_t,
-                                                 thrust::nullopt_t) const
+  __device__ cuda::std::optional<size_t> operator()(thrust::tuple<vertex_t, size_t> tagged_src,
+                                                    vertex_t,
+                                                    cuda::std::nullopt_t,
+                                                    cuda::std::nullopt_t,
+                                                    cuda::std::nullopt_t) const
   {
     return thrust::get<1>(tagged_src);
   }
