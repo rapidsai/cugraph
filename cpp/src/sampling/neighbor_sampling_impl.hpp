@@ -31,6 +31,7 @@
 
 #include <rmm/device_uvector.hpp>
 
+#include <cuda/std/optional>
 #include <thrust/unique.h>
 
 namespace cugraph {
@@ -123,9 +124,9 @@ neighbor_sample_impl(raft::handle_t const& handle,
         *edge_type_view,
         [valid_edge_type = i] __device__(auto src,
                                          auto dst,
-                                         thrust::nullopt_t,
-                                         thrust::nullopt_t,
-                                         /*thrust::nullopt_t*/ auto edge_type) {
+                                         cuda::std::nullopt_t,
+                                         cuda::std::nullopt_t,
+                                         /*cuda::std::nullopt_t*/ auto edge_type) {
           return edge_type == valid_edge_type;
         },
         edge_mask.mutable_view(),
@@ -202,8 +203,8 @@ neighbor_sample_impl(raft::handle_t const& handle,
         ? std::make_optional(rmm::device_uvector<label_t>(0, handle.get_stream()))
         : std::nullopt;
 
-    for (auto edge_type_id = 0; edge_type_id < num_edge_types; edge_type_id++) {
-      auto k_level = fan_out[(hop * num_edge_types) + edge_type_id];
+    for (edge_type_t edge_type = 0; edge_type < num_edge_types; edge_type++) {
+      auto k_level = fan_out[(hop * num_edge_types) + edge_type];
       rmm::device_uvector<vertex_t> srcs(0, handle.get_stream());
       rmm::device_uvector<vertex_t> dsts(0, handle.get_stream());
       std::optional<rmm::device_uvector<weight_t>> weights{std::nullopt};
@@ -212,7 +213,7 @@ neighbor_sample_impl(raft::handle_t const& handle,
       std::optional<rmm::device_uvector<int32_t>> labels{std::nullopt};
 
       if (num_edge_types > 1) {
-        modified_graph_view.attach_edge_mask(edge_masks_vector[edge_type_id].view());
+        modified_graph_view.attach_edge_mask(edge_masks_vector[edge_type].view());
       }
 
       if (k_level > 0) {

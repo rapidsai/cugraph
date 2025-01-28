@@ -28,11 +28,8 @@ namespace detail {
 /** @defgroup collect_comm_wrapper_cpp C++ Shuffle Wrappers
  */
 
-/** @ingroup collect_comm_wrapper_cpp
- *  @{
- */
-
 /**
+ * @ingroup collect_comm_wrapper_cpp
  * @brief Gather the span of data from all ranks and broadcast the combined data to all ranks.
  *
  * @param[in] handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator,

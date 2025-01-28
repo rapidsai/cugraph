@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,8 +21,8 @@
 #include <cugraph/utilities/packed_bool_utils.hpp>
 #include <cugraph/utilities/thrust_tuple_utils.hpp>
 
+#include <cuda/std/optional>
 #include <thrust/iterator/iterator_traits.h>
-#include <thrust/optional.h>
 
 namespace cugraph {
 
@@ -138,9 +138,16 @@ class edge_partition_edge_property_device_view_t {
   {
     if constexpr (has_packed_bool_element) {
       static_assert(is_packed_bool, "unimplemented for thrust::tuple types.");
+      cuda::atomic_ref<uint32_t, cuda::thread_scope_device> word(
+        *(value_first_ + cugraph::packed_bool_offset(offset)));
       auto mask = cugraph::packed_bool_mask(offset);
-      auto old  = val ? atomicOr(value_first_ + cugraph::packed_bool_offset(offset), mask)
-                      : atomicAnd(value_first_ + cugraph::packed_bool_offset(offset), ~mask);
+      uint32_t old{};
+      if (compare == val) {
+        old = word.load(cuda::std::memory_order_relaxed);
+      } else {
+        old = val ? word.fetch_or(mask, cuda::std::memory_order_relaxed)
+                  : word.fetch_and(~mask, cuda::std::memory_order_relaxed);
+      }
       return static_cast<bool>(old & mask);
     } else {
       return cugraph::elementwise_atomic_cas(value_first_ + offset, compare, val);
@@ -175,7 +182,7 @@ template <typename edge_t>
 class edge_partition_edge_dummy_property_device_view_t {
  public:
   using edge_type  = edge_t;
-  using value_type = thrust::nullopt_t;
+  using value_type = cuda::std::nullopt_t;
 
   static constexpr bool is_packed_bool          = false;
   static constexpr bool has_packed_bool_element = false;
@@ -187,7 +194,7 @@ class edge_partition_edge_dummy_property_device_view_t {
   {
   }
 
-  __device__ auto get(edge_t offset) const { return thrust::nullopt; }
+  __device__ auto get(edge_t offset) const { return cuda::std::nullopt; }
 };
 
 }  // namespace detail
