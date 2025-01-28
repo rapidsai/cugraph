@@ -577,7 +577,8 @@ class DistSampler:
         else:
             edges_call_groups, index_call_groups, label_call_groups = groups
 
-        print(input_label.sum(), [c.sum() for c in label_call_groups], flush=True)
+        if input_label is not None:
+            print(input_label.sum(), [c.sum() for c in label_call_groups], flush=True)
 
         sample_args = [
             batch_id_start,
