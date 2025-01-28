@@ -571,7 +571,7 @@ class DistSampler:
         )
         if len(groups) == 2:
             edges_call_groups, index_call_groups = groups
-            label_call_groups = [torch.empty(dtype=torch.int32)] * len(
+            label_call_groups = [torch.tensor([], dtype=torch.int32)] * len(
                 edges_call_groups
             )
         else:
