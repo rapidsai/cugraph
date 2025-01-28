@@ -223,6 +223,7 @@ class DistSampler:
         input_id: TensorType,
         seeds_per_call: int,
         assume_equal_input_size: bool = False,
+        label: Optional[TensorType] = None,
     ):
         torch = import_optional("torch")
 
@@ -231,6 +232,8 @@ class DistSampler:
         # many batches.
         seeds_call_groups = torch.split(seeds, seeds_per_call, dim=-1)
         index_call_groups = torch.split(input_id, seeds_per_call, dim=-1)
+        if label is not None:
+            label_call_groups = torch.split(label, seeds_per_call, dim=-1)
 
         # Need to add empties to the list of call groups to handle the case
         # where not all ranks have the same number of call groups.  This
@@ -251,8 +254,16 @@ class DistSampler:
                 [torch.tensor([], dtype=torch.int64, device=input_id.device)]
                 * (int(num_call_groups) - len(index_call_groups))
             )
+            if label is not None:
+                label_call_groups = list(label_call_groups) + (
+                    [torch.tensor([], dtype=torch.int64, device=input_id.device)]
+                    * (int(num_call_groups) - len(label_call_groups))
+                )
 
-        return seeds_call_groups, index_call_groups
+        if label is not None:
+            return seeds_call_groups, index_call_groups, label_call_groups
+        else:
+            return seeds_call_groups, index_call_groups
 
     def sample_from_nodes(
         self,
@@ -344,7 +355,7 @@ class DistSampler:
     def __sample_from_edges_func(
         self,
         call_id: int,
-        current_seeds_and_ix: Tuple["torch.Tensor", "torch.Tensor"],
+        current_seeds_and_ix: Tuple["torch.Tensor", "torch.Tensor", "torch.Tensor"],
         batch_id_start: int,
         batch_size: int,
         batches_per_call: int,
@@ -353,7 +364,7 @@ class DistSampler:
     ) -> Union[None, Iterator[Tuple[Dict[str, "torch.Tensor"], int, int]]]:
         torch = import_optional("torch")
 
-        current_seeds, current_ix = current_seeds_and_ix
+        current_seeds, current_ix, current_label = current_seeds_and_ix
         num_seed_edges = current_ix.numel()
 
         # The index gets stored as-is regardless of what makes it into
@@ -468,6 +479,7 @@ class DistSampler:
             random_state=random_state,
         )
         minibatch_dict["input_index"] = current_ix.cuda()
+        minibatch_dict["input_label"] = current_label.cuda()
         minibatch_dict["input_offsets"] = input_offsets
         minibatch_dict[
             "edge_inverse"
@@ -505,6 +517,7 @@ class DistSampler:
         random_state: int = 62,
         assume_equal_input_size: bool = False,
         input_id: Optional[TensorType] = None,
+        input_label: Optional[TensorType] = None,
     ) -> Iterator[Tuple[Dict[str, "torch.Tensor"], int, int]]:
         """
         Performs sampling starting from seed edges.
@@ -527,6 +540,10 @@ class DistSampler:
             Input ids corresponding to the original batch tensor, if it
             was permuted prior to calling this function.  If present,
             will be saved with the samples.
+        input_label: Optional[TensorType]
+            Input labels corresponding to the input seeds.  Typically used
+            for link prediction sampling.  If present, will be saved with
+            the samples.  Generally not compatible with negative sampling.
         """
 
         torch = import_optional("torch")
@@ -545,12 +562,20 @@ class DistSampler:
             local_num_batches, assume_equal_input_size=assume_equal_input_size
         )
 
-        edges_call_groups, index_call_groups = self.__get_call_groups(
+        groups = self.__get_call_groups(
             edges,
             input_id,
             actual_seed_edges_per_call,
             assume_equal_input_size=input_size_is_equal,
+            label=input_label,
         )
+        if len(groups) == 2:
+            edges_call_groups, index_call_groups = groups
+            label_call_groups = [torch.empty(dtype=torch.int32)] * len(
+                edges_call_groups
+            )
+        else:
+            edges_call_groups, index_call_groups, label_call_groups = groups
 
         sample_args = [
             batch_id_start,
@@ -563,14 +588,14 @@ class DistSampler:
         if self.__writer is None:
             # Buffered sampling
             return BufferedSampleReader(
-                zip(edges_call_groups, index_call_groups),
+                zip(edges_call_groups, index_call_groups, label_call_groups),
                 self.__sample_from_edges_func,
                 *sample_args,
             )
         else:
             # Unbuffered sampling
             for i, current_seeds_and_ix in enumerate(
-                zip(edges_call_groups, index_call_groups)
+                zip(edges_call_groups, index_call_groups, label_call_groups)
             ):
                 sample_args[0] = self.__sample_from_edges_func(
                     i,
