@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,7 +19,7 @@
 #include "prims/update_edge_src_dst_property.cuh"
 #include "utilities/property_generator_utilities.hpp"
 
-#include <thrust/optional.h>
+#include <cuda/std/optional>
 #include <thrust/tuple.h>
 
 #include <cuco/hash_functions.cuh>
@@ -69,8 +69,11 @@ template <typename vertex_t, typename property_t>
 struct edge_property_transform {
   int32_t mod{};
 
-  constexpr __device__ property_t operator()(
-    vertex_t src, vertex_t dst, thrust::nullopt_t, thrust::nullopt_t, thrust::nullopt_t) const
+  constexpr __device__ property_t operator()(vertex_t src,
+                                             vertex_t dst,
+                                             cuda::std::nullopt_t,
+                                             cuda::std::nullopt_t,
+                                             cuda::std::nullopt_t) const
   {
     static_assert(cugraph::is_thrust_tuple_of_arithmetic<property_t>::value ||
                   std::is_arithmetic_v<property_t>);

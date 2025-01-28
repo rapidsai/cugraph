@@ -31,12 +31,12 @@
 
 #include <raft/util/integer_utils.hpp>
 
+#include <cuda/std/optional>
 #include <thrust/copy.h>
 #include <thrust/count.h>
 #include <thrust/distance.h>
 #include <thrust/execution_policy.h>
 #include <thrust/iterator/transform_iterator.h>
-#include <thrust/optional.h>
 #include <thrust/sort.h>
 #include <thrust/transform.h>
 #include <thrust/tuple.h>
@@ -47,47 +47,52 @@ namespace {
 
 template <typename vertex_t>
 struct exclude_self_loop_t {
-  __device__ thrust::optional<thrust::tuple<vertex_t, vertex_t>> operator()(
-    vertex_t src, vertex_t dst, thrust::nullopt_t, thrust::nullopt_t, thrust::nullopt_t) const
+  __device__ cuda::std::optional<thrust::tuple<vertex_t, vertex_t>> operator()(
+    vertex_t src,
+    vertex_t dst,
+    cuda::std::nullopt_t,
+    cuda::std::nullopt_t,
+    cuda::std::nullopt_t) const
   {
     return src != dst
-             ? thrust::optional<thrust::tuple<vertex_t, vertex_t>>{thrust::make_tuple(src, dst)}
-             : thrust::nullopt;
+             ? cuda::std::optional<thrust::tuple<vertex_t, vertex_t>>{thrust::make_tuple(src, dst)}
+             : cuda::std::nullopt;
   }
 };
 
 template <typename vertex_t, typename weight_t, typename edge_t>
 struct extract_low_to_high_degree_weighted_edges_t {
-  __device__ thrust::optional<thrust::tuple<vertex_t, vertex_t, weight_t>> operator()(
+  __device__ cuda::std::optional<thrust::tuple<vertex_t, vertex_t, weight_t>> operator()(
     vertex_t src, vertex_t dst, edge_t src_out_degree, edge_t dst_out_degree, weight_t wgt) const
   {
     return (src_out_degree < dst_out_degree)
-             ? thrust::optional<thrust::tuple<vertex_t, vertex_t, weight_t>>{thrust::make_tuple(
+             ? cuda::std::optional<thrust::tuple<vertex_t, vertex_t, weight_t>>{thrust::make_tuple(
                  src, dst, wgt)}
              : (((src_out_degree == dst_out_degree) &&
                  (src < dst) /* tie-breaking using vertex ID */)
-                  ? thrust::optional<
+                  ? cuda::std::optional<
                       thrust::tuple<vertex_t, vertex_t, weight_t>>{thrust::make_tuple(
                       src, dst, wgt)}
-                  : thrust::nullopt);
+                  : cuda::std::nullopt);
   }
 };
 
 template <typename vertex_t, typename edge_t>
 struct extract_low_to_high_degree_edges_t {
-  __device__ thrust::optional<thrust::tuple<vertex_t, vertex_t>> operator()(vertex_t src,
-                                                                            vertex_t dst,
-                                                                            edge_t src_out_degree,
-                                                                            edge_t dst_out_degree,
-                                                                            thrust::nullopt_t) const
+  __device__ cuda::std::optional<thrust::tuple<vertex_t, vertex_t>> operator()(
+    vertex_t src,
+    vertex_t dst,
+    edge_t src_out_degree,
+    edge_t dst_out_degree,
+    cuda::std::nullopt_t) const
   {
     return (src_out_degree < dst_out_degree)
-             ? thrust::optional<thrust::tuple<vertex_t, vertex_t>>{thrust::make_tuple(src, dst)}
+             ? cuda::std::optional<thrust::tuple<vertex_t, vertex_t>>{thrust::make_tuple(src, dst)}
              : (((src_out_degree == dst_out_degree) &&
                  (src < dst) /* tie-breaking using vertex ID */)
-                  ? thrust::optional<thrust::tuple<vertex_t, vertex_t>>{thrust::make_tuple(src,
-                                                                                           dst)}
-                  : thrust::nullopt);
+                  ? cuda::std::optional<thrust::tuple<vertex_t, vertex_t>>{thrust::make_tuple(src,
+                                                                                              dst)}
+                  : cuda::std::nullopt);
   }
 };
 
@@ -343,7 +348,7 @@ k_truss(raft::handle_t const& handle,
         cugraph::edge_src_dummy_property_t{}.view(),
         cugraph::edge_dst_dummy_property_t{}.view(),
         edge_triangle_counts.view(),
-        [k] __device__(auto src, auto dst, thrust::nullopt_t, thrust::nullopt_t, auto count) {
+        [k] __device__(auto src, auto dst, cuda::std::nullopt_t, cuda::std::nullopt_t, auto count) {
           return count >= k - 2;
         },
         edge_mask.mutable_view(),

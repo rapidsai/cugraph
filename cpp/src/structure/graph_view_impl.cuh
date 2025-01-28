@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -38,6 +38,7 @@
 #include <rmm/exec_policy.hpp>
 
 #include <cuda/functional>
+#include <cuda/std/optional>
 #include <thrust/binary_search.h>
 #include <thrust/count.h>
 #include <thrust/extrema.h>
@@ -47,7 +48,6 @@
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/iterator/transform_iterator.h>
 #include <thrust/iterator/zip_iterator.h>
-#include <thrust/optional.h>
 #include <thrust/sort.h>
 #include <thrust/tabulate.h>
 #include <thrust/transform.h>
@@ -126,8 +126,8 @@ rmm::device_uvector<edge_t> compute_major_degrees(
       partition.vertex_partition_range_first(major_range_vertex_partition_id);
 
     auto offsets = edge_partition_offsets[i];
-    auto masks =
-      edge_partition_masks ? thrust::make_optional((*edge_partition_masks)[i]) : thrust::nullopt;
+    auto masks   = edge_partition_masks ? cuda::std::make_optional((*edge_partition_masks)[i])
+                                        : cuda::std::nullopt;
     auto segment_offset_size_per_partition =
       edge_partition_segment_offsets.size() / static_cast<size_t>(minor_comm_size);
     auto num_local_degrees =
@@ -202,7 +202,8 @@ rmm::device_uvector<edge_t> compute_major_degrees(
     handle.get_thrust_policy(),
     degrees.begin(),
     degrees.end(),
-    [offsets, masks = masks ? thrust::make_optional(*masks) : thrust::nullopt] __device__(auto i) {
+    [offsets,
+     masks = masks ? cuda::std::make_optional(*masks) : cuda::std::nullopt] __device__(auto i) {
       auto local_degree = offsets[i + 1] - offsets[i];
       if (masks) {
         local_degree =
@@ -842,10 +843,10 @@ graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t<mul
       edge_partition_device_view_t<vertex_t, edge_t, multi_gpu>(this->local_edge_partition_view(i));
     auto edge_partition_e_mask =
       edge_mask_view
-        ? thrust::make_optional<
+        ? cuda::std::make_optional<
             detail::edge_partition_edge_property_device_view_t<edge_t, uint32_t const*, bool>>(
             *edge_mask_view, i)
-        : thrust::nullopt;
+        : cuda::std::nullopt;
     thrust::transform(handle.get_thrust_policy(),
                       sorted_edge_first + edge_partition_offsets[i],
                       sorted_edge_first + edge_partition_offsets[i + 1],
@@ -913,10 +914,10 @@ graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t<!mu
     edge_partition_device_view_t<vertex_t, edge_t, multi_gpu>(this->local_edge_partition_view());
   auto edge_partition_e_mask =
     edge_mask_view
-      ? thrust::make_optional<
+      ? cuda::std::make_optional<
           detail::edge_partition_edge_property_device_view_t<edge_t, uint32_t const*, bool>>(
           *edge_mask_view, 0)
-      : thrust::nullopt;
+      : cuda::std::nullopt;
   thrust::transform(
     handle.get_thrust_policy(),
     edge_first,
@@ -987,10 +988,10 @@ graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t<mul
       edge_partition_device_view_t<vertex_t, edge_t, multi_gpu>(this->local_edge_partition_view(i));
     auto edge_partition_e_mask =
       edge_mask_view
-        ? thrust::make_optional<
+        ? cuda::std::make_optional<
             detail::edge_partition_edge_property_device_view_t<edge_t, uint32_t const*, bool>>(
             *edge_mask_view, i)
-        : thrust::nullopt;
+        : cuda::std::nullopt;
     thrust::transform(
       handle.get_thrust_policy(),
       sorted_edge_first + edge_partition_offsets[i],
@@ -1058,10 +1059,10 @@ graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t<!mu
     edge_partition_device_view_t<vertex_t, edge_t, multi_gpu>(this->local_edge_partition_view());
   auto edge_partition_e_mask =
     edge_mask_view
-      ? thrust::make_optional<
+      ? cuda::std::make_optional<
           detail::edge_partition_edge_property_device_view_t<edge_t, uint32_t const*, bool>>(
           *edge_mask_view, 0)
-      : thrust::nullopt;
+      : cuda::std::nullopt;
   thrust::transform(
     handle.get_thrust_policy(),
     edge_first,
