@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,6 +31,7 @@
 
 #include <raft/core/handle.hpp>
 
+#include <cuda/std/optional>
 #include <thrust/copy.h>
 #include <thrust/count.h>
 #include <thrust/fill.h>
@@ -40,7 +41,6 @@
 #include <thrust/iterator/discard_iterator.h>
 #include <thrust/iterator/permutation_iterator.h>
 #include <thrust/iterator/zip_iterator.h>
-#include <thrust/optional.h>
 #include <thrust/set_operations.h>
 #include <thrust/transform.h>
 #include <thrust/tuple.h>
@@ -78,20 +78,26 @@ struct topdown_e_op_t {
   detail::edge_partition_endpoint_property_device_view_t<vertex_t, uint32_t*, bool> visited_flags{};
   vertex_t dst_first{};
 
-  __device__ thrust::optional<vertex_t> operator()(
-    vertex_t src, vertex_t dst, thrust::nullopt_t, thrust::nullopt_t, thrust::nullopt_t) const
+  __device__ cuda::std::optional<vertex_t> operator()(vertex_t src,
+                                                      vertex_t dst,
+                                                      cuda::std::nullopt_t,
+                                                      cuda::std::nullopt_t,
+                                                      cuda::std::nullopt_t) const
   {
     auto dst_offset = dst - dst_first;
     auto old        = prev_visited_flags.get(dst_offset);
     if (!old) { old = visited_flags.atomic_or(dst_offset, true); }
-    return old ? thrust::nullopt : thrust::optional<vertex_t>{src};
+    return old ? cuda::std::nullopt : cuda::std::optional<vertex_t>{src};
   }
 };
 
 template <typename vertex_t>
 struct bottomup_e_op_t {
-  __device__ vertex_t operator()(
-    vertex_t src, vertex_t dst, thrust::nullopt_t, thrust::nullopt_t, thrust::nullopt_t) const
+  __device__ vertex_t operator()(vertex_t src,
+                                 vertex_t dst,
+                                 cuda::std::nullopt_t,
+                                 cuda::std::nullopt_t,
+                                 cuda::std::nullopt_t) const
   {
     return dst;
   }
@@ -103,8 +109,11 @@ struct bottomup_pred_op_t {
     prev_visited_flags{};  // visited in the previous iterations
   vertex_t dst_first{};
 
-  __device__ bool operator()(
-    vertex_t src, vertex_t dst, thrust::nullopt_t, thrust::nullopt_t, thrust::nullopt_t) const
+  __device__ bool operator()(vertex_t src,
+                             vertex_t dst,
+                             cuda::std::nullopt_t,
+                             cuda::std::nullopt_t,
+                             cuda::std::nullopt_t) const
   {
     return prev_visited_flags.get(dst - dst_first);
   }
@@ -260,10 +269,10 @@ void bfs(raft::handle_t const& handle,
       auto edge_mask_view = graph_view.edge_mask_view();
       auto edge_partition_e_mask =
         edge_mask_view
-          ? thrust::make_optional<
+          ? cuda::std::make_optional<
               detail::edge_partition_edge_property_device_view_t<edge_t, uint32_t const*, bool>>(
               *edge_mask_view, partition_idx)
-          : thrust::nullopt;
+          : cuda::std::nullopt;
       auto high_and_mid_degree_segment_size =
         (*segment_offsets)[2];  // compute local degrees for high & mid degree segments only, for
                                 // low & hypersparse segments, use low_degree_threshold *

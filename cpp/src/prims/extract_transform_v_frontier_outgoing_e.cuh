@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -57,9 +57,9 @@ namespace cugraph {
  * access edge property values) or cugraph::edge_dummy_property_t::view() (if @p e_op does not
  * access edge property values).
  * @param e_op Quinary operator takes edge source, edge destination, property values for the source,
- * property values for the destination, and property values for the edge and returns thrust::nullopt
- * (if the return value is to be discarded) or a valid @p e_op output to be extracted and
- * accumulated.
+ * property values for the destination, and property values for the edge and returns
+ * cuda::std::nullopt (if the return value is to be discarded) or a valid @p e_op output to be
+ * extracted and accumulated.
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  * @return Dataframe buffer object storing extracted and accumulated valid @p e_op return values.
  */

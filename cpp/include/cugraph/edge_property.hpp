@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2023, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,8 +22,8 @@
 
 #include <raft/core/handle.hpp>
 
+#include <cuda/std/optional>
 #include <thrust/iterator/iterator_traits.h>
-#include <thrust/optional.h>
 
 #include <optional>
 #include <type_traits>
@@ -63,7 +63,7 @@ class edge_property_view_t {
 
 class edge_dummy_property_view_t {
  public:
-  using value_type     = thrust::nullopt_t;
+  using value_type     = cuda::std::nullopt_t;
   using value_iterator = void*;
 };
 
@@ -155,7 +155,7 @@ class edge_property_t {
 
 class edge_dummy_property_t {
  public:
-  using value_type = thrust::nullopt_t;
+  using value_type = cuda::std::nullopt_t;
 
   auto view() const { return edge_dummy_property_view_t{}; }
 };

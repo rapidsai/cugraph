@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -28,6 +28,7 @@
 
 #include <raft/core/handle.hpp>
 
+#include <cuda/std/optional>
 #include <thrust/copy.h>
 #include <thrust/distance.h>
 #include <thrust/for_each.h>
@@ -35,7 +36,6 @@
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/iterator/transform_iterator.h>
 #include <thrust/iterator/zip_iterator.h>
-#include <thrust/optional.h>
 #include <thrust/partition.h>
 #include <thrust/reduce.h>
 #include <thrust/remove.h>
@@ -53,10 +53,10 @@ struct e_op_t {
   size_t k{};
   edge_t delta{};
 
-  __device__ thrust::optional<edge_t> operator()(
-    vertex_t, vertex_t, thrust::nullopt_t, edge_t dst_val, thrust::nullopt_t) const
+  __device__ cuda::std::optional<edge_t> operator()(
+    vertex_t, vertex_t, cuda::std::nullopt_t, edge_t dst_val, cuda::std::nullopt_t) const
   {
-    return dst_val >= k ? thrust::optional<edge_t>{delta} : thrust::nullopt;
+    return dst_val >= k ? cuda::std::optional<edge_t>{delta} : cuda::std::nullopt;
   }
 };
 
@@ -251,8 +251,8 @@ void core_number(raft::handle_t const& handle,
               auto new_core_number = v_val >= pushed_val ? v_val - pushed_val : edge_t{0};
               new_core_number      = new_core_number < (k - delta) ? (k - delta) : new_core_number;
               new_core_number      = new_core_number < k_first ? edge_t{0} : new_core_number;
-              return thrust::make_tuple(thrust::optional<size_t>{bucket_idx_next},
-                                        thrust::optional<edge_t>{new_core_number});
+              return thrust::make_tuple(cuda::std::optional<size_t>{bucket_idx_next},
+                                        cuda::std::optional<edge_t>{new_core_number});
             });
         }
 

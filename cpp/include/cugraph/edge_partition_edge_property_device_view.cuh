@@ -21,8 +21,8 @@
 #include <cugraph/utilities/packed_bool_utils.hpp>
 #include <cugraph/utilities/thrust_tuple_utils.hpp>
 
+#include <cuda/std/optional>
 #include <thrust/iterator/iterator_traits.h>
-#include <thrust/optional.h>
 
 namespace cugraph {
 
@@ -182,7 +182,7 @@ template <typename edge_t>
 class edge_partition_edge_dummy_property_device_view_t {
  public:
   using edge_type  = edge_t;
-  using value_type = thrust::nullopt_t;
+  using value_type = cuda::std::nullopt_t;
 
   static constexpr bool is_packed_bool          = false;
   static constexpr bool has_packed_bool_element = false;
@@ -194,7 +194,7 @@ class edge_partition_edge_dummy_property_device_view_t {
   {
   }
 
-  __device__ auto get(edge_t offset) const { return thrust::nullopt; }
+  __device__ auto get(edge_t offset) const { return cuda::std::nullopt; }
 };
 
 }  // namespace detail
