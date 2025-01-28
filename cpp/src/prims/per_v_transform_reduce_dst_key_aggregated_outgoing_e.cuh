@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -40,6 +40,7 @@
 #include <rmm/mr/device/polymorphic_allocator.hpp>
 
 #include <cub/cub.cuh>
+#include <cuda/std/optional>
 #include <thrust/copy.h>
 #include <thrust/count.h>
 #include <thrust/distance.h>
@@ -49,7 +50,6 @@
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/iterator/transform_iterator.h>
 #include <thrust/iterator/zip_iterator.h>
-#include <thrust/optional.h>
 #include <thrust/reduce.h>
 #include <thrust/scatter.h>
 #include <thrust/sort.h>
@@ -89,15 +89,16 @@ struct tuple_to_minor_comm_rank_t {
   int minor_comm_size{};
 
   template <typename edge_value_type = edge_value_t>
-  __device__ std::enable_if_t<!std::is_same_v<edge_value_type, thrust::nullopt_t>, int> operator()(
+  __device__ std::enable_if_t<!std::is_same_v<edge_value_type, cuda::std::nullopt_t>, int>
+  operator()(
     thrust::tuple<vertex_t, vertex_t, edge_value_t> val /* major, minor key, edge value */) const
   {
     return key_func(thrust::get<1>(val)) % minor_comm_size;
   }
 
   template <typename edge_value_type = edge_value_t>
-  __device__ std::enable_if_t<std::is_same_v<edge_value_type, thrust::nullopt_t>, int> operator()(
-    thrust::tuple<vertex_t, vertex_t> val /* major, minor key */) const
+  __device__ std::enable_if_t<std::is_same_v<edge_value_type, cuda::std::nullopt_t>, int>
+  operator()(thrust::tuple<vertex_t, vertex_t> val /* major, minor key */) const
   {
     return key_func(thrust::get<1>(val)) % minor_comm_size;
   }
@@ -123,13 +124,13 @@ template <typename vertex_t,
           typename KeyAggregatedEdgeOp>
 struct call_key_aggregated_e_op_t {
   EdgePartitionDeviceView edge_partition{};
-  thrust::optional<EdgeMajorValueMap> edge_major_value_map{};
+  cuda::std::optional<EdgeMajorValueMap> edge_major_value_map{};
   EdgePartitionMajorValueInputWrapper edge_partition_major_value_input{};
   EdgeMinorKeyValueMap edge_minor_key_value_map{};
   KeyAggregatedEdgeOp key_aggregated_e_op{};
 
   template <typename edge_value_type = edge_value_t>
-  __device__ std::enable_if_t<!std::is_same_v<edge_value_type, thrust::nullopt_t>, e_op_result_t>
+  __device__ std::enable_if_t<!std::is_same_v<edge_value_type, cuda::std::nullopt_t>, e_op_result_t>
   operator()(thrust::tuple<vertex_t, vertex_t, edge_value_t>
                val /* major, minor key, aggregated edge value */) const
   {
@@ -145,7 +146,7 @@ struct call_key_aggregated_e_op_t {
   }
 
   template <typename edge_value_type = edge_value_t>
-  __device__ std::enable_if_t<std::is_same_v<edge_value_type, thrust::nullopt_t>, e_op_result_t>
+  __device__ std::enable_if_t<std::is_same_v<edge_value_type, cuda::std::nullopt_t>, e_op_result_t>
   operator()(thrust::tuple<vertex_t, vertex_t> val /* major, minor key */) const
   {
     auto major     = thrust::get<0>(val);
@@ -155,7 +156,7 @@ struct call_key_aggregated_e_op_t {
                        : edge_partition_major_value_input.get(
                            edge_partition.major_offset_from_major_nocheck(major));
     return key_aggregated_e_op(
-      major, minor_key, major_val, edge_minor_key_value_map.find(minor_key), thrust::nullopt);
+      major, minor_key, major_val, edge_minor_key_value_map.find(minor_key), cuda::std::nullopt);
   }
 };
 
@@ -284,16 +285,16 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
   using edge_value_t     = typename EdgeValueInputWrapper::value_type;
   using kv_pair_value_t  = typename KVStoreViewType::value_type;
   using optional_edge_value_buffer_value_type =
-    std::conditional_t<!std::is_same_v<edge_value_t, thrust::nullopt_t>, edge_value_t, void>;
+    std::conditional_t<!std::is_same_v<edge_value_t, cuda::std::nullopt_t>, edge_value_t, void>;
 
   static_assert(
-    std::is_same_v<edge_value_t, thrust::nullopt_t> || std::is_arithmetic_v<edge_value_t>,
+    std::is_same_v<edge_value_t, cuda::std::nullopt_t> || std::is_arithmetic_v<edge_value_t>,
     "Currently only scalar values are supported, should be extended to support thrust::tuple of "
     "arithmetic types and void (for dummy property values) to be consistent with other "
     "primitives.");  // this will also require a custom edge value aggregation op.
 
   using edge_partition_src_input_device_view_t = std::conditional_t<
-    std::is_same_v<typename EdgeSrcValueInputWrapper::value_type, thrust::nullopt_t>,
+    std::is_same_v<typename EdgeSrcValueInputWrapper::value_type, cuda::std::nullopt_t>,
     detail::edge_partition_endpoint_dummy_property_device_view_t<vertex_t>,
     detail::edge_partition_endpoint_property_device_view_t<
       vertex_t,
@@ -303,7 +304,7 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
       vertex_t,
       typename EdgeDstKeyInputWrapper::value_iterator>;
   using edge_partition_e_input_device_view_t = std::conditional_t<
-    std::is_same_v<typename EdgeValueInputWrapper::value_type, thrust::nullopt_t>,
+    std::is_same_v<typename EdgeValueInputWrapper::value_type, cuda::std::nullopt_t>,
     detail::edge_partition_edge_dummy_property_device_view_t<vertex_t>,
     detail::edge_partition_edge_property_device_view_t<
       edge_t,
@@ -315,7 +316,7 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
 
   auto total_global_mem = handle.get_device_properties().totalGlobalMem;
   size_t element_size   = sizeof(vertex_t) * 2;  // major + minor keys
-  if constexpr (!std::is_same_v<edge_value_t, thrust::nullopt_t>) {
+  if constexpr (!std::is_same_v<edge_value_t, cuda::std::nullopt_t>) {
     static_assert(is_arithmetic_or_thrust_tuple_of_arithmetic<edge_value_t>::value);
     if constexpr (is_thrust_tuple_of_arithmetic<edge_value_t>::value) {
       element_size += sum_thrust_tuple_element_sizes<edge_value_t>();
@@ -323,7 +324,7 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
       element_size += sizeof(edge_value_t);
     }
   }
-  if constexpr (!std::is_same_v<edge_src_value_t, thrust::nullopt_t>) {
+  if constexpr (!std::is_same_v<edge_src_value_t, cuda::std::nullopt_t>) {
     static_assert(is_arithmetic_or_thrust_tuple_of_arithmetic<edge_src_value_t>::value);
     if constexpr (is_thrust_tuple_of_arithmetic<edge_src_value_t>::value) {
       element_size += sum_thrust_tuple_element_sizes<edge_src_value_t>();
@@ -350,10 +351,10 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
         graph_view.local_edge_partition_view(i));
     auto edge_partition_e_mask =
       edge_mask_view
-        ? thrust::make_optional<
+        ? cuda::std::make_optional<
             detail::edge_partition_edge_property_device_view_t<edge_t, uint32_t const*, bool>>(
             *edge_mask_view, i)
-        : thrust::nullopt;
+        : cuda::std::nullopt;
 
     auto edge_partition_src_value_input =
       edge_partition_src_input_device_view_t(edge_src_value_input, i);
@@ -472,7 +473,7 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
                             1,
                             handle.get_stream());
           handle.sync_stream();
-          if constexpr (!std::is_same_v<edge_value_t, thrust::nullopt_t>) {
+          if constexpr (!std::is_same_v<edge_value_t, cuda::std::nullopt_t>) {
             detail::copy_if_mask_set(
               handle,
               thrust::make_zip_iterator(minor_key_first,
@@ -505,7 +506,7 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
           (offsets_with_mask ? (*offsets_with_mask).data() : edge_partition.offsets()) +
             h_vertex_offsets[j],
           detail::rebase_offset_t<edge_t>{h_edge_offsets[j]});
-        if constexpr (!std::is_same_v<edge_value_t, thrust::nullopt_t>) {
+        if constexpr (!std::is_same_v<edge_value_t, cuda::std::nullopt_t>) {
           cub::DeviceSegmentedSort::SortPairs(
             static_cast<void*>(nullptr),
             tmp_storage_bytes,
@@ -536,7 +537,7 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
         if (tmp_storage_bytes > d_tmp_storage.size()) {
           d_tmp_storage = rmm::device_uvector<std::byte>(tmp_storage_bytes, handle.get_stream());
         }
-        if constexpr (!std::is_same_v<edge_value_t, thrust::nullopt_t>) {
+        if constexpr (!std::is_same_v<edge_value_t, cuda::std::nullopt_t>) {
           cub::DeviceSegmentedSort::SortPairs(
             d_tmp_storage.data(),
             tmp_storage_bytes,
@@ -573,7 +574,7 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
           thrust::make_zip_iterator(unreduced_majors.begin(), unreduced_minor_keys.begin());
         auto output_key_first =
           thrust::make_zip_iterator(tmp_majors.begin(), tmp_minor_keys.begin());
-        if constexpr (!std::is_same_v<edge_value_t, thrust::nullopt_t>) {
+        if constexpr (!std::is_same_v<edge_value_t, cuda::std::nullopt_t>) {
           reduced_size +=
             thrust::distance(output_key_first + reduced_size,
                              thrust::get<0>(thrust::reduce_by_key(
@@ -626,7 +627,7 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
       auto const minor_comm_size = minor_comm.get_size();
 
       rmm::device_uvector<size_t> d_tx_value_counts(0, handle.get_stream());
-      if constexpr (!std::is_same_v<edge_value_t, thrust::nullopt_t>) {
+      if constexpr (!std::is_same_v<edge_value_t, cuda::std::nullopt_t>) {
         auto triplet_first =
           thrust::make_zip_iterator(tmp_majors.begin(),
                                     tmp_minor_keys.begin(),
@@ -782,7 +783,7 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
         tmp_minor_keys.resize(0, handle.get_stream());
         tmp_minor_keys.shrink_to_fit(handle.get_stream());
 
-        if constexpr (!std::is_same_v<edge_value_t, thrust::nullopt_t>) {
+        if constexpr (!std::is_same_v<edge_value_t, cuda::std::nullopt_t>) {
           std::tie(rx_key_aggregated_edge_values, std::ignore) =
             shuffle_values(minor_comm,
                            detail::get_optional_dataframe_buffer_begin<edge_value_t>(
@@ -795,7 +796,7 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
         detail::shrink_to_fit_optional_dataframe_buffer<optional_edge_value_buffer_value_type>(
           tmp_key_aggregated_edge_values, handle.get_stream());
       } else {
-        if constexpr (!std::is_same_v<edge_value_t, thrust::nullopt_t>) {
+        if constexpr (!std::is_same_v<edge_value_t, cuda::std::nullopt_t>) {
           auto triplet_first =
             thrust::make_zip_iterator(tmp_majors.begin(),
                                       tmp_minor_keys.begin(),
@@ -820,7 +821,7 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
       }
 
       auto key_pair_first = thrust::make_zip_iterator(rx_majors.begin(), rx_minor_keys.begin());
-      if constexpr (!std::is_same_v<edge_value_t, thrust::nullopt_t>) {
+      if constexpr (!std::is_same_v<edge_value_t, cuda::std::nullopt_t>) {
         if (rx_majors.size() >
             mem_frugal_threshold) {  // trade-off parallelism to lower peak memory
           auto second_first =
@@ -956,15 +957,15 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
 
     auto major_value_map_device_view =
       (GraphViewType::is_multi_gpu && edge_src_value_input.keys())
-        ? thrust::make_optional<detail::kv_binary_search_store_device_view_t<
+        ? cuda::std::make_optional<detail::kv_binary_search_store_device_view_t<
             decltype(multi_gpu_major_value_map_ptr->view())>>(multi_gpu_major_value_map_ptr->view())
-        : thrust::nullopt;
+        : cuda::std::nullopt;
     std::conditional_t<KVStoreViewType::binary_search,
                        detail::kv_binary_search_store_device_view_t<KVStoreViewType>,
                        detail::kv_cuco_store_find_device_view_t<KVStoreViewType>>
       dst_key_value_map_device_view(
         GraphViewType::is_multi_gpu ? multi_gpu_minor_key_value_map_ptr->view() : kv_store_view);
-    if constexpr (!std::is_same_v<edge_value_t, thrust::nullopt_t>) {
+    if constexpr (!std::is_same_v<edge_value_t, cuda::std::nullopt_t>) {
       auto triplet_first = thrust::make_zip_iterator(
         tmp_majors.begin(),
         tmp_minor_keys.begin(),

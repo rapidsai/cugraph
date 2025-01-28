@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -35,11 +35,11 @@
 #include <cub/cub.cuh>
 #include <cuda/atomic>
 #include <cuda/functional>
+#include <cuda/std/optional>
 #include <thrust/copy.h>
 #include <thrust/count.h>
 #include <thrust/iterator/constant_iterator.h>
 #include <thrust/iterator/counting_iterator.h>
-#include <thrust/optional.h>
 #include <thrust/remove.h>
 #include <thrust/sort.h>
 #include <thrust/tabulate.h>
@@ -93,7 +93,7 @@ struct transform_local_nbr_indices_t {
   using edge_t   = typename GraphViewType::edge_type;
 
   edge_partition_device_view_t<vertex_t, edge_t, GraphViewType::is_multi_gpu> edge_partition{};
-  thrust::optional<size_t const*> local_key_indices{thrust::nullopt};
+  cuda::std::optional<size_t const*> local_key_indices{cuda::std::nullopt};
   KeyIterator key_first{};
   LocalNbrIdxIterator local_nbr_idx_first{};
   EdgePartitionSrcValueInputWrapper edge_partition_src_value_input;
@@ -101,7 +101,7 @@ struct transform_local_nbr_indices_t {
   EdgePartitionEdgeValueInputWrapper edge_partition_e_value_input;
   EdgeOp e_op{};
   edge_t invalid_idx{};
-  thrust::optional<T> invalid_value{thrust::nullopt};
+  cuda::std::optional<T> invalid_value{cuda::std::nullopt};
   size_t K{};
 
   __device__ T operator()(size_t i) const
@@ -241,21 +241,21 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
   using key_buffer_t = dataframe_buffer_type_t<key_t>;
 
   using edge_partition_src_input_device_view_t = std::conditional_t<
-    std::is_same_v<typename EdgeSrcValueInputWrapper::value_type, thrust::nullopt_t>,
+    std::is_same_v<typename EdgeSrcValueInputWrapper::value_type, cuda::std::nullopt_t>,
     edge_partition_endpoint_dummy_property_device_view_t<vertex_t>,
     edge_partition_endpoint_property_device_view_t<
       vertex_t,
       typename EdgeSrcValueInputWrapper::value_iterator,
       typename EdgeSrcValueInputWrapper::value_type>>;
   using edge_partition_dst_input_device_view_t = std::conditional_t<
-    std::is_same_v<typename EdgeDstValueInputWrapper::value_type, thrust::nullopt_t>,
+    std::is_same_v<typename EdgeDstValueInputWrapper::value_type, cuda::std::nullopt_t>,
     edge_partition_endpoint_dummy_property_device_view_t<vertex_t>,
     edge_partition_endpoint_property_device_view_t<
       vertex_t,
       typename EdgeDstValueInputWrapper::value_iterator,
       typename EdgeDstValueInputWrapper::value_type>>;
   using edge_partition_e_input_device_view_t = std::conditional_t<
-    std::is_same_v<typename EdgeValueInputWrapper::value_type, thrust::nullopt_t>,
+    std::is_same_v<typename EdgeValueInputWrapper::value_type, cuda::std::nullopt_t>,
     detail::edge_partition_edge_dummy_property_device_view_t<vertex_t>,
     detail::edge_partition_edge_property_device_view_t<
       edge_t,
@@ -430,7 +430,7 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
                                       EdgeOp,
                                       T>{
           edge_partition,
-          thrust::make_optional(edge_partition_sample_key_index_first),
+          cuda::std::make_optional(edge_partition_sample_key_index_first),
           edge_partition_key_list_first,
           edge_partition_sample_local_nbr_index_first,
           edge_partition_src_value_input,
@@ -454,7 +454,7 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
                                       edge_partition_e_input_device_view_t,
                                       EdgeOp,
                                       T>{edge_partition,
-                                         thrust::nullopt,
+                                         cuda::std::nullopt,
                                          edge_partition_key_list_first,
                                          edge_partition_sample_local_nbr_index_first,
                                          edge_partition_src_value_input,
