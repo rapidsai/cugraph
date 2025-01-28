@@ -23,12 +23,12 @@
 
 #include <raft/core/device_span.hpp>
 
+#include <cuda/std/optional>
 #include <thrust/binary_search.h>
 #include <thrust/distance.h>
 #include <thrust/execution_policy.h>
 #include <thrust/fill.h>
 #include <thrust/iterator/iterator_traits.h>
-#include <thrust/optional.h>
 
 namespace cugraph {
 
@@ -184,9 +184,10 @@ class edge_partition_endpoint_property_device_view_t {
   }
 
  private:
-  thrust::optional<raft::device_span<vertex_t const>> keys_{thrust::nullopt};
-  thrust::optional<raft::device_span<vertex_t const>> key_chunk_start_offsets_{thrust::nullopt};
-  thrust::optional<size_t> key_chunk_size_{thrust::nullopt};
+  cuda::std::optional<raft::device_span<vertex_t const>> keys_{cuda::std::nullopt};
+  cuda::std::optional<raft::device_span<vertex_t const>> key_chunk_start_offsets_{
+    cuda::std::nullopt};
+  cuda::std::optional<size_t> key_chunk_size_{cuda::std::nullopt};
 
   ValueIterator value_first_{};
   vertex_t range_first_{};
@@ -214,7 +215,7 @@ template <typename vertex_t>
 class edge_partition_endpoint_dummy_property_device_view_t {
  public:
   using vertex_type                             = vertex_t;
-  using value_type                              = thrust::nullopt_t;
+  using value_type                              = cuda::std::nullopt_t;
   static constexpr bool is_packed_bool          = false;
   static constexpr bool has_packed_bool_element = false;
 
@@ -230,7 +231,7 @@ class edge_partition_endpoint_dummy_property_device_view_t {
   {
   }
 
-  __device__ auto get(vertex_t offset) const { return thrust::nullopt; }
+  __device__ auto get(vertex_t offset) const { return cuda::std::nullopt; }
 };
 
 }  // namespace detail
