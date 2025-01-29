@@ -190,7 +190,7 @@ k_truss(raft::handle_t const& handle,
 
   if (unmasked_cur_graph_view.has_edge_mask()) { unmasked_cur_graph_view.clear_edge_mask(); }
   // mask for self-loops and edges not part of k-1 core
-  cugraph::edge_property_t<decltype(cur_graph_view), bool> edge_mask(handle);
+  cugraph::edge_property_t<decltype(cur_graph_view), bool> undirected_mask(handle);
   {
     // 2.1 Exclude self-loops
 
@@ -211,9 +211,9 @@ k_truss(raft::handle_t const& handle,
         [] __device__(auto src, auto dst, auto, auto, auto) { return src != dst; },
         self_loop_edge_mask.mutable_view());
 
-      edge_mask = std::move(self_loop_edge_mask);
+      undirected_mask = std::move(self_loop_edge_mask);
       if (cur_graph_view.has_edge_mask()) { cur_graph_view.clear_edge_mask(); }
-      cur_graph_view.attach_edge_mask(edge_mask.view());
+      cur_graph_view.attach_edge_mask(undirected_mask.view());
     }
 
     // 2.2 Find (k-1)-core and exclude edges that do not belong to (k-1)-core
@@ -263,9 +263,9 @@ k_truss(raft::handle_t const& handle,
         },
         in_k_minus_1_core_edge_mask.mutable_view());
 
-      edge_mask = std::move(in_k_minus_1_core_edge_mask);
+      undirected_mask = std::move(in_k_minus_1_core_edge_mask);
       if (cur_graph_view.has_edge_mask()) { cur_graph_view.clear_edge_mask(); }
-      cur_graph_view.attach_edge_mask(edge_mask.view());
+      cur_graph_view.attach_edge_mask(undirected_mask.view());
     }
   }
 
@@ -302,7 +302,7 @@ k_truss(raft::handle_t const& handle,
                  : false;
       },
       dodg_mask.mutable_view(),
-      false);
+      do_expensive_check);
 
     if (cur_graph_view.has_edge_mask()) { cur_graph_view.clear_edge_mask(); }
     cur_graph_view.attach_edge_mask(dodg_mask.view());
@@ -311,23 +311,9 @@ k_truss(raft::handle_t const& handle,
   // 4. Compute triangle count using nbr_intersection and unroll weak edges
 
   {
-    cugraph::edge_property_t<decltype(cur_graph_view), bool> weak_edges_mask(
-      handle, unmasked_cur_graph_view);
-    cugraph::fill_edge_property(
-      handle, unmasked_cur_graph_view, weak_edges_mask.mutable_view(), bool{true});
 
     // Mask self loops and edges not being part of k-1 core
-    cugraph::transform_e(
-      handle,
-      unmasked_cur_graph_view,
-      edge_src_dummy_property_t{}.view(),
-      edge_dst_dummy_property_t{}.view(),
-      edge_mask.view(),
-      [] __device__(auto src, auto dst, auto src_out_degree, auto dst_out_degree, auto e_mask) {
-        return e_mask ? true : false;
-      },
-      weak_edges_mask.mutable_view(),
-      false);
+    auto weak_edges_mask = std::move(undirected_mask);
 
     auto edge_triangle_counts =
       edge_triangle_count<vertex_t, edge_t, multi_gpu>(handle, cur_graph_view, false);
@@ -361,7 +347,7 @@ k_truss(raft::handle_t const& handle,
       cur_graph_view.attach_edge_mask(weak_edges_mask.view());
 
       auto [intersection_offsets, intersection_indices] = per_v_pair_dst_nbr_intersection(
-        handle, cur_graph_view, weak_edgelist_first, weak_edgelist_last, false);
+        handle, cur_graph_view, weak_edgelist_first, weak_edgelist_last, do_expensive_check);
 
       // This array stores (p, q, r) which are endpoints for the triangles with weak edges
 
@@ -432,7 +418,6 @@ k_truss(raft::handle_t const& handle,
                minor_comm_size}] __device__(auto val) {
             return key_func(thrust::get<0>(val), thrust::get<1>(val));
           },
-
           handle.get_stream());
 
         thrust::sort(handle.get_thrust_policy(),
@@ -631,7 +616,7 @@ k_truss(raft::handle_t const& handle,
           return count;
         },
         edge_triangle_counts.mutable_view(),
-        false);
+        do_expensive_check);
 
       edgelist_weak.clear();
 
@@ -660,7 +645,7 @@ k_truss(raft::handle_t const& handle,
           return false;
         },
         weak_edges_mask.mutable_view(),
-        false);
+        do_expensive_check);
 
       edgelist_weak.clear();
 
@@ -709,7 +694,7 @@ k_truss(raft::handle_t const& handle,
           return false;
         },
         weak_edges_mask.mutable_view(),
-        false);
+        do_expensive_check);
 
       cur_graph_view.attach_edge_mask(weak_edges_mask.view());
 
@@ -732,7 +717,7 @@ k_truss(raft::handle_t const& handle,
         return count == 0 ? false : true;
       },
       dodg_mask.mutable_view(),
-      false);
+      do_expensive_check);
 
     rmm::device_uvector<vertex_t> edgelist_srcs(0, handle.get_stream());
     rmm::device_uvector<vertex_t> edgelist_dsts(0, handle.get_stream());
