@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, NVIDIA CORPORATION.
+ * Copyright (c) 2024-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,8 +19,8 @@
 
 #include <raft/core/handle.hpp>
 
+#include <cuda/std/optional>
 #include <thrust/equal.h>
-#include <thrust/optional.h>
 #include <thrust/tuple.h>
 
 #include <algorithm>
@@ -36,7 +36,7 @@ namespace detail {
 template <typename T>
 __host__ __device__ bool compare_arithmetic_scalar(T val0,
                                                    T val1,
-                                                   thrust::optional<T> threshold_ratio)
+                                                   cuda::std::optional<T> threshold_ratio)
 {
   if (threshold_ratio) {
     return std::abs(val0 - val1) <= (std::max(std::abs(val0), std::abs(val1)) * *threshold_ratio);
@@ -58,15 +58,16 @@ struct comparator {
       return detail::compare_arithmetic_scalar(
         t0,
         t1,
-        std::is_floating_point_v<T> ? thrust::optional<T>{threshold_ratio} : thrust::nullopt);
+        std::is_floating_point_v<T> ? cuda::std::optional<T>{threshold_ratio} : cuda::std::nullopt);
     } else {
-      auto val0   = thrust::get<0>(t0);
-      auto val1   = thrust::get<0>(t1);
-      auto passed = detail::compare_arithmetic_scalar(
-        val0,
-        val1,
-        std::is_floating_point_v<decltype(val0)> ? thrust::optional<decltype(val0)>{threshold_ratio}
-                                                 : thrust::nullopt);
+      auto val0 = thrust::get<0>(t0);
+      auto val1 = thrust::get<0>(t1);
+      auto passed =
+        detail::compare_arithmetic_scalar(val0,
+                                          val1,
+                                          std::is_floating_point_v<decltype(val0)>
+                                            ? cuda::std::optional<decltype(val0)>{threshold_ratio}
+                                            : cuda::std::nullopt);
       if (!passed) return false;
 
       if constexpr (thrust::tuple_size<T>::value >= 2) {
@@ -76,8 +77,8 @@ struct comparator {
           detail::compare_arithmetic_scalar(val0,
                                             val1,
                                             std::is_floating_point_v<decltype(val1)>
-                                              ? thrust::optional<decltype(val1)>{threshold_ratio}
-                                              : thrust::nullopt);
+                                              ? cuda::std::optional<decltype(val1)>{threshold_ratio}
+                                              : cuda::std::nullopt);
         if (!passed) return false;
       }
       if constexpr (thrust::tuple_size<T>::value >= 3) {

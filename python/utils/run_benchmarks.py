@@ -1,4 +1,4 @@
-# Copyright (c) 2018-2022, NVIDIA CORPORATION.
+# Copyright (c) 2018-2025, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -240,11 +240,6 @@ def parseCLI(argv):
         help="Add (and compare) results to the dir specified",
     )
     parser.add_argument(
-        "--update_asv_dir",
-        type=str,
-        help="Add results to the specified ASV dir in ASV " "format",
-    )
-    parser.add_argument(
         "--report_cuda_ver",
         type=str,
         default="",
@@ -358,22 +353,3 @@ if __name__ == "__main__":
     # reports ########################
     if args.update_results_dir:
         raise NotImplementedError
-
-    if args.update_asv_dir:
-        # import this here since it pulls in a 3rd party package (asvdb) which
-        # may not be appreciated by non-ASV users.
-        from asv_report import cugraph_update_asv
-
-        # special case: do not include the full path to the datasetName, since
-        # the leading parts are redundant and take up UI space.
-        datasetName = "/".join(args.file.split("/")[-3:])
-
-        cugraph_update_asv(
-            asvDir=args.update_asv_dir,
-            datasetName=datasetName,
-            algoRunResults=Benchmark.resultsDict,
-            cudaVer=args.report_cuda_ver,
-            pythonVer=args.report_python_ver,
-            osType=args.report_os_type,
-            machineName=args.report_machine_name,
-        )

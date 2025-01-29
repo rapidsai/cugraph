@@ -1,4 +1,4 @@
-# Copyright (c) 2022-2024, NVIDIA CORPORATION.
+# Copyright (c) 2022-2025, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -30,18 +30,6 @@ from cugraph.structure.symmetrize import _memory_efficient_drop_duplicates
 from cugraph.structure.symmetrize import symmetrize_ddf
 from cugraph.datasets import email_Eu_core, small_tree
 from pylibcugraph.testing.utils import gen_fixture_params_product
-
-# If the rapids-pytest-benchmark plugin is installed, the "gpubenchmark"
-# fixture will be available automatically. Check that this fixture is available
-# by trying to import rapids_pytest_benchmark, and if that fails, set
-# "gpubenchmark" to the standard "benchmark" fixture provided by
-# pytest-benchmark.
-try:
-    import rapids_pytest_benchmark  # noqa: F401
-except ImportError:
-    import pytest_benchmark
-
-    gpubenchmark = pytest_benchmark.plugin.benchmark
 
 # =============================================================================
 # Pytest Setup / Teardown - called for each test function
@@ -1238,7 +1226,7 @@ def test_uniform_neighbor_sample_dcsr_dcsc_local():
 @pytest.mark.mg
 @pytest.mark.slow
 @pytest.mark.parametrize("n_samples", [1_000, 5_000, 10_000])
-def bench_uniform_neighbor_sample_email_eu_core(gpubenchmark, dask_client, n_samples):
+def bench_uniform_neighbor_sample_email_eu_core(benchmark, dask_client, n_samples):
     input_data_path = email_Eu_core.get_path()
     chunksize = dcg.get_chunksize(input_data_path)
 
@@ -1266,4 +1254,4 @@ def bench_uniform_neighbor_sample_email_eu_core(gpubenchmark, dask_client, n_sam
         _ = cugraph.dask.uniform_neighbor_sample(dg, start_list, [10])
         del _
 
-    gpubenchmark(func)
+    benchmark(func)

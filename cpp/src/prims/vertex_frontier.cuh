@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -227,8 +227,7 @@ void retrieve_vertex_list_from_bitmap(
 {
   using vertex_t = typename thrust::iterator_traits<OutputVertexIterator>::value_type;
 
-  assert((comm.get_rank() != root) ||
-         (bitmap.size() >= packed_bool_size(vertex_range_last - vertex_ragne_first)));
+  assert((bitmap.size() >= packed_bool_size(vertex_range_last - vertex_range_first)));
   detail::copy_if_nosync(thrust::make_counting_iterator(vertex_range_first),
                          thrust::make_counting_iterator(vertex_range_last),
                          thrust::make_transform_iterator(

@@ -27,13 +27,10 @@
 /** @defgroup graph_generators_cpp C++ Graph Generators
  */
 
-/** @ingroup graph_generators_cpp
- *  @{
- */
-
 namespace cugraph {
 
 /**
+ * @ingroup graph_generators_cpp
  * @brief generate an edge list for an R-mat graph.
  * @deprecated  This function will be deprectated and should be replaced with the version that takes
  * raft::random::RngState as a parameter
@@ -92,6 +89,7 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> generat
   bool scramble_vertex_ids = false);
 
 /**
+ * @ingroup graph_generators_cpp
  * @brief generate an edge list for an R-mat graph.
  *
  * This function allows multi-edges and self-loops similar to the Graph 500 reference
@@ -143,6 +141,7 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> generat
   bool scramble_vertex_ids = false);
 
 /**
+ * @ingroup graph_generators_cpp
  * @brief generate an edge list for a bipartite R-mat graph.
  *
  * The source vertex IDs will be in the range of [0, 2^src_scale) and the destination vertex IDs
@@ -184,6 +183,7 @@ generate_bipartite_rmat_edgelist(raft::handle_t const& handle,
 enum class generator_distribution_t { POWER_LAW = 0, UNIFORM };
 
 /**
+ * @ingroup graph_generators_cpp
  * @brief generate multiple edge lists using the R-mat graph generator.
  * @deprecated  This function will be deprectated and should be replaced with the version that takes
  *raft::random::RngState as a parameter
@@ -236,6 +236,7 @@ generate_rmat_edgelists(
   bool scramble_vertex_ids                   = false);
 
 /**
+ * @ingroup graph_generators_cpp
  * @brief generate multiple edge lists using the R-mat graph generator.
  *
  * This function allows multi-edges and self-loops similar to the Graph 500 reference
@@ -286,6 +287,7 @@ generate_rmat_edgelists(
   bool scramble_vertex_ids                   = false);
 
 /**
+ * @ingroup graph_generators_cpp
  * @brief generate an edge list for path graph
  *
  * A path graph of size n connects the vertices from 0 to (n - 1)
@@ -315,6 +317,7 @@ generate_path_graph_edgelist(
   std::vector<std::tuple<vertex_t, vertex_t>> const& component_parameters_v);
 
 /**
+ * @ingroup graph_generators_cpp
  * @brief generate an edge list for a 2D Mesh Graph
  *
  * A sequence of 2D mesh graphs will be constructed according to the
@@ -340,6 +343,7 @@ generate_2d_mesh_graph_edgelist(
   std::vector<std::tuple<vertex_t, vertex_t, vertex_t>> const& component_parameters_v);
 
 /**
+ * @ingroup graph_generators_cpp
  * @brief generate an edge list for a 3D Mesh Graph
  *
  * A sequence of 3D mesh graphs will be constructed according to the
@@ -365,6 +369,7 @@ generate_3d_mesh_graph_edgelist(
   std::vector<std::tuple<vertex_t, vertex_t, vertex_t, vertex_t>> const& component_parameters_v);
 
 /**
+ * @ingroup graph_generators_cpp
  * @brief generate an edge lists for some complete graphs
  *
  * A sequence of complete graphs will be constructed according to the
@@ -390,6 +395,7 @@ generate_complete_graph_edgelist(
   std::vector<std::tuple<vertex_t, vertex_t>> const& component_parameters_v);
 
 /**
+ * @ingroup graph_generators_cpp
  * @brief generate an edge lists for an Erdos-Renyi graph
  *
  * This API supports the G(n,p) model which requires O(n^2) work.
@@ -417,6 +423,7 @@ generate_erdos_renyi_graph_edgelist_gnp(raft::handle_t const& handle,
                                         uint64_t seed = 0);
 
 /**
+ * @ingroup graph_generators_cpp
  * @brief generate an edge lists for an Erdos-Renyi graph
  *
  * This API supports the G(n,m) model
@@ -444,6 +451,7 @@ generate_erdos_renyi_graph_edgelist_gnm(raft::handle_t const& handle,
                                         uint64_t seed = 0);
 
 /**
+ * @ingroup graph_generators_cpp
  * @brief symmetrize an edgelist from the edges in the lower (or upper but not both) triangular part
  * of a graph adjacency matrix
  *
@@ -471,6 +479,7 @@ symmetrize_edgelist_from_triangular(
   bool check_diagonal = false);
 
 /**
+ * @ingroup graph_generators_cpp
  * @brief scramble vertex IDs in a graph
  *
  * Given a vertex list for a graph, scramble the input vertex IDs.
@@ -491,6 +500,7 @@ rmm::device_uvector<vertex_t> scramble_vertex_ids(raft::handle_t const& handle,
                                                   size_t lgN);
 
 /**
+ * @ingroup graph_generators_cpp
  * @brief scramble vertex ids in a graph
  *
  * Given an edge list for a graph, scramble the input vertex IDs.
@@ -515,6 +525,7 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> scrambl
   size_t lgN);
 
 /**
+ * @ingroup graph_generators_cpp
  * @brief Combine edgelists from multiple sources into a single edgelist
  *
  * If executed in a multi-gpu context (handle comms has been initialized)
@@ -543,7 +554,3 @@ combine_edgelists(raft::handle_t const& handle,
                   bool remove_multi_edges = true);
 
 }  // namespace cugraph
-
-/**
- * @}
- */

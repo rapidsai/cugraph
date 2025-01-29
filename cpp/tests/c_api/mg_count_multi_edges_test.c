@@ -98,7 +98,7 @@ int test_multi_edges_count(const cugraph_resource_handle_t* handle)
   size_t multi_edge_count = 4;
 
   return generic_count_multi_edges_test(
-    handle, h_src, h_dst, h_wgt, num_vertices, num_edges, TRUE, TRUE, TRUE, multi_edge_count);
+    handle, h_src, h_dst, h_wgt, num_vertices, num_edges, TRUE, FALSE, TRUE, multi_edge_count);
 }
 
 /******************************************************************************/

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,11 +30,11 @@
 #include <cugraph/graph_functions.hpp>
 
 #include <cuda/functional>
+#include <cuda/std/optional>
 #include <thrust/binary_search.h>
 #include <thrust/execution_policy.h>
 #include <thrust/functional.h>
 #include <thrust/iterator/zip_iterator.h>
-#include <thrust/optional.h>
 #include <thrust/sequence.h>
 #include <thrust/sort.h>
 #include <thrust/transform.h>
@@ -140,7 +140,7 @@ struct cluster_update_op_t {
 template <typename vertex_t, typename weight_t>
 struct return_edge_weight_t {
   __device__ auto operator()(
-    vertex_t, vertex_t, thrust::nullopt_t, thrust::nullopt_t, weight_t w) const
+    vertex_t, vertex_t, cuda::std::nullopt_t, cuda::std::nullopt_t, weight_t w) const
   {
     return w;
   }
@@ -150,7 +150,7 @@ struct return_edge_weight_t {
 template <typename vertex_t, typename weight_t>
 struct return_one_t {
   __device__ auto operator()(
-    vertex_t, vertex_t, thrust::nullopt_t, thrust::nullopt_t, thrust::nullopt_t) const
+    vertex_t, vertex_t, cuda::std::nullopt_t, cuda::std::nullopt_t, cuda::std::nullopt_t) const
   {
     return 1.0;
   }

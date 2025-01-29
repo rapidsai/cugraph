@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, NVIDIA CORPORATION.
+ * Copyright (c) 2024-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,9 +29,9 @@
 
 #include <raft/core/handle.hpp>
 
+#include <cuda/std/optional>
 #include <thrust/copy.h>
 #include <thrust/iterator/counting_iterator.h>
-#include <thrust/optional.h>
 #include <thrust/tuple.h>
 
 #include <type_traits>
@@ -389,21 +389,21 @@ auto transform_v_frontier_e(raft::handle_t const& handle,
   static_assert(is_arithmetic_or_thrust_tuple_of_arithmetic<e_op_result_t>::value);
 
   using edge_partition_src_input_device_view_t = std::conditional_t<
-    std::is_same_v<typename EdgeSrcValueInputWrapper::value_type, thrust::nullopt_t>,
+    std::is_same_v<typename EdgeSrcValueInputWrapper::value_type, cuda::std::nullopt_t>,
     detail::edge_partition_endpoint_dummy_property_device_view_t<vertex_t>,
     detail::edge_partition_endpoint_property_device_view_t<
       vertex_t,
       typename EdgeSrcValueInputWrapper::value_iterator,
       typename EdgeSrcValueInputWrapper::value_type>>;
   using edge_partition_dst_input_device_view_t = std::conditional_t<
-    std::is_same_v<typename EdgeDstValueInputWrapper::value_type, thrust::nullopt_t>,
+    std::is_same_v<typename EdgeDstValueInputWrapper::value_type, cuda::std::nullopt_t>,
     detail::edge_partition_endpoint_dummy_property_device_view_t<vertex_t>,
     detail::edge_partition_endpoint_property_device_view_t<
       vertex_t,
       typename EdgeDstValueInputWrapper::value_iterator,
       typename EdgeDstValueInputWrapper::value_type>>;
   using edge_partition_e_input_device_view_t = std::conditional_t<
-    std::is_same_v<typename EdgeValueInputWrapper::value_type, thrust::nullopt_t>,
+    std::is_same_v<typename EdgeValueInputWrapper::value_type, cuda::std::nullopt_t>,
     detail::edge_partition_edge_dummy_property_device_view_t<vertex_t>,
     detail::edge_partition_edge_property_device_view_t<
       edge_t,
@@ -424,10 +424,10 @@ auto transform_v_frontier_e(raft::handle_t const& handle,
         graph_view.local_edge_partition_view(i));
     auto edge_partition_e_mask =
       edge_mask_view
-        ? thrust::make_optional<
+        ? cuda::std::make_optional<
             detail::edge_partition_edge_property_device_view_t<edge_t, uint32_t const*, bool>>(
             *edge_mask_view, i)
-        : thrust::nullopt;
+        : cuda::std::nullopt;
 
     auto edge_partition_frontier_key_first =
       aggregate_local_frontier_key_first + local_frontier_displacements[i];
@@ -470,10 +470,10 @@ auto transform_v_frontier_e(raft::handle_t const& handle,
         graph_view.local_edge_partition_view(i));
     auto edge_partition_e_mask =
       edge_mask_view
-        ? thrust::make_optional<
+        ? cuda::std::make_optional<
             detail::edge_partition_edge_property_device_view_t<edge_t, uint32_t const*, bool>>(
             *edge_mask_view, i)
-        : thrust::nullopt;
+        : cuda::std::nullopt;
 
     auto edge_partition_frontier_key_first =
       aggregate_local_frontier_key_first + local_frontier_displacements[i];
