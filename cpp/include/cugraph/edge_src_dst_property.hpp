@@ -32,6 +32,9 @@
 #include <optional>
 #include <type_traits>
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
+
 namespace cugraph {
 
 namespace detail {
@@ -455,7 +458,7 @@ class edge_src_property_t {
   std::conditional_t<GraphViewType::is_storage_transposed,
                      detail::edge_minor_property_t<typename GraphViewType::vertex_type, T>,
                      detail::edge_major_property_t<typename GraphViewType::vertex_type, T>>
-    property_;
+    property_{std::nullopt};
 
   std::optional<std::vector<raft::device_span<typename GraphViewType::vertex_type const>>>
     edge_partition_keys_{std::nullopt};
@@ -547,7 +550,7 @@ class edge_dst_property_t {
   std::conditional_t<GraphViewType::is_storage_transposed,
                      detail::edge_major_property_t<typename GraphViewType::vertex_type, T>,
                      detail::edge_minor_property_t<typename GraphViewType::vertex_type, T>>
-    property_;
+    property_{std::nullopt};
 
   std::optional<std::vector<raft::device_span<typename GraphViewType::vertex_type const>>>
     edge_partition_keys_{std::nullopt};
@@ -625,3 +628,5 @@ auto view_concat(detail::edge_minor_property_view_t<vertex_t, Iters, Types> cons
 }
 
 }  // namespace cugraph
+
+#pragma GCC diagnostic pop
