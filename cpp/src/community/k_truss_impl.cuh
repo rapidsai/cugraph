@@ -33,6 +33,7 @@
 #include <raft/util/integer_utils.hpp>
 
 #include <cuda/std/optional>
+#include <cuda/std/utility>
 #include <thrust/copy.h>
 #include <thrust/count.h>
 #include <thrust/distance.h>
@@ -58,7 +59,7 @@ struct extract_weak_edges {
 };
 
 template <typename edge_t>
-struct is_k_minus_1_or_greater_t {
+struct is_k_or_greater_t {
   edge_t k{};
   __device__ bool operator()(edge_t core_number) const { return core_number >= edge_t{k}; }
 };
@@ -82,29 +83,18 @@ struct extract_triangles_endpoints {
                                         intersection_indices[i]        // r
     );
 
+    auto p = weak_srcs[chunk_start + idx];
+    auto q = weak_dsts[chunk_start + idx];
+    auto r = intersection_indices[i];
     // Re-order the endpoints such that p < q < r in order to identify duplicate triangles
     // which will cause overcompensation. comparing the vertex IDs is cheaper than comparing the
     // degrees (d(p) < d(q) < d(r)) which will be done once in the latter stage to retrieve the
     // direction of the edges once the triplet dependency is broken.
-    if (thrust::get<0>(endpoints) > thrust::get<2>(endpoints)) {  // (a > c)
-      endpoints = thrust::make_tuple(thrust::get<2>(endpoints),
-                                     thrust::get<1>(endpoints),
-                                     thrust::get<0>(endpoints));  // swap(a, c)
-    }
-
-    if (thrust::get<0>(endpoints) > thrust::get<1>(endpoints)) {  // (a > b)
-      endpoints = thrust::make_tuple(thrust::get<1>(endpoints),
-                                     thrust::get<0>(endpoints),
-                                     thrust::get<2>(endpoints));  // swap(a, b);
-    }
-
-    if (thrust::get<1>(endpoints) > thrust::get<2>(endpoints)) {  // (b > c)
-      endpoints = thrust::make_tuple(thrust::get<0>(endpoints),
-                                     thrust::get<2>(endpoints),
-                                     thrust::get<1>(endpoints));  // swap(b, c);
-    }
-
-    return endpoints;
+    if (p > q) cuda::std::swap(p, q);
+    if (p > r) cuda::std::swap(p, r);
+    if (q > r) cuda::std::swap(q, r);
+    
+    return thrust::make_tuple(p, q, r);
   }
 };
 
@@ -247,7 +237,7 @@ k_truss(raft::handle_t const& handle,
       edge_dst_property_t<decltype(cur_graph_view), bool> edge_dst_in_k_minus_1_cores(
         handle, cur_graph_view);
       auto in_k_minus_1_core_first = thrust::make_transform_iterator(
-        core_numbers.begin(), is_k_minus_1_or_greater_t<edge_t>{k - 1});
+        core_numbers.begin(), is_k_or_greater_t<edge_t>{k - 1});
       rmm::device_uvector<bool> in_k_minus_1_core_flags(core_numbers.size(), handle.get_stream());
       thrust::copy(handle.get_thrust_policy(),
                    in_k_minus_1_core_first,
