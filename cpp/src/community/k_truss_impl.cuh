@@ -50,7 +50,8 @@ struct extract_weak_edges {
   __device__ cuda::std::optional<thrust::tuple<vertex_t, vertex_t>> operator()(
     vertex_t src, vertex_t dst, cuda::std::nullopt_t, cuda::std::nullopt_t, edge_t count) const
   {
-    return ((count < k - 2) && (count > 0))
+    // No need to process edges with count == 0
+    return ((count < k - 2) && (count != 0))
              ? cuda::std::optional<thrust::tuple<vertex_t, vertex_t>>{thrust::make_tuple(src, dst)}
              : cuda::std::nullopt;
   }
