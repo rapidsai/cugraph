@@ -32,12 +32,12 @@
 
 #include <raft/util/integer_utils.hpp>
 
+#include <cuda/std/optional>
 #include <thrust/copy.h>
 #include <thrust/count.h>
 #include <thrust/distance.h>
 #include <thrust/execution_policy.h>
 #include <thrust/iterator/transform_iterator.h>
-#include <thrust/optional.h>
 #include <thrust/sort.h>
 #include <thrust/transform.h>
 #include <thrust/tuple.h>
@@ -47,12 +47,12 @@ namespace cugraph {
 template <typename vertex_t, typename edge_t>
 struct extract_weak_edges {
   edge_t k{};
-  __device__ thrust::optional<thrust::tuple<vertex_t, vertex_t>> operator()(
-    vertex_t src, vertex_t dst, thrust::nullopt_t, thrust::nullopt_t, edge_t count) const
+  __device__ cuda::std::optional<thrust::tuple<vertex_t, vertex_t>> operator()(
+    vertex_t src, vertex_t dst, cuda::std::nullopt_t, cuda::std::nullopt_t, edge_t count) const
   {
     return ((count < k - 2) && (count > 0))
-             ? thrust::optional<thrust::tuple<vertex_t, vertex_t>>{thrust::make_tuple(src, dst)}
-             : thrust::nullopt;
+             ? cuda::std::optional<thrust::tuple<vertex_t, vertex_t>>{thrust::make_tuple(src, dst)}
+             : cuda::std::nullopt;
   }
 };
 
@@ -111,12 +111,16 @@ namespace {
 
 template <typename vertex_t>
 struct exclude_self_loop_t {
-  __device__ thrust::optional<thrust::tuple<vertex_t, vertex_t>> operator()(
-    vertex_t src, vertex_t dst, thrust::nullopt_t, thrust::nullopt_t, thrust::nullopt_t) const
+  __device__ cuda::std::optional<thrust::tuple<vertex_t, vertex_t>> operator()(
+    vertex_t src,
+    vertex_t dst,
+    cuda::std::nullopt_t,
+    cuda::std::nullopt_t,
+    cuda::std::nullopt_t) const
   {
     return src != dst
-             ? thrust::optional<thrust::tuple<vertex_t, vertex_t>>{thrust::make_tuple(src, dst)}
-             : thrust::nullopt;
+             ? cuda::std::optional<thrust::tuple<vertex_t, vertex_t>>{thrust::make_tuple(src, dst)}
+             : cuda::std::nullopt;
   }
 };
 
@@ -125,12 +129,12 @@ struct extract_low_to_high_degree_edges_from_endpoints_t {
   raft::device_span<vertex_t const> srcs{};
   raft::device_span<vertex_t const> dsts{};
   raft::device_span<edge_t const> count{};
-  __device__ thrust::optional<thrust::tuple<vertex_t, vertex_t, edge_t>> operator()(
+  __device__ cuda::std::optional<thrust::tuple<vertex_t, vertex_t, edge_t>> operator()(
     vertex_t src,
     vertex_t dst,
     edge_t src_out_degree,
     edge_t dst_out_degree,
-    thrust::nullopt_t) const
+    cuda::std::nullopt_t) const
   {
     // FIXME: Not the most efficient way because the entire edgelist is scan just to find
     // the direction of the edges
@@ -144,23 +148,23 @@ struct extract_low_to_high_degree_edges_from_endpoints_t {
       auto idx = thrust::distance(thrust::make_zip_iterator(srcs.begin(), dsts.begin()), itr);
 
       if (src_out_degree < dst_out_degree) {
-        return thrust::optional<thrust::tuple<vertex_t, vertex_t, edge_t>>{
+        return cuda::std::optional<thrust::tuple<vertex_t, vertex_t, edge_t>>{
           thrust::make_tuple(src, dst, count[idx])};
       } else if (dst_out_degree < src_out_degree) {
-        return thrust::optional<thrust::tuple<vertex_t, vertex_t, edge_t>>{
+        return cuda::std::optional<thrust::tuple<vertex_t, vertex_t, edge_t>>{
           thrust::make_tuple(dst, src, count[idx])};
       } else {
         if ((src_out_degree == dst_out_degree) && (src < dst) /* tie-breaking using vertex ID */) {
-          return thrust::optional<thrust::tuple<vertex_t, vertex_t, edge_t>>{
+          return cuda::std::optional<thrust::tuple<vertex_t, vertex_t, edge_t>>{
             thrust::make_tuple(src, dst, count[idx])};
         } else if ((src_out_degree == dst_out_degree) &&
                    (src > dst) /* tie-breaking using vertex ID */) {
-          return thrust::optional<thrust::tuple<vertex_t, vertex_t, edge_t>>{
+          return cuda::std::optional<thrust::tuple<vertex_t, vertex_t, edge_t>>{
             thrust::make_tuple(dst, src, count[idx])};
         }
       }
     } else {
-      return thrust::nullopt;
+      return cuda::std::nullopt;
     }
   }
 };
@@ -496,14 +500,19 @@ k_truss(raft::handle_t const& handle,
                  std::ignore,
                  std::ignore,
                  std::ignore,
+                 std::ignore,
+                 std::ignore,
                  std::ignore) =
           detail::shuffle_int_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning<vertex_t,
                                                                                          edge_t,
                                                                                          weight_t,
+                                                                                         int32_t,
                                                                                          int32_t>(
             handle,
             std::move(std::get<0>(edgelist_to_update_count)),
             std::move(std::get<1>(edgelist_to_update_count)),
+            std::nullopt,
+            std::nullopt,
             std::nullopt,
             std::nullopt,
             std::nullopt,
@@ -620,8 +629,8 @@ k_truss(raft::handle_t const& handle,
          decrease_count   = raft::device_span<edge_t>(
            decrease_count.data(), decrease_count.size())] __device__(auto src,
                                                                      auto dst,
-                                                                     thrust::nullopt_t,
-                                                                     thrust::nullopt_t,
+                                                                     cuda::std::nullopt_t,
+                                                                     cuda::std::nullopt_t,
                                                                      edge_t count) {
           auto itr_pair = thrust::lower_bound(
             thrust::seq, edge_buffer_first, edge_buffer_last, thrust::make_tuple(src, dst));
@@ -656,7 +665,7 @@ k_truss(raft::handle_t const& handle,
         cugraph::edge_src_dummy_property_t{}.view(),
         cugraph::edge_dst_dummy_property_t{}.view(),
         cugraph::edge_dummy_property_t{}.view(),
-        [] __device__(auto src, auto dst, thrust::nullopt_t, thrust::nullopt_t, thrust::nullopt_t) {
+        [] __device__(auto src, auto dst, cuda::std::nullopt_t, cuda::std::nullopt_t, cuda::std::nullopt_t) {
           return false;
         },
         weak_edges_mask.mutable_view(),
@@ -671,14 +680,19 @@ k_truss(raft::handle_t const& handle,
                  std::ignore,
                  std::ignore,
                  std::ignore,
+                 std::ignore,
+                 std::ignore,
                  std::ignore) =
           detail::shuffle_int_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning<vertex_t,
                                                                                          edge_t,
                                                                                          weight_t,
+                                                                                         int32_t,
                                                                                          int32_t>(
             handle,
             std::move(weak_edgelist_dsts),
             std::move(weak_edgelist_srcs),
+            std::nullopt,
+            std::nullopt,
             std::nullopt,
             std::nullopt,
             std::nullopt,
@@ -700,7 +714,7 @@ k_truss(raft::handle_t const& handle,
         cugraph::edge_src_dummy_property_t{}.view(),
         cugraph::edge_dst_dummy_property_t{}.view(),
         cugraph::edge_dummy_property_t{}.view(),
-        [] __device__(auto src, auto dst, thrust::nullopt_t, thrust::nullopt_t, thrust::nullopt_t) {
+        [] __device__(auto src, auto dst, cuda::std::nullopt_t, cuda::std::nullopt_t, cuda::std::nullopt_t) {
           return false;
         },
         weak_edges_mask.mutable_view(),
@@ -723,7 +737,7 @@ k_truss(raft::handle_t const& handle,
       cugraph::edge_src_dummy_property_t{}.view(),
       cugraph::edge_dst_dummy_property_t{}.view(),
       edge_triangle_counts.view(),
-      [] __device__(auto src, auto dst, thrust::nullopt_t, thrust::nullopt_t, auto count) {
+      [] __device__(auto src, auto dst, cuda::std::nullopt_t, cuda::std::nullopt_t, auto count) {
         return count == 0 ? false : true;
       },
       dodg_mask.mutable_view(),
@@ -742,12 +756,23 @@ k_truss(raft::handle_t const& handle,
         std::optional<cugraph::edge_property_view_t<edge_t, int32_t const*>>{std::nullopt},
         std::optional<raft::device_span<vertex_t const>>{std::nullopt});
 
-    std::tie(edgelist_srcs, edgelist_dsts, edgelist_wgts) =
-      symmetrize_edgelist<vertex_t, weight_t, false, multi_gpu>(handle,
-                                                                std::move(edgelist_srcs),
-                                                                std::move(edgelist_dsts),
-                                                                std::move(edgelist_wgts),
-                                                                false);
+    std::tie(edgelist_srcs,
+             edgelist_dsts,
+             edgelist_wgts,
+             std::ignore,
+             std::ignore,
+             std::ignore,
+             std::ignore) =
+      symmetrize_edgelist<vertex_t, edge_t, weight_t, int32_t, int32_t, multi_gpu>(
+        handle,
+        std::move(edgelist_srcs),
+        std::move(edgelist_dsts),
+        std::move(edgelist_wgts),
+        std::nullopt,
+        std::nullopt,
+        std::nullopt,
+        std::nullopt,
+        false);
 
     return std::make_tuple(
       std::move(edgelist_srcs), std::move(edgelist_dsts), std::move(edgelist_wgts));
