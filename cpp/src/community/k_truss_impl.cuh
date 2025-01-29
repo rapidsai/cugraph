@@ -194,7 +194,7 @@ k_truss(raft::handle_t const& handle,
   {
     // 2.1 Exclude self-loops
 
-    if (graph_view.count_self_loops(handle) > edge_t{0}) {
+    if (cur_graph_view.count_self_loops(handle) > edge_t{0}) {
       // 2.1. Exclude self-loops
 
       cugraph::edge_property_t<decltype(cur_graph_view), bool> self_loop_edge_mask(handle,
@@ -218,11 +218,6 @@ k_truss(raft::handle_t const& handle,
 
     // 2.2 Find (k-1)-core and exclude edges that do not belong to (k-1)-core
     {
-      cugraph::edge_property_t<decltype(cur_graph_view), bool> in_k_minus_1_core_edge_mask(
-        handle, cur_graph_view);
-      cugraph::fill_edge_property(
-        handle, unmasked_cur_graph_view, in_k_minus_1_core_edge_mask.mutable_view(), false);
-
       rmm::device_uvector<edge_t> core_numbers(cur_graph_view.number_of_vertices(),
                                                handle.get_stream());
       core_number(handle,
@@ -251,6 +246,11 @@ k_truss(raft::handle_t const& handle,
                                cur_graph_view,
                                in_k_minus_1_core_flags.begin(),
                                edge_dst_in_k_minus_1_cores.mutable_view());
+
+      cugraph::edge_property_t<decltype(cur_graph_view), bool> in_k_minus_1_core_edge_mask(
+        handle, cur_graph_view);
+      cugraph::fill_edge_property(
+        handle, unmasked_cur_graph_view, in_k_minus_1_core_edge_mask.mutable_view(), false);
 
       transform_e(
         handle,
