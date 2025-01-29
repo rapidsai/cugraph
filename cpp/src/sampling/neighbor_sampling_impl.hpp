@@ -31,6 +31,7 @@
 
 #include <rmm/device_uvector.hpp>
 
+#include <cuda/std/optional>
 #include <thrust/unique.h>
 
 namespace cugraph {
@@ -123,9 +124,9 @@ neighbor_sample_impl(raft::handle_t const& handle,
         *edge_type_view,
         [valid_edge_type = i] __device__(auto src,
                                          auto dst,
-                                         thrust::nullopt_t,
-                                         thrust::nullopt_t,
-                                         /*thrust::nullopt_t*/ auto edge_type) {
+                                         cuda::std::nullopt_t,
+                                         cuda::std::nullopt_t,
+                                         /*cuda::std::nullopt_t*/ auto edge_type) {
           return edge_type == valid_edge_type;
         },
         edge_mask.mutable_view(),

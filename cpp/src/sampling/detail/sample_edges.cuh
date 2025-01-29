@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,7 +29,7 @@
 
 #include <rmm/device_uvector.hpp>
 
-#include <thrust/optional.h>
+#include <cuda/std/optional>
 #include <thrust/sort.h>
 #include <thrust/tuple.h>
 
@@ -41,12 +41,12 @@ struct sample_edges_op_t {
   template <typename EdgeProperties>
   auto __host__ __device__ operator()(vertex_t src,
                                       vertex_t dst,
-                                      thrust::nullopt_t,
-                                      thrust::nullopt_t,
+                                      cuda::std::nullopt_t,
+                                      cuda::std::nullopt_t,
                                       EdgeProperties edge_properties) const
   {
     // FIXME: A solution using thrust_tuple_cat would be more flexible here
-    if constexpr (std::is_same_v<EdgeProperties, thrust::nullopt_t>) {
+    if constexpr (std::is_same_v<EdgeProperties, cuda::std::nullopt_t>) {
       return thrust::make_tuple(src, dst);
     } else if constexpr (std::is_arithmetic<EdgeProperties>::value) {
       return thrust::make_tuple(src, dst, edge_properties);
@@ -68,7 +68,7 @@ struct sample_edges_op_t {
 template <typename vertex_t, typename bias_t>
 struct sample_edge_biases_op_t {
   auto __host__ __device__
-  operator()(vertex_t, vertex_t, thrust::nullopt_t, thrust::nullopt_t, bias_t bias) const
+  operator()(vertex_t, vertex_t, cuda::std::nullopt_t, cuda::std::nullopt_t, bias_t bias) const
   {
     return bias;
   }
