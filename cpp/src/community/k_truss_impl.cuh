@@ -93,7 +93,7 @@ struct extract_triangles_endpoints {
     if (p > q) cuda::std::swap(p, q);
     if (p > r) cuda::std::swap(p, r);
     if (q > r) cuda::std::swap(q, r);
-    
+
     return thrust::make_tuple(p, q, r);
   }
 };
@@ -231,8 +231,8 @@ k_truss(raft::handle_t const& handle,
         handle, cur_graph_view);
       edge_dst_property_t<decltype(cur_graph_view), bool> edge_dst_in_k_minus_1_cores(
         handle, cur_graph_view);
-      auto in_k_minus_1_core_first = thrust::make_transform_iterator(
-        core_numbers.begin(), is_k_or_greater_t<edge_t>{k - 1});
+      auto in_k_minus_1_core_first =
+        thrust::make_transform_iterator(core_numbers.begin(), is_k_or_greater_t<edge_t>{k - 1});
       rmm::device_uvector<bool> in_k_minus_1_core_flags(core_numbers.size(), handle.get_stream());
       thrust::copy(handle.get_thrust_policy(),
                    in_k_minus_1_core_first,
@@ -311,7 +311,6 @@ k_truss(raft::handle_t const& handle,
   // 4. Compute triangle count using nbr_intersection and unroll weak edges
 
   {
-
     // Mask self loops and edges not being part of k-1 core
     auto weak_edges_mask = std::move(undirected_mask);
 
@@ -641,7 +640,8 @@ k_truss(raft::handle_t const& handle,
         cugraph::edge_src_dummy_property_t{}.view(),
         cugraph::edge_dst_dummy_property_t{}.view(),
         cugraph::edge_dummy_property_t{}.view(),
-        [] __device__(auto src, auto dst, cuda::std::nullopt_t, cuda::std::nullopt_t, cuda::std::nullopt_t) {
+        [] __device__(
+          auto src, auto dst, cuda::std::nullopt_t, cuda::std::nullopt_t, cuda::std::nullopt_t) {
           return false;
         },
         weak_edges_mask.mutable_view(),
@@ -690,7 +690,8 @@ k_truss(raft::handle_t const& handle,
         cugraph::edge_src_dummy_property_t{}.view(),
         cugraph::edge_dst_dummy_property_t{}.view(),
         cugraph::edge_dummy_property_t{}.view(),
-        [] __device__(auto src, auto dst, cuda::std::nullopt_t, cuda::std::nullopt_t, cuda::std::nullopt_t) {
+        [] __device__(
+          auto src, auto dst, cuda::std::nullopt_t, cuda::std::nullopt_t, cuda::std::nullopt_t) {
           return false;
         },
         weak_edges_mask.mutable_view(),
