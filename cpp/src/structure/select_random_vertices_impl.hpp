@@ -16,7 +16,6 @@
 #pragma once
 
 #include "detail/graph_partition_utils.cuh"
-#include "from_cugraph_ops/sampling.hpp"
 
 #include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
