@@ -68,11 +68,14 @@ The [cugraph-docs repository](https://github.com/rapidsai/cugraph-docs) contains
   - [cugraph-service](./readme_pages/cugraph_service.md)
 - API Docs
   - Python
-    - [Python Nightly](https://docs.rapids.ai/api/cugraph/nightly/)
-    - [Python Stable](https://docs.rapids.ai/api/cugraph/stable/)
+    - [Python Nightly](https://docs.rapids.ai/api/cugraph/nightly/api_docs/cugraph/)
+    - [Python Stable](https://docs.rapids.ai/api/cugraph/stable/api_docs/cugraph/)
+  - C
+    -  [C Nightly](https://docs.rapids.ai/api/cugraph/nightly/api_docs/cugraph_c/)
+    -  [C Stable](https://docs.rapids.ai/api/cugraph/stable/api_docs/cugraph_c/)
   - C++
-    - [C++ Nightly](https://docs.rapids.ai/api/libcugraph/nightly/)
-    - [C++ Stable](https://docs.rapids.ai/api/libcugraph/stable/)
+    - [C++ Nightly](https://docs.rapids.ai/api/cugraph/nightly/api_docs/cugraph_cpp/)
+    - (Will be available when 25.02 is released)[C++ Stable](https://docs.rapids.ai/api/cugraph/stable/api_docs/cugraph_cpp/)
 - References
   - [RAPIDS](https://rapids.ai/)
   - [ARROW](https://arrow.apache.org/)
