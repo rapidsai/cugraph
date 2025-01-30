@@ -144,14 +144,16 @@ struct extract_low_to_high_degree_edges_from_endpoints_t {
       } else if (dst_out_degree < src_out_degree) {
         return cuda::std::optional<thrust::tuple<vertex_t, vertex_t, edge_t>>{
           thrust::make_tuple(dst, src, count[idx])};
-      } else {
-        if ((src_out_degree == dst_out_degree) && (src < dst) /* tie-breaking using vertex ID */) {
+      } else {  // src_out_degree == dst_out_degree
+        if (src < dst /* tie-breaking using vertex ID */) {
           return cuda::std::optional<thrust::tuple<vertex_t, vertex_t, edge_t>>{
             thrust::make_tuple(src, dst, count[idx])};
-        } else if ((src_out_degree == dst_out_degree) &&
-                   (src > dst) /* tie-breaking using vertex ID */) {
+        } else if (src > dst /* tie-breaking using vertex ID */) {
           return cuda::std::optional<thrust::tuple<vertex_t, vertex_t, edge_t>>{
             thrust::make_tuple(dst, src, count[idx])};
+        } else {          // src == dst (self-loop)
+          assert(false);  // should not be reached as we pre-excluded self-loops
+          return cuda::std::nullopt;
         }
       }
     } else {
