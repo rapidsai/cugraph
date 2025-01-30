@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, NVIDIA CORPORATION.
+ * Copyright (c) 2024-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -58,7 +58,7 @@ rmm::device_uvector<vertex_t> permute_range(raft::handle_t const& handle,
       sub_range_sizes.begin(), sub_range_sizes.end(), sub_range_sizes.begin(), global_start);
     CUGRAPH_EXPECTS(
       sub_range_sizes[comm_rank] == local_range_start,
-      "Invalid input arguments: a rage must have contiguous and non-overlapping values");
+      "Invalid input arguments: a range must have contiguous and non-overlapping values");
   }
   rmm::device_uvector<vertex_t> permuted_integers(local_range_size, handle.get_stream());
 
