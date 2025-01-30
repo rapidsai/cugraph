@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -32,6 +32,7 @@
 
 #include <rmm/exec_policy.hpp>
 
+#include <cuda/std/optional>
 #include <thrust/binary_search.h>
 #include <thrust/copy.h>
 #include <thrust/count.h>
@@ -43,7 +44,6 @@
 #include <thrust/iterator/iterator_traits.h>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/merge.h>
-#include <thrust/optional.h>
 #include <thrust/reduce.h>
 #include <thrust/sort.h>
 #include <thrust/tabulate.h>
@@ -249,14 +249,14 @@ void transform_reduce_dst_nbr_intersection_of_e_endpoints_by_v(
   using weight_t = float;  // dummy
 
   using edge_partition_src_input_device_view_t = std::conditional_t<
-    std::is_same_v<typename EdgeSrcValueInputWrapper::value_type, thrust::nullopt_t>,
+    std::is_same_v<typename EdgeSrcValueInputWrapper::value_type, cuda::std::nullopt_t>,
     detail::edge_partition_endpoint_dummy_property_device_view_t<vertex_t>,
     detail::edge_partition_endpoint_property_device_view_t<
       vertex_t,
       typename EdgeSrcValueInputWrapper::value_iterator,
       typename EdgeSrcValueInputWrapper::value_type>>;
   using edge_partition_dst_input_device_view_t = std::conditional_t<
-    std::is_same_v<typename EdgeDstValueInputWrapper::value_type, thrust::nullopt_t>,
+    std::is_same_v<typename EdgeDstValueInputWrapper::value_type, cuda::std::nullopt_t>,
     detail::edge_partition_endpoint_dummy_property_device_view_t<vertex_t>,
     detail::edge_partition_endpoint_property_device_view_t<
       vertex_t,

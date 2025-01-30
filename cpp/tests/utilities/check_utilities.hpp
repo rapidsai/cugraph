@@ -97,7 +97,7 @@ struct device_nearly_equal {
   bool __device__ operator()(type_t lhs, type_t rhs) const
   {
     return std::abs(lhs - rhs) <
-           cuda::std::max(thrust::max(lhs, rhs) * threshold_ratio, threshold_magnitude);
+           cuda::std::max(cuda::std::max(lhs, rhs) * threshold_ratio, threshold_magnitude);
   }
 };
 

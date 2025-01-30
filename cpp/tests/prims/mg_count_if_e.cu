@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -37,11 +37,11 @@
 #include <rmm/device_scalar.hpp>
 #include <rmm/device_uvector.hpp>
 
+#include <cuda/std/optional>
 #include <thrust/count.h>
 #include <thrust/distance.h>
 #include <thrust/functional.h>
 #include <thrust/iterator/counting_iterator.h>
-#include <thrust/optional.h>
 #include <thrust/transform.h>
 #include <thrust/tuple.h>
 
@@ -127,15 +127,16 @@ class Tests_MGCountIfE
       hr_timer.start("MG count_if_e");
     }
 
-    auto result = count_if_e(
-      *handle_,
-      mg_graph_view,
-      mg_src_prop.view(),
-      mg_dst_prop.view(),
-      cugraph::edge_dummy_property_t{}.view(),
-      [] __device__(auto row, auto col, auto src_property, auto dst_property, thrust::nullopt_t) {
-        return src_property < dst_property;
-      });
+    auto result =
+      count_if_e(*handle_,
+                 mg_graph_view,
+                 mg_src_prop.view(),
+                 mg_dst_prop.view(),
+                 cugraph::edge_dummy_property_t{}.view(),
+                 [] __device__(
+                   auto row, auto col, auto src_property, auto dst_property, cuda::std::nullopt_t) {
+                   return src_property < dst_property;
+                 });
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -179,7 +180,7 @@ class Tests_MGCountIfE
           sg_dst_prop.view(),
           cugraph::edge_dummy_property_t{}.view(),
           [] __device__(
-            auto row, auto col, auto src_property, auto dst_property, thrust::nullopt_t) {
+            auto row, auto col, auto src_property, auto dst_property, cuda::std::nullopt_t) {
             return src_property < dst_property;
           });
         ASSERT_TRUE(expected_result == result);

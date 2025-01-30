@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -42,6 +42,7 @@
 #include <rmm/exec_policy.hpp>
 
 #include <cub/cub.cuh>
+#include <cuda/std/optional>
 #include <thrust/binary_search.h>
 #include <thrust/copy.h>
 #include <thrust/count.h>
@@ -52,7 +53,6 @@
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/iterator/iterator_traits.h>
 #include <thrust/iterator/zip_iterator.h>
-#include <thrust/optional.h>
 #include <thrust/reduce.h>
 #include <thrust/remove.h>
 #include <thrust/sort.h>
@@ -86,7 +86,7 @@ template <typename key_t,
 struct transform_reduce_v_frontier_call_e_op_t {
   EdgeOp e_op{};
 
-  __device__ thrust::optional<
+  __device__ cuda::std::optional<
     std::conditional_t<!std::is_same_v<key_t, void> && !std::is_same_v<payload_t, void>,
                        thrust::tuple<key_t, payload_t>,
                        std::conditional_t<!std::is_same_v<key_t, void>, key_t, payload_t>>>
@@ -106,7 +106,7 @@ struct transform_reduce_v_frontier_call_e_op_t {
                                   thrust::get<1>(*e_op_result));
       }
     } else {
-      return thrust::nullopt;
+      return cuda::std::nullopt;
     }
   }
 };
@@ -121,7 +121,7 @@ struct update_keep_flag_t {
   raft::device_span<uint32_t> keep_flags{};
   key_t v_range_first{};
   InputKeyIterator input_key_first{};
-  thrust::optional<input_key_t> invalid_input_key{};
+  cuda::std::optional<input_key_t> invalid_input_key{};
 
   __device__ void operator()(size_t i) const
   {
@@ -1058,10 +1058,10 @@ size_t compute_num_out_nbrs_from_frontier(raft::handle_t const& handle,
         graph_view.local_edge_partition_view(i));
     auto edge_partition_e_mask =
       edge_mask_view
-        ? thrust::make_optional<
+        ? cuda::std::make_optional<
             detail::edge_partition_edge_property_device_view_t<edge_t, uint32_t const*, bool>>(
             *edge_mask_view, i)
-        : thrust::nullopt;
+        : cuda::std::nullopt;
 
     if constexpr (GraphViewType::is_multi_gpu) {
       auto& minor_comm = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
@@ -1110,9 +1110,9 @@ size_t compute_num_out_nbrs_from_frontier(raft::handle_t const& handle,
  * @brief Iterate over outgoing edges from the current vertex frontier and reduce valid edge functor
  * outputs by (tagged-)destination ID.
  *
- * Edge functor outputs are thrust::optional objects and invalid if thrust::nullopt. Vertices are
- * assumed to be tagged if KeyBucketType::key_type is a tuple of a vertex type and a tag
- * type (KeyBucketType::key_type is identical to a vertex type otherwise).
+ * Edge functor outputs are cuda::std::optional objects and invalid if cuda::std::nullopt. Vertices
+ * are assumed to be tagged if KeyBucketType::key_type is a tuple of a vertex type and a tag type
+ * (KeyBucketType::key_type is identical to a vertex type otherwise).
  *
  * @tparam GraphViewType Type of the passed non-owning graph object.
  * @tparam KeyBucketType Type of the vertex frontier bucket class which abstracts the
@@ -1141,10 +1141,10 @@ size_t compute_num_out_nbrs_from_frontier(raft::handle_t const& handle,
  * access edge property values) or cugraph::edge_dummy_property_t::view() (if @p e_op does not
  * access edge property values).
  * @param e_op Quinary operator takes edge (tagged-)source, edge destination, property values for
- * the source, destination, and edge and returns 1) thrust::nullopt (if invalid and to be
- * discarded); 2) dummy (but valid) thrust::optional object (e.g.
- * thrust::optional<std::byte>{std::byte{0}}, if vertices are not tagged and ReduceOp::value_type is
- * void); 3) a tag (if vertices are tagged and ReduceOp::value_type is void); 4) a value to be
+ * the source, destination, and edge and returns 1) cuda::std::nullopt (if invalid and to be
+ * discarded); 2) dummy (but valid) cuda::std::optional object (e.g.
+ * cuda::std::optional<std::byte>{std::byte{0}}, if vertices are not tagged and ReduceOp::value_type
+ * is void); 3) a tag (if vertices are tagged and ReduceOp::value_type is void); 4) a value to be
  * reduced using the @p reduce_op (if vertices are not tagged and ReduceOp::value_type is not void);
  * or 5) a tuple of a tag and a value to be reduced (if vertices are tagged and ReduceOp::value_type
  * is not void).
