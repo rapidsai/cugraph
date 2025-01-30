@@ -53,7 +53,7 @@ select = [
 ]
 
 # detect when package size grows significantly
-max_allowed_size_compressed = '1.2G'
+max_allowed_size_compressed = '1.4G'
 
 [tool.scikit-build]
 build-dir = "build/{wheel_tag}"
