@@ -3341,10 +3341,10 @@ biased_sample_with_replacement(
                        ? cuda::std::make_optional<raft::device_span<size_t const>>(
                            (*key_indices).data() + local_frontier_sample_offsets[i],
                            local_frontier_sample_offsets[i + 1] - local_frontier_sample_offsets[i])
-                       : thrust::nullopt,
+                       : cuda::std::nullopt,
        edge_types  = edge_types ? cuda::std::make_optional<raft::device_span<edge_type_t const>>(
                                    (*edge_types).data(), (*edge_types).size())
-                                : thrust::nullopt,
+                                : cuda::std::nullopt,
        key_idx_to_unique_key_idx = raft::device_span<size_t const>(
          aggregate_local_frontier_key_idx_to_unique_key_idx.data() + local_frontier_offsets[i],
          local_frontier_offsets[i + 1] - local_frontier_offsets[i]),
