@@ -72,7 +72,6 @@ requirements:
     - libraft ={{ minor_version }}
     - librmm ={{ minor_version }}
     - nccl {{ nccl_version }}
-    - ucx-proc=*=gpu
     - rapids-build-backend>=0.3.1,<0.4.0.dev0
 
 outputs:
@@ -113,7 +112,6 @@ outputs:
         - libraft ={{ minor_version }}
         - librmm ={{ minor_version }}
         - nccl {{ nccl_version }}
-        - ucx-proc=*=gpu
     about:
       home: https://rapids.ai/
       dev_url: https://github.com/rapidsai/cugraph

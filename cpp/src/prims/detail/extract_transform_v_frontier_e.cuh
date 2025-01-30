@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -40,6 +40,7 @@
 #include <rmm/exec_policy.hpp>
 
 #include <cub/cub.cuh>
+#include <cuda/std/optional>
 #include <thrust/binary_search.h>
 #include <thrust/copy.h>
 #include <thrust/count.h>
@@ -47,7 +48,6 @@
 #include <thrust/execution_policy.h>
 #include <thrust/functional.h>
 #include <thrust/iterator/iterator_traits.h>
-#include <thrust/optional.h>
 #include <thrust/sort.h>
 #include <thrust/tuple.h>
 
@@ -138,7 +138,7 @@ __global__ static void extract_transform_v_frontier_e_hypersparse_or_low_degree(
   EdgePartitionSrcValueInputWrapper edge_partition_src_value_input,
   EdgePartitionDstValueInputWrapper edge_partition_dst_value_input,
   EdgePartitionEdgeValueInputWrapper edge_partition_e_value_input,
-  thrust::optional<EdgePartitionEdgeMaskWrapper> edge_partition_e_mask,
+  cuda::std::optional<EdgePartitionEdgeMaskWrapper> edge_partition_e_mask,
   BufferKeyOutputIterator buffer_key_output_first,
   BufferValueOutputIterator buffer_value_output_first,
   size_t* buffer_idx_ptr,
@@ -238,7 +238,7 @@ __global__ static void extract_transform_v_frontier_e_hypersparse_or_low_degree(
 
     if (edge_partition_e_mask) {
       for (size_t i = lane_id; i < rounded_up_num_edges_this_warp; i += raft::warp_size()) {
-        e_op_result_t e_op_result{thrust::nullopt};
+        e_op_result_t e_op_result{cuda::std::nullopt};
 
         if (i < static_cast<size_t>(num_edges_this_warp)) {
           auto key_idx_this_warp = static_cast<vertex_t>(thrust::distance(
@@ -261,7 +261,7 @@ __global__ static void extract_transform_v_frontier_e_hypersparse_or_low_degree(
       }
     } else {
       for (size_t i = lane_id; i < rounded_up_num_edges_this_warp; i += raft::warp_size()) {
-        e_op_result_t e_op_result{thrust::nullopt};
+        e_op_result_t e_op_result{cuda::std::nullopt};
 
         if (i < static_cast<size_t>(num_edges_this_warp)) {
           auto key_idx_this_warp = static_cast<vertex_t>(thrust::distance(
@@ -304,7 +304,7 @@ __global__ static void extract_transform_v_frontier_e_mid_degree(
   EdgePartitionSrcValueInputWrapper edge_partition_src_value_input,
   EdgePartitionDstValueInputWrapper edge_partition_dst_value_input,
   EdgePartitionEdgeValueInputWrapper edge_partition_e_value_input,
-  thrust::optional<EdgePartitionEdgeMaskWrapper> edge_partition_e_mask,
+  cuda::std::optional<EdgePartitionEdgeMaskWrapper> edge_partition_e_mask,
   BufferKeyOutputIterator buffer_key_output_first,
   BufferValueOutputIterator buffer_value_output_first,
   size_t* buffer_idx_ptr,
@@ -359,7 +359,7 @@ __global__ static void extract_transform_v_frontier_e_mid_degree(
 
     if (edge_partition_e_mask) {
       for (size_t i = lane_id; i < rounded_up_local_degree; i += raft::warp_size()) {
-        e_op_result_t e_op_result{thrust::nullopt};
+        e_op_result_t e_op_result{cuda::std::nullopt};
         if ((i < static_cast<size_t>(local_degree)) &&
             ((*edge_partition_e_mask).get(local_edge_offset + i))) {
           e_op_result = call_e_op(i);
@@ -370,7 +370,7 @@ __global__ static void extract_transform_v_frontier_e_mid_degree(
       }
     } else {
       for (size_t i = lane_id; i < rounded_up_local_degree; i += raft::warp_size()) {
-        e_op_result_t e_op_result{thrust::nullopt};
+        e_op_result_t e_op_result{cuda::std::nullopt};
         if (i < static_cast<size_t>(local_degree)) { e_op_result = call_e_op(i); }
 
         warp_push_buffer_elements(
@@ -400,7 +400,7 @@ __global__ static void extract_transform_v_frontier_e_high_degree(
   EdgePartitionSrcValueInputWrapper edge_partition_src_value_input,
   EdgePartitionDstValueInputWrapper edge_partition_dst_value_input,
   EdgePartitionEdgeValueInputWrapper edge_partition_e_value_input,
-  thrust::optional<EdgePartitionEdgeMaskWrapper> edge_partition_e_mask,
+  cuda::std::optional<EdgePartitionEdgeMaskWrapper> edge_partition_e_mask,
   BufferKeyOutputIterator buffer_key_output_first,
   BufferValueOutputIterator buffer_value_output_first,
   size_t* buffer_idx_ptr,
@@ -429,7 +429,7 @@ __global__ static void extract_transform_v_frontier_e_high_degree(
     ((static_cast<size_t>(num_edges) + (raft::warp_size() - 1)) / raft::warp_size()) *
     raft::warp_size();
   while (idx < rounded_up_num_edges) {
-    e_op_result_t e_op_result{thrust::nullopt};
+    e_op_result_t e_op_result{cuda::std::nullopt};
     if (idx < num_edges) {
       auto key_idx = thrust::distance(
         key_local_degree_offsets.begin() + 1,
@@ -494,7 +494,7 @@ void extract_transform_v_frontier_e_edge_partition(
   EdgePartitionSrcValueInputWrapper edge_partition_src_value_input,
   EdgePartitionDstValueInputWrapper edge_partition_dst_value_input,
   EdgePartitionValueInputWrapper edge_partition_e_value_input,
-  thrust::optional<EdgePartitionEdgeMaskWrapper> edge_partition_e_mask,
+  cuda::std::optional<EdgePartitionEdgeMaskWrapper> edge_partition_e_mask,
   OptionalOutputKeyIterator output_key_first,
   OptionalOutputValueIterator output_value_first,
   raft::device_span<size_t> count /* size = 1 */,
@@ -665,21 +665,21 @@ extract_transform_v_frontier_e(raft::handle_t const& handle,
                                                      EdgeOp>::type;
 
   using edge_partition_src_input_device_view_t = std::conditional_t<
-    std::is_same_v<typename EdgeSrcValueInputWrapper::value_type, thrust::nullopt_t>,
+    std::is_same_v<typename EdgeSrcValueInputWrapper::value_type, cuda::std::nullopt_t>,
     edge_partition_endpoint_dummy_property_device_view_t<vertex_t>,
     edge_partition_endpoint_property_device_view_t<
       vertex_t,
       typename EdgeSrcValueInputWrapper::value_iterator,
       typename EdgeSrcValueInputWrapper::value_type>>;
   using edge_partition_dst_input_device_view_t = std::conditional_t<
-    std::is_same_v<typename EdgeDstValueInputWrapper::value_type, thrust::nullopt_t>,
+    std::is_same_v<typename EdgeDstValueInputWrapper::value_type, cuda::std::nullopt_t>,
     edge_partition_endpoint_dummy_property_device_view_t<vertex_t>,
     edge_partition_endpoint_property_device_view_t<
       vertex_t,
       typename EdgeDstValueInputWrapper::value_iterator,
       typename EdgeDstValueInputWrapper::value_type>>;
   using edge_partition_e_input_device_view_t = std::conditional_t<
-    std::is_same_v<typename EdgeValueInputWrapper::value_type, thrust::nullopt_t>,
+    std::is_same_v<typename EdgeValueInputWrapper::value_type, cuda::std::nullopt_t>,
     detail::edge_partition_edge_dummy_property_device_view_t<vertex_t>,
     detail::edge_partition_edge_property_device_view_t<
       edge_t,
@@ -692,12 +692,12 @@ extract_transform_v_frontier_e(raft::handle_t const& handle,
   static_assert(!std::is_same_v<e_op_result_t, void>);
   static_assert(
     std::is_same_v<e_op_result_t,
-                   std::conditional_t<!std::is_same_v<output_key_t, void> &&
-                                        !std::is_same_v<output_value_t, void>,
-                                      thrust::optional<thrust::tuple<output_key_t, output_value_t>>,
-                                      std::conditional_t<!std::is_same_v<output_key_t, void>,
-                                                         thrust::optional<output_key_t>,
-                                                         thrust::optional<output_value_t>>>>);
+                   std::conditional_t<
+                     !std::is_same_v<output_key_t, void> && !std::is_same_v<output_value_t, void>,
+                     cuda::std::optional<thrust::tuple<output_key_t, output_value_t>>,
+                     std::conditional_t<!std::is_same_v<output_key_t, void>,
+                                        cuda::std::optional<output_key_t>,
+                                        cuda::std::optional<output_value_t>>>>);
 
   constexpr bool try_bitmap = GraphViewType::is_multi_gpu && std::is_same_v<key_t, vertex_t> &&
                               KeyBucketType::is_sorted_unique;
@@ -1401,10 +1401,10 @@ extract_transform_v_frontier_e(raft::handle_t const& handle,
           graph_view.local_edge_partition_view(partition_idx));
       auto edge_partition_e_mask =
         edge_mask_view
-          ? thrust::make_optional<
+          ? cuda::std::make_optional<
               detail::edge_partition_edge_property_device_view_t<edge_t, uint32_t const*, bool>>(
               *edge_mask_view, partition_idx)
-          : thrust::nullopt;
+          : cuda::std::nullopt;
       size_t num_streams_per_loop{1};
       if (stream_pool_indices) {
         assert((*stream_pool_indices).size() >= num_concurrent_loops);

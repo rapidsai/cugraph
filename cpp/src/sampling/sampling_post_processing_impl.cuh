@@ -29,6 +29,7 @@
 
 #include <cub/cub.cuh>
 #include <cuda/functional>
+#include <cuda/std/optional>
 #include <thrust/binary_search.h>
 #include <thrust/copy.h>
 #include <thrust/count.h>
@@ -51,9 +52,9 @@ namespace {
 
 template <typename vertex_t, typename edge_type_t>
 struct edge_order_t {
-  thrust::optional<raft::device_span<size_t const>> edgelist_label_offsets{thrust::nullopt};
-  thrust::optional<raft::device_span<edge_type_t const>> edgelist_edge_types{thrust::nullopt};
-  thrust::optional<raft::device_span<int32_t const>> edgelist_hops{thrust::nullopt};
+  cuda::std::optional<raft::device_span<size_t const>> edgelist_label_offsets{cuda::std::nullopt};
+  cuda::std::optional<raft::device_span<edge_type_t const>> edgelist_edge_types{cuda::std::nullopt};
+  cuda::std::optional<raft::device_span<int32_t const>> edgelist_hops{cuda::std::nullopt};
   raft::device_span<vertex_t const> edgelist_majors{};
   raft::device_span<vertex_t const> edgelist_minors{};
 
@@ -99,8 +100,8 @@ struct edge_order_t {
 
 template <typename vertex_t>
 struct is_first_triplet_in_run_t {
-  thrust::optional<raft::device_span<size_t const>> edgelist_label_offsets{thrust::nullopt};
-  thrust::optional<raft::device_span<int32_t const>> edgelist_hops{thrust::nullopt};
+  cuda::std::optional<raft::device_span<size_t const>> edgelist_label_offsets{cuda::std::nullopt};
+  cuda::std::optional<raft::device_span<int32_t const>> edgelist_hops{cuda::std::nullopt};
   raft::device_span<vertex_t const> edgelist_majors{};
 
   __device__ bool operator()(size_t i) const
@@ -142,7 +143,7 @@ struct compute_label_index_t {
 
 template <typename label_index_t>
 struct optionally_compute_label_index_t {
-  thrust::optional<raft::device_span<size_t const>> edgelist_label_offsets{thrust::nullopt};
+  cuda::std::optional<raft::device_span<size_t const>> edgelist_label_offsets{cuda::std::nullopt};
 
   __device__ label_index_t operator()(size_t i) const
   {
@@ -2370,9 +2371,9 @@ heterogeneous_renumber_sampled_edgelist(
         cuda::proclaim_return_type<edge_id_t>(
           [edgelist_label_offsets = detail::to_thrust_optional(edgelist_label_offsets),
            edge_types             = edgelist_edge_types
-                                      ? thrust::make_optional<raft::device_span<edge_type_t const>>(
+                                      ? cuda::std::make_optional<raft::device_span<edge_type_t const>>(
                               (*edgelist_edge_types).data(), (*edgelist_edge_types).size())
-                                      : thrust::nullopt,
+                                      : cuda::std::nullopt,
            renumber_map =
              raft::device_span<edge_id_t const>(segment_sorted_edge_id_renumber_map.data(),
                                                 segment_sorted_edge_id_renumber_map.size()),
@@ -2499,17 +2500,17 @@ sort_sampled_edge_tuples(raft::handle_t const& handle,
                                         handle.get_stream());
     thrust::sequence(handle.get_thrust_policy(), indices.begin(), indices.end(), size_t{0});
     edge_order_t<vertex_t, edge_type_t> edge_order_comp{
-      edgelist_label_offsets ? thrust::make_optional<raft::device_span<size_t const>>(
+      edgelist_label_offsets ? cuda::std::make_optional<raft::device_span<size_t const>>(
                                  (*edgelist_label_offsets).data() + h_label_offsets[i],
                                  (h_label_offsets[i + 1] - h_label_offsets[i]) + 1)
-                             : thrust::nullopt,
+                             : cuda::std::nullopt,
       edgelist_edge_types && use_edge_type_as_sort_key
-        ? thrust::make_optional<raft::device_span<edge_type_t const>>(
+        ? cuda::std::make_optional<raft::device_span<edge_type_t const>>(
             (*edgelist_edge_types).data() + h_edge_offsets[i], indices.size())
-        : thrust::nullopt,
-      edgelist_hops ? thrust::make_optional<raft::device_span<int32_t const>>(
+        : cuda::std::nullopt,
+      edgelist_hops ? cuda::std::make_optional<raft::device_span<int32_t const>>(
                         (*edgelist_hops).data() + h_edge_offsets[i], indices.size())
-                    : thrust::nullopt,
+                    : cuda::std::nullopt,
       raft::device_span<vertex_t const>(edgelist_majors.data() + h_edge_offsets[i], indices.size()),
       raft::device_span<vertex_t const>(edgelist_minors.data() + h_edge_offsets[i],
                                         indices.size())};
@@ -2686,8 +2687,8 @@ renumber_and_compress_sampled_edgelist(
       auto label_index_first = thrust::make_transform_iterator(
         thrust::make_counting_iterator(size_t{0}),
         optionally_compute_label_index_t<label_index_t>{
-          edgelist_label_offsets ? thrust::make_optional(*edgelist_label_offsets)
-                                 : thrust::nullopt});
+          edgelist_label_offsets ? cuda::std::make_optional(*edgelist_label_offsets)
+                                 : cuda::std::nullopt});
       auto input_key_first = thrust::make_zip_iterator(label_index_first, (*edgelist_hops).begin());
       rmm::device_uvector<label_index_t> unique_key_label_indices(min_vertices.size(),
                                                                   handle.get_stream());
@@ -2781,9 +2782,9 @@ renumber_and_compress_sampled_edgelist(
     thrust::make_counting_iterator(edgelist_majors.size()),
     is_first_triplet_in_run_t<vertex_t>{
       detail::to_thrust_optional(edgelist_label_offsets),
-      edgelist_hops ? thrust::make_optional<raft::device_span<int32_t const>>(
+      edgelist_hops ? cuda::std::make_optional<raft::device_span<int32_t const>>(
                         (*edgelist_hops).data(), (*edgelist_hops).size())
-                    : thrust::nullopt,
+                    : cuda::std::nullopt,
       raft::device_span<vertex_t const>(
         edgelist_majors.data(),
         edgelist_majors.size())});  // number of unique ((label), (hop), major) triplets
@@ -2910,15 +2911,15 @@ renumber_and_compress_sampled_edgelist(
       major_vertex_counts.begin(),
       major_vertex_counts.end(),
       [edgelist_label_offsets = detail::to_thrust_optional(edgelist_label_offsets),
-       edgelist_hops          = edgelist_hops ? thrust::make_optional<raft::device_span<int32_t>>(
+       edgelist_hops = edgelist_hops ? cuda::std::make_optional<raft::device_span<int32_t>>(
                                          (*edgelist_hops).data(), (*edgelist_hops).size())
-                                              : thrust::nullopt,
+                                     : cuda::std::nullopt,
        edgelist_majors =
          raft::device_span<vertex_t const>(edgelist_majors.data(), edgelist_majors.size()),
        seed_vertices             = renumbered_seed_vertices
-                                     ? thrust::make_optional<raft::device_span<vertex_t const>>(
+                                     ? cuda::std::make_optional<raft::device_span<vertex_t const>>(
                              (*renumbered_seed_vertices).data(), (*renumbered_seed_vertices).size())
-                                     : thrust::nullopt,
+                                     : cuda::std::nullopt,
        seed_vertex_label_offsets = detail::to_thrust_optional(seed_vertex_label_offsets),
        num_hops,
        compress_per_hop] __device__(size_t i) {
@@ -3045,9 +3046,9 @@ renumber_and_compress_sampled_edgelist(
       [major_vertex_counts =
          raft::device_span<vertex_t const>(major_vertex_counts.data(), major_vertex_counts.size()),
        minor_vertex_counts = minor_vertex_counts
-                               ? thrust::make_optional<raft::device_span<vertex_t const>>(
+                               ? cuda::std::make_optional<raft::device_span<vertex_t const>>(
                                    (*minor_vertex_counts).data(), (*minor_vertex_counts).size())
-                               : thrust::nullopt,
+                               : cuda::std::nullopt,
        num_hops,
        compress_per_hop] __device__(size_t i) {
         auto vertex_count = major_vertex_counts[i];
@@ -3310,9 +3311,9 @@ renumber_and_sort_sampled_edgelist(
       (*edgelist_label_hop_offsets).begin(),
       cuda::proclaim_return_type<size_t>(
         [edgelist_label_offsets = detail::to_thrust_optional(edgelist_label_offsets),
-         edgelist_hops = edgelist_hops ? thrust::make_optional<raft::device_span<int32_t const>>(
+         edgelist_hops = edgelist_hops ? cuda::std::make_optional<raft::device_span<int32_t const>>(
                                            (*edgelist_hops).data(), (*edgelist_hops).size())
-                                       : thrust::nullopt,
+                                       : cuda::std::nullopt,
          num_hops,
          num_edges = edgelist_majors.size()] __device__(size_t i) {
           size_t start_offset{0};
@@ -3500,12 +3501,12 @@ heterogeneous_renumber_and_sort_sampled_edgelist(
       cuda::proclaim_return_type<size_t>(
         [edgelist_label_offsets = detail::to_thrust_optional(edgelist_label_offsets),
          edgelist_edge_types    = edgelist_edge_types
-                                    ? thrust::make_optional<raft::device_span<edge_type_t const>>(
+                                    ? cuda::std::make_optional<raft::device_span<edge_type_t const>>(
                                      (*edgelist_edge_types).data(), (*edgelist_edge_types).size())
-                                    : thrust::nullopt,
-         edgelist_hops = edgelist_hops ? thrust::make_optional<raft::device_span<int32_t const>>(
+                                    : cuda::std::nullopt,
+         edgelist_hops = edgelist_hops ? cuda::std::make_optional<raft::device_span<int32_t const>>(
                                            (*edgelist_hops).data(), (*edgelist_hops).size())
-                                       : thrust::nullopt,
+                                       : cuda::std::nullopt,
          num_edge_types,
          num_hops,
          num_edges = edgelist_majors.size()] __device__(size_t i) {
@@ -3653,9 +3654,9 @@ sort_sampled_edgelist(raft::handle_t const& handle,
       (*edgelist_label_hop_offsets).begin(),
       cuda::proclaim_return_type<size_t>(
         [edgelist_label_offsets = detail::to_thrust_optional(edgelist_label_offsets),
-         edgelist_hops = edgelist_hops ? thrust::make_optional<raft::device_span<int32_t const>>(
+         edgelist_hops = edgelist_hops ? cuda::std::make_optional<raft::device_span<int32_t const>>(
                                            (*edgelist_hops).data(), (*edgelist_hops).size())
-                                       : thrust::nullopt,
+                                       : cuda::std::nullopt,
          num_hops,
          num_edges = edgelist_majors.size()] __device__(size_t i) {
           size_t start_offset{0};
