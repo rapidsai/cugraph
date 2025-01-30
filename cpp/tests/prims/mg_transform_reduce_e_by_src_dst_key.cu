@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, NVIDIA CORPORATION.
+ * Copyright (c) 2024-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -39,11 +39,11 @@
 #include <rmm/device_scalar.hpp>
 #include <rmm/device_uvector.hpp>
 
+#include <cuda/std/optional>
 #include <thrust/count.h>
 #include <thrust/distance.h>
 #include <thrust/functional.h>
 #include <thrust/iterator/counting_iterator.h>
-#include <thrust/optional.h>
 #include <thrust/transform.h>
 #include <thrust/tuple.h>
 
@@ -149,7 +149,8 @@ class Tests_MGTransformReduceEBySrcDstKey
       mg_dst_prop.view(),
       cugraph::edge_dummy_property_t{}.view(),
       mg_src_key.view(),
-      [] __device__(auto src, auto dst, auto src_property, auto dst_property, thrust::nullopt_t) {
+      [] __device__(
+        auto src, auto dst, auto src_property, auto dst_property, cuda::std::nullopt_t) {
         if (src_property < dst_property) {
           return src_property;
         } else {
@@ -179,7 +180,8 @@ class Tests_MGTransformReduceEBySrcDstKey
       mg_dst_prop.view(),
       cugraph::edge_dummy_property_t{}.view(),
       mg_dst_key.view(),
-      [] __device__(auto src, auto dst, auto src_property, auto dst_property, thrust::nullopt_t) {
+      [] __device__(
+        auto src, auto dst, auto src_property, auto dst_property, cuda::std::nullopt_t) {
         if (src_property < dst_property) {
           return src_property;
         } else {
@@ -279,7 +281,7 @@ class Tests_MGTransformReduceEBySrcDstKey
           cugraph::edge_dummy_property_t{}.view(),
           sg_src_key.view(),
           [] __device__(
-            auto src, auto dst, auto src_property, auto dst_property, thrust::nullopt_t) {
+            auto src, auto dst, auto src_property, auto dst_property, cuda::std::nullopt_t) {
             if (src_property < dst_property) {
               return src_property;
             } else {
@@ -301,7 +303,7 @@ class Tests_MGTransformReduceEBySrcDstKey
           cugraph::edge_dummy_property_t{}.view(),
           sg_dst_key.view(),
           [] __device__(
-            auto src, auto dst, auto src_property, auto dst_property, thrust::nullopt_t) {
+            auto src, auto dst, auto src_property, auto dst_property, cuda::std::nullopt_t) {
             if (src_property < dst_property) {
               return src_property;
             } else {
