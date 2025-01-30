@@ -63,6 +63,8 @@ class Tests_MGCountSelfLoopsAndMultiEdges
     CountSelfLoopsAndMultiEdges_Usecase const& count_self_loops_and_multi_edges_usecase,
     input_usecase_t const& input_usecase)
   {
+    using edge_type_t = int32_t;
+
     HighResTimer hr_timer{};
 
     // 1. create MG graph
@@ -126,12 +128,13 @@ class Tests_MGCountSelfLoopsAndMultiEdges
       // 3-1. aggregate MG results
 
       cugraph::graph_t<vertex_t, edge_t, store_transposed, false> sg_graph(*handle_);
-      std::tie(sg_graph, std::ignore, std::ignore, std::ignore) =
+      std::tie(sg_graph, std::ignore, std::ignore, std::ignore, std::ignore) =
         cugraph::test::mg_graph_to_sg_graph(
           *handle_,
           mg_graph_view,
           std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>>{std::nullopt},
           std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
+          std::optional<cugraph::edge_property_view_t<edge_t, edge_type_t const*>>{std::nullopt},
           std::make_optional<raft::device_span<vertex_t const>>((*mg_renumber_map).data(),
                                                                 (*mg_renumber_map).size()),
           false);

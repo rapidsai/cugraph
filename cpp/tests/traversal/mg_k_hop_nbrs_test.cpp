@@ -65,7 +65,8 @@ class Tests_MGKHopNbrs
   void run_current_test(KHopNbrs_Usecase const& k_hop_nbrs_usecase,
                         input_usecase_t const& input_usecase)
   {
-    using weight_t = float;
+    using edge_type_t = int32_t;
+    using weight_t    = float;
 
     HighResTimer hr_timer{};
 
@@ -178,12 +179,13 @@ class Tests_MGKHopNbrs
         *handle_, raft::device_span<vertex_t const>(d_mg_nbrs.data(), d_mg_nbrs.size()));
 
       cugraph::graph_t<vertex_t, edge_t, false, false> sg_graph(*handle_);
-      std::tie(sg_graph, std::ignore, std::ignore, std::ignore) =
+      std::tie(sg_graph, std::ignore, std::ignore, std::ignore, std::ignore) =
         cugraph::test::mg_graph_to_sg_graph(
           *handle_,
           mg_graph_view,
           std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>>{std::nullopt},
           std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
+          std::optional<cugraph::edge_property_view_t<edge_t, edge_type_t const*>>{std::nullopt},
           std::make_optional<raft::device_span<vertex_t const>>((*mg_renumber_map).data(),
                                                                 (*mg_renumber_map).size()),
           false);

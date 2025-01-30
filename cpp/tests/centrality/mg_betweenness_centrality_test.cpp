@@ -60,6 +60,8 @@ class Tests_MGBetweennessCentrality
   template <typename vertex_t, typename edge_t, typename weight_t>
   void run_current_test(std::tuple<BetweennessCentrality_Usecase, input_usecase_t> const& param)
   {
+    using edge_type_t = int32_t;
+
     auto [betweenness_usecase, input_usecase] = param;
 
     HighResTimer hr_timer{};
@@ -152,12 +154,13 @@ class Tests_MGBetweennessCentrality
       std::optional<
         cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, false, false>, weight_t>>
         sg_edge_weights{std::nullopt};
-      std::tie(sg_graph, sg_edge_weights, std::ignore, std::ignore) =
+      std::tie(sg_graph, sg_edge_weights, std::ignore, std::ignore, std::ignore) =
         cugraph::test::mg_graph_to_sg_graph(
           *handle_,
           mg_graph_view,
           mg_edge_weight_view,
           std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
+          std::optional<cugraph::edge_property_view_t<edge_t, edge_type_t const*>>{std::nullopt},
           std::make_optional<raft::device_span<vertex_t const>>((*mg_renumber_map).data(),
                                                                 (*mg_renumber_map).size()),
           false);

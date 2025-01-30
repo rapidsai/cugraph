@@ -69,9 +69,10 @@ class Tests_MGExtractBFSPaths
   void run_current_test(ExtractBFSPaths_Usecase const& extract_bfs_paths_usecase,
                         input_usecase_t const& input_usecase)
   {
-    constexpr bool renumber = true;
+    using weight_t    = float;
+    using edge_type_t = int32_t;
 
-    using weight_t = float;
+    constexpr bool renumber = true;
 
     HighResTimer hr_timer{};
 
@@ -237,12 +238,13 @@ class Tests_MGExtractBFSPaths
         cugraph::test::device_gatherv(*handle_, d_mg_paths.data(), d_mg_paths.size());
 
       cugraph::graph_t<vertex_t, edge_t, false, false> sg_graph(*handle_);
-      std::tie(sg_graph, std::ignore, std::ignore, std::ignore) =
+      std::tie(sg_graph, std::ignore, std::ignore, std::ignore, std::ignore) =
         cugraph::test::mg_graph_to_sg_graph(
           *handle_,
           mg_graph_view,
           std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>>{std::nullopt},
           std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
+          std::optional<cugraph::edge_property_view_t<edge_t, edge_type_t const*>>{std::nullopt},
           std::make_optional<raft::device_span<vertex_t const>>((*mg_renumber_map).data(),
                                                                 (*mg_renumber_map).size()),
           false);

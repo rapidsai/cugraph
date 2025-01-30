@@ -215,7 +215,11 @@ graph_to_host_csc(
   std::optional<raft::device_span<vertex_t const>> renumber_map);
 
 // Only the rank 0 GPU holds the valid data
-template <typename vertex_t, typename edge_t, typename weight_t, bool store_transposed>
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          typename edge_type_t,
+          bool store_transposed>
 std::tuple<
   cugraph::graph_t<vertex_t, edge_t, store_transposed, false>,
   std::optional<
@@ -224,12 +228,16 @@ std::tuple<
   std::optional<
     cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, store_transposed, false>,
                              edge_t>>,
+  std::optional<
+    cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, store_transposed, false>,
+                             edge_type_t>>,
   std::optional<rmm::device_uvector<vertex_t>>>
 mg_graph_to_sg_graph(
   raft::handle_t const& handle,
   cugraph::graph_view_t<vertex_t, edge_t, store_transposed, true> const& graph_view,
   std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
   std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>> edge_id_view,
+  std::optional<cugraph::edge_property_view_t<edge_t, edge_type_t const*>> edge_type_view,
   std::optional<raft::device_span<vertex_t const>> renumber_map,
   bool renumber);
 

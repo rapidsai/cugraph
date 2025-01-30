@@ -60,10 +60,11 @@ class Tests_MGKCore : public ::testing::TestWithParam<std::tuple<KCore_Usecase, 
   template <typename vertex_t, typename edge_t>
   void run_current_test(std::tuple<KCore_Usecase const&, input_usecase_t const&> const& param)
   {
+    using weight_t    = float;
+    using edge_type_t = int32_t;
+
     constexpr bool renumber              = true;
     auto [k_core_usecase, input_usecase] = param;
-
-    using weight_t = float;
 
     HighResTimer hr_timer{};
 
@@ -160,12 +161,17 @@ class Tests_MGKCore : public ::testing::TestWithParam<std::tuple<KCore_Usecase, 
           std::optional<raft::device_span<vertex_t const>>{std::nullopt},
           raft::device_span<edge_t const>(d_mg_core_numbers.data(), d_mg_core_numbers.size()));
 
-      auto [sg_graph, sg_edge_weights, sg_edge_ids, sg_number_map] =
+      cugraph::graph_t<vertex_t, edge_t, false, false> sg_graph(*handle_);
+      std::optional<
+        cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, false, false>, weight_t>>
+        sg_edge_weights{std::nullopt};
+      std::tie(sg_graph, sg_edge_weights, std::ignore, std::ignore, std::ignore) =
         cugraph::test::mg_graph_to_sg_graph(
           *handle_,
           mg_graph_view,
           mg_edge_weight_view,
           std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
+          std::optional<cugraph::edge_property_view_t<edge_t, edge_type_t const*>>{std::nullopt},
           std::make_optional<raft::device_span<vertex_t const>>((*mg_renumber_map).data(),
                                                                 (*mg_renumber_map).size()),
           false);
