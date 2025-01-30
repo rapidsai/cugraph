@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, NVIDIA CORPORATION.
+ * Copyright (c) 2024-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -37,12 +37,12 @@
 #include <cub/cub.cuh>
 #include <cuda/atomic>
 #include <cuda/functional>
+#include <cuda/std/optional>
 #include <thrust/adjacent_difference.h>
 #include <thrust/copy.h>
 #include <thrust/count.h>
 #include <thrust/iterator/constant_iterator.h>
 #include <thrust/iterator/counting_iterator.h>
-#include <thrust/optional.h>
 #include <thrust/remove.h>
 #include <thrust/sort.h>
 #include <thrust/tabulate.h>
@@ -523,10 +523,10 @@ compute_valid_local_nbr_count_inclusive_sums(raft::handle_t const& handle,
         graph_view.local_edge_partition_view(i));
     auto edge_partition_e_mask =
       edge_mask_view
-        ? thrust::make_optional<
+        ? cuda::std::make_optional<
             detail::edge_partition_edge_property_device_view_t<edge_t, uint32_t const*, bool>>(
             *edge_mask_view, i)
-        : thrust::nullopt;
+        : cuda::std::nullopt;
 
     auto edge_partition_local_degrees = edge_partition.compute_local_degrees(
       aggregate_local_frontier_major_first + local_frontier_offsets[i],
@@ -2424,10 +2424,10 @@ compute_aggregate_local_frontier_local_degrees(raft::handle_t const& handle,
         graph_view.local_edge_partition_view(i));
     auto edge_partition_e_mask =
       edge_mask_view
-        ? thrust::make_optional<
+        ? cuda::std::make_optional<
             detail::edge_partition_edge_property_device_view_t<edge_t, uint32_t const*, bool>>(
             *edge_mask_view, i)
-        : thrust::nullopt;
+        : cuda::std::nullopt;
 
     auto edge_partition_frontier_local_degrees =
       !edge_partition_e_mask
@@ -3338,11 +3338,11 @@ biased_sample_with_replacement(
          sample_local_random_numbers.data() + local_frontier_sample_offsets[i],
          local_frontier_sample_offsets[i + 1] - local_frontier_sample_offsets[i]),
        key_indices = key_indices
-                       ? thrust::make_optional<raft::device_span<size_t const>>(
+                       ? cuda::std::make_optional<raft::device_span<size_t const>>(
                            (*key_indices).data() + local_frontier_sample_offsets[i],
                            local_frontier_sample_offsets[i + 1] - local_frontier_sample_offsets[i])
                        : thrust::nullopt,
-       edge_types  = edge_types ? thrust::make_optional<raft::device_span<edge_type_t const>>(
+       edge_types  = edge_types ? cuda::std::make_optional<raft::device_span<edge_type_t const>>(
                                    (*edge_types).data(), (*edge_types).size())
                                 : thrust::nullopt,
        key_idx_to_unique_key_idx = raft::device_span<size_t const>(
@@ -4921,9 +4921,9 @@ rmm::device_uvector<typename GraphViewType::edge_type> convert_to_unmasked_local
     thrust::make_counting_iterator(size_t{0}),
     cuda::proclaim_return_type<size_t>(
       [K,
-       key_indices = key_indices ? thrust::make_optional<raft::device_span<size_t const>>(
+       key_indices = key_indices ? cuda::std::make_optional<raft::device_span<size_t const>>(
                                      (*key_indices).data(), (*key_indices).size())
-                                 : thrust::nullopt] __device__(size_t i) {
+                                 : cuda::std::nullopt] __device__(size_t i) {
         return key_indices ? (*key_indices)[i] : i / K;
       }));
   auto pair_first = thrust::make_zip_iterator(local_nbr_indices.begin(), sample_major_idx_first);
@@ -4933,10 +4933,10 @@ rmm::device_uvector<typename GraphViewType::edge_type> convert_to_unmasked_local
         graph_view.local_edge_partition_view(i));
     auto edge_partition_e_mask =
       edge_mask_view
-        ? thrust::make_optional<
+        ? cuda::std::make_optional<
             detail::edge_partition_edge_property_device_view_t<edge_t, uint32_t const*, bool>>(
             *edge_mask_view, i)
-        : thrust::nullopt;
+        : cuda::std::nullopt;
 
     auto edge_partition_frontier_major_first =
       aggregate_local_frontier_major_first + local_frontier_offsets[i];

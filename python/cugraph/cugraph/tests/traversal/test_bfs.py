@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2023, NVIDIA CORPORATION.
+# Copyright (c) 2019-2025, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -378,7 +378,7 @@ def single_dataset_goldenresults_startvertex_spc(
 # =============================================================================
 @pytest.mark.sg
 @pytest.mark.parametrize("cugraph_input_type", utils.CUGRAPH_INPUT_TYPES)
-def test_bfs(gpubenchmark, dataset_goldenresults_startvertex_spc, cugraph_input_type):
+def test_bfs(benchmark, dataset_goldenresults_startvertex_spc, cugraph_input_type):
     """
     Test BFS traversal on random source with distance and predecessors
     """
@@ -400,16 +400,16 @@ def test_bfs(gpubenchmark, dataset_goldenresults_startvertex_spc, cugraph_input_
     else:
         G_or_matrix = G
 
-    compare_bfs(gpubenchmark, G_or_matrix, golden_values, start_vertex, depth_limit)
+    compare_bfs(benchmark, G_or_matrix, golden_values, start_vertex, depth_limit)
 
 
 @pytest.mark.sg
 @pytest.mark.parametrize("cugraph_input_type", utils.MATRIX_INPUT_TYPES)
 def test_bfs_nonnative_inputs_matrix(
-    gpubenchmark, single_dataset_goldenresults_startvertex_spc, cugraph_input_type
+    benchmark, single_dataset_goldenresults_startvertex_spc, cugraph_input_type
 ):
     test_bfs(
-        gpubenchmark, single_dataset_goldenresults_startvertex_spc, cugraph_input_type
+        benchmark, single_dataset_goldenresults_startvertex_spc, cugraph_input_type
     )
 
 

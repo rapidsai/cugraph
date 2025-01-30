@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, NVIDIA CORPORATION.
+ * Copyright (c) 2024-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+#include "cugraph/utilities/host_scalar_comm.hpp"
 #include "utilities/base_fixture.hpp"
 #include "utilities/conversion_utilities.hpp"
 #include "utilities/property_generator_utilities.hpp"
@@ -85,8 +86,9 @@ class Tests_MGNegative_Sampling : public ::testing::TestWithParam<input_usecase_
 
     if (negative_sampling_usecase.edge_masking) { graph_view.attach_edge_mask(edge_mask_->view()); }
 
-    size_t num_samples =
-      graph_view.compute_number_of_edges(*handle_) * negative_sampling_usecase.sample_multiplier;
+    size_t num_samples = graph_view.compute_number_of_edges(*handle_) *
+                         negative_sampling_usecase.sample_multiplier /
+                         handle_->get_comms().get_size();
 
     rmm::device_uvector<weight_t> src_bias_v(0, handle_->get_stream());
     rmm::device_uvector<weight_t> dst_bias_v(0, handle_->get_stream());
@@ -150,26 +152,8 @@ class Tests_MGNegative_Sampling : public ::testing::TestWithParam<input_usecase_
                           raft::device_span<vertex_t>{src_out.data(), src_out.size()},
                           raft::device_span<vertex_t>{dst_out.data(), dst_out.size()});
 
-      // TODO:  Move this to validation_utilities...
-      auto h_vertex_partition_range_lasts = graph_view.vertex_partition_range_lasts();
-      rmm::device_uvector<vertex_t> d_vertex_partition_range_lasts(
-        h_vertex_partition_range_lasts.size(), handle_->get_stream());
-      raft::update_device(d_vertex_partition_range_lasts.data(),
-                          h_vertex_partition_range_lasts.data(),
-                          h_vertex_partition_range_lasts.size(),
-                          handle_->get_stream());
-
-      size_t error_count = cugraph::test::count_edges_on_wrong_int_gpu(
-        *handle_,
-        raft::device_span<vertex_t const>{src_out.data(), src_out.size()},
-        raft::device_span<vertex_t const>{dst_out.data(), dst_out.size()},
-        raft::device_span<vertex_t const>{d_vertex_partition_range_lasts.data(),
-                                          d_vertex_partition_range_lasts.size()});
-
-      ASSERT_EQ(error_count, 0) << "generate edges out of range > 0";
-
       if ((negative_sampling_usecase.remove_duplicates) && (src_out.size() > 0)) {
-        error_count = cugraph::test::count_duplicate_vertex_pairs_sorted(
+        size_t error_count = cugraph::test::count_duplicate_vertex_pairs_sorted(
           *handle_,
           raft::device_span<vertex_t const>{src_out.data(), src_out.size()},
           raft::device_span<vertex_t const>{dst_out.data(), dst_out.size()});
@@ -184,7 +168,7 @@ class Tests_MGNegative_Sampling : public ::testing::TestWithParam<input_usecase_
           cugraph::decompress_to_edgelist<vertex_t, edge_t, float, int, false, true>(
             *handle_, graph_view, std::nullopt, std::nullopt, std::nullopt, std::nullopt);
 
-        error_count = cugraph::test::count_intersection<vertex_t, edge_t, weight_t, int32_t>(
+        size_t error_count = cugraph::test::count_intersection<vertex_t, edge_t, weight_t, int32_t>(
           *handle_,
           raft::device_span<vertex_t const>{graph_src.data(), graph_src.size()},
           raft::device_span<vertex_t const>{graph_dst.data(), graph_dst.size()},
@@ -202,7 +186,9 @@ class Tests_MGNegative_Sampling : public ::testing::TestWithParam<input_usecase_
       if (negative_sampling_usecase.exact_number_of_samples) {
         size_t sz = cugraph::host_scalar_allreduce(
           handle_->get_comms(), src_out.size(), raft::comms::op_t::SUM, handle_->get_stream());
-        ASSERT_EQ(sz, num_samples) << "Expected exact number of samples";
+        size_t aggregate_sample_count = cugraph::host_scalar_allreduce(
+          handle_->get_comms(), num_samples, raft::comms::op_t::SUM, handle_->get_stream());
+        ASSERT_EQ(sz, aggregate_sample_count) << "Expected exact number of samples";
       }
 
       //  TBD: How do we determine if we have properly reflected the biases?

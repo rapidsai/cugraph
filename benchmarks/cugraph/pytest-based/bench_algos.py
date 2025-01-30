@@ -1,4 +1,4 @@
-# Copyright (c) 2020-2024, NVIDIA CORPORATION.
+# Copyright (c) 2020-2025, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -13,25 +13,6 @@
 
 import pytest
 import numpy as np
-import pytest_benchmark
-
-# FIXME: Remove this when rapids_pytest_benchmark.gpubenchmark is available
-# everywhere
-try:
-    from rapids_pytest_benchmark import setFixtureParamNames
-except ImportError:
-    print(
-        "\n\nWARNING: rapids_pytest_benchmark is not installed, "
-        "falling back to pytest_benchmark fixtures.\n"
-    )
-
-    # if rapids_pytest_benchmark is not available, just perfrom time-only
-    # benchmarking and replace the util functions with nops
-    gpubenchmark = pytest_benchmark.plugin.benchmark
-
-    def setFixtureParamNames(*args, **kwargs):
-        pass
-
 
 import rmm
 import dask_cudf
@@ -42,7 +23,6 @@ import cugraph.dask as dask_cugraph
 from cugraph.structure.number_map import NumberMap
 from cugraph.generators import rmat
 from cugraph.testing import utils, mg_utils
-from cugraph.utilities.utils import is_device_version_less_than
 
 from cugraph_benchmarking.params import (
     directed_datasets,
@@ -50,6 +30,7 @@ from cugraph_benchmarking.params import (
     managed_memory,
     pool_allocator,
 )
+
 
 # duck-type compatible Dataset for RMAT data
 class RmatDataset:
@@ -199,11 +180,6 @@ def reinitRMM(managed_mem, pool_alloc):
 
 @pytest.fixture(scope="module", params=rmm_fixture_params)
 def rmm_config(request):
-    # Since parameterized fixtures do not assign param names to param values,
-    # manually call the helper to do so. Ensure the order of the name list
-    # passed to it matches if there are >1 params.
-    # If the request only contains n params, only the first n names are set.
-    setFixtureParamNames(request, ["managed_mem", "pool_allocator"])
     reinitRMM(request.param[0], request.param[1])
 
 
@@ -216,7 +192,6 @@ def dataset(request, rmm_config):
     tests/fixtures are done with the Dataset, it has the Dask cluster and
     client torn down (if MG) and all data loaded is freed.
     """
-    setFixtureParamNames(request, ["dataset"])
     dataset = request.param[0]
     client = cluster = None
     # For now, only RmatDataset instanaces support MG and have a "mg" attr.
@@ -284,8 +259,8 @@ def get_vertex_pairs(G, num_vertices=10):
 
 ###############################################################################
 # Benchmarks
-def bench_create_graph(gpubenchmark, edgelist):
-    gpubenchmark(
+def bench_create_graph(benchmark, edgelist):
+    benchmark(
         cugraph.from_cudf_edgelist,
         edgelist,
         source="src",
@@ -299,8 +274,8 @@ def bench_create_graph(gpubenchmark, edgelist):
 # results in thousands of rounds before the default threshold is met, so lower
 # the max_time for this benchmark.
 @pytest.mark.benchmark(warmup=True, warmup_iterations=10, max_time=0.005)
-def bench_create_digraph(gpubenchmark, edgelist):
-    gpubenchmark(
+def bench_create_digraph(benchmark, edgelist):
+    benchmark(
         cugraph.from_cudf_edgelist,
         edgelist,
         source="src",
@@ -310,26 +285,26 @@ def bench_create_digraph(gpubenchmark, edgelist):
     )
 
 
-def bench_renumber(gpubenchmark, edgelist):
-    gpubenchmark(NumberMap.renumber, edgelist, "src", "dst")
+def bench_renumber(benchmark, edgelist):
+    benchmark(NumberMap.renumber, edgelist, "src", "dst")
 
 
-def bench_pagerank(gpubenchmark, transposed_graph):
+def bench_pagerank(benchmark, transposed_graph):
     pagerank = (
         dask_cugraph.pagerank
         if is_graph_distributed(transposed_graph)
         else cugraph.pagerank
     )
-    gpubenchmark(pagerank, transposed_graph)
+    benchmark(pagerank, transposed_graph)
 
 
-def bench_bfs(gpubenchmark, graph):
+def bench_bfs(benchmark, graph):
     bfs = dask_cugraph.bfs if is_graph_distributed(graph) else cugraph.bfs
     start = graph.edgelist.edgelist_df["src"][0]
-    gpubenchmark(bfs, graph, start)
+    benchmark(bfs, graph, start)
 
 
-def bench_sssp(gpubenchmark, graph):
+def bench_sssp(benchmark, graph):
     if not graph.is_weighted():
         pytest.skip("Skipping: Unweighted Graphs are not supported by SSSP")
 
@@ -341,105 +316,102 @@ def bench_sssp(gpubenchmark, graph):
 
     start = start_col.to_arrow().to_pylist()[0]
 
-    gpubenchmark(sssp, graph, start)
+    benchmark(sssp, graph, start)
 
 
-def bench_jaccard(gpubenchmark, unweighted_graph):
+def bench_jaccard(benchmark, unweighted_graph):
     G = unweighted_graph
     # algo cannot compute neighbors on all nodes without running into OOM
     # this is why we will call jaccard on a subset of nodes
     vert_pairs = get_vertex_pairs(G)
     jaccard = dask_cugraph.jaccard if is_graph_distributed(G) else cugraph.jaccard
-    gpubenchmark(jaccard, G, vert_pairs)
+    benchmark(jaccard, G, vert_pairs)
 
 
-def bench_sorensen(gpubenchmark, unweighted_graph):
+def bench_sorensen(benchmark, unweighted_graph):
     G = unweighted_graph
     # algo cannot compute neighbors on all nodes without running into OOM
     # this is why we will call sorensen on a subset of nodes
     vert_pairs = get_vertex_pairs(G)
     sorensen = dask_cugraph.sorensen if is_graph_distributed(G) else cugraph.sorensen
-    gpubenchmark(sorensen, G, vert_pairs)
+    benchmark(sorensen, G, vert_pairs)
 
 
-@pytest.mark.skipif(
-    is_device_version_less_than((7, 0)), reason="Not supported on Pascal"
-)
-def bench_louvain(gpubenchmark, graph):
+def bench_louvain(benchmark, graph):
     louvain = dask_cugraph.louvain if is_graph_distributed(graph) else cugraph.louvain
-    gpubenchmark(louvain, graph)
+    benchmark(louvain, graph)
 
 
-def bench_weakly_connected_components(gpubenchmark, graph):
+def bench_weakly_connected_components(benchmark, graph):
     if is_graph_distributed(graph):
         pytest.skip("distributed graphs are not supported")
     if graph.is_directed():
         G = graph.to_undirected()
     else:
         G = graph
-    gpubenchmark(cugraph.weakly_connected_components, G)
+    benchmark(cugraph.weakly_connected_components, G)
 
 
-def bench_overlap(gpubenchmark, unweighted_graph):
+def bench_overlap(benchmark, unweighted_graph):
     G = unweighted_graph
     # algo cannot compute neighbors on all nodes without running into OOM
     # this is why we will call sorensen on a subset of nodes
     vertex_pairs = get_vertex_pairs(G)
     overlap = dask_cugraph.overlap if is_graph_distributed(G) else cugraph.overlap
-    gpubenchmark(overlap, G, vertex_pairs)
+    benchmark(overlap, G, vertex_pairs)
 
 
-def bench_triangle_count(gpubenchmark, graph):
+def bench_triangle_count(benchmark, graph):
     tc = (
         dask_cugraph.triangle_count
         if is_graph_distributed(graph)
         else cugraph.triangle_count
     )
-    gpubenchmark(tc, graph)
+    benchmark(tc, graph)
 
 
-def bench_spectralBalancedCutClustering(gpubenchmark, graph):
+def bench_spectralBalancedCutClustering(benchmark, graph):
     if is_graph_distributed(graph):
         pytest.skip("distributed graphs are not supported")
-    gpubenchmark(cugraph.spectralBalancedCutClustering, graph, 2)
+    benchmark(cugraph.spectralBalancedCutClustering, graph, 2)
 
 
 @pytest.mark.skip(reason="Need to guarantee graph has weights, " "not doing that yet")
-def bench_spectralModularityMaximizationClustering(gpubenchmark, graph):
+def bench_spectralModularityMaximizationClustering(benchmark, graph):
     smmc = (
         dask_cugraph.spectralModularityMaximizationClustering
         if is_graph_distributed(graph)
         else cugraph.spectralModularityMaximizationClustering
     )
-    gpubenchmark(smmc, graph, 2)
+    benchmark(smmc, graph, 2)
 
 
-def bench_graph_degree(gpubenchmark, graph):
-    gpubenchmark(graph.degree)
+def bench_graph_degree(benchmark, graph):
+    benchmark(graph.degree)
 
 
-def bench_graph_degrees(gpubenchmark, graph):
+def bench_graph_degrees(benchmark, graph):
     if is_graph_distributed(graph):
         pytest.skip("distributed graphs are not supported")
-    gpubenchmark(graph.degrees)
+    benchmark(graph.degrees)
 
 
-def bench_betweenness_centrality(gpubenchmark, graph):
+def bench_betweenness_centrality(benchmark, graph):
     bc = (
         dask_cugraph.betweenness_centrality
         if is_graph_distributed(graph)
         else cugraph.betweenness_centrality
     )
-    gpubenchmark(bc, graph, k=10, random_state=123)
+    benchmark(bc, graph, k=10, random_state=123)
 
 
-def bench_edge_betweenness_centrality(gpubenchmark, graph):
+def bench_edge_betweenness_centrality(benchmark, graph):
     if is_graph_distributed(graph):
         pytest.skip("distributed graphs are not supported")
-    gpubenchmark(cugraph.edge_betweenness_centrality, graph, k=10, seed=123)
+    benchmark(cugraph.edge_betweenness_centrality, graph, k=10, seed=123)
 
 
-def bench_uniform_neighbor_sample(gpubenchmark, graph):
+def bench_uniform_neighbor_sample(benchmark, graph):
     uns = (
         dask_cugraph.uniform_neighbor_sample
         if is_graph_distributed(graph)
@@ -459,13 +431,13 @@ def bench_uniform_neighbor_sample(gpubenchmark, graph):
         start_list = start_list.compute()
 
     fanout_vals = [5, 5, 5]
-    gpubenchmark(uns, graph, start_list=start_list, fanout_vals=fanout_vals)
+    benchmark(uns, graph, start_list=start_list, fanout_vals=fanout_vals)
 
 
-def bench_egonet(gpubenchmark, graph):
+def bench_egonet(benchmark, graph):
     egonet = (
         dask_cugraph.ego_graph if is_graph_distributed(graph) else cugraph.ego_graph
     )
     n = 1
     radius = 2
-    gpubenchmark(egonet, graph, n, radius=radius)
+    benchmark(egonet, graph, n, radius=radius)

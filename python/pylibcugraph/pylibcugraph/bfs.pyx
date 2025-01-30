@@ -1,4 +1,4 @@
-# Copyright (c) 2022-2024, NVIDIA CORPORATION.
+# Copyright (c) 2022-2025, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -13,6 +13,8 @@
 
 # Have cython use python 3 syntax
 # cython: language_level = 3
+
+import cupy
 
 from libc.stdint cimport uintptr_t
 from libc.stdint cimport int32_t
@@ -141,11 +143,6 @@ def bfs(ResourceHandle handle, _GPUGraph graph,
     >>> })
     """
 
-    try:
-        import cupy
-    except ModuleNotFoundError:
-        raise RuntimeError("bfs requires the cupy package, which could not "
-                           "be imported")
     assert_CAI_type(sources, "sources")
 
     if depth_limit <= 0:

@@ -1,5 +1,5 @@
 #=============================================================================
-# Copyright (c) 2018-2024, NVIDIA CORPORATION.
+# Copyright (c) 2018-2025, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -132,8 +132,7 @@ rapids_cpm_init()
 # This ensures that libraries can be overridden for testing.
 include(cmake/thirdparty/get_cccl.cmake)
 include(${rapids-cmake-dir}/cpm/rmm.cmake)
-rapids_cpm_rmm(BUILD_EXPORT_SET cugraph-exports
-               INSTALL_EXPORT_SET cugraph-exports)
+rapids_cpm_rmm(BUILD_EXPORT_SET cugraph-exports)
 include(${rapids-cmake-dir}/cpm/cuco.cmake)
 rapids_cpm_cuco(BUILD_EXPORT_SET cugraph-exports INSTALL_EXPORT_SET cugraph-exports)
 include(cmake/thirdparty/get_raft.cmake)
@@ -395,6 +394,14 @@ set(CUGRAPH_SOURCES
     src/structure/create_graph_from_edgelist_sg_v32_e32.cu
     src/structure/create_graph_from_edgelist_mg_v64_e64.cu
     src/structure/create_graph_from_edgelist_mg_v32_e32.cu
+    src/structure/create_graph_from_edgelist_sg_v64_e64_t32.cu
+    src/structure/create_graph_from_edgelist_sg_v32_e32_t32.cu
+    src/structure/create_graph_from_edgelist_mg_v64_e64_t32.cu
+    src/structure/create_graph_from_edgelist_mg_v32_e32_t32.cu
+    src/structure/create_graph_from_edgelist_sg_v64_e64_t64.cu
+    src/structure/create_graph_from_edgelist_sg_v32_e32_t64.cu
+    src/structure/create_graph_from_edgelist_mg_v64_e64_t64.cu
+    src/structure/create_graph_from_edgelist_mg_v32_e32_t64.cu
     src/structure/symmetrize_edgelist_sg_v64_e64.cu
     src/structure/symmetrize_edgelist_sg_v32_e32.cu
     src/structure/symmetrize_edgelist_mg_v64_e64.cu

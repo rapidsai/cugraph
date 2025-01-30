@@ -1,4 +1,4 @@
-# Copyright (c) 2023-2024, NVIDIA CORPORATION.
+# Copyright (c) 2023-2025, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -200,10 +200,6 @@ class PyGTrainer(Trainer):
                             f"feature transfer time: {time_feature_transfer / num_batches}"
                         )
                         logger.info(f"total time: {total_time_iter}")
-
-                        # from pynvml.smi import nvidia_smi
-                        # mem_info = nvidia_smi.getInstance().DeviceQuery('memory.free, memory.total')['gpu'][self.rank % 8]['fb_memory_usage']
-                        # logger.info(f"rank {self.rank} memory: {mem_info}")
 
                     y_true = data.y
                     y_true = y_true.reshape((y_true.shape[0],))

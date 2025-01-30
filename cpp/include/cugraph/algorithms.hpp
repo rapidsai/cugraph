@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -36,9 +36,43 @@
  *  @{
  */
 
+/** @defgroup centrality_cpp C++ centrality algorithms
+ */
+
+/** @defgroup community_cpp C++ community Algorithms
+ */
+
+/** @defgroup sampling_cpp C++ sampling algorithms
+ */
+
+/** @defgroup similarity_cpp C++ similarity algorithms
+ */
+
+/** @defgroup traversal_cpp C++ traversal algorithms
+ */
+
+/** @defgroup linear_cpp C++ linear assignment algorithms
+ */
+
+/** @defgroup link_analysis_cpp C++ link Analysis algorithms
+ */
+
+/** @defgroup layout_cpp C++ layout algorithms
+ */
+
+/** @defgroup components_cpp C++ component algorithms
+ */
+
+/** @defgroup tree_cpp C++ tree algorithms
+ */
+
+/** @defgroup utility_cpp C++ utility algorithms
+ */
+
 namespace cugraph {
 
 /**
+ * @ingroup similarity_cpp
  * @brief     Compute jaccard similarity coefficient for all vertices
  *
  * Computes the Jaccard similarity coefficient for every pair of vertices in the graph
@@ -60,6 +94,7 @@ template <typename VT, typename ET, typename WT>
 void jaccard(legacy::GraphCSRView<VT, ET, WT> const& graph, WT const* weights, WT* result);
 
 /**
+ * @ingroup similarity_cpp
  * @brief     Compute jaccard similarity coefficient for selected vertex pairs
  *
  * Computes the Jaccard similarity coefficient for each pair of specified vertices.
@@ -89,6 +124,7 @@ void jaccard_list(legacy::GraphCSRView<VT, ET, WT> const& graph,
                   WT* result);
 
 /**
+ * @ingroup similarity_cpp
  * @brief     Compute overlap coefficient for all vertices in the graph
  *
  * Computes the Overlap Coefficient for every pair of vertices in the graph which are
@@ -110,6 +146,7 @@ template <typename VT, typename ET, typename WT>
 void overlap(legacy::GraphCSRView<VT, ET, WT> const& graph, WT const* weights, WT* result);
 
 /**
+ * @ingroup similarity_cpp
  * @brief     Compute overlap coefficient for select pairs of vertices
  *
  * Computes the overlap coefficient for each pair of specified vertices.
@@ -139,7 +176,7 @@ void overlap_list(legacy::GraphCSRView<VT, ET, WT> const& graph,
                   WT* result);
 
 /**
- *
+ * @ingroup layout_cpp
  * @brief                                       ForceAtlas2 is a continuous graph layout algorithm
  * for handy network visualization.
  *
@@ -212,6 +249,7 @@ void force_atlas2(raft::handle_t const& handle,
                   internals::GraphBasedDimRedCallback* callback = nullptr);
 
 /**
+ * @ingroup centrality_cpp
  * @brief     Compute betweenness centrality for a graph
  *
  * Betweenness centrality for a vertex is the sum of the fraction of
@@ -259,6 +297,7 @@ void betweenness_centrality(const raft::handle_t& handle,
                             vertex_t const* vertices = nullptr);
 
 /**
+ * @ingroup centrality_cpp
  * @brief     Compute edge betweenness centrality for a graph
  *
  * Betweenness centrality of an edge is the sum of the fraction of all-pairs shortest paths that
@@ -302,6 +341,7 @@ void edge_betweenness_centrality(const raft::handle_t& handle,
                                  vertex_t const* vertices = nullptr);
 
 /**
+ * @ingroup centrality_cpp
  * @brief     Compute betweenness centrality for a graph
  *
  * Betweenness centrality for a vertex is the sum of the fraction of
@@ -346,6 +386,7 @@ rmm::device_uvector<weight_t> betweenness_centrality(
   bool const do_expensive_check = false);
 
 /**
+ * @ingroup centrality_cpp
  * @brief     Compute edge betweenness centrality for a graph
  *
  * Betweenness centrality of an edge is the sum of the fraction of all-pairs shortest paths that
@@ -392,6 +433,7 @@ enum class cugraph_cc_t {
 };
 
 /**
+ * @ingroup components_cpp
  * @brief      Compute connected components.
  *
  * The weak version (for undirected graphs, only) was imported from cuML.
@@ -426,6 +468,7 @@ void connected_components(legacy::GraphCSRView<VT, ET, WT> const& graph,
                           VT* labels);
 
 /**
+ * @ingroup linear_cpp
  * @brief      Compute Hungarian algorithm on a weighted bipartite graph
  *
  * The Hungarian algorithm computes an assigment of "jobs" to "workers".  This function accepts
@@ -458,6 +501,7 @@ weight_t hungarian(raft::handle_t const& handle,
                    vertex_t* assignments);
 
 /**
+ * @ingroup linear_cpp
  * @brief      Compute Hungarian algorithm on a weighted bipartite graph
  *
  * The Hungarian algorithm computes an assigment of "jobs" to "workers".  This function accepts
@@ -492,6 +536,7 @@ weight_t hungarian(raft::handle_t const& handle,
                    weight_t epsilon);
 
 /**
+ * @ingroup community_cpp
  * @brief      Louvain implementation
  *
  * Compute a clustering of the graph by maximizing modularity
@@ -541,6 +586,7 @@ std::pair<size_t, weight_t> louvain(
   weight_t resolution = weight_t{1});
 
 /**
+ * @ingroup community_cpp
  * @brief      Louvain implementation, returning dendrogram
  *
  * Compute a clustering of the graph by maximizing modularity
@@ -587,6 +633,7 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> louvain(
   weight_t resolution = weight_t{1});
 
 /**
+ * @ingroup community_cpp
  * @brief      Flatten a Dendrogram at a particular level
  *
  * A Dendrogram represents a hierarchical clustering/partitioning of
@@ -611,6 +658,7 @@ void flatten_dendrogram(raft::handle_t const& handle,
                         typename graph_view_t::vertex_type* clustering);
 
 /**
+ * @ingroup community_cpp
  * @brief      Leiden implementation
  *
  * Compute a clustering of the graph by maximizing modularity using the Leiden improvements
@@ -663,6 +711,7 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
   weight_t theta      = weight_t{1});
 
 /**
+.* @ingroup community_cpp
  * @brief      Leiden implementation
  *
  * Compute a clustering of the graph by maximizing modularity using the Leiden improvements
@@ -716,6 +765,7 @@ std::pair<size_t, weight_t> leiden(
   weight_t theta      = weight_t{1});
 
 /**
+.* @ingroup community_cpp
  * @brief Computes the ecg clustering of the given graph.
  *
  * ECG runs truncated Louvain on an ensemble of permutations of the input graph,
@@ -765,6 +815,7 @@ std::tuple<rmm::device_uvector<vertex_t>, size_t, weight_t> ecg(
   weight_t resolution = weight_t{1});
 
 /**
+ * @ingroup tree_cpp
  * @brief Generate edges in a minimum spanning forest of an undirected weighted graph.
  *
  * A minimum spanning tree is a subgraph of the graph (a tree) with the minimum sum of edge weights.
@@ -792,6 +843,7 @@ std::unique_ptr<legacy::GraphCOO<vertex_t, edge_t, weight_t>> minimum_spanning_t
 
 namespace subgraph {
 /**
+.* @ingroup utility_cpp
  * @brief             Extract subgraph by vertices
  *
  * This function will identify all edges that connect pairs of vertices
@@ -817,6 +869,7 @@ std::unique_ptr<legacy::GraphCOO<VT, ET, WT>> extract_subgraph_vertex(
 }  // namespace subgraph
 
 /**
+ * @ingroup community_cpp
  * @brief     Wrapper function for Nvgraph balanced cut clustering
  *
  * @throws     cugraph::logic_error when an error occurs.
@@ -850,6 +903,7 @@ void balancedCutClustering(legacy::GraphCSRView<VT, ET, WT> const& graph,
                            VT* clustering);
 
 /**
+ * @ingroup community_cpp
  * @brief      Wrapper function for Nvgraph spectral modularity maximization algorithm
  *
  * @throws     cugraph::logic_error when an error occurs.
@@ -881,6 +935,7 @@ void spectralModularityMaximization(legacy::GraphCSRView<VT, ET, WT> const& grap
                                     VT* clustering);
 
 /**
+ * @ingroup community_cpp
  * @brief      Wrapper function for Nvgraph clustering modularity metric
  *
  * @throws     cugraph::logic_error when an error occurs.
@@ -903,6 +958,7 @@ void analyzeClustering_modularity(legacy::GraphCSRView<VT, ET, WT> const& graph,
                                   WT* score);
 
 /**
+ * @ingroup community_cpp
  * @brief      Wrapper function for Nvgraph clustering edge cut metric
  *
  * @throws     cugraph::logic_error when an error occurs.
@@ -925,6 +981,7 @@ void analyzeClustering_edge_cut(legacy::GraphCSRView<VT, ET, WT> const& graph,
                                 WT* score);
 
 /**
+ * @ingroup community_cpp
  * @brief      Wrapper function for Nvgraph clustering ratio cut metric
  *
  * @throws     cugraph::logic_error when an error occurs.
@@ -950,6 +1007,7 @@ void analyzeClustering_ratio_cut(legacy::GraphCSRView<VT, ET, WT> const& graph,
 
 namespace dense {
 /**
+ * @ingroup linear_cpp
  * @brief      Compute Hungarian algorithm on a weighted bipartite graph
  *
  * The Hungarian algorithm computes an assigment of "jobs" to "workers".  This function accepts
@@ -979,6 +1037,7 @@ weight_t hungarian(raft::handle_t const& handle,
                    vertex_t* assignments);
 
 /**
+ * @ingroup linear_cpp
  * @brief      Compute Hungarian algorithm on a weighted bipartite graph
  *
  * The Hungarian algorithm computes an assigment of "jobs" to "workers".  This function accepts
@@ -1013,6 +1072,7 @@ weight_t hungarian(raft::handle_t const& handle,
 }  // namespace dense
 
 /**
+ * @ingroup traversal_cpp
  * @brief Run breadth-first search to find the distances (and predecessors) from the source
  * vertex.
  *
@@ -1055,6 +1115,7 @@ void bfs(raft::handle_t const& handle,
          bool do_expensive_check   = false);
 
 /**
+ * @ingroup traversal_cpp
  * @brief Extract paths from breadth-first search output
  *
  * This function extracts paths from the BFS output.  BFS outputs distances
@@ -1092,6 +1153,7 @@ std::tuple<rmm::device_uvector<vertex_t>, vertex_t> extract_bfs_paths(
   size_t n_destinations);
 
 /**
+ * @ingroup traversal_cpp
  * @brief Run single-source shortest-path to compute the minimum distances (and predecessors) from
  * the source vertex.
  *
@@ -1128,7 +1190,8 @@ void sssp(raft::handle_t const& handle,
           weight_t cutoff         = std::numeric_limits<weight_t>::max(),
           bool do_expensive_check = false);
 
-/*
+/**
+.* @ingroup traversal_cpp
  * @brief Compute the shortest distances from the given origins to all the given destinations.
  *
  * This algorithm is designed for large diameter graphs. For small diameter graphs, running the
@@ -1168,6 +1231,7 @@ rmm::device_uvector<weight_t> od_shortest_distances(
   bool do_expensive_check = false);
 
 /**
+ * @ingroup link_analysis_cpp
  * @brief Compute PageRank scores.
  *
  * @deprecated This API will be deprecated to replaced by the new version below
@@ -1240,6 +1304,7 @@ struct centrality_algorithm_metadata_t {
 };
 
 /**
+.* @ingroup link_analysis_cpp
  * @brief Compute PageRank scores.
  *
  * This function computes general (if @p personalization_vertices is `nullptr`) or personalized (if
@@ -1297,6 +1362,7 @@ std::tuple<rmm::device_uvector<result_t>, centrality_algorithm_metadata_t> pager
   bool do_expensive_check = false);
 
 /**
+.* @ingroup centrality_cpp
  * @brief Compute Eigenvector Centrality scores.
  *
  * This function computes eigenvector centrality scores using the power method.
@@ -1334,6 +1400,7 @@ rmm::device_uvector<weight_t> eigenvector_centrality(
   bool do_expensive_check = false);
 
 /**
+.* @ingroup link_analysis_cpp
  * @brief Compute HITS scores.
  *
  * This function computes HITS scores for the vertices of a graph
@@ -1373,6 +1440,7 @@ std::tuple<result_t, size_t> hits(raft::handle_t const& handle,
                                   bool do_expensive_check);
 
 /**
+.* @ingroup centrality_cpp
  * @brief Compute Katz Centrality scores.
  *
  * This function computes Katz Centrality scores.
@@ -1425,6 +1493,7 @@ void katz_centrality(raft::handle_t const& handle,
                      bool do_expensive_check = false);
 
 /**
+.* @ingroup community_cpp
  * @brief returns induced EgoNet subgraph(s) of neighbors centered at nodes in source_vertex within
  * a given radius.
  *
@@ -1460,6 +1529,7 @@ extract_ego(raft::handle_t const& handle,
             vertex_t radius);
 
 /**
+.* @ingroup community_cpp
  * @brief returns induced EgoNet subgraph(s) of neighbors centered at nodes in source_vertex within
  * a given radius.
  *
@@ -1493,6 +1563,7 @@ extract_ego(raft::handle_t const& handle,
             bool do_expensive_check = false);
 
 /**
+.* @ingroup sampling_cpp
  * @brief returns random walks (RW) from starting sources, where each path is of given maximum
  * length. Uniform distribution is assumed for the random engine.
  *
@@ -1537,6 +1608,7 @@ std::
                std::unique_ptr<sampling_params_t> sampling_strategy = nullptr);
 
 /**
+.* @ingroup sampling_cpp
  * @brief returns uniform random walks from starting sources, where each path is of given
  * maximum length.
  *
@@ -1582,6 +1654,7 @@ uniform_random_walks(raft::handle_t const& handle,
                      size_t max_length);
 
 /**
+.* @ingroup sampling_cpp
  * @brief returns biased random walks from starting sources, where each path is of given
  * maximum length.
  *
@@ -1626,6 +1699,7 @@ biased_random_walks(raft::handle_t const& handle,
                     size_t max_length);
 
 /**
+.* @ingroup sampling_cpp
  * @brief returns biased random walks with node2vec biases from starting sources,
  * where each path is of given maximum length.
  *
@@ -1675,6 +1749,7 @@ node2vec_random_walks(raft::handle_t const& handle,
                       weight_t q);
 
 /**
+.* @ingroup components_cpp
  * @brief Finds (weakly-connected-)component IDs of each vertices in the input graph.
  *
  * The input graph must be symmetric. Component IDs can be arbitrary integers (they can be
@@ -1697,12 +1772,14 @@ void weakly_connected_components(raft::handle_t const& handle,
                                  bool do_expensive_check = false);
 
 /**
+.* @ingroup core_cpp
  * @brief  Identify whether the core number computation should be based off incoming edges,
  *         outgoing edges or both.
  */
 enum class k_core_degree_type_t { IN = 0, OUT = 1, INOUT = 2 };
 
 /**
+.* @ingroup core_cpp
  * @brief   Compute core numbers of individual vertices from K-Core decomposition.
  *
  * The input graph should not have self-loops nor multi-edges. Currently, only undirected graphs are
@@ -1734,6 +1811,7 @@ void core_number(raft::handle_t const& handle,
                  bool do_expensive_check = false);
 
 /**
+.* @ingroup core_cpp
  * @brief   Extract K-Core of a graph
  *
  * @throws     cugraph::logic_error when an error occurs.
@@ -1766,7 +1844,8 @@ k_core(raft::handle_t const& handle,
        std::optional<raft::device_span<edge_t const>> core_numbers,
        bool do_expensive_check = false);
 
-/*
+/**
+ * @ingroup community_cpp
  * @brief Compute triangle counts.
  *
  * Compute triangle counts for the entire set of vertices (if @p vertices is std::nullopt) or the
@@ -1792,7 +1871,8 @@ void triangle_count(raft::handle_t const& handle,
                     raft::device_span<edge_t> counts,
                     bool do_expensive_check = false);
 
-/*
+/**
+.* @ingroup community_cpp
  * @brief Compute edge triangle counts.
  *
  * Compute edge triangle counts for the entire set of edges.
@@ -1814,7 +1894,8 @@ edge_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>, edge_t> edge_t
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   bool do_expensive_check = false);
 
-/*
+/**
+.* @ingroup community_cpp
  * @brief Compute K-Truss.
  *
  * Extract the K-Truss subgraph of a graph
@@ -1841,6 +1922,7 @@ k_truss(raft::handle_t const& handle,
         bool do_expensive_check = false);
 
 /**
+.* @ingroup similarity_cpp
  * @brief     Compute Jaccard similarity coefficient
  *
  * Similarity is computed for every pair of vertices specified. Note that
@@ -1872,6 +1954,7 @@ rmm::device_uvector<weight_t> jaccard_coefficients(
   bool do_expensive_check = false);
 
 /**
+.* @ingroup similarity_cpp
  * @brief     Compute Cosine similarity coefficient
  *
  * Similarity is computed for every pair of vertices specified. Note that
@@ -1903,6 +1986,7 @@ rmm::device_uvector<weight_t> cosine_similarity_coefficients(
   bool do_expensive_check = false);
 
 /**
+.* @ingroup similarity_cpp
  * @brief     Compute Sorensen similarity coefficient
  *
  * Similarity is computed for every pair of vertices specified. Note that
@@ -1935,6 +2019,7 @@ rmm::device_uvector<weight_t> sorensen_coefficients(
   bool do_expensive_check = false);
 
 /**
+.* @ingroup similarity_cpp
  * @brief     Compute overlap similarity coefficient
  *
  * Similarity is computed for every pair of vertices specified. Note that
@@ -1967,6 +2052,7 @@ rmm::device_uvector<weight_t> overlap_coefficients(
   bool do_expensive_check = false);
 
 /**
+.* @ingroup similarity_cpp
  * @brief     Compute Jaccard all pairs similarity coefficient
  *
  * Similarity is computed for all pairs of vertices.  Note that in a sparse
@@ -2023,6 +2109,7 @@ std::
     bool do_expensive_check = false);
 
 /**
+.* @ingroup similarity_cpp
  * @brief     Compute Consine all pairs similarity coefficient
  *
  * Similarity is computed for all pairs of vertices.  Note that in a sparse
@@ -2079,6 +2166,7 @@ std::
     bool do_expensive_check = false);
 
 /**
+.* @ingroup similarity_cpp
  * @brief     Compute Sorensen similarity coefficient
  *
  * Similarity is computed for all pairs of vertices.  Note that in a sparse
@@ -2134,6 +2222,7 @@ std::
     bool do_expensive_check = false);
 
 /**
+.* @ingroup similarity_cpp
  * @brief     Compute overlap similarity coefficient
  *
  * Similarity is computed for all pairs of vertices.  Note that in a sparse
@@ -2189,6 +2278,7 @@ std::
     bool do_expensive_check = false);
 
 /*
+.* @ingroup utility_cpp
  * @brief Enumerate K-hop neighbors
  *
  * Note that the number of K-hop neighbors (and memory footprint) can grow very fast if there are
@@ -2217,7 +2307,8 @@ std::tuple<rmm::device_uvector<size_t>, rmm::device_uvector<vertex_t>> k_hop_nbr
   size_t k,
   bool do_expensive_check = false);
 
-/*
+/**
+ * @ingroup tree_cpp
  * @brief Find a Maximal Independent Set
  *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
@@ -2235,7 +2326,8 @@ rmm::device_uvector<vertex_t> maximal_independent_set(
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   raft::random::RngState& rng_state);
 
-/*
+/**
+ * @ingroup utility_cpp
  * @brief Find a Greedy Vertex Coloring
  *
  * A vertex coloring is an assignment of colors or labels to each vertex of a graph so that
@@ -2262,7 +2354,8 @@ rmm::device_uvector<vertex_t> vertex_coloring(
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   raft::random::RngState& rng_state);
 
-/*
+/**
+.* @ingroup utility_cpp
  * @brief Approximate Weighted Matching
  *
  * A matching in an undirected graph G = (V, E) is a pairing of adjacent vertices

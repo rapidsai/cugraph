@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2024, NVIDIA CORPORATION.
+# Copyright (c) 2019-2025, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -220,7 +220,7 @@ def single_dataset_source_goldenresults_weighted(request):
 # =============================================================================
 @pytest.mark.sg
 @pytest.mark.parametrize("cugraph_input_type", utils.CUGRAPH_DIR_INPUT_TYPES)
-def test_sssp(gpubenchmark, dataset_source_goldenresults, cugraph_input_type):
+def test_sssp(benchmark, dataset_source_goldenresults, cugraph_input_type):
     # Extract the params generated from the fixture
     (G, dataset_path, _, source, golden_paths) = dataset_source_goldenresults
 
@@ -230,7 +230,7 @@ def test_sssp(gpubenchmark, dataset_source_goldenresults, cugraph_input_type):
         )
     else:
         input_G_or_matrix = G
-    cu_paths, max_val = cugraph_call(gpubenchmark, input_G_or_matrix, source)
+    cu_paths, max_val = cugraph_call(benchmark, input_G_or_matrix, source)
 
     # Calculating mismatch
     err = 0
@@ -255,7 +255,7 @@ def test_sssp(gpubenchmark, dataset_source_goldenresults, cugraph_input_type):
 @pytest.mark.sg
 @pytest.mark.parametrize("cugraph_input_type", utils.CUGRAPH_DIR_INPUT_TYPES)
 def test_sssp_invalid_start(
-    gpubenchmark, dataset_source_goldenresults, cugraph_input_type
+    benchmark, dataset_source_goldenresults, cugraph_input_type
 ):
     (G, _, _, source, _) = dataset_source_goldenresults
     el = G.view_edge_list()
@@ -264,15 +264,15 @@ def test_sssp_invalid_start(
     source = newval
 
     with pytest.raises(ValueError):
-        cugraph_call(gpubenchmark, G, source)
+        cugraph_call(benchmark, G, source)
 
 
 @pytest.mark.sg
 @pytest.mark.parametrize("cugraph_input_type", utils.MATRIX_INPUT_TYPES)
 def test_sssp_nonnative_inputs_matrix(
-    gpubenchmark, single_dataset_source_goldenresults, cugraph_input_type
+    benchmark, single_dataset_source_goldenresults, cugraph_input_type
 ):
-    test_sssp(gpubenchmark, single_dataset_source_goldenresults, cugraph_input_type)
+    test_sssp(benchmark, single_dataset_source_goldenresults, cugraph_input_type)
 
 
 @pytest.mark.sg
@@ -319,14 +319,14 @@ def test_sssp_nonnative_inputs_graph(single_dataset_source_goldenresults, direct
 @pytest.mark.sg
 @pytest.mark.parametrize("cugraph_input_type", utils.CUGRAPH_DIR_INPUT_TYPES)
 def test_sssp_edgevals(
-    gpubenchmark, dataset_source_goldenresults_weighted, cugraph_input_type
+    benchmark, dataset_source_goldenresults_weighted, cugraph_input_type
 ):
     # Extract the params generated from the fixture
     (G, _, _, source, golden_paths) = dataset_source_goldenresults_weighted
     input_G_or_matrix = G
 
     cu_paths, max_val = cugraph_call(
-        gpubenchmark, input_G_or_matrix, source, edgevals=True
+        benchmark, input_G_or_matrix, source, edgevals=True
     )
 
     # Calculating mismatch
@@ -357,10 +357,10 @@ def test_sssp_edgevals(
     "cugraph_input_type", utils.NX_DIR_INPUT_TYPES + utils.MATRIX_INPUT_TYPES
 )
 def test_sssp_edgevals_nonnative_inputs(
-    gpubenchmark, single_dataset_source_goldenresults_weighted, cugraph_input_type
+    benchmark, single_dataset_source_goldenresults_weighted, cugraph_input_type
 ):
     test_sssp_edgevals(
-        gpubenchmark, single_dataset_source_goldenresults_weighted, cugraph_input_type
+        benchmark, single_dataset_source_goldenresults_weighted, cugraph_input_type
     )
 
 
