@@ -368,7 +368,18 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
           Ks[0],
           with_replacement);
     } else {  // heterogeneous
-      CUGRAPH_FAIL("unimplemented.");
+      std::tie(sample_local_nbr_indices, sample_key_indices, local_key_list_sample_offsets) =
+        heterogeneous_uniform_sample_and_compute_local_nbr_indices(
+          handle,
+          graph_view,
+          (minor_comm_size > 1) ? get_dataframe_buffer_cbegin(*aggregate_local_key_list)
+                                : key_list.begin(),
+          edge_type_input,
+          raft::host_span<size_t const>(local_key_list_offsets.data(),
+                                        local_key_list_offsets.size()),
+          rng_state,
+          Ks,
+          with_replacement);
     }
   } else {
     if constexpr (std::is_same_v<EdgeTypeInputWrapper,
@@ -727,6 +738,63 @@ per_v_random_select_transform_outgoing_e(raft::handle_t const& handle,
     do_expensive_check);
 }
 
+/**
+ * @brief Randomly select (per-type) and transform the input (tagged-)vertices' outgoing edges.
+ *
+ * This function assumes that every outgoing edge of a given vertex has the same odd to be selected
+ * (uniform neighbor sampling).
+ *
+ * @tparam GraphViewType Type of the passed non-owning graph object.
+ * @tparam KeyBucketType Type of the key bucket class which abstracts the current (tagged-)vertex
+ * list.
+ * @tparam EdgeSrcValueInputWrapper Type of the wrapper for edge source property values.
+ * @tparam EdgeDstValueInputWrapper Type of the wrapper for edge destination property values.
+ * @tparam EdgeValueInputWrapper Type of the wrapper for edge property values.
+ * @tparam EdgeOp Type of the quinary edge operator.
+ * @tparam EdgeTypeInputWrapper Type of the wrapper for edge type values.
+ * @tparam T Type of the selected and transformed edge output values.
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param graph_view Non-owning graph object.
+ * @param key_list KeyBucketType class object to store the (tagged-)vertex list to sample outgoing
+ * edges.
+ * @param edge_src_value_input Wrapper used to access source input property values (for the edge
+ * sources assigned to this process in multi-GPU). Use either cugraph::edge_src_property_t::view()
+ * (if @p e_op needs to access source property values) or cugraph::edge_src_dummy_property_t::view()
+ * (if @p e_op does not access source property values). Use update_edge_src_property to fill the
+ * wrapper.
+ * @param edge_dst_value_input Wrapper used to access destination input property values (for the
+ * edge destinations assigned to this process in multi-GPU). Use either
+ * cugraph::edge_dst_property_t::view() (if @p e_op needs to access destination property values) or
+ * cugraph::edge_dst_dummy_property_t::view() (if @p e_op does not access destination property
+ * values). Use update_edge_dst_property to fill the wrapper.
+ * @param edge_value_input Wrapper used to access edge input property values (for the edges assigned
+ * to this process in multi-GPU). Use either cugraph::edge_property_t::view() (if @p e_op needs to
+ * access edge property values) or cugraph::edge_dummy_property_t::view() (if @p e_op does not
+ * access edge property values).
+ * @param e_op Quinary operator takes (tagged-)edge source, edge destination, property values for
+ * the source, destination, and edge and returns a value to be collected in the output. This
+ * function is called only for the selected edges.
+ * @param edge_type_input Wrapper used to access edge type value (for the edges assigned to this
+ * process in multi-GPU). This parameter is used in per-type (heterogeneous) sampling. Use
+ * cugraph::edge_property_t::view().
+ * @param Ks Number of outgoing edges to select per (tagged-)vertex for each edge type (size = #
+ * edge types).
+ * @param with_replacement A flag to specify whether a single outgoing edge can be selected multiple
+ * times (if @p with_replacement = true) or can be selected only once (if @p with_replacement =
+ * false).
+ * @param invalid_value If @p invalid_value.has_value() is true, this value is used to fill the
+ * output vector for the zero out-degree vertices (if @p with_replacement = true) or the vertices
+ * with their out-degrees smaller than @p K (if @p with_replacement = false). If @p
+ * invalid_value.has_value() is false, fewer than @p K values can be returned for the vertices with
+ * fewer than @p K selected edges. See the return value section for additional details.
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
+ * @return std::tuple Tuple of an optional offset vector of type
+ * std::optional<rmm::device_uvector<size_t>> and a dataframe buffer storing the output values of
+ * type @p T from the selected edges. If @p invalid_value is std::nullopt, the offset vector is
+ * valid and has the size of @p key_list.size() + 1. If @p invalid_value.has_value() is true,
+ * std::nullopt is returned (the dataframe buffer will store @p key_list.size() * @p K elements).
+ */
 template <typename GraphViewType,
           typename KeyBucketType,
           typename EdgeSrcValueInputWrapper,
@@ -780,11 +848,16 @@ per_v_random_select_transform_outgoing_e(raft::handle_t const& handle,
  * @tparam GraphViewType Type of the passed non-owning graph object.
  * @tparam KeyBucketType Type of the key bucket class which abstracts the current (tagged-)vertex
  * list.
+ * @tparam BiasEdgeSrcValueInputWrapper Type of the wrapper for edge source property values (for
+ * BiasEdgeOp).
+ * @tparam BiasEdgeDstValueInputWrapper Type of the wrapper for edge destination property values
+ * (for BiasEdgeOp).
+ * @tparam BiasEdgeValueInputWrapper Type of the wrapper for edge property values  (for BiasEdgeOp).
+ * @tparam BiasEdgeOp Type of the quinary edge operator to set-up selection bias
+ * values.
  * @tparam EdgeSrcValueInputWrapper Type of the wrapper for edge source property values.
  * @tparam EdgeDstValueInputWrapper Type of the wrapper for edge destination property values.
  * @tparam EdgeValueInputWrapper Type of the wrapper for edge property values.
- * @tparam BiasEdgeOp Type of the quinary edge operator to set-up selection bias
- * values.
  * @tparam EdgeOp Type of the quinary edge operator.
  * @tparam T Type of the selected and transformed edge output values.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
@@ -792,26 +865,44 @@ per_v_random_select_transform_outgoing_e(raft::handle_t const& handle,
  * @param graph_view Non-owning graph object.
  * @param key_list KeyBucketType class object to store the (tagged-)vertex list to sample outgoing
  * edges.
- * @param edge_src_value_input Wrapper used to access source input property values (for the edge
- * sources assigned to this process in multi-GPU). Use either cugraph::edge_src_property_t::view()
- * (if @p e_op needs to access source property values) or cugraph::edge_src_dummy_property_t::view()
- * (if @p e_op does not access source property values). Use update_edge_src_property to fill the
- * wrapper.
- * @param edge_dst_value_input Wrapper used to access destination input property values (for the
- * edge destinations assigned to this process in multi-GPU). Use either
- * cugraph::edge_dst_property_t::view() (if @p e_op needs to access destination property values) or
+ * @param bias_edge_src_value_input Wrapper used to access source input property values (for the
+ * edge sources assigned to this process in multi-GPU). This parameter is used to pass an edge
+ * source property value to @p bias_e_op. Use either cugraph::edge_src_property_t::view() (if @p
+ * e_op needs to access source property values) or cugraph::edge_src_dummy_property_t::view() (if @p
+ * e_op does not access source property values). Use update_edge_src_property to fill the wrapper.
+ * @param bias_edge_dst_value_input Wrapper used to access destination input property values (for
+ * the edge destinations assigned to this process in multi-GPU). This parameter is used to pass an
+ * edge source property value to @p bias_e_op. Use either cugraph::edge_dst_property_t::view() (if
+ * @p e_op needs to access destination property values) or
  * cugraph::edge_dst_dummy_property_t::view() (if @p e_op does not access destination property
  * values). Use update_edge_dst_property to fill the wrapper.
- * @param edge_value_input Wrapper used to access edge input property values (for the edges assigned
- * to this process in multi-GPU). Use either cugraph::edge_property_t::view() (if @p e_op needs to
- * access edge property values) or cugraph::edge_dummy_property_t::view() (if @p e_op does not
- * access edge property values).
+ * @param bias_edge_value_input Wrapper used to access edge input property values (for the edges
+ * assigned to this process in multi-GPU). This parameter is used to pass an edge source property
+ * value to @p bias_e_op. Use either cugraph::edge_property_t::view() (if @p e_op needs to access
+ * edge property values) or cugraph::edge_dummy_property_t::view() (if @p e_op does not access edge
+ * property values).
  * @param bias_e_op Quinary operator takes (tagged-)edge source, edge destination, property values
  * for the source, destination, and edge and returns a floating point bias value to be used in
  * biased random selection. The return value should be non-negative. The bias value of 0 indicates
  * that the corresponding edge cannot be selected. Assuming that the return value type is bias_t,
  * the sum of the bias values for any seed vertex should not exceed
  * std::numeric_limits<bias_t>::max().
+ * @param edge_src_value_input Wrapper used to access source input property values (for the edge
+ * sources assigned to this process in multi-GPU). This parameter is used to pass an edge source
+ * property value to @p e_op. Use either cugraph::edge_src_property_t::view() (if @p e_op needs to
+ * access source property values) or cugraph::edge_src_dummy_property_t::view() (if @p e_op does not
+ * access source property values). Use update_edge_src_property to fill the wrapper.
+ * @param edge_dst_value_input Wrapper used to access destination input property values (for the
+ * edge destinations assigned to this process in multi-GPU). This parameter is used to pass an edge
+ * source property value to @p e_op. Use either cugraph::edge_dst_property_t::view() (if @p e_op
+ * needs to access destination property values) or cugraph::edge_dst_dummy_property_t::view() (if @p
+ * e_op does not access destination property values). Use update_edge_dst_property to fill the
+ * wrapper.
+ * @param edge_value_input Wrapper used to access edge input property values (for the edges assigned
+ * to this process in multi-GPU). This parameter is used to pass an edge source property value to @p
+ * e_op. Use either cugraph::edge_property_t::view() (if @p e_op needs to access edge property
+ * values) or cugraph::edge_dummy_property_t::view() (if @p e_op does not access edge property
+ * values).
  * @param e_op Quinary operator takes (tagged-)edge source, edge destination, property values for
  * the source, destination, and edge and returns a value to be collected in the output. This
  * function is called only for the selected edges.
@@ -880,6 +971,92 @@ per_v_random_select_transform_outgoing_e(raft::handle_t const& handle,
     do_expensive_check);
 }
 
+/**
+ * @brief Randomly select (per edge type) and transform the input (tagged-)vertices' outgoing edges
+ * with biases.
+ *
+ * @tparam GraphViewType Type of the passed non-owning graph object.
+ * @tparam KeyBucketType Type of the key bucket class which abstracts the current (tagged-)vertex
+ * list.
+ * @tparam BiasEdgeSrcValueInputWrapper Type of the wrapper for edge source property values (for
+ * BiasEdgeOp).
+ * @tparam BiasEdgeDstValueInputWrapper Type of the wrapper for edge destination property values
+ * (for BiasEdgeOp).
+ * @tparam BiasEdgeValueInputWrapper Type of the wrapper for edge property values  (for BiasEdgeOp).
+ * @tparam BiasEdgeOp Type of the quinary edge operator to set-up selection bias
+ * values.
+ * @tparam EdgeSrcValueInputWrapper Type of the wrapper for edge source property values.
+ * @tparam EdgeDstValueInputWrapper Type of the wrapper for edge destination property values.
+ * @tparam EdgeValueInputWrapper Type of the wrapper for edge property values.
+ * @tparam EdgeOp Type of the quinary edge operator.
+ * @tparam EdgeTypeInputWrapper Type of the wrapper for edge type values.
+ * @tparam T Type of the selected and transformed edge output values.
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param graph_view Non-owning graph object.
+ * @param key_list KeyBucketType class object to store the (tagged-)vertex list to sample outgoing
+ * edges.
+ * @param bias_edge_src_value_input Wrapper used to access source input property values (for the
+ * edge sources assigned to this process in multi-GPU). This parameter is used to pass an edge
+ * source property value to @p bias_e_op. Use either cugraph::edge_src_property_t::view() (if @p
+ * e_op needs to access source property values) or cugraph::edge_src_dummy_property_t::view() (if @p
+ * e_op does not access source property values). Use update_edge_src_property to fill the wrapper.
+ * @param bias_edge_dst_value_input Wrapper used to access destination input property values (for
+ * the edge destinations assigned to this process in multi-GPU). This parameter is used to pass an
+ * edge source property value to @p bias_e_op. Use either cugraph::edge_dst_property_t::view() (if
+ * @p e_op needs to access destination property values) or
+ * cugraph::edge_dst_dummy_property_t::view() (if @p e_op does not access destination property
+ * values). Use update_edge_dst_property to fill the wrapper.
+ * @param bias_edge_value_input Wrapper used to access edge input property values (for the edges
+ * assigned to this process in multi-GPU). This parameter is used to pass an edge source property
+ * value to @p bias_e_op. Use either cugraph::edge_property_t::view() (if @p e_op needs to access
+ * edge property values) or cugraph::edge_dummy_property_t::view() (if @p e_op does not access edge
+ * property values).
+ * @param bias_e_op Quinary operator takes (tagged-)edge source, edge destination, property values
+ * for the source, destination, and edge and returns a floating point bias value to be used in
+ * biased random selection. The return value should be non-negative. The bias value of 0 indicates
+ * that the corresponding edge cannot be selected. Assuming that the return value type is bias_t,
+ * the sum of the bias values for any seed vertex should not exceed
+ * std::numeric_limits<bias_t>::max().
+ * @param edge_src_value_input Wrapper used to access source input property values (for the edge
+ * sources assigned to this process in multi-GPU). This parameter is used to pass an edge source
+ * property value to @p e_op. Use either cugraph::edge_src_property_t::view() (if @p e_op needs to
+ * access source property values) or cugraph::edge_src_dummy_property_t::view() (if @p e_op does not
+ * access source property values). Use update_edge_src_property to fill the wrapper.
+ * @param edge_dst_value_input Wrapper used to access destination input property values (for the
+ * edge destinations assigned to this process in multi-GPU). This parameter is used to pass an edge
+ * source property value to @p e_op. Use either cugraph::edge_dst_property_t::view() (if @p e_op
+ * needs to access destination property values) or cugraph::edge_dst_dummy_property_t::view() (if @p
+ * e_op does not access destination property values). Use update_edge_dst_property to fill the
+ * wrapper.
+ * @param edge_value_input Wrapper used to access edge input property values (for the edges assigned
+ * to this process in multi-GPU). This parameter is used to pass an edge source property value to @p
+ * e_op. Use either cugraph::edge_property_t::view() (if @p e_op needs to access edge property
+ * values) or cugraph::edge_dummy_property_t::view() (if @p e_op does not access edge property
+ * values).
+ * @param e_op Quinary operator takes (tagged-)edge source, edge destination, property values for
+ * the source, destination, and edge and returns a value to be collected in the output. This
+ * function is called only for the selected edges.
+ * @param edge_type_input Wrapper used to access edge type value (for the edges assigned to this
+ * process in multi-GPU). This parameter is used in per-type (heterogeneous) sampling. Use
+ * cugraph::edge_property_t::view().
+ * @param Ks Number of outgoing edges to select per (tagged-)vertex for each edge type (size = #
+ * edge types).
+ * @param with_replacement A flag to specify whether a single outgoing edge can be selected multiple
+ * times (if @p with_replacement = true) or can be selected only once (if @p with_replacement =
+ * false).
+ * @param invalid_value If @p invalid_value.has_value() is true, this value is used to fill the
+ * output vector for the zero out-degree vertices (if @p with_replacement = true) or the vertices
+ * with their out-degrees smaller than @p K (if @p with_replacement = false). If @p
+ * invalid_value.has_value() is false, fewer than @p K values can be returned for the vertices with
+ * fewer than @p K selected edges. See the return value section for additional details.
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
+ * @return std::tuple Tuple of an optional offset vector of type
+ * std::optional<rmm::device_uvector<size_t>> and a dataframe buffer storing the output values of
+ * type @p T from the selected edges. If @p invalid_value is std::nullopt, the offset vector is
+ * valid and has the size of @p key_list.size() + 1. If @p invalid_value.has_value() is true,
+ * std::nullopt is returned (the dataframe buffer will store @p key_list.size() * @p K elements).
+ */
 template <typename GraphViewType,
           typename KeyBucketType,
           typename BiasEdgeSrcValueInputWrapper,
