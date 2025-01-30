@@ -15,7 +15,6 @@
  */
 #pragma once
 
-#include "from_cugraph_ops/sampling.hpp"
 #include "prims/detail/sample_and_compute_local_nbr_indices.cuh"
 #include "prims/property_op_utils.cuh"
 

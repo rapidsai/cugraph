@@ -15,7 +15,6 @@
  */
 #pragma once
 
-#include "from_cugraph_ops/sampling.hpp"
 #include "prims/detail/partition_v_frontier.cuh"
 #include "prims/detail/transform_v_frontier_e.cuh"
 #include "prims/property_op_utils.cuh"
@@ -1254,7 +1253,6 @@ rmm::device_uvector<edge_t> compute_homogeneous_uniform_sampling_index_without_r
         }
 
         if (retry_segment_indices) {
-        #if 1
           sample_nbr_index_with_replacement<edge_t, bias_t>(
             handle,
             raft::device_span<edge_t const>((*retry_degrees).data(), (*retry_degrees).size()),
@@ -1262,16 +1260,6 @@ rmm::device_uvector<edge_t> compute_homogeneous_uniform_sampling_index_without_r
             raft::device_span<edge_t>((*retry_nbr_indices).data(), (*retry_nbr_indices).size()),
             rng_state,
             high_partition_oversampling_K);
-          #else
-          cugraph::legacy::ops::graph::get_sampling_index(
-            (*retry_nbr_indices).data(),
-            rng_state,
-            (*retry_degrees).begin(),
-            (*retry_degrees).size(),
-            static_cast<int32_t>(high_partition_oversampling_K),
-            true,
-            handle.get_stream());
-          #endif
         } else {
           // FIXME: this temporary is unnecessary if we update get_sampling_index to take a thrust
           // iterator
@@ -1280,7 +1268,6 @@ rmm::device_uvector<edge_t> compute_homogeneous_uniform_sampling_index_without_r
                        segment_frontier_degree_first,
                        segment_frontier_degree_first + num_segments,
                        tmp_degrees.begin());
-          #if 1
           sample_nbr_index_with_replacement<edge_t, bias_t>(
             handle,
             raft::device_span<edge_t const>(tmp_degrees.data(), tmp_degrees.size()),
@@ -1288,16 +1275,6 @@ rmm::device_uvector<edge_t> compute_homogeneous_uniform_sampling_index_without_r
             raft::device_span<edge_t>(tmp_nbr_indices.data(), tmp_nbr_indices.size()),
             rng_state,
             high_partition_oversampling_K);
-          #else
-          cugraph::legacy::ops::graph::get_sampling_index(
-            tmp_nbr_indices.data(),
-            rng_state,
-            tmp_degrees.data(),
-            num_segments,
-            static_cast<int32_t>(high_partition_oversampling_K),
-            true,
-            handle.get_stream());
-          #endif
         }
 
         if (retry_segment_indices) {
