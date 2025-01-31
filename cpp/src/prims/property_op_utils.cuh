@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -127,9 +127,7 @@ template <typename T, template <typename> typename Op>
 struct property_op : public Op<T> {};
 
 template <typename... Args, template <typename> typename Op>
-struct property_op<thrust::tuple<Args...>, Op>
-  : public thrust::
-      binary_function<thrust::tuple<Args...>, thrust::tuple<Args...>, thrust::tuple<Args...>> {
+struct property_op<thrust::tuple<Args...>, Op> {
   using Type = thrust::tuple<Args...>;
 
  private:
