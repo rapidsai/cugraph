@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -41,9 +41,9 @@
 
 #include <rmm/device_uvector.hpp>
 
+#include <cuda/std/optional>
 #include <thrust/adjacent_difference.h>
 #include <thrust/iterator/counting_iterator.h>
-#include <thrust/optional.h>
 #include <thrust/tuple.h>
 
 #include <gtest/gtest.h>
@@ -53,7 +53,7 @@
 template <typename vertex_t, typename bias_t>
 struct e_bias_op_t {
   __device__ bias_t
-  operator()(vertex_t, vertex_t, thrust::nullopt_t, thrust::nullopt_t, bias_t bias) const
+  operator()(vertex_t, vertex_t, cuda::std::nullopt_t, cuda::std::nullopt_t, bias_t bias) const
   {
     return bias;
   }
@@ -65,8 +65,11 @@ struct e_op_t {
                                                       cugraph::to_thrust_tuple(property_t{}),
                                                       cugraph::to_thrust_tuple(property_t{})));
 
-  __device__ result_t operator()(
-    vertex_t src, vertex_t dst, property_t src_prop, property_t dst_prop, thrust::nullopt_t) const
+  __device__ result_t operator()(vertex_t src,
+                                 vertex_t dst,
+                                 property_t src_prop,
+                                 property_t dst_prop,
+                                 cuda::std::nullopt_t) const
   {
     if constexpr (cugraph::is_thrust_tuple_of_arithmetic<property_t>::value) {
       static_assert(thrust::tuple_size<property_t>::value == size_t{2});
@@ -401,18 +404,19 @@ class Tests_MGPerVRandomSelectTransformOutgoingE
           thrust::make_counting_iterator(size_t{0}),
           thrust::make_counting_iterator(mg_aggregate_frontier_vertices.size()),
           [frontier_vertex_first = mg_aggregate_frontier_vertices.begin(),
-           sample_offsets = mg_aggregate_sample_offsets ? thrust::make_optional<size_t const*>(
+           sample_offsets = mg_aggregate_sample_offsets ? cuda::std::make_optional<size_t const*>(
                                                             (*mg_aggregate_sample_offsets).data())
-                                                        : thrust::nullopt,
+                                                        : cuda::std::nullopt,
            sample_e_op_result_first =
              cugraph::get_dataframe_buffer_begin(mg_aggregate_sample_e_op_results),
            sg_offsets = sg_offsets.begin(),
            sg_indices = sg_indices.begin(),
-           sg_biases  = sg_biases ? thrust::make_optional((*sg_biases).begin()) : thrust::nullopt,
-           K          = prims_usecase.K,
+           sg_biases =
+             sg_biases ? cuda::std::make_optional((*sg_biases).begin()) : cuda::std::nullopt,
+           K                = prims_usecase.K,
            with_replacement = prims_usecase.with_replacement,
-           invalid_value =
-             invalid_value ? thrust::make_optional<result_t>(*invalid_value) : thrust::nullopt,
+           invalid_value    = invalid_value ? cuda::std::make_optional<result_t>(*invalid_value)
+                                            : cuda::std::nullopt,
            property_transform =
              cugraph::test::detail::vertex_property_transform<vertex_t, property_t>{
                hash_bin_count}] __device__(size_t i) {
@@ -461,8 +465,8 @@ class Tests_MGPerVRandomSelectTransformOutgoingE
               auto sg_nbr_first = sg_indices + *(sg_offsets + sg_src);
               auto sg_nbr_last  = sg_indices + *(sg_offsets + (sg_src + vertex_t{1}));
               auto sg_nbr_bias_first =
-                sg_biases ? thrust::make_optional((*sg_biases) + *(sg_offsets + sg_src))
-                          : thrust::nullopt;
+                sg_biases ? cuda::std::make_optional((*sg_biases) + *(sg_offsets + sg_src))
+                          : cuda::std::nullopt;
               if (sg_src != v) { return true; }
 
               if (sg_nbr_bias_first) {

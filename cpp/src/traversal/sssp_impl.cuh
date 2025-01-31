@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -32,11 +32,11 @@
 
 #include <raft/util/cudart_utils.hpp>
 
+#include <cuda/std/optional>
 #include <thrust/fill.h>
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/iterator/discard_iterator.h>
 #include <thrust/iterator/zip_iterator.h>
-#include <thrust/optional.h>
 #include <thrust/transform.h>
 #include <thrust/tuple.h>
 
@@ -52,8 +52,8 @@ struct e_op_t {
   weight_t const* distances{};
   weight_t cutoff{};
 
-  __device__ thrust::optional<thrust::tuple<weight_t, vertex_t>> operator()(
-    vertex_t src, vertex_t dst, weight_t src_val, thrust::nullopt_t, weight_t w) const
+  __device__ cuda::std::optional<thrust::tuple<weight_t, vertex_t>> operator()(
+    vertex_t src, vertex_t dst, weight_t src_val, cuda::std::nullopt_t, weight_t w) const
   {
     auto push         = true;
     auto new_distance = src_val + w;
@@ -65,9 +65,9 @@ struct e_op_t {
       threshold         = old_distance < threshold ? old_distance : threshold;
     }
     if (new_distance >= threshold) { push = false; }
-    return push ? thrust::optional<thrust::tuple<weight_t, vertex_t>>{thrust::make_tuple(
+    return push ? cuda::std::optional<thrust::tuple<weight_t, vertex_t>>{thrust::make_tuple(
                     new_distance, src)}
-                : thrust::nullopt;
+                : cuda::std::nullopt;
   }
 };
 
@@ -223,11 +223,11 @@ void sssp(raft::handle_t const& handle,
         auto new_dist = thrust::get<0>(pushed_val);
         auto update   = (new_dist < v_val);
         return thrust::make_tuple(
-          update ? thrust::optional<size_t>{new_dist < near_far_threshold ? bucket_idx_next_near
-                                                                          : bucket_idx_far}
-                 : thrust::nullopt,
-          update ? thrust::optional<thrust::tuple<weight_t, vertex_t>>{pushed_val}
-                 : thrust::nullopt);
+          update ? cuda::std::optional<size_t>{new_dist < near_far_threshold ? bucket_idx_next_near
+                                                                             : bucket_idx_far}
+                 : cuda::std::nullopt,
+          update ? cuda::std::optional<thrust::tuple<weight_t, vertex_t>>{pushed_val}
+                 : cuda::std::nullopt);
       });
 
     vertex_frontier.bucket(bucket_idx_cur_near).clear();
@@ -250,9 +250,9 @@ void sssp(raft::handle_t const& handle,
             auto dist =
               *(distances + vertex_partition.local_vertex_partition_offset_from_vertex_nocheck(v));
             return dist >= old_near_far_threshold
-                     ? thrust::optional<size_t>{dist < near_far_threshold ? bucket_idx_cur_near
-                                                                          : bucket_idx_far}
-                     : thrust::nullopt;
+                     ? cuda::std::optional<size_t>{dist < near_far_threshold ? bucket_idx_cur_near
+                                                                             : bucket_idx_far}
+                     : cuda::std::nullopt;
           });
         near_size = vertex_frontier.bucket(bucket_idx_cur_near).aggregate_size();
         far_size  = vertex_frontier.bucket(bucket_idx_far).aggregate_size();
