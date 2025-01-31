@@ -53,14 +53,14 @@ select = [
 ]
 
 # detect when package size grows significantly
-max_allowed_size_compressed = '1.2G'
+max_allowed_size_compressed = '1.4G'
 
 [tool.scikit-build]
 build-dir = "build/{wheel_tag}"
 cmake.build-type = "Release"
 cmake.version = "CMakeLists.txt"
 minimum-version = "build-system.requires"
-ninja.make-fallback = true
+ninja.make-fallback = false
 sdist.reproducible = true
 wheel.packages = ["libcugraph"]
 wheel.install-dir = "libcugraph"
