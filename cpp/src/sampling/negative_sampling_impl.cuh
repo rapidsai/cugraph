@@ -16,8 +16,11 @@
 
 #pragma once
 
+#include "cugraph/detail/collect_comm_wrapper.hpp"
+#include "cugraph/utilities/device_comm.hpp"
 #include "prims/reduce_v.cuh"
 #include "prims/update_edge_src_dst_property.cuh"
+#include "thrust/iterator/zip_iterator.h"
 #include "utilities/collect_comm.cuh"
 
 #include <cugraph/detail/shuffle_wrappers.hpp>
@@ -25,6 +28,10 @@
 #include <cugraph/sampling_functions.hpp>
 #include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/utilities/host_scalar_comm.hpp>
+
+#include <raft/core/device_span.hpp>
+#include <raft/core/handle.hpp>
+#include <raft/util/cudart_utils.hpp>
 
 #include <rmm/device_scalar.hpp>
 
@@ -36,6 +43,8 @@
 #include <thrust/scan.h>
 #include <thrust/transform.h>
 #include <thrust/unique.h>
+
+#include <tuple>
 
 namespace cugraph {
 
@@ -265,11 +274,19 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> negativ
   bool exact_number_of_samples,
   bool do_expensive_check)
 {
-  rmm::device_uvector<vertex_t> src(0, handle.get_stream());
-  rmm::device_uvector<vertex_t> dst(0, handle.get_stream());
+  rmm::device_uvector<vertex_t> srcs(0, handle.get_stream());
+  rmm::device_uvector<vertex_t> dsts(0, handle.get_stream());
 
   // Optimistically assume we can do this in one pass
-  size_t samples_in_this_batch = num_samples;
+  size_t total_samples{num_samples};
+  std::vector<size_t> samples_per_gpu;
+
+  if constexpr (multi_gpu) {
+    samples_per_gpu = host_scalar_allgather(handle.get_comms(), num_samples, handle.get_stream());
+    total_samples   = std::reduce(samples_per_gpu.begin(), samples_per_gpu.end());
+  }
+
+  size_t samples_in_this_batch = total_samples;
 
   // Normalize the biases and (for MG) determine how the biases are
   // distributed across the GPUs.
@@ -298,16 +315,16 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> negativ
            : 0);
     }
 
-    auto batch_src = create_local_samples(
+    auto batch_srcs = create_local_samples(
       handle, rng_state, graph_view, normalized_src_biases, gpu_src_biases, samples_in_this_batch);
-    auto batch_dst = create_local_samples(
+    auto batch_dsts = create_local_samples(
       handle, rng_state, graph_view, normalized_dst_biases, gpu_dst_biases, samples_in_this_batch);
 
     if constexpr (multi_gpu) {
       auto vertex_partition_range_lasts = graph_view.vertex_partition_range_lasts();
 
-      std::tie(batch_src,
-               batch_dst,
+      std::tie(batch_srcs,
+               batch_dsts,
                std::ignore,
                std::ignore,
                std::ignore,
@@ -320,8 +337,8 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> negativ
                                                                                        int32_t,
                                                                                        int32_t>(
           handle,
-          std::move(batch_src),
-          std::move(batch_dst),
+          std::move(batch_srcs),
+          std::move(batch_dsts),
           std::nullopt,
           std::nullopt,
           std::nullopt,
@@ -333,42 +350,43 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> negativ
     if (remove_existing_edges) {
       auto has_edge_flags =
         graph_view.has_edge(handle,
-                            raft::device_span<vertex_t const>{batch_src.data(), batch_src.size()},
-                            raft::device_span<vertex_t const>{batch_dst.data(), batch_dst.size()},
+                            raft::device_span<vertex_t const>{batch_srcs.data(), batch_srcs.size()},
+                            raft::device_span<vertex_t const>{batch_dsts.data(), batch_dsts.size()},
                             do_expensive_check);
 
-      auto begin_iter = thrust::make_zip_iterator(batch_src.begin(), batch_dst.begin());
+      auto begin_iter = thrust::make_zip_iterator(batch_srcs.begin(), batch_dsts.begin());
       auto new_end    = thrust::remove_if(handle.get_thrust_policy(),
                                        begin_iter,
-                                       begin_iter + batch_src.size(),
+                                       begin_iter + batch_srcs.size(),
                                        has_edge_flags.begin(),
                                        thrust::identity<bool>());
 
-      batch_src.resize(thrust::distance(begin_iter, new_end), handle.get_stream());
-      batch_dst.resize(thrust::distance(begin_iter, new_end), handle.get_stream());
+      batch_srcs.resize(thrust::distance(begin_iter, new_end), handle.get_stream());
+      batch_dsts.resize(thrust::distance(begin_iter, new_end), handle.get_stream());
     }
 
     if (remove_duplicates) {
       thrust::sort(handle.get_thrust_policy(),
-                   thrust::make_zip_iterator(batch_src.begin(), batch_dst.begin()),
-                   thrust::make_zip_iterator(batch_src.end(), batch_dst.end()));
+                   thrust::make_zip_iterator(batch_srcs.begin(), batch_dsts.begin()),
+                   thrust::make_zip_iterator(batch_srcs.end(), batch_dsts.end()));
 
-      auto new_end = thrust::unique(handle.get_thrust_policy(),
-                                    thrust::make_zip_iterator(batch_src.begin(), batch_dst.begin()),
-                                    thrust::make_zip_iterator(batch_src.end(), batch_dst.end()));
+      auto new_end =
+        thrust::unique(handle.get_thrust_policy(),
+                       thrust::make_zip_iterator(batch_srcs.begin(), batch_dsts.begin()),
+                       thrust::make_zip_iterator(batch_srcs.end(), batch_dsts.end()));
 
-      size_t new_size =
-        thrust::distance(thrust::make_zip_iterator(batch_src.begin(), batch_dst.begin()), new_end);
+      size_t new_size = thrust::distance(
+        thrust::make_zip_iterator(batch_srcs.begin(), batch_dsts.begin()), new_end);
 
-      if (src.size() > 0) {
-        rmm::device_uvector<vertex_t> new_src(src.size() + new_size, handle.get_stream());
-        rmm::device_uvector<vertex_t> new_dst(dst.size() + new_size, handle.get_stream());
+      if (srcs.size() > 0) {
+        rmm::device_uvector<vertex_t> new_src(srcs.size() + new_size, handle.get_stream());
+        rmm::device_uvector<vertex_t> new_dst(dsts.size() + new_size, handle.get_stream());
 
         thrust::merge(handle.get_thrust_policy(),
-                      thrust::make_zip_iterator(batch_src.begin(), batch_dst.begin()),
+                      thrust::make_zip_iterator(batch_srcs.begin(), batch_dsts.begin()),
                       new_end,
-                      thrust::make_zip_iterator(src.begin(), dst.begin()),
-                      thrust::make_zip_iterator(src.end(), dst.end()),
+                      thrust::make_zip_iterator(srcs.begin(), dsts.begin()),
+                      thrust::make_zip_iterator(srcs.end(), dsts.end()),
                       thrust::make_zip_iterator(new_src.begin(), new_dst.begin()));
 
         new_end = thrust::unique(handle.get_thrust_policy(),
@@ -378,32 +396,32 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> negativ
         new_size =
           thrust::distance(thrust::make_zip_iterator(new_src.begin(), new_dst.begin()), new_end);
 
-        src = std::move(new_src);
-        dst = std::move(new_dst);
+        srcs = std::move(new_src);
+        dsts = std::move(new_dst);
       } else {
-        src = std::move(batch_src);
-        dst = std::move(batch_dst);
+        srcs = std::move(batch_srcs);
+        dsts = std::move(batch_dsts);
       }
 
-      src.resize(new_size, handle.get_stream());
-      dst.resize(new_size, handle.get_stream());
-    } else if (src.size() > 0) {
-      size_t current_end = src.size();
+      srcs.resize(new_size, handle.get_stream());
+      dsts.resize(new_size, handle.get_stream());
+    } else if (srcs.size() > 0) {
+      size_t current_end = srcs.size();
 
-      src.resize(src.size() + batch_src.size(), handle.get_stream());
-      dst.resize(dst.size() + batch_dst.size(), handle.get_stream());
+      srcs.resize(srcs.size() + batch_srcs.size(), handle.get_stream());
+      dsts.resize(dsts.size() + batch_dsts.size(), handle.get_stream());
 
       thrust::copy(handle.get_thrust_policy(),
-                   thrust::make_zip_iterator(batch_src.begin(), batch_dst.begin()),
-                   thrust::make_zip_iterator(batch_src.end(), batch_dst.end()),
-                   thrust::make_zip_iterator(src.begin(), dst.begin()) + current_end);
+                   thrust::make_zip_iterator(batch_srcs.begin(), batch_dsts.begin()),
+                   thrust::make_zip_iterator(batch_srcs.end(), batch_dsts.end()),
+                   thrust::make_zip_iterator(srcs.begin(), dsts.begin()) + current_end);
     } else {
-      src = std::move(batch_src);
-      dst = std::move(batch_dst);
+      srcs = std::move(batch_srcs);
+      dsts = std::move(batch_dsts);
     }
 
     if (exact_number_of_samples) {
-      size_t current_sample_size = src.size();
+      size_t current_sample_size = srcs.size();
       if constexpr (multi_gpu) {
         current_sample_size = cugraph::host_scalar_allreduce(
           handle.get_comms(), current_sample_size, raft::comms::op_t::SUM, handle.get_stream());
@@ -412,16 +430,142 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> negativ
       // FIXME: We could oversample and discard the unnecessary samples
       // to reduce the number of iterations in the outer loop, but it seems like
       // exact_number_of_samples is an edge case not worth optimizing for at this time.
-      samples_in_this_batch = num_samples - current_sample_size;
+      samples_in_this_batch = total_samples - current_sample_size;
     } else {
       samples_in_this_batch = 0;
     }
   }
 
-  src.shrink_to_fit(handle.get_stream());
-  dst.shrink_to_fit(handle.get_stream());
+  srcs.shrink_to_fit(handle.get_stream());
+  dsts.shrink_to_fit(handle.get_stream());
 
-  return std::make_tuple(std::move(src), std::move(dst));
+  if constexpr (multi_gpu) {
+    auto const& comm     = handle.get_comms();
+    auto const comm_size = comm.get_size();
+    auto const comm_rank = comm.get_rank();
+
+    // Randomly shuffle the samples so that each gpu gets their
+    // desired number of samples
+
+    if (!exact_number_of_samples) {
+      // If we didn't force generating the exact number of samples,
+      // we might have fewer samples than requested.  We need to
+      // accommodate this situation.  For now we'll just
+      // uniformly(-ish) reduce the requested size.
+      size_t total_extracted = host_scalar_allreduce(
+        handle.get_comms(), srcs.size(), raft::comms::op_t::SUM, handle.get_stream());
+      size_t reduction = total_samples - total_extracted;
+
+      while (reduction > 0) {
+        size_t est_reduction_per_gpu = (reduction + comm_size - 1) / comm_size;
+        for (size_t i = 0; i < samples_per_gpu.size(); ++i) {
+          if (samples_per_gpu[i] > est_reduction_per_gpu) {
+            samples_per_gpu[i] -= est_reduction_per_gpu;
+            reduction -= est_reduction_per_gpu;
+          } else {
+            reduction -= samples_per_gpu[i];
+            samples_per_gpu[i] = 0;
+          }
+
+          if (reduction < est_reduction_per_gpu) est_reduction_per_gpu = reduction;
+        }
+      }
+      num_samples = samples_per_gpu[comm_rank];
+    }
+
+    // Mimic the logic of permute_range...
+    //
+    //  1) Randomly assign each entry to a GPU
+    //  2) Count how many are assigned to each GPU
+    //  3) Allgatherv (allgather?) to give each GPU a count for how many entries are destined for
+    //  that GPU 4) Identify extras/deficits for each GPU, arbitrarily adjust counts to make correct
+    //  5) Shuffle accordingly
+    //
+    rmm::device_uvector<int> gpu_assignment(srcs.size(), handle.get_stream());
+
+    cugraph::detail::uniform_random_fill(handle.get_stream(),
+                                         gpu_assignment.data(),
+                                         gpu_assignment.size(),
+                                         int{0},
+                                         int{comm_size},
+                                         rng_state);
+
+    thrust::sort_by_key(handle.get_thrust_policy(),
+                        gpu_assignment.begin(),
+                        gpu_assignment.end(),
+                        thrust::make_zip_iterator(srcs.begin(), dsts.begin()));
+
+    rmm::device_uvector<size_t> d_send_counts(comm_size, handle.get_stream());
+    thrust::tabulate(
+      handle.get_thrust_policy(),
+      d_send_counts.begin(),
+      d_send_counts.end(),
+      [gpu_assignment_span = raft::device_span<const int>{
+         gpu_assignment.data(), gpu_assignment.size()}] __device__(size_t i) {
+        auto begin = thrust::lower_bound(
+          thrust::seq, gpu_assignment_span.begin(), gpu_assignment_span.end(), static_cast<int>(i));
+        auto end =
+          thrust::upper_bound(thrust::seq, begin, gpu_assignment_span.end(), static_cast<int>(i));
+        return thrust::distance(begin, end);
+      });
+
+    std::vector<size_t> tx_value_counts(comm_size, 0);
+    raft::update_host(
+      tx_value_counts.data(), d_send_counts.data(), d_send_counts.size(), handle.get_stream());
+
+    std::forward_as_tuple(std::tie(srcs, dsts), std::ignore) =
+      cugraph::shuffle_values(handle.get_comms(),
+                              thrust::make_zip_iterator(srcs.begin(), dsts.begin()),
+                              tx_value_counts,
+                              handle.get_stream());
+
+    rmm::device_uvector<float> fractional_random_numbers(srcs.size(), handle.get_stream());
+
+    cugraph::detail::uniform_random_fill(handle.get_stream(),
+                                         fractional_random_numbers.data(),
+                                         fractional_random_numbers.size(),
+                                         float{0.0},
+                                         float{1.0},
+                                         rng_state);
+    thrust::sort_by_key(handle.get_thrust_policy(),
+                        fractional_random_numbers.begin(),
+                        fractional_random_numbers.end(),
+                        thrust::make_zip_iterator(srcs.begin(), dsts.begin()));
+
+    size_t nr_extras{0};
+    size_t nr_deficits{0};
+    if (srcs.size() > num_samples) {
+      nr_extras = srcs.size() - static_cast<size_t>(num_samples);
+    } else {
+      nr_deficits = static_cast<size_t>(num_samples) - srcs.size();
+    }
+
+    auto extra_srcs = cugraph::detail::device_allgatherv(
+      handle, comm, raft::device_span<vertex_t const>(srcs.data() + num_samples, nr_extras));
+    // nr_extras > 0 ? nr_extras : 0));
+    auto extra_dsts = cugraph::detail::device_allgatherv(
+      handle, comm, raft::device_span<vertex_t const>(dsts.data() + num_samples, nr_extras));
+    // nr_extras > 0 ? nr_extras : 0));
+
+    srcs.resize(num_samples, handle.get_stream());
+    dsts.resize(num_samples, handle.get_stream());
+    auto deficits =
+      cugraph::host_scalar_allgather(handle.get_comms(), nr_deficits, handle.get_stream());
+
+    std::exclusive_scan(deficits.begin(), deficits.end(), deficits.begin(), vertex_t{0});
+
+    raft::copy(srcs.data() + num_samples - nr_deficits,
+               extra_srcs.begin() + deficits[comm_rank],
+               nr_deficits,
+               handle.get_stream());
+
+    raft::copy(dsts.data() + num_samples - nr_deficits,
+               extra_dsts.begin() + deficits[comm_rank],
+               nr_deficits,
+               handle.get_stream());
+  }
+
+  return std::make_tuple(std::move(srcs), std::move(dsts));
 }
 
 }  // namespace cugraph

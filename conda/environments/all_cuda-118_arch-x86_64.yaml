@@ -70,7 +70,6 @@ dependencies:
 - thriftpy2>=0.4.15,!=0.5.0,!=0.5.1
 - torchdata
 - torchmetrics
-- ucx-proc=*=gpu
 - ucx-py==0.43.*,>=0.0.0a0
 - wheel
 name: all_cuda-118_arch-x86_64

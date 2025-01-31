@@ -90,7 +90,6 @@ requirements:
     - raft-dask ={{ minor_version }}
     - rapids-dask-dependency ={{ minor_version }}
     - requests
-    - ucx-proc=*=gpu
     - ucx-py {{ ucx_py_version }}
 
 tests:

@@ -1152,7 +1152,10 @@ lookup_endpoints_from_edge_ids_and_types(
  * @param dst_biases Optional bias for randomly selecting destination vertices.  If std::nullopt
  * vertices will be selected uniformly.  In multi-GPU environment the biases should be partitioned
  * based on the vertex partitions.
- * @param num_samples Number of negative samples to generate
+ * @param num_samples Number of negative samples to generate.  In SG mode this represents the total
+ * number of samples to generate.  In MG mode, each gpu will provide the number of samples desired
+ * on that GPU.  The total number of samples in MG mode will be the aggregation of these values, the
+ * resulting samples will be randomly distributed across the ranks.
  * @param remove_duplicates If true, remove duplicate samples
  * @param remove_existing_edges If true, remove samples that are actually edges in the graph
  * @param exact_number_of_samples If true, repeat generation until we get the exact number of
