@@ -88,7 +88,7 @@ cugraph_error_code_t renumber_arbitrary_edgelist(
        ids_span] __device__(size_t idx) {
         auto pos = thrust::lower_bound(
           thrust::seq, vertices_span.begin(), vertices_span.end(), renumber_chunk_span[idx]);
-        if (pos != vertices_span.end()) {
+        if ((pos != vertices_span.end()) && (*pos == renumber_chunk_span[idx])) {
           ids_span[thrust::distance(vertices_span.begin(), pos)] =
             static_cast<vertex_t>(chunk_base_offset + idx);
         }
