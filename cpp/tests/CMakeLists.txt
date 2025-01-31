@@ -508,12 +508,12 @@ ConfigureTest(
 
 ###################################################################################################
 # - BIASED NBR SAMPLING tests ---------------------------------------------------------------------
-ConfigureTest(BIASED_NEIGHBOR_SAMPLING_TEST sampling/biased_neighbor_sampling.cpp)
+ConfigureTest(BIASED_NEIGHBOR_SAMPLING_TEST sampling/biased_neighbor_sampling.cpp GPUS 1 PERCENT 75)
 
 ###################################################################################################
 # - HOMOGENEOUS BIASED NBR SAMPLING tests ---------------------------------------------------------
 ConfigureTest(
-    HOMOGENEOUS_BIASED_NEIGHBOR_SAMPLING_TEST sampling/homogeneous_biased_neighbor_sampling.cpp)
+    HOMOGENEOUS_BIASED_NEIGHBOR_SAMPLING_TEST sampling/homogeneous_biased_neighbor_sampling.cpp GPUS 1 PERCENT 75)
 
 ###################################################################################################
 # - HETEROGENEOUS BIASED NBR SAMPLING tests -------------------------------------------------------
