@@ -96,7 +96,7 @@ partition_v_frontier_per_value_idx(
   raft::handle_t const& handle,
   ValueIterator frontier_value_first,
   ValueIterator frontier_value_last,
-  raft::host_span<typename thrust::iterator_traits<ValueIterator>::value_type>
+  raft::host_span<typename thrust::iterator_traits<ValueIterator>::value_type const>
     thresholds /* size = num_values_per_key * (# partitions - 1), thresholds[i] marks the end
                   (exclusive) of the (i % num_values_per_key)'th partition value range for the (i /
                   num_values_per_key)'th value of each key */
