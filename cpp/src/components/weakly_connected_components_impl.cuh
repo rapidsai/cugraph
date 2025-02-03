@@ -35,6 +35,7 @@
 #include <rmm/device_uvector.hpp>
 
 #include <cuda/functional>
+#include <cuda/std/optional>
 #include <thrust/binary_search.h>
 #include <thrust/copy.h>
 #include <thrust/distance.h>
@@ -45,7 +46,6 @@
 #include <thrust/iterator/discard_iterator.h>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/merge.h>
-#include <thrust/optional.h>
 #include <thrust/partition.h>
 #include <thrust/random.h>
 #include <thrust/scan.h>
@@ -189,11 +189,11 @@ struct e_op_t {
   EdgeIterator edge_buffer_first{};
   size_t* num_edge_inserts{};
 
-  __device__ thrust::optional<vertex_t> operator()(thrust::tuple<vertex_t, vertex_t> tagged_src,
-                                                   vertex_t dst,
-                                                   thrust::nullopt_t,
-                                                   thrust::nullopt_t,
-                                                   thrust::nullopt_t) const
+  __device__ cuda::std::optional<vertex_t> operator()(thrust::tuple<vertex_t, vertex_t> tagged_src,
+                                                      vertex_t dst,
+                                                      cuda::std::nullopt_t,
+                                                      cuda::std::nullopt_t,
+                                                      cuda::std::nullopt_t) const
   {
     auto tag        = thrust::get<1>(tagged_src);
     auto dst_offset = dst - dst_first;
@@ -207,8 +207,8 @@ struct e_op_t {
       *(edge_buffer_first + edge_idx) =
         tag >= old ? thrust::make_tuple(tag, old) : thrust::make_tuple(old, tag);
     }
-    return old == invalid_component_id<vertex_t>::value ? thrust::optional<vertex_t>{tag}
-                                                        : thrust::nullopt;
+    return old == invalid_component_id<vertex_t>::value ? cuda::std::optional<vertex_t>{tag}
+                                                        : cuda::std::nullopt;
   }
 };
 
@@ -231,9 +231,10 @@ struct v_op_t {
   size_t bucket_idx_conflict{};  // relevant only if GraphViewType::is_multi_gpu is true
 
   template <bool multi_gpu = GraphViewType::is_multi_gpu>
-  __device__ std::enable_if_t<multi_gpu,
-                              thrust::tuple<thrust::optional<size_t>, thrust::optional<std::byte>>>
-  operator()(thrust::tuple<vertex_type, vertex_type> tagged_v, int /* v_val */) const
+  __device__
+    std::enable_if_t<multi_gpu,
+                     thrust::tuple<cuda::std::optional<size_t>, cuda::std::optional<std::byte>>>
+    operator()(thrust::tuple<vertex_type, vertex_type> tagged_v, int /* v_val */) const
   {
     auto tag = thrust::get<1>(tagged_v);
     auto v_offset =
@@ -242,22 +243,23 @@ struct v_op_t {
     auto old     = invalid_component_id<vertex_type>::value;
     bool success = v_component.compare_exchange_strong(old, tag, cuda::std::memory_order_relaxed);
     if (!success && (old != tag)) {  // conflict
-      return thrust::make_tuple(thrust::optional<size_t>{bucket_idx_conflict},
-                                thrust::optional<std::byte>{std::byte{0}} /* dummy */);
+      return thrust::make_tuple(cuda::std::optional<size_t>{bucket_idx_conflict},
+                                cuda::std::optional<std::byte>{std::byte{0}} /* dummy */);
     } else {
       return thrust::make_tuple(
-        success ? thrust::optional<size_t>{bucket_idx_next} : thrust::nullopt,
-        success ? thrust::optional<std::byte>{std::byte{0}} /* dummy */ : thrust::nullopt);
+        success ? cuda::std::optional<size_t>{bucket_idx_next} : cuda::std::nullopt,
+        success ? cuda::std::optional<std::byte>{std::byte{0}} /* dummy */ : cuda::std::nullopt);
     }
   }
 
   template <bool multi_gpu = GraphViewType::is_multi_gpu>
-  __device__ std::enable_if_t<!multi_gpu,
-                              thrust::tuple<thrust::optional<size_t>, thrust::optional<std::byte>>>
-  operator()(thrust::tuple<vertex_type, vertex_type> /* tagged_v */, int /* v_val */) const
+  __device__
+    std::enable_if_t<!multi_gpu,
+                     thrust::tuple<cuda::std::optional<size_t>, cuda::std::optional<std::byte>>>
+    operator()(thrust::tuple<vertex_type, vertex_type> /* tagged_v */, int /* v_val */) const
   {
-    return thrust::make_tuple(thrust::optional<size_t>{bucket_idx_next},
-                              thrust::optional<std::byte>{std::byte{0}} /* dummy */);
+    return thrust::make_tuple(cuda::std::optional<size_t>{bucket_idx_next},
+                              cuda::std::optional<std::byte>{std::byte{0}} /* dummy */);
   }
 };
 

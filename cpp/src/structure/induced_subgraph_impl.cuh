@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -34,6 +34,7 @@
 
 #include <rmm/device_uvector.hpp>
 
+#include <cuda/std/optional>
 #include <thrust/binary_search.h>
 #include <thrust/copy.h>
 #include <thrust/count.h>
@@ -44,7 +45,6 @@
 #include <thrust/iterator/constant_iterator.h>
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/iterator/zip_iterator.h>
-#include <thrust/optional.h>
 #include <thrust/scan.h>
 #include <thrust/sort.h>
 #include <thrust/transform.h>
@@ -58,7 +58,7 @@ namespace detail {
 
 template <typename vertex_t, typename weight_t, typename property_t>
 struct induced_subgraph_weighted_edge_op {
-  using return_type = thrust::optional<thrust::tuple<vertex_t, vertex_t, weight_t, size_t>>;
+  using return_type = cuda::std::optional<thrust::tuple<vertex_t, vertex_t, weight_t, size_t>>;
 
   raft::device_span<size_t const> dst_subgraph_offsets;
   raft::device_span<vertex_t const> dst_subgraph_vertices;
@@ -74,15 +74,15 @@ struct induced_subgraph_weighted_edge_op {
                                  dst_subgraph_vertices.data() + dst_subgraph_offsets[subgraph],
                                  dst_subgraph_vertices.data() + dst_subgraph_offsets[subgraph + 1],
                                  dst)
-             ? thrust::make_optional(
+             ? cuda::std::make_optional(
                  thrust::make_tuple(thrust::get<0>(tagged_src), dst, wgt, subgraph))
-             : thrust::nullopt;
+             : cuda::std::nullopt;
   }
 };
 
 template <typename vertex_t, typename property_t>
 struct induced_subgraph_unweighted_edge_op {
-  using return_type = thrust::optional<thrust::tuple<vertex_t, vertex_t, size_t>>;
+  using return_type = cuda::std::optional<thrust::tuple<vertex_t, vertex_t, size_t>>;
 
   raft::device_span<size_t const> dst_subgraph_offsets;
   raft::device_span<vertex_t const> dst_subgraph_vertices;
@@ -91,15 +91,16 @@ struct induced_subgraph_unweighted_edge_op {
                                     vertex_t dst,
                                     property_t sv,
                                     property_t dv,
-                                    thrust::nullopt_t) const
+                                    cuda::std::nullopt_t) const
   {
     size_t subgraph = thrust::get<1>(tagged_src);
     return thrust::binary_search(thrust::seq,
                                  dst_subgraph_vertices.data() + dst_subgraph_offsets[subgraph],
                                  dst_subgraph_vertices.data() + dst_subgraph_offsets[subgraph + 1],
                                  dst)
-             ? thrust::make_optional(thrust::make_tuple(thrust::get<0>(tagged_src), dst, subgraph))
-             : thrust::nullopt;
+             ? cuda::std::make_optional(
+                 thrust::make_tuple(thrust::get<0>(tagged_src), dst, subgraph))
+             : cuda::std::nullopt;
   }
 };
 
@@ -203,8 +204,8 @@ extract_induced_subgraphs(
   dst_subgraph_vertices = raft::device_span<vertex_t const>(dst_subgraph_vertices_v.data(),
                                                             dst_subgraph_vertices_v.size());
 
-  // 3. Call extract_transform_v_frontier_outgoing_e with a functor that returns thrust::nullopt if
-  // the destination vertex has a property of 0, return the edge if the destination vertex has a
+  // 3. Call extract_transform_v_frontier_outgoing_e with a functor that returns cuda::std::nullopt
+  // if the destination vertex has a property of 0, return the edge if the destination vertex has a
   // property of 1
   vertex_frontier_t<vertex_t, size_t, multi_gpu, false> vertex_frontier(handle, 1);
 
@@ -233,7 +234,7 @@ extract_induced_subgraphs(
         edge_src_dummy_property_t{}.view(),
         edge_dst_dummy_property_t{}.view(),
         *edge_weight_view,
-        detail::induced_subgraph_weighted_edge_op<vertex_t, weight_t, thrust::nullopt_t>{
+        detail::induced_subgraph_weighted_edge_op<vertex_t, weight_t, cuda::std::nullopt_t>{
           dst_subgraph_offsets, dst_subgraph_vertices},
         do_expensive_check);
 
@@ -253,7 +254,7 @@ extract_induced_subgraphs(
         edge_src_dummy_property_t{}.view(),
         edge_dst_dummy_property_t{}.view(),
         edge_dummy_property_t{}.view(),
-        detail::induced_subgraph_unweighted_edge_op<vertex_t, thrust::nullopt_t>{
+        detail::induced_subgraph_unweighted_edge_op<vertex_t, cuda::std::nullopt_t>{
           dst_subgraph_offsets, dst_subgraph_vertices},
         do_expensive_check);
 

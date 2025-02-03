@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,6 +30,7 @@
 
 #include <rmm/exec_policy.hpp>
 
+#include <cuda/std/functional>
 #include <thrust/binary_search.h>
 #include <thrust/count.h>
 #include <thrust/distance.h>
@@ -52,7 +53,7 @@ template <typename vertex_t>
 struct compute_max {
   vertex_t __device__ operator()(vertex_t lhs, vertex_t rhs)
   {
-    return thrust::max<vertex_t>(lhs, rhs);
+    return cuda::std::max<vertex_t>(lhs, rhs);
   }
 };
 
