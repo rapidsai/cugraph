@@ -896,6 +896,8 @@ ConfigureCTest(CAPI_TRIANGLE_COUNT_TEST c_api/triangle_count_test.c)
 ConfigureCTest(CAPI_LOUVAIN_TEST c_api/louvain_test.c)
 ConfigureCTest(CAPI_LEIDEN_TEST c_api/leiden_test.c)
 ConfigureCTest(CAPI_ECG_TEST c_api/ecg_test.c)
+ConfigureCTest(CAPI_RENUMBER_ARBITRARY_EDGELIST_TEST c_api/renumber_arbitrary_edgelist_test.c)
+
 #############################################################################
 # Skipping due to CUDA 12.2 failure that traces back to RAFT                #
 # TODO: Uncomment this once the issue is fixed.                             #
