@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -75,6 +75,8 @@ class Tests_MGReduceV
             bool store_transposed>
   void run_current_test(Prims_Usecase const& prims_usecase, input_usecase_t const& input_usecase)
   {
+    using edge_type_t = int32_t;
+
     HighResTimer hr_timer{};
 
     // 1. create MG graph
@@ -163,12 +165,13 @@ class Tests_MGReduceV
 
     if (prims_usecase.check_correctness) {
       cugraph::graph_t<vertex_t, edge_t, store_transposed, false> sg_graph(*handle_);
-      std::tie(sg_graph, std::ignore, std::ignore, std::ignore) =
+      std::tie(sg_graph, std::ignore, std::ignore, std::ignore, std::ignore) =
         cugraph::test::mg_graph_to_sg_graph(
           *handle_,
           mg_graph_view,
           std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>>{std::nullopt},
           std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
+          std::optional<cugraph::edge_property_view_t<edge_t, edge_type_t const*>>{std::nullopt},
           std::make_optional<raft::device_span<vertex_t const>>((*mg_renumber_map).data(),
                                                                 (*mg_renumber_map).size()),
           false);
