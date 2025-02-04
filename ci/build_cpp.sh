@@ -15,7 +15,14 @@ rapids-print-env
 
 rapids-logger "Begin cpp build"
 
-RAPIDS_PACKAGE_VERSION=$(rapids-generate-version) rapids-conda-retry mambabuild conda/recipes/libcugraph
+sccache --zero-stats
+LIBRMM_CHANNEL=$(_rapids-get-pr-artifact rmm 1808 cpp conda)
+LIBRAFT_CHANNEL=$(_rapids-get-pr-artifact raft 2566 cpp conda)
+
+RAPIDS_PACKAGE_VERSION=$(rapids-generate-version) rapids-conda-retry mambabuild \
+  --channel "${LIBRMM_CHANNEL}" \
+  --channel "${LIBRAFT_CHANNEL}" \
+  conda/recipes/libcugraph
 
 sccache --show-adv-stats
 

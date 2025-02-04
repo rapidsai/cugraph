@@ -46,6 +46,7 @@ EXCLUDE_ARGS+=(
   --exclude "libcusolver.so.*"
   --exclude "libcusparse.so.*"
   --exclude "libnvJitLink.so.*"
+  --exclude "librapids_logger.so"
 )
 
 if [[ "${package_dir}" != "python/libcugraph" ]]; then
