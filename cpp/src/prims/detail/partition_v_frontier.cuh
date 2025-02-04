@@ -141,7 +141,7 @@ partition_v_frontier_per_value_idx(
         auto key_idx   = thrust::get<0>(pair);
         auto value_idx = thrust::get<1>(pair);
         return *(frontier_value_first + key_idx * num_values_per_key + value_idx) <
-               thresholds[key_idx * (num_partitions - 1) + true_partition_idx];
+               thresholds[value_idx * (num_partitions - 1) + true_partition_idx];
       });
     v_frontier_partition_offsets[1 + i] =
       v_frontier_partition_offsets[i] + thrust::distance(index_pair_first, false_first);

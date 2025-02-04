@@ -404,7 +404,7 @@ class Tests_MGPerVRandomSelectTransformOutgoingE
       std::optional<cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, false, false>,
                                              edge_type_t>>
         sg_edge_types{std::nullopt};
-      std::tie(sg_graph, sg_edge_weights, std::ignore, std::ignore, std::ignore) =
+      std::tie(sg_graph, sg_edge_weights, std::ignore, sg_edge_types, std::ignore) =
         cugraph::test::mg_graph_to_sg_graph(
           *handle_,
           mg_graph_view,
@@ -433,47 +433,49 @@ class Tests_MGPerVRandomSelectTransformOutgoingE
         auto sg_edge_type_view =
           sg_edge_types ? std::make_optional((*sg_edge_types).view()) : std::nullopt;
 
-        rmm::device_uvector<edge_t> sg_offsets(sg_graph_view.number_of_vertices() + vertex_t{1},
-                                               handle_->get_stream());
+        rmm::device_uvector<edge_t> sg_graph_offsets(
+          sg_graph_view.number_of_vertices() + vertex_t{1}, handle_->get_stream());
         thrust::copy(handle_->get_thrust_policy(),
                      sg_graph_view.local_edge_partition_view().offsets().begin(),
                      sg_graph_view.local_edge_partition_view().offsets().end(),
-                     sg_offsets.begin());
-        rmm::device_uvector<vertex_t> sg_indices(
+                     sg_graph_offsets.begin());
+        rmm::device_uvector<vertex_t> sg_graph_indices(
           sg_graph_view.local_edge_partition_view().indices().size(), handle_->get_stream());
         thrust::copy(handle_->get_thrust_policy(),
                      sg_graph_view.local_edge_partition_view().indices().begin(),
                      sg_graph_view.local_edge_partition_view().indices().end(),
-                     sg_indices.begin());
+                     sg_graph_indices.begin());
 
-        std::optional<rmm::device_uvector<weight_t>> sg_biases{std::nullopt};
+        std::optional<rmm::device_uvector<weight_t>> sg_graph_biases{std::nullopt};
         if (sg_edge_weight_view) {
           auto firsts = (*sg_edge_weight_view).value_firsts();
           auto counts = (*sg_edge_weight_view).edge_counts();
           assert(firsts.size() == 1);
           assert(counts.size() == 1);
-          sg_biases = rmm::device_uvector<weight_t>(counts[0], handle_->get_stream());
-          thrust::copy(
-            handle_->get_thrust_policy(), firsts[0], firsts[0] + counts[0], (*sg_biases).begin());
+          sg_graph_biases = rmm::device_uvector<weight_t>(counts[0], handle_->get_stream());
+          thrust::copy(handle_->get_thrust_policy(),
+                       firsts[0],
+                       firsts[0] + counts[0],
+                       (*sg_graph_biases).begin());
         }
 
-        std::optional<rmm::device_uvector<edge_type_t>> sg_edge_types{std::nullopt};
+        std::optional<rmm::device_uvector<edge_type_t>> sg_graph_edge_types{std::nullopt};
         if (sg_edge_type_view) {
           auto firsts = (*sg_edge_type_view).value_firsts();
           auto counts = (*sg_edge_type_view).edge_counts();
           assert(firsts.size() == 1);
           assert(counts.size() == 1);
-          sg_edge_types = rmm::device_uvector<edge_type_t>(counts[0], handle_->get_stream());
+          sg_graph_edge_types = rmm::device_uvector<edge_type_t>(counts[0], handle_->get_stream());
           thrust::copy(handle_->get_thrust_policy(),
                        firsts[0],
                        firsts[0] + counts[0],
-                       (*sg_edge_types).begin());
+                       (*sg_graph_edge_types).begin());
         }
 
-        rmm::device_uvector<size_t> Ks(prims_usecase.Ks.size(), handle_->get_stream());
+        rmm::device_uvector<size_t> d_Ks(prims_usecase.Ks.size(), handle_->get_stream());
         raft::update_device(
-          Ks.data(), prims_usecase.Ks.data(), prims_usecase.Ks.size(), handle_->get_stream());
-        auto K_sum        = std::reduce(Ks.begin(), Ks.end());
+          d_Ks.data(), prims_usecase.Ks.data(), prims_usecase.Ks.size(), handle_->get_stream());
+        auto K_sum        = std::reduce(prims_usecase.Ks.begin(), prims_usecase.Ks.end());
         auto num_invalids = static_cast<size_t>(thrust::count_if(
           handle_->get_thrust_policy(),
           thrust::make_counting_iterator(size_t{0}),
@@ -484,13 +486,14 @@ class Tests_MGPerVRandomSelectTransformOutgoingE
                                                         : cuda::std::nullopt,
            sample_e_op_result_first =
              cugraph::get_dataframe_buffer_begin(mg_aggregate_sample_e_op_results),
-           sg_offsets = sg_offsets.begin(),
-           sg_indices = sg_indices.begin(),
-           sg_biases =
-             sg_biases ? cuda::std::make_optional((*sg_biases).begin()) : cuda::std::nullopt,
-           sg_edge_types = sg_edge_types ? cuda::std::make_optional((*sg_edge_types).begin())
-                                         : cuda::std::nullopt,
-           Ks            = raft::device_span<size_t const>(Ks.data(), Ks.size()),
+           sg_graph_offsets = sg_graph_offsets.begin(),
+           sg_indices       = sg_graph_indices.begin(),
+           sg_graph_biases  = sg_graph_biases ? cuda::std::make_optional((*sg_graph_biases).begin())
+                                              : cuda::std::nullopt,
+           sg_graph_edge_types = sg_graph_edge_types
+                                   ? cuda::std::make_optional((*sg_graph_edge_types).begin())
+                                   : cuda::std::nullopt,
+           Ks                  = raft::device_span<size_t const>(d_Ks.data(), d_Ks.size()),
            K_sum,
            with_replacement = prims_usecase.with_replacement,
            invalid_value    = invalid_value ? cuda::std::make_optional<result_t>(*invalid_value)
@@ -521,25 +524,17 @@ class Tests_MGPerVRandomSelectTransformOutgoingE
             }
             auto sample_count = offset_last - offset_first;
 
-            auto out_degree = *(sg_offsets + v + 1) - *(sg_offsets + v);
-            if (sg_biases) {
-              out_degree = thrust::count_if(thrust::seq,
-                                            *sg_biases + *(sg_offsets + v),
-                                            *sg_biases + *(sg_offsets + v + 1),
-                                            [] __device__(auto bias) { return bias > 0.0; });
-            }
-            if (with_replacement) {
-              if ((out_degree > 0 && sample_count != K_sum) ||
-                  (out_degree == 0 && sample_count != 0)) {
-                return true;
-              }
-            } else {
-              if (sample_count != std::min(static_cast<size_t>(out_degree), K_sum)) { return true; }
-            }
-
-            // check per-type sample counts
-
             if (num_edge_types > 1) {
+              assert(sg_graph_edge_types);
+              for (auto offset = *(sg_graph_offsets + v); offset < *(sg_graph_offsets + v + 1);
+                   ++offset) {
+                auto type = *((*sg_graph_edge_types) + offset);
+                if constexpr (std::is_signed_v<edge_type_t>) {
+                  if (type < 0) { return true; };
+                }
+                if (type >= num_edge_types) { return true; }
+              }
+
               edge_type_t constexpr array_size = 8;
               cuda::std::array<edge_t, array_size> per_type_out_degrees{};
               cuda::std::array<edge_t, array_size> per_type_sample_counts{};
@@ -552,12 +547,12 @@ class Tests_MGPerVRandomSelectTransformOutgoingE
                              per_type_sample_counts.end(),
                              edge_t{0});
 
-                assert(sg_edge_types);
-                for (auto offset = *(sg_offsets + v); offset < *(sg_offsets + v + 1); ++offset) {
-                  auto type = *((*sg_edge_types) + offset);
+                for (auto offset = *(sg_graph_offsets + v); offset < *(sg_graph_offsets + v + 1);
+                     ++offset) {
+                  auto type = *((*sg_graph_edge_types) + offset);
                   if (type >= c * array_size &&
                       type < cuda::std::min((c + 1) * array_size, num_edge_types)) {
-                    if (!sg_biases || (*(*sg_biases + offset) > 0.0)) {
+                    if (!sg_graph_biases || (*(*sg_graph_biases + offset) > 0.0)) {
                       ++per_type_out_degrees[type - c * array_size];
                     }
                   }
@@ -593,6 +588,24 @@ class Tests_MGPerVRandomSelectTransformOutgoingE
                   }
                 }
               }
+            } else {
+              auto out_degree = *(sg_graph_offsets + v + 1) - *(sg_graph_offsets + v);
+              if (sg_graph_biases) {
+                out_degree = thrust::count_if(thrust::seq,
+                                              *sg_graph_biases + *(sg_graph_offsets + v),
+                                              *sg_graph_biases + *(sg_graph_offsets + v + 1),
+                                              [] __device__(auto bias) { return bias > 0.0; });
+              }
+              if (with_replacement) {
+                if ((out_degree > 0 && sample_count != K_sum) ||
+                    (out_degree == 0 && sample_count != 0)) {
+                  return true;
+                }
+              } else {
+                if (sample_count != std::min(static_cast<size_t>(out_degree), K_sum)) {
+                  return true;
+                }
+              }
             }
 
             // check sample_e_op_results
@@ -601,11 +614,12 @@ class Tests_MGPerVRandomSelectTransformOutgoingE
               auto e_op_result  = *(sample_e_op_result_first + j);
               auto sg_src       = thrust::get<0>(e_op_result);
               auto sg_dst       = thrust::get<1>(e_op_result);
-              auto sg_nbr_first = sg_indices + *(sg_offsets + sg_src);
-              auto sg_nbr_last  = sg_indices + *(sg_offsets + (sg_src + vertex_t{1}));
+              auto sg_nbr_first = sg_indices + *(sg_graph_offsets + sg_src);
+              auto sg_nbr_last  = sg_indices + *(sg_graph_offsets + (sg_src + vertex_t{1}));
               auto sg_nbr_bias_first =
-                sg_biases ? cuda::std::make_optional((*sg_biases) + *(sg_offsets + sg_src))
-                          : cuda::std::nullopt;
+                sg_graph_biases
+                  ? cuda::std::make_optional((*sg_graph_biases) + *(sg_graph_offsets + sg_src))
+                  : cuda::std::nullopt;
               if (sg_src != v) { return true; }
 
               if (sg_nbr_bias_first) {

@@ -278,8 +278,6 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
   }
 
   for (size_t i = 0; i < Ks.size(); ++i) {
-    CUGRAPH_EXPECTS(Ks[i] >= size_t{1},
-                    "Invalid input argument: invalid Ks, Ks[] should be a positive integer.");
     CUGRAPH_EXPECTS(Ks[i] <= static_cast<size_t>(std::numeric_limits<int32_t>::max()),
                     "Invalid input argument: the current implementation expects Ks[] to be no "
                     "larger than std::numeric_limits<int32_t>::max().");
@@ -690,7 +688,10 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
  * std::optional<rmm::device_uvector<size_t>> and a dataframe buffer storing the output values of
  * type @p T from the selected edges. If @p invalid_value is std::nullopt, the offset vector is
  * valid and has the size of @p key_list.size() + 1. If @p invalid_value.has_value() is true,
- * std::nullopt is returned (the dataframe buffer will store @p key_list.size() * @p K elements).
+ * std::nullopt is returned (the dataframe buffer will store @p key_list.size() * @p K elements). If
+ * @p invalid_value.has_value() is true, @p K values are returned for each key in @p key_list. Among
+ * the K_sum values, valid values proceed the invalid values; ordering of the valid values can be
+ * arbitrary.
  */
 template <typename GraphViewType,
           typename KeyBucketType,
@@ -792,7 +793,10 @@ per_v_random_select_transform_outgoing_e(raft::handle_t const& handle,
  * std::optional<rmm::device_uvector<size_t>> and a dataframe buffer storing the output values of
  * type @p T from the selected edges. If @p invalid_value is std::nullopt, the offset vector is
  * valid and has the size of @p key_list.size() + 1. If @p invalid_value.has_value() is true,
- * std::nullopt is returned (the dataframe buffer will store @p key_list.size() * @p K elements).
+ * std::nullopt is returned (the dataframe buffer will store @p key_list.size() * @p K elements). If
+ * @p invalid_value.has_value() is true, K_sum = std::reduce(@p Ks.begin(), @p Ks.end()) values are
+ * returned for each key in @p key_list. Among the K_sum values, valid values proceed the invalid
+ * values; ordering of the valid values can be arbitrary.
  */
 template <typename GraphViewType,
           typename KeyBucketType,
@@ -919,7 +923,10 @@ per_v_random_select_transform_outgoing_e(raft::handle_t const& handle,
  * std::optional<rmm::device_uvector<size_t>> and a dataframe buffer storing the output values of
  * type @p T from the selected edges. If @p invalid_value is std::nullopt, the offset vector is
  * valid and has the size of @p key_list.size() + 1. If @p invalid_value.has_value() is true,
- * std::nullopt is returned (the dataframe buffer will store @p key_list.size() * @p K elements).
+ * std::nullopt is returned (the dataframe buffer will store @p key_list.size() * @p K elements). If
+ * @p invalid_value.has_value() is true, @p K values are returned for each key in @p key_list. Among
+ * the K_sum values, valid values proceed the invalid values; ordering of the valid values can be
+ * arbitrary.
  */
 template <typename GraphViewType,
           typename KeyBucketType,
@@ -1054,7 +1061,10 @@ per_v_random_select_transform_outgoing_e(raft::handle_t const& handle,
  * std::optional<rmm::device_uvector<size_t>> and a dataframe buffer storing the output values of
  * type @p T from the selected edges. If @p invalid_value is std::nullopt, the offset vector is
  * valid and has the size of @p key_list.size() + 1. If @p invalid_value.has_value() is true,
- * std::nullopt is returned (the dataframe buffer will store @p key_list.size() * @p K elements).
+ * std::nullopt is returned (the dataframe buffer will store @p key_list.size() * @p K elements). If
+ * @p invalid_value.has_value() is true, K_sum = std::reduce(@p Ks.begin(), @p Ks.end()) values are
+ * returned for each key in @p key_list. Among the K_sum values, valid values proceed the invalid
+ * values; ordering of the valid values can be arbitrary.
  */
 template <typename GraphViewType,
           typename KeyBucketType,
