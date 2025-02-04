@@ -109,7 +109,8 @@ class Tests_MGExtractTransformE
   template <typename vertex_t, typename edge_t, typename weight_t, typename output_payload_t>
   void run_current_test(Prims_Usecase const& prims_usecase, input_usecase_t const& input_usecase)
   {
-    using result_t = int32_t;
+    using edge_type_t = int32_t;
+    using result_t    = int32_t;
 
     static_assert(std::is_same_v<output_payload_t, void> ||
                   cugraph::is_arithmetic_or_thrust_tuple_of_arithmetic<output_payload_t>::value);
@@ -211,12 +212,13 @@ class Tests_MGExtractTransformE
       }
 
       cugraph::graph_t<vertex_t, edge_t, store_transposed, false> sg_graph(*handle_);
-      std::tie(sg_graph, std::ignore, std::ignore, std::ignore) =
+      std::tie(sg_graph, std::ignore, std::ignore, std::ignore, std::ignore) =
         cugraph::test::mg_graph_to_sg_graph(
           *handle_,
           mg_graph_view,
           std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>>{std::nullopt},
           std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
+          std::optional<cugraph::edge_property_view_t<edge_t, edge_type_t const*>>{std::nullopt},
           std::make_optional<raft::device_span<vertex_t const>>((*d_mg_renumber_map_labels).data(),
                                                                 (*d_mg_renumber_map_labels).size()),
           false);

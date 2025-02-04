@@ -15,7 +15,6 @@
  */
 #pragma once
 
-#include "from_cugraph_ops/sampling.hpp"
 #include "prims/detail/sample_and_compute_local_nbr_indices.cuh"
 #include "prims/property_op_utils.cuh"
 
@@ -58,7 +57,7 @@ template <typename GraphViewType,
           typename EdgeDstValueInputWrapper,
           typename EdgeValueInputWrapper,
           typename key_t>
-struct constant_e_bias_op_t {
+struct constant_bias_e_op_t {
   __device__ float operator()(key_t,
                               typename GraphViewType::vertex_type,
                               typename EdgeSrcValueInputWrapper::value_type,
@@ -207,30 +206,31 @@ struct return_value_compute_offset_t {
 template <bool incoming,
           typename GraphViewType,
           typename KeyBucketType,
-          typename EdgeBiasSrcValueInputWrapper,
-          typename EdgeBiasDstValueInputWrapper,
-          typename EdgeBiasValueInputWrapper,
-          typename EdgeBiasOp,
+          typename BiasEdgeSrcValueInputWrapper,
+          typename BiasEdgeDstValueInputWrapper,
+          typename BiasEdgeValueInputWrapper,
+          typename BiasEdgeOp,
           typename EdgeSrcValueInputWrapper,
           typename EdgeDstValueInputWrapper,
           typename EdgeValueInputWrapper,
           typename EdgeOp,
+          typename EdgeTypeInputWrapper,
           typename T>
-std::tuple<std::optional<rmm::device_uvector<size_t>>,
-           decltype(allocate_dataframe_buffer<T>(size_t{0}, rmm::cuda_stream_view{}))>
+std::tuple<std::optional<rmm::device_uvector<size_t>>, dataframe_buffer_type_t<T>>
 per_v_random_select_transform_e(raft::handle_t const& handle,
                                 GraphViewType const& graph_view,
                                 KeyBucketType const& key_list,
-                                EdgeBiasSrcValueInputWrapper edge_bias_src_value_input,
-                                EdgeBiasDstValueInputWrapper edge_bias_dst_value_input,
-                                EdgeBiasValueInputWrapper edge_bias_value_input,
-                                EdgeBiasOp e_bias_op,
+                                BiasEdgeSrcValueInputWrapper bias_edge_src_value_input,
+                                BiasEdgeDstValueInputWrapper bias_edge_dst_value_input,
+                                BiasEdgeValueInputWrapper bias_edge_value_input,
+                                BiasEdgeOp bias_e_op,
                                 EdgeSrcValueInputWrapper edge_src_value_input,
                                 EdgeDstValueInputWrapper edge_dst_value_input,
                                 EdgeValueInputWrapper edge_value_input,
                                 EdgeOp e_op,
+                                EdgeTypeInputWrapper edge_type_input,
                                 raft::random::RngState& rng_state,
-                                size_t K,
+                                raft::host_span<size_t const> Ks,
                                 bool with_replacement,
                                 std::optional<T> invalid_value,
                                 bool do_expensive_check)
@@ -272,11 +272,16 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
                                                      EdgeOp>::type,
                 T>);
 
-  CUGRAPH_EXPECTS(K >= size_t{1},
-                  "Invalid input argument: invalid K, K should be a positive integer.");
-  CUGRAPH_EXPECTS(K <= static_cast<size_t>(std::numeric_limits<int32_t>::max()),
-                  "Invalid input argument: the current implementation expects K to be no larger "
-                  "than std::numeric_limits<int32_t>::max().");
+  if constexpr (std::is_same_v<EdgeTypeInputWrapper, edge_dummy_property_view_t>) {  // homogeneous
+    CUGRAPH_EXPECTS(Ks.size() == 1,
+                    "Invalid input argument: Ks.size() should be 1 for homogeneous sampling.");
+  }
+
+  for (size_t i = 0; i < Ks.size(); ++i) {
+    CUGRAPH_EXPECTS(Ks[i] <= static_cast<size_t>(std::numeric_limits<int32_t>::max()),
+                    "Invalid input argument: the current implementation expects Ks[] to be no "
+                    "larger than std::numeric_limits<int32_t>::max().");
+  }
 
   auto minor_comm_size =
     GraphViewType::is_multi_gpu
@@ -312,11 +317,10 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
   } else {
     local_key_list_sizes = std::vector<size_t>{key_list.size()};
   }
-  std::vector<size_t> local_key_list_displacements(local_key_list_sizes.size());
-  std::exclusive_scan(local_key_list_sizes.begin(),
-                      local_key_list_sizes.end(),
-                      local_key_list_displacements.begin(),
-                      size_t{0});
+  std::vector<size_t> local_key_list_offsets(local_key_list_sizes.size() + 1);
+  local_key_list_offsets[0] = 0;
+  std::inclusive_scan(
+    local_key_list_sizes.begin(), local_key_list_sizes.end(), local_key_list_offsets.begin() + 1);
 
   // 1. aggregate key_list
 
@@ -324,14 +328,15 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
   if (minor_comm_size > 1) {
     auto& minor_comm = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
 
-    aggregate_local_key_list = allocate_dataframe_buffer<key_t>(
-      local_key_list_displacements.back() + local_key_list_sizes.back(), handle.get_stream());
-    device_allgatherv(minor_comm,
-                      key_list.begin(),
-                      get_dataframe_buffer_begin(*aggregate_local_key_list),
-                      local_key_list_sizes,
-                      local_key_list_displacements,
-                      handle.get_stream());
+    aggregate_local_key_list =
+      allocate_dataframe_buffer<key_t>(local_key_list_offsets.back(), handle.get_stream());
+    device_allgatherv(
+      minor_comm,
+      key_list.begin(),
+      get_dataframe_buffer_begin(*aggregate_local_key_list),
+      local_key_list_sizes,
+      std::vector<size_t>(local_key_list_offsets.begin(), local_key_list_offsets.end() - 1),
+      handle.get_stream());
   }
 
   // 2. randomly select neighbor indices and compute local neighbor indices for every local edge
@@ -340,40 +345,77 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
   rmm::device_uvector<edge_t> sample_local_nbr_indices(0, handle.get_stream());
   std::optional<rmm::device_uvector<size_t>> sample_key_indices{std::nullopt};
   std::vector<size_t> local_key_list_sample_offsets{};
-  if constexpr (std::is_same_v<EdgeBiasOp,
-                               constant_e_bias_op_t<GraphViewType,
-                                                    EdgeBiasSrcValueInputWrapper,
-                                                    EdgeBiasDstValueInputWrapper,
-                                                    EdgeBiasValueInputWrapper,
+  if constexpr (std::is_same_v<BiasEdgeOp,
+                               constant_bias_e_op_t<GraphViewType,
+                                                    BiasEdgeSrcValueInputWrapper,
+                                                    BiasEdgeDstValueInputWrapper,
+                                                    BiasEdgeValueInputWrapper,
                                                     key_t>>) {
-    std::tie(sample_local_nbr_indices, sample_key_indices, local_key_list_sample_offsets) =
-      uniform_sample_and_compute_local_nbr_indices(
-        handle,
-        graph_view,
-        (minor_comm_size > 1) ? get_dataframe_buffer_cbegin(*aggregate_local_key_list)
-                              : key_list.begin(),
-        local_key_list_displacements,
-        local_key_list_sizes,
-        rng_state,
-        K,
-        with_replacement);
+    if constexpr (std::is_same_v<EdgeTypeInputWrapper,
+                                 edge_dummy_property_view_t>) {  // homogeneous
+      std::tie(sample_local_nbr_indices, sample_key_indices, local_key_list_sample_offsets) =
+        homogeneous_uniform_sample_and_compute_local_nbr_indices(
+          handle,
+          graph_view,
+          (minor_comm_size > 1) ? get_dataframe_buffer_cbegin(*aggregate_local_key_list)
+                                : key_list.begin(),
+          raft::host_span<size_t const>(local_key_list_offsets.data(),
+                                        local_key_list_offsets.size()),
+          rng_state,
+          Ks[0],
+          with_replacement);
+    } else {  // heterogeneous
+      std::tie(sample_local_nbr_indices, sample_key_indices, local_key_list_sample_offsets) =
+        heterogeneous_uniform_sample_and_compute_local_nbr_indices(
+          handle,
+          graph_view,
+          (minor_comm_size > 1) ? get_dataframe_buffer_cbegin(*aggregate_local_key_list)
+                                : key_list.begin(),
+          edge_type_input,
+          raft::host_span<size_t const>(local_key_list_offsets.data(),
+                                        local_key_list_offsets.size()),
+          rng_state,
+          Ks,
+          with_replacement);
+    }
   } else {
-    std::tie(sample_local_nbr_indices, sample_key_indices, local_key_list_sample_offsets) =
-      biased_sample_and_compute_local_nbr_indices(
-        handle,
-        graph_view,
-        (minor_comm_size > 1) ? get_dataframe_buffer_cbegin(*aggregate_local_key_list)
-                              : key_list.begin(),
-        edge_bias_src_value_input,
-        edge_bias_dst_value_input,
-        edge_bias_value_input,
-        e_bias_op,
-        local_key_list_displacements,
-        local_key_list_sizes,
-        rng_state,
-        K,
-        with_replacement,
-        do_expensive_check);
+    if constexpr (std::is_same_v<EdgeTypeInputWrapper,
+                                 edge_dummy_property_view_t>) {  // homogeneous
+      std::tie(sample_local_nbr_indices, sample_key_indices, local_key_list_sample_offsets) =
+        homogeneous_biased_sample_and_compute_local_nbr_indices(
+          handle,
+          graph_view,
+          (minor_comm_size > 1) ? get_dataframe_buffer_cbegin(*aggregate_local_key_list)
+                                : key_list.begin(),
+          bias_edge_src_value_input,
+          bias_edge_dst_value_input,
+          bias_edge_value_input,
+          bias_e_op,
+          raft::host_span<size_t const>(local_key_list_offsets.data(),
+                                        local_key_list_offsets.size()),
+          rng_state,
+          Ks[0],
+          with_replacement,
+          do_expensive_check);
+    } else {  // heterogeneous
+      std::tie(sample_local_nbr_indices, sample_key_indices, local_key_list_sample_offsets) =
+        heterogeneous_biased_sample_and_compute_local_nbr_indices(
+          handle,
+          graph_view,
+          (minor_comm_size > 1) ? get_dataframe_buffer_cbegin(*aggregate_local_key_list)
+                                : key_list.begin(),
+          bias_edge_src_value_input,
+          bias_edge_dst_value_input,
+          bias_edge_value_input,
+          bias_e_op,
+          edge_type_input,
+          raft::host_span<size_t const>(local_key_list_offsets.data(),
+                                        local_key_list_offsets.size()),
+          rng_state,
+          Ks,
+          with_replacement,
+          do_expensive_check);
+    }
   }
 
   std::vector<size_t> local_key_list_sample_counts(minor_comm_size);
@@ -382,6 +424,8 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
                            local_key_list_sample_counts.begin());
 
   // 3. transform
+
+  auto K_sum = std::accumulate(Ks.begin(), Ks.end(), size_t{0});
 
   auto sample_e_op_results =
     allocate_dataframe_buffer<T>(local_key_list_sample_offsets.back(), handle.get_stream());
@@ -393,7 +437,7 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
     auto edge_partition_key_list_first =
       ((minor_comm_size > 1) ? get_dataframe_buffer_cbegin(*aggregate_local_key_list)
                              : key_list.begin()) +
-      local_key_list_displacements[i];
+      local_key_list_offsets[i];
     auto edge_partition_sample_local_nbr_index_first =
       sample_local_nbr_indices.begin() + local_key_list_sample_offsets[i];
 
@@ -439,12 +483,12 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
           e_op,
           cugraph::invalid_edge_id_v<edge_t>,
           to_thrust_optional(invalid_value),
-          K});
+          K_sum});
     } else {
       thrust::transform(
         handle.get_thrust_policy(),
         thrust::make_counting_iterator(size_t{0}),
-        thrust::make_counting_iterator(key_list.size() * K),
+        thrust::make_counting_iterator(key_list.size() * K_sum),
         edge_partition_sample_e_op_result_first,
         transform_local_nbr_indices_t<GraphViewType,
                                       decltype(edge_partition_key_list_first),
@@ -463,7 +507,7 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
                                          e_op,
                                          cugraph::invalid_edge_id_v<edge_t>,
                                          to_thrust_optional(invalid_value),
-                                         K});
+                                         K_sum});
     }
   }
   aggregate_local_key_list = std::nullopt;
@@ -473,7 +517,7 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
   auto sample_offsets = invalid_value ? std::nullopt
                                       : std::make_optional<rmm::device_uvector<size_t>>(
                                           key_list.size() + 1, handle.get_stream());
-  assert(K <= std::numeric_limits<int32_t>::max());
+  assert(K_sum <= std::numeric_limits<int32_t>::max());
   if (minor_comm_size > 1) {
     sample_local_nbr_indices.resize(0, handle.get_stream());
     sample_local_nbr_indices.shrink_to_fit(handle.get_stream());
@@ -504,7 +548,8 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
       sample_counts.resize(0, handle.get_stream());
       sample_counts.shrink_to_fit(handle.get_stream());
 
-      resize_dataframe_buffer(tmp_sample_e_op_results, key_list.size() * K, handle.get_stream());
+      resize_dataframe_buffer(
+        tmp_sample_e_op_results, key_list.size() * K_sum, handle.get_stream());
       thrust::fill(handle.get_thrust_policy(),
                    get_dataframe_buffer_begin(tmp_sample_e_op_results),
                    get_dataframe_buffer_end(tmp_sample_e_op_results),
@@ -520,7 +565,7 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
                                             (*sample_key_indices).size()),
             raft::device_span<int32_t const>(sample_intra_partition_displacements.data(),
                                              sample_intra_partition_displacements.size()),
-            K}),
+            K_sum}),
         get_dataframe_buffer_begin(tmp_sample_e_op_results));
     } else {
       (*sample_offsets).set_element_to_zero_async(size_t{0}, handle.get_stream());
@@ -560,7 +605,7 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
         sample_counts.end(),
         count_valids_t<edge_t>{raft::device_span<edge_t const>(sample_local_nbr_indices.data(),
                                                                sample_local_nbr_indices.size()),
-                               K,
+                               K_sum,
                                cugraph::invalid_edge_id_v<edge_t>});
       (*sample_offsets).set_element_to_zero_async(size_t{0}, handle.get_stream());
       auto typecasted_sample_count_first =
@@ -592,111 +637,6 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
 }
 
 }  // namespace detail
-
-/**
- * @brief Randomly select and transform the input (tagged-)vertices' outgoing edges with biases.
- *
- * @tparam GraphViewType Type of the passed non-owning graph object.
- * @tparam KeyBucketType Type of the key bucket class which abstracts the current (tagged-)vertex
- * list.
- * @tparam EdgeSrcValueInputWrapper Type of the wrapper for edge source property values.
- * @tparam EdgeDstValueInputWrapper Type of the wrapper for edge destination property values.
- * @tparam EdgeValueInputWrapper Type of the wrapper for edge property values.
- * @tparam EdgeBiasOp Type of the quinary edge operator to set-up selection bias
- * values.
- * @tparam EdgeOp Type of the quinary edge operator.
- * @tparam T Type of the selected and transformed edge output values.
- * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
- * handles to various CUDA libraries) to run graph algorithms.
- * @param graph_view Non-owning graph object.
- * @param key_list KeyBucketType class object to store the (tagged-)vertex list to sample outgoing
- * edges.
- * @param edge_src_value_input Wrapper used to access source input property values (for the edge
- * sources assigned to this process in multi-GPU). Use either cugraph::edge_src_property_t::view()
- * (if @p e_op needs to access source property values) or cugraph::edge_src_dummy_property_t::view()
- * (if @p e_op does not access source property values). Use update_edge_src_property to fill the
- * wrapper.
- * @param edge_dst_value_input Wrapper used to access destination input property values (for the
- * edge destinations assigned to this process in multi-GPU). Use either
- * cugraph::edge_dst_property_t::view() (if @p e_op needs to access destination property values) or
- * cugraph::edge_dst_dummy_property_t::view() (if @p e_op does not access destination property
- * values). Use update_edge_dst_property to fill the wrapper.
- * @param edge_value_input Wrapper used to access edge input property values (for the edges assigned
- * to this process in multi-GPU). Use either cugraph::edge_property_t::view() (if @p e_op needs to
- * access edge property values) or cugraph::edge_dummy_property_t::view() (if @p e_op does not
- * access edge property values).
- * @param e_bias_op Quinary operator takes (tagged-)edge source, edge destination, property values
- * for the source, destination, and edge and returns a floating point bias value to be used in
- * biased random selection. The return value should be non-negative. The bias value of 0 indicates
- * that the corresponding edge cannot be selected. Assuming that the return value type is bias_t,
- * the sum of the bias values for any seed vertex should not exceed
- * std::numeric_limits<bias_t>::max().
- * @param e_op Quinary operator takes (tagged-)edge source, edge destination, property values for
- * the source, destination, and edge and returns a value to be collected in the output. This
- * function is called only for the selected edges.
- * @param K Number of outgoing edges to select per (tagged-)vertex.
- * @param with_replacement A flag to specify whether a single outgoing edge can be selected multiple
- * times (if @p with_replacement = true) or can be selected only once (if @p with_replacement =
- * false).
- * @param invalid_value If @p invalid_value.has_value() is true, this value is used to fill the
- * output vector for the zero out-degree vertices (if @p with_replacement = true) or the vertices
- * with their out-degrees smaller than @p K (if @p with_replacement = false). If @p
- * invalid_value.has_value() is false, fewer than @p K values can be returned for the vertices with
- * fewer than @p K selected edges. See the return value section for additional details.
- * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
- * @return std::tuple Tuple of an optional offset vector of type
- * std::optional<rmm::device_uvector<size_t>> and a dataframe buffer storing the output values of
- * type @p T from the selected edges. If @p invalid_value is std::nullopt, the offset vector is
- * valid and has the size of @p key_list.size() + 1. If @p invalid_value.has_value() is true,
- * std::nullopt is returned (the dataframe buffer will store @p key_list.size() * @p K elements).
- */
-template <typename GraphViewType,
-          typename KeyBucketType,
-          typename EdgeBiasSrcValueInputWrapper,
-          typename EdgeBiasDstValueInputWrapper,
-          typename EdgeBiasValueInputWrapper,
-          typename EdgeBiasOp,
-          typename EdgeSrcValueInputWrapper,
-          typename EdgeDstValueInputWrapper,
-          typename EdgeValueInputWrapper,
-          typename EdgeOp,
-          typename T>
-std::tuple<std::optional<rmm::device_uvector<size_t>>,
-           decltype(allocate_dataframe_buffer<T>(size_t{0}, rmm::cuda_stream_view{}))>
-per_v_random_select_transform_outgoing_e(raft::handle_t const& handle,
-                                         GraphViewType const& graph_view,
-                                         KeyBucketType const& key_list,
-                                         EdgeBiasSrcValueInputWrapper edge_bias_src_value_input,
-                                         EdgeBiasDstValueInputWrapper edge_bias_dst_value_input,
-                                         EdgeBiasValueInputWrapper edge_bias_value_input,
-                                         EdgeBiasOp e_bias_op,
-                                         EdgeSrcValueInputWrapper edge_src_value_input,
-                                         EdgeDstValueInputWrapper edge_dst_value_input,
-                                         EdgeValueInputWrapper edge_value_input,
-                                         EdgeOp e_op,
-                                         raft::random::RngState& rng_state,
-                                         size_t K,
-                                         bool with_replacement,
-                                         std::optional<T> invalid_value,
-                                         bool do_expensive_check = false)
-{
-  return detail::per_v_random_select_transform_e<false>(handle,
-                                                        graph_view,
-                                                        key_list,
-                                                        edge_bias_src_value_input,
-                                                        edge_bias_dst_value_input,
-                                                        edge_bias_value_input,
-                                                        e_bias_op,
-                                                        edge_src_value_input,
-                                                        edge_dst_value_input,
-                                                        edge_value_input,
-                                                        e_op,
-                                                        rng_state,
-                                                        K,
-                                                        with_replacement,
-                                                        invalid_value,
-                                                        do_expensive_check);
-}
 
 /**
  * @brief Randomly select and transform the input (tagged-)vertices' outgoing edges.
@@ -748,7 +688,10 @@ per_v_random_select_transform_outgoing_e(raft::handle_t const& handle,
  * std::optional<rmm::device_uvector<size_t>> and a dataframe buffer storing the output values of
  * type @p T from the selected edges. If @p invalid_value is std::nullopt, the offset vector is
  * valid and has the size of @p key_list.size() + 1. If @p invalid_value.has_value() is true,
- * std::nullopt is returned (the dataframe buffer will store @p key_list.size() * @p K elements).
+ * std::nullopt is returned (the dataframe buffer will store @p key_list.size() * @p K elements). If
+ * @p invalid_value.has_value() is true, @p K values are returned for each key in @p key_list. Among
+ * the K_sum values, valid values proceed the invalid values; ordering of the valid values can be
+ * arbitrary.
  */
 template <typename GraphViewType,
           typename KeyBucketType,
@@ -757,8 +700,7 @@ template <typename GraphViewType,
           typename EdgeValueInputWrapper,
           typename EdgeOp,
           typename T>
-std::tuple<std::optional<rmm::device_uvector<size_t>>,
-           decltype(allocate_dataframe_buffer<T>(size_t{0}, rmm::cuda_stream_view{}))>
+std::tuple<std::optional<rmm::device_uvector<size_t>>, dataframe_buffer_type_t<T>>
 per_v_random_select_transform_outgoing_e(raft::handle_t const& handle,
                                          GraphViewType const& graph_view,
                                          KeyBucketType const& key_list,
@@ -779,7 +721,7 @@ per_v_random_select_transform_outgoing_e(raft::handle_t const& handle,
     edge_src_dummy_property_t{}.view(),
     edge_dst_dummy_property_t{}.view(),
     edge_dummy_property_t{}.view(),
-    detail::constant_e_bias_op_t<GraphViewType,
+    detail::constant_bias_e_op_t<GraphViewType,
                                  detail::edge_endpoint_dummy_property_view_t,
                                  detail::edge_endpoint_dummy_property_view_t,
                                  edge_dummy_property_view_t,
@@ -788,11 +730,390 @@ per_v_random_select_transform_outgoing_e(raft::handle_t const& handle,
     edge_dst_value_input,
     edge_value_input,
     e_op,
+    edge_dummy_property_view_t{},
     rng_state,
-    K,
+    raft::host_span<size_t const>(&K, size_t{1}),
     with_replacement,
     invalid_value,
     do_expensive_check);
+}
+
+/**
+ * @brief Randomly select (per-type) and transform the input (tagged-)vertices' outgoing edges.
+ *
+ * This function assumes that every outgoing edge of a given vertex has the same odd to be selected
+ * (uniform neighbor sampling).
+ *
+ * @tparam GraphViewType Type of the passed non-owning graph object.
+ * @tparam KeyBucketType Type of the key bucket class which abstracts the current (tagged-)vertex
+ * list.
+ * @tparam EdgeSrcValueInputWrapper Type of the wrapper for edge source property values.
+ * @tparam EdgeDstValueInputWrapper Type of the wrapper for edge destination property values.
+ * @tparam EdgeValueInputWrapper Type of the wrapper for edge property values.
+ * @tparam EdgeOp Type of the quinary edge operator.
+ * @tparam EdgeTypeInputWrapper Type of the wrapper for edge type values.
+ * @tparam T Type of the selected and transformed edge output values.
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param graph_view Non-owning graph object.
+ * @param key_list KeyBucketType class object to store the (tagged-)vertex list to sample outgoing
+ * edges.
+ * @param edge_src_value_input Wrapper used to access source input property values (for the edge
+ * sources assigned to this process in multi-GPU). Use either cugraph::edge_src_property_t::view()
+ * (if @p e_op needs to access source property values) or cugraph::edge_src_dummy_property_t::view()
+ * (if @p e_op does not access source property values). Use update_edge_src_property to fill the
+ * wrapper.
+ * @param edge_dst_value_input Wrapper used to access destination input property values (for the
+ * edge destinations assigned to this process in multi-GPU). Use either
+ * cugraph::edge_dst_property_t::view() (if @p e_op needs to access destination property values) or
+ * cugraph::edge_dst_dummy_property_t::view() (if @p e_op does not access destination property
+ * values). Use update_edge_dst_property to fill the wrapper.
+ * @param edge_value_input Wrapper used to access edge input property values (for the edges assigned
+ * to this process in multi-GPU). Use either cugraph::edge_property_t::view() (if @p e_op needs to
+ * access edge property values) or cugraph::edge_dummy_property_t::view() (if @p e_op does not
+ * access edge property values).
+ * @param e_op Quinary operator takes (tagged-)edge source, edge destination, property values for
+ * the source, destination, and edge and returns a value to be collected in the output. This
+ * function is called only for the selected edges.
+ * @param edge_type_input Wrapper used to access edge type value (for the edges assigned to this
+ * process in multi-GPU). This parameter is used in per-type (heterogeneous) sampling. Use
+ * cugraph::edge_property_t::view().
+ * @param Ks Number of outgoing edges to select per (tagged-)vertex for each edge type (size = #
+ * edge types).
+ * @param with_replacement A flag to specify whether a single outgoing edge can be selected multiple
+ * times (if @p with_replacement = true) or can be selected only once (if @p with_replacement =
+ * false).
+ * @param invalid_value If @p invalid_value.has_value() is true, this value is used to fill the
+ * output vector for the zero out-degree vertices (if @p with_replacement = true) or the vertices
+ * with their out-degrees smaller than @p K (if @p with_replacement = false). If @p
+ * invalid_value.has_value() is false, fewer than @p K values can be returned for the vertices with
+ * fewer than @p K selected edges. See the return value section for additional details.
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
+ * @return std::tuple Tuple of an optional offset vector of type
+ * std::optional<rmm::device_uvector<size_t>> and a dataframe buffer storing the output values of
+ * type @p T from the selected edges. If @p invalid_value is std::nullopt, the offset vector is
+ * valid and has the size of @p key_list.size() + 1. If @p invalid_value.has_value() is true,
+ * std::nullopt is returned (the dataframe buffer will store @p key_list.size() * @p K elements). If
+ * @p invalid_value.has_value() is true, K_sum = std::reduce(@p Ks.begin(), @p Ks.end()) values are
+ * returned for each key in @p key_list. Among the K_sum values, valid values proceed the invalid
+ * values; ordering of the valid values can be arbitrary.
+ */
+template <typename GraphViewType,
+          typename KeyBucketType,
+          typename EdgeSrcValueInputWrapper,
+          typename EdgeDstValueInputWrapper,
+          typename EdgeValueInputWrapper,
+          typename EdgeOp,
+          typename EdgeTypeInputWrapper,
+          typename T>
+std::tuple<std::optional<rmm::device_uvector<size_t>>, dataframe_buffer_type_t<T>>
+per_v_random_select_transform_outgoing_e(raft::handle_t const& handle,
+                                         GraphViewType const& graph_view,
+                                         KeyBucketType const& key_list,
+                                         EdgeSrcValueInputWrapper edge_src_value_input,
+                                         EdgeDstValueInputWrapper edge_dst_value_input,
+                                         EdgeValueInputWrapper edge_value_input,
+                                         EdgeOp e_op,
+                                         EdgeTypeInputWrapper edge_type_input,
+                                         raft::random::RngState& rng_state,
+                                         raft::host_span<size_t const> Ks,
+                                         bool with_replacement,
+                                         std::optional<T> invalid_value,
+                                         bool do_expensive_check = false)
+{
+  return detail::per_v_random_select_transform_e<false>(
+    handle,
+    graph_view,
+    key_list,
+    edge_src_dummy_property_t{}.view(),
+    edge_dst_dummy_property_t{}.view(),
+    edge_dummy_property_t{}.view(),
+    detail::constant_bias_e_op_t<GraphViewType,
+                                 detail::edge_endpoint_dummy_property_view_t,
+                                 detail::edge_endpoint_dummy_property_view_t,
+                                 edge_dummy_property_view_t,
+                                 typename KeyBucketType::key_type>{},
+    edge_src_value_input,
+    edge_dst_value_input,
+    edge_value_input,
+    e_op,
+    edge_type_input,
+    rng_state,
+    Ks,
+    with_replacement,
+    invalid_value,
+    do_expensive_check);
+}
+
+/**
+ * @brief Randomly select and transform the input (tagged-)vertices' outgoing edges with biases.
+ *
+ * @tparam GraphViewType Type of the passed non-owning graph object.
+ * @tparam KeyBucketType Type of the key bucket class which abstracts the current (tagged-)vertex
+ * list.
+ * @tparam BiasEdgeSrcValueInputWrapper Type of the wrapper for edge source property values (for
+ * BiasEdgeOp).
+ * @tparam BiasEdgeDstValueInputWrapper Type of the wrapper for edge destination property values
+ * (for BiasEdgeOp).
+ * @tparam BiasEdgeValueInputWrapper Type of the wrapper for edge property values  (for BiasEdgeOp).
+ * @tparam BiasEdgeOp Type of the quinary edge operator to set-up selection bias
+ * values.
+ * @tparam EdgeSrcValueInputWrapper Type of the wrapper for edge source property values.
+ * @tparam EdgeDstValueInputWrapper Type of the wrapper for edge destination property values.
+ * @tparam EdgeValueInputWrapper Type of the wrapper for edge property values.
+ * @tparam EdgeOp Type of the quinary edge operator.
+ * @tparam T Type of the selected and transformed edge output values.
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param graph_view Non-owning graph object.
+ * @param key_list KeyBucketType class object to store the (tagged-)vertex list to sample outgoing
+ * edges.
+ * @param bias_edge_src_value_input Wrapper used to access source input property values (for the
+ * edge sources assigned to this process in multi-GPU). This parameter is used to pass an edge
+ * source property value to @p bias_e_op. Use either cugraph::edge_src_property_t::view() (if @p
+ * e_op needs to access source property values) or cugraph::edge_src_dummy_property_t::view() (if @p
+ * e_op does not access source property values). Use update_edge_src_property to fill the wrapper.
+ * @param bias_edge_dst_value_input Wrapper used to access destination input property values (for
+ * the edge destinations assigned to this process in multi-GPU). This parameter is used to pass an
+ * edge source property value to @p bias_e_op. Use either cugraph::edge_dst_property_t::view() (if
+ * @p e_op needs to access destination property values) or
+ * cugraph::edge_dst_dummy_property_t::view() (if @p e_op does not access destination property
+ * values). Use update_edge_dst_property to fill the wrapper.
+ * @param bias_edge_value_input Wrapper used to access edge input property values (for the edges
+ * assigned to this process in multi-GPU). This parameter is used to pass an edge source property
+ * value to @p bias_e_op. Use either cugraph::edge_property_t::view() (if @p e_op needs to access
+ * edge property values) or cugraph::edge_dummy_property_t::view() (if @p e_op does not access edge
+ * property values).
+ * @param bias_e_op Quinary operator takes (tagged-)edge source, edge destination, property values
+ * for the source, destination, and edge and returns a floating point bias value to be used in
+ * biased random selection. The return value should be non-negative. The bias value of 0 indicates
+ * that the corresponding edge cannot be selected. Assuming that the return value type is bias_t,
+ * the sum of the bias values for any seed vertex should not exceed
+ * std::numeric_limits<bias_t>::max().
+ * @param edge_src_value_input Wrapper used to access source input property values (for the edge
+ * sources assigned to this process in multi-GPU). This parameter is used to pass an edge source
+ * property value to @p e_op. Use either cugraph::edge_src_property_t::view() (if @p e_op needs to
+ * access source property values) or cugraph::edge_src_dummy_property_t::view() (if @p e_op does not
+ * access source property values). Use update_edge_src_property to fill the wrapper.
+ * @param edge_dst_value_input Wrapper used to access destination input property values (for the
+ * edge destinations assigned to this process in multi-GPU). This parameter is used to pass an edge
+ * source property value to @p e_op. Use either cugraph::edge_dst_property_t::view() (if @p e_op
+ * needs to access destination property values) or cugraph::edge_dst_dummy_property_t::view() (if @p
+ * e_op does not access destination property values). Use update_edge_dst_property to fill the
+ * wrapper.
+ * @param edge_value_input Wrapper used to access edge input property values (for the edges assigned
+ * to this process in multi-GPU). This parameter is used to pass an edge source property value to @p
+ * e_op. Use either cugraph::edge_property_t::view() (if @p e_op needs to access edge property
+ * values) or cugraph::edge_dummy_property_t::view() (if @p e_op does not access edge property
+ * values).
+ * @param e_op Quinary operator takes (tagged-)edge source, edge destination, property values for
+ * the source, destination, and edge and returns a value to be collected in the output. This
+ * function is called only for the selected edges.
+ * @param K Number of outgoing edges to select per (tagged-)vertex.
+ * @param with_replacement A flag to specify whether a single outgoing edge can be selected multiple
+ * times (if @p with_replacement = true) or can be selected only once (if @p with_replacement =
+ * false).
+ * @param invalid_value If @p invalid_value.has_value() is true, this value is used to fill the
+ * output vector for the zero out-degree vertices (if @p with_replacement = true) or the vertices
+ * with their out-degrees smaller than @p K (if @p with_replacement = false). If @p
+ * invalid_value.has_value() is false, fewer than @p K values can be returned for the vertices with
+ * fewer than @p K selected edges. See the return value section for additional details.
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
+ * @return std::tuple Tuple of an optional offset vector of type
+ * std::optional<rmm::device_uvector<size_t>> and a dataframe buffer storing the output values of
+ * type @p T from the selected edges. If @p invalid_value is std::nullopt, the offset vector is
+ * valid and has the size of @p key_list.size() + 1. If @p invalid_value.has_value() is true,
+ * std::nullopt is returned (the dataframe buffer will store @p key_list.size() * @p K elements). If
+ * @p invalid_value.has_value() is true, @p K values are returned for each key in @p key_list. Among
+ * the K_sum values, valid values proceed the invalid values; ordering of the valid values can be
+ * arbitrary.
+ */
+template <typename GraphViewType,
+          typename KeyBucketType,
+          typename BiasEdgeSrcValueInputWrapper,
+          typename BiasEdgeDstValueInputWrapper,
+          typename BiasEdgeValueInputWrapper,
+          typename BiasEdgeOp,
+          typename EdgeSrcValueInputWrapper,
+          typename EdgeDstValueInputWrapper,
+          typename EdgeValueInputWrapper,
+          typename EdgeOp,
+          typename T>
+std::tuple<std::optional<rmm::device_uvector<size_t>>, dataframe_buffer_type_t<T>>
+per_v_random_select_transform_outgoing_e(raft::handle_t const& handle,
+                                         GraphViewType const& graph_view,
+                                         KeyBucketType const& key_list,
+                                         BiasEdgeSrcValueInputWrapper bias_edge_src_value_input,
+                                         BiasEdgeDstValueInputWrapper bias_edge_dst_value_input,
+                                         BiasEdgeValueInputWrapper bias_edge_value_input,
+                                         BiasEdgeOp bias_e_op,
+                                         EdgeSrcValueInputWrapper edge_src_value_input,
+                                         EdgeDstValueInputWrapper edge_dst_value_input,
+                                         EdgeValueInputWrapper edge_value_input,
+                                         EdgeOp e_op,
+                                         raft::random::RngState& rng_state,
+                                         size_t K,
+                                         bool with_replacement,
+                                         std::optional<T> invalid_value,
+                                         bool do_expensive_check = false)
+{
+  return detail::per_v_random_select_transform_e<false>(
+    handle,
+    graph_view,
+    key_list,
+    bias_edge_src_value_input,
+    bias_edge_dst_value_input,
+    bias_edge_value_input,
+    bias_e_op,
+    edge_src_value_input,
+    edge_dst_value_input,
+    edge_value_input,
+    e_op,
+    edge_dummy_property_view_t{},
+    rng_state,
+    raft::host_span<size_t const>(&K, size_t{1}),
+    with_replacement,
+    invalid_value,
+    do_expensive_check);
+}
+
+/**
+ * @brief Randomly select (per edge type) and transform the input (tagged-)vertices' outgoing edges
+ * with biases.
+ *
+ * @tparam GraphViewType Type of the passed non-owning graph object.
+ * @tparam KeyBucketType Type of the key bucket class which abstracts the current (tagged-)vertex
+ * list.
+ * @tparam BiasEdgeSrcValueInputWrapper Type of the wrapper for edge source property values (for
+ * BiasEdgeOp).
+ * @tparam BiasEdgeDstValueInputWrapper Type of the wrapper for edge destination property values
+ * (for BiasEdgeOp).
+ * @tparam BiasEdgeValueInputWrapper Type of the wrapper for edge property values  (for BiasEdgeOp).
+ * @tparam BiasEdgeOp Type of the quinary edge operator to set-up selection bias
+ * values.
+ * @tparam EdgeSrcValueInputWrapper Type of the wrapper for edge source property values.
+ * @tparam EdgeDstValueInputWrapper Type of the wrapper for edge destination property values.
+ * @tparam EdgeValueInputWrapper Type of the wrapper for edge property values.
+ * @tparam EdgeOp Type of the quinary edge operator.
+ * @tparam EdgeTypeInputWrapper Type of the wrapper for edge type values.
+ * @tparam T Type of the selected and transformed edge output values.
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param graph_view Non-owning graph object.
+ * @param key_list KeyBucketType class object to store the (tagged-)vertex list to sample outgoing
+ * edges.
+ * @param bias_edge_src_value_input Wrapper used to access source input property values (for the
+ * edge sources assigned to this process in multi-GPU). This parameter is used to pass an edge
+ * source property value to @p bias_e_op. Use either cugraph::edge_src_property_t::view() (if @p
+ * e_op needs to access source property values) or cugraph::edge_src_dummy_property_t::view() (if @p
+ * e_op does not access source property values). Use update_edge_src_property to fill the wrapper.
+ * @param bias_edge_dst_value_input Wrapper used to access destination input property values (for
+ * the edge destinations assigned to this process in multi-GPU). This parameter is used to pass an
+ * edge source property value to @p bias_e_op. Use either cugraph::edge_dst_property_t::view() (if
+ * @p e_op needs to access destination property values) or
+ * cugraph::edge_dst_dummy_property_t::view() (if @p e_op does not access destination property
+ * values). Use update_edge_dst_property to fill the wrapper.
+ * @param bias_edge_value_input Wrapper used to access edge input property values (for the edges
+ * assigned to this process in multi-GPU). This parameter is used to pass an edge source property
+ * value to @p bias_e_op. Use either cugraph::edge_property_t::view() (if @p e_op needs to access
+ * edge property values) or cugraph::edge_dummy_property_t::view() (if @p e_op does not access edge
+ * property values).
+ * @param bias_e_op Quinary operator takes (tagged-)edge source, edge destination, property values
+ * for the source, destination, and edge and returns a floating point bias value to be used in
+ * biased random selection. The return value should be non-negative. The bias value of 0 indicates
+ * that the corresponding edge cannot be selected. Assuming that the return value type is bias_t,
+ * the sum of the bias values for any seed vertex should not exceed
+ * std::numeric_limits<bias_t>::max().
+ * @param edge_src_value_input Wrapper used to access source input property values (for the edge
+ * sources assigned to this process in multi-GPU). This parameter is used to pass an edge source
+ * property value to @p e_op. Use either cugraph::edge_src_property_t::view() (if @p e_op needs to
+ * access source property values) or cugraph::edge_src_dummy_property_t::view() (if @p e_op does not
+ * access source property values). Use update_edge_src_property to fill the wrapper.
+ * @param edge_dst_value_input Wrapper used to access destination input property values (for the
+ * edge destinations assigned to this process in multi-GPU). This parameter is used to pass an edge
+ * source property value to @p e_op. Use either cugraph::edge_dst_property_t::view() (if @p e_op
+ * needs to access destination property values) or cugraph::edge_dst_dummy_property_t::view() (if @p
+ * e_op does not access destination property values). Use update_edge_dst_property to fill the
+ * wrapper.
+ * @param edge_value_input Wrapper used to access edge input property values (for the edges assigned
+ * to this process in multi-GPU). This parameter is used to pass an edge source property value to @p
+ * e_op. Use either cugraph::edge_property_t::view() (if @p e_op needs to access edge property
+ * values) or cugraph::edge_dummy_property_t::view() (if @p e_op does not access edge property
+ * values).
+ * @param e_op Quinary operator takes (tagged-)edge source, edge destination, property values for
+ * the source, destination, and edge and returns a value to be collected in the output. This
+ * function is called only for the selected edges.
+ * @param edge_type_input Wrapper used to access edge type value (for the edges assigned to this
+ * process in multi-GPU). This parameter is used in per-type (heterogeneous) sampling. Use
+ * cugraph::edge_property_t::view().
+ * @param Ks Number of outgoing edges to select per (tagged-)vertex for each edge type (size = #
+ * edge types).
+ * @param with_replacement A flag to specify whether a single outgoing edge can be selected multiple
+ * times (if @p with_replacement = true) or can be selected only once (if @p with_replacement =
+ * false).
+ * @param invalid_value If @p invalid_value.has_value() is true, this value is used to fill the
+ * output vector for the zero out-degree vertices (if @p with_replacement = true) or the vertices
+ * with their out-degrees smaller than @p K (if @p with_replacement = false). If @p
+ * invalid_value.has_value() is false, fewer than @p K values can be returned for the vertices with
+ * fewer than @p K selected edges. See the return value section for additional details.
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
+ * @return std::tuple Tuple of an optional offset vector of type
+ * std::optional<rmm::device_uvector<size_t>> and a dataframe buffer storing the output values of
+ * type @p T from the selected edges. If @p invalid_value is std::nullopt, the offset vector is
+ * valid and has the size of @p key_list.size() + 1. If @p invalid_value.has_value() is true,
+ * std::nullopt is returned (the dataframe buffer will store @p key_list.size() * @p K elements). If
+ * @p invalid_value.has_value() is true, K_sum = std::reduce(@p Ks.begin(), @p Ks.end()) values are
+ * returned for each key in @p key_list. Among the K_sum values, valid values proceed the invalid
+ * values; ordering of the valid values can be arbitrary.
+ */
+template <typename GraphViewType,
+          typename KeyBucketType,
+          typename BiasEdgeSrcValueInputWrapper,
+          typename BiasEdgeDstValueInputWrapper,
+          typename BiasEdgeValueInputWrapper,
+          typename BiasEdgeOp,
+          typename EdgeSrcValueInputWrapper,
+          typename EdgeDstValueInputWrapper,
+          typename EdgeValueInputWrapper,
+          typename EdgeOp,
+          typename EdgeTypeInputWrapper,
+          typename T>
+std::tuple<std::optional<rmm::device_uvector<size_t>>, dataframe_buffer_type_t<T>>
+per_v_random_select_transform_outgoing_e(raft::handle_t const& handle,
+                                         GraphViewType const& graph_view,
+                                         KeyBucketType const& key_list,
+                                         BiasEdgeSrcValueInputWrapper bias_edge_src_value_input,
+                                         BiasEdgeDstValueInputWrapper bias_edge_dst_value_input,
+                                         BiasEdgeValueInputWrapper bias_edge_value_input,
+                                         BiasEdgeOp bias_e_op,
+                                         EdgeSrcValueInputWrapper edge_src_value_input,
+                                         EdgeDstValueInputWrapper edge_dst_value_input,
+                                         EdgeValueInputWrapper edge_value_input,
+                                         EdgeOp e_op,
+                                         EdgeTypeInputWrapper edge_type_input,
+                                         raft::random::RngState& rng_state,
+                                         raft::host_span<size_t const> Ks,
+                                         bool with_replacement,
+                                         std::optional<T> invalid_value,
+                                         bool do_expensive_check = false)
+{
+  return detail::per_v_random_select_transform_e<false>(handle,
+                                                        graph_view,
+                                                        key_list,
+                                                        bias_edge_src_value_input,
+                                                        bias_edge_dst_value_input,
+                                                        bias_edge_value_input,
+                                                        bias_e_op,
+                                                        edge_src_value_input,
+                                                        edge_dst_value_input,
+                                                        edge_value_input,
+                                                        e_op,
+                                                        edge_type_input,
+                                                        rng_state,
+                                                        Ks,
+                                                        with_replacement,
+                                                        invalid_value,
+                                                        do_expensive_check);
 }
 
 }  // namespace cugraph
