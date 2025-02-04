@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -34,7 +34,7 @@ sample_edges(raft::handle_t const& handle,
              raft::random::RngState& rng_state,
              raft::device_span<int64_t const> active_majors,
              std::optional<raft::device_span<int32_t const>> active_major_labels,
-             size_t fanout,
+             size_t fan_out,
              bool with_replacement);
 
 template std::tuple<rmm::device_uvector<int64_t>,
@@ -52,7 +52,7 @@ sample_edges(raft::handle_t const& handle,
              raft::random::RngState& rng_state,
              raft::device_span<int64_t const> active_majors,
              std::optional<raft::device_span<int32_t const>> active_major_labels,
-             size_t fanout,
+             size_t fan_out,
              bool with_replacement);
 
 }  // namespace detail

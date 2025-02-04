@@ -118,7 +118,7 @@ gather_one_hop_edgelist(
  * @param active_majors Device vector containing all the vertex id that are processed by
  * gpus in the column communicator
  * @param active_major_labels Optional device vector containing labels for each device vector
- * @param fanout How many edges to sample for each vertex
+ * @param fan_out How many edges to sample for each vertex per edge type
  * @param with_replacement If true sample with replacement, otherwise sample without replacement
  * @param invalid_vertex_id Value to use for an invalid vertex
  * @return A tuple of device vectors containing the majors, minors, optional weights,
@@ -146,7 +146,7 @@ sample_edges(raft::handle_t const& handle,
              raft::random::RngState& rng_state,
              raft::device_span<vertex_t const> active_majors,
              std::optional<raft::device_span<label_t const>> active_major_labels,
-             size_t fanout,
+             raft::host_span<size_t const> fan_out,
              bool with_replacement);
 
 /**
