@@ -493,24 +493,27 @@ ConfigureTest(RANDOM_WALKS_TEST sampling/sg_random_walks_test.cpp)
 
 ###################################################################################################
 # - UNIFORM NBR SAMPLING tests --------------------------------------------------------------------
-ConfigureTest(UNIFORM_NEIGHBOR_SAMPLING_TEST sampling/uniform_neighbor_sampling.cpp)
+ConfigureTest(UNIFORM_NEIGHBOR_SAMPLING_TEST sampling/uniform_neighbor_sampling.cpp
+        GPUS 1 PERCENT 75)
 
 # - HOMOGENEOUS UNIFORM NBR SAMPLING tests --------------------------------------------------------
 ConfigureTest(
-    HOMOGENEOUS_UNIFORM_NEIGHBOR_SAMPLING_TEST sampling/homogeneous_uniform_neighbor_sampling.cpp)
+    HOMOGENEOUS_UNIFORM_NEIGHBOR_SAMPLING_TEST sampling/homogeneous_uniform_neighbor_sampling.cpp
+        GPUS 1 PERCENT 75)
 
 # - HETEROGENEOUS UNIFORM NBR SAMPLING tests -----------------------------------------------------
 ConfigureTest(
-    HETEROGENEOUS_UNIFORM_NEIGHBOR_SAMPLING_TEST sampling/heterogeneous_uniform_neighbor_sampling.cpp)
+    HETEROGENEOUS_UNIFORM_NEIGHBOR_SAMPLING_TEST sampling/heterogeneous_uniform_neighbor_sampling.cpp
+        GPUS 1 PERCENT 75)
 
 ###################################################################################################
 # - BIASED NBR SAMPLING tests ---------------------------------------------------------------------
-ConfigureTest(BIASED_NEIGHBOR_SAMPLING_TEST sampling/biased_neighbor_sampling.cpp)
+ConfigureTest(BIASED_NEIGHBOR_SAMPLING_TEST sampling/biased_neighbor_sampling.cpp GPUS 1 PERCENT 75)
 
 ###################################################################################################
 # - HOMOGENEOUS BIASED NBR SAMPLING tests ---------------------------------------------------------
 ConfigureTest(
-    HOMOGENEOUS_BIASED_NEIGHBOR_SAMPLING_TEST sampling/homogeneous_biased_neighbor_sampling.cpp)
+    HOMOGENEOUS_BIASED_NEIGHBOR_SAMPLING_TEST sampling/homogeneous_biased_neighbor_sampling.cpp GPUS 1 PERCENT 75)
 
 ###################################################################################################
 # - HETEROGENEOUS BIASED NBR SAMPLING tests -------------------------------------------------------
@@ -893,6 +896,8 @@ ConfigureCTest(CAPI_TRIANGLE_COUNT_TEST c_api/triangle_count_test.c)
 ConfigureCTest(CAPI_LOUVAIN_TEST c_api/louvain_test.c)
 ConfigureCTest(CAPI_LEIDEN_TEST c_api/leiden_test.c)
 ConfigureCTest(CAPI_ECG_TEST c_api/ecg_test.c)
+ConfigureCTest(CAPI_RENUMBER_ARBITRARY_EDGELIST_TEST c_api/renumber_arbitrary_edgelist_test.c)
+
 #############################################################################
 # Skipping due to CUDA 12.2 failure that traces back to RAFT                #
 # TODO: Uncomment this once the issue is fixed.                             #
