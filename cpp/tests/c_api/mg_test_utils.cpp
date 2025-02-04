@@ -203,7 +203,6 @@ extern "C" int create_mg_test_graph(const cugraph_resource_handle_t* handle,
                                      FALSE,
                                      FALSE,
                                      FALSE,
-                                     TRUE,
                                      p_graph,
                                      ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "graph creation failed.");
