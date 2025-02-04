@@ -460,6 +460,7 @@ neighbor_sample_impl(raft::handle_t const& handle,
 
 }  // namespace detail
 
+// deprecated
 template <typename vertex_t,
           typename edge_t,
           typename weight_t,
@@ -523,6 +524,7 @@ uniform_neighbor_sample(
     do_expensive_check);
 }
 
+// deprecated
 template <typename vertex_t,
           typename edge_t,
           typename weight_t,
@@ -599,6 +601,65 @@ std::tuple<rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<edge_type_t>>,
            std::optional<rmm::device_uvector<int32_t>>,
            std::optional<rmm::device_uvector<size_t>>>
+homogeneous_uniform_neighbor_sample(
+  raft::handle_t const& handle,
+  raft::random::RngState& rng_state,
+  graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
+  std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
+  std::optional<edge_property_view_t<edge_t, edge_t const*>> edge_id_view,
+  std::optional<edge_property_view_t<edge_t, edge_type_t const*>> edge_type_view,
+  raft::device_span<vertex_t const> starting_vertices,
+  std::optional<raft::device_span<int32_t const>> starting_vertex_labels,
+  std::optional<raft::device_span<int32_t const>> label_to_output_comm_rank,
+  raft::host_span<int32_t const> fan_out,
+  sampling_flags_t sampling_flags,
+  bool do_expensive_check)
+{
+  using bias_t = weight_t;  // dummy
+
+  auto [majors, minors, weights, edge_ids, edge_types, hops, labels, offsets] =
+    detail::neighbor_sample_impl<vertex_t, edge_t, weight_t, edge_type_t, bias_t>(
+      handle,
+      rng_state,
+      graph_view,
+      edge_weight_view,
+      edge_id_view,
+      edge_type_view,
+      std::optional<edge_property_view_t<edge_t, bias_t const*>>{
+        std::nullopt},  // Optional edge_bias_view
+      starting_vertices,
+      starting_vertex_labels,
+      label_to_output_comm_rank,
+      fan_out,
+      edge_type_t{1},
+      sampling_flags.return_hops,
+      sampling_flags.with_replacement,
+      sampling_flags.prior_sources_behavior,
+      sampling_flags.dedupe_sources,
+      do_expensive_check);
+
+  return std::make_tuple(std::move(majors),
+                         std::move(minors),
+                         std::move(weights),
+                         std::move(edge_ids),
+                         std::move(edge_types),
+                         std::move(hops),
+                         std::move(offsets));
+}
+
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          typename edge_type_t,
+          bool store_transposed,
+          bool multi_gpu>
+std::tuple<rmm::device_uvector<vertex_t>,
+           rmm::device_uvector<vertex_t>,
+           std::optional<rmm::device_uvector<weight_t>>,
+           std::optional<rmm::device_uvector<edge_t>>,
+           std::optional<rmm::device_uvector<edge_type_t>>,
+           std::optional<rmm::device_uvector<int32_t>>,
+           std::optional<rmm::device_uvector<size_t>>>
 heterogeneous_uniform_neighbor_sample(
   raft::handle_t const& handle,
   raft::random::RngState& rng_state,
@@ -660,7 +721,7 @@ std::tuple<rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<edge_type_t>>,
            std::optional<rmm::device_uvector<int32_t>>,
            std::optional<rmm::device_uvector<size_t>>>
-heterogeneous_biased_neighbor_sample(
+homogeneous_biased_neighbor_sample(
   raft::handle_t const& handle,
   raft::random::RngState& rng_state,
   graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
@@ -672,7 +733,6 @@ heterogeneous_biased_neighbor_sample(
   std::optional<raft::device_span<int32_t const>> starting_vertex_labels,
   std::optional<raft::device_span<int32_t const>> label_to_output_comm_rank,
   raft::host_span<int32_t const> fan_out,
-  edge_type_t num_edge_types,
   sampling_flags_t sampling_flags,
   bool do_expensive_check)
 {
@@ -685,65 +745,6 @@ heterogeneous_biased_neighbor_sample(
       edge_id_view,
       edge_type_view,
       std::make_optional(edge_bias_view),
-      starting_vertices,
-      starting_vertex_labels,
-      label_to_output_comm_rank,
-      fan_out,
-      num_edge_types,
-      sampling_flags.return_hops,
-      sampling_flags.with_replacement,
-      sampling_flags.prior_sources_behavior,
-      sampling_flags.dedupe_sources,
-      do_expensive_check);
-
-  return std::make_tuple(std::move(majors),
-                         std::move(minors),
-                         std::move(weights),
-                         std::move(edge_ids),
-                         std::move(edge_types),
-                         std::move(hops),
-                         std::move(offsets));
-}
-
-template <typename vertex_t,
-          typename edge_t,
-          typename weight_t,
-          typename edge_type_t,
-          bool store_transposed,
-          bool multi_gpu>
-std::tuple<rmm::device_uvector<vertex_t>,
-           rmm::device_uvector<vertex_t>,
-           std::optional<rmm::device_uvector<weight_t>>,
-           std::optional<rmm::device_uvector<edge_t>>,
-           std::optional<rmm::device_uvector<edge_type_t>>,
-           std::optional<rmm::device_uvector<int32_t>>,
-           std::optional<rmm::device_uvector<size_t>>>
-homogeneous_uniform_neighbor_sample(
-  raft::handle_t const& handle,
-  raft::random::RngState& rng_state,
-  graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
-  std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
-  std::optional<edge_property_view_t<edge_t, edge_t const*>> edge_id_view,
-  std::optional<edge_property_view_t<edge_t, edge_type_t const*>> edge_type_view,
-  raft::device_span<vertex_t const> starting_vertices,
-  std::optional<raft::device_span<int32_t const>> starting_vertex_labels,
-  std::optional<raft::device_span<int32_t const>> label_to_output_comm_rank,
-  raft::host_span<int32_t const> fan_out,
-  sampling_flags_t sampling_flags,
-  bool do_expensive_check)
-{
-  using bias_t = weight_t;  // dummy
-
-  auto [majors, minors, weights, edge_ids, edge_types, hops, labels, offsets] =
-    detail::neighbor_sample_impl<vertex_t, edge_t, weight_t, edge_type_t, bias_t>(
-      handle,
-      rng_state,
-      graph_view,
-      edge_weight_view,
-      edge_id_view,
-      edge_type_view,
-      std::optional<edge_property_view_t<edge_t, bias_t const*>>{
-        std::nullopt},  // Optional edge_bias_view
       starting_vertices,
       starting_vertex_labels,
       label_to_output_comm_rank,
@@ -778,7 +779,7 @@ std::tuple<rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<edge_type_t>>,
            std::optional<rmm::device_uvector<int32_t>>,
            std::optional<rmm::device_uvector<size_t>>>
-homogeneous_biased_neighbor_sample(
+heterogeneous_biased_neighbor_sample(
   raft::handle_t const& handle,
   raft::random::RngState& rng_state,
   graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
@@ -790,6 +791,7 @@ homogeneous_biased_neighbor_sample(
   std::optional<raft::device_span<int32_t const>> starting_vertex_labels,
   std::optional<raft::device_span<int32_t const>> label_to_output_comm_rank,
   raft::host_span<int32_t const> fan_out,
+  edge_type_t num_edge_types,
   sampling_flags_t sampling_flags,
   bool do_expensive_check)
 {
@@ -806,7 +808,7 @@ homogeneous_biased_neighbor_sample(
       starting_vertex_labels,
       label_to_output_comm_rank,
       fan_out,
-      edge_type_t{1},
+      num_edge_types,
       sampling_flags.return_hops,
       sampling_flags.with_replacement,
       sampling_flags.prior_sources_behavior,
