@@ -10,10 +10,23 @@ cd "$(dirname "$(realpath "${BASH_SOURCE[0]}")")"/../
 
 RAPIDS_VERSION_MAJOR_MINOR="$(rapids-version-major-minor)"
 
+LIBRMM_CHANNEL=$(_rapids-get-pr-artifact rmm 1808 cpp conda)
+PYLIBRMM_CHANNEL=$(_rapids-get-pr-artifact rmm 1808 python conda)
+LIBCUDF_CHANNEL=$(_rapids-get-pr-artifact cudf 17899 cpp conda)
+PYLIBCUDF_CHANNEL=$(_rapids-get-pr-artifact cudf 17899 python conda)
+LIBRAFT_CHANNEL=$(_rapids-get-pr-artifact raft 2566 cpp conda)
+PYLIBRAFT_CHANNEL=$(_rapids-get-pr-artifact raft 2566 python conda)
+
 rapids-logger "Generate Python testing dependencies"
 rapids-dependency-file-generator \
   --output conda \
   --file-key test_python \
+  --prepend-channel "${LIBRMM_CHANNEL}" \
+  --prepend-channel "${PYLIBRMM_CHANNEL}" \
+  --prepend-channel "${LIBCUDF_CHANNEL}" \
+  --prepend-channel "${PYLIBCUDF_CHANNEL}" \
+  --prepend-channel "${LIBRAFT_CHANNEL}" \
+  --prepend-channel "${PYLIBRAFT_CHANNEL}" \
   --matrix "cuda=${RAPIDS_CUDA_VERSION%.*};arch=$(arch);py=${RAPIDS_PY_VERSION}" | tee env.yaml
 
 rapids-mamba-retry env create --yes -f env.yaml -n test
@@ -26,12 +39,6 @@ set -u
 rapids-logger "Downloading artifacts from previous jobs"
 CPP_CHANNEL=$(rapids-download-conda-from-s3 cpp)
 PYTHON_CHANNEL=$(rapids-download-conda-from-s3 python)
-LIBRMM_CHANNEL=$(_rapids-get-pr-artifact rmm 1808 cpp conda)
-PYLIBRMM_CHANNEL=$(_rapids-get-pr-artifact rmm 1808 python conda)
-LIBCUDF_CHANNEL=$(_rapids-get-pr-artifact cudf 17899 cpp conda)
-PYLIBCUDF_CHANNEL=$(_rapids-get-pr-artifact cudf 17899 python conda)
-LIBRAFT_CHANNEL=$(_rapids-get-pr-artifact raft 2566 cpp conda)
-PYLIBRAFT_CHANNEL=$(_rapids-get-pr-artifact raft 2566 python conda)
 
 RAPIDS_TESTS_DIR=${RAPIDS_TESTS_DIR:-"${PWD}/test-results"}
 RAPIDS_COVERAGE_DIR=${RAPIDS_COVERAGE_DIR:-"${PWD}/coverage-results"}
