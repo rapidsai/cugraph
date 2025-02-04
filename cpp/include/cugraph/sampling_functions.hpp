@@ -318,7 +318,7 @@ struct sampling_flags_t {
  * @param label_to_output_comm_rank Optional device span identifying which rank should get sampling
  * outputs of each vertex label.  This should be the same on each rank.
  * @param fan_out Host span defining branching out (fan-out) degree per source vertex for each
- * level.
+ * level.  A negative value indicates that all the neighbors of a source vertex should be selected.
  * @param flags A set of flags indicating which sampling features should be used.
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  * @return tuple device vectors (vertex_t source_vertex, vertex_t destination_vertex,
@@ -395,7 +395,8 @@ homogeneous_uniform_neighbor_sample(
  * outputs of each vertex label.  This should be the same on each rank.
  * @param fan_out Host span defining branching out (fan-out) degree per source vertex for each
  * level. The fanout value at hop x is given by the expression 'fanout[x*num_edge_types +
- * edge_type_id]'
+ * edge_type_id]'. A negative value indicates that all the neighbors of a source vertex should be
+ * selected.
  * @param num_edge_types Number of edge types where a value of 1 translates to homogeneous neighbor
  * sample whereas a value greater than 1 translates to heterogeneous neighbor sample.
  * @param flags A set of flags indicating which sampling features should be used.
@@ -477,7 +478,7 @@ heterogeneous_uniform_neighbor_sample(
  * @param label_to_output_comm_rank Optional device span identifying which rank should get sampling
  * outputs of each vertex label.  This should be the same on each rank.
  * @param fan_out Host span defining branching out (fan-out) degree per source vertex for each
- * level.
+ * level.  A negative value indicates that all the neighbors of a source vertex should be selected.
  * @param flags A set of flags indicating which sampling features should be used.
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  * @return tuple device vectors (vertex_t source_vertex, vertex_t destination_vertex,
@@ -561,7 +562,8 @@ homogeneous_biased_neighbor_sample(
  * outputs of each vertex label.  This should be the same on each rank.
  * @param fan_out Host span defining branching out (fan-out) degree per source vertex for each
  * level. The fanout value at hop x is given by the expression 'fanout[x*num_edge_types +
- * edge_type_id]'
+ * edge_type_id]'. A negative value indicates that all the neighbors of a source vertex should be
+ * selected.
  * @param num_edge_types Number of edge types where a value of 1 translates to homogeneous neighbor
  * sample whereas a value greater than 1 translates to heterogeneous neighbor sample.
  * @param flags A set of flags indicating which sampling features should be used.
