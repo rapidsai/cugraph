@@ -1,5 +1,5 @@
 #!/bin/bash
-# Copyright (c) 2022-2024, NVIDIA CORPORATION.
+# Copyright (c) 2022-2025, NVIDIA CORPORATION.
 
 set -euo pipefail
 
@@ -26,6 +26,12 @@ set -u
 rapids-logger "Downloading artifacts from previous jobs"
 CPP_CHANNEL=$(rapids-download-conda-from-s3 cpp)
 PYTHON_CHANNEL=$(rapids-download-conda-from-s3 python)
+LIBRMM_CHANNEL=$(_rapids-get-pr-artifact rmm 1808 cpp conda)
+PYLIBRMM_CHANNEL=$(_rapids-get-pr-artifact rmm 1808 python conda)
+LIBCUDF_CHANNEL=$(_rapids-get-pr-artifact cudf 17899 cpp conda)
+PYLIBCUDF_CHANNEL=$(_rapids-get-pr-artifact cudf 17899 python conda)
+LIBRAFT_CHANNEL=$(_rapids-get-pr-artifact raft 2566 cpp conda)
+PYLIBRAFT_CHANNEL=$(_rapids-get-pr-artifact raft 2566 cpp python)
 
 RAPIDS_TESTS_DIR=${RAPIDS_TESTS_DIR:-"${PWD}/test-results"}
 RAPIDS_COVERAGE_DIR=${RAPIDS_COVERAGE_DIR:-"${PWD}/coverage-results"}
@@ -36,6 +42,12 @@ rapids-print-env
 rapids-mamba-retry install \
   --channel "${CPP_CHANNEL}" \
   --channel "${PYTHON_CHANNEL}" \
+  --channel "${LIBRMM_CHANNEL}" \
+  --channel "${LIBCUDF_CHANNEL}" \
+  --channel "${LIBRAFT_CHANNEL}" \
+  --channel "${PYLIBRMM_CHANNEL}" \
+  --channel "${PYLIBCUDF_CHANNEL}" \
+  --channel "${PYLIBRAFT_CHANNEL}" \
   "libcugraph=${RAPIDS_VERSION_MAJOR_MINOR}.*" \
   "pylibcugraph=${RAPIDS_VERSION_MAJOR_MINOR}.*" \
   "cugraph=${RAPIDS_VERSION_MAJOR_MINOR}.*" \

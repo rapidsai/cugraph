@@ -16,6 +16,8 @@ rapids-print-env
 CPP_CHANNEL=$(rapids-download-conda-from-s3 cpp)
 LIBRMM_CHANNEL=$(_rapids-get-pr-artifact rmm 1808 cpp conda)
 PYLIBRMM_CHANNEL=$(_rapids-get-pr-artifact rmm 1808 python conda)
+LIBCUDF_CHANNEL=$(_rapids-get-pr-artifact cudf 17899 cpp conda)
+PYLIBCUDF_CHANNEL=$(_rapids-get-pr-artifact cudf 17899 python conda)
 LIBRAFT_CHANNEL=$(_rapids-get-pr-artifact raft 2566 cpp conda)
 PYLIBRAFT_CHANNEL=$(_rapids-get-pr-artifact raft 2566 cpp python)
 
@@ -31,8 +33,10 @@ sccache --zero-stats
 rapids-conda-retry mambabuild \
   --no-test \
   --channel "${LIBRMM_CHANNEL}" \
+  --channel "${LIBCUDF_CHANNEL}" \
   --channel "${LIBRAFT_CHANNEL}" \
   --channel "${PYLIBRMM_CHANNEL}" \
+  --channel "${PYLIBCUDF_CHANNEL}" \
   --channel "${PYLIBRAFT_CHANNEL}" \
   --channel "${CPP_CHANNEL}" \
   conda/recipes/pylibcugraph

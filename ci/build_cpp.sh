@@ -17,10 +17,12 @@ rapids-logger "Begin cpp build"
 
 sccache --zero-stats
 LIBRMM_CHANNEL=$(_rapids-get-pr-artifact rmm 1808 cpp conda)
+LIBCUDF_CHANNEL=$(_rapids-get-pr-artifact cudf 17899 cpp conda)
 LIBRAFT_CHANNEL=$(_rapids-get-pr-artifact raft 2566 cpp conda)
 
 RAPIDS_PACKAGE_VERSION=$(rapids-generate-version) rapids-conda-retry mambabuild \
   --channel "${LIBRMM_CHANNEL}" \
+  --channel "${LIBCUDF_CHANNEL}" \
   --channel "${LIBRAFT_CHANNEL}" \
   conda/recipes/libcugraph
 
