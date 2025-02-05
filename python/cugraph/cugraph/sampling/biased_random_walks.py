@@ -83,7 +83,7 @@ def biased_random_walks(
     [1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1.]
     >>> max_length
     3
-    
+
     """
 
     if max_depth is None:
