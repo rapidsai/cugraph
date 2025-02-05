@@ -48,6 +48,8 @@ from pylibcugraph.hits import hits
 
 from pylibcugraph.node2vec import node2vec
 
+from pylibcugraph.node2vec_random_walks import node2vec_random_walks
+
 from pylibcugraph.bfs import bfs
 
 from pylibcugraph.uniform_neighbor_sample import uniform_neighbor_sample
@@ -84,6 +86,8 @@ from pylibcugraph.egonet import ego_graph
 from pylibcugraph.weakly_connected_components import weakly_connected_components
 
 from pylibcugraph.uniform_random_walks import uniform_random_walks
+
+from pylibcugraph.biased_random_walks import biased_random_walks
 
 from pylibcugraph.betweenness_centrality import betweenness_centrality
 

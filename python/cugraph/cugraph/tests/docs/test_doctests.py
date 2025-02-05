@@ -139,9 +139,15 @@ def skip_docstring(docstring_obj):
     """
     docstring = docstring_obj.docstring
     cuda_version_string = _get_cuda_version_string()
+
     for line in docstring.splitlines():
         if f"currently not available on CUDA {cuda_version_string} systems" in line:
             return f"docstring example not supported on CUDA {cuda_version_string}"
+        if "random_walks" in line:
+            return (
+                "docstring example not supported for random walks"
+                "because of the random nature of the results"
+            )
     return None
 
 
