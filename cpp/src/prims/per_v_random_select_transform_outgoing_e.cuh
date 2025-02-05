@@ -272,6 +272,8 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
                                                      EdgeOp>::type,
                 T>);
 
+  CUGRAPH_EXPECTS(Ks.size() >= 1, "Invalid input argument: Ks.size() should be 1 or larger.");
+
   if constexpr (std::is_same_v<EdgeTypeInputWrapper, edge_dummy_property_view_t>) {  // homogeneous
     CUGRAPH_EXPECTS(Ks.size() == 1,
                     "Invalid input argument: Ks.size() should be 1 for homogeneous sampling.");
