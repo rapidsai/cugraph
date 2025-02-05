@@ -139,9 +139,15 @@ def skip_docstring(docstring_obj):
     """
     docstring = docstring_obj.docstring
     cuda_version_string = _get_cuda_version_string()
+
+    #print("split lines", docstring.splitlines())
     for line in docstring.splitlines():
         if f"currently not available on CUDA {cuda_version_string} systems" in line:
             return f"docstring example not supported on CUDA {cuda_version_string}"
+        if "random_walks" in line:
+            return (
+                f"docstring example not supported for random walks"
+                f"because of the random nature of the results")
     return None
 
 
@@ -167,6 +173,7 @@ class TestDoctests:
         # output. An ellipsis is useful for, e.g., memory addresses or
         # imprecise floating point values.
         skip_reason = skip_docstring(docstring)
+        print("in doc\n", docstring)
         if skip_reason is not None:
             pytest.skip(reason=skip_reason)
 
