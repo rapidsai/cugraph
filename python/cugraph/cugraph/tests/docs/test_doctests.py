@@ -145,8 +145,8 @@ def skip_docstring(docstring_obj):
             return f"docstring example not supported on CUDA {cuda_version_string}"
         if "random_walks" in line:
             return (
-                f"docstring example not supported for random walks"
-                f"because of the random nature of the results"
+                "docstring example not supported for random walks"
+                "because of the random nature of the results"
             )
     return None
 
