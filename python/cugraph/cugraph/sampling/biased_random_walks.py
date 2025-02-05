@@ -73,14 +73,14 @@ def biased_random_walks(
     >>> from cugraph.datasets import karate
     >>> M = karate.get_edgelist(download=True)
     >>> G = karate.get_graph()
-    >>> start_vertices = G.nodes()[:4]
+    >>> start_vertices = [0, 1]
     >>> paths, weights, max_length = cugraph.biased_random_walks(
-    ...            G, start_vertices, 3)
+    ...            G, start_vertices, 3, random_state=2)
 
     >>> paths.to_cupy()
-    [ 1 13 33 15  2  1  3  2  3  7  1 19  4  6  5 10]
+    array([ 0,  2,  8, 32,  1, 17,  0,  2], dtype=int32)
     >>> weights.to_cupy()
-    [1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1.]
+    array([1., 1., 1., 1., 1., 1.], dtype=float32)
     >>> max_length
     3
 
