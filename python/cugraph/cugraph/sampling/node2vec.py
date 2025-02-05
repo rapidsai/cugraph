@@ -114,7 +114,7 @@ def node2vec(G, start_vertices, max_depth=1, compress_result=True, p=1.0, q=1.0)
     """
     warning_msg = (
         "node2vec is deprecated and will be removed "
-        "in the next release in favor of node2vec_random_walks"
+        "in a future release in favor of node2vec_random_walks"
     )
     warnings.warn(warning_msg, FutureWarning)
 
