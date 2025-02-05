@@ -1,4 +1,4 @@
-# Copyright (c) 2022-2025, NVIDIA CORPORATION.
+# Copyright (c) 2024-2025, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,25 +12,27 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import warnings
 from dask.distributed import wait, default_client
 import dask_cudf
 import cudf
+import cupy as cp
 import operator as op
 from cugraph.dask.common.part_utils import (
     persist_dask_df_equal_parts_per_worker,
 )
 
-from pylibcugraph import ResourceHandle
-
 from pylibcugraph import (
-    uniform_random_walks as pylibcugraph_uniform_random_walks,
+    ResourceHandle,
+    node2vec_random_walks as pylibcugraph_node2vec_random_walks,
 )
 
 from cugraph.dask.comms import comms as Comms
+from typing import Tuple, Union
 
 
-def convert_to_cudf(cp_paths, number_map=None, is_vertex_paths=False):
+def convert_to_cudf(
+    cp_paths: cp.ndarray, number_map=None, is_vertex_paths: bool = False
+) -> cudf.Series:
     """
     Creates cudf Series from cupy arrays from pylibcugraph wrapper
     """
@@ -49,51 +51,70 @@ def convert_to_cudf(cp_paths, number_map=None, is_vertex_paths=False):
     return cudf.Series(cp_paths)
 
 
-def _call_plc_uniform_random_walks(sID, mg_graph_x, st_x, max_depth):
+def _call_plc_node2vec_random_walks(
+    sID: bytes,
+    mg_graph_x,
+    st_x: cudf.Series,
+    max_depth: int,
+    p: float,
+    q: float,
+    random_state: int,
+) -> Tuple[cp.ndarray, cp.ndarray]:
 
-    return pylibcugraph_uniform_random_walks(
+    return pylibcugraph_node2vec_random_walks(
         resource_handle=ResourceHandle(Comms.get_handle(sID).getHandle()),
-        input_graph=mg_graph_x,
-        start_vertices=st_x,
-        max_length=max_depth,
+        graph=mg_graph_x,
+        seed_array=st_x,
+        max_depth=max_depth,
+        p=p,
+        q=q,
+        random_state=random_state,
     )
 
 
-def random_walks(
+def node2vec_random_walks(
     input_graph,
-    random_walks_type="uniform",
-    start_vertices=None,
-    max_depth=None,
-    use_padding=None,
-    legacy_result_type=None,
-):
+    start_vertices: Union[int, list, cudf.Series, cudf.DataFrame, cudf.Series] = None,
+    max_depth: int = 1,
+    p: float = 1.0,
+    q: float = 1.0,
+    random_state: int = None,
+) -> Tuple[Union[dask_cudf.Series, dask_cudf.DataFrame], dask_cudf.Series, int]:
     """
-    compute random walks for each nodes in 'start_vertices' and returns a
-    padded result along with the maximum path length. Vertices with no outgoing
-    edges will be padded with -1.
+    compute random walks under the node2vec sampling framework for each nodes in
+    'start_vertices' and returns a padded result along with the maximum path length.
+    Vertices with no outgoing edges will be padded with -1.
 
     parameters
     ----------
     input_graph : cuGraph.Graph
         The graph can be either directed or undirected.
 
-    random_walks_type : str, optional (default='uniform')
-        Type of random walks: 'uniform', 'biased', 'node2vec'.
-        Only 'uniform' random walks is currently supported
-
-    start_vertices : int or list or cudf.Series or cudf.DataFrame
+    start_vertices: int or list or cudf.Series or cudf.DataFrame
         A single node or a list or a cudf.Series of nodes from which to run
         the random walks. In case of multi-column vertices it should be
-        a cudf.DataFrame
+        a cudf.DataFrame. Only supports int32 currently.
 
-    max_depth : int
-        The maximum depth of the random walks
+    max_depth: int
+        The maximum depth of the random walks. If not specified, the maximum
+        depth is set to 1.
+        Must be a positive integer
 
-    use_padding : bool
-        This parameter is here for SG compatibility and ignored
+    p: float, optional (default=1.0, [0 < p])
+        Return factor, which represents the likelihood of backtracking to
+        a previous node in the walk. A higher value makes it less likely to
+        sample a previously visited node, while a lower value makes it more
+        likely to backtrack, making the walk "local". A positive float.
 
-    legacy_result_type : bool
-        This parameter is here for SG compatibility and ignored
+    q: float, optional (default=1.0, [0 < q])
+        In-out factor, which represents the likelihood of visiting nodes
+        closer or further from the outgoing node. If q > 1, the random walk
+        is likelier to visit nodes closer to the outgoing node. If q < 1, the
+        random walk is likelier to visit nodes further from the outgoing node.
+        A positive float.
+
+    random_state: int, optional
+        Random seed to use when making sampling calls.
 
     Returns
     -------
@@ -104,17 +125,22 @@ def random_walks(
         Series containing the edge weights of edges represented by the
         returned vertex_paths
 
+    and
+
     max_path_length : int
-        The maximum path length
+        The maximum path length.
     """
-
-    warning_msg = (
-        "random_walks is deprecated and will be removed "
-        "in the next release in favor of uniform_random_walks"
-    )
-    warnings.warn(warning_msg, FutureWarning)
-
     client = default_client()
+
+    if (not isinstance(max_depth, int)) or (max_depth < 1):
+        raise ValueError(
+            f"'max_depth' must be a positive integer, " f"got: {max_depth}"
+        )
+    if (not isinstance(p, float)) or (p <= 0.0):
+        raise ValueError(f"'p' must be a positive float, got: {p}")
+    if (not isinstance(q, float)) or (q <= 0.0):
+        raise ValueError(f"'q' must be a positive float, got: {q}")
+
     if isinstance(start_vertices, int):
         start_vertices = [start_vertices]
 
@@ -142,11 +168,14 @@ def random_walks(
 
     result = [
         client.submit(
-            _call_plc_uniform_random_walks,
+            _call_plc_node2vec_random_walks,
             Comms.get_session_id(),
             input_graph._plc_graph[w],
             start_v[0] if start_v else cudf.Series(dtype=start_vertices_type),
-            max_depth,
+            max_depth if isinstance(max_depth, int) else 1,
+            p=p,
+            q=q,
+            random_state=random_state,
             workers=[w],
             allow_other_workers=False,
         )
@@ -157,7 +186,6 @@ def random_walks(
 
     result_vertex_paths = [client.submit(op.getitem, f, 0) for f in result]
     result_edge_wgt_paths = [client.submit(op.getitem, f, 1) for f in result]
-    max_path_length = [client.submit(op.getitem, f, 2) for f in result]
 
     cudf_vertex_paths = [
         client.submit(convert_to_cudf, cp_vertex_paths, input_graph.renumber_map, True)
@@ -171,13 +199,9 @@ def random_walks(
 
     wait([cudf_vertex_paths, cudf_edge_wgt_paths])
 
-    max_path_length = max_path_length[0].result()
-
     ddf_vertex_paths = dask_cudf.from_delayed(cudf_vertex_paths).persist()
     ddf_edge_wgt_paths = dask_cudf.from_delayed(cudf_edge_wgt_paths).persist()
-    wait([ddf_vertex_paths, ddf_edge_wgt_paths])
 
-    # Wait until the inactive futures are released
     wait(
         [
             (r.release(), c_v.release(), c_e.release())
@@ -185,4 +209,4 @@ def random_walks(
         ]
     )
 
-    return ddf_vertex_paths, ddf_edge_wgt_paths, max_path_length
+    return ddf_vertex_paths, ddf_edge_wgt_paths, max_depth
