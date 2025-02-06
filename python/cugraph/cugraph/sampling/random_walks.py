@@ -1,4 +1,4 @@
-# Copyright (c) 2022-2024, NVIDIA CORPORATION.
+# Copyright (c) 2022-2025, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -65,7 +65,7 @@ def random_walks(
     with 0.0s (when 'legacy_result_type' is 'True'). If 'legacy_result_type'
     is 'False', 'random_walks' returns padded results (vertex_paths,
     edge_weight_paths) but instead of 'sizes = None', returns the 'max_path_lengths'.
-    When 'legacy_result_type' is 'False', the arhument 'use_padding' is ignored.
+    When 'legacy_result_type' is 'False', the argument 'use_padding' is ignored.
 
     parameters
     ----------
@@ -81,6 +81,8 @@ def random_walks(
         Type of random walks: 'uniform', 'biased', 'node2vec'.
         Only 'uniform' random walks is currently supported
 
+        Deprecated
+
     start_vertices : int or list or cudf.Series or cudf.DataFrame
         A single node or a list or a cudf.Series of nodes from which to run
         the random walks. In case of multi-column vertices it should be
@@ -95,10 +97,18 @@ def random_walks(
     use_padding : bool, optional (default=False)
         If True, padded paths are returned else coalesced paths are returned.
 
+        Deprecated: only padded paths will be returned in the results
+
     legacy_result_type : bool, optional (default=True)
         If True, will return a tuple of vertex_paths, edge_weight_paths and
-        sizes. If False, will return a tuple of vertex_paths, vertex_paths and
-        max_path_length
+        sizes where the 'max_depth' is proportional to the number of vertices.
+        If False, will return a tuple of vertex_paths, vertex_paths and
+        max_path_length where the 'max_depth' is propotional to the number of
+        edges.
+
+        Deprecated: only padded paths will be returned where the 'max_depth'
+        is proportional to the number of edges instead of the number of
+        vertices when 'legacy_result_type' is 'True'.
 
     Returns
     -------
@@ -126,13 +136,38 @@ def random_walks(
 
     """
 
-    if legacy_result_type:
+    warning_msg = (
+        "random_walks is deprecated and will be removed "
+        "in the next release in favor of uniform_random_walks"
+    )
+    warnings.warn(warning_msg, FutureWarning)
+
+    # FIXME: Coalesced path results have been deprecated and should no longer be
+    # supported in 25.02.
+    # Context for legacy_result_type: The initial implementation of random_walks
+    # returned results where the vertex and weight path are proportional to the
+    # number of vertices instead of the number of edges hence the flag
+    # 'legacy_result_type' was created. This flag should be removed in favor of
+    # returning results paths proprtional to the number of edges. Furthermore,
+    # Coalesced path results should also be removed in favor of always returning
+    # padded results. The flags 'legacy_result_type' and 'use_padding" should be
+    # removed.
+
+    if legacy_result_type or use_padding is False:
         warning_msg = (
             "Coalesced path results, returned when setting legacy_result_type=True, "
             "is deprecated and will no longer be supported in the next releases. "
             "only padded paths will be returned instead"
         )
         warnings.warn(warning_msg, PendingDeprecationWarning)
+
+    if random_walks_type != "uniform":
+        warning_msg = (
+            "random_walks_type is deprecated and will be removed "
+            "in the next release. If random_walks_type == 'biased' or 'node2vec, "
+            "call 'biased_random_walks' or 'node2vec_random_walks'."
+        )
+    warnings.warn(warning_msg, FutureWarning)
 
     if max_depth is None:
         raise TypeError("must specify a 'max_depth'")
@@ -142,6 +177,9 @@ def random_walks(
     # data struct like a dictionary, etc.). The 2nd value is ignored here,
     # which is typically named isNx and used to convert the return type.
     # Consider a different return type if Nx types are passed in.
+    # The new API for random walk should instead always return the triple
+    # (vertex_paths, edge_wgt_paths, max_path_length)
+
     G, _ = ensure_cugraph_obj_for_nx(G)
 
     if isinstance(start_vertices, int):
@@ -191,7 +229,7 @@ def random_walks(
         )
         warnings.warn(warning_msg, PendingDeprecationWarning)
 
-        # Drop the last vertex and and edge weight from each vertex and edge weight
+        # Drop the last vertex and edge weight from each vertex and edge weight
         # paths.
         vertex_paths = vertex_paths.drop(
             index=vertex_paths[max_depth :: max_depth + 1].index
@@ -202,11 +240,16 @@ def random_walks(
         ).reset_index(drop=True)
 
         if use_padding:
+            # When padding, the 'sizes' array is not necessary because
+            # 'vertex_paths' and 'edge_wgt_paths' contain all information
+            # because of the padding factor.
             sizes = None
             # FIXME: Is it necessary to slice it with 'edge_wgt_paths_sz'?
             return vertex_paths, edge_wgt_paths, sizes
 
         # If 'use_padding' is False, compute the sizes of the unpadded results
+        # since the padded value (-1) will be removed which will make it difficult
+        # to identify the end and the beginning of a new path.
 
         sizes = (
             vertex_paths.apply(lambda x: 1 if x != -1 else 0)
@@ -251,9 +294,15 @@ def rw_path(
     Returns
     -------
     path_data : cudf.DataFrame
-        Dataframe containing vetex path offsets, edge weight offsets and
+        Dataframe containing vertex path offsets, edge weight offsets and
         edge weight sizes for each path.
     """
+
+    warning_msg = (
+        "This method is deprecated in favor of always returning " "padded results."
+    )
+
+    warnings.warn(warning_msg, PendingDeprecationWarning)
 
     vertex_offsets = cudf.Series(0, dtype=sizes.dtype)
     vertex_offsets = cudf.concat(

@@ -44,6 +44,7 @@ set(cython_sources
     leiden.pyx
     louvain.pyx
     node2vec.pyx
+    node2vec_random_walks.pyx
     pagerank.pyx
     personalized_pagerank.pyx
     random.pyx
@@ -57,6 +58,7 @@ set(cython_sources
     biased_neighbor_sample.pyx
     negative_sampling.pyx
     uniform_random_walks.pyx
+    biased_random_walks.pyx
     utils.pyx
     weakly_connected_components.pyx
     replicate_edgelist.pyx

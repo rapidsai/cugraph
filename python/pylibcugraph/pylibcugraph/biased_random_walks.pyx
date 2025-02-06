@@ -32,7 +32,7 @@ from pylibcugraph._cugraph_c.graph cimport (
     cugraph_graph_t,
 )
 from pylibcugraph._cugraph_c.algorithms cimport (
-    cugraph_uniform_random_walks,
+    cugraph_biased_random_walks,
     cugraph_random_walk_result_t,
     cugraph_random_walk_result_get_paths,
     cugraph_random_walk_result_get_weights,
@@ -59,13 +59,13 @@ from pylibcugraph.utils cimport (
 )
 
 
-def uniform_random_walks(ResourceHandle resource_handle,
+def biased_random_walks(ResourceHandle resource_handle,
                          _GPUGraph input_graph,
                          start_vertices,
                          size_t max_length,
                          random_state=None):
     """
-    Compute uniform random walks for each nodes in 'start_vertices'
+    Compute biased random walks for each nodes in 'start_vertices'
 
     Parameters
     ----------
@@ -78,10 +78,10 @@ def uniform_random_walks(ResourceHandle resource_handle,
 
     start_vertices: device array type
         Device array containing the list of starting vertices from which
-        to run the uniform random walk
+        to run the biased random walk
 
     max_length: size_t
-        The maximum depth of the uniform random walks
+        The maximum depth of the biased random walks
 
     random_state: int (Optional)
         Random state to use when generating samples.  Optional argument,
@@ -120,7 +120,7 @@ def uniform_random_walks(ResourceHandle resource_handle,
     cdef cugraph_rng_state_t* rng_state_ptr = \
         cg_rng_state.rng_state_ptr
 
-    error_code = cugraph_uniform_random_walks(
+    error_code = cugraph_biased_random_walks(
         c_resource_handle_ptr,
         rng_state_ptr,
         c_graph_ptr,
@@ -128,7 +128,7 @@ def uniform_random_walks(ResourceHandle resource_handle,
         max_length,
         &result_ptr,
         &error_ptr)
-    assert_success(error_code, error_ptr, "cugraph_uniform_random_walks")
+    assert_success(error_code, error_ptr, "cugraph_biased_random_walks")
 
     cdef cugraph_type_erased_device_array_view_t* path_ptr = \
         cugraph_random_walk_result_get_paths(result_ptr)
