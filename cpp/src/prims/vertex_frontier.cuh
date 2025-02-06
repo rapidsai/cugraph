@@ -265,7 +265,7 @@ class key_bucket_t {
 
   key_bucket_t(key_bucket_t const& other) = delete;
 
-  // this shouldn't be necessary but to silence a compiler warning in CUDA 12.8
+  // The default move constructor should work fine but to silence a compiler warning (CUDA 12.8)
   key_bucket_t(key_bucket_t&& other)
   {
     this->handle_ptr_ = other.handle_ptr_;
@@ -321,7 +321,7 @@ class key_bucket_t {
 
   key_bucket_t& operator=(key_bucket_t const& other) = delete;
 
-  // this shouldn't be necessary but to silence a compiler warning in CUDA 12.8
+  // The default move operator should work fine but to silence a compiler warning (CUDA 12.8)
   key_bucket_t& operator=(key_bucket_t&& other)
   {
     if (this != &other) {
