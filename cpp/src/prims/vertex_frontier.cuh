@@ -259,7 +259,19 @@ class key_bucket_t {
   using optional_variant_type =
     std::conditional_t<std::is_same_v<tag_t, void>,
                        std::byte /* dummy */,
-                       std::variant<rmm::device_uvector<tag_t>, raft::device_span<tag_t const>>>;
+                       std::variant<raft::device_span<tag_t const>, rmm::device_uvector<tag_t>>>;
+
+  key_bucket_t() = delete;
+
+  key_bucket_t(key_bucket_t const& other) = delete;
+
+  // this shouldn't be necessary but to silence a compiler warning in CUDA 12.8
+  key_bucket_t(key_bucket_t&& other)
+  {
+    this->handle_ptr_ = other.handle_ptr_;
+    this->vertices_   = std::move(other.vertices_);
+    this->tags_       = std::move(other.tags_);
+  }
 
   template <typename tag_type = tag_t, std::enable_if_t<std::is_same_v<tag_type, void>>* = nullptr>
   key_bucket_t(raft::handle_t const& handle)
@@ -305,6 +317,21 @@ class key_bucket_t {
   {
   }
 
+  ~key_bucket_t() = default;
+
+  key_bucket_t& operator=(key_bucket_t const& other) = delete;
+
+  // this shouldn't be necessary but to silence a compiler warning in CUDA 12.8
+  key_bucket_t& operator=(key_bucket_t&& other)
+  {
+    if (this != &other) {
+      this->handle_ptr_ = other.handle_ptr_;
+      this->vertices_   = std::move(other.vertices_);
+      this->tags_       = std::move(other.tags_);
+    }
+    return *this;
+  }
+
   /**
    * @ brief insert a vertex to the bucket
    *
@@ -313,15 +340,15 @@ class key_bucket_t {
   template <typename tag_type = tag_t, std::enable_if_t<std::is_same_v<tag_type, void>>* = nullptr>
   void insert(vertex_t vertex)
   {
-    CUGRAPH_EXPECTS(vertices_.index() == 0,
+    CUGRAPH_EXPECTS(vertices_.index() == 1,
                     "insert() is supported only when this bucket holds an owning container.");
-    if (std::get<0>(vertices_).size() > 0) {
+    if (std::get<1>(vertices_).size() > 0) {
       rmm::device_scalar<vertex_t> tmp(vertex, handle_ptr_->get_stream());
       insert(tmp.data(), tmp.data() + 1);
     } else {
-      std::get<0>(vertices_).resize(1, handle_ptr_->get_stream());
+      std::get<1>(vertices_).resize(1, handle_ptr_->get_stream());
       raft::update_device(
-        std::get<0>(vertices_).data(), &vertex, size_t{1}, handle_ptr_->get_stream());
+        std::get<1>(vertices_).data(), &vertex, size_t{1}, handle_ptr_->get_stream());
     }
   }
 
@@ -334,19 +361,18 @@ class key_bucket_t {
   template <typename tag_type = tag_t, std::enable_if_t<!std::is_same_v<tag_type, void>>* = nullptr>
   void insert(thrust::tuple<vertex_t, tag_type> key)
   {
-    CUGRAPH_EXPECTS(vertices_.index() == 0,
+    CUGRAPH_EXPECTS(vertices_.index() == 1,
                     "insert() is supported only when this bucket holds an owning container.");
-    if (std::get<0>(vertices_).size() > 0) {
+    if (std::get<1>(vertices_).size() > 0) {
       rmm::device_scalar<vertex_t> tmp_vertex(thrust::get<0>(key), handle_ptr_->get_stream());
       rmm::device_scalar<tag_t> tmp_tag(thrust::get<1>(key), handle_ptr_->get_stream());
-      auto pair_first =
-        thrust::make_zip_iterator(thrust::make_tuple(tmp_vertex.data(), tmp_tag.data()));
+      auto pair_first = thrust::make_zip_iterator(tmp_vertex.data(), tmp_tag.data());
       insert(pair_first, pair_first + 1);
     } else {
-      std::get<0>(vertices_).resize(1, handle_ptr_->get_stream());
-      std::get<0>(tags_).resize(1, handle_ptr_->get_stream());
-      auto pair_first = thrust::make_tuple(
-        thrust::make_zip_iterator(std::get<0>(vertices_).begin(), std::get<0>(tags_).begin()));
+      std::get<1>(vertices_).resize(1, handle_ptr_->get_stream());
+      std::get<1>(tags_).resize(1, handle_ptr_->get_stream());
+      auto pair_first =
+        thrust::make_zip_iterator(std::get<1>(vertices_).begin(), std::get<1>(tags_).begin());
       thrust::fill(handle_ptr_->get_thrust_policy(), pair_first, pair_first + 1, key);
     }
   }
@@ -367,16 +393,16 @@ class key_bucket_t {
     static_assert(
       std::is_same_v<typename std::iterator_traits<VertexIterator>::value_type, vertex_t>);
 
-    CUGRAPH_EXPECTS(vertices_.index() == 0,
+    CUGRAPH_EXPECTS(vertices_.index() == 1,
                     "insert() is supported only when this bucket holds an owning container.");
-    if (std::get<0>(vertices_).size() > 0) {
+    if (std::get<1>(vertices_).size() > 0) {
       if constexpr (sorted_unique) {
         rmm::device_uvector<vertex_t> merged_vertices(
-          std::get<0>(vertices_).size() + thrust::distance(vertex_first, vertex_last),
+          std::get<1>(vertices_).size() + thrust::distance(vertex_first, vertex_last),
           handle_ptr_->get_stream());
         thrust::merge(handle_ptr_->get_thrust_policy(),
-                      std::get<0>(vertices_).begin(),
-                      std::get<0>(vertices_).end(),
+                      std::get<1>(vertices_).begin(),
+                      std::get<1>(vertices_).end(),
                       vertex_first,
                       vertex_last,
                       merged_vertices.begin());
@@ -385,23 +411,23 @@ class key_bucket_t {
                                                                merged_vertices.begin(),
                                                                merged_vertices.end())),
                                handle_ptr_->get_stream());
-        std::get<0>(vertices_) = std::move(merged_vertices);
+        std::get<1>(vertices_) = std::move(merged_vertices);
       } else {
-        auto cur_size = std::get<0>(vertices_).size();
-        std::get<0>(vertices_).resize(cur_size + thrust::distance(vertex_first, vertex_last),
+        auto cur_size = std::get<1>(vertices_).size();
+        std::get<1>(vertices_).resize(cur_size + thrust::distance(vertex_first, vertex_last),
                                       handle_ptr_->get_stream());
         thrust::copy(handle_ptr_->get_thrust_policy(),
                      vertex_first,
                      vertex_last,
-                     std::get<0>(vertices_).begin() + cur_size);
+                     std::get<1>(vertices_).begin() + cur_size);
       }
     } else {
-      std::get<0>(vertices_).resize(thrust::distance(vertex_first, vertex_last),
+      std::get<1>(vertices_).resize(thrust::distance(vertex_first, vertex_last),
                                     handle_ptr_->get_stream());
       thrust::copy(handle_ptr_->get_thrust_policy(),
                    vertex_first,
                    vertex_last,
-                   std::get<0>(vertices_).begin());
+                   std::get<1>(vertices_).begin());
     }
   }
 
@@ -421,21 +447,21 @@ class key_bucket_t {
     static_assert(std::is_same_v<typename std::iterator_traits<KeyIterator>::value_type,
                                  thrust::tuple<vertex_t, tag_t>>);
 
-    CUGRAPH_EXPECTS(vertices_.index() == 0,
+    CUGRAPH_EXPECTS(vertices_.index() == 1,
                     "insert() is supported only when this bucket holds an owning container.");
-    if (std::get<0>(vertices_).size() > 0) {
+    if (std::get<1>(vertices_).size() > 0) {
       if constexpr (sorted_unique) {
         rmm::device_uvector<vertex_t> merged_vertices(
-          std::get<0>(vertices_).size() + thrust::distance(key_first, key_last),
+          std::get<1>(vertices_).size() + thrust::distance(key_first, key_last),
           handle_ptr_->get_stream());
         rmm::device_uvector<tag_t> merged_tags(merged_vertices.size(), handle_ptr_->get_stream());
-        auto old_pair_first = thrust::make_zip_iterator(
-          thrust::make_tuple(std::get<0>(vertices_).begin(), std::get<0>(tags_).begin()));
-        auto merged_pair_first = thrust::make_zip_iterator(
-          thrust::make_tuple(merged_vertices.begin(), merged_tags.begin()));
+        auto old_pair_first =
+          thrust::make_zip_iterator(std::get<1>(vertices_).begin(), std::get<1>(tags_).begin());
+        auto merged_pair_first =
+          thrust::make_zip_iterator(merged_vertices.begin(), merged_tags.begin());
         thrust::merge(handle_ptr_->get_thrust_policy(),
                       old_pair_first,
-                      old_pair_first + std::get<0>(vertices_).size(),
+                      old_pair_first + std::get<1>(vertices_).size(),
                       key_first,
                       key_last,
                       merged_pair_first);
@@ -446,29 +472,29 @@ class key_bucket_t {
                                           merged_pair_first + merged_vertices.size())),
           handle_ptr_->get_stream());
         merged_tags.resize(merged_vertices.size(), handle_ptr_->get_stream());
-        std::get<0>(vertices_) = std::move(merged_vertices);
-        std::get<0>(tags_)     = std::move(merged_tags);
+        std::get<1>(vertices_) = std::move(merged_vertices);
+        std::get<1>(tags_)     = std::move(merged_tags);
       } else {
-        auto cur_size = std::get<0>(vertices_).size();
-        std::get<0>(vertices_).resize(cur_size + thrust::distance(key_first, key_last),
+        auto cur_size = std::get<1>(vertices_).size();
+        std::get<1>(vertices_).resize(cur_size + thrust::distance(key_first, key_last),
                                       handle_ptr_->get_stream());
-        std::get<0>(tags_).resize(std::get<0>(vertices_).size(), handle_ptr_->get_stream());
-        thrust::copy(handle_ptr_->get_thrust_policy(),
-                     key_first,
-                     key_last,
-                     thrust::make_zip_iterator(thrust::make_tuple(std::get<0>(vertices_).begin(),
-                                                                  std::get<0>(tags_).begin())) +
-                       cur_size);
+        std::get<1>(tags_).resize(std::get<1>(vertices_).size(), handle_ptr_->get_stream());
+        thrust::copy(
+          handle_ptr_->get_thrust_policy(),
+          key_first,
+          key_last,
+          thrust::make_zip_iterator(std::get<1>(vertices_).begin(), std::get<1>(tags_).begin()) +
+            cur_size);
       }
     } else {
-      std::get<0>(vertices_).resize(thrust::distance(key_first, key_last),
+      std::get<1>(vertices_).resize(thrust::distance(key_first, key_last),
                                     handle_ptr_->get_stream());
-      std::get<0>(tags_).resize(thrust::distance(key_first, key_last), handle_ptr_->get_stream());
-      thrust::copy(handle_ptr_->get_thrust_policy(),
-                   key_first,
-                   key_last,
-                   thrust::make_zip_iterator(thrust::make_tuple(std::get<0>(vertices_).begin(),
-                                                                std::get<0>(tags_).begin())));
+      std::get<1>(tags_).resize(thrust::distance(key_first, key_last), handle_ptr_->get_stream());
+      thrust::copy(
+        handle_ptr_->get_thrust_policy(),
+        key_first,
+        key_last,
+        thrust::make_zip_iterator(std::get<1>(vertices_).begin(), std::get<1>(tags_).begin()));
     }
   }
 
@@ -495,42 +521,36 @@ class key_bucket_t {
 
   void resize(size_t size)
   {
-    CUGRAPH_EXPECTS(vertices_.index() == 0,
+    CUGRAPH_EXPECTS(vertices_.index() == 1,
                     "resize() is supported only when this bucket holds an owning container.");
-    std::get<0>(vertices_).resize(size, handle_ptr_->get_stream());
+    std::get<1>(vertices_).resize(size, handle_ptr_->get_stream());
     if constexpr (!std::is_same_v<tag_t, void>) {
-      std::get<0>(tags_).resize(size, handle_ptr_->get_stream());
+      std::get<1>(tags_).resize(size, handle_ptr_->get_stream());
     }
   }
 
-  void clear()
-  {
-    CUGRAPH_EXPECTS(vertices_.index() == 0,
-                    "clear() is supported only when this bucket holds an owning container.");
-    resize(0);
-  }
+  void clear() { resize(0); }
 
   void shrink_to_fit()
   {
     CUGRAPH_EXPECTS(
-      vertices_.index() == 0,
+      vertices_.index() == 1,
       "shrink_to_fit() is supported only when this bucket holds an owning container.");
-    std::get<0>(vertices_).shrink_to_fit(handle_ptr_->get_stream());
+    std::get<1>(vertices_).shrink_to_fit(handle_ptr_->get_stream());
     if constexpr (!std::is_same_v<tag_t, void>) {
-      std::get<0>(tags_).shrink_to_fit(handle_ptr_->get_stream());
+      std::get<1>(tags_).shrink_to_fit(handle_ptr_->get_stream());
     }
   }
 
   auto begin()
   {
     CUGRAPH_EXPECTS(
-      vertices_.index() == 0,
+      vertices_.index() == 1,
       "non-const begin() is supported only when this bucket holds an owning container.");
     if constexpr (std::is_same_v<tag_t, void>) {
-      return std::get<0>(vertices_).begin();
+      return std::get<1>(vertices_).begin();
     } else {
-      return thrust::make_zip_iterator(
-        thrust::make_tuple(std::get<0>(vertices_).begin(), std::get<0>(tags_).begin()));
+      return thrust::make_zip_iterator(std::get<1>(vertices_).begin(), std::get<1>(tags_).begin());
     }
   }
 
@@ -540,11 +560,10 @@ class key_bucket_t {
       return vertices_.index() == 0 ? std::get<0>(vertices_).begin()
                                     : std::get<1>(vertices_).begin();
     } else {
-      return vertices_.index() == 0
-               ? thrust::make_zip_iterator(
-                   thrust::make_tuple(std::get<0>(vertices_).begin(), std::get<0>(tags_).begin()))
-               : thrust::make_zip_iterator(
-                   thrust::make_tuple(std::get<1>(vertices_).begin(), std::get<1>(tags_).begin()));
+      return vertices_.index() == 0 ? thrust::make_zip_iterator(std::get<0>(vertices_).begin(),
+                                                                std::get<0>(tags_).begin())
+                                    : thrust::make_zip_iterator(std::get<1>(vertices_).begin(),
+                                                                std::get<1>(tags_).begin());
     }
   }
 
@@ -553,9 +572,9 @@ class key_bucket_t {
   auto end()
   {
     CUGRAPH_EXPECTS(
-      vertices_.index() == 0,
+      vertices_.index() == 1,
       "non-const end() is supported only when this bucket holds an owning container.");
-    return begin() + std::get<0>(vertices_).size();
+    return begin() + std::get<1>(vertices_).size();
   }
 
   auto const cend() const
@@ -569,9 +588,9 @@ class key_bucket_t {
   auto vertex_begin()
   {
     CUGRAPH_EXPECTS(
-      vertices_.index() == 0,
+      vertices_.index() == 1,
       "non-const vertex_begin() is supported only when this bucket holds an owning container.");
-    return std::get<0>(vertices_).begin();
+    return std::get<1>(vertices_).begin();
   }
 
   auto const vertex_cbegin() const
@@ -584,9 +603,9 @@ class key_bucket_t {
   auto vertex_end()
   {
     CUGRAPH_EXPECTS(
-      vertices_.index() == 0,
+      vertices_.index() == 1,
       "non-const vertex_end() is supported only when this bucket holds an owning container.");
-    return std::get<0>(vertices_).end();
+    return std::get<1>(vertices_).end();
   }
 
   auto const vertex_cend() const
@@ -596,12 +615,12 @@ class key_bucket_t {
 
   auto const vertex_end() const { return vertex_cend(); }
 
-  bool is_owning() { return (vertices_.index() == 0); }
+  bool is_owning() { return (vertices_.index() == 1); }
 
  private:
   raft::handle_t const* handle_ptr_{nullptr};
-  std::variant<rmm::device_uvector<vertex_t>, raft::device_span<vertex_t const>> vertices_;
-  optional_variant_type tags_;
+  std::variant<raft::device_span<vertex_t const>, rmm::device_uvector<vertex_t>> vertices_{};
+  optional_variant_type tags_{};
 };
 
 template <typename vertex_t,
@@ -669,8 +688,7 @@ class vertex_frontier_t {
 
     // 2. separte the elements to stay in this bucket from the elements to be moved to other buckets
 
-    auto pair_first =
-      thrust::make_zip_iterator(thrust::make_tuple(bucket_indices.begin(), this_bucket.begin()));
+    auto pair_first = thrust::make_zip_iterator(bucket_indices.begin(), this_bucket.begin());
     auto new_this_bucket_size = static_cast<size_t>(thrust::distance(
       pair_first,
       thrust::stable_partition(  // stable_partition to maintain sorted order within each bucket
@@ -715,7 +733,7 @@ class vertex_frontier_t {
   {
     // 1. group the elements by their target bucket indices
 
-    auto pair_first = thrust::make_zip_iterator(thrust::make_tuple(bucket_idx_first, key_first));
+    auto pair_first = thrust::make_zip_iterator(bucket_idx_first, key_first);
     auto pair_last  = pair_first + thrust::distance(bucket_idx_first, bucket_idx_last);
 
     std::vector<size_t> insert_bucket_indices{};
