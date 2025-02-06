@@ -35,6 +35,7 @@
 
 #include <rmm/device_scalar.hpp>
 
+#include <cuda/std/functional>
 #include <thrust/adjacent_difference.h>
 #include <thrust/binary_search.h>
 #include <thrust/copy.h>
@@ -359,7 +360,7 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> negativ
                                        begin_iter,
                                        begin_iter + batch_srcs.size(),
                                        has_edge_flags.begin(),
-                                       thrust::identity<bool>());
+                                       cuda::std::identity());
 
       batch_srcs.resize(thrust::distance(begin_iter, new_end), handle.get_stream());
       batch_dsts.resize(thrust::distance(begin_iter, new_end), handle.get_stream());
