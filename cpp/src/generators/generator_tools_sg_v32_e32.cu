@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,6 +24,7 @@
 
 #include <rmm/device_uvector.hpp>
 
+#include <cuda/std/tuple>
 #include <thrust/copy.h>
 #include <thrust/distance.h>
 #include <thrust/execution_policy.h>
@@ -32,7 +33,6 @@
 #include <thrust/partition.h>
 #include <thrust/sort.h>
 #include <thrust/transform.h>
-#include <thrust/tuple.h>
 #include <thrust/unique.h>
 
 #include <numeric>

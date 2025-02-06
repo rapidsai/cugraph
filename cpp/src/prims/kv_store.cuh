@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -99,7 +99,7 @@ struct kv_cuco_insert_and_increment_t {
 
   __device__ size_t operator()(size_t i)
   {
-    auto pair             = thrust::make_tuple(*(key_first + i), size_t{0} /* dummy */);
+    auto pair             = cuda::std::make_tuple(*(key_first + i), size_t{0} /* dummy */);
     auto [iter, inserted] = device_ref.insert_and_find(pair);
     if (inserted) {
       cuda::atomic_ref<size_t, cuda::thread_scope_device> atomic_counter(*counter);
@@ -127,7 +127,7 @@ struct kv_cuco_insert_if_and_increment_t {
   {
     if (pred_op(*(stencil_first + i)) == false) { return invalid_idx; }
 
-    auto pair             = thrust::make_tuple(*(key_first + i), size_t{0} /* dummy */);
+    auto pair             = cuda::std::make_tuple(*(key_first + i), size_t{0} /* dummy */);
     auto [iter, inserted] = device_ref.insert_and_find(pair);
     if (inserted) {
       cuda::atomic_ref<size_t, cuda::thread_scope_device> atomic_counter(*counter);
@@ -146,13 +146,13 @@ template <typename RefType, typename key_t, typename value_t>
 struct kv_cuco_insert_and_assign_t {
   RefType device_ref{};
 
-  __device__ void operator()(thrust::tuple<key_t, value_t> pair)
+  __device__ void operator()(cuda::std::tuple<key_t, value_t> pair)
   {
     auto [iter, inserted] = device_ref.insert_and_find(pair);
     if (!inserted) {
       cuda::atomic_ref<typename RefType::mapped_type, cuda::thread_scope_device> ref(
         (*iter).second);
-      ref.store(thrust::get<1>(pair), cuda::std::memory_order_relaxed);
+      ref.store(cuda::std::get<1>(pair), cuda::std::memory_order_relaxed);
     }
   }
 };
@@ -569,7 +569,7 @@ class kv_cuco_store_t {
     if (num_keys == 0) return;
 
     if constexpr (std::is_arithmetic_v<value_t>) {
-      auto pair_first = thrust::make_zip_iterator(thrust::make_tuple(key_first, value_first));
+      auto pair_first = thrust::make_zip_iterator(cuda::std::make_tuple(key_first, value_first));
       size_ += cuco_store_->insert(pair_first, pair_first + num_keys, stream.value());
     } else {
       auto old_store_value_size = size_optional_dataframe_buffer<value_t>(store_values_);
@@ -613,7 +613,7 @@ class kv_cuco_store_t {
     if (num_keys == 0) return;
 
     if constexpr (std::is_arithmetic_v<value_t>) {
-      auto pair_first = thrust::make_zip_iterator(thrust::make_tuple(key_first, value_first));
+      auto pair_first = thrust::make_zip_iterator(cuda::std::make_tuple(key_first, value_first));
       size_ += cuco_store_->insert_if(
         pair_first, pair_first + num_keys, stencil_first, pred_op, stream.value());
     } else {
@@ -663,7 +663,7 @@ class kv_cuco_store_t {
     if (num_keys == 0) return;
 
     if constexpr (std::is_arithmetic_v<value_t>) {
-      auto pair_first = thrust::make_zip_iterator(thrust::make_tuple(key_first, value_first));
+      auto pair_first = thrust::make_zip_iterator(cuda::std::make_tuple(key_first, value_first));
       // FIXME: a temporary solution till insert_and_assign is added to
       // cuco::static_map
       auto mutable_device_ref = cuco_store_->ref(cuco::insert_and_find);
@@ -704,7 +704,7 @@ class kv_cuco_store_t {
       rmm::device_uvector<size_t> kv_indices(num_keys, stream);
       thrust::sequence(rmm::exec_policy(), kv_indices.begin(), kv_indices.end(), size_t{0});
       auto pair_first = thrust::make_zip_iterator(
-        thrust::make_tuple(store_value_offsets.begin(), kv_indices.begin()));
+        cuda::std::make_tuple(store_value_offsets.begin(), kv_indices.begin()));
       kv_indices.resize(
         thrust::distance(
           pair_first,
@@ -712,7 +712,7 @@ class kv_cuco_store_t {
                             pair_first,
                             pair_first + num_keys,
                             [invalid_idx = std::numeric_limits<size_t>::max()] __device__(
-                              auto pair) { return thrust::get<0>(pair) != invalid_idx; })),
+                              auto pair) { return cuda::std::get<0>(pair) != invalid_idx; })),
         stream);
       store_value_offsets.resize(0, stream);
       store_value_offsets.shrink_to_fit(stream);

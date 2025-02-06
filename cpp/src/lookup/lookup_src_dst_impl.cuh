@@ -50,7 +50,7 @@ struct lookup_container_t<edge_id_t, edge_type_t, vertex_t, value_t>::lookup_con
                         std::vector<edge_id_t> type_counts)
   {
     auto invalid_vertex_id = cugraph::invalid_vertex_id<edge_id_t>::value;
-    auto invalid_value = thrust::tuple<vertex_t, vertex_t>(invalid_vertex_id, invalid_vertex_id);
+    auto invalid_value = cuda::std::tuple<vertex_t, vertex_t>(invalid_vertex_id, invalid_vertex_id);
 
     edge_type_to_kv_store = container_t{};
     edge_type_to_kv_store.reserve(types.size());
@@ -173,8 +173,8 @@ struct lookup_container_t<edge_id_t, edge_type_t, vertex_t, value_t>::lookup_con
     thrust::sort_by_key(handle.get_thrust_policy(),
                         tmp_edge_types_to_lookup.begin(),
                         tmp_edge_types_to_lookup.end(),
-                        thrust::make_zip_iterator(thrust::make_tuple(tmp_edge_ids_to_lookup.begin(),
-                                                                     original_idxs.begin())));
+                        thrust::make_zip_iterator(cuda::std::make_tuple(
+                          tmp_edge_ids_to_lookup.begin(), original_idxs.begin())));
 
     auto nr_uniqe_edge_types_to_lookup = thrust::count_if(
       handle.get_thrust_policy(),
@@ -385,7 +385,7 @@ EdgeTypeAndIdToSrcDstLookupContainerType build_edge_id_and_type_to_src_dst_looku
   static_assert(std::is_integral_v<edge_type_t>);
   static_assert(std::is_integral_v<edge_id_t>);
   static_assert(std::is_same_v<edge_t, edge_id_t>);
-  static_assert(std::is_same_v<value_t, thrust::tuple<vertex_t, vertex_t>>);
+  static_assert(std::is_same_v<value_t, cuda::std::tuple<vertex_t, vertex_t>>);
 
   static_assert(
     std::is_same_v<typename EdgeTypeAndIdToSrcDstLookupContainerType::edge_type_type, edge_type_t>,
@@ -413,7 +413,7 @@ EdgeTypeAndIdToSrcDstLookupContainerType build_edge_id_and_type_to_src_dst_looku
         cugraph::edge_src_dummy_property_t{}.view(),
         cugraph::edge_dst_dummy_property_t{}.view(),
         view_concat(edge_id_view, edge_type_view),
-        cuda::proclaim_return_type<cuda::std::optional<thrust::tuple<int, edge_type_t>>>(
+        cuda::proclaim_return_type<cuda::std::optional<cuda::std::tuple<int, edge_type_t>>>(
           [key_func =
              cugraph::detail::compute_gpu_id_from_ext_edge_id_t<edge_t>{
                comm_size,
@@ -422,13 +422,13 @@ EdgeTypeAndIdToSrcDstLookupContainerType build_edge_id_and_type_to_src_dst_looku
                                             auto,
                                             cuda::std::nullopt_t,
                                             cuda::std::nullopt_t,
-                                            thrust::tuple<edge_t, edge_type_t> id_and_type) {
-            return cuda::std::optional<thrust::tuple<int, edge_type_t>>{thrust::make_tuple(
-              key_func(thrust::get<0>(id_and_type)), thrust::get<1>(id_and_type))};
+                                            cuda::std::tuple<edge_t, edge_type_t> id_and_type) {
+            return cuda::std::optional<cuda::std::tuple<int, edge_type_t>>{cuda::std::make_tuple(
+              key_func(cuda::std::get<0>(id_and_type)), cuda::std::get<1>(id_and_type))};
           }));
 
     auto type_and_gpu_id_pair_begin =
-      thrust::make_zip_iterator(thrust::make_tuple(edge_types.begin(), gpu_ids.begin()));
+      thrust::make_zip_iterator(cuda::std::make_tuple(edge_types.begin(), gpu_ids.begin()));
 
     thrust::sort(handle.get_thrust_policy(),
                  type_and_gpu_id_pair_begin,
@@ -479,13 +479,13 @@ EdgeTypeAndIdToSrcDstLookupContainerType build_edge_id_and_type_to_src_dst_looku
       std::tie(std::get<0>(unique_pairs_buffer), std::ignore, unique_pair_counts), std::ignore) =
       cugraph::groupby_gpu_id_and_shuffle_values(
         handle.get_comms(),
-        thrust::make_zip_iterator(thrust::make_tuple(std::get<0>(unique_pairs_buffer).begin(),
-                                                     std::get<1>(unique_pairs_buffer).begin(),
-                                                     unique_pair_counts.begin())),
-        thrust::make_zip_iterator(thrust::make_tuple(std::get<0>(unique_pairs_buffer).end(),
-                                                     std::get<1>(unique_pairs_buffer).end(),
-                                                     unique_pair_counts.end())),
-        [] __device__(auto val) { return thrust::get<1>(val); },
+        thrust::make_zip_iterator(cuda::std::make_tuple(std::get<0>(unique_pairs_buffer).begin(),
+                                                        std::get<1>(unique_pairs_buffer).begin(),
+                                                        unique_pair_counts.begin())),
+        thrust::make_zip_iterator(cuda::std::make_tuple(std::get<0>(unique_pairs_buffer).end(),
+                                                        std::get<1>(unique_pairs_buffer).end(),
+                                                        unique_pair_counts.end())),
+        [] __device__(auto val) { return cuda::std::get<1>(val); },
         handle.get_stream());
 
     //
@@ -644,19 +644,19 @@ EdgeTypeAndIdToSrcDstLookupContainerType build_edge_id_and_type_to_src_dst_looku
         std::tie(edgelist_majors, edgelist_minors, edgelist_ids, edgelist_types), std::ignore) =
         cugraph::groupby_gpu_id_and_shuffle_values(
           handle.get_comms(),
-          thrust::make_zip_iterator(thrust::make_tuple(edgelist_majors.begin(),
-                                                       edgelist_minors.begin(),
-                                                       edgelist_ids.begin(),
-                                                       edgelist_types.begin())),
-          thrust::make_zip_iterator(thrust::make_tuple(edgelist_majors.end(),
-                                                       edgelist_minors.end(),
-                                                       edgelist_ids.end(),
-                                                       edgelist_types.end())),
+          thrust::make_zip_iterator(cuda::std::make_tuple(edgelist_majors.begin(),
+                                                          edgelist_minors.begin(),
+                                                          edgelist_ids.begin(),
+                                                          edgelist_types.begin())),
+          thrust::make_zip_iterator(cuda::std::make_tuple(edgelist_majors.end(),
+                                                          edgelist_minors.end(),
+                                                          edgelist_ids.end(),
+                                                          edgelist_types.end())),
           [key_func =
              cugraph::detail::compute_gpu_id_from_ext_edge_id_t<edge_t>{
                comm_size,
                major_comm_size,
-               minor_comm_size}] __device__(auto val) { return key_func(thrust::get<2>(val)); },
+               minor_comm_size}] __device__(auto val) { return key_func(cuda::std::get<2>(val)); },
           handle.get_stream());
     }
 
@@ -715,7 +715,7 @@ EdgeTypeAndIdToSrcDstLookupContainerType build_edge_id_and_type_to_src_dst_looku
         cugraph::allocate_dataframe_buffer<value_t>(nr_elements_to_insert, handle.get_stream());
 
       auto zip_itr = thrust::make_zip_iterator(
-        thrust::make_tuple(edgelist_majors.begin(), edgelist_minors.begin()));
+        cuda::std::make_tuple(edgelist_majors.begin(), edgelist_minors.begin()));
 
       thrust::copy(handle.get_thrust_policy(),
                    zip_itr + h_type_offsets[idx],
@@ -753,7 +753,7 @@ lookup_endpoints_from_edge_ids_and_single_type(
   using value_t = typename EdgeTypeAndIdToSrcDstLookupContainerType::value_type;
   static_assert(std::is_integral_v<edge_id_t>);
   static_assert(std::is_integral_v<edge_type_t>);
-  static_assert(std::is_same_v<value_t, thrust::tuple<vertex_t, vertex_t>>);
+  static_assert(std::is_same_v<value_t, cuda::std::tuple<vertex_t, vertex_t>>);
 
   static_assert(
     std::is_same_v<typename EdgeTypeAndIdToSrcDstLookupContainerType::edge_id_type, edge_id_t>,
@@ -784,7 +784,7 @@ lookup_endpoints_from_edge_ids_and_types(
   using value_t = typename EdgeTypeAndIdToSrcDstLookupContainerType::value_type;
   static_assert(std::is_integral_v<edge_id_t>);
   static_assert(std::is_integral_v<edge_type_t>);
-  static_assert(std::is_same_v<value_t, thrust::tuple<vertex_t, vertex_t>>);
+  static_assert(std::is_same_v<value_t, cuda::std::tuple<vertex_t, vertex_t>>);
 
   assert(edge_ids_to_lookup.size() == edge_types_to_lookup.size());
 

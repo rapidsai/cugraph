@@ -32,6 +32,7 @@
 
 #include <raft/core/handle.hpp>
 
+#include <cuda/std/tuple>
 #include <thrust/binary_search.h>
 #include <thrust/copy.h>
 #include <thrust/count.h>
@@ -40,7 +41,6 @@
 #include <thrust/execution_policy.h>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/sort.h>
-#include <thrust/tuple.h>
 #include <thrust/unique.h>
 
 #include <cstdint>
@@ -58,16 +58,16 @@ struct check_edge_t {
   vertex_t const* sorted_valid_minor_range_first{nullptr};
   vertex_t const* sorted_valid_minor_range_last{nullptr};
 
-  __device__ bool operator()(thrust::tuple<vertex_t, vertex_t> const& e) const
+  __device__ bool operator()(cuda::std::tuple<vertex_t, vertex_t> const& e) const
   {
     return !thrust::binary_search(thrust::seq,
                                   sorted_valid_major_range_first,
                                   sorted_valid_major_range_last,
-                                  thrust::get<0>(e)) ||
+                                  cuda::std::get<0>(e)) ||
            !thrust::binary_search(thrust::seq,
                                   sorted_valid_minor_range_first,
                                   sorted_valid_minor_range_last,
-                                  thrust::get<1>(e));
+                                  cuda::std::get<1>(e));
   }
 };
 
@@ -158,7 +158,7 @@ void expensive_check_edgelist(raft::handle_t const& handle,
     }
 
     auto edge_first = thrust::make_zip_iterator(
-      thrust::make_tuple(edgelist_majors.begin(), edgelist_minors.begin()));
+      cuda::std::make_tuple(edgelist_majors.begin(), edgelist_minors.begin()));
     CUGRAPH_EXPECTS(
       thrust::count_if(handle.get_thrust_policy(),
                        edge_first,
@@ -205,7 +205,7 @@ void expensive_check_edgelist(raft::handle_t const& handle,
       }
 
       auto edge_first = thrust::make_zip_iterator(
-        thrust::make_tuple(edgelist_majors.begin(), edgelist_minors.begin()));
+        cuda::std::make_tuple(edgelist_majors.begin(), edgelist_minors.begin()));
       CUGRAPH_EXPECTS(
         thrust::count_if(handle.get_thrust_policy(),
                          edge_first,
@@ -226,7 +226,7 @@ void expensive_check_edgelist(raft::handle_t const& handle,
                    sorted_vertices.begin());
       thrust::sort(handle.get_thrust_policy(), sorted_vertices.begin(), sorted_vertices.end());
       auto edge_first = thrust::make_zip_iterator(
-        thrust::make_tuple(edgelist_majors.begin(), edgelist_minors.begin()));
+        cuda::std::make_tuple(edgelist_majors.begin(), edgelist_minors.begin()));
       CUGRAPH_EXPECTS(
         thrust::count_if(handle.get_thrust_policy(),
                          edge_first,
@@ -281,10 +281,10 @@ bool check_symmetric(raft::handle_t const& handle,
   if (org_srcs.size() != symmetrized_srcs.size()) { return false; }
 
   auto org_edge_first =
-    thrust::make_zip_iterator(thrust::make_tuple(org_srcs.begin(), org_dsts.begin()));
+    thrust::make_zip_iterator(cuda::std::make_tuple(org_srcs.begin(), org_dsts.begin()));
   thrust::sort(handle.get_thrust_policy(), org_edge_first, org_edge_first + org_srcs.size());
   auto symmetrized_edge_first = thrust::make_zip_iterator(
-    thrust::make_tuple(symmetrized_srcs.begin(), symmetrized_dsts.begin()));
+    cuda::std::make_tuple(symmetrized_srcs.begin(), symmetrized_dsts.begin()));
   thrust::sort(handle.get_thrust_policy(),
                symmetrized_edge_first,
                symmetrized_edge_first + symmetrized_srcs.size());
@@ -308,7 +308,7 @@ bool check_no_parallel_edge(raft::handle_t const& handle,
     handle.get_thrust_policy(), edgelist_dsts.begin(), edgelist_dsts.end(), org_dsts.begin());
 
   auto org_edge_first =
-    thrust::make_zip_iterator(thrust::make_tuple(org_srcs.begin(), org_dsts.begin()));
+    thrust::make_zip_iterator(cuda::std::make_tuple(org_srcs.begin(), org_dsts.begin()));
   thrust::sort(handle.get_thrust_policy(), org_edge_first, org_edge_first + org_srcs.size());
   return thrust::unique(
            handle.get_thrust_policy(), org_edge_first, org_edge_first + edgelist_srcs.size()) ==

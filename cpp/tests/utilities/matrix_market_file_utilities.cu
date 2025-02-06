@@ -25,11 +25,11 @@
 
 #include <rmm/exec_policy.hpp>
 
+#include <cuda/std/tuple>
 #include <thrust/distance.h>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/remove.h>
 #include <thrust/sequence.h>
-#include <thrust/tuple.h>
 
 #include <cstdint>
 
@@ -346,7 +346,7 @@ read_edgelist_from_matrix_market_file(raft::handle_t const& handle,
       comm_size, major_comm_size, minor_comm_size};
     size_t number_of_local_edges{};
     if (d_edgelist_weights) {
-      auto edge_first       = thrust::make_zip_iterator(thrust::make_tuple(
+      auto edge_first       = thrust::make_zip_iterator(cuda::std::make_tuple(
         d_edgelist_srcs.begin(), d_edgelist_dsts.begin(), (*d_edgelist_weights).begin()));
       number_of_local_edges = thrust::distance(
         edge_first,
@@ -355,14 +355,14 @@ read_edgelist_from_matrix_market_file(raft::handle_t const& handle,
           edge_first,
           edge_first + d_edgelist_srcs.size(),
           [store_transposed, comm_rank, key_func = edge_key_func] __device__(auto e) {
-            auto major = thrust::get<0>(e);
-            auto minor = thrust::get<1>(e);
+            auto major = cuda::std::get<0>(e);
+            auto minor = cuda::std::get<1>(e);
             return store_transposed ? key_func(minor, major) != comm_rank
                                     : key_func(major, minor) != comm_rank;
           }));
     } else {
       auto edge_first = thrust::make_zip_iterator(
-        thrust::make_tuple(d_edgelist_srcs.begin(), d_edgelist_dsts.begin()));
+        cuda::std::make_tuple(d_edgelist_srcs.begin(), d_edgelist_dsts.begin()));
       number_of_local_edges = thrust::distance(
         edge_first,
         thrust::remove_if(
@@ -370,8 +370,8 @@ read_edgelist_from_matrix_market_file(raft::handle_t const& handle,
           edge_first,
           edge_first + d_edgelist_srcs.size(),
           [store_transposed, comm_rank, key_func = edge_key_func] __device__(auto e) {
-            auto major = thrust::get<0>(e);
-            auto minor = thrust::get<1>(e);
+            auto major = cuda::std::get<0>(e);
+            auto minor = cuda::std::get<1>(e);
             return store_transposed ? key_func(minor, major) != comm_rank
                                     : key_func(major, minor) != comm_rank;
           }));

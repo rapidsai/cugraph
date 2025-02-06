@@ -81,7 +81,7 @@ class edge_partition_endpoint_property_device_view_t {
   {
     auto val_offset = value_offset(offset);
     if constexpr (has_packed_bool_element) {
-      static_assert(is_packed_bool, "unimplemented for thrust::tuple types.");
+      static_assert(is_packed_bool, "unimplemented for cuda::std::tuple types.");
       auto mask = cugraph::packed_bool_mask(val_offset);
       return static_cast<bool>(*(value_first_ + cugraph::packed_bool_offset(val_offset)) & mask);
     } else {
@@ -97,7 +97,7 @@ class edge_partition_endpoint_property_device_view_t {
   {
     auto val_offset = value_offset(offset);
     if constexpr (has_packed_bool_element) {
-      static_assert(is_packed_bool, "unimplemented for thrust::tuple types.");
+      static_assert(is_packed_bool, "unimplemented for cuda::std::tuple types.");
       auto mask = cugraph::packed_bool_mask(val_offset);
       auto old  = atomicAnd(value_first_ + cugraph::packed_bool_offset(val_offset),
                            val ? cugraph::packed_bool_full_mask() : ~mask);
@@ -115,7 +115,7 @@ class edge_partition_endpoint_property_device_view_t {
   {
     auto val_offset = value_offset(offset);
     if constexpr (has_packed_bool_element) {
-      static_assert(is_packed_bool, "unimplemented for thrust::tuple types.");
+      static_assert(is_packed_bool, "unimplemented for cuda::std::tuple types.");
       auto mask = cugraph::packed_bool_mask(val_offset);
       auto old  = atomicOr(value_first_ + cugraph::packed_bool_offset(val_offset),
                           val ? mask : cugraph::packed_bool_empty_mask());
@@ -144,7 +144,7 @@ class edge_partition_endpoint_property_device_view_t {
   {
     auto val_offset = value_offset(offset);
     if constexpr (has_packed_bool_element) {
-      static_assert(is_packed_bool, "unimplemented for thrust::tuple types.");
+      static_assert(is_packed_bool, "unimplemented for cuda::std::tuple types.");
       cuda::atomic_ref<uint32_t, cuda::thread_scope_device> word(
         *(value_first_ + cugraph::packed_bool_offset(val_offset)));
       auto mask = cugraph::packed_bool_mask(val_offset);

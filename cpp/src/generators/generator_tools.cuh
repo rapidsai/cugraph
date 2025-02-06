@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,6 +25,7 @@
 
 #include <rmm/device_uvector.hpp>
 
+#include <cuda/std/tuple>
 #include <thrust/copy.h>
 #include <thrust/distance.h>
 #include <thrust/execution_policy.h>
@@ -33,7 +34,6 @@
 #include <thrust/partition.h>
 #include <thrust/sort.h>
 #include <thrust/transform.h>
-#include <thrust/tuple.h>
 #include <thrust/unique.h>
 
 #include <numeric>
@@ -85,14 +85,14 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> scrambl
   rmm::device_uvector<vertex_t>&& dsts,
   size_t lgN)
 {
-  auto pair_first = thrust::make_zip_iterator(thrust::make_tuple(srcs.begin(), dsts.begin()));
+  auto pair_first = thrust::make_zip_iterator(cuda::std::make_tuple(srcs.begin(), dsts.begin()));
   thrust::transform(handle.get_thrust_policy(),
                     pair_first,
                     pair_first + srcs.size(),
                     pair_first,
                     [lgN] __device__(auto pair) {
-                      return thrust::make_tuple(detail::scramble(thrust::get<0>(pair), lgN),
-                                                detail::scramble(thrust::get<1>(pair), lgN));
+                      return cuda::std::make_tuple(detail::scramble(cuda::std::get<0>(pair), lgN),
+                                                   detail::scramble(cuda::std::get<1>(pair), lgN));
                     });
 
   return std::make_tuple(std::move(srcs), std::move(dsts));
@@ -118,21 +118,21 @@ combine_edgelists(raft::handle_t const& handle,
     thrust::for_each_n(
       thrust::host,
       thrust::make_zip_iterator(
-        thrust::make_tuple(sources.begin(), dests.begin(), optional_d_weights.value().begin())),
+        cuda::std::make_tuple(sources.begin(), dests.begin(), optional_d_weights.value().begin())),
       sources.size(),
       [](auto tuple) {
-        CUGRAPH_EXPECTS(thrust::get<0>(tuple).size() != thrust::get<1>(tuple).size(),
+        CUGRAPH_EXPECTS(cuda::std::get<0>(tuple).size() != cuda::std::get<1>(tuple).size(),
                         "source vertex and dest vertex uvectors must be same size");
-        CUGRAPH_EXPECTS(thrust::get<0>(tuple).size() != thrust::get<2>(tuple).size(),
+        CUGRAPH_EXPECTS(cuda::std::get<0>(tuple).size() != cuda::std::get<2>(tuple).size(),
                         "source vertex and weights uvectors must be same size");
       });
   } else {
     thrust::for_each_n(
       thrust::host,
-      thrust::make_zip_iterator(thrust::make_tuple(sources.begin(), dests.begin())),
+      thrust::make_zip_iterator(cuda::std::make_tuple(sources.begin(), dests.begin())),
       sources.size(),
       [](auto tuple) {
-        CUGRAPH_EXPECTS(thrust::get<0>(tuple).size() == thrust::get<1>(tuple).size(),
+        CUGRAPH_EXPECTS(cuda::std::get<0>(tuple).size() == cuda::std::get<1>(tuple).size(),
                         "source vertex and dest vertex uvectors must be same size");
       });
   }
@@ -154,30 +154,30 @@ combine_edgelists(raft::handle_t const& handle,
     size_t number_of_edges{srcs_v.size()};
 
     if (optional_d_weights) {
-      thrust::sort(
-        handle.get_thrust_policy(),
-        thrust::make_zip_iterator(
-          thrust::make_tuple(srcs_v.begin(), dsts_v.begin(), weights_v.begin())),
-        thrust::make_zip_iterator(thrust::make_tuple(srcs_v.end(), dsts_v.end(), weights_v.end())));
+      thrust::sort(handle.get_thrust_policy(),
+                   thrust::make_zip_iterator(
+                     cuda::std::make_tuple(srcs_v.begin(), dsts_v.begin(), weights_v.begin())),
+                   thrust::make_zip_iterator(
+                     cuda::std::make_tuple(srcs_v.end(), dsts_v.end(), weights_v.end())));
 
       auto pair_first =
-        thrust::make_zip_iterator(thrust::make_tuple(srcs_v.begin(), dsts_v.begin()));
+        thrust::make_zip_iterator(cuda::std::make_tuple(srcs_v.begin(), dsts_v.begin()));
       auto end_iter = thrust::unique_by_key(
         handle.get_thrust_policy(), pair_first, pair_first + srcs_v.size(), weights_v.begin());
 
-      number_of_edges = thrust::distance(pair_first, thrust::get<0>(end_iter));
+      number_of_edges = thrust::distance(pair_first, cuda::std::get<0>(end_iter));
     } else {
       thrust::sort(handle.get_thrust_policy(),
-                   thrust::make_zip_iterator(thrust::make_tuple(srcs_v.begin(), dsts_v.begin())),
-                   thrust::make_zip_iterator(thrust::make_tuple(srcs_v.end(), dsts_v.end())));
+                   thrust::make_zip_iterator(cuda::std::make_tuple(srcs_v.begin(), dsts_v.begin())),
+                   thrust::make_zip_iterator(cuda::std::make_tuple(srcs_v.end(), dsts_v.end())));
 
       auto pair_first =
-        thrust::make_zip_iterator(thrust::make_tuple(srcs_v.begin(), dsts_v.begin()));
+        thrust::make_zip_iterator(cuda::std::make_tuple(srcs_v.begin(), dsts_v.begin()));
 
       auto end_iter = thrust::unique(
         handle.get_thrust_policy(),
-        thrust::make_zip_iterator(thrust::make_tuple(srcs_v.begin(), dsts_v.begin())),
-        thrust::make_zip_iterator(thrust::make_tuple(srcs_v.end(), dsts_v.end())));
+        thrust::make_zip_iterator(cuda::std::make_tuple(srcs_v.begin(), dsts_v.begin())),
+        thrust::make_zip_iterator(cuda::std::make_tuple(srcs_v.end(), dsts_v.end())));
 
       number_of_edges = thrust::distance(pair_first, end_iter);
     }
@@ -216,19 +216,19 @@ symmetrize_edgelist_from_triangular(
   if (check_diagonal) {
     if (optional_d_weights_v) {
       auto edge_first = thrust::make_zip_iterator(
-        thrust::make_tuple(d_src_v.begin(), d_dst_v.begin(), (*optional_d_weights_v).begin()));
+        cuda::std::make_tuple(d_src_v.begin(), d_dst_v.begin(), (*optional_d_weights_v).begin()));
       auto strictly_triangular_last = thrust::partition(
         handle.get_thrust_policy(), edge_first, edge_first + d_src_v.size(), [] __device__(auto e) {
-          return thrust::get<0>(e) != thrust::get<1>(e);
+          return cuda::std::get<0>(e) != cuda::std::get<1>(e);
         });
       num_strictly_triangular_edges =
         static_cast<size_t>(thrust::distance(edge_first, strictly_triangular_last));
     } else {
       auto edge_first =
-        thrust::make_zip_iterator(thrust::make_tuple(d_src_v.begin(), d_dst_v.begin()));
+        thrust::make_zip_iterator(cuda::std::make_tuple(d_src_v.begin(), d_dst_v.begin()));
       auto strictly_triangular_last = thrust::partition(
         handle.get_thrust_policy(), edge_first, edge_first + d_src_v.size(), [] __device__(auto e) {
-          return thrust::get<0>(e) != thrust::get<1>(e);
+          return cuda::std::get<0>(e) != cuda::std::get<1>(e);
         });
       num_strictly_triangular_edges =
         static_cast<size_t>(thrust::distance(edge_first, strictly_triangular_last));

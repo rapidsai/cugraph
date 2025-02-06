@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,6 +25,7 @@
 #include <rmm/exec_policy.hpp>
 
 #include <cuda/functional>
+#include <cuda/std/tuple>
 #include <thrust/count.h>
 #include <thrust/distance.h>
 #include <thrust/functional.h>
@@ -35,7 +36,6 @@
 #include <thrust/sort.h>
 #include <thrust/transform.h>
 #include <thrust/transform_reduce.h>
-#include <thrust/tuple.h>
 #include <thrust/unique.h>
 
 namespace cugraph {
@@ -123,14 +123,16 @@ vertex_t compute_maximum_vertex_id(rmm::cuda_stream_view const& stream_view,
                                    vertex_t const* d_edgelist_dsts,
                                    size_t num_edges)
 {
-  auto edge_first = thrust::make_zip_iterator(thrust::make_tuple(d_edgelist_srcs, d_edgelist_dsts));
+  auto edge_first =
+    thrust::make_zip_iterator(cuda::std::make_tuple(d_edgelist_srcs, d_edgelist_dsts));
 
   return thrust::transform_reduce(
     rmm::exec_policy(stream_view),
     edge_first,
     edge_first + num_edges,
-    cuda::proclaim_return_type<vertex_t>(
-      [] __device__(auto e) -> vertex_t { return std::max(thrust::get<0>(e), thrust::get<1>(e)); }),
+    cuda::proclaim_return_type<vertex_t>([] __device__(auto e) -> vertex_t {
+      return std::max(cuda::std::get<0>(e), cuda::std::get<1>(e));
+    }),
     vertex_t{0},
     thrust::maximum<vertex_t>());
 }
@@ -142,7 +144,7 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<edge_t>> filter_de
   rmm::device_uvector<edge_t>&& d_out_degs)
 {
   auto zip_iter =
-    thrust::make_zip_iterator(thrust::make_tuple(d_vertices.begin(), d_out_degs.begin()));
+    thrust::make_zip_iterator(cuda::std::make_tuple(d_vertices.begin(), d_out_degs.begin()));
 
   CUGRAPH_EXPECTS(d_vertices.size() < static_cast<size_t>(std::numeric_limits<int32_t>::max()),
                   "remove_if will fail, d_vertices.size() is too large");
@@ -154,7 +156,7 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<edge_t>> filter_de
                       zip_iter,
                       zip_iter + d_vertices.size(),
                       zip_iter,
-                      [] __device__(auto pair) { return thrust::get<1>(pair) == 0; });
+                      [] __device__(auto pair) { return cuda::std::get<1>(pair) == 0; });
 
   auto new_size = thrust::distance(zip_iter, zip_iter_end);
   d_vertices.resize(new_size, handle.get_stream());

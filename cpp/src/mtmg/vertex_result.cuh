@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2023-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -89,7 +89,7 @@ rmm::device_uvector<result_t> vertex_result_view_t<result_t>::gather(
         [check = cugraph::detail::check_out_of_range_t<vertex_t>{
            vertex_partition_view.local_vertex_partition_range_first(),
            vertex_partition_view.local_vertex_partition_range_last()}] __device__(auto tuple) {
-          return check(thrust::get<0>(tuple));
+          return check(cuda::std::get<0>(tuple));
         }));
 
     local_vertices.resize(new_size, stream);

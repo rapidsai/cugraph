@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,12 +24,12 @@
 #include <rmm/device_uvector.hpp>
 
 #include <cuda/functional>
+#include <cuda/std/tuple>
 #include <thrust/copy.h>
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/iterator/transform_iterator.h>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/sequence.h>
-#include <thrust/tuple.h>
 
 #include <numeric>
 
@@ -112,7 +112,7 @@ generate_2d_mesh_graph_edgelist(
   rmm::device_uvector<vertex_t> d_dst_v(num_edges, handle.get_stream());
 
   auto output_iterator =
-    thrust::make_zip_iterator(thrust::make_tuple(d_src_v.begin(), d_dst_v.begin()));
+    thrust::make_zip_iterator(cuda::std::make_tuple(d_src_v.begin(), d_dst_v.begin()));
 
   for (auto tuple : component_parms_v) {
     vertex_t x, y, base_vertex_id;
@@ -121,29 +121,29 @@ generate_2d_mesh_graph_edgelist(
     vertex_t num_vertices = x * y;
 
     auto x_iterator = thrust::make_zip_iterator(
-      thrust::make_tuple(thrust::make_counting_iterator<vertex_t>(base_vertex_id),
-                         thrust::make_counting_iterator<vertex_t>(base_vertex_id + 1)));
+      cuda::std::make_tuple(thrust::make_counting_iterator<vertex_t>(base_vertex_id),
+                            thrust::make_counting_iterator<vertex_t>(base_vertex_id + 1)));
 
     output_iterator = thrust::copy_if(handle.get_thrust_policy(),
                                       x_iterator,
                                       x_iterator + num_vertices - 1,
                                       output_iterator,
                                       [base_vertex_id, x] __device__(auto pair) {
-                                        vertex_t dst = thrust::get<1>(pair);
+                                        vertex_t dst = cuda::std::get<1>(pair);
                                         // Want to skip if dst is in the last column of a graph
                                         return ((dst - base_vertex_id) % x) != 0;
                                       });
 
     auto y_iterator = thrust::make_zip_iterator(
-      thrust::make_tuple(thrust::make_counting_iterator<vertex_t>(base_vertex_id),
-                         thrust::make_counting_iterator<vertex_t>(base_vertex_id + x)));
+      cuda::std::make_tuple(thrust::make_counting_iterator<vertex_t>(base_vertex_id),
+                            thrust::make_counting_iterator<vertex_t>(base_vertex_id + x)));
 
     output_iterator = thrust::copy_if(handle.get_thrust_policy(),
                                       y_iterator,
                                       y_iterator + num_vertices - x,
                                       output_iterator,
                                       [base_vertex_id, x, y] __device__(auto pair) {
-                                        vertex_t dst = thrust::get<1>(pair);
+                                        vertex_t dst = cuda::std::get<1>(pair);
 
                                         // Want to skip if dst is in the first row of a new graph
                                         return ((dst - base_vertex_id) % (x * y)) >= x;
@@ -177,7 +177,7 @@ generate_3d_mesh_graph_edgelist(
   rmm::device_uvector<vertex_t> d_dst_v(num_edges, handle.get_stream());
 
   auto output_iterator =
-    thrust::make_zip_iterator(thrust::make_tuple(d_src_v.begin(), d_dst_v.begin()));
+    thrust::make_zip_iterator(cuda::std::make_tuple(d_src_v.begin(), d_dst_v.begin()));
 
   for (auto tuple : component_parms_v) {
     vertex_t x, y, z, base_vertex_id;
@@ -186,43 +186,43 @@ generate_3d_mesh_graph_edgelist(
     vertex_t num_vertices = x * y * z;
 
     auto x_iterator = thrust::make_zip_iterator(
-      thrust::make_tuple(thrust::make_counting_iterator<vertex_t>(base_vertex_id),
-                         thrust::make_counting_iterator<vertex_t>(base_vertex_id + 1)));
+      cuda::std::make_tuple(thrust::make_counting_iterator<vertex_t>(base_vertex_id),
+                            thrust::make_counting_iterator<vertex_t>(base_vertex_id + 1)));
 
     output_iterator = thrust::copy_if(handle.get_thrust_policy(),
                                       x_iterator,
                                       x_iterator + num_vertices - 1,
                                       output_iterator,
                                       [base_vertex_id, x] __device__(auto pair) {
-                                        vertex_t dst = thrust::get<1>(pair);
+                                        vertex_t dst = cuda::std::get<1>(pair);
                                         // Want to skip if dst is in the last column of a graph
                                         return ((dst - base_vertex_id) % x) != 0;
                                       });
 
     auto y_iterator = thrust::make_zip_iterator(
-      thrust::make_tuple(thrust::make_counting_iterator<vertex_t>(base_vertex_id),
-                         thrust::make_counting_iterator<vertex_t>(base_vertex_id + x)));
+      cuda::std::make_tuple(thrust::make_counting_iterator<vertex_t>(base_vertex_id),
+                            thrust::make_counting_iterator<vertex_t>(base_vertex_id + x)));
 
     output_iterator = thrust::copy_if(handle.get_thrust_policy(),
                                       y_iterator,
                                       y_iterator + num_vertices - x,
                                       output_iterator,
                                       [base_vertex_id, x, y] __device__(auto pair) {
-                                        vertex_t dst = thrust::get<1>(pair);
+                                        vertex_t dst = cuda::std::get<1>(pair);
                                         // Want to skip if dst is in the first row of a new graph
                                         return ((dst - base_vertex_id) % (x * y)) >= x;
                                       });
 
     auto z_iterator = thrust::make_zip_iterator(
-      thrust::make_tuple(thrust::make_counting_iterator<vertex_t>(base_vertex_id),
-                         thrust::make_counting_iterator<vertex_t>(base_vertex_id + x * y)));
+      cuda::std::make_tuple(thrust::make_counting_iterator<vertex_t>(base_vertex_id),
+                            thrust::make_counting_iterator<vertex_t>(base_vertex_id + x * y)));
 
     output_iterator = thrust::copy_if(handle.get_thrust_policy(),
                                       z_iterator,
                                       z_iterator + num_vertices - x * y,
                                       output_iterator,
                                       [base_vertex_id, x, y, z] __device__(auto pair) {
-                                        vertex_t dst = thrust::get<1>(pair);
+                                        vertex_t dst = cuda::std::get<1>(pair);
                                         // Want to skip if dst is in the first row of a new graph
                                         return ((dst - base_vertex_id) % (x * y * z)) >= (x * y);
                                       });
@@ -260,7 +260,7 @@ generate_complete_graph_edgelist(
   rmm::device_uvector<vertex_t> d_dst_v(num_edges, handle.get_stream());
 
   auto output_iterator =
-    thrust::make_zip_iterator(thrust::make_tuple(d_src_v.begin(), d_dst_v.begin()));
+    thrust::make_zip_iterator(cuda::std::make_tuple(d_src_v.begin(), d_dst_v.begin()));
 
   for (auto tuple : component_parms_v) {
     vertex_t num_vertices, base_vertex_id;
@@ -268,7 +268,7 @@ generate_complete_graph_edgelist(
 
     auto transform_iter = thrust::make_transform_iterator(
       thrust::make_counting_iterator<size_t>(0),
-      cuda::proclaim_return_type<thrust::tuple<vertex_t, vertex_t>>(
+      cuda::proclaim_return_type<cuda::std::tuple<vertex_t, vertex_t>>(
         [base_vertex_id, num_vertices, invalid_vertex] __device__(size_t index) {
           size_t graph_index = index / (num_vertices * num_vertices);
           size_t local_index = index % (num_vertices * num_vertices);
@@ -284,7 +284,7 @@ generate_complete_graph_edgelist(
             dst += (graph_index * num_vertices);
           }
 
-          return thrust::make_tuple(src, dst);
+          return cuda::std::make_tuple(src, dst);
         }));
 
     output_iterator = thrust::copy_if(handle.get_thrust_policy(),
@@ -292,8 +292,8 @@ generate_complete_graph_edgelist(
                                       transform_iter + num_vertices * num_vertices,
                                       output_iterator,
                                       [invalid_vertex] __device__(auto tuple) {
-                                        auto src = thrust::get<0>(tuple);
-                                        auto dst = thrust::get<1>(tuple);
+                                        auto src = cuda::std::get<0>(tuple);
+                                        auto dst = cuda::std::get<1>(tuple);
 
                                         return (src != invalid_vertex) && (src < dst);
                                       });

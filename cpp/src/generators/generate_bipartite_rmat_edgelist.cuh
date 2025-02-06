@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2023-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,10 +25,10 @@
 #include <rmm/detail/error.hpp>
 #include <rmm/device_uvector.hpp>
 
+#include <cuda/std/tuple>
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/transform.h>
-#include <thrust/tuple.h>
 
 #include <tuple>
 
@@ -69,7 +69,7 @@ generate_bipartite_rmat_edgelist(raft::handle_t const& handle,
   while (num_edges_generated < num_edges) {
     auto num_edges_to_generate =
       std::min(num_edges - num_edges_generated, max_edges_to_generate_per_iteration);
-    auto pair_first = thrust::make_zip_iterator(thrust::make_tuple(srcs.begin(), dsts.begin())) +
+    auto pair_first = thrust::make_zip_iterator(cuda::std::make_tuple(srcs.begin(), dsts.begin())) +
                       num_edges_generated;
 
     detail::uniform_random_fill(handle.get_stream(),
@@ -111,7 +111,7 @@ generate_bipartite_rmat_edgelist(raft::handle_t const& handle,
               dst_bit_set ? static_cast<vertex_t>(vertex_t{1} << (dst_scale - (level + 1))) : 0;
           }
         }
-        return thrust::make_tuple(src, dst);
+        return cuda::std::make_tuple(src, dst);
       });
     num_edges_generated += num_edges_to_generate;
   }

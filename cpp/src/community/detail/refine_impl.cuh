@@ -33,6 +33,7 @@
 #include <raft/random/rng_device.cuh>
 
 #include <cuda/functional>
+#include <cuda/std/tuple>
 #include <thrust/binary_search.h>
 #include <thrust/distance.h>
 #include <thrust/execution_policy.h>
@@ -45,7 +46,6 @@
 #include <thrust/tabulate.h>
 #include <thrust/transform.h>
 #include <thrust/transform_reduce.h>
-#include <thrust/tuple.h>
 
 #include <optional>
 
@@ -71,24 +71,24 @@ struct leiden_key_aggregated_edge_op_t {
   __device__ auto operator()(
     vertex_t src,
     vertex_t neighboring_leiden_cluster,
-    thrust::tuple<weight_t, weight_t, weight_t, uint8_t, vertex_t, vertex_t> src_info,
+    cuda::std::tuple<weight_t, weight_t, weight_t, uint8_t, vertex_t, vertex_t> src_info,
     cluster_value_t keyed_data,
     weight_t aggregated_weight_to_neighboring_leiden_cluster) const
   {
     // Data associated with src vertex
-    auto src_weighted_deg          = thrust::get<0>(src_info);
-    auto src_vertex_cut_to_louvain = thrust::get<1>(src_info);
-    auto louvain_cluster_volume    = thrust::get<2>(src_info);
-    auto is_src_active             = thrust::get<3>(src_info);
-    auto src_leiden_cluster        = thrust::get<4>(src_info);
-    auto src_louvain_cluster       = thrust::get<5>(src_info);
+    auto src_weighted_deg          = cuda::std::get<0>(src_info);
+    auto src_vertex_cut_to_louvain = cuda::std::get<1>(src_info);
+    auto louvain_cluster_volume    = cuda::std::get<2>(src_info);
+    auto is_src_active             = cuda::std::get<3>(src_info);
+    auto src_leiden_cluster        = cuda::std::get<4>(src_info);
+    auto src_louvain_cluster       = cuda::std::get<5>(src_info);
 
     // Data associated with target leiden (aka refined) cluster
 
-    auto dst_leiden_volume             = thrust::get<0>(keyed_data);
-    auto dst_leiden_cut_to_louvain     = thrust::get<1>(keyed_data);
-    auto dst_leiden_cluster_id         = thrust::get<2>(keyed_data);
-    auto louvain_of_dst_leiden_cluster = thrust::get<3>(keyed_data);
+    auto dst_leiden_volume             = cuda::std::get<0>(keyed_data);
+    auto dst_leiden_cut_to_louvain     = cuda::std::get<1>(keyed_data);
+    auto dst_leiden_cluster_id         = cuda::std::get<2>(keyed_data);
+    auto louvain_of_dst_leiden_cluster = cuda::std::get<3>(keyed_data);
 
     // E(Cr, S-Cr) > ||Cr||*(||S|| -||Cr||)
     bool is_dst_leiden_cluster_well_connected =
@@ -126,7 +126,7 @@ struct leiden_key_aggregated_edge_op_t {
       }
     }
 
-    return thrust::make_tuple(mod_gain, neighboring_leiden_cluster);
+    return cuda::std::make_tuple(mod_gain, neighboring_leiden_cluster);
   }
 };
 
@@ -236,13 +236,13 @@ refine_clustering(
     graph_view.local_vertex_partition_range_size(), handle.get_stream());
 
   auto wcut_deg_and_cluster_vol_triple_begin =
-    thrust::make_zip_iterator(thrust::make_tuple(weighted_cut_of_vertices_to_louvain.begin(),
-                                                 weighted_degree_of_vertices.begin(),
-                                                 vertex_louvain_cluster_weights.begin()));
+    thrust::make_zip_iterator(cuda::std::make_tuple(weighted_cut_of_vertices_to_louvain.begin(),
+                                                    weighted_degree_of_vertices.begin(),
+                                                    vertex_louvain_cluster_weights.begin()));
   auto wcut_deg_and_cluster_vol_triple_end =
-    thrust::make_zip_iterator(thrust::make_tuple(weighted_cut_of_vertices_to_louvain.end(),
-                                                 weighted_degree_of_vertices.end(),
-                                                 vertex_louvain_cluster_weights.end()));
+    thrust::make_zip_iterator(cuda::std::make_tuple(weighted_cut_of_vertices_to_louvain.end(),
+                                                    weighted_degree_of_vertices.end(),
+                                                    vertex_louvain_cluster_weights.end()));
 
   thrust::transform(handle.get_thrust_policy(),
                     wcut_deg_and_cluster_vol_triple_begin,
@@ -250,9 +250,9 @@ refine_clustering(
                     singleton_and_connected_flags.begin(),
                     cuda::proclaim_return_type<uint8_t>([resolution, total_edge_weight] __device__(
                                                           auto wcut_wdeg_and_louvain_volume) {
-                      auto wcut           = thrust::get<0>(wcut_wdeg_and_louvain_volume);
-                      auto wdeg           = thrust::get<1>(wcut_wdeg_and_louvain_volume);
-                      auto louvain_volume = thrust::get<2>(wcut_wdeg_and_louvain_volume);
+                      auto wcut           = cuda::std::get<0>(wcut_wdeg_and_louvain_volume);
+                      auto wdeg           = cuda::std::get<1>(wcut_wdeg_and_louvain_volume);
+                      auto louvain_volume = cuda::std::get<2>(wcut_wdeg_and_louvain_volume);
                       return static_cast<uint8_t>(
                         wcut > (resolution * wdeg * (louvain_volume - wdeg) / total_edge_weight));
                     }));
@@ -392,26 +392,26 @@ refine_clustering(
 
         [] __device__(auto src,
                       auto dst,
-                      thrust::tuple<vertex_t, vertex_t> src_louvain_leidn,
-                      thrust::tuple<vertex_t, vertex_t> dst_louvain_leiden,
+                      cuda::std::tuple<vertex_t, vertex_t> src_louvain_leidn,
+                      cuda::std::tuple<vertex_t, vertex_t> dst_louvain_leiden,
                       auto wt) {
           weight_t refined_partition_volume_contribution{wt};
           weight_t refined_partition_cut_contribution{0};
 
-          auto src_louvain = thrust::get<0>(src_louvain_leidn);
-          auto src_leiden  = thrust::get<1>(src_louvain_leidn);
+          auto src_louvain = cuda::std::get<0>(src_louvain_leidn);
+          auto src_leiden  = cuda::std::get<1>(src_louvain_leidn);
 
-          auto dst_louvain = thrust::get<0>(dst_louvain_leiden);
-          auto dst_leiden  = thrust::get<1>(dst_louvain_leiden);
+          auto dst_louvain = cuda::std::get<0>(dst_louvain_leiden);
+          auto dst_leiden  = cuda::std::get<1>(dst_louvain_leiden);
 
           if (src_louvain == dst_louvain) {
             if (src_leiden != dst_leiden) { refined_partition_cut_contribution = wt; }
           }
-          return thrust::make_tuple(refined_partition_volume_contribution,
-                                    refined_partition_cut_contribution);
+          return cuda::std::make_tuple(refined_partition_volume_contribution,
+                                       refined_partition_cut_contribution);
         },
-        thrust::make_tuple(weight_t{0}, weight_t{0}),
-        reduce_op::plus<thrust::tuple<weight_t, weight_t>>{});
+        cuda::std::make_tuple(weight_t{0}, weight_t{0}),
+        reduce_op::plus<cuda::std::tuple<weight_t, weight_t>>{});
 
     //
     // Primitives to decide best (at least good) next clusters for vertices
@@ -496,20 +496,20 @@ refine_clustering(
     // leiden(Cr) // f(Cr)
     // louvain(Cr) // f(Cr)
     auto values_for_leiden_cluster_keys = thrust::make_zip_iterator(
-      thrust::make_tuple(refined_community_volumes.begin(),
-                         refined_community_cuts.begin(),
-                         leiden_keys_used_in_edge_reduction.begin(),
-                         louvain_of_leiden_keys_used_in_edge_reduction.begin()));
+      cuda::std::make_tuple(refined_community_volumes.begin(),
+                            refined_community_cuts.begin(),
+                            leiden_keys_used_in_edge_reduction.begin(),
+                            louvain_of_leiden_keys_used_in_edge_reduction.begin()));
 
-    using value_t = thrust::tuple<weight_t, weight_t, vertex_t, vertex_t>;
+    using value_t = cuda::std::tuple<weight_t, weight_t, vertex_t, vertex_t>;
     kv_store_t<vertex_t, value_t, true> leiden_cluster_key_values_map(
       leiden_keys_used_in_edge_reduction.begin(),
       leiden_keys_used_in_edge_reduction.begin() + leiden_keys_used_in_edge_reduction.size(),
       values_for_leiden_cluster_keys,
-      thrust::make_tuple(std::numeric_limits<weight_t>::max(),
-                         std::numeric_limits<weight_t>::max(),
-                         invalid_vertex_id<vertex_t>::value,
-                         invalid_vertex_id<vertex_t>::value),
+      cuda::std::make_tuple(std::numeric_limits<weight_t>::max(),
+                            std::numeric_limits<weight_t>::max(),
+                            invalid_vertex_id<vertex_t>::value,
+                            invalid_vertex_id<vertex_t>::value),
       false,
       handle.get_stream());
 
@@ -518,8 +518,9 @@ refine_clustering(
     //
 
     raft::random::DeviceState<raft::random::PCGenerator> device_state(rng_state);
-    auto gain_and_dst_output_pairs = allocate_dataframe_buffer<thrust::tuple<weight_t, vertex_t>>(
-      graph_view.local_vertex_partition_range_size(), handle.get_stream());
+    auto gain_and_dst_output_pairs =
+      allocate_dataframe_buffer<cuda::std::tuple<weight_t, vertex_t>>(
+        graph_view.local_vertex_partition_range_size(), handle.get_stream());
 
     per_v_transform_reduce_dst_key_aggregated_outgoing_e(
       handle,
@@ -532,8 +533,8 @@ refine_clustering(
       leiden_cluster_key_values_map.view(),
       detail::leiden_key_aggregated_edge_op_t<vertex_t, weight_t, value_t>{
         total_edge_weight, resolution, theta, device_state},
-      thrust::make_tuple(weight_t{0}, vertex_t{-1}),
-      reduce_op::maximum<thrust::tuple<weight_t, vertex_t>>(),
+      cuda::std::make_tuple(weight_t{0}, vertex_t{-1}),
+      reduce_op::maximum<cuda::std::tuple<weight_t, vertex_t>>(),
       cugraph::get_dataframe_buffer_begin(gain_and_dst_output_pairs));
 
     src_leiden_assignment_cache.clear(handle);
@@ -570,8 +571,8 @@ refine_clustering(
                                                 gain_and_dst_first,
                                                 gain_and_dst_last,
                                                 [] __device__(auto gain_dst_pair) {
-                                                  vertex_t dst  = thrust::get<1>(gain_dst_pair);
-                                                  weight_t gain = thrust::get<0>(gain_dst_pair);
+                                                  vertex_t dst  = cuda::std::get<1>(gain_dst_pair);
+                                                  weight_t gain = cuda::std::get<0>(gain_dst_pair);
                                                   return (gain > POSITIVE_GAIN) && (dst >= 0);
                                                 });
 
@@ -593,26 +594,26 @@ refine_clustering(
       std::make_optional(rmm::device_uvector<weight_t>(nr_valid_tuples, handle.get_stream()));
 
     auto d_src_dst_gain_iterator = thrust::make_zip_iterator(
-      thrust::make_tuple(d_srcs.begin(), d_dsts.begin(), (*d_weights).begin()));
+      cuda::std::make_tuple(d_srcs.begin(), d_dsts.begin(), (*d_weights).begin()));
 
     // edge (src, dst, gain)
     auto edge_begin = thrust::make_zip_iterator(
-      thrust::make_tuple(vertex_begin,
-                         thrust::get<1>(gain_and_dst_first.get_iterator_tuple()),
-                         thrust::get<0>(gain_and_dst_first.get_iterator_tuple())));
+      cuda::std::make_tuple(vertex_begin,
+                            cuda::std::get<1>(gain_and_dst_first.get_iterator_tuple()),
+                            cuda::std::get<0>(gain_and_dst_first.get_iterator_tuple())));
     auto edge_end = thrust::make_zip_iterator(
-      thrust::make_tuple(vertex_end,
-                         thrust::get<1>(gain_and_dst_last.get_iterator_tuple()),
-                         thrust::get<0>(gain_and_dst_last.get_iterator_tuple())));
+      cuda::std::make_tuple(vertex_end,
+                            cuda::std::get<1>(gain_and_dst_last.get_iterator_tuple()),
+                            cuda::std::get<0>(gain_and_dst_last.get_iterator_tuple())));
 
     thrust::copy_if(handle.get_thrust_policy(),
                     edge_begin,
                     edge_end,
                     d_src_dst_gain_iterator,
-                    [] __device__(thrust::tuple<vertex_t, vertex_t, weight_t> src_dst_gain) {
-                      vertex_t src  = thrust::get<0>(src_dst_gain);
-                      vertex_t dst  = thrust::get<1>(src_dst_gain);
-                      weight_t gain = thrust::get<2>(src_dst_gain);
+                    [] __device__(cuda::std::tuple<vertex_t, vertex_t, weight_t> src_dst_gain) {
+                      vertex_t src  = cuda::std::get<0>(src_dst_gain);
+                      vertex_t dst  = cuda::std::get<1>(src_dst_gain);
+                      weight_t gain = cuda::std::get<2>(src_dst_gain);
 
                       return (gain > POSITIVE_GAIN) && (dst >= 0);
                     });
@@ -713,7 +714,7 @@ refine_clustering(
       handle.get_thrust_policy(),
       vertices_in_mis.begin(),
       vertices_in_mis.end(),
-      [dst_first                     = thrust::get<1>(gain_and_dst_first.get_iterator_tuple()),
+      [dst_first                     = cuda::std::get<1>(gain_and_dst_first.get_iterator_tuple()),
        leiden_assignment             = leiden_assignment.data(),
        singleton_and_connected_flags = singleton_and_connected_flags.data(),
        v_first = graph_view.local_vertex_partition_range_first()] __device__(vertex_t v) {
@@ -734,7 +735,7 @@ refine_clustering(
       vertices_in_mis.end(),
       dst_vertices.begin(),
       cuda::proclaim_return_type<vertex_t>(
-        [dst_first = thrust::get<1>(gain_and_dst_first.get_iterator_tuple()),
+        [dst_first = cuda::std::get<1>(gain_and_dst_first.get_iterator_tuple()),
          v_first   = graph_view.local_vertex_partition_range_first()] __device__(vertex_t v) {
           auto dst = *(dst_first + v - v_first);
           return dst;

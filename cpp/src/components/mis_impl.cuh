@@ -69,12 +69,12 @@ rmm::device_uvector<vertex_t> maximal_independent_set(
                      thrust::copy_if(handle.get_thrust_policy(),
                                      vertex_begin,
                                      vertex_end,
-                                     thrust::make_zip_iterator(
-                                       thrust::make_tuple(out_degrees.begin(), in_degrees.begin())),
+                                     thrust::make_zip_iterator(cuda::std::make_tuple(
+                                       out_degrees.begin(), in_degrees.begin())),
                                      remaining_vertices.begin(),
                                      [] __device__(auto out_deg_and_in_deg) {
-                                       return !((thrust::get<0>(out_deg_and_in_deg) == 0) &&
-                                                (thrust::get<1>(out_deg_and_in_deg) == 0));
+                                       return !((cuda::std::get<0>(out_deg_and_in_deg) == 0) &&
+                                                (cuda::std::get<1>(out_deg_and_in_deg) == 0));
                                      })),
     handle.get_stream());
 
@@ -85,13 +85,13 @@ rmm::device_uvector<vertex_t> maximal_independent_set(
   // Set ranks of zero degree vetices to std::numeric_limits<vertex_t>::max()
   thrust::transform_if(
     handle.get_thrust_policy(),
-    thrust::make_zip_iterator(thrust::make_tuple(out_degrees.begin(), in_degrees.begin())),
-    thrust::make_zip_iterator(thrust::make_tuple(out_degrees.end(), in_degrees.end())),
+    thrust::make_zip_iterator(cuda::std::make_tuple(out_degrees.begin(), in_degrees.begin())),
+    thrust::make_zip_iterator(cuda::std::make_tuple(out_degrees.end(), in_degrees.end())),
     ranks.begin(),
     cuda::proclaim_return_type<vertex_t>(
       [] __device__(auto) { return std::numeric_limits<vertex_t>::max(); }),
     [] __device__(auto in_out_degree) {
-      return (thrust::get<0>(in_out_degree) == 0) && (thrust::get<1>(in_out_degree) == 0);
+      return (cuda::std::get<0>(in_out_degree) == 0) && (cuda::std::get<1>(in_out_degree) == 0);
     });
 
   out_degrees.resize(0, handle.get_stream());

@@ -31,6 +31,7 @@
 #include <rmm/exec_policy.hpp>
 
 #include <cuda/std/functional>
+#include <cuda/std/tuple>
 #include <thrust/binary_search.h>
 #include <thrust/count.h>
 #include <thrust/distance.h>
@@ -43,7 +44,6 @@
 #include <thrust/tabulate.h>
 #include <thrust/transform.h>
 #include <thrust/transform_reduce.h>
-#include <thrust/tuple.h>
 
 namespace cugraph {
 
@@ -92,10 +92,10 @@ struct update_paths {
   vertex_t* paths_;
   vertex_t invalid_vertex_;
 
-  void __device__ operator()(thrust::tuple<vertex_t, size_t> tuple)
+  void __device__ operator()(cuda::std::tuple<vertex_t, size_t> tuple)
   {
-    auto next_v = thrust::get<0>(tuple);
-    auto offset = thrust::get<1>(tuple);
+    auto next_v = cuda::std::get<0>(tuple);
+    auto offset = cuda::std::get<1>(tuple);
 
     if (next_v != invalid_vertex_) paths_[offset] = next_v;
   }
@@ -121,13 +121,13 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<size_t>> shrink_ex
   auto constexpr invalid_vertex = invalid_vertex_id<vertex_t>::value;
 
   auto begin_iter =
-    thrust::make_zip_iterator(thrust::make_tuple(vertex_list.begin(), path_offset.begin()));
+    thrust::make_zip_iterator(cuda::std::make_tuple(vertex_list.begin(), path_offset.begin()));
 
   auto end_iter = thrust::remove_if(
     handle.get_thrust_policy(),
     begin_iter,
     begin_iter + vertex_list.size(),
-    [invalid_vertex] __device__(auto p) { return thrust::get<0>(p) == invalid_vertex; });
+    [invalid_vertex] __device__(auto p) { return cuda::std::get<0>(p) == invalid_vertex; });
 
   size_t new_size = thrust::distance(begin_iter, end_iter);
   vertex_list.resize(new_size, handle.get_stream());
@@ -209,7 +209,7 @@ std::tuple<rmm::device_uvector<vertex_t>, vertex_t> extract_bfs_paths(
 
   thrust::for_each_n(handle.get_thrust_policy(),
                      thrust::make_zip_iterator(
-                       thrust::make_tuple(current_frontier.begin(), current_position.begin())),
+                       cuda::std::make_tuple(current_frontier.begin(), current_position.begin())),
                      current_frontier.size(),
                      detail::update_paths<vertex_t>{paths.data(), invalid_vertex});
 
@@ -243,7 +243,7 @@ std::tuple<rmm::device_uvector<vertex_t>, vertex_t> extract_bfs_paths(
 
     thrust::for_each_n(handle.get_thrust_policy(),
                        thrust::make_zip_iterator(
-                         thrust::make_tuple(current_frontier.begin(), current_position.begin())),
+                         cuda::std::make_tuple(current_frontier.begin(), current_position.begin())),
                        current_frontier.size(),
                        detail::update_paths<vertex_t>{paths.data(), invalid_vertex});
   }

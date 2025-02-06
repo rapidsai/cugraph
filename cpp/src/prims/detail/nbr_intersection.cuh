@@ -37,6 +37,7 @@
 #include <rmm/mr/device/polymorphic_allocator.hpp>
 
 #include <cuda/std/optional>
+#include <cuda/std/tuple>
 #include <thrust/binary_search.h>
 #include <thrust/copy.h>
 #include <thrust/count.h>
@@ -57,7 +58,6 @@
 #include <thrust/sort.h>
 #include <thrust/tabulate.h>
 #include <thrust/transform.h>
-#include <thrust/tuple.h>
 #include <thrust/unique.h>
 
 #include <array>
@@ -281,10 +281,10 @@ struct pick_min_degree_t {
   cuda::std::optional<edge_partition_edge_property_device_view_t<edge_t, uint32_t const*, bool>>
     edge_partition_e_mask{};
 
-  __device__ edge_t operator()(thrust::tuple<vertex_t, vertex_t> pair) const
+  __device__ edge_t operator()(cuda::std::tuple<vertex_t, vertex_t> pair) const
   {
     edge_t local_degree0{0};
-    vertex_t major0 = thrust::get<0>(pair);
+    vertex_t major0 = cuda::std::get<0>(pair);
     if constexpr (std::is_same_v<FirstElementToIdxMap, void*>) {
       auto major_idx = edge_partition.major_idx_from_major_nocheck(major0);
       local_degree0  = major_idx ? edge_partition.local_degree(*major_idx) : edge_t{0};
@@ -301,7 +301,7 @@ struct pick_min_degree_t {
     }
 
     edge_t local_degree1{0};
-    vertex_t major1 = thrust::get<1>(pair);
+    vertex_t major1 = cuda::std::get<1>(pair);
     if constexpr (std::is_same_v<SecondElementToIdxMap, void*>) {
       auto major_idx = edge_partition.major_idx_from_major_nocheck(major1);
       local_degree1  = major_idx ? edge_partition.local_degree(*major_idx) : edge_t{0};
@@ -443,7 +443,7 @@ struct copy_intersecting_nbrs_and_update_intersection_size_t {
         edge_property_values0 = edge_partition_e_value_input.value_first();
       }
 
-      vertex_t major = thrust::get<0>(pair);
+      vertex_t major = cuda::std::get<0>(pair);
       if constexpr (multi_gpu) {
         if (edge_partition.major_hypersparse_first() &&
             (major >= *(edge_partition.major_hypersparse_first()))) {
@@ -472,7 +472,7 @@ struct copy_intersecting_nbrs_and_update_intersection_size_t {
         edge_property_values0 = first_element_edge_property_values;
       }
 
-      auto idx           = first_element_to_idx_map.find(thrust::get<0>(pair));
+      auto idx           = first_element_to_idx_map.find(cuda::std::get<0>(pair));
       local_edge_offset0 = first_element_offsets[idx];
       local_degree0      = static_cast<edge_t>(first_element_offsets[idx + 1] - local_edge_offset0);
     }
@@ -491,7 +491,7 @@ struct copy_intersecting_nbrs_and_update_intersection_size_t {
         edge_property_values1 = edge_partition_e_value_input.value_first();
       }
 
-      vertex_t major = thrust::get<1>(pair);
+      vertex_t major = cuda::std::get<1>(pair);
       if constexpr (multi_gpu) {
         if (edge_partition.major_hypersparse_first() &&
             (major >= *(edge_partition.major_hypersparse_first()))) {
@@ -520,7 +520,7 @@ struct copy_intersecting_nbrs_and_update_intersection_size_t {
         edge_property_values1 = second_element_edge_property_values;
       }
 
-      auto idx           = second_element_to_idx_map.find(thrust::get<1>(pair));
+      auto idx           = second_element_to_idx_map.find(cuda::std::get<1>(pair));
       local_edge_offset1 = second_element_offsets[idx];
       local_degree1 = static_cast<edge_t>(second_element_offsets[idx + 1] - local_edge_offset1);
     }
@@ -620,14 +620,14 @@ struct gatherv_indices_t {
     for (int j = 0; j < minor_comm_size; ++j) {
       if constexpr (!std::is_same_v<edge_property_value_t, cuda::std::nullopt_t>) {
         auto zipped_gathered_begin = thrust::make_zip_iterator(
-          thrust::make_tuple(gathered_intersection_indices.begin(),
-                             gathered_nbr_intersection_e_property_values0,
-                             gathered_nbr_intersection_e_property_values1));
+          cuda::std::make_tuple(gathered_intersection_indices.begin(),
+                                gathered_nbr_intersection_e_property_values0,
+                                gathered_nbr_intersection_e_property_values1));
 
         auto zipped_combined_begin = thrust::make_zip_iterator(
-          thrust::make_tuple(combined_nbr_intersection_indices.begin(),
-                             combined_nbr_intersection_e_property_values0,
-                             combined_nbr_intersection_e_property_values1));
+          cuda::std::make_tuple(combined_nbr_intersection_indices.begin(),
+                                combined_nbr_intersection_e_property_values0,
+                                combined_nbr_intersection_e_property_values1));
 
         thrust::copy(thrust::seq,
                      zipped_gathered_begin + gathered_intersection_offsets[output_size * j + i],
@@ -706,7 +706,7 @@ nbr_intersection(raft::handle_t const& handle,
                        void*>;
 
   static_assert(std::is_same_v<typename thrust::iterator_traits<VertexPairIterator>::value_type,
-                               thrust::tuple<vertex_t, vertex_t>>);
+                               cuda::std::tuple<vertex_t, vertex_t>>);
 
   size_t input_size = static_cast<size_t>(thrust::distance(vertex_pair_first, vertex_pair_last));
 
@@ -764,7 +764,7 @@ nbr_intersection(raft::handle_t const& handle,
       rmm::device_uvector<vertex_t> unique_majors(input_size, handle.get_stream());
       {
         auto second_element_first = thrust::make_transform_iterator(
-          vertex_pair_first, thrust_tuple_get<thrust::tuple<vertex_t, vertex_t>, size_t{1}>{});
+          vertex_pair_first, thrust_tuple_get<cuda::std::tuple<vertex_t, vertex_t>, size_t{1}>{});
         thrust::copy(handle.get_thrust_policy(),
                      second_element_first,
                      second_element_first + input_size,
@@ -1115,7 +1115,7 @@ nbr_intersection(raft::handle_t const& handle,
 
       rmm::device_uvector<size_t> d_lasts(minor_comm_size, handle.get_stream());
       auto first_element_first = thrust::make_transform_iterator(
-        vertex_pair_first, thrust_tuple_get<thrust::tuple<vertex_t, vertex_t>, size_t{0}>{});
+        vertex_pair_first, thrust_tuple_get<cuda::std::tuple<vertex_t, vertex_t>, size_t{0}>{});
       thrust::lower_bound(handle.get_thrust_policy(),
                           first_element_first,
                           first_element_first + input_size,
@@ -1176,7 +1176,7 @@ nbr_intersection(raft::handle_t const& handle,
 
       std::vector<size_t> rx_v_pair_nbr_intersection_index_tx_counts(size_t{0});
       {
-        auto vertex_pair_buffer = allocate_dataframe_buffer<thrust::tuple<vertex_t, vertex_t>>(
+        auto vertex_pair_buffer = allocate_dataframe_buffer<cuda::std::tuple<vertex_t, vertex_t>>(
           aggregate_rx_v_pair_size, handle.get_stream());
 
         thrust::copy(handle.get_thrust_policy(),
@@ -1322,16 +1322,16 @@ nbr_intersection(raft::handle_t const& handle,
           rx_v_pair_nbr_intersection_indices.shrink_to_fit(handle.get_stream());
         } else {
           auto common_nbr_and_e_property_values_begin = thrust::make_zip_iterator(
-            thrust::make_tuple(rx_v_pair_nbr_intersection_indices.begin(),
-                               rx_v_pair_nbr_intersection_e_property_values0.begin(),
-                               rx_v_pair_nbr_intersection_e_property_values1.begin()));
+            cuda::std::make_tuple(rx_v_pair_nbr_intersection_indices.begin(),
+                                  rx_v_pair_nbr_intersection_e_property_values0.begin(),
+                                  rx_v_pair_nbr_intersection_e_property_values1.begin()));
 
           auto last = thrust::remove_if(
             handle.get_thrust_policy(),
             common_nbr_and_e_property_values_begin,
             common_nbr_and_e_property_values_begin + rx_v_pair_nbr_intersection_indices.size(),
             [] __device__(auto nbr_p0_p1) {
-              return thrust::get<0>(nbr_p0_p1) == invalid_vertex_id<vertex_t>::value;
+              return cuda::std::get<0>(nbr_p0_p1) == invalid_vertex_id<vertex_t>::value;
             });
 
           rx_v_pair_nbr_intersection_indices.resize(
@@ -1782,11 +1782,11 @@ nbr_intersection(raft::handle_t const& handle,
                           detail::is_not_equal_t<vertex_t>{invalid_vertex_id<vertex_t>::value})));
       } else {
         auto zipped_itr_to_indices_and_e_property_values_begin = thrust::make_zip_iterator(
-          thrust::make_tuple(nbr_intersection_indices.begin(),
-                             nbr_intersection_e_property_values0.begin(),
-                             nbr_intersection_e_property_values1.begin()));
+          cuda::std::make_tuple(nbr_intersection_indices.begin(),
+                                nbr_intersection_e_property_values0.begin(),
+                                nbr_intersection_e_property_values1.begin()));
 
-        auto zipped_itr_to_tmps_begin = thrust::make_zip_iterator(thrust::make_tuple(
+        auto zipped_itr_to_tmps_begin = thrust::make_zip_iterator(cuda::std::make_tuple(
           tmp_indices.begin(), tmp_property_values0.begin(), tmp_property_values1.begin()));
 
         num_copied += static_cast<size_t>(thrust::distance(
@@ -1797,10 +1797,10 @@ nbr_intersection(raft::handle_t const& handle,
             zipped_itr_to_indices_and_e_property_values_begin + num_scanned + this_scan_size,
             zipped_itr_to_tmps_begin + num_copied,
             [] __device__(auto nbr_p0_p1) {
-              auto nbr = thrust::get<0>(nbr_p0_p1);
-              auto p0  = thrust::get<1>(nbr_p0_p1);
-              auto p1  = thrust::get<2>(nbr_p0_p1);
-              return thrust::get<0>(nbr_p0_p1) != invalid_vertex_id<vertex_t>::value;
+              auto nbr = cuda::std::get<0>(nbr_p0_p1);
+              auto p0  = cuda::std::get<1>(nbr_p0_p1);
+              auto p1  = cuda::std::get<2>(nbr_p0_p1);
+              return cuda::std::get<0>(nbr_p0_p1) != invalid_vertex_id<vertex_t>::value;
             })));
       }
       num_scanned += this_scan_size;
@@ -1827,7 +1827,7 @@ nbr_intersection(raft::handle_t const& handle,
                                            zipped_itr_to_indices_and_e_property_values_begin +
                                              nbr_intersection_indices.size(),
                                            [] __device__(auto nbr_p0_p1) {
-                                             return thrust::get<0>(nbr_p0_p1) ==
+                                             return cuda::std::get<0>(nbr_p0_p1) ==
                                                     invalid_vertex_id<vertex_t>::value;
                                            })),
         handle.get_stream());

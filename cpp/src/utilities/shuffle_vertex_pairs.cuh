@@ -25,9 +25,9 @@
 #include <cugraph/utilities/host_scalar_comm.hpp>
 #include <cugraph/utilities/shuffle_comm.cuh>
 
+#include <cuda/std/tuple>
 #include <thrust/gather.h>
 #include <thrust/iterator/zip_iterator.h>
-#include <thrust/tuple.h>
 
 #include <tuple>
 
@@ -119,7 +119,7 @@ shuffle_vertex_pairs_with_values_by_gpu_id_impl(
     d_tx_value_counts = cugraph::groupby_and_count(
       thrust::make_zip_iterator(majors.begin(), minors.begin()),
       thrust::make_zip_iterator(majors.end(), minors.end()),
-      [func] __device__(auto val) { return func(thrust::get<0>(val), thrust::get<1>(val)); },
+      [func] __device__(auto val) { return func(cuda::std::get<0>(val), cuda::std::get<1>(val)); },
       comm_size,
       mem_frugal_threshold,
       handle.get_stream());
@@ -128,7 +128,9 @@ shuffle_vertex_pairs_with_values_by_gpu_id_impl(
       d_tx_value_counts = cugraph::groupby_and_count(
         thrust::make_zip_iterator(majors.begin(), minors.begin(), weights->begin()),
         thrust::make_zip_iterator(majors.end(), minors.end(), weights->end()),
-        [func] __device__(auto val) { return func(thrust::get<0>(val), thrust::get<1>(val)); },
+        [func] __device__(auto val) {
+          return func(cuda::std::get<0>(val), cuda::std::get<1>(val));
+        },
         comm_size,
         mem_frugal_threshold,
         handle.get_stream());
@@ -136,7 +138,9 @@ shuffle_vertex_pairs_with_values_by_gpu_id_impl(
       d_tx_value_counts = cugraph::groupby_and_count(
         thrust::make_zip_iterator(majors.begin(), minors.begin(), edge_ids->begin()),
         thrust::make_zip_iterator(majors.end(), minors.end(), edge_ids->end()),
-        [func] __device__(auto val) { return func(thrust::get<0>(val), thrust::get<1>(val)); },
+        [func] __device__(auto val) {
+          return func(cuda::std::get<0>(val), cuda::std::get<1>(val));
+        },
         comm_size,
         mem_frugal_threshold,
         handle.get_stream());
@@ -144,7 +148,9 @@ shuffle_vertex_pairs_with_values_by_gpu_id_impl(
       d_tx_value_counts = cugraph::groupby_and_count(
         thrust::make_zip_iterator(majors.begin(), minors.begin(), edge_types->begin()),
         thrust::make_zip_iterator(majors.end(), minors.end(), edge_types->end()),
-        [func] __device__(auto val) { return func(thrust::get<0>(val), thrust::get<1>(val)); },
+        [func] __device__(auto val) {
+          return func(cuda::std::get<0>(val), cuda::std::get<1>(val));
+        },
         comm_size,
         mem_frugal_threshold,
         handle.get_stream());
@@ -152,7 +158,9 @@ shuffle_vertex_pairs_with_values_by_gpu_id_impl(
       d_tx_value_counts = cugraph::groupby_and_count(
         thrust::make_zip_iterator(majors.begin(), minors.begin(), edge_start_times->begin()),
         thrust::make_zip_iterator(majors.end(), minors.end(), edge_start_times->end()),
-        [func] __device__(auto val) { return func(thrust::get<0>(val), thrust::get<1>(val)); },
+        [func] __device__(auto val) {
+          return func(cuda::std::get<0>(val), cuda::std::get<1>(val));
+        },
         comm_size,
         mem_frugal_threshold,
         handle.get_stream());
@@ -160,7 +168,9 @@ shuffle_vertex_pairs_with_values_by_gpu_id_impl(
       d_tx_value_counts = cugraph::groupby_and_count(
         thrust::make_zip_iterator(majors.begin(), minors.begin(), edge_end_times->begin()),
         thrust::make_zip_iterator(majors.end(), minors.end(), edge_end_times->end()),
-        [func] __device__(auto val) { return func(thrust::get<0>(val), thrust::get<1>(val)); },
+        [func] __device__(auto val) {
+          return func(cuda::std::get<0>(val), cuda::std::get<1>(val));
+        },
         comm_size,
         mem_frugal_threshold,
         handle.get_stream());
@@ -173,7 +183,7 @@ shuffle_vertex_pairs_with_values_by_gpu_id_impl(
     d_tx_value_counts = cugraph::groupby_and_count(
       thrust::make_zip_iterator(majors.begin(), minors.begin(), property_position.begin()),
       thrust::make_zip_iterator(majors.end(), minors.end(), property_position.end()),
-      [func] __device__(auto val) { return func(thrust::get<0>(val), thrust::get<1>(val)); },
+      [func] __device__(auto val) { return func(cuda::std::get<0>(val), cuda::std::get<1>(val)); },
       comm_size,
       mem_frugal_threshold,
       handle.get_stream());

@@ -26,11 +26,11 @@
 
 #include <rmm/exec_policy.hpp>
 
+#include <cuda/std/tuple>
 #include <thrust/fill.h>
 #include <thrust/gather.h>
 #include <thrust/iterator/transform_iterator.h>
 #include <thrust/iterator/zip_iterator.h>
-#include <thrust/tuple.h>
 
 #include <tuple>
 
@@ -100,7 +100,7 @@ rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partition_id(
     static_cast<size_t>(static_cast<double>(total_global_mem / element_size) * mem_frugal_ratio);
 
   auto pair_first = thrust::make_zip_iterator(
-    thrust::make_tuple(d_edgelist_majors.begin(), d_edgelist_minors.begin()));
+    cuda::std::make_tuple(d_edgelist_majors.begin(), d_edgelist_minors.begin()));
 
   rmm::device_uvector<size_t> result(0, handle.get_stream());
 
@@ -113,7 +113,7 @@ rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partition_id(
        cugraph::detail::compute_vertex_partition_id_from_ext_vertex_t<vertex_t>{
          comm_size}] __device__(auto pair) {
       auto local_edge_partition_id = local_edge_partition_id_key_func(pair);
-      auto vertex_partition_id     = vertex_partition_id_key_func(thrust::get<1>(pair));
+      auto vertex_partition_id     = vertex_partition_id_key_func(cuda::std::get<1>(pair));
       return (local_edge_partition_id * major_comm_size) +
              ((vertex_partition_id) % major_comm_size);
     };

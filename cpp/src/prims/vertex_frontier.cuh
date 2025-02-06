@@ -32,6 +32,7 @@
 
 #include <cuda/atomic>
 #include <cuda/functional>
+#include <cuda/std/tuple>
 #include <thrust/binary_search.h>
 #include <thrust/copy.h>
 #include <thrust/distance.h>
@@ -44,7 +45,6 @@
 #include <thrust/remove.h>
 #include <thrust/sort.h>
 #include <thrust/transform.h>
-#include <thrust/tuple.h>
 #include <thrust/unique.h>
 
 #include <cinttypes>
@@ -70,13 +70,14 @@ KeyIterator compute_key_lower_bound(KeyIterator sorted_unique_key_first,
       rmm::exec_policy(stream_view), sorted_unique_key_first, sorted_unique_key_last, v_threshold);
   } else {
     key_t k_threshold{};
-    thrust::get<0>(k_threshold) = v_threshold;
-    return thrust::lower_bound(
-      rmm::exec_policy(stream_view),
-      sorted_unique_key_first,
-      sorted_unique_key_last,
-      k_threshold,
-      [] __device__(auto lhs, auto rhs) { return thrust::get<0>(lhs) < thrust::get<0>(rhs); });
+    cuda::std::get<0>(k_threshold) = v_threshold;
+    return thrust::lower_bound(rmm::exec_policy(stream_view),
+                               sorted_unique_key_first,
+                               sorted_unique_key_last,
+                               k_threshold,
+                               [] __device__(auto lhs, auto rhs) {
+                                 return cuda::std::get<0>(lhs) < cuda::std::get<0>(rhs);
+                               });
   }
 }
 
@@ -241,7 +242,7 @@ void retrieve_vertex_list_from_bitmap(
                          stream_view);
 }
 
-// key type is either vertex_t (tag_t == void) or thrust::tuple<vertex_t, tag_t> (tag_t != void)
+// key type is either vertex_t (tag_t == void) or cuda::std::tuple<vertex_t, tag_t> (tag_t != void)
 // if sorted_unique is true, stores unique key objects in the sorted (non-descending) order.
 // if false, there can be duplicates and the elements may not be sorted.
 template <typename vertex_t,
@@ -251,7 +252,7 @@ template <typename vertex_t,
 class key_bucket_t {
  public:
   using key_type =
-    std::conditional_t<std::is_same_v<tag_t, void>, vertex_t, thrust::tuple<vertex_t, tag_t>>;
+    std::conditional_t<std::is_same_v<tag_t, void>, vertex_t, cuda::std::tuple<vertex_t, tag_t>>;
   static bool constexpr is_sorted_unique = sorted_unique;
 
   static_assert(std::is_same_v<tag_t, void> || std::is_arithmetic_v<tag_t>);
@@ -332,20 +333,20 @@ class key_bucket_t {
    * @param tag tag of the (vertex, tag) pair to insert
    */
   template <typename tag_type = tag_t, std::enable_if_t<!std::is_same_v<tag_type, void>>* = nullptr>
-  void insert(thrust::tuple<vertex_t, tag_type> key)
+  void insert(cuda::std::tuple<vertex_t, tag_type> key)
   {
     CUGRAPH_EXPECTS(vertices_.index() == 0,
                     "insert() is supported only when this bucket holds an owning container.");
     if (std::get<0>(vertices_).size() > 0) {
-      rmm::device_scalar<vertex_t> tmp_vertex(thrust::get<0>(key), handle_ptr_->get_stream());
-      rmm::device_scalar<tag_t> tmp_tag(thrust::get<1>(key), handle_ptr_->get_stream());
+      rmm::device_scalar<vertex_t> tmp_vertex(cuda::std::get<0>(key), handle_ptr_->get_stream());
+      rmm::device_scalar<tag_t> tmp_tag(cuda::std::get<1>(key), handle_ptr_->get_stream());
       auto pair_first =
-        thrust::make_zip_iterator(thrust::make_tuple(tmp_vertex.data(), tmp_tag.data()));
+        thrust::make_zip_iterator(cuda::std::make_tuple(tmp_vertex.data(), tmp_tag.data()));
       insert(pair_first, pair_first + 1);
     } else {
       std::get<0>(vertices_).resize(1, handle_ptr_->get_stream());
       std::get<0>(tags_).resize(1, handle_ptr_->get_stream());
-      auto pair_first = thrust::make_tuple(
+      auto pair_first = cuda::std::make_tuple(
         thrust::make_zip_iterator(std::get<0>(vertices_).begin(), std::get<0>(tags_).begin()));
       thrust::fill(handle_ptr_->get_thrust_policy(), pair_first, pair_first + 1, key);
     }
@@ -419,7 +420,7 @@ class key_bucket_t {
   void insert(KeyIterator key_first, KeyIterator key_last)
   {
     static_assert(std::is_same_v<typename std::iterator_traits<KeyIterator>::value_type,
-                                 thrust::tuple<vertex_t, tag_t>>);
+                                 cuda::std::tuple<vertex_t, tag_t>>);
 
     CUGRAPH_EXPECTS(vertices_.index() == 0,
                     "insert() is supported only when this bucket holds an owning container.");
@@ -430,9 +431,9 @@ class key_bucket_t {
           handle_ptr_->get_stream());
         rmm::device_uvector<tag_t> merged_tags(merged_vertices.size(), handle_ptr_->get_stream());
         auto old_pair_first = thrust::make_zip_iterator(
-          thrust::make_tuple(std::get<0>(vertices_).begin(), std::get<0>(tags_).begin()));
+          cuda::std::make_tuple(std::get<0>(vertices_).begin(), std::get<0>(tags_).begin()));
         auto merged_pair_first = thrust::make_zip_iterator(
-          thrust::make_tuple(merged_vertices.begin(), merged_tags.begin()));
+          cuda::std::make_tuple(merged_vertices.begin(), merged_tags.begin()));
         thrust::merge(handle_ptr_->get_thrust_policy(),
                       old_pair_first,
                       old_pair_first + std::get<0>(vertices_).size(),
@@ -456,8 +457,8 @@ class key_bucket_t {
         thrust::copy(handle_ptr_->get_thrust_policy(),
                      key_first,
                      key_last,
-                     thrust::make_zip_iterator(thrust::make_tuple(std::get<0>(vertices_).begin(),
-                                                                  std::get<0>(tags_).begin())) +
+                     thrust::make_zip_iterator(cuda::std::make_tuple(std::get<0>(vertices_).begin(),
+                                                                     std::get<0>(tags_).begin())) +
                        cur_size);
       }
     } else {
@@ -467,8 +468,8 @@ class key_bucket_t {
       thrust::copy(handle_ptr_->get_thrust_policy(),
                    key_first,
                    key_last,
-                   thrust::make_zip_iterator(thrust::make_tuple(std::get<0>(vertices_).begin(),
-                                                                std::get<0>(tags_).begin())));
+                   thrust::make_zip_iterator(cuda::std::make_tuple(std::get<0>(vertices_).begin(),
+                                                                   std::get<0>(tags_).begin())));
     }
   }
 
@@ -530,7 +531,7 @@ class key_bucket_t {
       return std::get<0>(vertices_).begin();
     } else {
       return thrust::make_zip_iterator(
-        thrust::make_tuple(std::get<0>(vertices_).begin(), std::get<0>(tags_).begin()));
+        cuda::std::make_tuple(std::get<0>(vertices_).begin(), std::get<0>(tags_).begin()));
     }
   }
 
@@ -541,10 +542,10 @@ class key_bucket_t {
                                     : std::get<1>(vertices_).begin();
     } else {
       return vertices_.index() == 0
-               ? thrust::make_zip_iterator(
-                   thrust::make_tuple(std::get<0>(vertices_).begin(), std::get<0>(tags_).begin()))
-               : thrust::make_zip_iterator(
-                   thrust::make_tuple(std::get<1>(vertices_).begin(), std::get<1>(tags_).begin()));
+               ? thrust::make_zip_iterator(cuda::std::make_tuple(std::get<0>(vertices_).begin(),
+                                                                 std::get<0>(tags_).begin()))
+               : thrust::make_zip_iterator(cuda::std::make_tuple(std::get<1>(vertices_).begin(),
+                                                                 std::get<1>(tags_).begin()));
     }
   }
 
@@ -613,7 +614,7 @@ class vertex_frontier_t {
 
  public:
   using key_type =
-    std::conditional_t<std::is_same_v<tag_t, void>, vertex_t, thrust::tuple<vertex_t, tag_t>>;
+    std::conditional_t<std::is_same_v<tag_t, void>, vertex_t, cuda::std::tuple<vertex_t, tag_t>>;
   static size_t constexpr kInvalidBucketIdx{std::numeric_limits<size_t>::max()};
 
   vertex_frontier_t(raft::handle_t const& handle, size_t num_buckets) : handle_ptr_(&handle)
@@ -670,7 +671,7 @@ class vertex_frontier_t {
     // 2. separte the elements to stay in this bucket from the elements to be moved to other buckets
 
     auto pair_first =
-      thrust::make_zip_iterator(thrust::make_tuple(bucket_indices.begin(), this_bucket.begin()));
+      thrust::make_zip_iterator(cuda::std::make_tuple(bucket_indices.begin(), this_bucket.begin()));
     auto new_this_bucket_size = static_cast<size_t>(thrust::distance(
       pair_first,
       thrust::stable_partition(  // stable_partition to maintain sorted order within each bucket
@@ -678,7 +679,7 @@ class vertex_frontier_t {
         pair_first,
         pair_first + bucket_indices.size(),
         [this_bucket_idx = static_cast<uint8_t>(this_bucket_idx)] __device__(auto pair) {
-          return thrust::get<0>(pair) == this_bucket_idx;
+          return cuda::std::get<0>(pair) == this_bucket_idx;
         })));
 
     // 3. remove elements with the invalid bucket indices
@@ -690,7 +691,7 @@ class vertex_frontier_t {
                                            pair_first + new_this_bucket_size,
                                            pair_first + bucket_indices.size(),
                                            [] __device__(auto pair) {
-                                             return thrust::get<0>(pair) ==
+                                             return cuda::std::get<0>(pair) ==
                                                     static_cast<uint8_t>(kInvalidBucketIdx);
                                            })),
       handle_ptr_->get_stream());
@@ -715,7 +716,7 @@ class vertex_frontier_t {
   {
     // 1. group the elements by their target bucket indices
 
-    auto pair_first = thrust::make_zip_iterator(thrust::make_tuple(bucket_idx_first, key_first));
+    auto pair_first = thrust::make_zip_iterator(cuda::std::make_tuple(bucket_idx_first, key_first));
     auto pair_last  = pair_first + thrust::distance(bucket_idx_first, bucket_idx_last);
 
     std::vector<size_t> insert_bucket_indices{};
@@ -733,7 +734,7 @@ class vertex_frontier_t {
           pair_first,
           pair_last,
           [next_bucket_idx = static_cast<uint8_t>(to_bucket_indices[0])] __device__(auto pair) {
-            return thrust::get<0>(pair) == next_bucket_idx;
+            return cuda::std::get<0>(pair) == next_bucket_idx;
           })));
       insert_bucket_indices = to_bucket_indices;
       insert_offsets        = {0, next_bucket_size};
@@ -745,7 +746,9 @@ class vertex_frontier_t {
         handle_ptr_->get_thrust_policy(),
         pair_first,
         pair_last,
-        [] __device__(auto lhs, auto rhs) { return thrust::get<0>(lhs) < thrust::get<0>(rhs); });
+        [] __device__(auto lhs, auto rhs) {
+          return cuda::std::get<0>(lhs) < cuda::std::get<0>(rhs);
+        });
       rmm::device_uvector<uint8_t> d_indices(to_bucket_indices.size(), handle_ptr_->get_stream());
       rmm::device_uvector<size_t> d_counts(d_indices.size(), handle_ptr_->get_stream());
       // FIXME: thrust::lower_bound & thrust::upper_bound will be faster
@@ -755,7 +758,7 @@ class vertex_frontier_t {
                                       thrust::make_constant_iterator(size_t{1}),
                                       d_indices.begin(),
                                       d_counts.begin());
-      d_indices.resize(thrust::distance(d_indices.begin(), thrust::get<0>(it)),
+      d_indices.resize(thrust::distance(d_indices.begin(), cuda::std::get<0>(it)),
                        handle_ptr_->get_stream());
       d_counts.resize(d_indices.size(), handle_ptr_->get_stream());
       std::vector<uint8_t> h_indices(d_indices.size());

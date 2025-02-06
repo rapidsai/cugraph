@@ -25,9 +25,9 @@
 #include <raft/core/host_span.hpp>
 
 #include <cuda/std/optional>
+#include <cuda/std/tuple>
 #include <thrust/iterator/iterator_traits.h>
 #include <thrust/iterator/zip_iterator.h>
-#include <thrust/tuple.h>
 
 #include <optional>
 #include <type_traits>

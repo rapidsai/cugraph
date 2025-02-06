@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -50,11 +50,11 @@ void weighted_similarity_compare(
   auto& [graph_src, graph_dst, graph_wgt] = edge_list;
   auto& [v1, v2]                          = vertex_pairs;
 
-  auto compare_pairs = [](thrust::tuple<vertex_t, vertex_t, weight_t> lhs,
-                          thrust::tuple<vertex_t, vertex_t, weight_t> rhs) {
-    return ((thrust::get<0>(lhs) < thrust::get<0>(rhs)) ||
-            ((thrust::get<0>(lhs) == thrust::get<0>(rhs)) &&
-             (thrust::get<1>(lhs) < thrust::get<1>(rhs))));
+  auto compare_pairs = [](cuda::std::tuple<vertex_t, vertex_t, weight_t> lhs,
+                          cuda::std::tuple<vertex_t, vertex_t, weight_t> rhs) {
+    return ((cuda::std::get<0>(lhs) < cuda::std::get<0>(rhs)) ||
+            ((cuda::std::get<0>(lhs) == cuda::std::get<0>(rhs)) &&
+             (cuda::std::get<1>(lhs) < cuda::std::get<1>(rhs))));
   };
 
   std::sort(thrust::make_zip_iterator(graph_src.begin(), graph_dst.begin(), (*graph_wgt).begin()),
@@ -70,10 +70,10 @@ void weighted_similarity_compare(
   std::for_each(
     thrust::make_zip_iterator(graph_src.begin(), graph_dst.begin(), (*graph_wgt).begin()),
     thrust::make_zip_iterator(graph_src.end(), graph_dst.end(), (*graph_wgt).end()),
-    [&weighted_vertex_degrees](thrust::tuple<vertex_t, vertex_t, weight_t> src_dst_wgt) {
-      auto src = thrust::get<0>(src_dst_wgt);
-      auto dst = thrust::get<1>(src_dst_wgt);
-      auto wgt = thrust::get<2>(src_dst_wgt);
+    [&weighted_vertex_degrees](cuda::std::tuple<vertex_t, vertex_t, weight_t> src_dst_wgt) {
+      auto src = cuda::std::get<0>(src_dst_wgt);
+      auto dst = cuda::std::get<1>(src_dst_wgt);
+      auto wgt = cuda::std::get<2>(src_dst_wgt);
 
       weighted_vertex_degrees[src] += wgt / weight_t{2};
       weighted_vertex_degrees[dst] += wgt / weight_t{2};
@@ -99,9 +99,9 @@ void weighted_similarity_compare(
      &graph_src,
      &graph_dst,
      &graph_wgt_first](auto tuple) {
-      auto v1    = thrust::get<0>(tuple);
-      auto v2    = thrust::get<1>(tuple);
-      auto score = thrust::get<2>(tuple);
+      auto v1    = cuda::std::get<0>(tuple);
+      auto v2    = cuda::std::get<1>(tuple);
+      auto score = cuda::std::get<2>(tuple);
 
       auto v1_begin =
         std::distance(graph_src.begin(), std::lower_bound(graph_src.begin(), graph_src.end(), v1));
@@ -177,9 +177,11 @@ void weighted_similarity_compare(
           thrust::make_zip_iterator(intersected_weights_v1.begin(), intersected_weights_v2.begin()),
           thrust::make_zip_iterator(intersected_weights_v1.end(), intersected_weights_v2.end()),
           [&min_weight_v1_intersect_v2,
-           &max_weight_v1_intersect_v2](thrust::tuple<weight_t, weight_t> w1_w2) {
-            min_weight_v1_intersect_v2 += std::min(thrust::get<0>(w1_w2), thrust::get<1>(w1_w2));
-            max_weight_v1_intersect_v2 += std::max(thrust::get<0>(w1_w2), thrust::get<1>(w1_w2));
+           &max_weight_v1_intersect_v2](cuda::std::tuple<weight_t, weight_t> w1_w2) {
+            min_weight_v1_intersect_v2 +=
+              std::min(cuda::std::get<0>(w1_w2), cuda::std::get<1>(w1_w2));
+            max_weight_v1_intersect_v2 +=
+              std::max(cuda::std::get<0>(w1_w2), cuda::std::get<1>(w1_w2));
           });
 
         max_weight_v1_intersect_v2 += (sum_of_uniq_weights_v1 + sum_of_uniq_weights_v2);
@@ -197,9 +199,9 @@ void weighted_similarity_compare(
         std::for_each(
           thrust::make_zip_iterator(intersected_weights_v1.begin(), intersected_weights_v2.begin()),
           thrust::make_zip_iterator(intersected_weights_v1.end(), intersected_weights_v2.end()),
-          [&norm_v1, &norm_v2, &v1_dot_v2](thrust::tuple<weight_t, weight_t> w1_w2) {
-            auto x = thrust::get<0>(w1_w2);
-            auto y = thrust::get<1>(w1_w2);
+          [&norm_v1, &norm_v2, &v1_dot_v2](cuda::std::tuple<weight_t, weight_t> w1_w2) {
+            auto x = cuda::std::get<0>(w1_w2);
+            auto y = cuda::std::get<1>(w1_w2);
 
             norm_v1 += x * x;
             norm_v2 += y * y;
@@ -226,11 +228,11 @@ void similarity_compare(
   auto& [graph_src, graph_dst, graph_wgt] = edge_list;
   auto& [v1, v2]                          = vertex_pairs;
 
-  auto compare_pairs = [](thrust::tuple<vertex_t, vertex_t> lhs,
-                          thrust::tuple<vertex_t, vertex_t> rhs) {
-    return ((thrust::get<0>(lhs) < thrust::get<0>(rhs)) ||
-            ((thrust::get<0>(lhs) == thrust::get<0>(rhs)) &&
-             (thrust::get<1>(lhs) < thrust::get<1>(rhs))));
+  auto compare_pairs = [](cuda::std::tuple<vertex_t, vertex_t> lhs,
+                          cuda::std::tuple<vertex_t, vertex_t> rhs) {
+    return ((cuda::std::get<0>(lhs) < cuda::std::get<0>(rhs)) ||
+            ((cuda::std::get<0>(lhs) == cuda::std::get<0>(rhs)) &&
+             (cuda::std::get<1>(lhs) < cuda::std::get<1>(rhs))));
   };
 
   std::sort(thrust::make_zip_iterator(graph_src.begin(), graph_dst.begin()),
@@ -251,9 +253,9 @@ void similarity_compare(
     thrust::make_zip_iterator(v1.end(), v2.end(), similarity_score.end()),
     [compare_functor, test_functor, &vertex_degrees, &graph_src, &graph_dst, &graph_wgt](
       auto tuple) {
-      auto v1    = thrust::get<0>(tuple);
-      auto v2    = thrust::get<1>(tuple);
-      auto score = thrust::get<2>(tuple);
+      auto v1    = cuda::std::get<0>(tuple);
+      auto v2    = cuda::std::get<1>(tuple);
+      auto score = cuda::std::get<2>(tuple);
 
       auto v1_begin =
         std::distance(graph_src.begin(), std::lower_bound(graph_src.begin(), graph_src.end(), v1));

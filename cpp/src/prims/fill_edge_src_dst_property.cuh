@@ -61,7 +61,7 @@ template <typename Iterator, typename T, std::size_t... Is>
 __device__ void fill_thrust_tuple(Iterator iter, size_t offset, T value, std::index_sequence<Is...>)
 {
   ((fill_thrust_tuple_element(
-     thrust::get<Is>(iter.get_iterator_tuple()), offset, thrust::get<Is>(value))),
+     cuda::std::get<Is>(iter.get_iterator_tuple()), offset, cuda::std::get<Is>(value))),
    ...);
 }
 
@@ -77,7 +77,7 @@ __device__ void fill_scalar_or_thrust_tuple(Iterator iter, size_t offset, T valu
   } else {
     if constexpr (cugraph::has_packed_bool_element<Iterator, T>) {
       fill_thrust_tuple(
-        iter, offset, value, std::make_index_sequence<thrust::tuple_size<T>::value>());
+        iter, offset, value, std::make_index_sequence<cuda::std::tuple_size<T>::value>());
     } else {
       *(iter + offset) = value;
     }
@@ -96,7 +96,7 @@ void fill_edge_major_property(raft::handle_t const& handle,
   static_assert(std::is_same_v<T, typename EdgeMajorPropertyOutputWrapper::value_type>);
   static_assert(!contains_packed_bool_element ||
                   std::is_arithmetic_v<typename EdgeMajorPropertyOutputWrapper::value_type>,
-                "unimplemented for thrust::tuple types with a packed bool element.");
+                "unimplemented for cuda::std::tuple types with a packed bool element.");
 
   auto keys         = edge_major_property_output.keys();
   auto value_firsts = edge_major_property_output.value_firsts();
@@ -142,7 +142,7 @@ void fill_edge_major_property(raft::handle_t const& handle,
   static_assert(std::is_same_v<T, typename EdgeMajorPropertyOutputWrapper::value_type>);
   static_assert(!contains_packed_bool_element ||
                   std::is_arithmetic_v<typename EdgeMajorPropertyOutputWrapper::value_type>,
-                "unimplemented for thrust::tuple types with a packed bool element.");
+                "unimplemented for cuda::std::tuple types with a packed bool element.");
 
   using vertex_t = typename GraphViewType::vertex_type;
   using edge_t   = typename GraphViewType::edge_type;
@@ -278,7 +278,7 @@ void fill_edge_minor_property(raft::handle_t const& handle,
   }
   auto value_first = edge_minor_property_output.value_first();
   if constexpr (contains_packed_bool_element) {
-    static_assert(std::is_arithmetic_v<T>, "unimplemented for thrust::tuple types.");
+    static_assert(std::is_arithmetic_v<T>, "unimplemented for cuda::std::tuple types.");
     auto packed_input = input ? packed_bool_full_mask() : packed_bool_empty_mask();
     thrust::fill_n(
       handle.get_thrust_policy(), value_first, packed_bool_size(num_buffer_elements), packed_input);

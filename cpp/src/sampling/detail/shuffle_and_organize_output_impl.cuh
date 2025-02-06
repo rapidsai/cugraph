@@ -32,8 +32,8 @@
 
 #include <rmm/device_uvector.hpp>
 
+#include <cuda/std/tuple>
 #include <thrust/sort.h>
-#include <thrust/tuple.h>
 
 #include <optional>
 
@@ -72,15 +72,15 @@ void sort_sampled_tuples(raft::handle_t const& handle,
     hops ? std::make_optional<rmm::device_uvector<int32_t>>(indices.size(), handle.get_stream())
          : std::nullopt;
   if (hops) {
-    thrust::sort(
-      handle.get_thrust_policy(),
-      indices.begin(),
-      indices.end(),
-      [labels = raft::device_span<label_t const>(labels.data(), labels.size()),
-       hops   = raft::device_span<int32_t const>(hops->data(), hops->size())] __device__(size_t l,
-                                                                                       size_t r) {
-        return thrust::make_tuple(labels[l], hops[l]) < thrust::make_tuple(labels[r], hops[r]);
-      });
+    thrust::sort(handle.get_thrust_policy(),
+                 indices.begin(),
+                 indices.end(),
+                 [labels = raft::device_span<label_t const>(labels.data(), labels.size()),
+                  hops   = raft::device_span<int32_t const>(
+                    hops->data(), hops->size())] __device__(size_t l, size_t r) {
+                   return cuda::std::make_tuple(labels[l], hops[l]) <
+                          cuda::std::make_tuple(labels[r], hops[r]);
+                 });
     thrust::gather(handle.get_thrust_policy(),
                    indices.begin(),
                    indices.end(),

@@ -143,14 +143,14 @@ struct update_e_value_t {
   EdgeOp e_op{};
   EdgeValueOutputWrapper edge_partition_e_value_output{};
 
-  __device__ void operator()(thrust::tuple<typename GraphViewType::vertex_type,
-                                           typename GraphViewType::vertex_type> edge) const
+  __device__ void operator()(cuda::std::tuple<typename GraphViewType::vertex_type,
+                                              typename GraphViewType::vertex_type> edge) const
   {
     using vertex_t = typename GraphViewType::vertex_type;
     using edge_t   = typename GraphViewType::edge_type;
 
-    auto major = thrust::get<0>(edge);
-    auto minor = thrust::get<1>(edge);
+    auto major = cuda::std::get<0>(edge);
+    auto minor = cuda::std::get<1>(edge);
 
     auto major_offset = edge_partition.major_offset_from_major_nocheck(major);
     auto major_idx    = edge_partition.major_idx_from_major_nocheck(major);
@@ -330,7 +330,7 @@ void transform_e(raft::handle_t const& handle,
     auto num_edges = edge_partition.number_of_edges();
     if constexpr (edge_partition_e_output_device_view_t::has_packed_bool_element) {
       static_assert(edge_partition_e_output_device_view_t::is_packed_bool,
-                    "unimplemented for thrust::tuple types.");
+                    "unimplemented for cuda::std::tuple types.");
       if (edge_partition.number_of_edges() > edge_t{0}) {
         raft::grid_1d_thread_t update_grid(num_edges,
                                            detail::transform_e_kernel_block_size,
@@ -462,7 +462,7 @@ void transform_e(raft::handle_t const& handle,
   static_assert(GraphViewType::is_storage_transposed != EdgeBucketType::is_src_major);
   static_assert(EdgeBucketType::is_sorted_unique);
   static_assert(
-    std::is_same_v<typename EdgeBucketType::key_type, thrust::tuple<vertex_t, vertex_t>>);
+    std::is_same_v<typename EdgeBucketType::key_type, cuda::std::tuple<vertex_t, vertex_t>>);
 
   using edge_partition_src_input_device_view_t = std::conditional_t<
     std::is_same_v<typename EdgeSrcValueInputWrapper::value_type, cuda::std::nullopt_t>,
@@ -554,9 +554,9 @@ void transform_e(raft::handle_t const& handle,
           edge_first + edge_partition_offsets[i],
           edge_first + edge_partition_offsets[i + 1],
           [edge_partition,
-           edge_partition_e_mask] __device__(thrust::tuple<vertex_t, vertex_t> edge) {
-            auto major     = thrust::get<0>(edge);
-            auto minor     = thrust::get<1>(edge);
+           edge_partition_e_mask] __device__(cuda::std::tuple<vertex_t, vertex_t> edge) {
+            auto major     = cuda::std::get<0>(edge);
+            auto minor     = cuda::std::get<1>(edge);
             auto major_idx = edge_partition.major_idx_from_major_nocheck(major);
             if (!major_idx) { return true; }
             vertex_t const* indices{nullptr};

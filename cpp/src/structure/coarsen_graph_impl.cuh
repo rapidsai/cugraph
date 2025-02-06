@@ -34,6 +34,7 @@
 #include <rmm/device_uvector.hpp>
 #include <rmm/exec_policy.hpp>
 
+#include <cuda/std/tuple>
 #include <thrust/copy.h>
 #include <thrust/count.h>
 #include <thrust/distance.h>
@@ -46,7 +47,6 @@
 #include <thrust/scan.h>
 #include <thrust/sort.h>
 #include <thrust/transform.h>
-#include <thrust/tuple.h>
 #include <thrust/unique.h>
 
 #include <algorithm>
@@ -63,7 +63,7 @@ template <typename EdgeTupleType>
 struct is_not_lower_triangular_t {
   __device__ bool operator()(EdgeTupleType e) const
   {
-    return thrust::get<0>(e) < thrust::get<1>(e);
+    return cuda::std::get<0>(e) < cuda::std::get<1>(e);
   }
 };
 
@@ -71,7 +71,7 @@ template <typename EdgeTupleType>
 struct is_not_self_loop_t {
   __device__ bool operator()(EdgeTupleType e) const
   {
-    return thrust::get<0>(e) != thrust::get<1>(e);
+    return cuda::std::get<0>(e) != cuda::std::get<1>(e);
   }
 };
 
@@ -84,8 +84,8 @@ groupby_e_and_coarsen_edgelist(rmm::device_uvector<vertex_t>&& edgelist_majors,
                                std::optional<rmm::device_uvector<weight_t>>&& edgelist_weights,
                                rmm::cuda_stream_view stream_view)
 {
-  auto pair_first =
-    thrust::make_zip_iterator(thrust::make_tuple(edgelist_majors.begin(), edgelist_minors.begin()));
+  auto pair_first = thrust::make_zip_iterator(
+    cuda::std::make_tuple(edgelist_majors.begin(), edgelist_minors.begin()));
 
   if (edgelist_weights) {
     thrust::sort_by_key(rmm::exec_policy(stream_view),
@@ -106,7 +106,7 @@ groupby_e_and_coarsen_edgelist(rmm::device_uvector<vertex_t>&& edgelist_majors,
                           pair_first,
                           pair_first + edgelist_majors.size(),
                           (*edgelist_weights).begin(),
-                          thrust::make_zip_iterator(thrust::make_tuple(
+                          thrust::make_zip_iterator(cuda::std::make_tuple(
                             tmp_edgelist_majors.begin(), tmp_edgelist_minors.begin())),
                           tmp_edgelist_weights.begin());
 
@@ -187,8 +187,8 @@ decompress_edge_partition_to_relabeled_and_grouped_and_coarsened_edgelist(
     std::nullopt,
     segment_offsets);
 
-  auto pair_first =
-    thrust::make_zip_iterator(thrust::make_tuple(edgelist_majors.begin(), edgelist_minors.begin()));
+  auto pair_first = thrust::make_zip_iterator(
+    cuda::std::make_tuple(edgelist_majors.begin(), edgelist_minors.begin()));
   thrust::transform(handle.get_thrust_policy(),
                     pair_first,
                     pair_first + edgelist_majors.size(),
@@ -199,14 +199,14 @@ decompress_edge_partition_to_relabeled_and_grouped_and_coarsened_edgelist(
                        decltype(minor_label_input.value_first())>(minor_label_input),
                      major_range_first = edge_partition.major_range_first(),
                      minor_range_first = edge_partition.minor_range_first()] __device__(auto val) {
-                      return thrust::make_tuple(
-                        *(major_label_first + (thrust::get<0>(val) - major_range_first)),
-                        minor_label_input.get(thrust::get<1>(val) - minor_range_first));
+                      return cuda::std::make_tuple(
+                        *(major_label_first + (cuda::std::get<0>(val) - major_range_first)),
+                        minor_label_input.get(cuda::std::get<1>(val) - minor_range_first));
                     });
 
   if (lower_triangular_only) {
     if (edgelist_weights) {
-      auto edge_first = thrust::make_zip_iterator(thrust::make_tuple(
+      auto edge_first = thrust::make_zip_iterator(cuda::std::make_tuple(
         edgelist_majors.begin(), edgelist_minors.begin(), (*edgelist_weights).begin()));
       edgelist_majors.resize(
         thrust::distance(
@@ -215,7 +215,7 @@ decompress_edge_partition_to_relabeled_and_grouped_and_coarsened_edgelist(
             handle.get_thrust_policy(),
             edge_first,
             edge_first + edgelist_majors.size(),
-            is_not_lower_triangular_t<thrust::tuple<vertex_t, vertex_t, weight_t>>{})),
+            is_not_lower_triangular_t<cuda::std::tuple<vertex_t, vertex_t, weight_t>>{})),
         handle.get_stream());
       edgelist_majors.shrink_to_fit(handle.get_stream());
       edgelist_minors.resize(edgelist_majors.size(), handle.get_stream());
@@ -224,14 +224,14 @@ decompress_edge_partition_to_relabeled_and_grouped_and_coarsened_edgelist(
       (*edgelist_weights).shrink_to_fit(handle.get_stream());
     } else {
       auto edge_first = thrust::make_zip_iterator(
-        thrust::make_tuple(edgelist_majors.begin(), edgelist_minors.begin()));
+        cuda::std::make_tuple(edgelist_majors.begin(), edgelist_minors.begin()));
       edgelist_majors.resize(
         thrust::distance(
           edge_first,
           thrust::remove_if(handle.get_thrust_policy(),
                             edge_first,
                             edge_first + edgelist_majors.size(),
-                            is_not_lower_triangular_t<thrust::tuple<vertex_t, vertex_t>>{})),
+                            is_not_lower_triangular_t<cuda::std::tuple<vertex_t, vertex_t>>{})),
         handle.get_stream());
       edgelist_majors.shrink_to_fit(handle.get_stream());
       edgelist_minors.resize(edgelist_majors.size(), handle.get_stream());
@@ -446,14 +446,14 @@ coarsen_graph(raft::handle_t const& handle,
 
     if (concatenated_edgelist_weights) {
       auto edge_first =
-        thrust::make_zip_iterator(thrust::make_tuple(concatenated_edgelist_majors.begin(),
-                                                     concatenated_edgelist_minors.begin(),
-                                                     (*concatenated_edgelist_weights).begin()));
+        thrust::make_zip_iterator(cuda::std::make_tuple(concatenated_edgelist_majors.begin(),
+                                                        concatenated_edgelist_minors.begin(),
+                                                        (*concatenated_edgelist_weights).begin()));
       auto last =
         thrust::partition(handle.get_thrust_policy(),
                           edge_first,
                           edge_first + concatenated_edgelist_majors.size(),
-                          is_not_self_loop_t<thrust::tuple<vertex_t, vertex_t, weight_t>>{});
+                          is_not_self_loop_t<cuda::std::tuple<vertex_t, vertex_t, weight_t>>{});
       reversed_edgelist_majors.resize(thrust::distance(edge_first, last), handle.get_stream());
       reversed_edgelist_minors.resize(reversed_edgelist_majors.size(), handle.get_stream());
       reversed_edgelist_weights =
@@ -462,23 +462,23 @@ coarsen_graph(raft::handle_t const& handle,
         handle.get_thrust_policy(),
         edge_first,
         edge_first + reversed_edgelist_majors.size(),
-        thrust::make_zip_iterator(thrust::make_tuple(reversed_edgelist_minors.begin(),
-                                                     reversed_edgelist_majors.begin(),
-                                                     (*reversed_edgelist_weights).begin())));
+        thrust::make_zip_iterator(cuda::std::make_tuple(reversed_edgelist_minors.begin(),
+                                                        reversed_edgelist_majors.begin(),
+                                                        (*reversed_edgelist_weights).begin())));
     } else {
-      auto edge_first = thrust::make_zip_iterator(thrust::make_tuple(
+      auto edge_first = thrust::make_zip_iterator(cuda::std::make_tuple(
         concatenated_edgelist_majors.begin(), concatenated_edgelist_minors.begin()));
       auto last       = thrust::partition(handle.get_thrust_policy(),
                                     edge_first,
                                     edge_first + concatenated_edgelist_majors.size(),
-                                    is_not_self_loop_t<thrust::tuple<vertex_t, vertex_t>>{});
+                                    is_not_self_loop_t<cuda::std::tuple<vertex_t, vertex_t>>{});
       reversed_edgelist_majors.resize(thrust::distance(edge_first, last), handle.get_stream());
       reversed_edgelist_minors.resize(reversed_edgelist_majors.size(), handle.get_stream());
       thrust::copy(handle.get_thrust_policy(),
                    edge_first,
                    edge_first + reversed_edgelist_majors.size(),
-                   thrust::make_zip_iterator(thrust::make_tuple(reversed_edgelist_minors.begin(),
-                                                                reversed_edgelist_majors.begin())));
+                   thrust::make_zip_iterator(cuda::std::make_tuple(
+                     reversed_edgelist_minors.begin(), reversed_edgelist_majors.begin())));
     }
 
     std::tie(reversed_edgelist_majors,
@@ -644,14 +644,14 @@ coarsen_graph(raft::handle_t const& handle,
   if (lower_triangular_only) {
     if (coarsened_edgelist_weights) {
       auto edge_first =
-        thrust::make_zip_iterator(thrust::make_tuple(coarsened_edgelist_majors.begin(),
-                                                     coarsened_edgelist_minors.begin(),
-                                                     (*coarsened_edgelist_weights).begin()));
+        thrust::make_zip_iterator(cuda::std::make_tuple(coarsened_edgelist_majors.begin(),
+                                                        coarsened_edgelist_minors.begin(),
+                                                        (*coarsened_edgelist_weights).begin()));
       auto last =
         thrust::partition(handle.get_thrust_policy(),
                           edge_first,
                           edge_first + coarsened_edgelist_majors.size(),
-                          is_not_self_loop_t<thrust::tuple<vertex_t, vertex_t, weight_t>>{});
+                          is_not_self_loop_t<cuda::std::tuple<vertex_t, vertex_t, weight_t>>{});
 
       auto cur_size      = coarsened_edgelist_majors.size();
       auto reversed_size = static_cast<size_t>(thrust::distance(edge_first, last));
@@ -661,24 +661,24 @@ coarsen_graph(raft::handle_t const& handle,
       (*coarsened_edgelist_weights).resize(coarsened_edgelist_majors.size(), handle.get_stream());
 
       edge_first =
-        thrust::make_zip_iterator(thrust::make_tuple(coarsened_edgelist_majors.begin(),
-                                                     coarsened_edgelist_minors.begin(),
-                                                     (*coarsened_edgelist_weights).begin()));
+        thrust::make_zip_iterator(cuda::std::make_tuple(coarsened_edgelist_majors.begin(),
+                                                        coarsened_edgelist_minors.begin(),
+                                                        (*coarsened_edgelist_weights).begin()));
       thrust::copy(
         handle.get_thrust_policy(),
         edge_first,
         edge_first + reversed_size,
-        thrust::make_zip_iterator(thrust::make_tuple(coarsened_edgelist_minors.begin(),
-                                                     coarsened_edgelist_majors.begin(),
-                                                     (*coarsened_edgelist_weights).begin())) +
+        thrust::make_zip_iterator(cuda::std::make_tuple(coarsened_edgelist_minors.begin(),
+                                                        coarsened_edgelist_majors.begin(),
+                                                        (*coarsened_edgelist_weights).begin())) +
           cur_size);
     } else {
-      auto edge_first = thrust::make_zip_iterator(
-        thrust::make_tuple(coarsened_edgelist_majors.begin(), coarsened_edgelist_minors.begin()));
-      auto last = thrust::partition(handle.get_thrust_policy(),
+      auto edge_first = thrust::make_zip_iterator(cuda::std::make_tuple(
+        coarsened_edgelist_majors.begin(), coarsened_edgelist_minors.begin()));
+      auto last       = thrust::partition(handle.get_thrust_policy(),
                                     edge_first,
                                     edge_first + coarsened_edgelist_majors.size(),
-                                    is_not_self_loop_t<thrust::tuple<vertex_t, vertex_t>>{});
+                                    is_not_self_loop_t<cuda::std::tuple<vertex_t, vertex_t>>{});
 
       auto cur_size      = coarsened_edgelist_majors.size();
       auto reversed_size = static_cast<size_t>(thrust::distance(edge_first, last));
@@ -686,12 +686,12 @@ coarsen_graph(raft::handle_t const& handle,
       coarsened_edgelist_majors.resize(cur_size + reversed_size, handle.get_stream());
       coarsened_edgelist_minors.resize(coarsened_edgelist_majors.size(), handle.get_stream());
 
-      edge_first = thrust::make_zip_iterator(
-        thrust::make_tuple(coarsened_edgelist_majors.begin(), coarsened_edgelist_minors.begin()));
+      edge_first = thrust::make_zip_iterator(cuda::std::make_tuple(
+        coarsened_edgelist_majors.begin(), coarsened_edgelist_minors.begin()));
       thrust::copy(handle.get_thrust_policy(),
                    edge_first,
                    edge_first + reversed_size,
-                   thrust::make_zip_iterator(thrust::make_tuple(
+                   thrust::make_zip_iterator(cuda::std::make_tuple(
                      coarsened_edgelist_minors.begin(), coarsened_edgelist_majors.begin())) +
                      cur_size);
     }

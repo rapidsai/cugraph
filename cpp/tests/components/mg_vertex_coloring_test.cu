@@ -185,14 +185,14 @@ class Tests_MGGraphColoring
       {
         thrust::for_each(
           thrust::host,
-          thrust::make_zip_iterator(thrust::make_tuple(
+          thrust::make_zip_iterator(cuda::std::make_tuple(
             h_colors.begin(), h_vertices_in_this_proces.begin(), h_color_conflicts.begin())),
-          thrust::make_zip_iterator(thrust::make_tuple(
+          thrust::make_zip_iterator(cuda::std::make_tuple(
             h_colors.end(), h_vertices_in_this_proces.end(), h_color_conflicts.end())),
           [](auto color_vetex_and_conflict_flag) {
-            auto color         = thrust::get<0>(color_vetex_and_conflict_flag);
-            auto v             = thrust::get<1>(color_vetex_and_conflict_flag);
-            auto conflict_flag = thrust::get<2>(color_vetex_and_conflict_flag);
+            auto color         = cuda::std::get<0>(color_vetex_and_conflict_flag);
+            auto v             = cuda::std::get<1>(color_vetex_and_conflict_flag);
+            auto conflict_flag = cuda::std::get<2>(color_vetex_and_conflict_flag);
             ASSERT_TRUE(conflict_flag == 0)
               << v << " got same color as one of its neighbor" << std::endl;
           });

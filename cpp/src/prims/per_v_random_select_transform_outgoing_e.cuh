@@ -35,6 +35,7 @@
 #include <cuda/atomic>
 #include <cuda/functional>
 #include <cuda/std/optional>
+#include <cuda/std/tuple>
 #include <thrust/copy.h>
 #include <thrust/count.h>
 #include <thrust/iterator/constant_iterator.h>
@@ -42,7 +43,6 @@
 #include <thrust/remove.h>
 #include <thrust/sort.h>
 #include <thrust/tabulate.h>
-#include <thrust/tuple.h>
 #include <thrust/unique.h>
 
 #include <optional>
@@ -72,9 +72,9 @@ template <typename edge_t, typename T>
 struct check_invalid_t {
   edge_t invalid_idx{};
 
-  __device__ bool operator()(thrust::tuple<edge_t, T> pair) const
+  __device__ bool operator()(cuda::std::tuple<edge_t, T> pair) const
   {
-    return thrust::get<0>(pair) == invalid_idx;
+    return cuda::std::get<0>(pair) == invalid_idx;
   }
 };
 
@@ -617,7 +617,7 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
       sample_counts.resize(0, handle.get_stream());
       sample_counts.shrink_to_fit(handle.get_stream());
 
-      auto pair_first = thrust::make_zip_iterator(thrust::make_tuple(
+      auto pair_first = thrust::make_zip_iterator(cuda::std::make_tuple(
         sample_local_nbr_indices.begin(), get_dataframe_buffer_begin(sample_e_op_results)));
       auto pair_last =
         thrust::remove_if(handle.get_thrust_policy(),

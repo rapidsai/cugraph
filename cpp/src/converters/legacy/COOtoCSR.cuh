@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2019-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,6 +31,7 @@
 
 #include <cub/device/device_radix_sort.cuh>
 #include <cub/device/device_run_length_encode.cuh>
+#include <cuda/std/tuple>
 #include <thrust/device_ptr.h>
 #include <thrust/extrema.h>
 #include <thrust/fill.h>
@@ -41,7 +42,6 @@
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/scan.h>
 #include <thrust/sort.h>
-#include <thrust/tuple.h>
 
 #include <algorithm>
 
@@ -74,14 +74,14 @@ VT sort(legacy::GraphCOOView<VT, ET, WT>& graph, rmm::cuda_stream_view stream_vi
       rmm::exec_policy(stream_view),
       graph.dst_indices,
       graph.dst_indices + graph.number_of_edges,
-      thrust::make_zip_iterator(thrust::make_tuple(graph.src_indices, graph.edge_data)));
+      thrust::make_zip_iterator(cuda::std::make_tuple(graph.src_indices, graph.edge_data)));
     RAFT_CUDA_TRY(cudaMemcpy(
       &max_dst_id, &(graph.dst_indices[graph.number_of_edges - 1]), sizeof(VT), cudaMemcpyDefault));
     thrust::stable_sort_by_key(
       rmm::exec_policy(stream_view),
       graph.src_indices,
       graph.src_indices + graph.number_of_edges,
-      thrust::make_zip_iterator(thrust::make_tuple(graph.dst_indices, graph.edge_data)));
+      thrust::make_zip_iterator(cuda::std::make_tuple(graph.dst_indices, graph.edge_data)));
     RAFT_CUDA_TRY(cudaMemcpy(
       &max_src_id, &(graph.src_indices[graph.number_of_edges - 1]), sizeof(VT), cudaMemcpyDefault));
   } else {

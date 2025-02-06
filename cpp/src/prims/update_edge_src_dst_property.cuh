@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -126,7 +126,7 @@ void update_edge_major_property(raft::handle_t const& handle,
                                      typename EdgeMajorPropertyOutputWrapper::value_type>();
   static_assert(!contains_packed_bool_element ||
                   std::is_arithmetic_v<typename EdgeMajorPropertyOutputWrapper::value_type>,
-                "unimplemented for thrust::tuple types with a packed bool element.");
+                "unimplemented for cuda::std::tuple types with a packed bool element.");
 
   auto edge_partition_value_firsts = edge_major_property_output.value_firsts();
   if constexpr (GraphViewType::is_multi_gpu) {
@@ -276,7 +276,7 @@ void update_edge_major_property(raft::handle_t const& handle,
                                      typename EdgeMajorPropertyOutputWrapper::value_type>();
   static_assert(!contains_packed_bool_element ||
                   std::is_arithmetic_v<typename EdgeMajorPropertyOutputWrapper::value_type>,
-                "unimplemented for thrust::tuple types with a packed bool element.");
+                "unimplemented for cuda::std::tuple types with a packed bool element.");
 
   using vertex_t = typename GraphViewType::vertex_type;
   using edge_t   = typename GraphViewType::edge_type;
@@ -461,7 +461,7 @@ void update_edge_minor_property(raft::handle_t const& handle,
                                      typename EdgeMinorPropertyOutputWrapper::value_type>();
   static_assert(!contains_packed_bool_element ||
                   std::is_arithmetic_v<typename EdgeMinorPropertyOutputWrapper::value_type>,
-                "unimplemented for thrust::tuple types with a packed bool element.");
+                "unimplemented for cuda::std::tuple types with a packed bool element.");
 
   auto edge_partition_value_first = edge_minor_property_output.value_first();
   if constexpr (GraphViewType::is_multi_gpu) {
@@ -703,7 +703,7 @@ void update_edge_minor_property(raft::handle_t const& handle,
                                      typename EdgeMinorPropertyOutputWrapper::value_type>();
   static_assert(!contains_packed_bool_element ||
                   std::is_arithmetic_v<typename EdgeMinorPropertyOutputWrapper::value_type>,
-                "unimplemented for thrust::tuple types with a packed bool element.");
+                "unimplemented for cuda::std::tuple types with a packed bool element.");
 
   using vertex_t = typename GraphViewType::vertex_type;
   using edge_t   = typename GraphViewType::edge_type;

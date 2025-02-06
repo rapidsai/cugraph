@@ -29,10 +29,10 @@
 #include <raft/util/integer_utils.hpp>
 
 #include <cuda/std/optional>
+#include <cuda/std/tuple>
 #include <thrust/adjacent_difference.h>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/sort.h>
-#include <thrust/tuple.h>
 
 namespace cugraph {
 
@@ -55,8 +55,8 @@ struct update_edges_p_r_q_r_num_triangles {
       thrust::seq, intersection_offsets.begin() + 1, intersection_offsets.end(), i);
     auto idx = thrust::distance(intersection_offsets.begin() + 1, itr);
     if (edge_first_or_second == 0) {
-      auto p_r_pair = thrust::make_tuple(thrust::get<0>(*(edge_first + chunk_start + idx)),
-                                         intersection_indices[i]);
+      auto p_r_pair = cuda::std::make_tuple(cuda::std::get<0>(*(edge_first + chunk_start + idx)),
+                                            intersection_indices[i]);
 
       // Find its position in 'edges'
       auto itr_p_r_p_q =
@@ -65,8 +65,8 @@ struct update_edges_p_r_q_r_num_triangles {
       assert(*itr_p_r_p_q == p_r_pair);
       idx = thrust::distance(edge_first, itr_p_r_p_q);
     } else {
-      auto p_r_pair = thrust::make_tuple(thrust::get<1>(*(edge_first + chunk_start + idx)),
-                                         intersection_indices[i]);
+      auto p_r_pair = cuda::std::make_tuple(cuda::std::get<1>(*(edge_first + chunk_start + idx)),
+                                            intersection_indices[i]);
 
       // Find its position in 'edges'
       auto itr_p_r_p_q =
@@ -87,18 +87,18 @@ struct extract_p_r_q_r {
   raft::device_span<vertex_t const> intersection_indices{};
   EdgeIterator edge_first;
 
-  __device__ thrust::tuple<vertex_t, vertex_t> operator()(edge_t i) const
+  __device__ cuda::std::tuple<vertex_t, vertex_t> operator()(edge_t i) const
   {
     auto itr = thrust::upper_bound(
       thrust::seq, intersection_offsets.begin() + 1, intersection_offsets.end(), i);
     auto idx = thrust::distance(intersection_offsets.begin() + 1, itr);
 
     if (p_r_or_q_r == 0) {
-      return thrust::make_tuple(thrust::get<0>(*(edge_first + chunk_start + idx)),
-                                intersection_indices[i]);
+      return cuda::std::make_tuple(cuda::std::get<0>(*(edge_first + chunk_start + idx)),
+                                   intersection_indices[i]);
     } else {
-      return thrust::make_tuple(thrust::get<1>(*(edge_first + chunk_start + idx)),
-                                intersection_indices[i]);
+      return cuda::std::make_tuple(cuda::std::get<1>(*(edge_first + chunk_start + idx)),
+                                   intersection_indices[i]);
     }
   }
 };
@@ -110,13 +110,13 @@ struct extract_q_r {
   raft::device_span<vertex_t const> intersection_indices{};
   EdgeIterator edge_first;
 
-  __device__ thrust::tuple<vertex_t, vertex_t> operator()(edge_t i) const
+  __device__ cuda::std::tuple<vertex_t, vertex_t> operator()(edge_t i) const
   {
     auto itr = thrust::upper_bound(
       thrust::seq, intersection_offsets.begin() + 1, intersection_offsets.end(), i);
     auto idx  = thrust::distance(intersection_offsets.begin() + 1, itr);
-    auto pair = thrust::make_tuple(thrust::get<1>(*(edge_first + chunk_start + idx)),
-                                   intersection_indices[i]);
+    auto pair = cuda::std::make_tuple(cuda::std::get<1>(*(edge_first + chunk_start + idx)),
+                                      intersection_indices[i]);
 
     return pair;
   }
@@ -180,7 +180,7 @@ edge_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>, edge_t> edge_t
 
     if constexpr (multi_gpu) {
       // stores all the pairs (p, r) and (q, r)
-      auto vertex_pair_buffer_tmp = allocate_dataframe_buffer<thrust::tuple<vertex_t, vertex_t>>(
+      auto vertex_pair_buffer_tmp = allocate_dataframe_buffer<cuda::std::tuple<vertex_t, vertex_t>>(
         intersection_indices.size() * 2, handle.get_stream());
 
       // tabulate with the size of intersection_indices, and call binary search on
@@ -226,7 +226,7 @@ edge_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>, edge_t> edge_t
 
       rmm::device_uvector<edge_t> increase_count(count_p_r_q_r, handle.get_stream());
 
-      auto vertex_pair_buffer = allocate_dataframe_buffer<thrust::tuple<vertex_t, vertex_t>>(
+      auto vertex_pair_buffer = allocate_dataframe_buffer<cuda::std::tuple<vertex_t, vertex_t>>(
         count_p_r_q_r, handle.get_stream());
       thrust::reduce_by_key(handle.get_thrust_policy(),
                             get_dataframe_buffer_begin(vertex_pair_buffer_tmp),
@@ -234,7 +234,7 @@ edge_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>, edge_t> edge_t
                             increase_count_tmp.begin(),
                             get_dataframe_buffer_begin(vertex_pair_buffer),
                             increase_count.begin(),
-                            thrust::equal_to<thrust::tuple<vertex_t, vertex_t>>{});
+                            thrust::equal_to<cuda::std::tuple<vertex_t, vertex_t>>{});
 
       rmm::device_uvector<vertex_t> pair_srcs(0, handle.get_stream());
       rmm::device_uvector<vertex_t> pair_dsts(0, handle.get_stream());
@@ -285,7 +285,7 @@ edge_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>, edge_t> edge_t
          edge_first] __device__(auto idx) {
           auto src          = pair_srcs[idx];
           auto dst          = pair_dsts[idx];
-          auto p_r_q_r_pair = thrust::make_tuple(src, dst);
+          auto p_r_q_r_pair = cuda::std::make_tuple(src, dst);
 
           // Find its position in 'edges'
           auto itr_p_r_q_r =
@@ -357,7 +357,7 @@ edge_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>, edge_t> edge_t
                                                       cuda::std::nullopt_t,
                                                       cuda::std::nullopt_t,
                                                       cuda::std::nullopt_t) {
-      auto pair = thrust::make_tuple(src, dst);
+      auto pair = cuda::std::make_tuple(src, dst);
 
       // Find its position in 'edges'
       auto itr_pair = thrust::lower_bound(thrust::seq, edge_first, edge_last, pair);

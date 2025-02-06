@@ -39,6 +39,7 @@
 
 #include <cuda/functional>
 #include <cuda/std/optional>
+#include <cuda/std/tuple>
 #include <thrust/binary_search.h>
 #include <thrust/count.h>
 #include <thrust/extrema.h>
@@ -52,7 +53,6 @@
 #include <thrust/tabulate.h>
 #include <thrust/transform.h>
 #include <thrust/transform_reduce.h>
-#include <thrust/tuple.h>
 
 #include <algorithm>
 #include <cstdint>
@@ -853,8 +853,8 @@ graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t<mul
                       thrust::make_permutation_iterator(
                         ret.begin(), edge_indices.begin() + edge_partition_offsets[i]),
                       [edge_partition, edge_partition_e_mask] __device__(auto e) {
-                        auto major     = thrust::get<0>(e);
-                        auto minor     = thrust::get<1>(e);
+                        auto major     = cuda::std::get<0>(e);
+                        auto minor     = cuda::std::get<1>(e);
                         auto major_idx = edge_partition.major_idx_from_major_nocheck(major);
                         if (major_idx) {
                           vertex_t const* indices{nullptr};
@@ -924,8 +924,8 @@ graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t<!mu
     edge_first + edge_srcs.size(),
     ret.begin(),
     [edge_partition, edge_partition_e_mask] __device__(auto e) {
-      auto major        = thrust::get<0>(e);
-      auto minor        = thrust::get<1>(e);
+      auto major        = cuda::std::get<0>(e);
+      auto minor        = cuda::std::get<1>(e);
       auto major_offset = edge_partition.major_offset_from_major_nocheck(major);
       vertex_t const* indices{nullptr};
       edge_t local_edge_offset{};
@@ -999,8 +999,8 @@ graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t<mul
       thrust::make_permutation_iterator(ret.begin(),
                                         edge_indices.begin() + edge_partition_offsets[i]),
       [edge_partition, edge_partition_e_mask] __device__(auto e) {
-        auto major     = thrust::get<0>(e);
-        auto minor     = thrust::get<1>(e);
+        auto major     = cuda::std::get<0>(e);
+        auto minor     = cuda::std::get<1>(e);
         auto major_idx = edge_partition.major_idx_from_major_nocheck(major);
         if (major_idx) {
           vertex_t const* indices{nullptr};
@@ -1069,8 +1069,8 @@ graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t<!mu
     edge_first + edge_srcs.size(),
     ret.begin(),
     [edge_partition, edge_partition_e_mask] __device__(auto e) {
-      auto major        = thrust::get<0>(e);
-      auto minor        = thrust::get<1>(e);
+      auto major        = cuda::std::get<0>(e);
+      auto minor        = cuda::std::get<1>(e);
       auto major_offset = edge_partition.major_offset_from_major_nocheck(major);
       vertex_t const* indices{nullptr};
       edge_t local_edge_offset{};

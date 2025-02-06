@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,12 +30,12 @@
 
 #include <rmm/exec_policy.hpp>
 
+#include <cuda/std/tuple>
 #include <thrust/copy.h>
 #include <thrust/fill.h>
 #include <thrust/iterator/constant_iterator.h>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/transform.h>
-#include <thrust/tuple.h>
 
 namespace cugraph {
 namespace detail {
@@ -138,14 +138,15 @@ void katz_centrality(
     }
 
     if (betas != nullptr) {
-      auto val_first = thrust::make_zip_iterator(thrust::make_tuple(new_katz_centralities, betas));
+      auto val_first =
+        thrust::make_zip_iterator(cuda::std::make_tuple(new_katz_centralities, betas));
       thrust::transform(handle.get_thrust_policy(),
                         val_first,
                         val_first + pull_graph_view.local_vertex_partition_range_size(),
                         new_katz_centralities,
                         [] __device__(auto val) {
-                          auto const katz_centrality = thrust::get<0>(val);
-                          auto const beta            = thrust::get<1>(val);
+                          auto const katz_centrality = cuda::std::get<0>(val);
+                          auto const beta            = cuda::std::get<1>(val);
                           return katz_centrality + beta;
                         });
     }
@@ -153,8 +154,11 @@ void katz_centrality(
     auto diff_sum = transform_reduce_v(
       handle,
       pull_graph_view,
-      thrust::make_zip_iterator(thrust::make_tuple(new_katz_centralities, old_katz_centralities)),
-      [] __device__(auto, auto val) { return std::abs(thrust::get<0>(val) - thrust::get<1>(val)); },
+      thrust::make_zip_iterator(
+        cuda::std::make_tuple(new_katz_centralities, old_katz_centralities)),
+      [] __device__(auto, auto val) {
+        return std::abs(cuda::std::get<0>(val) - cuda::std::get<1>(val));
+      },
       result_t{0.0});
 
     iter++;

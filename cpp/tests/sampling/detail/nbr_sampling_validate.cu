@@ -29,6 +29,7 @@
 #include <rmm/device_uvector.hpp>
 
 #include <cuda/std/functional>
+#include <cuda/std/tuple>
 #include <thrust/count.h>
 #include <thrust/distance.h>
 #include <thrust/equal.h>
@@ -39,7 +40,6 @@
 #include <thrust/set_operations.h>
 #include <thrust/sort.h>
 #include <thrust/transform.h>
-#include <thrust/tuple.h>
 #include <thrust/unique.h>
 
 #include <algorithm>
@@ -65,16 +65,16 @@ struct ArithmeticZipLess {
   __device__ bool operator()(left_t const& left, right_t const& right)
   {
     if constexpr (cugraph::is_thrust_tuple_of_arithmetic<left_t>::value) {
-      // Need a more generic solution, for now I can just check thrust::tuple_size
-      if (thrust::get<0>(left) < thrust::get<0>(right)) return true;
-      if (thrust::get<0>(right) < thrust::get<0>(left)) return false;
+      // Need a more generic solution, for now I can just check cuda::std::tuple_size
+      if (cuda::std::get<0>(left) < cuda::std::get<0>(right)) return true;
+      if (cuda::std::get<0>(right) < cuda::std::get<0>(left)) return false;
 
-      if constexpr (thrust::tuple_size<left_t>::value > 2) {
-        if (thrust::get<1>(left) < thrust::get<1>(right)) return true;
-        if (thrust::get<1>(right) < thrust::get<1>(left)) return false;
-        return thrust::get<2>(left) < thrust::get<2>(right);
+      if constexpr (cuda::std::tuple_size<left_t>::value > 2) {
+        if (cuda::std::get<1>(left) < cuda::std::get<1>(right)) return true;
+        if (cuda::std::get<1>(right) < cuda::std::get<1>(left)) return false;
+        return cuda::std::get<2>(left) < cuda::std::get<2>(right);
       } else {
-        return thrust::get<1>(left) < thrust::get<1>(right);
+        return cuda::std::get<1>(left) < cuda::std::get<1>(right);
       }
     } else {
       return false;
@@ -86,20 +86,20 @@ struct ArithmeticZipLess {
 //        generic for any typle that supports < operator
 struct ArithmeticZipEqual {
   template <typename vertex_t, typename weight_t>
-  __device__ bool operator()(thrust::tuple<vertex_t, vertex_t, weight_t> const& left,
-                             thrust::tuple<vertex_t, vertex_t, weight_t> const& right)
+  __device__ bool operator()(cuda::std::tuple<vertex_t, vertex_t, weight_t> const& left,
+                             cuda::std::tuple<vertex_t, vertex_t, weight_t> const& right)
   {
-    return (thrust::get<0>(left) == thrust::get<0>(right)) &&
-           (thrust::get<1>(left) == thrust::get<1>(right)) &&
-           (thrust::get<2>(left) == thrust::get<2>(right));
+    return (cuda::std::get<0>(left) == cuda::std::get<0>(right)) &&
+           (cuda::std::get<1>(left) == cuda::std::get<1>(right)) &&
+           (cuda::std::get<2>(left) == cuda::std::get<2>(right));
   }
 
   template <typename vertex_t>
-  __device__ bool operator()(thrust::tuple<vertex_t, vertex_t> const& left,
-                             thrust::tuple<vertex_t, vertex_t> const& right)
+  __device__ bool operator()(cuda::std::tuple<vertex_t, vertex_t> const& left,
+                             cuda::std::tuple<vertex_t, vertex_t> const& right)
   {
-    return (thrust::get<0>(left) == thrust::get<0>(right)) &&
-           (thrust::get<1>(left) == thrust::get<1>(right));
+    return (cuda::std::get<0>(left) == cuda::std::get<0>(right)) &&
+           (cuda::std::get<1>(left) == cuda::std::get<1>(right));
   }
 };
 
@@ -126,7 +126,7 @@ bool validate_extracted_graph_is_subgraph(
     raft::copy(wgt_v.data(), wgt->data(), wgt->size(), handle.get_stream());
 
     auto graph_iter =
-      thrust::make_zip_iterator(thrust::make_tuple(src_v.begin(), dst_v.begin(), wgt_v.begin()));
+      thrust::make_zip_iterator(cuda::std::make_tuple(src_v.begin(), dst_v.begin(), wgt_v.begin()));
     thrust::sort(
       handle.get_thrust_policy(), graph_iter, graph_iter + src_v.size(), ArithmeticZipLess{});
     auto graph_iter_end = thrust::unique(
@@ -138,7 +138,7 @@ bool validate_extracted_graph_is_subgraph(
     wgt_v.resize(new_size, handle.get_stream());
 
     auto subgraph_iter = thrust::make_zip_iterator(
-      thrust::make_tuple(subgraph_src.begin(), subgraph_dst.begin(), subgraph_wgt->begin()));
+      cuda::std::make_tuple(subgraph_src.begin(), subgraph_dst.begin(), subgraph_wgt->begin()));
     num_invalids =
       thrust::count_if(handle.get_thrust_policy(),
                        subgraph_iter,
@@ -148,7 +148,8 @@ bool validate_extracted_graph_is_subgraph(
                                    thrust::seq, graph_iter, graph_iter + new_size, tup) == false);
                        });
   } else {
-    auto graph_iter = thrust::make_zip_iterator(thrust::make_tuple(src_v.begin(), dst_v.begin()));
+    auto graph_iter =
+      thrust::make_zip_iterator(cuda::std::make_tuple(src_v.begin(), dst_v.begin()));
     thrust::sort(
       handle.get_thrust_policy(), graph_iter, graph_iter + src_v.size(), ArithmeticZipLess{});
     auto graph_iter_end = thrust::unique(
@@ -159,7 +160,7 @@ bool validate_extracted_graph_is_subgraph(
     dst_v.resize(new_size, handle.get_stream());
 
     auto subgraph_iter =
-      thrust::make_zip_iterator(thrust::make_tuple(subgraph_src.begin(), subgraph_dst.begin()));
+      thrust::make_zip_iterator(cuda::std::make_tuple(subgraph_src.begin(), subgraph_dst.begin()));
     num_invalids =
       thrust::count_if(handle.get_thrust_policy(),
                        subgraph_iter,
@@ -269,14 +270,14 @@ bool validate_sampling_depth(raft::handle_t const& handle,
                                               vertex_t{max_depth});
 
       auto tuple_iter = thrust::make_zip_iterator(
-        thrust::make_tuple(d_distances.begin(), d_local_distances.begin()));
+        cuda::std::make_tuple(d_distances.begin(), d_local_distances.begin()));
 
       thrust::transform(handle.get_thrust_policy(),
                         tuple_iter,
                         tuple_iter + d_distances.size(),
                         d_distances.begin(),
                         [] __device__(auto tuple) {
-                          return cuda::std::min(thrust::get<0>(tuple), thrust::get<1>(tuple));
+                          return cuda::std::min(cuda::std::get<0>(tuple), cuda::std::get<1>(tuple));
                         });
     }
   }
