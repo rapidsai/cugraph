@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2023-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -85,6 +85,7 @@ class Tests_Multithreaded
     std::vector<int> gpu_list)
   {
     using edge_type_t = int32_t;
+    using edge_time_t = int32_t;
 
     constexpr bool renumber           = true;
     constexpr bool do_expensive_check = false;
@@ -112,7 +113,7 @@ class Tests_Multithreaded
     auto instance_manager = g_resource_manager.create_instance_manager(
       g_resource_manager.registered_ranks(), instance_manager_id);
 
-    cugraph::mtmg::edgelist_t<vertex_t, weight_t, edge_t, edge_type_t> edgelist;
+    cugraph::mtmg::edgelist_t<vertex_t, weight_t, edge_t, edge_type_t, edge_time_t> edgelist;
     cugraph::mtmg::graph_t<vertex_t, edge_t, true, multi_gpu> graph;
     cugraph::mtmg::graph_view_t<vertex_t, edge_t, true, multi_gpu> graph_view;
     cugraph::mtmg::vertex_result_t<result_t> pageranks;
@@ -136,12 +137,20 @@ class Tests_Multithreaded
       running_threads.emplace_back([&instance_manager,
                                     &edgelist,
                                     device_buffer_size,
-                                    use_weight    = true,
-                                    use_edge_id   = false,
-                                    use_edge_type = false]() {
+                                    use_weight          = true,
+                                    use_edge_id         = false,
+                                    use_edge_type       = false,
+                                    use_edge_start_time = false,
+                                    use_edge_end_time   = false]() {
         auto thread_handle = instance_manager->get_handle();
 
-        edgelist.set(thread_handle, device_buffer_size, use_weight, use_edge_id, use_edge_type);
+        edgelist.set(thread_handle,
+                     device_buffer_size,
+                     use_weight,
+                     use_edge_id,
+                     use_edge_type,
+                     use_edge_start_time,
+                     use_edge_end_time);
       });
     }
 
@@ -164,8 +173,17 @@ class Tests_Multithreaded
         input_usecase.template construct_edgelist<vertex_t, weight_t>(
           handle, multithreaded_usecase.test_weighted, false, false);
 
-      std::tie(d_src_v, d_dst_v, d_weights_v) = cugraph::test::detail::concatenate_edge_chunks(
-        handle, std::move(src_chunks), std::move(dst_chunks), std::move(weight_chunks));
+      std::tie(d_src_v, d_dst_v, d_weights_v, std::ignore, std::ignore, std::ignore, std::ignore) =
+        cugraph::test::detail::
+          concatenate_edge_chunks<vertex_t, edge_t, weight_t, edge_type_t, edge_time_t>(
+            handle,
+            std::move(src_chunks),
+            std::move(dst_chunks),
+            std::move(weight_chunks),
+            std::nullopt,
+            std::nullopt,
+            std::nullopt,
+            std::nullopt);
     }
 
     auto h_src_v         = cugraph::test::to_host(handle, d_src_v);
@@ -184,7 +202,7 @@ class Tests_Multithreaded
                                     starting_edge_offset = g_node_rank * num_threads + i,
                                     stride               = g_num_nodes * num_threads]() {
         auto thread_handle = instance_manager->get_handle();
-        cugraph::mtmg::per_thread_edgelist_t<vertex_t, weight_t, edge_t, edge_type_t>
+        cugraph::mtmg::per_thread_edgelist_t<vertex_t, weight_t, edge_t, edge_type_t, edge_time_t>
           per_thread_edgelist(edgelist.get(thread_handle), thread_buffer_size);
 
         for (size_t j = starting_edge_offset; j < h_src_v.size(); j += stride) {
@@ -192,6 +210,8 @@ class Tests_Multithreaded
             h_src_v[j],
             h_dst_v[j],
             h_weights_v ? std::make_optional((*h_weights_v)[j]) : std::nullopt,
+            std::nullopt,
+            std::nullopt,
             std::nullopt,
             std::nullopt,
             thread_handle.get_stream());
@@ -227,24 +247,39 @@ class Tests_Multithreaded
           edge_ids{std::nullopt};
         std::optional<cugraph::mtmg::edge_property_t<
           cugraph::mtmg::graph_view_t<vertex_t, edge_t, true, multi_gpu>,
-          int32_t>>
+          edge_type_t>>
           edge_types{std::nullopt};
+        std::optional<cugraph::mtmg::edge_property_t<
+          cugraph::mtmg::graph_view_t<vertex_t, edge_t, true, multi_gpu>,
+          edge_time_t>>
+          edge_start_times{std::nullopt};
+        std::optional<cugraph::mtmg::edge_property_t<
+          cugraph::mtmg::graph_view_t<vertex_t, edge_t, true, multi_gpu>,
+          edge_time_t>>
+          edge_end_times{std::nullopt};
 
         edgelist.finalize_buffer(thread_handle);
         edgelist.consolidate_and_shuffle(thread_handle, true);
 
-        cugraph::mtmg::
-          create_graph_from_edgelist<vertex_t, edge_t, weight_t, edge_t, int32_t, true, multi_gpu>(
-            thread_handle,
-            edgelist,
-            cugraph::graph_properties_t{is_symmetric, true},
-            renumber,
-            graph,
-            edge_weights,
-            edge_ids,
-            edge_types,
-            renumber_map,
-            do_expensive_check);
+        cugraph::mtmg::create_graph_from_edgelist<vertex_t,
+                                                  edge_t,
+                                                  weight_t,
+                                                  edge_type_t,
+                                                  edge_time_t,
+                                                  true,
+                                                  multi_gpu>(
+          thread_handle,
+          edgelist,
+          cugraph::graph_properties_t{is_symmetric, true},
+          renumber,
+          graph,
+          edge_weights,
+          edge_ids,
+          edge_types,
+          edge_start_times,
+          edge_end_times,
+          renumber_map,
+          do_expensive_check);
       });
     }
 
@@ -357,17 +392,30 @@ class Tests_Multithreaded
         sg_edge_weights{std::nullopt};
       std::optional<rmm::device_uvector<vertex_t>> sg_renumber_map{std::nullopt};
 
-      std::tie(sg_graph, sg_edge_weights, std::ignore, std::ignore, sg_renumber_map) = cugraph::
-        create_graph_from_edgelist<vertex_t, edge_t, weight_t, edge_t, int32_t, true, false>(
-          handle,
-          std::nullopt,
-          std::move(d_src_v),
-          std::move(d_dst_v),
-          std::move(d_weights_v),
-          std::nullopt,
-          std::nullopt,
-          cugraph::graph_properties_t{is_symmetric, true},
-          true);
+      std::tie(sg_graph,
+               sg_edge_weights,
+               std::ignore,
+               std::ignore,
+               std::ignore,
+               std::ignore,
+               sg_renumber_map) =
+        cugraph::create_graph_from_edgelist<vertex_t,
+                                            edge_t,
+                                            weight_t,
+                                            edge_type_t,
+                                            edge_time_t,
+                                            true,
+                                            false>(handle,
+                                                   std::nullopt,
+                                                   std::move(d_src_v),
+                                                   std::move(d_dst_v),
+                                                   std::move(d_weights_v),
+                                                   std::nullopt,
+                                                   std::nullopt,
+                                                   std::nullopt,
+                                                   std::nullopt,
+                                                   cugraph::graph_properties_t{is_symmetric, true},
+                                                   true);
 
       auto [sg_pageranks, meta] = cugraph::pagerank<vertex_t, edge_t, weight_t, weight_t, false>(
         handle,
