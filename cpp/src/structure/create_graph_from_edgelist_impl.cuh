@@ -1371,24 +1371,17 @@ create_graph_from_edgelist_impl(
     if (compress) {
       size_t min_clz{sizeof(vertex_t) * 8};
       for (size_t i = 0; i < num_chunks; ++i) {
-        min_clz =
-          thrust::transform_reduce(handle.get_thrust_policy(),
-                                   edgelist_srcs[i].begin(),
-                                   edgelist_srcs[i].end(),
-                                   cuda::proclaim_return_type<size_t>([] __device__(auto v) {
-                                     return static_cast<size_t>(__clzll(v));
-                                   }),
-                                   min_clz,
-                                   thrust::minimum<size_t>{});
-        min_clz =
-          thrust::transform_reduce(handle.get_thrust_policy(),
-                                   edgelist_dsts[i].begin(),
-                                   edgelist_dsts[i].end(),
-                                   cuda::proclaim_return_type<size_t>([] __device__(auto v) {
-                                     return static_cast<size_t>(__clzll(v));
-                                   }),
-                                   min_clz,
-                                   thrust::minimum<size_t>{});
+        auto min_clz_first = thrust::make_transform_iterator(
+          thrust::make_zip_iterator(edgelist_srcs[i].begin(), edgelist_dsts[i].begin()),
+          cuda::proclaim_return_type<size_t>([] __device__(auto pair) {
+            return static_cast<size_t>(
+              cuda::std::min(__clzll(thrust::get<0>(pair)), __clzll(thrust::get<1>(pair))));
+          }));
+        min_clz = thrust::reduce(handle.get_thrust_policy(),
+                                 min_clz_first,
+                                 min_clz_first + edgelist_srcs[i].size(),
+                                 min_clz,
+                                 thrust::minimum<size_t>{});
       }
       compressed_v_size = sizeof(vertex_t) - (min_clz / 8);
       compressed_v_size = std::max(compressed_v_size, size_t{1});
