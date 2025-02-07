@@ -628,8 +628,7 @@ heterogeneous_uniform_neighbor_sample(
   graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
   std::optional<edge_property_view_t<edge_t, edge_t const*>> edge_id_view,
-  std::optional<edge_property_view_t<edge_t, edge_type_t const*>>
-    edge_type_view,  // FIXME: thsi shouldn't be optional
+  edge_property_view_t<edge_t, edge_type_t const*> edge_type_view,
   raft::device_span<vertex_t const> starting_vertices,
   std::optional<raft::device_span<int32_t const>> starting_vertex_labels,
   std::optional<raft::device_span<int32_t const>> label_to_output_comm_rank,
@@ -647,7 +646,7 @@ heterogeneous_uniform_neighbor_sample(
       graph_view,
       edge_weight_view,
       edge_id_view,
-      edge_type_view,
+      std::make_optional(edge_type_view),
       std::optional<edge_property_view_t<edge_t, bias_t const*>>{
         std::nullopt},  // Optional edge_bias_view
       starting_vertices,
@@ -748,8 +747,7 @@ heterogeneous_biased_neighbor_sample(
   graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
   std::optional<edge_property_view_t<edge_t, edge_t const*>> edge_id_view,
-  std::optional<edge_property_view_t<edge_t, edge_type_t const*>>
-    edge_type_view,  // FIXME: thsi shouldn't be optional
+  edge_property_view_t<edge_t, edge_type_t const*> edge_type_view,
   edge_property_view_t<edge_t, bias_t const*> edge_bias_view,
   raft::device_span<vertex_t const> starting_vertices,
   std::optional<raft::device_span<int32_t const>> starting_vertex_labels,
@@ -766,7 +764,7 @@ heterogeneous_biased_neighbor_sample(
       graph_view,
       edge_weight_view,
       edge_id_view,
-      edge_type_view,
+      std::make_optional(edge_type_view),
       std::make_optional(edge_bias_view),
       starting_vertices,
       starting_vertex_labels,
