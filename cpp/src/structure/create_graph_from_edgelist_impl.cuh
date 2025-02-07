@@ -1809,8 +1809,12 @@ create_graph_from_edgelist_impl(
     if (vertices) {
       num_vertices = (*vertices).size();
     } else {
-      num_vertices = 1 + cugraph::detail::compute_maximum_vertex_id(
-                           handle.get_stream(), edgelist_srcs, edgelist_dsts);
+      if (edgelist_srcs.size() > 0) {
+        num_vertices = 1 + cugraph::detail::compute_maximum_vertex_id(
+                             handle.get_stream(), edgelist_srcs, edgelist_dsts);
+      } else {
+        num_vertices = 0;
+      }
     }
   }
 
