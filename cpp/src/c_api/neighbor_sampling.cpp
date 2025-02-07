@@ -994,9 +994,8 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
       // otherwised throw an error and suggest the user to call uniform neighbor sample instead
 
       if (num_edge_types_ > 1) {
-        if (edge_types == nullptr) {
-          CUGRAPH_FAIL("edge types are necessary for heterogeneous sampling.");
-        }
+        CUGRAPH_EXPECTS(edge_types != nullptr,
+                        "edge types are necessary for heterogeneous sampling.");
 
         // call heterogeneous neighbor sample
         if (is_biased_) {
