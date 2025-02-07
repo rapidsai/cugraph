@@ -444,8 +444,10 @@ class edge_src_property_t {
   {
     property_.clear(handle);
 
-    edge_partition_keys_                    = std::nullopt;
-    edge_partition_key_chunk_start_offsets_ = std::nullopt;
+    if constexpr (GraphViewType::is_multi_gpu && !GraphViewType::is_storage_transposed) {
+      edge_partition_keys_                    = std::nullopt;
+      edge_partition_key_chunk_start_offsets_ = std::nullopt;
+    }
   }
 
   auto view() const { return property_.view(); }
@@ -457,10 +459,16 @@ class edge_src_property_t {
                      detail::edge_major_property_t<typename GraphViewType::vertex_type, T>>
     property_;
 
-  std::optional<std::vector<raft::device_span<typename GraphViewType::vertex_type const>>>
-    edge_partition_keys_{std::nullopt};
-  std::optional<std::vector<raft::device_span<typename GraphViewType::vertex_type const>>>
-    edge_partition_key_chunk_start_offsets_{std::nullopt};
+  std::conditional_t<
+    GraphViewType::is_multi_gpu && !GraphViewType::is_storage_transposed,
+    std::optional<std::vector<raft::device_span<typename GraphViewType::vertex_type const>>>,
+    std::byte>
+    edge_partition_keys_{};
+  std::conditional_t<
+    GraphViewType::is_multi_gpu && !GraphViewType::is_storage_transposed,
+    std::optional<std::vector<raft::device_span<typename GraphViewType::vertex_type const>>>,
+    std::byte>
+    edge_partition_key_chunk_start_offsets_{};
 };
 
 template <typename GraphViewType, typename T>
@@ -536,8 +544,10 @@ class edge_dst_property_t {
   {
     property_.clear(handle);
 
-    edge_partition_keys_                    = std::nullopt;
-    edge_partition_key_chunk_start_offsets_ = std::nullopt;
+    if constexpr (GraphViewType::is_multi_gpu && GraphViewType::is_storage_transposed) {
+      edge_partition_keys_                    = std::nullopt;
+      edge_partition_key_chunk_start_offsets_ = std::nullopt;
+    }
   }
 
   auto view() const { return property_.view(); }
@@ -549,10 +559,16 @@ class edge_dst_property_t {
                      detail::edge_minor_property_t<typename GraphViewType::vertex_type, T>>
     property_;
 
-  std::optional<std::vector<raft::device_span<typename GraphViewType::vertex_type const>>>
-    edge_partition_keys_{std::nullopt};
-  std::optional<std::vector<raft::device_span<typename GraphViewType::vertex_type const>>>
-    edge_partition_key_chunk_start_offsets_{std::nullopt};
+  std::conditional_t<
+    GraphViewType::is_multi_gpu && GraphViewType::is_storage_transposed,
+    std::optional<std::vector<raft::device_span<typename GraphViewType::vertex_type const>>>,
+    std::byte /* dummy */>
+    edge_partition_keys_{};
+  std::conditional_t<
+    GraphViewType::is_multi_gpu && GraphViewType::is_storage_transposed,
+    std::optional<std::vector<raft::device_span<typename GraphViewType::vertex_type const>>>,
+    std::byte /* dummy */>
+    edge_partition_key_chunk_start_offsets_{};
 };
 
 class edge_src_dummy_property_t {
