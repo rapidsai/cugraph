@@ -1,4 +1,4 @@
-# Copyright (c) 2022-2024, NVIDIA CORPORATION.
+# Copyright (c) 2022-2025, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -48,6 +48,8 @@ def _get_param_args(param_name, param_values):
     return (param_name, [pytest.param(v, id=f"{param_name}={v}") for v in param_values])
 
 
+# FIXME: This test suite must be removed once node2vec is removed from
+# the python API in favor of node2vecrandom walks
 def calc_node2vec(G, start_vertices, max_depth, compress_result, p=1.0, q=1.0):
     """
     Compute node2vec for each nodes in 'start_vertices'

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -123,16 +123,16 @@ vertex_t compute_maximum_vertex_id(rmm::cuda_stream_view const& stream_view,
                                    vertex_t const* d_edgelist_dsts,
                                    size_t num_edges)
 {
-  auto edge_first = thrust::make_zip_iterator(thrust::make_tuple(d_edgelist_srcs, d_edgelist_dsts));
-
-  return thrust::transform_reduce(
-    rmm::exec_policy(stream_view),
-    edge_first,
-    edge_first + num_edges,
-    cuda::proclaim_return_type<vertex_t>(
-      [] __device__(auto e) -> vertex_t { return std::max(thrust::get<0>(e), thrust::get<1>(e)); }),
-    vertex_t{0},
-    thrust::maximum<vertex_t>());
+  auto max_v_first =
+    thrust::make_transform_iterator(thrust::make_zip_iterator(d_edgelist_srcs, d_edgelist_dsts),
+                                    cuda::proclaim_return_type<vertex_t>([] __device__(auto e) {
+                                      return cuda::std::max(thrust::get<0>(e), thrust::get<1>(e));
+                                    }));
+  return thrust::reduce(rmm::exec_policy(stream_view),
+                        max_v_first,
+                        max_v_first + num_edges,
+                        vertex_t{0},
+                        thrust::maximum<vertex_t>{});
 }
 
 template <typename vertex_t, typename edge_t>

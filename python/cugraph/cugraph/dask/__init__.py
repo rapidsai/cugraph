@@ -1,4 +1,4 @@
-# Copyright (c) 2020-2024, NVIDIA CORPORATION.
+# Copyright (c) 2020-2025, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -28,6 +28,9 @@ from .centrality.katz_centrality import katz_centrality
 from .components.connectivity import weakly_connected_components
 from .sampling.uniform_neighbor_sample import uniform_neighbor_sample
 from .sampling.random_walks import random_walks
+from .sampling.uniform_random_walks import uniform_random_walks
+from .sampling.biased_random_walks import biased_random_walks
+from .sampling.node2vec_random_walks import node2vec_random_walks
 from .centrality.eigenvector_centrality import eigenvector_centrality
 from .cores.core_number import core_number
 from .centrality.betweenness_centrality import betweenness_centrality
@@ -42,6 +45,7 @@ from .link_prediction.overlap import all_pairs_overlap
 from .link_prediction.cosine import cosine
 from .link_prediction.cosine import all_pairs_cosine
 from .community.leiden import leiden
+from .community.ecg import ecg
 
 # Avoid "p2p" shuffling in dask for now
 config.set({"dataframe.shuffle.method": "tasks"})

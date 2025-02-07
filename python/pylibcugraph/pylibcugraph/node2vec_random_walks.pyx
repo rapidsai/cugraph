@@ -14,13 +14,8 @@
 # Have cython use python 3 syntax
 # cython: language_level = 3
 
-import cupy
-
 from libc.stdint cimport uintptr_t
 
-from pylibcugraph._cugraph_c.types cimport (
-    bool_t,
-)
 from pylibcugraph._cugraph_c.resource_handle cimport (
     cugraph_resource_handle_t,
 )
@@ -37,11 +32,10 @@ from pylibcugraph._cugraph_c.graph cimport (
     cugraph_graph_t,
 )
 from pylibcugraph._cugraph_c.algorithms cimport (
-    cugraph_node2vec,
+    cugraph_node2vec_random_walks,
     cugraph_random_walk_result_t,
     cugraph_random_walk_result_get_paths,
     cugraph_random_walk_result_get_weights,
-    cugraph_random_walk_result_get_path_sizes,
     cugraph_random_walk_result_free,
 )
 from pylibcugraph.resource_handle cimport (
@@ -49,6 +43,12 @@ from pylibcugraph.resource_handle cimport (
 )
 from pylibcugraph.graphs cimport (
     _GPUGraph,
+)
+from pylibcugraph._cugraph_c.random cimport (
+    cugraph_rng_state_t
+)
+from pylibcugraph.random cimport (
+    CuGraphRandomState
 )
 from pylibcugraph.utils cimport (
     assert_success,
@@ -58,17 +58,15 @@ from pylibcugraph.utils cimport (
 )
 
 
-def node2vec(ResourceHandle resource_handle,
-            _GPUGraph graph,
-            seed_array,
-            size_t max_depth,
-            bool_t compress_result,
-            double p,
-            double q):
+def node2vec_random_walks(ResourceHandle resource_handle,
+             _GPUGraph graph,
+             seed_array,
+             size_t max_depth,
+             double p,
+             double q,
+             random_state=None):
     """
     Computes random walks under node2vec sampling procedure.
-
-    This API is deprecated call node2vec_random_walks instead
 
     Parameters
     ----------
@@ -85,11 +83,6 @@ def node2vec(ResourceHandle resource_handle,
     max_depth : size_t
         Maximum number of vertices in generated path
 
-    compress_result : bool_t
-        If true, the paths are unpadded and a third return device array contains
-        the sizes for each path, otherwise the paths are padded and the third
-        return device array is empty.
-
     p : double
         The return factor p represents the likelihood of backtracking to a node
         in the walk. A higher value (> max(q, 1)) makes it less likely to sample
@@ -102,13 +95,17 @@ def node2vec(ResourceHandle resource_handle,
         visit nodes closer to the outgoing node. If q < 1, the random walk is
         likelier to visit nodes further from the outgoing node.
 
+    random_state: int (Optional)
+        Random state to use when generating samples.  Optional argument,
+        defaults to a hash of process id, time, and hostname.
+        (See pylibcugraph.random.CuGraphRandomState)
+
     Returns
     -------
     A tuple of device arrays, where the first item in the tuple is a device
     array containing the compressed paths, the second item is a device
     array containing the corresponding weights for each edge traversed in
-    each path, and the third item is a device array containing the sizes
-    for each of the compressed paths, if compress_result is True.
+    each path.
 
     Examples
     --------
@@ -123,11 +120,19 @@ def node2vec(ResourceHandle resource_handle,
     >>> G = pylibcugraph.SGGraph(
     ...     resource_handle, graph_props, srcs, dsts, weight_array=weights,
     ...     store_transposed=False, renumber=False, do_expensive_check=False)
-    >>> (paths, weights, sizes) = pylibcugraph.node2vec(
-    ...                             resource_handle, G, seeds, 3, True, 1.0, 1.0)
+    >>> (paths, weights) = pylibcugraph.node2vec_random_walks(
+    ...                      resource_handle, G, seeds, 3, 1.0, 1.0)
 
     """
 
+    # FIXME: import these modules here for now until a better pattern can be
+    # used for optional imports (perhaps 'import_optional()' from cugraph), or
+    # these are made hard dependencies.
+    try:
+        import cupy
+    except ModuleNotFoundError:
+        raise RuntimeError("node2vec requires the cupy package, which could not "
+                           "be imported")
     assert_CAI_type(seed_array, "seed_array")
 
     cdef cugraph_resource_handle_t* c_resource_handle_ptr = \
@@ -146,32 +151,36 @@ def node2vec(ResourceHandle resource_handle,
             len(seed_array),
             get_c_type_from_numpy_type(seed_array.dtype))
 
-    error_code = cugraph_node2vec(c_resource_handle_ptr,
-                                  c_graph_ptr,
-                                  seed_view_ptr,
-                                  max_depth,
-                                  compress_result,
-                                  p,
-                                  q,
-                                  &result_ptr,
-                                  &error_ptr)
-    assert_success(error_code, error_ptr, "cugraph_node2vec")
+    cg_rng_state = CuGraphRandomState(resource_handle, random_state)
+
+    cdef cugraph_rng_state_t* rng_state_ptr = \
+        cg_rng_state.rng_state_ptr
+
+    error_code = cugraph_node2vec_random_walks(c_resource_handle_ptr,
+                                               rng_state_ptr,
+                                               c_graph_ptr,
+                                               seed_view_ptr,
+                                               max_depth,
+                                               p,
+                                               q,
+                                               &result_ptr,
+                                               &error_ptr)
+    assert_success(error_code, error_ptr, "cugraph_node2vec_random_walks")
 
     # Extract individual device array pointers from result and copy to cupy
     # arrays for returning.
     cdef cugraph_type_erased_device_array_view_t* paths_ptr = \
         cugraph_random_walk_result_get_paths(result_ptr)
-    cdef cugraph_type_erased_device_array_view_t* weights_ptr = \
-        cugraph_random_walk_result_get_weights(result_ptr)
-    cdef cugraph_type_erased_device_array_view_t* path_sizes_ptr = \
-        cugraph_random_walk_result_get_path_sizes(result_ptr)
+
+    if graph.weights_view_ptr is NULL and graph.weights_view_ptr_ptr is NULL:
+        cupy_weights = None
+    else:
+        weights_ptr = cugraph_random_walk_result_get_weights(result_ptr)
+        cupy_weights = copy_to_cupy_array(c_resource_handle_ptr, weights_ptr)
 
     cupy_paths = copy_to_cupy_array(c_resource_handle_ptr, paths_ptr)
-    cupy_weights = copy_to_cupy_array(c_resource_handle_ptr, weights_ptr)
-    cupy_path_sizes = copy_to_cupy_array(c_resource_handle_ptr,
-                                           path_sizes_ptr)
 
     cugraph_random_walk_result_free(result_ptr)
     cugraph_type_erased_device_array_view_free(seed_view_ptr)
 
-    return (cupy_paths, cupy_weights, cupy_path_sizes)
+    return (cupy_paths, cupy_weights)

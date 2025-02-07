@@ -19,10 +19,8 @@ import pytest
 import cugraph
 import dask_cudf
 import cugraph.dask as dcg
-import cudf
 from cugraph.testing import SMALL_DATASETS
 from cugraph.datasets import karate_asymmetric
-from cugraph.structure.symmetrize import symmetrize
 from pylibcugraph.testing.utils import gen_fixture_params_product
 
 
@@ -50,9 +48,7 @@ fixture_params = gen_fixture_params_product(
 )
 
 
-# FIXME: This test suite must be removed once random_walks is removed from
-# the python API in favor of uniform random walks
-def calc_random_walks(G):
+def calc_uniform_random_walks(G):
     """
     compute random walks
 
@@ -82,19 +78,18 @@ def calc_random_walks(G):
     max_depth : int
     """
     k = random.randint(1, 4)
-    random_walks_type = "uniform"
     max_depth = random.randint(2, 4)
 
     start_vertices = G.nodes().compute().sample(k).reset_index(drop=True)
 
-    vertex_paths, edge_weights, max_path_length = dcg.random_walks(
-        G, random_walks_type, start_vertices, max_depth
+    vertex_paths, edge_weights, max_path_length = dcg.uniform_random_walks(
+        G, start_vertices, max_depth
     )
 
     return (vertex_paths, edge_weights, max_path_length), start_vertices, max_depth
 
 
-def check_random_walks(G, path_data, seeds, max_depth, df_G=None):
+def check_uniform_random_walks(G, path_data, seeds, max_depth, df_G=None):
     invalid_edge = 0
     invalid_edge_wgt_path = 0
     invalid_seeds = 0
@@ -205,18 +200,14 @@ def input_graph(request):
 
 
 @pytest.mark.mg
-def test_dask_mg_random_walks(dask_client, input_graph):
-    path_data, seeds, max_depth = calc_random_walks(input_graph)
+def test_dask_mg_uniform_random_walks(dask_client, input_graph):
+    path_data, seeds, max_depth = calc_uniform_random_walks(input_graph)
     df_G = input_graph.input_df.compute().reset_index(drop=True)
 
-    # FIXME: leverages the deprecated symmetrize call
-    source_col, dest_col, value_col = symmetrize(
-        df_G, "src", "dst", "value", symmetrize=not input_graph.is_directed()
+    df_G = (
+        input_graph.decompress_to_edgelist(return_unrenumbered_edgelist=True)
+        .compute()
+        .reset_index(drop=True)
     )
 
-    df = cudf.DataFrame()
-    df["src"] = source_col
-    df["dst"] = dest_col
-    df["value"] = value_col
-
-    check_random_walks(input_graph, path_data, seeds, max_depth, df)
+    check_uniform_random_walks(input_graph, path_data, seeds, max_depth, df_G)

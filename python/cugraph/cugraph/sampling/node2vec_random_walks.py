@@ -1,4 +1,4 @@
-# Copyright (c) 2022-2025, NVIDIA CORPORATION.
+# Copyright (c) 2024-2025, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -13,9 +13,8 @@
 
 from pylibcugraph import (
     ResourceHandle,
-    node2vec as pylibcugraph_node2vec,
+    node2vec_random_walks as pylibcugraph_node2vec_random_walks,
 )
-from cugraph.utilities import ensure_cugraph_obj_for_nx
 import warnings
 
 import cudf
@@ -42,7 +41,9 @@ def ensure_valid_dtype(input_graph, start_vertices):
     return start_vertices
 
 
-def node2vec(G, start_vertices, max_depth=1, compress_result=True, p=1.0, q=1.0):
+def node2vec_random_walks(
+    G, start_vertices, max_depth=1, p=1.0, q=1.0, random_state=None
+):
     """
     Computes random walks for each node in 'start_vertices', under the
     node2vec sampling framework.
@@ -56,14 +57,9 @@ def node2vec(G, start_vertices, max_depth=1, compress_result=True, p=1.0, q=1.0)
 
     Parameters
     ----------
-    G : cuGraph.Graph or networkx.Graph
+    G : cuGraph.Graph
         The graph can be either directed or undirected.
         Weights in the graph are ignored.
-
-        .. deprecated:: 24.12
-           Accepting a ``networkx.Graph`` is deprecated and will be removed in a
-           future version.  For ``networkx.Graph`` use networkx directly with
-           the ``nx-cugraph`` backend. See:  https://rapids.ai/nx-cugraph/
 
     start_vertices: int or list or cudf.Series or cudf.DataFrame
         A single node or a list or a cudf.Series of nodes from which to run
@@ -73,10 +69,6 @@ def node2vec(G, start_vertices, max_depth=1, compress_result=True, p=1.0, q=1.0)
     max_depth: int, optional (default=1)
         The maximum depth of the random walks. If not specified, the maximum
         depth is set to 1.
-
-    compress_result: bool, optional (default=True)
-        If True, coalesced paths are returned with a sizes array with offsets.
-        Otherwise padded paths are returned with an empty sizes array.
 
     p: float, optional (default=1.0, [0 < p])
         Return factor, which represents the likelihood of backtracking to
@@ -91,6 +83,9 @@ def node2vec(G, start_vertices, max_depth=1, compress_result=True, p=1.0, q=1.0)
         random walk is likelier to visit nodes further from the outgoing node.
         A positive float.
 
+    random_state: int, optional
+        Random seed to use when making sampling calls.
+
     Returns
     -------
     vertex_paths : cudf.Series or cudf.DataFrame
@@ -100,38 +95,29 @@ def node2vec(G, start_vertices, max_depth=1, compress_result=True, p=1.0, q=1.0)
         Series containing the edge weights of edges represented by the
         returned vertex_paths
 
-    sizes: int or cudf.Series
-        The path size or sizes in case of coalesced paths.
+    and
+
+    max_path_length : int
+        The maximum path length.
 
     Examples
     --------
     >>> from cugraph.datasets import karate
     >>> G = karate.get_graph(download=True)
     >>> start_vertices = cudf.Series([0, 2], dtype=np.int32)
-    >>> paths, weights, path_sizes = cugraph.node2vec(G, start_vertices, 3,
-    ...                                               True, 0.8, 0.5)
+    >>> paths, weights, max_length = cugraph.node2vec_random_walks(G,
+    ...                                               start_vertices, 3,
+    ...                                               0.8, 0.5)
 
     """
-    warning_msg = (
-        "node2vec is deprecated and will be removed "
-        "in a future release in favor of node2vec_random_walks"
-    )
-    warnings.warn(warning_msg, FutureWarning)
-
     if (not isinstance(max_depth, int)) or (max_depth < 1):
         raise ValueError(
             f"'max_depth' must be a positive integer, " f"got: {max_depth}"
-        )
-    if not isinstance(compress_result, bool):
-        raise ValueError(
-            f"'compress_result' must be a bool, " f"got: {compress_result}"
         )
     if (not isinstance(p, float)) or (p <= 0.0):
         raise ValueError(f"'p' must be a positive float, got: {p}")
     if (not isinstance(q, float)) or (q <= 0.0):
         raise ValueError(f"'q' must be a positive float, got: {q}")
-
-    G, _ = ensure_cugraph_obj_for_nx(G)
 
     if isinstance(start_vertices, int):
         start_vertices = [start_vertices]
@@ -155,22 +141,25 @@ def node2vec(G, start_vertices, max_depth=1, compress_result=True, p=1.0, q=1.0)
 
     start_vertices = ensure_valid_dtype(G, start_vertices)
 
-    vertex_set, edge_set, sizes = pylibcugraph_node2vec(
+    vertex_paths, edge_wgt_paths = pylibcugraph_node2vec_random_walks(
         resource_handle=ResourceHandle(),
         graph=G._plc_graph,
         seed_array=start_vertices,
         max_depth=max_depth,
-        compress_result=compress_result,
         p=p,
         q=q,
+        random_state=random_state,
     )
-    vertex_set = cudf.Series(vertex_set)
-    edge_set = cudf.Series(edge_set)
-    sizes = cudf.Series(sizes)
+    vertex_paths = cudf.Series(vertex_paths)
+    edge_wgt_paths = cudf.Series(edge_wgt_paths)
 
     if G.renumbered:
         df_ = cudf.DataFrame()
-        df_["vertex_set"] = vertex_set
-        df_ = G.unrenumber(df_, "vertex_set", preserve_order=True)
-        vertex_set = cudf.Series(df_["vertex_set"])
-    return vertex_set, edge_set, sizes
+        df_["vertex_paths"] = vertex_paths
+        df_ = G.unrenumber(df_, "vertex_paths", preserve_order=True)
+        if len(df_.columns) > 1:
+            vertex_paths = df_.fillna(-1)
+        else:
+            vertex_paths = cudf.Series(df_["vertex_paths"]).fillna(-1)
+
+    return vertex_paths, edge_wgt_paths, max_depth
