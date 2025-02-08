@@ -37,9 +37,9 @@
 #include <raft/util/cudart_utils.hpp>
 #include <raft/util/integer_utils.hpp>
 
+#include <cuda/std/functional>
 #include <cuda/std/optional>
 #include <thrust/fill.h>
-#include <thrust/functional.h>
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/iterator/discard_iterator.h>
 #include <thrust/iterator/zip_iterator.h>
@@ -385,7 +385,7 @@ kv_store_t<key_t, weight_t, false /* use_binary_search */> filter_key_to_dist_ma
                               detail::key_cuco_store_contains_device_view_t(key_set.view())});
 
     keep_count = thrust::count_if(
-      handle.get_thrust_policy(), keep_flags.begin(), keep_flags.end(), thrust::identity<bool>{});
+      handle.get_thrust_policy(), keep_flags.begin(), keep_flags.end(), cuda::std::identity{});
   }
 
   size_t new_kv_store_capacity = compute_kv_store_capacity(
@@ -398,7 +398,7 @@ kv_store_t<key_t, weight_t, false /* use_binary_search */> filter_key_to_dist_ma
                             old_key_buffer.end(),
                             old_value_buffer.begin(),
                             keep_flags.begin(),
-                            thrust::identity<bool>{},
+                            cuda::std::identity{},
                             handle.get_stream());
 
   return std::move(key_to_dist_map);
@@ -606,7 +606,7 @@ rmm::device_uvector<weight_t> od_shortest_distances(
                                                                  v_to_destination_indices.size()),
                                static_cast<od_idx_t>(origins.size()),
                                static_cast<od_idx_t>(destinations.size())})),
-                         thrust::identity<weight_t>{},
+                         cuda::std::identity{},
                          check_destination_index_t<vertex_t, od_idx_t, key_t>{
                            raft::device_span<od_idx_t const>(v_to_destination_indices.data(),
                                                              v_to_destination_indices.size()),
@@ -725,7 +725,7 @@ rmm::device_uvector<weight_t> od_shortest_distances(
                                                                    v_to_destination_indices.size()),
                                  static_cast<od_idx_t>(origins.size()),
                                  static_cast<od_idx_t>(destinations.size())})),
-                           thrust::identity<weight_t>{},
+                           cuda::std::identity{},
                            check_destination_index_t<vertex_t, od_idx_t, key_t>{
                              raft::device_span<od_idx_t const>(v_to_destination_indices.data(),
                                                                v_to_destination_indices.size()),
@@ -947,7 +947,7 @@ rmm::device_uvector<weight_t> od_shortest_distances(
                                                                  split_thresholds.end(),
                                                                  dist)));
                     },
-                    thrust::identity<key_t>{},
+                    cuda::std::identity{},
                     raft::device_span<size_t>(d_counters.data(), d_counters.size()));
               }
               std::vector<size_t> h_counters(d_counters.size());
