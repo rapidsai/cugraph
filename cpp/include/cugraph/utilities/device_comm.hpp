@@ -18,6 +18,7 @@
 #include <cugraph/utilities/thrust_tuple_utils.hpp>
 
 #include <raft/core/handle.hpp>
+#include <raft/core/host_span.hpp>
 
 #include <rmm/cuda_stream_view.hpp>
 #include <rmm/device_uvector.hpp>
@@ -257,13 +258,13 @@ template <typename InputIterator, typename OutputIterator>
 std::enable_if_t<thrust::detail::is_discard_iterator<OutputIterator>::value, void>
 device_multicast_sendrecv_impl(raft::comms::comms_t const& comm,
                                InputIterator input_first,
-                               std::vector<size_t> const& tx_counts,
-                               std::vector<size_t> const& tx_offsets,
-                               std::vector<int> const& tx_dst_ranks,
+                               raft::host_span<size_t const> tx_counts,
+                               raft::host_span<size_t const> tx_displs,
+                               raft::host_span<int const> tx_dst_ranks,
                                OutputIterator output_first,
-                               std::vector<size_t> const& rx_counts,
-                               std::vector<size_t> const& rx_offsets,
-                               std::vector<int> const& rx_src_ranks,
+                               raft::host_span<size_t const> rx_counts,
+                               raft::host_span<size_t const> rx_displs,
+                               raft::host_span<int const> rx_src_ranks,
                                rmm::cuda_stream_view stream_view)
 {
   // no-op
@@ -275,26 +276,26 @@ std::enable_if_t<
   void>
 device_multicast_sendrecv_impl(raft::comms::comms_t const& comm,
                                InputIterator input_first,
-                               std::vector<size_t> const& tx_counts,
-                               std::vector<size_t> const& tx_offsets,
-                               std::vector<int> const& tx_dst_ranks,
+                               raft::host_span<size_t const> tx_counts,
+                               raft::host_span<size_t const> tx_displs,
+                               raft::host_span<int const> tx_dst_ranks,
                                OutputIterator output_first,
-                               std::vector<size_t> const& rx_counts,
-                               std::vector<size_t> const& rx_offsets,
-                               std::vector<int> const& rx_src_ranks,
+                               raft::host_span<size_t const> rx_counts,
+                               raft::host_span<size_t const> rx_displs,
+                               raft::host_span<int const> rx_src_ranks,
                                rmm::cuda_stream_view stream_view)
 {
   using value_type = typename std::iterator_traits<InputIterator>::value_type;
   static_assert(
     std::is_same_v<typename std::iterator_traits<OutputIterator>::value_type, value_type>);
   comm.device_multicast_sendrecv(iter_to_raw_ptr(input_first),
-                                 tx_counts,
-                                 tx_offsets,
-                                 tx_dst_ranks,
+                                 std::vector<size_t>(tx_counts.begin(), tx_counts.end()),
+                                 std::vector<size_t>(tx_displs.begin(), tx_displs.end()),
+                                 std::vector<int>(tx_dst_ranks.begin(), tx_dst_ranks.end()),
                                  iter_to_raw_ptr(output_first),
-                                 rx_counts,
-                                 rx_offsets,
-                                 rx_src_ranks,
+                                 std::vector<size_t>(rx_counts.begin(), rx_counts.end()),
+                                 std::vector<size_t>(rx_displs.begin(), rx_counts.end()),
+                                 std::vector<int>(rx_src_ranks.begin(), rx_src_ranks.end()),
                                  stream_view.value());
 }
 
@@ -302,13 +303,13 @@ template <typename InputIterator, typename OutputIterator, size_t I, size_t N>
 struct device_multicast_sendrecv_tuple_iterator_element_impl {
   void run(raft::comms::comms_t const& comm,
            InputIterator input_first,
-           std::vector<size_t> const& tx_counts,
-           std::vector<size_t> const& tx_offsets,
-           std::vector<int> const& tx_dst_ranks,
+           raft::host_span<size_t const> tx_counts,
+           raft::host_span<size_t const> tx_displs,
+           raft::host_span<int const> tx_dst_ranks,
            OutputIterator output_first,
-           std::vector<size_t> const& rx_counts,
-           std::vector<size_t> const& rx_offsets,
-           std::vector<int> const& rx_src_ranks,
+           raft::host_span<size_t const> rx_counts,
+           raft::host_span<size_t const> rx_displs,
+           raft::host_span<int const> rx_src_ranks,
            rmm::cuda_stream_view stream_view) const
   {
     using output_value_t = typename thrust::
@@ -319,22 +320,22 @@ struct device_multicast_sendrecv_tuple_iterator_element_impl {
                                    decltype(tuple_element_output_first)>(comm,
                                                                          tuple_element_input_first,
                                                                          tx_counts,
-                                                                         tx_offsets,
+                                                                         tx_displs,
                                                                          tx_dst_ranks,
                                                                          tuple_element_output_first,
                                                                          rx_counts,
-                                                                         rx_offsets,
+                                                                         rx_displs,
                                                                          rx_src_ranks,
                                                                          stream_view);
     device_multicast_sendrecv_tuple_iterator_element_impl<InputIterator, OutputIterator, I + 1, N>()
       .run(comm,
            input_first,
            tx_counts,
-           tx_offsets,
+           tx_displs,
            tx_dst_ranks,
            output_first,
            rx_counts,
-           rx_offsets,
+           rx_displs,
            rx_src_ranks,
            stream_view);
   }
@@ -344,13 +345,13 @@ template <typename InputIterator, typename OutputIterator, size_t I>
 struct device_multicast_sendrecv_tuple_iterator_element_impl<InputIterator, OutputIterator, I, I> {
   void run(raft::comms::comms_t const& comm,
            InputIterator input_first,
-           std::vector<size_t> const& tx_counts,
-           std::vector<size_t> const& tx_offsets,
-           std::vector<int> const& tx_dst_ranks,
+           raft::host_span<size_t const> tx_counts,
+           raft::host_span<size_t const> tx_displs,
+           raft::host_span<int const> tx_dst_ranks,
            OutputIterator output_first,
-           std::vector<size_t> const& rx_counts,
-           std::vector<size_t> const& rx_offsets,
-           std::vector<int> const& rx_src_ranks,
+           raft::host_span<size_t const> rx_counts,
+           raft::host_span<size_t const> rx_displs,
+           raft::host_span<int const> rx_src_ranks,
            rmm::cuda_stream_view stream_view) const
   {
   }
@@ -609,8 +610,8 @@ std::enable_if_t<thrust::detail::is_discard_iterator<OutputIterator>::value, voi
 device_allgatherv_impl(raft::comms::comms_t const& comm,
                        InputIterator input_first,
                        OutputIterator output_first,
-                       std::vector<size_t> const& recvcounts,
-                       std::vector<size_t> const& displacements,
+                       raft::host_span<size_t const> recvcounts,
+                       raft::host_span<size_t const> displacements,
                        rmm::cuda_stream_view stream_view)
 {
   // no-op
@@ -623,8 +624,8 @@ std::enable_if_t<
 device_allgatherv_impl(raft::comms::comms_t const& comm,
                        InputIterator input_first,
                        OutputIterator output_first,
-                       std::vector<size_t> const& recvcounts,
-                       std::vector<size_t> const& displacements,
+                       raft::host_span<size_t const> recvcounts,
+                       raft::host_span<size_t const> displacements,
                        rmm::cuda_stream_view stream_view)
 {
   static_assert(std::is_same_v<typename std::iterator_traits<InputIterator>::value_type,
@@ -641,8 +642,8 @@ struct device_allgatherv_tuple_iterator_element_impl {
   void run(raft::comms::comms_t const& comm,
            InputIterator input_first,
            OutputIterator output_first,
-           std::vector<size_t> const& recvcounts,
-           std::vector<size_t> const& displacements,
+           raft::host_span<size_t const> recvcounts,
+           raft::host_span<size_t const> displacements,
            rmm::cuda_stream_view stream_view) const
   {
     device_allgatherv_impl(comm,
@@ -661,8 +662,8 @@ struct device_allgatherv_tuple_iterator_element_impl<InputIterator, OutputIterat
   void run(raft::comms::comms_t const& comm,
            InputIterator input_first,
            OutputIterator output_first,
-           std::vector<size_t> const& recvcounts,
-           std::vector<size_t> const& displacements,
+           raft::host_span<size_t const> recvcounts,
+           raft::host_span<size_t const> displacements,
            rmm::cuda_stream_view stream_view) const
   {
   }
@@ -674,8 +675,8 @@ device_gatherv_impl(raft::comms::comms_t const& comm,
                     InputIterator input_first,
                     OutputIterator output_first,
                     size_t sendcount,
-                    std::vector<size_t> const& recvcounts,
-                    std::vector<size_t> const& displacements,
+                    raft::host_span<size_t const> recvcounts,
+                    raft::host_span<size_t const> displacements,
                     int root,
                     rmm::cuda_stream_view stream_view)
 {
@@ -690,8 +691,8 @@ device_gatherv_impl(raft::comms::comms_t const& comm,
                     InputIterator input_first,
                     OutputIterator output_first,
                     size_t sendcount,
-                    std::vector<size_t> const& recvcounts,
-                    std::vector<size_t> const& displacements,
+                    raft::host_span<size_t const> recvcounts,
+                    raft::host_span<size_t const> displacements,
                     int root,
                     rmm::cuda_stream_view stream_view)
 {
@@ -712,8 +713,8 @@ struct device_gatherv_tuple_iterator_element_impl {
            InputIterator input_first,
            OutputIterator output_first,
            size_t sendcount,
-           std::vector<size_t> const& recvcounts,
-           std::vector<size_t> const& displacements,
+           raft::host_span<size_t const> recvcounts,
+           raft::host_span<size_t const> displacements,
            int root,
            rmm::cuda_stream_view stream_view) const
   {
@@ -736,8 +737,8 @@ struct device_gatherv_tuple_iterator_element_impl<InputIterator, OutputIterator,
            InputIterator input_first,
            OutputIterator output_first,
            size_t sendcount,
-           std::vector<size_t> const& recvcounts,
-           std::vector<size_t> const& displacements,
+           raft::host_span<size_t const> recvcounts,
+           raft::host_span<size_t const> displacements,
            int root,
            rmm::cuda_stream_view stream_view) const
   {
@@ -876,23 +877,23 @@ std::enable_if_t<
   void>
 device_multicast_sendrecv(raft::comms::comms_t const& comm,
                           InputIterator input_first,
-                          std::vector<size_t> const& tx_counts,
-                          std::vector<size_t> const& tx_offsets,
-                          std::vector<int> const& tx_dst_ranks,
+                          raft::host_span<size_t const> tx_counts,
+                          raft::host_span<size_t const> tx_displs,
+                          raft::host_span<int const> tx_dst_ranks,
                           OutputIterator output_first,
-                          std::vector<size_t> const& rx_counts,
-                          std::vector<size_t> const& rx_offsets,
-                          std::vector<int> const& rx_src_ranks,
+                          raft::host_span<size_t const> rx_counts,
+                          raft::host_span<size_t const> rx_displs,
+                          raft::host_span<int const> rx_src_ranks,
                           rmm::cuda_stream_view stream_view)
 {
   detail::device_multicast_sendrecv_impl<InputIterator, OutputIterator>(comm,
                                                                         input_first,
                                                                         tx_counts,
-                                                                        tx_offsets,
+                                                                        tx_displs,
                                                                         tx_dst_ranks,
                                                                         output_first,
                                                                         rx_counts,
-                                                                        rx_offsets,
+                                                                        rx_displs,
                                                                         rx_src_ranks,
                                                                         stream_view);
 }
@@ -904,13 +905,13 @@ std::enable_if_t<
   void>
 device_multicast_sendrecv(raft::comms::comms_t const& comm,
                           InputIterator input_first,
-                          std::vector<size_t> const& tx_counts,
-                          std::vector<size_t> const& tx_offsets,
-                          std::vector<int> const& tx_dst_ranks,
+                          raft::host_span<size_t const> tx_counts,
+                          raft::host_span<size_t const> tx_displs,
+                          raft::host_span<int const> tx_dst_ranks,
                           OutputIterator output_first,
-                          std::vector<size_t> const& rx_counts,
-                          std::vector<size_t> const& rx_offsets,
-                          std::vector<int> const& rx_src_ranks,
+                          raft::host_span<size_t const> rx_counts,
+                          raft::host_span<size_t const> rx_displs,
+                          raft::host_span<int const> rx_src_ranks,
                           rmm::cuda_stream_view stream_view)
 {
   static_assert(
@@ -927,11 +928,11 @@ device_multicast_sendrecv(raft::comms::comms_t const& comm,
     .run(comm,
          input_first,
          tx_counts,
-         tx_offsets,
+         tx_displs,
          tx_dst_ranks,
          output_first,
          rx_counts,
-         rx_offsets,
+         rx_displs,
          rx_src_ranks,
          stream_view);
 }
@@ -1101,8 +1102,8 @@ std::enable_if_t<
 device_allgatherv(raft::comms::comms_t const& comm,
                   InputIterator input_first,
                   OutputIterator output_first,
-                  std::vector<size_t> const& recvcounts,
-                  std::vector<size_t> const& displacements,
+                  raft::host_span<size_t const> recvcounts,
+                  raft::host_span<size_t const> displacements,
                   rmm::cuda_stream_view stream_view)
 {
   detail::device_allgatherv_impl(
@@ -1117,8 +1118,8 @@ std::enable_if_t<
 device_allgatherv(raft::comms::comms_t const& comm,
                   InputIterator input_first,
                   OutputIterator output_first,
-                  std::vector<size_t> const& recvcounts,
-                  std::vector<size_t> const& displacements,
+                  raft::host_span<size_t const> recvcounts,
+                  raft::host_span<size_t const> displacements,
                   rmm::cuda_stream_view stream_view)
 {
   static_assert(
@@ -1143,8 +1144,8 @@ device_gatherv(raft::comms::comms_t const& comm,
                InputIterator input_first,
                OutputIterator output_first,
                size_t sendcount,
-               std::vector<size_t> const& recvcounts,
-               std::vector<size_t> const& displacements,
+               raft::host_span<size_t const> recvcounts,
+               raft::host_span<size_t const> displacements,
                int root,
                rmm::cuda_stream_view stream_view)
 {
@@ -1161,8 +1162,8 @@ device_gatherv(raft::comms::comms_t const& comm,
                InputIterator input_first,
                OutputIterator output_first,
                size_t sendcount,
-               std::vector<size_t> const& recvcounts,
-               std::vector<size_t> const& displacements,
+               raft::host_span<size_t const> recvcounts,
+               raft::host_span<size_t const> displacements,
                int root,
                rmm::cuda_stream_view stream_view)
 {

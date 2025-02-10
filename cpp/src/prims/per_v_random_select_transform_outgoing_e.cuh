@@ -334,8 +334,9 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
       minor_comm,
       key_list.begin(),
       get_dataframe_buffer_begin(*aggregate_local_key_list),
-      local_key_list_sizes,
-      std::vector<size_t>(local_key_list_offsets.begin(), local_key_list_offsets.end() - 1),
+      raft::host_span<size_t const>(local_key_list_sizes.data(), local_key_list_sizes.size()),
+      raft::host_span<size_t const>(local_key_list_offsets.data(),
+                                    local_key_list_offsets.size() - 1),
       handle.get_stream());
   }
 
@@ -527,10 +528,15 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
     std::tie(sample_e_op_results, std::ignore) =
       shuffle_values(minor_comm,
                      get_dataframe_buffer_begin(sample_e_op_results),
-                     local_key_list_sample_counts,
+                     raft::host_span<size_t const>(local_key_list_sample_counts.data(),
+                                                   local_key_list_sample_counts.size()),
                      handle.get_stream());
-    std::tie(sample_key_indices, std::ignore) = shuffle_values(
-      minor_comm, (*sample_key_indices).begin(), local_key_list_sample_counts, handle.get_stream());
+    std::tie(sample_key_indices, std::ignore) =
+      shuffle_values(minor_comm,
+                     (*sample_key_indices).begin(),
+                     raft::host_span<size_t const>(local_key_list_sample_counts.data(),
+                                                   local_key_list_sample_counts.size()),
+                     handle.get_stream());
 
     rmm::device_uvector<int32_t> sample_counts(key_list.size(), handle.get_stream());
     thrust::fill(

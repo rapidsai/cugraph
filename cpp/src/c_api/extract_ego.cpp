@@ -154,12 +154,13 @@ struct extract_ego_functor : public cugraph::c_api::abstract_functor {
         std::exclusive_scan(recvcounts.begin(), recvcounts.end(), displacements.begin(), size_t{0});
         rmm::device_uvector<size_t> allgathered_indices(displacements.back() + recvcounts.back(),
                                                         handle_.get_stream());
-        cugraph::device_allgatherv(handle_.get_comms(),
-                                   (*source_indices).begin(),
-                                   allgathered_indices.begin(),
-                                   recvcounts,
-                                   displacements,
-                                   handle_.get_stream());
+        cugraph::device_allgatherv(
+          handle_.get_comms(),
+          (*source_indices).begin(),
+          allgathered_indices.begin(),
+          raft::host_span<size_t const>(recvcounts.data(), recvcounts.size()),
+          raft::host_span<size_t const>(displacements.data(), displacements.size()),
+          handle_.get_stream());
         source_indices = std::move(allgathered_indices);
 
         std::tie(edge_offsets, src, dst, wgt) =

@@ -163,7 +163,10 @@ void relabel(raft::handle_t const& handle,
         }
 
         std::tie(new_labels_for_unique_old_labels, std::ignore) = shuffle_values(
-          handle.get_comms(), rx_unique_old_labels.begin(), rx_value_counts, handle.get_stream());
+          handle.get_comms(),
+          rx_unique_old_labels.begin(),
+          raft::host_span<size_t const>(rx_value_counts.data(), rx_value_counts.size()),
+          handle.get_stream());
       }
     }
 

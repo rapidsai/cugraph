@@ -97,8 +97,11 @@ dataframe_buffer_type_t<typename KVStoreViewType::value_type> collect_values_for
                        stream_view);
 
     auto rx_values_for_unique_keys = allocate_dataframe_buffer<value_t>(0, stream_view);
-    std::tie(rx_values_for_unique_keys, std::ignore) = shuffle_values(
-      comm, get_dataframe_buffer_begin(values_for_rx_unique_keys), rx_value_counts, stream_view);
+    std::tie(rx_values_for_unique_keys, std::ignore) =
+      shuffle_values(comm,
+                     get_dataframe_buffer_begin(values_for_rx_unique_keys),
+                     raft::host_span<size_t const>(rx_value_counts.data(), rx_value_counts.size()),
+                     stream_view);
 
     values_for_unique_keys = std::move(rx_values_for_unique_keys);
   }
@@ -178,8 +181,11 @@ collect_values_for_unique_keys(
                        get_dataframe_buffer_begin(values_for_rx_unique_keys),
                        stream_view);
 
-    std::tie(values_for_collect_unique_keys, std::ignore) = shuffle_values(
-      comm, get_dataframe_buffer_begin(values_for_rx_unique_keys), rx_value_counts, stream_view);
+    std::tie(values_for_collect_unique_keys, std::ignore) =
+      shuffle_values(comm,
+                     get_dataframe_buffer_begin(values_for_rx_unique_keys),
+                     raft::host_span<size_t const>(rx_value_counts.data(), rx_value_counts.size()),
+                     stream_view);
   }
 
   return std::make_tuple(std::move(collect_unique_keys), std::move(values_for_collect_unique_keys));
@@ -226,7 +232,10 @@ collect_values_for_sorted_unique_int_vertices(
   // 2. shuffle sorted unique internal vertices to the owning ranks
 
   auto [rx_int_vertices, rx_counts] =
-    shuffle_values(comm, collect_sorted_unique_int_vertices.begin(), tx_counts, stream_view);
+    shuffle_values(comm,
+                   collect_sorted_unique_int_vertices.begin(),
+                   raft::host_span<size_t const>(tx_counts.data(), tx_counts.size()),
+                   stream_view);
 
   // 3.Lookup return values
 
@@ -244,7 +253,10 @@ collect_values_for_sorted_unique_int_vertices(
   // 4. Shuffle results back to the original ranks
 
   std::tie(value_buffer, std::ignore) =
-    shuffle_values(comm, get_dataframe_buffer_begin(value_buffer), rx_counts, stream_view);
+    shuffle_values(comm,
+                   get_dataframe_buffer_begin(value_buffer),
+                   raft::host_span<size_t const>(rx_counts.data(), rx_counts.size()),
+                   stream_view);
 
   return value_buffer;
 }
@@ -317,8 +329,12 @@ rmm::device_uvector<T> device_allgatherv(raft::handle_t const& handle,
   rmm::device_uvector<T> gathered_v(std::reduce(rx_sizes.begin(), rx_sizes.end()),
                                     handle.get_stream());
 
-  cugraph::device_allgatherv(
-    comms, d_input.data(), gathered_v.data(), rx_sizes, rx_displs, handle.get_stream());
+  cugraph::device_allgatherv(comms,
+                             d_input.data(),
+                             gathered_v.data(),
+                             raft::host_span<size_t const>(rx_sizes.data(), rx_sizes.size()),
+                             raft::host_span<size_t const>(rx_displs.data(), rx_displs.size()),
+                             handle.get_stream());
 
   return gathered_v;
 }

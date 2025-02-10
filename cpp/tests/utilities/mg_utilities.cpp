@@ -72,21 +72,21 @@ void enforce_p2p_initialization(raft::comms::comms_t const& comm, rmm::cuda_stre
   rmm::device_uvector<int32_t> tx_ints(comm_size, stream);
   rmm::device_uvector<int32_t> rx_ints(comm_size, stream);
   std::vector<size_t> tx_sizes(comm_size, size_t{1});
-  std::vector<size_t> tx_offsets(comm_size);
-  std::iota(tx_offsets.begin(), tx_offsets.end(), size_t{0});
+  std::vector<size_t> tx_displs(comm_size);
+  std::iota(tx_displs.begin(), tx_displs.end(), size_t{0});
   std::vector<int32_t> tx_ranks(comm_size);
   std::iota(tx_ranks.begin(), tx_ranks.end(), int32_t{0});
-  auto rx_sizes   = tx_sizes;
-  auto rx_offsets = tx_offsets;
-  auto rx_ranks   = tx_ranks;
+  auto rx_sizes  = tx_sizes;
+  auto rx_displs = tx_displs;
+  auto rx_ranks  = tx_ranks;
 
   comm.device_multicast_sendrecv(tx_ints.data(),
                                  tx_sizes,
-                                 tx_offsets,
+                                 tx_displs,
                                  tx_ranks,
                                  rx_ints.data(),
                                  rx_sizes,
-                                 rx_offsets,
+                                 rx_displs,
                                  rx_ranks,
                                  stream);
 

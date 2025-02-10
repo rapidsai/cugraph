@@ -182,8 +182,8 @@ void expensive_check_edgelist(raft::handle_t const& handle,
         device_allgatherv(minor_comm,
                           (*vertices).data(),
                           sorted_majors.data(),
-                          recvcounts,
-                          displacements,
+                          raft::host_span<size_t const>(recvcounts.data(), recvcounts.size()),
+                          raft::host_span<size_t const>(displacements.data(), displacements.size()),
                           handle.get_stream());
         thrust::sort(handle.get_thrust_policy(), sorted_majors.begin(), sorted_majors.end());
       }
@@ -198,8 +198,8 @@ void expensive_check_edgelist(raft::handle_t const& handle,
         device_allgatherv(major_comm,
                           (*vertices).data(),
                           sorted_minors.data(),
-                          recvcounts,
-                          displacements,
+                          raft::host_span<size_t const>(recvcounts.data(), recvcounts.size()),
+                          raft::host_span<size_t const>(displacements.data(), displacements.size()),
                           handle.get_stream());
         thrust::sort(handle.get_thrust_policy(), sorted_minors.begin(), sorted_minors.end());
       }

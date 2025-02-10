@@ -250,74 +250,95 @@ shuffle_vertex_pairs_with_values_by_gpu_id_impl(
 
   if (mem_frugal_flag ||
       (edge_property_count > 1)) {  // trade-off potential parallelism to lower peak memory
-    std::tie(majors, rx_counts) =
-      shuffle_values(comm, majors.begin(), h_tx_value_counts, handle.get_stream());
+    std::tie(majors, rx_counts) = shuffle_values(
+      comm,
+      majors.begin(),
+      raft::host_span<size_t const>(h_tx_value_counts.data(), h_tx_value_counts.size()),
+      handle.get_stream());
 
-    std::tie(minors, rx_counts) =
-      shuffle_values(comm, minors.begin(), h_tx_value_counts, handle.get_stream());
+    std::tie(minors, rx_counts) = shuffle_values(
+      comm,
+      minors.begin(),
+      raft::host_span<size_t const>(h_tx_value_counts.data(), h_tx_value_counts.size()),
+      handle.get_stream());
 
     if (weights) {
-      std::tie(weights, rx_counts) =
-        shuffle_values(comm, (*weights).begin(), h_tx_value_counts, handle.get_stream());
+      std::tie(weights, rx_counts) = shuffle_values(
+        comm,
+        (*weights).begin(),
+        raft::host_span<size_t const>(h_tx_value_counts.data(), h_tx_value_counts.size()),
+        handle.get_stream());
     }
 
     if (edge_ids) {
-      std::tie(edge_ids, rx_counts) =
-        shuffle_values(comm, (*edge_ids).begin(), h_tx_value_counts, handle.get_stream());
+      std::tie(edge_ids, rx_counts) = shuffle_values(
+        comm,
+        (*edge_ids).begin(),
+        raft::host_span<size_t const>(h_tx_value_counts.data(), h_tx_value_counts.size()),
+        handle.get_stream());
     }
 
     if (edge_types) {
-      std::tie(edge_types, rx_counts) =
-        shuffle_values(comm, (*edge_types).begin(), h_tx_value_counts, handle.get_stream());
+      std::tie(edge_types, rx_counts) = shuffle_values(
+        comm,
+        (*edge_types).begin(),
+        raft::host_span<size_t const>(h_tx_value_counts.data(), h_tx_value_counts.size()),
+        handle.get_stream());
     }
 
     if (edge_start_times) {
-      std::tie(edge_start_times, rx_counts) =
-        shuffle_values(comm, (*edge_start_times).begin(), h_tx_value_counts, handle.get_stream());
+      std::tie(edge_start_times, rx_counts) = shuffle_values(
+        comm,
+        (*edge_start_times).begin(),
+        raft::host_span<size_t const>(h_tx_value_counts.data(), h_tx_value_counts.size()),
+        handle.get_stream());
     }
 
     if (edge_end_times) {
-      std::tie(edge_end_times, rx_counts) =
-        shuffle_values(comm, (*edge_end_times).begin(), h_tx_value_counts, handle.get_stream());
+      std::tie(edge_end_times, rx_counts) = shuffle_values(
+        comm,
+        (*edge_end_times).begin(),
+        raft::host_span<size_t const>(h_tx_value_counts.data(), h_tx_value_counts.size()),
+        handle.get_stream());
     }
   } else {
     // There is at most one edge property set
     if (weights) {
-      std::forward_as_tuple(std::tie(majors, minors, weights), rx_counts) =
-        shuffle_values(comm,
-                       thrust::make_zip_iterator(majors.begin(), minors.begin(), weights->begin()),
-                       h_tx_value_counts,
-                       handle.get_stream());
+      std::forward_as_tuple(std::tie(majors, minors, weights), rx_counts) = shuffle_values(
+        comm,
+        thrust::make_zip_iterator(majors.begin(), minors.begin(), weights->begin()),
+        raft::host_span<size_t const>(h_tx_value_counts.data(), h_tx_value_counts.size()),
+        handle.get_stream());
     } else if (edge_ids) {
-      std::forward_as_tuple(std::tie(majors, minors, edge_ids), rx_counts) =
-        shuffle_values(comm,
-                       thrust::make_zip_iterator(majors.begin(), minors.begin(), edge_ids->begin()),
-                       h_tx_value_counts,
-                       handle.get_stream());
+      std::forward_as_tuple(std::tie(majors, minors, edge_ids), rx_counts) = shuffle_values(
+        comm,
+        thrust::make_zip_iterator(majors.begin(), minors.begin(), edge_ids->begin()),
+        raft::host_span<size_t const>(h_tx_value_counts.data(), h_tx_value_counts.size()),
+        handle.get_stream());
     } else if (edge_types) {
       std::forward_as_tuple(std::tie(majors, minors, edge_types), rx_counts) = shuffle_values(
         comm,
         thrust::make_zip_iterator(majors.begin(), minors.begin(), edge_types->begin()),
-        h_tx_value_counts,
+        raft::host_span<size_t const>(h_tx_value_counts.data(), h_tx_value_counts.size()),
         handle.get_stream());
     } else if (edge_start_times) {
       std::forward_as_tuple(std::tie(majors, minors, edge_start_times), rx_counts) = shuffle_values(
         comm,
         thrust::make_zip_iterator(majors.begin(), minors.begin(), edge_start_times->begin()),
-        h_tx_value_counts,
+        raft::host_span<size_t const>(h_tx_value_counts.data(), h_tx_value_counts.size()),
         handle.get_stream());
     } else if (edge_end_times) {
       std::forward_as_tuple(std::tie(majors, minors, edge_end_times), rx_counts) = shuffle_values(
         comm,
         thrust::make_zip_iterator(majors.begin(), minors.begin(), edge_end_times->begin()),
-        h_tx_value_counts,
+        raft::host_span<size_t const>(h_tx_value_counts.data(), h_tx_value_counts.size()),
         handle.get_stream());
     } else {
-      std::forward_as_tuple(std::tie(majors, minors), rx_counts) =
-        shuffle_values(comm,
-                       thrust::make_zip_iterator(majors.begin(), minors.begin()),
-                       h_tx_value_counts,
-                       handle.get_stream());
+      std::forward_as_tuple(std::tie(majors, minors), rx_counts) = shuffle_values(
+        comm,
+        thrust::make_zip_iterator(majors.begin(), minors.begin()),
+        raft::host_span<size_t const>(h_tx_value_counts.data(), h_tx_value_counts.size()),
+        handle.get_stream());
     }
   }
 

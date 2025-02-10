@@ -317,8 +317,8 @@ void unrenumber_local_int_edges(
     device_allgatherv(major_comm,
                       renumber_map_labels,
                       renumber_map_minor_labels.begin(),
-                      recvcounts,
-                      displacements,
+                      raft::host_span<size_t const>(recvcounts.data(), recvcounts.size()),
+                      raft::host_span<size_t const>(displacements.data(), displacements.size()),
                       handle.get_stream());
 
     kv_store_t<vertex_t, vertex_t, false> renumber_map(
