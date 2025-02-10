@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, NVIDIA CORPORATION.
+ * Copyright (c) 2024-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -419,8 +419,9 @@ class Tests_Multithreaded
         thrust::make_zip_iterator(h_sg_v1.begin(), h_sg_v2.begin(), h_sg_similarities.begin()),
         thrust::make_zip_iterator(h_sg_v1.end(), h_sg_v2.end(), h_sg_similarities.end()),
         [&sg_results](auto tuple) {
-          sg_results.insert(std::make_pair(
-            std::make_tuple(thrust::get<0>(tuple), thrust::get<1>(tuple)), thrust::get<2>(tuple)));
+          sg_results.insert(
+            std::make_pair(std::make_tuple(cuda::std::get<0>(tuple), cuda::std::get<1>(tuple)),
+                           cuda::std::get<2>(tuple)));
         });
 
       std::for_each(
@@ -433,9 +434,9 @@ class Tests_Multithreaded
             thrust::make_zip_iterator(
               std::get<0>(t1).end(), std::get<1>(t1).end(), std::get<2>(t1).end()),
             [&sg_results, compare_functor](auto t2) {
-              vertex_t v1      = thrust::get<0>(t2);
-              vertex_t v2      = thrust::get<1>(t2);
-              weight_t jaccard = thrust::get<2>(t2);
+              vertex_t v1      = cuda::std::get<0>(t2);
+              vertex_t v2      = cuda::std::get<1>(t2);
+              weight_t jaccard = cuda::std::get<2>(t2);
 
               auto pos = sg_results.find(std::make_tuple(v1, v2));
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -67,7 +67,7 @@ k_core(raft::handle_t const& handle,
       thrust::make_counting_iterator(graph_view.local_vertex_partition_range_last()),
       core_numbers->end()),
     thrust::make_zip_iterator(subgraph_vertices.begin(), thrust::make_discard_iterator()),
-    [k] __device__(auto tuple) { return (k <= thrust::get<1>(tuple)); });
+    [k] __device__(auto tuple) { return (k <= cuda::std::get<1>(tuple)); });
 
   subgraph_vertices.resize(
     thrust::distance(

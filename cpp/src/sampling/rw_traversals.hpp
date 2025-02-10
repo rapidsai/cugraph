@@ -28,13 +28,13 @@
 
 #include <cub/cub.cuh>
 #include <cuda/std/optional>
+#include <cuda/std/tuple>
 #include <thrust/binary_search.h>
 #include <thrust/execution_policy.h>
 #include <thrust/for_each.h>
 #include <thrust/functional.h>
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/reduce.h>
-#include <thrust/tuple.h>
 
 #include <algorithm>
 #include <ctime>
@@ -138,7 +138,7 @@ struct uniform_selector_t {
     {
     }
 
-    __device__ cuda::std::optional<thrust::tuple<vertex_t, weight_t>> operator()(
+    __device__ cuda::std::optional<cuda::std::tuple<vertex_t, weight_t>> operator()(
       vertex_t src_v,
       real_t rnd_val,
       vertex_t = 0 /* not used*/,
@@ -157,7 +157,7 @@ struct uniform_selector_t {
         (values_ == nullptr ? weight_t{1}
                             : values_[start_row + col_indx]);  // account for un-weighted graphs
       return cuda::std::optional{
-        thrust::make_tuple(col_indices_[start_row + col_indx], weight_value)};
+        cuda::std::make_tuple(col_indices_[start_row + col_indx], weight_value)};
     }
 
    private:
@@ -212,7 +212,7 @@ struct biased_selector_t {
     // Sum(weights(neighborhood(src_v))) are pre-computed and
     // stored in ptr_d_sum_weights_ (too expensive to check, here);
     //
-    __device__ cuda::std::optional<thrust::tuple<vertex_t, weight_t>> operator()(
+    __device__ cuda::std::optional<cuda::std::tuple<vertex_t, weight_t>> operator()(
       vertex_t src_v,
       real_t rnd_val,
       vertex_t = 0 /* not used*/,
@@ -236,7 +236,7 @@ struct biased_selector_t {
         prev_col_indx = col_indx;
       }
       return cuda::std::optional{
-        thrust::make_tuple(col_indices_[prev_col_indx], values_[prev_col_indx])};
+        cuda::std::make_tuple(col_indices_[prev_col_indx], values_[prev_col_indx])};
     }
 
    private:
@@ -292,11 +292,11 @@ struct node2vec_selector_t {
         values_(w),
         p_(p),
         q_(q),
-        coalesced_alpha_{
-          (max_degree > 0) && (num_paths > 0) && (ptr_alpha != nullptr)
-            ? cuda::std::optional<thrust::tuple<vertex_t, edge_t, weight_t*>>{thrust::make_tuple(
-                max_degree, num_paths, ptr_alpha)}
-            : cuda::std::nullopt}
+        coalesced_alpha_{(max_degree > 0) && (num_paths > 0) && (ptr_alpha != nullptr)
+                           ? cuda::std::optional<
+                               cuda::std::tuple<vertex_t, edge_t, weight_t*>>{cuda::std::make_tuple(
+                               max_degree, num_paths, ptr_alpha)}
+                           : cuda::std::nullopt}
     {
     }
 
@@ -325,7 +325,7 @@ struct node2vec_selector_t {
       }
     }
 
-    __device__ cuda::std::optional<thrust::tuple<vertex_t, weight_t>> operator()(
+    __device__ cuda::std::optional<cuda::std::tuple<vertex_t, weight_t>> operator()(
       vertex_t src_v, real_t rnd_val, vertex_t prev_v, edge_t path_index, bool start_path) const
     {
       auto const offset_indx_begin = row_offsets_[src_v];
@@ -361,8 +361,8 @@ struct node2vec_selector_t {
           prev_offset_indx = offset_indx;
         }
         return cuda::std::optional{
-          thrust::make_tuple(col_indices_[prev_offset_indx],
-                             values_ == nullptr ? weight_t{1} : values_[prev_offset_indx])};
+          cuda::std::make_tuple(col_indices_[prev_offset_indx],
+                                values_ == nullptr ? weight_t{1} : values_[prev_offset_indx])};
       }
 
       // cached solution, for increased performance, but memory expensive:
@@ -370,9 +370,9 @@ struct node2vec_selector_t {
       if (coalesced_alpha_.has_value()) {
         auto&& tpl = *coalesced_alpha_;
 
-        auto max_out_deg               = thrust::get<0>(tpl);
-        auto num_paths                 = thrust::get<1>(tpl);
-        weight_t* ptr_d_scaled_weights = thrust::get<2>(tpl);
+        auto max_out_deg               = cuda::std::get<0>(tpl);
+        auto num_paths                 = cuda::std::get<1>(tpl);
+        weight_t* ptr_d_scaled_weights = cuda::std::get<2>(tpl);
 
         // sum-scaled-weights reduction loop:
         //
@@ -404,8 +404,8 @@ struct node2vec_selector_t {
           prev_offset_indx = offset_indx;
         }
         return cuda::std::optional{
-          thrust::make_tuple(col_indices_[prev_offset_indx],
-                             values_ == nullptr ? weight_t{1} : values_[prev_offset_indx])};
+          cuda::std::make_tuple(col_indices_[prev_offset_indx],
+                                values_ == nullptr ? weight_t{1} : values_[prev_offset_indx])};
 
       } else {  // uncached solution, with much lower memory footprint but not as efficient
 
@@ -437,8 +437,8 @@ struct node2vec_selector_t {
           prev_offset_indx = offset_indx;
         }
         return cuda::std::optional{
-          thrust::make_tuple(col_indices_[prev_offset_indx],
-                             values_ == nullptr ? weight_t{1} : values_[prev_offset_indx])};
+          cuda::std::make_tuple(col_indices_[prev_offset_indx],
+                                values_ == nullptr ? weight_t{1} : values_[prev_offset_indx])};
       }
     }
 
@@ -460,7 +460,7 @@ struct node2vec_selector_t {
     // this is information related to a scratchpad buffer, used as cache, hence mutable;
     // (necessary, because get_strategy() is const)
     //
-    mutable cuda::std::optional<thrust::tuple<vertex_t, edge_t, weight_t*>>
+    mutable cuda::std::optional<cuda::std::tuple<vertex_t, edge_t, weight_t*>>
       coalesced_alpha_;  // tuple<max_vertex_degree,
                          // num_paths, alpha_buffer[max_vertex_degree*num_paths]>
   };
@@ -655,8 +655,8 @@ struct horizontal_traversal_t {
                          prev_v     = src_vertex;
                          start_path = false;
 
-                         src_vertex      = thrust::get<0>(*opt_tpl_vn_wn);
-                         auto crt_weight = thrust::get<1>(*opt_tpl_vn_wn);
+                         src_vertex      = cuda::std::get<0>(*opt_tpl_vn_wn);
+                         auto crt_weight = cuda::std::get<1>(*opt_tpl_vn_wn);
 
                          ptr_coalesced_v[chunk_offset + step_indx] = src_vertex;
                          ptr_coalesced_w[stepping_index]           = crt_weight;

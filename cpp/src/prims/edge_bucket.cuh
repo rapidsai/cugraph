@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2023-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,6 +24,7 @@
 #include <rmm/device_scalar.hpp>
 #include <rmm/device_uvector.hpp>
 
+#include <cuda/std/tuple>
 #include <thrust/copy.h>
 #include <thrust/distance.h>
 #include <thrust/fill.h>
@@ -35,7 +36,6 @@
 #include <thrust/remove.h>
 #include <thrust/sort.h>
 #include <thrust/transform.h>
-#include <thrust/tuple.h>
 #include <thrust/unique.h>
 
 #include <cinttypes>
@@ -47,14 +47,14 @@
 
 namespace cugraph {
 
-// key type is either thrust::tuple<vertex_t, vertex_t> (tag_t == void) or thrust::tuple<vertex_t,
-// vertex_t, tag_t> (tag_t != void). tag_t can be used to point a specific edge if there are
-// multiple edges between a source and a destination (e.g. tag_t can be an edge ID type). If
-// sorted_unique is true, stores unique key objects in the sorted (non-descending) order. If false,
-// there can be duplicates and the elements may not be sorted. Use source as the primary key and
-// destination as the secondary key for sorting if src_major is true. Use destination as the primary
-// key and source as the secondary key if src_major is false. If tag_t is not void, use tag as the
-// tertiary key in sorting.
+// key type is either cuda::std::tuple<vertex_t, vertex_t> (tag_t == void) or
+// cuda::std::tuple<vertex_t, vertex_t, tag_t> (tag_t != void). tag_t can be used to point a
+// specific edge if there are multiple edges between a source and a destination (e.g. tag_t can be
+// an edge ID type). If sorted_unique is true, stores unique key objects in the sorted
+// (non-descending) order. If false, there can be duplicates and the elements may not be sorted. Use
+// source as the primary key and destination as the secondary key for sorting if src_major is true.
+// Use destination as the primary key and source as the secondary key if src_major is false. If
+// tag_t is not void, use tag as the tertiary key in sorting.
 template <typename vertex_t,
           typename tag_t     = void,
           bool src_major     = false,
@@ -63,8 +63,8 @@ template <typename vertex_t,
 class edge_bucket_t {
  public:
   using key_type = std::conditional_t<std::is_same_v<tag_t, void>,
-                                      thrust::tuple<vertex_t, vertex_t>,
-                                      thrust::tuple<vertex_t, vertex_t, tag_t>>;
+                                      cuda::std::tuple<vertex_t, vertex_t>,
+                                      cuda::std::tuple<vertex_t, vertex_t, tag_t>>;
 
   static bool constexpr is_src_major     = src_major;
   static bool constexpr is_sorted_unique = sorted_unique;
@@ -127,20 +127,18 @@ class edge_bucket_t {
     if (majors_.size() > 0) {
       rmm::device_scalar<vertex_t> tmp_src(src, handle_ptr_->get_stream());
       rmm::device_scalar<vertex_t> tmp_dst(dst, handle_ptr_->get_stream());
-      auto pair_first =
-        thrust::make_zip_iterator(thrust::make_tuple(tmp_src.data(), tmp_dst.data()));
+      auto pair_first = thrust::make_zip_iterator(tmp_src.data(), tmp_dst.data());
       insert(tmp_src.data(), tmp_src.data() + 1, tmp_dst.data());
     } else {
       auto major = src_major ? src : dst;
       auto minor = src_major ? dst : src;
       majors_.resize(1, handle_ptr_->get_stream());
       minors_.resize(1, handle_ptr_->get_stream());
-      auto pair_first =
-        thrust::make_zip_iterator(thrust::make_tuple(majors_.data(), minors_.data()));
+      auto pair_first = thrust::make_zip_iterator(majors_.data(), minors_.data());
       thrust::fill(handle_ptr_->get_thrust_policy(),
                    pair_first,
                    pair_first + 1,
-                   thrust::make_tuple(major, minor));
+                   cuda::std::make_tuple(major, minor));
     }
   }
 
@@ -158,8 +156,8 @@ class edge_bucket_t {
       rmm::device_scalar<vertex_t> tmp_src(src, handle_ptr_->get_stream());
       rmm::device_scalar<vertex_t> tmp_dst(dst, handle_ptr_->get_stream());
       rmm::device_scalar<tag_t> tmp_tag(tag, handle_ptr_->get_stream());
-      auto triplet_first = thrust::make_zip_iterator(
-        thrust::make_tuple(tmp_src.data(), tmp_dst.data(), tmp_tag.data()));
+      auto triplet_first =
+        thrust::make_zip_iterator(tmp_src.data(), tmp_dst.data(), tmp_tag.data());
       insert(tmp_src.data(), tmp_src.data() + 1, tmp_dst.data(), tmp_tag.data());
     } else {
       auto major = src_major ? src : dst;
@@ -167,12 +165,11 @@ class edge_bucket_t {
       majors_.resize(1, handle_ptr_->get_stream());
       minors_.resize(1, handle_ptr_->get_stream());
       tags_.resize(1, handle_ptr_->get_stream());
-      auto triplet_first =
-        thrust::make_zip_iterator(thrust::make_tuple(majors_.data(), minors_.data(), tags_.data()));
+      auto triplet_first = thrust::make_zip_iterator(majors_.data(), minors_.data(), tags_.data());
       thrust::fill(handle_ptr_->get_thrust_policy(),
                    triplet_first,
                    triplet_first + 1,
-                   thrust::make_tuple(major, minor, tag));
+                   cuda::std::make_tuple(major, minor, tag));
     }
   }
 
@@ -197,7 +194,7 @@ class edge_bucket_t {
     auto major_first    = src_major ? src_first : dst_first;
     auto major_last     = major_first + thrust::distance(src_first, src_last);
     auto minor_first    = src_major ? dst_first : src_first;
-    auto new_pair_first = thrust::make_zip_iterator(thrust::make_tuple(major_first, minor_first));
+    auto new_pair_first = thrust::make_zip_iterator(major_first, minor_first);
 
     if (majors_.size() > 0) {
       if constexpr (sorted_unique) {
@@ -205,10 +202,9 @@ class edge_bucket_t {
           majors_.size() + thrust::distance(major_first, major_last), handle_ptr_->get_stream());
         rmm::device_uvector<vertex_t> merged_minors(merged_majors.size(),
                                                     handle_ptr_->get_stream());
-        auto old_pair_first =
-          thrust::make_zip_iterator(thrust::make_tuple(majors_.begin(), minors_.begin()));
-        auto merged_pair_first = thrust::make_zip_iterator(
-          thrust::make_tuple(merged_majors.begin(), merged_minors.begin()));
+        auto old_pair_first = thrust::make_zip_iterator(majors_.begin(), minors_.begin());
+        auto merged_pair_first =
+          thrust::make_zip_iterator(merged_majors.begin(), merged_minors.begin());
         thrust::merge(handle_ptr_->get_thrust_policy(),
                       old_pair_first,
                       old_pair_first + majors_.size(),
@@ -231,12 +227,10 @@ class edge_bucket_t {
         majors_.resize(cur_size + thrust::distance(major_first, major_last),
                        handle_ptr_->get_stream());
         minors_.resize(majors_.size(), handle_ptr_->get_stream());
-        thrust::copy(
-          handle_ptr_->get_thrust_policy(),
-          new_pair_first,
-          new_pair_first + thrust::distance(major_first, major_last),
-          thrust::make_zip_iterator(thrust::make_tuple(majors_.begin(), minors_.begin())) +
-            cur_size);
+        thrust::copy(handle_ptr_->get_thrust_policy(),
+                     new_pair_first,
+                     new_pair_first + thrust::distance(major_first, major_last),
+                     thrust::make_zip_iterator(majors_.begin(), minors_.begin()) + cur_size);
       }
     } else {
       majors_.resize(thrust::distance(major_first, major_last), handle_ptr_->get_stream());
@@ -244,7 +238,7 @@ class edge_bucket_t {
       thrust::copy(handle_ptr_->get_thrust_policy(),
                    new_pair_first,
                    new_pair_first + thrust::distance(major_first, major_last),
-                   thrust::make_zip_iterator(thrust::make_tuple(majors_.begin(), minors_.begin())));
+                   thrust::make_zip_iterator(majors_.begin(), minors_.begin()));
     }
   }
 
@@ -273,11 +267,10 @@ class edge_bucket_t {
       std::is_same_v<typename thrust::iterator_traits<VertexIterator>::value_type, vertex_t>);
     static_assert(std::is_same_v<typename thrust::iterator_traits<TagIterator>::value_type, tag_t>);
 
-    auto major_first = src_major ? src_first : dst_first;
-    auto major_last  = major_first + thrust::distance(src_first, src_last);
-    auto minor_first = src_major ? dst_first : src_first;
-    auto new_triplet_first =
-      thrust::make_zip_iterator(thrust::make_tuple(major_first, minor_first, tag_first));
+    auto major_first       = src_major ? src_first : dst_first;
+    auto major_last        = major_first + thrust::distance(src_first, src_last);
+    auto minor_first       = src_major ? dst_first : src_first;
+    auto new_triplet_first = thrust::make_zip_iterator(major_first, minor_first, tag_first);
 
     if (majors_.size() > 0) {
       if constexpr (sorted_unique) {
@@ -286,10 +279,10 @@ class edge_bucket_t {
         rmm::device_uvector<vertex_t> merged_minors(merged_majors.size(),
                                                     handle_ptr_->get_stream());
         rmm::device_uvector<tag_t> merged_tags(merged_majors.size(), handle_ptr_->get_stream());
-        auto old_triplet_first = thrust::make_zip_iterator(
-          thrust::make_tuple(majors_.begin(), minors_.begin(), tags_.begin()));
+        auto old_triplet_first =
+          thrust::make_zip_iterator(majors_.begin(), minors_.begin(), tags_.begin());
         auto merged_triplet_first = thrust::make_zip_iterator(
-          thrust::make_tuple(merged_majors.begin(), merged_minors.begin(), merged_tags.begin()));
+          merged_majors.begin(), merged_minors.begin(), merged_tags.begin());
         thrust::merge(handle_ptr_->get_thrust_policy(),
                       old_triplet_first,
                       old_triplet_first + majors_.size(),
@@ -316,12 +309,11 @@ class edge_bucket_t {
                        handle_ptr_->get_stream());
         minors_.resize(majors_.size(), handle_ptr_->get_stream());
         tags_.resize(majors_.size(), handle_ptr_->get_stream());
-        thrust::copy(handle_ptr_->get_thrust_policy(),
-                     new_triplet_first,
-                     new_triplet_first + thrust::distance(major_first, major_last),
-                     thrust::make_zip_iterator(
-                       thrust::make_tuple(majors_.begin(), minors_.begin(), tags_.begin())) +
-                       cur_size);
+        thrust::copy(
+          handle_ptr_->get_thrust_policy(),
+          new_triplet_first,
+          new_triplet_first + thrust::distance(major_first, major_last),
+          thrust::make_zip_iterator(majors_.begin(), minors_.begin(), tags_.begin()) + cur_size);
       }
     } else {
       majors_.resize(thrust::distance(major_first, major_last), handle_ptr_->get_stream());
@@ -330,8 +322,7 @@ class edge_bucket_t {
       thrust::copy(handle_ptr_->get_thrust_policy(),
                    new_triplet_first,
                    new_triplet_first + thrust::distance(major_first, major_last),
-                   thrust::make_zip_iterator(
-                     thrust::make_tuple(majors_.begin(), minors_.begin(), tags_.begin())));
+                   thrust::make_zip_iterator(majors_.begin(), minors_.begin(), tags_.begin()));
     }
   }
 

@@ -24,13 +24,13 @@
 
 #include <rmm/exec_policy.hpp>
 
+#include <cuda/std/tuple>
 #include <thrust/distance.h>
 #include <thrust/functional.h>
 #include <thrust/iterator/iterator_traits.h>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/remove.h>
 #include <thrust/transform.h>
-#include <thrust/tuple.h>
 
 #include <algorithm>
 #include <cstdlib>
@@ -56,20 +56,20 @@ struct update_v_frontier_call_v_op_t {
   VertexOp v_op{};
   vertex_t local_vertex_partition_range_first{};
 
-  __device__ uint8_t operator()(thrust::tuple<key_t, payload_t> pair) const
+  __device__ uint8_t operator()(cuda::std::tuple<key_t, payload_t> pair) const
   {
-    auto key     = thrust::get<0>(pair);
-    auto payload = thrust::get<1>(pair);
+    auto key     = cuda::std::get<0>(pair);
+    auto payload = cuda::std::get<1>(pair);
     auto v_offset =
       thrust_tuple_get_or_identity<key_t, 0>(key) - local_vertex_partition_range_first;
     auto v_val       = *(vertex_value_input_first + v_offset);
     auto v_op_result = v_op(key, v_val, payload);
-    if (thrust::get<1>(v_op_result)) {
-      *(vertex_value_output_first + v_offset) = *(thrust::get<1>(v_op_result));
+    if (cuda::std::get<1>(v_op_result)) {
+      *(vertex_value_output_first + v_offset) = *(cuda::std::get<1>(v_op_result));
     }
-    if (thrust::get<0>(v_op_result)) {
-      assert(*(thrust::get<0>(v_op_result)) < std::numeric_limits<uint8_t>::max());
-      return static_cast<uint8_t>(*(thrust::get<0>(v_op_result)));
+    if (cuda::std::get<0>(v_op_result)) {
+      assert(*(cuda::std::get<0>(v_op_result)) < std::numeric_limits<uint8_t>::max());
+      return static_cast<uint8_t>(*(cuda::std::get<0>(v_op_result)));
     } else {
       return std::numeric_limits<uint8_t>::max();
     }
@@ -98,12 +98,12 @@ struct update_v_frontier_call_v_op_t<vertex_t,
       thrust_tuple_get_or_identity<key_t, 0>(key) - local_vertex_partition_range_first;
     auto v_val       = *(vertex_value_input_first + v_offset);
     auto v_op_result = v_op(key, v_val);
-    if (thrust::get<1>(v_op_result)) {
-      *(vertex_value_output_first + v_offset) = *(thrust::get<1>(v_op_result));
+    if (cuda::std::get<1>(v_op_result)) {
+      *(vertex_value_output_first + v_offset) = *(cuda::std::get<1>(v_op_result));
     }
-    if (thrust::get<0>(v_op_result)) {
-      assert(*(thrust::get<0>(v_op_result)) < std::numeric_limits<uint8_t>::max());
-      return static_cast<uint8_t>(*(thrust::get<0>(v_op_result)));
+    if (cuda::std::get<0>(v_op_result)) {
+      assert(*(cuda::std::get<0>(v_op_result)) < std::numeric_limits<uint8_t>::max());
+      return static_cast<uint8_t>(*(cuda::std::get<0>(v_op_result)));
     } else {
       return std::numeric_limits<uint8_t>::max();
     }
@@ -114,9 +114,9 @@ struct update_v_frontier_call_v_op_t<vertex_t,
 // after if constexpr else statement that involves device lambda (bug report submitted)
 template <typename key_t>
 struct check_invalid_bucket_idx_t {
-  __device__ bool operator()(thrust::tuple<uint8_t, key_t> pair)
+  __device__ bool operator()(cuda::std::tuple<uint8_t, key_t> pair)
   {
-    return thrust::get<0>(pair) == std::numeric_limits<uint8_t>::max();
+    return cuda::std::get<0>(pair) == std::numeric_limits<uint8_t>::max();
   }
 };
 
@@ -211,8 +211,8 @@ void update_v_frontier(raft::handle_t const& handle,
     rmm::device_uvector<uint8_t> bucket_indices(size_dataframe_buffer(key_buffer),
                                                 handle.get_stream());
 
-    auto key_payload_pair_first = thrust::make_zip_iterator(thrust::make_tuple(
-      get_dataframe_buffer_begin(key_buffer), get_dataframe_buffer_begin(payload_buffer)));
+    auto key_payload_pair_first = thrust::make_zip_iterator(
+      get_dataframe_buffer_begin(key_buffer), get_dataframe_buffer_begin(payload_buffer));
     thrust::transform(handle.get_thrust_policy(),
                       key_payload_pair_first,
                       key_payload_pair_first + size_dataframe_buffer(key_buffer),
@@ -231,8 +231,8 @@ void update_v_frontier(raft::handle_t const& handle,
     resize_dataframe_buffer(payload_buffer, size_t{0}, handle.get_stream());
     shrink_to_fit_dataframe_buffer(payload_buffer, handle.get_stream());
 
-    auto bucket_key_pair_first = thrust::make_zip_iterator(
-      thrust::make_tuple(bucket_indices.begin(), get_dataframe_buffer_begin(key_buffer)));
+    auto bucket_key_pair_first =
+      thrust::make_zip_iterator(bucket_indices.begin(), get_dataframe_buffer_begin(key_buffer));
     bucket_indices.resize(
       thrust::distance(bucket_key_pair_first,
                        thrust::remove_if(handle.get_thrust_policy(),
@@ -350,8 +350,8 @@ void update_v_frontier(raft::handle_t const& handle,
                                                   v_op,
                                                   graph_view.local_vertex_partition_range_first()});
 
-    auto bucket_key_pair_first = thrust::make_zip_iterator(
-      thrust::make_tuple(bucket_indices.begin(), get_dataframe_buffer_begin(key_buffer)));
+    auto bucket_key_pair_first =
+      thrust::make_zip_iterator(bucket_indices.begin(), get_dataframe_buffer_begin(key_buffer));
     bucket_indices.resize(
       thrust::distance(bucket_key_pair_first,
                        thrust::remove_if(handle.get_thrust_policy(),

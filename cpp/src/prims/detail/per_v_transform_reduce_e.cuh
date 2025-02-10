@@ -47,6 +47,7 @@
 #include <cub/cub.cuh>
 #include <cuda/functional>
 #include <cuda/std/optional>
+#include <cuda/std/tuple>
 #include <thrust/copy.h>
 #include <thrust/distance.h>
 #include <thrust/execution_policy.h>
@@ -57,7 +58,6 @@
 #include <thrust/scatter.h>
 #include <thrust/set_operations.h>
 #include <thrust/transform_reduce.h>
-#include <thrust/tuple.h>
 #include <thrust/type_traits/integer_sequence.h>
 
 #include <numeric>
@@ -1005,8 +1005,8 @@ compute_selected_ranks_from_priorities(
                       offset_priority_pair_first + priorities.size(),
                       selected_ranks.begin(),
                       [root, subgroup_size, comm_rank, comm_size] __device__(auto pair) {
-                        auto offset   = thrust::get<0>(pair);
-                        auto priority = thrust::get<1>(pair);
+                        auto offset   = cuda::std::get<0>(pair);
+                        auto priority = cuda::std::get<1>(pair);
                         auto rank     = (priority == std::numeric_limits<priority_t>::max())
                                           ? comm_size
                                           : priority_to_rank<vertex_t, priority_t>(
@@ -1039,8 +1039,8 @@ compute_selected_ranks_from_priorities(
          subgroup_size,
          comm_rank,
          comm_size] __device__(auto pair) {
-          auto offset   = thrust::get<0>(pair);
-          auto priority = thrust::get<1>(pair);
+          auto offset   = cuda::std::get<0>(pair);
+          auto priority = cuda::std::get<1>(pair);
           auto rank     = (priority == std::numeric_limits<priority_t>::max())
                             ? comm_size
                             : priority_to_rank<vertex_t, priority_t>(
@@ -1066,7 +1066,7 @@ compute_selected_ranks_from_priorities(
              subgroup_size,
              comm_rank,
              comm_size] __device__(auto pair) {
-              auto offset   = thrust::get<1>(pair);
+              auto offset   = cuda::std::get<1>(pair);
               auto priority = priorities[offset];
               auto rank =
                 (priority == std::numeric_limits<priority_t>::max())
@@ -1075,8 +1075,8 @@ compute_selected_ranks_from_priorities(
                       priority, root, subgroup_size, comm_size, static_cast<vertex_t>(offset));
               if (rank == comm_rank) {
                 cuda::atomic_ref<uint32_t, cuda::thread_scope_device> word(
-                  keep_flags[packed_bool_offset(thrust::get<0>(pair))]);
-                word.fetch_or(packed_bool_mask(thrust::get<0>(pair)),
+                  keep_flags[packed_bool_offset(cuda::std::get<0>(pair))]);
+                word.fetch_or(packed_bool_mask(cuda::std::get<0>(pair)),
                               cuda::std::memory_order_relaxed);
               }
             });
@@ -1094,7 +1094,7 @@ compute_selected_ranks_from_priorities(
              subgroup_size,
              comm_rank,
              comm_size] __device__(auto pair) {
-              auto offset   = thrust::get<1>(pair);
+              auto offset   = cuda::std::get<1>(pair);
               auto priority = priorities[offset];
               auto rank =
                 (priority == std::numeric_limits<priority_t>::max())
@@ -1103,8 +1103,8 @@ compute_selected_ranks_from_priorities(
                       priority, root, subgroup_size, comm_size, static_cast<vertex_t>(offset));
               if (rank == comm_rank) {
                 cuda::atomic_ref<uint32_t, cuda::thread_scope_device> word(
-                  keep_flags[packed_bool_offset(thrust::get<0>(pair))]);
-                word.fetch_or(packed_bool_mask(thrust::get<0>(pair)),
+                  keep_flags[packed_bool_offset(cuda::std::get<0>(pair))]);
+                word.fetch_or(packed_bool_mask(cuda::std::get<0>(pair)),
                               cuda::std::memory_order_relaxed);
               }
             });

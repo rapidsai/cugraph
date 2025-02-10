@@ -19,9 +19,9 @@
 
 #include <rmm/device_uvector.hpp>
 
+#include <cuda/std/tuple>
 #include <thrust/binary_search.h>
 #include <thrust/remove.h>
-#include <thrust/tuple.h>
 
 #include <optional>
 
@@ -40,21 +40,21 @@ remove_visited_vertices_from_frontier(
   if (frontier_vertex_labels) {
     auto begin_iter =
       thrust::make_zip_iterator(frontier_vertices.begin(), frontier_vertex_labels->begin());
-    auto new_end = thrust::remove_if(
-      handle.get_thrust_policy(),
-      begin_iter,
-      begin_iter + frontier_vertices.size(),
-      begin_iter,
-      [a_begin = vertices_used_as_source.begin(),
-       a_end   = vertices_used_as_source.end(),
-       b_begin = vertex_labels_used_as_source->begin(),
-       b_end =
-         vertex_labels_used_as_source->end()] __device__(thrust::tuple<vertex_t, label_t> tuple) {
-        return thrust::binary_search(thrust::seq,
-                                     thrust::make_zip_iterator(a_begin, b_begin),
-                                     thrust::make_zip_iterator(a_end, b_end),
-                                     tuple);
-      });
+    auto new_end =
+      thrust::remove_if(handle.get_thrust_policy(),
+                        begin_iter,
+                        begin_iter + frontier_vertices.size(),
+                        begin_iter,
+                        [a_begin = vertices_used_as_source.begin(),
+                         a_end   = vertices_used_as_source.end(),
+                         b_begin = vertex_labels_used_as_source->begin(),
+                         b_end   = vertex_labels_used_as_source
+                                   ->end()] __device__(cuda::std::tuple<vertex_t, label_t> tuple) {
+                          return thrust::binary_search(thrust::seq,
+                                                       thrust::make_zip_iterator(a_begin, b_begin),
+                                                       thrust::make_zip_iterator(a_end, b_end),
+                                                       tuple);
+                        });
 
     frontier_vertices.resize(thrust::distance(begin_iter, new_end), handle.get_stream());
     frontier_vertex_labels->resize(thrust::distance(begin_iter, new_end), handle.get_stream());

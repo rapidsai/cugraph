@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -113,8 +113,8 @@ std::tuple<rmm::device_uvector<edge_t>, rmm::device_uvector<vertex_t>> compress_
                                                                                    : invalid_vertex;
                     });
 
-  auto pair_first = thrust::make_zip_iterator(thrust::make_tuple(
-    dcs_nzd_vertices.begin(), offsets.begin() + (major_hypersparse_first - major_range_first)));
+  auto pair_first = thrust::make_zip_iterator(
+    dcs_nzd_vertices.begin(), offsets.begin() + (major_hypersparse_first - major_range_first));
   CUGRAPH_EXPECTS(
     dcs_nzd_vertices.size() < static_cast<size_t>(std::numeric_limits<int32_t>::max()),
     "remove_if will fail (https://github.com/NVIDIA/thrust/issues/1302), work-around required.");
@@ -123,7 +123,7 @@ std::tuple<rmm::device_uvector<edge_t>, rmm::device_uvector<vertex_t>> compress_
                                                              pair_first,
                                                              pair_first + dcs_nzd_vertices.size(),
                                                              [] __device__(auto pair) {
-                                                               return thrust::get<0>(pair) ==
+                                                               return cuda::std::get<0>(pair) ==
                                                                       invalid_vertex;
                                                              })),
                           stream_view);
@@ -186,7 +186,7 @@ sort_and_compress_edgelist(
       detail::mem_frugal_partition(pair_first,
                                    pair_first + edgelist_minors.size(),
                                    get_dataframe_buffer_begin(edgelist_values),
-                                   thrust_tuple_get<thrust::tuple<vertex_t, vertex_t>, 0>{},
+                                   thrust_tuple_get<cuda::std::tuple<vertex_t, vertex_t>, 0>{},
                                    pivot,
                                    stream_view);
     thrust::sort_by_key(rmm::exec_policy(stream_view),
@@ -287,19 +287,19 @@ sort_and_compress_edgelist(rmm::device_uvector<vertex_t>&& edgelist_srcs,
       auto second_half_first =
         detail::mem_frugal_partition(pair_first,
                                      pair_first + edgelist_major_offsets.size(),
-                                     thrust_tuple_get<thrust::tuple<uint32_t, vertex_t>, 0>{},
+                                     thrust_tuple_get<cuda::std::tuple<uint32_t, vertex_t>, 0>{},
                                      pivots[1],
                                      stream_view);
       auto second_quarter_first =
         detail::mem_frugal_partition(pair_first,
                                      second_half_first,
-                                     thrust_tuple_get<thrust::tuple<uint32_t, vertex_t>, 0>{},
+                                     thrust_tuple_get<cuda::std::tuple<uint32_t, vertex_t>, 0>{},
                                      pivots[0],
                                      stream_view);
       auto last_quarter_first =
         detail::mem_frugal_partition(second_half_first,
                                      pair_first + edgelist_major_offsets.size(),
-                                     thrust_tuple_get<thrust::tuple<uint32_t, vertex_t>, 0>{},
+                                     thrust_tuple_get<cuda::std::tuple<uint32_t, vertex_t>, 0>{},
                                      pivots[2],
                                      stream_view);
       thrust::sort(rmm::exec_policy(stream_view), pair_first, second_quarter_first);
@@ -330,19 +330,19 @@ sort_and_compress_edgelist(rmm::device_uvector<vertex_t>&& edgelist_srcs,
       auto second_half_first =
         detail::mem_frugal_partition(edge_first,
                                      edge_first + edgelist_majors.size(),
-                                     thrust_tuple_get<thrust::tuple<vertex_t, vertex_t>, 0>{},
+                                     thrust_tuple_get<cuda::std::tuple<vertex_t, vertex_t>, 0>{},
                                      pivots[1],
                                      stream_view);
       auto second_quarter_first =
         detail::mem_frugal_partition(edge_first,
                                      second_half_first,
-                                     thrust_tuple_get<thrust::tuple<vertex_t, vertex_t>, 0>{},
+                                     thrust_tuple_get<cuda::std::tuple<vertex_t, vertex_t>, 0>{},
                                      pivots[0],
                                      stream_view);
       auto last_quarter_first =
         detail::mem_frugal_partition(second_half_first,
                                      edge_first + edgelist_majors.size(),
-                                     thrust_tuple_get<thrust::tuple<vertex_t, vertex_t>, 0>{},
+                                     thrust_tuple_get<cuda::std::tuple<vertex_t, vertex_t>, 0>{},
                                      pivots[2],
                                      stream_view);
       thrust::sort(rmm::exec_policy(stream_view), edge_first, second_quarter_first);

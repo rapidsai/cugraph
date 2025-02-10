@@ -43,6 +43,7 @@
 
 #include <cub/cub.cuh>
 #include <cuda/std/optional>
+#include <cuda/std/tuple>
 #include <thrust/binary_search.h>
 #include <thrust/copy.h>
 #include <thrust/count.h>
@@ -58,7 +59,6 @@
 #include <thrust/sort.h>
 #include <thrust/transform.h>
 #include <thrust/transform_reduce.h>
-#include <thrust/tuple.h>
 #include <thrust/type_traits/integer_sequence.h>
 #include <thrust/unique.h>
 
@@ -88,7 +88,7 @@ struct transform_reduce_v_frontier_call_e_op_t {
 
   __device__ cuda::std::optional<
     std::conditional_t<!std::is_same_v<key_t, void> && !std::is_same_v<payload_t, void>,
-                       thrust::tuple<key_t, payload_t>,
+                       cuda::std::tuple<key_t, payload_t>,
                        std::conditional_t<!std::is_same_v<key_t, void>, key_t, payload_t>>>
   operator()(key_t key, vertex_t dst, src_value_t sv, dst_value_t dv, e_value_t ev) const
   {
@@ -98,12 +98,13 @@ struct transform_reduce_v_frontier_call_e_op_t {
       if constexpr (std::is_same_v<key_t, vertex_t> && std::is_same_v<payload_t, void>) {
         return reduce_by;
       } else if constexpr (std::is_same_v<key_t, vertex_t> && !std::is_same_v<payload_t, void>) {
-        return thrust::make_tuple(reduce_by, *e_op_result);
+        return cuda::std::make_tuple(reduce_by, *e_op_result);
       } else if constexpr (!std::is_same_v<key_t, vertex_t> && std::is_same_v<payload_t, void>) {
-        return thrust::make_tuple(reduce_by, *e_op_result);
+        return cuda::std::make_tuple(reduce_by, *e_op_result);
       } else {
-        return thrust::make_tuple(thrust::make_tuple(reduce_by, thrust::get<0>(*e_op_result)),
-                                  thrust::get<1>(*e_op_result));
+        return cuda::std::make_tuple(
+          cuda::std::make_tuple(reduce_by, cuda::std::get<0>(*e_op_result)),
+          cuda::std::get<1>(*e_op_result));
       }
     } else {
       return cuda::std::nullopt;
@@ -528,7 +529,7 @@ sort_and_reduce_buffer_elements(
                                            pair_first + size_dataframe_buffer(key_buffer),
                                            cuda::proclaim_return_type<bool>(
                                              [invalid_key = *invalid_key] __device__(auto kv) {
-                                               auto key = thrust::get<0>(kv);
+                                               auto key = cuda::std::get<0>(kv);
                                                return key == invalid_key;
                                              }))),
         handle.get_stream());
@@ -876,8 +877,8 @@ transform_reduce_v_frontier_outgoing_e_by_dst(raft::handle_t const& handle,
             invalid_key = invalid_vertex_id_v<vertex_t>;
           }
         } else {
-          invalid_key                  = key_t{};
-          thrust::get<0>(*invalid_key) = invalid_vertex_id_v<vertex_t>;
+          invalid_key                     = key_t{};
+          cuda::std::get<0>(*invalid_key) = invalid_vertex_id_v<vertex_t>;
         }
 
         if constexpr (try_compression) {

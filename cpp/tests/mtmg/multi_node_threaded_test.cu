@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2023-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -392,8 +392,8 @@ class Tests_Multithreaded
                         thrust::make_zip_iterator(std::get<0>(t1).begin(), std::get<1>(t1).begin()),
                         thrust::make_zip_iterator(std::get<0>(t1).end(), std::get<1>(t1).end()),
                         [h_sg_pageranks, compare_functor, h_sg_renumber_map](auto t2) {
-                          vertex_t v  = thrust::get<0>(t2);
-                          weight_t pr = thrust::get<1>(t2);
+                          vertex_t v  = cuda::std::get<0>(t2);
+                          weight_t pr = cuda::std::get<1>(t2);
 
                           auto pos =
                             std::find(h_sg_renumber_map->begin(), h_sg_renumber_map->end(), v);

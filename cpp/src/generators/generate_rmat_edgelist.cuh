@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,10 +24,10 @@
 #include <rmm/detail/error.hpp>
 #include <rmm/device_uvector.hpp>
 
+#include <cuda/std/tuple>
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/transform.h>
-#include <thrust/tuple.h>
 
 #include <tuple>
 
@@ -64,8 +64,7 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> generat
   while (num_edges_generated < num_edges) {
     auto num_edges_to_generate =
       std::min(num_edges - num_edges_generated, max_edges_to_generate_per_iteration);
-    auto pair_first = thrust::make_zip_iterator(thrust::make_tuple(srcs.begin(), dsts.begin())) +
-                      num_edges_generated;
+    auto pair_first = thrust::make_zip_iterator(srcs.begin(), dsts.begin()) + num_edges_generated;
 
     detail::uniform_random_fill(
       handle.get_stream(), rands.data(), num_edges_to_generate * 2 * scale, 0.0f, 1.0f, rng_state);
@@ -100,7 +99,7 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> generat
           src += src_bit_set ? static_cast<vertex_t>(vertex_t{1} << bit) : 0;
           dst += dst_bit_set ? static_cast<vertex_t>(vertex_t{1} << bit) : 0;
         }
-        return thrust::make_tuple(src, dst);
+        return cuda::std::make_tuple(src, dst);
       });
     num_edges_generated += num_edges_to_generate;
   }

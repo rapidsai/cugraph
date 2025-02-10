@@ -96,21 +96,20 @@ bool check_symmetric(raft::handle_t const& handle,
   if (symmetrized_srcs.size() != org_srcs.size()) { return false; }
 
   if (edgelist_weights) {
-    auto org_first = thrust::make_zip_iterator(
-      thrust::make_tuple(org_srcs.begin(), org_dsts.begin(), (*org_weights).begin()));
+    auto org_first =
+      thrust::make_zip_iterator(org_srcs.begin(), org_dsts.begin(), (*org_weights).begin());
     thrust::sort(handle.get_thrust_policy(), org_first, org_first + org_srcs.size());
-    auto symmetrized_first = thrust::make_zip_iterator(thrust::make_tuple(
-      symmetrized_srcs.begin(), symmetrized_dsts.begin(), (*symmetrized_weights).begin()));
+    auto symmetrized_first = thrust::make_zip_iterator(
+      symmetrized_srcs.begin(), symmetrized_dsts.begin(), (*symmetrized_weights).begin());
     thrust::sort(
       handle.get_thrust_policy(), symmetrized_first, symmetrized_first + symmetrized_srcs.size());
     return thrust::equal(
       handle.get_thrust_policy(), org_first, org_first + org_srcs.size(), symmetrized_first);
   } else {
-    auto org_first =
-      thrust::make_zip_iterator(thrust::make_tuple(org_srcs.begin(), org_dsts.begin()));
+    auto org_first = thrust::make_zip_iterator(org_srcs.begin(), org_dsts.begin());
     thrust::sort(handle.get_thrust_policy(), org_first, org_first + org_srcs.size());
-    auto symmetrized_first = thrust::make_zip_iterator(
-      thrust::make_tuple(symmetrized_srcs.begin(), symmetrized_dsts.begin()));
+    auto symmetrized_first =
+      thrust::make_zip_iterator(symmetrized_srcs.begin(), symmetrized_dsts.begin());
     thrust::sort(
       handle.get_thrust_policy(), symmetrized_first, symmetrized_first + symmetrized_srcs.size());
     return thrust::equal(
@@ -234,8 +233,8 @@ read_edgelist_from_csv_file(raft::handle_t const& handle,
       comm_size, major_comm_size, minor_comm_size};
     size_t number_of_local_edges{};
     if (d_edgelist_weights) {
-      auto edge_first       = thrust::make_zip_iterator(thrust::make_tuple(
-        d_edgelist_srcs.begin(), d_edgelist_dsts.begin(), (*d_edgelist_weights).begin()));
+      auto edge_first = thrust::make_zip_iterator(
+        d_edgelist_srcs.begin(), d_edgelist_dsts.begin(), (*d_edgelist_weights).begin());
       number_of_local_edges = thrust::distance(
         edge_first,
         thrust::remove_if(
@@ -243,14 +242,13 @@ read_edgelist_from_csv_file(raft::handle_t const& handle,
           edge_first,
           edge_first + d_edgelist_srcs.size(),
           [store_transposed, comm_rank, key_func = edge_key_func] __device__(auto e) {
-            auto major = thrust::get<0>(e);
-            auto minor = thrust::get<1>(e);
+            auto major = cuda::std::get<0>(e);
+            auto minor = cuda::std::get<1>(e);
             return store_transposed ? key_func(minor, major) != comm_rank
                                     : key_func(major, minor) != comm_rank;
           }));
     } else {
-      auto edge_first = thrust::make_zip_iterator(
-        thrust::make_tuple(d_edgelist_srcs.begin(), d_edgelist_dsts.begin()));
+      auto edge_first = thrust::make_zip_iterator(d_edgelist_srcs.begin(), d_edgelist_dsts.begin());
       number_of_local_edges = thrust::distance(
         edge_first,
         thrust::remove_if(
@@ -258,8 +256,8 @@ read_edgelist_from_csv_file(raft::handle_t const& handle,
           edge_first,
           edge_first + d_edgelist_srcs.size(),
           [store_transposed, comm_rank, key_func = edge_key_func] __device__(auto e) {
-            auto major = thrust::get<0>(e);
-            auto minor = thrust::get<1>(e);
+            auto major = cuda::std::get<0>(e);
+            auto minor = cuda::std::get<1>(e);
             return store_transposed ? key_func(minor, major) != comm_rank
                                     : key_func(major, minor) != comm_rank;
           }));

@@ -60,10 +60,10 @@ struct sample_edges_op_t {
   }
 
   template <typename W = weight_t>
-  __device__ std::enable_if_t<!std::is_same_v<W, void>, thrust::tuple<vertex_t, W>> operator()(
+  __device__ std::enable_if_t<!std::is_same_v<W, void>, cuda::std::tuple<vertex_t, W>> operator()(
     vertex_t, vertex_t dst, cuda::std::nullopt_t, cuda::std::nullopt_t, W w) const
   {
-    return thrust::make_tuple(dst, w);
+    return cuda::std::make_tuple(dst, w);
   }
 };
 
@@ -78,10 +78,10 @@ struct biased_random_walk_e_bias_op_t {
 
 template <typename vertex_t, typename weight_t>
 struct biased_sample_edges_op_t {
-  __device__ thrust::tuple<vertex_t, weight_t> operator()(
+  __device__ cuda::std::tuple<vertex_t, weight_t> operator()(
     vertex_t, vertex_t dst, weight_t, cuda::std::nullopt_t, weight_t weight) const
   {
-    return thrust::make_tuple(dst, weight);
+    return cuda::std::make_tuple(dst, weight);
   }
 };
 
@@ -97,14 +97,14 @@ struct node2vec_random_walk_e_bias_op_t {
   // Unweighted Bias Operator
   template <typename W = weight_t>
   __device__ std::enable_if_t<std::is_same_v<W, void>, bias_t> operator()(
-    thrust::tuple<vertex_t, vertex_t> tagged_src,
+    cuda::std::tuple<vertex_t, vertex_t> tagged_src,
     vertex_t dst,
     cuda::std::nullopt_t,
     cuda::std::nullopt_t,
     cuda::std::nullopt_t) const
   {
     //  Check tag (prev vert) for destination
-    if (dst == thrust::get<1>(tagged_src)) { return 1.0 / p_; }
+    if (dst == cuda::std::get<1>(tagged_src)) { return 1.0 / p_; }
     //  Search zipped vertices for tagged src
     auto lower_itr = thrust::lower_bound(
       thrust::seq,
@@ -124,14 +124,14 @@ struct node2vec_random_walk_e_bias_op_t {
   //  Weighted Bias Operator
   template <typename W = weight_t>
   __device__ std::enable_if_t<!std::is_same_v<W, void>, bias_t> operator()(
-    thrust::tuple<vertex_t, vertex_t> tagged_src,
+    cuda::std::tuple<vertex_t, vertex_t> tagged_src,
     vertex_t dst,
     cuda::std::nullopt_t,
     cuda::std::nullopt_t,
     W) const
   {
     //  Check tag (prev vert) for destination
-    if (dst == thrust::get<1>(tagged_src)) { return 1.0 / p_; }
+    if (dst == cuda::std::get<1>(tagged_src)) { return 1.0 / p_; }
     //  Search zipped vertices for tagged src
     auto lower_itr = thrust::lower_bound(
       thrust::seq,
@@ -153,7 +153,7 @@ template <typename vertex_t, typename weight_t>
 struct node2vec_sample_edges_op_t {
   template <typename W = weight_t>
   __device__ std::enable_if_t<std::is_same_v<W, void>, vertex_t> operator()(
-    thrust::tuple<vertex_t, vertex_t> tagged_src,
+    cuda::std::tuple<vertex_t, vertex_t> tagged_src,
     vertex_t dst,
     cuda::std::nullopt_t,
     cuda::std::nullopt_t,
@@ -163,14 +163,14 @@ struct node2vec_sample_edges_op_t {
   }
 
   template <typename W = weight_t>
-  __device__ std::enable_if_t<!std::is_same_v<W, void>, thrust::tuple<vertex_t, W>> operator()(
-    thrust::tuple<vertex_t, vertex_t> tagged_src,
+  __device__ std::enable_if_t<!std::is_same_v<W, void>, cuda::std::tuple<vertex_t, W>> operator()(
+    cuda::std::tuple<vertex_t, vertex_t> tagged_src,
     vertex_t dst,
     cuda::std::nullopt_t,
     cuda::std::nullopt_t,
     W w) const
   {
-    return thrust::make_tuple(dst, w);
+    return cuda::std::make_tuple(dst, w);
   }
 };
 
@@ -217,7 +217,7 @@ struct uniform_selector {
           size_t{1},
           true,
           std::make_optional(
-            thrust::make_tuple(cugraph::invalid_vertex_id<vertex_t>::value, weight_t{0.0})));
+            cuda::std::make_tuple(cugraph::invalid_vertex_id<vertex_t>::value, weight_t{0.0})));
 
       minors  = std::move(std::get<0>(sample_e_op_results));
       weights = std::move(std::get<1>(sample_e_op_results));
@@ -292,8 +292,8 @@ struct biased_selector {
       rng_state_,
       size_t{1},
       true,
-      std::make_optional(
-        thrust::make_tuple(vertex_t{cugraph::invalid_vertex_id<vertex_t>::value}, weight_t{0.0})));
+      std::make_optional(cuda::std::make_tuple(
+        vertex_t{cugraph::invalid_vertex_id<vertex_t>::value}, weight_t{0.0})));
 
     //  Return results
     return std::make_tuple(std::move(std::get<0>(sample_e_op_results)),
@@ -472,7 +472,7 @@ struct node2vec_selector {
           rng_state_,
           size_t{1},
           true,
-          std::make_optional(thrust::make_tuple(
+          std::make_optional(cuda::std::make_tuple(
             vertex_t{cugraph::invalid_vertex_id<vertex_t>::value}, weight_t{0.0})));
       minors  = std::move(std::get<0>(sample_e_op_results));
       weights = std::move(std::get<1>(sample_e_op_results));
@@ -631,7 +631,9 @@ random_walk_impl(raft::handle_t const& handle,
                cugraph::detail::compute_gpu_id_from_int_vertex_t<vertex_t>{
                  {vertex_partition_range_lasts.begin(), vertex_partition_range_lasts.size()},
                  major_comm_size,
-                 minor_comm_size}] __device__(auto val) { return key_func(thrust::get<0>(val)); },
+                 minor_comm_size}] __device__(auto val) {
+              return key_func(cuda::std::get<0>(val));
+            },
             handle.get_stream());
       } else {
         // Shuffle vertices to correct GPU to compute random indices
@@ -647,7 +649,9 @@ random_walk_impl(raft::handle_t const& handle,
                cugraph::detail::compute_gpu_id_from_int_vertex_t<vertex_t>{
                  {vertex_partition_range_lasts.begin(), vertex_partition_range_lasts.size()},
                  major_comm_size,
-                 minor_comm_size}] __device__(auto val) { return key_func(thrust::get<0>(val)); },
+                 minor_comm_size}] __device__(auto val) {
+              return key_func(cuda::std::get<0>(val));
+            },
             handle.get_stream());
       }
     }
@@ -849,7 +853,7 @@ random_walk_impl(raft::handle_t const& handle,
               handle.get_comms(),
               current_iter,
               current_iter + current_vertices.size(),
-              [] __device__(auto val) { return thrust::get<2>(val); },
+              [] __device__(auto val) { return cuda::std::get<2>(val); },
               handle.get_stream());
         } else {
           auto current_iter = thrust::make_zip_iterator(current_vertices.begin(),
@@ -864,7 +868,7 @@ random_walk_impl(raft::handle_t const& handle,
               handle.get_comms(),
               current_iter,
               current_iter + current_vertices.size(),
-              [] __device__(auto val) { return thrust::get<1>(val); },
+              [] __device__(auto val) { return cuda::std::get<1>(val); },
               handle.get_stream());
         }
       } else {
@@ -880,7 +884,7 @@ random_walk_impl(raft::handle_t const& handle,
               handle.get_comms(),
               current_iter,
               current_iter + current_vertices.size(),
-              [] __device__(auto val) { return thrust::get<2>(val); },
+              [] __device__(auto val) { return cuda::std::get<2>(val); },
               handle.get_stream());
         } else {
           auto current_iter = thrust::make_zip_iterator(
@@ -892,7 +896,7 @@ random_walk_impl(raft::handle_t const& handle,
               handle.get_comms(),
               current_iter,
               current_iter + current_vertices.size(),
-              [] __device__(auto val) { return thrust::get<1>(val); },
+              [] __device__(auto val) { return cuda::std::get<1>(val); },
               handle.get_stream());
         }
       }
@@ -908,9 +912,9 @@ random_walk_impl(raft::handle_t const& handle,
                         result_wgts  = result_weights->data(),
                         level,
                         max_length] __device__(auto tuple) {
-                         vertex_t v                                       = thrust::get<0>(tuple);
-                         weight_t w                                       = thrust::get<1>(tuple);
-                         size_t pos                                       = thrust::get<2>(tuple);
+                         vertex_t v = cuda::std::get<0>(tuple);
+                         weight_t w = cuda::std::get<1>(tuple);
+                         size_t pos = cuda::std::get<2>(tuple);
                          result_verts[pos * (max_length + 1) + level + 1] = v;
                          result_wgts[pos * max_length + level]            = w;
                        });
@@ -920,8 +924,8 @@ random_walk_impl(raft::handle_t const& handle,
         thrust::make_zip_iterator(current_vertices.begin(), current_position.begin()),
         thrust::make_zip_iterator(current_vertices.end(), current_position.end()),
         [result_verts = result_vertices.data(), level, max_length] __device__(auto tuple) {
-          vertex_t v                                       = thrust::get<0>(tuple);
-          size_t pos                                       = thrust::get<1>(tuple);
+          vertex_t v                                       = cuda::std::get<0>(tuple);
+          size_t pos                                       = cuda::std::get<1>(tuple);
           result_verts[pos * (max_length + 1) + level + 1] = v;
         });
     }

@@ -40,8 +40,8 @@
 
 #include <rmm/device_uvector.hpp>
 
+#include <cuda/std/tuple>
 #include <thrust/iterator/counting_iterator.h>
-#include <thrust/tuple.h>
 
 #include <gtest/gtest.h>
 
@@ -49,7 +49,7 @@
 
 template <typename vertex_t, typename edge_t>
 struct intersection_op_t {
-  __device__ thrust::tuple<edge_t, edge_t> operator()(
+  __device__ cuda::std::tuple<edge_t, edge_t> operator()(
     vertex_t v0,
     vertex_t v1,
     edge_t v0_prop /* out degree */,
@@ -59,7 +59,7 @@ struct intersection_op_t {
     std::byte  /* dummy */
   ) const
   {
-    return thrust::make_tuple(v0_prop + v1_prop, static_cast<edge_t>(intersection.size()));
+    return cuda::std::make_tuple(v0_prop + v1_prop, static_cast<edge_t>(intersection.size()));
   }
 };
 
@@ -130,7 +130,7 @@ class Tests_MGPerVPairTransformDstNbrIntersection
       vertex_t{0});  // the code below to generate vertex pairs is invalid for an empty graph.
 
     auto mg_vertex_pair_buffer =
-      cugraph::allocate_dataframe_buffer<thrust::tuple<vertex_t, vertex_t>>(
+      cugraph::allocate_dataframe_buffer<cuda::std::tuple<vertex_t, vertex_t>>(
         prims_usecase.num_vertex_pairs / comm_size +
           (static_cast<size_t>(comm_rank) < prims_usecase.num_vertex_pairs % comm_size ? 1 : 0),
         handle_->get_stream());
@@ -143,7 +143,7 @@ class Tests_MGPerVPairTransformDstNbrIntersection
           hash_func{};  // use hash_func to generate arbitrary vertex pairs
         auto v0 = static_cast<vertex_t>(hash_func(i + comm_rank) % num_vertices);
         auto v1 = static_cast<vertex_t>(hash_func(i + num_vertices + comm_rank) % num_vertices);
-        return thrust::make_tuple(v0, v1);
+        return cuda::std::make_tuple(v0, v1);
       });
 
     auto h_vertex_partition_range_lasts = mg_graph_view.vertex_partition_range_lasts();
@@ -170,7 +170,7 @@ class Tests_MGPerVPairTransformDstNbrIntersection
                  std::nullopt,
                  h_vertex_partition_range_lasts);
 
-    auto mg_result_buffer = cugraph::allocate_dataframe_buffer<thrust::tuple<edge_t, edge_t>>(
+    auto mg_result_buffer = cugraph::allocate_dataframe_buffer<cuda::std::tuple<edge_t, edge_t>>(
       cugraph::size_dataframe_buffer(mg_vertex_pair_buffer), handle_->get_stream());
     auto mg_out_degrees = mg_graph_view.compute_out_degrees(*handle_);
 
@@ -214,7 +214,7 @@ class Tests_MGPerVPairTransformDstNbrIntersection
         h_vertex_partition_range_lasts);
 
       auto mg_aggregate_vertex_pair_buffer =
-        cugraph::allocate_dataframe_buffer<thrust::tuple<vertex_t, vertex_t>>(
+        cugraph::allocate_dataframe_buffer<cuda::std::tuple<vertex_t, vertex_t>>(
           0, handle_->get_stream());
       std::get<0>(mg_aggregate_vertex_pair_buffer) =
         cugraph::test::device_gatherv(*handle_,
@@ -226,7 +226,8 @@ class Tests_MGPerVPairTransformDstNbrIntersection
                                       std::get<1>(mg_vertex_pair_buffer).size());
 
       auto mg_aggregate_result_buffer =
-        cugraph::allocate_dataframe_buffer<thrust::tuple<edge_t, edge_t>>(0, handle_->get_stream());
+        cugraph::allocate_dataframe_buffer<cuda::std::tuple<edge_t, edge_t>>(0,
+                                                                             handle_->get_stream());
       std::get<0>(mg_aggregate_result_buffer) = cugraph::test::device_gatherv(
         *handle_, std::get<0>(mg_result_buffer).data(), std::get<0>(mg_result_buffer).size());
       std::get<1>(mg_aggregate_result_buffer) = cugraph::test::device_gatherv(
@@ -247,8 +248,9 @@ class Tests_MGPerVPairTransformDstNbrIntersection
       if (handle_->get_comms().get_rank() == 0) {
         auto sg_graph_view = sg_graph.view();
 
-        auto sg_result_buffer = cugraph::allocate_dataframe_buffer<thrust::tuple<edge_t, edge_t>>(
-          cugraph::size_dataframe_buffer(mg_aggregate_vertex_pair_buffer), handle_->get_stream());
+        auto sg_result_buffer =
+          cugraph::allocate_dataframe_buffer<cuda::std::tuple<edge_t, edge_t>>(
+            cugraph::size_dataframe_buffer(mg_aggregate_vertex_pair_buffer), handle_->get_stream());
         auto sg_out_degrees = sg_graph_view.compute_out_degrees(*handle_);
 
         cugraph::per_v_pair_transform_dst_nbr_intersection(

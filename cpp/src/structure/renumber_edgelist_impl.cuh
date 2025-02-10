@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -33,6 +33,7 @@
 #include <rmm/mr/device/per_device_resource.hpp>
 #include <rmm/mr/device/polymorphic_allocator.hpp>
 
+#include <cuda/std/tuple>
 #include <thrust/binary_search.h>
 #include <thrust/copy.h>
 #include <thrust/count.h>
@@ -48,7 +49,6 @@
 #include <thrust/merge.h>
 #include <thrust/reduce.h>
 #include <thrust/sort.h>
-#include <thrust/tuple.h>
 #include <thrust/unique.h>
 
 #include <cuco/hash_functions.cuh>
@@ -67,12 +67,12 @@ struct check_edge_src_and_dst_t {
   raft::device_span<vertex_t const> sorted_majors{};
   raft::device_span<vertex_t const> sorted_minors{};
 
-  __device__ bool operator()(thrust::tuple<vertex_t, vertex_t> e) const
+  __device__ bool operator()(cuda::std::tuple<vertex_t, vertex_t> e) const
   {
     return !thrust::binary_search(
-             thrust::seq, sorted_majors.begin(), sorted_majors.end(), thrust::get<0>(e)) ||
+             thrust::seq, sorted_majors.begin(), sorted_majors.end(), cuda::std::get<0>(e)) ||
            !thrust::binary_search(
-             thrust::seq, sorted_minors.begin(), sorted_minors.end(), thrust::get<1>(e));
+             thrust::seq, sorted_minors.begin(), sorted_minors.end(), cuda::std::get<1>(e));
   }
 };
 
@@ -106,13 +106,13 @@ struct search_and_increment_degree_t {
   vertex_t num_vertices{0};
   edge_t* degrees{nullptr};
 
-  __device__ void operator()(thrust::tuple<vertex_t, edge_t> vertex_degree_pair) const
+  __device__ void operator()(cuda::std::tuple<vertex_t, edge_t> vertex_degree_pair) const
   {
     auto it = thrust::lower_bound(thrust::seq,
                                   sorted_vertices,
                                   sorted_vertices + num_vertices,
-                                  thrust::get<0>(vertex_degree_pair));
-    *(degrees + thrust::distance(sorted_vertices, it)) += thrust::get<1>(vertex_degree_pair);
+                                  cuda::std::get<0>(vertex_degree_pair));
+    *(degrees + thrust::distance(sorted_vertices, it)) += cuda::std::get<1>(vertex_degree_pair);
   }
 };
 
@@ -762,8 +762,7 @@ void expensive_check_edgelist(
                     "edgelist_minors.size() should coincide with minor_comm_size.");
 
     for (size_t i = 0; i < edgelist_majors.size(); ++i) {
-      auto edge_first =
-        thrust::make_zip_iterator(thrust::make_tuple(edgelist_majors[i], edgelist_minors[i]));
+      auto edge_first = thrust::make_zip_iterator(edgelist_majors[i], edgelist_minors[i]);
       CUGRAPH_EXPECTS(
         thrust::count_if(
           handle.get_thrust_policy(),
@@ -781,7 +780,8 @@ void expensive_check_edgelist(
            local_edge_partition_id_key_func =
              detail::compute_local_edge_partition_id_from_ext_edge_endpoints_t<vertex_t>{
                comm_size, major_comm_size, minor_comm_size}] __device__(auto edge) {
-            return (gpu_id_key_func(thrust::get<0>(edge), thrust::get<1>(edge)) != comm_rank) ||
+            return (gpu_id_key_func(cuda::std::get<0>(edge), cuda::std::get<1>(edge)) !=
+                    comm_rank) ||
                    (local_edge_partition_id_key_func(edge) != i);
           }) == 0,
         "Invalid input argument: edgelist_majors & edgelist_minors should be "
@@ -853,8 +853,7 @@ void expensive_check_edgelist(
                        handle.get_stream());
         }
 
-        auto edge_first =
-          thrust::make_zip_iterator(thrust::make_tuple(edgelist_majors[i], edgelist_minors[i]));
+        auto edge_first = thrust::make_zip_iterator(edgelist_majors[i], edgelist_minors[i]);
 
         CUGRAPH_EXPECTS(
           thrust::count_if(
@@ -875,8 +874,7 @@ void expensive_check_edgelist(
     assert(edgelist_minors.size() == 1);
 
     if (sorted_local_vertices) {
-      auto edge_first =
-        thrust::make_zip_iterator(thrust::make_tuple(edgelist_majors[0], edgelist_minors[0]));
+      auto edge_first = thrust::make_zip_iterator(edgelist_majors[0], edgelist_minors[0]);
       CUGRAPH_EXPECTS(
         thrust::count_if(handle.get_thrust_policy(),
                          edge_first,

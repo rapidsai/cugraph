@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,6 +30,7 @@
 #include <rmm/mr/device/per_device_resource.hpp>
 #include <rmm/mr/device/polymorphic_allocator.hpp>
 
+#include <cuda/std/tuple>
 #include <thrust/adjacent_difference.h>
 #include <thrust/binary_search.h>
 #include <thrust/copy.h>
@@ -41,7 +42,6 @@
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/sort.h>
 #include <thrust/transform.h>
-#include <thrust/tuple.h>
 #include <thrust/unique.h>
 
 #include <iterator>
@@ -114,13 +114,13 @@ dataframe_buffer_type_t<typename KVStoreViewType::value_type> collect_values_for
                                                               stream_view);
   } else {
     auto kv_pair_first = thrust::make_zip_iterator(
-      thrust::make_tuple(unique_keys.begin(), get_dataframe_buffer_begin(values_for_unique_keys)));
+      unique_keys.begin(), get_dataframe_buffer_begin(values_for_unique_keys));
     auto valid_kv_pair_last =
       thrust::remove_if(rmm::exec_policy(stream_view),
                         kv_pair_first,
                         kv_pair_first + unique_keys.size(),
                         [invalid_value = kv_store_view.invalid_value()] __device__(auto pair) {
-                          return thrust::get<1>(pair) == invalid_value;
+                          return cuda::std::get<1>(pair) == invalid_value;
                         });  // remove (k,v) pairs with unmatched keys (it is invalid to insert a
                              // (k,v) pair with v = empty_key_sentinel)
     auto num_valid_pairs = static_cast<size_t>(thrust::distance(kv_pair_first, valid_kv_pair_last));

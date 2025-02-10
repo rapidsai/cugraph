@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -95,7 +95,8 @@ void random_walks_validate(
           //    should add a check to verify that degree(src) == 0
           if (d != cugraph::invalid_vertex_id<vertex_t>::value) {
             auto iter = thrust::make_zip_iterator(src, dst);
-            auto pos  = thrust::find(thrust::seq, iter, iter + num_edges, thrust::make_tuple(s, d));
+            auto pos =
+              thrust::find(thrust::seq, iter, iter + num_edges, cuda::std::make_tuple(s, d));
 
             if (pos != (iter + num_edges)) {
               auto index = thrust::distance(iter, pos);
@@ -138,7 +139,8 @@ void random_walks_validate(
           //    should add a check to verify that degree(src) == 0
           if (d != cugraph::invalid_vertex_id<vertex_t>::value) {
             auto iter = thrust::make_zip_iterator(src, dst);
-            auto pos  = thrust::find(thrust::seq, iter, iter + num_edges, thrust::make_tuple(s, d));
+            auto pos =
+              thrust::find(thrust::seq, iter, iter + num_edges, cuda::std::make_tuple(s, d));
 
             if (pos == (iter + num_edges)) printf("edge (%d,%d) NOT FOUND\n", (int)s, (int)d);
 

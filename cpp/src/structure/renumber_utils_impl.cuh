@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,6 +29,7 @@
 #include <rmm/mr/device/per_device_resource.hpp>
 #include <rmm/mr/device/polymorphic_allocator.hpp>
 
+#include <cuda/std/tuple>
 #include <thrust/binary_search.h>
 #include <thrust/copy.h>
 #include <thrust/count.h>
@@ -39,7 +40,6 @@
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/sort.h>
 #include <thrust/transform.h>
-#include <thrust/tuple.h>
 #include <thrust/unique.h>
 
 namespace cugraph {
@@ -432,13 +432,13 @@ void renumber_ext_vertices(raft::handle_t const& handle,
     rmm::device_uvector<bool> contains(num_vertices, handle.get_stream());
     renumber_map_view.contains(
       vertices, vertices + num_vertices, contains.begin(), handle.get_stream());
-    auto vc_pair_first = thrust::make_zip_iterator(thrust::make_tuple(vertices, contains.begin()));
+    auto vc_pair_first = thrust::make_zip_iterator(vertices, contains.begin());
     CUGRAPH_EXPECTS(thrust::count_if(handle.get_thrust_policy(),
                                      vc_pair_first,
                                      vc_pair_first + num_vertices,
                                      [] __device__(auto pair) {
-                                       auto v = thrust::get<0>(pair);
-                                       auto c = thrust::get<1>(pair);
+                                       auto v = cuda::std::get<0>(pair);
+                                       auto c = cuda::std::get<1>(pair);
                                        return v == invalid_vertex_id<vertex_t>::value
                                                 ? (c == true)
                                                 : (c == false);
@@ -485,13 +485,13 @@ void renumber_local_ext_vertices(raft::handle_t const& handle,
     rmm::device_uvector<bool> contains(num_vertices, handle.get_stream());
     renumber_map_view.contains(
       vertices, vertices + num_vertices, contains.begin(), handle.get_stream());
-    auto vc_pair_first = thrust::make_zip_iterator(thrust::make_tuple(vertices, contains.begin()));
+    auto vc_pair_first = thrust::make_zip_iterator(vertices, contains.begin());
     CUGRAPH_EXPECTS(thrust::count_if(handle.get_thrust_policy(),
                                      vc_pair_first,
                                      vc_pair_first + num_vertices,
                                      [] __device__(auto pair) {
-                                       auto v = thrust::get<0>(pair);
-                                       auto c = thrust::get<1>(pair);
+                                       auto v = cuda::std::get<0>(pair);
+                                       auto c = cuda::std::get<1>(pair);
                                        return v == invalid_vertex_id<vertex_t>::value
                                                 ? (c == true)
                                                 : (c == false);
