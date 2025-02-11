@@ -24,12 +24,6 @@ conda activate test
 set -u
 
 CPP_CHANNEL=$(rapids-download-conda-from-s3 cpp)
-LIBRMM_CHANNEL=$(_rapids-get-pr-artifact rmm 1808 cpp conda)
-PYLIBRMM_CHANNEL=$(_rapids-get-pr-artifact rmm 1808 python conda)
-LIBCUDF_CHANNEL=$(_rapids-get-pr-artifact cudf 17899 cpp conda)
-PYLIBCUDF_CHANNEL=$(_rapids-get-pr-artifact cudf 17899 python conda)
-LIBRAFT_CHANNEL=$(_rapids-get-pr-artifact raft 2566 cpp conda)
-PYLIBRAFT_CHANNEL=$(_rapids-get-pr-artifact raft 2566 python conda)
 
 RAPIDS_TESTS_DIR=${RAPIDS_TESTS_DIR:-"${PWD}/test-results"}/
 mkdir -p "${RAPIDS_TESTS_DIR}"
@@ -38,12 +32,6 @@ rapids-print-env
 
 rapids-mamba-retry install \
   --channel "${CPP_CHANNEL}" \
-  --channel "${LIBRMM_CHANNEL}" \
-  --channel "${LIBCUDF_CHANNEL}" \
-  --channel "${LIBRAFT_CHANNEL}" \
-  --channel "${PYLIBRMM_CHANNEL}" \
-  --channel "${PYLIBCUDF_CHANNEL}" \
-  --channel "${PYLIBRAFT_CHANNEL}" \
   "libcugraph=${RAPIDS_VERSION_MAJOR_MINOR}.*" \
   "libcugraph_etl=${RAPIDS_VERSION_MAJOR_MINOR}.*" \
   "libcugraph-tests=${RAPIDS_VERSION_MAJOR_MINOR}.*"

@@ -1,5 +1,5 @@
 #!/bin/bash
-# Copyright (c) 2022-2025, NVIDIA CORPORATION.
+# Copyright (c) 2022-2024, NVIDIA CORPORATION.
 
 set -euo pipefail
 
@@ -10,23 +10,10 @@ cd "$(dirname "$(realpath "${BASH_SOURCE[0]}")")"/../
 
 RAPIDS_VERSION_MAJOR_MINOR="$(rapids-version-major-minor)"
 
-LIBRMM_CHANNEL=$(_rapids-get-pr-artifact rmm 1808 cpp conda)
-PYLIBRMM_CHANNEL=$(_rapids-get-pr-artifact rmm 1808 python conda)
-LIBCUDF_CHANNEL=$(_rapids-get-pr-artifact cudf 17899 cpp conda)
-PYLIBCUDF_CHANNEL=$(_rapids-get-pr-artifact cudf 17899 python conda)
-LIBRAFT_CHANNEL=$(_rapids-get-pr-artifact raft 2566 cpp conda)
-PYLIBRAFT_CHANNEL=$(_rapids-get-pr-artifact raft 2566 python conda)
-
 rapids-logger "Generate Python testing dependencies"
 rapids-dependency-file-generator \
   --output conda \
   --file-key test_python \
-  --prepend-channel "${LIBRMM_CHANNEL}" \
-  --prepend-channel "${PYLIBRMM_CHANNEL}" \
-  --prepend-channel "${LIBCUDF_CHANNEL}" \
-  --prepend-channel "${PYLIBCUDF_CHANNEL}" \
-  --prepend-channel "${LIBRAFT_CHANNEL}" \
-  --prepend-channel "${PYLIBRAFT_CHANNEL}" \
   --matrix "cuda=${RAPIDS_CUDA_VERSION%.*};arch=$(arch);py=${RAPIDS_PY_VERSION}" | tee env.yaml
 
 rapids-mamba-retry env create --yes -f env.yaml -n test
@@ -49,12 +36,6 @@ rapids-print-env
 rapids-mamba-retry install \
   --channel "${CPP_CHANNEL}" \
   --channel "${PYTHON_CHANNEL}" \
-  --channel "${LIBRMM_CHANNEL}" \
-  --channel "${LIBCUDF_CHANNEL}" \
-  --channel "${LIBRAFT_CHANNEL}" \
-  --channel "${PYLIBRMM_CHANNEL}" \
-  --channel "${PYLIBCUDF_CHANNEL}" \
-  --channel "${PYLIBRAFT_CHANNEL}" \
   "libcugraph=${RAPIDS_VERSION_MAJOR_MINOR}.*" \
   "pylibcugraph=${RAPIDS_VERSION_MAJOR_MINOR}.*" \
   "cugraph=${RAPIDS_VERSION_MAJOR_MINOR}.*" \
