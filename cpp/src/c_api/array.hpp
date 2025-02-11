@@ -20,6 +20,8 @@
 #include <rmm/device_buffer.hpp>
 #include <rmm/device_uvector.hpp>
 
+#include <vector>
+
 namespace cugraph {
 namespace c_api {
 
