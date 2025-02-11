@@ -1,5 +1,5 @@
 #!/bin/bash
-# Copyright (c) 2022-2024, NVIDIA CORPORATION.
+# Copyright (c) 2022-2025, NVIDIA CORPORATION.
 
 set -euo pipefail
 
@@ -31,10 +31,10 @@ mkdir -p "${RAPIDS_TESTS_DIR}"
 rapids-print-env
 
 rapids-mamba-retry install \
-    --channel "${CPP_CHANNEL}" \
-    "libcugraph=${RAPIDS_VERSION_MAJOR_MINOR}.*" \
-    "libcugraph_etl=${RAPIDS_VERSION_MAJOR_MINOR}.*" \
-    "libcugraph-tests=${RAPIDS_VERSION_MAJOR_MINOR}.*"
+  --channel "${CPP_CHANNEL}" \
+  "libcugraph=${RAPIDS_VERSION_MAJOR_MINOR}.*" \
+  "libcugraph_etl=${RAPIDS_VERSION_MAJOR_MINOR}.*" \
+  "libcugraph-tests=${RAPIDS_VERSION_MAJOR_MINOR}.*"
 
 rapids-logger "Check GPU usage"
 nvidia-smi
