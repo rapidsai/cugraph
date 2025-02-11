@@ -26,7 +26,7 @@ echo "raft-${RAPIDS_PY_CUDA_SUFFIX} @ file://$(echo ${PYLIBRAFT_WHEEL_DIR}/raft_
 export PIP_CONSTRAINT="/tmp/constraints.txt"
 
 # echo to expand wildcard before adding `[extra]` requires for pip
-python -m pip install \
+rapids-pip-retry install \
     "$(echo ./dist/pylibcugraph*.whl)[test]" \
     ./local-libcugraph-dep/libcugraph*.whl
 
