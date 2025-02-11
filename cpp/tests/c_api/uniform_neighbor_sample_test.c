@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2023, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -565,14 +565,14 @@ int test_uniform_neighbor_sample_with_labels(const cugraph_resource_handle_t* ha
   size_t fan_out_size = 1;
   size_t num_starts   = 2;
 
-  vertex_t src[]        = {0, 1, 1, 2, 2, 2, 3, 4};
-  vertex_t dst[]        = {1, 3, 4, 0, 1, 3, 5, 5};
-  edge_t edge_ids[]     = {0, 1, 2, 3, 4, 5, 6, 7};
-  weight_t weight[]     = {0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8};
-  int32_t edge_types[]  = {7, 6, 5, 4, 3, 2, 1, 0};
-  vertex_t start[]      = {2, 3};
-  int start_labels[] = {6, 12};
-  int fan_out[]         = {-1};
+  vertex_t src[]       = {0, 1, 1, 2, 2, 2, 3, 4};
+  vertex_t dst[]       = {1, 3, 4, 0, 1, 3, 5, 5};
+  edge_t edge_ids[]    = {0, 1, 2, 3, 4, 5, 6, 7};
+  weight_t weight[]    = {0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8};
+  int32_t edge_types[] = {7, 6, 5, 4, 3, 2, 1, 0};
+  vertex_t start[]     = {2, 3};
+  int start_labels[]   = {6, 12};
+  int fan_out[]        = {-1};
 
   // Create graph
   int test_ret_value              = 0;
