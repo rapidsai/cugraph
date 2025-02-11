@@ -65,7 +65,7 @@ neighbor_sample_impl(raft::handle_t const& handle,
                      std::optional<raft::device_span<label_t const>> starting_vertex_labels,
                      std::optional<raft::device_span<int32_t const>> label_to_output_comm_rank,
                      raft::host_span<int32_t const> fan_out,
-                     edge_type_t num_edge_types,
+                     std::optional<edge_type_t> num_edge_types,  // valid if heterogeneous sampling
                      bool return_hops,
                      bool with_replacement,
                      prior_sources_behavior_t prior_sources_behavior,
@@ -105,7 +105,8 @@ neighbor_sample_impl(raft::handle_t const& handle,
 
   // Get the number of hop. If homogeneous neighbor sample, num_edge_types = 1.
 
-  auto num_hops = raft::div_rounding_up_safe(fan_out.size(), static_cast<size_t>(num_edge_types));
+  auto num_hops = raft::div_rounding_up_safe(
+    fan_out.size(), static_cast<size_t>(num_edge_types ? *num_edge_types : edge_type_t{1}));
 
   std::vector<rmm::device_uvector<vertex_t>> level_result_src_vectors{};
   std::vector<rmm::device_uvector<vertex_t>> level_result_dst_vectors{};
@@ -155,17 +156,22 @@ neighbor_sample_impl(raft::handle_t const& handle,
     std::optional<std::vector<size_t>> level_Ks{std::nullopt};
     std::optional<std::vector<uint8_t>> gather_flags{std::nullopt};
 
-    auto start_offset = hop * num_edge_types;
+    auto start_offset = hop * (num_edge_types ? *num_edge_types : edge_type_t{1});
     auto end_offset =
-      start_offset + std::min(static_cast<size_t>(num_edge_types),
-                              fan_out.size() - hop * static_cast<size_t>(num_edge_types));
+      start_offset +
+      std::min(static_cast<size_t>((num_edge_types ? *num_edge_types : edge_type_t{1})),
+               fan_out.size() -
+                 hop * static_cast<size_t>(num_edge_types ? *num_edge_types : edge_type_t{1}));
     for (size_t i = start_offset; i < end_offset; ++i) {
       if (fan_out[i] > 0) {
-        if (!level_Ks) { level_Ks = std::vector<size_t>(num_edge_types, 0); }
+        if (!level_Ks) {
+          level_Ks = std::vector<size_t>(num_edge_types ? *num_edge_types : edge_type_t{1}, 0);
+        }
         (*level_Ks)[i - start_offset] = fan_out[i];
       } else if (fan_out[i] < 0) {
         if (!gather_flags) {
-          gather_flags = std::vector<uint8_t>(num_edge_types, static_cast<uint8_t>(false));
+          gather_flags = std::vector<uint8_t>(num_edge_types ? *num_edge_types : edge_type_t{1},
+                                              static_cast<uint8_t>(false));
         }
         (*gather_flags)[i - start_offset] = static_cast<uint8_t>(true);
       }
@@ -215,7 +221,9 @@ neighbor_sample_impl(raft::handle_t const& handle,
             ? std::make_optional(raft::device_span<label_t const>(frontier_vertex_labels->data(),
                                                                   frontier_vertex_labels->size()))
             : std::nullopt,
-          raft::host_span<uint8_t const>(gather_flags->data(), gather_flags->size()));
+          num_edge_types ? std::make_optional<raft::host_span<uint8_t const>>(gather_flags->data(),
+                                                                              gather_flags->size())
+                         : std::nullopt);
 
       auto old_size = srcs.size();
       if (old_size > 0) {
@@ -478,7 +486,7 @@ uniform_neighbor_sample(
       ? std::make_optional(raft::device_span<int32_t const>{label_map.data(), label_map.size()})
       : std::nullopt,
     fan_out,
-    edge_type_t{1},
+    std::optional<edge_type_t>{std::nullopt},
     return_hops,
     with_replacement,
     prior_sources_behavior,
@@ -542,7 +550,7 @@ biased_neighbor_sample(
       ? std::make_optional(raft::device_span<int32_t const>{label_map.data(), label_map.size()})
       : std::nullopt,
     fan_out,
-    edge_type_t{1},
+    std::optional<edge_type_t>{std::nullopt},
     return_hops,
     with_replacement,
     prior_sources_behavior,
@@ -593,7 +601,7 @@ homogeneous_uniform_neighbor_sample(
       starting_vertex_labels,
       label_to_output_comm_rank,
       fan_out,
-      edge_type_t{1},
+      std::optional<edge_type_t>{std::nullopt},
       sampling_flags.return_hops,
       sampling_flags.with_replacement,
       sampling_flags.prior_sources_behavior,
@@ -653,7 +661,7 @@ heterogeneous_uniform_neighbor_sample(
       starting_vertex_labels,
       label_to_output_comm_rank,
       fan_out,
-      num_edge_types,
+      std::optional<edge_type_t>{num_edge_types},
       sampling_flags.return_hops,
       sampling_flags.with_replacement,
       sampling_flags.prior_sources_behavior,
@@ -711,7 +719,7 @@ homogeneous_biased_neighbor_sample(
       starting_vertex_labels,
       label_to_output_comm_rank,
       fan_out,
-      edge_type_t{1},
+      std::optional<edge_type_t>{std::nullopt},
       sampling_flags.return_hops,
       sampling_flags.with_replacement,
       sampling_flags.prior_sources_behavior,
@@ -770,7 +778,7 @@ heterogeneous_biased_neighbor_sample(
       starting_vertex_labels,
       label_to_output_comm_rank,
       fan_out,
-      num_edge_types,
+      std::optional<edge_type_t>{num_edge_types},
       sampling_flags.return_hops,
       sampling_flags.with_replacement,
       sampling_flags.prior_sources_behavior,

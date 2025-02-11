@@ -571,7 +571,7 @@ int test_uniform_neighbor_sample_with_labels(const cugraph_resource_handle_t* ha
   weight_t weight[]     = {0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8};
   int32_t edge_types[]  = {7, 6, 5, 4, 3, 2, 1, 0};
   vertex_t start[]      = {2, 3};
-  size_t start_labels[] = {6, 12};
+  int start_labels[] = {6, 12};
   int fan_out[]         = {-1};
 
   // Create graph
