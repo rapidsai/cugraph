@@ -453,8 +453,8 @@ class Tests_Multithreaded
             thrust::make_zip_iterator(std::get<0>(t1).begin(), std::get<1>(t1).begin()),
             thrust::make_zip_iterator(std::get<0>(t1).end(), std::get<1>(t1).end()),
             [&h_sg_clusters, &h_cluster_map, &h_renumber_map, &h_cluster_reverse_map](auto t2) {
-              vertex_t v = thrust::get<0>(t2);
-              vertex_t c = thrust::get<1>(t2);
+              vertex_t v = cuda::std::get<0>(t2);
+              vertex_t c = cuda::std::get<1>(t2);
 
               auto pos    = std::find(h_renumber_map.begin(), h_renumber_map.end(), v);
               auto offset = std::distance(h_renumber_map.begin(), pos);

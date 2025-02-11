@@ -30,6 +30,7 @@
 
 #include <cuda/functional>
 #include <cuda/std/optional>
+#include <cuda/std/tuple>
 #include <thrust/binary_search.h>
 #include <thrust/copy.h>
 #include <thrust/count.h>
@@ -49,7 +50,6 @@
 #include <thrust/scatter.h>
 #include <thrust/transform.h>
 #include <thrust/transform_scan.h>
-#include <thrust/tuple.h>
 
 #include <cassert>
 #include <cstdlib>  // FIXME: requirement for temporary std::getenv()
@@ -206,11 +206,10 @@ struct col_indx_extract_t {
     thrust::transform_if(
       handle_.get_thrust_policy(),
       thrust::make_counting_iterator<index_t>(0),
-      thrust::make_counting_iterator<index_t>(num_paths_),  // input1
-      d_v_col_indx.begin(),                                 // input2
-      out_degs_,                                            // stencil
-      thrust::make_zip_iterator(
-        thrust::make_tuple(d_v_next_vertices.begin(), d_v_next_weights.begin())),  // output
+      thrust::make_counting_iterator<index_t>(num_paths_),                             // input1
+      d_v_col_indx.begin(),                                                            // input2
+      out_degs_,                                                                       // stencil
+      thrust::make_zip_iterator(d_v_next_vertices.begin(), d_v_next_weights.begin()),  // output
       [max_depth         = max_depth_,
        ptr_d_sizes       = sizes_,
        ptr_d_coalesced_v = original::raw_const_ptr(d_coalesced_src_v),
@@ -224,7 +223,7 @@ struct col_indx_extract_t {
 
         auto weight_value = (values ? (*values)[start_row + col_indx]
                                     : weight_t{1});  // account for un-weighted graphs
-        return thrust::make_tuple(col_indices[start_row + col_indx], weight_value);
+        return cuda::std::make_tuple(col_indices[start_row + col_indx], weight_value);
       },
       [] __device__(auto crt_out_deg) { return crt_out_deg > 0; });
   }
@@ -270,8 +269,8 @@ struct col_indx_extract_t {
                        auto opt_tpl_vn_wn = sampler(src_v, rnd_val, prev_v, path_indx, start_path);
 
                        if (opt_tpl_vn_wn.has_value()) {
-                         auto src_vertex = thrust::get<0>(*opt_tpl_vn_wn);
-                         auto crt_weight = thrust::get<1>(*opt_tpl_vn_wn);
+                         auto src_vertex = cuda::std::get<0>(*opt_tpl_vn_wn);
+                         auto crt_weight = cuda::std::get<1>(*opt_tpl_vn_wn);
 
                          ptr_coalesced_v[start_v_pos + 1] = src_vertex;
                          ptr_coalesced_w[start_w_pos]     = crt_weight;
@@ -969,9 +968,9 @@ struct coo_convertor_t {
       handle_.get_thrust_policy(),
       valid_src_indx.begin(),
       valid_src_indx.end(),
-      thrust::make_zip_iterator(thrust::make_tuple(d_src_v.begin(), d_dst_v.begin())),  // start_zip
+      thrust::make_zip_iterator(d_src_v.begin(), d_dst_v.begin()),  // start_zip
       [ptr_d_vertex = original::raw_const_ptr(d_coalesced_v)] __device__(auto indx) {
-        return thrust::make_tuple(ptr_d_vertex[indx], ptr_d_vertex[indx + 1]);
+        return cuda::std::make_tuple(ptr_d_vertex[indx], ptr_d_vertex[indx + 1]);
       });
 
     return std::make_tuple(std::move(d_src_v), std::move(d_dst_v));

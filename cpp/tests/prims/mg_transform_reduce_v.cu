@@ -36,10 +36,10 @@
 #include <rmm/device_scalar.hpp>
 #include <rmm/device_uvector.hpp>
 
+#include <cuda/std/tuple>
 #include <thrust/count.h>
 #include <thrust/functional.h>
 #include <thrust/iterator/counting_iterator.h>
-#include <thrust/tuple.h>
 
 #include <cuco/hash_functions.cuh>
 
@@ -237,14 +237,14 @@ using Tests_MGTransformReduceV_Rmat = Tests_MGTransformReduceV<cugraph::test::Rm
 TEST_P(Tests_MGTransformReduceV_File, CheckInt32Int32FloatTupleIntFloatTransposeFalse)
 {
   auto param = GetParam();
-  run_current_test<int32_t, int32_t, float, thrust::tuple<int, float>, false>(std::get<0>(param),
-                                                                              std::get<1>(param));
+  run_current_test<int32_t, int32_t, float, cuda::std::tuple<int, float>, false>(
+    std::get<0>(param), std::get<1>(param));
 }
 
 TEST_P(Tests_MGTransformReduceV_Rmat, CheckInt32Int32FloatTupleIntFloatTransposeFalse)
 {
   auto param = GetParam();
-  run_current_test<int32_t, int32_t, float, thrust::tuple<int, float>, false>(
+  run_current_test<int32_t, int32_t, float, cuda::std::tuple<int, float>, false>(
     std::get<0>(param),
     cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
@@ -252,7 +252,7 @@ TEST_P(Tests_MGTransformReduceV_Rmat, CheckInt32Int32FloatTupleIntFloatTranspose
 TEST_P(Tests_MGTransformReduceV_Rmat, CheckInt64Int64FloatTupleIntFloatTransposeFalse)
 {
   auto param = GetParam();
-  run_current_test<int64_t, int64_t, float, thrust::tuple<int, float>, false>(
+  run_current_test<int64_t, int64_t, float, cuda::std::tuple<int, float>, false>(
     std::get<0>(param),
     cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
@@ -260,14 +260,14 @@ TEST_P(Tests_MGTransformReduceV_Rmat, CheckInt64Int64FloatTupleIntFloatTranspose
 TEST_P(Tests_MGTransformReduceV_File, CheckInt32Int32FloatTupleIntFloatTransposeTrue)
 {
   auto param = GetParam();
-  run_current_test<int32_t, int32_t, float, thrust::tuple<int, float>, true>(std::get<0>(param),
-                                                                             std::get<1>(param));
+  run_current_test<int32_t, int32_t, float, cuda::std::tuple<int, float>, true>(std::get<0>(param),
+                                                                                std::get<1>(param));
 }
 
 TEST_P(Tests_MGTransformReduceV_Rmat, CheckInt32Int32FloatTupleIntFloatTransposeTrue)
 {
   auto param = GetParam();
-  run_current_test<int32_t, int32_t, float, thrust::tuple<int, float>, true>(
+  run_current_test<int32_t, int32_t, float, cuda::std::tuple<int, float>, true>(
     std::get<0>(param),
     cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
@@ -275,7 +275,7 @@ TEST_P(Tests_MGTransformReduceV_Rmat, CheckInt32Int32FloatTupleIntFloatTranspose
 TEST_P(Tests_MGTransformReduceV_Rmat, CheckInt64Int64FloatTupleIntFloatTransposeTrue)
 {
   auto param = GetParam();
-  run_current_test<int64_t, int64_t, float, thrust::tuple<int, float>, true>(
+  run_current_test<int64_t, int64_t, float, cuda::std::tuple<int, float>, true>(
     std::get<0>(param),
     cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }

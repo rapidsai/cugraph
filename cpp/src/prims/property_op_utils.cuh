@@ -22,13 +22,13 @@
 #include <raft/core/device_span.hpp>
 
 #include <cub/cub.cuh>
+#include <cuda/std/tuple>
 #include <thrust/detail/type_traits/iterator/is_discard_iterator.h>
 #include <thrust/functional.h>
 #include <thrust/iterator/detail/any_assign.h>
 #include <thrust/iterator/discard_iterator.h>
 #include <thrust/iterator/iterator_traits.h>
 #include <thrust/memory.h>
-#include <thrust/tuple.h>
 
 #include <array>
 #include <type_traits>
@@ -127,21 +127,21 @@ template <typename T, template <typename> typename Op>
 struct property_op : public Op<T> {};
 
 template <typename... Args, template <typename> typename Op>
-struct property_op<thrust::tuple<Args...>, Op> {
-  using Type = thrust::tuple<Args...>;
+struct property_op<cuda::std::tuple<Args...>, Op> {
+  using Type = cuda::std::tuple<Args...>;
 
  private:
   template <typename T, std::size_t... Is>
   __host__ __device__ constexpr auto binary_op_impl(T& t1, T& t2, std::index_sequence<Is...>) const
   {
-    return thrust::make_tuple((Op<typename thrust::tuple_element<Is, Type>::type>()(
-      thrust::get<Is>(t1), thrust::get<Is>(t2)))...);
+    return cuda::std::make_tuple((Op<typename cuda::std::tuple_element<Is, Type>::type>()(
+      cuda::std::get<Is>(t1), cuda::std::get<Is>(t2)))...);
   }
 
  public:
   __host__ __device__ constexpr auto operator()(const Type& t1, const Type& t2) const
   {
-    return binary_op_impl(t1, t2, std::make_index_sequence<thrust::tuple_size<Type>::value>());
+    return binary_op_impl(t1, t2, std::make_index_sequence<cuda::std::tuple_size<Type>::value>());
   }
 };
 

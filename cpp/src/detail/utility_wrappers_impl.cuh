@@ -25,6 +25,7 @@
 #include <rmm/exec_policy.hpp>
 
 #include <cuda/functional>
+#include <cuda/std/tuple>
 #include <thrust/count.h>
 #include <thrust/distance.h>
 #include <thrust/functional.h>
@@ -35,7 +36,6 @@
 #include <thrust/sort.h>
 #include <thrust/transform.h>
 #include <thrust/transform_reduce.h>
-#include <thrust/tuple.h>
 #include <thrust/unique.h>
 
 namespace cugraph {
@@ -141,8 +141,7 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<edge_t>> filter_de
   rmm::device_uvector<vertex_t>&& d_vertices,
   rmm::device_uvector<edge_t>&& d_out_degs)
 {
-  auto zip_iter =
-    thrust::make_zip_iterator(thrust::make_tuple(d_vertices.begin(), d_out_degs.begin()));
+  auto zip_iter = thrust::make_zip_iterator(d_vertices.begin(), d_out_degs.begin());
 
   CUGRAPH_EXPECTS(d_vertices.size() < static_cast<size_t>(std::numeric_limits<int32_t>::max()),
                   "remove_if will fail, d_vertices.size() is too large");
@@ -154,7 +153,7 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<edge_t>> filter_de
                       zip_iter,
                       zip_iter + d_vertices.size(),
                       zip_iter,
-                      [] __device__(auto pair) { return thrust::get<1>(pair) == 0; });
+                      [] __device__(auto pair) { return cuda::std::get<1>(pair) == 0; });
 
   auto new_size = thrust::distance(zip_iter, zip_iter_end);
   d_vertices.resize(new_size, handle.get_stream());

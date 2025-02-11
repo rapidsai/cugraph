@@ -30,8 +30,8 @@
 #include <rmm/device_uvector.hpp>
 
 #include <cuda/std/optional>
+#include <cuda/std/tuple>
 #include <thrust/sort.h>
-#include <thrust/tuple.h>
 
 namespace cugraph {
 namespace detail {
@@ -47,20 +47,20 @@ struct sample_edges_op_t {
   {
     // FIXME: A solution using thrust_tuple_cat would be more flexible here
     if constexpr (std::is_same_v<EdgeProperties, cuda::std::nullopt_t>) {
-      return thrust::make_tuple(src, dst);
+      return cuda::std::make_tuple(src, dst);
     } else if constexpr (std::is_arithmetic<EdgeProperties>::value) {
-      return thrust::make_tuple(src, dst, edge_properties);
+      return cuda::std::make_tuple(src, dst, edge_properties);
     } else if constexpr (cugraph::is_thrust_tuple_of_arithmetic<EdgeProperties>::value &&
-                         (thrust::tuple_size<EdgeProperties>::value == 2)) {
-      return thrust::make_tuple(
-        src, dst, thrust::get<0>(edge_properties), thrust::get<1>(edge_properties));
+                         (cuda::std::tuple_size<EdgeProperties>::value == 2)) {
+      return cuda::std::make_tuple(
+        src, dst, cuda::std::get<0>(edge_properties), cuda::std::get<1>(edge_properties));
     } else if constexpr (cugraph::is_thrust_tuple_of_arithmetic<EdgeProperties>::value &&
-                         (thrust::tuple_size<EdgeProperties>::value == 3)) {
-      return thrust::make_tuple(src,
-                                dst,
-                                thrust::get<0>(edge_properties),
-                                thrust::get<1>(edge_properties),
-                                thrust::get<2>(edge_properties));
+                         (cuda::std::tuple_size<EdgeProperties>::value == 3)) {
+      return cuda::std::make_tuple(src,
+                                   dst,
+                                   cuda::std::get<0>(edge_properties),
+                                   cuda::std::get<1>(edge_properties),
+                                   cuda::std::get<2>(edge_properties));
     }
   }
 };
@@ -148,7 +148,7 @@ sample_edges(raft::handle_t const& handle,
               rng_state,
               fanout,
               with_replacement,
-              std::optional<thrust::tuple<vertex_t, vertex_t, weight_t, edge_t, edge_type_t>>{
+              std::optional<cuda::std::tuple<vertex_t, vertex_t, weight_t, edge_t, edge_type_t>>{
                 std::nullopt},
               false);
         } else {
@@ -165,7 +165,7 @@ sample_edges(raft::handle_t const& handle,
               rng_state,
               fanout,
               with_replacement,
-              std::optional<thrust::tuple<vertex_t, vertex_t, weight_t, edge_t, edge_type_t>>{
+              std::optional<cuda::std::tuple<vertex_t, vertex_t, weight_t, edge_t, edge_type_t>>{
                 std::nullopt},
               false);
         }
@@ -187,7 +187,7 @@ sample_edges(raft::handle_t const& handle,
               rng_state,
               fanout,
               with_replacement,
-              std::optional<thrust::tuple<vertex_t, vertex_t, weight_t, edge_t>>{std::nullopt},
+              std::optional<cuda::std::tuple<vertex_t, vertex_t, weight_t, edge_t>>{std::nullopt},
               false);
         } else {
           std::forward_as_tuple(sample_offsets, std::tie(majors, minors, weights, edge_ids)) =
@@ -202,7 +202,7 @@ sample_edges(raft::handle_t const& handle,
               rng_state,
               fanout,
               with_replacement,
-              std::optional<thrust::tuple<vertex_t, vertex_t, weight_t, edge_t>>{std::nullopt},
+              std::optional<cuda::std::tuple<vertex_t, vertex_t, weight_t, edge_t>>{std::nullopt},
               false);
         }
       }
@@ -225,7 +225,8 @@ sample_edges(raft::handle_t const& handle,
               rng_state,
               fanout,
               with_replacement,
-              std::optional<thrust::tuple<vertex_t, vertex_t, weight_t, edge_type_t>>{std::nullopt},
+              std::optional<cuda::std::tuple<vertex_t, vertex_t, weight_t, edge_type_t>>{
+                std::nullopt},
               false);
         } else {
           std::forward_as_tuple(sample_offsets, std::tie(majors, minors, weights, edge_types)) =
@@ -240,7 +241,8 @@ sample_edges(raft::handle_t const& handle,
               rng_state,
               fanout,
               with_replacement,
-              std::optional<thrust::tuple<vertex_t, vertex_t, weight_t, edge_type_t>>{std::nullopt},
+              std::optional<cuda::std::tuple<vertex_t, vertex_t, weight_t, edge_type_t>>{
+                std::nullopt},
               false);
         }
       } else {
@@ -261,7 +263,7 @@ sample_edges(raft::handle_t const& handle,
               rng_state,
               fanout,
               with_replacement,
-              std::optional<thrust::tuple<vertex_t, vertex_t, weight_t>>{std::nullopt},
+              std::optional<cuda::std::tuple<vertex_t, vertex_t, weight_t>>{std::nullopt},
               false);
         } else {
           std::forward_as_tuple(sample_offsets, std::tie(majors, minors, weights)) =
@@ -276,7 +278,7 @@ sample_edges(raft::handle_t const& handle,
               rng_state,
               fanout,
               with_replacement,
-              std::optional<thrust::tuple<vertex_t, vertex_t, weight_t>>{std::nullopt},
+              std::optional<cuda::std::tuple<vertex_t, vertex_t, weight_t>>{std::nullopt},
               false);
         }
       }
@@ -301,7 +303,8 @@ sample_edges(raft::handle_t const& handle,
               rng_state,
               fanout,
               with_replacement,
-              std::optional<thrust::tuple<vertex_t, vertex_t, edge_t, edge_type_t>>{std::nullopt},
+              std::optional<cuda::std::tuple<vertex_t, vertex_t, edge_t, edge_type_t>>{
+                std::nullopt},
               false);
         } else {
           std::forward_as_tuple(sample_offsets, std::tie(majors, minors, edge_ids, edge_types)) =
@@ -316,7 +319,8 @@ sample_edges(raft::handle_t const& handle,
               rng_state,
               fanout,
               with_replacement,
-              std::optional<thrust::tuple<vertex_t, vertex_t, edge_t, edge_type_t>>{std::nullopt},
+              std::optional<cuda::std::tuple<vertex_t, vertex_t, edge_t, edge_type_t>>{
+                std::nullopt},
               false);
         }
       } else {
@@ -337,7 +341,7 @@ sample_edges(raft::handle_t const& handle,
               rng_state,
               fanout,
               with_replacement,
-              std::optional<thrust::tuple<vertex_t, vertex_t, edge_t>>{std::nullopt},
+              std::optional<cuda::std::tuple<vertex_t, vertex_t, edge_t>>{std::nullopt},
               false);
         } else {
           std::forward_as_tuple(sample_offsets, std::tie(majors, minors, edge_ids)) =
@@ -352,7 +356,7 @@ sample_edges(raft::handle_t const& handle,
               rng_state,
               fanout,
               with_replacement,
-              std::optional<thrust::tuple<vertex_t, vertex_t, edge_t>>{std::nullopt},
+              std::optional<cuda::std::tuple<vertex_t, vertex_t, edge_t>>{std::nullopt},
               false);
         }
       }
@@ -375,7 +379,7 @@ sample_edges(raft::handle_t const& handle,
               rng_state,
               fanout,
               with_replacement,
-              std::optional<thrust::tuple<vertex_t, vertex_t, edge_type_t>>{std::nullopt},
+              std::optional<cuda::std::tuple<vertex_t, vertex_t, edge_type_t>>{std::nullopt},
               false);
         } else {
           std::forward_as_tuple(sample_offsets, std::tie(majors, minors, edge_types)) =
@@ -390,7 +394,7 @@ sample_edges(raft::handle_t const& handle,
               rng_state,
               fanout,
               with_replacement,
-              std::optional<thrust::tuple<vertex_t, vertex_t, edge_type_t>>{std::nullopt},
+              std::optional<cuda::std::tuple<vertex_t, vertex_t, edge_type_t>>{std::nullopt},
               false);
         }
       } else {
@@ -411,7 +415,7 @@ sample_edges(raft::handle_t const& handle,
               rng_state,
               fanout,
               with_replacement,
-              std::optional<thrust::tuple<vertex_t, vertex_t>>{std::nullopt},
+              std::optional<cuda::std::tuple<vertex_t, vertex_t>>{std::nullopt},
               false);
         } else {
           std::forward_as_tuple(sample_offsets, std::tie(majors, minors)) =
@@ -426,7 +430,7 @@ sample_edges(raft::handle_t const& handle,
               rng_state,
               fanout,
               with_replacement,
-              std::optional<thrust::tuple<vertex_t, vertex_t>>{std::nullopt},
+              std::optional<cuda::std::tuple<vertex_t, vertex_t>>{std::nullopt},
               false);
         }
       }

@@ -33,6 +33,7 @@
 #include <rmm/exec_policy.hpp>
 
 #include <cuda/std/optional>
+#include <cuda/std/tuple>
 #include <thrust/binary_search.h>
 #include <thrust/copy.h>
 #include <thrust/count.h>
@@ -47,7 +48,6 @@
 #include <thrust/reduce.h>
 #include <thrust/sort.h>
 #include <thrust/tabulate.h>
-#include <thrust/tuple.h>
 
 #include <type_traits>
 
@@ -59,9 +59,9 @@ template <typename vertex_t>
 struct compute_chunk_id_t {
   size_t num_chunks{};
 
-  __device__ int operator()(thrust::tuple<vertex_t, vertex_t> tup) const
+  __device__ int operator()(cuda::std::tuple<vertex_t, vertex_t> tup) const
   {
-    return static_cast<int>(thrust::get<1>(tup) % num_chunks);
+    return static_cast<int>(cuda::std::get<1>(tup) % num_chunks);
   }
 };
 
@@ -88,8 +88,8 @@ struct call_intersection_op_t {
   __device__ auto operator()(size_t i) const
   {
     auto pair         = *(major_minor_pair_first + i);
-    auto major        = thrust::get<0>(pair);
-    auto minor        = thrust::get<1>(pair);
+    auto major        = cuda::std::get<0>(pair);
+    auto minor        = cuda::std::get<1>(pair);
     auto major_offset = edge_partition.major_offset_from_major_nocheck(major);
     auto minor_offset = edge_partition.minor_offset_from_minor_nocheck(minor);
     auto src          = GraphViewType::is_storage_transposed ? minor : major;
@@ -169,10 +169,10 @@ struct accumulate_vertex_property_t {
   VertexValueOutputIterator vertex_value_output_first{};
   property_op<value_type, thrust::plus> vertex_property_add{};
 
-  __device__ void operator()(thrust::tuple<vertex_t, value_type> pair) const
+  __device__ void operator()(cuda::std::tuple<vertex_t, value_type> pair) const
   {
-    auto v        = thrust::get<0>(pair);
-    auto val      = thrust::get<1>(pair);
+    auto v        = cuda::std::get<0>(pair);
+    auto val      = cuda::std::get<1>(pair);
     auto v_offset = v - local_vertex_partition_range_first;
     *(vertex_value_output_first + v_offset) =
       vertex_property_add(*(vertex_value_output_first + v_offset), val);
@@ -187,8 +187,8 @@ struct accumulate_vertex_property_t {
  *
  * Iterate over every edge; intersect destination neighbor lists of source vertex & destination
  * vertex; invoke a user-provided functor per intersection, and reduce the functor output
- * values (thrust::tuple of three values having the same type: one for source, one for destination,
- * and one for every vertex in the intersection) per-vertex. We may add
+ * values (cuda::std::tuple of three values having the same type: one for source, one for
+ * destination, and one for every vertex in the intersection) per-vertex. We may add
  * transform_reduce_triplet_of_dst_nbr_intersection_of_e_endpoints_by_v in the future to allow
  * emitting different values for different vertices in the intersection of edge endpoints. This
  * function is inspired by thrust::transform_reduce().
@@ -214,7 +214,7 @@ struct accumulate_vertex_property_t {
  * destination property values). Use update_edge_dst_property to fill the wrapper.
  * @param intersection_op quinary operator takes edge source, edge destination, property values for
  * the source, property values for the destination, and a list of vertices in the intersection of
- * edge source & destination vertices' destination neighbors and returns a thrust::tuple of three
+ * edge source & destination vertices' destination neighbors and returns a cuda::std::tuple of three
  * values: one value per source vertex, one value for destination vertex, and one value for every
  * vertex in the intersection.
  * @param init Initial value to be added to the reduced @p intersection_op return values for each
@@ -324,8 +324,7 @@ void transform_reduce_dst_nbr_intersection_of_e_endpoints_by_v(
       std::nullopt,
       segment_offsets);
 
-    auto vertex_pair_first =
-      thrust::make_zip_iterator(thrust::make_tuple(majors.begin(), minors.begin()));
+    auto vertex_pair_first = thrust::make_zip_iterator(majors.begin(), minors.begin());
 
     // FIXME: Peak memory requirement is also dependent on the average minimum degree of the input
     // vertex pairs. We may need a more sophisticated mechanism to set max_chunk_size considering
@@ -377,10 +376,10 @@ void transform_reduce_dst_nbr_intersection_of_e_endpoints_by_v(
       auto intersection_value_buffer =
         allocate_dataframe_buffer<T>(this_chunk_size, handle.get_stream());
 
-      auto triplet_first = thrust::make_zip_iterator(
-        thrust::make_tuple(get_dataframe_buffer_begin(src_value_buffer),
-                           get_dataframe_buffer_begin(dst_value_buffer),
-                           get_dataframe_buffer_begin(intersection_value_buffer)));
+      auto triplet_first =
+        thrust::make_zip_iterator(get_dataframe_buffer_begin(src_value_buffer),
+                                  get_dataframe_buffer_begin(dst_value_buffer),
+                                  get_dataframe_buffer_begin(intersection_value_buffer));
       thrust::tabulate(handle.get_thrust_policy(),
                        triplet_first,
                        triplet_first + this_chunk_size,
@@ -408,8 +407,7 @@ void transform_reduce_dst_nbr_intersection_of_e_endpoints_by_v(
         thrust::copy(handle.get_thrust_policy(),
                      chunk_vertex_pair_first,
                      chunk_vertex_pair_first + this_chunk_size,
-                     thrust::make_zip_iterator(
-                       thrust::make_tuple(chunk_majors.begin(), chunk_minors.begin())));
+                     thrust::make_zip_iterator(chunk_majors.begin(), chunk_minors.begin()));
 
         auto [reduced_src_vertices, reduced_src_value_buffer] = detail::sort_and_reduce_by_vertices(
           handle,
@@ -531,8 +529,8 @@ void transform_reduce_dst_nbr_intersection_of_e_endpoints_by_v(
           handle, std::move(rx_reduced_vertices), std::move(rx_reduced_value_buffer));
       }
 
-      auto vertex_value_pair_first = thrust::make_zip_iterator(thrust::make_tuple(
-        reduced_vertices.begin(), get_dataframe_buffer_begin(reduced_value_buffer)));
+      auto vertex_value_pair_first = thrust::make_zip_iterator(
+        reduced_vertices.begin(), get_dataframe_buffer_begin(reduced_value_buffer));
       thrust::for_each(
         handle.get_thrust_policy(),
         vertex_value_pair_first,

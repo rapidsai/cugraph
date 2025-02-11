@@ -30,11 +30,11 @@
 #include <rmm/device_uvector.hpp>
 
 #include <cuda/std/cstddef>
+#include <cuda/std/tuple>
 #include <thrust/binary_search.h>
 #include <thrust/distance.h>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/sort.h>
-#include <thrust/tuple.h>
 #include <thrust/unique.h>
 
 #include <cuco/hash_functions.cuh>
@@ -50,11 +50,11 @@ template <typename vertex_t>
 struct hash_src_dst_pair {
   int32_t num_groups;
 
-  int32_t __device__ operator()(thrust::tuple<vertex_t, vertex_t> t) const
+  int32_t __device__ operator()(cuda::std::tuple<vertex_t, vertex_t> t) const
   {
     vertex_t pair[2];
-    pair[0] = thrust::get<0>(t);
-    pair[1] = thrust::get<1>(t);
+    pair[0] = cuda::std::get<0>(t);
+    pair[1] = cuda::std::get<1>(t);
     cuco::murmurhash3_32<vertex_t*> hash_func{};
     return hash_func.compute_hash(reinterpret_cast<cuda::std::byte*>(pair), 2 * sizeof(vertex_t)) %
            num_groups;

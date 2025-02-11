@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,6 +30,7 @@
 #include <rmm/mr/device/per_device_resource.hpp>
 #include <rmm/mr/device/polymorphic_allocator.hpp>
 
+#include <cuda/std/tuple>
 #include <thrust/copy.h>
 #include <thrust/count.h>
 #include <thrust/distance.h>
@@ -38,7 +39,6 @@
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/sort.h>
 #include <thrust/transform.h>
-#include <thrust/tuple.h>
 #include <thrust/unique.h>
 
 #include <algorithm>
@@ -102,15 +102,15 @@ void relabel(raft::handle_t const& handle,
                      std::get<1>(old_new_label_pairs),
                      std::get<1>(old_new_label_pairs) + num_label_pairs,
                      label_pair_new_labels.begin());
-        auto pair_first = thrust::make_zip_iterator(
-          thrust::make_tuple(label_pair_old_labels.begin(), label_pair_new_labels.begin()));
+        auto pair_first =
+          thrust::make_zip_iterator(label_pair_old_labels.begin(), label_pair_new_labels.begin());
         std::forward_as_tuple(std::tie(rx_label_pair_old_labels, rx_label_pair_new_labels),
                               std::ignore) =
           groupby_gpu_id_and_shuffle_values(
             handle.get_comms(),
             pair_first,
             pair_first + num_label_pairs,
-            [key_func] __device__(auto val) { return key_func(thrust::get<0>(val)); },
+            [key_func] __device__(auto val) { return key_func(cuda::std::get<0>(val)); },
             handle.get_stream());
       }
 

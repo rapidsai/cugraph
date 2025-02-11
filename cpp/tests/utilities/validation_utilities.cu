@@ -427,14 +427,14 @@ size_t count_intersection(raft::handle_t const& handle,
 #else
         auto lb = thrust::distance(
           src.begin(),
-          thrust::lower_bound(thrust::seq, src.begin(), src.end(), thrust::get<0>(tuple)));
+          thrust::lower_bound(thrust::seq, src.begin(), src.end(), cuda::std::get<0>(tuple)));
         auto ub = thrust::distance(
           src.begin(),
-          thrust::upper_bound(thrust::seq, src.begin(), src.end(), thrust::get<0>(tuple)));
+          thrust::upper_bound(thrust::seq, src.begin(), src.end(), cuda::std::get<0>(tuple)));
 
-        if (src.data()[lb] == thrust::get<0>(tuple)) {
+        if (src.data()[lb] == cuda::std::get<0>(tuple)) {
           return thrust::binary_search(
-            thrust::seq, dst.begin() + lb, dst.begin() + ub, thrust::get<1>(tuple))
+            thrust::seq, dst.begin() + lb, dst.begin() + ub, cuda::std::get<1>(tuple))
               ? size_t{1}
               : size_t{0};
         } else {
@@ -462,7 +462,7 @@ size_t count_edges_on_wrong_int_gpu(raft::handle_t const& handle,
        handle.get_subcomm(cugraph::partition_manager::major_comm_name()).get_size(),
        handle.get_subcomm(cugraph::partition_manager::minor_comm_name())
          .get_size()}] __device__(auto e) {
-      return (gpu_id_key_func(thrust::get<0>(e), thrust::get<1>(e)) != comm_rank);
+      return (gpu_id_key_func(cuda::std::get<0>(e), cuda::std::get<1>(e)) != comm_rank);
     });
 }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,7 +20,7 @@
 #include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/utilities/shuffle_comm.cuh>
 
-#include <thrust/tuple.h>
+#include <cuda/std/tuple>
 
 #include <tuple>
 

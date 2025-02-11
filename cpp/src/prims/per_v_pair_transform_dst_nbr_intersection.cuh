@@ -33,6 +33,7 @@
 #include <rmm/exec_policy.hpp>
 
 #include <cuda/std/optional>
+#include <cuda/std/tuple>
 #include <thrust/binary_search.h>
 #include <thrust/copy.h>
 #include <thrust/count.h>
@@ -47,7 +48,6 @@
 #include <thrust/reduce.h>
 #include <thrust/sort.h>
 #include <thrust/tabulate.h>
-#include <thrust/tuple.h>
 
 #include <type_traits>
 
@@ -66,7 +66,7 @@ struct compute_local_edge_partition_id_t {
 
   __device__ int operator()(size_t i) const
   {
-    auto major = thrust::get<0>(*(vertex_pair_first + i));
+    auto major = cuda::std::get<0>(*(vertex_pair_first + i));
     return static_cast<int>(
       thrust::distance(edge_partition_major_range_lasts.begin(),
                        thrust::upper_bound(thrust::seq,
@@ -83,7 +83,7 @@ struct compute_chunk_id_t {
 
   __device__ int operator()(size_t i) const
   {
-    return static_cast<int>(thrust::get<1>(*(vertex_pair_first + i)) % num_chunks);
+    return static_cast<int>(cuda::std::get<1>(*(vertex_pair_first + i)) % num_chunks);
   }
 };
 
@@ -128,8 +128,8 @@ struct call_intersection_op_t {
 
     auto index        = *(major_minor_pair_index_first + i);
     auto pair         = *(major_minor_pair_first + index);
-    auto major        = thrust::get<0>(pair);
-    auto minor        = thrust::get<1>(pair);
+    auto major        = cuda::std::get<0>(pair);
+    auto minor        = cuda::std::get<1>(pair);
     auto src          = GraphViewType::is_storage_transposed ? minor : major;
     auto dst          = GraphViewType::is_storage_transposed ? major : minor;
     auto intersection = raft::device_span<typename GraphViewType::vertex_type const>(

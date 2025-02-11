@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -37,16 +37,18 @@ template <typename T, std::size_t... Is>
 __host__ __device__ std::enable_if_t<cugraph::is_thrust_tuple_of_arithmetic<T>::value, T>
 elementwise_thrust_min(T lhs, T rhs, std::index_sequence<Is...>)
 {
-  return thrust::make_tuple(
-    (thrust::get<Is>(lhs) < thrust::get<Is>(rhs) ? thrust::get<Is>(lhs) : thrust::get<Is>(rhs))...);
+  return cuda::std::make_tuple((cuda::std::get<Is>(lhs) < cuda::std::get<Is>(rhs)
+                                  ? cuda::std::get<Is>(lhs)
+                                  : cuda::std::get<Is>(rhs))...);
 }
 
 template <typename T, std::size_t... Is>
 __host__ __device__ std::enable_if_t<cugraph::is_thrust_tuple_of_arithmetic<T>::value, T>
 elementwise_thrust_max(T lhs, T rhs, std::index_sequence<Is...>)
 {
-  return thrust::make_tuple(
-    (thrust::get<Is>(lhs) < thrust::get<Is>(rhs) ? thrust::get<Is>(rhs) : thrust::get<Is>(lhs))...);
+  return cuda::std::make_tuple((cuda::std::get<Is>(lhs) < cuda::std::get<Is>(rhs)
+                                  ? cuda::std::get<Is>(rhs)
+                                  : cuda::std::get<Is>(lhs))...);
 }
 
 }  // namespace detail
@@ -107,7 +109,7 @@ struct minimum<T, std::enable_if_t<std::is_arithmetic_v<T>>> {
 };
 
 // Binary reduction operator selecting the minimum element of the two input arguments (using
-// operator <), a compatible raft comms op does not exist when T is a thrust::tuple type.
+// operator <), a compatible raft comms op does not exist when T is a cuda::std::tuple type.
 template <typename T>
 struct minimum<T, std::enable_if_t<cugraph::is_thrust_tuple_of_arithmetic<T>::value>> {
   using value_type                       = T;
@@ -144,7 +146,7 @@ struct elementwise_minimum {
   operator()(T const& lhs, T const& rhs) const
   {
     return detail::elementwise_thrust_min(
-      lhs, rhs, std::make_index_sequence<thrust::tuple_size<T>::value>());
+      lhs, rhs, std::make_index_sequence<cuda::std::tuple_size<T>::value>());
   }
 };
 
@@ -167,7 +169,7 @@ struct maximum<T, std::enable_if_t<std::is_arithmetic_v<T>>> {
 };
 
 // Binary reduction operator selecting the maximum element of the two input arguments (using
-// operator <), a compatible raft comms op does not exist when T is a thrust::tuple type.
+// operator <), a compatible raft comms op does not exist when T is a cuda::std::tuple type.
 template <typename T>
 struct maximum<T, std::enable_if_t<cugraph::is_thrust_tuple_of_arithmetic<T>::value>> {
   using value_type                       = T;
@@ -204,7 +206,7 @@ struct elementwise_maximum {
   operator()(T const& lhs, T const& rhs) const
   {
     return detail::elementwise_thrust_max(
-      lhs, rhs, std::make_index_sequence<thrust::tuple_size<T>::value>());
+      lhs, rhs, std::make_index_sequence<cuda::std::tuple_size<T>::value>());
   }
 };
 

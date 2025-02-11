@@ -60,7 +60,7 @@ void fill_edge_property(raft::handle_t const& handle,
     if constexpr (cugraph::has_packed_bool_element<
                     std::remove_reference_t<decltype(value_firsts[i])>,
                     T>()) {
-      static_assert(std::is_arithmetic_v<T>, "unimplemented for thrust::tuple types.");
+      static_assert(std::is_arithmetic_v<T>, "unimplemented for cuda::std::tuple types.");
       auto packed_input = input ? packed_bool_full_mask() : packed_bool_empty_mask();
       auto rem          = edge_counts[i] % packed_bools_per_word();
       if (edge_partition_e_mask) {
@@ -70,9 +70,9 @@ void fill_edge_property(raft::handle_t const& handle,
                           input_first,
                           input_first + packed_bool_size(static_cast<size_t>(edge_counts[i] - rem)),
                           value_firsts[i],
-                          [packed_input] __device__(thrust::tuple<T, uint32_t> pair) {
-                            auto old_value = thrust::get<0>(pair);
-                            auto mask      = thrust::get<1>(pair);
+                          [packed_input] __device__(cuda::std::tuple<T, uint32_t> pair) {
+                            auto old_value = cuda::std::get<0>(pair);
+                            auto mask      = cuda::std::get<1>(pair);
                             return (old_value & ~mask) | (packed_input & mask);
                           });
         if (rem > 0) {
@@ -81,9 +81,9 @@ void fill_edge_property(raft::handle_t const& handle,
             input_first + packed_bool_size(static_cast<size_t>(edge_counts[i] - rem)),
             input_first + packed_bool_size(static_cast<size_t>(edge_counts[i])),
             value_firsts[i] + packed_bool_size(static_cast<size_t>(edge_counts[i] - rem)),
-            [packed_input, rem] __device__(thrust::tuple<T, uint32_t> pair) {
-              auto old_value = thrust::get<0>(pair);
-              auto mask      = thrust::get<1>(pair);
+            [packed_input, rem] __device__(cuda::std::tuple<T, uint32_t> pair) {
+              auto old_value = cuda::std::get<0>(pair);
+              auto mask      = cuda::std::get<1>(pair);
               return ((old_value & ~mask) | (packed_input & mask)) & packed_bool_partial_mask(rem);
             });
         }

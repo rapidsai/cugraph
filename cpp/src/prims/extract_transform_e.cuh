@@ -30,10 +30,10 @@
 
 #include <raft/core/handle.hpp>
 
+#include <cuda/std/tuple>
 #include <thrust/distance.h>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/remove.h>
-#include <thrust/tuple.h>
 
 #include <cstdint>
 #include <numeric>

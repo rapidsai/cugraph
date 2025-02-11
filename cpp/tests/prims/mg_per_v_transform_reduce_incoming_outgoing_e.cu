@@ -41,13 +41,13 @@
 #include <rmm/device_uvector.hpp>
 
 #include <cuda/std/optional>
+#include <cuda/std/tuple>
 #include <thrust/count.h>
 #include <thrust/distance.h>
 #include <thrust/equal.h>
 #include <thrust/functional.h>
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/transform.h>
-#include <thrust/tuple.h>
 
 #include <cuco/hash_functions.cuh>
 
@@ -320,7 +320,7 @@ class Tests_MGPerVTransformReduceIncomingOutgoingE
               mg_graph_view.local_vertex_partition_range(),
               std::optional<raft::device_span<vertex_t const>>{std::nullopt},
               std::optional<raft::device_span<vertex_t const>>{std::nullopt},
-              raft::device_span<typename thrust::tuple_element<0, result_t>::type const>(
+              raft::device_span<typename cuda::std::tuple_element<0, result_t>::type const>(
                 std::get<0>(mg_in_results[i]).data(), std::get<0>(mg_in_results[i]).size()));
 
           std::tie(std::ignore, std::get<1>(mg_aggregate_in_results)) =
@@ -331,7 +331,7 @@ class Tests_MGPerVTransformReduceIncomingOutgoingE
               mg_graph_view.local_vertex_partition_range(),
               std::optional<raft::device_span<vertex_t const>>{std::nullopt},
               std::optional<raft::device_span<vertex_t const>>{std::nullopt},
-              raft::device_span<typename thrust::tuple_element<1, result_t>::type const>(
+              raft::device_span<typename cuda::std::tuple_element<1, result_t>::type const>(
                 std::get<1>(mg_in_results[i]).data(), std::get<1>(mg_in_results[i]).size()));
 
           std::tie(std::ignore, std::get<0>(mg_aggregate_out_results)) =
@@ -342,7 +342,7 @@ class Tests_MGPerVTransformReduceIncomingOutgoingE
               mg_graph_view.local_vertex_partition_range(),
               std::optional<raft::device_span<vertex_t const>>{std::nullopt},
               std::optional<raft::device_span<vertex_t const>>{std::nullopt},
-              raft::device_span<typename thrust::tuple_element<0, result_t>::type const>(
+              raft::device_span<typename cuda::std::tuple_element<0, result_t>::type const>(
                 std::get<0>(mg_out_results[i]).data(), std::get<0>(mg_out_results[i]).size()));
 
           std::tie(std::ignore, std::get<1>(mg_aggregate_out_results)) =
@@ -353,7 +353,7 @@ class Tests_MGPerVTransformReduceIncomingOutgoingE
               mg_graph_view.local_vertex_partition_range(),
               std::optional<raft::device_span<vertex_t const>>{std::nullopt},
               std::optional<raft::device_span<vertex_t const>>{std::nullopt},
-              raft::device_span<typename thrust::tuple_element<1, result_t>::type const>(
+              raft::device_span<typename cuda::std::tuple_element<1, result_t>::type const>(
                 std::get<1>(mg_out_results[i]).data(), std::get<1>(mg_out_results[i]).size()));
         }
 
@@ -484,15 +484,15 @@ TEST_P(Tests_MGPerVTransformReduceIncomingOutgoingE_File,
        CheckInt32Int32FloatTupleIntFloatTransposeFalse)
 {
   auto param = GetParam();
-  run_current_test<int32_t, int32_t, float, thrust::tuple<int, float>, false>(std::get<0>(param),
-                                                                              std::get<1>(param));
+  run_current_test<int32_t, int32_t, float, cuda::std::tuple<int, float>, false>(
+    std::get<0>(param), std::get<1>(param));
 }
 
 TEST_P(Tests_MGPerVTransformReduceIncomingOutgoingE_Rmat,
        CheckInt32Int32FloatTupleIntFloatTransposeFalse)
 {
   auto param = GetParam();
-  run_current_test<int32_t, int32_t, float, thrust::tuple<int, float>, false>(
+  run_current_test<int32_t, int32_t, float, cuda::std::tuple<int, float>, false>(
     std::get<0>(param),
     cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
@@ -501,7 +501,7 @@ TEST_P(Tests_MGPerVTransformReduceIncomingOutgoingE_Rmat,
        CheckInt64Int64FloatTupleIntFloatTransposeFalse)
 {
   auto param = GetParam();
-  run_current_test<int64_t, int64_t, float, thrust::tuple<int, float>, false>(
+  run_current_test<int64_t, int64_t, float, cuda::std::tuple<int, float>, false>(
     std::get<0>(param),
     cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
@@ -510,15 +510,15 @@ TEST_P(Tests_MGPerVTransformReduceIncomingOutgoingE_File,
        CheckInt32Int32FloatTupleIntFloatTransposeTrue)
 {
   auto param = GetParam();
-  run_current_test<int32_t, int32_t, float, thrust::tuple<int, float>, true>(std::get<0>(param),
-                                                                             std::get<1>(param));
+  run_current_test<int32_t, int32_t, float, cuda::std::tuple<int, float>, true>(std::get<0>(param),
+                                                                                std::get<1>(param));
 }
 
 TEST_P(Tests_MGPerVTransformReduceIncomingOutgoingE_Rmat,
        CheckInt32Int32FloatTupleIntFloatTransposeTrue)
 {
   auto param = GetParam();
-  run_current_test<int32_t, int32_t, float, thrust::tuple<int, float>, true>(
+  run_current_test<int32_t, int32_t, float, cuda::std::tuple<int, float>, true>(
     std::get<0>(param),
     cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
@@ -527,7 +527,7 @@ TEST_P(Tests_MGPerVTransformReduceIncomingOutgoingE_Rmat,
        CheckInt64Int64FloatTupleIntFloatTransposeTrue)
 {
   auto param = GetParam();
-  run_current_test<int64_t, int64_t, float, thrust::tuple<int, float>, true>(
+  run_current_test<int64_t, int64_t, float, cuda::std::tuple<int, float>, true>(
     std::get<0>(param),
     cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }

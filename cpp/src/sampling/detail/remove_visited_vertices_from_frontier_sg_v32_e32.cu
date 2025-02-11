@@ -20,9 +20,9 @@
 
 #include <rmm/device_uvector.hpp>
 
+#include <cuda/std/tuple>
 #include <thrust/binary_search.h>
 #include <thrust/remove.h>
-#include <thrust/tuple.h>
 
 #include <optional>
 

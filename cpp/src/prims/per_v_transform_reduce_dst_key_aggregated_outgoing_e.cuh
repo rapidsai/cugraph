@@ -41,6 +41,7 @@
 
 #include <cub/cub.cuh>
 #include <cuda/std/optional>
+#include <cuda/std/tuple>
 #include <thrust/copy.h>
 #include <thrust/count.h>
 #include <thrust/distance.h>
@@ -54,7 +55,6 @@
 #include <thrust/scatter.h>
 #include <thrust/sort.h>
 #include <thrust/transform.h>
-#include <thrust/tuple.h>
 #include <thrust/unique.h>
 
 #include <type_traits>
@@ -91,25 +91,25 @@ struct tuple_to_minor_comm_rank_t {
   template <typename edge_value_type = edge_value_t>
   __device__ std::enable_if_t<!std::is_same_v<edge_value_type, cuda::std::nullopt_t>, int>
   operator()(
-    thrust::tuple<vertex_t, vertex_t, edge_value_t> val /* major, minor key, edge value */) const
+    cuda::std::tuple<vertex_t, vertex_t, edge_value_t> val /* major, minor key, edge value */) const
   {
-    return key_func(thrust::get<1>(val)) % minor_comm_size;
+    return key_func(cuda::std::get<1>(val)) % minor_comm_size;
   }
 
   template <typename edge_value_type = edge_value_t>
   __device__ std::enable_if_t<std::is_same_v<edge_value_type, cuda::std::nullopt_t>, int>
-  operator()(thrust::tuple<vertex_t, vertex_t> val /* major, minor key */) const
+  operator()(cuda::std::tuple<vertex_t, vertex_t> val /* major, minor key */) const
   {
-    return key_func(thrust::get<1>(val)) % minor_comm_size;
+    return key_func(cuda::std::get<1>(val)) % minor_comm_size;
   }
 };
 
 // a workaround for cudaErrorInvalidDeviceFunction error when device lambda is used
 template <typename vertex_t>
 struct pair_to_binary_partition_id_t {
-  __device__ bool operator()(thrust::tuple<vertex_t, vertex_t> pair) const
+  __device__ bool operator()(cuda::std::tuple<vertex_t, vertex_t> pair) const
   {
-    return static_cast<int>(thrust::get<0>(pair) % 2);
+    return static_cast<int>(cuda::std::get<0>(pair) % 2);
   }
 };
 
@@ -131,12 +131,12 @@ struct call_key_aggregated_e_op_t {
 
   template <typename edge_value_type = edge_value_t>
   __device__ std::enable_if_t<!std::is_same_v<edge_value_type, cuda::std::nullopt_t>, e_op_result_t>
-  operator()(thrust::tuple<vertex_t, vertex_t, edge_value_t>
+  operator()(cuda::std::tuple<vertex_t, vertex_t, edge_value_t>
                val /* major, minor key, aggregated edge value */) const
   {
-    auto major                 = thrust::get<0>(val);
-    auto minor_key             = thrust::get<1>(val);
-    auto aggregated_edge_value = thrust::get<2>(val);
+    auto major                 = cuda::std::get<0>(val);
+    auto minor_key             = cuda::std::get<1>(val);
+    auto aggregated_edge_value = cuda::std::get<2>(val);
     auto major_val             = edge_major_value_map
                                    ? (*edge_major_value_map).find(major)
                                    : edge_partition_major_value_input.get(
@@ -147,10 +147,10 @@ struct call_key_aggregated_e_op_t {
 
   template <typename edge_value_type = edge_value_t>
   __device__ std::enable_if_t<std::is_same_v<edge_value_type, cuda::std::nullopt_t>, e_op_result_t>
-  operator()(thrust::tuple<vertex_t, vertex_t> val /* major, minor key */) const
+  operator()(cuda::std::tuple<vertex_t, vertex_t> val /* major, minor key */) const
   {
-    auto major     = thrust::get<0>(val);
-    auto minor_key = thrust::get<1>(val);
+    auto major     = cuda::std::get<0>(val);
+    auto minor_key = cuda::std::get<1>(val);
     auto major_val = edge_major_value_map
                        ? (*edge_major_value_map).find(major)
                        : edge_partition_major_value_input.get(
@@ -289,7 +289,7 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
 
   static_assert(
     std::is_same_v<edge_value_t, cuda::std::nullopt_t> || std::is_arithmetic_v<edge_value_t>,
-    "Currently only scalar values are supported, should be extended to support thrust::tuple of "
+    "Currently only scalar values are supported, should be extended to support cuda::std::tuple of "
     "arithmetic types and void (for dummy property values) to be consistent with other "
     "primitives.");  // this will also require a custom edge value aggregation op.
 
@@ -577,7 +577,7 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
         if constexpr (!std::is_same_v<edge_value_t, cuda::std::nullopt_t>) {
           reduced_size +=
             thrust::distance(output_key_first + reduced_size,
-                             thrust::get<0>(thrust::reduce_by_key(
+                             cuda::std::get<0>(thrust::reduce_by_key(
                                handle.get_thrust_policy(),
                                input_key_first,
                                input_key_first + (h_edge_offsets[j + 1] - h_edge_offsets[j]),
@@ -748,7 +748,7 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
                                   majors.begin(),
                                   majors.end(),
                                   get_dataframe_buffer_begin(edge_major_values));
-          majors.resize(thrust::distance(majors.begin(), thrust::get<0>(unique_pair_last)),
+          majors.resize(thrust::distance(majors.begin(), cuda::std::get<0>(unique_pair_last)),
                         handle.get_stream());
           resize_dataframe_buffer(edge_major_values, majors.size(), handle.get_stream());
 
@@ -1108,9 +1108,9 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
       [vertex_value_output_first,
        reduce_op,
        major_first = graph_view.local_vertex_partition_range_first()] __device__(auto pair) {
-        auto major        = thrust::get<0>(pair);
+        auto major        = cuda::std::get<0>(pair);
         auto major_offset = major - major_first;
-        auto e_op_result  = thrust::get<1>(pair);
+        auto e_op_result  = cuda::std::get<1>(pair);
         *(vertex_value_output_first + major_offset) =
           reduce_op(*(vertex_value_output_first + major_offset), e_op_result);
       });

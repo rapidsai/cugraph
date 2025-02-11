@@ -20,8 +20,8 @@
 #include <raft/core/handle.hpp>
 
 #include <cuda/std/optional>
+#include <cuda/std/tuple>
 #include <thrust/equal.h>
-#include <thrust/tuple.h>
 
 #include <algorithm>
 #include <cmath>
@@ -60,8 +60,8 @@ struct comparator {
         t1,
         std::is_floating_point_v<T> ? cuda::std::optional<T>{threshold_ratio} : cuda::std::nullopt);
     } else {
-      auto val0 = thrust::get<0>(t0);
-      auto val1 = thrust::get<0>(t1);
+      auto val0 = cuda::std::get<0>(t0);
+      auto val1 = cuda::std::get<0>(t1);
       auto passed =
         detail::compare_arithmetic_scalar(val0,
                                           val1,
@@ -70,9 +70,9 @@ struct comparator {
                                             : cuda::std::nullopt);
       if (!passed) return false;
 
-      if constexpr (thrust::tuple_size<T>::value >= 2) {
-        auto val0 = thrust::get<1>(t0);
-        auto val1 = thrust::get<1>(t1);
+      if constexpr (cuda::std::tuple_size<T>::value >= 2) {
+        auto val0 = cuda::std::get<1>(t0);
+        auto val1 = cuda::std::get<1>(t1);
         auto passed =
           detail::compare_arithmetic_scalar(val0,
                                             val1,
@@ -81,7 +81,7 @@ struct comparator {
                                               : cuda::std::nullopt);
         if (!passed) return false;
       }
-      if constexpr (thrust::tuple_size<T>::value >= 3) {
+      if constexpr (cuda::std::tuple_size<T>::value >= 3) {
         assert(false);  // should not be reached.
       }
       return true;
@@ -91,10 +91,10 @@ struct comparator {
 
 struct scalar_result_compare {
   template <typename... Args>
-  auto operator()(thrust::tuple<Args...> t1, thrust::tuple<Args...> t2)
+  auto operator()(cuda::std::tuple<Args...> t1, cuda::std::tuple<Args...> t2)
   {
-    using type = thrust::tuple<Args...>;
-    return equality_impl(t1, t2, std::make_index_sequence<thrust::tuple_size<type>::value>());
+    using type = cuda::std::tuple<Args...>;
+    return equality_impl(t1, t2, std::make_index_sequence<cuda::std::tuple_size<type>::value>());
   }
 
   template <typename T>
@@ -108,7 +108,8 @@ struct scalar_result_compare {
   template <typename T, std::size_t... I>
   auto equality_impl(T t1, T t2, std::index_sequence<I...>)
   {
-    return (... && (scalar_result_compare::operator()(thrust::get<I>(t1), thrust::get<I>(t2))));
+    return (... &&
+            (scalar_result_compare::operator()(cuda::std::get<I>(t1), cuda::std::get<I>(t2))));
   }
 };
 
@@ -121,8 +122,8 @@ struct vector_result_compare {
   auto operator()(std::tuple<rmm::device_uvector<Args>...> const& t1,
                   std::tuple<rmm::device_uvector<Args>...> const& t2)
   {
-    using type = thrust::tuple<Args...>;
-    return equality_impl(t1, t2, std::make_index_sequence<thrust::tuple_size<type>::value>());
+    using type = cuda::std::tuple<Args...>;
+    return equality_impl(t1, t2, std::make_index_sequence<cuda::std::tuple_size<type>::value>());
   }
 
   template <typename T>

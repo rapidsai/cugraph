@@ -20,7 +20,7 @@
 #include "utilities/property_generator_utilities.hpp"
 
 #include <cuda/std/optional>
-#include <thrust/tuple.h>
+#include <cuda/std/tuple>
 
 #include <cuco/hash_functions.cuh>
 
@@ -35,8 +35,8 @@ namespace detail {
 template <typename TupleType, typename T, std::size_t... Is>
 __host__ __device__ auto make_type_casted_tuple_from_scalar(T val, std::index_sequence<Is...>)
 {
-  return thrust::make_tuple(
-    static_cast<typename thrust::tuple_element<Is, TupleType>::type>(val)...);
+  return cuda::std::make_tuple(
+    static_cast<typename cuda::std::tuple_element<Is, TupleType>::type>(val)...);
 }
 
 template <typename property_t, typename T>
@@ -45,7 +45,7 @@ __host__ __device__ auto make_property_value(T val)
   property_t ret{};
   if constexpr (cugraph::is_thrust_tuple_of_arithmetic<property_t>::value) {
     ret = make_type_casted_tuple_from_scalar<property_t>(
-      val, std::make_index_sequence<thrust::tuple_size<property_t>::value>{});
+      val, std::make_index_sequence<cuda::std::tuple_size<property_t>::value>{});
   } else {
     ret = static_cast<property_t>(val);
   }

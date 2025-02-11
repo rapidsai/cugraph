@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, NVIDIA CORPORATION.
+ * Copyright (c) 2024-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,7 +24,7 @@
 
 #include <rmm/exec_policy.hpp>
 
-#include <thrust/tuple.h>
+#include <cuda/std/tuple>
 
 #include <unordered_map>
 #include <vector>
@@ -34,7 +34,7 @@ namespace cugraph {
 template <typename edge_id_t,
           typename edge_type_t,
           typename vertex_t,
-          typename value_t = thrust::tuple<vertex_t, vertex_t>>
+          typename value_t = cuda::std::tuple<vertex_t, vertex_t>>
 class lookup_container_t {
   template <typename _edge_id_t, typename _edge_type_t, typename _vertex_t, typename _value_t>
   struct lookup_container_impl;

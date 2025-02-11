@@ -65,15 +65,16 @@ struct extract_edge_e_op_t {
   vertex_t d{};
 
   template <typename edge_t, typename weight_t>
-  __device__ cuda::std::optional<thrust::tuple<vertex_t, vertex_t>> operator()(
+  __device__ cuda::std::optional<cuda::std::tuple<vertex_t, vertex_t>> operator()(
     vertex_t src,
     vertex_t dst,
-    thrust::tuple<vertex_t, edge_t, weight_t> src_props,
-    thrust::tuple<vertex_t, edge_t, weight_t> dst_props,
+    cuda::std::tuple<vertex_t, edge_t, weight_t> src_props,
+    cuda::std::tuple<vertex_t, edge_t, weight_t> dst_props,
     weight_t edge_centrality) const
   {
-    return ((thrust::get<0>(dst_props) == d) && (thrust::get<0>(src_props) == (d - 1)))
-             ? cuda::std::optional<thrust::tuple<vertex_t, vertex_t>>{thrust::make_tuple(src, dst)}
+    return ((cuda::std::get<0>(dst_props) == d) && (cuda::std::get<0>(src_props) == (d - 1)))
+             ? cuda::std::optional<cuda::std::tuple<vertex_t, vertex_t>>{cuda::std::make_tuple(src,
+                                                                                               dst)}
              : cuda::std::nullopt;
   }
 };
@@ -153,9 +154,9 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<edge_t>> brandes_b
                       thrust::make_zip_iterator(distances.begin(), sigmas.begin()),
                       thrust::make_zip_iterator(distances.begin(), sigmas.begin()),
                       [hop] __device__(auto v, auto old_values, auto v_sigma) {
-                        return thrust::make_tuple(
+                        return cuda::std::make_tuple(
                           cuda::std::make_optional(bucket_idx_next),
-                          cuda::std::make_optional(thrust::make_tuple(hop + 1, v_sigma)));
+                          cuda::std::make_optional(cuda::std::make_tuple(hop + 1, v_sigma)));
                       });
 
     vertex_frontier.bucket(bucket_idx_cur).clear();
@@ -219,10 +220,10 @@ void accumulate_vertex_results(
   }
 
   edge_src_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>,
-                      thrust::tuple<vertex_t, edge_t, weight_t>>
+                      cuda::std::tuple<vertex_t, edge_t, weight_t>>
     src_properties(handle, graph_view);
   edge_dst_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>,
-                      thrust::tuple<vertex_t, edge_t, weight_t>>
+                      cuda::std::tuple<vertex_t, edge_t, weight_t>>
     dst_properties(handle, graph_view);
 
   update_edge_src_property(
@@ -254,10 +255,10 @@ void accumulate_vertex_results(
       dst_properties.view(),
       cugraph::edge_dummy_property_t{}.view(),
       [d] __device__(auto, auto, auto src_props, auto dst_props, auto) {
-        if ((thrust::get<0>(dst_props) == d) && (thrust::get<0>(src_props) == (d - 1))) {
-          auto sigma_v = static_cast<weight_t>(thrust::get<1>(src_props));
-          auto sigma_w = static_cast<weight_t>(thrust::get<1>(dst_props));
-          auto delta_w = thrust::get<2>(dst_props);
+        if ((cuda::std::get<0>(dst_props) == d) && (cuda::std::get<0>(src_props) == (d - 1))) {
+          auto sigma_v = static_cast<weight_t>(cuda::std::get<1>(src_props));
+          auto sigma_w = static_cast<weight_t>(cuda::std::get<1>(dst_props));
+          auto delta_w = cuda::std::get<2>(dst_props);
 
           return (sigma_v / sigma_w) * (1 + delta_w);
         } else {
@@ -314,10 +315,10 @@ void accumulate_edge_results(
   detail::scalar_fill(handle, deltas.data(), deltas.size(), weight_t{0});
 
   edge_src_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>,
-                      thrust::tuple<vertex_t, edge_t, weight_t>>
+                      cuda::std::tuple<vertex_t, edge_t, weight_t>>
     src_properties(handle, graph_view);
   edge_dst_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>,
-                      thrust::tuple<vertex_t, edge_t, weight_t>>
+                      cuda::std::tuple<vertex_t, edge_t, weight_t>>
     dst_properties(handle, graph_view);
 
   update_edge_src_property(
@@ -340,8 +341,8 @@ void accumulate_edge_results(
   //
   for (vertex_t d = diameter; d > 0; --d) {
     //
-    //  Populate edge_list with edges where `thrust::get<0>(dst_props) == d`
-    //  and `thrust::get<0>(dst_props) == (d-1)`
+    //  Populate edge_list with edges where `cuda::std::get<0>(dst_props) == d`
+    //  and `cuda::std::get<0>(dst_props) == (d-1)`
     //
     cugraph::edge_bucket_t<vertex_t, void, true, multi_gpu, true> edge_list(handle);
 
@@ -379,10 +380,10 @@ void accumulate_edge_results(
       dst_properties.view(),
       centralities_view,
       [d] __device__(auto src, auto dst, auto src_props, auto dst_props, auto edge_centrality) {
-        if ((thrust::get<0>(dst_props) == d) && (thrust::get<0>(src_props) == (d - 1))) {
-          auto sigma_v = static_cast<weight_t>(thrust::get<1>(src_props));
-          auto sigma_w = static_cast<weight_t>(thrust::get<1>(dst_props));
-          auto delta_w = thrust::get<2>(dst_props);
+        if ((cuda::std::get<0>(dst_props) == d) && (cuda::std::get<0>(src_props) == (d - 1))) {
+          auto sigma_v = static_cast<weight_t>(cuda::std::get<1>(src_props));
+          auto sigma_w = static_cast<weight_t>(cuda::std::get<1>(dst_props));
+          auto delta_w = cuda::std::get<2>(dst_props);
 
           return edge_centrality + (sigma_v / sigma_w) * (1 + delta_w);
         } else {
@@ -399,10 +400,10 @@ void accumulate_edge_results(
       dst_properties.view(),
       cugraph::edge_dummy_property_t{}.view(),
       [d] __device__(auto, auto, auto src_props, auto dst_props, auto) {
-        if ((thrust::get<0>(dst_props) == d) && (thrust::get<0>(src_props) == (d - 1))) {
-          auto sigma_v = static_cast<weight_t>(thrust::get<1>(src_props));
-          auto sigma_w = static_cast<weight_t>(thrust::get<1>(dst_props));
-          auto delta_w = thrust::get<2>(dst_props);
+        if ((cuda::std::get<0>(dst_props) == d) && (cuda::std::get<0>(src_props) == (d - 1))) {
+          auto sigma_v = static_cast<weight_t>(cuda::std::get<1>(src_props));
+          auto sigma_w = static_cast<weight_t>(cuda::std::get<1>(dst_props));
+          auto delta_w = cuda::std::get<2>(dst_props);
 
           return (sigma_v / sigma_w) * (1 + delta_w);
         } else {

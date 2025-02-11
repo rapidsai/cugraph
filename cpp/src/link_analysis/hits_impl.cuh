@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,13 +27,13 @@
 #include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph_view.hpp>
 
+#include <cuda/std/tuple>
 #include <thrust/copy.h>
 #include <thrust/fill.h>
 #include <thrust/functional.h>
 #include <thrust/iterator/constant_iterator.h>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/transform.h>
-#include <thrust/tuple.h>
 
 namespace cugraph {
 namespace detail {
@@ -163,8 +163,10 @@ std::tuple<result_t, size_t> hits(raft::handle_t const& handle,
     diff_sum = transform_reduce_v(
       handle,
       graph_view,
-      thrust::make_zip_iterator(thrust::make_tuple(curr_hubs, prev_hubs)),
-      [] __device__(auto, auto val) { return std::abs(thrust::get<0>(val) - thrust::get<1>(val)); },
+      thrust::make_zip_iterator(curr_hubs, prev_hubs),
+      [] __device__(auto, auto val) {
+        return std::abs(cuda::std::get<0>(val) - cuda::std::get<1>(val));
+      },
       result_t{0});
 
     update_edge_src_property(handle, graph_view, curr_hubs, prev_src_hubs.mutable_view());

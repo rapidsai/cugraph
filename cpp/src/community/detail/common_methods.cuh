@@ -31,6 +31,7 @@
 
 #include <cuda/functional>
 #include <cuda/std/optional>
+#include <cuda/std/tuple>
 #include <thrust/binary_search.h>
 #include <thrust/execution_policy.h>
 #include <thrust/functional.h>
@@ -39,7 +40,6 @@
 #include <thrust/sort.h>
 #include <thrust/transform.h>
 #include <thrust/transform_reduce.h>
-#include <thrust/tuple.h>
 
 CUCO_DECLARE_BITWISE_COMPARABLE(float)
 CUCO_DECLARE_BITWISE_COMPARABLE(double)
@@ -60,15 +60,15 @@ struct key_aggregated_edge_op_t {
   __device__ auto operator()(
     vertex_t src,
     vertex_t neighbor_cluster,
-    thrust::tuple<weight_t, vertex_t, weight_t, weight_t, weight_t> src_info,
+    cuda::std::tuple<weight_t, vertex_t, weight_t, weight_t, weight_t> src_info,
     weight_t a_new,
     weight_t new_cluster_sum) const
   {
-    auto k_k              = thrust::get<0>(src_info);
-    auto src_cluster      = thrust::get<1>(src_info);
-    auto a_old            = thrust::get<2>(src_info);
-    auto old_cluster_sum  = thrust::get<3>(src_info);
-    auto cluster_subtract = thrust::get<4>(src_info);
+    auto k_k              = cuda::std::get<0>(src_info);
+    auto src_cluster      = cuda::std::get<1>(src_info);
+    auto a_old            = cuda::std::get<2>(src_info);
+    auto old_cluster_sum  = cuda::std::get<3>(src_info);
+    auto cluster_subtract = cuda::std::get<4>(src_info);
 
     if (src_cluster == neighbor_cluster) new_cluster_sum -= cluster_subtract;
 
@@ -76,25 +76,25 @@ struct key_aggregated_edge_op_t {
                                      resolution * (a_new * k_k - a_old * k_k + k_k * k_k) /
                                        (total_edge_weight * total_edge_weight));
 
-    return thrust::make_tuple(neighbor_cluster, delta_modularity);
+    return cuda::std::make_tuple(neighbor_cluster, delta_modularity);
   }
 };
 
 // FIXME: a workaround for cudaErrorInvalidDeviceFunction error when device lambda is used
 template <typename vertex_t, typename weight_t>
 struct reduce_op_t {
-  using type                          = thrust::tuple<vertex_t, weight_t>;
-  static constexpr bool pure_function = true;  // this can be called from any process
-  inline static type const identity_element =
-    thrust::make_tuple(std::numeric_limits<weight_t>::lowest(), invalid_vertex_id<vertex_t>::value);
+  using type                                = cuda::std::tuple<vertex_t, weight_t>;
+  static constexpr bool pure_function       = true;  // this can be called from any process
+  inline static type const identity_element = cuda::std::make_tuple(
+    std::numeric_limits<weight_t>::lowest(), invalid_vertex_id<vertex_t>::value);
 
-  __device__ auto operator()(thrust::tuple<vertex_t, weight_t> p0,
-                             thrust::tuple<vertex_t, weight_t> p1) const
+  __device__ auto operator()(cuda::std::tuple<vertex_t, weight_t> p0,
+                             cuda::std::tuple<vertex_t, weight_t> p1) const
   {
-    auto id0 = thrust::get<0>(p0);
-    auto id1 = thrust::get<0>(p1);
-    auto wt0 = thrust::get<1>(p0);
-    auto wt1 = thrust::get<1>(p1);
+    auto id0 = cuda::std::get<0>(p0);
+    auto id1 = cuda::std::get<0>(p1);
+    auto wt0 = cuda::std::get<1>(p0);
+    auto wt1 = cuda::std::get<1>(p1);
 
     return (wt0 < wt1) ? p1 : ((wt0 > wt1) ? p0 : ((id0 < id1) ? p0 : p1));
   }
@@ -104,12 +104,13 @@ struct reduce_op_t {
 template <typename vertex_t, typename weight_t>
 struct count_updown_moves_op_t {
   bool up_down{};
-  __device__ auto operator()(thrust::tuple<vertex_t, thrust::tuple<vertex_t, weight_t>> p) const
+  __device__ auto operator()(
+    cuda::std::tuple<vertex_t, cuda::std::tuple<vertex_t, weight_t>> p) const
   {
-    vertex_t old_cluster       = thrust::get<0>(p);
-    auto new_cluster_gain_pair = thrust::get<1>(p);
-    vertex_t new_cluster       = thrust::get<0>(new_cluster_gain_pair);
-    weight_t delta_modularity  = thrust::get<1>(new_cluster_gain_pair);
+    vertex_t old_cluster       = cuda::std::get<0>(p);
+    auto new_cluster_gain_pair = cuda::std::get<1>(p);
+    vertex_t new_cluster       = cuda::std::get<0>(new_cluster_gain_pair);
+    weight_t delta_modularity  = cuda::std::get<1>(new_cluster_gain_pair);
 
     auto result_assignment =
       (delta_modularity > weight_t{0})
@@ -125,10 +126,10 @@ struct count_updown_moves_op_t {
 template <typename vertex_t, typename weight_t>
 struct cluster_update_op_t {
   bool up_down{};
-  __device__ auto operator()(vertex_t old_cluster, thrust::tuple<vertex_t, weight_t> p) const
+  __device__ auto operator()(vertex_t old_cluster, cuda::std::tuple<vertex_t, weight_t> p) const
   {
-    vertex_t new_cluster      = thrust::get<0>(p);
-    weight_t delta_modularity = thrust::get<1>(p);
+    vertex_t new_cluster      = cuda::std::get<0>(p);
+    weight_t delta_modularity = cuda::std::get<1>(p);
 
     return (delta_modularity > weight_t{0})
              ? (((new_cluster > old_cluster) != up_down) ? old_cluster : new_cluster)
@@ -349,37 +350,36 @@ rmm::device_uvector<vertex_t> update_clustering_by_delta_modularity(
       else if (src_cluster == nbr_cluster)
         sum = wt;
 
-      return thrust::make_tuple(sum, subtract);
+      return cuda::std::make_tuple(sum, subtract);
     },
-    thrust::make_tuple(weight_t{0}, weight_t{0}),
-    reduce_op::plus<thrust::tuple<weight_t, weight_t>>{},
-    thrust::make_zip_iterator(
-      thrust::make_tuple(old_cluster_sum_v.begin(), cluster_subtract_v.begin())));
+    cuda::std::make_tuple(weight_t{0}, weight_t{0}),
+    reduce_op::plus<cuda::std::tuple<weight_t, weight_t>>{},
+    thrust::make_zip_iterator(old_cluster_sum_v.begin(), cluster_subtract_v.begin()));
 
   edge_src_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>,
-                      thrust::tuple<weight_t, weight_t>>
+                      cuda::std::tuple<weight_t, weight_t>>
     src_old_cluster_sum_subtract_pairs(handle);
 
   if constexpr (multi_gpu) {
     src_old_cluster_sum_subtract_pairs =
       edge_src_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>,
-                          thrust::tuple<weight_t, weight_t>>(handle, graph_view);
-    update_edge_src_property(handle,
-                             graph_view,
-                             thrust::make_zip_iterator(thrust::make_tuple(
-                               old_cluster_sum_v.begin(), cluster_subtract_v.begin())),
-                             src_old_cluster_sum_subtract_pairs.mutable_view());
+                          cuda::std::tuple<weight_t, weight_t>>(handle, graph_view);
+    update_edge_src_property(
+      handle,
+      graph_view,
+      thrust::make_zip_iterator(old_cluster_sum_v.begin(), cluster_subtract_v.begin()),
+      src_old_cluster_sum_subtract_pairs.mutable_view());
     old_cluster_sum_v.resize(0, handle.get_stream());
     old_cluster_sum_v.shrink_to_fit(handle.get_stream());
     cluster_subtract_v.resize(0, handle.get_stream());
     cluster_subtract_v.shrink_to_fit(handle.get_stream());
   }
 
-  auto output_buffer = allocate_dataframe_buffer<thrust::tuple<vertex_t, weight_t>>(
+  auto output_buffer = allocate_dataframe_buffer<cuda::std::tuple<vertex_t, weight_t>>(
     graph_view.local_vertex_partition_range_size(), handle.get_stream());
 
-  auto cluster_old_sum_subtract_pair_first = thrust::make_zip_iterator(
-    thrust::make_tuple(old_cluster_sum_v.cbegin(), cluster_subtract_v.cbegin()));
+  auto cluster_old_sum_subtract_pair_first =
+    thrust::make_zip_iterator(old_cluster_sum_v.cbegin(), cluster_subtract_v.cbegin());
   auto zipped_src_device_view =
     multi_gpu
       ? view_concat(src_vertex_weights_cache.view(),
@@ -412,17 +412,17 @@ rmm::device_uvector<vertex_t> update_clustering_by_delta_modularity(
                   next_clusters_v.data(), vertex_t{0}),
     cluster_key_weight_map.view(),
     detail::key_aggregated_edge_op_t<vertex_t, weight_t>{total_edge_weight, resolution},
-    thrust::make_tuple(vertex_t{-1}, weight_t{0}),
+    cuda::std::make_tuple(vertex_t{-1}, weight_t{0}),
     detail::reduce_op_t<vertex_t, weight_t>{},
     cugraph::get_dataframe_buffer_begin(output_buffer));
 
-  int nr_moves = thrust::count_if(
-    handle.get_thrust_policy(),
-    thrust::make_zip_iterator(thrust::make_tuple(
-      next_clusters_v.begin(), cugraph::get_dataframe_buffer_begin(output_buffer))),
-    thrust::make_zip_iterator(
-      thrust::make_tuple(next_clusters_v.end(), cugraph::get_dataframe_buffer_end(output_buffer))),
-    detail::count_updown_moves_op_t<vertex_t, weight_t>{up_down});
+  int nr_moves =
+    thrust::count_if(handle.get_thrust_policy(),
+                     thrust::make_zip_iterator(next_clusters_v.begin(),
+                                               cugraph::get_dataframe_buffer_begin(output_buffer)),
+                     thrust::make_zip_iterator(next_clusters_v.end(),
+                                               cugraph::get_dataframe_buffer_end(output_buffer)),
+                     detail::count_updown_moves_op_t<vertex_t, weight_t>{up_down});
 
   if (multi_gpu) {
     nr_moves = host_scalar_allreduce(

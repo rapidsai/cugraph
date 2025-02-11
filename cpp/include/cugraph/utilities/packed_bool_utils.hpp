@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, NVIDIA CORPORATION.
+ * Copyright (c) 2023-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,8 +17,8 @@
 
 #include <cugraph/utilities/thrust_tuple_utils.hpp>
 
+#include <cuda/std/tuple>
 #include <thrust/iterator/iterator_traits.h>
-#include <thrust/tuple.h>
 
 #include <type_traits>
 #include <utility>
@@ -35,14 +35,14 @@ constexpr std::enable_if_t<cugraph::is_thrust_tuple_of_arithmetic<
 has_packed_bool_element(std::index_sequence<Is...>)
 {
   static_assert(
-    thrust::tuple_size<typename thrust::iterator_traits<ValueIterator>::value_type>::value ==
-    thrust::tuple_size<value_t>::value);
+    cuda::std::tuple_size<typename thrust::iterator_traits<ValueIterator>::value_type>::value ==
+    cuda::std::tuple_size<value_t>::value);
   return (... ||
-          (std::is_same_v<typename thrust::tuple_element<
+          (std::is_same_v<typename cuda::std::tuple_element<
                             Is,
                             typename thrust::iterator_traits<ValueIterator>::value_type>::type,
                           uint32_t> &&
-           std::is_same_v<typename thrust::tuple_element<Is, value_t>::type, bool>));
+           std::is_same_v<typename cuda::std::tuple_element<Is, value_t>::type, bool>));
 }
 
 }  // namespace detail
@@ -70,10 +70,10 @@ constexpr bool has_packed_bool_element()
            std::is_same_v<value_t, bool>;
   } else {
     static_assert(
-      thrust::tuple_size<typename thrust::iterator_traits<ValueIterator>::value_type>::value ==
-      thrust::tuple_size<value_t>::value);
+      cuda::std::tuple_size<typename thrust::iterator_traits<ValueIterator>::value_type>::value ==
+      cuda::std::tuple_size<value_t>::value);
     return detail::has_packed_bool_element<ValueIterator, value_t>(
-      std::make_index_sequence<thrust::tuple_size<value_t>::value>());
+      std::make_index_sequence<cuda::std::tuple_size<value_t>::value>());
   }
 }
 
