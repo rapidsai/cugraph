@@ -45,8 +45,8 @@ def _load_wheel_installation(soname: str):
 def load_library():
     """Dynamically load libcugraph.so and its dependencies"""
     try:
-        # These libraries  must be loaded before libcugraph because libcugraph
-        # references their symbols
+        # These libraries must be loaded before libcugraph because libcugraph references
+        # their symbols
         import librmm
         import libraft
 
