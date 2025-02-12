@@ -2327,6 +2327,33 @@ rmm::device_uvector<vertex_t> maximal_independent_set(
   raft::random::RngState& rng_state);
 
 /**
+ * @ingroup tree_cpp
+ * @brief Find the forest in an undirected graph
+ *
+ * This functions identifies the forset (collection of trees) in the input undirected graph by
+ * recursively removing degree 1 vertices. A degree 1 vertex's only neighbor vertex becomes its
+ * parent in the tree, and the parent vertex's degree is reduced by 1. Some vertices with a degree
+ * greater than 1 in the input graph may now have a degree 1. These vertices are pruned again and
+ * this process repeats until all the remaining vertices have a degree greater than 1. This function
+ * returns a device vector storing a parent vertex for the pruned out vertices and
+ * cugraph::invalid_vertex_id_v<vertex_t> for the remaining vertices (the reamining vertices belong
+ * to one of the 2 cores of the inptu graph).
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param graph_view Graph view object.
+ * @return A device vector containing parent vertices for the forest vertices excluding the tree
+ * roots. For the remaining vertices (they belong to the 2-core of the input graph, the returned
+ * vector holds cugraph::invalid_vertex_id_v<vertex_t>.
+ */
+template <typename vertex_t, typename edge_t, bool multi_gpu>
+rmm::device_uvector<vertex_t> find_forest(
+  raft::handle_t const& handle, graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view);
+
+/**
  * @ingroup utility_cpp
  * @brief Find a Greedy Vertex Coloring
  *
