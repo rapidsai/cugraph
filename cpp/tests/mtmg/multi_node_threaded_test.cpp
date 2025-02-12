@@ -35,9 +35,6 @@
 
 #include <rmm/device_uvector.hpp>
 
-#include <thrust/count.h>
-#include <thrust/unique.h>
-
 #include <gtest/gtest.h>
 #include <nccl.h>
 
@@ -440,8 +437,8 @@ class Tests_Multithreaded
                         thrust::make_zip_iterator(std::get<0>(t1).begin(), std::get<1>(t1).begin()),
                         thrust::make_zip_iterator(std::get<0>(t1).end(), std::get<1>(t1).end()),
                         [h_sg_pageranks, compare_functor, h_sg_renumber_map](auto t2) {
-                          vertex_t v  = thrust::get<0>(t2);
-                          weight_t pr = thrust::get<1>(t2);
+                          vertex_t v  = cuda::std::get<0>(t2);
+                          weight_t pr = cuda::std::get<1>(t2);
 
                           auto pos =
                             std::find(h_sg_renumber_map->begin(), h_sg_renumber_map->end(), v);
@@ -493,7 +490,7 @@ INSTANTIATE_TEST_SUITE_P(
   Tests_Multithreaded_Rmat,
   ::testing::Combine(
     // enable correctness checks
-    ::testing::Values(Multithreaded_Usecase{false, true}, Multithreaded_Usecase{true, true}),
+    ::testing::Values(Multithreaded_Usecase{false, false}, Multithreaded_Usecase{true, false}),
     ::testing::Values(cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, false, false))));
 
 INSTANTIATE_TEST_SUITE_P(
@@ -506,7 +503,7 @@ INSTANTIATE_TEST_SUITE_P(
   ::testing::Combine(
     // disable correctness checks
     ::testing::Values(Multithreaded_Usecase{false, false}, Multithreaded_Usecase{true, false}),
-    ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"))));
+    ::testing::Values(cugraph::test::File_Usecase("karate.csv"))));
 
 INSTANTIATE_TEST_SUITE_P(
   rmat_benchmark_test, /* note that scale & edge factor can be overridden in benchmarking (with

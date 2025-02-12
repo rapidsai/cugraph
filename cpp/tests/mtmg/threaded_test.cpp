@@ -34,9 +34,6 @@
 
 #include <rmm/device_uvector.hpp>
 
-#include <thrust/count.h>
-#include <thrust/unique.h>
-
 #include <gtest/gtest.h>
 #include <nccl.h>
 
@@ -187,19 +184,17 @@ class Tests_Multithreaded
     }
 
     rmm::device_uvector<vertex_t> d_unique_vertices(2 * d_src_v.size(), handle.get_stream());
-    thrust::copy(
-      handle.get_thrust_policy(), d_src_v.begin(), d_src_v.end(), d_unique_vertices.begin());
-    thrust::copy(handle.get_thrust_policy(),
-                 d_dst_v.begin(),
-                 d_dst_v.end(),
-                 d_unique_vertices.begin() + d_src_v.size());
-    thrust::sort(handle.get_thrust_policy(), d_unique_vertices.begin(), d_unique_vertices.end());
-
-    d_unique_vertices.resize(thrust::distance(d_unique_vertices.begin(),
-                                              thrust::unique(handle.get_thrust_policy(),
-                                                             d_unique_vertices.begin(),
-                                                             d_unique_vertices.end())),
-                             handle.get_stream());
+    raft::copy(d_unique_vertices.begin(), d_src_v.begin(), d_src_v.size(), handle.get_stream());
+    raft::copy(d_unique_vertices.begin() + d_src_v.size(),
+               d_dst_v.begin(),
+               d_dst_v.size(),
+               handle.get_stream());
+    cugraph::detail::sort_ints(
+      handle, raft::device_span<vertex_t>{d_unique_vertices.data(), d_unique_vertices.size()});
+    d_unique_vertices.resize(
+      cugraph::detail::unique_ints(
+        handle, raft::device_span<vertex_t>{d_unique_vertices.data(), d_unique_vertices.size()}),
+      handle.get_stream());
 
     auto h_src_v         = cugraph::test::to_host(handle, d_src_v);
     auto h_dst_v         = cugraph::test::to_host(handle, d_dst_v);
@@ -450,8 +445,8 @@ class Tests_Multithreaded
             thrust::make_zip_iterator(std::get<0>(t1).begin(), std::get<1>(t1).begin()),
             thrust::make_zip_iterator(std::get<0>(t1).end(), std::get<1>(t1).end()),
             [&h_sg_pageranks, compare_functor, &h_sg_renumber_map](auto t2) {
-              vertex_t v  = thrust::get<0>(t2);
-              weight_t pr = thrust::get<1>(t2);
+              vertex_t v  = cuda::std::get<0>(t2);
+              weight_t pr = cuda::std::get<1>(t2);
 
               auto pos    = std::find(h_sg_renumber_map->begin(), h_sg_renumber_map->end(), v);
               auto offset = std::distance(h_sg_renumber_map->begin(), pos);
@@ -472,13 +467,13 @@ using Tests_Multithreaded_Rmat = Tests_Multithreaded<cugraph::test::Rmat_Usecase
 TEST_P(Tests_Multithreaded_File, CheckInt32Int32FloatFloat)
 {
   run_current_test<int32_t, int32_t, float, float, true>(
-    override_File_Usecase_with_cmd_line_arguments(GetParam()), std::vector<int>{{0, 1}});
+    override_File_Usecase_with_cmd_line_arguments(GetParam()), get_gpu_list());
 }
 
 TEST_P(Tests_Multithreaded_Rmat, CheckInt32Int32FloatFloat)
 {
   run_current_test<int32_t, int32_t, float, float, true>(
-    override_Rmat_Usecase_with_cmd_line_arguments(GetParam()), std::vector<int>{{0, 1}});
+    override_Rmat_Usecase_with_cmd_line_arguments(GetParam()), get_gpu_list());
 }
 
 INSTANTIATE_TEST_SUITE_P(file_test,
@@ -508,7 +503,7 @@ INSTANTIATE_TEST_SUITE_P(
   ::testing::Combine(
     // disable correctness checks
     ::testing::Values(Multithreaded_Usecase{false, false}, Multithreaded_Usecase{true, false}),
-    ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"))));
+    ::testing::Values(cugraph::test::File_Usecase("karate.csv"))));
 
 INSTANTIATE_TEST_SUITE_P(
   rmat_benchmark_test, /* note that scale & edge factor can be overridden in benchmarking (with
