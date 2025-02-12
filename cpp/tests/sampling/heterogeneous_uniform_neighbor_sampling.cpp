@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -119,12 +119,8 @@ class Tests_Heterogeneous_Uniform_Neighbor_Sampling
 
     // Generate the edge types
 
-    std::optional<cugraph::edge_property_t<decltype(graph_view), int32_t>> edge_types{std::nullopt};
-
-    if (heterogeneous_uniform_neighbor_sampling_usecase.num_edge_types > 1) {
-      edge_types = cugraph::test::generate<decltype(graph_view), int32_t>::edge_property(
-        handle, graph_view, heterogeneous_uniform_neighbor_sampling_usecase.num_edge_types);
-    }
+    auto edge_types = cugraph::test::generate<decltype(graph_view), int32_t>::edge_property(
+      handle, graph_view, heterogeneous_uniform_neighbor_sampling_usecase.num_edge_types);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -138,10 +134,7 @@ class Tests_Heterogeneous_Uniform_Neighbor_Sampling
         graph_view,
         edge_weight_view,
         std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
-        edge_types
-          ? std::optional<cugraph::edge_property_view_t<edge_t, edge_type_t const*>>{(*edge_types)
-                                                                                       .view()}
-          : std::nullopt,
+        edge_types.view(),
         raft::device_span<vertex_t const>{random_sources_copy.data(), random_sources.size()},
         batch_number ? std::make_optional(raft::device_span<int32_t const>{batch_number->data(),
                                                                            batch_number->size()})
