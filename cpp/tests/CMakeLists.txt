@@ -169,7 +169,6 @@ function(ConfigureTest CMAKE_TEST_NAME)
             cugraphtestutil
             GTest::gtest
             GTest::gtest_main
-            test_logger_impls
     )
     set_target_properties(
         ${CMAKE_TEST_NAME}
@@ -200,7 +199,6 @@ function(ConfigureTestMG CMAKE_TEST_NAME)
         GTest::gtest_main
         NCCL::NCCL
         MPI::MPI_CXX
-        test_logger_impls
     )
     set_target_properties(
         ${CMAKE_TEST_NAME}
@@ -252,7 +250,6 @@ function(ConfigureCTest CMAKE_TEST_NAME)
             cugraph_c_testutil
             GTest::gtest
             GTest::gtest_main
-            test_logger_impls
     )
     set_target_properties(
         ${CMAKE_TEST_NAME}
@@ -285,7 +282,6 @@ function(ConfigureCTestMG CMAKE_TEST_NAME)
             GTest::gtest_main
             NCCL::NCCL
             MPI::MPI_CXX
-            test_logger_impls
     )
     set_target_properties(
         ${CMAKE_TEST_NAME}
@@ -313,9 +309,6 @@ function(ConfigureCTestMG CMAKE_TEST_NAME)
 
 
 endfunction()
-
-add_library(test_logger_impls OBJECT)
-target_link_libraries(test_logger_impls PRIVATE raft::raft_logger_impl)
 
 
 ###################################################################################################

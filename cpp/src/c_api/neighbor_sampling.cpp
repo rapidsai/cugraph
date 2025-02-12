@@ -994,6 +994,9 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
       // otherwised throw an error and suggest the user to call uniform neighbor sample instead
 
       if (num_edge_types_ > 1) {
+        CUGRAPH_EXPECTS(edge_types != nullptr,
+                        "edge types are necessary for heterogeneous sampling.");
+
         // call heterogeneous neighbor sample
         if (is_biased_) {
           std::tie(src, dst, wgt, edge_id, edge_type, hop, offsets) =
@@ -1003,7 +1006,7 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
               graph_view,
               (edge_weights != nullptr) ? std::make_optional(edge_weights->view()) : std::nullopt,
               (edge_ids != nullptr) ? std::make_optional(edge_ids->view()) : std::nullopt,
-              (edge_types != nullptr) ? std::make_optional(edge_types->view()) : std::nullopt,
+              edge_types->view(),
               (edge_biases != nullptr) ? *edge_biases : edge_weights->view(),
               raft::device_span<vertex_t const>{start_vertices.data(), start_vertices.size()},
               (starting_vertex_label_offsets_ != nullptr)
@@ -1028,7 +1031,7 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
               graph_view,
               (edge_weights != nullptr) ? std::make_optional(edge_weights->view()) : std::nullopt,
               (edge_ids != nullptr) ? std::make_optional(edge_ids->view()) : std::nullopt,
-              (edge_types != nullptr) ? std::make_optional(edge_types->view()) : std::nullopt,
+              edge_types->view(),
               raft::device_span<vertex_t const>{start_vertices.data(), start_vertices.size()},
               (starting_vertex_label_offsets_ != nullptr)
                 ? std::make_optional<raft::device_span<int const>>((*start_vertex_labels).data(),

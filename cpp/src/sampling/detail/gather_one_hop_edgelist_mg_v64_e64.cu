@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -33,6 +33,7 @@ gather_one_hop_edgelist(
   std::optional<edge_property_view_t<int64_t, int32_t const*>> edge_edge_type_view,
   raft::device_span<int64_t const> active_majors,
   std::optional<raft::device_span<int32_t const>> active_major_labels,
+  std::optional<raft::host_span<uint8_t const>> gather_flags,
   bool do_expensive_check);
 
 template std::tuple<rmm::device_uvector<int64_t>,
@@ -49,6 +50,7 @@ gather_one_hop_edgelist(
   std::optional<edge_property_view_t<int64_t, int32_t const*>> edge_edge_type_view,
   raft::device_span<int64_t const> active_majors,
   std::optional<raft::device_span<int32_t const>> active_major_labels,
+  std::optional<raft::host_span<uint8_t const>> gather_flags,
   bool do_expensive_check);
 
 }  // namespace detail
