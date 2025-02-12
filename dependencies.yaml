@@ -50,6 +50,9 @@ files:
     includes:
       - cuda_version
       - test_cpp
+      - depends_on_libcugraph
+      - depends_on_libcugraph_etl
+      - depends_on_libcugraph_tests
   test_notebooks:
     output: none
     includes:
@@ -59,6 +62,9 @@ files:
       - test_notebook
       - test_python_common
       - test_python_cugraph
+      - depends_on_libcugraph
+      - depends_on_pylibcugraph
+      - depends_on_cugraph
   test_python:
     output: none
     includes:
@@ -70,6 +76,11 @@ files:
       - test_python_common
       - test_python_cugraph
       - test_python_pylibcugraph
+      - depends_on_libcugraph
+      - depends_on_pylibcugraph
+      - depends_on_cugraph
+      - depends_on_cugraph_service_server
+      - depends_on_cugraph_service_client
   py_build_cugraph:
     output: pyproject
     pyproject_dir: python/cugraph
@@ -527,6 +538,29 @@ dependencies:
           # pip recognizes the index as a global option for the requirements.txt file
           - --extra-index-url=https://pypi.nvidia.com
           - --extra-index-url=https://pypi.anaconda.org/rapidsai-wheels-nightly/simple
+
+  depends_on_cugraph_service_server:
+    common:
+      - output_types: [conda, requirements, pyproject]
+        packages:
+          - cugraph-service-server==25.4.*,>=0.0.0a0
+      - output_types: requirements
+        packages:
+          # pip recognizes the index as a global option for the requirements.txt file
+          - --extra-index-url=https://pypi.nvidia.com
+          - --extra-index-url=https://pypi.anaconda.org/rapidsai-wheels-nightly/simple
+
+  depends_on_libcugraph_etl:
+    common:
+      - output_types: conda
+        packages:
+          - libcugraph_etl==25.4.*,>=0.0.0a0
+
+  depends_on_libcugraph_tests:
+    common:
+      - output_types: conda
+        packages:
+          - libcugraph-tests==25.4.*,>=0.0.0a0
 
   depends_on_pytorch:
     common:
