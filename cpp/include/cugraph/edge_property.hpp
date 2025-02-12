@@ -160,6 +160,29 @@ class edge_dummy_property_t {
   auto view() const { return edge_dummy_property_view_t{}; }
 };
 
+template <typename GraphViewType, typename EdgeValueType, typename Enable = void>
+struct edge_property_view_type;
+
+template <typename GraphViewType, typename EdgeValueType>
+struct edge_property_view_type<
+  GraphViewType,
+  EdgeValueType,
+  std::enable_if_t<std::is_same_v<EdgeValueType, cuda::std::nullopt_t>>> {
+  using value = edge_dummy_property_view_t;
+};
+
+template <typename GraphViewType, typename EdgeValueType>
+struct edge_property_view_type<
+  GraphViewType,
+  EdgeValueType,
+  std::enable_if_t<!std::is_same_v<EdgeValueType, cuda::std::nullopt_t>>> {
+  using value = decltype(edge_property_t<GraphViewType, EdgeValueType>(raft::handle_t{}).view());
+};
+
+template <typename GraphViewType, typename EdgeValueType>
+using edge_property_view_type_t =
+  typename edge_property_view_type<GraphViewType, EdgeValueType>::value;
+
 template <typename edge_t, typename... Iters, typename... Types>
 auto view_concat(edge_property_view_t<edge_t, Iters, Types> const&... views)
 {

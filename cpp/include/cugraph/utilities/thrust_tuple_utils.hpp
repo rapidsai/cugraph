@@ -298,6 +298,7 @@ __host__ __device__
 {
   return thrust::get<I>(val.get_iterator_tuple());
 }
+
 // a temporary function to emulate thrust::tuple_cat (not supported) using std::tuple_cat (should
 // retire once thrust::tuple is replaced with cuda::std::tuple)
 template <typename... TupleTypes>

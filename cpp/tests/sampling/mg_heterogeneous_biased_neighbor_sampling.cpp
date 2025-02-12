@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -155,13 +155,9 @@ class Tests_MGHeterogeneous_Biased_Neighbor_Sampling
 
     // Generate the edge types
 
-    std::optional<cugraph::edge_property_t<decltype(mg_graph_view), edge_type_t>> edge_types{
-      std::nullopt};
-
-    if (heterogeneous_biased_neighbor_sampling_usecase.num_edge_types > 1) {
-      edge_types = cugraph::test::generate<decltype(mg_graph_view), edge_type_t>::edge_property(
+    auto mg_edge_types =
+      cugraph::test::generate<decltype(mg_graph_view), edge_type_t>::edge_property(
         *handle_, mg_graph_view, heterogeneous_biased_neighbor_sampling_usecase.num_edge_types);
-    }
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -177,10 +173,7 @@ class Tests_MGHeterogeneous_Biased_Neighbor_Sampling
         mg_graph_view,
         mg_edge_weight_view,
         std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
-        edge_types
-          ? std::optional<cugraph::edge_property_view_t<edge_t, edge_type_t const*>>{(*edge_types)
-                                                                                       .view()}
-          : std::nullopt,
+        mg_edge_types.view(),
         *mg_edge_weight_view,
         raft::device_span<vertex_t const>{random_sources.data(), random_sources.size()},
         std::make_optional(
