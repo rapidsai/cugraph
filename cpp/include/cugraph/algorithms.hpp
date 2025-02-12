@@ -2337,7 +2337,10 @@ rmm::device_uvector<vertex_t> maximal_independent_set(
  * this process repeats until all the remaining vertices have a degree greater than 1. This function
  * returns a device vector storing a parent vertex for the pruned out vertices and
  * cugraph::invalid_vertex_id_v<vertex_t> for the remaining vertices (the reamining vertices belong
- * to one of the 2 cores of the inptu graph).
+ * to one of the 2 cores of the inptu graph). This algorithm does not support multi-graphs or graphs
+ * with self-loops. The caller may remove multi-edges or self-loops before creating a graph object
+ * (we provide cugraph::remove_self_loops & cugraph::remove_multi_edges to remove self-loops and
+ * multi-edges, respectively).
  *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
  * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
