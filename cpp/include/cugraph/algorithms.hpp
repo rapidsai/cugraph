@@ -2330,17 +2330,20 @@ rmm::device_uvector<vertex_t> maximal_independent_set(
  * @ingroup tree_cpp
  * @brief Find the forest in an undirected graph
  *
- * This functions identifies the forset (collection of trees) in the input undirected graph by
- * recursively removing degree 1 vertices. A degree 1 vertex's only neighbor vertex becomes its
- * parent in the tree, and the parent vertex's degree is reduced by 1. Some vertices with a degree
- * greater than 1 in the input graph may now have a degree 1. These vertices are pruned again and
- * this process repeats until all the remaining vertices have a degree greater than 1. This function
- * returns a device vector storing a parent vertex for the pruned out vertices and
- * cugraph::invalid_vertex_id_v<vertex_t> for the remaining vertices (the reamining vertices belong
- * to one of the 2 cores of the inptu graph). This algorithm does not support multi-graphs or graphs
- * with self-loops. The caller may remove multi-edges or self-loops before creating a graph object
- * (we provide cugraph::remove_self_loops & cugraph::remove_multi_edges to remove self-loops and
- * multi-edges, respectively).
+ * This functions finds the forset (collection of trees) in the input undirected graph. No vertex in
+ * the forest belongs to any of the 2-cores in the input graph; i.e. no vertex in the forest belongs
+ * to a cycle. A tree may be connected to a 2-core. This algorithms returns a vector storaing
+ * parents of the forest vertices. The vector holds cugraph::invalid_vertex_id_v<vertex_t> for the
+ * vertices that do not belong to the forest. For a tree connected to a 2-core, the root vertex's
+ * parent is in the 2-core and does not belong to the forest. An isolated vertex is considered as a
+ * tree and the isolated vertex's parent is set to itself. A connected component with only two
+ * vertices (say s & t) is considered as a tree as well and s's parent is set to t and t's parent is
+ * set to s.
+ *
+ * This algorithm currently does not support graphs with multi-edges or self-loops. The caller may
+ * remove multi-edges or self-loops before creating a graph object (we provide
+ * cugraph::remove_multi_edges & cugraph::remove_self_loops to remove multi-edges and self-loops,
+ * respectively).
  *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
  * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
@@ -2348,9 +2351,8 @@ rmm::device_uvector<vertex_t> maximal_independent_set(
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Graph view object.
- * @return A device vector containing parent vertices for the forest vertices excluding the tree
- * roots. For the remaining vertices (they belong to the 2-core of the input graph, the returned
- * vector holds cugraph::invalid_vertex_id_v<vertex_t>.
+ * @return A device vector containing parent vertices for the forest vertices. For the remaining
+ * vertices, the returned vector holds cugraph::invalid_vertex_id_v<vertex_t>.
  */
 template <typename vertex_t, typename edge_t, bool multi_gpu>
 rmm::device_uvector<vertex_t> find_forest(
