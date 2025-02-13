@@ -106,8 +106,7 @@ struct degrees_functor : public cugraph::c_api::abstract_functor {
                    handle_.get_stream());
 
         if constexpr (multi_gpu) {
-          vertex_ids = cugraph::detail::shuffle_ext_vertices_to_local_gpu_by_vertex_partitioning(
-            handle_, std::move(vertex_ids));
+          vertex_ids = cugraph::shuffle_ext_vertices(handle_, std::move(vertex_ids));
         }
 
         cugraph::renumber_ext_vertices<vertex_t, multi_gpu>(

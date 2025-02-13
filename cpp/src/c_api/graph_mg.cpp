@@ -178,20 +178,17 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
                edgelist_edge_types,
                edgelist_edge_start_times,
                edgelist_edge_end_times,
-               std::ignore) =
-        cugraph::detail::shuffle_ext_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning(
-          handle_,
-          std::move(store_transposed ? edgelist_dsts : edgelist_srcs),
-          std::move(store_transposed ? edgelist_srcs : edgelist_dsts),
-          std::move(edgelist_weights),
-          std::move(edgelist_edge_ids),
-          std::move(edgelist_edge_types),
-          std::move(edgelist_edge_start_times),
-          std::move(edgelist_edge_end_times));
+               std::ignore) = cugraph::shuffle_ext_edges(handle_,
+                                                         std::move(edgelist_srcs),
+                                                         std::move(edgelist_dsts),
+                                                         std::move(edgelist_weights),
+                                                         std::move(edgelist_edge_ids),
+                                                         std::move(edgelist_edge_types),
+                                                         std::move(edgelist_edge_start_times),
+                                                         std::move(edgelist_edge_end_times));
 
       if (vertex_list) {
-        vertex_list = cugraph::detail::shuffle_ext_vertices_to_local_gpu_by_vertex_partitioning(
-          handle_, std::move(*vertex_list));
+        vertex_list = cugraph::shuffle_ext_vertices(handle_, std::move(*vertex_list));
       }
 
       auto graph = new cugraph::graph_t<vertex_t, edge_t, store_transposed, multi_gpu>(handle_);

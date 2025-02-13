@@ -55,8 +55,7 @@ vertex_t remove_duplicates(raft::handle_t const& handle, rmm::device_uvector<ver
   input_array.resize(nr_unique_elements, handle.get_stream());
 
   if constexpr (multi_gpu) {
-    input_array = cugraph::detail::shuffle_ext_vertices_to_local_gpu_by_vertex_partitioning(
-      handle, std::move(input_array));
+    input_array = cugraph::shuffle_ext_vertices(handle, std::move(input_array));
 
     thrust::sort(handle.get_thrust_policy(), input_array.begin(), input_array.end());
 

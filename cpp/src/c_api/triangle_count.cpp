@@ -97,8 +97,7 @@ struct triangle_count_functor : public cugraph::c_api::abstract_functor {
           vertices.data(), vertices_->as_type<vertex_t>(), vertices.size(), handle_.get_stream());
 
         if constexpr (multi_gpu) {
-          vertices = cugraph::detail::shuffle_ext_vertices_to_local_gpu_by_vertex_partitioning(
-            handle_, std::move(vertices));
+          vertices = cugraph::shuffle_ext_vertices(handle_, std::move(vertices));
         }
 
         counts.resize(vertices.size(), handle_.get_stream());

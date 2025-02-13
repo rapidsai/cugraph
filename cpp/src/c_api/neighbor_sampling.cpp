@@ -193,8 +193,7 @@ struct uniform_neighbor_sampling_functor : public cugraph::c_api::abstract_funct
               handle_, std::move(start_vertices), std::move(*start_vertex_labels));
         } else {
           start_vertices =
-            cugraph::detail::shuffle_ext_vertices_to_local_gpu_by_vertex_partitioning(
-              handle_, std::move(start_vertices));
+            cugraph::detail::shuffle_ext_vertices(handle_, std::move(start_vertices));
         }
       }
 
@@ -546,8 +545,7 @@ struct biased_neighbor_sampling_functor : public cugraph::c_api::abstract_functo
               handle_, std::move(start_vertices), std::move(*start_vertex_labels));
         } else {
           start_vertices =
-            cugraph::detail::shuffle_ext_vertices_to_local_gpu_by_vertex_partitioning(
-              handle_, std::move(start_vertices));
+            cugraph::detail::shuffle_ext_vertices(handle_, std::move(start_vertices));
         }
       }
 
@@ -965,8 +963,7 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
       } else {
         if constexpr (multi_gpu) {
           start_vertices =
-            cugraph::detail::shuffle_ext_vertices_to_local_gpu_by_vertex_partitioning(
-              handle_, std::move(start_vertices));
+            cugraph::detail::shuffle_ext_vertices(handle_, std::move(start_vertices));
         }
       }
       //

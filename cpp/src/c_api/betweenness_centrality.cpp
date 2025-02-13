@@ -101,8 +101,7 @@ struct betweenness_centrality_functor : public cugraph::c_api::abstract_functor 
 
         if constexpr (multi_gpu) {
           local_vertices =
-            cugraph::detail::shuffle_ext_vertices_to_local_gpu_by_vertex_partitioning(
-              handle_, std::move(local_vertices));
+            cugraph::detail::shuffle_ext_vertices(handle_, std::move(local_vertices));
         }
 
         cugraph::renumber_ext_vertices<vertex_t, multi_gpu>(
@@ -208,8 +207,7 @@ struct edge_betweenness_centrality_functor : public cugraph::c_api::abstract_fun
 
         if constexpr (multi_gpu) {
           local_vertices =
-            cugraph::detail::shuffle_ext_vertices_to_local_gpu_by_vertex_partitioning(
-              handle_, std::move(local_vertices));
+            cugraph::detail::shuffle_ext_vertices(handle_, std::move(local_vertices));
         }
 
         cugraph::renumber_ext_vertices<vertex_t, multi_gpu>(

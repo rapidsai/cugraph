@@ -818,10 +818,6 @@ refine_clustering(
   leiden_keys_to_read_louvain.resize(nr_unique_leiden_clusters, handle.get_stream());
 
   if constexpr (GraphViewType::is_multi_gpu) {
-    // leiden_keys_to_read_louvain =
-    //   cugraph::detail::shuffle_ext_vertices_to_local_gpu_by_vertex_partitioning(
-    //     handle, std::move(leiden_keys_to_read_louvain));
-
     leiden_keys_to_read_louvain =
       cugraph::detail::shuffle_int_vertices_to_local_gpu_by_vertex_partitioning(
         handle, std::move(leiden_keys_to_read_louvain), graph_view.vertex_partition_range_lasts());
