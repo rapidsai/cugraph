@@ -149,7 +149,8 @@ class DistSampler:
                         warnings.warn(
                             "Not all ranks received the same number of batches. "
                             "This might cause your training loop to hang "
-                            "due to uneven inputs."
+                            "due to uneven inputs. This is the number of "
+                            f"batches receieved on each rank: {t.tolist()}."
                         )
 
             return (0 if rank == 0 else t.cumsum(dim=0)[rank - 1], input_size_is_equal)
