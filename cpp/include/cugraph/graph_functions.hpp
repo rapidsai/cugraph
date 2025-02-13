@@ -1286,7 +1286,7 @@ remove_multi_edges(raft::handle_t const& handle,
 
 /**
  * @ingroup graph_functions_cpp
- * @brief Shuffle external vertex ids to the proper GPU.
+ * @brief Shuffle external vertex IDs to the owning GPUs (by vertex partitioning)
  *
  * @tparam vertex_t    Type of vertex identifiers. Needs to be an integral type.
  *
@@ -1301,7 +1301,7 @@ rmm::device_uvector<vertex_t> shuffle_external_vertices(raft::handle_t const& ha
 
 /**
  * @ingroup graph_functions_cpp
- * @brief Shuffle external vertex ids and values to the proper GPU.
+ * @brief Shuffle external vertex ID & value pairs to the owning GPUs (by vertex partitioning)
  *
  * @tparam vertex_t   Type of vertex identifiers. Needs to be an integral type.
  * @tparam value_t    Type of values. currently supported types are int32_t,
@@ -1321,7 +1321,7 @@ shuffle_external_vertex_value_pairs(raft::handle_t const& handle,
 
 /**
  * @ingroup graph_functions_cpp
- * @brief Shuffle external edges to the proper GPU.
+ * @brief Shuffle external edges to the owning GPUs (by edge partitioning)
  *
  * @tparam vertex_t    Type of vertex identifiers. Needs to be an integral type.
  * @tparam edge_t      Type of edge identifiers. Needs to be an integral type.
