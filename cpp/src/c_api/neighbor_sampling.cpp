@@ -949,12 +949,13 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
           label_to_comm_rank = rmm::device_uvector<label_t>(
             displacements.back() + recvcounts.back(), handle_.get_stream());
 
-          cugraph::device_allgatherv(handle_.get_comms(),
-                                     local_label_to_comm_rank.begin(),
-                                     (*label_to_comm_rank).begin(),
-                                     recvcounts,
-                                     displacements,
-                                     handle_.get_stream());
+          cugraph::device_allgatherv(
+            handle_.get_comms(),
+            local_label_to_comm_rank.begin(),
+            (*label_to_comm_rank).begin(),
+            raft::host_span<size_t const>(recvcounts.data(), recvcounts.size()),
+            raft::host_span<size_t const>(displacements.data(), displacements.size()),
+            handle_.get_stream());
 
           std::tie(start_vertices, *start_vertex_labels) =
             cugraph::detail::shuffle_ext_vertex_value_pairs_to_local_gpu_by_vertex_partitioning(

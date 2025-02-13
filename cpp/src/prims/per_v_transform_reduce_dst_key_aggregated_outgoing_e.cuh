@@ -730,12 +730,17 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
               edge_partition.major_offset_from_major_nocheck(major));
           });
 
-        std::tie(majors, std::ignore) = shuffle_values(
-          minor_comm, majors.begin(), tx_edge_major_value_counts, handle.get_stream());
+        std::tie(majors, std::ignore) =
+          shuffle_values(minor_comm,
+                         majors.begin(),
+                         raft::host_span<size_t const>(tx_edge_major_value_counts.data(),
+                                                       tx_edge_major_value_counts.size()),
+                         handle.get_stream());
         std::tie(edge_major_values, std::ignore) =
           shuffle_values(minor_comm,
                          get_dataframe_buffer_begin(edge_major_values),
-                         tx_edge_major_value_counts,
+                         raft::host_span<size_t const>(tx_edge_major_value_counts.data(),
+                                                       tx_edge_major_value_counts.size()),
                          handle.get_stream());
 
         {
@@ -773,23 +778,29 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
                               raft::comms::op_t::MAX,
                               handle.get_stream());
       if (mem_frugal_flag) {  // trade-off potential parallelism to lower peak memory
-        std::tie(rx_majors, std::ignore) =
-          shuffle_values(minor_comm, tmp_majors.begin(), h_tx_value_counts, handle.get_stream());
+        std::tie(rx_majors, std::ignore) = shuffle_values(
+          minor_comm,
+          tmp_majors.begin(),
+          raft::host_span<size_t const>(h_tx_value_counts.data(), h_tx_value_counts.size()),
+          handle.get_stream());
         tmp_majors.resize(0, handle.get_stream());
         tmp_majors.shrink_to_fit(handle.get_stream());
 
         std::tie(rx_minor_keys, std::ignore) = shuffle_values(
-          minor_comm, tmp_minor_keys.begin(), h_tx_value_counts, handle.get_stream());
+          minor_comm,
+          tmp_minor_keys.begin(),
+          raft::host_span<size_t const>(h_tx_value_counts.data(), h_tx_value_counts.size()),
+          handle.get_stream());
         tmp_minor_keys.resize(0, handle.get_stream());
         tmp_minor_keys.shrink_to_fit(handle.get_stream());
 
         if constexpr (!std::is_same_v<edge_value_t, cuda::std::nullopt_t>) {
-          std::tie(rx_key_aggregated_edge_values, std::ignore) =
-            shuffle_values(minor_comm,
-                           detail::get_optional_dataframe_buffer_begin<edge_value_t>(
-                             tmp_key_aggregated_edge_values),
-                           h_tx_value_counts,
-                           handle.get_stream());
+          std::tie(rx_key_aggregated_edge_values, std::ignore) = shuffle_values(
+            minor_comm,
+            detail::get_optional_dataframe_buffer_begin<edge_value_t>(
+              tmp_key_aggregated_edge_values),
+            raft::host_span<size_t const>(h_tx_value_counts.data(), h_tx_value_counts.size()),
+            handle.get_stream());
         }
         detail::resize_optional_dataframe_buffer<optional_edge_value_buffer_value_type>(
           tmp_key_aggregated_edge_values, 0, handle.get_stream());
@@ -804,11 +815,18 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
                                         tmp_key_aggregated_edge_values));
           std::forward_as_tuple(std::tie(rx_majors, rx_minor_keys, rx_key_aggregated_edge_values),
                                 std::ignore) =
-            shuffle_values(minor_comm, triplet_first, h_tx_value_counts, handle.get_stream());
+            shuffle_values(
+              minor_comm,
+              triplet_first,
+              raft::host_span<size_t const>(h_tx_value_counts.data(), h_tx_value_counts.size()),
+              handle.get_stream());
         } else {
           auto pair_first = thrust::make_zip_iterator(tmp_majors.begin(), tmp_minor_keys.begin());
-          std::forward_as_tuple(std::tie(rx_majors, rx_minor_keys), std::ignore) =
-            shuffle_values(minor_comm, pair_first, h_tx_value_counts, handle.get_stream());
+          std::forward_as_tuple(std::tie(rx_majors, rx_minor_keys), std::ignore) = shuffle_values(
+            minor_comm,
+            pair_first,
+            raft::host_span<size_t const>(h_tx_value_counts.data(), h_tx_value_counts.size()),
+            handle.get_stream());
         }
         tmp_majors.resize(0, handle.get_stream());
         tmp_majors.shrink_to_fit(handle.get_stream());
@@ -1064,16 +1082,16 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
                      tmp_majors.data(),
                      rx_majors.data(),
                      tmp_majors.size(),
-                     rx_sizes,
-                     rx_displs,
+                     raft::host_span<size_t const>(rx_sizes.data(), rx_sizes.size()),
+                     raft::host_span<size_t const>(rx_displs.data(), rx_displs.size()),
                      i,
                      handle.get_stream());
       device_gatherv(minor_comm,
                      get_dataframe_buffer_begin(tmp_e_op_result_buffer),
                      get_dataframe_buffer_begin(rx_tmp_e_op_result_buffer),
                      tmp_majors.size(),
-                     rx_sizes,
-                     rx_displs,
+                     raft::host_span<size_t const>(rx_sizes.data(), rx_sizes.size()),
+                     raft::host_span<size_t const>(rx_displs.data(), rx_displs.size()),
                      i,
                      handle.get_stream());
 
