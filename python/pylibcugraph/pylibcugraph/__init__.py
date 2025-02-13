@@ -1,4 +1,4 @@
-# Copyright (c) 2021-2024, NVIDIA CORPORATION.
+# Copyright (c) 2021-2025, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -10,6 +10,17 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
+# If libcugraph was installed as a wheel, we must request it to load the library
+# symbols. Otherwise, we assume that the library was installed in a system path that ld
+# can find.
+try:
+    import libcugraph
+except ModuleNotFoundError:
+    pass
+else:
+    libcugraph.load_library()
+    del libcugraph
 
 from pylibcugraph.components._connectivity import (
     strongly_connected_components,
@@ -36,6 +47,8 @@ from pylibcugraph.sssp import sssp
 from pylibcugraph.hits import hits
 
 from pylibcugraph.node2vec import node2vec
+
+from pylibcugraph.node2vec_random_walks import node2vec_random_walks
 
 from pylibcugraph.bfs import bfs
 
@@ -73,6 +86,8 @@ from pylibcugraph.egonet import ego_graph
 from pylibcugraph.weakly_connected_components import weakly_connected_components
 
 from pylibcugraph.uniform_random_walks import uniform_random_walks
+
+from pylibcugraph.biased_random_walks import biased_random_walks
 
 from pylibcugraph.betweenness_centrality import betweenness_centrality
 
@@ -127,6 +142,8 @@ from pylibcugraph.all_pairs_cosine_coefficients import all_pairs_cosine_coeffici
 from pylibcugraph.degrees import in_degrees, out_degrees, degrees
 
 from pylibcugraph.decompress_to_edgelist import decompress_to_edgelist
+
+from pylibcugraph.renumber_arbitrary_edgelist import renumber_arbitrary_edgelist
 
 
 from pylibcugraph import exceptions

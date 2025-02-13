@@ -1,4 +1,4 @@
-# Copyright (c) 2022-2024, NVIDIA CORPORATION.
+# Copyright (c) 2022-2025, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -30,18 +30,6 @@ from cugraph.structure.symmetrize import _memory_efficient_drop_duplicates
 from cugraph.structure.symmetrize import symmetrize_ddf
 from cugraph.datasets import email_Eu_core, small_tree
 from pylibcugraph.testing.utils import gen_fixture_params_product
-
-# If the rapids-pytest-benchmark plugin is installed, the "gpubenchmark"
-# fixture will be available automatically. Check that this fixture is available
-# by trying to import rapids_pytest_benchmark, and if that fails, set
-# "gpubenchmark" to the standard "benchmark" fixture provided by
-# pytest-benchmark.
-try:
-    import rapids_pytest_benchmark  # noqa: F401
-except ImportError:
-    import pytest_benchmark
-
-    gpubenchmark = pytest_benchmark.plugin.benchmark
 
 # =============================================================================
 # Pytest Setup / Teardown - called for each test function
@@ -131,7 +119,6 @@ def input_combo(request):
 # Tests
 # =============================================================================
 @pytest.mark.mg
-@pytest.mark.cugraph_ops
 def test_mg_uniform_neighbor_sample_simple(dask_client, input_combo):
 
     dg = input_combo["MGGraph"]
@@ -220,7 +207,6 @@ def test_mg_uniform_neighbor_sample_simple(dask_client, input_combo):
 
 
 @pytest.mark.mg
-@pytest.mark.cugraph_ops
 @pytest.mark.parametrize("directed", IS_DIRECTED)
 def test_mg_uniform_neighbor_sample_tree(dask_client, directed):
 
@@ -286,7 +272,6 @@ def test_mg_uniform_neighbor_sample_tree(dask_client, directed):
 
 @pytest.mark.mg
 @pytest.mark.skipif(is_single_gpu(), reason="FIXME: MG test fails on single-GPU")
-@pytest.mark.cugraph_ops
 def test_mg_uniform_neighbor_sample_unweighted(dask_client):
     df = cudf.DataFrame(
         {
@@ -321,7 +306,6 @@ def test_mg_uniform_neighbor_sample_unweighted(dask_client):
 
 @pytest.mark.mg
 @pytest.mark.skipif(is_single_gpu(), reason="FIXME: MG test fails on single-GPU")
-@pytest.mark.cugraph_ops
 def test_mg_uniform_neighbor_sample_ensure_no_duplicates(dask_client):
     # See issue #2760
     # This ensures that the starts are properly distributed
@@ -347,7 +331,6 @@ def test_mg_uniform_neighbor_sample_ensure_no_duplicates(dask_client):
 
 
 @pytest.mark.mg
-@pytest.mark.cugraph_ops
 @pytest.mark.parametrize("return_offsets", [True, False])
 def test_uniform_neighbor_sample_edge_properties(dask_client, return_offsets):
     n_workers = len(dask_client.scheduler_info()["workers"])
@@ -1260,7 +1243,7 @@ def test_uniform_neighbor_sample_dcsr_dcsc_local():
 @pytest.mark.mg
 @pytest.mark.slow
 @pytest.mark.parametrize("n_samples", [1_000, 5_000, 10_000])
-def bench_uniform_neighbor_sample_email_eu_core(gpubenchmark, dask_client, n_samples):
+def bench_uniform_neighbor_sample_email_eu_core(benchmark, dask_client, n_samples):
     input_data_path = email_Eu_core.get_path()
     chunksize = dcg.get_chunksize(input_data_path)
 
@@ -1288,4 +1271,4 @@ def bench_uniform_neighbor_sample_email_eu_core(gpubenchmark, dask_client, n_sam
         _ = cugraph.dask.uniform_neighbor_sample(dg, start_list, [10])
         del _
 
-    gpubenchmark(func)
+    benchmark(func)

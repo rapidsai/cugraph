@@ -1,4 +1,4 @@
-# Copyright (c) 2022-2023, NVIDIA CORPORATION.
+# Copyright (c) 2022-2025, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -183,8 +183,7 @@ def test_neighborhood_sampling_cudf(
     )
 
 
-@pytest.mark.cugraph_ops
-def test_neighborhood_sampling_large_sg_graph(gpubenchmark):
+def test_neighborhood_sampling_large_sg_graph(benchmark):
     """
     Use a large SG graph and set input args accordingly to test/benchmark
     returning a large result.
@@ -222,7 +221,7 @@ def test_neighborhood_sampling_large_sg_graph(gpubenchmark):
     device = cp.cuda.Device(0)
     free_memory_before = device.mem_info[0]
 
-    result = gpubenchmark(
+    result = benchmark(
         uniform_neighbor_sample,
         resource_handle,
         sg,

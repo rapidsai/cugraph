@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -462,6 +462,27 @@ cugraph_error_code_t cugraph_decompress_to_edgelist(const cugraph_resource_handl
                                                     bool_t do_expensive_check,
                                                     cugraph_edgelist_t** result,
                                                     cugraph_error_t** error);
+
+/**
+ * @brief     Renumber arbitrary edgelist
+ *
+ * This function is designed to assist renumbering graph vertices in the case where the
+ * the global vertex id list exceeds the GPU memory.  Renumbering is done in-place in the
+ * supplied @p src and @p dst parameters.
+ *
+ * @param [in]     handle         Handle for accessing resources
+ * @param [in]     renumber_map   Host array with the renumber map
+ * @param [in/out] srcs           Device array of src vertices to renumber
+ * @param [in/out] dsts           Device array of dst vertices to renumber
+ * @param [out] error             Pointer to an error object storing details of any error.  Will
+ *                                be populated if error code is not CUGRAPH_SUCCESS
+ */
+cugraph_error_code_t cugraph_renumber_arbitrary_edgelist(
+  const cugraph_resource_handle_t* handle,
+  const cugraph_type_erased_host_array_view_t* renumber_map,
+  cugraph_type_erased_device_array_view_t* srcs,
+  cugraph_type_erased_device_array_view_t* dsts,
+  cugraph_error_t** error);
 
 #ifdef __cplusplus
 }

@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2024, NVIDIA CORPORATION.
+# Copyright (c) 2019-2025, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -10,6 +10,17 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
+# If libcugraph was installed as a wheel, we must request it to load the library
+# symbols. Otherwise, we assume that the library was installed in a system path that ld
+# can find.
+try:
+    import libcugraph
+except ModuleNotFoundError:
+    pass
+else:
+    libcugraph.load_library()
+    del libcugraph
 
 from cugraph.community import (
     ecg,
@@ -108,6 +119,9 @@ from cugraph.layout import force_atlas2
 
 from cugraph.sampling import (
     random_walks,
+    uniform_random_walks,
+    biased_random_walks,
+    node2vec_random_walks,
     rw_path,
     node2vec,
     uniform_neighbor_sample,

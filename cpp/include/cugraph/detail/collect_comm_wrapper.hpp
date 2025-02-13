@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2023-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,7 +25,11 @@
 namespace cugraph {
 namespace detail {
 
+/** @defgroup collect_comm_wrapper_cpp C++ Shuffle Wrappers
+ */
+
 /**
+ * @ingroup collect_comm_wrapper_cpp
  * @brief Gather the span of data from all ranks and broadcast the combined data to all ranks.
  *
  * @param[in] handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator,
@@ -42,3 +46,6 @@ rmm::device_uvector<T> device_allgatherv(raft::handle_t const& handle,
 
 }  // namespace detail
 }  // namespace cugraph
+/**
+ * @}
+ */

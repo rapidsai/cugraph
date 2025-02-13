@@ -1,5 +1,5 @@
 #=============================================================================
-# Copyright (c) 2021, NVIDIA CORPORATION.
+# Copyright (c) 2021-2025, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -39,8 +39,8 @@ set(CUGRAPH_ETL_BRANCH_VERSION_cugraph "${CUGRAPH_ETL_VERSION_MAJOR}.${CUGRAPH_E
 
 
 # Change pinned tag and fork here to test a commit in CI
-# To use a different RAFT locally, set the CMake variable
-# RPM_cugraph_SOURCE=/path/to/local/cugraph
+# To use a different cuGraph locally, set the CMake variable
+# CPM_cugraph_SOURCE=/path/to/local/cugraph
 find_and_configure_cugraph(VERSION    ${CUGRAPH_ETL_MIN_VERSION_cugraph}
                            FORK       rapidsai
                            PINNED_TAG branch-${CUGRAPH_ETL_BRANCH_VERSION_cugraph}

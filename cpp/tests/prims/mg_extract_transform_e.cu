@@ -1,6 +1,6 @@
 
 /*
- * Copyright (c) 2021-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -40,11 +40,11 @@
 #include <rmm/device_scalar.hpp>
 #include <rmm/device_uvector.hpp>
 
+#include <cuda/std/optional>
 #include <thrust/copy.h>
 #include <thrust/count.h>
 #include <thrust/equal.h>
 #include <thrust/iterator/counting_iterator.h>
-#include <thrust/optional.h>
 #include <thrust/sequence.h>
 #include <thrust/sort.h>
 #include <thrust/tabulate.h>
@@ -65,12 +65,12 @@ struct e_op_t {
                 std::is_same_v<output_payload_t, thrust::tuple<float, int32_t>>);
 
   using return_type =
-    thrust::optional<std::conditional_t<std::is_arithmetic_v<output_payload_t>,
-                                        thrust::tuple<vertex_t, vertex_t, int32_t>,
-                                        thrust::tuple<vertex_t, vertex_t, float, int32_t>>>;
+    cuda::std::optional<std::conditional_t<std::is_arithmetic_v<output_payload_t>,
+                                           thrust::tuple<vertex_t, vertex_t, int32_t>,
+                                           thrust::tuple<vertex_t, vertex_t, float, int32_t>>>;
 
   __device__ return_type operator()(
-    vertex_t src, vertex_t dst, property_t src_val, property_t dst_val, thrust::nullopt_t) const
+    vertex_t src, vertex_t dst, property_t src_val, property_t dst_val, cuda::std::nullopt_t) const
   {
     auto output_payload = static_cast<output_payload_t>(1);
     if (src_val < dst_val) {
@@ -82,7 +82,7 @@ struct e_op_t {
           src, dst, thrust::get<0>(output_payload), thrust::get<1>(output_payload));
       }
     } else {
-      return thrust::nullopt;
+      return cuda::std::nullopt;
     }
   }
 };
@@ -109,7 +109,8 @@ class Tests_MGExtractTransformE
   template <typename vertex_t, typename edge_t, typename weight_t, typename output_payload_t>
   void run_current_test(Prims_Usecase const& prims_usecase, input_usecase_t const& input_usecase)
   {
-    using result_t = int32_t;
+    using edge_type_t = int32_t;
+    using result_t    = int32_t;
 
     static_assert(std::is_same_v<output_payload_t, void> ||
                   cugraph::is_arithmetic_or_thrust_tuple_of_arithmetic<output_payload_t>::value);
@@ -211,12 +212,13 @@ class Tests_MGExtractTransformE
       }
 
       cugraph::graph_t<vertex_t, edge_t, store_transposed, false> sg_graph(*handle_);
-      std::tie(sg_graph, std::ignore, std::ignore, std::ignore) =
+      std::tie(sg_graph, std::ignore, std::ignore, std::ignore, std::ignore) =
         cugraph::test::mg_graph_to_sg_graph(
           *handle_,
           mg_graph_view,
           std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>>{std::nullopt},
           std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
+          std::optional<cugraph::edge_property_view_t<edge_t, edge_type_t const*>>{std::nullopt},
           std::make_optional<raft::device_span<vertex_t const>>((*d_mg_renumber_map_labels).data(),
                                                                 (*d_mg_renumber_map_labels).size()),
           false);

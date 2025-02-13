@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -38,11 +38,11 @@
 #include <rmm/device_scalar.hpp>
 #include <rmm/device_uvector.hpp>
 
+#include <cuda/std/optional>
 #include <thrust/copy.h>
 #include <thrust/count.h>
 #include <thrust/equal.h>
 #include <thrust/iterator/counting_iterator.h>
-#include <thrust/optional.h>
 #include <thrust/sequence.h>
 #include <thrust/sort.h>
 #include <thrust/tabulate.h>
@@ -62,25 +62,25 @@ struct e_op_t {
                              vertex_t dst,
                              property_t src_val,
                              property_t dst_val,
-                             thrust::nullopt_t) const
+                             cuda::std::nullopt_t) const
   {
     if constexpr (std::is_same_v<key_t, vertex_t>) {
       if constexpr (std::is_same_v<payload_t, void>) {
-        return src_val < dst_val ? thrust::optional<std::byte>{std::byte{0}} /* dummy */
-                                 : thrust::nullopt;
+        return src_val < dst_val ? cuda::std::optional<std::byte>{std::byte{0}} /* dummy */
+                                 : cuda::std::nullopt;
       } else {
-        return src_val < dst_val ? thrust::optional<payload_t>{static_cast<payload_t>(1)}
-                                 : thrust::nullopt;
+        return src_val < dst_val ? cuda::std::optional<payload_t>{static_cast<payload_t>(1)}
+                                 : cuda::std::nullopt;
       }
     } else {
       auto tag = thrust::get<1>(optionally_tagged_src);
       if constexpr (std::is_same_v<payload_t, void>) {
-        return src_val < dst_val ? thrust::optional<decltype(tag)>{tag} : thrust::nullopt;
+        return src_val < dst_val ? cuda::std::optional<decltype(tag)>{tag} : cuda::std::nullopt;
       } else {
         return src_val < dst_val
-                 ? thrust::optional<thrust::tuple<decltype(tag), payload_t>>{thrust::make_tuple(
+                 ? cuda::std::optional<thrust::tuple<decltype(tag), payload_t>>{thrust::make_tuple(
                      tag, static_cast<payload_t>(1))}
-                 : thrust::nullopt;
+                 : cuda::std::nullopt;
       }
     }
   }
@@ -112,7 +112,8 @@ class Tests_MGTransformReduceVFrontierOutgoingEBySrcDst
             typename payload_t>
   void run_current_test(Prims_Usecase const& prims_usecase, input_usecase_t const& input_usecase)
   {
-    using property_t = int32_t;
+    using edge_type_t = int32_t;
+    using property_t  = int32_t;
 
     using key_t =
       std::conditional_t<std::is_same_v<tag_t, void>, vertex_t, thrust::tuple<vertex_t, tag_t>>;
@@ -299,12 +300,13 @@ class Tests_MGTransformReduceVFrontierOutgoingEBySrcDst
       }
 
       cugraph::graph_t<vertex_t, edge_t, store_transposed, false> sg_graph(*handle_);
-      std::tie(sg_graph, std::ignore, std::ignore, std::ignore) =
+      std::tie(sg_graph, std::ignore, std::ignore, std::ignore, std::ignore) =
         cugraph::test::mg_graph_to_sg_graph(
           *handle_,
           mg_graph_view,
           std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>>{std::nullopt},
           std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
+          std::optional<cugraph::edge_property_view_t<edge_t, edge_type_t const*>>{std::nullopt},
           std::make_optional<raft::device_span<vertex_t const>>((*mg_renumber_map).data(),
                                                                 (*mg_renumber_map).size()),
           false);

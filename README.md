@@ -1,3 +1,17 @@
+# ** NOTICE ** the cuGraph repository has been refactored to make it more efficient to build, maintain and use.
+
+Libraries supporting GNNs are now located in the [cugraph-gnn repository](https://github.com/rapidsai/cugraph-gnn)
+
+* [pylibwholegraph](https://github.com/rapidsai/cugraph-gnn/tree/branch-25.02/python/) - the [Wholegraph](https://docs.rapids.ai/api/cugraph/nightly/wholegraph/) library for client memory management supporting both cuGraph-DGL and cuGraph-PyG for even greater scalability
+* [cugraph_dgl](https://github.com/rapidsai/cugraph-gnn/blob/main/readme_pages/cugraph_dgl.md)  enables the ability to use cugraph Property Graphs with Deep Graph Library (DGL)
+* [cugraph_pyg](https://github.com/rapidsai/cugraph-gnn/blob/main/readme_pages/cugraph_pyg.md) enables the ability to use cugraph Property Graphs with PyTorch Geometric (PyG).
+
+[RAPIDS nx-cugraph](https://rapids.ai/nx-cugraph/) is now located in the [nx-cugraph repository](https://github.com/rapidsai/nx-cugraph) containing a backend to NetworkX for running supported algorithms with GPU acceleration.
+
+The [cugraph-docs repository](https://github.com/rapidsai/cugraph-docs) contains code to generate cuGraph documentation.
+
+#
+
 <h1 align="center"; style="font-style: italic";>
   <br>
   <img src="img/cugraph_logo_2.png" alt="cuGraph" width="500">
@@ -22,15 +36,14 @@
 
 <br>
 
-[RAPIDS](https://rapids.ai) cuGraph is a monorepo that represents a collection of packages focused on GPU-accelerated graph analytics, including support for property graphs, remote (graph as a service) operations, and graph neural networks (GNNs).  cuGraph supports the creation and manipulation of graphs followed by the execution of scalable fast graph algorithms.
+[RAPIDS](https://rapids.ai) cuGraph is a repo that represents a collection of packages focused on GPU-accelerated graph analytics including support for property graphs and remote (graph as a service) operations.  cuGraph supports the creation and manipulation of graphs followed by the execution of scalable fast graph algorithms.
 
 <div align="center">
 
-[Getting cuGraph](./docs/cugraph/source/installation/getting_cugraph.md) *
-[Graph Algorithms](./docs/cugraph/source/graph_support/algorithms.md) *
+[Getting cuGraph](https://docs.rapids.ai/api/cugraph/nightly/) *
+[Graph Algorithms](https://docs.rapids.ai/api/cugraph/nightly/graph_support/algorithms/) *
 [Graph Service](./readme_pages/cugraph_service.md) *
 [Property Graph](./readme_pages/property_graph.md) *
-[GNN Support](./readme_pages/gnn_support.md)
 
 </div>
 
@@ -38,14 +51,13 @@
 
 ## Table of contents
 - Installation
-  - [Getting cuGraph Packages](./docs/cugraph/source/installation/getting_cugraph.md)
-  - [Building from Source](./docs/cugraph/source/installation/source_build.md)
-  - [Contributing to cuGraph](./readme_pages/CONTRIBUTING.md)
+  - [Getting cuGraph Packages](https://docs.rapids.ai/api/cugraph/stable/installation/getting_cugraph/)
+  - [Building from Source](https://docs.rapids.ai/api/cugraph/stable/installation/source_build/)
+  - [Contributing to cuGraph](https://docs.rapids.ai/contributing/)
 - General
-  - [Latest News](./readme_pages/news.md)
-  - [Current list of algorithms](./docs/cugraph/source/graph_support/algorithms.md)
-  - [Blogs and Presentation](./docs/cugraph/source/tutorials/cugraph_blogs.rst)
-  - [Performance](./readme_pages/performance/performance.md)
+  - [Latest News](https://docs.rapids.ai/api/cugraph/nightly/)
+  - [Current list of algorithms](https://docs.rapids.ai/api/cugraph/stable/graph_support/algorithms/)
+  - [Blogs and Presentation](https://docs.rapids.ai/api/cugraph/nightly/tutorials/cugraph_blogs/)
 - Packages
   - [cuGraph Python](./readme_pages/cugraph_python.md)
     - [Property Graph](./readme_pages/property_graph.md)
@@ -54,14 +66,16 @@
   - [libcugraph (C/C++/CUDA)](./readme_pages/libcugraph.md)
   - [nx-cugraph](https://rapids.ai/nx-cugraph/)
   - [cugraph-service](./readme_pages/cugraph_service.md)
-  - [cugraph-ops](./readme_pages/cugraph_ops.md)
 - API Docs
   - Python
-    - [Python Nightly](https://docs.rapids.ai/api/cugraph/nightly/)
-    - [Python Stable](https://docs.rapids.ai/api/cugraph/stable/)
+    - [Python Nightly](https://docs.rapids.ai/api/cugraph/nightly/api_docs/cugraph/)
+    - [Python Stable](https://docs.rapids.ai/api/cugraph/stable/api_docs/cugraph/)
+  - C
+    -  [C Nightly](https://docs.rapids.ai/api/cugraph/nightly/api_docs/cugraph_c/)
+    -  [C Stable](https://docs.rapids.ai/api/cugraph/stable/api_docs/cugraph_c/)
   - C++
-    - [C++ Nightly](https://docs.rapids.ai/api/libcugraph/nightly/)
-    - [C++ Stable](https://docs.rapids.ai/api/libcugraph/stable/)
+    - [C++ Nightly](https://docs.rapids.ai/api/cugraph/nightly/api_docs/cugraph_cpp/)
+    - (Will be available when 25.02 is released)[C++ Stable](https://docs.rapids.ai/api/cugraph/stable/api_docs/cugraph_cpp/)
 - References
   - [RAPIDS](https://rapids.ai/)
   - [ARROW](https://arrow.apache.org/)

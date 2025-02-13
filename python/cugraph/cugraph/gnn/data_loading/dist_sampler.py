@@ -1,4 +1,4 @@
-# Copyright (c) 2024, NVIDIA CORPORATION.
+# Copyright (c) 2024-2025, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -75,7 +75,7 @@ class DistSampler:
     def sample_batches(
         self,
         seeds: TensorType,
-        batch_ids: TensorType,
+        batch_id_offsets: TensorType,
         random_state: int = 0,
         assume_equal_input_size: bool = False,
     ) -> Dict[str, TensorType]:
@@ -87,8 +87,10 @@ class DistSampler:
         ----------
         seeds: TensorType
             Input seeds for a single call group (node ids).
-        batch_ids: TensorType
-            The batch id for each seed.
+        batch_id_offsets: TensorType
+            Offsets (start/end) of each batch.  i.e. 0, 5, 10
+            corresponds to 2 batches, the first from index 0-4,
+            inclusive, and the second from index 5-9, inclusive.
         random_state: int
             The random seed to use for sampling.
         assume_equal_input_size: bool
@@ -101,78 +103,6 @@ class DistSampler:
         A dictionary containing the sampling outputs (majors, minors, map, etc.)
         """
         raise NotImplementedError("Must be implemented by subclass")
-
-    def get_label_list_and_output_rank(
-        self, local_label_list: TensorType, assume_equal_input_size: bool = False
-    ):
-        """
-        Computes the label list and output rank mapping for
-        the list of labels (batch ids).
-        Subclasses may override this as needed depending on their
-        memory and compute constraints.
-
-        Parameters
-        ----------
-        local_label_list: TensorType
-            The list of unique labels on this rank.
-        assume_equal_input_size: bool
-            If True, assumes that all ranks have the same number of inputs (batches)
-            and skips some synchronization/gathering accordingly.
-
-        Returns
-        -------
-        label_list: TensorType
-            The global label list containing all labels used across ranks.
-        label_to_output_comm_rank: TensorType
-            The global mapping of labels to ranks.
-        """
-        torch = import_optional("torch")
-
-        world_size = torch.distributed.get_world_size()
-
-        if assume_equal_input_size:
-            num_batches = len(local_label_list) * world_size
-            label_list = torch.empty((num_batches,), dtype=torch.int32, device="cuda")
-            w = torch.distributed.all_gather_into_tensor(
-                label_list, local_label_list, async_op=True
-            )
-
-            label_to_output_comm_rank = torch.concat(
-                [
-                    torch.full(
-                        (len(local_label_list),), r, dtype=torch.int32, device="cuda"
-                    )
-                    for r in range(world_size)
-                ]
-            )
-        else:
-            num_batches = torch.tensor(
-                [len(local_label_list)], device="cuda", dtype=torch.int64
-            )
-            num_batches_all_ranks = torch.empty(
-                (world_size,), device="cuda", dtype=torch.int64
-            )
-            torch.distributed.all_gather_into_tensor(num_batches_all_ranks, num_batches)
-
-            label_list = [
-                torch.empty((n,), dtype=torch.int32, device="cuda")
-                for n in num_batches_all_ranks
-            ]
-            w = torch.distributed.all_gather(
-                label_list, local_label_list, async_op=True
-            )
-
-            label_to_output_comm_rank = torch.concat(
-                [
-                    torch.full((num_batches_r,), r, device="cuda", dtype=torch.int32)
-                    for r, num_batches_r in enumerate(num_batches_all_ranks)
-                ]
-            )
-
-        w.wait()
-        if isinstance(label_list, list):
-            label_list = torch.concat(label_list)
-        return label_list, label_to_output_comm_rank
 
     def get_start_batch_offset(
         self, local_num_batches: int, assume_equal_input_size: bool = False
@@ -240,23 +170,10 @@ class DistSampler:
 
         current_seeds, current_ix = current_seeds_and_ix
 
-        current_batches = torch.arange(
-            batch_id_start + call_id * batches_per_call,
-            batch_id_start
-            + call_id * batches_per_call
-            + int(ceil(len(current_seeds)))
-            + 1,
-            device="cuda",
-            dtype=torch.int32,
-        )
-
-        current_batches = current_batches.repeat_interleave(batch_size)[
-            : len(current_seeds)
-        ]
-
         # do qr division to get the number of batch_size batches and the
         # size of the last batch
         num_full, last_count = divmod(len(current_seeds), batch_size)
+
         input_offsets = torch.concatenate(
             [
                 torch.tensor([0], device="cuda", dtype=torch.int64),
@@ -269,10 +186,10 @@ class DistSampler:
 
         minibatch_dict = self.sample_batches(
             seeds=current_seeds,
-            batch_ids=current_batches,
+            batch_id_offsets=input_offsets,
             random_state=random_state,
-            assume_equal_input_size=assume_equal_input_size,
         )
+
         minibatch_dict["input_index"] = current_ix.cuda()
         minibatch_dict["input_offsets"] = input_offsets
 
@@ -286,10 +203,19 @@ class DistSampler:
                 if v is not None
             }
 
-            return iter([(minibatch_dict, current_batches[0], current_batches[-1])])
+            return iter(
+                [
+                    (
+                        minibatch_dict,
+                        batch_id_start,
+                        batch_id_start + input_offsets.numel() - 2,
+                    )
+                ]
+            )
         else:
+            minibatch_dict["batch_start"] = batch_id_start
             self.__writer.write_minibatches(minibatch_dict)
-            return None
+            return batch_id_start + input_offsets.numel() - 1
 
     def __get_call_groups(
         self,
@@ -297,6 +223,7 @@ class DistSampler:
         input_id: TensorType,
         seeds_per_call: int,
         assume_equal_input_size: bool = False,
+        label: Optional[TensorType] = None,
     ):
         torch = import_optional("torch")
 
@@ -305,6 +232,8 @@ class DistSampler:
         # many batches.
         seeds_call_groups = torch.split(seeds, seeds_per_call, dim=-1)
         index_call_groups = torch.split(input_id, seeds_per_call, dim=-1)
+        if label is not None:
+            label_call_groups = torch.split(label, seeds_per_call, dim=-1)
 
         # Need to add empties to the list of call groups to handle the case
         # where not all ranks have the same number of call groups.  This
@@ -325,8 +254,16 @@ class DistSampler:
                 [torch.tensor([], dtype=torch.int64, device=input_id.device)]
                 * (int(num_call_groups) - len(index_call_groups))
             )
+            if label is not None:
+                label_call_groups = list(label_call_groups) + (
+                    [torch.tensor([], dtype=label.dtype, device=label.device)]
+                    * (int(num_call_groups) - len(label_call_groups))
+                )
 
-        return seeds_call_groups, index_call_groups
+        if label is not None:
+            return seeds_call_groups, index_call_groups, label_call_groups
+        else:
+            return seeds_call_groups, index_call_groups
 
     def sample_from_nodes(
         self,
@@ -370,6 +307,8 @@ class DistSampler:
 
         if input_id is None:
             input_id = torch.arange(num_seeds, dtype=torch.int64, device="cpu")
+        else:
+            input_id = torch.as_tensor(input_id, device="cpu")
 
         local_num_batches = int(ceil(num_seeds / batch_size))
         batch_id_start, input_size_is_equal = self.get_start_batch_offset(
@@ -383,13 +322,13 @@ class DistSampler:
             assume_equal_input_size=input_size_is_equal,
         )
 
-        sample_args = (
+        sample_args = [
             batch_id_start,
             batch_size,
             batches_per_call,
             random_state,
             input_size_is_equal,
-        )
+        ]
 
         if self.__writer is None:
             # Buffered sampling
@@ -403,7 +342,7 @@ class DistSampler:
             for i, current_seeds_and_ix in enumerate(
                 zip(nodes_call_groups, index_call_groups)
             ):
-                self.__sample_from_nodes_func(
+                sample_args[0] = self.__sample_from_nodes_func(
                     i,
                     current_seeds_and_ix,
                     *sample_args,
@@ -416,7 +355,7 @@ class DistSampler:
     def __sample_from_edges_func(
         self,
         call_id: int,
-        current_seeds_and_ix: Tuple["torch.Tensor", "torch.Tensor"],
+        current_seeds_and_ix: Tuple["torch.Tensor", "torch.Tensor", "torch.Tensor"],
         batch_id_start: int,
         batch_size: int,
         batches_per_call: int,
@@ -425,7 +364,7 @@ class DistSampler:
     ) -> Union[None, Iterator[Tuple[Dict[str, "torch.Tensor"], int, int]]]:
         torch = import_optional("torch")
 
-        current_seeds, current_ix = current_seeds_and_ix
+        current_seeds, current_ix, current_label = current_seeds_and_ix
         num_seed_edges = current_ix.numel()
 
         # The index gets stored as-is regardless of what makes it into
@@ -493,21 +432,13 @@ class DistSampler:
         if len(u) > 0:
             current_seeds = torch.concat([a[0] for a, _ in u])
             current_inv = torch.concat([a[1][i] for a, i in u])
-            current_batches = torch.concat(
-                [
-                    torch.full(
-                        (a[0].numel(),),
-                        i + batch_id_start + (call_id * batches_per_call),
-                        device="cuda",
-                        dtype=torch.int32,
-                    )
-                    for i, (a, _) in enumerate(u)
-                ]
+            current_batch_offsets = torch.tensor(
+                [a[0].numel() for (a, _) in u], device="cuda", dtype=torch.int64
             )
         else:
             current_seeds = torch.tensor([], device="cuda", dtype=torch.int64)
             current_inv = torch.tensor([], device="cuda", dtype=torch.int64)
-            current_batches = torch.tensor([], device="cuda", dtype=torch.int32)
+            current_batch_offsets = torch.tensor([], device="cuda", dtype=torch.int64)
         del u
 
         # Join with the leftovers
@@ -519,30 +450,36 @@ class DistSampler:
         leftover_seeds, lui = leftover_seeds.unique_consecutive(return_inverse=True)
         leftover_inv = lui[lz]
 
-        current_seeds = torch.concat([current_seeds, leftover_seeds])
-        current_inv = torch.concat([current_inv, leftover_inv])
-        current_batches = torch.concat(
-            [
-                current_batches,
-                torch.full(
-                    (leftover_seeds.numel(),),
-                    (current_batches[-1] + 1) if current_batches.numel() > 0 else 0,
-                    device="cuda",
-                    dtype=torch.int32,
-                ),
-            ]
-        )
+        if leftover_seeds.numel() > 0:
+            current_seeds = torch.concat([current_seeds, leftover_seeds])
+            current_inv = torch.concat([current_inv, leftover_inv])
+            current_batch_offsets = torch.concat(
+                [
+                    current_batch_offsets,
+                    torch.tensor(
+                        [leftover_seeds.numel()], device="cuda", dtype=torch.int64
+                    ),
+                ]
+            )
         del leftover_seeds
         del lz
         del lui
 
+        if current_batch_offsets.numel() > 0:
+            current_batch_offsets = torch.concat(
+                [
+                    torch.tensor([0], device="cuda", dtype=torch.int64),
+                    current_batch_offsets,
+                ]
+            ).cumsum(-1)
+
         minibatch_dict = self.sample_batches(
             seeds=current_seeds,
-            batch_ids=current_batches,
+            batch_id_offsets=current_batch_offsets,
             random_state=random_state,
-            assume_equal_input_size=assume_equal_input_size,
         )
         minibatch_dict["input_index"] = current_ix.cuda()
+        minibatch_dict["input_label"] = current_label.cuda()
         minibatch_dict["input_offsets"] = input_offsets
         minibatch_dict[
             "edge_inverse"
@@ -558,10 +495,19 @@ class DistSampler:
                 if v is not None
             }
 
-            return iter([(minibatch_dict, current_batches[0], current_batches[-1])])
+            return iter(
+                [
+                    (
+                        minibatch_dict,
+                        batch_id_start,
+                        batch_id_start + current_batch_offsets.numel() - 2,
+                    )
+                ]
+            )
         else:
+            minibatch_dict["batch_start"] = batch_id_start
             self.__writer.write_minibatches(minibatch_dict)
-            return None
+            return batch_id_start + current_batch_offsets.numel() - 1
 
     def sample_from_edges(
         self,
@@ -571,6 +517,7 @@ class DistSampler:
         random_state: int = 62,
         assume_equal_input_size: bool = False,
         input_id: Optional[TensorType] = None,
+        input_label: Optional[TensorType] = None,
     ) -> Iterator[Tuple[Dict[str, "torch.Tensor"], int, int]]:
         """
         Performs sampling starting from seed edges.
@@ -593,6 +540,10 @@ class DistSampler:
             Input ids corresponding to the original batch tensor, if it
             was permuted prior to calling this function.  If present,
             will be saved with the samples.
+        input_label: Optional[TensorType]
+            Input labels corresponding to the input seeds.  Typically used
+            for link prediction sampling.  If present, will be saved with
+            the samples.  Generally not compatible with negative sampling.
         """
 
         torch = import_optional("torch")
@@ -611,34 +562,42 @@ class DistSampler:
             local_num_batches, assume_equal_input_size=assume_equal_input_size
         )
 
-        edges_call_groups, index_call_groups = self.__get_call_groups(
+        groups = self.__get_call_groups(
             edges,
             input_id,
             actual_seed_edges_per_call,
             assume_equal_input_size=input_size_is_equal,
+            label=input_label,
         )
+        if len(groups) == 2:
+            edges_call_groups, index_call_groups = groups
+            label_call_groups = [torch.tensor([], dtype=torch.int32)] * len(
+                edges_call_groups
+            )
+        else:
+            edges_call_groups, index_call_groups, label_call_groups = groups
 
-        sample_args = (
+        sample_args = [
             batch_id_start,
             batch_size,
             batches_per_call,
             random_state,
             input_size_is_equal,
-        )
+        ]
 
         if self.__writer is None:
             # Buffered sampling
             return BufferedSampleReader(
-                zip(edges_call_groups, index_call_groups),
+                zip(edges_call_groups, index_call_groups, label_call_groups),
                 self.__sample_from_edges_func,
                 *sample_args,
             )
         else:
             # Unbuffered sampling
             for i, current_seeds_and_ix in enumerate(
-                zip(edges_call_groups, index_call_groups)
+                zip(edges_call_groups, index_call_groups, label_call_groups)
             ):
-                self.__sample_from_edges_func(
+                sample_args[0] = self.__sample_from_edges_func(
                     i,
                     current_seeds_and_ix,
                     *sample_args,
@@ -699,13 +658,21 @@ class NeighborSampler(DistSampler):
         compress_per_hop: bool = False,
         with_replacement: bool = False,
         biased: bool = False,
+        heterogeneous: bool = False,
+        vertex_type_offsets: Optional[TensorType] = None,
+        num_edge_types: int = 1,
     ):
+
         self.__fanout = fanout
-        self.__prior_sources_behavior = prior_sources_behavior
-        self.__deduplicate_sources = deduplicate_sources
-        self.__compress_per_hop = compress_per_hop
-        self.__compression = compression
-        self.__with_replacement = with_replacement
+        self.__func_kwargs = {
+            "h_fan_out": np.asarray(fanout, dtype="int32"),
+            "prior_sources_behavior": prior_sources_behavior,
+            "retain_seeds": retain_original_seeds,
+            "deduplicate_sources": deduplicate_sources,
+            "compress_per_hop": compress_per_hop,
+            "compression": compression,
+            "with_replacement": with_replacement,
+        }
 
         # It is currently required that graphs are weighted for biased
         # sampling.  So setting the function here is safe.  In the future,
@@ -713,28 +680,66 @@ class NeighborSampler(DistSampler):
         # change.
         # TODO allow func to be a call to a future remote sampling API
         # if the provided graph is in another process (rapidsai/cugraph#4623).
-        self.__func = (
-            pylibcugraph.biased_neighbor_sample
-            if biased
-            else pylibcugraph.uniform_neighbor_sample
-        )
+        if heterogeneous:
+            if vertex_type_offsets is None:
+                raise ValueError("Heterogeneous sampling requires vertex type offsets.")
+            self.__func = (
+                pylibcugraph.heterogeneous_biased_neighbor_sample
+                if biased
+                else pylibcugraph.heterogeneous_uniform_neighbor_sample
+            )
+            self.__func_kwargs["num_edge_types"] = num_edge_types
+            self.__func_kwargs["vertex_type_offsets"] = cupy.asarray(
+                vertex_type_offsets
+            )
+        else:
+            self.__func = (
+                pylibcugraph.homogeneous_biased_neighbor_sample
+                if biased
+                else pylibcugraph.homogeneous_uniform_neighbor_sample
+            )
+
+        if num_edge_types > 1 and not heterogeneous:
+            raise ValueError(
+                "Heterogeneous sampling must be selected if there is > 1 edge type."
+            )
 
         super().__init__(
             graph,
             writer,
-            local_seeds_per_call=self.__calc_local_seeds_per_call(local_seeds_per_call),
+            local_seeds_per_call=self.__calc_local_seeds_per_call(
+                local_seeds_per_call,
+                heterogeneous=heterogeneous,
+                num_edge_types=num_edge_types,
+            ),
             retain_original_seeds=retain_original_seeds,
         )
 
-    def __calc_local_seeds_per_call(self, local_seeds_per_call: Optional[int] = None):
+    def __calc_local_seeds_per_call(
+        self,
+        local_seeds_per_call: Optional[int] = None,
+        heterogeneous: bool = False,
+        num_edge_types: int = 1,
+    ):
         torch = import_optional("torch")
 
+        fanout = self.__fanout
+
         if local_seeds_per_call is None:
-            if len([x for x in self.__fanout if x <= 0]) > 0:
+            if len([x for x in fanout if x <= 0]) > 0:
                 return NeighborSampler.UNKNOWN_VERTICES_DEFAULT
 
+            if heterogeneous:
+                if len(fanout) % num_edge_types != 0:
+                    raise ValueError(f"Illegal fanout for {num_edge_types} edge types.")
+                num_hops = len(fanout) // num_edge_types
+                fanout = [
+                    sum([fanout[t * num_hops + h] for t in range(num_edge_types)])
+                    for h in range(num_hops)
+                ]
+
             total_memory = torch.cuda.get_device_properties(0).total_memory
-            fanout_prod = reduce(lambda x, y: x * y, self.__fanout)
+            fanout_prod = reduce(lambda x, y: x * y, fanout)
             return int(
                 NeighborSampler.BASE_VERTICES_PER_BYTE * total_memory / fanout_prod
             )
@@ -744,94 +749,25 @@ class NeighborSampler(DistSampler):
     def sample_batches(
         self,
         seeds: TensorType,
-        batch_ids: TensorType,
+        batch_id_offsets: TensorType,
         random_state: int = 0,
-        assume_equal_input_size: bool = False,
     ) -> Dict[str, TensorType]:
         torch = import_optional("torch")
-        if self.is_multi_gpu:
-            rank = torch.distributed.get_rank()
+        rank = torch.distributed.get_rank() if self.is_multi_gpu else 0
 
-            batch_ids = batch_ids.to(device="cuda", dtype=torch.int32)
-            local_label_list = torch.unique(batch_ids)
+        kwargs = {
+            "resource_handle": self._resource_handle,
+            "input_graph": self._graph,
+            "start_vertex_list": cupy.asarray(seeds),
+            "starting_vertex_label_offsets": cupy.asarray(batch_id_offsets),
+            "renumber": True,
+            "return_hops": True,
+            "do_expensive_check": False,
+            "random_state": random_state + rank,
+        }
+        kwargs.update(self.__func_kwargs)
+        sampling_results_dict = self.__func(**kwargs)
 
-            label_list, label_to_output_comm_rank = self.get_label_list_and_output_rank(
-                local_label_list, assume_equal_input_size=assume_equal_input_size
-            )
-
-            if self._retain_original_seeds:
-                label_offsets = torch.concat(
-                    [
-                        torch.searchsorted(batch_ids, local_label_list),
-                        torch.tensor(
-                            [batch_ids.shape[0]], device="cuda", dtype=torch.int64
-                        ),
-                    ]
-                )
-            else:
-                label_offsets = None
-
-            sampling_results_dict = self.__func(
-                self._resource_handle,
-                self._graph,
-                start_list=cupy.asarray(seeds),
-                batch_id_list=cupy.asarray(batch_ids),
-                label_list=cupy.asarray(label_list),
-                label_to_output_comm_rank=cupy.asarray(label_to_output_comm_rank),
-                h_fan_out=np.array(self.__fanout, dtype="int32"),
-                with_replacement=self.__with_replacement,
-                do_expensive_check=False,
-                with_edge_properties=True,
-                random_state=random_state + rank,
-                prior_sources_behavior=self.__prior_sources_behavior,
-                deduplicate_sources=self.__deduplicate_sources,
-                return_hops=True,
-                renumber=True,
-                compression=self.__compression,
-                compress_per_hop=self.__compress_per_hop,
-                retain_seeds=self._retain_original_seeds,
-                label_offsets=None
-                if label_offsets is None
-                else cupy.asarray(label_offsets),
-                return_dict=True,
-            )
-            sampling_results_dict["rank"] = rank
-        else:
-            if self._retain_original_seeds:
-                batch_ids = batch_ids.to(device="cuda", dtype=torch.int32)
-                local_label_list = torch.unique(batch_ids)
-                label_offsets = torch.concat(
-                    [
-                        torch.searchsorted(batch_ids, local_label_list),
-                        torch.tensor(
-                            [batch_ids.shape[0]], device="cuda", dtype=torch.int64
-                        ),
-                    ]
-                )
-            else:
-                label_offsets = None
-
-            sampling_results_dict = self.__func(
-                self._resource_handle,
-                self._graph,
-                start_list=cupy.asarray(seeds),
-                batch_id_list=cupy.asarray(batch_ids),
-                h_fan_out=np.array(self.__fanout, dtype="int32"),
-                with_replacement=self.__with_replacement,
-                do_expensive_check=False,
-                with_edge_properties=True,
-                random_state=random_state,
-                prior_sources_behavior=self.__prior_sources_behavior,
-                deduplicate_sources=self.__deduplicate_sources,
-                return_hops=True,
-                renumber=True,
-                compression=self.__compression,
-                compress_per_hop=self.__compress_per_hop,
-                retain_seeds=self._retain_original_seeds,
-                label_offsets=None
-                if label_offsets is None
-                else cupy.asarray(label_offsets),
-                return_dict=True,
-            )
-
+        sampling_results_dict["fanout"] = cupy.array(self.__fanout, dtype="int32")
+        sampling_results_dict["rank"] = rank
         return sampling_results_dict

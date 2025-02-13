@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -279,17 +279,24 @@ graph_to_host_csc(
                                          true>(handle, graph_view, edge_weight_view, renumber_map);
 }
 
-template <typename vertex_t, typename edge_t, typename weight_t, bool store_transposed>
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          typename edge_type_t,
+          bool store_transposed>
 std::tuple<
   cugraph::graph_t<vertex_t, edge_t, store_transposed, false>,
   std::optional<edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, false>, weight_t>>,
   std::optional<edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, false>, edge_t>>,
+  std::optional<
+    edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, false>, edge_type_t>>,
   std::optional<rmm::device_uvector<vertex_t>>>
 mg_graph_to_sg_graph(
   raft::handle_t const& handle,
   cugraph::graph_view_t<vertex_t, edge_t, store_transposed, true> const& graph_view,
   std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
   std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>> edge_id_view,
+  std::optional<cugraph::edge_property_view_t<edge_t, edge_type_t const*>> edge_type_view,
   std::optional<raft::device_span<vertex_t const>> renumber_map,
   bool renumber)
 {
@@ -297,14 +304,10 @@ mg_graph_to_sg_graph(
   rmm::device_uvector<vertex_t> d_dst(0, handle.get_stream());
   std::optional<rmm::device_uvector<weight_t>> d_wgt{std::nullopt};
   std::optional<rmm::device_uvector<edge_t>> d_edge_id{std::nullopt};
+  std::optional<rmm::device_uvector<edge_type_t>> d_edge_type{std::nullopt};
 
-  std::tie(d_src, d_dst, d_wgt, d_edge_id, std::ignore) = cugraph::decompress_to_edgelist(
-    handle,
-    graph_view,
-    edge_weight_view,
-    edge_id_view,
-    std::optional<cugraph::edge_property_view_t<edge_t, int32_t const*>>{std::nullopt},
-    renumber_map);
+  std::tie(d_src, d_dst, d_wgt, d_edge_id, d_edge_type) = cugraph::decompress_to_edgelist(
+    handle, graph_view, edge_weight_view, edge_id_view, edge_type_view, renumber_map);
 
   d_src = cugraph::test::device_gatherv(
     handle, raft::device_span<vertex_t const>{d_src.data(), d_src.size()});
@@ -316,6 +319,9 @@ mg_graph_to_sg_graph(
   if (d_edge_id)
     *d_edge_id = cugraph::test::device_gatherv(
       handle, raft::device_span<edge_t const>{d_edge_id->data(), d_edge_id->size()});
+  if (d_edge_type)
+    *d_edge_type = cugraph::test::device_gatherv(
+      handle, raft::device_span<edge_type_t const>{d_edge_type->data(), d_edge_type->size()});
 
   rmm::device_uvector<vertex_t> vertices(0, handle.get_stream());
   if (renumber_map) { vertices = cugraph::test::device_gatherv(handle, *renumber_map); }
@@ -325,6 +331,9 @@ mg_graph_to_sg_graph(
     sg_edge_weights{std::nullopt};
   std::optional<edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, false>, edge_t>>
     sg_edge_ids{std::nullopt};
+  std::optional<
+    edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, false>, edge_type_t>>
+    sg_edge_types{std::nullopt};
   std::optional<rmm::device_uvector<vertex_t>> sg_number_map;
   if (handle.get_comms().get_rank() == 0) {
     if (!renumber_map) {
@@ -333,21 +342,15 @@ mg_graph_to_sg_graph(
         handle.get_stream(), vertices.data(), vertices.size(), vertex_t{0});
     }
 
-    std::tie(sg_graph, sg_edge_weights, sg_edge_ids, std::ignore, sg_number_map) =
-      cugraph::create_graph_from_edgelist<vertex_t,
-                                          edge_t,
-                                          weight_t,
-                                          edge_t,
-                                          int32_t,
-                                          store_transposed,
-                                          false>(
+    std::tie(sg_graph, sg_edge_weights, sg_edge_ids, sg_edge_types, sg_number_map) = cugraph::
+      create_graph_from_edgelist<vertex_t, edge_t, weight_t, edge_type_t, store_transposed, false>(
         handle,
         std::make_optional(std::move(vertices)),
         std::move(d_src),
         std::move(d_dst),
         std::move(d_wgt),
         std::move(d_edge_id),
-        std::nullopt,
+        std::move(d_edge_type),
         cugraph::graph_properties_t{graph_view.is_symmetric(), graph_view.is_multigraph()},
         renumber);
   } else {
@@ -363,11 +366,16 @@ mg_graph_to_sg_graph(
       (*d_edge_id).resize(0, handle.get_stream());
       (*d_edge_id).shrink_to_fit(handle.get_stream());
     }
+    if (d_edge_type) {
+      (*d_edge_type).resize(0, handle.get_stream());
+      (*d_edge_type).shrink_to_fit(handle.get_stream());
+    }
   }
 
   return std::make_tuple(std::move(sg_graph),
                          std::move(sg_edge_weights),
                          std::move(sg_edge_ids),
+                         std::move(sg_edge_types),
                          std::move(sg_number_map));
 }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -145,21 +145,21 @@ compute_tx_rx_counts_offsets_ranks(raft::comms::comms_t const& comm,
 
 template <typename key_type, typename KeyToGroupIdOp>
 struct key_group_id_less_t {
-  KeyToGroupIdOp key_to_group_id_op{};
+  KeyToGroupIdOp key_to_group_id_op;
   int pivot{};
   __device__ bool operator()(key_type k) const { return key_to_group_id_op(k) < pivot; }
 };
 
 template <typename value_type, typename ValueToGroupIdOp>
 struct value_group_id_less_t {
-  ValueToGroupIdOp value_to_group_id_op{};
+  ValueToGroupIdOp value_to_group_id_op;
   int pivot{};
   __device__ bool operator()(value_type v) const { return value_to_group_id_op(v) < pivot; }
 };
 
 template <typename key_type, typename value_type, typename KeyToGroupIdOp>
 struct kv_pair_group_id_less_t {
-  KeyToGroupIdOp key_to_group_id_op{};
+  KeyToGroupIdOp key_to_group_id_op;
   int pivot{};
   __device__ bool operator()(thrust::tuple<key_type, value_type> t) const
   {
@@ -169,14 +169,14 @@ struct kv_pair_group_id_less_t {
 
 template <typename value_type, typename ValueToGroupIdOp>
 struct value_group_id_greater_equal_t {
-  ValueToGroupIdOp value_to_group_id_op{};
+  ValueToGroupIdOp value_to_group_id_op;
   int pivot{};
   __device__ bool operator()(value_type v) const { return value_to_group_id_op(v) >= pivot; }
 };
 
 template <typename key_type, typename value_type, typename KeyToGroupIdOp>
 struct kv_pair_group_id_greater_equal_t {
-  KeyToGroupIdOp key_to_group_id_op{};
+  KeyToGroupIdOp key_to_group_id_op;
   int pivot{};
   __device__ bool operator()(thrust::tuple<key_type, value_type> t) const
   {

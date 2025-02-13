@@ -1,5 +1,5 @@
 #!/bin/bash
-# Copyright (c) 2018-2024, NVIDIA CORPORATION.
+# Copyright (c) 2018-2025, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -57,12 +57,10 @@ DEPENDENCIES=(
   dask-cuda
   dask-cudf
   libcudf
-  libcugraphops
+  libcugraph
   libraft
-  libraft-headers
   librmm
   pylibcugraph
-  pylibcugraphops
   pylibwholegraph
   pylibraft
   pyraft
@@ -98,8 +96,6 @@ done
 # CI files
 for FILE in .github/workflows/*.yaml; do
   sed_runner "/shared-workflows/ s/@.*/@branch-${NEXT_SHORT_TAG}/g" "${FILE}"
-  # Wheel builds clone cugraph-ops, update its branch
-  sed_runner "s/extra-repo-sha: branch-.*/extra-repo-sha: branch-${NEXT_SHORT_TAG}/g" "${FILE}"
   # Wheel builds install dask-cuda from source, update its branch
   sed_runner "s/dask-cuda.git@branch-[0-9][0-9].[0-9][0-9]/dask-cuda.git@branch-${NEXT_SHORT_TAG}/g" "${FILE}"
 done
@@ -114,4 +110,3 @@ find .devcontainer/ -type f -name devcontainer.json -print0 | while IFS= read -r
 done
 
 sed_runner "s/:[0-9][0-9]\.[0-9][0-9]/:${NEXT_SHORT_TAG}/" ./notebooks/README.md
-sed_runner "s/branch-[0-9][0-9].[0-9][0-9]/branch-${NEXT_SHORT_TAG}/" ./docs/cugraph/source/nx_cugraph/nx_cugraph.md

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -28,6 +28,7 @@
 #include <rmm/device_scalar.hpp>
 #include <rmm/device_uvector.hpp>
 
+#include <cuda/std/functional>
 #include <thrust/count.h>
 #include <thrust/distance.h>
 #include <thrust/equal.h>
@@ -218,13 +219,15 @@ bool validate_sampling_depth(raft::handle_t const& handle,
 {
   graph_t<vertex_t, vertex_t, false, false> graph(handle);
   std::optional<rmm::device_uvector<vertex_t>> number_map{std::nullopt};
-  std::tie(graph, std::ignore, std::ignore, std::ignore, number_map) =
-    create_graph_from_edgelist<vertex_t, vertex_t, weight_t, vertex_t, int32_t, false, false>(
+  std::tie(graph, std::ignore, std::ignore, std::ignore, std::ignore, std::ignore, number_map) =
+    create_graph_from_edgelist<vertex_t, vertex_t, weight_t, int32_t, int32_t, false, false>(
       handle,
       std::nullopt,
       std::move(d_src),
       std::move(d_dst),
       std::move(d_wgt),
+      std::nullopt,
+      std::nullopt,
       std::nullopt,
       std::nullopt,
       graph_properties_t{false, true},
@@ -273,7 +276,7 @@ bool validate_sampling_depth(raft::handle_t const& handle,
                         tuple_iter + d_distances.size(),
                         d_distances.begin(),
                         [] __device__(auto tuple) {
-                          return thrust::min(thrust::get<0>(tuple), thrust::get<1>(tuple));
+                          return cuda::std::min(thrust::get<0>(tuple), thrust::get<1>(tuple));
                         });
     }
   }

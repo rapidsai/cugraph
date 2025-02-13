@@ -1,4 +1,4 @@
-# Copyright (c) 2022-2024, NVIDIA CORPORATION.
+# Copyright (c) 2022-2025, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -23,6 +23,9 @@ from pylibcugraph._cugraph_c.resource_handle cimport (
 from pylibcugraph._cugraph_c.error cimport (
     cugraph_error_code_t,
     cugraph_error_t,
+)
+from pylibcugraph._cugraph_c.random cimport (
+    cugraph_rng_state_t,
 )
 from pylibcugraph._cugraph_c.array cimport (
     cugraph_type_erased_device_array_view_t,
@@ -148,7 +151,7 @@ cdef extern from "cugraph_c/algorithms.h":
             cugraph_random_walk_result_t* result
         )
 
-    # node2vec
+    # node2vec - Deprecated, call node2vec_random_walks instead
     cdef cugraph_error_code_t \
         cugraph_node2vec(
             const cugraph_resource_handle_t* handle,
@@ -360,6 +363,7 @@ cdef extern from "cugraph_c/algorithms.h":
     cdef cugraph_error_code_t \
         cugraph_uniform_random_walks(
             const cugraph_resource_handle_t* handle,
+            cugraph_rng_state_t* rng_state,
             cugraph_graph_t* graph,
             const cugraph_type_erased_device_array_view_t* start_vertices,
             size_t max_length,
@@ -371,9 +375,24 @@ cdef extern from "cugraph_c/algorithms.h":
     cdef cugraph_error_code_t \
         cugraph_biased_random_walks(
             const cugraph_resource_handle_t* handle,
+            cugraph_rng_state_t* rng_state,
             cugraph_graph_t* graph,
             const cugraph_type_erased_device_array_view_t* start_vertices,
             size_t max_length,
+            cugraph_random_walk_result_t** result,
+            cugraph_error_t** error
+        )
+
+    # node2vec random walks
+    cdef cugraph_error_code_t \
+        cugraph_node2vec_random_walks(
+            const cugraph_resource_handle_t* handle,
+            cugraph_rng_state_t* rng_state,
+            cugraph_graph_t* graph,
+            const cugraph_type_erased_device_array_view_t* start_vertices,
+            size_t max_length,
+            double p,
+            double q,
             cugraph_random_walk_result_t** result,
             cugraph_error_t** error
         )

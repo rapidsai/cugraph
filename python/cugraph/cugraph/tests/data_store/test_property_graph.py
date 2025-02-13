@@ -1,4 +1,4 @@
-# Copyright (c) 2021-2024, NVIDIA CORPORATION.
+# Copyright (c) 2021-2025, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -26,18 +26,6 @@ from cugraph.datasets import cyber
 from cudf.testing import assert_frame_equal, assert_series_equal
 from pylibcugraph.testing.utils import gen_fixture_params_product
 
-
-# If the rapids-pytest-benchmark plugin is installed, the "gpubenchmark"
-# fixture will be available automatically. Check that this fixture is available
-# by trying to import rapids_pytest_benchmark, and if that fails, set
-# "gpubenchmark" to the standard "benchmark" fixture provided by
-# pytest-benchmark.
-try:
-    import rapids_pytest_benchmark  # noqa: F401
-except ImportError:
-    import pytest_benchmark
-
-    gpubenchmark = pytest_benchmark.plugin.benchmark
 
 # FIXME: remove when fully-migrated to pandas 1.5.0
 try:
@@ -2513,19 +2501,19 @@ def test_types_from_numerals():
 # =============================================================================
 # Benchmarks
 # =============================================================================
-def bench_num_vertices(gpubenchmark, dataset1_PropertyGraph):
+def bench_num_vertices(benchmark, dataset1_PropertyGraph):
     (pG, data) = dataset1_PropertyGraph
 
-    assert gpubenchmark(pG.get_num_vertices) == 9
+    assert benchmark(pG.get_num_vertices) == 9
 
 
-def bench_get_vertices(gpubenchmark, dataset1_PropertyGraph):
+def bench_get_vertices(benchmark, dataset1_PropertyGraph):
     (pG, data) = dataset1_PropertyGraph
 
-    gpubenchmark(pG.get_vertices)
+    benchmark(pG.get_vertices)
 
 
-def bench_extract_subgraph_for_cyber(gpubenchmark, cyber_PropertyGraph):
+def bench_extract_subgraph_for_cyber(benchmark, cyber_PropertyGraph):
     from cugraph.experimental import PropertyGraph
 
     pG = cyber_PropertyGraph
@@ -2535,7 +2523,7 @@ def bench_extract_subgraph_for_cyber(gpubenchmark, cyber_PropertyGraph):
     # Create a Graph containing only specific src or dst vertices
     verts = ["10.40.182.3", "10.40.182.255", "59.166.0.9", "59.166.0.8"]
     selected_edges = pG.select_edges(f"{scn}.isin({verts}) | {dcn}.isin({verts})")
-    gpubenchmark(
+    benchmark(
         pG.extract_subgraph,
         create_using=cugraph.Graph(directed=True),
         selection=selected_edges,
@@ -2545,7 +2533,7 @@ def bench_extract_subgraph_for_cyber(gpubenchmark, cyber_PropertyGraph):
 
 
 def bench_extract_subgraph_for_cyber_detect_duplicate_edges(
-    gpubenchmark, cyber_PropertyGraph
+    benchmark, cyber_PropertyGraph
 ):
     from cugraph.experimental import PropertyGraph
 
@@ -2566,10 +2554,10 @@ def bench_extract_subgraph_for_cyber_detect_duplicate_edges(
                 check_multi_edges=True,
             )
 
-    gpubenchmark(func)
+    benchmark(func)
 
 
-def bench_extract_subgraph_for_rmat(gpubenchmark, rmat_PropertyGraph):
+def bench_extract_subgraph_for_rmat(benchmark, rmat_PropertyGraph):
     from cugraph.experimental import PropertyGraph
 
     (pG, generated_df) = rmat_PropertyGraph
@@ -2582,7 +2570,7 @@ def bench_extract_subgraph_for_rmat(gpubenchmark, rmat_PropertyGraph):
     verts = [int(generated_df["src"].iloc[i]) for i in range(0, 10000, 10)]
 
     selected_edges = pG.select_edges(f"{scn}.isin({verts}) | {dcn}.isin({verts})")
-    gpubenchmark(
+    benchmark(
         pG.extract_subgraph,
         create_using=cugraph.Graph(directed=True),
         selection=selected_edges,
@@ -2593,7 +2581,7 @@ def bench_extract_subgraph_for_rmat(gpubenchmark, rmat_PropertyGraph):
 
 @pytest.mark.slow
 @pytest.mark.parametrize("n_rows", [15_000_000, 30_000_000, 60_000_000, 120_000_000])
-def bench_add_edge_data(gpubenchmark, n_rows):
+def bench_add_edge_data(benchmark, n_rows):
     from cugraph.experimental import PropertyGraph
 
     def func():
@@ -2603,7 +2591,7 @@ def bench_add_edge_data(gpubenchmark, n_rows):
         df = cudf.DataFrame({"src": src, "dst": dst})
         pg.add_edge_data(df, ["src", "dst"], type_name="('_N', '_E', '_N')")
 
-    gpubenchmark(func)
+    benchmark(func)
 
 
 # This test runs for *minutes* with the current implementation, and since
@@ -2611,7 +2599,7 @@ def bench_add_edge_data(gpubenchmark, n_rows):
 # test can be ~20 minutes.
 @pytest.mark.slow
 def bench_extract_subgraph_for_rmat_detect_duplicate_edges(
-    gpubenchmark, rmat_PropertyGraph
+    benchmark, rmat_PropertyGraph
 ):
     from cugraph.experimental import PropertyGraph
 
@@ -2635,12 +2623,12 @@ def bench_extract_subgraph_for_rmat_detect_duplicate_edges(
                 check_multi_edges=True,
             )
 
-    gpubenchmark(func)
+    benchmark(func)
 
 
 @pytest.mark.slow
 @pytest.mark.parametrize("N", [1, 3, 10, 30])
-def bench_add_edges_cyber(gpubenchmark, N):
+def bench_add_edges_cyber(benchmark, N):
     from cugraph.experimental import PropertyGraph
 
     # Partition the dataframe to add in chunks
@@ -2655,13 +2643,13 @@ def bench_add_edges_cyber(gpubenchmark, N):
         df = pG.get_edge_data()
         assert len(df) == len(cyber_df)
 
-    gpubenchmark(func)
+    benchmark(func)
 
 
 # @pytest.mark.slow
 @pytest.mark.parametrize("n_rows", [10_000, 100_000, 1_000_000, 10_000_000])
 @pytest.mark.parametrize("n_feats", [32, 64, 128])
-def bench_add_vector_features(gpubenchmark, n_rows, n_feats):
+def bench_add_vector_features(benchmark, n_rows, n_feats):
     from cugraph.experimental import PropertyGraph
 
     df = cudf.DataFrame(
@@ -2681,7 +2669,7 @@ def bench_add_vector_features(gpubenchmark, n_rows, n_feats):
             df, vertex_col_names=["src", "dst"], vector_properties=vector_properties
         )
 
-    gpubenchmark(func)
+    benchmark(func)
 
 
 # @pytest.mark.slow

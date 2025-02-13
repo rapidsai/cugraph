@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,6 +29,7 @@
 #include <rmm/device_uvector.hpp>
 
 #include <cuda/functional>
+#include <cuda/std/optional>
 #include <thrust/binary_search.h>
 #include <thrust/copy.h>
 #include <thrust/count.h>
@@ -43,7 +44,6 @@
 #include <thrust/iterator/transform_iterator.h>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/logical.h>
-#include <thrust/optional.h>
 #include <thrust/remove.h>
 #include <thrust/scan.h>
 #include <thrust/scatter.h>
@@ -216,8 +216,8 @@ struct col_indx_extract_t {
        ptr_d_coalesced_v = original::raw_const_ptr(d_coalesced_src_v),
        row_offsets       = row_offsets_,
        col_indices       = col_indices_,
-       values            = values_ ? thrust::optional<weight_t const*>{*values_}
-                                   : thrust::nullopt] __device__(auto indx, auto col_indx) {
+       values            = values_ ? cuda::std::optional<weight_t const*>{*values_}
+                                   : cuda::std::nullopt] __device__(auto indx, auto col_indx) {
         auto delta     = ptr_d_sizes[indx] - 1;
         auto v_indx    = ptr_d_coalesced_v[indx * max_depth + delta];
         auto start_row = row_offsets[v_indx];
