@@ -304,7 +304,8 @@ struct compute_local_edge_partition_major_range_vertex_partition_id_t {
 
   __host__ __device__ int operator()(size_t local_edge_partition_idx) const
   {
-    return static_cast<int>(local_edge_partition_idx) * major_comm_size + major_comm_rank;
+    return partition_manager::compute_vertex_partition_id_from_graph_subcomm_ranks(
+      major_comm_size, minor_comm_size, major_comm_rank, local_edge_partition_idx);
   }
 };
 
@@ -316,7 +317,8 @@ struct compute_local_edge_partition_minor_range_vertex_partition_id_t {
 
   __host__ __device__ int operator()(size_t intra_partition_segment_idx) const
   {
-    return minor_comm_rank * major_comm_size + static_cast<int>(intra_partition_segment_idx);
+    return partition_manager::compute_vertex_partition_id_from_graph_subcomm_ranks(
+      major_comm_size, minor_comm_size, intra_partition_segment_idx, minor_comm_rank);
   }
 };
 
