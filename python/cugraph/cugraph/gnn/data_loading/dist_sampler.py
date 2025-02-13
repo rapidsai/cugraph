@@ -224,6 +224,7 @@ class DistSampler:
         seeds_per_call: int,
         assume_equal_input_size: bool = False,
         label: Optional[TensorType] = None,
+        empty_fill=[],
     ):
         torch = import_optional("torch")
 
@@ -247,16 +248,16 @@ class DistSampler:
                 num_call_groups, op=torch.distributed.ReduceOp.MAX
             )
             seeds_call_groups = list(seeds_call_groups) + (
-                [torch.tensor([], dtype=seeds.dtype, device="cuda")]
+                [torch.tensor(empty_fill, dtype=seeds.dtype, device="cuda")]
                 * (int(num_call_groups) - len(seeds_call_groups))
             )
             index_call_groups = list(index_call_groups) + (
-                [torch.tensor([], dtype=torch.int64, device=input_id.device)]
+                [torch.tensor(empty_fill, dtype=torch.int64, device=input_id.device)]
                 * (int(num_call_groups) - len(index_call_groups))
             )
             if label is not None:
                 label_call_groups = list(label_call_groups) + (
-                    [torch.tensor([], dtype=label.dtype, device=label.device)]
+                    [torch.tensor(empty_fill, dtype=label.dtype, device=label.device)]
                     * (int(num_call_groups) - len(label_call_groups))
                 )
 
@@ -383,6 +384,8 @@ class DistSampler:
                 else torch.tensor([], device="cuda", dtype=torch.int64),
             ]
         ).cumsum(-1)
+
+        print(f"{torch.distributed.get_rank()}, {current_seeds}")
 
         current_seeds, leftover_seeds = (
             current_seeds[:, : (batch_size * num_whole_batches)],
@@ -568,6 +571,7 @@ class DistSampler:
             actual_seed_edges_per_call,
             assume_equal_input_size=input_size_is_equal,
             label=input_label,
+            empty_fill=[[]],
         )
         if len(groups) == 2:
             edges_call_groups, index_call_groups = groups
