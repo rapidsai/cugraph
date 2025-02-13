@@ -397,13 +397,14 @@ class DistSampler:
         # We start by reorganizing the seed and index tensors so we can
         # determine the unique vertices.  This results in the expected
         # src-to-dst concatenation for each batch
-        current_seeds = torch.concat(
-            [
-                current_seeds[0].reshape((-1, batch_size)),
-                current_seeds[1].reshape((-1, batch_size)),
-            ],
-            axis=-1,
-        )
+        if current_seeds.numel() > 0:
+            current_seeds = torch.concat(
+                [
+                    current_seeds[0].reshape((-1, batch_size)),
+                    current_seeds[1].reshape((-1, batch_size)),
+                ],
+                axis=-1,
+            )
 
         # The returned unique values must be sorted or else the inverse won't line up
         # In the future this may be a good target for a C++ function
