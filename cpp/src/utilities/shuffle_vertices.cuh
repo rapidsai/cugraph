@@ -40,8 +40,9 @@ rmm::device_uvector<vertex_t> shuffle_vertices_by_gpu_id_impl(
     d_vertices.end(),
     [key_func = func] __device__(auto val) { return key_func(val); },
     handle.get_stream());
+  d_vertices = std::move(d_rx_vertices);
 
-  return d_rx_vertices;
+  return d_vertices;
 }
 
 template <typename vertex_t, typename value0_t, typename value1_t, typename func_t>
@@ -63,10 +64,12 @@ shuffle_vertices_and_values_by_gpu_id_impl(
       thrust::make_zip_iterator(d_values_0.begin(), (*d_values_1).begin()),
       [key_func = func] __device__(auto val) { return key_func(val); },
       handle.get_stream());
+    d_vertices = std::move(d_shuffled_vertices);
+    d_values_0 = std::move(std::get<0>(d_values));
+    d_values_1 = std::move(std::get<1>(d_values));
 
-    return std::make_tuple(std::move(d_shuffled_vertices),
-                           std::move(std::get<0>(d_values)),
-                           std::make_optional(std::move(std::get<1>(d_values))));
+    return std::make_tuple(
+      std::move(d_vertices), std::move(d_values_0), std::make_optional(std::move(d_values_1)));
   } else {
     auto [d_shuffled_vertices, d_values, counts] = cugraph::groupby_gpu_id_and_shuffle_kv_pairs(
       handle.get_comms(),
@@ -76,10 +79,12 @@ shuffle_vertices_and_values_by_gpu_id_impl(
       [key_func = func] __device__(auto val) { return key_func(val); },
       handle.get_stream());
 
-    auto d_values_1 = std::optional<rmm::device_uvector<int32_t>>{std::nullopt};
+    d_vertices = std::move(d_shuffled_vertices);
+    d_values_0 = std::move(d_values);
 
-    return std::make_tuple(
-      std::move(d_shuffled_vertices), std::move(d_values), std::move(d_values_1));
+    return std::make_tuple(std::move(d_vertices),
+                           std::move(d_values_0),
+                           std::optional<rmm::device_uvector<int32_t>>{std::nullopt});
   }
 }
 
