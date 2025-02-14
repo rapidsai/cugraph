@@ -386,8 +386,6 @@ class DistSampler:
             ]
         ).cumsum(-1)
 
-        print(f"{torch.distributed.get_rank()}, {current_seeds}")
-
         current_seeds, leftover_seeds = (
             current_seeds[:, : (batch_size * num_whole_batches)],
             current_seeds[:, (batch_size * num_whole_batches) :],
@@ -573,7 +571,7 @@ class DistSampler:
             actual_seed_edges_per_call,
             assume_equal_input_size=input_size_is_equal,
             label=input_label,
-            empty_fill=torch.empty([], size=(2, 0), dtype=torch.int64),
+            empty_fill=torch.empty((2, 0), dtype=torch.int64),
         )
         if len(groups) == 2:
             edges_call_groups, index_call_groups = groups
