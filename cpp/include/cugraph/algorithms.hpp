@@ -2327,6 +2327,39 @@ rmm::device_uvector<vertex_t> maximal_independent_set(
   raft::random::RngState& rng_state);
 
 /**
+ * @ingroup tree_cpp
+ * @brief Find the forest in an undirected graph
+ *
+ * This functions finds the forset (collection of trees) in the input undirected graph. No vertex in
+ * the forest belongs to any of the 2-cores in the input graph; i.e. no vertex in the forest belongs
+ * to a cycle. A tree may be connected to a 2-core. This algorithms returns a vector storaing
+ * parents of the forest vertices. The vector holds cugraph::invalid_vertex_id_v<vertex_t> for the
+ * vertices that do not belong to the forest. For a tree connected to a 2-core, the root vertex's
+ * parent is in the 2-core and does not belong to the forest. An isolated vertex is considered as a
+ * tree and the isolated vertex's parent is set to itself. A connected component with only two
+ * vertices (say s & t) is considered as a tree as well and s's parent is set to t and t's parent is
+ * set to s.
+ *
+ * This algorithm currently does not support graphs with multi-edges or self-loops. The caller may
+ * remove multi-edges or self-loops before creating a graph object (we provide
+ * cugraph::remove_multi_edges & cugraph::remove_self_loops to remove multi-edges and self-loops,
+ * respectively).
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param graph_view Graph view object.
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
+ * @return A device vector containing parent vertices for the forest vertices. For the remaining
+ * vertices, the returned vector holds cugraph::invalid_vertex_id_v<vertex_t>.
+ */
+template <typename vertex_t, typename edge_t, bool multi_gpu>
+rmm::device_uvector<vertex_t> find_forest(
+  raft::handle_t const& handle, graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view, bool do_expensive_check);
+
+/**
  * @ingroup utility_cpp
  * @brief Find a Greedy Vertex Coloring
  *
