@@ -45,6 +45,16 @@ files:
       - cuda_version
       - docs
       - py_version
+      - depends_on_libcugraph
+      - depends_on_pylibcugraph
+      - depends_on_cugraph
+      - depends_on_cugraph_pyg
+      - depends_on_cugraph_dgl
+      - depends_on_cugraph_service_server
+      - depends_on_cugraph_service_client
+      - depends_on_libcugraph_etl
+      - depends_on_pylibwholegraph
+      - depends_on_pytorch
   test_cpp:
     output: none
     includes:
@@ -527,6 +537,18 @@ dependencies:
             packages:
               - cugraph-cu11==25.4.*,>=0.0.0a0
           - {matrix: null, packages: [*cugraph_unsuffixed]}
+
+  depends_on_cugraph_dgl:
+    common:
+      - output_types: conda
+        packages:
+          - cugraph-dgl==25.4.*,>=0.0.0a0
+
+  depends_on_cugraph_pyg:
+    common:
+      - output_types: conda
+        packages:
+          - cugraph-pyg==25.4.*,>=0.0.0a0
 
   depends_on_cugraph_service_client:
     common:
