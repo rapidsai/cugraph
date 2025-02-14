@@ -21,6 +21,7 @@
 #include "utilities/property_generator_utilities.hpp"
 #include "utilities/test_graphs.hpp"
 
+#include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/sampling_functions.hpp>
 #include <cugraph/utilities/high_res_timer.hpp>
 

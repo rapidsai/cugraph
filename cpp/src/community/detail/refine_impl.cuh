@@ -29,6 +29,7 @@
 #include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/graph_functions.hpp>
+#include <cugraph/shuffle_functions.hpp>
 
 #include <raft/random/rng_device.cuh>
 
@@ -639,19 +640,15 @@ refine_clustering(
                std::ignore,
                std::ignore,
                std::ignore) =
-        cugraph::detail::shuffle_ext_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning<
-          vertex_t,
-          vertex_t,
-          weight_t,
-          int32_t,
-          int32_t>(handle,
-                   store_transposed ? std::move(d_dsts) : std::move(d_srcs),
-                   store_transposed ? std::move(d_srcs) : std::move(d_dsts),
-                   std::move(d_weights),
-                   std::nullopt,
-                   std::nullopt,
-                   std::nullopt,
-                   std::nullopt);
+        cugraph::shuffle_ext_edges<vertex_t, vertex_t, weight_t, int32_t, int32_t>(
+          handle,
+          store_transposed ? std::move(d_dsts) : std::move(d_srcs),
+          store_transposed ? std::move(d_srcs) : std::move(d_dsts),
+          std::move(d_weights),
+          std::nullopt,
+          std::nullopt,
+          std::nullopt,
+          std::nullopt);
     }
 
     std::tie(decision_graph, coarse_edge_weights, std::ignore, std::ignore, renumber_map) =

@@ -469,14 +469,14 @@ std::tuple<rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<edge_time_t>>,
            std::optional<rmm::device_uvector<edge_time_t>>,
            std::vector<size_t>>
-shuffle_external_edges(raft::handle_t const& handle,
-                       rmm::device_uvector<vertex_t>&& edge_srcs,
-                       rmm::device_uvector<vertex_t>&& edge_dsts,
-                       std::optional<rmm::device_uvector<weight_t>>&& edge_weights,
-                       std::optional<rmm::device_uvector<edge_t>>&& edge_ids,
-                       std::optional<rmm::device_uvector<edge_type_t>>&& edge_types,
-                       std::optional<rmm::device_uvector<edge_time_t>>&& edge_start_times,
-                       std::optional<rmm::device_uvector<edge_time_t>>&& edge_end_times)
+shuffle_ext_edges(raft::handle_t const& handle,
+                  rmm::device_uvector<vertex_t>&& edge_srcs,
+                  rmm::device_uvector<vertex_t>&& edge_dsts,
+                  std::optional<rmm::device_uvector<weight_t>>&& edge_weights,
+                  std::optional<rmm::device_uvector<edge_t>>&& edge_ids,
+                  std::optional<rmm::device_uvector<edge_type_t>>&& edge_types,
+                  std::optional<rmm::device_uvector<edge_time_t>>&& edge_start_times,
+                  std::optional<rmm::device_uvector<edge_time_t>>&& edge_end_times)
 {
   auto& comm                 = handle.get_comms();
   auto const comm_size       = comm.get_size();

@@ -23,9 +23,9 @@
 
 #include <cugraph_c/graph.h>
 
-#include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/graph_functions.hpp>
+#include <cugraph/shuffle_functions.hpp>
 
 #include <limits>
 

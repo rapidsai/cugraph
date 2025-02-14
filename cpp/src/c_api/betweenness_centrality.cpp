@@ -24,9 +24,9 @@
 #include <cugraph_c/algorithms.h>
 
 #include <cugraph/algorithms.hpp>
-#include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/graph_functions.hpp>
+#include <cugraph/shuffle_functions.hpp>
 
 #include <optional>
 
@@ -100,8 +100,7 @@ struct betweenness_centrality_functor : public cugraph::c_api::abstract_functor 
                    handle_.get_stream());
 
         if constexpr (multi_gpu) {
-          local_vertices =
-            cugraph::detail::shuffle_ext_vertices(handle_, std::move(local_vertices));
+          local_vertices = cugraph::shuffle_ext_vertices(handle_, std::move(local_vertices));
         }
 
         cugraph::renumber_ext_vertices<vertex_t, multi_gpu>(
@@ -206,8 +205,7 @@ struct edge_betweenness_centrality_functor : public cugraph::c_api::abstract_fun
                    handle_.get_stream());
 
         if constexpr (multi_gpu) {
-          local_vertices =
-            cugraph::detail::shuffle_ext_vertices(handle_, std::move(local_vertices));
+          local_vertices = cugraph::shuffle_ext_vertices(handle_, std::move(local_vertices));
         }
 
         cugraph::renumber_ext_vertices<vertex_t, multi_gpu>(

@@ -19,6 +19,7 @@
 #include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_functions.hpp>
+#include <cugraph/shuffle_functions.hpp>
 #include <cugraph/utilities/error.hpp>
 
 #include <raft/core/handle.hpp>
@@ -100,11 +101,7 @@ transpose_graph_storage_impl(
            std::ignore,
            std::ignore,
            std::ignore) =
-    detail::shuffle_ext_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning<vertex_t,
-                                                                                   edge_t,
-                                                                                   weight_t,
-                                                                                   int32_t,
-                                                                                   int32_t>(
+    shuffle_ext_edges<vertex_t, edge_t, weight_t, int32_t, int32_t>(
       handle,
       std::move(!store_transposed ? edgelist_dsts : edgelist_srcs),
       std::move(!store_transposed ? edgelist_srcs : edgelist_dsts),

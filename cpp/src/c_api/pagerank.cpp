@@ -26,6 +26,7 @@
 #include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/graph_functions.hpp>
+#include <cugraph/shuffle_functions.hpp>
 
 #include <optional>
 
@@ -139,7 +140,7 @@ struct pagerank_functor : public cugraph::c_api::abstract_functor {
 
         if constexpr (multi_gpu) {
           std::tie(personalization_vertices, personalization_values) =
-            cugraph::detail::shuffle_ext_vertex_value_pairs_to_local_gpu_by_vertex_partitioning(
+            cugraph::shuffle_ext_vertex_value_pairs(
               handle_, std::move(personalization_vertices), std::move(personalization_values));
         }
         //

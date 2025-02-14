@@ -20,9 +20,9 @@
 #include "community/flatten_dendrogram.hpp"
 #include "prims/update_edge_src_dst_property.cuh"
 
-#include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/graph.hpp>
+#include <cugraph/shuffle_functions.hpp>
 #include <cugraph/utilities/high_res_timer.hpp>
 
 #include <rmm/device_uvector.hpp>
@@ -55,7 +55,7 @@ vertex_t remove_duplicates(raft::handle_t const& handle, rmm::device_uvector<ver
   input_array.resize(nr_unique_elements, handle.get_stream());
 
   if constexpr (multi_gpu) {
-    input_array = cugraph::shuffle_ext_vertices(handle, std::move(input_array));
+    input_array = shuffle_ext_vertices(handle, std::move(input_array));
 
     thrust::sort(handle.get_thrust_policy(), input_array.begin(), input_array.end());
 
@@ -150,9 +150,8 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
                  handle.get_stream());
 
       if constexpr (graph_view_t::is_multi_gpu) {
-        std::tie(cluster_keys, cluster_weights) =
-          shuffle_ext_vertex_value_pairs_to_local_gpu_by_vertex_partitioning(
-            handle, std::move(cluster_keys), std::move(cluster_weights));
+        std::tie(cluster_keys, cluster_weights) = shuffle_ext_vertex_value_pairs(
+          handle, std::move(cluster_keys), std::move(cluster_weights));
       }
 
     } else {
@@ -199,9 +198,8 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
       if constexpr (graph_view_t::is_multi_gpu) {
         rmm::device_uvector<vertex_t> tmp_keys_buffer(0, handle.get_stream());  // #C
 
-        std::tie(tmp_keys_buffer, tmp_weights_buffer) =
-          shuffle_ext_vertex_value_pairs_to_local_gpu_by_vertex_partitioning(
-            handle, std::move(cluster_keys), std::move(cluster_weights));
+        std::tie(tmp_keys_buffer, tmp_weights_buffer) = shuffle_ext_vertex_value_pairs(
+          handle, std::move(cluster_keys), std::move(cluster_weights));
 
         thrust::sort_by_key(handle.get_thrust_policy(),
                             tmp_keys_buffer.begin(),
@@ -542,9 +540,8 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
         numeric_sequence.resize(new_size, handle.get_stream());
 
         if constexpr (multi_gpu) {
-          std::tie(*numbering_map, numeric_sequence) =
-            shuffle_ext_vertex_value_pairs_to_local_gpu_by_vertex_partitioning(
-              handle, std::move(*numbering_map), std::move(numeric_sequence));
+          std::tie(*numbering_map, numeric_sequence) = shuffle_ext_vertex_value_pairs(
+            handle, std::move(*numbering_map), std::move(numeric_sequence));
 
           thrust::sort(handle.get_thrust_policy(),
                        thrust::make_zip_iterator(numbering_map->begin(), numeric_sequence.begin()),
