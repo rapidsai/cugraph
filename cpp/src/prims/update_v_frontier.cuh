@@ -177,7 +177,7 @@ void update_v_frontier(raft::handle_t const& handle,
                        KeyBuffer&& key_buffer,
                        PayloadBuffer&& payload_buffer,
                        VertexFrontierType& frontier,
-                       std::vector<size_t> const& next_frontier_bucket_indices,
+                       raft::host_span<size_t const> next_frontier_bucket_indices,
                        VertexValueInputIterator vertex_value_input_first,
                        // FIXME: currently, it is undefined behavior if there are more than one @p
                        // key_buffer elements with the same vertex ID and the same vertex property
@@ -304,7 +304,7 @@ void update_v_frontier(raft::handle_t const& handle,
                        GraphViewType const& graph_view,
                        KeyBuffer&& key_buffer,
                        VertexFrontierType& frontier,
-                       std::vector<size_t> const& next_frontier_bucket_indices,
+                       raft::host_span<size_t const> next_frontier_bucket_indices,
                        VertexValueInputIterator vertex_value_input_first,
                        // FIXME: currently, it is undefined behavior if there are more than one @p
                        // key_buffer elements with the same vertex ID and the same vertex property

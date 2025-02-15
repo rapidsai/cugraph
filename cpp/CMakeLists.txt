@@ -158,6 +158,10 @@ set(CUGRAPH_SOURCES
     src/detail/permute_range_v64.cu
     src/utilities/shuffle_vertex_pairs_mg_v32_e32.cu
     src/utilities/shuffle_vertex_pairs_mg_v64_e64.cu
+    src/utilities/shuffle_local_edge_srcs_dsts_mg_v32_fp.cu
+    src/utilities/shuffle_local_edge_srcs_dsts_mg_v32_integral.cu
+    src/utilities/shuffle_local_edge_srcs_dsts_mg_v64_fp.cu
+    src/utilities/shuffle_local_edge_srcs_dsts_mg_v64_integral.cu
     src/detail/collect_local_vertex_values_sg_v32_e32.cu
     src/detail/collect_local_vertex_values_sg_v64_e64.cu
     src/detail/collect_local_vertex_values_mg_v32_e32.cu
