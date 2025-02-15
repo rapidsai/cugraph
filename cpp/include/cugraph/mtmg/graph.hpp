@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, NVIDIA CORPORATION.
+ * Copyright (c) 2023-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -63,6 +63,8 @@ class graph_t : public detail::device_shared_wrapper_t<
  * @param[out] edge_weights       MTMG edge weights is stored here
  * @param[out] edge_ids           MTMG edge ids is stored here
  * @param[out] edge_types         MTMG edge types is stored here
+ * @param[out] edge_start_times   MTMG edge start times is stored here
+ * @param[out] edge_end_times     MTMG edge end times is stored here
  * @param[in]  renumber_map       MTMG renumber_map is stored here
  * @param[in]  do_expensive_check A flag to run expensive checks for input arguments (if set to
  * `true`).
@@ -70,13 +72,13 @@ class graph_t : public detail::device_shared_wrapper_t<
 template <typename vertex_t,
           typename edge_t,
           typename weight_t,
-          typename edge_id_t,
           typename edge_type_t,
+          typename edge_time_t,
           bool store_transposed,
           bool multi_gpu>
 void create_graph_from_edgelist(
   handle_t const& handle,
-  cugraph::mtmg::edgelist_t<vertex_t, weight_t, edge_id_t, edge_type_t>& edgelist,
+  cugraph::mtmg::edgelist_t<vertex_t, weight_t, edge_t, edge_type_t, edge_time_t>& edgelist,
   graph_properties_t graph_properties,
   bool renumber,
   cugraph::mtmg::graph_t<vertex_t, edge_t, store_transposed, multi_gpu>& graph,
@@ -85,10 +87,16 @@ void create_graph_from_edgelist(
     weight_t>>& edge_weights,
   std::optional<cugraph::mtmg::edge_property_t<
     cugraph::mtmg::graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>,
-    edge_id_t>>& edge_ids,
+    edge_t>>& edge_ids,
   std::optional<cugraph::mtmg::edge_property_t<
     cugraph::mtmg::graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>,
     edge_type_t>>& edge_types,
+  std::optional<cugraph::mtmg::edge_property_t<
+    cugraph::mtmg::graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>,
+    edge_time_t>>& edge_start_times,
+  std::optional<cugraph::mtmg::edge_property_t<
+    cugraph::mtmg::graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>,
+    edge_time_t>>& edge_end_times,
   std::optional<cugraph::mtmg::renumber_map_t<vertex_t>>& renumber_map,
   bool do_expensive_check = false)
 {
@@ -103,32 +111,45 @@ void create_graph_from_edgelist(
   CUGRAPH_EXPECTS(my_edgelist.get_src().size() == 1,
                   "Must consolidate edges into a single list before creating graph");
 
-  auto [local_graph, local_edge_weights, local_edge_ids, local_edge_types, local_renumber_map] =
-    cugraph::create_graph_from_edgelist<vertex_t,
-                                        edge_t,
-                                        weight_t,
-                                        edge_id_t,
-                                        edge_type_t,
-                                        store_transposed,
-                                        multi_gpu>(
-      handle.raft_handle(),
-      std::nullopt,
-      std::move(my_edgelist.get_src()[0]),
-      std::move(my_edgelist.get_dst()[0]),
-      my_edgelist.get_wgt() ? std::make_optional(std::move((*my_edgelist.get_wgt())[0]))
-                            : std::nullopt,
-      my_edgelist.get_edge_id() ? std::make_optional(std::move((*my_edgelist.get_edge_id())[0]))
+  auto [local_graph,
+        local_edge_weights,
+        local_edge_ids,
+        local_edge_types,
+        local_edge_start_times,
+        local_edge_end_times,
+        local_renumber_map] = cugraph::create_graph_from_edgelist<vertex_t,
+                                                                  edge_t,
+                                                                  weight_t,
+                                                                  edge_t,
+                                                                  edge_time_t,
+                                                                  store_transposed,
+                                                                  multi_gpu>(
+    handle.raft_handle(),
+    std::nullopt,
+    std::move(my_edgelist.get_src()[0]),
+    std::move(my_edgelist.get_dst()[0]),
+    my_edgelist.get_wgt() ? std::make_optional(std::move((*my_edgelist.get_wgt())[0]))
+                          : std::nullopt,
+    my_edgelist.get_edge_id() ? std::make_optional(std::move((*my_edgelist.get_edge_id())[0]))
+                              : std::nullopt,
+    my_edgelist.get_edge_type() ? std::make_optional(std::move((*my_edgelist.get_edge_type())[0]))
                                 : std::nullopt,
-      my_edgelist.get_edge_type() ? std::make_optional(std::move((*my_edgelist.get_edge_type())[0]))
-                                  : std::nullopt,
-      graph_properties,
-      renumber,
-      do_expensive_check);
+    my_edgelist.get_edge_start_time()
+      ? std::make_optional(std::move((*my_edgelist.get_edge_start_time())[0]))
+      : std::nullopt,
+    my_edgelist.get_edge_end_time()
+      ? std::make_optional(std::move((*my_edgelist.get_edge_end_time())[0]))
+      : std::nullopt,
+    graph_properties,
+    renumber,
+    do_expensive_check);
 
   graph.set(handle, std::move(local_graph));
   if (edge_weights) edge_weights->set(handle, std::move(*local_edge_weights));
   if (edge_ids) edge_ids->set(handle, std::move(*local_edge_ids));
   if (edge_types) edge_types->set(handle, std::move(*local_edge_types));
+  if (edge_start_times) edge_types->set(handle, std::move(*local_edge_start_times));
+  if (edge_end_times) edge_types->set(handle, std::move(*local_edge_end_times));
   if (renumber) renumber_map->set(handle, std::move(*local_renumber_map));
 }
 
