@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -45,8 +45,8 @@ rmm::device_uvector<T> device_gatherv(raft::handle_t const& handle,
                           reinterpret_cast<comm_datatype_t const*>(d_input.data()),
                           reinterpret_cast<comm_datatype_t*>(gathered_v.data()),
                           d_input.size(),
-                          rx_sizes,
-                          rx_displs,
+                          raft::host_span<size_t const>(rx_sizes.data(), rx_sizes.size()),
+                          raft::host_span<size_t const>(rx_displs.data(), rx_displs.size()),
                           int{0},
                           handle.get_stream());
 
@@ -69,8 +69,8 @@ rmm::device_uvector<T> device_allgatherv(raft::handle_t const& handle,
   cugraph::device_allgatherv(handle.get_comms(),
                              reinterpret_cast<comm_datatype_t const*>(d_input.data()),
                              reinterpret_cast<comm_datatype_t*>(gathered_v.data()),
-                             rx_sizes,
-                             rx_displs,
+                             raft::host_span<size_t const>(rx_sizes.data(), rx_sizes.size()),
+                             raft::host_span<size_t const>(rx_displs.data(), rx_displs.size()),
                              handle.get_stream());
 
   return gathered_v;

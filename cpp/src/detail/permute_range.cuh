@@ -118,7 +118,10 @@ rmm::device_uvector<vertex_t> permute_range(raft::handle_t const& handle,
     }
 
     std::tie(permuted_integers, std::ignore) = cugraph::shuffle_values(
-      handle.get_comms(), permuted_integers.begin(), tx_value_counts, handle.get_stream());
+      handle.get_comms(),
+      permuted_integers.begin(),
+      raft::host_span<size_t const>(tx_value_counts.data(), tx_value_counts.size()),
+      handle.get_stream());
   }
 
   // permute locally

@@ -194,7 +194,10 @@ rmm::device_uvector<vertex_t> select_random_vertices(
       }
 
       std::tie(mg_sample_buffer, std::ignore) = cugraph::shuffle_values(
-        handle.get_comms(), mg_sample_buffer.begin(), tx_value_counts, handle.get_stream());
+        handle.get_comms(),
+        mg_sample_buffer.begin(),
+        raft::host_span<size_t const>(tx_value_counts.data(), tx_value_counts.size()),
+        handle.get_stream());
 
       {  // random shuffle (use this instead of thrust::shuffle to use raft::random::RngState)
         rmm::device_uvector<float> random_numbers(mg_sample_buffer.size(), handle.get_stream());
