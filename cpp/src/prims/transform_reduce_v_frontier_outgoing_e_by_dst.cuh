@@ -15,6 +15,7 @@
  */
 #pragma once
 
+#include "prims/detail/optional_dataframe_buffer.hpp"
 #include "prims/detail/prim_functors.cuh"
 #include "prims/transform_reduce_if_v_frontier_outgoing_e_by_dst.cuh"
 
@@ -66,10 +67,11 @@ namespace cugraph {
  * access edge property values) or cugraph::edge_dummy_property_t::view() (if @p e_op does not
  * access edge property values).
  * @param e_op Quinary operator takes edge (tagged-)source, edge destination, property values for
- * the source, destination, and edge and returns a value to be reduced (if vertices are not tagged
- * and ReduceOp::value_type is not void); a tag (if vertices are tagged and ReduceOp::value_type is
- * void); or a tuple of a tag and a value to be reduced (if vertices are tagged and
- * ReduceOp::value_type is not void).
+ * the source, destination, and edge and 1) just returns (return value = void, if vertices are not
+ * tagged and ReduceOp::value_type is void, in this case, @p e_op is dummy and won't be called); 2)
+ * returns a value to be reduced (if vertices are not tagged and ReduceOp::value_type is not void);
+ * 3) returns a tag (if vertices are tagged and ReduceOp::value_type is void); or 4) returns a tuple
+ * of a tag and a value to be reduced (if vertices are tagged and ReduceOp::value_type is not void).
  * @param reduce_op Binary operator that takes two input arguments and reduce the two values to one.
  * There are pre-defined reduction operators in prims/reduce_op.cuh. It is
  * recommended to use the pre-defined reduction operators whenever possible as the current (and
@@ -87,10 +89,11 @@ template <typename GraphViewType,
           typename EdgeValueInputWrapper,
           typename EdgeOp,
           typename ReduceOp>
-std::conditional_t<!std::is_same_v<typename ReduceOp::value_type, void>,
-                   std::tuple<dataframe_buffer_type_t<typename KeyBucketType::key_type>,
-                              dataframe_buffer_type_t<typename ReduceOp::value_type>>,
-                   dataframe_buffer_type_t<typename KeyBucketType::key_type>>
+std::conditional_t<
+  !std::is_same_v<typename ReduceOp::value_type, void>,
+  std::tuple<dataframe_buffer_type_t<typename KeyBucketType::key_type>,
+             detail::optional_dataframe_buffer_type_t<typename ReduceOp::value_type>>,
+  dataframe_buffer_type_t<typename KeyBucketType::key_type>>
 transform_reduce_v_frontier_outgoing_e_by_dst(raft::handle_t const& handle,
                                               GraphViewType const& graph_view,
                                               KeyBucketType const& frontier,
@@ -101,7 +104,7 @@ transform_reduce_v_frontier_outgoing_e_by_dst(raft::handle_t const& handle,
                                               ReduceOp reduce_op,
                                               bool do_expensive_check = false)
 {
-  return transform_reduce_if_v_frontier_outgoing_e_by_dst(
+  return detail::transform_reduce_if_v_frontier_outgoing_e_by_dst(
     handle,
     graph_view,
     frontier,
