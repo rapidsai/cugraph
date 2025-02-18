@@ -71,7 +71,7 @@ template <typename BufferKeyOutputIterator,
 __device__ void push_buffer_element(BufferKeyOutputIterator buffer_key_output_first,
                                     BufferValueOutputIterator buffer_value_output_first,
                                     size_t buffer_idx,
-                                    e_op_result_t e_op_result)
+                                    cuda::std::optional<e_op_result_t> e_op_result)
 {
   using output_key_t =
     typename optional_dataframe_buffer_iterator_value_type_t<BufferKeyOutputIterator>::value;
@@ -171,7 +171,8 @@ __global__ static void extract_transform_if_v_frontier_e_hypersparse_or_low_degr
 
   __shared__ edge_t
     warp_local_degree_inclusive_sums[extract_transform_if_v_frontier_e_kernel_block_size];
-  __shared__ edge_t warp_key_local_edge_offsets[extract_transform_if_v_frontier_e_kernel_block_size];
+  __shared__ edge_t
+    warp_key_local_edge_offsets[extract_transform_if_v_frontier_e_kernel_block_size];
 
   using WarpScan = cub::WarpScan<edge_t, raft::warp_size()>;
   __shared__ typename WarpScan::TempStorage temp_storage;
@@ -184,25 +185,25 @@ __global__ static void extract_transform_if_v_frontier_e_hypersparse_or_low_degr
     raft::warp_size();
   while (idx < rounded_up_num_keys) {
     auto call_pred_op = call_e_op_with_key_t<GraphViewType,
-                                              key_t,
-                                              EdgePartitionSrcValueInputWrapper,
-                                              EdgePartitionDstValueInputWrapper,
-                                              EdgePartitionEdgeValueInputWrapper,
-                                              PredOp>{edge_partition,
-                                                        edge_partition_src_value_input,
-                                                        edge_partition_dst_value_input,
-                                                        edge_partition_e_value_input,
-                                                        pred_op};
-    auto call_e_op = call_e_op_with_key_t<GraphViewType,
+                                             key_t,
+                                             EdgePartitionSrcValueInputWrapper,
+                                             EdgePartitionDstValueInputWrapper,
+                                             EdgePartitionEdgeValueInputWrapper,
+                                             PredOp>{edge_partition,
+                                                     edge_partition_src_value_input,
+                                                     edge_partition_dst_value_input,
+                                                     edge_partition_e_value_input,
+                                                     pred_op};
+    auto call_e_op    = call_e_op_with_key_t<GraphViewType,
                                           key_t,
                                           EdgePartitionSrcValueInputWrapper,
                                           EdgePartitionDstValueInputWrapper,
                                           EdgePartitionEdgeValueInputWrapper,
                                           EdgeOp>{edge_partition,
-                                                  edge_partition_src_value_input,
-                                                  edge_partition_dst_value_input,
-                                                  edge_partition_e_value_input,
-                                                  e_op};
+                                                     edge_partition_src_value_input,
+                                                     edge_partition_dst_value_input,
+                                                     edge_partition_e_value_input,
+                                                     e_op};
 
     edge_t edge_offset{0};
     edge_t local_degree{0};
@@ -263,7 +264,7 @@ __global__ static void extract_transform_if_v_frontier_e_hypersparse_or_low_degr
                                                               : *(this_warp_inclusive_sum_first +
                                                                   (key_idx_this_warp - 1))));
           if ((*edge_partition_e_mask).get(local_edge_offset)) {
-            auto key    = *(key_first + (min_key_idx + key_idx_this_warp));
+            auto key = *(key_first + (min_key_idx + key_idx_this_warp));
             if (call_pred_op(key, local_edge_offset)) {
               e_op_result = call_e_op(key, local_edge_offset);
             }
@@ -287,7 +288,7 @@ __global__ static void extract_transform_if_v_frontier_e_hypersparse_or_low_degr
             static_cast<edge_t>(i - ((key_idx_this_warp == 0) ? edge_t{0}
                                                               : *(this_warp_inclusive_sum_first +
                                                                   (key_idx_this_warp - 1))));
-          auto key    = *(key_first + (min_key_idx + key_idx_this_warp));
+          auto key = *(key_first + (min_key_idx + key_idx_this_warp));
           if (call_pred_op(key, local_edge_offset)) {
             e_op_result = call_e_op(key, local_edge_offset);
           }
@@ -360,43 +361,41 @@ __global__ static void extract_transform_if_v_frontier_e_mid_degree(
       ((static_cast<size_t>(local_degree) + (raft::warp_size() - 1)) / raft::warp_size()) *
       raft::warp_size();
 
-    auto call_pred_op = call_e_op_with_key_t<GraphViewType,
-                                              key_t,
-                                              EdgePartitionSrcValueInputWrapper,
-                                              EdgePartitionDstValueInputWrapper,
-                                              EdgePartitionEdgeValueInputWrapper,
-                                              PredOp>{edge_partition,
-                                                        edge_partition_src_value_input,
-                                                        edge_partition_dst_value_input,
-                                                        edge_partition_e_value_input,
-                                                        pred_op,
-                                                        key,
-                                                        major_offset,
-                                                        indices,
-                                                        local_edge_offset};
-    auto call_e_op = call_e_op_t<GraphViewType,
+    auto call_pred_op = call_e_op_t<GraphViewType,
+                                    key_t,
+                                    EdgePartitionSrcValueInputWrapper,
+                                    EdgePartitionDstValueInputWrapper,
+                                    EdgePartitionEdgeValueInputWrapper,
+                                    PredOp>{edge_partition,
+                                            edge_partition_src_value_input,
+                                            edge_partition_dst_value_input,
+                                            edge_partition_e_value_input,
+                                            pred_op,
+                                            key,
+                                            major_offset,
+                                            indices,
+                                            local_edge_offset};
+    auto call_e_op    = call_e_op_t<GraphViewType,
                                  key_t,
                                  EdgePartitionSrcValueInputWrapper,
                                  EdgePartitionDstValueInputWrapper,
                                  EdgePartitionEdgeValueInputWrapper,
                                  EdgeOp>{edge_partition,
-                                         edge_partition_src_value_input,
-                                         edge_partition_dst_value_input,
-                                         edge_partition_e_value_input,
-                                         e_op,
-                                         key,
-                                         major_offset,
-                                         indices,
-                                         local_edge_offset};
+                                            edge_partition_src_value_input,
+                                            edge_partition_dst_value_input,
+                                            edge_partition_e_value_input,
+                                            e_op,
+                                            key,
+                                            major_offset,
+                                            indices,
+                                            local_edge_offset};
 
     if (edge_partition_e_mask) {
       for (size_t i = lane_id; i < rounded_up_local_degree; i += raft::warp_size()) {
         cuda::std::optional<e_op_result_t> e_op_result{cuda::std::nullopt};
         if ((i < static_cast<size_t>(local_degree)) &&
             ((*edge_partition_e_mask).get(local_edge_offset + i))) {
-          if (call_pred_op(i)) {
-            e_op_result = call_e_op(i);
-          }
+          if (call_pred_op(i)) { e_op_result = call_e_op(i); }
         }
 
         warp_push_buffer_elements(
@@ -406,9 +405,7 @@ __global__ static void extract_transform_if_v_frontier_e_mid_degree(
       for (size_t i = lane_id; i < rounded_up_local_degree; i += raft::warp_size()) {
         cuda::std::optional<e_op_result_t> e_op_result{cuda::std::nullopt};
         if (i < static_cast<size_t>(local_degree)) {
-          if (call_pred_op(i)) {
-            e_op_result = call_e_op(i);
-          }
+          if (call_pred_op(i)) { e_op_result = call_e_op(i); }
         }
 
         warp_push_buffer_elements(
@@ -485,45 +482,41 @@ __global__ static void extract_transform_if_v_frontier_e_high_degree(
         edge_partition.local_edges(major_offset);
 
       auto call_pred_op = call_e_op_t<GraphViewType,
-                                                  key_t,
-                                                  EdgePartitionSrcValueInputWrapper,
-                                                  EdgePartitionDstValueInputWrapper,
-                                                  EdgePartitionEdgeValueInputWrapper,
-                                                  PredOp>{edge_partition,
-                                                            edge_partition_src_value_input,
-                                                            edge_partition_dst_value_input,
-                                                            edge_partition_e_value_input,
-                                                            pred_op,
-                                                            key,
-                                                            major_offset,
-                                                            indices,
-                                                            local_edge_offset};
-      auto call_e_op = call_e_op_t<GraphViewType,
+                                      key_t,
+                                      EdgePartitionSrcValueInputWrapper,
+                                      EdgePartitionDstValueInputWrapper,
+                                      EdgePartitionEdgeValueInputWrapper,
+                                      PredOp>{edge_partition,
+                                              edge_partition_src_value_input,
+                                              edge_partition_dst_value_input,
+                                              edge_partition_e_value_input,
+                                              pred_op,
+                                              key,
+                                              major_offset,
+                                              indices,
+                                              local_edge_offset};
+      auto call_e_op    = call_e_op_t<GraphViewType,
                                    key_t,
                                    EdgePartitionSrcValueInputWrapper,
                                    EdgePartitionDstValueInputWrapper,
                                    EdgePartitionEdgeValueInputWrapper,
                                    EdgeOp>{edge_partition,
-                                           edge_partition_src_value_input,
-                                           edge_partition_dst_value_input,
-                                           edge_partition_e_value_input,
-                                           e_op,
-                                           key,
-                                           major_offset,
-                                           indices,
-                                           local_edge_offset};
+                                              edge_partition_src_value_input,
+                                              edge_partition_dst_value_input,
+                                              edge_partition_e_value_input,
+                                              e_op,
+                                              key,
+                                              major_offset,
+                                              indices,
+                                              local_edge_offset};
 
       auto e_idx = static_cast<edge_t>(idx - key_local_degree_offsets[key_idx]);
       if (edge_partition_e_mask) {
         if ((*edge_partition_e_mask).get(local_edge_offset + e_idx)) {
-          if (call_pred_op(e_idx)) {
-            e_op_result = call_e_op(e_idx);
-          }
+          if (call_pred_op(e_idx)) { e_op_result = call_e_op(e_idx); }
         }
       } else {
-        if (call_pred_op(e_idx)) {
-          e_op_result = call_e_op(e_idx);
-        }
+        if (call_pred_op(e_idx)) { e_op_result = call_e_op(e_idx); }
       }
     }
     warp_push_buffer_elements(
@@ -591,7 +584,8 @@ void extract_transform_if_v_frontier_e_edge_partition(
           output_key_first,
           output_value_first,
           count.data(),
-          e_op, pred_op);
+          e_op,
+          pred_op);
     }
     if ((*key_segment_offsets)[2] - (*key_segment_offsets)[1] > 0) {
       auto exec_stream = edge_partition_stream_pool_indices
@@ -636,7 +630,8 @@ void extract_transform_if_v_frontier_e_edge_partition(
           output_key_first,
           output_value_first,
           count.data(),
-          e_op, pred_op);
+          e_op,
+          pred_op);
     }
     if (edge_partition.dcs_nzd_vertex_count() &&
         ((*key_segment_offsets)[4] - (*key_segment_offsets)[3] > 0)) {
@@ -707,14 +702,14 @@ template <bool incoming,  // iterate over incoming edges (incoming == true) or o
 std::tuple<optional_dataframe_buffer_type_t<OutputKeyT>,
            optional_dataframe_buffer_type_t<OutputValueT>>
 extract_transform_if_v_frontier_e(raft::handle_t const& handle,
-                               GraphViewType const& graph_view,
-                               KeyBucketType const& frontier,
-                               EdgeSrcValueInputWrapper edge_src_value_input,
-                               EdgeDstValueInputWrapper edge_dst_value_input,
-                               EdgeValueInputWrapper edge_value_input,
-                               EdgeOp e_op,
-                               PredOp pred_op,
-                               bool do_expensive_check = false)
+                                  GraphViewType const& graph_view,
+                                  KeyBucketType const& frontier,
+                                  EdgeSrcValueInputWrapper edge_src_value_input,
+                                  EdgeDstValueInputWrapper edge_dst_value_input,
+                                  EdgeValueInputWrapper edge_value_input,
+                                  EdgeOp e_op,
+                                  PredOp pred_op,
+                                  bool do_expensive_check = false)
 {
   using vertex_t       = typename GraphViewType::vertex_type;
   using edge_t         = typename GraphViewType::edge_type;
@@ -756,13 +751,12 @@ extract_transform_if_v_frontier_e(raft::handle_t const& handle,
                 !std::is_same_v<output_value_t, void>);  // otherwise, this function becomes no-op
   static_assert(!std::is_same_v<e_op_result_t, void>);
   static_assert(
-    std::is_same_v<e_op_result_t,
-                   std::conditional_t<
-                     !std::is_same_v<output_key_t, void> && !std::is_same_v<output_value_t, void>,
-                     cuda::std::optional<thrust::tuple<output_key_t, output_value_t>>,
-                     std::conditional_t<!std::is_same_v<output_key_t, void>,
-                                        cuda::std::optional<output_key_t>,
-                                        cuda::std::optional<output_value_t>>>>);
+    std::is_same_v<
+      e_op_result_t,
+      std::conditional_t<
+        !std::is_same_v<output_key_t, void> && !std::is_same_v<output_value_t, void>,
+        thrust::tuple<output_key_t, output_value_t>,
+        std::conditional_t<!std::is_same_v<output_key_t, void>, output_key_t, output_value_t>>>);
 
   constexpr bool try_bitmap = GraphViewType::is_multi_gpu && std::is_same_v<key_t, vertex_t> &&
                               KeyBucketType::is_sorted_unique;

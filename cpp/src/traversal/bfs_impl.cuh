@@ -70,24 +70,36 @@ struct direction_optimizing_info_t {
                     // graph_view.use_dcs() are both true
 };
 
-template <typename vertex_t, bool multi_gpu>
+template <typename vertex_t>
 struct topdown_e_op_t {
+  __device__ vertex_t operator()(vertex_t src,
+                                 vertex_t dst,
+                                 cuda::std::nullopt_t,
+                                 cuda::std::nullopt_t,
+                                 cuda::std::nullopt_t) const
+  {
+    return src;
+  }
+};
+
+template <typename vertex_t, bool multi_gpu>
+struct topdown_pred_op_t {
   detail::edge_partition_endpoint_property_device_view_t<vertex_t, uint32_t*, bool>
     prev_visited_flags{};  // visited in the previous iterations, to reduce the number of atomic
                            // operations
   detail::edge_partition_endpoint_property_device_view_t<vertex_t, uint32_t*, bool> visited_flags{};
   vertex_t dst_first{};
 
-  __device__ cuda::std::optional<vertex_t> operator()(vertex_t src,
-                                                      vertex_t dst,
-                                                      cuda::std::nullopt_t,
-                                                      cuda::std::nullopt_t,
-                                                      cuda::std::nullopt_t) const
+  __device__ bool operator()(vertex_t src,
+                             vertex_t dst,
+                             cuda::std::nullopt_t,
+                             cuda::std::nullopt_t,
+                             cuda::std::nullopt_t) const
   {
     auto dst_offset = dst - dst_first;
     auto old        = prev_visited_flags.get(dst_offset);
     if (!old) { old = visited_flags.atomic_or(dst_offset, true); }
-    return old ? cuda::std::nullopt : cuda::std::optional<vertex_t>{src};
+    return !old;  // haven't been visited yet.
   }
 };
 
@@ -385,25 +397,26 @@ void bfs(raft::handle_t const& handle,
   while (true) {
     vertex_t next_aggregate_frontier_size{};
     if (topdown) {
-      topdown_e_op_t<vertex_t, GraphViewType::is_multi_gpu> e_op{};
-      e_op.prev_visited_flags =
+      topdown_pred_op_t<vertex_t, GraphViewType::is_multi_gpu> pred_op{};
+      pred_op.prev_visited_flags =
         detail::edge_partition_endpoint_property_device_view_t<vertex_t, uint32_t*, bool>(
           prev_dst_visited_flags.mutable_view());
-      e_op.visited_flags =
+      pred_op.visited_flags =
         detail::edge_partition_endpoint_property_device_view_t<vertex_t, uint32_t*, bool>(
           dst_visited_flags.mutable_view());
-      e_op.dst_first = graph_view.local_edge_partition_dst_range_first();
+      pred_op.dst_first = graph_view.local_edge_partition_dst_range_first();
 
       auto [new_frontier_vertex_buffer, predecessor_buffer] =
-        cugraph::transform_reduce_v_frontier_outgoing_e_by_dst(
+        cugraph::transform_reduce_if_v_frontier_outgoing_e_by_dst(
           handle,
           graph_view,
           vertex_frontier.bucket(bucket_idx_cur),
           edge_src_dummy_property_t{}.view(),
           edge_dst_dummy_property_t{}.view(),
           edge_dummy_property_t{}.view(),
-          e_op,
-          reduce_op::any<vertex_t>());
+          topdown_e_op_t<vertex_t>{},
+          reduce_op::any<vertex_t>(),
+          pred_op);
 
       auto input_pair_first = thrust::make_zip_iterator(thrust::make_constant_iterator(depth + 1),
                                                         predecessor_buffer.begin());
