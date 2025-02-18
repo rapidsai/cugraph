@@ -369,7 +369,6 @@ def test_uniform_neighbor_sample_edge_properties(dask_client, return_offsets):
         ),
         fanout_vals=[-1, -1],
         with_replacement=False,
-        with_edge_properties=True,
         with_batch_ids=True,
         keep_batches_together=True,
         min_batch_id=0,
@@ -486,7 +485,6 @@ def test_uniform_neighbor_sample_edge_properties_self_loops(dask_client):
         ),
         fanout_vals=[2, 2],
         with_replacement=False,
-        with_edge_properties=True,
         with_batch_ids=True,
     ).compute()
 
@@ -533,7 +531,6 @@ def test_uniform_neighbor_sample_hop_id_order():
         cudf.Series([0, 1], dtype="int64"),
         fanout_vals=[2, 2, 2],
         with_replacement=False,
-        with_edge_properties=True,
     )
 
     for p in range(sampling_results.npartitions):
@@ -572,7 +569,6 @@ def test_uniform_neighbor_sample_hop_id_order_multi_batch():
         ),
         fanout_vals=[2, 2, 2],
         with_replacement=False,
-        with_edge_properties=True,
         with_batch_ids=True,
     )
 
@@ -632,7 +628,6 @@ def test_uniform_neighbor_edge_properties_sample_small_start_list(
         ),
         fanout_vals=[10, 25],
         with_replacement=with_replacement,
-        with_edge_properties=True,
         with_batch_ids=True,
     )
 
@@ -670,7 +665,6 @@ def test_uniform_neighbor_sample_without_dask_inputs(dask_client):
         ),
         fanout_vals=[2, 2],
         with_replacement=False,
-        with_edge_properties=True,
         with_batch_ids=True,
     ).compute()
 
@@ -736,7 +730,6 @@ def test_uniform_neighbor_sample_batched(dask_client, dataset, input_df, max_bat
         start_list=input_vertices,
         fanout_vals=[5, 5],
         with_replacement=False,
-        with_edge_properties=True,
         with_batch_ids=True,
     )
 
@@ -782,7 +775,6 @@ def test_uniform_neighbor_sample_exclude_sources_basic(dask_client):
             ),
             [2, 3, 3],
             with_replacement=False,
-            with_edge_properties=True,
             with_batch_ids=True,
             random_state=62,
             prior_sources_behavior="exclude",
@@ -825,7 +817,6 @@ def test_uniform_neighbor_sample_exclude_sources_email_eu_core(dask_client):
         seeds,
         [5, 4, 3, 2, 1],
         with_replacement=False,
-        with_edge_properties=True,
         with_batch_ids=False,
         prior_sources_behavior="exclude",
     ).compute()
@@ -871,7 +862,6 @@ def test_uniform_neighbor_sample_carry_over_sources_basic(dask_client):
             ),
             [2, 3, 3],
             with_replacement=False,
-            with_edge_properties=True,
             with_batch_ids=True,
             random_state=62,
             prior_sources_behavior="carryover",
@@ -919,7 +909,6 @@ def test_uniform_neighbor_sample_carry_over_sources_email_eu_core(dask_client):
         seeds,
         [5, 4, 3, 2, 1],
         with_replacement=False,
-        with_edge_properties=True,
         with_batch_ids=False,
         prior_sources_behavior="carryover",
     ).compute()
@@ -954,7 +943,6 @@ def test_uniform_neighbor_sample_deduplicate_sources_email_eu_core(dask_client):
         seeds,
         [5, 4, 3, 2, 1],
         with_replacement=False,
-        with_edge_properties=True,
         with_batch_ids=False,
         deduplicate_sources=True,
     ).compute()
@@ -990,7 +978,6 @@ def test_uniform_neighbor_sample_renumber(dask_client, hops):
         seeds,
         hops,
         with_replacement=False,
-        with_edge_properties=True,
         with_batch_ids=False,
         deduplicate_sources=True,
         renumber=True,
@@ -1033,7 +1020,6 @@ def test_uniform_neighbor_sample_offset_renumber(dask_client, hops):
         seeds,
         hops,
         with_replacement=False,
-        with_edge_properties=True,
         with_batch_ids=False,
         deduplicate_sources=True,
         renumber=False,
@@ -1052,7 +1038,6 @@ def test_uniform_neighbor_sample_offset_renumber(dask_client, hops):
         seeds,
         hops,
         with_replacement=False,
-        with_edge_properties=True,
         with_batch_ids=False,
         deduplicate_sources=True,
         renumber=True,
@@ -1113,7 +1098,6 @@ def test_uniform_neighbor_sample_csr_csc_global(dask_client, hops, seed):
         seeds,
         hops,
         with_replacement=False,
-        with_edge_properties=True,
         with_batch_ids=False,
         deduplicate_sources=True,
         # carryover not valid because C++ sorts on (hop,src)
@@ -1173,7 +1157,6 @@ def test_uniform_neighbor_sample_csr_csc_local(dask_client, hops, seed):
         seeds,
         hops,
         with_replacement=False,
-        with_edge_properties=True,
         with_batch_ids=False,
         deduplicate_sources=True,
         prior_sources_behavior="carryover",
