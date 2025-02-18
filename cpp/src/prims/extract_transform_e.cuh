@@ -15,7 +15,7 @@
  */
 #pragma once
 
-#include "prims/detail/extract_transform_v_frontier_e.cuh"
+#include "prims/detail/extract_transform_if_v_frontier_e.cuh"
 #include "prims/property_op_utils.cuh"
 #include "prims/vertex_frontier.cuh"
 
@@ -80,14 +80,13 @@ template <typename GraphViewType,
           typename EdgeDstValueInputWrapper,
           typename EdgeValueInputWrapper,
           typename EdgeOp>
-decltype(allocate_dataframe_buffer<
-         typename detail::edge_op_result_type<typename GraphViewType::vertex_type,
-                                              typename GraphViewType::vertex_type,
-                                              typename EdgeSrcValueInputWrapper::value_type,
-                                              typename EdgeDstValueInputWrapper::value_type,
-                                              typename EdgeValueInputWrapper::value_type,
-                                              EdgeOp>::type::value_type>(size_t{0},
-                                                                         rmm::cuda_stream_view{}))
+dataframe_buffer_type_t<
+  typename detail::edge_op_result_type<typename GraphViewType::vertex_type,
+                                       typename GraphViewType::vertex_type,
+                                       typename EdgeSrcValueInputWrapper::value_type,
+                                       typename EdgeDstValueInputWrapper::value_type,
+                                       typename EdgeValueInputWrapper::value_type,
+                                       EdgeOp>::type::value_type>
 extract_transform_e(raft::handle_t const& handle,
                     GraphViewType const& graph_view,
                     EdgeSrcValueInputWrapper edge_src_value_input,
@@ -107,7 +106,7 @@ extract_transform_e(raft::handle_t const& handle,
   static_assert(!std::is_same_v<e_op_result_t, void>);
   using payload_t = typename e_op_result_t::value_type;
 
-  // FIXME: Consider updating detail::extract_transform_v_forntier_e to take std::nullopt to as a
+  // FIXME: Consider updating detail::extract_transform_if_v_forntier_e to take std::nullopt to as a
   // frontier or create a new key bucket type that just stores [vertex_first, vertex_last) for
   // further optimization. Better revisit this once this becomes a performance bottleneck and after
   // updating primitives to support masking & graph updates.
@@ -116,8 +115,8 @@ extract_transform_e(raft::handle_t const& handle,
                   thrust::make_counting_iterator(graph_view.local_vertex_partition_range_last()));
 
   auto value_buffer = allocate_dataframe_buffer<payload_t>(size_t{0}, handle.get_stream());
-  std::tie(std::ignore, value_buffer) =
-    detail::extract_transform_v_frontier_e<GraphViewType::is_storage_transposed, void, payload_t>(
+  std::tie(std::ignore, value_buffer) = detail::
+    extract_transform_v_if_frontier_e<GraphViewType::is_storage_transposed, void, payload_t>(
       handle,
       graph_view,
       frontier,
@@ -125,6 +124,12 @@ extract_transform_e(raft::handle_t const& handle,
       edge_dst_value_input,
       edge_value_input,
       e_op,
+      detail::const_true_e_op_t<vertex_t,
+                                vertex_t,
+                                typename EdgeSrcValueInputWrapper::value_type,
+                                typename EdgeDstValueInputWrapper::value_type,
+                                typename EdgeValueInputWrapper::value_type,
+                                GraphViewType::is_storage_transposed>{},
       do_expensive_check);
 
   return value_buffer;

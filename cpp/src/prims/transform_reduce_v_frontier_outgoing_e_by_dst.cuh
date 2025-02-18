@@ -16,7 +16,7 @@
 #pragma once
 
 #include "detail/graph_partition_utils.cuh"
-#include "prims/detail/extract_transform_v_frontier_e.cuh"
+#include "prims/detail/extract_transform_if_v_frontier_e.cuh"
 #include "prims/detail/prim_utils.cuh"
 #include "prims/property_op_utils.cuh"
 #include "prims/reduce_op.cuh"
@@ -627,14 +627,14 @@ transform_reduce_v_frontier_outgoing_e_by_dst(raft::handle_t const& handle,
     e_op_wrapper{e_op};
 
   auto [key_buffer, payload_buffer] =
-    detail::extract_transform_v_frontier_e<false, key_t, payload_t>(handle,
-                                                                    graph_view,
-                                                                    frontier,
-                                                                    edge_src_value_input,
-                                                                    edge_dst_value_input,
-                                                                    edge_value_input,
-                                                                    e_op_wrapper,
-                                                                    do_expensive_check);
+    detail::extract_transform_if_v_frontier_e<false, key_t, payload_t>(handle,
+                                                                       graph_view,
+                                                                       frontier,
+                                                                       edge_src_value_input,
+                                                                       edge_dst_value_input,
+                                                                       edge_value_input,
+                                                                       e_op_wrapper,
+                                                                       do_expensive_check);
   // 2. reduce the buffer
 
   std::vector<vertex_t> vertex_partition_range_offsets{};
