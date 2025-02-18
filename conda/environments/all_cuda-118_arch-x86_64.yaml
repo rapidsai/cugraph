@@ -11,7 +11,7 @@ dependencies:
 - breathe>=4.35.0
 - c-compiler
 - certifi
-- cmake>=3.26.4,!=3.30.0
+- cmake>=3.30.4
 - cuda-nvtx
 - cuda-python>=11.8.5,<12.0a0
 - cuda-version=11.8
