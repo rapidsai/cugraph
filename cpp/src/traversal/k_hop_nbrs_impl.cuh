@@ -48,11 +48,11 @@ namespace {
 
 template <typename vertex_t>
 struct e_op_t {
-  __device__ cuda::std::optional<size_t> operator()(thrust::tuple<vertex_t, size_t> tagged_src,
-                                                    vertex_t,
-                                                    cuda::std::nullopt_t,
-                                                    cuda::std::nullopt_t,
-                                                    cuda::std::nullopt_t) const
+  __device__ size_t operator()(thrust::tuple<vertex_t, size_t> tagged_src,
+                               vertex_t,
+                               cuda::std::nullopt_t,
+                               cuda::std::nullopt_t,
+                               cuda::std::nullopt_t) const
   {
     return thrust::get<1>(tagged_src);
   }

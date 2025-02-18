@@ -17,13 +17,12 @@
 
 #include "prims/count_if_v.cuh"
 #include "prims/edge_bucket.cuh"
-#include "prims/extract_transform_e.cuh"
-#include "prims/extract_transform_v_frontier_outgoing_e.cuh"
+#include "prims/extract_transform_if_e.cuh"
 #include "prims/fill_edge_property.cuh"
 #include "prims/per_v_transform_reduce_incoming_outgoing_e.cuh"
 #include "prims/transform_e.cuh"
+#include "prims/transform_reduce_if_v_frontier_outgoing_e_by_dst.cuh"
 #include "prims/transform_reduce_v.cuh"
-#include "prims/transform_reduce_v_frontier_outgoing_e_by_dst.cuh"
 #include "prims/update_edge_src_dst_property.cuh"
 #include "prims/update_v_frontier.cuh"
 #include "prims/vertex_frontier.cuh"
@@ -49,32 +48,51 @@ namespace {
 
 template <typename vertex_t>
 struct brandes_e_op_t {
+  template <typename value_t, typename ignore_t>
+  __device__ value_t operator()(vertex_t, vertex_t, value_t src_sigma, vertex_t, ignore_t) const
+  {
+    return src_sigma;
+  }
+};
+
+template <typename vertex_t>
+struct brandes_pred_op_t {
   const vertex_t invalid_distance_{std::numeric_limits<vertex_t>::max()};
 
   template <typename value_t, typename ignore_t>
-  __device__ cuda::std::optional<value_t> operator()(
+  __device__ bool operator()(
     vertex_t, vertex_t, value_t src_sigma, vertex_t dst_distance, ignore_t) const
   {
-    return (dst_distance == invalid_distance_) ? cuda::std::make_optional(src_sigma)
-                                               : cuda::std::nullopt;
+    return (dst_distance == invalid_distance_);
   }
 };
 
 template <typename vertex_t>
 struct extract_edge_e_op_t {
-  vertex_t d{};
-
   template <typename edge_t, typename weight_t>
-  __device__ cuda::std::optional<thrust::tuple<vertex_t, vertex_t>> operator()(
+  __device__ thrust::tuple<vertex_t, vertex_t> operator()(
     vertex_t src,
     vertex_t dst,
     thrust::tuple<vertex_t, edge_t, weight_t> src_props,
     thrust::tuple<vertex_t, edge_t, weight_t> dst_props,
-    weight_t edge_centrality) const
+    weight_t) const
   {
-    return ((thrust::get<0>(dst_props) == d) && (thrust::get<0>(src_props) == (d - 1)))
-             ? cuda::std::optional<thrust::tuple<vertex_t, vertex_t>>{thrust::make_tuple(src, dst)}
-             : cuda::std::nullopt;
+    return thrust::make_tuple(src, dst);
+  }
+};
+
+template <typename vertex_t>
+struct extract_edge_pred_op_t {
+  vertex_t d{};
+
+  template <typename edge_t, typename weight_t>
+  __device__ bool operator()(vertex_t src,
+                             vertex_t dst,
+                             thrust::tuple<vertex_t, edge_t, weight_t> src_props,
+                             thrust::tuple<vertex_t, edge_t, weight_t> dst_props,
+                             weight_t) const
+  {
+    return ((thrust::get<0>(dst_props) == d) && (thrust::get<0>(src_props) == (d - 1)));
   }
 };
 
@@ -134,7 +152,7 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<edge_t>> brandes_b
     update_edge_src_property(handle, graph_view, sigmas.begin(), src_sigmas.mutable_view());
     update_edge_dst_property(handle, graph_view, distances.begin(), dst_distances.mutable_view());
 
-    auto [new_frontier, new_sigma] = cugraph::transform_reduce_v_frontier_outgoing_e_by_dst(
+    auto [new_frontier, new_sigma] = cugraph::transform_reduce_if_v_frontier_outgoing_e_by_dst(
       handle,
       graph_view,
       vertex_frontier.bucket(bucket_idx_cur),
@@ -142,7 +160,8 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<edge_t>> brandes_b
       dst_distances.view(),
       cugraph::edge_dummy_property_t{}.view(),
       brandes_e_op_t<vertex_t>{},
-      reduce_op::plus<vertex_t>());
+      reduce_op::plus<vertex_t>(),
+      brandes_pred_op_t<vertex_t>{});
 
     update_v_frontier(handle,
                       graph_view,
@@ -346,13 +365,14 @@ void accumulate_edge_results(
     cugraph::edge_bucket_t<vertex_t, void, true, multi_gpu, true> edge_list(handle);
 
     {
-      auto [src, dst] = extract_transform_e(handle,
-                                            graph_view,
-                                            src_properties.view(),
-                                            dst_properties.view(),
-                                            centralities_view,
-                                            extract_edge_e_op_t<vertex_t>{d},
-                                            do_expensive_check);
+      auto [src, dst] = extract_transform_if_e(handle,
+                                               graph_view,
+                                               src_properties.view(),
+                                               dst_properties.view(),
+                                               centralities_view,
+                                               extract_edge_e_op_t<vertex_t>{},
+                                               extract_edge_pred_op_t<vertex_t>{d},
+                                               do_expensive_check);
 
       thrust::sort(handle.get_thrust_policy(),
                    thrust::make_zip_iterator(src.begin(), dst.begin()),

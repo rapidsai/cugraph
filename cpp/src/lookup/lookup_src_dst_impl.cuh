@@ -413,7 +413,7 @@ EdgeTypeAndIdToSrcDstLookupContainerType build_edge_id_and_type_to_src_dst_looku
         cugraph::edge_src_dummy_property_t{}.view(),
         cugraph::edge_dst_dummy_property_t{}.view(),
         view_concat(edge_id_view, edge_type_view),
-        cuda::proclaim_return_type<cuda::std::optional<thrust::tuple<int, edge_type_t>>>(
+        cuda::proclaim_return_type<thrust::tuple<int, edge_type_t>>(
           [key_func =
              cugraph::detail::compute_gpu_id_from_ext_edge_id_t<edge_t>{
                comm_size,
@@ -423,8 +423,8 @@ EdgeTypeAndIdToSrcDstLookupContainerType build_edge_id_and_type_to_src_dst_looku
                                             cuda::std::nullopt_t,
                                             cuda::std::nullopt_t,
                                             thrust::tuple<edge_t, edge_type_t> id_and_type) {
-            return cuda::std::optional<thrust::tuple<int, edge_type_t>>{thrust::make_tuple(
-              key_func(thrust::get<0>(id_and_type)), thrust::get<1>(id_and_type))};
+            return thrust::make_tuple(key_func(thrust::get<0>(id_and_type)),
+                                      thrust::get<1>(id_and_type));
           }));
 
     auto type_and_gpu_id_pair_begin =
@@ -520,9 +520,9 @@ EdgeTypeAndIdToSrcDstLookupContainerType build_edge_id_and_type_to_src_dst_looku
       cugraph::edge_src_dummy_property_t{}.view(),
       cugraph::edge_dst_dummy_property_t{}.view(),
       edge_type_view,
-      cuda::proclaim_return_type<cuda::std::optional<edge_type_t>>(
+      cuda::proclaim_return_type<edge_type_t>(
         [] __device__(auto, auto, cuda::std::nullopt_t, cuda::std::nullopt_t, edge_type_t et) {
-          return cuda::std::optional<edge_type_t>{et};
+          return et;
         }));
 
     thrust::sort(handle.get_thrust_policy(), edge_types.begin(), edge_types.end());
