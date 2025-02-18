@@ -44,7 +44,7 @@
 namespace cugraph {
 
 /**
- * @brief Iterate over the entire set of edges and extract the valid edge functor outputs.
+ * @brief Iterate over the entire set of edges and extract all edge functor outputs.
  *
  * @tparam GraphViewType Type of the passed non-owning graph object.
  * @tparam EdgeSrcValueInputWrapper Type of the wrapper for edge source property values.

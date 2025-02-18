@@ -83,7 +83,7 @@ template <typename key_t,
           typename dst_value_t,
           typename e_value_t,
           typename EdgeOp>
-struct transform_reduce_v_frontier_call_e_op_t {
+struct transform_reduce_if_v_frontier_call_e_op_t {
   EdgeOp e_op{};
 
   __device__ std::conditional_t<!std::is_same_v<key_t, void> && !std::is_same_v<payload_t, void>,
@@ -611,13 +611,13 @@ transform_reduce_if_v_frontier_outgoing_e_by_dst(raft::handle_t const& handle,
 
   // 1. fill the buffer
 
-  detail::transform_reduce_v_frontier_call_e_op_t<key_t,
-                                                  payload_t,
-                                                  vertex_t,
-                                                  typename EdgeSrcValueInputWrapper::value_type,
-                                                  typename EdgeDstValueInputWrapper::value_type,
-                                                  typename EdgeValueInputWrapper::value_type,
-                                                  EdgeOp>
+  detail::transform_reduce_if_v_frontier_call_e_op_t<key_t,
+                                                     payload_t,
+                                                     vertex_t,
+                                                     typename EdgeSrcValueInputWrapper::value_type,
+                                                     typename EdgeDstValueInputWrapper::value_type,
+                                                     typename EdgeValueInputWrapper::value_type,
+                                                     EdgeOp>
     e_op_wrapper{e_op};
 
   auto [key_buffer, payload_buffer] =
@@ -1105,8 +1105,8 @@ size_t compute_num_out_nbrs_from_frontier(raft::handle_t const& handle,
  * @brief Iterate over outgoing edges from the current vertex frontier and reduce valid edge functor
  * outputs by (tagged-)destination ID.
  *
- * Edge functor outputs are cuda::std::optional objects and invalid if cuda::std::nullopt. Vertices
- * are assumed to be tagged if KeyBucketType::key_type is a tuple of a vertex type and a tag type
+ * Edge functor outputs are evaluated if the predicate operator returns true. Vertices are assumed
+ * to be tagged if KeyBucketType::key_type is a tuple of a vertex type and a tag type
  * (KeyBucketType::key_type is identical to a vertex type otherwise).
  *
  * @tparam GraphViewType Type of the passed non-owning graph object.
@@ -1117,6 +1117,7 @@ size_t compute_num_out_nbrs_from_frontier(raft::handle_t const& handle,
  * @tparam EdgeValueInputWrapper Type of the wrapper for edge property values.
  * @tparam EdgeOp Type of the quinary edge operator.
  * @tparam ReduceOp Type of the binary reduction operator.
+ * @tparam PredOp Type of the quinary predicate operator.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Non-owning graph object.
