@@ -467,6 +467,10 @@ ConfigureTest(MIS_TEST components/mis_test.cu)
 target_include_directories(MIS_TEST PRIVATE "${CUGRAPH_SOURCE_DIR}/src")
 
 ###################################################################################################
+# - FIND_FOREST tests -----------------------------------------------------------------------------
+ConfigureTest(FIND_FOREST_TEST tree/find_forest_test.cpp)
+
+###################################################################################################
 # - VERTEX COLORING tests ----------------------------------------------------------------------
 ConfigureTest(VERTEX_COLORING_TEST components/vertex_coloring_test.cu)
 target_include_directories(VERTEX_COLORING_TEST PRIVATE "${CUGRAPH_SOURCE_DIR}/src")
