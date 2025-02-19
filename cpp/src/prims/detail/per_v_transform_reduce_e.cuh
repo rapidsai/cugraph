@@ -3872,23 +3872,25 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
           auto& values       = edge_partition_values[j];
 
           if (minor_comm_rank == static_cast<int>(partition_idx)) {
-            device_gatherv(minor_comm,
-                           get_dataframe_buffer_begin(values),
-                           get_dataframe_buffer_begin(*rx_values),
-                           values.size(),
-                           *rx_value_sizes,
-                           *rx_value_displs,
-                           static_cast<int>(partition_idx),
-                           handle.get_stream());
+            device_gatherv(
+              minor_comm,
+              get_dataframe_buffer_begin(values),
+              get_dataframe_buffer_begin(*rx_values),
+              values.size(),
+              raft::host_span<size_t const>(rx_value_sizes->data(), rx_value_sizes->size()),
+              raft::host_span<size_t const>(rx_value_displs->data(), rx_value_displs->size()),
+              static_cast<int>(partition_idx),
+              handle.get_stream());
           } else {
-            device_gatherv(minor_comm,
-                           get_dataframe_buffer_begin(values),
-                           dataframe_buffer_iterator_type_t<T>{},
-                           values.size(),
-                           std::vector<size_t>{},
-                           std::vector<size_t>{},
-                           static_cast<int>(partition_idx),
-                           handle.get_stream());
+            device_gatherv(
+              minor_comm,
+              get_dataframe_buffer_begin(values),
+              dataframe_buffer_iterator_type_t<T>{},
+              values.size(),
+              raft::host_span<size_t const>(static_cast<size_t const*>(nullptr), size_t{0}),
+              raft::host_span<size_t const>(static_cast<size_t const*>(nullptr), size_t{0}),
+              static_cast<int>(partition_idx),
+              handle.get_stream());
           }
         }
         device_group_end(minor_comm);
@@ -3901,44 +3903,48 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
             auto const& offsets = (*edge_partition_deg1_hypersparse_output_offset_vectors)[j];
             if (offsets.index() == 0) {
               if (minor_comm_rank == static_cast<int>(partition_idx)) {
-                device_gatherv(minor_comm,
-                               std::get<0>(offsets).data(),
-                               std::get<0>(*rx_offsets).data(),
-                               std::get<0>(offsets).size(),
-                               *rx_offset_sizes,
-                               *rx_offset_displs,
-                               static_cast<int>(partition_idx),
-                               handle.get_stream());
+                device_gatherv(
+                  minor_comm,
+                  std::get<0>(offsets).data(),
+                  std::get<0>(*rx_offsets).data(),
+                  std::get<0>(offsets).size(),
+                  raft::host_span<size_t const>(rx_offset_sizes->data(), rx_offset_sizes->size()),
+                  raft::host_span<size_t const>(rx_offset_displs->data(), rx_offset_displs->size()),
+                  static_cast<int>(partition_idx),
+                  handle.get_stream());
               } else {
-                device_gatherv(minor_comm,
-                               std::get<0>(offsets).data(),
-                               static_cast<uint32_t*>(nullptr),
-                               std::get<0>(offsets).size(),
-                               std::vector<size_t>{},
-                               std::vector<size_t>{},
-                               static_cast<int>(partition_idx),
-                               handle.get_stream());
+                device_gatherv(
+                  minor_comm,
+                  std::get<0>(offsets).data(),
+                  static_cast<uint32_t*>(nullptr),
+                  std::get<0>(offsets).size(),
+                  raft::host_span<size_t const>(static_cast<size_t const*>(nullptr), size_t{0}),
+                  raft::host_span<size_t const>(static_cast<size_t const*>(nullptr), size_t{0}),
+                  static_cast<int>(partition_idx),
+                  handle.get_stream());
               }
             } else {
               assert(offsets.index() == 1);
               if (minor_comm_rank == static_cast<int>(partition_idx)) {
-                device_gatherv(minor_comm,
-                               std::get<1>(offsets).data(),
-                               std::get<1>(*rx_offsets).data(),
-                               std::get<1>(offsets).size(),
-                               *rx_offset_sizes,
-                               *rx_offset_displs,
-                               static_cast<int>(partition_idx),
-                               handle.get_stream());
+                device_gatherv(
+                  minor_comm,
+                  std::get<1>(offsets).data(),
+                  std::get<1>(*rx_offsets).data(),
+                  std::get<1>(offsets).size(),
+                  raft::host_span<size_t const>(rx_offset_sizes->data(), rx_offset_sizes->size()),
+                  raft::host_span<size_t const>(rx_offset_displs->data(), rx_offset_displs->size()),
+                  static_cast<int>(partition_idx),
+                  handle.get_stream());
               } else {
-                device_gatherv(minor_comm,
-                               std::get<1>(offsets).data(),
-                               static_cast<size_t*>(nullptr),
-                               std::get<1>(offsets).size(),
-                               std::vector<size_t>{},
-                               std::vector<size_t>{},
-                               static_cast<int>(partition_idx),
-                               handle.get_stream());
+                device_gatherv(
+                  minor_comm,
+                  std::get<1>(offsets).data(),
+                  static_cast<size_t*>(nullptr),
+                  std::get<1>(offsets).size(),
+                  raft::host_span<size_t const>(static_cast<size_t const*>(nullptr), size_t{0}),
+                  raft::host_span<size_t const>(static_cast<size_t const*>(nullptr), size_t{0}),
+                  static_cast<int>(partition_idx),
+                  handle.get_stream());
               }
             }
           }

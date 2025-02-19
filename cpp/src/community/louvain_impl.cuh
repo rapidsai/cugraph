@@ -28,6 +28,7 @@
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_functions.hpp>
+#include <cugraph/shuffle_functions.hpp>
 
 #include <raft/random/rng_state.hpp>
 
@@ -132,9 +133,8 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> louvain(
                handle.get_stream());
 
     if constexpr (graph_view_t::is_multi_gpu) {
-      std::tie(cluster_keys_v, cluster_weights_v) =
-        detail::shuffle_ext_vertex_value_pairs_to_local_gpu_by_vertex_partitioning(
-          handle, std::move(cluster_keys_v), std::move(cluster_weights_v));
+      std::tie(cluster_keys_v, cluster_weights_v) = shuffle_ext_vertex_value_pairs(
+        handle, std::move(cluster_keys_v), std::move(cluster_weights_v));
 
       src_vertex_weights_cache =
         edge_src_property_t<graph_view_t, weight_t>(handle, current_graph_view);

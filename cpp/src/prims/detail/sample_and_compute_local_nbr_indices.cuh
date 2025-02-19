@@ -471,11 +471,7 @@ compute_frontier_value_sums_and_partitioned_local_value_sum_displacements(
   std::tie(frontier_gathered_local_value_sums, std::ignore) =
     shuffle_values(minor_comm,
                    aggregate_local_frontier_local_value_sums.begin(),
-#if 1  // FIXME: better update shuffle_values to take host_span
-                   tx_sizes,
-#else
                    raft::host_span<size_t>(tx_sizes.data(), tx_sizes.size()),
-#endif
                    handle.get_stream());
 
   rmm::device_uvector<value_t> frontier_value_sums(
@@ -2539,15 +2535,7 @@ compute_aggregate_local_frontier_biases(raft::handle_t const& handle,
       edge_dst_value_input,
       edge_value_input,
       bias_e_op,
-#if 1  // FIXME: better update shuffle_values to take host_span
-      std::vector<size_t>(local_frontier_offsets.begin(), local_frontier_offsets.end() - 1),
-      local_frontier_sizes
-#else
-      raft::host_span<size_t const>(local_frontier_offsets.data(),
-                                    local_frontier_offsets.size() - 1),
-      raft::host_span<size_t const>(local_frontier_sizes.data(), local_frontier_sizes.size())
-#endif
-    );
+      raft::host_span<size_t const>(local_frontier_offsets.data(), local_frontier_offsets.size()));
 
   // 2. expensive check
 
@@ -2698,15 +2686,7 @@ compute_aggregate_local_frontier_bias_type_pairs(
           return thrust::make_tuple(bias_e_op(src, dst, src_val, dst_val, thrust::get<0>(e_val)),
                                     thrust::get<1>(e_val));
         }),
-#if 1  // FIXME: better update shuffle_values to take host_span
-      std::vector<size_t>(local_frontier_offsets.begin(), local_frontier_offsets.end() - 1),
-      local_frontier_sizes
-#else
-      raft::host_span<size_t const>(local_frontier_offsets.data(),
-                                    local_frontier_offsets.size() - 1),
-      raft::host_span<size_t const>(local_frontier_sizes.data(), local_frontier_sizes.size())
-#endif
-    );
+      raft::host_span<size_t const>(local_frontier_offsets.data(), local_frontier_offsets.size()));
 
   if (do_expensive_check) {
     auto num_invalid_biases = thrust::count_if(
@@ -2829,15 +2809,7 @@ compute_aggregate_local_frontier_edge_types(raft::handle_t const& handle,
       edge_dst_dummy_property_t{}.view(),
       edge_type_input,
       [] __device__(auto, auto, auto, auto, auto e_val) { return e_val; },
-#if 1  // FIXME: better update shuffle_values to take host_span
-      std::vector<size_t>(local_frontier_offsets.begin(), local_frontier_offsets.end() - 1),
-      local_frontier_sizes
-#else
-      raft::host_span<size_t const>(local_frontier_offsets.data(),
-                                    local_frontier_offsets.size() - 1),
-      raft::host_span<size_t const>(local_frontier_sizes.data(), local_frontier_sizes.size()),
-#endif
-    );
+      raft::host_span<size_t const>(local_frontier_offsets.data(), local_frontier_offsets.size()));
 
   return std::make_tuple(std::move(aggregate_local_frontier_types),
                          std::move(aggregate_local_frontier_local_degree_offsets));
@@ -2926,7 +2898,10 @@ shuffle_and_compute_local_nbr_values(
   pair_first = thrust::make_zip_iterator(
     thrust::make_tuple(sample_local_nbr_values.begin(), key_indices.begin()));
   auto [rx_value_buffer, rx_counts] =
-    shuffle_values(minor_comm, pair_first, h_tx_counts, handle.get_stream());
+    shuffle_values(minor_comm,
+                   pair_first,
+                   raft::host_span<size_t const>(h_tx_counts.data(), h_tx_counts.size()),
+                   handle.get_stream());
 
   sample_local_nbr_values            = std::move(std::get<0>(rx_value_buffer));
   key_indices                        = std::move(std::get<1>(rx_value_buffer));
@@ -3040,7 +3015,10 @@ shuffle_and_compute_per_type_local_nbr_values(
   triplet_first = thrust::make_zip_iterator(
     sample_per_type_local_nbr_values.begin(), edge_types.begin(), key_indices.begin());
   auto [rx_value_buffer, rx_counts] =
-    shuffle_values(minor_comm, triplet_first, h_tx_counts, handle.get_stream());
+    shuffle_values(minor_comm,
+                   triplet_first,
+                   raft::host_span<size_t const>(h_tx_counts.data(), h_tx_counts.size()),
+                   handle.get_stream());
 
   sample_per_type_local_nbr_values   = std::move(std::get<0>(rx_value_buffer));
   edge_types                         = std::move(std::get<1>(rx_value_buffer));
@@ -3569,9 +3547,10 @@ homogeneous_biased_sample_without_replacement(
       device_allgatherv(minor_comm,
                         frontier_indices.begin() + frontier_partition_offsets[1],
                         aggregate_mid_local_frontier_indices.begin(),
-                        mid_local_frontier_sizes,
-                        std::vector<size_t>(mid_local_frontier_offsets.begin(),
-                                            mid_local_frontier_offsets.end() - 1),
+                        raft::host_span<size_t const>(mid_local_frontier_sizes.data(),
+                                                      mid_local_frontier_sizes.size()),
+                        raft::host_span<size_t const>(mid_local_frontier_offsets.data(),
+                                                      mid_local_frontier_offsets.size() - 1),
                         handle.get_stream());
 
       // compute local degrees for the aggregated frontier indices
@@ -3692,7 +3671,8 @@ homogeneous_biased_sample_without_replacement(
         std::tie(mid_frontier_gathered_local_degrees, std::ignore) =
           shuffle_values(minor_comm,
                          aggregate_mid_local_frontier_local_degrees.data(),
-                         mid_local_frontier_sizes,
+                         raft::host_span<size_t const>(mid_local_frontier_sizes.data(),
+                                                       mid_local_frontier_sizes.size()),
                          handle.get_stream());
         aggregate_mid_local_frontier_local_degrees.resize(0, handle.get_stream());
         aggregate_mid_local_frontier_local_degrees.shrink_to_fit(handle.get_stream());
@@ -3707,8 +3687,11 @@ homogeneous_biased_sample_without_replacement(
       }
 
       rmm::device_uvector<bias_t> mid_frontier_gathered_biases(0, handle.get_stream());
-      std::tie(mid_frontier_gathered_biases, std::ignore) = shuffle_values(
-        minor_comm, aggregate_mid_local_frontier_biases.data(), tx_counts, handle.get_stream());
+      std::tie(mid_frontier_gathered_biases, std::ignore) =
+        shuffle_values(minor_comm,
+                       aggregate_mid_local_frontier_biases.data(),
+                       raft::host_span<size_t const>(tx_counts.data(), tx_counts.size()),
+                       handle.get_stream());
       aggregate_mid_local_frontier_biases.resize(0, handle.get_stream());
       aggregate_mid_local_frontier_biases.shrink_to_fit(handle.get_stream());
 
@@ -3793,9 +3776,10 @@ homogeneous_biased_sample_without_replacement(
       device_allgatherv(minor_comm,
                         frontier_indices.begin() + frontier_partition_offsets[2],
                         aggregate_high_local_frontier_indices.begin(),
-                        high_local_frontier_sizes,
-                        std::vector<size_t>(high_local_frontier_offsets.begin(),
-                                            high_local_frontier_offsets.end() - 1),
+                        raft::host_span<size_t const>(high_local_frontier_sizes.data(),
+                                                      high_local_frontier_sizes.size()),
+                        raft::host_span<size_t const>(high_local_frontier_offsets.data(),
+                                                      high_local_frontier_offsets.size() - 1),
                         handle.get_stream());
 
       // local sample and update indices
@@ -3846,11 +3830,14 @@ homogeneous_biased_sample_without_replacement(
       std::tie(high_frontier_gathered_local_nbr_indices, std::ignore) =
         shuffle_values(minor_comm,
                        aggregate_high_local_frontier_local_nbr_indices.data(),
-                       tx_counts,
+                       raft::host_span<size_t const>(tx_counts.data(), tx_counts.size()),
                        handle.get_stream());
       rmm::device_uvector<bias_t> high_frontier_gathered_keys(0, handle.get_stream());
-      std::tie(high_frontier_gathered_keys, std::ignore) = shuffle_values(
-        minor_comm, aggregate_high_local_frontier_keys.data(), tx_counts, handle.get_stream());
+      std::tie(high_frontier_gathered_keys, std::ignore) =
+        shuffle_values(minor_comm,
+                       aggregate_high_local_frontier_keys.data(),
+                       raft::host_span<size_t const>(tx_counts.data(), tx_counts.size()),
+                       handle.get_stream());
       aggregate_high_local_frontier_local_nbr_indices.resize(0, handle.get_stream());
       aggregate_high_local_frontier_local_nbr_indices.shrink_to_fit(handle.get_stream());
       aggregate_high_local_frontier_keys.resize(0, handle.get_stream());
@@ -4192,9 +4179,10 @@ heterogeneous_biased_sample_without_replacement(
         thrust::make_zip_iterator(frontier_indices.begin(), frontier_edge_types.begin()) +
           frontier_partition_offsets[1],
         get_dataframe_buffer_begin(aggregate_mid_local_frontier_index_type_pairs),
-        mid_local_frontier_sizes,
-        std::vector<size_t>(mid_local_frontier_offsets.begin(),
-                            mid_local_frontier_offsets.end() - 1),
+        raft::host_span<size_t const>(mid_local_frontier_sizes.data(),
+                                      mid_local_frontier_sizes.size()),
+        raft::host_span<size_t const>(mid_local_frontier_offsets.data(),
+                                      mid_local_frontier_offsets.size() - 1),
         handle.get_stream());
 
       // compute per-type local degrees for the aggregated frontier index type pairs
@@ -4333,7 +4321,8 @@ heterogeneous_biased_sample_without_replacement(
         std::tie(mid_frontier_gathered_per_type_local_degrees, std::ignore) =
           shuffle_values(minor_comm,
                          aggregate_mid_local_frontier_per_type_local_degrees.data(),
-                         mid_local_frontier_sizes,
+                         raft::host_span<size_t const>(mid_local_frontier_sizes.data(),
+                                                       mid_local_frontier_sizes.size()),
                          handle.get_stream());
         aggregate_mid_local_frontier_per_type_local_degrees.resize(0, handle.get_stream());
         aggregate_mid_local_frontier_per_type_local_degrees.shrink_to_fit(handle.get_stream());
@@ -4348,8 +4337,11 @@ heterogeneous_biased_sample_without_replacement(
       }
 
       rmm::device_uvector<bias_t> mid_frontier_gathered_biases(0, handle.get_stream());
-      std::tie(mid_frontier_gathered_biases, std::ignore) = shuffle_values(
-        minor_comm, aggregate_mid_local_frontier_biases.data(), tx_counts, handle.get_stream());
+      std::tie(mid_frontier_gathered_biases, std::ignore) =
+        shuffle_values(minor_comm,
+                       aggregate_mid_local_frontier_biases.data(),
+                       raft::host_span<size_t const>(tx_counts.data(), tx_counts.size()),
+                       handle.get_stream());
       aggregate_mid_local_frontier_biases.resize(0, handle.get_stream());
       aggregate_mid_local_frontier_biases.shrink_to_fit(handle.get_stream());
 
@@ -4461,9 +4453,10 @@ heterogeneous_biased_sample_without_replacement(
         thrust::make_zip_iterator(frontier_indices.begin(), frontier_edge_types.begin()) +
           frontier_partition_offsets[2],
         get_dataframe_buffer_begin(aggregate_high_local_frontier_index_type_pairs),
-        high_local_frontier_sizes,
-        std::vector<size_t>(high_local_frontier_offsets.begin(),
-                            high_local_frontier_offsets.end() - 1),
+        raft::host_span<size_t const>(high_local_frontier_sizes.data(),
+                                      high_local_frontier_sizes.size()),
+        raft::host_span<size_t const>(high_local_frontier_offsets.data(),
+                                      high_local_frontier_offsets.size() - 1),
         handle.get_stream());
 
       // local sample and update indices
@@ -4560,11 +4553,14 @@ heterogeneous_biased_sample_without_replacement(
       std::tie(high_frontier_gathered_per_type_local_nbr_indices, std::ignore) =
         shuffle_values(minor_comm,
                        aggregate_high_local_frontier_per_type_local_nbr_indices.data(),
-                       tx_counts,
+                       raft::host_span<size_t const>(tx_counts.data(), tx_counts.size()),
                        handle.get_stream());
       rmm::device_uvector<bias_t> high_frontier_gathered_keys(0, handle.get_stream());
-      std::tie(high_frontier_gathered_keys, std::ignore) = shuffle_values(
-        minor_comm, aggregate_high_local_frontier_keys.data(), tx_counts, handle.get_stream());
+      std::tie(high_frontier_gathered_keys, std::ignore) =
+        shuffle_values(minor_comm,
+                       aggregate_high_local_frontier_keys.data(),
+                       raft::host_span<size_t const>(tx_counts.data(), tx_counts.size()),
+                       handle.get_stream());
       aggregate_high_local_frontier_per_type_local_nbr_indices.resize(0, handle.get_stream());
       aggregate_high_local_frontier_per_type_local_nbr_indices.shrink_to_fit(handle.get_stream());
       aggregate_high_local_frontier_keys.resize(0, handle.get_stream());

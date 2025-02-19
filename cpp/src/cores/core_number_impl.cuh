@@ -16,7 +16,7 @@
 #pragma once
 
 #include "prims/reduce_v.cuh"
-#include "prims/transform_reduce_v_frontier_outgoing_e_by_dst.cuh"
+#include "prims/transform_reduce_if_v_frontier_outgoing_e_by_dst.cuh"
 #include "prims/update_edge_src_dst_property.cuh"
 #include "prims/update_v_frontier.cuh"
 #include "prims/vertex_frontier.cuh"
@@ -47,18 +47,6 @@
 namespace cugraph {
 
 namespace {
-
-template <typename vertex_t, typename edge_t>
-struct e_op_t {
-  size_t k{};
-  edge_t delta{};
-
-  __device__ cuda::std::optional<edge_t> operator()(
-    vertex_t, vertex_t, cuda::std::nullopt_t, edge_t dst_val, cuda::std::nullopt_t) const
-  {
-    return dst_val >= k ? cuda::std::optional<edge_t>{delta} : cuda::std::nullopt;
-  }
-};
 
 // a workaround for cudaErrorInvalidDeviceFunction error when device lambda is used
 template <typename vertex_t, typename edge_t>
@@ -222,15 +210,20 @@ void core_number(raft::handle_t const& handle,
         if (graph_view.is_symmetric() || ((degree_type == k_core_degree_type_t::IN) ||
                                           (degree_type == k_core_degree_type_t::INOUT))) {
           auto [new_frontier_vertex_buffer, delta_buffer] =
-            cugraph::transform_reduce_v_frontier_outgoing_e_by_dst(
+            cugraph::transform_reduce_if_v_frontier_outgoing_e_by_dst(
               handle,
               graph_view,
               vertex_frontier.bucket(bucket_idx_cur),
               edge_src_dummy_property_t{}.view(),
               dst_core_numbers.view(),
               edge_dummy_property_t{}.view(),
-              e_op_t<vertex_t, edge_t>{k, delta},
-              reduce_op::plus<edge_t>());
+              cuda::proclaim_return_type<edge_t>(
+                [k, delta] __device__(auto, auto, auto, auto, auto) { return delta; }),
+              reduce_op::plus<edge_t>(),
+              cuda::proclaim_return_type<bool>(
+                [k, delta] __device__(auto, auto, auto, edge_t dst_val, auto) {
+                  return dst_val >= k ? true : false;
+                }));
 
           update_v_frontier(
             handle,
@@ -238,7 +231,7 @@ void core_number(raft::handle_t const& handle,
             std::move(new_frontier_vertex_buffer),
             std::move(delta_buffer),
             vertex_frontier,
-            std::vector<size_t>{bucket_idx_next},
+            raft::host_span<size_t const>(&bucket_idx_next, size_t{1}),
             core_numbers,
             core_numbers,
             [k_first,

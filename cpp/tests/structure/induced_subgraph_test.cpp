@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -44,8 +44,8 @@ std::tuple<std::vector<vertex_t>,
 extract_induced_subgraph_reference(std::vector<edge_t> const& offsets,
                                    std::vector<vertex_t> const& indices,
                                    std::optional<std::vector<weight_t>> const& weights,
-                                   std::vector<size_t> const& subgraph_offsets,
-                                   std::vector<vertex_t> const& subgraph_vertices,
+                                   raft::host_span<size_t const> subgraph_offsets,
+                                   raft::host_span<vertex_t const> const& subgraph_vertices,
                                    size_t num_vertices)
 {
   std::vector<vertex_t> edgelist_majors{};
@@ -211,12 +211,13 @@ class Tests_InducedSubgraph
             h_reference_subgraph_edgelist_minors,
             h_reference_subgraph_edgelist_weights,
             h_reference_subgraph_edge_offsets] =
-        extract_induced_subgraph_reference(h_offsets,
-                                           h_indices,
-                                           h_weights,
-                                           h_subgraph_offsets,
-                                           h_subgraph_vertices,
-                                           graph_view.number_of_vertices());
+        extract_induced_subgraph_reference(
+          h_offsets,
+          h_indices,
+          h_weights,
+          raft::host_span<size_t const>(h_subgraph_offsets.data(), h_subgraph_offsets.size()),
+          raft::host_span<vertex_t const>(h_subgraph_vertices.data(), h_subgraph_vertices.size()),
+          graph_view.number_of_vertices());
 
       auto d_reference_subgraph_edgelist_majors =
         cugraph::test::to_device(handle, h_reference_subgraph_edgelist_majors);

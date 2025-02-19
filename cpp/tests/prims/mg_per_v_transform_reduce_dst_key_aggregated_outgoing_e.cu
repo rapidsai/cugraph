@@ -29,6 +29,7 @@
 #include <cugraph/edge_partition_view.hpp>
 #include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph_view.hpp>
+#include <cugraph/shuffle_functions.hpp>
 #include <cugraph/utilities/dataframe_buffer.hpp>
 #include <cugraph/utilities/high_res_timer.hpp>
 #include <cugraph/utilities/thrust_tuple_utils.hpp>
@@ -157,8 +158,7 @@ class Tests_MGPerVTransformReduceDstKeyAggregatedOutgoingE
                                                    handle_->get_stream());
     thrust::sequence(
       handle_->get_thrust_policy(), mg_kv_store_keys.begin(), mg_kv_store_keys.end(), vertex_t{0});
-    mg_kv_store_keys = cugraph::detail::shuffle_ext_vertices_to_local_gpu_by_vertex_partitioning(
-      *handle_, std::move(mg_kv_store_keys));
+    mg_kv_store_keys = cugraph::shuffle_ext_vertices(*handle_, std::move(mg_kv_store_keys));
     auto mg_kv_store_values =
       cugraph::test::generate<decltype(mg_graph_view), result_t>::vertex_property(
         *handle_, mg_kv_store_keys, key_prop_hash_bin_count);

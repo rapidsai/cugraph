@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -373,7 +373,10 @@ compute_renumber_map(raft::handle_t const& handle,
               output_offset += edge_partition_tmp_majors[j].size();
             }
             this_bin_sorted_unique_majors = shuffle_and_unique_segment_sorted_values(
-              minor_comm, this_bin_sorted_unique_majors.begin(), tx_counts, handle.get_stream());
+              minor_comm,
+              this_bin_sorted_unique_majors.begin(),
+              raft::host_span<size_t const>(tx_counts.data(), tx_counts.size()),
+              handle.get_stream());
           } else {
             this_bin_sorted_unique_majors = std::move(edge_partition_tmp_majors[0]);
           }
@@ -477,7 +480,10 @@ compute_renumber_map(raft::handle_t const& handle,
                 this_bin_sorted_unique_minors.begin() + (tx_displacements[j] + h_tx_counts[j]));
             }
             this_bin_sorted_unique_minors = shuffle_and_unique_segment_sorted_values(
-              major_comm, this_bin_sorted_unique_minors.begin(), h_tx_counts, handle.get_stream());
+              major_comm,
+              this_bin_sorted_unique_minors.begin(),
+              raft::host_span<size_t const>(h_tx_counts.data(), h_tx_counts.size()),
+              handle.get_stream());
           }
         }
       }
@@ -834,8 +840,8 @@ void expensive_check_edgelist(
       device_allgatherv(major_comm,
                         (*sorted_local_vertices).data(),
                         sorted_minors.data(),
-                        recvcounts,
-                        displacements,
+                        raft::host_span<size_t const>(recvcounts.data(), recvcounts.size()),
+                        raft::host_span<size_t const>(displacements.data(), displacements.size()),
                         handle.get_stream());
       thrust::sort(handle.get_thrust_policy(), sorted_minors.begin(), sorted_minors.end());
 
@@ -1139,8 +1145,8 @@ renumber_edgelist(
     device_allgatherv(major_comm,
                       renumber_map_labels.data(),
                       renumber_map_minor_labels.data(),
-                      recvcounts,
-                      displacements,
+                      raft::host_span<size_t const>(recvcounts.data(), recvcounts.size()),
+                      raft::host_span<size_t const>(displacements.data(), displacements.size()),
                       handle.get_stream());
 
     kv_store_t<vertex_t, vertex_t, false> renumber_map(

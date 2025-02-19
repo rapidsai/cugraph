@@ -126,7 +126,7 @@ struct check_invalid_bucket_idx_t {
  * @brief Insert (tagged-)vertices to the vertex frontier and update vertex property values of the
  * newly inserted vertices .
  *
- * This primitive often works in pair with transform_reduce_v_frontier_outgoing_e_by_dst. This
+ * This primitive often works in pair with transform_reduce_if_v_frontier_outgoing_e_by_dst. This
  * version of update_v_frontier takes @p payload_buffer and @v_op takes a payload value in addition
  * to a (tagged-)vertex and a vertex property value as input arguments.
  *
@@ -177,7 +177,7 @@ void update_v_frontier(raft::handle_t const& handle,
                        KeyBuffer&& key_buffer,
                        PayloadBuffer&& payload_buffer,
                        VertexFrontierType& frontier,
-                       std::vector<size_t> const& next_frontier_bucket_indices,
+                       raft::host_span<size_t const> next_frontier_bucket_indices,
                        VertexValueInputIterator vertex_value_input_first,
                        // FIXME: currently, it is undefined behavior if there are more than one @p
                        // key_buffer elements with the same vertex ID and the same vertex property
@@ -258,7 +258,7 @@ void update_v_frontier(raft::handle_t const& handle,
  * @brief Insert (tagged-)vertices to the vertex frontier and update vertex property values of the
  * newly inserted vertices .
  *
- * This primitive often works in pair with transform_reduce_v_frontier_outgoing_e_by_dst. This
+ * This primitive often works in pair with transform_reduce_if_v_frontier_outgoing_e_by_dst. This
  * version of update_v_frontier does not take @p payload_buffer and @v_op takes a (tagged-)vertex
  * and a vertex property value as input arguments (no payload value in the input parameter list).
  *
@@ -304,7 +304,7 @@ void update_v_frontier(raft::handle_t const& handle,
                        GraphViewType const& graph_view,
                        KeyBuffer&& key_buffer,
                        VertexFrontierType& frontier,
-                       std::vector<size_t> const& next_frontier_bucket_indices,
+                       raft::host_span<size_t const> next_frontier_bucket_indices,
                        VertexValueInputIterator vertex_value_input_first,
                        // FIXME: currently, it is undefined behavior if there are more than one @p
                        // key_buffer elements with the same vertex ID and the same vertex property

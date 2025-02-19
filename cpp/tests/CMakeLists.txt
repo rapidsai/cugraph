@@ -467,6 +467,10 @@ ConfigureTest(MIS_TEST components/mis_test.cu)
 target_include_directories(MIS_TEST PRIVATE "${CUGRAPH_SOURCE_DIR}/src")
 
 ###################################################################################################
+# - FIND_FOREST tests -----------------------------------------------------------------------------
+ConfigureTest(FIND_FOREST_TEST tree/find_forest_test.cpp)
+
+###################################################################################################
 # - VERTEX COLORING tests ----------------------------------------------------------------------
 ConfigureTest(VERTEX_COLORING_TEST components/vertex_coloring_test.cu)
 target_include_directories(VERTEX_COLORING_TEST PRIVATE "${CUGRAPH_SOURCE_DIR}/src")
@@ -715,6 +719,11 @@ if(BUILD_CUGRAPH_MG_TESTS)
                     prims/mg_transform_reduce_v_frontier_outgoing_e_by_dst.cu)
 
     ###############################################################################################
+    # - MG PRIMS TRANSFORM_REDUCE_IF_V_FRONTIER_OUTGOING_E_BY_DST tests ---------------------------
+    ConfigureTestMG(MG_TRANSFORM_REDUCE_IF_V_FRONTIER_OUTGOING_E_BY_DST_TEST
+                    prims/mg_transform_reduce_if_v_frontier_outgoing_e_by_dst.cu)
+
+    ###############################################################################################
     # - MG PRIMS REDUCE_V tests -------------------------------------------------------------------
     ConfigureTestMG(MG_REDUCE_V_TEST prims/mg_reduce_v.cu)
 
@@ -754,9 +763,18 @@ if(BUILD_CUGRAPH_MG_TESTS)
     ConfigureTestMG(MG_EXTRACT_TRANSFORM_E_TEST prims/mg_extract_transform_e.cu)
 
     ###############################################################################################
+    # - MG PRIMS EXTRACT_TRANSFORM_IF_E tests -----------------------------------------------------
+    ConfigureTestMG(MG_EXTRACT_TRANSFORM_IF_E_TEST prims/mg_extract_transform_if_e.cu)
+
+    ###############################################################################################
     # - MG PRIMS EXTRACT_TRANSFORM_V_FRONTIER_OUTGOING_E tests ------------------------------------
     ConfigureTestMG(MG_EXTRACT_TRANSFORM_V_FRONTIER_OUTGOING_E_TEST
                     prims/mg_extract_transform_v_frontier_outgoing_e.cu)
+
+    ###############################################################################################
+    # - MG PRIMS EXTRACT_TRANSFORM_IF_V_FRONTIER_OUTGOING_E tests ---------------------------------
+    ConfigureTestMG(MG_EXTRACT_TRANSFORM_IF_V_FRONTIER_OUTGOING_E_TEST
+                    prims/mg_extract_transform_if_v_frontier_outgoing_e.cu)
 
     ###############################################################################################
     # - MG PRIMS PER_V_RANDOM_SELECT_TRANSFORM_OUTGOING_E tests -----------------------------------

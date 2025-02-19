@@ -527,8 +527,8 @@ all_pairs_similarity(raft::handle_t const& handle,
           thrust::make_zip_iterator(
             gathered_v1.begin(), gathered_v2.begin(), gathered_score.begin()),
           top_v1.size(),
-          rx_sizes,
-          rx_displs,
+          raft::host_span<size_t const>(rx_sizes.data(), rx_sizes.size()),
+          raft::host_span<size_t const>(rx_displs.data(), rx_displs.size()),
           int{0},
           handle.get_stream());
 
