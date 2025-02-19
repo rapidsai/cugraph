@@ -70,6 +70,12 @@ rmm::device_uvector<vertex_t> find_forest(
                parents.end(),
                cugraph::invalid_vertex_id_v<vertex_t>);
 
+  edge_dst_property_t<decltype(graph_view), bool> edge_dst_valids(handle, graph_view);
+  fill_edge_dst_property(handle,
+                        graph_view,
+                        edge_dst_parents.mutable_view(),
+                        true);
+
   auto degrees = graph_view.compute_out_degrees(handle);
 
   rmm::device_uvector<vertex_t> remaining_vertices(graph_view.local_vertex_partition_range_size(),
@@ -98,6 +104,15 @@ rmm::device_uvector<vertex_t> find_forest(
         return degrees[v - v_first] == 0;
       });
 
+    // mark new degree 0 & degree 1 vertices as invalid
+
+    fill_edge_dst_property(handle,
+                          graph_view,
+                          deg0_v_first,
+                          remaining_vertices.end(),
+                          edge_dst_valids.mutable_view(),
+                          false);
+
     // for degree 0 vertices, set parents to itself
 
     thrust::for_each(handle.get_thrust_policy(),
@@ -117,16 +132,19 @@ rmm::device_uvector<vertex_t> find_forest(
         handle, num_buckets);
       vertex_frontier.bucket(0).insert(deg1_v_first, remaining_vertices.end());
 
-      auto edges = extract_transform_v_frontier_outgoing_e(
+      auto edges = extract_transform_if_v_frontier_outgoing_e(
         handle,
         graph_view,
         vertex_frontier.bucket(0),
         edge_src_dummy_property_t{}.view(),
-        edge_dst_dummy_property_t{}.view(),
+        edge_dst_valids.view(),
         edge_dummy_property_t{}.view(),
         cuda::proclaim_return_type<thrust::tuple<vertex_t, vertex_t>>(
           [] __device__(auto src, auto dst, auto, auto, auto) {
             return thrust::make_tuple(src, dst);
+          }),
+          cuda::proclaim_return_type<bool>([] __device__(auto, auto, auto, auto valid, auto) {
+            return valid;
           }));
 
       // decrease the neighbors' degree by 1
