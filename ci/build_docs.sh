@@ -34,15 +34,9 @@ rapids-dependency-file-generator \
   | tee env.yaml
 
 rapids-mamba-retry env create --yes -f env.yaml -n docs
-
-# Temporarily allow unbound variables for conda activation.
-set +u
 conda activate docs
-set -u
 
 rapids-print-env
-
-rapids-mamba-retry install \
 
 export RAPIDS_DOCS_DIR="$(mktemp -d)"
 
