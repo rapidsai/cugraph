@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2023-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,7 +24,7 @@
 #include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/vertex_partition_device_view.cuh>
 
-#include <thrust/functional.h>
+#include <cuda/std/functional>
 #include <thrust/gather.h>
 
 namespace cugraph {
@@ -129,7 +129,7 @@ rmm::device_uvector<result_t> vertex_result_view_t<result_t>::gather(
         vertex_gpu_ids.begin(),
         vertex_gpu_ids.end(),
         thrust::make_zip_iterator(local_vertices.begin(), vertex_pos.begin(), result.begin()),
-        thrust::identity{},
+        cuda::std::identity{},
         stream);
 
     //

@@ -378,7 +378,6 @@ set(CUGRAPH_SOURCES
     src/centrality/betweenness_centrality_mg_v64_e64.cu
     src/centrality/betweenness_centrality_mg_v32_e32.cu
     src/tree/legacy/mst.cu
-    src/from_cugraph_ops/sampling_index.cu
     src/components/weakly_connected_components_sg_v64_e64.cu
     src/components/weakly_connected_components_sg_v32_e32.cu
     src/components/weakly_connected_components_mg_v64_e64.cu
@@ -494,8 +493,6 @@ target_link_libraries(cugraph
     PRIVATE
         ${COMPILED_RAFT_LIB}
         cuco::cuco
-        rmm::rmm_logger_impl
-        raft::raft_logger_impl
     )
 
 ################################################################################
@@ -548,6 +545,7 @@ add_library(cugraph_c
         src/c_api/allgather.cpp
         src/c_api/decompress_to_edgelist.cpp
         src/c_api/edgelist.cpp
+        src/c_api/renumber_arbitrary_edgelist.cu
         )
 add_library(cugraph::cugraph_c ALIAS cugraph_c)
 

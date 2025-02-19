@@ -158,8 +158,6 @@ extern "C" int create_mg_test_graph(const cugraph_resource_handle_t* handle,
 
   rank = cugraph_resource_handle_get_rank(handle);
 
-  size_t original_num_edges = num_edges;
-
   if (rank != 0) num_edges = 0;
 
   ret_code =
@@ -256,8 +254,6 @@ extern "C" int create_mg_test_graph_double(const cugraph_resource_handle_t* hand
 
   rank = cugraph_resource_handle_get_rank(handle);
 
-  size_t original_num_edges = num_edges;
-
   if (rank != 0) num_edges = 0;
 
   ret_code =
@@ -348,8 +344,6 @@ extern "C" int create_mg_test_graph_with_edge_ids(const cugraph_resource_handle_
   int rank = 0;
 
   rank = cugraph_resource_handle_get_rank(handle);
-
-  size_t original_num_edges = num_edges;
 
   if (rank != 0) num_edges = 0;
 
@@ -448,8 +442,6 @@ extern "C" int create_mg_test_graph_with_properties(const cugraph_resource_handl
   int rank = 0;
 
   rank = cugraph_resource_handle_get_rank(handle);
-
-  size_t original_num_edges = num_edges;
 
   if (rank != 0) num_edges = 0;
 
@@ -580,8 +572,6 @@ int create_mg_test_graph_new(const cugraph_resource_handle_t* handle,
   int rank = 0;
 
   rank = cugraph_resource_handle_get_rank(handle);
-
-  size_t original_num_edges = num_edges;
 
   if (rank != 0) num_edges = 0;
 

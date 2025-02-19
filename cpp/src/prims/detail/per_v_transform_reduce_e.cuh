@@ -52,7 +52,6 @@
 #include <thrust/execution_policy.h>
 #include <thrust/fill.h>
 #include <thrust/for_each.h>
-#include <thrust/functional.h>
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/iterator/transform_iterator.h>
 #include <thrust/scatter.h>
@@ -4004,7 +4003,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
                                         return (bitmap[packed_bool_offset(i)] &
                                                 packed_bool_mask(i)) == packed_bool_mask(i);
                                       })),
-                                  thrust::identity<bool>{})),
+                                  cuda::std::identity{})),
               handle.get_stream());
             // skip shrink_to_fit() to cut execution time
             std::exclusive_scan((*rx_value_sizes).begin(),
@@ -4064,7 +4063,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
                                             return (bitmap[packed_bool_offset(i)] &
                                                     packed_bool_mask(i)) == packed_bool_mask(i);
                                           })),
-                                      thrust::identity<bool>{})),
+                                      cuda::std::identity{})),
                   handle.get_stream());
                 // skip shrink_to_fit() to cut execution time
               } else {
@@ -4083,7 +4082,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
                                             return (bitmap[packed_bool_offset(i)] &
                                                     packed_bool_mask(i)) == packed_bool_mask(i);
                                           })),
-                                      thrust::identity<bool>{})),
+                                      cuda::std::identity{})),
                   handle.get_stream());
                 // skip shrink_to_fit() to cut execution time
               }

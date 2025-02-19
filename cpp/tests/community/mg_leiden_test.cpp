@@ -80,6 +80,8 @@ class Tests_MGLeiden
     weight_t theta,
     weight_t mg_modularity)
   {
+    using edge_type_t = int32_t;
+
     auto& comm           = handle.get_comms();
     auto const comm_rank = comm.get_rank();
 
@@ -87,12 +89,13 @@ class Tests_MGLeiden
     std::optional<
       cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, false, false>, weight_t>>
       sg_edge_weights{std::nullopt};
-    std::tie(sg_graph, sg_edge_weights, std::ignore, std::ignore) =
+    std::tie(sg_graph, sg_edge_weights, std::ignore, std::ignore, std::ignore) =
       cugraph::test::mg_graph_to_sg_graph(
         *handle_,
         mg_graph_view,
         mg_edge_weight_view,
         std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
+        std::optional<cugraph::edge_property_view_t<edge_t, edge_type_t const*>>{std::nullopt},
         std::optional<raft::device_span<vertex_t const>>{std::nullopt},
         false);  // crate an SG graph with MG graph vertex IDs
 

@@ -119,6 +119,9 @@ from cugraph.layout import force_atlas2
 
 from cugraph.sampling import (
     random_walks,
+    uniform_random_walks,
+    biased_random_walks,
+    node2vec_random_walks,
     rw_path,
     node2vec,
     uniform_neighbor_sample,
