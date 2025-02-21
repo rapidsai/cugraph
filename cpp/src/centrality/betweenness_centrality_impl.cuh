@@ -115,8 +115,8 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<edge_t>> brandes_b
   //
   // Predecessors could be a CSR if that's helpful for doing the backwards tracing
   constexpr vertex_t invalid_distance = std::numeric_limits<vertex_t>::max();
-  constexpr int bucket_idx_cur{0};
-  constexpr int bucket_idx_next{1};
+  constexpr size_t bucket_idx_cur{0};
+  constexpr size_t bucket_idx_next{1};
 
   rmm::device_uvector<edge_t> sigmas(graph_view.local_vertex_partition_range_size(),
                                      handle.get_stream());
@@ -163,12 +163,14 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<edge_t>> brandes_b
       reduce_op::plus<vertex_t>(),
       brandes_pred_op_t<vertex_t>{});
 
+    auto next_frontier_bucket_indices = std::vector<size_t>{bucket_idx_next};
     update_v_frontier(handle,
                       graph_view,
                       std::move(new_frontier),
                       std::move(new_sigma),
                       vertex_frontier,
-                      std::vector<size_t>{bucket_idx_next},
+                      raft::host_span<size_t const>(next_frontier_bucket_indices.data(),
+                                                    next_frontier_bucket_indices.size()),
                       thrust::make_zip_iterator(distances.begin(), sigmas.begin()),
                       thrust::make_zip_iterator(distances.begin(), sigmas.begin()),
                       [hop] __device__(auto v, auto old_values, auto v_sigma) {

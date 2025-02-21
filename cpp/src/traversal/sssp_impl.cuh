@@ -219,13 +219,15 @@ void sssp(raft::handle_t const& handle,
         pred_op_t<vertex_t, weight_t, GraphViewType::is_multi_gpu>{
           vertex_partition, distances, cutoff});
 
+    auto next_frontier_bucket_indices = std::vector<size_t>{bucket_idx_next_near, bucket_idx_far};
     update_v_frontier(
       handle,
       push_graph_view,
       std::move(new_frontier_vertex_buffer),
       std::move(distance_predecessor_buffer),
       vertex_frontier,
-      std::vector<size_t>{bucket_idx_next_near, bucket_idx_far},
+      raft::host_span<size_t const>(next_frontier_bucket_indices.data(),
+                                    next_frontier_bucket_indices.size()),
       distances,
       thrust::make_zip_iterator(thrust::make_tuple(distances, predecessor_first)),
       [near_far_threshold] __device__(auto v, auto v_val, auto pushed_val) {
@@ -253,7 +255,7 @@ void sssp(raft::handle_t const& handle,
       while (true) {
         vertex_frontier.split_bucket(
           bucket_idx_far,
-          std::vector<size_t>{bucket_idx_cur_near},
+          raft::host_span<size_t const>(&bucket_idx_cur_near, size_t{1}),
           [vertex_partition, distances, old_near_far_threshold, near_far_threshold] __device__(
             auto v) {
             auto dist =

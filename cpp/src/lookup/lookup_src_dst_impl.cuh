@@ -228,12 +228,13 @@ struct lookup_container_t<edge_id_t, edge_type_t, vertex_t, value_t>::lookup_con
       rmm::device_uvector<edge_type_t> rx_unique_types(rx_displacements.back() + rx_counts.back(),
                                                        handle.get_stream());
 
-      device_allgatherv(comm,
-                        unique_types.begin(),
-                        rx_unique_types.begin(),
-                        rx_counts,
-                        rx_displacements,
-                        handle.get_stream());
+      device_allgatherv(
+        comm,
+        unique_types.begin(),
+        rx_unique_types.begin(),
+        raft::host_span<size_t const>(rx_counts.data(), rx_counts.size()),
+        raft::host_span<size_t const>(rx_displacements.data(), rx_displacements.size()),
+        handle.get_stream());
       unique_types = std::move(rx_unique_types);
 
       thrust::sort(handle.get_thrust_policy(), unique_types.begin(), unique_types.end());

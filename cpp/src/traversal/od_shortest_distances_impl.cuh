@@ -24,7 +24,6 @@
 #include "prims/transform_reduce_e.cuh"
 #include "prims/transform_reduce_if_v_frontier_outgoing_e_by_dst.cuh"
 #include "prims/update_edge_src_dst_property.cuh"
-#include "prims/update_v_frontier.cuh"
 #include "prims/vertex_frontier.cuh"
 
 #include <cugraph/algorithms.hpp>
