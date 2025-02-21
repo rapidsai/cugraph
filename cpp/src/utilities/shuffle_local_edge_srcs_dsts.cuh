@@ -44,8 +44,9 @@ std::vector<size_t> compute_local_edge_major_tx_counts(
 
   std::vector<vertex_t> h_major_range_lasts(minor_comm_size);
   for (int i = 0; i < minor_comm_size; ++i) {
-    auto vertex_partition_id = detail::compute_local_edge_partition_major_range_vertex_partition_id_t{
-      major_comm_size, minor_comm_size, major_comm_rank, minor_comm_rank}(i);
+    auto vertex_partition_id =
+      detail::compute_local_edge_partition_major_range_vertex_partition_id_t{
+        major_comm_size, minor_comm_size, major_comm_rank, minor_comm_rank}(i);
     h_major_range_lasts[i] = vertex_partition_range_lasts[vertex_partition_id];
   }
 
@@ -88,8 +89,9 @@ std::vector<size_t> compute_local_edge_minor_tx_counts(
 
   std::vector<vertex_t> h_minor_range_lasts(major_comm_size);
   for (int i = 0; i < major_comm_size; ++i) {
-    auto vertex_partition_id = detail::compute_local_edge_partition_minor_range_vertex_partition_id_t{
-      major_comm_size, minor_comm_size, major_comm_rank, minor_comm_rank}(i);
+    auto vertex_partition_id =
+      detail::compute_local_edge_partition_minor_range_vertex_partition_id_t{
+        major_comm_size, minor_comm_size, major_comm_rank, minor_comm_rank}(i);
     h_minor_range_lasts[i] = vertex_partition_range_lasts[vertex_partition_id];
   }
 
@@ -138,7 +140,11 @@ rmm::device_uvector<vertex_t> shuffle_local_edge_majors_to_local_gpu_by_vertex_p
     raft::device_span<vertex_t const>{edge_majors.data(), edge_majors.size()},
     vertex_partition_range_lasts);
 
-  std::tie(edge_majors, std::ignore) = shuffle_values(minor_comm, edge_majors.begin(), raft::host_span<size_t const>(tx_counts.data(), tx_counts.size()), handle.get_stream());
+  std::tie(edge_majors, std::ignore) =
+    shuffle_values(minor_comm,
+                   edge_majors.begin(),
+                   raft::host_span<size_t const>(tx_counts.data(), tx_counts.size()),
+                   handle.get_stream());
 
   return std::move(edge_majors);
 }
@@ -165,9 +171,16 @@ shuffle_local_edge_major_value_pairs_to_local_gpu_by_vertex_partitioning(
     raft::device_span<vertex_t const>{edge_majors.data(), edge_majors.size()},
     vertex_partition_range_lasts);
 
-  std::tie(edge_majors, std::ignore) = shuffle_values(minor_comm, edge_majors.begin(), raft::host_span<size_t const>(tx_counts.data(), tx_counts.size()), handle.get_stream());
-  std::tie(edge_values, std::ignore) = shuffle_values(
-    minor_comm, get_dataframe_buffer_begin(edge_values), raft::host_span<size_t const>(tx_counts.data(), tx_counts.size()), handle.get_stream());
+  std::tie(edge_majors, std::ignore) =
+    shuffle_values(minor_comm,
+                   edge_majors.begin(),
+                   raft::host_span<size_t const>(tx_counts.data(), tx_counts.size()),
+                   handle.get_stream());
+  std::tie(edge_values, std::ignore) =
+    shuffle_values(minor_comm,
+                   get_dataframe_buffer_begin(edge_values),
+                   raft::host_span<size_t const>(tx_counts.data(), tx_counts.size()),
+                   handle.get_stream());
 
   return std::make_tuple(std::move(edge_majors), std::move(edge_values));
 }
@@ -189,7 +202,11 @@ rmm::device_uvector<vertex_t> shuffle_local_edge_minors_to_local_gpu_by_vertex_p
     raft::device_span<vertex_t const>{edge_minors.data(), edge_minors.size()},
     vertex_partition_range_lasts);
 
-  std::tie(edge_minors, std::ignore) = shuffle_values(major_comm, edge_minors.begin(), raft::host_span<size_t const>(tx_counts.data(), tx_counts.size()), handle.get_stream());
+  std::tie(edge_minors, std::ignore) =
+    shuffle_values(major_comm,
+                   edge_minors.begin(),
+                   raft::host_span<size_t const>(tx_counts.data(), tx_counts.size()),
+                   handle.get_stream());
 
   return std::move(edge_minors);
 }
@@ -216,9 +233,16 @@ shuffle_local_edge_minor_value_pairs_to_local_gpu_by_vertex_partitioning(
     raft::device_span<vertex_t const>{edge_minors.data(), edge_minors.size()},
     vertex_partition_range_lasts);
 
-  std::tie(edge_minors, std::ignore) = shuffle_values(major_comm, edge_minors.begin(), raft::host_span<size_t const>(tx_counts.data(), tx_counts.size()), handle.get_stream());
-  std::tie(edge_values, std::ignore) = shuffle_values(
-    major_comm, get_dataframe_buffer_begin(edge_values), raft::host_span<size_t const>(tx_counts.data(), tx_counts.size()), handle.get_stream());
+  std::tie(edge_minors, std::ignore) =
+    shuffle_values(major_comm,
+                   edge_minors.begin(),
+                   raft::host_span<size_t const>(tx_counts.data(), tx_counts.size()),
+                   handle.get_stream());
+  std::tie(edge_values, std::ignore) =
+    shuffle_values(major_comm,
+                   get_dataframe_buffer_begin(edge_values),
+                   raft::host_span<size_t const>(tx_counts.data(), tx_counts.size()),
+                   handle.get_stream());
 
   return std::make_tuple(std::move(edge_minors), std::move(edge_values));
 }
@@ -226,10 +250,11 @@ shuffle_local_edge_minor_value_pairs_to_local_gpu_by_vertex_partitioning(
 }  // namespace detail
 
 template <typename vertex_t>
-rmm::device_uvector<vertex_t> shuffle_local_edge_srcs(raft::handle_t const& handle,
-                                                    rmm::device_uvector<vertex_t>&& edge_srcs,
-                                                    raft::host_span<vertex_t const> vertex_partition_range_lasts,
-                                                    bool store_transposed)
+rmm::device_uvector<vertex_t> shuffle_local_edge_srcs(
+  raft::handle_t const& handle,
+  rmm::device_uvector<vertex_t>&& edge_srcs,
+  raft::host_span<vertex_t const> vertex_partition_range_lasts,
+  bool store_transposed)
 {
   if (store_transposed) {
     return detail::shuffle_local_edge_minors_to_local_gpu_by_vertex_partitioning(
@@ -249,19 +274,22 @@ shuffle_local_edge_src_value_pairs(raft::handle_t const& handle,
                                    bool store_transposed)
 {
   if (store_transposed) {
-    return detail::shuffle_local_edge_minor_value_pairs_to_local_gpu_by_vertex_partitioning<vertex_t, value_t>(
-      handle, std::move(edge_srcs), std::move(edge_values), vertex_partition_range_lasts);
+    return detail::
+      shuffle_local_edge_minor_value_pairs_to_local_gpu_by_vertex_partitioning<vertex_t, value_t>(
+        handle, std::move(edge_srcs), std::move(edge_values), vertex_partition_range_lasts);
   } else {
-    return detail::shuffle_local_edge_major_value_pairs_to_local_gpu_by_vertex_partitioning<vertex_t, value_t>(
-      handle, std::move(edge_srcs), std::move(edge_values), vertex_partition_range_lasts);
+    return detail::
+      shuffle_local_edge_major_value_pairs_to_local_gpu_by_vertex_partitioning<vertex_t, value_t>(
+        handle, std::move(edge_srcs), std::move(edge_values), vertex_partition_range_lasts);
   }
 }
 
 template <typename vertex_t>
-rmm::device_uvector<vertex_t> shuffle_local_edge_dsts(raft::handle_t const& handle,
-                                                    rmm::device_uvector<vertex_t>&& edge_dsts,
-                                                    raft::host_span<vertex_t const> vertex_partition_range_lasts,
-                                                    bool store_transposed)
+rmm::device_uvector<vertex_t> shuffle_local_edge_dsts(
+  raft::handle_t const& handle,
+  rmm::device_uvector<vertex_t>&& edge_dsts,
+  raft::host_span<vertex_t const> vertex_partition_range_lasts,
+  bool store_transposed)
 {
   if (store_transposed) {
     return detail::shuffle_local_edge_majors_to_local_gpu_by_vertex_partitioning(
@@ -281,11 +309,13 @@ shuffle_local_edge_dst_value_pairs(raft::handle_t const& handle,
                                    bool store_transposed)
 {
   if (store_transposed) {
-    return detail::shuffle_local_edge_major_value_pairs_to_local_gpu_by_vertex_partitioning<vertex_t, value_t>(
-      handle, std::move(edge_dsts), std::move(edge_values), vertex_partition_range_lasts);
+    return detail::
+      shuffle_local_edge_major_value_pairs_to_local_gpu_by_vertex_partitioning<vertex_t, value_t>(
+        handle, std::move(edge_dsts), std::move(edge_values), vertex_partition_range_lasts);
   } else {
-    return detail::shuffle_local_edge_minor_value_pairs_to_local_gpu_by_vertex_partitioning<vertex_t, value_t>(
-      handle, std::move(edge_dsts), std::move(edge_values), vertex_partition_range_lasts);
+    return detail::
+      shuffle_local_edge_minor_value_pairs_to_local_gpu_by_vertex_partitioning<vertex_t, value_t>(
+        handle, std::move(edge_dsts), std::move(edge_values), vertex_partition_range_lasts);
   }
 }
 
