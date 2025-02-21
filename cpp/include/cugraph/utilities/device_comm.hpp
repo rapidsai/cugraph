@@ -294,7 +294,7 @@ device_multicast_sendrecv_impl(raft::comms::comms_t const& comm,
                                  std::vector<int>(tx_dst_ranks.begin(), tx_dst_ranks.end()),
                                  iter_to_raw_ptr(output_first),
                                  std::vector<size_t>(rx_counts.begin(), rx_counts.end()),
-                                 std::vector<size_t>(rx_displs.begin(), rx_counts.end()),
+                                 std::vector<size_t>(rx_displs.begin(), rx_displs.end()),
                                  std::vector<int>(rx_src_ranks.begin(), rx_src_ranks.end()),
                                  stream_view.value());
 }
