@@ -124,6 +124,8 @@ shuffle_ext_vertex_value_pairs(raft::handle_t const& handle,
  * @param edge_types Optional vector of edge types
  * @param edge_start_times Optional vector of edge start times
  * @param edge_end_times Optional vector of edge end times
+ * @param store_transposed Should be true if shuffled edges will be used with a cugraph::graph_t
+ * object with store_tranposed = true. Should be false otherwise.
  * @return Tuple of vectors storing edge sources, destinations, optional weights,
  *          optional edge ids, optional edge types, optional edge start times, optional edge end
  * times mapped to this GPU and a vector storing the number of edges received from each GPU.
@@ -148,6 +150,7 @@ shuffle_ext_edges(raft::handle_t const& handle,
                   std::optional<rmm::device_uvector<edge_t>>&& edge_ids,
                   std::optional<rmm::device_uvector<edge_type_t>>&& edge_types,
                   std::optional<rmm::device_uvector<edge_time_t>>&& edge_start_times,
-                  std::optional<rmm::device_uvector<edge_time_t>>&& edge_end_times);
+                  std::optional<rmm::device_uvector<edge_time_t>>&& edge_end_times,
+                  bool store_transposed);
 
 }  // namespace cugraph

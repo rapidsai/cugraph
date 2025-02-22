@@ -632,8 +632,8 @@ refine_clustering(
       std::nullopt};
 
     if constexpr (multi_gpu) {
-      std::tie(store_transposed ? d_dsts : d_srcs,
-               store_transposed ? d_srcs : d_dsts,
+      std::tie(d_srcs,
+               d_dsts,
                d_weights,
                std::ignore,
                std::ignore,
@@ -642,13 +642,14 @@ refine_clustering(
                std::ignore) =
         cugraph::shuffle_ext_edges<vertex_t, vertex_t, weight_t, int32_t, int32_t>(
           handle,
-          store_transposed ? std::move(d_dsts) : std::move(d_srcs),
-          store_transposed ? std::move(d_srcs) : std::move(d_dsts),
+          std::move(d_srcs),
+          std::move(d_dsts),
           std::move(d_weights),
           std::nullopt,
           std::nullopt,
           std::nullopt,
-          std::nullopt);
+          std::nullopt,
+          GraphViewType::is_storage_transposed);
     }
 
     std::tie(decision_graph, coarse_edge_weights, std::ignore, std::ignore, renumber_map) =
