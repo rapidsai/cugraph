@@ -266,17 +266,21 @@ bool check_symmetric(raft::handle_t const& handle,
            std::ignore,
            std::ignore,
            std::ignore,
-           std::ignore) =
-    symmetrize_edgelist<vertex_t, vertex_t, float /* dummy */, int32_t, int32_t, multi_gpu>(
-      handle,
-      std::move(symmetrized_srcs),
-      std::move(symmetrized_dsts),
-      std::nullopt,
-      std::nullopt,
-      std::nullopt,
-      std::nullopt,
-      std::nullopt,
-      true);
+           std::ignore) = symmetrize_edgelist<vertex_t,
+                                              vertex_t,
+                                              float /* dummy */,
+                                              int32_t,
+                                              int32_t,
+                                              store_transposed,
+                                              multi_gpu>(handle,
+                                                         std::move(symmetrized_srcs),
+                                                         std::move(symmetrized_dsts),
+                                                         std::nullopt,
+                                                         std::nullopt,
+                                                         std::nullopt,
+                                                         std::nullopt,
+                                                         std::nullopt,
+                                                         true);
 
   if (org_srcs.size() != symmetrized_srcs.size()) { return false; }
 

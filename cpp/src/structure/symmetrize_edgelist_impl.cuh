@@ -1136,45 +1136,12 @@ symmetrize_edgelist(raft::handle_t const& handle,
 
 }  // namespace detail
 
-template <typename vertex_t, typename weight_t, bool store_transposed, bool multi_gpu>
-std::tuple<rmm::device_uvector<vertex_t>,
-           rmm::device_uvector<vertex_t>,
-           std::optional<rmm::device_uvector<weight_t>>>
-symmetrize_edgelist(raft::handle_t const& handle,
-                    rmm::device_uvector<vertex_t>&& edgelist_srcs,
-                    rmm::device_uvector<vertex_t>&& edgelist_dsts,
-                    std::optional<rmm::device_uvector<weight_t>>&& edgelist_weights,
-                    bool reciprocal)
-{
-  rmm::device_uvector<vertex_t> edgelist_majors(0, handle.get_stream());
-  rmm::device_uvector<vertex_t> edgelist_minors(0, handle.get_stream());
-  std::tie(edgelist_majors,
-           edgelist_minors,
-           edgelist_weights,
-           std::ignore,
-           std::ignore,
-           std::ignore,
-           std::ignore) =
-    detail::symmetrize_edgelist<vertex_t, vertex_t, weight_t, int32_t, int32_t, multi_gpu>(
-      handle,
-      std::move(edgelist_srcs),
-      std::move(edgelist_dsts),
-      std::move(edgelist_weights),
-      std::nullopt,
-      std::nullopt,
-      std::nullopt,
-      std::nullopt,
-      reciprocal);
-
-  return std::make_tuple(
-    std::move(edgelist_majors), std::move(edgelist_minors), std::move(edgelist_weights));
-}
-
 template <typename vertex_t,
           typename edge_t,
           typename weight_t,
           typename edge_type_t,
           typename edge_time_t,
+          bool store_transposed,
           bool multi_gpu>
 std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
@@ -1193,8 +1160,8 @@ symmetrize_edgelist(raft::handle_t const& handle,
                     std::optional<rmm::device_uvector<edge_time_t>>&& edgelist_edge_end_times,
                     bool reciprocal)
 {
-  rmm::device_uvector<vertex_t> edgelist_majors(0, handle.get_stream());
-  rmm::device_uvector<vertex_t> edgelist_minors(0, handle.get_stream());
+  auto edgelist_majors = std::move(store_transposed ? edgelist_dsts : edgelist_srcs);
+  auto edgelist_minors = std::move(store_transposed ? edgelist_srcs : edgelist_dsts);
   std::tie(edgelist_majors,
            edgelist_minors,
            edgelist_weights,
@@ -1204,17 +1171,19 @@ symmetrize_edgelist(raft::handle_t const& handle,
            edgelist_edge_end_times) =
     detail::symmetrize_edgelist<vertex_t, vertex_t, weight_t, edge_type_t, edge_time_t, multi_gpu>(
       handle,
-      std::move(edgelist_srcs),
-      std::move(edgelist_dsts),
+      std::move(edgelist_majors),
+      std::move(edgelist_minors),
       std::move(edgelist_weights),
       std::move(edgelist_edge_ids),
       std::move(edgelist_edge_types),
       std::move(edgelist_edge_start_times),
       std::move(edgelist_edge_end_times),
       reciprocal);
+  edgelist_srcs = std::move(store_transposed ? edgelist_minors : edgelist_majors);
+  edgelist_dsts = std::move(store_transposed ? edgelist_majors : edgelist_minors);
 
-  return std::make_tuple(std::move(edgelist_majors),
-                         std::move(edgelist_minors),
+  return std::make_tuple(std::move(edgelist_srcs),
+                         std::move(edgelist_dsts),
                          std::move(edgelist_weights),
                          std::move(edgelist_edge_ids),
                          std::move(edgelist_edge_types),

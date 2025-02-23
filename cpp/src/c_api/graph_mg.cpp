@@ -256,17 +256,22 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
                  edgelist_edge_ids,
                  edgelist_edge_types,
                  edgelist_edge_start_times,
-                 edgelist_edge_end_times) = cugraph::
-          symmetrize_edgelist<vertex_t, edge_t, weight_t, edge_type_t, edge_time_t, multi_gpu>(
-            handle_,
-            std::move(edgelist_srcs),
-            std::move(edgelist_dsts),
-            std::move(edgelist_weights),
-            std::move(edgelist_edge_ids),
-            std::move(edgelist_edge_types),
-            std::move(edgelist_edge_start_times),
-            std::move(edgelist_edge_end_times),
-            false);
+                 edgelist_edge_end_times) =
+          cugraph::symmetrize_edgelist<vertex_t,
+                                       edge_t,
+                                       weight_t,
+                                       edge_type_t,
+                                       edge_time_t,
+                                       store_transposed,
+                                       multi_gpu>(handle_,
+                                                  std::move(edgelist_srcs),
+                                                  std::move(edgelist_dsts),
+                                                  std::move(edgelist_weights),
+                                                  std::move(edgelist_edge_ids),
+                                                  std::move(edgelist_edge_types),
+                                                  std::move(edgelist_edge_start_times),
+                                                  std::move(edgelist_edge_end_times),
+                                                  false);
       }
 
       std::tie(*graph,
