@@ -123,7 +123,7 @@ std::vector<size_t> compute_local_edge_minor_tx_counts(
 
 namespace detail {
 
-// edges are already partitioned by edge partitioning; re-shuffle edge majaors by vertex
+// edges are already partitioned by edge partitioning; re-shuffle edge majors by vertex
 // partitioning; and this can be done using just minor communicator
 template <typename vertex_t>
 rmm::device_uvector<vertex_t> shuffle_local_edge_majors_to_local_gpu_by_vertex_partitioning(
@@ -149,7 +149,7 @@ rmm::device_uvector<vertex_t> shuffle_local_edge_majors_to_local_gpu_by_vertex_p
   return std::move(edge_majors);
 }
 
-// edges are already partitioned by edge partitioning; re-shuffle edge majaors by vertex
+// edges are already partitioned by edge partitioning; re-shuffle edge majors by vertex
 // partitioning; and this can be done using just minor communicator
 template <typename vertex_t, typename value_t>
 std::tuple<rmm::device_uvector<vertex_t>, dataframe_buffer_type_t<value_t>>
