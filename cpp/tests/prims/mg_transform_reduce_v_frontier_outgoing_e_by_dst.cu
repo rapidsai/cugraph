@@ -202,8 +202,8 @@ class Tests_MGTransformReduceVFrontierOutgoingEBySrcDst
           *handle_,
           mg_graph_view,
           mg_vertex_frontier.bucket(bucket_idx_cur),
-              cugraph::edge_src_dummy_property_t{}.view(),
-              cugraph::edge_dst_dummy_property_t{}.view(),
+          cugraph::edge_src_dummy_property_t{}.view(),
+          cugraph::edge_dst_dummy_property_t{}.view(),
           cugraph::edge_dummy_property_t{}.view(),
           e_op_t<key_t, vertex_t, payload_t>{},
           cugraph::reduce_op::null{});
@@ -213,8 +213,8 @@ class Tests_MGTransformReduceVFrontierOutgoingEBySrcDst
           *handle_,
           mg_graph_view,
           mg_vertex_frontier.bucket(bucket_idx_cur),
-              cugraph::edge_src_dummy_property_t{}.view(),
-              cugraph::edge_dst_dummy_property_t{}.view(),
+          cugraph::edge_src_dummy_property_t{}.view(),
+          cugraph::edge_dst_dummy_property_t{}.view(),
           cugraph::edge_dummy_property_t{}.view(),
           e_op_t<key_t, vertex_t, payload_t>{},
           cugraph::reduce_op::plus<payload_t>{});

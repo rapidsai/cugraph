@@ -83,11 +83,8 @@ struct e_op_t {
 
 template <typename key_t, typename vertex_t, typename property_t>
 struct pred_op_t {
-  __device__ bool operator()(key_t,
-                             vertex_t,
-                             property_t src_val,
-                             property_t dst_val,
-                             cuda::std::nullopt_t) const
+  __device__ bool operator()(
+    key_t, vertex_t, property_t src_val, property_t dst_val, cuda::std::nullopt_t) const
   {
     return src_val < dst_val;
   }
