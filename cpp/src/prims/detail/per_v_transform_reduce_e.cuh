@@ -600,8 +600,9 @@ __global__ static void per_v_transform_reduce_e_mid_degree(
               (*edge_partition_e_mask).get(edge_offset + i) && call_pred_op(i)) {
             e_op_result = call_e_op(i);
           }
-          first_valid_lane_id = WarpReduce(temp_storage[threadIdx.x / raft::warp_size()])
-                                  .Reduce(e_op_result ? lane_id : raft::warp_size(), cub::Min());
+          first_valid_lane_id =
+            WarpReduce(temp_storage[threadIdx.x / raft::warp_size()])
+              .Reduce(e_op_result ? lane_id : raft::warp_size(), cuda::minimum{});
           first_valid_lane_id = __shfl_sync(raft::warp_full_mask(), first_valid_lane_id, int{0});
           if (lane_id == first_valid_lane_id) { reduced_e_op_result = *e_op_result; }
           if (first_valid_lane_id != raft::warp_size()) { break; }
@@ -633,8 +634,9 @@ __global__ static void per_v_transform_reduce_e_mid_degree(
           if (i < static_cast<size_t>(local_degree) && call_pred_op(i)) {
             e_op_result = call_e_op(i);
           }
-          first_valid_lane_id = WarpReduce(temp_storage[threadIdx.x / raft::warp_size()])
-                                  .Reduce(e_op_result ? lane_id : raft::warp_size(), cub::Min());
+          first_valid_lane_id =
+            WarpReduce(temp_storage[threadIdx.x / raft::warp_size()])
+              .Reduce(e_op_result ? lane_id : raft::warp_size(), cuda::minimum{});
           first_valid_lane_id = __shfl_sync(raft::warp_full_mask(), first_valid_lane_id, int{0});
           if (lane_id == first_valid_lane_id) { reduced_e_op_result = *e_op_result; }
           if (first_valid_lane_id != raft::warp_size()) { break; }
@@ -799,7 +801,7 @@ __global__ static void per_v_transform_reduce_e_high_degree(
               .Reduce(e_op_result
                         ? threadIdx.x
                         : per_v_transform_reduce_e_kernel_high_degree_reduce_any_block_size,
-                      cub::Min());
+                      cuda::minimum{});
           if (threadIdx.x == 0) { output_thread_id = first_valid_thread_id; }
           __syncthreads();
           first_valid_thread_id = output_thread_id;
@@ -843,7 +845,7 @@ __global__ static void per_v_transform_reduce_e_high_degree(
               .Reduce(e_op_result
                         ? threadIdx.x
                         : per_v_transform_reduce_e_kernel_high_degree_reduce_any_block_size,
-                      cub::Min());
+                      cuda::minimum{});
           if (threadIdx.x == 0) { output_thread_id = first_valid_thread_id; }
           __syncthreads();
           first_valid_thread_id = output_thread_id;
