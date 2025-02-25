@@ -26,6 +26,7 @@
 #include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
+#include <cugraph/shuffle_functions.hpp>
 #include <cugraph/utilities/device_comm.hpp>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/shuffle_comm.cuh>
@@ -704,19 +705,16 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
                  std::ignore,
                  std::ignore,
                  std::ignore) =
-          detail::shuffle_ext_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning<
-            vertex_t,
-            edge_t,
-            weight_t,
-            edge_type_t,
-            int32_t>(handle,
-                     std::move(std::get<0>(edge_buffer)),
-                     std::move(std::get<1>(edge_buffer)),
-                     std::nullopt,
-                     std::nullopt,
-                     std::nullopt,
-                     std::nullopt,
-                     std::nullopt);
+          shuffle_ext_edges<vertex_t, edge_t, weight_t, edge_type_t, int32_t>(
+            handle,
+            std::move(std::get<0>(edge_buffer)),
+            std::move(std::get<1>(edge_buffer)),
+            std::nullopt,
+            std::nullopt,
+            std::nullopt,
+            std::nullopt,
+            std::nullopt,
+            GraphViewType::is_storage_transposed);
         auto edge_first = get_dataframe_buffer_begin(edge_buffer);
         auto edge_last  = get_dataframe_buffer_end(edge_buffer);
         thrust::sort(handle.get_thrust_policy(), edge_first, edge_last);
