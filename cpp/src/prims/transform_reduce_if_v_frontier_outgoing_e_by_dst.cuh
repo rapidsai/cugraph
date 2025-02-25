@@ -889,13 +889,14 @@ transform_reduce_if_v_frontier_outgoing_e_by_dst(raft::handle_t const& handle,
                      std::ignore,
                      std::ignore,
                      std::ignore,
-                     std::ignore) = shuffle_values(major_comm,
-                                                   get_dataframe_buffer_begin(*compressed_v_buffer),
-                                                   tx_counts,
-                                                   alignment,
-                                                   std::make_optional(std::get<1>(*invalid_key)),
-                                                   handle.get_stream());
-            compressed_v_buffer   = std::move(rx_compressed_v_buffer);
+                     std::ignore) =
+              shuffle_values(major_comm,
+                             get_dataframe_buffer_begin(*compressed_v_buffer),
+                             raft::host_span<size_t const>(tx_counts.data(), tx_counts.size()),
+                             alignment,
+                             std::make_optional(std::get<1>(*invalid_key)),
+                             handle.get_stream());
+            compressed_v_buffer = std::move(rx_compressed_v_buffer);
           } else {
             auto rx_key_buffer = allocate_dataframe_buffer<key_t>(size_t{0}, handle.get_stream());
             std::tie(rx_key_buffer,
@@ -904,29 +905,31 @@ transform_reduce_if_v_frontier_outgoing_e_by_dst(raft::handle_t const& handle,
                      std::ignore,
                      std::ignore,
                      std::ignore,
-                     std::ignore) = shuffle_values(major_comm,
-                                                   get_dataframe_buffer_begin(key_buffer),
-                                                   tx_counts,
-                                                   alignment,
-                                                   std::make_optional(std::get<0>(*invalid_key)),
-                                                   handle.get_stream());
-            key_buffer            = std::move(rx_key_buffer);
+                     std::ignore) =
+              shuffle_values(major_comm,
+                             get_dataframe_buffer_begin(key_buffer),
+                             raft::host_span<size_t const>(tx_counts.data(), tx_counts.size()),
+                             alignment,
+                             std::make_optional(std::get<0>(*invalid_key)),
+                             handle.get_stream());
+            key_buffer = std::move(rx_key_buffer);
           }
         } else {
-          auto rx_key_buffer    = allocate_dataframe_buffer<key_t>(size_t{0}, handle.get_stream());
+          auto rx_key_buffer = allocate_dataframe_buffer<key_t>(size_t{0}, handle.get_stream());
           std::tie(rx_key_buffer,
                    std::ignore,
                    std::ignore,
                    std::ignore,
                    std::ignore,
                    std::ignore,
-                   std::ignore) = shuffle_values(major_comm,
-                                                 get_dataframe_buffer_begin(key_buffer),
-                                                 tx_counts,
-                                                 alignment,
-                                                 invalid_key,
-                                                 handle.get_stream());
-          key_buffer            = std::move(rx_key_buffer);
+                   std::ignore) =
+            shuffle_values(major_comm,
+                           get_dataframe_buffer_begin(key_buffer),
+                           raft::host_span<size_t const>(tx_counts.data(), tx_counts.size()),
+                           alignment,
+                           invalid_key,
+                           handle.get_stream());
+          key_buffer = std::move(rx_key_buffer);
         }
         if constexpr (!std::is_same_v<payload_t, void>) {
           auto rx_payload_buffer =
@@ -937,13 +940,14 @@ transform_reduce_if_v_frontier_outgoing_e_by_dst(raft::handle_t const& handle,
                    std::ignore,
                    std::ignore,
                    std::ignore,
-                   std::ignore) = shuffle_values(major_comm,
-                                                 get_dataframe_buffer_begin(payload_buffer),
-                                                 tx_counts,
-                                                 alignment,
-                                                 std::nullopt,
-                                                 handle.get_stream());
-          payload_buffer        = std::move(rx_payload_buffer);
+                   std::ignore) =
+            shuffle_values(major_comm,
+                           get_dataframe_buffer_begin(payload_buffer),
+                           raft::host_span<size_t const>(tx_counts.data(), tx_counts.size()),
+                           alignment,
+                           std::nullopt,
+                           handle.get_stream());
+          payload_buffer = std::move(rx_payload_buffer);
         }
       } else {
         if constexpr (try_compression) {
@@ -953,27 +957,36 @@ transform_reduce_if_v_frontier_outgoing_e_by_dst(raft::handle_t const& handle,
             std::tie(rx_compressed_v_buffer, std::ignore) =
               shuffle_values(major_comm,
                              get_dataframe_buffer_begin(*compressed_v_buffer),
-                             tx_counts,
+                             raft::host_span<size_t const>(tx_counts.data(), tx_counts.size()),
                              handle.get_stream());
             compressed_v_buffer = std::move(rx_compressed_v_buffer);
           } else {
             auto rx_key_buffer = allocate_dataframe_buffer<key_t>(size_t{0}, handle.get_stream());
-            std::tie(rx_key_buffer, std::ignore) = shuffle_values(
-              major_comm, get_dataframe_buffer_begin(key_buffer), tx_counts, handle.get_stream());
+            std::tie(rx_key_buffer, std::ignore) =
+              shuffle_values(major_comm,
+                             get_dataframe_buffer_begin(key_buffer),
+                             raft::host_span<size_t const>(tx_counts.data(), tx_counts.size()),
+                             handle.get_stream());
             key_buffer = std::move(rx_key_buffer);
           }
         } else {
           auto rx_key_buffer = allocate_dataframe_buffer<key_t>(size_t{0}, handle.get_stream());
-          std::tie(rx_key_buffer, std::ignore) = shuffle_values(
-            major_comm, get_dataframe_buffer_begin(key_buffer), tx_counts, handle.get_stream());
+          std::tie(rx_key_buffer, std::ignore) =
+            shuffle_values(major_comm,
+                           get_dataframe_buffer_begin(key_buffer),
+                           raft::host_span<size_t const>(tx_counts.data(), tx_counts.size()),
+                           handle.get_stream());
           key_buffer = std::move(rx_key_buffer);
         }
 
         if constexpr (!std::is_same_v<payload_t, void>) {
           auto rx_payload_buffer =
             allocate_dataframe_buffer<payload_t>(size_t{0}, handle.get_stream());
-          std::tie(rx_payload_buffer, std::ignore) = shuffle_values(
-            major_comm, get_dataframe_buffer_begin(payload_buffer), tx_counts, handle.get_stream());
+          std::tie(rx_payload_buffer, std::ignore) =
+            shuffle_values(major_comm,
+                           get_dataframe_buffer_begin(payload_buffer),
+                           raft::host_span<size_t const>(tx_counts.data(), tx_counts.size()),
+                           handle.get_stream());
           payload_buffer = std::move(rx_payload_buffer);
         }
       }
