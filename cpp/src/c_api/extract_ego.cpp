@@ -24,9 +24,9 @@
 #include <cugraph_c/algorithms.h>
 
 #include <cugraph/algorithms.hpp>
-#include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/graph_functions.hpp>
+#include <cugraph/shuffle_functions.hpp>
 #include <cugraph/utilities/device_comm.hpp>
 #include <cugraph/utilities/host_scalar_comm.hpp>
 
@@ -108,9 +108,8 @@ struct extract_ego_functor : public cugraph::c_api::abstract_functor {
                                        (*source_indices).size(),
                                        displacements[handle_.get_comms().get_rank()]);
 
-        std::tie(source_vertices, source_indices) =
-          cugraph::detail::shuffle_ext_vertex_value_pairs_to_local_gpu_by_vertex_partitioning(
-            handle_, std::move(source_vertices), std::move(*source_indices));
+        std::tie(source_vertices, source_indices) = cugraph::shuffle_ext_vertex_value_pairs(
+          handle_, std::move(source_vertices), std::move(*source_indices));
       }
 
       cugraph::renumber_ext_vertices<vertex_t, multi_gpu>(

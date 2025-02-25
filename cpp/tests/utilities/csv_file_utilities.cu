@@ -39,7 +39,8 @@ template <typename vertex_t, typename weight_t>
 bool check_symmetric(raft::handle_t const& handle,
                      raft::device_span<vertex_t const> edgelist_srcs,
                      raft::device_span<vertex_t const> edgelist_dsts,
-                     std::optional<raft::device_span<weight_t const>> edgelist_weights)
+                     std::optional<raft::device_span<weight_t const>> edgelist_weights,
+                     bool store_transposed)
 {
   rmm::device_uvector<vertex_t> org_srcs(edgelist_srcs.size(), handle.get_stream());
   rmm::device_uvector<vertex_t> org_dsts(edgelist_dsts.size(), handle.get_stream());
@@ -75,23 +76,43 @@ bool check_symmetric(raft::handle_t const& handle,
                  (*symmetrized_weights).begin());
   }
 
-  std::tie(symmetrized_srcs,
-           symmetrized_dsts,
-           symmetrized_weights,
-           std::ignore,
-           std::ignore,
-           std::ignore,
-           std::ignore) =
-    symmetrize_edgelist<vertex_t, vertex_t, weight_t, int32_t, int32_t, false>(
-      handle,
-      std::move(symmetrized_srcs),
-      std::move(symmetrized_dsts),
-      std::move(symmetrized_weights),
-      std::nullopt,
-      std::nullopt,
-      std::nullopt,
-      std::nullopt,
-      true);
+  if (store_transposed) {
+    std::tie(symmetrized_srcs,
+             symmetrized_dsts,
+             symmetrized_weights,
+             std::ignore,
+             std::ignore,
+             std::ignore,
+             std::ignore) =
+      symmetrize_edgelist<vertex_t, vertex_t, weight_t, int32_t, int32_t, true, false>(
+        handle,
+        std::move(symmetrized_srcs),
+        std::move(symmetrized_dsts),
+        std::move(symmetrized_weights),
+        std::nullopt,
+        std::nullopt,
+        std::nullopt,
+        std::nullopt,
+        true);
+  } else {
+    std::tie(symmetrized_srcs,
+             symmetrized_dsts,
+             symmetrized_weights,
+             std::ignore,
+             std::ignore,
+             std::ignore,
+             std::ignore) =
+      symmetrize_edgelist<vertex_t, vertex_t, weight_t, int32_t, int32_t, false, false>(
+        handle,
+        std::move(symmetrized_srcs),
+        std::move(symmetrized_dsts),
+        std::move(symmetrized_weights),
+        std::nullopt,
+        std::nullopt,
+        std::nullopt,
+        std::nullopt,
+        true);
+  }
 
   if (symmetrized_srcs.size() != org_srcs.size()) { return false; }
 
@@ -219,7 +240,8 @@ read_edgelist_from_csv_file(raft::handle_t const& handle,
     raft::device_span<vertex_t const>(d_edgelist_dsts.data(), d_edgelist_dsts.size()),
     d_edgelist_weights ? std::make_optional<raft::device_span<weight_t const>>(
                            (*d_edgelist_weights).data(), (*d_edgelist_weights).size())
-                       : std::nullopt);
+                       : std::nullopt,
+    store_transposed);
 
   if (multi_gpu) {
     auto& comm                 = handle.get_comms();
