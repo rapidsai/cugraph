@@ -1,0 +1,13 @@
+channels:
+- rapidsai
+- rapidsai-nightly
+- conda-forge
+- nvidia
+dependencies:
+- cmake>=3.30.4
+- ninja
+- libraft==25.4.*,>=0.0.0a0
+- librmm==25.4.*,>=0.0.0a0
+#- nccl>=2.19
+#- openmpi
+name: cugraph-2504-cross
