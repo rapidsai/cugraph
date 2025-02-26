@@ -19,6 +19,7 @@
 #include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_functions.hpp>
+#include <cugraph/shuffle_functions.hpp>
 #include <cugraph/utilities/error.hpp>
 
 #include <raft/core/handle.hpp>
@@ -92,27 +93,23 @@ transpose_graph_storage_impl(
                                                             (*renumber_map).size()));
   graph = graph_t<vertex_t, edge_t, store_transposed, multi_gpu>(handle);
 
-  std::tie(!store_transposed ? edgelist_dsts : edgelist_srcs,
-           !store_transposed ? edgelist_srcs : edgelist_dsts,
+  std::tie(edgelist_srcs,
+           edgelist_dsts,
            edgelist_weights,
            std::ignore,
            std::ignore,
            std::ignore,
            std::ignore,
            std::ignore) =
-    detail::shuffle_ext_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning<vertex_t,
-                                                                                   edge_t,
-                                                                                   weight_t,
-                                                                                   int32_t,
-                                                                                   int32_t>(
-      handle,
-      std::move(!store_transposed ? edgelist_dsts : edgelist_srcs),
-      std::move(!store_transposed ? edgelist_srcs : edgelist_dsts),
-      std::move(edgelist_weights),
-      std::nullopt,
-      std::nullopt,
-      std::nullopt,
-      std::nullopt);
+    shuffle_ext_edges<vertex_t, edge_t, weight_t, int32_t, int32_t>(handle,
+                                                                    std::move(edgelist_srcs),
+                                                                    std::move(edgelist_dsts),
+                                                                    std::move(edgelist_weights),
+                                                                    std::nullopt,
+                                                                    std::nullopt,
+                                                                    std::nullopt,
+                                                                    std::nullopt,
+                                                                    !store_transposed);
 
   graph_t<vertex_t, edge_t, !store_transposed, multi_gpu> storage_transposed_graph(handle);
   std::optional<

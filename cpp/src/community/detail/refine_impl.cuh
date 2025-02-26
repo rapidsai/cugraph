@@ -29,6 +29,7 @@
 #include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/graph_functions.hpp>
+#include <cugraph/shuffle_functions.hpp>
 
 #include <raft/random/rng_device.cuh>
 
@@ -631,27 +632,24 @@ refine_clustering(
       std::nullopt};
 
     if constexpr (multi_gpu) {
-      std::tie(store_transposed ? d_dsts : d_srcs,
-               store_transposed ? d_srcs : d_dsts,
+      std::tie(d_srcs,
+               d_dsts,
                d_weights,
                std::ignore,
                std::ignore,
                std::ignore,
                std::ignore,
                std::ignore) =
-        cugraph::detail::shuffle_ext_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning<
-          vertex_t,
-          vertex_t,
-          weight_t,
-          int32_t,
-          int32_t>(handle,
-                   store_transposed ? std::move(d_dsts) : std::move(d_srcs),
-                   store_transposed ? std::move(d_srcs) : std::move(d_dsts),
-                   std::move(d_weights),
-                   std::nullopt,
-                   std::nullopt,
-                   std::nullopt,
-                   std::nullopt);
+        cugraph::shuffle_ext_edges<vertex_t, vertex_t, weight_t, int32_t, int32_t>(
+          handle,
+          std::move(d_srcs),
+          std::move(d_dsts),
+          std::move(d_weights),
+          std::nullopt,
+          std::nullopt,
+          std::nullopt,
+          std::nullopt,
+          GraphViewType::is_storage_transposed);
     }
 
     std::tie(decision_graph, coarse_edge_weights, std::ignore, std::ignore, renumber_map) =
@@ -818,10 +816,6 @@ refine_clustering(
   leiden_keys_to_read_louvain.resize(nr_unique_leiden_clusters, handle.get_stream());
 
   if constexpr (GraphViewType::is_multi_gpu) {
-    // leiden_keys_to_read_louvain =
-    //   cugraph::detail::shuffle_ext_vertices_to_local_gpu_by_vertex_partitioning(
-    //     handle, std::move(leiden_keys_to_read_louvain));
-
     leiden_keys_to_read_louvain =
       cugraph::detail::shuffle_int_vertices_to_local_gpu_by_vertex_partitioning(
         handle, std::move(leiden_keys_to_read_louvain), graph_view.vertex_partition_range_lasts());
