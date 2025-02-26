@@ -1,4 +1,4 @@
-# Copyright (c) 2022-2024, NVIDIA CORPORATION.
+# Copyright (c) 2022-2025, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -371,6 +371,7 @@ def test_graph_creation_edge_properties(dask_client, graph_file, edge_props):
     G.from_dask_cudf_edgelist(df, source="0", destination="1", **prop_keys)
 
 
+@pytest.mark.mg
 @pytest.mark.parametrize("directed", [True, False])
 @pytest.mark.parametrize("renumber", [True, False])
 @pytest.mark.parametrize("graph_file", datasets)
@@ -422,6 +423,7 @@ def test_graph_creation_properties(dask_client, graph_file, directed, renumber):
     assert_frame_equal(sG_edgelist_view, mG_edgelist_view, check_dtype=False)
 
 
+@pytest.mark.mg
 @pytest.mark.parametrize("directed", [True, False])
 @pytest.mark.parametrize("renumber", [True, False])
 @pytest.mark.parametrize("graph_file", datasets)
