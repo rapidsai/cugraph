@@ -72,6 +72,18 @@ neighbor_sample_impl(raft::handle_t const& handle,
                      bool dedupe_sources,
                      bool do_expensive_check)
 {
+  if constexpr (multi_gpu) {
+    auto& major_comm           = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
+    auto const major_comm_rank = major_comm.get_rank();
+    auto const major_comm_size = major_comm.get_size();
+    auto& minor_comm           = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
+    auto const minor_comm_rank = minor_comm.get_rank();
+    auto const minor_comm_size = minor_comm.get_size();
+    std::cout << "major_comm_rank=" << major_comm_rank << " major_comm_size=" << major_comm_size
+              << " minor_comm_rank=" << minor_comm_rank << " minor_comm_size=" << minor_comm_size
+              << std::endl;
+  }
+
   static_assert(std::is_floating_point_v<bias_t>);
 
   if constexpr (!multi_gpu) {
@@ -104,6 +116,8 @@ neighbor_sample_impl(raft::handle_t const& handle,
                                                                               // to store hops
 
   // Get the number of hop. If homogeneous neighbor sample, num_edge_types = 1.
+  RAFT_CUDA_TRY(cudaDeviceSynchronize());
+  auto time0 = std::chrono::steady_clock::now();
 
   auto num_hops = raft::div_rounding_up_safe(
     fan_out.size(), static_cast<size_t>(num_edge_types ? *num_edge_types : edge_type_t{1}));
@@ -152,6 +166,8 @@ neighbor_sample_impl(raft::handle_t const& handle,
 
   std::vector<size_t> level_sizes{};
 
+  RAFT_CUDA_TRY(cudaDeviceSynchronize());
+  auto time1 = std::chrono::steady_clock::now();
   for (size_t hop = 0; hop < num_hops; ++hop) {
     std::optional<std::vector<size_t>> level_Ks{std::nullopt};
     std::optional<std::vector<uint8_t>> gather_flags{std::nullopt};
@@ -306,6 +322,8 @@ neighbor_sample_impl(raft::handle_t const& handle,
         dedupe_sources,
         do_expensive_check);
   }
+  RAFT_CUDA_TRY(cudaDeviceSynchronize());
+  auto time2 = std::chrono::steady_clock::now();
 
   auto result_size = std::reduce(level_sizes.begin(), level_sizes.end());
   size_t output_offset{};
@@ -416,6 +434,13 @@ neighbor_sample_impl(raft::handle_t const& handle,
       output_offset += level_sizes[i];
     }
   }
+  RAFT_CUDA_TRY(cudaDeviceSynchronize());
+  auto time3                         = std::chrono::steady_clock::now();
+  std::chrono::duration<double> dur0 = time1 - time0;
+  std::chrono::duration<double> dur1 = time2 - time1;
+  std::chrono::duration<double> dur2 = time3 - time2;
+  std::cout << "\tdetail::neighbor_sample_impl (less shuffle_and_organize_output) took ("
+            << dur0.count() << "," << dur1.count() << "," << dur2.count() << ")." << std::endl;
 
   return detail::shuffle_and_organize_output(handle,
                                              std::move(result_srcs),
@@ -587,6 +612,8 @@ homogeneous_uniform_neighbor_sample(
 {
   using bias_t = weight_t;  // dummy
 
+  RAFT_CUDA_TRY(cudaDeviceSynchronize());
+  auto time0 = std::chrono::steady_clock::now();
   auto [majors, minors, weights, edge_ids, edge_types, hops, labels, offsets] =
     detail::neighbor_sample_impl<vertex_t, edge_t, weight_t, edge_type_t, bias_t>(
       handle,
@@ -607,6 +634,12 @@ homogeneous_uniform_neighbor_sample(
       sampling_flags.prior_sources_behavior,
       sampling_flags.dedupe_sources,
       do_expensive_check);
+  RAFT_CUDA_TRY(cudaDeviceSynchronize());
+  auto time1                         = std::chrono::steady_clock::now();
+  std::chrono::duration<double> dur0 = time1 - time0;
+  std::cout << "homogeneous_uniform_neighbor_sample (starting_vertices.size()="
+            << starting_vertices.size() << " # edges sampled=" << majors.size() << ") took "
+            << dur0.count() << std::endl;
 
   return std::make_tuple(std::move(majors),
                          std::move(minors),
@@ -647,6 +680,8 @@ heterogeneous_uniform_neighbor_sample(
 {
   using bias_t = weight_t;  // dummy
 
+  RAFT_CUDA_TRY(cudaDeviceSynchronize());
+  auto time0 = std::chrono::steady_clock::now();
   auto [majors, minors, weights, edge_ids, edge_types, hops, labels, offsets] =
     detail::neighbor_sample_impl<vertex_t, edge_t, weight_t, edge_type_t, bias_t>(
       handle,
@@ -667,6 +702,12 @@ heterogeneous_uniform_neighbor_sample(
       sampling_flags.prior_sources_behavior,
       sampling_flags.dedupe_sources,
       do_expensive_check);
+  RAFT_CUDA_TRY(cudaDeviceSynchronize());
+  auto time1                         = std::chrono::steady_clock::now();
+  std::chrono::duration<double> dur0 = time1 - time0;
+  std::cout << "heterogeneous_uniform_neighbor_sample (starting_vertices.size()="
+            << starting_vertices.size() << " # edges sampled=" << majors.size() << ") took "
+            << dur0.count() << std::endl;
 
   return std::make_tuple(std::move(majors),
                          std::move(minors),
@@ -706,6 +747,8 @@ homogeneous_biased_neighbor_sample(
   sampling_flags_t sampling_flags,
   bool do_expensive_check)
 {
+  RAFT_CUDA_TRY(cudaDeviceSynchronize());
+  auto time0 = std::chrono::steady_clock::now();
   auto [majors, minors, weights, edge_ids, edge_types, hops, labels, offsets] =
     detail::neighbor_sample_impl<vertex_t, edge_t, weight_t, edge_type_t, bias_t>(
       handle,
@@ -725,6 +768,12 @@ homogeneous_biased_neighbor_sample(
       sampling_flags.prior_sources_behavior,
       sampling_flags.dedupe_sources,
       do_expensive_check);
+  RAFT_CUDA_TRY(cudaDeviceSynchronize());
+  auto time1                         = std::chrono::steady_clock::now();
+  std::chrono::duration<double> dur0 = time1 - time0;
+  std::cout << "homogeneous_biased_neighbor_sample (starting_vertices.size()="
+            << starting_vertices.size() << " # edges sampled=" << majors.size() << ") took "
+            << dur0.count() << std::endl;
 
   return std::make_tuple(std::move(majors),
                          std::move(minors),
@@ -765,6 +814,8 @@ heterogeneous_biased_neighbor_sample(
   sampling_flags_t sampling_flags,
   bool do_expensive_check)
 {
+  RAFT_CUDA_TRY(cudaDeviceSynchronize());
+  auto time0 = std::chrono::steady_clock::now();
   auto [majors, minors, weights, edge_ids, edge_types, hops, labels, offsets] =
     detail::neighbor_sample_impl<vertex_t, edge_t, weight_t, edge_type_t, bias_t>(
       handle,
@@ -784,6 +835,12 @@ heterogeneous_biased_neighbor_sample(
       sampling_flags.prior_sources_behavior,
       sampling_flags.dedupe_sources,
       do_expensive_check);
+  RAFT_CUDA_TRY(cudaDeviceSynchronize());
+  auto time1                         = std::chrono::steady_clock::now();
+  std::chrono::duration<double> dur0 = time1 - time0;
+  std::cout << "heterogeneous_biased_neighbor_sample (starting_vertices.size()="
+            << starting_vertices.size() << " # edges sampled=" << majors.size() << ") took "
+            << dur0.count() << std::endl;
 
   return std::make_tuple(std::move(majors),
                          std::move(minors),

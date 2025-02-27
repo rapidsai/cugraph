@@ -2593,6 +2593,8 @@ renumber_and_compress_sampled_edgelist(
 
   // 1. check input arguments
 
+  RAFT_CUDA_TRY(cudaDeviceSynchronize());
+  auto time0 = std::chrono::steady_clock::now();
   check_input_edges<label_index_t, vertex_t, vertex_type_t>(handle,
                                                             edgelist_majors,
                                                             edgelist_minors,
@@ -3183,6 +3185,10 @@ renumber_and_compress_sampled_edgelist(
   }
 
   edgelist_hops = std::nullopt;
+  RAFT_CUDA_TRY(cudaDeviceSynchronize());
+  auto time1                         = std::chrono::steady_clock::now();
+  std::chrono::duration<double> dur0 = time1 - time0;
+  std::cout << "renumbber_and_compress_sampled_edgelist took " << dur0.count() << std::endl;
 
   return std::make_tuple(
     doubly_compress ? std::make_optional(std::move(compressed_nzd_vertices)) : std::nullopt,
@@ -3232,6 +3238,8 @@ renumber_and_sort_sampled_edgelist(
 
   // 1. check input arguments
 
+  RAFT_CUDA_TRY(cudaDeviceSynchronize());
+  auto time0 = std::chrono::steady_clock::now();
   check_input_edges<label_index_t, vertex_t, vertex_type_t>(handle,
                                                             edgelist_majors,
                                                             edgelist_minors,
@@ -3349,6 +3357,10 @@ renumber_and_sort_sampled_edgelist(
   }
 
   edgelist_hops = std::nullopt;
+  RAFT_CUDA_TRY(cudaDeviceSynchronize());
+  auto time1                         = std::chrono::steady_clock::now();
+  std::chrono::duration<double> dur0 = time1 - time0;
+  std::cout << "renumbber_and_sort_sampled_edgelist took " << dur0.count() << std::endl;
 
   return std::make_tuple(std::move(src_is_major ? edgelist_majors : edgelist_minors),
                          std::move(src_is_major ? edgelist_minors : edgelist_majors),
@@ -3402,6 +3414,8 @@ heterogeneous_renumber_and_sort_sampled_edgelist(
 
   // 1. check input arguments
 
+  RAFT_CUDA_TRY(cudaDeviceSynchronize());
+  auto time0 = std::chrono::steady_clock::now();
   check_input_edges<label_index_t, vertex_t, vertex_type_t>(handle,
                                                             edgelist_majors,
                                                             edgelist_minors,
@@ -3560,6 +3574,10 @@ heterogeneous_renumber_and_sort_sampled_edgelist(
 
   edgelist_edge_types = std::nullopt;
   edgelist_hops       = std::nullopt;
+  RAFT_CUDA_TRY(cudaDeviceSynchronize());
+  auto time1                         = std::chrono::steady_clock::now();
+  std::chrono::duration<double> dur0 = time1 - time0;
+  std::cout << "heterogeneous_renumbber_and_sort_sampled_edgelist took " << dur0.count() << std::endl;
 
   return std::make_tuple(std::move(src_is_major ? edgelist_majors : edgelist_minors),
                          std::move(src_is_major ? edgelist_minors : edgelist_majors),
@@ -3595,6 +3613,8 @@ sort_sampled_edgelist(raft::handle_t const& handle,
                       bool src_is_major,
                       bool do_expensive_check)
 {
+  RAFT_CUDA_TRY(cudaDeviceSynchronize());
+  auto time0 = std::chrono::steady_clock::now();
   using label_index_t = uint32_t;
   using vertex_type_t = uint32_t;  // dummy
 
@@ -3692,6 +3712,10 @@ sort_sampled_edgelist(raft::handle_t const& handle,
   }
 
   edgelist_hops = std::nullopt;
+  RAFT_CUDA_TRY(cudaDeviceSynchronize());
+  auto time1                         = std::chrono::steady_clock::now();
+  std::chrono::duration<double> dur0 = time1 - time0;
+  std::cout << "sort_sampled_edgelist took " << dur0.count() << std::endl;
 
   return std::make_tuple(std::move(src_is_major ? edgelist_majors : edgelist_minors),
                          std::move(src_is_major ? edgelist_minors : edgelist_majors),

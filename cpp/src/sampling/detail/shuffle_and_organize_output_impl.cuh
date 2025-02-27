@@ -207,6 +207,8 @@ shuffle_and_organize_output(
   std::optional<rmm::device_uvector<label_t>>&& labels,
   std::optional<raft::device_span<int32_t const>> label_to_output_comm_rank)
 {
+  RAFT_CUDA_TRY(cudaDeviceSynchronize());
+  auto time0 = std::chrono::steady_clock::now();
   std::optional<rmm::device_uvector<size_t>> offsets{std::nullopt};
 
   if (labels) {
@@ -741,6 +743,10 @@ shuffle_and_organize_output(
       handle.get_thrust_policy(), offsets->begin(), offsets->end(), offsets->begin());
     labels = std::move(unique_labels);
   }
+  RAFT_CUDA_TRY(cudaDeviceSynchronize());
+  auto time1                         = std::chrono::steady_clock::now();
+  std::chrono::duration<double> dur0 = time1 - time0;
+  std::cout << "\tdetail::shuffle_and_organize took " << dur0.count() << std::endl;
 
   return std::make_tuple(std::move(majors),
                          std::move(minors),
