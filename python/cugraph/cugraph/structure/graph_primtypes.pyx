@@ -1,4 +1,4 @@
-# Copyright (c) 2020-2024, NVIDIA CORPORATION.
+# Copyright (c) 2020-2025, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -36,7 +36,7 @@ cdef move_device_buffer_to_column(
     buff = DeviceBuffer.c_from_unique_ptr(move(device_buffer_unique_ptr))
     buff = as_buffer(buff)
     if buff.nbytes != 0:
-        column = cudf.core.column.build_column(buff, dtype=dtype)
+        column = cudf.core.column.build_column(buff, dtype=cudf.dtype(dtype))
         return column
     return None
 

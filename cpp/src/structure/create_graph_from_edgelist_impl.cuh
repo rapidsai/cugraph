@@ -182,8 +182,8 @@ void expensive_check_edgelist(raft::handle_t const& handle,
         device_allgatherv(minor_comm,
                           (*vertices).data(),
                           sorted_majors.data(),
-                          recvcounts,
-                          displacements,
+                          raft::host_span<size_t const>(recvcounts.data(), recvcounts.size()),
+                          raft::host_span<size_t const>(displacements.data(), displacements.size()),
                           handle.get_stream());
         thrust::sort(handle.get_thrust_policy(), sorted_majors.begin(), sorted_majors.end());
       }
@@ -198,8 +198,8 @@ void expensive_check_edgelist(raft::handle_t const& handle,
         device_allgatherv(major_comm,
                           (*vertices).data(),
                           sorted_minors.data(),
-                          recvcounts,
-                          displacements,
+                          raft::host_span<size_t const>(recvcounts.data(), recvcounts.size()),
+                          raft::host_span<size_t const>(displacements.data(), displacements.size()),
                           handle.get_stream());
         thrust::sort(handle.get_thrust_policy(), sorted_minors.begin(), sorted_minors.end());
       }
@@ -266,17 +266,21 @@ bool check_symmetric(raft::handle_t const& handle,
            std::ignore,
            std::ignore,
            std::ignore,
-           std::ignore) =
-    symmetrize_edgelist<vertex_t, vertex_t, float /* dummy */, int32_t, int32_t, multi_gpu>(
-      handle,
-      std::move(symmetrized_srcs),
-      std::move(symmetrized_dsts),
-      std::nullopt,
-      std::nullopt,
-      std::nullopt,
-      std::nullopt,
-      std::nullopt,
-      true);
+           std::ignore) = symmetrize_edgelist<vertex_t,
+                                              vertex_t,
+                                              float /* dummy */,
+                                              int32_t,
+                                              int32_t,
+                                              store_transposed,
+                                              multi_gpu>(handle,
+                                                         std::move(symmetrized_srcs),
+                                                         std::move(symmetrized_dsts),
+                                                         std::nullopt,
+                                                         std::nullopt,
+                                                         std::nullopt,
+                                                         std::nullopt,
+                                                         std::nullopt,
+                                                         true);
 
   if (org_srcs.size() != symmetrized_srcs.size()) { return false; }
 
