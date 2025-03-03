@@ -431,6 +431,7 @@ template <typename vertex_t,
           typename weight_t,
           typename edge_type_t,
           typename edge_time_t,
+          bool store_transposed,
           bool multi_gpu>
 std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,

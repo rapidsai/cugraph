@@ -93,23 +93,23 @@ transpose_graph_impl(
                                                             (*renumber_map).size()));
   graph = graph_t<vertex_t, edge_t, store_transposed, multi_gpu>(handle);
 
-  std::tie(store_transposed ? edgelist_srcs : edgelist_dsts,
-           store_transposed ? edgelist_dsts : edgelist_srcs,
+  std::tie(edgelist_dsts,
+           edgelist_srcs,
            edgelist_weights,
            std::ignore,
            std::ignore,
            std::ignore,
            std::ignore,
            std::ignore) =
-    shuffle_ext_edges<vertex_t, edge_t, weight_t, int32_t, int32_t>(
-      handle,
-      std::move(store_transposed ? edgelist_srcs : edgelist_dsts),
-      std::move(store_transposed ? edgelist_dsts : edgelist_srcs),
-      std::move(edgelist_weights),
-      std::nullopt,
-      std::nullopt,
-      std::nullopt,
-      std::nullopt);
+    shuffle_ext_edges<vertex_t, edge_t, weight_t, int32_t, int32_t>(handle,
+                                                                    std::move(edgelist_dsts),
+                                                                    std::move(edgelist_srcs),
+                                                                    std::move(edgelist_weights),
+                                                                    std::nullopt,
+                                                                    std::nullopt,
+                                                                    std::nullopt,
+                                                                    std::nullopt,
+                                                                    store_transposed);
 
   graph_t<vertex_t, edge_t, store_transposed, multi_gpu> transposed_graph(handle);
   std::optional<

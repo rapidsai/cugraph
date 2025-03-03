@@ -461,7 +461,8 @@ void triangle_count(raft::handle_t const& handle,
                                                                         std::nullopt,
                                                                         std::nullopt,
                                                                         std::nullopt,
-                                                                        std::nullopt);
+                                                                        std::nullopt,
+                                                                        false);
     }
 
     std::tie(modified_graph, std::ignore, std::ignore, std::ignore, renumber_map) =

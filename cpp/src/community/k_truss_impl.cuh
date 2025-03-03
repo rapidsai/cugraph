@@ -737,7 +737,7 @@ k_truss(raft::handle_t const& handle,
              std::ignore,
              std::ignore,
              std::ignore) =
-      symmetrize_edgelist<vertex_t, edge_t, weight_t, int32_t, int32_t, multi_gpu>(
+      symmetrize_edgelist<vertex_t, edge_t, weight_t, int32_t, int32_t, false, multi_gpu>(
         handle,
         std::move(edgelist_srcs),
         std::move(edgelist_dsts),

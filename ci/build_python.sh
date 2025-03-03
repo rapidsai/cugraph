@@ -1,5 +1,5 @@
 #!/bin/bash
-# Copyright (c) 2022-2024, NVIDIA CORPORATION.
+# Copyright (c) 2022-2025, NVIDIA CORPORATION.
 
 set -euo pipefail
 
@@ -24,7 +24,7 @@ sccache --zero-stats
 
 # TODO: Remove `--no-test` flags once importing on a CPU
 # node works correctly
-rapids-conda-retry mambabuild \
+rapids-conda-retry build \
   --no-test \
   --channel "${CPP_CHANNEL}" \
   conda/recipes/pylibcugraph
@@ -32,7 +32,7 @@ rapids-conda-retry mambabuild \
 sccache --show-adv-stats
 sccache --zero-stats
 
-rapids-conda-retry mambabuild \
+rapids-conda-retry build \
   --no-test \
   --channel "${CPP_CHANNEL}" \
   --channel "${RAPIDS_CONDA_BLD_OUTPUT_DIR}" \
@@ -44,7 +44,7 @@ sccache --show-adv-stats
 # built on each CUDA platform to ensure they are included in each set of
 # artifacts, since test scripts only install from one set of artifacts based on
 # the CUDA version used for the test run.
-rapids-conda-retry mambabuild \
+rapids-conda-retry build \
   --no-test \
   --channel "${CPP_CHANNEL}" \
   --channel "${RAPIDS_CONDA_BLD_OUTPUT_DIR}" \

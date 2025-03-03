@@ -713,7 +713,8 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
             std::nullopt,
             std::nullopt,
             std::nullopt,
-            std::nullopt);
+            std::nullopt,
+            GraphViewType::is_storage_transposed);
         auto edge_first = get_dataframe_buffer_begin(edge_buffer);
         auto edge_last  = get_dataframe_buffer_end(edge_buffer);
         thrust::sort(handle.get_thrust_policy(), edge_first, edge_last);

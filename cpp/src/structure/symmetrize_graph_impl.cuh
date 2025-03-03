@@ -98,7 +98,7 @@ symmetrize_graph_impl(
            std::ignore,
            std::ignore,
            std::ignore) =
-    symmetrize_edgelist<vertex_t, edge_t, weight_t, int32_t, int32_t, multi_gpu>(
+    symmetrize_edgelist<vertex_t, edge_t, weight_t, int32_t, int32_t, store_transposed, multi_gpu>(
       handle,
       std::move(edgelist_srcs),
       std::move(edgelist_dsts),
@@ -196,7 +196,7 @@ symmetrize_graph_impl(
            std::ignore,
            std::ignore,
            std::ignore) =
-    symmetrize_edgelist<vertex_t, edge_t, weight_t, int32_t, int32_t, multi_gpu>(
+    symmetrize_edgelist<vertex_t, edge_t, weight_t, int32_t, int32_t, store_transposed, multi_gpu>(
       handle,
       std::move(edgelist_srcs),
       std::move(edgelist_dsts),
