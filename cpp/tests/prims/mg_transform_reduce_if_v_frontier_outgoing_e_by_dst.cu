@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2025, NVIDIA CORPORATION.
+ * Copyright (c) 2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -83,11 +83,8 @@ struct e_op_t {
 
 template <typename key_t, typename vertex_t, typename property_t>
 struct pred_op_t {
-  __device__ bool operator()(key_t,
-                             vertex_t,
-                             property_t src_val,
-                             property_t dst_val,
-                             cuda::std::nullopt_t) const
+  __device__ bool operator()(
+    key_t, vertex_t, property_t src_val, property_t dst_val, cuda::std::nullopt_t) const
   {
     return src_val < dst_val;
   }
