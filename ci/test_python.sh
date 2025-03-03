@@ -40,7 +40,8 @@ nvidia-smi
 export LD_PRELOAD="${CONDA_PREFIX}/lib/libgomp.so.1"
 
 # RAPIDS_DATASET_ROOT_DIR is used by test scripts
-export RAPIDS_DATASET_ROOT_DIR="$(realpath datasets)"
+RAPIDS_DATASET_ROOT_DIR="$(realpath datasets)"
+export RAPIDS_DATASET_ROOT_DIR
 pushd "${RAPIDS_DATASET_ROOT_DIR}"
 ./get_test_data.sh --benchmark
 popd
