@@ -60,10 +60,10 @@ for nb in "$@"; do
     echo --------------------------------------------------------------------------------
     echo STARTING: "${NBNAME}"
     echo --------------------------------------------------------------------------------
-    jupyter nbconvert --to script "${NBFILENAME}" --output "${NBTMPDIR}"/"${NBNAME}"-test
-    echo "${MAGIC_OVERRIDE_CODE}" > "${NBTMPDIR}"/tmpfile
-    cat "${NBTESTSCRIPT}" >> "${NBTMPDIR}"/tmpfile
-    mv "${NBTMPDIR}"/tmpfile "${NBTESTSCRIPT}"
+    jupyter nbconvert --to script "${NBFILENAME}" --output "${NBTMPDIR}/${NBNAME}-test"
+    echo "${MAGIC_OVERRIDE_CODE}" > "${NBTMPDIR}/tmpfile"
+    cat "${NBTESTSCRIPT}" >> "${NBTMPDIR}/tmpfile"
+    mv "${NBTMPDIR}/tmpfile" "${NBTESTSCRIPT}"
 
     echo "Running \"ipython ${NO_COLORS} ${NBTESTSCRIPT}\" on $(date)"
     echo

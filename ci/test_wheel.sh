@@ -28,5 +28,5 @@ else
        --import-mode=append \
        --benchmark-disable \
        -k "not test_property_graph_mg and not test_bulk_sampler_io" \
-       ./python/"${package_name}"/"${python_package_name}"/tests
+       "./python/${package_name}/${python_package_name}/tests"
 fi

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# Copyright (c) 2022-2024, NVIDIA CORPORATION.
+# Copyright (c) 2022-2025, NVIDIA CORPORATION.
 
 # This assumes the script is executed from the root of the repo directory
 
@@ -11,7 +11,7 @@
 # This workaround was copied from this PR:
 # https://github.com/rapidsai/ucx-split-feedstock/pull/28
 
-cd "${SRC_DIR}/python/cugraph-service/server"
+cd "${SRC_DIR}/python/cugraph-service/server" || exit 1
 mkdir -p pip_cache
 $PYTHON -m pip install \
     --no-build-isolation \
