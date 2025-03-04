@@ -157,8 +157,8 @@ class Tests_FindForest
             : std::nullopt);
 
       auto h_reference_parents =
-        find_forest_reference(raft::host_span(h_offsets.data(), h_offsets.size()),
-                              raft::host_span(h_indices.data(), h_indices.size()));
+        find_forest_reference(raft::host_span<edge_t const>(h_offsets.data(), h_offsets.size()),
+                              raft::host_span<vertex_t const>(h_indices.data(), h_indices.size()));
 
       std::vector<vertex_t> h_cugraph_parents{};
       if (renumber) {

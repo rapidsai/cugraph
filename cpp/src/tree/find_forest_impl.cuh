@@ -15,15 +15,16 @@
  */
 #pragma once
 
-#include "prims/extract_transform_v_frontier_outgoing_e.cuh"
+#include "prims/extract_transform_if_v_frontier_outgoing_e.cuh"
+#include "prims/fill_edge_src_dst_property.cuh"
 #include "prims/vertex_frontier.cuh"
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/shuffle_functions.hpp>
-#include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/dataframe_buffer.hpp>
+#include <cugraph/utilities/error.hpp>
 
 #include <raft/core/handle.hpp>
 
@@ -47,7 +48,9 @@ namespace cugraph {
 
 template <typename vertex_t, typename edge_t, bool multi_gpu>
 rmm::device_uvector<vertex_t> find_forest(
-  raft::handle_t const& handle, graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view, bool do_expensive_check)
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+  bool do_expensive_check)
 {
   // check input arguments.
 
@@ -69,12 +72,9 @@ rmm::device_uvector<vertex_t> find_forest(
                parents.begin(),
                parents.end(),
                cugraph::invalid_vertex_id_v<vertex_t>);
-
-  edge_dst_property_t<decltype(graph_view), bool> edge_dst_valids(handle, graph_view);
-  fill_edge_dst_property(handle,
-                        graph_view,
-                        edge_dst_parents.mutable_view(),
-                        true);
+  edge_dst_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>, bool> edge_dst_valids(
+    handle, graph_view);
+  fill_edge_dst_property(handle, graph_view, edge_dst_valids.mutable_view(), true);
 
   auto degrees = graph_view.compute_out_degrees(handle);
 
@@ -92,36 +92,37 @@ rmm::device_uvector<vertex_t> find_forest(
       remaining_vertices.begin(),
       remaining_vertices.end(),
       [degrees = raft::device_span<edge_t const>(degrees.data(), degrees.size()),
-       v_first = graph_view.local_vertex_partition_range_first()](auto v) {
-        return degrees[v - v_first] > 1;
+       v_first = graph_view.local_vertex_partition_range_first()] __device__(auto v) {
+        return degrees[v - v_first] > edge_t{1};
       });
     auto deg1_v_first = thrust::stable_partition(
       handle.get_thrust_policy(),
       deg0_v_first,
       remaining_vertices.end(),
       [degrees = raft::device_span<edge_t const>(degrees.data(), degrees.size()),
-       v_first = graph_view.local_vertex_partition_range_first()](auto v) {
+       v_first = graph_view.local_vertex_partition_range_first()] __device__(auto v) {
         return degrees[v - v_first] == 0;
       });
 
     // mark new degree 0 & degree 1 vertices as invalid
 
     fill_edge_dst_property(handle,
-                          graph_view,
-                          deg0_v_first,
-                          remaining_vertices.end(),
-                          edge_dst_valids.mutable_view(),
-                          false);
+                           graph_view,
+                           deg0_v_first,
+                           remaining_vertices.end(),
+                           edge_dst_valids.mutable_view(),
+                           false);
 
     // for degree 0 vertices, set parents to itself
 
-    thrust::for_each(handle.get_thrust_policy(),
-                     deg0_v_first,
-                     deg1_v_first,
-                     [parents = raft::device_span<vertex_t>(parents.data(), parents.size()),
-                      v_first = graph_view.local_vertex_partition_range_first()](auto v) {
-                       parents[v - v_first] = v;
-                     });
+    thrust::for_each(
+      handle.get_thrust_policy(),
+      deg0_v_first,
+      deg1_v_first,
+      [parents = raft::device_span<vertex_t>(parents.data(), parents.size()),
+       v_first = graph_view.local_vertex_partition_range_first()] __device__(auto v) {
+        parents[v - v_first] = v;
+      });
 
     if (thrust::distance(deg1_v_first, remaining_vertices.end()) >
         0) {  // for degree 1 vertices, find degree 1 vertices' only neighbors. Set each degree 1
@@ -143,9 +144,8 @@ rmm::device_uvector<vertex_t> find_forest(
           [] __device__(auto src, auto dst, auto, auto, auto) {
             return thrust::make_tuple(src, dst);
           }),
-          cuda::proclaim_return_type<bool>([] __device__(auto, auto, auto, auto valid, auto) {
-            return valid;
-          }));
+        cuda::proclaim_return_type<bool>(
+          [] __device__(auto, auto, auto, auto valid, auto) { return valid; }));
 
       // decrease the neighbors' degree by 1
 
@@ -156,14 +156,18 @@ rmm::device_uvector<vertex_t> find_forest(
                      std::get<1>(edges).begin(),
                      std::get<1>(edges).end(),
                      edge_dsts.begin());
+        auto lasts = graph_view.vertex_partition_range_lasts();
         shuffled_edge_dsts =
-          shuffle_local_edge_dsts(handle, std::move(edge_dsts));
+          shuffle_local_edge_dsts(handle,
+                                  std::move(edge_dsts),
+                                  raft::host_span<vertex_t const>(lasts.data(), lasts.size()),
+                                  false);
       }
       thrust::for_each(
         handle.get_thrust_policy(),
         shuffled_edge_dsts ? shuffled_edge_dsts->begin() : std::get<1>(edges).begin(),
         shuffled_edge_dsts ? shuffled_edge_dsts->end() : std::get<1>(edges).end(),
-        [degrees = raft::device_span<edge_t const>(degrees.data(), degrees.size()),
+        [degrees = raft::device_span<edge_t>(degrees.data(), degrees.size()),
          v_first = graph_view.local_vertex_partition_range_first()] __device__(auto v) {
           cuda::atomic_ref<edge_t, cuda::thread_scope_device> degree(degrees[v - v_first]);
           degree.fetch_sub(1);
@@ -181,8 +185,13 @@ rmm::device_uvector<vertex_t> find_forest(
                      get_dataframe_buffer_begin(edges),
                      get_dataframe_buffer_end(edges),
                      thrust::make_zip_iterator(edge_srcs.begin(), edge_dsts.begin()));
-        shuffled_edges = shuffle_local_edge_src_value_pairs(
-          handle, std::move(edge_srcs), std::move(edge_dsts));
+        auto lasts     = graph_view.vertex_partition_range_lasts();
+        shuffled_edges = shuffle_local_edge_src_value_pairs<vertex_t, vertex_t>(
+          handle,
+          std::move(edge_srcs),
+          std::move(edge_dsts),
+          raft::host_span<vertex_t const>(lasts.data(), lasts.size()),
+          false);
       }
       auto pair_first = get_dataframe_buffer_begin(shuffled_edges ? *shuffled_edges : edges);
       thrust::for_each(
@@ -191,7 +200,7 @@ rmm::device_uvector<vertex_t> find_forest(
         pair_first + size_dataframe_buffer(shuffled_edges ? *shuffled_edges : edges),
         [parents = raft::device_span<vertex_t>(parents.data(), parents.size()),
          v_first = graph_view.local_vertex_partition_range_first()] __device__(auto edge) {
-          parents[std::get<0>(edge) - v_first] = std::get<1>(edge);
+          parents[thrust::get<0>(edge) - v_first] = thrust::get<1>(edge);
         });
 
       remaining_vertices.resize(thrust::distance(remaining_vertices.begin(), deg0_v_first),

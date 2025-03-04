@@ -2357,7 +2357,9 @@ rmm::device_uvector<vertex_t> maximal_independent_set(
  */
 template <typename vertex_t, typename edge_t, bool multi_gpu>
 rmm::device_uvector<vertex_t> find_forest(
-  raft::handle_t const& handle, graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view, bool do_expensive_check);
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+  bool do_expensive_check = false);
 
 /**
  * @ingroup utility_cpp
