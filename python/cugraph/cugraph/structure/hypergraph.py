@@ -40,7 +40,7 @@ from cugraph.structure.graph_classes import Graph
 from cugraph.structure.symmetrize import symmetrize
 
 
-_str_dtype = np.dtype("str")
+_str_dtype = cudf.dtype("str")
 
 
 def hypergraph(
