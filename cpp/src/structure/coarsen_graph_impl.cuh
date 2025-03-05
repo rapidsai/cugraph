@@ -26,6 +26,7 @@
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
+#include <cugraph/shuffle_functions.hpp>
 #include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/utilities/error.hpp>
 
@@ -547,8 +548,7 @@ coarsen_graph(raft::handle_t const& handle,
       thrust::unique(handle.get_thrust_policy(), unique_labels.begin(), unique_labels.end())),
     handle.get_stream());
 
-  unique_labels = cugraph::detail::shuffle_ext_vertices_to_local_gpu_by_vertex_partitioning(
-    handle, std::move(unique_labels));
+  unique_labels = cugraph::shuffle_ext_vertices(handle, std::move(unique_labels));
 
   thrust::sort(handle.get_thrust_policy(), unique_labels.begin(), unique_labels.end());
   unique_labels.resize(
