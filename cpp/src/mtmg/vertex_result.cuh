@@ -35,7 +35,7 @@ template <typename vertex_t, bool multi_gpu>
 rmm::device_uvector<result_t> vertex_result_view_t<result_t>::gather(
   handle_t const& handle,
   raft::device_span<vertex_t const> vertices,
-  std::vector<vertex_t> const& vertex_partition_range_lasts,
+  raft::host_span<vertex_t const> vertex_partition_range_lasts,
   vertex_partition_view_t<vertex_t, multi_gpu> vertex_partition_view,
   std::optional<cugraph::mtmg::renumber_map_view_t<vertex_t>>& renumber_map_view,
   result_t default_value)

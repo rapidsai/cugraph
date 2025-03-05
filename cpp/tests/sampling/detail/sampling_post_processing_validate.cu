@@ -195,20 +195,20 @@ bool compare_edgelist(raft::handle_t const& handle,
                           handle.get_stream());
         handle.sync_stream();
       }
+      std::vector<vertex_t> lasts{
+        static_cast<vertex_t>(renumber_map_label_end_offset - renumber_map_label_start_offset)};
       cugraph::unrenumber_int_vertices<vertex_t, false>(
         handle,
         this_label_sorted_unrenumbered_edgelist_srcs.data(),
         this_label_sorted_unrenumbered_edgelist_srcs.size(),
         (*renumber_map).data() + renumber_map_label_start_offset,
-        std::vector<vertex_t>{
-          static_cast<vertex_t>(renumber_map_label_end_offset - renumber_map_label_start_offset)});
+        raft::host_span<vertex_t const>(lasts.data(), lasts.size()));
       cugraph::unrenumber_int_vertices<vertex_t, false>(
         handle,
         this_label_sorted_unrenumbered_edgelist_dsts.data(),
         this_label_sorted_unrenumbered_edgelist_dsts.size(),
         (*renumber_map).data() + renumber_map_label_start_offset,
-        std::vector<vertex_t>{
-          static_cast<vertex_t>(renumber_map_label_end_offset - renumber_map_label_start_offset)});
+        raft::host_span<vertex_t const>(lasts.data(), lasts.size()));
     }
 
     if (this_label_sorted_unrenumbered_edgelist_weights) {
@@ -549,12 +549,13 @@ bool compare_heterogeneous_edgelist(
         auto renumber_map = raft::device_span<vertex_t const>(
           vertex_renumber_map.data() + renumber_map_label_start_offset,
           renumber_map_label_end_offset - renumber_map_label_start_offset);
+        std::vector<vertex_t> lasts{static_cast<vertex_t>(renumber_map.size())};
         cugraph::unrenumber_int_vertices<vertex_t, false>(
           handle,
           this_edge_type_unrenumbered_edgelist_srcs.data(),
           edge_type_end_offset - edge_type_start_offset,
           renumber_map.data(),
-          std::vector<vertex_t>{static_cast<vertex_t>(renumber_map.size())});
+          raft::host_span<vertex_t const>(lasts.data(), lasts.size()));
       }
 
       // unrenumber destination vertex IDs
@@ -595,12 +596,13 @@ bool compare_heterogeneous_edgelist(
         auto renumber_map = raft::device_span<vertex_t const>(
           vertex_renumber_map.data() + renumber_map_label_start_offset,
           renumber_map_label_end_offset - renumber_map_label_start_offset);
+        std::vector<vertex_t> lasts{static_cast<vertex_t>(renumber_map.size())};
         cugraph::unrenumber_int_vertices<vertex_t, false>(
           handle,
           this_edge_type_unrenumbered_edgelist_dsts.data(),
           edge_type_end_offset - edge_type_start_offset,
           renumber_map.data(),
-          std::vector<vertex_t>{static_cast<vertex_t>(renumber_map.size())});
+          raft::host_span<vertex_t const>(lasts.data(), lasts.size()));
       }
 
       // unrenumber edge IDs

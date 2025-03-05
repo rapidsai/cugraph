@@ -127,15 +127,13 @@ struct triangle_count_functor : public cugraph::c_api::abstract_functor {
         vertices.resize(graph_view.local_vertex_partition_range_size(), handle_.get_stream());
         raft::copy(vertices.data(), number_map->data(), vertices.size(), handle_.get_stream());
       } else {
-        std::vector<vertex_t> vertex_partition_range_lasts =
-          graph_view.vertex_partition_range_lasts();
-
-        cugraph::unrenumber_int_vertices<vertex_t, multi_gpu>(handle_,
-                                                              vertices.data(),
-                                                              vertices.size(),
-                                                              number_map->data(),
-                                                              vertex_partition_range_lasts,
-                                                              do_expensive_check_);
+        cugraph::unrenumber_int_vertices<vertex_t, multi_gpu>(
+          handle_,
+          vertices.data(),
+          vertices.size(),
+          number_map->data(),
+          graph_view.vertex_partition_range_lasts(),
+          do_expensive_check_);
       }
 
       result_ = new cugraph::c_api::cugraph_triangle_count_result_t{

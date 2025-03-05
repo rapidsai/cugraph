@@ -457,18 +457,18 @@ refine_clustering(
       auto& minor_comm = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
       auto const minor_comm_size = minor_comm.get_size();
 
-      auto partitions_range_lasts = graph_view.vertex_partition_range_lasts();
-      rmm::device_uvector<vertex_t> d_partitions_range_lasts(partitions_range_lasts.size(),
-                                                             handle.get_stream());
+      auto vertex_partition_range_lasts = graph_view.vertex_partition_range_lasts();
+      rmm::device_uvector<vertex_t> d_vertex_partition_range_lasts(
+        vertex_partition_range_lasts.size(), handle.get_stream());
 
-      raft::update_device(d_partitions_range_lasts.data(),
-                          partitions_range_lasts.data(),
-                          partitions_range_lasts.size(),
+      raft::update_device(d_vertex_partition_range_lasts.data(),
+                          vertex_partition_range_lasts.data(),
+                          vertex_partition_range_lasts.size(),
                           handle.get_stream());
 
       cugraph::detail::compute_gpu_id_from_int_vertex_t<vertex_t> vertex_to_gpu_id_op{
-        raft::device_span<vertex_t const>(d_partitions_range_lasts.data(),
-                                          d_partitions_range_lasts.size()),
+        raft::device_span<vertex_t const>(d_vertex_partition_range_lasts.data(),
+                                          d_vertex_partition_range_lasts.size()),
         major_comm_size,
         minor_comm_size};
 
@@ -842,18 +842,18 @@ refine_clustering(
     auto& minor_comm           = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
     auto const minor_comm_size = minor_comm.get_size();
 
-    auto partitions_range_lasts = graph_view.vertex_partition_range_lasts();
-    rmm::device_uvector<vertex_t> d_partitions_range_lasts(partitions_range_lasts.size(),
-                                                           handle.get_stream());
+    auto vertex_partition_range_lasts = graph_view.vertex_partition_range_lasts();
+    rmm::device_uvector<vertex_t> d_vertex_partition_range_lasts(
+      vertex_partition_range_lasts.size(), handle.get_stream());
 
-    raft::update_device(d_partitions_range_lasts.data(),
-                        partitions_range_lasts.data(),
-                        partitions_range_lasts.size(),
+    raft::update_device(d_vertex_partition_range_lasts.data(),
+                        vertex_partition_range_lasts.data(),
+                        vertex_partition_range_lasts.size(),
                         handle.get_stream());
 
     cugraph::detail::compute_gpu_id_from_int_vertex_t<vertex_t> vertex_to_gpu_id_op{
-      raft::device_span<vertex_t const>(d_partitions_range_lasts.data(),
-                                        d_partitions_range_lasts.size()),
+      raft::device_span<vertex_t const>(d_vertex_partition_range_lasts.data(),
+                                        d_vertex_partition_range_lasts.size()),
       major_comm_size,
       minor_comm_size};
 
