@@ -109,7 +109,7 @@ shuffle_int_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning(
   std::optional<rmm::device_uvector<int32_t>>&& edge_types,
   std::optional<rmm::device_uvector<int32_t>>&& edge_start_times,
   std::optional<rmm::device_uvector<int32_t>>&& edge_end_times,
-  std::vector<int32_t> const& vertex_partition_range_lasts);
+  raft::host_span<int32_t const> vertex_partition_range_lasts);
 
 template std::tuple<rmm::device_uvector<int32_t>,
                     rmm::device_uvector<int32_t>,
@@ -128,7 +128,7 @@ shuffle_int_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning(
   std::optional<rmm::device_uvector<int32_t>>&& edge_types,
   std::optional<rmm::device_uvector<int32_t>>&& edge_start_times,
   std::optional<rmm::device_uvector<int32_t>>&& edge_end_times,
-  std::vector<int32_t> const& vertex_partition_range_lasts);
+  raft::host_span<int32_t const> vertex_partition_range_lasts);
 
 template std::tuple<rmm::device_uvector<int32_t>,
                     rmm::device_uvector<int32_t>,
@@ -147,7 +147,7 @@ shuffle_int_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning(
   std::optional<rmm::device_uvector<int32_t>>&& edge_types,
   std::optional<rmm::device_uvector<int64_t>>&& edge_start_times,
   std::optional<rmm::device_uvector<int64_t>>&& edge_end_times,
-  std::vector<int32_t> const& vertex_partition_range_lasts);
+  raft::host_span<int32_t const> vertex_partition_range_lasts);
 
 template std::tuple<rmm::device_uvector<int32_t>,
                     rmm::device_uvector<int32_t>,
@@ -166,7 +166,7 @@ shuffle_int_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning(
   std::optional<rmm::device_uvector<int32_t>>&& edge_types,
   std::optional<rmm::device_uvector<int64_t>>&& edge_start_times,
   std::optional<rmm::device_uvector<int64_t>>&& edge_end_times,
-  std::vector<int32_t> const& vertex_partition_range_lasts);
+  raft::host_span<int32_t const> vertex_partition_range_lasts);
 
 }  // namespace detail
 

@@ -168,21 +168,21 @@ struct negative_sampling_functor : public cugraph::c_api::abstract_functor {
         exact_number_of_samples_,
         do_expensive_check_);
 
-      std::vector<vertex_t> vertex_partition_lasts = graph_view.vertex_partition_range_lasts();
+      cugraph::unrenumber_int_vertices<vertex_t, multi_gpu>(
+        handle_,
+        src.data(),
+        src.size(),
+        number_map->data(),
+        graph_view.vertex_partition_range_lasts(),
+        do_expensive_check_);
 
-      cugraph::unrenumber_int_vertices<vertex_t, multi_gpu>(handle_,
-                                                            src.data(),
-                                                            src.size(),
-                                                            number_map->data(),
-                                                            vertex_partition_lasts,
-                                                            do_expensive_check_);
-
-      cugraph::unrenumber_int_vertices<vertex_t, multi_gpu>(handle_,
-                                                            dst.data(),
-                                                            dst.size(),
-                                                            number_map->data(),
-                                                            vertex_partition_lasts,
-                                                            do_expensive_check_);
+      cugraph::unrenumber_int_vertices<vertex_t, multi_gpu>(
+        handle_,
+        dst.data(),
+        dst.size(),
+        number_map->data(),
+        graph_view.vertex_partition_range_lasts(),
+        do_expensive_check_);
 
       result_ = new cugraph::c_api::cugraph_coo_t{
         std::make_unique<cugraph::c_api::cugraph_type_erased_device_array_t>(src,

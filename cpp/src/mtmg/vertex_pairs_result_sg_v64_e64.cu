@@ -33,7 +33,7 @@ template std::
   vertex_pair_result_view_t<int64_t, float>::gather(
     handle_t const& handle,
     raft::device_span<int64_t const> vertices,
-    std::vector<int64_t> const& vertex_partition_range_lasts,
+    raft::host_span<int64_t const> vertex_partition_range_lasts,
     vertex_partition_view_t<int64_t, false> vertex_partition_view,
     std::optional<cugraph::mtmg::renumber_map_view_t<int64_t>>& renumber_map_view);
 
@@ -42,7 +42,7 @@ template std::
   vertex_pair_result_view_t<int64_t, double>::gather(
     handle_t const& handle,
     raft::device_span<int64_t const> vertices,
-    std::vector<int64_t> const& vertex_partition_range_lasts,
+    raft::host_span<int64_t const> vertex_partition_range_lasts,
     vertex_partition_view_t<int64_t, false> vertex_partition_view,
     std::optional<cugraph::mtmg::renumber_map_view_t<int64_t>>& renumber_map_view);
 
@@ -51,7 +51,7 @@ template std::
   vertex_pair_result_view_t<int64_t, int64_t>::gather(
     handle_t const& handle,
     raft::device_span<int64_t const> vertices,
-    std::vector<int64_t> const& vertex_partition_range_lasts,
+    raft::host_span<int64_t const> vertex_partition_range_lasts,
     vertex_partition_view_t<int64_t, false> vertex_partition_view,
     std::optional<cugraph::mtmg::renumber_map_view_t<int64_t>>& renumber_map_view);
 

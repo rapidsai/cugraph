@@ -23,7 +23,7 @@ template std::tuple<rmm::device_uvector<int32_t>,
                     std::optional<rmm::device_uvector<int32_t>>,
                     std::optional<std::tuple<rmm::device_uvector<int32_t>,
                                              std::optional<rmm::device_uvector<int32_t>>>>>
-prepare_next_frontier(
+prepare_next_frontier<int32_t, int32_t, true>(
   raft::handle_t const& handle,
   raft::device_span<int32_t const> sampled_src_vertices,
   std::optional<raft::device_span<int32_t const>> sampled_src_vertex_labels,
@@ -31,8 +31,7 @@ prepare_next_frontier(
   std::optional<raft::device_span<int32_t const>> sampled_dst_vertex_labels,
   std::optional<std::tuple<rmm::device_uvector<int32_t>,
                            std::optional<rmm::device_uvector<int32_t>>>>&& vertex_used_as_source,
-  vertex_partition_view_t<int32_t, true> vertex_partition,
-  std::vector<int32_t> const& vertex_partition_range_lasts,
+  raft::host_span<int32_t const> vertex_partition_range_lasts,
   prior_sources_behavior_t prior_sources_behavior,
   bool dedupe_sources,
   bool do_expensive_check);

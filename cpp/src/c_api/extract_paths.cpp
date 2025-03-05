@@ -126,14 +126,11 @@ struct extract_paths_functor : public abstract_functor {
         destinations.data(),
         destinations.size());
 
-      std::vector<vertex_t> vertex_partition_range_lasts =
-        graph_view.vertex_partition_range_lasts();
-
       unrenumber_int_vertices<vertex_t, multi_gpu>(handle_,
                                                    result.data(),
                                                    result.size(),
                                                    number_map->data(),
-                                                   vertex_partition_range_lasts,
+                                                   graph_view.vertex_partition_range_lasts(),
                                                    false);
 
       result_ = new cugraph_extract_paths_result_t{
