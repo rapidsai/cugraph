@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2025, NVIDIA CORPORATION.
+ * Copyright (c) 2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#include "prims/transform_reduce_v_frontier_outgoing_e_by_dst.cuh"
+#include "prims/transform_reduce_if_v_frontier_outgoing_e_by_dst.cuh"
 #include "prims/vertex_frontier.cuh"
 #include "utilities/base_fixture.hpp"
 #include "utilities/conversion_utilities.hpp"
@@ -56,12 +56,12 @@
 #include <random>
 #include <sstream>
 
-template <typename key_t, typename vertex_t, typename payload_t>
+template <typename key_t, typename vertex_t, typename property_t, typename payload_t>
 struct e_op_t {
   __device__ auto operator()(key_t optionally_tagged_src,
                              vertex_t dst,
-                             cuda::std::nullopt_t,
-                             cuda::std::nullopt_t,
+                             property_t src_val,
+                             property_t dst_val,
                              cuda::std::nullopt_t) const
   {
     if constexpr (std::is_same_v<key_t, vertex_t>) {
@@ -81,16 +81,25 @@ struct e_op_t {
   }
 };
 
+template <typename key_t, typename vertex_t, typename property_t>
+struct pred_op_t {
+  __device__ bool operator()(
+    key_t, vertex_t, property_t src_val, property_t dst_val, cuda::std::nullopt_t) const
+  {
+    return src_val < dst_val;
+  }
+};
+
 struct Prims_Usecase {
   bool edge_masking{false};
   bool check_correctness{true};
 };
 
 template <typename input_usecase_t>
-class Tests_MGTransformReduceVFrontierOutgoingEBySrcDst
+class Tests_MGTransformReduceIfVFrontierOutgoingEBySrcDst
   : public ::testing::TestWithParam<std::tuple<Prims_Usecase, input_usecase_t>> {
  public:
-  Tests_MGTransformReduceVFrontierOutgoingEBySrcDst() {}
+  Tests_MGTransformReduceIfVFrontierOutgoingEBySrcDst() {}
 
   static void SetUpTestCase() { handle_ = cugraph::test::initialize_mg_handle(); }
 
@@ -99,7 +108,7 @@ class Tests_MGTransformReduceVFrontierOutgoingEBySrcDst
   virtual void SetUp() {}
   virtual void TearDown() {}
 
-  // Compare the results of transform_reduce_v_frontier_outgoing_e_by_dst primitive
+  // Compare the results of transform_reduce_if_v_frontier_outgoing_e_by_dst primitive
   template <typename vertex_t,
             typename edge_t,
             typename weight_t,
@@ -108,6 +117,7 @@ class Tests_MGTransformReduceVFrontierOutgoingEBySrcDst
   void run_current_test(Prims_Usecase const& prims_usecase, input_usecase_t const& input_usecase)
   {
     using edge_type_t = int32_t;
+    using property_t  = int32_t;
 
     using key_t =
       std::conditional_t<std::is_same_v<tag_t, void>, vertex_t, thrust::tuple<vertex_t, tag_t>>;
@@ -125,7 +135,7 @@ class Tests_MGTransformReduceVFrontierOutgoingEBySrcDst
 
     constexpr bool renumber = true;  // needs to be true for multi gpu case
     constexpr bool store_transposed =
-      false;  // needs to be false for using transform_reduce_v_frontier_outgoing_e_by_dst
+      false;  // needs to be false for using transform_reduce_if_v_frontier_outgoing_e_by_dst
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle_->get_comms().barrier();
@@ -155,6 +165,16 @@ class Tests_MGTransformReduceVFrontierOutgoingEBySrcDst
     }
 
     // 2. run MG transform reduce
+
+    const int hash_bin_count = 5;
+
+    auto mg_vertex_prop =
+      cugraph::test::generate<decltype(mg_graph_view), property_t>::vertex_property(
+        *handle_, *mg_renumber_map, hash_bin_count);
+    auto mg_src_prop = cugraph::test::generate<decltype(mg_graph_view), property_t>::src_property(
+      *handle_, mg_graph_view, mg_vertex_prop);
+    auto mg_dst_prop = cugraph::test::generate<decltype(mg_graph_view), property_t>::dst_property(
+      *handle_, mg_graph_view, mg_vertex_prop);
 
     auto mg_key_buffer = cugraph::allocate_dataframe_buffer<key_t>(
       mg_graph_view.local_vertex_partition_range_size(), handle_->get_stream());
@@ -188,7 +208,7 @@ class Tests_MGTransformReduceVFrontierOutgoingEBySrcDst
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle_->get_comms().barrier();
-      hr_timer.start("MG transform_reduce_v_frontier_outgoing_e_by_dst");
+      hr_timer.start("MG transform_reduce_if_v_frontier_outgoing_e_by_dst");
     }
 
     auto mg_reduce_by_dst_new_frontier_key_buffer =
@@ -198,26 +218,28 @@ class Tests_MGTransformReduceVFrontierOutgoingEBySrcDst
 
     if constexpr (std::is_same_v<payload_t, void>) {
       mg_reduce_by_dst_new_frontier_key_buffer =
-        cugraph::transform_reduce_v_frontier_outgoing_e_by_dst(
+        cugraph::transform_reduce_if_v_frontier_outgoing_e_by_dst(
           *handle_,
           mg_graph_view,
           mg_vertex_frontier.bucket(bucket_idx_cur),
-          cugraph::edge_src_dummy_property_t{}.view(),
-          cugraph::edge_dst_dummy_property_t{}.view(),
+          mg_src_prop.view(),
+          mg_dst_prop.view(),
           cugraph::edge_dummy_property_t{}.view(),
-          e_op_t<key_t, vertex_t, payload_t>{},
-          cugraph::reduce_op::null{});
+          e_op_t<key_t, vertex_t, property_t, payload_t>{},
+          cugraph::reduce_op::null{},
+          pred_op_t<key_t, vertex_t, property_t>{});
     } else {
       std::tie(mg_reduce_by_dst_new_frontier_key_buffer, mg_reduce_by_dst_payload_buffer) =
-        cugraph::transform_reduce_v_frontier_outgoing_e_by_dst(
+        cugraph::transform_reduce_if_v_frontier_outgoing_e_by_dst(
           *handle_,
           mg_graph_view,
           mg_vertex_frontier.bucket(bucket_idx_cur),
-          cugraph::edge_src_dummy_property_t{}.view(),
-          cugraph::edge_dst_dummy_property_t{}.view(),
+          mg_src_prop.view(),
+          mg_dst_prop.view(),
           cugraph::edge_dummy_property_t{}.view(),
-          e_op_t<key_t, vertex_t, payload_t>{},
-          cugraph::reduce_op::plus<payload_t>{});
+          e_op_t<key_t, vertex_t, property_t, payload_t>{},
+          cugraph::reduce_op::plus<payload_t>{},
+          pred_op_t<key_t, vertex_t, property_t>{});
     }
 
     if (cugraph::test::g_perf) {
@@ -311,6 +333,19 @@ class Tests_MGTransformReduceVFrontierOutgoingEBySrcDst
 
         auto sg_graph_view = sg_graph.view();
 
+        auto sg_vertex_prop =
+          cugraph::test::generate<decltype(sg_graph_view), property_t>::vertex_property(
+            *handle_,
+            thrust::make_counting_iterator(sg_graph_view.local_vertex_partition_range_first()),
+            thrust::make_counting_iterator(sg_graph_view.local_vertex_partition_range_last()),
+            hash_bin_count);
+        auto sg_src_prop =
+          cugraph::test::generate<decltype(sg_graph_view), property_t>::src_property(
+            *handle_, sg_graph_view, sg_vertex_prop);
+        auto sg_dst_prop =
+          cugraph::test::generate<decltype(sg_graph_view), property_t>::dst_property(
+            *handle_, sg_graph_view, sg_vertex_prop);
+
         auto sg_key_buffer = cugraph::allocate_dataframe_buffer<key_t>(
           sg_graph_view.local_vertex_partition_range_size(), handle_->get_stream());
         if constexpr (std::is_same_v<tag_t, void>) {
@@ -341,26 +376,28 @@ class Tests_MGTransformReduceVFrontierOutgoingEBySrcDst
           cugraph::detail::allocate_optional_dataframe_buffer<payload_t>(0, handle_->get_stream());
         if constexpr (std::is_same_v<payload_t, void>) {
           sg_reduce_by_dst_new_frontier_key_buffer =
-            cugraph::transform_reduce_v_frontier_outgoing_e_by_dst(
+            cugraph::transform_reduce_if_v_frontier_outgoing_e_by_dst(
               *handle_,
               sg_graph_view,
               sg_vertex_frontier.bucket(bucket_idx_cur),
-              cugraph::edge_src_dummy_property_t{}.view(),
-              cugraph::edge_dst_dummy_property_t{}.view(),
+              sg_src_prop.view(),
+              sg_dst_prop.view(),
               cugraph::edge_dummy_property_t{}.view(),
-              e_op_t<key_t, vertex_t, payload_t>{},
-              cugraph::reduce_op::null{});
+              e_op_t<key_t, vertex_t, property_t, payload_t>{},
+              cugraph::reduce_op::null{},
+              pred_op_t<key_t, vertex_t, property_t>{});
         } else {
           std::tie(sg_reduce_by_dst_new_frontier_key_buffer, sg_reduce_by_dst_payload_buffer) =
-            cugraph::transform_reduce_v_frontier_outgoing_e_by_dst(
+            cugraph::transform_reduce_if_v_frontier_outgoing_e_by_dst(
               *handle_,
               sg_graph_view,
               sg_vertex_frontier.bucket(bucket_idx_cur),
-              cugraph::edge_src_dummy_property_t{}.view(),
-              cugraph::edge_dst_dummy_property_t{}.view(),
+              sg_src_prop.view(),
+              sg_dst_prop.view(),
               cugraph::edge_dummy_property_t{}.view(),
-              e_op_t<key_t, vertex_t, payload_t>{},
-              cugraph::reduce_op::plus<payload_t>{});
+              e_op_t<key_t, vertex_t, property_t, payload_t>{},
+              cugraph::reduce_op::plus<payload_t>{},
+              pred_op_t<key_t, vertex_t, property_t>{});
         }
 
         if constexpr (std::is_same_v<payload_t, void>) {
@@ -401,20 +438,20 @@ class Tests_MGTransformReduceVFrontierOutgoingEBySrcDst
 
 template <typename input_usecase_t>
 std::unique_ptr<raft::handle_t>
-  Tests_MGTransformReduceVFrontierOutgoingEBySrcDst<input_usecase_t>::handle_ = nullptr;
+  Tests_MGTransformReduceIfVFrontierOutgoingEBySrcDst<input_usecase_t>::handle_ = nullptr;
 
-using Tests_MGTransformReduceVFrontierOutgoingEBySrcDst_File =
-  Tests_MGTransformReduceVFrontierOutgoingEBySrcDst<cugraph::test::File_Usecase>;
-using Tests_MGTransformReduceVFrontierOutgoingEBySrcDst_Rmat =
-  Tests_MGTransformReduceVFrontierOutgoingEBySrcDst<cugraph::test::Rmat_Usecase>;
+using Tests_MGTransformReduceIfVFrontierOutgoingEBySrcDst_File =
+  Tests_MGTransformReduceIfVFrontierOutgoingEBySrcDst<cugraph::test::File_Usecase>;
+using Tests_MGTransformReduceIfVFrontierOutgoingEBySrcDst_Rmat =
+  Tests_MGTransformReduceIfVFrontierOutgoingEBySrcDst<cugraph::test::Rmat_Usecase>;
 
-TEST_P(Tests_MGTransformReduceVFrontierOutgoingEBySrcDst_File, CheckInt32Int32FloatVoidVoid)
+TEST_P(Tests_MGTransformReduceIfVFrontierOutgoingEBySrcDst_File, CheckInt32Int32FloatVoidVoid)
 {
   auto param = GetParam();
   run_current_test<int32_t, int32_t, float, void, void>(std::get<0>(param), std::get<1>(param));
 }
 
-TEST_P(Tests_MGTransformReduceVFrontierOutgoingEBySrcDst_Rmat, CheckInt32Int32FloatVoidVoid)
+TEST_P(Tests_MGTransformReduceIfVFrontierOutgoingEBySrcDst_Rmat, CheckInt32Int32FloatVoidVoid)
 {
   auto param = GetParam();
   run_current_test<int32_t, int32_t, float, void, void>(
@@ -422,13 +459,13 @@ TEST_P(Tests_MGTransformReduceVFrontierOutgoingEBySrcDst_Rmat, CheckInt32Int32Fl
     cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
 
-TEST_P(Tests_MGTransformReduceVFrontierOutgoingEBySrcDst_File, CheckInt32Int32FloatVoidInt32)
+TEST_P(Tests_MGTransformReduceIfVFrontierOutgoingEBySrcDst_File, CheckInt32Int32FloatVoidInt32)
 {
   auto param = GetParam();
   run_current_test<int32_t, int32_t, float, void, int32_t>(std::get<0>(param), std::get<1>(param));
 }
 
-TEST_P(Tests_MGTransformReduceVFrontierOutgoingEBySrcDst_Rmat, CheckInt32Int32FloatVoidInt32)
+TEST_P(Tests_MGTransformReduceIfVFrontierOutgoingEBySrcDst_Rmat, CheckInt32Int32FloatVoidInt32)
 {
   auto param = GetParam();
   run_current_test<int32_t, int32_t, float, void, int32_t>(
@@ -436,7 +473,7 @@ TEST_P(Tests_MGTransformReduceVFrontierOutgoingEBySrcDst_Rmat, CheckInt32Int32Fl
     cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
 
-TEST_P(Tests_MGTransformReduceVFrontierOutgoingEBySrcDst_File,
+TEST_P(Tests_MGTransformReduceIfVFrontierOutgoingEBySrcDst_File,
        CheckInt32Int32FloatVoidTupleFloatInt32)
 {
   auto param = GetParam();
@@ -444,7 +481,7 @@ TEST_P(Tests_MGTransformReduceVFrontierOutgoingEBySrcDst_File,
     std::get<0>(param), std::get<1>(param));
 }
 
-TEST_P(Tests_MGTransformReduceVFrontierOutgoingEBySrcDst_Rmat,
+TEST_P(Tests_MGTransformReduceIfVFrontierOutgoingEBySrcDst_Rmat,
        CheckInt32Int32FloatVoidTupleFloatInt32)
 {
   auto param = GetParam();
@@ -453,13 +490,13 @@ TEST_P(Tests_MGTransformReduceVFrontierOutgoingEBySrcDst_Rmat,
     cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
 
-TEST_P(Tests_MGTransformReduceVFrontierOutgoingEBySrcDst_File, CheckInt32Int32FloatInt32Void)
+TEST_P(Tests_MGTransformReduceIfVFrontierOutgoingEBySrcDst_File, CheckInt32Int32FloatInt32Void)
 {
   auto param = GetParam();
   run_current_test<int32_t, int32_t, float, int32_t, void>(std::get<0>(param), std::get<1>(param));
 }
 
-TEST_P(Tests_MGTransformReduceVFrontierOutgoingEBySrcDst_Rmat, CheckInt32Int32FloatInt32Void)
+TEST_P(Tests_MGTransformReduceIfVFrontierOutgoingEBySrcDst_Rmat, CheckInt32Int32FloatInt32Void)
 {
   auto param = GetParam();
   run_current_test<int32_t, int32_t, float, int32_t, void>(
@@ -467,14 +504,14 @@ TEST_P(Tests_MGTransformReduceVFrontierOutgoingEBySrcDst_Rmat, CheckInt32Int32Fl
     cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
 
-TEST_P(Tests_MGTransformReduceVFrontierOutgoingEBySrcDst_File, CheckInt32Int32FloatInt32Int32)
+TEST_P(Tests_MGTransformReduceIfVFrontierOutgoingEBySrcDst_File, CheckInt32Int32FloatInt32Int32)
 {
   auto param = GetParam();
   run_current_test<int32_t, int32_t, float, int32_t, int32_t>(std::get<0>(param),
                                                               std::get<1>(param));
 }
 
-TEST_P(Tests_MGTransformReduceVFrontierOutgoingEBySrcDst_Rmat, CheckInt32Int32FloatInt32Int32)
+TEST_P(Tests_MGTransformReduceIfVFrontierOutgoingEBySrcDst_Rmat, CheckInt32Int32FloatInt32Int32)
 {
   auto param = GetParam();
   run_current_test<int32_t, int32_t, float, int32_t, int32_t>(
@@ -482,7 +519,7 @@ TEST_P(Tests_MGTransformReduceVFrontierOutgoingEBySrcDst_Rmat, CheckInt32Int32Fl
     cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
 
-TEST_P(Tests_MGTransformReduceVFrontierOutgoingEBySrcDst_File,
+TEST_P(Tests_MGTransformReduceIfVFrontierOutgoingEBySrcDst_File,
        CheckInt32Int32FloatInt32TupleFloatInt32)
 {
   auto param = GetParam();
@@ -490,7 +527,7 @@ TEST_P(Tests_MGTransformReduceVFrontierOutgoingEBySrcDst_File,
     std::get<0>(param), std::get<1>(param));
 }
 
-TEST_P(Tests_MGTransformReduceVFrontierOutgoingEBySrcDst_Rmat,
+TEST_P(Tests_MGTransformReduceIfVFrontierOutgoingEBySrcDst_Rmat,
        CheckInt32Int32FloatInt32TupleFloatInt32)
 {
   auto param = GetParam();
@@ -499,14 +536,14 @@ TEST_P(Tests_MGTransformReduceVFrontierOutgoingEBySrcDst_Rmat,
     cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
 
-TEST_P(Tests_MGTransformReduceVFrontierOutgoingEBySrcDst_File, CheckInt64Int64FloatInt32Int32)
+TEST_P(Tests_MGTransformReduceIfVFrontierOutgoingEBySrcDst_File, CheckInt64Int64FloatInt32Int32)
 {
   auto param = GetParam();
   run_current_test<int64_t, int64_t, float, int32_t, int32_t>(std::get<0>(param),
                                                               std::get<1>(param));
 }
 
-TEST_P(Tests_MGTransformReduceVFrontierOutgoingEBySrcDst_Rmat, CheckInt64Int64FloatInt32Int32)
+TEST_P(Tests_MGTransformReduceIfVFrontierOutgoingEBySrcDst_Rmat, CheckInt64Int64FloatInt32Int32)
 {
   auto param = GetParam();
   run_current_test<int64_t, int64_t, float, int32_t, int32_t>(
@@ -516,13 +553,13 @@ TEST_P(Tests_MGTransformReduceVFrontierOutgoingEBySrcDst_Rmat, CheckInt64Int64Fl
 
 INSTANTIATE_TEST_SUITE_P(
   file_test,
-  Tests_MGTransformReduceVFrontierOutgoingEBySrcDst_File,
+  Tests_MGTransformReduceIfVFrontierOutgoingEBySrcDst_File,
   ::testing::Combine(::testing::Values(Prims_Usecase{false, true}, Prims_Usecase{true, true}),
                      ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"))));
 
 INSTANTIATE_TEST_SUITE_P(
   file_large_test,
-  Tests_MGTransformReduceVFrontierOutgoingEBySrcDst_File,
+  Tests_MGTransformReduceIfVFrontierOutgoingEBySrcDst_File,
   ::testing::Combine(
     ::testing::Values(Prims_Usecase{false, true}, Prims_Usecase{true, true}),
     ::testing::Values(cugraph::test::File_Usecase("test/datasets/web-Google.mtx"),
@@ -530,7 +567,7 @@ INSTANTIATE_TEST_SUITE_P(
                       cugraph::test::File_Usecase("test/datasets/webbase-1M.mtx"))));
 
 INSTANTIATE_TEST_SUITE_P(rmat_small_test,
-                         Tests_MGTransformReduceVFrontierOutgoingEBySrcDst_Rmat,
+                         Tests_MGTransformReduceIfVFrontierOutgoingEBySrcDst_Rmat,
                          ::testing::Combine(::testing::Values(Prims_Usecase{false, true},
                                                               Prims_Usecase{true, true}),
                                             ::testing::Values(cugraph::test::Rmat_Usecase(
@@ -542,7 +579,7 @@ INSTANTIATE_TEST_SUITE_P(
                           vertex & edge type combination) by command line arguments and do not
                           include more than one Rmat_Usecase that differ only in scale or edge
                           factor (to avoid running same benchmarks more than once) */
-  Tests_MGTransformReduceVFrontierOutgoingEBySrcDst_Rmat,
+  Tests_MGTransformReduceIfVFrontierOutgoingEBySrcDst_Rmat,
   ::testing::Combine(
     ::testing::Values(Prims_Usecase{false, false}, Prims_Usecase{true, false}),
     ::testing::Values(cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false))));

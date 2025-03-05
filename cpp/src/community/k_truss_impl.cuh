@@ -16,8 +16,7 @@
 #pragma once
 
 #include "prims/edge_bucket.cuh"
-#include "prims/extract_transform_e.cuh"
-#include "prims/extract_transform_v_frontier_outgoing_e.cuh"
+#include "prims/extract_transform_if_e.cuh"
 #include "prims/fill_edge_property.cuh"
 #include "prims/per_v_pair_dst_nbr_intersection.cuh"
 #include "prims/transform_e.cuh"
@@ -44,19 +43,6 @@
 #include <thrust/tuple.h>
 
 namespace cugraph {
-
-template <typename vertex_t, typename edge_t>
-struct extract_weak_edges {
-  edge_t k{};
-  __device__ cuda::std::optional<thrust::tuple<vertex_t, vertex_t>> operator()(
-    vertex_t src, vertex_t dst, cuda::std::nullopt_t, cuda::std::nullopt_t, edge_t count) const
-  {
-    // No need to process edges with count == 0
-    return ((count < k - 2) && (count != 0))
-             ? cuda::std::optional<thrust::tuple<vertex_t, vertex_t>>{thrust::make_tuple(src, dst)}
-             : cuda::std::nullopt;
-  }
-};
 
 template <typename edge_t>
 struct is_k_or_greater_t {
@@ -116,46 +102,47 @@ struct exclude_self_loop_t {
 };
 
 template <typename vertex_t, typename edge_t>
-struct extract_low_to_high_degree_edges_from_endpoints_t {
+struct extract_low_to_high_degree_edges_from_endpoints_e_op_t {
   raft::device_span<vertex_t const> srcs{};
   raft::device_span<vertex_t const> dsts{};
   raft::device_span<edge_t const> count{};
-  __device__ cuda::std::optional<thrust::tuple<vertex_t, vertex_t, edge_t>> operator()(
-    vertex_t src,
-    vertex_t dst,
-    edge_t src_out_degree,
-    edge_t dst_out_degree,
-    cuda::std::nullopt_t) const
+  __device__ thrust::tuple<vertex_t, vertex_t, edge_t> operator()(vertex_t src,
+                                                                  vertex_t dst,
+                                                                  edge_t src_out_degree,
+                                                                  edge_t dst_out_degree,
+                                                                  cuda::std::nullopt_t) const
   {
-    // FIXME: Not the most efficient way because the entire edgelist is scan just to find
-    // the direction of the edges
     auto itr = thrust::lower_bound(thrust::seq,
                                    thrust::make_zip_iterator(srcs.begin(), dsts.begin()),
                                    thrust::make_zip_iterator(srcs.end(), dsts.end()),
                                    thrust::make_tuple(src, dst));
 
-    if ((itr != thrust::make_zip_iterator(srcs.end(), dsts.end())) &&
-        (*itr == thrust::make_tuple(src, dst))) {
-      auto idx = thrust::distance(thrust::make_zip_iterator(srcs.begin(), dsts.begin()), itr);
+    auto idx = thrust::distance(thrust::make_zip_iterator(srcs.begin(), dsts.begin()), itr);
 
-      if (src_out_degree < dst_out_degree) {
-        return cuda::std::optional<thrust::tuple<vertex_t, vertex_t, edge_t>>{
-          thrust::make_tuple(src, dst, count[idx])};
-      } else if (dst_out_degree < src_out_degree) {
-        return cuda::std::optional<thrust::tuple<vertex_t, vertex_t, edge_t>>{
-          thrust::make_tuple(dst, src, count[idx])};
-      } else {  // src_out_degree == dst_out_degree
-        if (src < dst /* tie-breaking using vertex ID */) {
-          return cuda::std::optional<thrust::tuple<vertex_t, vertex_t, edge_t>>{
-            thrust::make_tuple(src, dst, count[idx])};
-        } else {
-          return cuda::std::optional<thrust::tuple<vertex_t, vertex_t, edge_t>>{
-            thrust::make_tuple(dst, src, count[idx])};
-        }
+    if (src_out_degree < dst_out_degree) {
+      return thrust::make_tuple(src, dst, count[idx]);
+    } else if (dst_out_degree < src_out_degree) {
+      return thrust::make_tuple(dst, src, count[idx]);
+    } else {  // src_out_degree == dst_out_degree
+      if (src < dst /* tie-breaking using vertex ID */) {
+        return thrust::make_tuple(src, dst, count[idx]);
+      } else {
+        return thrust::make_tuple(dst, src, count[idx]);
       }
-    } else {
-      return cuda::std::nullopt;
     }
+  }
+};
+
+template <typename vertex_t, typename edge_t>
+struct extract_low_to_high_degree_edges_from_endpoints_pred_op_t {
+  raft::device_span<vertex_t const> srcs{};
+  raft::device_span<vertex_t const> dsts{};
+  __device__ bool operator()(vertex_t src, vertex_t dst, edge_t, edge_t, cuda::std::nullopt_t) const
+  {
+    return thrust::binary_search(thrust::seq,
+                                 thrust::make_zip_iterator(srcs.begin(), dsts.begin()),
+                                 thrust::make_zip_iterator(srcs.end(), dsts.end()),
+                                 thrust::make_tuple(src, dst));
   }
 };
 
@@ -322,13 +309,19 @@ k_truss(raft::handle_t const& handle,
 
     while (true) {
       // Extract weak edges
-      auto [weak_edgelist_srcs, weak_edgelist_dsts] =
-        extract_transform_e(handle,
-                            cur_graph_view,
-                            edge_src_dummy_property_t{}.view(),
-                            edge_dst_dummy_property_t{}.view(),
-                            edge_triangle_counts.view(),
-                            extract_weak_edges<vertex_t, edge_t>{k});
+      auto [weak_edgelist_srcs, weak_edgelist_dsts] = extract_transform_if_e(
+        handle,
+        cur_graph_view,
+        edge_src_dummy_property_t{}.view(),
+        edge_dst_dummy_property_t{}.view(),
+        edge_triangle_counts.view(),
+        cuda::proclaim_return_type<thrust::tuple<vertex_t, vertex_t>>(
+          [] __device__(vertex_t src, vertex_t dst, auto, auto, auto) {
+            return thrust::make_tuple(src, dst);
+          }),
+        cuda::proclaim_return_type<bool>([k] __device__(auto, auto, auto, auto, edge_t count) {
+          return ((count < k - 2) && (count != 0));
+        }));
 
       auto weak_edgelist_first =
         thrust::make_zip_iterator(weak_edgelist_srcs.begin(), weak_edgelist_dsts.begin());
@@ -518,18 +511,23 @@ k_truss(raft::handle_t const& handle,
       std::tie(std::get<0>(vertex_pair_buffer_unique),
                std::get<1>(vertex_pair_buffer_unique),
                decrease_count) =
-        extract_transform_e(
+        extract_transform_if_e(
           handle,
           cur_graph_view,
           edge_src_out_degrees.view(),
           edge_dst_out_degrees.view(),
           edge_dummy_property_t{}.view(),
-          extract_low_to_high_degree_edges_from_endpoints_t<vertex_t, edge_t>{
+          extract_low_to_high_degree_edges_from_endpoints_e_op_t<vertex_t, edge_t>{
             raft::device_span<vertex_t const>(std::get<0>(vertex_pair_buffer_unique).data(),
                                               std::get<0>(vertex_pair_buffer_unique).size()),
             raft::device_span<vertex_t const>(std::get<1>(vertex_pair_buffer_unique).data(),
                                               std::get<1>(vertex_pair_buffer_unique).size()),
-            raft::device_span<edge_t const>(decrease_count.data(), decrease_count.size())});
+            raft::device_span<edge_t const>(decrease_count.data(), decrease_count.size())},
+          extract_low_to_high_degree_edges_from_endpoints_pred_op_t<vertex_t, edge_t>{
+            raft::device_span<vertex_t const>(std::get<0>(vertex_pair_buffer_unique).data(),
+                                              std::get<0>(vertex_pair_buffer_unique).size()),
+            raft::device_span<vertex_t const>(std::get<1>(vertex_pair_buffer_unique).data(),
+                                              std::get<1>(vertex_pair_buffer_unique).size())});
 
       if constexpr (multi_gpu) {
         auto& comm           = handle.get_comms();
