@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,7 +17,7 @@
 #include "c_api/capi_helper.hpp"
 #include "structure/detail/structure_utils.cuh"
 
-#include <cugraph/detail/shuffle_wrappers.hpp>
+#include <cugraph/shuffle_functions.hpp>
 #include <cugraph/utilities/misc_utils.cuh>
 
 #include <thrust/iterator/zip_iterator.h>
@@ -36,8 +36,7 @@ shuffle_vertex_ids_and_offsets(raft::handle_t const& handle,
   auto ids = cugraph::detail::expand_sparse_offsets(offsets, vertex_t{0}, handle.get_stream());
 
   std::tie(vertices, ids) =
-    cugraph::detail::shuffle_ext_vertex_value_pairs_to_local_gpu_by_vertex_partitioning(
-      handle, std::move(vertices), std::move(ids));
+    cugraph::shuffle_ext_vertex_value_pairs(handle, std::move(vertices), std::move(ids));
 
   thrust::sort(handle.get_thrust_policy(),
                thrust::make_zip_iterator(ids.begin(), vertices.begin()),

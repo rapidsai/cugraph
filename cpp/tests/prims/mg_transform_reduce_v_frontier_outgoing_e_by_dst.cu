@@ -56,31 +56,26 @@
 #include <random>
 #include <sstream>
 
-template <typename key_t, typename vertex_t, typename property_t, typename payload_t>
+template <typename key_t, typename vertex_t, typename payload_t>
 struct e_op_t {
   __device__ auto operator()(key_t optionally_tagged_src,
                              vertex_t dst,
-                             property_t src_val,
-                             property_t dst_val,
+                             cuda::std::nullopt_t,
+                             cuda::std::nullopt_t,
                              cuda::std::nullopt_t) const
   {
     if constexpr (std::is_same_v<key_t, vertex_t>) {
       if constexpr (std::is_same_v<payload_t, void>) {
-        return src_val < dst_val ? cuda::std::optional<std::byte>{std::byte{0}} /* dummy */
-                                 : cuda::std::nullopt;
+        return;
       } else {
-        return src_val < dst_val ? cuda::std::optional<payload_t>{static_cast<payload_t>(1)}
-                                 : cuda::std::nullopt;
+        return static_cast<payload_t>(1);
       }
     } else {
       auto tag = thrust::get<1>(optionally_tagged_src);
       if constexpr (std::is_same_v<payload_t, void>) {
-        return src_val < dst_val ? cuda::std::optional<decltype(tag)>{tag} : cuda::std::nullopt;
+        return tag;
       } else {
-        return src_val < dst_val
-                 ? cuda::std::optional<thrust::tuple<decltype(tag), payload_t>>{thrust::make_tuple(
-                     tag, static_cast<payload_t>(1))}
-                 : cuda::std::nullopt;
+        return thrust::make_tuple(tag, static_cast<payload_t>(1));
       }
     }
   }
@@ -113,7 +108,6 @@ class Tests_MGTransformReduceVFrontierOutgoingEBySrcDst
   void run_current_test(Prims_Usecase const& prims_usecase, input_usecase_t const& input_usecase)
   {
     using edge_type_t = int32_t;
-    using property_t  = int32_t;
 
     using key_t =
       std::conditional_t<std::is_same_v<tag_t, void>, vertex_t, thrust::tuple<vertex_t, tag_t>>;
@@ -162,16 +156,6 @@ class Tests_MGTransformReduceVFrontierOutgoingEBySrcDst
 
     // 2. run MG transform reduce
 
-    const int hash_bin_count = 5;
-
-    auto mg_vertex_prop =
-      cugraph::test::generate<decltype(mg_graph_view), property_t>::vertex_property(
-        *handle_, *mg_renumber_map, hash_bin_count);
-    auto mg_src_prop = cugraph::test::generate<decltype(mg_graph_view), property_t>::src_property(
-      *handle_, mg_graph_view, mg_vertex_prop);
-    auto mg_dst_prop = cugraph::test::generate<decltype(mg_graph_view), property_t>::dst_property(
-      *handle_, mg_graph_view, mg_vertex_prop);
-
     auto mg_key_buffer = cugraph::allocate_dataframe_buffer<key_t>(
       mg_graph_view.local_vertex_partition_range_size(), handle_->get_stream());
     if constexpr (std::is_same_v<tag_t, void>) {
@@ -218,10 +202,10 @@ class Tests_MGTransformReduceVFrontierOutgoingEBySrcDst
           *handle_,
           mg_graph_view,
           mg_vertex_frontier.bucket(bucket_idx_cur),
-          mg_src_prop.view(),
-          mg_dst_prop.view(),
+          cugraph::edge_src_dummy_property_t{}.view(),
+          cugraph::edge_dst_dummy_property_t{}.view(),
           cugraph::edge_dummy_property_t{}.view(),
-          e_op_t<key_t, vertex_t, property_t, payload_t>{},
+          e_op_t<key_t, vertex_t, payload_t>{},
           cugraph::reduce_op::null{});
     } else {
       std::tie(mg_reduce_by_dst_new_frontier_key_buffer, mg_reduce_by_dst_payload_buffer) =
@@ -229,10 +213,10 @@ class Tests_MGTransformReduceVFrontierOutgoingEBySrcDst
           *handle_,
           mg_graph_view,
           mg_vertex_frontier.bucket(bucket_idx_cur),
-          mg_src_prop.view(),
-          mg_dst_prop.view(),
+          cugraph::edge_src_dummy_property_t{}.view(),
+          cugraph::edge_dst_dummy_property_t{}.view(),
           cugraph::edge_dummy_property_t{}.view(),
-          e_op_t<key_t, vertex_t, property_t, payload_t>{},
+          e_op_t<key_t, vertex_t, payload_t>{},
           cugraph::reduce_op::plus<payload_t>{});
     }
 
@@ -327,19 +311,6 @@ class Tests_MGTransformReduceVFrontierOutgoingEBySrcDst
 
         auto sg_graph_view = sg_graph.view();
 
-        auto sg_vertex_prop =
-          cugraph::test::generate<decltype(sg_graph_view), property_t>::vertex_property(
-            *handle_,
-            thrust::make_counting_iterator(sg_graph_view.local_vertex_partition_range_first()),
-            thrust::make_counting_iterator(sg_graph_view.local_vertex_partition_range_last()),
-            hash_bin_count);
-        auto sg_src_prop =
-          cugraph::test::generate<decltype(sg_graph_view), property_t>::src_property(
-            *handle_, sg_graph_view, sg_vertex_prop);
-        auto sg_dst_prop =
-          cugraph::test::generate<decltype(sg_graph_view), property_t>::dst_property(
-            *handle_, sg_graph_view, sg_vertex_prop);
-
         auto sg_key_buffer = cugraph::allocate_dataframe_buffer<key_t>(
           sg_graph_view.local_vertex_partition_range_size(), handle_->get_stream());
         if constexpr (std::is_same_v<tag_t, void>) {
@@ -374,10 +345,10 @@ class Tests_MGTransformReduceVFrontierOutgoingEBySrcDst
               *handle_,
               sg_graph_view,
               sg_vertex_frontier.bucket(bucket_idx_cur),
-              sg_src_prop.view(),
-              sg_dst_prop.view(),
+              cugraph::edge_src_dummy_property_t{}.view(),
+              cugraph::edge_dst_dummy_property_t{}.view(),
               cugraph::edge_dummy_property_t{}.view(),
-              e_op_t<key_t, vertex_t, property_t, payload_t>{},
+              e_op_t<key_t, vertex_t, payload_t>{},
               cugraph::reduce_op::null{});
         } else {
           std::tie(sg_reduce_by_dst_new_frontier_key_buffer, sg_reduce_by_dst_payload_buffer) =
@@ -385,10 +356,10 @@ class Tests_MGTransformReduceVFrontierOutgoingEBySrcDst
               *handle_,
               sg_graph_view,
               sg_vertex_frontier.bucket(bucket_idx_cur),
-              sg_src_prop.view(),
-              sg_dst_prop.view(),
+              cugraph::edge_src_dummy_property_t{}.view(),
+              cugraph::edge_dst_dummy_property_t{}.view(),
               cugraph::edge_dummy_property_t{}.view(),
-              e_op_t<key_t, vertex_t, property_t, payload_t>{},
+              e_op_t<key_t, vertex_t, payload_t>{},
               cugraph::reduce_op::plus<payload_t>{});
         }
 

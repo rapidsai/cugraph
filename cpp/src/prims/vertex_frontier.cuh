@@ -663,7 +663,7 @@ class vertex_frontier_t {
 
   template <typename SplitOp>
   void split_bucket(size_t this_bucket_idx,
-                    std::vector<size_t> const& move_to_bucket_indices,
+                    raft::host_span<size_t const> move_to_bucket_indices,
                     SplitOp split_op)
   {
     auto& this_bucket = bucket(this_bucket_idx);
@@ -729,7 +729,7 @@ class vertex_frontier_t {
   void insert_to_buckets(uint8_t* bucket_idx_first /* [INOUT] */,
                          uint8_t* bucket_idx_last /* [INOUT] */,
                          KeyIterator key_first /* [INOUT] */,
-                         std::vector<size_t> const& to_bucket_indices)
+                         raft::host_span<size_t const> to_bucket_indices)
   {
     // 1. group the elements by their target bucket indices
 
@@ -740,9 +740,10 @@ class vertex_frontier_t {
     std::vector<size_t> insert_offsets{};
     std::vector<size_t> insert_sizes{};
     if (to_bucket_indices.size() == 1) {
-      insert_bucket_indices = to_bucket_indices;
-      insert_offsets        = {0};
-      insert_sizes          = {static_cast<size_t>(thrust::distance(pair_first, pair_last))};
+      insert_bucket_indices =
+        std::vector<size_t>(to_bucket_indices.begin(), to_bucket_indices.end());
+      insert_offsets = {0};
+      insert_sizes   = {static_cast<size_t>(thrust::distance(pair_first, pair_last))};
     } else if (to_bucket_indices.size() == 2) {
       auto next_bucket_size = static_cast<size_t>(thrust::distance(
         pair_first,
@@ -753,9 +754,10 @@ class vertex_frontier_t {
           [next_bucket_idx = static_cast<uint8_t>(to_bucket_indices[0])] __device__(auto pair) {
             return thrust::get<0>(pair) == next_bucket_idx;
           })));
-      insert_bucket_indices = to_bucket_indices;
-      insert_offsets        = {0, next_bucket_size};
-      insert_sizes          = {
+      insert_bucket_indices =
+        std::vector<size_t>(to_bucket_indices.begin(), to_bucket_indices.end());
+      insert_offsets = {0, next_bucket_size};
+      insert_sizes   = {
         next_bucket_size,
         static_cast<size_t>(thrust::distance(pair_first + next_bucket_size, pair_last))};
     } else {

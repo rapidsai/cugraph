@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,9 +23,9 @@
 #include <cugraph_c/algorithms.h>
 
 #include <cugraph/algorithms.hpp>
-#include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/graph_functions.hpp>
+#include <cugraph/shuffle_functions.hpp>
 
 namespace cugraph {
 namespace c_api {
@@ -97,10 +97,7 @@ struct bfs_functor : public abstract_functor {
       raft::copy(
         sources.data(), sources_->as_type<vertex_t>(), sources_->size_, handle_.get_stream());
 
-      if constexpr (multi_gpu) {
-        sources = detail::shuffle_ext_vertices_to_local_gpu_by_vertex_partitioning(
-          handle_, std::move(sources));
-      }
+      if constexpr (multi_gpu) { sources = shuffle_ext_vertices(handle_, std::move(sources)); }
 
       //
       // Need to renumber sources
