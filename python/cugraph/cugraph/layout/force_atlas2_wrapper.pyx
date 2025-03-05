@@ -22,7 +22,7 @@ from cugraph.structure.graph_primtypes cimport *
 from libcpp cimport bool
 from libc.stdint cimport uintptr_t
 import cudf
-from numba import cuda
+import cupy as cp
 import numpy as np
 
 cdef extern from "cugraph/legacy/internals.hpp" namespace "cugraph::internals":
@@ -103,10 +103,10 @@ def force_atlas2(input_graph,
 
 
     # We keep np.float32 as results for both cases
-    pos = cuda.device_array(
+    pos = cp.empty(
             (num_verts, 2),
             order="F",
-            dtype=np.float32)
+            dtype=cp.float32)
 
     pos_ptr = pos.device_ctypes_pointer.value
 
