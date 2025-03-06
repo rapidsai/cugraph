@@ -45,6 +45,7 @@ std::vector<vertex_t> find_forest_reference(raft::host_span<edge_t const> offset
                                             raft::host_span<vertex_t const> indices)
 {
   auto num_vertices = static_cast<vertex_t>(offsets.size() - 1);
+
   std::vector<vertex_t> parents(num_vertices, cugraph::invalid_vertex_id_v<vertex_t>);
 
   std::vector<vertex_t> degrees(num_vertices, 0);
@@ -52,18 +53,22 @@ std::vector<vertex_t> find_forest_reference(raft::host_span<edge_t const> offset
 
   while (true) {
     bool changed{false};
+    auto old_parents = parents;
+    auto old_degrees = degrees;
     for (vertex_t v = 0; v < num_vertices; ++v) {
-      if (degrees[v] == 0) {
-        parents[v] = v;
-        changed    = true;
-      } else if (degrees[v] == 1) {
-        for (edge_t i = offsets[v]; i < offsets[v + 1]; ++i) {
-          auto nbr = indices[i];
-          if (parents[nbr] == cugraph::invalid_vertex_id_v<vertex_t>) {
-            parents[v] = nbr;
-            degrees[nbr]--;
-            changed = true;
-            break;
+      if (old_parents[v] == cugraph::invalid_vertex_id_v<vertex_t>) {
+        if (old_degrees[v] == 0) {
+          parents[v] = v;
+          changed    = true;
+        } else if (old_degrees[v] == 1) {
+          for (edge_t i = offsets[v]; i < offsets[v + 1]; ++i) {
+            auto nbr = indices[i];
+            if (old_parents[nbr] == cugraph::invalid_vertex_id_v<vertex_t>) {
+              parents[v] = nbr;
+              degrees[nbr]--;
+              changed = true;
+              break;
+            }
           }
         }
       }
