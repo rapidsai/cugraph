@@ -197,7 +197,7 @@ collect_values_for_sorted_unique_int_vertices(
   raft::comms::comms_t const& comm,
   raft::device_span<vertex_t const> collect_sorted_unique_int_vertices,
   ValueIterator local_value_first,
-  std::vector<vertex_t> const& comm_rank_vertex_partition_range_lasts,
+  raft::host_span<vertex_t const> comm_rank_vertex_partition_range_lasts,
   vertex_t local_vertex_partition_range_first,
   rmm::cuda_stream_view stream_view)
 {
@@ -268,7 +268,7 @@ collect_values_for_int_vertices(
   VertexIterator collect_vertex_first,
   VertexIterator collect_vertex_last,
   ValueIterator local_value_first,
-  std::vector<typename thrust::iterator_traits<VertexIterator>::value_type> const&
+  raft::host_span<typename thrust::iterator_traits<VertexIterator>::value_type const>
     comm_rank_vertex_partition_range_lasts,
   typename thrust::iterator_traits<VertexIterator>::value_type local_vertex_partition_range_first,
   rmm::cuda_stream_view stream_view)

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -112,15 +112,16 @@ class partition_t {
     }
   }
 
-  std::vector<vertex_t> const& vertex_partition_range_offsets() const
+  raft::host_span<vertex_t const> vertex_partition_range_offsets() const
   {
-    return vertex_partition_range_offsets_;
+    return raft::host_span<vertex_t const>(vertex_partition_range_offsets_.data(),
+                                           vertex_partition_range_offsets_.size());
   }
 
-  std::vector<vertex_t> vertex_partition_range_lasts() const
+  raft::host_span<vertex_t const> vertex_partition_range_lasts() const
   {
-    return std::vector<vertex_t>(vertex_partition_range_offsets_.begin() + 1,
-                                 vertex_partition_range_offsets_.end());
+    return raft::host_span<vertex_t const>(vertex_partition_range_offsets_.data() + 1,
+                                           vertex_partition_range_offsets_.size() - 1);
   }
 
   std::tuple<vertex_t, vertex_t> local_vertex_partition_range() const
@@ -395,12 +396,12 @@ class graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if
                  edge_partition_dcs_nzd_range_bitmaps,
                graph_view_meta_t<vertex_t, edge_t, store_transposed, multi_gpu> meta);
 
-  std::vector<vertex_t> vertex_partition_range_offsets() const
+  raft::host_span<vertex_t const> vertex_partition_range_offsets() const
   {
     return partition_.vertex_partition_range_offsets();
   }
 
-  std::vector<vertex_t> vertex_partition_range_lasts() const
+  raft::host_span<vertex_t const> vertex_partition_range_lasts() const
   {
     return partition_.vertex_partition_range_lasts();
   }
@@ -856,15 +857,16 @@ class graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if
                raft::device_span<vertex_t const> indices,
                graph_view_meta_t<vertex_t, edge_t, store_transposed, multi_gpu> meta);
 
-  std::vector<vertex_t> vertex_partition_range_offsets() const
+  raft::host_span<vertex_t const> vertex_partition_range_offsets() const
   {
-    return std::vector<vertex_t>{local_vertex_partition_range_first(),
-                                 local_vertex_partition_range_last()};
+    return raft::host_span<vertex_t const>(vertex_partition_range_offsets_.data(),
+                                           vertex_partition_range_offsets_.size());
   }
 
-  std::vector<vertex_t> vertex_partition_range_lasts() const
+  raft::host_span<vertex_t const> vertex_partition_range_lasts() const
   {
-    return std::vector<vertex_t>{local_vertex_partition_range_last()};
+    return raft::host_span<vertex_t const>(vertex_partition_range_offsets_.data() + 1,
+                                           vertex_partition_range_offsets_.size() - 1);
   }
 
   std::tuple<vertex_t, vertex_t> local_vertex_partition_range() const
@@ -1109,6 +1111,8 @@ class graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if
   }
 
  private:
+  std::vector<vertex_t> vertex_partition_range_offsets_{};  // size = 1 + 1
+
   raft::device_span<edge_t const> offsets_{};
   raft::device_span<vertex_t const> indices_{};
 
