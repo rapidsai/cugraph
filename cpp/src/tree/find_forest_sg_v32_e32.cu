@@ -18,6 +18,8 @@
 namespace cugraph {
 
 template rmm::device_uvector<int32_t> find_forest(
-  raft::handle_t const& handle, graph_view_t<int32_t, int32_t, false, false> const& graph_view, bool do_expensive_check);
+  raft::handle_t const& handle,
+  graph_view_t<int32_t, int32_t, false, false> const& graph_view,
+  bool do_expensive_check);
 
 }  // namespace cugraph

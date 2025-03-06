@@ -15,8 +15,8 @@
  */
 #pragma once
 
-#include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/detail/shuffle_wrappers.hpp>
+#include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/utilities/error.hpp>
 
 #include <raft/core/handle.hpp>
