@@ -1,6 +1,6 @@
 
 /*
- * Copyright (c) 2021-2025, NVIDIA CORPORATION.
+ * Copyright (c) 2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-#include "prims/extract_transform_e.cuh"
+#include "prims/extract_transform_if_e.cuh"
 #include "prims/update_edge_src_dst_property.cuh"
 #include "prims/vertex_frontier.cuh"
 #include "utilities/base_fixture.hpp"
@@ -59,7 +59,7 @@
 #include <sstream>
 #include <type_traits>
 
-template <typename vertex_t, typename output_payload_t>
+template <typename vertex_t, typename property_t, typename output_payload_t>
 struct e_op_t {
   static_assert(std::is_same_v<output_payload_t, int32_t> ||
                 std::is_same_v<output_payload_t, thrust::tuple<float, int32_t>>);
@@ -68,11 +68,8 @@ struct e_op_t {
                                          thrust::tuple<vertex_t, vertex_t, int32_t>,
                                          thrust::tuple<vertex_t, vertex_t, float, int32_t>>;
 
-  __device__ return_type operator()(vertex_t src,
-                                    vertex_t dst,
-                                    cuda::std::nullopt_t,
-                                    cuda::std::nullopt_t,
-                                    cuda::std::nullopt_t) const
+  __device__ return_type
+  operator()(vertex_t src, vertex_t dst, property_t, property_t, cuda::std::nullopt_t) const
   {
     auto output_payload = static_cast<output_payload_t>(1);
     if constexpr (std::is_arithmetic_v<output_payload_t>) {
@@ -85,16 +82,25 @@ struct e_op_t {
   }
 };
 
+template <typename vertex_t, typename property_t>
+struct pred_op_t {
+  __device__ bool operator()(
+    vertex_t, vertex_t, property_t src_val, property_t dst_val, cuda::std::nullopt_t) const
+  {
+    return src_val < dst_val;
+  }
+};
+
 struct Prims_Usecase {
   bool edge_masking{false};
   bool check_correctness{true};
 };
 
 template <typename input_usecase_t>
-class Tests_MGExtractTransformE
+class Tests_MGExtractTransformIfE
   : public ::testing::TestWithParam<std::tuple<Prims_Usecase, input_usecase_t>> {
  public:
-  Tests_MGExtractTransformE() {}
+  Tests_MGExtractTransformIfE() {}
 
   static void SetUpTestCase() { handle_ = cugraph::test::initialize_mg_handle(); }
 
@@ -103,7 +109,7 @@ class Tests_MGExtractTransformE
   virtual void SetUp() {}
   virtual void TearDown() {}
 
-  // Compare the results of extract_transform_e primitive
+  // Compare the results of extract_transform_if_e primitive
   template <typename vertex_t, typename edge_t, typename weight_t, typename output_payload_t>
   void run_current_test(Prims_Usecase const& prims_usecase, input_usecase_t const& input_usecase)
   {
@@ -122,7 +128,7 @@ class Tests_MGExtractTransformE
 
     constexpr bool is_multi_gpu     = true;
     constexpr bool renumber         = true;   // needs to be true for multi gpu case
-    constexpr bool store_transposed = false;  // needs to be false for using extract_transform_e
+    constexpr bool store_transposed = false;  // needs to be false for using extract_transform_if_e
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle_->get_comms().barrier();
@@ -151,21 +157,32 @@ class Tests_MGExtractTransformE
       mg_graph_view.attach_edge_mask((*edge_mask).view());
     }
 
-    // 2. run MG extract_transform_e
+    // 2. run MG extract_transform_if_e
+
+    const int hash_bin_count = 5;
+
+    auto mg_vertex_prop =
+      cugraph::test::generate<decltype(mg_graph_view), result_t>::vertex_property(
+        *handle_, *d_mg_renumber_map_labels, hash_bin_count);
+    auto mg_src_prop = cugraph::test::generate<decltype(mg_graph_view), result_t>::src_property(
+      *handle_, mg_graph_view, mg_vertex_prop);
+    auto mg_dst_prop = cugraph::test::generate<decltype(mg_graph_view), result_t>::dst_property(
+      *handle_, mg_graph_view, mg_vertex_prop);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle_->get_comms().barrier();
-      hr_timer.start("MG extract_transform_e");
+      hr_timer.start("MG extract_transform_if_e");
     }
 
     auto mg_extract_transform_output_buffer =
-      cugraph::extract_transform_e(*handle_,
-                                   mg_graph_view,
-                                   cugraph::edge_src_dummy_property_t{}.view(),
-                                   cugraph::edge_dst_dummy_property_t{}.view(),
-                                   cugraph::edge_dummy_property_t{}.view(),
-                                   e_op_t<vertex_t, output_payload_t>{});
+      cugraph::extract_transform_if_e(*handle_,
+                                      mg_graph_view,
+                                      mg_src_prop.view(),
+                                      mg_dst_prop.view(),
+                                      cugraph::edge_dummy_property_t{}.view(),
+                                      e_op_t<vertex_t, result_t, output_payload_t>{},
+                                      pred_op_t<vertex_t, result_t>{});
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -178,7 +195,8 @@ class Tests_MGExtractTransformE
 
     if (prims_usecase.check_correctness) {
       auto mg_aggregate_extract_transform_output_buffer = cugraph::allocate_dataframe_buffer<
-        typename e_op_t<vertex_t, output_payload_t>::return_type>(size_t{0}, handle_->get_stream());
+        typename e_op_t<vertex_t, result_t, output_payload_t>::return_type>(size_t{0},
+                                                                            handle_->get_stream());
       std::get<0>(mg_aggregate_extract_transform_output_buffer) =
         cugraph::test::device_gatherv(*handle_,
                                       std::get<0>(mg_extract_transform_output_buffer).data(),
@@ -209,6 +227,16 @@ class Tests_MGExtractTransformE
           std::make_optional<raft::device_span<vertex_t const>>((*d_mg_renumber_map_labels).data(),
                                                                 (*d_mg_renumber_map_labels).size()),
           false);
+      rmm::device_uvector<result_t> sg_vertex_prop(0, handle_->get_stream());
+      std::tie(std::ignore, sg_vertex_prop) =
+        cugraph::test::mg_vertex_property_values_to_sg_vertex_property_values(
+          *handle_,
+          std::make_optional<raft::device_span<vertex_t const>>((*d_mg_renumber_map_labels).data(),
+                                                                (*d_mg_renumber_map_labels).size()),
+          mg_graph_view.local_vertex_partition_range(),
+          std::optional<raft::device_span<vertex_t const>>{std::nullopt},
+          std::optional<raft::device_span<vertex_t const>>{std::nullopt},
+          raft::device_span<result_t const>(mg_vertex_prop.data(), mg_vertex_prop.size()));
 
       if (handle_->get_comms().get_rank() == int{0}) {
         thrust::sort(
@@ -218,13 +246,19 @@ class Tests_MGExtractTransformE
 
         auto sg_graph_view = sg_graph.view();
 
+        auto sg_src_prop = cugraph::test::generate<decltype(sg_graph_view), result_t>::src_property(
+          *handle_, sg_graph_view, sg_vertex_prop);
+        auto sg_dst_prop = cugraph::test::generate<decltype(sg_graph_view), result_t>::dst_property(
+          *handle_, sg_graph_view, sg_vertex_prop);
+
         auto sg_extract_transform_output_buffer =
-          cugraph::extract_transform_e(*handle_,
-                                       sg_graph_view,
-                                       cugraph::edge_src_dummy_property_t{}.view(),
-                                       cugraph::edge_dst_dummy_property_t{}.view(),
-                                       cugraph::edge_dummy_property_t{}.view(),
-                                       e_op_t<vertex_t, output_payload_t>{});
+          cugraph::extract_transform_if_e(*handle_,
+                                          sg_graph_view,
+                                          sg_src_prop.view(),
+                                          sg_dst_prop.view(),
+                                          cugraph::edge_dummy_property_t{}.view(),
+                                          e_op_t<vertex_t, result_t, output_payload_t>{},
+                                          pred_op_t<vertex_t, result_t>{});
 
         thrust::sort(handle_->get_thrust_policy(),
                      cugraph::get_dataframe_buffer_begin(sg_extract_transform_output_buffer),
@@ -245,18 +279,18 @@ class Tests_MGExtractTransformE
 };
 
 template <typename input_usecase_t>
-std::unique_ptr<raft::handle_t> Tests_MGExtractTransformE<input_usecase_t>::handle_ = nullptr;
+std::unique_ptr<raft::handle_t> Tests_MGExtractTransformIfE<input_usecase_t>::handle_ = nullptr;
 
-using Tests_MGExtractTransformE_File = Tests_MGExtractTransformE<cugraph::test::File_Usecase>;
-using Tests_MGExtractTransformE_Rmat = Tests_MGExtractTransformE<cugraph::test::Rmat_Usecase>;
+using Tests_MGExtractTransformIfE_File = Tests_MGExtractTransformIfE<cugraph::test::File_Usecase>;
+using Tests_MGExtractTransformIfE_Rmat = Tests_MGExtractTransformIfE<cugraph::test::Rmat_Usecase>;
 
-TEST_P(Tests_MGExtractTransformE_File, CheckInt32Int32FloatVoidInt32)
+TEST_P(Tests_MGExtractTransformIfE_File, CheckInt32Int32FloatVoidInt32)
 {
   auto param = GetParam();
   run_current_test<int32_t, int32_t, float, int32_t>(std::get<0>(param), std::get<1>(param));
 }
 
-TEST_P(Tests_MGExtractTransformE_Rmat, CheckInt32Int32FloatVoidInt32)
+TEST_P(Tests_MGExtractTransformIfE_Rmat, CheckInt32Int32FloatVoidInt32)
 {
   auto param = GetParam();
   run_current_test<int32_t, int32_t, float, int32_t>(
@@ -264,14 +298,14 @@ TEST_P(Tests_MGExtractTransformE_Rmat, CheckInt32Int32FloatVoidInt32)
     cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
 
-TEST_P(Tests_MGExtractTransformE_File, CheckInt32Int32FloatVoidTupleFloatInt32)
+TEST_P(Tests_MGExtractTransformIfE_File, CheckInt32Int32FloatVoidTupleFloatInt32)
 {
   auto param = GetParam();
   run_current_test<int32_t, int32_t, float, thrust::tuple<float, int32_t>>(std::get<0>(param),
                                                                            std::get<1>(param));
 }
 
-TEST_P(Tests_MGExtractTransformE_Rmat, CheckInt32Int32FloatVoidTupleFloatInt32)
+TEST_P(Tests_MGExtractTransformIfE_Rmat, CheckInt32Int32FloatVoidTupleFloatInt32)
 {
   auto param = GetParam();
   run_current_test<int32_t, int32_t, float, thrust::tuple<float, int32_t>>(
@@ -279,13 +313,13 @@ TEST_P(Tests_MGExtractTransformE_Rmat, CheckInt32Int32FloatVoidTupleFloatInt32)
     cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
 
-TEST_P(Tests_MGExtractTransformE_File, CheckInt32Int32FloatInt32Int32)
+TEST_P(Tests_MGExtractTransformIfE_File, CheckInt32Int32FloatInt32Int32)
 {
   auto param = GetParam();
   run_current_test<int32_t, int32_t, float, int32_t>(std::get<0>(param), std::get<1>(param));
 }
 
-TEST_P(Tests_MGExtractTransformE_Rmat, CheckInt32Int32FloatInt32Int32)
+TEST_P(Tests_MGExtractTransformIfE_Rmat, CheckInt32Int32FloatInt32Int32)
 {
   auto param = GetParam();
   run_current_test<int32_t, int32_t, float, int32_t>(
@@ -293,14 +327,14 @@ TEST_P(Tests_MGExtractTransformE_Rmat, CheckInt32Int32FloatInt32Int32)
     cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
 
-TEST_P(Tests_MGExtractTransformE_File, CheckInt32Int32FloatInt32TupleFloatInt32)
+TEST_P(Tests_MGExtractTransformIfE_File, CheckInt32Int32FloatInt32TupleFloatInt32)
 {
   auto param = GetParam();
   run_current_test<int32_t, int32_t, float, thrust::tuple<float, int32_t>>(std::get<0>(param),
                                                                            std::get<1>(param));
 }
 
-TEST_P(Tests_MGExtractTransformE_Rmat, CheckInt32Int32FloatInt32TupleFloatInt32)
+TEST_P(Tests_MGExtractTransformIfE_Rmat, CheckInt32Int32FloatInt32TupleFloatInt32)
 {
   auto param = GetParam();
   run_current_test<int32_t, int32_t, float, thrust::tuple<float, int32_t>>(
@@ -308,13 +342,13 @@ TEST_P(Tests_MGExtractTransformE_Rmat, CheckInt32Int32FloatInt32TupleFloatInt32)
     cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
 
-TEST_P(Tests_MGExtractTransformE_File, CheckInt64Int64FloatInt32Int32)
+TEST_P(Tests_MGExtractTransformIfE_File, CheckInt64Int64FloatInt32Int32)
 {
   auto param = GetParam();
   run_current_test<int64_t, int64_t, float, int32_t>(std::get<0>(param), std::get<1>(param));
 }
 
-TEST_P(Tests_MGExtractTransformE_Rmat, CheckInt64Int64FloatInt32Int32)
+TEST_P(Tests_MGExtractTransformIfE_Rmat, CheckInt64Int64FloatInt32Int32)
 {
   auto param = GetParam();
   run_current_test<int64_t, int64_t, float, int32_t>(
@@ -324,13 +358,13 @@ TEST_P(Tests_MGExtractTransformE_Rmat, CheckInt64Int64FloatInt32Int32)
 
 INSTANTIATE_TEST_SUITE_P(
   file_test,
-  Tests_MGExtractTransformE_File,
+  Tests_MGExtractTransformIfE_File,
   ::testing::Combine(::testing::Values(Prims_Usecase{false, true}, Prims_Usecase{true, true}),
                      ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"))));
 
 INSTANTIATE_TEST_SUITE_P(
   file_large_test,
-  Tests_MGExtractTransformE_File,
+  Tests_MGExtractTransformIfE_File,
   ::testing::Combine(
     ::testing::Values(Prims_Usecase{false, true}, Prims_Usecase{true, true}),
     ::testing::Values(cugraph::test::File_Usecase("test/datasets/web-Google.mtx"),
@@ -338,7 +372,7 @@ INSTANTIATE_TEST_SUITE_P(
                       cugraph::test::File_Usecase("test/datasets/webbase-1M.mtx"))));
 
 INSTANTIATE_TEST_SUITE_P(rmat_small_test,
-                         Tests_MGExtractTransformE_Rmat,
+                         Tests_MGExtractTransformIfE_Rmat,
                          ::testing::Combine(::testing::Values(Prims_Usecase{false, true},
                                                               Prims_Usecase{true, true}),
                                             ::testing::Values(cugraph::test::Rmat_Usecase(
@@ -350,7 +384,7 @@ INSTANTIATE_TEST_SUITE_P(
                           vertex & edge type combination) by command line arguments and do not
                           include more than one Rmat_Usecase that differ only in scale or edge
                           factor (to avoid running same benchmarks more than once) */
-  Tests_MGExtractTransformE_Rmat,
+  Tests_MGExtractTransformIfE_Rmat,
   ::testing::Combine(
     ::testing::Values(Prims_Usecase{false, false}, Prims_Usecase{true, false}),
     ::testing::Values(cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false))));
