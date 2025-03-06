@@ -24,6 +24,7 @@
 
 #include <rmm/exec_policy.hpp>
 
+#include <cuda/std/functional>
 #include <cuda/std/optional>
 #include <thrust/fill.h>
 #include <thrust/iterator/constant_iterator.h>
@@ -106,7 +107,7 @@ void fill_edge_property(raft::handle_t const& handle,
                              thrust::make_constant_iterator(input) + edge_counts[i],
                              thrust::make_counting_iterator(edge_t{0}),
                              value_firsts[i],
-                             thrust::identity<T>{},
+                             cuda::std::identity{},
                              [edge_partition_e_mask = *edge_partition_e_mask] __device__(edge_t i) {
                                return edge_partition_e_mask.get(i);
                              });

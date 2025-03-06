@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -119,7 +119,7 @@ template <typename... Ts>
 struct is_thrust_tuple_of_arithmetic<thrust::tuple<Ts...>> {
  private:
   template <typename T>
-  static constexpr bool is_valid = std::is_arithmetic_v<T> || std::is_same_v<T, thrust::null_type>;
+  static constexpr bool is_valid = std::is_arithmetic_v<T>;
 
  public:
   static constexpr bool value = (... && is_valid<Ts>);
@@ -132,7 +132,7 @@ template <typename... Ts>
 struct is_thrust_tuple_of_integral<thrust::tuple<Ts...>> {
  private:
   template <typename T>
-  static constexpr bool is_valid = std::is_integral_v<T> || std::is_same_v<T, thrust::null_type>;
+  static constexpr bool is_valid = std::is_integral_v<T>;
 
  public:
   static constexpr bool value = (... && is_valid<Ts>);
@@ -298,6 +298,7 @@ __host__ __device__
 {
   return thrust::get<I>(val.get_iterator_tuple());
 }
+
 // a temporary function to emulate thrust::tuple_cat (not supported) using std::tuple_cat (should
 // retire once thrust::tuple is replaced with cuda::std::tuple)
 template <typename... TupleTypes>

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, NVIDIA CORPORATION.
+ * Copyright (c) 2024-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,9 +23,9 @@
 #include <cugraph_c/algorithms.h>
 
 #include <cugraph/algorithms.hpp>
-#include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/graph_functions.hpp>
+#include <cugraph/shuffle_functions.hpp>
 #include <cugraph/vertex_partition_device_view.cuh>
 
 #include <thrust/gather.h>
@@ -106,8 +106,7 @@ struct degrees_functor : public cugraph::c_api::abstract_functor {
                    handle_.get_stream());
 
         if constexpr (multi_gpu) {
-          vertex_ids = cugraph::detail::shuffle_ext_vertices_to_local_gpu_by_vertex_partitioning(
-            handle_, std::move(vertex_ids));
+          vertex_ids = cugraph::shuffle_ext_vertices(handle_, std::move(vertex_ids));
         }
 
         cugraph::renumber_ext_vertices<vertex_t, multi_gpu>(

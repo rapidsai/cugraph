@@ -35,6 +35,7 @@
 
 #include <rmm/device_scalar.hpp>
 
+#include <cuda/std/functional>
 #include <thrust/adjacent_difference.h>
 #include <thrust/binary_search.h>
 #include <thrust/copy.h>
@@ -184,7 +185,10 @@ rmm::device_uvector<vertex_t> create_local_samples(
       rmm::device_uvector<size_t> d_sample_count_from_each_gpu(0, handle.get_stream());
 
       std::tie(d_sample_count_from_each_gpu, std::ignore) =
-        shuffle_values(handle.get_comms(), gpu_counts.begin(), tx_counts, handle.get_stream());
+        shuffle_values(handle.get_comms(),
+                       gpu_counts.begin(),
+                       raft::host_span<size_t const>(tx_counts.data(), tx_counts.size()),
+                       handle.get_stream());
 
       samples_to_generate = thrust::reduce(handle.get_thrust_policy(),
                                            d_sample_count_from_each_gpu.begin(),
@@ -233,8 +237,12 @@ rmm::device_uvector<vertex_t> create_local_samples(
 
     // Shuffle them back
     if constexpr (multi_gpu) {
-      std::tie(samples, std::ignore) = shuffle_values(
-        handle.get_comms(), samples.begin(), sample_count_from_each_gpu, handle.get_stream());
+      std::tie(samples, std::ignore) =
+        shuffle_values(handle.get_comms(),
+                       samples.begin(),
+                       raft::host_span<size_t const>(sample_count_from_each_gpu.data(),
+                                                     sample_count_from_each_gpu.size()),
+                       handle.get_stream());
 
       thrust::sort(handle.get_thrust_policy(),
                    thrust::make_zip_iterator(position.begin(), samples.begin()),
@@ -359,7 +367,7 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> negativ
                                        begin_iter,
                                        begin_iter + batch_srcs.size(),
                                        has_edge_flags.begin(),
-                                       thrust::identity<bool>());
+                                       cuda::std::identity());
 
       batch_srcs.resize(thrust::distance(begin_iter, new_end), handle.get_stream());
       batch_dsts.resize(thrust::distance(begin_iter, new_end), handle.get_stream());
@@ -513,11 +521,11 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> negativ
     raft::update_host(
       tx_value_counts.data(), d_send_counts.data(), d_send_counts.size(), handle.get_stream());
 
-    std::forward_as_tuple(std::tie(srcs, dsts), std::ignore) =
-      cugraph::shuffle_values(handle.get_comms(),
-                              thrust::make_zip_iterator(srcs.begin(), dsts.begin()),
-                              tx_value_counts,
-                              handle.get_stream());
+    std::forward_as_tuple(std::tie(srcs, dsts), std::ignore) = cugraph::shuffle_values(
+      handle.get_comms(),
+      thrust::make_zip_iterator(srcs.begin(), dsts.begin()),
+      raft::host_span<size_t const>(tx_value_counts.data(), tx_value_counts.size()),
+      handle.get_stream());
 
     rmm::device_uvector<float> fractional_random_numbers(srcs.size(), handle.get_stream());
 

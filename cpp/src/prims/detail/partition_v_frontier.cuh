@@ -61,7 +61,9 @@ partition_v_frontier(raft::handle_t const& handle,
   rmm::device_uvector<size_t> indices(thrust::distance(frontier_value_first, frontier_value_last),
                                       handle.get_stream());
   thrust::sequence(handle.get_thrust_policy(), indices.begin(), indices.end(), size_t{0});
-  std::vector<size_t> v_frontier_partition_offsets(thresholds.size() + 2);
+
+  auto num_partitions = thresholds.size() + 1;
+  std::vector<size_t> v_frontier_partition_offsets(num_partitions + 1);
   v_frontier_partition_offsets[0] = size_t{0};
   v_frontier_partition_offsets.back() =
     static_cast<size_t>(thrust::distance(frontier_value_first, frontier_value_last));
@@ -82,6 +84,72 @@ partition_v_frontier(raft::handle_t const& handle,
   }
 
   return std::make_tuple(std::move(indices), std::move(v_frontier_partition_offsets));
+}
+
+// a key in the frontier has @p num_values_per_key values, the frontier is separately partitioned
+// @p num_values_per_key times based on the i'th value; i = [0, @p num_values_per_key).
+template <typename value_idx_t, typename ValueIterator>
+std::tuple<rmm::device_uvector<size_t> /* indices */,
+           rmm::device_uvector<value_idx_t>,
+           std::vector<size_t> /* offsets (size = value_offsets.size()) */>
+partition_v_frontier_per_value_idx(
+  raft::handle_t const& handle,
+  ValueIterator frontier_value_first,
+  ValueIterator frontier_value_last,
+  raft::host_span<typename thrust::iterator_traits<ValueIterator>::value_type const>
+    thresholds /* size = num_values_per_key * (# partitions - 1), thresholds[i] marks the end
+                  (exclusive) of the (i % num_values_per_key)'th partition value range for the (i /
+                  num_values_per_key)'th value of each key */
+  ,
+  size_t num_values_per_key)
+{
+  using value_t = typename thrust::iterator_traits<ValueIterator>::value_type;
+
+  assert((thrust::distance(frontier_value_first, frontier_value_last) % num_values_per_key) == 0);
+  rmm::device_uvector<size_t> key_indices(
+    thrust::distance(frontier_value_first, frontier_value_last), handle.get_stream());
+  rmm::device_uvector<value_idx_t> value_indices(key_indices.size(), handle.get_stream());
+  auto index_pair_first = thrust::make_zip_iterator(key_indices.begin(), value_indices.begin());
+  auto index_pair_last  = thrust::make_zip_iterator(key_indices.end(), value_indices.end());
+  thrust::tabulate(handle.get_thrust_policy(),
+                   index_pair_first,
+                   index_pair_last,
+                   [num_values_per_key] __device__(size_t i) {
+                     return thrust::make_tuple(i / num_values_per_key,
+                                               static_cast<value_idx_t>(i % num_values_per_key));
+                   });
+
+  auto num_partitions = thresholds.size() / num_values_per_key + 1;
+  std::vector<size_t> v_frontier_partition_offsets(num_partitions + 1);
+  v_frontier_partition_offsets[0] = size_t{0};
+  v_frontier_partition_offsets.back() =
+    static_cast<size_t>(thrust::distance(frontier_value_first, frontier_value_last));
+
+  rmm::device_uvector<value_t> d_thresholds(thresholds.size(), handle.get_stream());
+  raft::update_device(
+    d_thresholds.data(), thresholds.data(), thresholds.size(), handle.get_stream());
+  for (size_t i = 0; i < num_partitions - 1; ++i) {
+    auto false_first = thrust::partition(
+      handle.get_thrust_policy(),
+      index_pair_first,
+      index_pair_last,
+      [frontier_value_first,
+       thresholds = raft::device_span<value_t>(d_thresholds.data(), d_thresholds.size()),
+       num_values_per_key,
+       num_partitions,
+       true_partition_idx = i] __device__(auto pair) {
+        auto key_idx   = thrust::get<0>(pair);
+        auto value_idx = thrust::get<1>(pair);
+        return *(frontier_value_first + key_idx * num_values_per_key + value_idx) <
+               thresholds[value_idx * (num_partitions - 1) + true_partition_idx];
+      });
+    v_frontier_partition_offsets[1 + i] =
+      v_frontier_partition_offsets[i] + thrust::distance(index_pair_first, false_first);
+    index_pair_first = false_first;
+  }
+
+  return std::make_tuple(
+    std::move(key_indices), std::move(value_indices), std::move(v_frontier_partition_offsets));
 }
 
 }  // namespace detail

@@ -372,8 +372,7 @@ auto transform_v_frontier_e(raft::handle_t const& handle,
                             EdgeDstValueInputWrapper edge_dst_value_input,
                             EdgeValueInputWrapper edge_value_input,
                             EdgeOp e_op,
-                            std::vector<size_t> const& local_frontier_displacements,
-                            std::vector<size_t> const& local_frontier_sizes)
+                            raft::host_span<size_t const> local_frontier_offsets)
 {
   using vertex_t = typename GraphViewType::vertex_type;
   using edge_t   = typename GraphViewType::edge_type;
@@ -414,8 +413,8 @@ auto transform_v_frontier_e(raft::handle_t const& handle,
 
   // 1. update aggregate_local_frontier_local_degree_offsets
 
-  auto aggregate_local_frontier_local_degree_offsets = rmm::device_uvector<size_t>(
-    local_frontier_displacements.back() + local_frontier_sizes.back() + 1, handle.get_stream());
+  auto aggregate_local_frontier_local_degree_offsets =
+    rmm::device_uvector<size_t>(local_frontier_offsets.back() + 1, handle.get_stream());
   aggregate_local_frontier_local_degree_offsets.set_element_to_zero_async(
     aggregate_local_frontier_local_degree_offsets.size() - 1, handle.get_stream());
   for (size_t i = 0; i < graph_view.number_of_local_edge_partitions(); ++i) {
@@ -430,7 +429,7 @@ auto transform_v_frontier_e(raft::handle_t const& handle,
         : cuda::std::nullopt;
 
     auto edge_partition_frontier_key_first =
-      aggregate_local_frontier_key_first + local_frontier_displacements[i];
+      aggregate_local_frontier_key_first + local_frontier_offsets[i];
     auto edge_partition_frontier_major_first =
       thrust_tuple_get_or_identity<KeyIterator, 0>(edge_partition_frontier_key_first);
 
@@ -438,20 +437,21 @@ auto transform_v_frontier_e(raft::handle_t const& handle,
       edge_partition_e_mask ? edge_partition.compute_local_degrees_with_mask(
                                 (*edge_partition_e_mask).value_first(),
                                 edge_partition_frontier_major_first,
-                                edge_partition_frontier_major_first + local_frontier_sizes[i],
+                                edge_partition_frontier_major_first +
+                                  (local_frontier_offsets[i + 1] - local_frontier_offsets[i]),
                                 handle.get_stream())
                             : edge_partition.compute_local_degrees(
                                 edge_partition_frontier_major_first,
-                                edge_partition_frontier_major_first + local_frontier_sizes[i],
+                                edge_partition_frontier_major_first +
+                                  (local_frontier_offsets[i + 1] - local_frontier_offsets[i]),
                                 handle.get_stream());
 
     // FIXME: this copy is unnecessary if edge_partition.compute_local_degrees() takes a pointer
     // to the output array
-    thrust::copy(
-      handle.get_thrust_policy(),
-      edge_partition_frontier_local_degrees.begin(),
-      edge_partition_frontier_local_degrees.end(),
-      aggregate_local_frontier_local_degree_offsets.begin() + local_frontier_displacements[i]);
+    thrust::copy(handle.get_thrust_policy(),
+                 edge_partition_frontier_local_degrees.begin(),
+                 edge_partition_frontier_local_degrees.end(),
+                 aggregate_local_frontier_local_degree_offsets.begin() + local_frontier_offsets[i]);
   }
   thrust::exclusive_scan(handle.get_thrust_policy(),
                          aggregate_local_frontier_local_degree_offsets.begin(),
@@ -476,20 +476,20 @@ auto transform_v_frontier_e(raft::handle_t const& handle,
         : cuda::std::nullopt;
 
     auto edge_partition_frontier_key_first =
-      aggregate_local_frontier_key_first + local_frontier_displacements[i];
+      aggregate_local_frontier_key_first + local_frontier_offsets[i];
     auto edge_partition_frontier_major_first =
       thrust_tuple_get_or_identity<KeyIterator, 0>(edge_partition_frontier_key_first);
 
-    rmm::device_uvector<size_t> edge_partition_key_indices(local_frontier_sizes[i],
-                                                           handle.get_stream());
+    rmm::device_uvector<size_t> edge_partition_key_indices(
+      local_frontier_offsets[i + 1] - local_frontier_offsets[i], handle.get_stream());
     thrust::sequence(handle.get_thrust_policy(),
                      edge_partition_key_indices.begin(),
                      edge_partition_key_indices.end(),
                      size_t{0});
 
     auto edge_partition_frontier_local_degree_offsets = raft::device_span<size_t const>(
-      aggregate_local_frontier_local_degree_offsets.data() + local_frontier_displacements[i],
-      local_frontier_sizes[i] + 1);
+      aggregate_local_frontier_local_degree_offsets.data() + local_frontier_offsets[i],
+      (local_frontier_offsets[i + 1] - local_frontier_offsets[i]) + 1);
 
     edge_partition_src_input_device_view_t edge_partition_src_value_input{};
     edge_partition_dst_input_device_view_t edge_partition_dst_value_input{};
@@ -510,7 +510,8 @@ auto transform_v_frontier_e(raft::handle_t const& handle,
         partition_v_frontier(
           handle,
           edge_partition_frontier_major_first,
-          edge_partition_frontier_major_first + local_frontier_sizes[i],
+          edge_partition_frontier_major_first +
+            (local_frontier_offsets[i + 1] - local_frontier_offsets[i]),
           std::vector<vertex_t>{edge_partition.major_range_first() + (*segment_offsets)[1],
                                 edge_partition.major_range_first() + (*segment_offsets)[2],
                                 edge_partition.major_range_first() + (*segment_offsets)[3]});
@@ -599,16 +600,17 @@ auto transform_v_frontier_e(raft::handle_t const& handle,
             get_dataframe_buffer_begin(aggregate_value_buffer));
       }
     } else {
-      raft::grid_1d_thread_t update_grid(local_frontier_sizes[i],
-                                         detail::transform_v_frontier_e_kernel_block_size,
-                                         handle.get_device_properties().maxGridSize[0]);
+      raft::grid_1d_thread_t update_grid(
+        (local_frontier_offsets[i + 1] - local_frontier_offsets[i]),
+        detail::transform_v_frontier_e_kernel_block_size,
+        handle.get_device_properties().maxGridSize[0]);
 
       detail::transform_v_frontier_e_hypersparse_or_low_degree<false, GraphViewType>
         <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
           edge_partition,
           edge_partition_frontier_key_first,
           thrust::make_counting_iterator(size_t{0}),
-          thrust::make_counting_iterator(local_frontier_sizes[i]),
+          thrust::make_counting_iterator(local_frontier_offsets[i + 1] - local_frontier_offsets[i]),
           edge_partition_src_value_input,
           edge_partition_dst_value_input,
           edge_partition_e_value_input,
