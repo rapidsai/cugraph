@@ -1258,8 +1258,11 @@ remove_self_loops(raft::handle_t const& handle,
  * @param keep_min_value_edge Flag indicating whether to keep an arbitrary edge (false) or the
  * minimum value edge (true) among the edges in a multi-edge. Relevant only if @p
  * edgelist_weights.has_value() | @p edgelist_edge_ids.has_value() | @p
- * edgelist_edge_types.has_value() is true. Setting this to true incurs performance overhead as this
- * requires more comparisons.
+ * edgelist_edge_types.has_value() | @p edgelist_edge_start_times.has_value() | @p
+ * edgelist_edge_end_times.has_value()is true. If each edge has more than one property values, edge
+ * property values are compared in the order of weight (if valid), edge ID (if valid), edge type (if
+ * vlaid), edge start time (if valid) and edge end time (if valid). Setting this to true incurs
+ * performance overhead as this requires more comparisons.
  * @return Tuple of vectors storing edge sources, destinations, optional weights, optional edge ids,
  * optional edge types, optional edge start times and optional edge end times.
  */
