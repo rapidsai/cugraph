@@ -108,7 +108,7 @@ def force_atlas2(input_graph,
             order="F",
             dtype=cp.float32)
 
-    pos_ptr = pos.device_ctypes_pointer.value
+    pos_ptr = pos.data.ptr
 
     if input_graph.edgelist.weights \
             and input_graph.edgelist.edgelist_df['weights'].dtype == np.float64:
