@@ -53,7 +53,7 @@ void unrenumber_local_int_edges(
   std::vector<vertex_t*> const& edgelist_minors /* [INOUT] */,
   std::vector<size_t> const& edgelist_edge_counts,
   vertex_t const* renumber_map_labels,
-  std::vector<vertex_t> const& vertex_partition_range_lasts,
+  raft::host_span<vertex_t const> vertex_partition_range_lasts,
   std::optional<std::vector<std::vector<size_t>>> const& edgelist_intra_partition_segment_offsets,
   bool do_expensive_check)
 {
@@ -542,7 +542,7 @@ void unrenumber_int_vertices(raft::handle_t const& handle,
                              vertex_t* vertices /* [INOUT] */,
                              size_t num_vertices,
                              vertex_t const* renumber_map_labels,
-                             std::vector<vertex_t> const& vertex_partition_range_lasts,
+                             raft::host_span<vertex_t const> vertex_partition_range_lasts,
                              bool do_expensive_check)
 {
   if (do_expensive_check) {
@@ -633,7 +633,7 @@ std::enable_if_t<multi_gpu, void> unrenumber_local_int_edges(
   std::vector<vertex_t*> const& edgelist_dsts /* [INOUT] */,
   std::vector<size_t> const& edgelist_edge_counts,
   vertex_t const* renumber_map_labels,
-  std::vector<vertex_t> const& vertex_partition_range_lasts,
+  raft::host_span<vertex_t const> vertex_partition_range_lasts,
   std::optional<std::vector<std::vector<size_t>>> const& edgelist_intra_partition_segment_offsets,
   bool do_expensive_check)
 {
