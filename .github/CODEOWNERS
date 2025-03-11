@@ -19,17 +19,21 @@ cpp/               @rapidsai/cugraph-cpp-codeowners
 python/            @rapidsai/cugraph-python-codeowners
 
 #cmake code owners
-**/CMakeLists.txt  @rapidsai/cugraph-cmake-codeowners
+CMakeLists.txt     @rapidsai/cugraph-cmake-codeowners
 **/cmake/          @rapidsai/cugraph-cmake-codeowners
+*.cmake            @rapidsai/cugraph-cmake-codeowners
 
 #CI code owners
 /.github/                @rapidsai/ci-codeowners
 /ci/                     @rapidsai/ci-codeowners
-/.pre-commit-config.yaml @rapidsai/ci-codeowners
 
 #packaging code owners
-/.devcontainer/   @rapidsai/packaging-codeowners
-/conda/            @rapidsai/packaging-codeowners
-/dependencies.yaml @rapidsai/packaging-codeowners
-/build.sh          @rapidsai/packaging-codeowners
-pyproject.toml     @rapidsai/packaging-codeowners
+/.pre-commit-config.yaml @rapidsai/packaging-codeowners
+/.devcontainer/          @rapidsai/packaging-codeowners
+/conda/                  @rapidsai/packaging-codeowners
+dependencies.yaml        @rapidsai/packaging-codeowners
+/build.sh                @rapidsai/packaging-codeowners
+pyproject.toml           @rapidsai/packaging-codeowners
+
+# notebooks code owners
+*.ipynb @rapidsai/cugraph-notebook-codeowners

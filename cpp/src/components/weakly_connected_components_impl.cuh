@@ -16,7 +16,7 @@
 #pragma once
 
 #include "prims/fill_edge_src_dst_property.cuh"
-#include "prims/transform_reduce_v_frontier_outgoing_e_by_dst.cuh"
+#include "prims/transform_reduce_if_v_frontier_outgoing_e_by_dst.cuh"
 #include "prims/update_edge_src_dst_property.cuh"
 #include "prims/update_v_frontier.cuh"
 #include "prims/vertex_frontier.cuh"
@@ -26,6 +26,7 @@
 #include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
+#include <cugraph/shuffle_functions.hpp>
 #include <cugraph/utilities/device_comm.hpp>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/shuffle_comm.cuh>
@@ -184,16 +185,29 @@ accumulate_new_roots(raft::handle_t const& handle,
 
 template <typename vertex_t, typename EdgeIterator>
 struct e_op_t {
+  __device__ vertex_t operator()(thrust::tuple<vertex_t, vertex_t> tagged_src,
+                                 vertex_t dst,
+                                 cuda::std::nullopt_t,
+                                 cuda::std::nullopt_t,
+                                 cuda::std::nullopt_t) const
+  {
+    auto tag = thrust::get<1>(tagged_src);
+    return tag;
+  }
+};
+
+template <typename vertex_t, typename EdgeIterator>
+struct pred_op_t {
   detail::edge_partition_endpoint_property_device_view_t<vertex_t, vertex_t*> dst_components{};
   vertex_t dst_first{};
   EdgeIterator edge_buffer_first{};
   size_t* num_edge_inserts{};
 
-  __device__ cuda::std::optional<vertex_t> operator()(thrust::tuple<vertex_t, vertex_t> tagged_src,
-                                                      vertex_t dst,
-                                                      cuda::std::nullopt_t,
-                                                      cuda::std::nullopt_t,
-                                                      cuda::std::nullopt_t) const
+  __device__ bool operator()(thrust::tuple<vertex_t, vertex_t> tagged_src,
+                             vertex_t dst,
+                             cuda::std::nullopt_t,
+                             cuda::std::nullopt_t,
+                             cuda::std::nullopt_t) const
   {
     auto tag        = thrust::get<1>(tagged_src);
     auto dst_offset = dst - dst_first;
@@ -207,8 +221,7 @@ struct e_op_t {
       *(edge_buffer_first + edge_idx) =
         tag >= old ? thrust::make_tuple(tag, old) : thrust::make_tuple(old, tag);
     }
-    return old == invalid_component_id<vertex_t>::value ? cuda::std::optional<vertex_t>{tag}
-                                                        : cuda::std::nullopt;
+    return old == invalid_component_id<vertex_t>::value;
   }
 };
 
@@ -553,14 +566,16 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
       resize_dataframe_buffer(edge_buffer, old_num_edge_inserts + max_pushes, handle.get_stream());
 
       auto new_frontier_tagged_vertex_buffer =
-        cugraph::transform_reduce_v_frontier_outgoing_e_by_dst(
+        cugraph::transform_reduce_if_v_frontier_outgoing_e_by_dst(
           handle,
           level_graph_view,
           vertex_frontier.bucket(bucket_idx_cur),
           edge_src_dummy_property_t{}.view(),
           edge_dst_dummy_property_t{}.view(),
           edge_dummy_property_t{}.view(),
-          e_op_t<vertex_t, decltype(get_dataframe_buffer_begin(edge_buffer))>{
+          e_op_t<vertex_t, decltype(get_dataframe_buffer_begin(edge_buffer))>{},
+          reduce_op::null(),
+          pred_op_t<vertex_t, decltype(get_dataframe_buffer_begin(edge_buffer))>{
             GraphViewType::is_multi_gpu
               ? detail::edge_partition_endpoint_property_device_view_t<vertex_t, vertex_t*>(
                   edge_dst_components.mutable_view())
@@ -569,16 +584,17 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
                                                                           vertex_t{0})),
             level_graph_view.local_edge_partition_dst_range_first(),
             get_dataframe_buffer_begin(edge_buffer),
-            num_edge_inserts.data()},
-          reduce_op::null());
+            num_edge_inserts.data()});
 
+      auto next_frontier_bucket_indices =
+        GraphViewType::is_multi_gpu ? std::vector<size_t>{bucket_idx_next, bucket_idx_conflict}
+                                    : std::vector<size_t>{bucket_idx_next};
       update_v_frontier(handle,
                         level_graph_view,
                         std::move(new_frontier_tagged_vertex_buffer),
                         vertex_frontier,
-                        GraphViewType::is_multi_gpu
-                          ? std::vector<size_t>{bucket_idx_next, bucket_idx_conflict}
-                          : std::vector<size_t>{bucket_idx_next},
+                        raft::host_span<size_t const>(next_frontier_bucket_indices.data(),
+                                                      next_frontier_bucket_indices.size()),
                         thrust::make_constant_iterator(0) /* dummy */,
                         thrust::make_discard_iterator() /* dummy */,
                         v_op_t<GraphViewType>{vertex_partition,
@@ -689,19 +705,16 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
                  std::ignore,
                  std::ignore,
                  std::ignore) =
-          detail::shuffle_ext_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning<
-            vertex_t,
-            edge_t,
-            weight_t,
-            edge_type_t,
-            int32_t>(handle,
-                     std::move(std::get<0>(edge_buffer)),
-                     std::move(std::get<1>(edge_buffer)),
-                     std::nullopt,
-                     std::nullopt,
-                     std::nullopt,
-                     std::nullopt,
-                     std::nullopt);
+          shuffle_ext_edges<vertex_t, edge_t, weight_t, edge_type_t, int32_t>(
+            handle,
+            std::move(std::get<0>(edge_buffer)),
+            std::move(std::get<1>(edge_buffer)),
+            std::nullopt,
+            std::nullopt,
+            std::nullopt,
+            std::nullopt,
+            std::nullopt,
+            GraphViewType::is_storage_transposed);
         auto edge_first = get_dataframe_buffer_begin(edge_buffer);
         auto edge_last  = get_dataframe_buffer_end(edge_buffer);
         thrust::sort(handle.get_thrust_policy(), edge_first, edge_last);

@@ -73,6 +73,8 @@ std::tuple<size_t, size_t> check_edge_bias_values(
  * @param active_majors Device vector containing all the vertex id that are processed by
  * gpus in the column communicator
  * @param active_major_labels Optional device vector containing labels for each device vector
+ * @param gather_flags Optional host span indicating whether to gather edge or not for each edge
+ * type. @p gather_flags.has_value() should coincide with @p edge_type_view.has_value().
  * @return A tuple of device vectors containing the majors, minors, optional weights,
  *  optional edge ids, optional edge types and optional label
  */
@@ -96,6 +98,7 @@ gather_one_hop_edgelist(
   std::optional<edge_property_view_t<edge_t, edge_type_t const*>> edge_type_view,
   raft::device_span<vertex_t const> active_majors,
   std::optional<raft::device_span<label_t const>> active_major_labels,
+  std::optional<raft::host_span<uint8_t const>> gather_flags,
   bool do_expensive_check = false);
 
 /**
@@ -118,7 +121,7 @@ gather_one_hop_edgelist(
  * @param active_majors Device vector containing all the vertex id that are processed by
  * gpus in the column communicator
  * @param active_major_labels Optional device vector containing labels for each device vector
- * @param fanout How many edges to sample for each vertex
+ * @param fan_out How many edges to sample for each vertex per edge type
  * @param with_replacement If true sample with replacement, otherwise sample without replacement
  * @param invalid_vertex_id Value to use for an invalid vertex
  * @return A tuple of device vectors containing the majors, minors, optional weights,
@@ -146,7 +149,7 @@ sample_edges(raft::handle_t const& handle,
              raft::random::RngState& rng_state,
              raft::device_span<vertex_t const> active_majors,
              std::optional<raft::device_span<label_t const>> active_major_labels,
-             size_t fanout,
+             raft::host_span<size_t const> fan_out,
              bool with_replacement);
 
 /**
@@ -166,7 +169,6 @@ sample_edges(raft::handle_t const& handle,
  * were previously used as sources.  These vertices (and optional labels) will be updated based
  * on the contents of sampled_src_vertices/sampled_src_vertex_labels and the update will be part
  * of the return value.
- * @param vertex_partition Vertex partition view from the graph view
  * @param vertex_partition_range_lasts End of range information from graph view
  * @param prior_sources_behavior Identifies how to treat sources in each hop
  * @param dedupe_sources boolean flag, if true then if a vertex v appears as a destination in hop X
@@ -191,8 +193,7 @@ prepare_next_frontier(
   std::optional<raft::device_span<label_t const>> sampled_dst_vertex_labels,
   std::optional<std::tuple<rmm::device_uvector<vertex_t>,
                            std::optional<rmm::device_uvector<label_t>>>>&& vertex_used_as_source,
-  vertex_partition_view_t<vertex_t, multi_gpu> vertex_partition,
-  std::vector<vertex_t> const& vertex_partition_range_lasts,
+  raft::host_span<vertex_t const> vertex_partition_range_lasts,
   prior_sources_behavior_t prior_sources_behavior,
   bool dedupe_sources,
   bool do_expensive_check);

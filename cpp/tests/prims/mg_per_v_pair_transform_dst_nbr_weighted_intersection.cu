@@ -105,6 +105,8 @@ class Tests_MGPerVPairTransformDstNbrIntersection
   template <typename vertex_t, typename edge_t, typename weight_t>
   void run_current_test(Prims_Usecase const& prims_usecase, input_usecase_t const& input_usecase)
   {
+    using edge_type_t = int32_t;
+
     HighResTimer hr_timer{};
 
     auto const comm_rank = handle_->get_comms().get_rank();
@@ -264,7 +266,7 @@ class Tests_MGPerVPairTransformDstNbrIntersection
                                  weight_t>>
         sg_edge_weight{std::nullopt};
 
-      std::tie(sg_graph, sg_edge_weight, std::ignore, std::ignore) =
+      std::tie(sg_graph, sg_edge_weight, std::ignore, std::ignore, std::ignore) =
         cugraph::test::mg_graph_to_sg_graph(
           *handle_,
           mg_graph_view,
@@ -272,6 +274,7 @@ class Tests_MGPerVPairTransformDstNbrIntersection
             ? std::make_optional(mg_edge_weight_view)
             : std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>>{std::nullopt},
           std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
+          std::optional<cugraph::edge_property_view_t<edge_t, edge_type_t const*>>{std::nullopt},
           std::make_optional<raft::device_span<vertex_t const>>((*mg_renumber_map).data(),
                                                                 (*mg_renumber_map).size()),
           false);

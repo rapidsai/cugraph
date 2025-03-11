@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2023-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,6 @@
 #pragma once
 
 #include "detail/graph_partition_utils.cuh"
-#include "from_cugraph_ops/sampling.hpp"
 
 #include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
@@ -100,16 +99,22 @@ rmm::device_uvector<vertex_t> select_random_vertices(
     this_gpu_select_count = select_count;
   }
 
-  std::vector<vertex_t> partition_range_lasts;
+  std::optional<std::vector<vertex_t>> partition_range_last_vector{std::nullopt};
+  raft::host_span<vertex_t const> partition_range_lasts{};
 
   vertex_t local_int_vertex_first{0};
   vertex_t local_int_vertex_last{given_set ? static_cast<vertex_t>(given_set->size())
                                            : graph_view.number_of_vertices()};
 
   if constexpr (multi_gpu) {
-    partition_range_lasts = given_set ? cugraph::partition_manager::compute_partition_range_lasts(
-                                          handle, static_cast<vertex_t>((*given_set).size()))
-                                      : graph_view.vertex_partition_range_lasts();
+    if (given_set) {
+      partition_range_last_vector = cugraph::partition_manager::compute_partition_range_lasts(
+        handle, static_cast<vertex_t>((*given_set).size()));
+      partition_range_lasts = raft::host_span<vertex_t const>(partition_range_last_vector->data(),
+                                                              partition_range_last_vector->size());
+    } else {
+      partition_range_lasts = graph_view.vertex_partition_range_lasts();
+    }
 
     auto& comm                 = handle.get_comms();
     auto const comm_size       = comm.get_size();
@@ -195,7 +200,10 @@ rmm::device_uvector<vertex_t> select_random_vertices(
       }
 
       std::tie(mg_sample_buffer, std::ignore) = cugraph::shuffle_values(
-        handle.get_comms(), mg_sample_buffer.begin(), tx_value_counts, handle.get_stream());
+        handle.get_comms(),
+        mg_sample_buffer.begin(),
+        raft::host_span<size_t const>(tx_value_counts.data(), tx_value_counts.size()),
+        handle.get_stream());
 
       {  // random shuffle (use this instead of thrust::shuffle to use raft::random::RngState)
         rmm::device_uvector<float> random_numbers(mg_sample_buffer.size(), handle.get_stream());

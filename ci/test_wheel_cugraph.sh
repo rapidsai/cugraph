@@ -11,7 +11,7 @@ RAPIDS_PY_WHEEL_NAME="libcugraph_${RAPIDS_PY_CUDA_SUFFIX}" rapids-download-wheel
 RAPIDS_PY_WHEEL_NAME="pylibcugraph_${RAPIDS_PY_CUDA_SUFFIX}" rapids-download-wheels-from-s3 python ./local-pylibcugraph-dep
 
 # echo to expand wildcard before adding `[extra]` requires for pip
-python -m pip install \
+rapids-pip-retry install \
     "$(echo ./dist/cugraph*.whl)[test]" \
     ./local-pylibcugraph-dep/pylibcugraph*.whl \
     ./local-libcugraph-dep/libcugraph*.whl

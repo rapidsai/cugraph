@@ -68,6 +68,8 @@ def node2vec(ResourceHandle resource_handle,
     """
     Computes random walks under node2vec sampling procedure.
 
+    This API is deprecated call node2vec_random_walks instead
+
     Parameters
     ----------
     resource_handle : ResourceHandle

@@ -365,12 +365,13 @@ struct node2vec_selector {
       aggregate_offsets.set_element_to_zero_async(aggregate_offsets.size() - 1,
                                                   handle.get_stream());
 
-      cugraph::device_allgatherv(handle.get_subcomm(cugraph::partition_manager::minor_comm_name()),
-                                 intersection_counts.begin() + 1,
-                                 aggregate_offsets.begin(),
-                                 recv_counts,
-                                 displacements,
-                                 handle.get_stream());
+      cugraph::device_allgatherv(
+        handle.get_subcomm(cugraph::partition_manager::minor_comm_name()),
+        intersection_counts.begin() + 1,
+        aggregate_offsets.begin(),
+        raft::host_span<size_t const>(recv_counts.data(), recv_counts.size()),
+        raft::host_span<size_t const>(displacements.data(), displacements.size()),
+        handle.get_stream());
 
       thrust::exclusive_scan(handle.get_thrust_policy(),
                              aggregate_offsets.begin(),
@@ -379,21 +380,23 @@ struct node2vec_selector {
 
       aggregate_currents.resize(displacements.back() + recv_counts.back(), handle.get_stream());
 
-      cugraph::device_allgatherv(handle.get_subcomm(cugraph::partition_manager::minor_comm_name()),
-                                 current_vertices.begin(),
-                                 aggregate_currents.begin(),
-                                 recv_counts,
-                                 displacements,
-                                 handle.get_stream());
+      cugraph::device_allgatherv(
+        handle.get_subcomm(cugraph::partition_manager::minor_comm_name()),
+        current_vertices.begin(),
+        aggregate_currents.begin(),
+        raft::host_span<size_t const>(recv_counts.data(), recv_counts.size()),
+        raft::host_span<size_t const>(displacements.data(), displacements.size()),
+        handle.get_stream());
 
       aggregate_previous.resize(displacements.back() + recv_counts.back(), handle.get_stream());
 
-      cugraph::device_allgatherv(handle.get_subcomm(cugraph::partition_manager::minor_comm_name()),
-                                 (*previous_vertices).begin(),
-                                 aggregate_previous.begin(),
-                                 recv_counts,
-                                 displacements,
-                                 handle.get_stream());
+      cugraph::device_allgatherv(
+        handle.get_subcomm(cugraph::partition_manager::minor_comm_name()),
+        (*previous_vertices).begin(),
+        aggregate_previous.begin(),
+        raft::host_span<size_t const>(recv_counts.data(), recv_counts.size()),
+        raft::host_span<size_t const>(displacements.data(), displacements.size()),
+        handle.get_stream());
 
       recv_counts = cugraph::host_scalar_allgather(
         handle.get_subcomm(cugraph::partition_manager::minor_comm_name()),
@@ -405,12 +408,13 @@ struct node2vec_selector {
 
       aggregate_indices.resize(displacements.back() + recv_counts.back(), handle.get_stream());
 
-      cugraph::device_allgatherv(handle.get_subcomm(cugraph::partition_manager::minor_comm_name()),
-                                 intersection_indices.begin(),
-                                 aggregate_indices.begin(),
-                                 recv_counts,
-                                 displacements,
-                                 handle.get_stream());
+      cugraph::device_allgatherv(
+        handle.get_subcomm(cugraph::partition_manager::minor_comm_name()),
+        intersection_indices.begin(),
+        aggregate_indices.begin(),
+        raft::host_span<size_t const>(recv_counts.data(), recv_counts.size()),
+        raft::host_span<size_t const>(displacements.data(), displacements.size()),
+        handle.get_stream());
     }
 
     cugraph::vertex_frontier_t<vertex_t, tag_t, GraphViewType::is_multi_gpu, false> vertex_frontier(

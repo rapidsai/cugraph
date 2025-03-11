@@ -1504,6 +1504,7 @@ def test_renumber_by_type_only_default_type(dask_client):
 
 
 @pytest.mark.slow
+@pytest.mark.mg
 @pytest.mark.parametrize("N", [1, 3, 10, 30])
 def bench_add_edges_cyber(benchmark, dask_client, N):
     from cugraph.experimental import MGPropertyGraph
@@ -1527,6 +1528,7 @@ def bench_add_edges_cyber(benchmark, dask_client, N):
 
 
 @pytest.mark.slow
+@pytest.mark.mg
 @pytest.mark.parametrize("n_rows", [1_000_000])
 @pytest.mark.parametrize("n_feats", [128])
 def bench_get_vector_features(benchmark, dask_client, n_rows, n_feats):
