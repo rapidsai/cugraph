@@ -234,21 +234,21 @@ struct uniform_neighbor_sampling_functor : public cugraph::c_api::abstract_funct
           options_.dedupe_sources_,
           do_expensive_check_);
 
-      std::vector<vertex_t> vertex_partition_lasts = graph_view.vertex_partition_range_lasts();
+      cugraph::unrenumber_int_vertices<vertex_t, multi_gpu>(
+        handle_,
+        src.data(),
+        src.size(),
+        number_map->data(),
+        graph_view.vertex_partition_range_lasts(),
+        do_expensive_check_);
 
-      cugraph::unrenumber_int_vertices<vertex_t, multi_gpu>(handle_,
-                                                            src.data(),
-                                                            src.size(),
-                                                            number_map->data(),
-                                                            vertex_partition_lasts,
-                                                            do_expensive_check_);
-
-      cugraph::unrenumber_int_vertices<vertex_t, multi_gpu>(handle_,
-                                                            dst.data(),
-                                                            dst.size(),
-                                                            number_map->data(),
-                                                            vertex_partition_lasts,
-                                                            do_expensive_check_);
+      cugraph::unrenumber_int_vertices<vertex_t, multi_gpu>(
+        handle_,
+        dst.data(),
+        dst.size(),
+        number_map->data(),
+        graph_view.vertex_partition_range_lasts(),
+        do_expensive_check_);
 
       std::optional<rmm::device_uvector<vertex_t>> majors{std::nullopt};
       rmm::device_uvector<vertex_t> minors(0, handle_.get_stream());
@@ -585,21 +585,21 @@ struct biased_neighbor_sampling_functor : public cugraph::c_api::abstract_functo
           options_.dedupe_sources_,
           do_expensive_check_);
 
-      std::vector<vertex_t> vertex_partition_lasts = graph_view.vertex_partition_range_lasts();
+      cugraph::unrenumber_int_vertices<vertex_t, multi_gpu>(
+        handle_,
+        src.data(),
+        src.size(),
+        number_map->data(),
+        graph_view.vertex_partition_range_lasts(),
+        do_expensive_check_);
 
-      cugraph::unrenumber_int_vertices<vertex_t, multi_gpu>(handle_,
-                                                            src.data(),
-                                                            src.size(),
-                                                            number_map->data(),
-                                                            vertex_partition_lasts,
-                                                            do_expensive_check_);
-
-      cugraph::unrenumber_int_vertices<vertex_t, multi_gpu>(handle_,
-                                                            dst.data(),
-                                                            dst.size(),
-                                                            number_map->data(),
-                                                            vertex_partition_lasts,
-                                                            do_expensive_check_);
+      cugraph::unrenumber_int_vertices<vertex_t, multi_gpu>(
+        handle_,
+        dst.data(),
+        dst.size(),
+        number_map->data(),
+        graph_view.vertex_partition_range_lasts(),
+        do_expensive_check_);
 
       std::optional<rmm::device_uvector<vertex_t>> majors{std::nullopt};
       rmm::device_uvector<vertex_t> minors(0, handle_.get_stream());
@@ -1092,21 +1092,21 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
         }
       }
 
-      std::vector<vertex_t> vertex_partition_lasts = graph_view.vertex_partition_range_lasts();
+      cugraph::unrenumber_int_vertices<vertex_t, multi_gpu>(
+        handle_,
+        src.data(),
+        src.size(),
+        number_map->data(),
+        graph_view.vertex_partition_range_lasts(),
+        do_expensive_check_);
 
-      cugraph::unrenumber_int_vertices<vertex_t, multi_gpu>(handle_,
-                                                            src.data(),
-                                                            src.size(),
-                                                            number_map->data(),
-                                                            vertex_partition_lasts,
-                                                            do_expensive_check_);
-
-      cugraph::unrenumber_int_vertices<vertex_t, multi_gpu>(handle_,
-                                                            dst.data(),
-                                                            dst.size(),
-                                                            number_map->data(),
-                                                            vertex_partition_lasts,
-                                                            do_expensive_check_);
+      cugraph::unrenumber_int_vertices<vertex_t, multi_gpu>(
+        handle_,
+        dst.data(),
+        dst.size(),
+        number_map->data(),
+        graph_view.vertex_partition_range_lasts(),
+        do_expensive_check_);
 
       std::optional<rmm::device_uvector<vertex_t>> majors{std::nullopt};
       rmm::device_uvector<vertex_t> minors(0, handle_.get_stream());

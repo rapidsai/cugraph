@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2023-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -32,7 +32,7 @@ namespace mtmg {
 template rmm::device_uvector<float> vertex_result_view_t<float>::gather(
   handle_t const& handle,
   raft::device_span<int64_t const> vertices,
-  std::vector<int64_t> const& vertex_partition_range_lasts,
+  raft::host_span<int64_t const> vertex_partition_range_lasts,
   vertex_partition_view_t<int64_t, true> vertex_partition_view,
   std::optional<cugraph::mtmg::renumber_map_view_t<int64_t>>& renumber_map_view,
   float default_value);
@@ -40,7 +40,7 @@ template rmm::device_uvector<float> vertex_result_view_t<float>::gather(
 template rmm::device_uvector<double> vertex_result_view_t<double>::gather(
   handle_t const& handle,
   raft::device_span<int64_t const> vertices,
-  std::vector<int64_t> const& vertex_partition_range_lasts,
+  raft::host_span<int64_t const> vertex_partition_range_lasts,
   vertex_partition_view_t<int64_t, true> vertex_partition_view,
   std::optional<cugraph::mtmg::renumber_map_view_t<int64_t>>& renumber_map_view,
   double default_value);
@@ -48,7 +48,7 @@ template rmm::device_uvector<double> vertex_result_view_t<double>::gather(
 template rmm::device_uvector<int64_t> vertex_result_view_t<int64_t>::gather(
   handle_t const& handle,
   raft::device_span<int64_t const> vertices,
-  std::vector<int64_t> const& vertex_partition_range_lasts,
+  raft::host_span<int64_t const> vertex_partition_range_lasts,
   vertex_partition_view_t<int64_t, true> vertex_partition_view,
   std::optional<cugraph::mtmg::renumber_map_view_t<int64_t>>& renumber_map_view,
   int64_t default_value);
