@@ -141,14 +141,11 @@ struct bfs_functor : public abstract_functor {
       raft::copy(vertex_ids.data(), number_map->data(), vertex_ids.size(), handle_.get_stream());
 
       if (compute_predecessors_) {
-        std::vector<vertex_t> vertex_partition_range_lasts =
-          graph_view.vertex_partition_range_lasts();
-
         unrenumber_int_vertices<vertex_t, multi_gpu>(handle_,
                                                      predecessors.data(),
                                                      predecessors.size(),
                                                      number_map->data(),
-                                                     vertex_partition_range_lasts,
+                                                     graph_view.vertex_partition_range_lasts(),
                                                      do_expensive_check_);
       }
 

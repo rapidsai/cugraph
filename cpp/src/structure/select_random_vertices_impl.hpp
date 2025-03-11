@@ -99,16 +99,22 @@ rmm::device_uvector<vertex_t> select_random_vertices(
     this_gpu_select_count = select_count;
   }
 
-  std::vector<vertex_t> partition_range_lasts;
+  std::optional<std::vector<vertex_t>> partition_range_last_vector{std::nullopt};
+  raft::host_span<vertex_t const> partition_range_lasts{};
 
   vertex_t local_int_vertex_first{0};
   vertex_t local_int_vertex_last{given_set ? static_cast<vertex_t>(given_set->size())
                                            : graph_view.number_of_vertices()};
 
   if constexpr (multi_gpu) {
-    partition_range_lasts = given_set ? cugraph::partition_manager::compute_partition_range_lasts(
-                                          handle, static_cast<vertex_t>((*given_set).size()))
-                                      : graph_view.vertex_partition_range_lasts();
+    if (given_set) {
+      partition_range_last_vector = cugraph::partition_manager::compute_partition_range_lasts(
+        handle, static_cast<vertex_t>((*given_set).size()));
+      partition_range_lasts = raft::host_span<vertex_t const>(partition_range_last_vector->data(),
+                                                              partition_range_last_vector->size());
+    } else {
+      partition_range_lasts = graph_view.vertex_partition_range_lasts();
+    }
 
     auto& comm                 = handle.get_comms();
     auto const comm_size       = comm.get_size();
