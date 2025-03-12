@@ -15,9 +15,9 @@
  */
 #pragma once
 
+#include "prims/fill_edge_src_dst_property.cuh"
 #include "prims/reduce_v.cuh"
 #include "prims/transform_reduce_if_v_frontier_outgoing_e_by_dst.cuh"
-#include "prims/update_edge_src_dst_property.cuh"
 #include "prims/update_v_frontier.cuh"
 #include "prims/vertex_frontier.cuh"
 
@@ -91,7 +91,7 @@ void core_number(raft::handle_t const& handle,
                     "Invalid input argument: graph_view has self-loops.");
   }
 
-  // initialize core_numbers to degrees
+  // initialize core_numbers to degrees (upper-bound)
 
   if (graph_view.is_symmetric()) {  // in-degree == out-degree
     auto out_degrees = graph_view.compute_out_degrees(handle);
@@ -163,9 +163,32 @@ void core_number(raft::handle_t const& handle,
 
   vertex_frontier_t<vertex_t, void, multi_gpu, true> vertex_frontier(handle, num_buckets);
 
-  edge_dst_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>, edge_t> dst_core_numbers(
+  edge_dst_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>, bool> edge_dst_valids(
     handle, graph_view);
-  update_edge_dst_property(handle, graph_view, core_numbers, dst_core_numbers.mutable_view());
+  fill_edge_dst_property(handle, graph_view, edge_dst_valids.mutable_view(), true);
+  if (!graph_view.is_symmetric() &&
+      degree_type != k_core_degree_type_t::INOUT) {  // 0 core number vertex may have non-zero
+                                                     // in|out-degrees (so still can be accessed)
+    rmm::device_uvector<vertex_t> zero_degree_vertices(
+      graph_view.local_vertex_partition_range_size() - remaining_vertices.size(),
+      handle.get_stream());
+    thrust::copy_if(
+      handle.get_thrust_policy(),
+      thrust::make_counting_iterator(graph_view.local_vertex_partition_range_first()),
+      thrust::make_counting_iterator(graph_view.local_vertex_partition_range_last()),
+      zero_degree_vertices.begin(),
+      [core_numbers, v_first = graph_view.local_vertex_partition_range_first()] __device__(auto v) {
+        return core_numbers[v - v_first] == edge_t{0};
+      });
+    fill_edge_dst_property(handle,
+                           graph_view,
+                           zero_degree_vertices.begin(),
+                           zero_degree_vertices.end(),
+                           edge_dst_valids.mutable_view(),
+                           false);
+  } else {  // skip invaliding 0 core number vertices as they won't be accessed anyways
+    /* nothing to do */
+  }
 
   auto k = std::max(k_first, size_t{2});  // degree 0|1 vertices belong to 0|1-core
   if (graph_view.is_symmetric() && (degree_type == k_core_degree_type_t::INOUT) &&
@@ -202,27 +225,35 @@ void core_number(raft::handle_t const& handle,
                    : edge_t{1};
     if (vertex_frontier.bucket(bucket_idx_cur).aggregate_size() > 0) {
       do {
+        fill_edge_dst_property(handle,
+                               graph_view,
+                               vertex_frontier.bucket(bucket_idx_cur).begin(),
+                               vertex_frontier.bucket(bucket_idx_cur).end(),
+                               edge_dst_valids.mutable_view(),
+                               false);
+
         // FIXME: If most vertices have core numbers less than k, (dst_val >= k) will be mostly
         // false leading to too many unnecessary edge traversals (this is especially problematic if
         // the number of distinct core numbers in [k_first, std::min(max_degree, k_last)] is large).
         // There are two potential solutions: 1) extract a sub-graph and work on the sub-graph & 2)
         // mask-out/delete edges.
-        if (graph_view.is_symmetric() || ((degree_type == k_core_degree_type_t::IN) ||
-                                          (degree_type == k_core_degree_type_t::INOUT))) {
+        if (graph_view.is_symmetric() ||
+            ((degree_type == k_core_degree_type_t::IN) ||
+             (degree_type == k_core_degree_type_t::INOUT))) {  // decrement in-degrees
           auto [new_frontier_vertex_buffer, delta_buffer] =
             cugraph::transform_reduce_if_v_frontier_outgoing_e_by_dst(
               handle,
               graph_view,
               vertex_frontier.bucket(bucket_idx_cur),
               edge_src_dummy_property_t{}.view(),
-              dst_core_numbers.view(),
+              edge_dst_valids.view(),
               edge_dummy_property_t{}.view(),
               cuda::proclaim_return_type<edge_t>(
                 [k, delta] __device__(auto, auto, auto, auto, auto) { return delta; }),
               reduce_op::plus<edge_t>(),
               cuda::proclaim_return_type<bool>(
-                [k, delta] __device__(auto, auto, auto, edge_t dst_val, auto) {
-                  return dst_val >= k ? true : false;
+                [k, delta] __device__(auto, auto, auto, bool dst_valid, auto) {
+                  return dst_valid;
                 }));
 
           update_v_frontier(
@@ -249,19 +280,13 @@ void core_number(raft::handle_t const& handle,
             });
         }
 
-        if (!graph_view.is_symmetric() && ((degree_type == k_core_degree_type_t::OUT) ||
-                                           (degree_type == k_core_degree_type_t::INOUT))) {
+        if (!graph_view.is_symmetric() &&
+            ((degree_type == k_core_degree_type_t::OUT) ||
+             (degree_type == k_core_degree_type_t::INOUT))) {  // decrement out-degrees
           // FIXME: we can create a transposed copy of the input graph (note that currently,
           // transpose works only on graph_t (and does not work on graph_view_t)).
           CUGRAPH_FAIL("unimplemented.");
         }
-
-        update_edge_dst_property(handle,
-                                 graph_view,
-                                 vertex_frontier.bucket(bucket_idx_next).begin(),
-                                 vertex_frontier.bucket(bucket_idx_next).end(),
-                                 core_numbers,
-                                 dst_core_numbers.mutable_view());
 
         vertex_frontier.bucket(bucket_idx_next)
           .resize(static_cast<size_t>(thrust::distance(
