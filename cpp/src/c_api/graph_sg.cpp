@@ -263,6 +263,39 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
       std::optional<rmm::device_uvector<edge_time_t>> dummy_start_times{std::nullopt};
       std::optional<rmm::device_uvector<edge_time_t>> dummy_end_times{std::nullopt};
 
+      rmm::device_uvector<vertex_t> vertices(edgelist_srcs.size(), handle_.get_stream());
+
+      if (!renumber_) {
+        raft::copy<vertex_t>(
+          vertices.data(), edgelist_srcs.data(), edgelist_srcs.size(), handle_.get_stream());
+        
+        cugraph::detail::sort_ints(
+          handle_.get_stream(),
+          raft::device_span<vertex_t>{vertices.data(), vertices.size()});
+        
+        size_t unique_vertices_size = cugraph::detail::unique_ints(
+          handle_.get_stream(),
+          raft::device_span<vertex_t>{vertices.data(), vertices.size()});
+
+        vertices.resize(unique_vertices_size + edgelist_dsts.size(), handle_.get_stream());
+
+        raft::copy<vertex_t>(
+          vertices.data() + unique_vertices_size,
+          edgelist_dsts.data(),
+          edgelist_dsts.size(),
+          handle_.get_stream());
+
+        cugraph::detail::sort_ints(
+          handle_.get_stream(),
+          raft::device_span<vertex_t>{vertices.data(), vertices.size()});
+        
+        unique_vertices_size = cugraph::detail::unique_ints(
+          handle_.get_stream(),
+          raft::device_span<vertex_t>{vertices.data(), vertices.size()});
+        
+        vertices.resize(unique_vertices_size, handle_.get_stream());
+      }
+
       std::tie(*graph,
                new_edge_weights,
                new_edge_ids,
@@ -293,27 +326,6 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
         *number_map = std::move(new_number_map.value());
       } else {
         // Ensure vertices are numbered consecutively
-        rmm::device_uvector<vertex_t> vertices(edgelist_srcs.size(), handle_.get_stream());
-
-        raft::copy<vertex_t>(
-          vertices.data(), edgelist_srcs.data(), edgelist_srcs.size(), handle_.get_stream());
-        
-        cugraph::detail::sort_ints(
-          handle_.get_stream(),
-          raft::device_span<vertex_t>{vertices.data(), vertices.size()});
-        
-        cugraph::detail::unique_ints(
-          handle_.get_stream(),
-          raft::device_span<vertex_t>{vertices.data(), vertices.size()});
-        
-        auto unique_srcs_size = vertices.size();
-        vertices.resize(unique_srcs_size + edgelist_dsts.size(), handle_.get_stream());
-
-        raft::copy<vertex_t>(
-          vertices.data() + unique_srcs_size,
-          edgelist_dsts.data(),
-          edgelist_dsts.size(),
-          handle_.get_stream());
 
         number_map->resize(graph->number_of_vertices(), handle_.get_stream());
         cugraph::detail::sequence_fill(handle_.get_stream(),
