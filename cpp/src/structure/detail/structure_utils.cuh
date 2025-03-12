@@ -617,6 +617,8 @@ rmm::device_uvector<T> keep_flagged_elements(raft::handle_t const& handle,
 
   detail::copy_if_mask_set(
     handle, vector.begin(), vector.end(), keep_flags.begin(), result.begin());
+  vector.resize(0, handle.get_stream());
+  vector.shrink_to_fit(handle.get_stream());
 
   return result;
 }
