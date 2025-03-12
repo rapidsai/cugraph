@@ -292,11 +292,46 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
       if (renumber_) {
         *number_map = std::move(new_number_map.value());
       } else {
+        // Ensure vertices are numbered consecutively
+        rmm::device_uvector<vertex_t> vertices(edgelist_srcs.size(), handle_.get_stream());
+
+        raft::copy<vertex_t>(
+          vertices.data(), edgelist_srcs.data(), edgelist_srcs.size(), handle_.get_stream());
+        
+        cugraph::detail::sort_ints(
+          handle_.get_stream(),
+          raft::device_span<vertex_t>{vertices.data(), vertices.size()});
+        
+        cugraph::detail::unique_ints(
+          handle_.get_stream(),
+          raft::device_span<vertex_t>{vertices.data(), vertices.size()});
+        
+        auto unique_srcs_size = vertices.size();
+        vertices.resize(unique_srcs_size + edgelist_dsts.size(), handle_.get_stream());
+
+        raft::copy<vertex_t>(
+          vertices.data() + unique_srcs_size,
+          edgelist_dsts.data(),
+          edgelist_dsts.size(),
+          handle_.get_stream());
+
         number_map->resize(graph->number_of_vertices(), handle_.get_stream());
         cugraph::detail::sequence_fill(handle_.get_stream(),
                                        number_map->data(),
                                        number_map->size(),
                                        graph->view().local_vertex_partition_range_first());
+
+        auto is_consecutive = cugraph::detail::is_equal(
+                                handle_.get_stream(),
+                                raft::device_span<vertex_t>{vertices.data(), vertices.size()},
+                                raft::device_span<vertex_t>{number_map->data(), number_map->size()}
+                              );
+        
+        if (!is_consecutive) {
+          mark_error(CUGRAPH_INVALID_INPUT, "Vertex list must be numbered consecutively from 0 when 'renumber' is 'false'");
+          return;
+        }
+      
       }
 
       if (new_edge_weights) { *edge_weights = std::move(new_edge_weights.value()); }
