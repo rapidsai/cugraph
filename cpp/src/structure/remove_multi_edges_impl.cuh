@@ -61,6 +61,45 @@ struct hash_src_dst_pair {
   }
 };
 
+template <typename edge_t, typename weight_t, typename edge_type_t, typename edge_time_t>
+struct edge_value_compare_t {
+  cuda::std::optional<raft::device_span<weight_t const>> weights;
+  cuda::std::optional<raft::device_span<edge_t const>> edge_ids;
+  cuda::std::optional<raft::device_span<edge_type_t const>> edge_types;
+  cuda::std::optional<raft::device_span<edge_time_t const>> edge_start_times;
+  cuda::std::optional<raft::device_span<edge_time_t const>> edge_end_times;
+
+  __device__ bool operator()(edge_t l_idx, edge_t r_idx) const
+  {
+    if (weights) {
+      auto l_weight = (*weights)[l_idx];
+      auto r_weight = (*weights)[r_idx];
+      if (l_weight != r_weight) { return l_weight < r_weight; }
+    }
+    if (edge_ids) {
+      auto l_edge_id = (*edge_ids)[l_idx];
+      auto r_edge_id = (*edge_ids)[r_idx];
+      if (l_edge_id != r_edge_id) { return l_edge_id < r_edge_id; }
+    }
+    if (edge_types) {
+      auto l_edge_type = (*edge_types)[l_idx];
+      auto r_edge_type = (*edge_types)[r_idx];
+      if (l_edge_type != r_edge_type) { return l_edge_type < r_edge_type; }
+    }
+    if (edge_start_times) {
+      auto l_edge_start_time = (*edge_start_times)[l_idx];
+      auto r_edge_start_time = (*edge_start_times)[r_idx];
+      if (l_edge_start_time != r_edge_start_time) { return l_edge_start_time < r_edge_start_time; }
+    }
+    if (edge_end_times) {
+      auto l_edge_end_time = (*edge_end_times)[l_idx];
+      auto r_edge_end_time = (*edge_end_times)[r_idx];
+      if (l_edge_end_time != r_edge_end_time) { return l_edge_end_time < r_edge_end_time; }
+    }
+    return false;
+  }
+};
+
 template <typename vertex_t>
 std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> group_multi_edges(
   raft::handle_t const& handle,
@@ -102,17 +141,17 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> group_m
 template <typename vertex_t, typename edge_value_t>
 std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
-           dataframe_buffer_type_t<edge_value_t>>
+           rmm::device_uvector<edge_value_t>>
 group_multi_edges(raft::handle_t const& handle,
                   rmm::device_uvector<vertex_t>&& edgelist_srcs,
                   rmm::device_uvector<vertex_t>&& edgelist_dsts,
-                  dataframe_buffer_type_t<edge_value_t>&& edgelist_values,
+                  rmm::device_uvector<edge_value_t>&& edgelist_values,
                   size_t mem_frugal_threshold,
                   bool keep_min_value_edge)
 {
-  auto pair_first  = thrust::make_zip_iterator(edgelist_srcs.begin(), edgelist_dsts.begin());
-  auto value_first = get_dataframe_buffer_begin(edgelist_values);
-  auto edge_first  = thrust::make_zip_iterator(pair_first, value_first);
+  auto pair_first = thrust::make_zip_iterator(edgelist_srcs.begin(), edgelist_dsts.begin());
+  auto edge_first = thrust::make_zip_iterator(
+    edgelist_srcs.begin(), edgelist_dsts.begin(), edgelist_values.begin());
 
   if (edgelist_srcs.size() > mem_frugal_threshold) {
     // FIXME: Tuning parameter to address high frequency multi-edges
@@ -123,7 +162,7 @@ group_multi_edges(raft::handle_t const& handle,
 
     auto group_counts = groupby_and_count(pair_first,
                                           pair_first + edgelist_srcs.size(),
-                                          value_first,
+                                          edgelist_values.begin(),
                                           hash_src_dst_pair<vertex_t>{},
                                           num_groups,
                                           mem_frugal_threshold,
@@ -139,12 +178,14 @@ group_multi_edges(raft::handle_t const& handle,
                    edge_first + h_group_counts[0],
                    edge_first + edgelist_srcs.size());
     } else {
-      thrust::sort_by_key(
-        handle.get_thrust_policy(), pair_first, pair_first + h_group_counts[0], value_first);
+      thrust::sort_by_key(handle.get_thrust_policy(),
+                          pair_first,
+                          pair_first + h_group_counts[0],
+                          edgelist_values.begin());
       thrust::sort_by_key(handle.get_thrust_policy(),
                           pair_first + h_group_counts[0],
                           pair_first + edgelist_srcs.size(),
-                          value_first + h_group_counts[0]);
+                          edgelist_values.begin() + h_group_counts[0]);
     }
   } else {
     if (keep_min_value_edge) {
@@ -153,12 +194,96 @@ group_multi_edges(raft::handle_t const& handle,
       thrust::sort_by_key(handle.get_thrust_policy(),
                           pair_first,
                           pair_first + edgelist_srcs.size(),
-                          get_dataframe_buffer_begin(edgelist_values));
+                          edgelist_values.begin());
     }
   }
 
   return std::make_tuple(
     std::move(edgelist_srcs), std::move(edgelist_dsts), std::move(edgelist_values));
+}
+
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          typename edge_type_t,
+          typename edge_time_t>
+std::
+  tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>, rmm::device_uvector<edge_t>>
+  group_multi_edges(
+    raft::handle_t const& handle,
+    rmm::device_uvector<vertex_t>&& edgelist_srcs,
+    rmm::device_uvector<vertex_t>&& edgelist_dsts,
+    rmm::device_uvector<edge_t>&& edgelist_indices,
+    edge_value_compare_t<edge_t, weight_t, edge_type_t, edge_time_t> edge_value_compare,
+    size_t mem_frugal_threshold,
+    bool keep_min_value_edge)
+{
+  auto pair_first = thrust::make_zip_iterator(edgelist_srcs.begin(), edgelist_dsts.begin());
+  auto edge_first = thrust::make_zip_iterator(
+    edgelist_srcs.begin(), edgelist_dsts.begin(), edgelist_indices.begin());
+
+  auto edge_compare = [edge_value_compare] __device__(
+                        thrust::tuple<vertex_t, vertex_t, edge_t> lhs,
+                        thrust::tuple<vertex_t, vertex_t, edge_t> rhs) {
+    auto l_pair = thrust::make_tuple(thrust::get<0>(lhs), thrust::get<1>(lhs));
+    auto r_pair = thrust::make_tuple(thrust::get<0>(rhs), thrust::get<1>(rhs));
+    if (l_pair == r_pair) {
+      return edge_value_compare(thrust::get<2>(lhs), thrust::get<2>(rhs));
+    } else {
+      return l_pair < r_pair;
+    }
+  };
+
+  if (edgelist_srcs.size() > mem_frugal_threshold) {
+    // FIXME: Tuning parameter to address high frequency multi-edges
+    //        Defaulting to 2 which makes the code easier.  If
+    //        num_groups > 2 we can evaluate whether to find a good
+    //        midpoint to do 2 sorts, or if we should do more than 2 sorts.
+    const size_t num_groups{2};
+
+    auto group_counts = groupby_and_count(pair_first,
+                                          pair_first + edgelist_srcs.size(),
+                                          edgelist_indices.begin(),
+                                          hash_src_dst_pair<vertex_t>{},
+                                          num_groups,
+                                          mem_frugal_threshold,
+                                          handle.get_stream());
+
+    std::vector<size_t> h_group_counts(group_counts.size());
+    raft::update_host(
+      h_group_counts.data(), group_counts.data(), group_counts.size(), handle.get_stream());
+
+    if (keep_min_value_edge) {
+      thrust::sort(
+        handle.get_thrust_policy(), edge_first, edge_first + h_group_counts[0], edge_compare);
+      thrust::sort(handle.get_thrust_policy(),
+                   edge_first + h_group_counts[0],
+                   edge_first + edgelist_srcs.size(),
+                   edge_compare);
+    } else {
+      thrust::sort_by_key(handle.get_thrust_policy(),
+                          pair_first,
+                          pair_first + h_group_counts[0],
+                          edgelist_indices.begin());
+      thrust::sort_by_key(handle.get_thrust_policy(),
+                          pair_first + h_group_counts[0],
+                          pair_first + edgelist_srcs.size(),
+                          edgelist_indices.begin() + h_group_counts[0]);
+    }
+  } else {
+    if (keep_min_value_edge) {
+      thrust::sort(
+        handle.get_thrust_policy(), edge_first, edge_first + edgelist_srcs.size(), edge_compare);
+    } else {
+      thrust::sort_by_key(handle.get_thrust_policy(),
+                          pair_first,
+                          pair_first + edgelist_srcs.size(),
+                          edgelist_indices.begin());
+    }
+  }
+
+  return std::make_tuple(
+    std::move(edgelist_srcs), std::move(edgelist_dsts), std::move(edgelist_indices));
 }
 
 }  // namespace detail
@@ -270,12 +395,31 @@ remove_multi_edges(raft::handle_t const& handle,
       handle.get_stream(), property_position.data(), property_position.size(), edge_t{0});
 
     std::tie(edgelist_srcs, edgelist_dsts, property_position) =
-      detail::group_multi_edges<vertex_t, edge_t>(handle,
-                                                  std::move(edgelist_srcs),
-                                                  std::move(edgelist_dsts),
-                                                  std::move(property_position),
-                                                  mem_frugal_threshold,
-                                                  keep_min_value_edge);
+      detail::group_multi_edges<vertex_t, edge_t, weight_t, edge_type_t, edge_time_t>(
+        handle,
+        std::move(edgelist_srcs),
+        std::move(edgelist_dsts),
+        std::move(property_position),
+        detail::edge_value_compare_t<edge_t, weight_t, edge_type_t, edge_time_t>{
+          edgelist_weights ? cuda::std::make_optional(raft::device_span<weight_t const>(
+                               (*edgelist_weights).data(), (*edgelist_weights).size()))
+                           : cuda::std::nullopt,
+          edgelist_edge_ids ? cuda::std::make_optional(raft::device_span<edge_t const>(
+                                (*edgelist_edge_ids).data(), (*edgelist_edge_ids).size()))
+                            : cuda::std::nullopt,
+          edgelist_edge_types ? cuda::std::make_optional(raft::device_span<edge_type_t const>(
+                                  (*edgelist_edge_types).data(), (*edgelist_edge_types).size()))
+                              : cuda::std::nullopt,
+          edgelist_edge_start_times
+            ? cuda::std::make_optional(raft::device_span<edge_time_t const>(
+                (*edgelist_edge_start_times).data(), (*edgelist_edge_start_times).size()))
+            : cuda::std::nullopt,
+          edgelist_edge_end_times
+            ? cuda::std::make_optional(raft::device_span<edge_time_t const>(
+                (*edgelist_edge_end_times).data(), (*edgelist_edge_end_times).size()))
+            : cuda::std::nullopt},
+        mem_frugal_threshold,
+        keep_min_value_edge);
 
     if (edgelist_weights) {
       rmm::device_uvector<weight_t> tmp(property_position.size(), handle.get_stream());
