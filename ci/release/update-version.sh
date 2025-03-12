@@ -70,6 +70,7 @@ DEPENDENCIES=(
   rapids-dask-dependency
 )
 UCXX_DEPENDENCIES=(
+  libucxx
   ucx-py
 )
 for FILE in dependencies.yaml conda/environments/*.yaml; do
@@ -91,6 +92,7 @@ done
 
 # ucx-py version
 for FILE in conda/recipes/*/conda_build_config.yaml; do
+  sed_runner "/^libucxx_version:$/ {n;s/.*/  - \"${NEXT_UCXX_SHORT_TAG_PEP440}.*\"/}" "${FILE}"
   sed_runner "/^ucx_py_version:$/ {n;s/.*/  - \"${NEXT_UCXX_SHORT_TAG_PEP440}.*\"/}" "${FILE}"
 done
 
