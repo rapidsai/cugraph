@@ -200,8 +200,8 @@ class Tests_RemoveMultiEdges
   virtual void TearDown() {}
 
   template <typename vertex_t, typename edge_t>
-  void run_current_test(RemoveMultiEdges_Usecase const& remove_multi_edges_usecase,
-                        input_usecase_t const& input_usecase)
+  void run_current_test(
+    std::tuple<RemoveMultiEdges_Usecase const&, input_usecase_t const&> const& param)
   {
     using weight_t    = float;
     using edge_type_t = int32_t;
@@ -211,6 +211,8 @@ class Tests_RemoveMultiEdges
     bool constexpr multi_gpu        = false;
     bool constexpr test_weighted    = true;
     bool constexpr shuffle          = false;  // irrelevant if multi_gpu = false
+
+    auto [remove_multi_edges_usecase, input_usecase] = param;
 
     raft::handle_t handle{};
     HighResTimer hr_timer{};
@@ -425,8 +427,11 @@ class Tests_RemoveMultiEdges
         h_org_edges[i] = std::make_tuple(h_org_srcs[i], h_org_dsts[i], h_org_weights[i]);
       }
       std::sort(h_org_edges.begin(), h_org_edges.end());
-      h_org_edges.resize(
-        std::distance(h_org_edges.begin(), std::unique(h_org_edges.begin(), h_org_edges.end())));
+      h_org_edges.resize(std::distance(
+        h_org_edges.begin(),
+        std::unique(h_org_edges.begin(), h_org_edges.end(), [](auto lhs, auto rhs) {
+          return (std::get<0>(lhs) == std::get<0>(rhs)) && (std::get<1>(lhs) == std::get<1>(rhs));
+        })));
 
       auto h_result_srcs    = cugraph::test::to_host(handle, result_srcs);
       auto h_result_dsts    = cugraph::test::to_host(handle, result_dsts);
@@ -532,8 +537,11 @@ class Tests_RemoveMultiEdges
           h_org_srcs[i], h_org_dsts[i], h_org_weights[i], h_org_edge_ids[i], h_org_edge_types[i]);
       }
       std::sort(h_org_edges.begin(), h_org_edges.end());
-      h_org_edges.resize(
-        std::distance(h_org_edges.begin(), std::unique(h_org_edges.begin(), h_org_edges.end())));
+      h_org_edges.resize(std::distance(
+        h_org_edges.begin(),
+        std::unique(h_org_edges.begin(), h_org_edges.end(), [](auto lhs, auto rhs) {
+          return (std::get<0>(lhs) == std::get<0>(rhs)) && (std::get<1>(lhs) == std::get<1>(rhs));
+        })));
 
       auto h_result_srcs       = cugraph::test::to_host(handle, result_srcs);
       auto h_result_dsts       = cugraph::test::to_host(handle, result_dsts);
@@ -569,20 +577,17 @@ using Tests_RemoveMultiEdges_Rmat = Tests_RemoveMultiEdges<cugraph::test::Rmat_U
 
 TEST_P(Tests_RemoveMultiEdges_File, CheckInt32Int32)
 {
-  auto param = GetParam();
-  run_current_test<int32_t, int32_t>(std::get<0>(param), std::get<1>(param));
+  run_current_test<int32_t, int32_t>(override_File_Usecase_with_cmd_line_arguments(GetParam()));
 }
 
 TEST_P(Tests_RemoveMultiEdges_Rmat, CheckInt32Int32)
 {
-  auto param = GetParam();
-  run_current_test<int32_t, int32_t>(std::get<0>(param), std::get<1>(param));
+  run_current_test<int32_t, int32_t>(override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
 }
 
 TEST_P(Tests_RemoveMultiEdges_Rmat, CheckInt64Int64)
 {
-  auto param = GetParam();
-  run_current_test<int64_t, int64_t>(std::get<0>(param), std::get<1>(param));
+  run_current_test<int64_t, int64_t>(override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
 }
 
 INSTANTIATE_TEST_SUITE_P(

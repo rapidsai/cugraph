@@ -632,6 +632,10 @@ remove_multi_edges_impl(
                                            ? std::make_optional(rmm::device_uvector<edge_time_t>(
                                              tot_multi_edge_count, handle.get_stream()))
                                            : std::nullopt;
+      auto multi_edge_edgelist_indices = edgelist_indices
+                                           ? std::make_optional(rmm::device_uvector<size_t>(
+                                               tot_multi_edge_count, handle.get_stream()))
+                                           : std::nullopt;
 
       for (int j = 0; j < num_chunks; ++j) {
         auto input_start_offset  = group_disps[j][i] + non_multi_edge_counts[j][i];
@@ -651,8 +655,7 @@ remove_multi_edges_impl(
                          (*edgelist_weights)[j].begin() + input_start_offset,
                          (*edgelist_weights)[j].begin() + input_end_offset,
                          multi_edge_weights->begin() + output_start_offset);
-          } else {
-            assert(edge_property_count > 1);
+          } else {  // edge_property_count > 1
             thrust::gather(handle.get_thrust_policy(),
                            (*edgelist_indices)[j].begin() + input_start_offset,
                            (*edgelist_indices)[j].begin() + input_end_offset,
@@ -666,8 +669,7 @@ remove_multi_edges_impl(
                          (*edgelist_edge_ids)[j].begin() + input_start_offset,
                          (*edgelist_edge_ids)[j].begin() + input_end_offset,
                          multi_edge_edge_ids->begin() + output_start_offset);
-          } else {
-            assert(edge_property_count > 1);
+          } else {  // edge_property_count > 1
             thrust::gather(handle.get_thrust_policy(),
                            (*edgelist_indices)[j].begin() + input_start_offset,
                            (*edgelist_indices)[j].begin() + input_end_offset,
@@ -681,8 +683,7 @@ remove_multi_edges_impl(
                          (*edgelist_edge_types)[j].begin() + input_start_offset,
                          (*edgelist_edge_types)[j].begin() + input_end_offset,
                          multi_edge_edge_types->begin() + output_start_offset);
-          } else {
-            assert(edge_property_count > 1);
+          } else {  // edge_property_count > 1
             thrust::gather(handle.get_thrust_policy(),
                            (*edgelist_indices)[j].begin() + input_start_offset,
                            (*edgelist_indices)[j].begin() + input_end_offset,
@@ -696,8 +697,7 @@ remove_multi_edges_impl(
                          (*edgelist_edge_start_times)[j].begin() + input_start_offset,
                          (*edgelist_edge_start_times)[j].begin() + input_end_offset,
                          multi_edge_edge_start_times->begin() + output_start_offset);
-          } else {
-            assert(edge_property_count > 1);
+          } else {  // edge_property_count > 1
             thrust::gather(handle.get_thrust_policy(),
                            (*edgelist_indices)[j].begin() + input_start_offset,
                            (*edgelist_indices)[j].begin() + input_end_offset,
@@ -711,14 +711,19 @@ remove_multi_edges_impl(
                          (*edgelist_edge_end_times)[j].begin() + input_start_offset,
                          (*edgelist_edge_end_times)[j].begin() + input_end_offset,
                          multi_edge_edge_end_times->begin() + output_start_offset);
-          } else {
-            assert(edge_property_count > 1);
+          } else {  // edge_property_count > 1
             thrust::gather(handle.get_thrust_policy(),
                            (*edgelist_indices)[j].begin() + input_start_offset,
                            (*edgelist_indices)[j].begin() + input_end_offset,
                            (*edgelist_edge_end_times)[j].begin(),
                            multi_edge_edge_end_times->begin() + output_start_offset);
           }
+        }
+        if (edgelist_indices) {  // edge_property_count > 1
+          thrust::copy(handle.get_thrust_policy(),
+                       (*edgelist_indices)[j].begin() + input_start_offset,
+                       (*edgelist_indices)[j].begin() + input_end_offset,
+                       multi_edge_edgelist_indices->begin() + output_start_offset);
         }
       }
       auto multi_edge_indices =
@@ -793,6 +798,7 @@ remove_multi_edges_impl(
       rmm::device_uvector<size_t> d_lasts(num_chunks, handle.get_stream());
       raft::update_device(d_lasts.data(), h_lasts.data(), num_chunks, handle.get_stream());
       rmm::device_uvector<size_t> d_keep_count_offsets(num_chunks + 1, handle.get_stream());
+      d_keep_count_offsets.set_element_to_zero_async(0, handle.get_stream());
       thrust::lower_bound(handle.get_thrust_policy(),
                           multi_edge_indices.begin(),
                           multi_edge_indices.end(),
@@ -817,51 +823,61 @@ remove_multi_edges_impl(
                      multi_edge_dsts.begin() + h_keep_count_offsets[j],
                      multi_edge_dsts.begin() + h_keep_count_offsets[j + 1],
                      edgelist_dsts[j].begin() + group_disps[j][i] + non_multi_edge_counts[j][i]);
-        if (multi_edge_weights) {
+        if (edge_property_count == 0) {
+          /* nothing to do */
+        } else if (edge_property_count == 1) {
+          if (multi_edge_weights) {
+            thrust::gather(
+              handle.get_thrust_policy(),
+              multi_edge_indices.begin() + h_keep_count_offsets[j],
+              multi_edge_indices.begin() + h_keep_count_offsets[j + 1],
+              multi_edge_weights->begin(),
+              (*edgelist_weights)[j].begin() + group_disps[j][i] + non_multi_edge_counts[j][i]);
+          }
+          if (multi_edge_edge_ids) {
+            thrust::gather(
+              handle.get_thrust_policy(),
+              multi_edge_indices.begin() + h_keep_count_offsets[j],
+              multi_edge_indices.begin() + h_keep_count_offsets[j + 1],
+              multi_edge_edge_ids->begin(),
+              (*edgelist_edge_ids)[j].begin() + group_disps[j][i] + non_multi_edge_counts[j][i]);
+          }
+          if (multi_edge_edge_types) {
+            thrust::gather(
+              handle.get_thrust_policy(),
+              multi_edge_indices.begin() + h_keep_count_offsets[j],
+              multi_edge_indices.begin() + h_keep_count_offsets[j + 1],
+              multi_edge_edge_types->begin(),
+              (*edgelist_edge_types)[j].begin() + group_disps[j][i] + non_multi_edge_counts[j][i]);
+          }
+          if (multi_edge_edge_start_times) {
+            thrust::gather(handle.get_thrust_policy(),
+                           multi_edge_indices.begin() + h_keep_count_offsets[j],
+                           multi_edge_indices.begin() + h_keep_count_offsets[j + 1],
+                           multi_edge_edge_start_times->begin(),
+                           (*edgelist_edge_start_times)[j].begin() + group_disps[j][i] +
+                             non_multi_edge_counts[j][i]);
+          }
+          if (multi_edge_edge_end_times) {
+            thrust::gather(handle.get_thrust_policy(),
+                           multi_edge_indices.begin() + h_keep_count_offsets[j],
+                           multi_edge_indices.begin() + h_keep_count_offsets[j + 1],
+                           multi_edge_edge_end_times->begin(),
+                           (*edgelist_edge_end_times)[j].begin() + group_disps[j][i] +
+                             non_multi_edge_counts[j][i]);
+          }
+        } else {  // edge_property_count > 1
           thrust::gather(
             handle.get_thrust_policy(),
             multi_edge_indices.begin() + h_keep_count_offsets[j],
             multi_edge_indices.begin() + h_keep_count_offsets[j + 1],
-            multi_edge_weights->begin(),
-            (*edgelist_weights)[j].begin() + group_disps[j][i] + non_multi_edge_counts[j][i]);
-        }
-        if (multi_edge_edge_ids) {
-          thrust::gather(
-            handle.get_thrust_policy(),
-            multi_edge_indices.begin() + h_keep_count_offsets[j],
-            multi_edge_indices.begin() + h_keep_count_offsets[j + 1],
-            multi_edge_edge_ids->begin(),
-            (*edgelist_edge_ids)[j].begin() + group_disps[j][i] + non_multi_edge_counts[j][i]);
-        }
-        if (multi_edge_edge_types) {
-          thrust::gather(
-            handle.get_thrust_policy(),
-            multi_edge_indices.begin() + h_keep_count_offsets[j],
-            multi_edge_indices.begin() + h_keep_count_offsets[j + 1],
-            multi_edge_edge_types->begin(),
-            (*edgelist_edge_types)[j].begin() + group_disps[j][i] + non_multi_edge_counts[j][i]);
-        }
-        if (multi_edge_edge_start_times) {
-          thrust::gather(handle.get_thrust_policy(),
-                         multi_edge_indices.begin() + h_keep_count_offsets[j],
-                         multi_edge_indices.begin() + h_keep_count_offsets[j + 1],
-                         multi_edge_edge_start_times->begin(),
-                         (*edgelist_edge_start_times)[j].begin() + group_disps[j][i] +
-                           non_multi_edge_counts[j][i]);
-        }
-        if (multi_edge_edge_end_times) {
-          thrust::gather(handle.get_thrust_policy(),
-                         multi_edge_indices.begin() + h_keep_count_offsets[j],
-                         multi_edge_indices.begin() + h_keep_count_offsets[j + 1],
-                         multi_edge_edge_end_times->begin(),
-                         (*edgelist_edge_end_times)[j].begin() + group_disps[j][i] +
-                           non_multi_edge_counts[j][i]);
+            multi_edge_edgelist_indices->begin(),
+            (*edgelist_indices)[j].begin() + group_disps[j][i] + non_multi_edge_counts[j][i]);
         }
         group_valid_counts[j][i] =
           non_multi_edge_counts[j][i] + (h_keep_count_offsets[j + 1] - h_keep_count_offsets[j]);
       }
     }
-    edgelist_indices = std::nullopt;
 
     // 7. For each chunk, remove invalid edges
 
@@ -896,40 +912,95 @@ remove_multi_edges_impl(
         std::move(edgelist_dsts[i]),
         raft::device_span<uint32_t const>{keep_flags.data(), keep_flags.size()},
         keep_count);
-      if (edgelist_weights) {
-        (*edgelist_weights)[i] = detail::keep_flagged_elements(
+      if (edge_property_count == 0) {
+        /* nothing to do */
+      } else if (edge_property_count == 1) {
+        if (edgelist_weights) {
+          (*edgelist_weights)[i] = detail::keep_flagged_elements(
+            handle,
+            std::move((*edgelist_weights)[i]),
+            raft::device_span<uint32_t const>{keep_flags.data(), keep_flags.size()},
+            keep_count);
+        }
+        if (edgelist_edge_ids) {
+          (*edgelist_edge_ids)[i] = detail::keep_flagged_elements(
+            handle,
+            std::move((*edgelist_edge_ids)[i]),
+            raft::device_span<uint32_t const>{keep_flags.data(), keep_flags.size()},
+            keep_count);
+        }
+        if (edgelist_edge_types) {
+          (*edgelist_edge_types)[i] = detail::keep_flagged_elements(
+            handle,
+            std::move((*edgelist_edge_types)[i]),
+            raft::device_span<uint32_t const>{keep_flags.data(), keep_flags.size()},
+            keep_count);
+        }
+        if (edgelist_edge_start_times) {
+          (*edgelist_edge_start_times)[i] = detail::keep_flagged_elements(
+            handle,
+            std::move((*edgelist_edge_start_times)[i]),
+            raft::device_span<uint32_t const>{keep_flags.data(), keep_flags.size()},
+            keep_count);
+        }
+        if (edgelist_edge_end_times) {
+          (*edgelist_edge_end_times)[i] = detail::keep_flagged_elements(
+            handle,
+            std::move((*edgelist_edge_end_times)[i]),
+            raft::device_span<uint32_t const>{keep_flags.data(), keep_flags.size()},
+            keep_count);
+        }
+      } else {  // edge_property_count > 1
+        (*edgelist_indices)[i] = detail::keep_flagged_elements(
           handle,
-          std::move((*edgelist_weights)[i]),
+          std::move((*edgelist_indices)[i]),
           raft::device_span<uint32_t const>{keep_flags.data(), keep_flags.size()},
           keep_count);
-      }
-      if (edgelist_edge_ids) {
-        (*edgelist_edge_ids)[i] = detail::keep_flagged_elements(
-          handle,
-          std::move((*edgelist_edge_ids)[i]),
-          raft::device_span<uint32_t const>{keep_flags.data(), keep_flags.size()},
-          keep_count);
-      }
-      if (edgelist_edge_types) {
-        (*edgelist_edge_types)[i] = detail::keep_flagged_elements(
-          handle,
-          std::move((*edgelist_edge_types)[i]),
-          raft::device_span<uint32_t const>{keep_flags.data(), keep_flags.size()},
-          keep_count);
-      }
-      if (edgelist_edge_start_times) {
-        (*edgelist_edge_start_times)[i] = detail::keep_flagged_elements(
-          handle,
-          std::move((*edgelist_edge_start_times)[i]),
-          raft::device_span<uint32_t const>{keep_flags.data(), keep_flags.size()},
-          keep_count);
-      }
-      if (edgelist_edge_end_times) {
-        (*edgelist_edge_end_times)[i] = detail::keep_flagged_elements(
-          handle,
-          std::move((*edgelist_edge_end_times)[i]),
-          raft::device_span<uint32_t const>{keep_flags.data(), keep_flags.size()},
-          keep_count);
+        if (edgelist_weights) {
+          rmm::device_uvector<weight_t> tmp(keep_count, handle.get_stream());
+          thrust::gather(handle.get_thrust_policy(),
+                         (*edgelist_indices)[i].begin(),
+                         (*edgelist_indices)[i].begin() + keep_count,
+                         (*edgelist_weights)[i].begin(),
+                         tmp.begin());
+          (*edgelist_weights)[i] = std::move(tmp);
+        }
+        if (edgelist_edge_ids) {
+          rmm::device_uvector<edge_t> tmp(keep_count, handle.get_stream());
+          thrust::gather(handle.get_thrust_policy(),
+                         (*edgelist_indices)[i].begin(),
+                         (*edgelist_indices)[i].begin() + keep_count,
+                         (*edgelist_edge_ids)[i].begin(),
+                         tmp.begin());
+          (*edgelist_edge_ids)[i] = std::move(tmp);
+        }
+        if (edgelist_edge_types) {
+          rmm::device_uvector<edge_type_t> tmp(keep_count, handle.get_stream());
+          thrust::gather(handle.get_thrust_policy(),
+                         (*edgelist_indices)[i].begin(),
+                         (*edgelist_indices)[i].begin() + keep_count,
+                         (*edgelist_edge_types)[i].begin(),
+                         tmp.begin());
+          (*edgelist_edge_types)[i] = std::move(tmp);
+        }
+        if (edgelist_edge_start_times) {
+          rmm::device_uvector<edge_time_t> tmp(keep_count, handle.get_stream());
+          thrust::gather(handle.get_thrust_policy(),
+                         (*edgelist_indices)[i].begin(),
+                         (*edgelist_indices)[i].begin() + keep_count,
+                         (*edgelist_edge_start_times)[i].begin(),
+                         tmp.begin());
+          (*edgelist_edge_start_times)[i] = std::move(tmp);
+        }
+        if (edgelist_edge_end_times) {
+          rmm::device_uvector<edge_time_t> tmp(keep_count, handle.get_stream());
+          thrust::gather(handle.get_thrust_policy(),
+                         (*edgelist_indices)[i].begin(),
+                         (*edgelist_indices)[i].begin() + keep_count,
+                         (*edgelist_edge_end_times)[i].begin(),
+                         tmp.begin());
+          (*edgelist_edge_end_times)[i] = std::move(tmp);
+        }
       }
     }
   } else {  // num_chunks == 1
@@ -1017,7 +1088,7 @@ remove_multi_edges_impl(
                                              group_counts[0][i] - non_multi_edge_counts[0][i])),
             keep_min_value_edge);
         }
-      } else {
+      } else {  // edge_property_count > 1
         detail::sort_multi_edges<vertex_t, edge_t>(
           handle,
           raft::device_span<vertex_t>(
@@ -1058,112 +1129,110 @@ remove_multi_edges_impl(
     auto [keep_count, keep_flags] = detail::mark_entries(
       handle, edgelist_srcs[0].size(), detail::is_first_in_run_t<decltype(pair_first)>{pair_first});
 
-    if (keep_count < edgelist_srcs[0].size()) {
-      edgelist_srcs[0] = detail::keep_flagged_elements(
-        handle,
-        std::move(edgelist_srcs[0]),
-        raft::device_span<uint32_t const>{keep_flags.data(), keep_flags.size()},
-        keep_count);
-      edgelist_dsts[0] = detail::keep_flagged_elements(
-        handle,
-        std::move(edgelist_dsts[0]),
-        raft::device_span<uint32_t const>{keep_flags.data(), keep_flags.size()},
-        keep_count);
+    edgelist_srcs[0] = detail::keep_flagged_elements(
+      handle,
+      std::move(edgelist_srcs[0]),
+      raft::device_span<uint32_t const>{keep_flags.data(), keep_flags.size()},
+      keep_count);
+    edgelist_dsts[0] = detail::keep_flagged_elements(
+      handle,
+      std::move(edgelist_dsts[0]),
+      raft::device_span<uint32_t const>{keep_flags.data(), keep_flags.size()},
+      keep_count);
 
-      if (edge_property_count == 0) {
-        /* nothing to do */
-      } else if (edge_property_count == 1) {
-        if (edgelist_weights) {
-          (*edgelist_weights)[0] = detail::keep_flagged_elements(
-            handle,
-            std::move((*edgelist_weights)[0]),
-            raft::device_span<uint32_t const>{keep_flags.data(), keep_flags.size()},
-            keep_count);
-        }
-
-        if (edgelist_edge_ids) {
-          (*edgelist_edge_ids)[0] = detail::keep_flagged_elements(
-            handle,
-            std::move((*edgelist_edge_ids)[0]),
-            raft::device_span<uint32_t const>{keep_flags.data(), keep_flags.size()},
-            keep_count);
-        }
-
-        if (edgelist_edge_types) {
-          (*edgelist_edge_types)[0] = detail::keep_flagged_elements(
-            handle,
-            std::move((*edgelist_edge_types)[0]),
-            raft::device_span<uint32_t const>{keep_flags.data(), keep_flags.size()},
-            keep_count);
-        }
-
-        if (edgelist_edge_start_times) {
-          (*edgelist_edge_start_times)[0] = detail::keep_flagged_elements(
-            handle,
-            std::move((*edgelist_edge_start_times)[0]),
-            raft::device_span<uint32_t const>{keep_flags.data(), keep_flags.size()},
-            keep_count);
-        }
-
-        if (edgelist_edge_end_times) {
-          (*edgelist_edge_end_times)[0] = detail::keep_flagged_elements(
-            handle,
-            std::move((*edgelist_edge_end_times)[0]),
-            raft::device_span<uint32_t const>{keep_flags.data(), keep_flags.size()},
-            keep_count);
-        }
-      } else {
-        assert(edgelist_indices);
-        (*edgelist_indices)[0] = detail::keep_flagged_elements(
+    if (edge_property_count == 0) {
+      /* nothing to do */
+    } else if (edge_property_count == 1) {
+      if (edgelist_weights) {
+        (*edgelist_weights)[0] = detail::keep_flagged_elements(
           handle,
-          std::move((*edgelist_indices)[0]),
+          std::move((*edgelist_weights)[0]),
           raft::device_span<uint32_t const>{keep_flags.data(), keep_flags.size()},
           keep_count);
-        if (edgelist_weights) {
-          auto tmp = rmm::device_uvector<weight_t>(keep_count, handle.get_stream());
-          thrust::gather(handle.get_thrust_policy(),
-                         (*edgelist_indices)[0].begin(),
-                         (*edgelist_indices)[0].end(),
-                         (*edgelist_weights)[0].begin(),
-                         tmp.begin());
-          (*edgelist_weights)[0] = std::move(tmp);
-        }
-        if (edgelist_edge_ids) {
-          auto tmp = rmm::device_uvector<edge_t>(keep_count, handle.get_stream());
-          thrust::gather(handle.get_thrust_policy(),
-                         (*edgelist_indices)[0].begin(),
-                         (*edgelist_indices)[0].end(),
-                         (*edgelist_edge_ids)[0].begin(),
-                         tmp.begin());
-          (*edgelist_edge_ids)[0] = std::move(tmp);
-        }
-        if (edgelist_edge_types) {
-          auto tmp = rmm::device_uvector<edge_type_t>(keep_count, handle.get_stream());
-          thrust::gather(handle.get_thrust_policy(),
-                         (*edgelist_indices)[0].begin(),
-                         (*edgelist_indices)[0].end(),
-                         (*edgelist_edge_types)[0].begin(),
-                         tmp.begin());
-          (*edgelist_edge_types)[0] = std::move(tmp);
-        }
-        if (edgelist_edge_start_times) {
-          auto tmp = rmm::device_uvector<edge_time_t>(keep_count, handle.get_stream());
-          thrust::gather(handle.get_thrust_policy(),
-                         (*edgelist_indices)[0].begin(),
-                         (*edgelist_indices)[0].end(),
-                         (*edgelist_edge_start_times)[0].begin(),
-                         tmp.begin());
-          (*edgelist_edge_start_times)[0] = std::move(tmp);
-        }
-        if (edgelist_edge_end_times) {
-          auto tmp = rmm::device_uvector<edge_time_t>(keep_count, handle.get_stream());
-          thrust::gather(handle.get_thrust_policy(),
-                         (*edgelist_indices)[0].begin(),
-                         (*edgelist_indices)[0].end(),
-                         (*edgelist_edge_end_times)[0].begin(),
-                         tmp.begin());
-          (*edgelist_edge_end_times)[0] = std::move(tmp);
-        }
+      }
+
+      if (edgelist_edge_ids) {
+        (*edgelist_edge_ids)[0] = detail::keep_flagged_elements(
+          handle,
+          std::move((*edgelist_edge_ids)[0]),
+          raft::device_span<uint32_t const>{keep_flags.data(), keep_flags.size()},
+          keep_count);
+      }
+
+      if (edgelist_edge_types) {
+        (*edgelist_edge_types)[0] = detail::keep_flagged_elements(
+          handle,
+          std::move((*edgelist_edge_types)[0]),
+          raft::device_span<uint32_t const>{keep_flags.data(), keep_flags.size()},
+          keep_count);
+      }
+
+      if (edgelist_edge_start_times) {
+        (*edgelist_edge_start_times)[0] = detail::keep_flagged_elements(
+          handle,
+          std::move((*edgelist_edge_start_times)[0]),
+          raft::device_span<uint32_t const>{keep_flags.data(), keep_flags.size()},
+          keep_count);
+      }
+
+      if (edgelist_edge_end_times) {
+        (*edgelist_edge_end_times)[0] = detail::keep_flagged_elements(
+          handle,
+          std::move((*edgelist_edge_end_times)[0]),
+          raft::device_span<uint32_t const>{keep_flags.data(), keep_flags.size()},
+          keep_count);
+      }
+    } else {  // edge_property_count > 1
+      assert(edgelist_indices);
+      (*edgelist_indices)[0] = detail::keep_flagged_elements(
+        handle,
+        std::move((*edgelist_indices)[0]),
+        raft::device_span<uint32_t const>{keep_flags.data(), keep_flags.size()},
+        keep_count);
+      if (edgelist_weights) {
+        auto tmp = rmm::device_uvector<weight_t>(keep_count, handle.get_stream());
+        thrust::gather(handle.get_thrust_policy(),
+                       (*edgelist_indices)[0].begin(),
+                       (*edgelist_indices)[0].end(),
+                       (*edgelist_weights)[0].begin(),
+                       tmp.begin());
+        (*edgelist_weights)[0] = std::move(tmp);
+      }
+      if (edgelist_edge_ids) {
+        auto tmp = rmm::device_uvector<edge_t>(keep_count, handle.get_stream());
+        thrust::gather(handle.get_thrust_policy(),
+                       (*edgelist_indices)[0].begin(),
+                       (*edgelist_indices)[0].end(),
+                       (*edgelist_edge_ids)[0].begin(),
+                       tmp.begin());
+        (*edgelist_edge_ids)[0] = std::move(tmp);
+      }
+      if (edgelist_edge_types) {
+        auto tmp = rmm::device_uvector<edge_type_t>(keep_count, handle.get_stream());
+        thrust::gather(handle.get_thrust_policy(),
+                       (*edgelist_indices)[0].begin(),
+                       (*edgelist_indices)[0].end(),
+                       (*edgelist_edge_types)[0].begin(),
+                       tmp.begin());
+        (*edgelist_edge_types)[0] = std::move(tmp);
+      }
+      if (edgelist_edge_start_times) {
+        auto tmp = rmm::device_uvector<edge_time_t>(keep_count, handle.get_stream());
+        thrust::gather(handle.get_thrust_policy(),
+                       (*edgelist_indices)[0].begin(),
+                       (*edgelist_indices)[0].end(),
+                       (*edgelist_edge_start_times)[0].begin(),
+                       tmp.begin());
+        (*edgelist_edge_start_times)[0] = std::move(tmp);
+      }
+      if (edgelist_edge_end_times) {
+        auto tmp = rmm::device_uvector<edge_time_t>(keep_count, handle.get_stream());
+        thrust::gather(handle.get_thrust_policy(),
+                       (*edgelist_indices)[0].begin(),
+                       (*edgelist_indices)[0].end(),
+                       (*edgelist_edge_end_times)[0].begin(),
+                       tmp.begin());
+        (*edgelist_edge_end_times)[0] = std::move(tmp);
       }
     }
   }
