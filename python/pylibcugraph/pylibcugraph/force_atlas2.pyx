@@ -1,0 +1,198 @@
+# Copyright (c) 2025, NVIDIA CORPORATION.
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Have cython use python 3 syntax
+# cython: language_level = 3
+
+
+from pylibcugraph._cugraph_c.types cimport (
+    bool_t,
+)
+from pylibcugraph._cugraph_c.resource_handle cimport (
+    cugraph_resource_handle_t,
+)
+from pylibcugraph._cugraph_c.error cimport (
+    cugraph_error_code_t,
+    cugraph_error_t,
+)
+from pylibcugraph._cugraph_c.array cimport (
+    cugraph_type_erased_device_array_view_t,
+)
+from pylibcugraph._cugraph_c.layout_algorithms cimport (
+    cugraph_force_atlas2,
+)
+from pylibcugraph._cugraph_c.graph cimport (
+    cugraph_graph_t,
+)
+from pylibcugraph.resource_handle cimport (
+    ResourceHandle,
+)
+from pylibcugraph.graphs cimport (
+    _GPUGraph,
+)
+from pylibcugraph.utils cimport (
+    assert_success,
+    copy_to_cupy_array,
+    assert_CAI_type,
+    create_cugraph_type_erased_device_array_view_from_py_obj
+)
+from pylibcugraph._cugraph_c.array cimport (
+    cugraph_type_erased_device_array_t,
+    cugraph_type_erased_device_array_view
+)
+
+def force_atlas2(ResourceHandle resource_handle,
+                  _GPUGraph graph,
+                  const int max_iter,
+                  x_start,
+                  y_start,
+                  bool_t outbound_attraction_distribution,
+                  bool_t lin_log_mode,
+                  bool_t prevent_overlapping,
+                  const double edge_weight_influence,
+                  const double jitter_tolerance,
+                  bool_t barnes_hut_optimize,
+                  const double barnes_hut_theta,
+                  const double scaling_ratio,
+                  bool_t strong_gravity_mode,
+                  const double gravity,
+                  bool_t verbose,
+                  bool_t do_expensive_check,
+                ):
+    """
+    ForceAtlas2 is a continuous graph layout algorithm for handy network
+    visualization.
+
+    Parameters
+    ----------
+    resource_handle : ResourceHandle
+        Handle to the underlying device resources needed for referencing data
+        and running algorithms.
+
+    graph : SGGraph or MGGraph
+        The input graph, for either Single or Multi-GPU operations.
+
+    max_iter: int
+        Maximum number of Katz Centrality iterations
+
+    x_start : device array type, optional (default=None)
+        Initial vertex positioning (x-axis)
+
+    y_start : device array type, optional (default=None)
+        Initial vertex positioning (y-axis)
+
+    outbound_attraction_distribution : bool_t
+        Distributes attraction along outbound edges
+        Hubs attract less and thus are pushed to the borders.
+    
+    lin_log_mode : bool_t
+        Switch Force Atlas model from lin-lin to lin-log.
+        Makes clusters more tight.
+    
+    prevent_overlapping : bool_t
+        Prevent nodes to overlap.
+    
+    edge_weight_influence : double
+        How much influence you give to the edges weight.
+        0 is “no influence” and 1 is “normal”.
+    
+    jitter_tolerance : double
+        How much swinging you allow. Above 1 discouraged.
+        Lower gives less speed and more precision.
+
+    barnes_hut_optimize : bool_t
+        Whether to use the Barnes Hut approximation or the slower exact version.
+
+    barnes_hut_theta : double
+        Float between 0 and 1. Tradeoff for speed (1) vs accuracy (0) for Barnes Hut only.
+    
+    scaling_ratio : double
+        How much repulsion you want. More makes a more sparse graph.
+        Switching from regular mode to LinLog mode needs a readjustment of the scaling parameter.
+
+    strong_gravity_mode : bool_t
+        Sets a force that attracts the nodes that are distant from the
+        center more. It is so strong that it can sometimes dominate other forces.
+    
+    gravity : double
+        Attracts nodes to the center. Prevents islands from drifting away.
+    
+    verbose : bool_t
+        Output convergence info at each interation.
+    
+    do_expensive_check : bool_t
+        A flag to run expensive checks for input arguments (if set to true)
+    
+    callback: # FIXME: NOT IMPLEMENTED YET
+        intercept the internal state of positions while they are being trained.
+
+    Returns
+    -------
+    return the position of each vertices
+    """
+
+    cdef cugraph_resource_handle_t* c_resource_handle_ptr = \
+        resource_handle.c_resource_handle_ptr
+    cdef cugraph_graph_t* c_graph_ptr = graph.c_graph_ptr
+
+
+    cdef cugraph_type_erased_device_array_t* pos_ptr
+
+    assert_CAI_type(x_start, "x_start", True)
+
+    cdef cugraph_type_erased_device_array_view_t* \
+        x_start_view_ptr = \
+            create_cugraph_type_erased_device_array_view_from_py_obj(
+                x_start)
+
+    assert_CAI_type(y_start, "y_start", True)
+
+    cdef cugraph_type_erased_device_array_view_t* \
+        y_start_view_ptr = \
+            create_cugraph_type_erased_device_array_view_from_py_obj(
+                y_start)
+
+    cdef cugraph_error_code_t error_code
+    cdef cugraph_error_t* error_ptr
+
+    error_code = cugraph_force_atlas2(c_resource_handle_ptr,
+                                      c_graph_ptr,
+                                      &pos_ptr,
+                                      max_iter,
+                                      x_start_view_ptr,
+                                      y_start_view_ptr,
+                                      outbound_attraction_distribution,
+                                      lin_log_mode,
+                                      prevent_overlapping,
+                                      edge_weight_influence,
+                                      jitter_tolerance,
+                                      barnes_hut_optimize,
+                                      barnes_hut_theta,
+                                      scaling_ratio,
+                                      strong_gravity_mode,
+                                      gravity,
+                                      verbose,
+                                      do_expensive_check,
+                                      &error_ptr)
+    assert_success(error_code, error_ptr, "force_atlas2")
+
+    cdef cugraph_type_erased_device_array_view_t* \
+        pos_view_ptr = \
+            cugraph_type_erased_device_array_view(
+                pos_ptr)
+
+    cupy_pos = copy_to_cupy_array(c_resource_handle_ptr, pos_view_ptr)
+
+    # FIXME: Break the cupy array into x and y axis
+
+    return cupy_pos
