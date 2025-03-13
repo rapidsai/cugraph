@@ -59,6 +59,8 @@ DEPENDENCIES=(
   dask-cudf
   libcudf
   libcugraph
+  libcugraph_etl
+  libcugraph-tests
   libraft
   librmm
   pylibcugraph
