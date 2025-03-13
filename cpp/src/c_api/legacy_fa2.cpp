@@ -65,11 +65,11 @@ struct force_atlas2_functor : public cugraph::c_api::abstract_functor {
   force_atlas2_functor(::cugraph_resource_handle_t const* handle,
                        ::cugraph_graph_t* graph,
                        ::cugraph_type_erased_device_array_view_t const* pos,
-                       const int max_iter
+                       const int max_iter,
                        ::cugraph_type_erased_device_array_view_t const* x_start,
                        ::cugraph_type_erased_device_array_view_t const* y_start,
                        bool outbound_attraction_distribution,
-                       bool in_log_mode,
+                       bool lin_log_mode,
                        bool prevent_overlapping,
                        const double edge_weight_influence,
                        const double jitter_tolerance,
@@ -91,7 +91,7 @@ struct force_atlas2_functor : public cugraph::c_api::abstract_functor {
       y_start_(
         reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(y_start)),
       outbound_attraction_distribution_(outbound_attraction_distribution),
-      in_log_mode_(in_log_mode_),
+      lin_log_mode_(lin_log_mode),
       prevent_overlapping_(prevent_overlapping),
       edge_weight_influence_(edge_weight_influence),
       jitter_tolerance_(jitter_tolerance),
