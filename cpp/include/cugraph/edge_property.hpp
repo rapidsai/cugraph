@@ -113,6 +113,9 @@ class edge_property_t {
   {
   }
 
+  // nvcc 12.5 sometimes deduces this as a host device function, just defining it fixes that
+  ~edge_property_t() {}
+
   void clear(raft::handle_t const& handle)
   {
     buffers_.clear();
