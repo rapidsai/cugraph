@@ -39,6 +39,14 @@ typedef struct {
 
 
 /**
+ * @brief     Opaque clustering output
+ */
+typedef struct { // FIXME: Remove this
+  int32_t align_;
+} cugraph_clustering_result_t;
+
+
+/**
  * @ingroup layout
  * @brief     Get layout x-axis
  */
@@ -105,26 +113,26 @@ void cugraph_layout_result_free(cugraph_layout_result_t* result);
  *                              be populated if error code is not CUGRAPH_SUCCESS
  * @return error code
  */
-cugraph_error_code_t force_atlas2(const cugraph_resource_handle_t* handle,
-                                  cugraph_graph_t* graph,
-                                  const cugraph_type_erased_device_array_view_t* pos,
-                                  const int max_iter,
-                                  const cugraph_type_erased_device_array_view_t* x_start,
-                                  const cugraph_type_erased_device_array_view_t* y_start,
-                                  bool_t outbound_attraction_distribution,
-                                  bool_t lin_log_mode,
-                                  bool_t prevent_overlapping,
-                                  const double edge_weight_influence,
-                                  const double jitter_tolerance,
-                                  bool_t barnes_hut_optimize,
-                                  const double barnes_hut_theta,
-                                  const double scaling_ratio,
-                                  bool_t strong_gravity_mode,
-                                  const double gravity,
-                                  bool_t verbose,
-                                  bool_t do_expensive_check,
-                                  cugraph_clustering_result_t** result,
-                                  cugraph_error_t** error);
+cugraph_error_code_t cugraph_force_atlas2(const cugraph_resource_handle_t* handle,
+                                          cugraph_graph_t* graph,
+                                          cugraph_type_erased_device_array_view_t* pos,
+                                          const int max_iter,
+                                          cugraph_type_erased_device_array_view_t* x_start,
+                                          cugraph_type_erased_device_array_view_t* y_start,
+                                          bool_t outbound_attraction_distribution,
+                                          bool_t lin_log_mode,
+                                          bool_t prevent_overlapping,
+                                          const double edge_weight_influence,
+                                          const double jitter_tolerance,
+                                          bool_t barnes_hut_optimize,
+                                          const double barnes_hut_theta,
+                                          const double scaling_ratio,
+                                          bool_t strong_gravity_mode,
+                                          const double gravity,
+                                          bool_t verbose,
+                                          bool_t do_expensive_check,
+                                          cugraph_clustering_result_t** result,
+                                          cugraph_error_t** error);
 
 
 
