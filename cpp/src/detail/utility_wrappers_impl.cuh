@@ -33,6 +33,7 @@
 #include <thrust/remove.h>
 #include <thrust/sequence.h>
 #include <thrust/sort.h>
+#include <thrust/binary_search.h>
 #include <thrust/transform.h>
 #include <thrust/transform_reduce.h>
 #include <thrust/tuple.h>
@@ -183,6 +184,14 @@ size_t count_values(raft::handle_t const& handle,
                     data_t value)
 {
   return thrust::count(handle.get_thrust_policy(), span.begin(), span.end(), value);
+}
+
+template <typename data_t>
+bool binary_search(raft::handle_t const& handle,
+                   raft::device_span<data_t const> span,
+                   data_t value)
+{
+  return thrust::binary_search(handle.get_thrust_policy(), span.begin(), span.end(), value);
 }
 
 }  // namespace detail

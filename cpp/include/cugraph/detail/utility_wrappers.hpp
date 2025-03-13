@@ -269,5 +269,21 @@ size_t count_values(raft::handle_t const& handle,
                     raft::device_span<data_t const> span,
                     data_t value);
 
+/**
+ * @ingroup utility_wrappers_cpp
+ * @brief Verify if a value appears in a span
+ *
+ * @tparam data_t type of data in span
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param span The span of data to compare
+ * @param value The value to count
+ * @return true if found, false if not found
+ */
+template <typename data_t>
+size_t has_vertex(raft::handle_t const& handle,
+                  raft::device_span<data_t const> span,
+                  data_t value);
+
 }  // namespace detail
 }  // namespace cugraph

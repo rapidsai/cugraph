@@ -168,6 +168,10 @@ struct two_hop_neighbors_functor : public cugraph::c_api::abstract_functor {
         raft::print_device_vector("number_map", number_map->data(), number_map->size(), std::cout);
 
 
+        printf("range first = %d", graph_view.local_vertex_partition_range_first());
+        printf("range last = %d", graph_view.local_vertex_partition_range_last());
+
+        printf("\n");
 
         cugraph::renumber_ext_vertices<vertex_t, multi_gpu>(
           handle_,
@@ -270,30 +274,11 @@ struct count_multi_edges_functor : public cugraph::c_api::abstract_functor {
   }
 };
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-#if 0
 struct has_vertex_functor : public cugraph::c_api::abstract_functor {
   raft::handle_t const& handle_{};
   cugraph::c_api::cugraph_graph_t* graph_{nullptr};
   cugraph::c_api::cugraph_type_erased_device_array_view_t const* vertex_{nullptr};
-  bool result_{};
+  bool result_{false};
   bool do_expensive_check_{false};
 
   has_vertex_functor(::cugraph_resource_handle_t const* handle,
@@ -321,8 +306,7 @@ struct has_vertex_functor : public cugraph::c_api::abstract_functor {
     if constexpr (!cugraph::is_candidate<vertex_t, edge_t, weight_t>::value) {
       unsupported();
     } else {
-      // k_hop_nbrs expects store_transposed == false
-      if constexpr (store_transposed) {
+      if constexpr (store_transposed) { // FIXME: Do we enforce store_transposed == false ?
         error_code_ = cugraph::c_api::
           transpose_storage<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(
             handle_, graph_, error_.get());
@@ -348,8 +332,6 @@ struct has_vertex_functor : public cugraph::c_api::abstract_functor {
         vertex = cugraph::shuffle_ext_vertices(handle_, std::move(vertex));
       }
 
-      //raft::print_device_vector("number_map", number_map->data(), number_map->size(), std::cout);
-
       cugraph::renumber_ext_vertices<vertex_t, multi_gpu>(
         handle_,
         vertex.data(),
@@ -359,87 +341,23 @@ struct has_vertex_functor : public cugraph::c_api::abstract_functor {
         graph_view.local_vertex_partition_range_last(),
         do_expensive_check_);
 
-      // Perform binary search to see if vertex exist
-
-
-
-      
-
-      auto [offsets, dst] = cugraph::k_hop_nbrs(
+      size_t invalid_count = cugraph::detail::count_values(
         handle_,
-        graph_view,
         raft::device_span<vertex_t const>{vertex.data(), vertex.size()},
-        size_t{2},
-        do_expensive_check_);
+        cugraph::invalid_vertex_id<vertex_t>::value);
 
-      auto src = cugraph::c_api::expand_sparse_offsets(
-        raft::device_span<size_t const>{offsets.data(), offsets.size()},
-        vertex_t{0},
-        handle_.get_stream());
+      if constexpr (multi_gpu) {
+        invalid_count = cugraph::host_scalar_allreduce(
+          handle_.get_comms(), invalid_count, raft::comms::op_t::SUM, handle_.get_stream());
+      }
 
-      // convert ids back to srcs:  src[i] = vertex[src[i]]
-      cugraph::unrenumber_local_int_vertices(handle_,
-                                             src.data(),
-                                             src.size(),
-                                             vertex.data(),
-                                             vertex_t{0},
-                                             graph_view.local_vertex_partition_range_size(),
-                                             do_expensive_check_);
+      if (invalid_count == 0) {
+        result_ = static_cast<bool>(true);
+      }
 
-      cugraph::unrenumber_int_vertices<vertex_t, multi_gpu>(
-        handle_,
-        src.data(),
-        src.size(),
-        number_map->data(),
-        graph_view.vertex_partition_range_lasts(),
-        do_expensive_check_);
-
-      cugraph::unrenumber_int_vertices<vertex_t, multi_gpu>(
-        handle_,
-        dst.data(),
-        dst.size(),
-        number_map->data(),
-        graph_view.vertex_partition_range_lasts(),
-        do_expensive_check_);
-
-      result_ = new cugraph::c_api::cugraph_vertex_pairs_t{
-        new cugraph::c_api::cugraph_type_erased_device_array_t(src, graph_->vertex_type_),
-        new cugraph::c_api::cugraph_type_erased_device_array_t(dst, graph_->vertex_type_)};
     }
   }
 };
-#endif
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 }  // namespace
 
 extern "C" cugraph_error_code_t cugraph_create_vertex_pairs(
@@ -519,17 +437,15 @@ extern "C" cugraph_error_code_t cugraph_count_multi_edges(const cugraph_resource
   return cugraph::c_api::run_algorithm(graph, functor, result, error);
 }
 
-#if 0
 extern "C" cugraph_error_code_t cugraph_has_vertex(
   const cugraph_resource_handle_t* handle,
   cugraph_graph_t* graph,
   const cugraph_type_erased_device_array_view_t* vertex,
   bool_t do_expensive_check,
-  bool_t* result,
+  bool* result,
   cugraph_error_t** error)
 {
   has_vertex_functor functor(handle, graph, vertex, do_expensive_check);
 
   return cugraph::c_api::run_algorithm(graph, functor, result, error);
 }
-#endif
