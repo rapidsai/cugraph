@@ -216,7 +216,7 @@ struct force_atlas2_functor : public cugraph::c_api::abstract_functor {
 extern "C" cugraph_error_code_t cugraph_force_atlas2(
   const cugraph_resource_handle_t* handle,
   cugraph_graph_t* graph,
-  cugraph_type_erased_device_array_view_t** pos,
+  cugraph_type_erased_device_array_t** pos,
   const int max_iter,
   cugraph_type_erased_device_array_view_t* x_start,
   cugraph_type_erased_device_array_view_t* y_start,

@@ -50,14 +50,14 @@ typedef struct { // FIXME: Remove this
  * @ingroup layout
  * @brief     Get layout x-axis
  */
-cugraph_type_erased_device_array_view_t* cugraph_layout_get_x_axis(
+cugraph_type_erased_device_array_view_t* cugraph_layout_get_x_axis( // FIXME: Might not be used/necessary
   cugraph_layout_result_t* result);
 
 /**
  * @ingroup layout
  * @brief     Get layout y-axis
  */
-cugraph_type_erased_device_array_view_t* cugraph_layout_get_y_axis(
+cugraph_type_erased_device_array_view_t* cugraph_layout_get_y_axis( // FIXME: Might not be used/necessary
   cugraph_layout_result_t* result);
 
 /**
@@ -66,7 +66,7 @@ cugraph_type_erased_device_array_view_t* cugraph_layout_get_y_axis(
  *
  * @param [in] result     The result from a layout algorithm
  */
-void cugraph_layout_result_free(cugraph_layout_result_t* result);
+void cugraph_layout_result_free(cugraph_layout_result_t* result); // FIXME: Might not be used/necessary
 
 /**
  * @brief   Force Atlas 2
@@ -74,48 +74,48 @@ void cugraph_layout_result_free(cugraph_layout_result_t* result);
  * NOTE: This currently wraps the legacy force atlas 2 implementation and is only
  * available in Single GPU implementation.
  *
- * @param [in]  handle          Handle for accessing resources
- * @param [in]  graph           Pointer to graph.  NOTE: Graph might be modified if the storage
- *                              needs to be transposed
- * @param [out]  pos             #FIXME: This argument stores the result of FA2 so it might be be necessary for the legacy PLC implm
- * @param [in]  max_iter        Maximum number of iterations. Initial vertex positioning
- * @param [in] x_start         Initial vertex positioning (x-axis)
- * @param [in] y_start         Initial vertex positioning (y-axis)
- * @param [in] outbound_attraction_distribution
+ * @param [in]   handle          Handle for accessing resources
+ * @param [in]   graph           Pointer to graph.  NOTE: Graph might be modified if the storage
+ *                               needs to be transposed
+ * @param [out]  pos             Position of the vertices
+ * @param [in]   max_iter        Maximum number of iterations. Initial vertex positioning
+ * @param [in]   x_start         Initial vertex positioning (x-axis)
+ * @param [in]   y_start         Initial vertex positioning (y-axis)
+ * @param [in]   outbound_attraction_distribution
  *                               Distributes attraction along outbound edges
  *                               Hubs attract less and thus are pushed to the borders.
- * @param [in] lin_log_mode      Switch Force Atlas model from lin-lin to lin-log.
+ * @param [in]   lin_log_mode    Switch Force Atlas model from lin-lin to lin-log.
  *                               Makes clusters more tight.
- * @param [in] prevent_overlapping
+ * @param [in]   prevent_overlapping
  *                               Prevent nodes to overlap.
- * @param [in] edge_weight_influence
+ * @param [in]   edge_weight_influence
  *                               How much influence you give to the edges weight.
  *                               0 is “no influence” and 1 is “normal”.
- * @param [in] jitter_tolerance
+ * @param [in]   jitter_tolerance
  *                               How much swinging you allow. Above 1 discouraged.
  *                               Lower gives less speed and more precision.
- * @param [in] barnes_hut_optimize
+ * @param [in]   barnes_hut_optimize
  *                               Whether to use the Barnes Hut approximation or the slower exact version.
- * @param [in] barnes_hut_theta
+ * @param [in]   barnes_hut_theta
  *                               Float between 0 and 1. Tradeoff for speed (1) vs accuracy (0) for Barnes Hut only.
- * @param [in] scaling_ratio
+ * @param [in]   scaling_ratio
  *                               How much repulsion you want. More makes a more sparse graph.
  *                               Switching from regular mode to LinLog mode needs a readjustment of the scaling parameter.
- * @param [in] strong_gravity_mode
+ * @param [in]   strong_gravity_mode
  *                               Sets a force that attracts the nodes that are distant from the
  *                               center more. It is so strong that it can sometimes dominate other forces.
- * @param [in] gravity           Attracts nodes to the center. Prevents islands from drifting away.
- * @param [in] verbose           Output convergence info at each interation.
- * @param [in]  do_expensive_check
+ * @param [in]   gravity         Attracts nodes to the center. Prevents islands from drifting away.
+ * @param [in]   verbose         Output convergence info at each interation.
+ * @param [in]   do_expensive_check
  *                               A flag to run expensive checks for input arguments (if set to true)
- * @param [out] result           Opaque object containing the clustering result
- * @param [out] error           Pointer to an error object storing details of any error.  Will
- *                              be populated if error code is not CUGRAPH_SUCCESS
+ * @param [out]  result          Opaque object containing the clustering result
+ * @param [out]  error           Pointer to an error object storing details of any error.  Will
+ *                               be populated if error code is not CUGRAPH_SUCCESS
  * @return error code
  */
 cugraph_error_code_t cugraph_force_atlas2(const cugraph_resource_handle_t* handle,
                                           cugraph_graph_t* graph,
-                                          cugraph_type_erased_device_array_view_t* pos,
+                                          cugraph_type_erased_device_array_t** pos,
                                           const int max_iter,
                                           cugraph_type_erased_device_array_view_t* x_start,
                                           cugraph_type_erased_device_array_view_t* y_start,
@@ -131,7 +131,6 @@ cugraph_error_code_t cugraph_force_atlas2(const cugraph_resource_handle_t* handl
                                           const double gravity,
                                           bool_t verbose,
                                           bool_t do_expensive_check,
-                                          cugraph_clustering_result_t** result,
                                           cugraph_error_t** error);
 
 
