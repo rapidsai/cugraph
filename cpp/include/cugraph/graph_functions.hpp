@@ -1344,11 +1344,11 @@ template <typename vertex_t,
           typename edge_time_t>
 std::tuple<std::vector<rmm::device_uvector<vertex_t>>,
            std::vector<rmm::device_uvector<vertex_t>>,
-           std::vector<std::optional<rmm::device_uvector<weight_t>>>,
-           std::vector<std::optional<rmm::device_uvector<edge_t>>>,
-           std::vector<std::optional<rmm::device_uvector<edge_type_t>>>,
-           std::vector<std::optional<rmm::device_uvector<edge_time_t>>>,
-           std::vector<std::optional<rmm::device_uvector<edge_time_t>>>>
+           std::optional<std::vector<rmm::device_uvector<weight_t>>>,
+           std::optional<std::vector<rmm::device_uvector<edge_t>>>,
+           std::optional<std::vector<rmm::device_uvector<edge_type_t>>>,
+           std::optional<std::vector<rmm::device_uvector<edge_time_t>>>,
+           std::optional<std::vector<rmm::device_uvector<edge_time_t>>>>
 remove_multi_edges(
   raft::handle_t const& handle,
   std::vector<rmm::device_uvector<vertex_t>>&& edgelist_srcs,
