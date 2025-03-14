@@ -139,12 +139,32 @@ def force_atlas2(ResourceHandle resource_handle,
     Returns
     -------
     return the position of each vertices
+
+    Examples
+    --------
+    >>> import pylibcugraph, cupy, numpy
+    >>> srcs = cupy.asarray([0, 1, 1, 2, 2, 2, 3, 3, 4], dtype=numpy.int32)
+    >>> dsts = cupy.asarray([1, 3, 4, 0, 1, 3, 4, 5, 5], dtype=numpy.int32)
+    >>> weights = cupy.asarray(
+    ...     [0.1, 2.1, 1.1, 5.1, 3.1, 4.1, 7.2, 3.2, 6.1], dtype=numpy.float32)
+    >>> resource_handle = pylibcugraph.ResourceHandle()
+    >>> graph_props = pylibcugraph.GraphProperties(is_symmetric=False, is_multigraph=False)
+    >>> G = pylibcugraph.SGGraph(
+    ...     resource_handle, graph_props, srcs, dsts, weight_array=weights,
+    ...     store_transposed=False, renumber=False, do_expensive_check=False)
+    >>> (x_axis, y_axis) = pylibcugraph.force_atlas2(
+    ...     resource_handle, G, 500, None, None, True, False, False, 1.0, 1.0, True,
+    ...     0.5, 2.0, False, 1.0, False, False)
+    >>> x_axis
+    [ 5.444471    0.4794112   1.2495936  -0.01039529 -1.1892298  -1.5889403 ]
+    >>> y_axis
+    [-1.4304754e+01 -3.8182523e+00  3.8365445e+00  8.3183739e-03 -8.3009762e-01 -1.9155006e-01
+    
     """
 
     cdef cugraph_resource_handle_t* c_resource_handle_ptr = \
         resource_handle.c_resource_handle_ptr
     cdef cugraph_graph_t* c_graph_ptr = graph.c_graph_ptr
-
 
     cdef cugraph_type_erased_device_array_t* pos_ptr
 
@@ -193,6 +213,7 @@ def force_atlas2(ResourceHandle resource_handle,
 
     cupy_pos = copy_to_cupy_array(c_resource_handle_ptr, pos_view_ptr)
 
-    # FIXME: Break the cupy array into x and y axis
+    cupy_x_axis = cupy_pos[: len(cupy_pos)/2]
+    cupy_y_axis = cupy_pos[len(cupy_pos)/2: ]
 
-    return cupy_pos
+    return (cupy_x_axis, cupy_y_axis)
