@@ -22,7 +22,7 @@
 #include <cugraph_c/random.h>
 #include <cugraph_c/resource_handle.h>
 
-/** @defgroup community Community algorithms
+/** @defgroup layout Layout algorithms
  */
 
 #ifdef __cplusplus
@@ -94,7 +94,6 @@ cugraph_error_code_t cugraph_force_atlas2(const cugraph_resource_handle_t* handl
                                           bool_t verbose,
                                           bool_t do_expensive_check,
                                           cugraph_error_t** error);
-
 
 
 #ifdef __cplusplus
