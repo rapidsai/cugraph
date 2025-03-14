@@ -106,7 +106,6 @@ def ego_graph(ResourceHandle resource_handle,
     ...     store_transposed=False, renumber=False, do_expensive_check=False)
     >>> (sources, destinations, edge_weights, subgraph_offsets) =
     ...     pylibcugraph.ego_graph(resource_handle, G, source_vertices, 2, False)
-    # FIXME: update results
     >>> sources
     [0, 1, 1, 3, 1, 1, 3, 3, 4]
     >>> destinations
