@@ -44,7 +44,6 @@ namespace {
 struct force_atlas2_functor : public cugraph::c_api::abstract_functor {
   raft::handle_t const& handle_;
   cugraph::c_api::cugraph_graph_t* graph_{nullptr};
-  //cugraph::c_api::cugraph_type_erased_device_array_view_t* pos_{};
   const int max_iter_;
   cugraph::c_api::cugraph_type_erased_device_array_view_t* x_start_{};
   cugraph::c_api::cugraph_type_erased_device_array_view_t* y_start_{};
@@ -83,8 +82,6 @@ struct force_atlas2_functor : public cugraph::c_api::abstract_functor {
     : abstract_functor(),
       handle_(*reinterpret_cast<cugraph::c_api::cugraph_resource_handle_t const*>(handle)->handle_),
       graph_(reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph)),
-      //pos_(
-      //  reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t*>(pos)),
       max_iter_(max_iter),
       x_start_(
         reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t*>(x_start)),
@@ -101,7 +98,6 @@ struct force_atlas2_functor : public cugraph::c_api::abstract_functor {
       strong_gravity_mode_(strong_gravity_mode),
       gravity_(gravity),
       verbose_(verbose),
-      // Simply pass x and y axis result pointer and populate it, similar to 'einterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(clusters))'
       do_expensive_check_(do_expensive_check)
   {
   }
@@ -121,7 +117,7 @@ struct force_atlas2_functor : public cugraph::c_api::abstract_functor {
     } else if constexpr (!std::is_same_v<edge_t, int32_t>) {
       unsupported();
     } else {
-      // balanced_cut expects store_transposed == false
+      // FIXME: Does FA2 expects store_transposed == false
       if constexpr (store_transposed) {
         error_code_ =
           cugraph::c_api::transpose_storage<vertex_t, edge_t, weight_t, store_transposed, false>(
@@ -149,7 +145,7 @@ struct force_atlas2_functor : public cugraph::c_api::abstract_functor {
 
       // Decompress to edgelist
 
-      auto [srcs, dsts, wgts, dummy_0, dummy_1] =
+      auto [srcs, dsts, wgts, edge_ids, edge_types] =
         cugraph::decompress_to_edgelist<vertex_t, edge_t, weight_t, int32_t, false, multi_gpu>(
           handle_,
           graph_view,
@@ -166,8 +162,8 @@ struct force_atlas2_functor : public cugraph::c_api::abstract_functor {
         (edge_weights == nullptr)
           ? tmp_weights.data()
           : const_cast<weight_t*>(wgts->data()),
-        edge_partition_view.offsets().size() - 1, //FIXME: instead call graph->number_of_vertices
-        edge_partition_view.indices().size()); //FIXME: instead call edge_partition_view.number_of_edges()    
+        edge_partition_view.offsets().size() - 1, // FIXME: instead call graph->number_of_vertices
+        edge_partition_view.indices().size()); // FIXME: instead call edge_partition_view.number_of_edges()    
 
       cugraph::internals::GraphBasedDimRedCallback* callback = nullptr;
       
@@ -177,20 +173,16 @@ struct force_atlas2_functor : public cugraph::c_api::abstract_functor {
                                              handle_.get_stream());
       raft::copy(vertices.data(), number_map->data(), vertices.size(), handle_.get_stream());
 
-
-      //#if 0
-
       rmm::device_uvector<float> pos(2 * (edge_partition_view.offsets().size() - 1),
                                        handle_.get_stream());
-
+      
       cugraph::force_atlas2<vertex_t, edge_t, weight_t>(
           handle_,
           legacy_coo_graph_view,
           pos.data(),
-          //pos_->as_type<float>(), // pos is an empty array of size num_vertices * 2
           max_iter_,
-          x_start_->as_type<float>(),
-          y_start_->as_type<float>(),
+          x_start_ != nullptr ? x_start_->as_type<float>() : nullptr,
+          y_start_ != nullptr ? y_start_->as_type<float>() : nullptr,
           outbound_attraction_distribution_,
           lin_log_mode_,
           prevent_overlapping_,
