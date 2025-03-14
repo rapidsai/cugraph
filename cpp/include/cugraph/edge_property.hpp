@@ -119,9 +119,9 @@ class edge_property_t {
 
   // nvcc 12.5 sometimes deduces this as a host device function, just defining it fixes that
   ~edge_property_t() {}
-  edge_property_t(const edge_property_t&)            = default;
+  edge_property_t(const edge_property_t&)            = delete;
+  edge_property_t& operator=(const edge_property_t&) = delete;
   edge_property_t(edge_property_t&&)                 = default;
-  edge_property_t& operator=(const edge_property_t&) = default;
   edge_property_t& operator=(edge_property_t&&)      = default;
 
   void clear(raft::handle_t const& handle)
