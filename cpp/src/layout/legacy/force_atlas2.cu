@@ -39,6 +39,7 @@ void force_atlas2(raft::handle_t const& handle,
                   bool verbose,
                   internals::GraphBasedDimRedCallback* callback)
 {
+  std::cout<<"in fa2" << std::endl;
   CUGRAPH_EXPECTS(pos != nullptr, "Invalid input argument: pos array should be of size 2 * V");
   CUGRAPH_EXPECTS(graph.number_of_vertices != 0, "Invalid input: Graph is empty");
 
@@ -78,6 +79,7 @@ void force_atlas2(raft::handle_t const& handle,
                                                             verbose,
                                                             callback);
   }
+  
 }
 
 template void force_atlas2<int, int, float>(raft::handle_t const& handle,
