@@ -63,7 +63,6 @@ struct force_atlas2_functor : public cugraph::c_api::abstract_functor {
 
   force_atlas2_functor(::cugraph_resource_handle_t const* handle,
                        ::cugraph_graph_t* graph,
-                       //::cugraph_type_erased_device_array_view_t* pos,
                        const int max_iter,
                        ::cugraph_type_erased_device_array_view_t* x_start,
                        ::cugraph_type_erased_device_array_view_t* y_start,
@@ -162,12 +161,12 @@ struct force_atlas2_functor : public cugraph::c_api::abstract_functor {
         (edge_weights == nullptr)
           ? tmp_weights.data()
           : const_cast<weight_t*>(wgts->data()),
-        edge_partition_view.offsets().size() - 1, // FIXME: instead call graph->number_of_vertices
-        edge_partition_view.indices().size()); // FIXME: instead call edge_partition_view.number_of_edges()    
+        graph->number_of_vertices(),
+        edge_partition_view.number_of_edges());   
 
       cugraph::internals::GraphBasedDimRedCallback* callback = nullptr;
       
-      //cugraph::legacy::GraphBasedDimRedCallback()
+      //cugraph::legacy::GraphBasedDimRedCallback() // FIXME Add support for callback
 
       rmm::device_uvector<vertex_t> vertices(graph_view.local_vertex_partition_range_size(),
                                              handle_.get_stream());
@@ -228,7 +227,6 @@ extern "C" cugraph_error_code_t cugraph_force_atlas2(
 {
   force_atlas2_functor functor(handle,
                                graph,
-                               //pos,
                                max_iter,
                                x_start,
                                y_start,
