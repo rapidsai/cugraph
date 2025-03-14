@@ -31,44 +31,6 @@ extern "C" {
 
 
 /**
- * @brief     Opaque layout output
- */
-typedef struct {
-  int32_t align_;
-} cugraph_layout_result_t;
-
-
-/**
- * @brief     Opaque clustering output
- */
-typedef struct { // FIXME: Remove this
-  int32_t align_;
-} cugraph_clustering_result_t;
-
-
-/**
- * @ingroup layout
- * @brief     Get layout x-axis
- */
-cugraph_type_erased_device_array_view_t* cugraph_layout_get_x_axis( // FIXME: Might not be used/necessary
-  cugraph_layout_result_t* result);
-
-/**
- * @ingroup layout
- * @brief     Get layout y-axis
- */
-cugraph_type_erased_device_array_view_t* cugraph_layout_get_y_axis( // FIXME: Might not be used/necessary
-  cugraph_layout_result_t* result);
-
-/**
- * @ingroup community
- * @brief     Free a layout result
- *
- * @param [in] result     The result from a layout algorithm
- */
-void cugraph_layout_result_free(cugraph_layout_result_t* result); // FIXME: Might not be used/necessary
-
-/**
  * @brief   Force Atlas 2
  *
  * NOTE: This currently wraps the legacy force atlas 2 implementation and is only
