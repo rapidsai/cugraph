@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2023, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -285,6 +285,58 @@ int test_betweenness_centrality_full_directed_normalized_karate()
                                              34);
 }
 
+int test_issue_4941()
+{
+  size_t num_edges    = 8;
+  size_t num_vertices = 6;
+
+  vertex_t h_src[]    = {5, 0, 1, 2, 4, 0, 3, 3};
+  vertex_t h_dst[]    = {0, 1, 2, 4, 3, 3, 5, 2};
+  weight_t h_wgt[]    = {1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
+  vertex_t h_seeds[]  = {5};
+  weight_t h_result[] = {1.0, .25, .25, .25, 0, 0};
+
+  return generic_betweenness_centrality_test(h_src,
+                                             h_dst,
+                                             h_wgt,
+                                             h_seeds,
+                                             h_result,
+                                             num_vertices,
+                                             num_edges,
+                                             1,
+                                             FALSE,
+                                             FALSE,
+                                             TRUE,
+                                             FALSE,
+                                             0);
+}
+
+int test_issue_4941_with_endpoints()
+{
+  size_t num_edges    = 8;
+  size_t num_vertices = 6;
+
+  vertex_t h_src[]    = {5, 0, 1, 2, 4, 0, 3, 3};
+  vertex_t h_dst[]    = {0, 1, 2, 4, 3, 3, 5, 2};
+  weight_t h_wgt[]    = {1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
+  vertex_t h_seeds[]  = {5};
+  weight_t h_result[] = {1.0, .4, .4, .4, .2, 1.0};
+
+  return generic_betweenness_centrality_test(h_src,
+                                             h_dst,
+                                             h_wgt,
+                                             h_seeds,
+                                             h_result,
+                                             num_vertices,
+                                             num_edges,
+                                             1,
+                                             FALSE,
+                                             FALSE,
+                                             TRUE,
+                                             TRUE,
+                                             0);
+}
+
 /******************************************************************************/
 
 int main(int argc, char** argv)
@@ -296,5 +348,7 @@ int main(int argc, char** argv)
   result |= RUN_TEST(test_betweenness_centrality_specific_unnormalized);
   result |= RUN_TEST(test_betweenness_centrality_test_endpoints);
   result |= RUN_TEST(test_betweenness_centrality_full_directed_normalized_karate);
+  result |= RUN_TEST(test_issue_4941);
+  result |= RUN_TEST(test_issue_4941_with_endpoints);
   return result;
 }
