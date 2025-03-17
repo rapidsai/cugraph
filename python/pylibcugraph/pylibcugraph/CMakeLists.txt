@@ -74,6 +74,7 @@ set(cython_sources
     edge_id_lookup_table.pyx
     decompress_to_edgelist.pyx
     renumber_arbitrary_edgelist.pyx
+    has_vertex.pyx
 )
 set(linked_libraries cugraph::cugraph;cugraph::cugraph_c)
 

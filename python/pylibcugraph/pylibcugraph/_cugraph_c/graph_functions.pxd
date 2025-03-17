@@ -308,3 +308,15 @@ cdef extern from "cugraph_c/graph_functions.h":
             cugraph_edgelist_t** result,
             cugraph_error_t** error
         )
+    
+    ###########################################################################
+
+    # has_vertex
+    cdef cugraph_error_code_t cugraph_has_vertex(
+        const cugraph_resource_handle_t* handle,
+        const cugraph_graph_t* graph,
+        const int vertex,
+        bool_t do_expensive_check,
+        bool_t* result,
+        cugraph_error_t** error)
+
