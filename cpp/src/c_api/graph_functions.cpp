@@ -277,20 +277,18 @@ struct count_multi_edges_functor : public cugraph::c_api::abstract_functor {
 struct has_vertex_functor : public cugraph::c_api::abstract_functor {
   raft::handle_t const& handle_{};
   cugraph::c_api::cugraph_graph_t* graph_{nullptr};
-  cugraph::c_api::cugraph_type_erased_device_array_view_t const* vertex_{nullptr};
-  bool result_{false};
+  const int vertex_{};
+  bool_t result_{bool_t::FALSE};
   bool do_expensive_check_{false};
 
   has_vertex_functor(::cugraph_resource_handle_t const* handle,
                      ::cugraph_graph_t* graph,
-                     ::cugraph_type_erased_device_array_view_t const* vertex,
+                     const int vertex,
                      bool do_expensive_check)
     : abstract_functor(),
       handle_(*reinterpret_cast<cugraph::c_api::cugraph_resource_handle_t const*>(handle)->handle_),
       graph_(reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph)),
-      vertex_(
-        reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(
-          vertex)),
+      vertex_(vertex),
       do_expensive_check_(do_expensive_check)
   {
   }
@@ -319,23 +317,31 @@ struct has_vertex_functor : public cugraph::c_api::abstract_functor {
       auto graph_view = graph->view();
       auto number_map = reinterpret_cast<rmm::device_uvector<vertex_t>*>(graph_->number_map_);
 
-      rmm::device_uvector<vertex_t> vertex(0, handle_.get_stream());
+      rmm::device_uvector<vertex_t> vertex_array(1, handle_.get_stream());
 
 
-      vertex.resize(vertex_->size_, handle_.get_stream());
+      //vertex.resize(vertex_->size_, handle_.get_stream());
+      #if 0
       raft::copy(vertex.data(),
                   vertex_->as_type<vertex_t const>(),
                   vertex_->size_,
                   handle_.get_stream());
+      #endif
+
+
+      cugraph::detail::sequence_fill(handle_.get_stream(),
+                                     vertex_array.data(),
+                                     vertex_array.size(),
+                                     vertex_t(vertex_));
 
       if constexpr (multi_gpu) {
-        vertex = cugraph::shuffle_ext_vertices(handle_, std::move(vertex));
+        vertex_array = cugraph::shuffle_ext_vertices(handle_, std::move(vertex_array));
       }
 
       cugraph::renumber_ext_vertices<vertex_t, multi_gpu>(
         handle_,
-        vertex.data(),
-        vertex.size(),
+        vertex_array.data(),
+        vertex_array.size(),
         number_map->data(),
         graph_view.local_vertex_partition_range_first(),
         graph_view.local_vertex_partition_range_last(),
@@ -343,7 +349,7 @@ struct has_vertex_functor : public cugraph::c_api::abstract_functor {
 
       size_t invalid_count = cugraph::detail::count_values(
         handle_,
-        raft::device_span<vertex_t const>{vertex.data(), vertex.size()},
+        raft::device_span<vertex_t const>{vertex_array.data(), vertex_array.size()},
         cugraph::invalid_vertex_id<vertex_t>::value);
 
       if constexpr (multi_gpu) {
@@ -352,7 +358,8 @@ struct has_vertex_functor : public cugraph::c_api::abstract_functor {
       }
 
       if (invalid_count == 0) {
-        result_ = static_cast<bool>(true);
+        //result_ = static_cast<bool>(true);
+        result_ = bool_t::TRUE;
       }
 
     }
@@ -440,9 +447,9 @@ extern "C" cugraph_error_code_t cugraph_count_multi_edges(const cugraph_resource
 extern "C" cugraph_error_code_t cugraph_has_vertex(
   const cugraph_resource_handle_t* handle,
   cugraph_graph_t* graph,
-  const cugraph_type_erased_device_array_view_t* vertex,
+  const int vertex,
   bool_t do_expensive_check,
-  bool* result,
+  bool_t* result,
   cugraph_error_t** error)
 {
   has_vertex_functor functor(handle, graph, vertex, do_expensive_check);
