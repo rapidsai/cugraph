@@ -132,7 +132,6 @@ struct two_hop_neighbors_functor : public cugraph::c_api::abstract_functor {
             bool multi_gpu>
   void operator()()
   {
-    printf("\nin two_hop_neighbors \n");
     if constexpr (!cugraph::is_candidate<vertex_t, edge_t, weight_t>::value) {
       unsupported();
     } else {
